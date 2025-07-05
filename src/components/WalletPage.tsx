@@ -4,23 +4,43 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { getAuth, signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { FaWallet, FaSignOutAlt, FaCopy, FaArrowUp, FaArrowDown } from "react-icons/fa";
+import { FaWallet, FaSignOutAlt, FaCopy, FaArrowUp, FaArrowDown, FaUser, FaCheck, FaTimes, FaBars } from "react-icons/fa";
 import { getFirebaseApp } from "@/lib/firebaseClient";
+import UsernameCard from "@/components/wallet/UsernameCard";
+import BalanceCard from "@/components/wallet/BalanceCard";
+import SendUSDCModal from "@/components/wallet/SendUSDCModal";
+import HamburgerMenu from "@/components/wallet/HamburgerMenu";
+import QuickActions from "@/components/wallet/QuickActions";
 
-const USDC_SVG = (
-  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className="ml-2">
-    <circle cx="16" cy="16" r="16" fill="#2775CA"/>
-    <path d="M16 23.5C19.866 23.5 23 20.366 23 16.5C23 12.634 19.866 9.5 16 9.5C12.134 9.5 9 12.634 9 16.5C9 20.366 12.134 23.5 16 23.5Z" fill="white"/>
-    <path d="M16 21.5C18.4853 21.5 20.5 19.4853 20.5 17C20.5 14.5147 18.4853 12.5 16 12.5C13.5147 12.5 11.5 14.5147 11.5 17C11.5 19.4853 13.5147 21.5 16 21.5Z" fill="#2775CA"/>
-    <text x="10" y="22" fill="white" fontSize="10" fontWeight="bold">$</text>
-  </svg>
-);
+
 
 export default function WalletPage() {
   const [accountData, setAccountData] = useState<any>(null);
   const [balance, setBalance] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [username, setUsername] = useState<string>("");
+  const [showUsernameForm, setShowUsernameForm] = useState(false);
+  const [usernameLoading, setUsernameLoading] = useState(false);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [usernameSuccess, setUsernameSuccess] = useState<string | null>(null);
+  
+  // Send USDC states
+  const [showSendForm, setShowSendForm] = useState(false);
+  const [receiverUsername, setReceiverUsername] = useState<string>("");
+  const [sendAmount, setSendAmount] = useState<string>("");
+  const [sendLoading, setSendLoading] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sendSuccess, setSendSuccess] = useState<string | null>(null);
+  
+  // Hamburger menu states
+  const [showMenu, setShowMenu] = useState(false);
+  
+  // Transaction history states
+  const [showTransactions, setShowTransactions] = useState(false);
+  
+  const [refreshingBalance, setRefreshingBalance] = useState(false);
+  
   const router = useRouter();
 
   useEffect(() => {
@@ -47,16 +67,31 @@ export default function WalletPage() {
   }, [router]);
 
   const fetchBalance = async (walletAddress: string) => {
+    let didTimeout = false;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      didTimeout = true;
+      controller.abort();
+      setError('Could not load balance. Please try again.');
+    }, 10000); // 10s timeout
     try {
-      const res = await axios.get(`/api/v1/wallet_balance/${walletAddress}`);
-      setBalance(res.data);
+      const res = await axios.get(`/api/v1/wallet_balance/${walletAddress}`, { signal: controller.signal });
+      if (!didTimeout) {
+        setBalance(res.data);
+        setRefreshingBalance(false); // Done refreshing
+      }
     } catch (err) {
-      console.error('Error fetching balance:', err);
-      setBalance(null);
+      if (!didTimeout) {
+        setError('Could not load balance. Please try again.');
+        setRefreshingBalance(false); // Done refreshing (even on error)
+      }
+    } finally {
+      clearTimeout(timeout);
     }
   };
 
   const handleLogout = async () => {
+    console.log('Sign out clicked');
     try {
       const app = getFirebaseApp();
       if (app) {
@@ -64,23 +99,137 @@ export default function WalletPage() {
         await signOut(auth);
       }
       localStorage.removeItem('userData');
-      router.push('/');
+      setShowMenu(false); // Close the menu
+      setTimeout(() => router.replace('/'), 150); // Use replace for hard navigation
     } catch (err) {
       console.error('Error signing out:', err);
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    // You could add a toast notification here
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      console.log('Copied to clipboard:', text);
+      // You could add a toast notification here
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+    }
+  };
+
+  const handleSetUsername = async () => {
+    if (!username.trim()) {
+      setUsernameError("Username cannot be empty");
+      return;
+    }
+    const cleanUsername = username.replace(/^@/, '');
+    if (cleanUsername.length < 3) {
+      setUsernameError("Username must be at least 3 characters long");
+      return;
+    }
+    if (cleanUsername.length > 20) {
+      setUsernameError("Username must be less than 20 characters");
+      return;
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(cleanUsername)) {
+      setUsernameError("Username can only contain letters, numbers, and underscores");
+      return;
+    }
+    setUsernameLoading(true);
+    setUsernameError(null);
+    setUsernameSuccess(null);
+    try {
+      const response = await axios.post("/api/v1/set_username", {
+        user_id: accountData.user_id,
+        username: cleanUsername.trim()
+      });
+      setUsernameSuccess(`Username set to @${cleanUsername.trim()} successfully!`);
+      setShowUsernameForm(false);
+      setUsername("");
+      // Update the account data to include the username
+      const updatedAccountData = {
+        ...accountData,
+        username: cleanUsername.trim()
+      };
+      setAccountData(updatedAccountData);
+      localStorage.setItem('userData', JSON.stringify(updatedAccountData));
+    } catch (err: any) {
+      setUsernameError(err.response?.data?.detail || "Failed to set username");
+    } finally {
+      setUsernameLoading(false);
+    }
+  };
+
+  const handleCancelUsername = () => {
+    setShowUsernameForm(false);
+    setUsername("");
+    setUsernameError(null);
+    setUsernameSuccess(null);
+  };
+
+  const handleSendUSDC = async () => {
+    if (!receiverUsername.trim()) {
+      setSendError("Receiver username is required");
+      return;
+    }
+
+    if (!sendAmount.trim() || parseFloat(sendAmount) <= 0) {
+      setSendError("Please enter a valid amount");
+      return;
+    }
+
+    const amount = parseFloat(sendAmount);
+    if (isNaN(amount)) {
+      setSendError("Please enter a valid number");
+      return;
+    }
+
+    setSendLoading(true);
+    setSendError(null);
+    setSendSuccess(null);
+
+    try {
+      const response = await axios.post("/api/v1/send_usdc", {
+        sender_user_id: accountData.user_id,
+        receiver_username: receiverUsername.trim(),
+        amount: amount
+      });
+
+      setSendSuccess(`Successfully sent $${amount} USDC to @${receiverUsername.trim()}`);
+      setReceiverUsername("");
+      setSendAmount("");
+      setBalance(null);
+      setRefreshingBalance(true); // Start refreshing
+      if (accountData.wallet_address) {
+        fetchBalance(accountData.wallet_address);
+      }
+    } catch (err: any) {
+      setSendError(err.response?.data?.detail || "Failed to send USDC");
+    } finally {
+      setSendLoading(false);
+    }
+  };
+
+  const handleCancelSend = () => {
+    setShowSendForm(false);
+    setReceiverUsername("");
+    setSendAmount("");
+    setSendError(null);
+    setSendSuccess(null);
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 dark overflow-x-hidden flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Loading your wallet...</p>
+          <p className="text-zinc-400 font-medium">Loading your wallet...</p>
         </div>
       </div>
     );
@@ -88,7 +237,7 @@ export default function WalletPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 dark overflow-x-hidden flex items-center justify-center p-4">
         <div className="text-center">
           <p className="text-red-600 mb-4 font-medium">{error}</p>
           <button 
@@ -103,104 +252,111 @@ export default function WalletPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-xl border-b border-white/20 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center">
-              <img 
-                src="/krypton_logo.svg" 
-                alt="Krypton Logo" 
-                className="w-8 h-8 mr-3"
-              />
-              <h1 className="text-xl font-bold text-gray-900">Krypton Wallet</h1>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl transition-colors font-medium"
-            >
-              <FaSignOutAlt className="mr-2" />
-              Sign Out
-            </button>
-          </div>
+    <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 dark overflow-x-hidden flex flex-col">
+      {/* Top Bar: Logo + Hamburger */}
+      <div className="flex justify-between items-center h-16 px-2 sm:px-0 flex-shrink-0">
+        <img
+          src="/krypton_logo.svg"
+          alt="Krypton Logo"
+          className="max-w-[140px] h-auto drop-shadow-[0_2px_8px_rgba(16,255,180,0.18)]"
+        />
+        <div className="relative hamburger-menu">
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className="flex items-center bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-xl transition-colors font-medium"
+            aria-label="Open menu"
+          >
+            <FaBars />
+          </button>
         </div>
-      </header>
+      </div>
 
-      {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Main Content - vertically distributed */}
+      <main className="flex flex-col flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-2 pb-0 gap-y-8">
         {/* Welcome Section */}
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Welcome back, {accountData?.email}
-          </h2>
-          <p className="text-gray-600">Your secure digital wallet is ready</p>
-        </div>
-
-        {/* Balance Card */}
-        <div className="bg-white/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/20 mb-8">
-          <div className="text-center">
-            <div className="flex items-center justify-center mb-4">
-              {USDC_SVG}
-              <h3 className="text-2xl font-bold text-gray-900 ml-2">USDC Balance</h3>
+        <div className="text-center mt-12 sm:mt-12 mb-6">
+          <h2 className="text-3xl font-bold text-white mb-2">Welcome back</h2>
+          {accountData?.username ? (
+            <div className="flex items-center justify-center mb-2 gap-2">
+              <h3 className="text-2xl font-bold" style={{ color: '#a259f7' }}>
+                @{accountData.username}
+              </h3>
+              <span className="flex items-center gap-1 bg-green-900/30 text-green-400 text-xs font-semibold px-2 py-1 rounded-full">
+                <FaCheck className="text-green-400 text-base" /> Active
+              </span>
             </div>
-            <div className="text-6xl font-bold text-gray-900 mb-4">
-              {(() => {
-                if (balance && balance.balance && Array.isArray(balance.balance.tokenBalances) && balance.balance.tokenBalances.length > 0) {
-                  const usdc = balance.balance.tokenBalances.find(
-                    (b: any) => b.token && b.token.symbol === 'USDC'
-                  );
-                  if (usdc) {
-                    return `$${usdc.amount}`;
-                  }
-                }
-                return 'Loading...';
-              })()}
-            </div>
-            <p className="text-gray-500 font-medium">Available for transactions</p>
-          </div>
-        </div>
-
-        {/* Wallet Address Card */}
-        <div className="bg-white/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/20 mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold text-gray-900 flex items-center">
-              <FaWallet className="mr-3 text-blue-500" />
-              Wallet Address
+          ) : (
+            <h3 className="text-2xl font-bold text-zinc-200 mb-2">
+              {accountData?.email}
             </h3>
-            <button
-              onClick={() => copyToClipboard(accountData?.wallet_address)}
-              className="text-blue-500 hover:text-blue-600 transition-colors p-2 rounded-xl hover:bg-blue-50"
-            >
-              <FaCopy />
-            </button>
-          </div>
-          <div className="bg-gray-50 rounded-2xl p-4">
-            <p className="font-mono text-sm text-gray-700 break-all">
-              {accountData?.wallet_address}
-            </p>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-6 px-8 rounded-3xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center">
-            <FaArrowUp className="mr-3" />
-            Send USDC
-          </button>
-          <button className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white py-6 px-8 rounded-3xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center">
-            <FaArrowDown className="mr-3" />
-            Receive USDC
-          </button>
-        </div>
-
-        {/* Additional Info */}
-        <div className="mt-8 text-center">
-          <p className="text-gray-400 text-sm">
-            Secure • Fast • Reliable
+          )}
+          <p className="text-zinc-400">
+            {accountData?.username
+              ? 'Your secure digital wallet is ready'
+              : 'Set a username to activate your wallet and receive payments.'}
           </p>
         </div>
+
+        {/* Username Card (if needed) */}
+        <UsernameCard
+          accountData={accountData}
+          showUsernameForm={showUsernameForm}
+          username={username}
+          usernameLoading={usernameLoading}
+          usernameError={usernameError}
+          usernameSuccess={usernameSuccess}
+          setShowUsernameForm={setShowUsernameForm}
+          setUsername={setUsername}
+          handleSetUsername={handleSetUsername}
+          handleCancelUsername={handleCancelUsername}
+        />
+
+        {/* Balance Card with more margin above and below */}
+        <BalanceCard
+          balance={balance}
+          error={error}
+          accountData={accountData}
+          showTransactions={showTransactions}
+          setShowTransactions={setShowTransactions}
+          className="w-full max-w-xl mx-auto my-8"
+        />
+
+        {/* Spacer replaced with margin above actions */}
+        <div className="mt-8 mb-4 flex justify-center w-full">
+          <div className="w-full max-w-md">
+            <QuickActions setShowSendForm={setShowSendForm} payLabel="Pay" />
+          </div>
+        </div>
+
+        {/* Send USDC Modal */}
+        <SendUSDCModal
+          showSendForm={showSendForm}
+          receiverUsername={receiverUsername}
+          setReceiverUsername={setReceiverUsername}
+          sendAmount={sendAmount}
+          setSendAmount={setSendAmount}
+          sendLoading={sendLoading}
+          sendError={sendError}
+          sendSuccess={sendSuccess}
+          handleSendUSDC={handleSendUSDC}
+          handleCancelSend={handleCancelSend}
+          refreshingBalance={refreshingBalance}
+        />
       </main>
+
+      {/* Footer */}
+      <footer className="w-full py-2 flex flex-col justify-center items-center border-t border-zinc-800 mt-auto">
+        <span className="text-zinc-500 text-sm">Secure • Fast • Reliable</span>
+        <span className="text-zinc-600 text-xs mt-1">© {new Date().getFullYear()} Krypton Fund LLC</span>
+      </footer>
+
+      <HamburgerMenu 
+        showMenu={showMenu} 
+        setShowMenu={setShowMenu} 
+        handleLogout={handleLogout}
+        accountData={accountData}
+        copyToClipboard={copyToClipboard}
+      />
     </div>
   );
 } 

@@ -47,42 +47,36 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-neutral-900">
-      <Card className="w-full max-w-md rounded-3xl bg-black/60 border border-white/10 shadow-2xl backdrop-blur-xl">
-        <CardHeader className="text-center">
-          <div className="mb-6 flex justify-center">
-            <img src="/krypton_logo.svg" alt="Krypton Logo" className="w-28 h-28 mx-auto mb-2 drop-shadow-[0_4px_24px_rgba(16,255,180,0.5)]" />
-          </div>
-          <CardTitle className="text-3xl font-extrabold text-white mb-2 tracking-tight">Welcome to Krypton</CardTitle>
-          <p className="text-zinc-300 text-lg font-medium">Your secure digital wallet</p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {error && (
-            <Alert className="bg-red-900/80 border-red-700 text-white">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          <Button 
-            onClick={handleLogin} 
-            disabled={loading}
-            className="w-full py-6 text-lg font-bold rounded-2xl bg-gradient-to-r from-green-400 via-teal-400 to-cyan-400 hover:from-green-300 hover:to-cyan-500 text-black shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2 transition-all duration-200"
-            size="lg"
-          >
-            {googleLogo}
-            {loading ? "Signing in..." : "Continue with Google"}
-          </Button>
-          <p className="text-sm text-zinc-400 text-center mt-8">
-            By continuing, you agree to our{' '}
-            <a href="#" className="text-cyan-400 font-medium underline">Terms of Service</a>
-            {' '}and{' '}
-            <a href="#" className="text-cyan-400 font-medium underline">Privacy Policy</a>
-          </p>
-          <p className="text-xs text-zinc-500 text-center mt-6">
-            Secure • Fast • Reliable
-          </p>
-        </CardContent>
-      </Card>
+    <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-black via-zinc-900 to-neutral-900 overflow-x-hidden">
+      <div className="flex-1 flex flex-col items-center justify-center w-full font-sans">
+        <div className="mb-20 mt-8 text-center">
+          <span className="block text-4xl sm:text-5xl font-extrabold text-white tracking-tight mb-2">DeFi for the next</span>
+          <span className="block text-6xl sm:text-7xl font-extrabold text-white tracking-tight">Billion</span>
+        </div>
+        <div className="relative flex items-center justify-center mb-10">
+          <div className="absolute w-80 h-80 rounded-full bg-cyan-400/10 blur-3xl z-0" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}></div>
+          <img src="/krypton_logo.svg" alt="Krypton Logo" className="w-64 h-64 mx-auto relative z-10 drop-shadow-[0_0_64px_rgba(16,255,180,0.25)]" />
+        </div>
+        {error && (
+          <Alert className="bg-red-900/80 border-red-700 text-white mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        <button
+          onClick={handleLogin}
+          disabled={loading}
+          className="w-4/5 max-w-sm flex items-center justify-center whitespace-nowrap py-4 px-6 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 text-white text-xl font-bold shadow-lg hover:bg-white/20 hover:scale-[1.03] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed mx-auto"
+          style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}
+        >
+          <span className="inline-block w-9 h-9 mr-4 flex items-center justify-center rounded-full border border-white/30 bg-white/10 text-2xl font-extrabold text-white" style={{fontFamily: 'Geist, Inter, Arial, sans-serif', letterSpacing: '-0.04em'}}>G</span>
+          {loading ? "Signing in..." : "Continue with Google"}
+        </button>
+      </div>
+      <footer className="w-full py-2 flex flex-col justify-center items-center border-t border-zinc-800 mt-auto">
+        <span className="text-zinc-500 text-sm">Yield like God • Pay Like Ghost</span>
+        <span className="text-zinc-600 text-xs mt-1">© {new Date().getFullYear()} Krypton Fund LLC</span>
+      </footer>
     </div>
   );
 } 
