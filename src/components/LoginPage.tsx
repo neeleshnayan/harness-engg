@@ -26,24 +26,32 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const handleLogin = async () => {
+  const handleLogin = () => {
     setLoading(true);
     setError(null);
-    try {
-      const app = getFirebaseApp();
-      if (!app) throw new Error("Firebase not initialized");
-      const auth = getAuth(app);
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const idToken = await result.user.getIdToken();
-      const res = await api.post("/api/v1/login", { idToken });
-      localStorage.setItem('userData', JSON.stringify(res.data));
-      router.push('/wallet');
-    } catch (err: any) {
-      setError(err?.message || "Login failed");
-    } finally {
+    const app = getFirebaseApp();
+    if (!app) {
+      setError("Firebase not initialized");
       setLoading(false);
+      return;
     }
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+
+    // Call signInWithPopup immediately on click
+    signInWithPopup(auth, provider)
+      .then(async (result) => {
+        const idToken = await result.user.getIdToken();
+        const res = await api.post("/api/v1/login", { idToken });
+        localStorage.setItem('userData', JSON.stringify(res.data));
+        router.push('/wallet');
+      })
+      .catch((err) => {
+        setError(err?.message || "Login failed");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   return (
@@ -69,6 +77,7 @@ export default function LoginPage() {
           </Alert>
         )}
         <button
+          type="button"
           onClick={handleLogin}
           disabled={loading}
           className="w-4/5 max-w-sm flex items-center justify-center whitespace-nowrap py-4 px-6 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 text-white text-xl font-bold shadow-lg hover:bg-white/20 hover:scale-[1.03] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed mx-auto"
