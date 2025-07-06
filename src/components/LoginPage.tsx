@@ -50,8 +50,13 @@ export default function LoginPage() {
     <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-black via-zinc-900 to-neutral-900 overflow-x-hidden">
       <div className="flex-1 flex flex-col items-center justify-center w-full font-sans">
         <div className="mb-20 mt-8 text-center">
-          <span className="block text-4xl sm:text-5xl font-extrabold text-white tracking-tight mb-2">DeFi for the next</span>
-          <span className="block text-6xl sm:text-7xl font-extrabold text-white tracking-tight">Billion</span>
+          <span className="block text-4xl sm:text-5xl font-extrabold text-center mb-2 text-white">
+            DeFi for the
+          </span>
+          <span className="block text-5xl sm:text-6xl md:text-7xl font-black text-center">
+            <span className="text-zinc-400 font-semibold">next </span>
+            <span className="text-white">Billion</span>
+          </span>
         </div>
         <div className="relative flex items-center justify-center mb-10">
           <div className="absolute w-80 h-80 rounded-full bg-cyan-400/10 blur-3xl z-0" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}></div>
