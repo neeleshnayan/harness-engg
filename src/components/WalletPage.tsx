@@ -272,66 +272,92 @@ export default function WalletPage() {
       </div>
 
       {/* Main Content - vertically distributed */}
-      <main className="flex flex-col flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-2 pb-0 gap-y-2">
-        {/* Welcome Section */}
-        <div className="text-center mt-12 sm:mt-12 mb-2">
-          <h2 className="text-3xl font-bold text-white mb-2">Welcome back</h2>
-          {accountData?.username ? (
-            <div className="flex items-center justify-center mb-2 gap-2">
-              <h3 className="text-2xl font-bold" style={{ color: '#a259f7' }}>
-                @{accountData.username}
-              </h3>
-              <span className="flex items-center gap-1 bg-green-900/30 text-green-400 text-xs font-semibold px-2 py-1 rounded-full">
-                <FaCheck className="text-green-400 text-base" /> Active
-              </span>
+      <main className="flex flex-col flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-2 pb-0">
+        {accountData?.username ? (
+          // Layout when username is set up - center balance, evenly space others
+          <div className="flex flex-col flex-1 min-h-[70vh] justify-between">
+            {/* Welcome Section */}
+            <div className="text-center mt-12 mb-10">
+              <h2 className="text-3xl font-bold text-white mb-4">Welcome back</h2>
+              <div className="flex items-center justify-center mb-3 gap-2">
+                <h3 className="text-2xl font-bold" style={{ color: '#a259f7' }}>
+                  @{accountData.username}
+                </h3>
+                <span className="flex items-center gap-1 bg-green-900/30 text-green-400 text-xs font-semibold px-2 py-1 rounded-full">
+                  <FaCheck className="text-green-400 text-base" /> Active
+                </span>
+              </div>
+              <p className="text-zinc-400">Your secure digital wallet is ready</p>
             </div>
-          ) : (
-            <div className="flex items-center justify-center mb-2 gap-2">
-              <h3 className="text-2xl font-bold text-zinc-200">
-                {accountData?.email}
-              </h3>
-              <span className="flex items-center gap-1 bg-red-900/30 text-red-400 text-xs font-semibold px-2 py-1 rounded-full">
-                <FaTimes className="text-red-400 text-base" /> Inactive
-              </span>
+
+            {/* Balance Card - Centered with more space */}
+            <div className="flex-1 flex items-center justify-center mb-10">
+              <BalanceCard
+                balance={balance}
+                error={error}
+                accountData={accountData}
+                showTransactions={showTransactions}
+                setShowTransactions={setShowTransactions}
+                className="w-full max-w-xl mx-auto"
+              />
             </div>
-          )}
-          <p className="text-zinc-400">
-            {accountData?.username
-              ? 'Your secure digital wallet is ready'
-              : 'Set a username to activate your wallet and receive payments.'}
-          </p>
-        </div>
 
-        {/* Username Card (if needed) */}
-        <UsernameCard
-          accountData={accountData}
-          showUsernameForm={showUsernameForm}
-          username={username}
-          usernameLoading={usernameLoading}
-          usernameError={usernameError}
-          usernameSuccess={usernameSuccess}
-          setShowUsernameForm={setShowUsernameForm}
-          setUsername={setUsername}
-          handleSetUsername={handleSetUsername}
-          handleCancelUsername={handleCancelUsername}
-        />
-
-        {/* Balance Card with minimal margin */}
-        <BalanceCard
-          balance={balance}
-          error={error}
-          accountData={accountData}
-          showTransactions={showTransactions}
-          setShowTransactions={setShowTransactions}
-          className="w-full max-w-xl mx-auto my-2"
-        />
-
-        {/* Spacer replaced with margin above actions */}
-        <div className="mt-4 mb-4 flex justify-center w-full">
-          <div className="w-full max-w-md">
-            <QuickActions setShowSendForm={setShowSendForm} payLabel="Pay" />
+            {/* Quick Actions - Bottom with more space */}
+            <div className="flex justify-center w-full mb-12 mt-4">
+              <div className="w-full max-w-md">
+                <QuickActions setShowSendForm={setShowSendForm} payLabel="Pay" />
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          // Layout when username is not set up - original layout
+          <div className="flex flex-col gap-y-2">
+            {/* Welcome Section */}
+            <div className="text-center mt-12 sm:mt-12 mb-2">
+              <h2 className="text-3xl font-bold text-white mb-2">Welcome back</h2>
+              <div className="flex items-center justify-center mb-2 gap-2">
+                <h3 className="text-2xl font-bold text-zinc-200">
+                  {accountData?.email}
+                </h3>
+                <span className="flex items-center gap-1 bg-red-900/30 text-red-400 text-xs font-semibold px-2 py-1 rounded-full">
+                  <FaTimes className="text-red-400 text-base" /> Inactive
+                </span>
+              </div>
+              <p className="text-zinc-400">Set a username to activate your wallet and receive payments.</p>
+            </div>
+
+            {/* Username Card */}
+            <UsernameCard
+              accountData={accountData}
+              showUsernameForm={showUsernameForm}
+              username={username}
+              usernameLoading={usernameLoading}
+              usernameError={usernameError}
+              usernameSuccess={usernameSuccess}
+              setShowUsernameForm={setShowUsernameForm}
+              setUsername={setUsername}
+              handleSetUsername={handleSetUsername}
+              handleCancelUsername={handleCancelUsername}
+            />
+
+            {/* Balance Card */}
+            <BalanceCard
+              balance={balance}
+              error={error}
+              accountData={accountData}
+              showTransactions={showTransactions}
+              setShowTransactions={setShowTransactions}
+              className="w-full max-w-xl mx-auto my-2"
+            />
+
+            {/* Quick Actions */}
+            <div className="mt-4 mb-4 flex justify-center w-full">
+              <div className="w-full max-w-md">
+                <QuickActions setShowSendForm={setShowSendForm} payLabel="Pay" />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Send USDC Modal */}
         <SendUSDCModal
