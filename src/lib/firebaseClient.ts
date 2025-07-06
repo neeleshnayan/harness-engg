@@ -10,7 +10,6 @@ const firebaseConfig = {
   measurementId: "G-QN1V0Q3X3R"
 };
 
-
 export function getFirebaseApp() {
   if (typeof window === "undefined") return undefined; // Only run in browser
   if (!getApps().length) {
