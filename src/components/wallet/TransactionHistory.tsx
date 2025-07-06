@@ -36,7 +36,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
       try {
         setLoading(true);
         setError(null);
-        const response = await fetch(`/api/v1/latest_transactions_by_username/${username}`);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://kryptonpaybackend-production.up.railway.app'}/api/v1/latest_transactions_by_username/${username}`);
         const data = await response.json();
         console.log('TransactionHistory initial fetch:', data);
         if (data.error) {
@@ -58,7 +58,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
     if (!nextPageToken) return;
     try {
       setLoadingMore(true);
-      const response = await fetch(`/api/v1/latest_transactions_by_username/${username}?page_after=${encodeURIComponent(nextPageToken)}`);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://kryptonpaybackend-production.up.railway.app'}/api/v1/latest_transactions_by_username/${username}?page_after=${encodeURIComponent(nextPageToken)}`);
       const data = await response.json();
       console.log('TransactionHistory load more:', data);
       if (data.error) {

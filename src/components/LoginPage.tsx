@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from "react";
-import axios from "axios";
+import api from "@/lib/api";
 import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { getFirebaseApp } from "@/lib/firebaseClient";
@@ -36,7 +36,7 @@ export default function LoginPage() {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const idToken = await result.user.getIdToken();
-      const res = await axios.post("/api/v1/login", { idToken });
+      const res = await api.post("/api/v1/login", { idToken });
       localStorage.setItem('userData', JSON.stringify(res.data));
       router.push('/wallet');
     } catch (err: any) {

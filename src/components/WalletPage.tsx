@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { getAuth, signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { FaWallet, FaSignOutAlt, FaCopy, FaArrowUp, FaArrowDown, FaUser, FaCheck, FaTimes, FaBars } from "react-icons/fa";
@@ -11,6 +10,7 @@ import BalanceCard from "@/components/wallet/BalanceCard";
 import SendUSDCModal from "@/components/wallet/SendUSDCModal";
 import HamburgerMenu from "@/components/wallet/HamburgerMenu";
 import QuickActions from "@/components/wallet/QuickActions";
+import api from "@/lib/api";
 
 
 
@@ -75,7 +75,7 @@ export default function WalletPage() {
       setError('Could not load balance. Please try again.');
     }, 10000); // 10s timeout
     try {
-      const res = await axios.get(`/api/v1/wallet_balance/${walletAddress}`, { signal: controller.signal });
+      const res = await api.get(`/api/v1/wallet_balance/${walletAddress}`, { signal: controller.signal });
       if (!didTimeout) {
         setBalance(res.data);
         setRefreshingBalance(false); // Done refreshing
@@ -145,7 +145,7 @@ export default function WalletPage() {
     setUsernameError(null);
     setUsernameSuccess(null);
     try {
-      const response = await axios.post("/api/v1/set_username", {
+      const response = await api.post("/api/v1/set_username", {
         user_id: accountData.user_id,
         username: cleanUsername.trim()
       });
@@ -195,7 +195,7 @@ export default function WalletPage() {
     setSendSuccess(null);
 
     try {
-      const response = await axios.post("/api/v1/send_usdc", {
+      const response = await api.post("/api/v1/send_usdc", {
         sender_user_id: accountData.user_id,
         receiver_username: receiverUsername.trim(),
         amount: amount
@@ -272,9 +272,9 @@ export default function WalletPage() {
       </div>
 
       {/* Main Content - vertically distributed */}
-      <main className="flex flex-col flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-2 pb-0 gap-y-8">
+      <main className="flex flex-col flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-2 pb-0 gap-y-2">
         {/* Welcome Section */}
-        <div className="text-center mt-12 sm:mt-12 mb-6">
+        <div className="text-center mt-12 sm:mt-12 mb-2">
           <h2 className="text-3xl font-bold text-white mb-2">Welcome back</h2>
           {accountData?.username ? (
             <div className="flex items-center justify-center mb-2 gap-2">
@@ -286,9 +286,14 @@ export default function WalletPage() {
               </span>
             </div>
           ) : (
-            <h3 className="text-2xl font-bold text-zinc-200 mb-2">
-              {accountData?.email}
-            </h3>
+            <div className="flex items-center justify-center mb-2 gap-2">
+              <h3 className="text-2xl font-bold text-zinc-200">
+                {accountData?.email}
+              </h3>
+              <span className="flex items-center gap-1 bg-red-900/30 text-red-400 text-xs font-semibold px-2 py-1 rounded-full">
+                <FaTimes className="text-red-400 text-base" /> Inactive
+              </span>
+            </div>
           )}
           <p className="text-zinc-400">
             {accountData?.username
@@ -311,18 +316,18 @@ export default function WalletPage() {
           handleCancelUsername={handleCancelUsername}
         />
 
-        {/* Balance Card with more margin above and below */}
+        {/* Balance Card with minimal margin */}
         <BalanceCard
           balance={balance}
           error={error}
           accountData={accountData}
           showTransactions={showTransactions}
           setShowTransactions={setShowTransactions}
-          className="w-full max-w-xl mx-auto my-8"
+          className="w-full max-w-xl mx-auto my-2"
         />
 
         {/* Spacer replaced with margin above actions */}
-        <div className="mt-8 mb-4 flex justify-center w-full">
+        <div className="mt-4 mb-4 flex justify-center w-full">
           <div className="w-full max-w-md">
             <QuickActions setShowSendForm={setShowSendForm} payLabel="Pay" />
           </div>
