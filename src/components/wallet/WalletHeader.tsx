@@ -4,9 +4,10 @@ import { FaBars } from "react-icons/fa";
 interface WalletHeaderProps {
   showMenu: boolean;
   setShowMenu: (show: boolean) => void;
+  onBuyCrypto?: () => void;
 }
 
-const WalletHeader: React.FC<WalletHeaderProps> = ({ showMenu, setShowMenu }) => {
+const WalletHeader: React.FC<WalletHeaderProps> = ({ showMenu, setShowMenu, onBuyCrypto }) => {
   return (
     <header className="bg-gradient-to-br from-black via-zinc-900 to-neutral-900/90 backdrop-blur-xl sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -19,6 +20,14 @@ const WalletHeader: React.FC<WalletHeaderProps> = ({ showMenu, setShowMenu }) =>
             />
           </div>
           <div className="flex items-center space-x-3">
+            {onBuyCrypto && (
+              <button
+                onClick={onBuyCrypto}
+                className="flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-colors font-medium mr-2"
+              >
+                Buy Crypto
+              </button>
+            )}
             <div className="relative hamburger-menu">
               <button
                 onClick={() => setShowMenu(!showMenu)}
