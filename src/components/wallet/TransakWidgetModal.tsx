@@ -4,29 +4,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 interface TransakWidgetModalProps {
-  open: boolean;
+  walletAddress?: string;
   onClose: () => void;
 }
 
 const TRANSAK_API_KEY = "d4058393-4a33-4370-bf9a-e098bf2b58a1"; // Placeholder
 const TRANSAK_URL = `https://global-stg.transak.com?apiKey=${TRANSAK_API_KEY}&environment=STAGING`;
 
-const TransakWidgetModal: FC<TransakWidgetModalProps> = ({ open, onClose }: TransakWidgetModalProps) => {
+const TransakWidgetModal: FC<TransakWidgetModalProps> = ({ walletAddress, onClose }: TransakWidgetModalProps) => {
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
-    if (open) {
-      document.addEventListener("keydown", handleKeyDown);
-    } else {
-      document.removeEventListener("keydown", handleKeyDown);
-    }
+    document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose]);
+  }, [onClose]);
 
-  if (!open) return null;
   return (
     <div
       className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"

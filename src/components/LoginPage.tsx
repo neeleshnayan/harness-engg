@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import api from "@/lib/api";
 import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { getFirebaseApp } from "@/lib/firebaseClient";
+import { authManager } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -26,32 +27,59 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const handleLogin = () => {
+  // Check if user is already authenticated
+  useEffect(() => {
+    if (authManager.isAuthenticated()) {
+      router.push('/wallet');
+    }
+  }, [router]);
+
+  const handleLogin = async () => {
     setLoading(true);
     setError(null);
-    const app = getFirebaseApp();
-    if (!app) {
-      setError("Firebase not initialized");
-      setLoading(false);
-      return;
-    }
-    const auth = getAuth(app);
-    const provider = new GoogleAuthProvider();
+    
+    try {
+      const app = getFirebaseApp();
+      if (!app) {
+        throw new Error("Firebase not initialized");
+      }
+      
+      const auth = getAuth(app);
+      const provider = new GoogleAuthProvider();
 
-    // Call signInWithPopup immediately on click
-    signInWithPopup(auth, provider)
-      .then(async (result) => {
-        const idToken = await result.user.getIdToken();
-        const res = await api.post("/api/v1/login", { idToken });
-        localStorage.setItem('userData', JSON.stringify(res.data));
-        router.push('/wallet');
-      })
-      .catch((err) => {
-        setError(err?.message || "Login failed");
-      })
-      .finally(() => {
-        setLoading(false);
+      // Sign in with Google
+      const result = await signInWithPopup(auth, provider);
+      const idToken = await result.user.getIdToken();
+
+      // Call our backend login endpoint
+      const response = await api.post("/api/v1/auth/login", { idToken });
+      
+      // Store tokens using auth manager
+      authManager.setTokens({
+        access_token: response.data.access_token,
+        refresh_token: response.data.refresh_token,
+        token_type: response.data.token_type
       });
+
+      // Store user data
+      localStorage.setItem('userData', JSON.stringify({
+        user_id: response.data.user_id,
+        email: response.data.email,
+        username: response.data.username,
+        wallet_id: response.data.wallet_id,
+        wallet_address: response.data.wallet_address,
+        blockchain: response.data.blockchain
+      }));
+
+      // Redirect to wallet page
+      router.push('/wallet');
+      
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError(err?.message || "Login failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -71,7 +99,7 @@ export default function LoginPage() {
           <img src="/krypton_logo.svg" alt="Krypton Logo" className="w-64 h-64 mx-auto relative z-10 drop-shadow-[0_0_64px_rgba(16,255,180,0.25)]" />
         </div>
         {error && (
-          <Alert className="bg-red-900/80 border-red-700 text-white mb-4">
+          <Alert className="bg-red-900/80 border-red-700 text-white mb-4 max-w-sm">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>

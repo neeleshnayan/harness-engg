@@ -1,370 +1,132 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { ArrowUpRight, ArrowDownLeft, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import api from "@/lib/api";
+
+interface TransactionHistoryProps {
+  username?: string;
+}
 
 interface Transaction {
   id: string;
+  type: string;
   amount: string;
   status: string;
-  to_address: string | null;
-  from_address: string | null;
-  to_username: string | null;
-  from_username: string | null;
-  created_at: string | null;
-  transaction_type: string | null;
-  operation: string;
-  tx_hash: string | null;
-  blockchain: string;
-  block_height: number | null;
+  timestamp: string;
+  description: string;
 }
 
-interface TransactionHistoryProps {
-  username: string;
-  userWalletAddress: string;
-}
-
-const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userWalletAddress }) => {
+const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
-    const fetchTransactions = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://kryptonpaybackend-production.up.railway.app'}/api/v1/latest_transactions_by_username/${username}`);
-        const data = await response.json();
-        console.log('TransactionHistory initial fetch:', data);
-        if (data.error) {
-          setError(data.error);
-        } else {
-          setTransactions(data.transactions || []);
-          setNextPageToken(data.next_page_after || null);
-        }
-      } catch (err) {
-        setError('Failed to fetch transactions');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTransactions();
+    if (username) {
+      fetchTransactions();
+    }
   }, [username]);
 
-  const loadMore = async () => {
-    if (!nextPageToken) return;
+  const fetchTransactions = async () => {
+    if (!username) return;
+    
+    setLoading(true);
+    setError(null);
+    
     try {
-      setLoadingMore(true);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://kryptonpaybackend-production.up.railway.app'}/api/v1/latest_transactions_by_username/${username}?page_after=${encodeURIComponent(nextPageToken)}`);
-      const data = await response.json();
-      console.log('TransactionHistory load more:', data);
-      if (data.error) {
-        setError(data.error);
+      const response = await api.get(`/api/v1/latest_transactions_by_username/${username}`);
+      if (response.data && Array.isArray(response.data)) {
+        setTransactions(response.data);
       } else {
-        setTransactions(prev => [...prev, ...(data.transactions || [])]);
-        setNextPageToken(data.next_page_after || null);
+        setTransactions([]);
       }
-    } catch (err) {
-      setError('Failed to load more transactions');
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'Failed to load transactions');
+      setTransactions([]);
     } finally {
-      setLoadingMore(false);
+      setLoading(false);
     }
   };
 
-  const getStatusIcon = (status: string, txHash: string | null, blockchain: string) => {
-    const etherscanBase = blockchain === 'ETH-SEPOLIA'
-      ? 'https://sepolia.etherscan.io/tx/'
-      : '';
-    const upperStatus = status?.toUpperCase();
-    // Clickable on-chain statuses
-    const clickableStatuses = ['INITIATED', 'SENT', 'ACCELERATED', 'CONFIRMED'];
-    // Status mapping
-    switch (upperStatus) {
-      case 'INITIATED':
-        return txHash ? (
-          <a
-            href={`${etherscanBase}${txHash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-cyan-400 cursor-pointer"
-            title="Initiated - View on Etherscan"
-          >
-            <Clock className="h-5 w-5 text-zinc-400" />
-          </a>
-        ) : (
-          <span title="Initiated">
-            <Clock className="h-5 w-5 text-zinc-400" />
-          </span>
-        );
-      case 'QUEUED':
-        return (
-          <span title="Queued">
-            <Clock className="h-5 w-5 text-zinc-400" />
-          </span>
-        );
-      case 'PENDING_RISK_SCREENING':
-        return (
-          <span title="Pending Risk Screening">
-            <Clock className="h-5 w-5 text-zinc-400" />
-          </span>
-        );
-      case 'SENT':
-        return txHash ? (
-          <a
-            href={`${etherscanBase}${txHash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-cyan-400 cursor-pointer"
-            title="Sent - View on Etherscan"
-          >
-            <Clock className="h-5 w-5 text-cyan-400" />
-          </a>
-        ) : (
-          <span title="Sent">
-            <Clock className="h-5 w-5 text-cyan-400" />
-          </span>
-        );
-      case 'ACCELERATED':
-        return txHash ? (
-          <a
-            href={`${etherscanBase}${txHash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-cyan-400 cursor-pointer"
-            title="Accelerated - View on Etherscan"
-          >
-            <Clock className="h-5 w-5 text-cyan-400" />
-          </a>
-        ) : (
-          <span title="Accelerated">
-            <Clock className="h-5 w-5 text-cyan-400" />
-          </span>
-        );
-      case 'CONFIRMED':
-        return txHash ? (
-          <a
-            href={`${etherscanBase}${txHash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-green-400 cursor-pointer"
-            title="Confirmed - View on Etherscan"
-          >
-            <CheckCircle className="h-5 w-5 text-cyan-400" />
-          </a>
-        ) : (
-          <span title="Confirmed">
-            <CheckCircle className="h-5 w-5 text-cyan-400" />
-          </span>
-        );
-      case 'COMPLETE':
-        return (
-          <span title="Complete">
-            <CheckCircle className="h-5 w-5 text-green-500" />
-          </span>
-        );
-      case 'CANCELED':
-        return (
-          <span title="Canceled">
-            <XCircle className="h-5 w-5 text-zinc-400" />
-          </span>
-        );
-      case 'FAILED':
-        return (
-          <span title="Failed">
-            <XCircle className="h-5 w-5 text-red-500" />
-          </span>
-        );
-      case 'DENIED':
-        return (
-          <span title="Denied">
-            <XCircle className="h-5 w-5 text-red-500" />
-          </span>
-        );
-      default:
-        return txHash ? (
-          <a
-            href={`${etherscanBase}${txHash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-cyan-400 cursor-pointer"
-            title="Unknown Status - View on Etherscan"
-          >
-            <AlertCircle className="h-5 w-5 text-gray-500" />
-          </a>
-        ) : (
-          <span title="Unknown Status">
-            <AlertCircle className="h-5 w-5 text-gray-500" />
-          </span>
-        );
-    }
-  };
-
-  const getTransactionTypeIcon = (type: string | null, large = false) => {
-    if (!type) return null;
-    return type.toUpperCase() === 'INBOUND' ? 
-      <ArrowDownLeft className={large ? 'h-6 w-6 text-green-600' : 'h-5 w-5 text-green-600'} /> : 
-      <ArrowUpRight className={large ? 'h-6 w-6 text-red-600' : 'h-5 w-5 text-red-600'} />;
-  };
-
-  const shortenAddress = (address: string | null) => {
-    if (!address) return 'Unknown';
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
-  };
-
-  const formatAmount = (amount: string, inbound: boolean) => {
-    if (!amount) return inbound ? '+ $0.00' : '- $0.00';
-    const num = parseFloat(amount);
-    const sign = inbound ? '+' : '-';
-    return `${sign} $${num.toFixed(2)}`;
-  };
-
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return '';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch {
-      return '';
-    }
-  };
-
-  const isInbound = (transaction: Transaction) => {
-    return transaction.transaction_type?.toUpperCase() === 'INBOUND' || 
-           transaction.to_address === userWalletAddress;
-  };
-
-  if (loading) {
+  if (!username) {
     return (
-      <div className="flex items-center justify-center py-4">
-        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-cyan-400"></div>
+      <div className="bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800">
+        <h3 className="text-xl font-bold text-white mb-4">Transaction History</h3>
+        <p className="text-zinc-400 text-center">Set a username to view transaction history</p>
       </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-4 text-red-400 text-xs flex items-center justify-center gap-2">
-        <AlertCircle className="h-4 w-4" />
-        <span>{error}</span>
-      </div>
-    );
-  }
-
-  if (transactions.length === 0) {
-    return (
-      <div className="text-center py-4 text-gray-400 text-xs flex items-center justify-center gap-2">
-        <Clock className="h-4 w-4" />
-        <span>No transactions yet</span>
-      </div>
-    );
-  }
-
-  if (transactions.length > 0 && nextPageToken) {
-    return (
-      <>
-        <div className="rounded-xl border border-white/10 bg-black/30">
-          {transactions.map((tx, idx) => {
-            const inbound = isInbound(tx);
-            const counterparty = inbound ? tx.from_address : tx.to_address;
-            const counterpartyUsername = inbound ? tx.from_username : tx.to_username;
-            const displayCounterparty = counterpartyUsername
-              ? <span className="text-cyan-400 font-medium">@{counterpartyUsername}</span>
-              : shortenAddress(counterparty);
-            const amount = tx.amount || '0';
-            return (
-              <div
-                key={tx.id}
-                className={`px-3 py-2 flex flex-col ${idx !== transactions.length - 1 ? 'border-b border-white/10' : ''}`}
-              >
-                <div className="flex items-center justify-between min-w-0">
-                  {/* First line: Arrow, Amount, From/To, Status icon */}
-                  <div className="flex items-center min-w-0 flex-1">
-                    <div className="flex items-center justify-center w-5 h-5 mr-2">
-                      {getTransactionTypeIcon(tx.transaction_type, false)}
-                    </div>
-                    <span className="text-white font-semibold text-base tracking-tight mr-3">
-                      {formatAmount(amount, inbound)}
-                    </span>
-                    <span className="text-zinc-400 text-xs truncate">
-                      {inbound ? 'From' : 'To'}: {displayCounterparty}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-center w-5 h-5 ml-2">
-                    {getStatusIcon(tx.status, tx.tx_hash, tx.blockchain)}
-                  </div>
-                </div>
-                {/* Second line: timestamp and chain, aligned with amount */}
-                <div className="flex items-center gap-2 text-zinc-500 text-[11px] ml-6 mt-0.5">
-                  <span>{formatDate(tx.created_at)}</span>
-                  <span>•</span>
-                  <span>{tx.blockchain}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <div className="flex justify-center mt-4">
-          <button
-            onClick={loadMore}
-            disabled={loadingMore}
-            className="px-4 py-2 rounded-lg bg-zinc-800 text-zinc-200 hover:bg-zinc-700 disabled:opacity-60"
-          >
-            {loadingMore ? 'Loading...' : 'Load more'}
-          </button>
-        </div>
-      </>
     );
   }
 
   return (
-    <div className="rounded-xl border border-white/10 bg-black/30">
-      {transactions.map((tx, idx) => {
-        const inbound = isInbound(tx);
-        const counterparty = inbound ? tx.from_address : tx.to_address;
-        const counterpartyUsername = inbound ? tx.from_username : tx.to_username;
-        const displayCounterparty = counterpartyUsername
-          ? <span className="text-cyan-400 font-medium">@{counterpartyUsername}</span>
-          : shortenAddress(counterparty);
-        const amount = tx.amount || '0';
-        return (
-          <div
-            key={tx.id}
-            className={`px-3 py-2 flex flex-col ${idx !== transactions.length - 1 ? 'border-b border-white/10' : ''}`}
+    <div className="bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-xl font-bold text-white">Transaction History</h3>
+        <button
+          onClick={fetchTransactions}
+          disabled={loading}
+          className="text-zinc-400 hover:text-zinc-300 transition-colors text-sm disabled:opacity-50"
+        >
+          {loading ? 'Refreshing...' : 'Refresh'}
+        </button>
+      </div>
+      
+      {loading && (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400 mx-auto mb-4"></div>
+          <p className="text-zinc-400">Loading transactions...</p>
+        </div>
+      )}
+      
+      {error && (
+        <div className="text-center py-8">
+          <p className="text-red-400 mb-4">{error}</p>
+          <button
+            onClick={fetchTransactions}
+            className="text-cyan-400 hover:text-cyan-300 transition-colors"
           >
-            <div className="flex items-center justify-between min-w-0">
-              {/* First line: Arrow, Amount, From/To, Status icon */}
-              <div className="flex items-center min-w-0 flex-1">
-                <div className="flex items-center justify-center w-5 h-5 mr-2">
-                  {getTransactionTypeIcon(tx.transaction_type, false)}
+            Try again
+          </button>
+        </div>
+      )}
+      
+      {!loading && !error && transactions.length === 0 && (
+        <div className="text-center py-8">
+          <p className="text-zinc-400">No transactions found</p>
+        </div>
+      )}
+      
+      {!loading && !error && transactions.length > 0 && (
+        <div className="space-y-4">
+          {transactions.map((tx) => (
+            <div
+              key={tx.id}
+              className="flex items-center justify-between p-4 bg-zinc-800/50 rounded-lg border border-zinc-700/50"
+            >
+              <div className="flex-1">
+                <div className="flex items-center space-x-2">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    tx.type === 'send' ? 'bg-red-900/30 text-red-400' : 'bg-green-900/30 text-green-400'
+                  }`}>
+                    {tx.type === 'send' ? 'Sent' : 'Received'}
+                  </span>
+                  <span className="text-white font-medium">{tx.amount} USDC</span>
                 </div>
-                <span className="text-white font-semibold text-base tracking-tight mr-3">
-                  {formatAmount(amount, inbound)}
-                </span>
-                <span className="text-zinc-400 text-xs truncate">
-                  {inbound ? 'From' : 'To'}: {displayCounterparty}
+                <p className="text-zinc-400 text-sm mt-1">{tx.description}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-zinc-500 text-xs">
+                  {new Date(tx.timestamp).toLocaleDateString()}
+                </p>
+                <span className={`text-xs font-medium ${
+                  tx.status === 'completed' ? 'text-green-400' : 'text-yellow-400'
+                }`}>
+                  {tx.status}
                 </span>
               </div>
-              <div className="flex items-center justify-center w-5 h-5 ml-2">
-                {getStatusIcon(tx.status, tx.tx_hash, tx.blockchain)}
-              </div>
             </div>
-            {/* Second line: timestamp and chain, aligned with amount */}
-            <div className="flex items-center gap-2 text-zinc-500 text-[11px] ml-6 mt-0.5">
-              <span>{formatDate(tx.created_at)}</span>
-              <span>•</span>
-              <span>{tx.blockchain}</span>
-            </div>
-          </div>
-        );
-      })}
+          ))}
+        </div>
+      )}
     </div>
   );
 };

@@ -1,47 +1,67 @@
-import React from "react";
-import { FaBars } from "react-icons/fa";
+import React from 'react';
+import { authManager } from '@/lib/auth';
+import { useRouter } from 'next/navigation';
+import { LogOut, User, Wallet } from 'lucide-react';
 
 interface WalletHeaderProps {
-  showMenu: boolean;
-  setShowMenu: (show: boolean) => void;
-  onBuyCrypto?: () => void;
+  username?: string;
+  walletAddress?: string;
 }
 
-const WalletHeader: React.FC<WalletHeaderProps> = ({ showMenu, setShowMenu, onBuyCrypto }) => {
+export default function WalletHeader({ username, walletAddress }: WalletHeaderProps) {
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      // Call logout endpoint
+      await fetch('/api/v1/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authManager.getAccessToken()}`,
+        },
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Clear local storage and redirect
+      authManager.logout();
+      router.push('/');
+    }
+  };
+
   return (
-    <header className="bg-gradient-to-br from-black via-zinc-900 to-neutral-900/90 backdrop-blur-xl sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center py-0 min-h-[6rem]">
-          <div className="flex items-center">
-            <img
-              src="/krypton_logo.svg"
-              alt="Krypton Logo"
-              className="h-24 w-auto drop-shadow-[0_2px_8px_rgba(16,255,180,0.18)]"
-            />
-          </div>
-          <div className="flex items-center space-x-3">
-            {onBuyCrypto && (
-              <button
-                onClick={onBuyCrypto}
-                className="flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-colors font-medium mr-2"
-              >
-                Buy Crypto
-              </button>
-            )}
-            <div className="relative hamburger-menu">
-              <button
-                onClick={() => setShowMenu(!showMenu)}
-                className="flex items-center bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-xl transition-colors font-medium"
-                aria-label="Open menu"
-              >
-                <FaBars />
-              </button>
-            </div>
-          </div>
+    <div className="flex items-center justify-between w-full p-4 bg-white/5 backdrop-blur-xl border-b border-white/10">
+      <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2">
+          <Wallet className="w-6 h-6 text-cyan-400" />
+          <h1 className="text-xl font-bold text-white">Krypton Wallet</h1>
         </div>
       </div>
-    </header>
+      
+      <div className="flex items-center space-x-4">
+        {username && (
+          <div className="flex items-center space-x-2 text-white/80">
+            <User className="w-4 h-4" />
+            <span className="text-sm">@{username}</span>
+          </div>
+        )}
+        
+        {walletAddress && (
+          <div className="hidden md:flex items-center space-x-2 text-white/60">
+            <span className="text-xs font-mono">
+              {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+            </span>
+          </div>
+        )}
+        
+        <button
+          onClick={handleLogout}
+          className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 transition-all duration-200"
+        >
+          <LogOut className="w-4 h-4" />
+          <span className="text-sm font-medium">Logout</span>
+        </button>
+      </div>
+    </div>
   );
-};
-
-export default WalletHeader; 
+} 

@@ -1,47 +1,81 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { FaArrowUp } from "react-icons/fa";
+import api from "@/lib/api";
 
 interface SendUSDCModalProps {
-  showSendForm: boolean;
-  receiverUsername: string;
-  setReceiverUsername: (username: string) => void;
-  sendAmount: string;
-  setSendAmount: (amount: string) => void;
-  sendLoading: boolean;
-  sendError: string | null;
-  sendSuccess: string | null;
-  handleSendUSDC: () => void;
-  handleCancelSend: () => void;
-  refreshingBalance: boolean;
+  senderUserId: number;
+  onClose: () => void;
 }
 
-const SendUSDCModal: React.FC<SendUSDCModalProps> = ({
-  showSendForm,
-  receiverUsername,
-  setReceiverUsername,
-  sendAmount,
-  setSendAmount,
-  sendLoading,
-  sendError,
-  sendSuccess,
-  handleSendUSDC,
-  handleCancelSend,
-  refreshingBalance,
-}) => {
-  if (!showSendForm) return null;
+const SendUSDCModal: React.FC<SendUSDCModalProps> = ({ senderUserId, onClose }) => {
+  const [receiverUsername, setReceiverUsername] = useState("");
+  const [sendAmount, setSendAmount] = useState("");
+  const [sendLoading, setSendLoading] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sendSuccess, setSendSuccess] = useState<string | null>(null);
+
+  const handleSendUSDC = async () => {
+    if (!receiverUsername.trim()) {
+      setSendError("Receiver username is required");
+      return;
+    }
+
+    if (!sendAmount.trim() || parseFloat(sendAmount) <= 0) {
+      setSendError("Please enter a valid amount");
+      return;
+    }
+
+    const amount = parseFloat(sendAmount);
+    if (isNaN(amount)) {
+      setSendError("Please enter a valid number");
+      return;
+    }
+
+    setSendLoading(true);
+    setSendError(null);
+    setSendSuccess(null);
+
+    try {
+      const response = await api.post("/api/v1/send_usdc", {
+        sender_user_id: senderUserId,
+        receiver_username: receiverUsername.trim(),
+        amount: amount
+      });
+
+      setSendSuccess(`Successfully sent $${amount} USDC to @${receiverUsername.trim()}`);
+      setReceiverUsername("");
+      setSendAmount("");
+    } catch (err: any) {
+      setSendError(err.response?.data?.detail || "Failed to send USDC");
+    } finally {
+      setSendLoading(false);
+    }
+  };
+
+  const handleCancelSend = () => {
+    if (sendSuccess) {
+      onClose();
+    } else {
+      setReceiverUsername("");
+      setSendAmount("");
+      setSendError(null);
+      setSendSuccess(null);
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-      onClick={sendSuccess && !refreshingBalance ? handleCancelSend : undefined}
-      style={{ cursor: sendSuccess && !refreshingBalance ? 'pointer' : 'default' }}
+      onClick={sendSuccess ? handleCancelSend : undefined}
+      style={{ cursor: sendSuccess ? 'pointer' : 'default' }}
     >
       <Card
         className="w-full max-w-md bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 shadow-2xl relative overflow-hidden"
-        onClick={e => e.stopPropagation()} // Prevent modal click from closing overlay
+        onClick={e => e.stopPropagation()}
       >
         <CardHeader>
           <CardTitle className="text-xl font-bold text-white flex items-center">
@@ -50,35 +84,27 @@ const SendUSDCModal: React.FC<SendUSDCModalProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Success Animation or Refreshing State */}
+          {/* Success State */}
           {sendSuccess && (
-            refreshingBalance ? (
-              <div className="flex flex-col items-center justify-center py-8">
-                <div className="mb-4 animate-spin rounded-full h-10 w-10 border-b-2 border-cyan-400"></div>
-                <div className="text-cyan-400 text-lg font-semibold mb-2">Updating balance...</div>
-                <div className="text-zinc-300 text-sm text-center">Please wait while we refresh your wallet balance.</div>
+            <div className="flex flex-col items-center justify-center py-8">
+              <div className="mb-4">
+                <svg className="animate-checkmark" width="72" height="72" viewBox="0 0 72 72">
+                  <circle cx="36" cy="36" r="34" fill="#1a2e22" stroke="#22c55e" strokeWidth="3" />
+                  <path
+                    d="M22 38l10 10 18-18"
+                    fill="none"
+                    stroke="#22c55e"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="checkmark-path"
+                  />
+                </svg>
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8">
-                <div className="mb-4">
-                  <svg className="animate-checkmark" width="72" height="72" viewBox="0 0 72 72">
-                    <circle cx="36" cy="36" r="34" fill="#1a2e22" stroke="#22c55e" strokeWidth="3" />
-                    <path
-                      d="M22 38l10 10 18-18"
-                      fill="none"
-                      stroke="#22c55e"
-                      strokeWidth="4"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="checkmark-path"
-                    />
-                  </svg>
-                </div>
-                <div className="text-green-400 text-lg font-semibold mb-2">Transaction Successful!</div>
-                <div className="text-zinc-300 text-sm text-center">{sendSuccess}</div>
-                <div className="mt-6 text-zinc-500 text-xs">Tap anywhere to close</div>
-              </div>
-            )
+              <div className="text-green-400 text-lg font-semibold mb-2">Transaction Successful!</div>
+              <div className="text-zinc-300 text-sm text-center">{sendSuccess}</div>
+              <div className="mt-6 text-zinc-500 text-xs">Tap anywhere to close</div>
+            </div>
           )}
           {/* Form (hide if success) */}
           {!sendSuccess && (
