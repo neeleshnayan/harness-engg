@@ -2,6 +2,7 @@ import axios from 'axios';
 
 // Set the base URL for API requests
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://kryptonpaybackend-production.up.railway.app';
+// const API_BASE_URL = 'http://0.0.0.0:8080'
 
 // Create axios instance with base URL
 const api = axios.create({

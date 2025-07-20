@@ -79,6 +79,7 @@ export default function WalletPage() {
     }, 10000); // 10s timeout
     try {
       const res = await api.get(`/api/v1/wallet_balance/${walletAddress}`, { signal: controller.signal });
+      console.log("Balance response", res.data);
       if (!didTimeout) {
         setBalance(res.data);
         setRefreshingBalance(false); // Done refreshing
@@ -148,6 +149,7 @@ export default function WalletPage() {
     setUsernameError(null);
     setUsernameSuccess(null);
     try {
+      // console.log("Setting username to", accountData, accountData.id,cleanUsername.trim());
       const response = await api.post("/api/v1/set_username", {
         user_id: accountData.user_id,
         username: cleanUsername.trim()
@@ -163,7 +165,18 @@ export default function WalletPage() {
       setAccountData(updatedAccountData);
       localStorage.setItem('userData', JSON.stringify(updatedAccountData));
     } catch (err: any) {
-      setUsernameError(err.response?.data?.detail || "Failed to set username");
+      let errorMsg = err.response?.data?.detail || "Failed to set username";
+      // If errorMsg is an object (e.g., validation error), convert to string
+      if (typeof errorMsg === 'object' && errorMsg !== null) {
+        if (Array.isArray(errorMsg)) {
+          errorMsg = errorMsg.map(e => e.msg || JSON.stringify(e)).join('; ');
+        } else if (errorMsg.msg) {
+          errorMsg = errorMsg.msg;
+        } else {
+          errorMsg = JSON.stringify(errorMsg);
+        }
+      }
+      setUsernameError(errorMsg);
     } finally {
       setUsernameLoading(false);
     }
@@ -199,7 +212,7 @@ export default function WalletPage() {
 
     try {
       const response = await api.post("/api/v1/send_usdc", {
-        sender_user_id: accountData.user_id,
+        sender_user_id: accountData.id,
         receiver_username: receiverUsername.trim(),
         amount: amount
       });

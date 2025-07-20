@@ -32,8 +32,8 @@ const BalanceCard: React.FC<BalanceCardProps> = ({ balance, error, accountData, 
           {error ? (
             <span className="text-red-400 text-2xl font-semibold">{error}</span>
           ) : (() => {
-            if (balance && balance.balance && Array.isArray(balance.balance.tokenBalances) && balance.balance.tokenBalances.length > 0) {
-              const usdc = balance.balance.tokenBalances.find(
+            if (balance && Array.isArray(balance.tokenBalances) && balance.tokenBalances.length > 0) {
+              const usdc = balance.tokenBalances.find(
                 (b: any) => b.token && b.token.symbol === 'USDC'
               );
               if (usdc) {
