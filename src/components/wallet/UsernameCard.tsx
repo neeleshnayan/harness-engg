@@ -1,82 +1,40 @@
-import React, { useState } from "react";
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { FaUser, FaCheck } from "react-icons/fa";
-import api from "@/lib/api";
 
 interface UsernameCardProps {
-  userId: number;
-  currentUsername?: string;
-  onUsernameUpdate: (newUsername: string) => void;
+  accountData: any;
+  showUsernameForm: boolean;
+  username: string;
+  usernameLoading: boolean;
+  usernameError: string | null;
+  usernameSuccess: string | null;
+  setShowUsernameForm: (show: boolean) => void;
+  setUsername: (username: string) => void;
+  handleSetUsername: () => void;
+  handleCancelUsername: () => void;
 }
 
 const UsernameCard: React.FC<UsernameCardProps> = ({
-  userId,
-  currentUsername,
-  onUsernameUpdate,
+  accountData,
+  showUsernameForm,
+  username,
+  usernameLoading,
+  usernameError,
+  usernameSuccess,
+  setShowUsernameForm,
+  setUsername,
+  handleSetUsername,
+  handleCancelUsername,
 }) => {
-  const [showUsernameForm, setShowUsernameForm] = useState(false);
-  const [username, setUsername] = useState("");
-  const [usernameLoading, setUsernameLoading] = useState(false);
-  const [usernameError, setUsernameError] = useState<string | null>(null);
-  const [usernameSuccess, setUsernameSuccess] = useState<string | null>(null);
-
-  const handleSetUsername = async () => {
-    if (!username.trim()) {
-      setUsernameError("Username cannot be empty");
-      return;
-    }
-    const cleanUsername = username.replace(/^@/, '');
-    if (cleanUsername.length < 3) {
-      setUsernameError("Username must be at least 3 characters long");
-      return;
-    }
-    if (cleanUsername.length > 20) {
-      setUsernameError("Username must be less than 20 characters");
-      return;
-    }
-    if (!/^[a-zA-Z0-9_]+$/.test(cleanUsername)) {
-      setUsernameError("Username can only contain letters, numbers, and underscores");
-      return;
-    }
-    
-    setUsernameLoading(true);
-    setUsernameError(null);
-    setUsernameSuccess(null);
-    
-    try {
-      const response = await api.post("/api/v1/set_username", {
-        user_id: userId,
-        username: cleanUsername.trim()
-      });
-      
-      setUsernameSuccess(`Username set to @${cleanUsername.trim()} successfully!`);
-      setShowUsernameForm(false);
-      setUsername("");
-      
-      // Call the callback to update parent component
-      onUsernameUpdate(cleanUsername.trim());
-    } catch (err: any) {
-      setUsernameError(err.response?.data?.detail || "Failed to set username");
-    } finally {
-      setUsernameLoading(false);
-    }
-  };
-
-  const handleCancelUsername = () => {
-    setShowUsernameForm(false);
-    setUsername("");
-    setUsernameError(null);
-    setUsernameSuccess(null);
-  };
-
   return (
     <>
       {/* Username display or set username card */}
-      {!currentUsername && (
-        <div className="bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800">
+      {!accountData?.username && (
+        <div className="bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 mb-8">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-bold text-white flex items-center">
               <FaUser className="mr-3 text-purple-400" />
@@ -95,26 +53,6 @@ const UsernameCard: React.FC<UsernameCardProps> = ({
           </div>
         </div>
       )}
-
-      {/* Display current username */}
-      {currentUsername && (
-        <div className="bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold text-white flex items-center">
-              <FaUser className="mr-3 text-purple-400" />
-              Krypton Username
-            </h3>
-            <span className="flex items-center gap-1 bg-green-900/30 text-green-400 text-xs font-semibold px-2 py-1 rounded-full">
-              <FaCheck className="text-green-400 text-base" /> Active
-            </span>
-          </div>
-          <div className="text-center">
-            <h4 className="text-2xl font-bold text-purple-400 mb-2">@{currentUsername}</h4>
-            <p className="text-zinc-400">Your wallet is active and ready to receive payments</p>
-          </div>
-        </div>
-      )}
-
       {/* Username Form Modal */}
       {showUsernameForm && (
         <div 
@@ -124,7 +62,7 @@ const UsernameCard: React.FC<UsernameCardProps> = ({
         >
           <Card 
             className="w-full max-w-md bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 shadow-2xl relative overflow-hidden"
-            onClick={e => e.stopPropagation()}
+            onClick={e => e.stopPropagation()} // Prevent modal click from closing overlay
           >
             <CardHeader>
               <CardTitle className="text-xl font-bold text-white flex items-center">

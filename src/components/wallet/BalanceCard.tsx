@@ -1,8 +1,13 @@
-import React, { useState, useEffect } from "react";
-import api from "@/lib/api";
+import React from "react";
+import TransactionHistory from "@/components/wallet/TransactionHistory";
 
 interface BalanceCardProps {
-  walletAddress?: string;
+  balance: any;
+  error: string | null;
+  accountData: any;
+  showTransactions: boolean;
+  setShowTransactions: (show: boolean) => void;
+  className?: string;
 }
 
 const USDC_SVG = (
@@ -14,75 +19,56 @@ const USDC_SVG = (
   </svg>
 );
 
-const BalanceCard: React.FC<BalanceCardProps> = ({ walletAddress }) => {
-  const [balance, setBalance] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (walletAddress) {
-      fetchBalance();
-    } else {
-      setError('No wallet address available');
-      setLoading(false);
-    }
-  }, [walletAddress]);
-
-  const fetchBalance = async () => {
-    if (!walletAddress) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await api.get(`/api/v1/wallet_balance/${walletAddress}`);
-      setBalance(response.data);
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Failed to load balance');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getUSDCBalance = () => {
-    if (balance && balance.balance && Array.isArray(balance.balance.tokenBalances) && balance.balance.tokenBalances.length > 0) {
-      const usdc = balance.balance.tokenBalances.find(
-        (b: any) => b.token && b.token.symbol === 'USDC'
-      );
-      if (usdc) {
-        return `$${usdc.amount}`;
-      }
-    }
-    return '0.00';
-  };
-
+const BalanceCard: React.FC<BalanceCardProps> = ({ balance, error, accountData, showTransactions, setShowTransactions, className }) => {
   return (
-    <div className="bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800">
+    <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 mb-8 ${className || ''}`}>
       <div className="text-center">
         <div className="flex items-center justify-center mb-4">
           {USDC_SVG}
           <h3 className="text-2xl font-bold text-white ml-2">USDC Balance</h3>
         </div>
         <div className="text-6xl font-bold text-white mb-4">
-          {loading ? (
-            <span className="text-zinc-400">Loading...</span>
-          ) : error ? (
+          {error ? (
             <span className="text-red-400 text-2xl font-semibold">{error}</span>
-          ) : (
-            getUSDCBalance()
-          )}
+          ) : (() => {
+            if (balance && balance.balance && Array.isArray(balance.balance.tokenBalances) && balance.balance.tokenBalances.length > 0) {
+              const usdc = balance.balance.tokenBalances.find(
+                (b: any) => b.token && b.token.symbol === 'USDC'
+              );
+              if (usdc) {
+                return `$${usdc.amount}`;
+              }
+            }
+            return 'Loading...';
+          })()}
         </div>
         <p className="text-zinc-400 font-medium">Available for transactions</p>
-        
-        {walletAddress && (
+        {/* Transaction History Toggle */}
+        {accountData?.username && (
           <div className="mt-6 pt-4 border-t border-zinc-700/50">
             <button
-              onClick={fetchBalance}
-              disabled={loading}
-              className="text-zinc-400 hover:text-zinc-300 transition-colors text-sm disabled:opacity-50"
+              onClick={() => setShowTransactions(!showTransactions)}
+              className="flex items-center justify-center space-x-2 text-zinc-400 hover:text-zinc-300 transition-colors text-sm"
             >
-              {loading ? 'Refreshing...' : 'Refresh Balance'}
+              <span>Transaction History</span>
+              <svg
+                className={`w-3 h-3 transition-transform duration-200 ${showTransactions ? 'rotate-180' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
             </button>
+            {/* Transaction History Dropdown */}
+            {showTransactions && (
+              <div className="mt-4">
+                <TransactionHistory
+                  username={accountData.username}
+                  userWalletAddress={accountData.wallet_address}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>
