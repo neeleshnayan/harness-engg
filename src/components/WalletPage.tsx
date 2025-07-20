@@ -212,7 +212,7 @@ export default function WalletPage() {
 
     try {
       const response = await api.post("/api/v1/send_usdc", {
-        sender_user_id: accountData.id,
+        sender_user_id: accountData.user_id,
         receiver_username: receiverUsername.trim(),
         amount: amount
       });
@@ -228,7 +228,18 @@ export default function WalletPage() {
       // Trigger transaction history refresh
       setTransactionHistoryRefresh(prev => !prev);
     } catch (err: any) {
-      setSendError(err.response?.data?.detail || "Failed to send USDC");
+      let errorMsg = err.response?.data?.detail || "Failed to send USDC";
+      // If errorMsg is an object (e.g., validation error), convert to string
+      if (typeof errorMsg === 'object' && errorMsg !== null) {
+        if (Array.isArray(errorMsg)) {
+          errorMsg = errorMsg.map(e => e.msg || JSON.stringify(e)).join('; ');
+        } else if (errorMsg.msg) {
+          errorMsg = errorMsg.msg;
+        } else {
+          errorMsg = JSON.stringify(errorMsg);
+        }
+      }
+      setSendError(errorMsg);
     } finally {
       setSendLoading(false);
     }
