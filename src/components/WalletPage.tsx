@@ -42,6 +42,7 @@ export default function WalletPage() {
   
   const [refreshingBalance, setRefreshingBalance] = useState(false);
   const [showTransakModal, setShowTransakModal] = useState(false);
+  const [transactionHistoryRefresh, setTransactionHistoryRefresh] = useState(false);
   
   const router = useRouter();
 
@@ -211,6 +212,8 @@ export default function WalletPage() {
       if (accountData.wallet_address) {
         fetchBalance(accountData.wallet_address);
       }
+      // Trigger transaction history refresh
+      setTransactionHistoryRefresh(prev => !prev);
     } catch (err: any) {
       setSendError(err.response?.data?.detail || "Failed to send USDC");
     } finally {
@@ -289,6 +292,7 @@ export default function WalletPage() {
                   showTransactions={showTransactions}
                   setShowTransactions={setShowTransactions}
                   className="w-full max-w-xl mx-auto"
+                  transactionHistoryRefresh={transactionHistoryRefresh}
                 />
               </div>
 
@@ -338,6 +342,7 @@ export default function WalletPage() {
                 showTransactions={showTransactions}
                 setShowTransactions={setShowTransactions}
                 className="w-full max-w-xl mx-auto my-2"
+                transactionHistoryRefresh={transactionHistoryRefresh}
               />
 
               {/* Quick Actions */}

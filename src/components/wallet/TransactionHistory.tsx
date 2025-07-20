@@ -22,37 +22,39 @@ interface Transaction {
 interface TransactionHistoryProps {
   username: string;
   userWalletAddress: string;
+  refresh?: boolean;
 }
 
-const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userWalletAddress }) => {
+const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userWalletAddress, refresh }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://kryptonpaybackend-production.up.railway.app'}/api/v1/latest_transactions_by_username/${username}`);
-        const data = await response.json();
-        console.log('TransactionHistory initial fetch:', data);
-        if (data.error) {
-          setError(data.error);
-        } else {
-          setTransactions(data.transactions || []);
-          setNextPageToken(data.next_page_after || null);
-        }
-      } catch (err) {
-        setError('Failed to fetch transactions');
-      } finally {
-        setLoading(false);
+  const fetchTransactions = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://kryptonpaybackend-production.up.railway.app'}/api/v1/latest_transactions_by_username/${username}`);
+      const data = await response.json();
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setTransactions(data.transactions || []);
+        setNextPageToken(data.next_page_after || null);
       }
-    };
+    } catch (err) {
+      setError('Failed to fetch transactions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchTransactions();
-  }, [username]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [username, refresh]);
 
   const loadMore = async () => {
     if (!nextPageToken) return;

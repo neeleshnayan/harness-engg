@@ -8,7 +8,7 @@ interface TransakWidgetModalProps {
   onClose: () => void;
 }
 
-const TRANSAK_API_KEY = "d4058393-4a33-4370-bf9a-e098bf2b58a1"; // Placeholder
+const TRANSAK_API_KEY = "f4c10825-55fd-4ccc-bd3f-40fc021468e5"; // Placeholder
 const TRANSAK_URL = `https://global-stg.transak.com?apiKey=${TRANSAK_API_KEY}&environment=STAGING`;
 
 const TransakWidgetModal: FC<TransakWidgetModalProps> = ({ open, onClose }: TransakWidgetModalProps) => {

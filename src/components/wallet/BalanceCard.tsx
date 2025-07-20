@@ -8,6 +8,7 @@ interface BalanceCardProps {
   showTransactions: boolean;
   setShowTransactions: (show: boolean) => void;
   className?: string;
+  transactionHistoryRefresh?: boolean;
 }
 
 const USDC_SVG = (
@@ -19,7 +20,7 @@ const USDC_SVG = (
   </svg>
 );
 
-const BalanceCard: React.FC<BalanceCardProps> = ({ balance, error, accountData, showTransactions, setShowTransactions, className }) => {
+const BalanceCard: React.FC<BalanceCardProps> = ({ balance, error, accountData, showTransactions, setShowTransactions, className, transactionHistoryRefresh }) => {
   return (
     <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 mb-8 ${className || ''}`}>
       <div className="text-center">
@@ -66,6 +67,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({ balance, error, accountData, 
                 <TransactionHistory
                   username={accountData.username}
                   userWalletAddress={accountData.wallet_address}
+                  refresh={transactionHistoryRefresh}
                 />
               </div>
             )}
