@@ -4,29 +4,51 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 interface TransakWidgetModalProps {
-  open: boolean;
+  visible: boolean;
   onClose: () => void;
+  userDetails?: {
+    walletAddress?: string;
+    email?: string;
+  };
 }
 
 const TRANSAK_API_KEY = "f4c10825-55fd-4ccc-bd3f-40fc021468e5"; // Placeholder
-const TRANSAK_URL = `https://global-stg.transak.com?apiKey=${TRANSAK_API_KEY}&environment=STAGING`;
 
-const TransakWidgetModal: FC<TransakWidgetModalProps> = ({ open, onClose }: TransakWidgetModalProps) => {
+function buildTransakUrl(userDetails?: {
+  walletAddress?: string;
+  email?: string;
+}) {
+  let url = `https://global-stg.transak.com?apiKey=${TRANSAK_API_KEY}&environment=STAGING`;
+  if (userDetails) {
+    if (userDetails.walletAddress) {
+      url += `&walletAddress=${encodeURIComponent(userDetails.walletAddress)}`;
+    }
+    if (userDetails.email) {
+      url += `&userData.email=${encodeURIComponent(userDetails.email)}`;
+    }
+  }
+  console.log(userDetails?.walletAddress);
+  console.log(userDetails?.email);
+  console.log(url);
+  return url;
+}
+
+const TransakWidgetModal: FC<TransakWidgetModalProps> = ({ visible, onClose, userDetails }: TransakWidgetModalProps) => {
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
-    if (open) {
+    if (visible) {
       document.addEventListener("keydown", handleKeyDown);
     } else {
       document.removeEventListener("keydown", handleKeyDown);
     }
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose]);
+  }, [visible, onClose]);
 
-  if (!open) return null;
+  if (!visible) return null;
   return (
     <div
       className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
@@ -43,7 +65,7 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({ open, onClose }: Tran
         </CardHeader>
         <CardContent className="p-0">
           <iframe
-            src={TRANSAK_URL}
+            src={buildTransakUrl(userDetails)}
             title="Transak Widget"
             width="100%"
             height="600px"

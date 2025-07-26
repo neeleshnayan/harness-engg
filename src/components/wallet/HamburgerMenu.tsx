@@ -2,25 +2,25 @@ import React from "react";
 import { FaTimes, FaSignOutAlt, FaCopy } from "react-icons/fa";
 
 interface HamburgerMenuProps {
-  showMenu: boolean;
-  setShowMenu: (show: boolean) => void;
-  handleLogout: () => void;
+  visible: boolean;
+  onClose: () => void;
+  onLogout: () => void;
   accountData: any;
-  copyToClipboard: (text: string) => void;
+  onCopyAddress: () => void;
 }
 
 const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ 
-  showMenu, 
-  setShowMenu, 
-  handleLogout, 
+  visible, 
+  onClose, 
+  onLogout, 
   accountData, 
-  copyToClipboard 
+  onCopyAddress 
 }) => {
-  if (!showMenu) return null;
+  if (!visible) return null;
   
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
-      setShowMenu(false);
+      onClose();
     }
   };
 
@@ -31,13 +31,13 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
   const handleCopyClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     console.log('Copy button clicked');
-    copyToClipboard(accountData?.wallet_address);
+    onCopyAddress();
   };
 
   const handleSignOutClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     console.log('Sign out button clicked');
-    handleLogout();
+    onLogout();
   };
   
   return (
@@ -88,7 +88,7 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
           {/* Close Button */}
           <div className="text-center">
             <button
-              onClick={() => setShowMenu(false)}
+              onClick={onClose}
               className="text-zinc-400 hover:text-white transition-colors p-3 rounded-2xl hover:bg-white/10"
             >
               <FaTimes className="text-xl" />
