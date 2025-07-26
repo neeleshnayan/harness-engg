@@ -67,7 +67,6 @@ export default function WalletPage() {
         setError('No wallet address linked to this account.');
       }
     } catch (err) {
-      console.error('Error parsing user data:', err);
       setError('Invalid user data.');
     } finally {
       setLoading(false);
@@ -79,7 +78,6 @@ export default function WalletPage() {
       const response = await api.get(`/api/v1/wallet_balance/${address}`);
       setBalance(response.data);
     } catch (err) {
-      console.error('Error fetching balance:', err);
       setError('Failed to fetch balance.');
     }
   };
@@ -94,7 +92,6 @@ export default function WalletPage() {
       localStorage.removeItem('userData');
       router.push('/');
     } catch (err) {
-      console.error('Logout error:', err);
     }
   };
 
@@ -102,7 +99,6 @@ export default function WalletPage() {
     try {
       await navigator.clipboard.writeText(text);
     } catch (err) {
-      console.error('Failed to copy to clipboard:', err);
       // Fallback for older browsers
       const textArea = document.createElement('textarea');
       textArea.value = text;
@@ -135,7 +131,6 @@ export default function WalletPage() {
     setUsernameError(null);
     setUsernameSuccess(null);
     try {
-      // console.log("Setting username to", accountData, accountData.id,cleanUsername.trim());
       const response = await api.post("/api/v1/set_username", {
         user_id: accountData.user_id,
         username: cleanUsername.trim()
@@ -388,7 +383,6 @@ export default function WalletPage() {
             <QuickActions
               onSendClick={() => setShowSendForm(true)}
               onBuyClick={() => setShowTransakModal(true)}
-              onReceiveClick={() => copyToClipboard(accountData?.wallet_address || '')}
             />
           )}
         </div>
