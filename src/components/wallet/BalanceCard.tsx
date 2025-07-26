@@ -37,14 +37,14 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   const showKycSection = accountData?.username && kycStatus !== 'approved' && onKycClick;
   const showBalanceSection = accountData?.username && kycStatus === 'approved';
   
-  // Debug logging
-  console.log('BalanceCard Debug:', {
-    hasUsername: !!accountData?.username,
-    kycStatus,
-    showKycSection,
-    showBalanceSection,
-    onKycClick: !!onKycClick
-  });
+  // // Debug logging
+  // console.log('BalanceCard Debug:', {
+  //   hasUsername: !!accountData?.username,
+  //   kycStatus,
+  //   showKycSection,
+  //   showBalanceSection,
+  //   onKycClick: !!onKycClick
+  // });
   
   return (
     <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 mb-8 ${className || ''}`}>
