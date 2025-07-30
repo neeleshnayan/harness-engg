@@ -59,51 +59,45 @@ const CoinbaseCDPModal: FC<CoinbaseCDPModalProps> = ({ visible, onClose, userDet
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
   }, [visible, onClose]);
-
+  
   const handleBuyClick = async () => {
     try {
-      // First, validate that we have the required data
       if (!userDetails?.walletAddress) {
-        console.error('No wallet address provided');
+        console.error("No wallet address provided");
         return;
       }
-
-      // Get session token from backend using Secure Init
+  
+      // Call your backend to get a Secure Init session token
       const response = await api.post("/api/v1/coinbase-session", {
         walletAddress: userDetails.walletAddress,
-        email: userDetails.email
+        email: userDetails.email,
       });
-
-      if (!response.data.success || !response.data.sessionToken) {
-        console.error('Failed to get session token:', response.data);
+  
+      if (!response.data?.success || !response.data?.sessionToken) {
+        console.error("Failed to get session token:", response.data);
         return;
       }
-
-      // Use Coinbase's Secure Init approach with session token
-      // This follows the new Secure Init migration guide
-      const baseUrl = "https://pay.coinbase.com/buy/select-asset";
-      
-      // Create the URL with session token (new Secure Init approach)
-      const url = new URL(baseUrl);
-      url.searchParams.set('sessionToken', response.data.sessionToken);
-      
-      // Add optional parameters that can still be used with session tokens
-      url.searchParams.set('theme', 'dark');
-      
-      // Add user data if email is available (optional)
+  
+      console.log("Sessions Token", response.data.sessionToken)
+      const sessionToken = response.data.sessionToken;
+  
+      const url = new URL("https://pay.coinbase.com/buy/select-asset");
+      url.searchParams.set("sessionToken", sessionToken);
+      url.searchParams.set("theme", "dark");
+  
+      // Optional: user data for prefill (not required)
       if (userDetails.email) {
-        const userData = { email: userDetails.email };
-        url.searchParams.set('userData', JSON.stringify(userData));
+        url.searchParams.set("userData", JSON.stringify({ email: userDetails.email }));
       }
-
-      console.log('Opening Coinbase CDP URL with Secure Init:', url.toString());
-      
-      // Open in a new window
-      window.open(url.toString(), '_blank', 'width=500,height=700,scrollbars=yes,resizable=yes');
+  
+      console.log("Opening Coinbase Pay with Secure Init:", url.toString());
+  
+      window.open(url.toString(), "_blank", "width=500,height=700,scrollbars=yes,resizable=yes");
     } catch (error) {
-      console.error('Error opening Coinbase CDP:', error);
+      console.error("Error during Coinbase Pay flow:", error);
     }
   };
+  
 
   if (!visible) return null;
 

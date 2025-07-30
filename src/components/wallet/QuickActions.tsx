@@ -4,7 +4,7 @@ import { ArrowUpRight } from "lucide-react";
 
 interface QuickActionsProps {
   onSendClick: () => void;
-  onBuyClick: () => void;
+  onBuyClick?: () => void;
 }
 
 const QuickActions: React.FC<QuickActionsProps> = ({ onSendClick, onBuyClick }) => {
@@ -17,13 +17,15 @@ const QuickActions: React.FC<QuickActionsProps> = ({ onSendClick, onBuyClick }) 
         <FaArrowUp className="mr-3" />
         Pay
       </button>
-      <button
-        onClick={onBuyClick}
-        className="flex-1 bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white py-6 px-8 rounded-3xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-lg"
-      >
-        <ArrowUpRight className="mr-3 h-6 w-6" />
-        Buy
-      </button>
+      {onBuyClick && (
+        <button
+          onClick={onBuyClick}
+          className="flex-1 bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white py-6 px-8 rounded-3xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-lg"
+        >
+          <ArrowUpRight className="mr-3 h-6 w-6" />
+          Buy
+        </button>
+      )}
     </div>
   );
 };

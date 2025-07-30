@@ -22,12 +22,12 @@ const googleLogo = (
 );
 
 export default function LoginPage() {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<'business' | 'customer' | false>(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const handleLogin = () => {
-    setLoading(true);
+  const handleLogin = (role: 'business' | 'customer') => {
+    setLoading(role);
     setError(null);
     const app = getFirebaseApp();
     if (!app) {
@@ -38,13 +38,16 @@ export default function LoginPage() {
     const auth = getAuth(app);
     const provider = new GoogleAuthProvider();
 
-    // Call signInWithPopup immediately on click
     signInWithPopup(auth, provider)
       .then(async (result) => {
         const idToken = await result.user.getIdToken();
         const res = await api.post("/api/v1/login", { idToken });
         localStorage.setItem('userData', JSON.stringify(res.data));
-        router.push('/wallet');
+        if (role === 'business') {
+          router.push('/business');
+        } else {
+          router.push('/customer');
+        }
       })
       .catch((err) => {
         setError(err?.message || "Login failed");
@@ -76,16 +79,28 @@ export default function LoginPage() {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-        <button
-          type="button"
-          onClick={handleLogin}
-          disabled={loading}
-          className="w-4/5 max-w-sm flex items-center justify-center whitespace-nowrap py-4 px-6 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 text-white text-xl font-bold shadow-lg hover:bg-white/20 hover:scale-[1.03] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed mx-auto"
-          style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}
-        >
-          <span className="inline-block w-9 h-9 mr-4 flex items-center justify-center rounded-full border border-white/30 bg-white/10 text-2xl font-extrabold text-white" style={{fontFamily: 'Geist, Inter, Arial, sans-serif', letterSpacing: '-0.04em'}}>G</span>
-          {loading ? "Signing in..." : "Continue with Google"}
-        </button>
+        <div className="flex flex-col gap-6 w-4/5 max-w-sm mx-auto">
+          <button
+            type="button"
+            onClick={() => handleLogin('business')}
+            disabled={loading === 'business'}
+            className="flex items-center justify-center whitespace-nowrap py-4 px-6 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 text-white text-xl font-bold shadow-lg hover:bg-white/20 hover:scale-[1.03] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}
+          >
+            <span className="inline-block w-9 h-9 mr-4 flex items-center justify-center rounded-full border border-white/30 bg-white/10 text-2xl font-extrabold text-white" style={{fontFamily: 'Geist, Inter, Arial, sans-serif', letterSpacing: '-0.04em'}}>B</span>
+            {loading === 'business' ? "Signing in..." : "Login as Business"}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleLogin('customer')}
+            disabled={loading === 'customer'}
+            className="flex items-center justify-center whitespace-nowrap py-4 px-6 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 text-white text-xl font-bold shadow-lg hover:bg-white/20 hover:scale-[1.03] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}
+          >
+            <span className="inline-block w-9 h-9 mr-4 flex items-center justify-center rounded-full border border-white/30 bg-white/10 text-2xl font-extrabold text-white" style={{fontFamily: 'Geist, Inter, Arial, sans-serif', letterSpacing: '-0.04em'}}>C</span>
+            {loading === 'customer' ? "Signing in..." : "Login as Customer"}
+          </button>
+        </div>
       </div>
       <footer className="w-full py-2 flex flex-col justify-center items-center border-t border-zinc-800 mt-auto">
         <span className="text-zinc-500 text-sm">Yield like God • Pay Like Ghost</span>
