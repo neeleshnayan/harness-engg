@@ -11,7 +11,7 @@ import SendUSDCModal from "@/components/wallet/SendUSDCModal";
 import HamburgerMenu from "@/components/wallet/HamburgerMenu";
 import QuickActions from "@/components/wallet/QuickActions";
 import api from "@/lib/api";
-import CoinbaseCDPModal from "@/components/wallet/CoinbaseCDPModal";
+import TransakWidgetModal from "@/components/wallet/TransakWidgetModal";
 import WalletHeader from "@/components/wallet/WalletHeader";
 import SumsubKYCModal from "@/components/wallet/SumsubKYCModal";
 
@@ -35,7 +35,7 @@ export default function CustomerPage() {
   const [showMenu, setShowMenu] = useState(false);
   const [showTransactions, setShowTransactions] = useState(false);
   const [refreshingBalance, setRefreshingBalance] = useState(false);
-  const [showCoinbaseModal, setShowCoinbaseModal] = useState(false);
+  const [showTransakModal, setShowTransakModal] = useState(false);
   const [transactionHistoryRefresh, setTransactionHistoryRefresh] = useState(false);
   const [kycModalVisible, setKycModalVisible] = useState(false);
   const [kycAccessToken, setKycAccessToken] = useState<string | null>(null);
@@ -350,7 +350,7 @@ export default function CustomerPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setShowCoinbaseModal(true)}
+                onClick={() => setShowTransakModal(true)}
                 className="flex-1 bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white py-4 px-8 rounded-2xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-xl"
               >
                 <FaArrowUp className="mr-3" />
@@ -380,14 +380,15 @@ export default function CustomerPage() {
             onSend={handleSendUSDC}
           />
         )}
-        {showCoinbaseModal && (
-          <CoinbaseCDPModal
-            visible={showCoinbaseModal}
-            onClose={() => setShowCoinbaseModal(false)}
-            userDetails={{
-              walletAddress: accountData?.wallet_address,
-              email: accountData?.email
-            }}
+        {showTransakModal && (
+          <TransakWidgetModal
+            visible={showTransakModal}
+            onClose={() => setShowTransakModal(false)}
+                          userDetails={{
+                walletAddress: accountData?.wallet_address,
+                email: accountData?.email,
+                kycStatus: kycStatus || undefined
+              }}
           />
         )}
       </div>

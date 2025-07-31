@@ -11,7 +11,7 @@ import SendUSDCModal from "@/components/wallet/SendUSDCModal";
 import HamburgerMenu from "@/components/wallet/HamburgerMenu";
 import QuickActions from "@/components/wallet/QuickActions";
 import api from "@/lib/api";
-import CoinbaseCDPModal from "@/components/wallet/CoinbaseCDPModal";
+import TransakWidgetModal from "@/components/wallet/TransakWidgetModal";
 import WalletHeader from "@/components/wallet/WalletHeader";
 import SumsubKYCModal from "@/components/wallet/SumsubKYCModal";
 
@@ -42,7 +42,7 @@ export default function WalletPage() {
   const [showTransactions, setShowTransactions] = useState(false);
   
   const [refreshingBalance, setRefreshingBalance] = useState(false);
-  const [showCoinbaseModal, setShowCoinbaseModal] = useState(false);
+  const [showTransakModal, setShowTransakModal] = useState(false);
   const [transactionHistoryRefresh, setTransactionHistoryRefresh] = useState(false);
   
   const [kycModalVisible, setKycModalVisible] = useState(false);
@@ -382,7 +382,7 @@ export default function WalletPage() {
           {accountData?.username && kycStatus === 'approved' && (
             <QuickActions
               onSendClick={() => setShowSendForm(true)}
-              onBuyClick={() => setShowCoinbaseModal(true)}
+              onBuyClick={() => setShowTransakModal(true)}
             />
           )}
         </div>
@@ -403,15 +403,16 @@ export default function WalletPage() {
           />
         )}
 
-        {/* Coinbase CDP Modal */}
-        {showCoinbaseModal && (
-          <CoinbaseCDPModal
-            visible={showCoinbaseModal}
-            onClose={() => setShowCoinbaseModal(false)}
-            userDetails={{
-              walletAddress: accountData?.wallet_address,
-              email: accountData?.email
-            }}
+        {/* Transak Widget Modal */}
+        {showTransakModal && (
+          <TransakWidgetModal
+            visible={showTransakModal}
+            onClose={() => setShowTransakModal(false)}
+                          userDetails={{
+                walletAddress: accountData?.wallet_address,
+                email: accountData?.email,
+                kycStatus: kycStatus || undefined
+              }}
           />
         )}
       </div>
