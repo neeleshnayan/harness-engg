@@ -47,19 +47,22 @@ const SumsubKYCModal: React.FC<SumsubKYCModalProps> = ({
         
         if (!containerRef.current) return;
 
-        // Initialize the WebSDK using the correct pattern from documentation
+        // Clear any existing content
+        containerRef.current.innerHTML = '';
+
+        // Initialize the WebSDK with improved configuration
         const snsWebSdk = (window as any).snsWebSdk;
         
         sdkInstanceRef.current = snsWebSdk
           .init(accessToken, () => {
-            // Token expiration handler - you might want to implement this
-            console.log('Token expired, need to get new token');
-            return Promise.resolve(accessToken); // For now, return the same token
+            // Token expiration handler
+            return Promise.resolve(accessToken);
           })
           .withConf({
             lang: 'en',
             email: applicantEmail,
             phone: applicantPhone,
+            // Improved configuration for better UX
             i18n: {
               document: {
                 subTitles: {
@@ -67,17 +70,27 @@ const SumsubKYCModal: React.FC<SumsubKYCModalProps> = ({
                 }
               }
             },
+            // Better mobile support
+            mobile: {
+              enabled: true,
+              responsive: true
+            },
+            // Improved accessibility
+            accessibility: {
+              enabled: true
+            },
+            // Better error handling
             onMessage: (type: string, payload: any) => {
-              console.log('WebSDK onMessage', type, payload);
+              console.log('Sumsub message:', type, payload);
               if (type === 'idCheck.onApproved') {
-                console.log('KYC approved');
                 onClose();
               } else if (type === 'idCheck.onRejected') {
-                console.log('KYC rejected');
                 onClose();
               } else if (type === 'idCheck.onError') {
                 console.error('KYC error', payload);
                 onClose();
+              } else if (type === 'idCheck.onStepCompleted') {
+                console.log('Step completed:', payload);
               }
             },
             onError: (error: any) => {
@@ -87,18 +100,28 @@ const SumsubKYCModal: React.FC<SumsubKYCModalProps> = ({
           })
           .withOptions({ 
             addViewportTag: false, 
-            adaptIframeHeight: true 
+            adaptIframeHeight: true,
+            // Improved options for better widget behavior
+            mobileResponsive: true,
+            enableDragAndDrop: true,
+            enableFilePicker: true,
+            // Better z-index management
+            zIndex: 10000
           })
           .on('idCheck.onStepCompleted', (payload: any) => {
-            console.log('onStepCompleted', payload);
+            console.log('Step completed:', payload);
           })
           .on('idCheck.onError', (error: any) => {
-            console.log('onError', error);
+            console.error('Step error:', error);
           })
           .build();
 
-        // Launch the SDK
-        sdkInstanceRef.current.launch('#sumsub-kyc-container');
+        // Launch the SDK with a small delay to ensure container is ready
+        setTimeout(() => {
+          if (sdkInstanceRef.current) {
+            sdkInstanceRef.current.launch('#sumsub-kyc-container');
+          }
+        }, 100);
       } catch (error) {
         console.error('Failed to initialize Sumsub SDK:', error);
         onClose();
@@ -132,7 +155,7 @@ const SumsubKYCModal: React.FC<SumsubKYCModalProps> = ({
         }
       }
     };
-  }, [accessToken, visible, applicantEmail, applicantPhone, onClose]);
+  }, [visible, accessToken, applicantEmail, applicantPhone, onClose]);
 
   if (!visible) return null;
 
@@ -143,22 +166,24 @@ const SumsubKYCModal: React.FC<SumsubKYCModalProps> = ({
       left: 0, 
       width: '100vw', 
       height: '100vh', 
-      background: 'rgba(0,0,0,0.8)', 
-      zIndex: 1000, 
+      background: 'rgba(0,0,0,0.8)',
+      zIndex: 9999, 
       display: 'flex', 
       alignItems: 'center', 
       justifyContent: 'center',
-      padding: '20px'
+      padding: '0'
     }}>
       <div style={{ 
         background: '#fff', 
         borderRadius: 12, 
         position: 'relative',
-        width: '95vw',
-        height: '95vh',
+        width: '100%',
+        height: '100%',
         maxWidth: '1200px',
-        maxHeight: '900px',
-        overflow: 'hidden'
+        maxHeight: '100vh',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column'
       }}>
         <button 
           onClick={onClose} 
@@ -173,7 +198,7 @@ const SumsubKYCModal: React.FC<SumsubKYCModalProps> = ({
             width: 40,
             height: 40,
             cursor: 'pointer',
-            zIndex: 1001,
+            zIndex: 10001,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -197,7 +222,10 @@ const SumsubKYCModal: React.FC<SumsubKYCModalProps> = ({
           style={{ 
             width: '100%', 
             height: '100%',
-            overflow: 'hidden'
+            overflow: 'visible',
+            position: 'relative',
+            zIndex: 10000,
+            minHeight: '600px'
           }} 
         />
       </div>

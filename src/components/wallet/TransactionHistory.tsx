@@ -62,7 +62,6 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
       setLoadingMore(true);
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.kryptonfund.com'}/api/v1/latest_transactions_by_username/${username}?page_after=${encodeURIComponent(nextPageToken)}`);
       const data = await response.json();
-      console.log('TransactionHistory load more:', data);
       if (data.error) {
         setError(data.error);
       } else {
@@ -319,7 +318,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
             disabled={loadingMore}
             className="px-4 py-2 rounded-lg bg-zinc-800 text-zinc-200 hover:bg-zinc-700 disabled:opacity-60"
           >
-            {loadingMore ? 'Loading...' : 'Load more'}
+            {loadingMore ? '-' : 'Load more'}
           </button>
         </div>
       </>

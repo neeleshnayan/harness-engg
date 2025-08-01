@@ -21,7 +21,13 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
   const modalRef = useRef<HTMLDivElement>(null);
   const [sdkLoadError, setSdkLoadError] = useState<string | null>(null);
 
+  // Helper function to validate Ethereum wallet address
+  const validateWalletAddress = (address: string): boolean => {
+    return /^0x[a-fA-F0-9]{40}$/.test(address);
+  };
+
   // Helper function to build Transak URL
+  // This ensures Transak uses the same blockchain (ETH-SEPOLIA) as the Circle wallet
   const buildTransakUrl = () => {
     const apiKey = process.env.NEXT_PUBLIC_TRANSAK_API_KEY || 'f4c10825-55fd-4ccc-bd3f-40fc021468e5';
     const environment = process.env.NEXT_PUBLIC_TRANSAK_ENVIRONMENT || 'STAGING';
@@ -43,6 +49,26 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
     transakUrl.searchParams.set('defaultCryptoCurrency', 'USDC');
     transakUrl.searchParams.set('cryptoCurrencyList', 'USDC');
     transakUrl.searchParams.set('walletAddress', userDetails?.walletAddress || '');
+    
+    // Configure blockchain network to match Circle wallet (ETH-SEPOLIA)
+    transakUrl.searchParams.set('defaultNetwork', 'ethereum');
+    transakUrl.searchParams.set('networks', 'ethereum');
+    transakUrl.searchParams.set('network', 'ethereum');
+    transakUrl.searchParams.set('blockchain', 'ethereum');
+    
+    // For testnet (Sepolia) configuration to match Circle wallet
+    if (environment === 'STAGING') {
+      transakUrl.searchParams.set('testnet', 'true');
+      transakUrl.searchParams.set('networkType', 'testnet');
+      transakUrl.searchParams.set('defaultNetwork', 'ethereum-sepolia');
+      transakUrl.searchParams.set('networks', 'ethereum-sepolia');
+      transakUrl.searchParams.set('network', 'ethereum-sepolia');
+      transakUrl.searchParams.set('blockchain', 'ethereum-sepolia');
+      
+      // Configure USDC for Sepolia testnet (same as Circle wallet)
+      transakUrl.searchParams.set('tokenAddress', '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'); // USDC on Sepolia
+      transakUrl.searchParams.set('tokenContractAddress', '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'); // USDC on Sepolia
+    }
     
     // Force direct purchase flow for verified users
     if (userDetails?.kycStatus === 'approved') {
@@ -138,6 +164,9 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
       >
         <CardHeader className="text-center">
           <CardTitle className="text-xl font-bold text-white">Buy USDC with Transak</CardTitle>
+          <div className="text-sm text-zinc-400 mt-2">
+            Network: Ethereum Sepolia (Testnet) - Same as your Circle wallet
+          </div>
         </CardHeader>
         <CardContent className="p-6">
           <div className="text-center space-y-4">
@@ -149,6 +178,15 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
                 <p className="text-xs text-cyan-400 font-mono break-all">
                   {userDetails.walletAddress}
                 </p>
+                {validateWalletAddress(userDetails.walletAddress) ? (
+                  <p className="text-xs text-green-400 mt-1">
+                    ✓ Valid Ethereum address for Sepolia network
+                  </p>
+                ) : (
+                  <p className="text-xs text-red-400 mt-1">
+                    ⚠ Invalid wallet address format
+                  </p>
+                )}
               </div>
             )}
 
@@ -219,8 +257,7 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
             </div>
 
             <div className="text-xs text-zinc-500 mt-4">
-              {/* <p>Click "Open Transak" to start your purchase.</p>
-              <p>USDC will be sent directly to your wallet address.</p> */}
+              <p>USDC will be sent directly to your wallet on Ethereum Sepolia (same network as your Circle wallet).</p>
               <p>Please allow popups if the window doesn't open.</p>
             </div>
           </div>

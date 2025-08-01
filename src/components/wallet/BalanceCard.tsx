@@ -1,6 +1,6 @@
 import React from "react";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
-import { FaShieldAlt } from "react-icons/fa";
+import { FaShieldAlt, FaSync, FaPlus } from "react-icons/fa";
 
 interface BalanceCardProps {
   balance: any;
@@ -12,6 +12,12 @@ interface BalanceCardProps {
   transactionHistoryRefresh?: boolean;
   kycStatus?: string | null;
   onKycClick?: () => void;
+  onRefreshKyc?: () => void;
+  onCheckKycStatus?: () => void;
+  kycChecking?: boolean;
+  kycMessage?: string | null;
+  onBuyClick?: () => void;
+  onSkipKyc?: () => void;
 }
 
 const USDC_SVG = (
@@ -32,19 +38,18 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   className, 
   transactionHistoryRefresh,
   kycStatus,
-  onKycClick
+  onKycClick,
+  onRefreshKyc,
+  onCheckKycStatus,
+  kycChecking,
+  kycMessage,
+  onBuyClick,
+  onSkipKyc
 }) => {
   const showKycSection = accountData?.username && kycStatus !== 'approved' && onKycClick;
-  const showBalanceSection = accountData?.username && kycStatus === 'approved';
+  const showBalanceSection = accountData?.username; // Always show balance if username exists
+  const isKycApproved = kycStatus === 'approved';
   
-  // // Debug logging
-  // console.log('BalanceCard Debug:', {
-  //   hasUsername: !!accountData?.username,
-  //   kycStatus,
-  //   showKycSection,
-  //   showBalanceSection,
-  //   onKycClick: !!onKycClick
-  // });
   
   return (
     <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 mb-8 ${className || ''}`}>
@@ -63,38 +68,78 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
                 <h3 className="text-xl font-bold text-white">Complete KYC Verification</h3>
               </div>
               <p className="text-zinc-300 mb-4 text-center">
-                Complete your identity verification to unlock wallet functionality and start sending payments securely.
+                Complete your identity verification to unlock full wallet functionality and start sending payments securely.
               </p>
-              <button
-                onClick={onKycClick}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 px-8 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
-              >
-                <FaShieldAlt className="inline mr-2" />
-                Start Verification
-              </button>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <button
+                  onClick={onKycClick}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 px-8 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
+                >
+                  <FaShieldAlt className="inline mr-2" />
+                  Continue KYC
+                </button>
+                <button
+                  onClick={() => {
+                    if (onSkipKyc) {
+                      onSkipKyc();
+                    } else {
+                      console.error('onSkipKyc function is not provided');
+                    }
+                  }}
+                  className="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-semibold py-3 px-8 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
+                >
+                  Skip for Now
+                </button>
+              </div>
               <p className="text-xs text-zinc-500 mt-3 text-center">
-                Verification takes just a few minutes
+                You can complete KYC later to unlock full functionality
               </p>
+              {kycMessage && (
+                <div className={`mt-3 p-3 rounded-lg text-sm text-center ${
+                  kycMessage.includes('approved') 
+                    ? 'bg-green-900/30 text-green-400 border border-green-500/30' 
+                    : kycMessage.includes('error') || kycMessage.includes('Failed')
+                    ? 'bg-red-900/30 text-red-400 border border-red-500/30'
+                    : 'bg-blue-900/30 text-blue-400 border border-blue-500/30'
+                }`}>
+                  {kycMessage}
+                </div>
+              )}
             </div>
           </div>
         )}
         
-        {/* Only show balance if KYC is approved */}
+        {/* Show balance always if username exists, but blur if KYC not approved */}
         {showBalanceSection && (
-          <div className="text-6xl font-bold text-white mb-4">
-            {error ? (
-              <span className="text-red-400 text-2xl font-semibold">{error}</span>
-            ) : (() => {
-              if (balance && Array.isArray(balance.tokenBalances) && balance.tokenBalances.length > 0) {
-                const usdc = balance.tokenBalances.find(
-                  (b: any) => b.token && b.token.symbol === 'USDC'
-                );
-                if (usdc) {
-                  return `$${usdc.amount}`;
+          <div className={`flex items-center justify-center mb-4 ${!isKycApproved ? 'blur-sm' : ''}`}>
+            <div className="text-6xl font-bold text-white">
+              {error ? (
+                <span className="text-red-400 text-2xl font-semibold">{error}</span>
+              ) : (() => {
+                if (balance && Array.isArray(balance.tokenBalances) && balance.tokenBalances.length > 0) {
+                  console.log(balance)
+                  // const transakToken = balance.tokenBalances.find(
+                  //   (b: any) => b.token && b.token.symbol === 'TRNSK'
+                  // );
+                  const usdc = balance.tokenBalances.find(
+                    (b: any) => b.token && b.token.symbol === 'USDC'
+                  );
+                  if (usdc) {
+                    return `$${usdc.amount}`;
+                  }
                 }
-              }
-              return 'Loading...';
-            })()}
+                return '-';
+              })()}
+            </div>
+            {onBuyClick && isKycApproved && (
+              <button
+                onClick={onBuyClick}
+                className="ml-4 p-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-full shadow-lg hover:scale-110 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-400"
+                title="Buy USDC"
+              >
+                <FaPlus className="text-xl" />
+              </button>
+            )}
           </div>
         )}
         
@@ -106,11 +151,16 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
         )}
         
         <p className="text-zinc-400 font-medium">
-          {showBalanceSection ? 'Available for transactions' : 'Wallet functionality will be unlocked after verification'}
+          {showBalanceSection 
+            ? (isKycApproved 
+                ? 'Available for transactions' 
+                : 'Complete KYC to unlock full functionality')
+            : 'Wallet functionality will be unlocked after verification'
+          }
         </p>
         
         {/* Transaction History Toggle - Only show if KYC is approved */}
-        {showBalanceSection && (
+        {showBalanceSection && isKycApproved && (
           <div className="mt-6 pt-4 border-t border-zinc-700/50">
             <button
               onClick={() => setShowTransactions(!showTransactions)}

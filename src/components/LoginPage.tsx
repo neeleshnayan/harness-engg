@@ -73,35 +73,41 @@ export default function LoginPage() {
           <div className="absolute w-80 h-80 rounded-full bg-cyan-400/10 blur-3xl z-0" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}></div>
           <img src="/krypton_logo.svg" alt="Krypton Logo" className="w-64 h-64 mx-auto relative z-10 drop-shadow-[0_0_64px_rgba(16,255,180,0.25)]" />
         </div>
+        
+        {/* Login Section */}
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-white mb-2">Login with Google</h2>
+          <p className="text-zinc-400 text-lg">Choose your account type to continue</p>
+        </div>
+        
         {error && (
-          <Alert className="bg-red-900/80 border-red-700 text-white mb-4">
+          <Alert className="bg-red-900/80 border-red-700 text-white mb-6 max-w-md">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-        <div className="flex flex-col gap-6 w-4/5 max-w-sm mx-auto">
+        
+        <div className="flex flex-col gap-4 w-4/5 max-w-md mx-auto">
           <button
             type="button"
             onClick={() => handleLogin('business')}
             disabled={loading === 'business'}
-            className="flex items-center justify-center whitespace-nowrap py-4 px-6 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 text-white text-xl font-bold shadow-lg hover:bg-white/20 hover:scale-[1.03] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}
+            className="flex items-center justify-center py-4 px-8 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white text-lg font-semibold shadow-lg hover:scale-[1.02] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-400 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <span className="inline-block w-9 h-9 mr-4 flex items-center justify-center rounded-full border border-white/30 bg-white/10 text-2xl font-extrabold text-white" style={{fontFamily: 'Geist, Inter, Arial, sans-serif', letterSpacing: '-0.04em'}}>B</span>
-            {loading === 'business' ? "Signing in..." : "Login as Business"}
+            {loading === 'business' ? "Signing in..." : "As Business"}
           </button>
+          
           <button
             type="button"
             onClick={() => handleLogin('customer')}
             disabled={loading === 'customer'}
-            className="flex items-center justify-center whitespace-nowrap py-4 px-6 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 text-white text-xl font-bold shadow-lg hover:bg-white/20 hover:scale-[1.03] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}
+            className="flex items-center justify-center py-4 px-8 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white text-lg font-semibold shadow-lg hover:scale-[1.02] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-400 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <span className="inline-block w-9 h-9 mr-4 flex items-center justify-center rounded-full border border-white/30 bg-white/10 text-2xl font-extrabold text-white" style={{fontFamily: 'Geist, Inter, Arial, sans-serif', letterSpacing: '-0.04em'}}>C</span>
-            {loading === 'customer' ? "Signing in..." : "Login as Customer"}
+            {loading === 'customer' ? "Signing in..." : "As Customer"}
           </button>
         </div>
       </div>
+      
       <footer className="w-full py-2 flex flex-col justify-center items-center border-t border-zinc-800 mt-auto">
         <span className="text-zinc-500 text-sm">Yield like God • Pay Like Ghost</span>
         <span className="text-zinc-600 text-xs mt-1">© {new Date().getFullYear()} Krypton Fund LLC</span>

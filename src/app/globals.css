@@ -119,3 +119,34 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Sumsub KYC Widget Styles */
+#sumsub-kyc-container {
+  position: relative !important;
+  z-index: 10000 !important;
+  overflow: visible !important;
+}
+
+#sumsub-kyc-container iframe {
+  position: relative !important;
+  z-index: 10000 !important;
+  overflow: visible !important;
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+}
+
+/* Ensure Sumsub widget elements are clickable */
+#sumsub-kyc-container * {
+  pointer-events: auto !important;
+}
+
+/* Fix for mobile responsiveness */
+@media (max-width: 768px) {
+  #sumsub-kyc-container {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    max-height: none !important;
+  }
+}

@@ -79,8 +79,21 @@ NEXT_PUBLIC_API_URL=https://api.kryptonfund.com
 - Apple Pay / Google Pay
 
 ### Supported Networks
-- Ethereum Sepolia (testnet)
+- **Ethereum Sepolia (testnet)** - Configured to match Circle wallet blockchain
+- **USDC Token Contract**: `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` (Sepolia)
 - Can be extended to mainnet when ready
+
+**Important**: The Transak widget is configured to use the same blockchain network (ETH-SEPOLIA) as your Circle wallet to ensure test USDC purchases are properly added to the customer's wallet.
+
+### Blockchain Configuration
+The Transak widget is configured to match your Circle wallet blockchain:
+
+- **Network**: Ethereum Sepolia (testnet)
+- **Token**: USDC
+- **Contract Address**: `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`
+- **Environment**: Staging (testnet mode)
+
+This ensures that test USDC purchases via Transak are sent to the same blockchain network as your Circle wallet, allowing customers to see their purchased USDC in their wallet balance.
 
 ### User Data Integration
 The integration automatically passes:
@@ -142,6 +155,15 @@ The backend includes a webhook endpoint (`/api/v1/transak-webhook`) that:
    - Verify KYC status endpoint is accessible
    - Check if KYC skip options are enabled in Transak dashboard
    - Try using test mode for development
+
+7. **USDC not appearing in wallet after purchase**
+   - Verify the blockchain network is set to Ethereum Sepolia (testnet)
+   - Check that the USDC token contract address is correct for Sepolia
+   - Ensure the wallet address is on the same network (Sepolia)
+   - Verify the purchase was completed successfully in Transak
+   - Check if the Circle wallet is configured for ETH-SEPOLIA network
+
+
 
 ### Environment Variables
 

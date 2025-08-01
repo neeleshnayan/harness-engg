@@ -30,13 +30,11 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
 
   const handleCopyClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('Copy button clicked');
     onCopyAddress();
   };
 
   const handleSignOutClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('Sign out button clicked');
     onLogout();
   };
   
