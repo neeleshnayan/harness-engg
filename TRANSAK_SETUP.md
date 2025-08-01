@@ -50,6 +50,13 @@ NEXT_PUBLIC_API_URL=https://api.kryptonfund.com
    - **KYC Integration**: Configure Sumsub integration
    - **Payment Methods**: Enable credit/debit cards and bank transfers
 
+2. **KYC Configuration in Transak Dashboard:**
+   - **KYC Level**: Set to Level 1 or disable for verified users
+   - **KYC Provider**: Configure Sumsub as the KYC provider
+   - **KYC Skip**: Enable "Skip KYC for verified users" option
+   - **KYC Integration**: Enable Sumsub integration settings
+   - **Test Mode**: Enable test mode for development
+
 ### 4. Test the Integration
 
 1. Start your frontend application
@@ -91,8 +98,9 @@ The Transak widget is configured to:
 
 ### KYC Flow
 1. **Verified Users**: KYC is skipped, direct to payment
-2. **Unverified Users**: KYC is required during the purchase flow
+2. **Unverified Users**: KYC Level 1 is required (minimal requirements)
 3. **KYC Status**: Displayed in the modal to inform users
+4. **KYC Level**: Set to Level 1 for lower verification requirements
 
 ### Webhook Integration
 The backend includes a webhook endpoint (`/api/v1/transak-webhook`) that:
@@ -127,6 +135,13 @@ The backend includes a webhook endpoint (`/api/v1/transak-webhook`) that:
    - Check if popup blockers are enabled in the browser
    - Use the manual "Open Transak" button as fallback
    - Ensure the domain is allowed in browser popup settings
+
+6. **KYC still required despite being verified**
+   - Check Transak dashboard KYC configuration
+   - Ensure Sumsub integration is properly configured
+   - Verify KYC status endpoint is accessible
+   - Check if KYC skip options are enabled in Transak dashboard
+   - Try using test mode for development
 
 ### Environment Variables
 

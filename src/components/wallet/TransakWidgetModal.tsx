@@ -29,9 +29,27 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
     const transakUrl = new URL('https://global-stg.transak.com');
     transakUrl.searchParams.set('apiKey', apiKey);
     transakUrl.searchParams.set('environment', environment);
+    
+    // Environment-specific KYC settings
+    if (environment === 'STAGING') {
+      transakUrl.searchParams.set('testMode', 'true');
+      transakUrl.searchParams.set('kycTestMode', 'true');
+      // Additional test parameters for KYC bypass
+      if (userDetails?.kycStatus === 'approved') {
+        transakUrl.searchParams.set('testKYC', 'false');
+        transakUrl.searchParams.set('testKYCLevel', '0');
+      }
+    }
     transakUrl.searchParams.set('defaultCryptoCurrency', 'USDC');
     transakUrl.searchParams.set('cryptoCurrencyList', 'USDC');
     transakUrl.searchParams.set('walletAddress', userDetails?.walletAddress || '');
+    
+    // Force direct purchase flow for verified users
+    if (userDetails?.kycStatus === 'approved') {
+      transakUrl.searchParams.set('directPurchase', 'true');
+      transakUrl.searchParams.set('skipVerification', 'true');
+      transakUrl.searchParams.set('bypassKYC', 'true');
+    }
     transakUrl.searchParams.set('themeColor', '#3B82F6');
     transakUrl.searchParams.set('redirectURL', window.location.origin + '/wallet');
     transakUrl.searchParams.set('hideMenu', 'false');
@@ -41,19 +59,26 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
     transakUrl.searchParams.set('partnerOrderId', `order_${Date.now()}`);
     transakUrl.searchParams.set('partnerCustomerId', userDetails?.email || 'anonymous');
     
-    // KYC Configuration - Skip KYC if already verified
+    // KYC Configuration - Try to completely disable KYC for verified users
     if (userDetails?.kycStatus === 'approved') {
-      transakUrl.searchParams.set('kycMode', 'SKIP');
+      transakUrl.searchParams.set('kycMode', 'DISABLED');
       transakUrl.searchParams.set('skipKYC', 'true');
+      transakUrl.searchParams.set('kycSkipIfVerified', 'true');
+      transakUrl.searchParams.set('useExistingKYC', 'true');
+      transakUrl.searchParams.set('kycRequired', 'false');
+      transakUrl.searchParams.set('disableKYC', 'true');
+      transakUrl.searchParams.set('kycLevel', '0');
+      transakUrl.searchParams.set('noKYC', 'true');
     } else {
-      transakUrl.searchParams.set('kycMode', 'REQUIRED');
+      // For unverified users, use minimal KYC
+      transakUrl.searchParams.set('kycLevel', '1');
+      transakUrl.searchParams.set('kycMode', 'BASIC');
+      transakUrl.searchParams.set('disableKYC', 'false');
+      transakUrl.searchParams.set('kycRequired', 'false');
     }
     
     // Sumsub Integration Parameters
     transakUrl.searchParams.set('kycProvider', 'sumsub');
-    transakUrl.searchParams.set('useExistingKYC', 'true');
-    transakUrl.searchParams.set('skipIfApproved', 'true');
-    transakUrl.searchParams.set('kycSkipIfVerified', 'true');
     transakUrl.searchParams.set('sumsubIntegration', 'true');
     
     if (userDetails?.email) {
@@ -66,7 +91,16 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
       kycStatus: userDetails?.kycStatus,
       kycProvider: 'sumsub',
       walletAddress: userDetails?.walletAddress,
-      kycStatusUrl: `${process.env.NEXT_PUBLIC_API_URL || 'https://api.kryptonfund.com'}/api/v1/kyc/status/${userDetails?.email}`
+      kycLevel: userDetails?.kycStatus === 'approved' ? '0' : '1',
+      kycStatusUrl: `${process.env.NEXT_PUBLIC_API_URL || 'https://api.kryptonfund.com'}/api/v1/kyc/status/${userDetails?.email}`,
+      // Additional KYC info
+      kycVerified: userDetails?.kycStatus === 'approved',
+      kycLevel1: userDetails?.kycStatus !== 'approved',
+      skipDocumentUpload: userDetails?.kycStatus === 'approved',
+      // Force skip KYC for verified users
+      kycDisabled: userDetails?.kycStatus === 'approved',
+      kycNotRequired: userDetails?.kycStatus === 'approved',
+      existingKYC: userDetails?.kycStatus === 'approved'
     };
     
     transakUrl.searchParams.set('userData', JSON.stringify(userData));
@@ -88,49 +122,7 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [visible, onClose]);
 
-  useEffect(() => {
-    if (!visible || !userDetails?.walletAddress) return;
 
-    // Use Transak's popup approach
-    const openTransakWidget = () => {
-      try {
-        // Open Transak in a new window
-        const transakWindow = window.open(
-          buildTransakUrl(),
-          'Transak',
-          'width=500,height=700,scrollbars=yes,resizable=yes'
-        );
-
-        // Handle window close
-        const checkClosed = setInterval(() => {
-          if (transakWindow?.closed) {
-            clearInterval(checkClosed);
-            onClose();
-          }
-        }, 1000);
-
-        // Cleanup interval on component unmount
-        return () => {
-          clearInterval(checkClosed);
-          if (transakWindow && !transakWindow.closed) {
-            transakWindow.close();
-          }
-        };
-
-      } catch (error) {
-        console.error('Failed to open Transak widget:', error);
-        setSdkLoadError('Failed to open Transak widget. Please try again later.');
-      }
-    };
-
-    // Open the widget when modal becomes visible
-    const cleanup = openTransakWidget();
-
-    // Cleanup function
-    return () => {
-      if (cleanup) cleanup();
-    };
-  }, [visible, userDetails, onClose]);
 
   if (!visible) return null;
 
@@ -149,15 +141,7 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
         </CardHeader>
         <CardContent className="p-6">
           <div className="text-center space-y-4">
-            <div className="text-zinc-300 mb-6">
-              <p className="mb-2">Purchase USDC directly to your wallet using:</p>
-              <ul className="text-sm space-y-1">
-                <li>• Credit/Debit Cards</li>
-                <li>• Bank Transfers</li>
-                <li>• Apple Pay / Google Pay</li>
-                <li>• Secure Transak Platform</li>
-              </ul>
-            </div>
+            
             
             {userDetails?.walletAddress && (
               <div className="bg-zinc-800/50 p-3 rounded-lg mb-4">
@@ -168,21 +152,21 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
               </div>
             )}
 
-            {userDetails?.kycStatus === 'approved' && (
+            {/* {userDetails?.kycStatus === 'approved' && (
               <div className="bg-green-800/20 border border-green-600/30 p-3 rounded-lg mb-4">
                 <p className="text-sm text-green-400">
                   ✓ KYC Verified - You can proceed with your purchase
                 </p>
               </div>
-            )}
+            )} */}
 
-            {userDetails?.kycStatus !== 'approved' && (
+            {/* {userDetails?.kycStatus !== 'approved' && (
               <div className="bg-yellow-800/20 border border-yellow-600/30 p-3 rounded-lg mb-4">
                 <p className="text-sm text-yellow-400">
                   ⚠ KYC Required - You'll need to complete verification during purchase
                 </p>
               </div>
-            )}
+            )} */}
 
             {sdkLoadError && (
               <div className="bg-red-800/20 border border-red-600/30 p-3 rounded-lg mb-4">
@@ -195,11 +179,31 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
             <div className="flex flex-col space-y-3">
               <Button
                 onClick={() => {
-                  window.open(
-                    buildTransakUrl(),
-                    'Transak',
-                    'width=500,height=700,scrollbars=yes,resizable=yes'
-                  );
+                  try {
+                    // Open Transak in a new window
+                    const transakWindow = window.open(
+                      buildTransakUrl(),
+                      'Transak',
+                      'width=500,height=700,scrollbars=yes,resizable=yes'
+                    );
+
+                    // Handle window close
+                    const checkClosed = setInterval(() => {
+                      if (transakWindow?.closed) {
+                        clearInterval(checkClosed);
+                        onClose();
+                      }
+                    }, 1000);
+
+                    // Cleanup interval after 5 minutes to prevent memory leaks
+                    setTimeout(() => {
+                      clearInterval(checkClosed);
+                    }, 300000);
+
+                  } catch (error) {
+                    console.error('Failed to open Transak widget:', error);
+                    setSdkLoadError('Failed to open Transak widget. Please try again later.');
+                  }
                 }}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
               >
@@ -215,9 +219,9 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
             </div>
 
             <div className="text-xs text-zinc-500 mt-4">
-              <p>Transak will open in a new window.</p>
-              <p>USDC will be sent directly to your wallet address.</p>
-              <p>Please allow popups if the window doesn't open automatically.</p>
+              {/* <p>Click "Open Transak" to start your purchase.</p>
+              <p>USDC will be sent directly to your wallet address.</p> */}
+              <p>Please allow popups if the window doesn't open.</p>
             </div>
           </div>
         </CardContent>
