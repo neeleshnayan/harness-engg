@@ -97,6 +97,14 @@ export default function CustomerPage() {
       if (updatedData.wallet_address && !balance) {
         fetchBalance(updatedData.wallet_address);
       }
+      
+      // If user has username but KYC is not approved, check status
+      if (updatedData.username && userData.kyc_status !== 'approved') {
+        console.log('User has username but KYC not approved, checking status...');
+        setTimeout(() => {
+          checkKycStatus(userId);
+        }, 1000);
+      }
     } catch (err) {
       console.error('Failed to fetch user data:', err);
       // Fallback to localStorage data
@@ -268,27 +276,40 @@ export default function CustomerPage() {
   };
 
   const checkKycStatus = async (userId: string) => {
+    console.log('Checking KYC status for user:', userId);
     setKycChecking(true);
     setKycMessage(null);
     try {
       const response = await api.post(`/api/v1/kyc/check-status/${userId}`);
       
       if (response.data.status === 'success') {
-        setKycStatus(response.data.kyc_status);
-        const updatedData = { ...accountData, kyc_status: response.data.kyc_status };
+        const newStatus = response.data.kyc_status;
+        console.log('KYC status check result:', newStatus);
+        setKycStatus(newStatus);
+        const updatedData = { ...accountData, kyc_status: newStatus };
         setAccountData(updatedData);
         localStorage.setItem('userData', JSON.stringify(updatedData));
-        setKycMessage(`KYC status updated to: ${response.data.kyc_status}`);
+        
+        if (newStatus === 'approved') {
+          setKycMessage('KYC verification completed successfully!');
+          setTimeout(() => setKycMessage(null), 3000);
+        } else if (newStatus === 'rejected') {
+          setKycMessage('KYC verification was rejected. Please try again.');
+          setTimeout(() => setKycMessage(null), 5000);
+        } else {
+          setKycMessage(`KYC status: ${newStatus}`);
+          setTimeout(() => setKycMessage(null), 3000);
+        }
       } else {
         setKycMessage(response.data.message || 'Failed to check KYC status');
+        setTimeout(() => setKycMessage(null), 5000);
       }
     } catch (err: any) {
       console.error('Failed to check KYC status:', err);
       setKycMessage(err.response?.data?.detail || 'Failed to check KYC status');
+      setTimeout(() => setKycMessage(null), 5000);
     } finally {
       setKycChecking(false);
-      // Clear message after 5 seconds
-      setTimeout(() => setKycMessage(null), 5000);
     }
   };
 
@@ -327,36 +348,79 @@ export default function CustomerPage() {
   };
 
   const pollKycStatus = async (userId: string) => {
+    console.log('Starting KYC status polling for user:', userId);
     // Poll user data for KYC status
     for (let i = 0; i < 15; i++) { // Increased attempts
       try {
+        console.log(`Polling attempt ${i + 1}/15`);
         const res = await api.get(`/api/v1/user/${userId}`);
         const status = res.data.kyc_status;
+        console.log('Current KYC status:', status);
         
         if (status === 'approved') {
+          console.log('KYC approved! Updating status...');
           setKycStatus('approved');
           const updated = { ...accountData, kyc_status: 'approved' };
           setAccountData(updated);
           localStorage.setItem('userData', JSON.stringify(updated));
+          setKycMessage('KYC verification completed successfully!');
+          // Clear success message after 3 seconds
+          setTimeout(() => setKycMessage(null), 3000);
           break;
         } else if (status === 'rejected') {
+          console.log('KYC rejected!');
           setKycStatus('rejected');
+          setKycMessage('KYC verification was rejected. Please try again.');
+          // Clear error message after 5 seconds
+          setTimeout(() => setKycMessage(null), 5000);
           break;
+        } else {
+          console.log('KYC still pending...');
+          // Update status even if pending to ensure UI reflects current state
+          setKycStatus(status || 'pending');
         }
         
         // Wait 2 seconds between checks (reduced from 3)
         await new Promise(r => setTimeout(r, 2000));
       } catch (err) {
-        console.error('Error polling KYC status:', err);
+        console.error(`Error polling KYC status (attempt ${i + 1}):`, err);
         // Don't break on first error, continue polling
         await new Promise(r => setTimeout(r, 2000));
       }
     }
+    
+    // If we've exhausted all attempts, try one final manual check
+    try {
+      console.log('Performing final KYC status check...');
+      const finalRes = await api.post(`/api/v1/kyc/check-status/${userId}`);
+      if (finalRes.data.status === 'success') {
+        const finalStatus = finalRes.data.kyc_status;
+        console.log('Final KYC status:', finalStatus);
+        setKycStatus(finalStatus);
+        const updated = { ...accountData, kyc_status: finalStatus };
+        setAccountData(updated);
+        localStorage.setItem('userData', JSON.stringify(updated));
+        
+        if (finalStatus === 'approved') {
+          setKycMessage('KYC verification completed successfully!');
+          setTimeout(() => setKycMessage(null), 3000);
+        }
+      }
+    } catch (err) {
+      console.error('Error in final KYC status check:', err);
+    }
   };
 
   const handleKycModalClose = () => {
+    console.log('KYC modal closed, starting status check...');
     setKycModalVisible(false);
-    // Add a small delay to allow webhook processing
+    
+    // Immediately check status once
+    if (accountData?.user_id) {
+      checkKycStatus(accountData.user_id);
+    }
+    
+    // Add a small delay to allow webhook processing, then start polling
     setTimeout(() => {
       if (accountData?.user_id) {
         pollKycStatus(accountData.user_id);

@@ -93,126 +93,54 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
       ? 'https://sepolia.etherscan.io/tx/'
       : '';
     const upperStatus = status?.toUpperCase();
-    // Clickable on-chain statuses
-    const clickableStatuses = ['INITIATED', 'SENT', 'ACCELERATED', 'CONFIRMED'];
+    
+    // Helper function to create clickable icon
+    const createClickableIcon = (IconComponent: any, color: string, title: string) => {
+      if (txHash) {
+        return (
+          <a
+            href={`${etherscanBase}${txHash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-cyan-400 cursor-pointer transition-all duration-200 hover:scale-110 group"
+            title={`${title} - View on Etherscan`}
+          >
+            <IconComponent className={`h-5 w-5 ${color} group-hover:drop-shadow-sm`} />
+          </a>
+        );
+      } else {
+        return (
+          <span title={title} className="cursor-default">
+            <IconComponent className={`h-5 w-5 ${color}`} />
+          </span>
+        );
+      }
+    };
+    
     // Status mapping
     switch (upperStatus) {
       case 'INITIATED':
-        return txHash ? (
-          <a
-            href={`${etherscanBase}${txHash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-cyan-400 cursor-pointer"
-            title="Initiated - View on Etherscan"
-          >
-            <Clock className="h-5 w-5 text-zinc-400" />
-          </a>
-        ) : (
-          <span title="Initiated">
-            <Clock className="h-5 w-5 text-zinc-400" />
-          </span>
-        );
+        return createClickableIcon(Clock, 'text-zinc-400', 'Initiated');
       case 'QUEUED':
-        return (
-          <span title="Queued">
-            <Clock className="h-5 w-5 text-zinc-400" />
-          </span>
-        );
+        return createClickableIcon(Clock, 'text-zinc-400', 'Queued');
       case 'PENDING_RISK_SCREENING':
-        return (
-          <span title="Pending Risk Screening">
-            <Clock className="h-5 w-5 text-zinc-400" />
-          </span>
-        );
+        return createClickableIcon(Clock, 'text-zinc-400', 'Pending Risk Screening');
       case 'SENT':
-        return txHash ? (
-          <a
-            href={`${etherscanBase}${txHash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-cyan-400 cursor-pointer"
-            title="Sent - View on Etherscan"
-          >
-            <Clock className="h-5 w-5 text-cyan-400" />
-          </a>
-        ) : (
-          <span title="Sent">
-            <Clock className="h-5 w-5 text-cyan-400" />
-          </span>
-        );
+        return createClickableIcon(Clock, 'text-cyan-400', 'Sent');
       case 'ACCELERATED':
-        return txHash ? (
-          <a
-            href={`${etherscanBase}${txHash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-cyan-400 cursor-pointer"
-            title="Accelerated - View on Etherscan"
-          >
-            <Clock className="h-5 w-5 text-cyan-400" />
-          </a>
-        ) : (
-          <span title="Accelerated">
-            <Clock className="h-5 w-5 text-cyan-400" />
-          </span>
-        );
+        return createClickableIcon(Clock, 'text-cyan-400', 'Accelerated');
       case 'CONFIRMED':
-        return txHash ? (
-          <a
-            href={`${etherscanBase}${txHash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-green-400 cursor-pointer"
-            title="Confirmed - View on Etherscan"
-          >
-            <CheckCircle className="h-5 w-5 text-cyan-400" />
-          </a>
-        ) : (
-          <span title="Confirmed">
-            <CheckCircle className="h-5 w-5 text-cyan-400" />
-          </span>
-        );
+        return createClickableIcon(CheckCircle, 'text-cyan-400', 'Confirmed');
       case 'COMPLETE':
-        return (
-          <span title="Complete">
-            <CheckCircle className="h-5 w-5 text-green-500" />
-          </span>
-        );
+        return createClickableIcon(CheckCircle, 'text-green-500', 'Complete');
       case 'CANCELED':
-        return (
-          <span title="Canceled">
-            <XCircle className="h-5 w-5 text-zinc-400" />
-          </span>
-        );
+        return createClickableIcon(XCircle, 'text-zinc-400', 'Canceled');
       case 'FAILED':
-        return (
-          <span title="Failed">
-            <XCircle className="h-5 w-5 text-red-500" />
-          </span>
-        );
+        return createClickableIcon(XCircle, 'text-red-500', 'Failed');
       case 'DENIED':
-        return (
-          <span title="Denied">
-            <XCircle className="h-5 w-5 text-red-500" />
-          </span>
-        );
+        return createClickableIcon(XCircle, 'text-red-500', 'Denied');
       default:
-        return txHash ? (
-          <a
-            href={`${etherscanBase}${txHash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-cyan-400 cursor-pointer"
-            title="Unknown Status - View on Etherscan"
-          >
-            <AlertCircle className="h-5 w-5 text-gray-500" />
-          </a>
-        ) : (
-          <span title="Unknown Status">
-            <AlertCircle className="h-5 w-5 text-gray-500" />
-          </span>
-        );
+        return createClickableIcon(AlertCircle, 'text-gray-500', 'Unknown Status');
     }
   };
 
@@ -226,6 +154,28 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
   const shortenAddress = (address: string | null) => {
     if (!address) return 'Unknown';
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  const getDisplayName = (address: string | null, username: string | null) => {
+    if (username) {
+      return {
+        display: `@${username}`,
+        fullAddress: address,
+        isUsername: true
+      };
+    } else if (address) {
+      return {
+        display: shortenAddress(address),
+        fullAddress: address,
+        isUsername: false
+      };
+    } else {
+      return {
+        display: 'Unknown',
+        fullAddress: null,
+        isUsername: false
+      };
+    }
   };
 
   const formatAmount = (amount: string, inbound: boolean) => {
@@ -287,11 +237,9 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
         <div className="rounded-xl border border-white/10 bg-black/30">
           {transactions.map((tx, idx) => {
             const inbound = isInbound(tx);
-            const counterparty = inbound ? tx.from_address : tx.to_address;
+            const counterpartyAddress = inbound ? tx.from_address : tx.to_address;
             const counterpartyUsername = inbound ? tx.from_username : tx.to_username;
-            const displayCounterparty = counterpartyUsername
-              ? <span className="text-cyan-400 font-medium">@{counterpartyUsername}</span>
-              : shortenAddress(counterparty);
+            const displayInfo = getDisplayName(counterpartyAddress, counterpartyUsername);
             const amount = tx.amount || '0';
             return (
               <div
@@ -308,7 +256,16 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
                       {formatAmount(amount, inbound)}
                     </span>
                     <span className="text-zinc-400 text-xs truncate">
-                      {inbound ? 'From' : 'To'}: {displayCounterparty}
+                      {inbound ? 'From' : 'To'}: 
+                      <span 
+                        className={`${displayInfo.isUsername ? 'text-cyan-400 font-medium' : 'text-zinc-300'} flex items-center gap-1`}
+                        title={displayInfo.fullAddress ? `Wallet: ${displayInfo.fullAddress}` : undefined}
+                      >
+                        {displayInfo.display}
+                        {displayInfo.isUsername && (
+                          <span className="inline-block w-1.5 h-1.5 bg-cyan-400 rounded-full" title="Krypton User"></span>
+                        )}
+                      </span>
                     </span>
                   </div>
                   <div className="flex items-center justify-center w-5 h-5 ml-2">
@@ -342,11 +299,9 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
     <div className="rounded-xl border border-white/10 bg-black/30">
       {transactions.map((tx, idx) => {
         const inbound = isInbound(tx);
-        const counterparty = inbound ? tx.from_address : tx.to_address;
+        const counterpartyAddress = inbound ? tx.from_address : tx.to_address;
         const counterpartyUsername = inbound ? tx.from_username : tx.to_username;
-        const displayCounterparty = counterpartyUsername
-          ? <span className="text-cyan-400 font-medium">@{counterpartyUsername}</span>
-          : shortenAddress(counterparty);
+        const displayInfo = getDisplayName(counterpartyAddress, counterpartyUsername);
         const amount = tx.amount || '0';
         return (
           <div
@@ -363,7 +318,13 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
                   {formatAmount(amount, inbound)}
                 </span>
                 <span className="text-zinc-400 text-xs truncate">
-                  {inbound ? 'From' : 'To'}: {displayCounterparty}
+                  {inbound ? 'From' : 'To'}: 
+                  <span 
+                    className={`${displayInfo.isUsername ? 'text-cyan-400 font-medium' : 'text-zinc-300'}`}
+                    title={displayInfo.fullAddress ? `Wallet: ${displayInfo.fullAddress}` : undefined}
+                  >
+                    {displayInfo.display}
+                  </span>
                 </span>
               </div>
               <div className="flex items-center justify-center w-5 h-5 ml-2">

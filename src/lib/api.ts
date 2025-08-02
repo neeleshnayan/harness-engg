@@ -38,4 +38,26 @@ api.interceptors.response.use(
   }
 );
 
+// Helper function to check KYC status
+export const checkKycStatus = async (userId: string) => {
+  try {
+    const response = await api.post(`/api/v1/kyc/check-status/${userId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error checking KYC status:', error);
+    throw error;
+  }
+};
+
+// Helper function to get user info
+export const getUserInfo = async (userId: string) => {
+  try {
+    const response = await api.get(`/api/v1/user/${userId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting user info:', error);
+    throw error;
+  }
+};
+
 export default api; 
