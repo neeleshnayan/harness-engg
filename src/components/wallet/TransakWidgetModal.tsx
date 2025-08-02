@@ -77,7 +77,7 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
       transakUrl.searchParams.set('bypassKYC', 'true');
     }
     transakUrl.searchParams.set('themeColor', '#3B82F6');
-    transakUrl.searchParams.set('redirectURL', window.location.origin + '/wallet');
+    transakUrl.searchParams.set('redirectURL', window.location.origin + '/customer');
     transakUrl.searchParams.set('hideMenu', 'false');
     transakUrl.searchParams.set('isDisableCrypto', 'false');
     transakUrl.searchParams.set('isDisableMatic', 'true');

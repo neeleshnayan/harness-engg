@@ -18,6 +18,7 @@ interface BalanceCardProps {
   kycMessage?: string | null;
   onBuyClick?: () => void;
   onSkipKyc?: () => void;
+  balanceLoading?: boolean;
 }
 
 const USDC_SVG = (
@@ -44,12 +45,12 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   kycChecking,
   kycMessage,
   onBuyClick,
-  onSkipKyc
+  onSkipKyc,
+  balanceLoading = false
 }) => {
   const showKycSection = accountData?.username && kycStatus !== 'approved' && onKycClick;
   const showBalanceSection = accountData?.username; // Always show balance if username exists
   const isKycApproved = kycStatus === 'approved';
-  
   
   return (
     <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 mb-8 ${className || ''}`}>
@@ -113,7 +114,12 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
         {showBalanceSection && (
           <div className={`flex items-center justify-center mb-4 ${!isKycApproved ? 'blur-sm' : ''}`}>
             <div className="text-6xl font-bold text-white">
-              {error ? (
+              {balanceLoading ? (
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mr-3"></div>
+                  <span className="text-2xl">Loading...</span>
+                </div>
+              ) : error ? (
                 <span className="text-red-400 text-2xl font-semibold">{error}</span>
               ) : (() => {
                 if (balance && Array.isArray(balance.tokenBalances) && balance.tokenBalances.length > 0) {
@@ -131,7 +137,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
                 return '-';
               })()}
             </div>
-            {onBuyClick && isKycApproved && (
+            {onBuyClick && isKycApproved && !balanceLoading && (
               <button
                 onClick={onBuyClick}
                 className="ml-4 p-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-full shadow-lg hover:scale-110 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-400"
@@ -163,7 +169,10 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
         {showBalanceSection && isKycApproved && (
           <div className="mt-6 pt-4 border-t border-zinc-700/50">
             <button
-              onClick={() => setShowTransactions(!showTransactions)}
+              onClick={() => {
+                console.log('Transaction History button clicked, current state:', showTransactions);
+                setShowTransactions(!showTransactions);
+              }}
               className="flex items-center justify-center space-x-2 text-zinc-400 hover:text-zinc-300 transition-colors text-sm"
             >
               <span>Transaction History</span>

@@ -20,6 +20,8 @@ export default function CustomerPage() {
   const [accountData, setAccountData] = useState<any>(null);
   const [balance, setBalance] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [userDataLoading, setUserDataLoading] = useState(false);
+  const [balanceLoading, setBalanceLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [username, setUsername] = useState<string>("");
   const [showUsernameForm, setShowUsernameForm] = useState(false);
@@ -70,6 +72,7 @@ export default function CustomerPage() {
 
   const fetchUserData = async (userId: string) => {
     try {
+      setUserDataLoading(true);
       const response = await api.get(`/api/v1/user/${userId}`);
       const userData = response.data;
       setKycStatus(userData.kyc_status || 'pending');
@@ -99,15 +102,20 @@ export default function CustomerPage() {
       // Fallback to localStorage data
       const data = JSON.parse(localStorage.getItem('userData') || '{}');
       setKycStatus(data.kyc_status || 'pending');
+    } finally {
+      setUserDataLoading(false);
     }
   };
 
   const fetchBalance = async (address: string) => {
     try {
+      setBalanceLoading(true);
       const response = await api.get(`/api/v1/wallet_balance/${address}`);
       setBalance(response.data);
     } catch (err) {
       setError('Failed to fetch balance.');
+    } finally {
+      setBalanceLoading(false);
     }
   };
 
@@ -356,12 +364,14 @@ export default function CustomerPage() {
     }, 2000);
   };
 
-  if (loading) {
+  if (loading || userDataLoading || balanceLoading) {
     return (
       <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 dark overflow-x-hidden flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-zinc-400 font-medium">-</p>
+          <p className="text-zinc-400 font-medium">
+            {loading ? "Loading wallet..." : userDataLoading ? "Fetching user data..." : balanceLoading ? "Loading balance..." : "Loading..."}
+          </p>
         </div>
       </div>
     );
@@ -458,6 +468,7 @@ export default function CustomerPage() {
             kycMessage={kycMessage}
             onBuyClick={() => setShowTransakModal(true)}
             onSkipKyc={() => accountData?.user_id && skipKyc(accountData.user_id)}
+            balanceLoading={balanceLoading}
           />
           {accountData?.username && kycStatus === 'approved' && (
             <div className="flex flex-row gap-4 mb-8 w-full justify-center mt-8">

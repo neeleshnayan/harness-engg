@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ArrowUpRight, ArrowDownLeft, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import api from '@/lib/api';
 
 interface Transaction {
   id: string;
@@ -32,12 +33,22 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
+  // Debug logging
+  console.log('TransactionHistory Debug:', {
+    username,
+    userWalletAddress,
+    refresh
+  });
+
   const fetchTransactions = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.kryptonfund.com'}/api/v1/latest_transactions_by_username/${username}`);
-      const data = await response.json();
+      console.log("Username: ", username)
+      const response = await api.get(`/api/v1/latest_transactions_by_username/${username}`);
+      console.log("Response: ", response)
+      const data = response.data;
+      console.log("Data: ", data)
       if (data.error) {
         setError(data.error);
       } else {
@@ -45,6 +56,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
         setNextPageToken(data.next_page_after || null);
       }
     } catch (err) {
+      console.error('Error fetching transactions:', err);
       setError('Failed to fetch transactions');
     } finally {
       setLoading(false);
@@ -60,8 +72,8 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
     if (!nextPageToken) return;
     try {
       setLoadingMore(true);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.kryptonfund.com'}/api/v1/latest_transactions_by_username/${username}?page_after=${encodeURIComponent(nextPageToken)}`);
-      const data = await response.json();
+      const response = await api.get(`/api/v1/latest_transactions_by_username/${username}?page_after=${encodeURIComponent(nextPageToken)}`);
+      const data = response.data;
       if (data.error) {
         setError(data.error);
       } else {
@@ -69,6 +81,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
         setNextPageToken(data.next_page_after || null);
       }
     } catch (err) {
+      console.error('Error loading more transactions:', err);
       setError('Failed to load more transactions');
     } finally {
       setLoadingMore(false);
