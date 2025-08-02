@@ -18,7 +18,7 @@ export default function CustomerGrowPage() {
         <button
           className="flex-1 bg-white/10 border border-white/20 rounded-3xl p-8 flex flex-col items-center justify-center shadow-xl hover:bg-cyan-400/10 hover:border-cyan-400/40 transition-all duration-200 backdrop-blur-xl group focus:outline-none focus:ring-2 focus:ring-cyan-400"
           style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}
-          onClick={() => {}}
+          onClick={() => router.push('/customer/grow/hedge-fund')}
         >
           <div className="w-16 h-16 rounded-full bg-cyan-400/20 flex items-center justify-center mb-6 group-hover:bg-cyan-400/30 transition-all">
             <Shield className="h-10 w-10 text-cyan-300 group-hover:text-cyan-400 transition-all" />
