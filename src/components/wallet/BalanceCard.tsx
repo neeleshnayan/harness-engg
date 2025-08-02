@@ -13,6 +13,8 @@ interface BalanceCardProps {
   kycStatus?: string | null;
   onKycClick?: () => void;
   onRefreshKyc?: () => void;
+  onCheckKycStatus?: () => void;
+  kycChecking?: boolean;
   kycMessage?: string | null;
   onBuyClick?: () => void;
   onSkipKyc?: () => void;
@@ -39,6 +41,8 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   kycStatus,
   onKycClick,
   onRefreshKyc,
+  onCheckKycStatus,
+  kycChecking = false,
   kycMessage,
   onBuyClick,
   onSkipKyc,
