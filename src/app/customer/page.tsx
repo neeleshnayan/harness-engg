@@ -100,7 +100,6 @@ export default function CustomerPage() {
       
       // If user has username but KYC is not approved, check status
       if (updatedData.username && userData.kyc_status !== 'approved') {
-        console.log('User has username but KYC not approved, checking status...');
         setTimeout(() => {
           checkKycStatus(userId);
         }, 1000);
@@ -276,7 +275,6 @@ export default function CustomerPage() {
   };
 
   const checkKycStatus = async (userId: string) => {
-    console.log('Checking KYC status for user:', userId);
     setKycChecking(true);
     setKycMessage(null);
     try {
@@ -284,7 +282,6 @@ export default function CustomerPage() {
       
       if (response.data.status === 'success') {
         const newStatus = response.data.kyc_status;
-        console.log('KYC status check result:', newStatus);
         setKycStatus(newStatus);
         const updatedData = { ...accountData, kyc_status: newStatus };
         setAccountData(updatedData);
@@ -348,17 +345,14 @@ export default function CustomerPage() {
   };
 
   const pollKycStatus = async (userId: string) => {
-    console.log('Starting KYC status polling for user:', userId);
     // Poll user data for KYC status
     for (let i = 0; i < 15; i++) { // Increased attempts
       try {
-        console.log(`Polling attempt ${i + 1}/15`);
+        (`Polling attempt ${i + 1}/15`);
         const res = await api.get(`/api/v1/user/${userId}`);
         const status = res.data.kyc_status;
-        console.log('Current KYC status:', status);
         
         if (status === 'approved') {
-          console.log('KYC approved! Updating status...');
           setKycStatus('approved');
           const updated = { ...accountData, kyc_status: 'approved' };
           setAccountData(updated);
@@ -368,14 +362,12 @@ export default function CustomerPage() {
           setTimeout(() => setKycMessage(null), 3000);
           break;
         } else if (status === 'rejected') {
-          console.log('KYC rejected!');
           setKycStatus('rejected');
           setKycMessage('KYC verification was rejected. Please try again.');
           // Clear error message after 5 seconds
           setTimeout(() => setKycMessage(null), 5000);
           break;
         } else {
-          console.log('KYC still pending...');
           // Update status even if pending to ensure UI reflects current state
           setKycStatus(status || 'pending');
         }
@@ -391,11 +383,10 @@ export default function CustomerPage() {
     
     // If we've exhausted all attempts, try one final manual check
     try {
-      console.log('Performing final KYC status check...');
+      ('Performing final KYC status check...');
       const finalRes = await api.post(`/api/v1/kyc/check-status/${userId}`);
       if (finalRes.data.status === 'success') {
         const finalStatus = finalRes.data.kyc_status;
-        console.log('Final KYC status:', finalStatus);
         setKycStatus(finalStatus);
         const updated = { ...accountData, kyc_status: finalStatus };
         setAccountData(updated);
@@ -412,7 +403,6 @@ export default function CustomerPage() {
   };
 
   const handleKycModalClose = () => {
-    console.log('KYC modal closed, starting status check...');
     setKycModalVisible(false);
     
     // Immediately check status once

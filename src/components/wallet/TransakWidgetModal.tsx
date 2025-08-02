@@ -132,7 +132,6 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
     transakUrl.searchParams.set('userData', JSON.stringify(userData));
 
     const finalUrl = transakUrl.toString();
-    console.log('Transak URL with KYC params:', finalUrl);
     return finalUrl;
   };
 

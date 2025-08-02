@@ -81,7 +81,6 @@ const SumsubKYCModal: React.FC<SumsubKYCModalProps> = ({
             },
             // Better error handling
             onMessage: (type: string, payload: any) => {
-              console.log('Sumsub message:', type, payload);
               if (type === 'idCheck.onApproved') {
                 onClose();
               } else if (type === 'idCheck.onRejected') {
@@ -90,7 +89,6 @@ const SumsubKYCModal: React.FC<SumsubKYCModalProps> = ({
                 console.error('KYC error', payload);
                 onClose();
               } else if (type === 'idCheck.onStepCompleted') {
-                console.log('Step completed:', payload);
               }
             },
             onError: (error: any) => {
@@ -109,7 +107,6 @@ const SumsubKYCModal: React.FC<SumsubKYCModalProps> = ({
             zIndex: 10000
           })
           .on('idCheck.onStepCompleted', (payload: any) => {
-            console.log('Step completed:', payload);
           })
           .on('idCheck.onError', (error: any) => {
             console.error('Step error:', error);

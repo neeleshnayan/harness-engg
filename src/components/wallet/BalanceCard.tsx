@@ -13,8 +13,6 @@ interface BalanceCardProps {
   kycStatus?: string | null;
   onKycClick?: () => void;
   onRefreshKyc?: () => void;
-  onCheckKycStatus?: () => void;
-  kycChecking?: boolean;
   kycMessage?: string | null;
   onBuyClick?: () => void;
   onSkipKyc?: () => void;
@@ -41,8 +39,6 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   kycStatus,
   onKycClick,
   onRefreshKyc,
-  onCheckKycStatus,
-  kycChecking,
   kycMessage,
   onBuyClick,
   onSkipKyc,
@@ -52,14 +48,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   const showBalanceSection = accountData?.username; // Always show balance if username exists
   const isKycApproved = kycStatus === 'approved';
   
-  // Debug logging to help troubleshoot KYC banner visibility
-  console.log('BalanceCard KYC Debug:', {
-    username: accountData?.username,
-    kycStatus,
-    isKycApproved,
-    showKycSection,
-    onKycClick: !!onKycClick
-  });
+  
   
   return (
     <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 mb-8 ${className || ''}`}>
@@ -100,16 +89,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
                 >
                   Skip for Now
                 </button>
-                {onCheckKycStatus && (
-                  <button
-                    onClick={onCheckKycStatus}
-                    disabled={kycChecking}
-                    className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-semibold py-3 px-8 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg disabled:transform-none"
-                  >
-                    <FaSync className={`inline mr-2 ${kycChecking ? 'animate-spin' : ''}`} />
-                    {kycChecking ? 'Checking...' : 'Check Status'}
-                  </button>
-                )}
+
               </div>
               <p className="text-xs text-zinc-500 mt-3 text-center">
                 You can complete KYC later to unlock full functionality
@@ -129,28 +109,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
           </div>
         )}
         
-        {/* Show KYC success message when approved */}
-        {isKycApproved && kycMessage && kycMessage.includes('completed successfully') && (
-          <div className="mb-6">
-            <div className="bg-gradient-to-r from-green-900/50 to-emerald-900/50 border border-green-500/30 rounded-2xl p-6 mb-4">
-              <div className="flex items-center justify-center mb-4">
-                <FaShieldAlt className="text-3xl text-green-400 mr-3" />
-                <h3 className="text-xl font-bold text-white">KYC Verification Complete!</h3>
-              </div>
-              <p className="text-zinc-300 mb-4 text-center">
-                Your identity has been verified successfully. You now have full access to all wallet features.
-              </p>
-              <div className="text-center">
-                <div className="inline-flex items-center gap-2 bg-green-900/30 text-green-400 px-4 py-2 rounded-full">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                  <span className="font-semibold">Verification Successful</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+
         
         {/* Show balance always if username exists, but blur if KYC not approved */}
         {showBalanceSection && (
@@ -165,7 +124,6 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
                 <span className="text-red-400 text-2xl font-semibold">{error}</span>
               ) : (() => {
                 if (balance && Array.isArray(balance.tokenBalances) && balance.tokenBalances.length > 0) {
-                  console.log(balance)
                   // const transakToken = balance.tokenBalances.find(
                   //   (b: any) => b.token && b.token.symbol === 'TRNSK'
                   // );
@@ -212,7 +170,6 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
           <div className="mt-6 pt-4 border-t border-zinc-700/50">
             <button
               onClick={() => {
-                console.log('Transaction History button clicked, current state:', showTransactions);
                 setShowTransactions(!showTransactions);
               }}
               className="flex items-center justify-center space-x-2 text-zinc-400 hover:text-zinc-300 transition-colors text-sm"

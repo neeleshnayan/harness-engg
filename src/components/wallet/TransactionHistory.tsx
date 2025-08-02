@@ -33,22 +33,12 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  // Debug logging
-  console.log('TransactionHistory Debug:', {
-    username,
-    userWalletAddress,
-    refresh
-  });
-
   const fetchTransactions = async () => {
     try {
       setLoading(true);
       setError(null);
-      console.log("Username: ", username)
       const response = await api.get(`/api/v1/latest_transactions_by_username/${username}`);
-      console.log("Response: ", response)
       const data = response.data;
-      console.log("Data: ", data)
       if (data.error) {
         setError(data.error);
       } else {
