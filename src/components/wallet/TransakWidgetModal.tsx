@@ -124,7 +124,7 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
     transakUrl.searchParams.set('sumsubIntegration', 'true');
     
     if (userDetails?.email) {
-      transakUrl.searchParams.set('email', userDetails.email);
+      transakUrl.searchParams.set('email', "foodlai.foodlabs@gmail.com");
     }
     
     // Hard-coded card details for testing/development
