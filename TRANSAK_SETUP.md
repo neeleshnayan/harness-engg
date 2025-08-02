@@ -67,11 +67,12 @@ NEXT_PUBLIC_API_URL=https://api.kryptonfund.com
 ## Configuration Details
 
 ### Integration Method
-- **Popup Window Integration**: Opens Transak in a new popup window
+- **Embedded Widget Integration**: Transak widget opens inside the page as an iframe
 - **KYC Integration**: Integrates with existing Sumsub KYC
 - **Skip KYC**: Automatically skips KYC if user is already verified
 - **Secure**: Uses Transak's official payment platform
-- **Fallback**: Manual "Open Transak" button if popup is blocked
+- **Responsive**: Full-height modal with embedded widget
+- **Message Handling**: Automatically handles completion events from Transak
 
 ### Supported Payment Methods
 - Credit/Debit Cards
@@ -144,24 +145,35 @@ The backend includes a webhook endpoint (`/api/v1/transak-webhook`) that:
    - Check that KYC status is being passed correctly
    - Verify webhook endpoints are working
 
-5. **Popup not opening**
-   - Check if popup blockers are enabled in the browser
-   - Use the manual "Open Transak" button as fallback
-   - Ensure the domain is allowed in browser popup settings
+5. **Iframe not loading**
+   - Check if iframe is blocked by browser security settings
+   - Ensure Transak domain is allowed in your CSP (Content Security Policy)
+   - Verify the iframe sandbox permissions are correct
+   - Check browser console for iframe-related errors
 
-6. **KYC still required despite being verified**
+6. **Widget not responsive**
+   - Ensure the modal has proper height and width settings
+   - Check that the iframe has `100%` height and width
+   - Verify the parent container allows iframe expansion
+
+7. **KYC still required despite being verified**
    - Check Transak dashboard KYC configuration
    - Ensure Sumsub integration is properly configured
    - Verify KYC status endpoint is accessible
    - Check if KYC skip options are enabled in Transak dashboard
    - Try using test mode for development
 
-7. **USDC not appearing in wallet after purchase**
+8. **USDC not appearing in wallet after purchase**
    - Verify the blockchain network is set to Ethereum Sepolia (testnet)
    - Check that the USDC token contract address is correct for Sepolia
    - Ensure the wallet address is on the same network (Sepolia)
    - Verify the purchase was completed successfully in Transak
    - Check if the Circle wallet is configured for ETH-SEPOLIA network
+
+9. **Message events not working**
+   - Ensure the message event listener is properly set up
+   - Check that Transak is sending messages from the correct origin
+   - Verify the event handling logic for completion events
 
 
 
@@ -187,10 +199,10 @@ The migration from Coinbase CDP to Transak includes:
 1. ✅ Replaced `CoinbaseCDPModal` with `TransakWidgetModal`
 2. ✅ Updated WalletPage component to use new modal
 3. ✅ Removed Coinbase-specific code and dependencies
-4. ✅ Added Transak configuration and popup window handling
+4. ✅ Added Transak configuration and embedded iframe handling
 5. ✅ Implemented Sumsub KYC integration
 6. ✅ Added KYC status checking and skipping
-7. ✅ Added fallback manual button for popup blockers
+7. ✅ Added embedded iframe widget with message handling
 
 ## Next Steps
 
@@ -204,6 +216,77 @@ The migration from Coinbase CDP to Transak includes:
 - **Seamless KYC Integration**: Uses existing Sumsub KYC
 - **KYC Skipping**: Automatically skips KYC for verified users
 - **Multiple Payment Methods**: Credit cards, bank transfers, digital wallets
+- **Pre-filled Payment Details**: Option to pre-fill payment method and card details
 - **Real-time Status**: Shows KYC status in the modal
 - **Secure Transactions**: Uses Transak's secure platform
-- **User-Friendly**: Clear messaging about KYC requirements 
+- **User-Friendly**: Clear messaging about KYC requirements
+
+## Pre-filling Payment Details
+
+The Transak widget now includes hard-coded card details for testing and development purposes. This feature automatically pre-fills test card information to streamline the testing process.
+
+### Current Configuration
+
+The widget is configured with the following hard-coded test card details:
+
+```typescript
+const hardcodedCardDetails = {
+  paymentMethod: 'card',
+  cardNumber: '4111111111111111', // Test Visa card number
+  cardExpiry: '12/25', // MM/YY format
+  cardCvv: '123', // 3-digit CVV
+};
+```
+
+### Payment Method Configuration
+
+- **Default Payment Method**: Credit/Debit Card
+- **Enabled Methods**: Only card payments
+- **Disabled Methods**: Bank transfers, Apple Pay, Google Pay
+
+### Usage
+
+The card details are automatically pre-filled when the Transak widget opens. No additional configuration is needed:
+
+```typescript
+<TransakWidgetModal
+  visible={showTransakModal}
+  onClose={() => setShowTransakModal(false)}
+  userDetails={{
+    walletAddress: userWalletAddress,
+    email: userEmail,
+    kycStatus: kycStatus
+  }}
+/>
+```
+
+### Security Considerations
+
+⚠️ **Important Security Notes:**
+
+1. **Test Cards Only**: The hard-coded card details are test card numbers only
+2. **Development Environment**: This configuration is intended for development/testing only
+3. **Production Warning**: Never use real card details in production code
+4. **PCI Compliance**: Test card numbers do not require PCI compliance
+5. **User Awareness**: Users should be informed that test card details are pre-filled
+
+### Customization
+
+To change the hard-coded card details, modify the `hardcodedCardDetails` object in `TransakWidgetModal.tsx`:
+
+```typescript
+const hardcodedCardDetails = {
+  paymentMethod: 'card',
+  cardNumber: '4111111111111111', // Change to different test card number
+  cardExpiry: '12/25', // Change expiry date
+  cardCvv: '123', // Change CVV
+};
+```
+
+### Test Card Numbers
+
+Common test card numbers you can use:
+- **Visa**: `4111111111111111`
+- **Mastercard**: `5555555555554444`
+- **American Express**: `378282246310005`
+- **Discover**: `6011111111111117` 

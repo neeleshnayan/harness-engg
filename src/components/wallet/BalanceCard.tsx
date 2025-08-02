@@ -140,10 +140,10 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
             {onBuyClick && isKycApproved && !balanceLoading && (
               <button
                 onClick={onBuyClick}
-                className="ml-4 p-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-full shadow-lg hover:scale-110 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-400"
-                title="Buy USDC"
+                className="ml-6 p-3 bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 group"
+                title="Add USDC to your wallet"
               >
-                <FaPlus className="text-xl" />
+                <FaPlus className="text-lg group-hover:scale-110 transition-transform duration-200" />
               </button>
             )}
           </div>

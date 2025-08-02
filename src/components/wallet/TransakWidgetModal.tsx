@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import type { FC, MouseEvent } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { X } from "lucide-react";
 
 interface TransakWidgetModalProps {
   visible: boolean;
@@ -19,7 +20,9 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
   userDetails 
 }: TransakWidgetModalProps) => {
   const modalRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const [sdkLoadError, setSdkLoadError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Helper function to validate Ethereum wallet address
   const validateWalletAddress = (address: string): boolean => {
@@ -82,8 +85,21 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
     transakUrl.searchParams.set('isDisableCrypto', 'false');
     transakUrl.searchParams.set('isDisableMatic', 'true');
     transakUrl.searchParams.set('exchangeScreenTitle', 'Buy USDC');
+    
+    // Embedded widget specific parameters
+    transakUrl.searchParams.set('isEmbed', 'true');
+    transakUrl.searchParams.set('widgetHeight', '100%');
+    transakUrl.searchParams.set('widgetWidth', '100%');
+    transakUrl.searchParams.set('disableWalletAddressForm', 'true');
+    transakUrl.searchParams.set('hideExchangeScreenHeader', 'false');
+    
+    // Payment method configuration
+    transakUrl.searchParams.set('isDisableCard', 'false');
+    transakUrl.searchParams.set('isDisableBank', 'false');
+    transakUrl.searchParams.set('isDisableApplePay', 'false');
+    transakUrl.searchParams.set('isDisableGooglePay', 'false');
     transakUrl.searchParams.set('partnerOrderId', `order_${Date.now()}`);
-    transakUrl.searchParams.set('partnerCustomerId', userDetails?.email || 'anonymous');
+    transakUrl.searchParams.set('partnerCustomerId', "foodlai.foodlabs@gmail.com");
     
     // KYC Configuration - Try to completely disable KYC for verified users
     if (userDetails?.kycStatus === 'approved') {
@@ -110,6 +126,30 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
     if (userDetails?.email) {
       transakUrl.searchParams.set('email', userDetails.email);
     }
+    
+    // Hard-coded card details for testing/development
+    // ⚠️ WARNING: Only use test card details, never real card details in production
+    const hardcodedCardDetails = {
+      paymentMethod: 'card',
+      cardNumber: '4024764449971519', // Test Visa card number
+      cardExpiry: '10/33', // MM/YY format
+      cardCvv: '123', // 3-digit CVV
+    };
+    
+    // Set default payment method to card
+    transakUrl.searchParams.set('defaultPaymentMethod', hardcodedCardDetails.paymentMethod);
+    transakUrl.searchParams.set('paymentMethod', hardcodedCardDetails.paymentMethod);
+    
+    // Configure payment method settings - enable only card payments
+    transakUrl.searchParams.set('isDisableCard', 'false');
+    transakUrl.searchParams.set('isDisableBank', 'true');
+    transakUrl.searchParams.set('isDisableApplePay', 'true');
+    transakUrl.searchParams.set('isDisableGooglePay', 'true');
+    
+    // Pre-fill hard-coded card details
+    transakUrl.searchParams.set('cardNumber', hardcodedCardDetails.cardNumber);
+    transakUrl.searchParams.set('cardExpiry', hardcodedCardDetails.cardExpiry);
+    transakUrl.searchParams.set('cardCvv', hardcodedCardDetails.cardCvv);
     
     // Additional user data for KYC recognition
     const userData = {
@@ -141,10 +181,40 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
     }
     if (visible) {
       document.addEventListener("keydown", handleKeyDown);
+      setIsLoading(true);
     } else {
       document.removeEventListener("keydown", handleKeyDown);
+      setIsLoading(false);
     }
     return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [visible, onClose]);
+
+  // Handle iframe load
+  const handleIframeLoad = () => {
+    setIsLoading(false);
+  };
+
+  // Handle iframe messages from Transak
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Handle messages from Transak iframe
+      if (event.origin.includes('transak.com')) {
+        
+        // Handle completion/close events
+        if (event.data?.event_id === 'TRANSAK_WIDGET_CLOSE' || 
+            event.data?.event_id === 'TRANSAK_ORDER_SUCCESSFUL') {
+          onClose();
+        }
+      }
+    };
+
+    if (visible) {
+      window.addEventListener('message', handleMessage);
+    }
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
   }, [visible, onClose]);
 
 
@@ -157,109 +227,41 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
       onClick={onClose}
     >
       <Card
-        className="w-full max-w-4xl bg-zinc-900/95 border border-zinc-800 shadow-2xl relative overflow-hidden"
+        className="w-full max-w-6xl h-[90vh] bg-zinc-900/95 border border-zinc-800 shadow-2xl relative overflow-hidden flex flex-col"
         onClick={(e: MouseEvent<HTMLDivElement>) => e.stopPropagation()}
         ref={modalRef}
       >
-        <CardHeader className="text-center">
-          <CardTitle className="text-xl font-bold text-white">Buy USDC with Transak</CardTitle>
-          <div className="text-sm text-zinc-400 mt-2">
-            Network: Ethereum Sepolia (Testnet) - Same as your Circle wallet
-          </div>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="text-center space-y-4">
-            
-            
-            {userDetails?.walletAddress && (
-              <div className="bg-zinc-800/50 p-3 rounded-lg mb-4">
-                <p className="text-xs text-zinc-400 mb-1">Destination Wallet:</p>
-                <p className="text-xs text-cyan-400 font-mono break-all">
-                  {userDetails.walletAddress}
-                </p>
-                {validateWalletAddress(userDetails.walletAddress) ? (
-                  <p className="text-xs text-green-400 mt-1">
-                    ✓ Valid Ethereum address for Sepolia network
-                  </p>
-                ) : (
-                  <p className="text-xs text-red-400 mt-1">
-                    ⚠ Invalid wallet address format
-                  </p>
-                )}
-              </div>
-            )}
+        
+        <CardContent className="flex-1 p-0 relative">
 
-            {/* {userDetails?.kycStatus === 'approved' && (
-              <div className="bg-green-800/20 border border-green-600/30 p-3 rounded-lg mb-4">
-                <p className="text-sm text-green-400">
-                  ✓ KYC Verified - You can proceed with your purchase
-                </p>
-              </div>
-            )} */}
-
-            {/* {userDetails?.kycStatus !== 'approved' && (
-              <div className="bg-yellow-800/20 border border-yellow-600/30 p-3 rounded-lg mb-4">
-                <p className="text-sm text-yellow-400">
-                  ⚠ KYC Required - You'll need to complete verification during purchase
-                </p>
-              </div>
-            )} */}
-
-            {sdkLoadError && (
-              <div className="bg-red-800/20 border border-red-600/30 p-3 rounded-lg mb-4">
-                <p className="text-sm text-red-400">
-                  {sdkLoadError}
-                </p>
-              </div>
-            )}
-
-            <div className="flex flex-col space-y-3">
-              <Button
-                onClick={() => {
-                  try {
-                    // Open Transak in a new window
-                    const transakWindow = window.open(
-                      buildTransakUrl(),
-                      'Transak',
-                      'width=500,height=700,scrollbars=yes,resizable=yes'
-                    );
-
-                    // Handle window close
-                    const checkClosed = setInterval(() => {
-                      if (transakWindow?.closed) {
-                        clearInterval(checkClosed);
-                        onClose();
-                      }
-                    }, 1000);
-
-                    // Cleanup interval after 5 minutes to prevent memory leaks
-                    setTimeout(() => {
-                      clearInterval(checkClosed);
-                    }, 300000);
-
-                  } catch (error) {
-                    console.error('Failed to open Transak widget:', error);
-                    setSdkLoadError('Failed to open Transak widget. Please try again later.');
-                  }
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-              >
-                Open Transak
-              </Button>
-              <Button
-                variant="outline"
-                onClick={onClose}
-                className="text-zinc-300 hover:text-white"
-              >
-                Close
-              </Button>
+          {sdkLoadError && (
+            <div className="bg-red-800/20 border border-red-600/30 p-3 mx-6 mb-4 rounded-lg">
+              <p className="text-sm text-red-400">
+                {sdkLoadError}
+              </p>
             </div>
+          )}
 
-            <div className="text-xs text-zinc-500 mt-4">
-              <p>USDC will be sent directly to your wallet on Ethereum Sepolia (same network as your Circle wallet).</p>
-              <p>Please allow popups if the window doesn't open.</p>
+          {/* Loading state */}
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-zinc-900/50 z-10">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                <p className="text-white">Loading Transak widget...</p>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Transak iframe */}
+          <iframe
+            ref={iframeRef}
+            src={buildTransakUrl()}
+            className="w-full h-full border-0"
+            title="Transak Widget"
+            onLoad={handleIframeLoad}
+            allow="camera; microphone; payment"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+          />
         </CardContent>
       </Card>
     </div>

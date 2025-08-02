@@ -11,6 +11,7 @@ import SendUSDCModal from "@/components/wallet/SendUSDCModal";
 import HamburgerMenu from "@/components/wallet/HamburgerMenu";
 import QuickActions from "@/components/wallet/QuickActions";
 import api from "@/lib/api";
+import TransakWidgetModal from "@/components/wallet/TransakWidgetModal";
 import WalletHeader from "@/components/wallet/WalletHeader";
 import SumsubKYCModal from "@/components/wallet/SumsubKYCModal";
 
@@ -19,6 +20,7 @@ export default function BusinessPage() {
   const [accountData, setAccountData] = useState<any>(null);
   const [balance, setBalance] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [userDataLoading, setUserDataLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [username, setUsername] = useState<string>("");
   const [showUsernameForm, setShowUsernameForm] = useState(false);
@@ -34,12 +36,14 @@ export default function BusinessPage() {
   const [showMenu, setShowMenu] = useState(false);
   const [showTransactions, setShowTransactions] = useState(false);
   const [refreshingBalance, setRefreshingBalance] = useState(false);
+  const [showTransakModal, setShowTransakModal] = useState(false);
   const [transactionHistoryRefresh, setTransactionHistoryRefresh] = useState(false);
   const [kycModalVisible, setKycModalVisible] = useState(false);
   const [kycAccessToken, setKycAccessToken] = useState<string | null>(null);
   const [kycStatus, setKycStatus] = useState<string | null>(null);
   const [kycChecking, setKycChecking] = useState(false);
   const [kycMessage, setKycMessage] = useState<string | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -68,6 +72,7 @@ export default function BusinessPage() {
 
   const fetchUserData = async (userId: string) => {
     try {
+      setUserDataLoading(true);
       const response = await api.get(`/api/v1/user/${userId}`);
       const userData = response.data;
       setKycStatus(userData.kyc_status || 'pending');
@@ -104,15 +109,20 @@ export default function BusinessPage() {
       // Fallback to localStorage data
       const data = JSON.parse(localStorage.getItem('userData') || '{}');
       setKycStatus(data.kyc_status || 'pending');
+    } finally {
+      setUserDataLoading(false);
     }
   };
 
   const fetchBalance = async (address: string) => {
     try {
+      setBalanceLoading(true);
       const response = await api.get(`/api/v1/wallet_balance/${address}`);
       setBalance(response.data);
     } catch (err) {
       setError('Failed to fetch balance.');
+    } finally {
+      setBalanceLoading(false);
     }
   };
 
@@ -407,12 +417,14 @@ export default function BusinessPage() {
     }, 2000);
   };
 
-  if (loading) {
+  if (loading || userDataLoading || balanceLoading) {
     return (
       <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 dark overflow-x-hidden flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-zinc-400 font-medium">-</p>
+          <p className="text-zinc-400 font-medium">
+            {loading ? "Loading wallet..." : userDataLoading ? "Fetching user data..." : balanceLoading ? "Loading balance..." : "Loading..."}
+          </p>
         </div>
       </div>
     );
@@ -504,28 +516,27 @@ export default function BusinessPage() {
             kycStatus={kycStatus}
             onKycClick={() => openKycModal(accountData?.user_id)}
             onRefreshKyc={() => accountData?.user_id && fetchUserData(accountData.user_id)}
-            onCheckKycStatus={() => accountData?.user_id && checkKycStatus(accountData.user_id)}
-            kycChecking={kycChecking}
             kycMessage={kycMessage}
+            onBuyClick={() => setShowTransakModal(true)}
             onSkipKyc={() => accountData?.user_id && skipKyc(accountData.user_id)}
+            balanceLoading={balanceLoading}
           />
           {accountData?.username && kycStatus === 'approved' && (
             <div className="flex flex-row gap-4 mb-8 w-full justify-center mt-8">
               <button
                 type="button"
-                className="flex-1 py-4 px-8 rounded-2xl bg-green-600 text-white text-xl font-bold shadow-lg hover:bg-green-700 hover:scale-[1.03] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-400"
-                style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}
-                onClick={() => {}}
+                onClick={() => setShowSendForm(true)}
+                className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-5 px-10 rounded-full font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-xl"
               >
-                Create Token
+                <FaArrowUp className="mr-3 text-lg" />
+                Pay
               </button>
               <button
                 type="button"
-                onClick={() => setShowSendForm(true)}
-                className="flex-1 bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 text-white py-4 px-8 rounded-2xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-xl"
+                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white py-5 px-10 rounded-full font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-xl"
               >
-                <FaArrowUp className="mr-3" />
-                Pay
+                <FaUser className="mr-3 text-lg text-green-400" />
+                Manage Business
               </button>
             </div>
           )}
@@ -542,6 +553,17 @@ export default function BusinessPage() {
             sendError={sendError}
             sendSuccess={sendSuccess}
             onSend={handleSendUSDC}
+          />
+        )}
+        {showTransakModal && (
+          <TransakWidgetModal
+            visible={showTransakModal}
+            onClose={() => setShowTransakModal(false)}
+            userDetails={{
+              walletAddress: accountData?.wallet_address,
+              email: accountData?.email,
+              kycStatus: kycStatus || undefined
+            }}
           />
         )}
       </div>

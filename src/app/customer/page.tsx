@@ -529,16 +529,17 @@ export default function CustomerPage() {
               <button
                 type="button"
                 onClick={() => setShowSendForm(true)}
-                className="flex-1 bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 text-white py-4 px-8 rounded-2xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-xl"
+                className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-5 px-10 rounded-full font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-xl"
               >
-                <FaArrowUp className="mr-3" />
+                <FaArrowUp className="mr-3 text-lg" />
                 Pay
               </button>
               <button
                 type="button"
                 onClick={() => router.push('/customer/grow')}
-                className="flex-1 bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white py-4 px-8 rounded-2xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-xl"
+                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white py-5 px-10 rounded-full font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-xl"
               >
+                <FaArrowUp className="mr-3 text-lg transform rotate-45 text-green-400" />
                 Grow
               </button>
             </div>
@@ -562,11 +563,11 @@ export default function CustomerPage() {
           <TransakWidgetModal
             visible={showTransakModal}
             onClose={() => setShowTransakModal(false)}
-                          userDetails={{
-                walletAddress: accountData?.wallet_address,
-                email: accountData?.email,
-                kycStatus: kycStatus || undefined
-              }}
+            userDetails={{
+              walletAddress: accountData?.wallet_address,
+              email: accountData?.email,
+              kycStatus: kycStatus || undefined
+            }}
           />
         )}
       </div>
