@@ -101,31 +101,22 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
     transakUrl.searchParams.set('partnerOrderId', `order_${Date.now()}`);
     transakUrl.searchParams.set('partnerCustomerId', "foodlai.foodlabs@gmail.com");
     
-    // KYC Configuration - Try to completely disable KYC for verified users
-    if (userDetails?.kycStatus === 'approved') {
-      transakUrl.searchParams.set('kycMode', 'DISABLED');
-      transakUrl.searchParams.set('skipKYC', 'true');
-      transakUrl.searchParams.set('kycSkipIfVerified', 'true');
-      transakUrl.searchParams.set('useExistingKYC', 'true');
-      transakUrl.searchParams.set('kycRequired', 'false');
-      transakUrl.searchParams.set('disableKYC', 'true');
-      transakUrl.searchParams.set('kycLevel', '0');
-      transakUrl.searchParams.set('noKYC', 'true');
-    } else {
-      // For unverified users, use minimal KYC
-      transakUrl.searchParams.set('kycLevel', '1');
-      transakUrl.searchParams.set('kycMode', 'BASIC');
-      transakUrl.searchParams.set('disableKYC', 'false');
-      transakUrl.searchParams.set('kycRequired', 'false');
-    }
+    // KYC Configuration - Completely disable KYC for all users
+    transakUrl.searchParams.set('kycMode', 'DISABLED');
+    transakUrl.searchParams.set('skipKYC', 'true');
+    transakUrl.searchParams.set('kycSkipIfVerified', 'true');
+    transakUrl.searchParams.set('useExistingKYC', 'true');
+    transakUrl.searchParams.set('kycRequired', 'false');
+    transakUrl.searchParams.set('disableKYC', 'true');
+    transakUrl.searchParams.set('kycLevel', '0');
+    transakUrl.searchParams.set('noKYC', 'true');
     
     // Sumsub Integration Parameters
     transakUrl.searchParams.set('kycProvider', 'sumsub');
     transakUrl.searchParams.set('sumsubIntegration', 'true');
     
-    if (userDetails?.email) {
-      transakUrl.searchParams.set('email', "foodlai.foodlabs@gmail.com");
-    }
+    // Always use the specified email
+    transakUrl.searchParams.set('email', "foodlai.foodlabs@gmail.com");
     
     // Hard-coded card details for testing/development
     // ⚠️ WARNING: Only use test card details, never real card details in production
@@ -153,20 +144,20 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
     
     // Additional user data for KYC recognition
     const userData = {
-      email: userDetails?.email,
-      kycStatus: userDetails?.kycStatus,
+      email: "foodlai.foodlabs@gmail.com",
+      kycStatus: 'approved',
       kycProvider: 'sumsub',
       walletAddress: userDetails?.walletAddress,
-      kycLevel: userDetails?.kycStatus === 'approved' ? '0' : '1',
-      kycStatusUrl: `${process.env.NEXT_PUBLIC_API_URL || 'https://api.kryptonfund.com'}/api/v1/kyc/status/${userDetails?.email}`,
-      // Additional KYC info
-      kycVerified: userDetails?.kycStatus === 'approved',
-      kycLevel1: userDetails?.kycStatus !== 'approved',
-      skipDocumentUpload: userDetails?.kycStatus === 'approved',
-      // Force skip KYC for verified users
-      kycDisabled: userDetails?.kycStatus === 'approved',
-      kycNotRequired: userDetails?.kycStatus === 'approved',
-      existingKYC: userDetails?.kycStatus === 'approved'
+      kycLevel: '0',
+      kycStatusUrl: `${process.env.NEXT_PUBLIC_API_URL || 'https://api.kryptonfund.com'}/api/v1/kyc/status/foodlai.foodlabs@gmail.com`,
+      // Additional KYC info - Force KYC bypass
+      kycVerified: true,
+      kycLevel1: false,
+      skipDocumentUpload: true,
+      // Force skip KYC for all users
+      kycDisabled: true,
+      kycNotRequired: true,
+      existingKYC: true
     };
     
     transakUrl.searchParams.set('userData', JSON.stringify(userData));

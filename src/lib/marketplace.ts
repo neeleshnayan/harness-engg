@@ -6,6 +6,14 @@ export interface MarketplaceItem {
   name: string;
   description: string;
   price: number;
+  linkedin?: string;
+  youtube?: string;
+  x?: string;
+  token_name?: string;
+  is_minting_active?: boolean;
+  owner_id?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface MarketplaceCategories {
@@ -50,6 +58,16 @@ export class MarketplaceService {
       return response.data;
     } catch (error) {
       console.error('Failed to fetch marketplace item:', error);
+      throw error;
+    }
+  }
+
+  static async getBusinessItemsByOwner(ownerId: string): Promise<MarketplaceItem[]> {
+    try {
+      const response = await api.get(`/api/v1/marketplace/business/${ownerId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch business items:', error);
       throw error;
     }
   }

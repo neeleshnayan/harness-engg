@@ -533,6 +533,7 @@ export default function BusinessPage() {
               </button>
               <button
                 type="button"
+                onClick={() => router.push('/business/manage')}
                 className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white py-5 px-10 rounded-full font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-xl"
               >
                 <FaUser className="mr-3 text-lg text-green-400" />
