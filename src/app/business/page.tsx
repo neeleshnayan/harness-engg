@@ -522,23 +522,35 @@ export default function BusinessPage() {
             balanceLoading={balanceLoading}
           />
           {accountData?.username && kycStatus === 'approved' && (
-            <div className="flex flex-row gap-4 mb-8 w-full justify-center mt-8">
-              <button
-                type="button"
-                onClick={() => setShowSendForm(true)}
-                className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-5 px-10 rounded-full font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-xl"
-              >
-                <FaArrowUp className="mr-3 text-lg" />
-                Pay
-              </button>
-              <button
-                type="button"
-                onClick={() => router.push('/business/manage')}
-                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white py-5 px-10 rounded-full font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-xl"
-              >
-                <FaUser className="mr-3 text-lg text-green-400" />
-                Manage Business
-              </button>
+            <div className="flex flex-col gap-4 mb-8 w-full justify-center mt-8">
+              <div className="flex flex-row gap-4 w-full justify-center">
+                <button
+                  type="button"
+                  onClick={() => setShowSendForm(true)}
+                  className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-5 px-10 rounded-full font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-xl"
+                >
+                  <FaArrowUp className="mr-3 text-lg" />
+                  Pay
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push('/business/grow')}
+                  className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white py-5 px-10 rounded-full font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-xl"
+                >
+                  <FaArrowUp className="mr-3 text-lg transform rotate-45 text-green-400" />
+                  Grow
+                </button>
+              </div>
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => router.push('/business/manage')}
+                  className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white py-4 px-8 rounded-full font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-lg"
+                >
+                  <FaUser className="mr-3 text-lg text-green-400" />
+                  Manage Business
+                </button>
+              </div>
             </div>
           )}
         </div>

@@ -9,6 +9,7 @@ export interface MarketplaceItem {
   linkedin?: string;
   youtube?: string;
   x?: string;
+  pitch_video?: string;
   token_name?: string;
   is_minting_active?: boolean;
   owner_id?: string;

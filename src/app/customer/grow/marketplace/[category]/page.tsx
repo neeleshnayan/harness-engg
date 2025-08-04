@@ -66,11 +66,26 @@ export default function MarketplaceCategoryPage() {
     setSelectedStartup(null);
   };
 
-  const handleBuyStartup = (startupId: string) => {
-    // TODO: Implement buy functionality
-    console.log('Buying startup:', startupId);
+  const handleBuyStartup = async (startupId: string, tokenCount: number, sellTarget: number) => {
+   
     // You can integrate with your wallet or payment system here
-    alert('Buy functionality will be implemented soon!');
+    // Example implementation:
+    try {
+      // TODO: Replace with actual API call
+      // const response = await api.post('/api/v1/marketplace/buy-tokens', {
+      //   startup_id: startupId,
+      //   token_count: tokenCount,
+      //   sell_target: sellTarget,
+      //   user_id: accountData.user_id
+      // });
+      
+      // For now, show a success message
+      alert(`Successfully purchased ${tokenCount} tokens for startup ${startupId} with sell target $${sellTarget}`);
+    } catch (error) {
+      console.error('Failed to purchase tokens:', error);
+      alert('Failed to purchase tokens. Please try again.');
+      throw error; // Re-throw to let the modal handle the error
+    }
   };
 
   if (loading) {

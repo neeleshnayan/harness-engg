@@ -22,6 +22,7 @@ interface BusinessData {
   linkedin: string;
   youtube: string;
   x: string;
+  pitchVideo: string;
 }
 
 interface FundraisingData {
@@ -45,7 +46,8 @@ export default function ManageBusinessPage() {
     category: '',
     linkedin: '',
     youtube: '',
-    x: ''
+    x: '',
+    pitchVideo: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
   });
   
   const [fundraisingData, setFundraisingData] = useState<FundraisingData>({
@@ -87,7 +89,8 @@ export default function ManageBusinessPage() {
               category: business.category || '',
               linkedin: business.linkedin || '',
               youtube: business.youtube || '',
-              x: business.x || ''
+              x: business.x || '',
+              pitchVideo: business.pitch_video || ''
             });
             setFundraisingData({
               tokenName: business.token_name || '',
@@ -146,7 +149,8 @@ export default function ManageBusinessPage() {
           price: fundraisingData.price || 0,
           linkedin: businessData.linkedin || undefined,
           youtube: businessData.youtube || undefined,
-          x: businessData.x || undefined
+          x: businessData.x || undefined,
+          pitch_video: businessData.pitchVideo || undefined
         };
         
         await api.put(`/api/v1/marketplace/${existingBusinessId}`, updateData);
@@ -160,6 +164,7 @@ export default function ManageBusinessPage() {
           linkedin: businessData.linkedin || undefined,
           youtube: businessData.youtube || undefined,
           x: businessData.x || undefined,
+          pitch_video: businessData.pitchVideo || undefined,
           owner_id: userData.user_id
         };
 
@@ -418,6 +423,27 @@ export default function ManageBusinessPage() {
                     )}
                   </div>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                  Pitch Video URL (YouTube)
+                </label>
+                <div className="relative">
+                  <input
+                    type="url"
+                    value={businessData.pitchVideo}
+                    onChange={(e) => handleBusinessDataChange('pitchVideo', e.target.value)}
+                    className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-600/50 rounded-lg text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    placeholder="https://www.youtube.com/watch?v=..."
+                  />
+                  {businessData.pitchVideo && (
+                    <ExternalLink className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                  )}
+                </div>
+                <p className="text-zinc-500 text-sm mt-1">
+                  Add a YouTube video URL for your pitch video. This will be displayed to potential investors.
+                </p>
               </div>
             </div>
           </div>
