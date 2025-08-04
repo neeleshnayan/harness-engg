@@ -3,6 +3,7 @@ import type { FC, MouseEvent } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
+import api from "@/lib/api";
 
 interface TransakWidgetModalProps {
   visible: boolean;
@@ -11,6 +12,21 @@ interface TransakWidgetModalProps {
     walletAddress?: string;
     email?: string;
     kycStatus?: string;
+    firstName?: string;
+    lastName?: string;
+    mobileNumber?: string;
+    dateOfBirth?: string;
+    defaultFiatAmount?: number;
+    defaultCryptoAmount?: number;
+    userId?: string; // Add userId to fetch KYC share token
+    address?: {
+      addressLine1?: string;
+      addressLine2?: string;
+      city?: string;
+      state?: string;
+      postCode?: string;
+      countryCode?: string;
+    };
   };
 }
 
@@ -23,6 +39,7 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [sdkLoadError, setSdkLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [transakUrl, setTransakUrl] = useState<string>('');
 
   // Helper function to validate Ethereum wallet address
   const validateWalletAddress = (address: string): boolean => {
@@ -31,7 +48,7 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
 
   // Helper function to build Transak URL
   // This ensures Transak uses the same blockchain (ETH-SEPOLIA) as the Circle wallet
-  const buildTransakUrl = () => {
+  const buildTransakUrl = async () => {
     const apiKey = process.env.NEXT_PUBLIC_TRANSAK_API_KEY || 'f4c10825-55fd-4ccc-bd3f-40fc021468e5';
     const environment = process.env.NEXT_PUBLIC_TRANSAK_ENVIRONMENT || 'STAGING';
     
@@ -43,15 +60,23 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
     if (environment === 'STAGING') {
       transakUrl.searchParams.set('testMode', 'true');
       transakUrl.searchParams.set('kycTestMode', 'true');
-      // Additional test parameters for KYC bypass
-      if (userDetails?.kycStatus === 'approved') {
-        transakUrl.searchParams.set('testKYC', 'false');
-        transakUrl.searchParams.set('testKYCLevel', '0');
-      }
     }
+    
+    // Basic configuration
     transakUrl.searchParams.set('defaultCryptoCurrency', 'USDC');
     transakUrl.searchParams.set('cryptoCurrencyList', 'USDC');
-    transakUrl.searchParams.set('walletAddress', userDetails?.walletAddress || '');
+    transakUrl.searchParams.set('themeColor', '#3B82F6');
+    transakUrl.searchParams.set('redirectURL', window.location.origin + '/customer');
+    transakUrl.searchParams.set('hideMenu', 'false');
+    transakUrl.searchParams.set('isDisableCrypto', 'false');
+    transakUrl.searchParams.set('isDisableMatic', 'true');
+    transakUrl.searchParams.set('exchangeScreenTitle', 'Buy USDC');
+    
+    // Embedded widget specific parameters
+    transakUrl.searchParams.set('isEmbed', 'true');
+    transakUrl.searchParams.set('widgetHeight', '100%');
+    transakUrl.searchParams.set('widgetWidth', '100%');
+    transakUrl.searchParams.set('hideExchangeScreenHeader', 'false');
     
     // Configure blockchain network to match Circle wallet (ETH-SEPOLIA)
     transakUrl.searchParams.set('defaultNetwork', 'ethereum');
@@ -73,25 +98,80 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
       transakUrl.searchParams.set('tokenContractAddress', '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'); // USDC on Sepolia
     }
     
-    // Force direct purchase flow for verified users
-    if (userDetails?.kycStatus === 'approved') {
-      transakUrl.searchParams.set('directPurchase', 'true');
-      transakUrl.searchParams.set('skipVerification', 'true');
-      transakUrl.searchParams.set('bypassKYC', 'true');
+    // Wallet address configuration
+    if (userDetails?.walletAddress) {
+      transakUrl.searchParams.set('walletAddress', userDetails.walletAddress);
+      transakUrl.searchParams.set('disableWalletAddressForm', 'true'); // Prevent editing wallet address
     }
-    transakUrl.searchParams.set('themeColor', '#3B82F6');
-    transakUrl.searchParams.set('redirectURL', window.location.origin + '/customer');
-    transakUrl.searchParams.set('hideMenu', 'false');
-    transakUrl.searchParams.set('isDisableCrypto', 'false');
-    transakUrl.searchParams.set('isDisableMatic', 'true');
-    transakUrl.searchParams.set('exchangeScreenTitle', 'Buy USDC');
     
-    // Embedded widget specific parameters
-    transakUrl.searchParams.set('isEmbed', 'true');
-    transakUrl.searchParams.set('widgetHeight', '100%');
-    transakUrl.searchParams.set('widgetWidth', '100%');
-    transakUrl.searchParams.set('disableWalletAddressForm', 'true');
-    transakUrl.searchParams.set('hideExchangeScreenHeader', 'false');
+    // KYC Share Token Configuration - Skip KYC using Sumsub
+    if (userDetails?.userId && userDetails?.kycStatus === 'approved') {
+      try {
+        const response = await api.post(`/api/v1/kyc/share-token/${userDetails.userId}`);
+        
+        if (response.status === 200) {
+          const data = response.data;
+          
+          if (data.success && data.kycShareToken) {
+            // Set KYC reliance parameters according to Transak documentation
+            transakUrl.searchParams.set('kycShareTokenProvider', 'SUMSUB');
+            transakUrl.searchParams.set('kycShareToken', data.kycShareToken);
+            transakUrl.searchParams.set('kycSkipIfVerified', 'true');
+            transakUrl.searchParams.set('useExistingKYC', 'true');
+            
+          } else {
+            console.warn('KYC share token response missing token:', data);
+          }
+        } else {
+          console.warn('Failed to get KYC share token, status:', response.status);
+          console.warn('Response data:', response.data);
+        }
+              } catch (error: any) {
+          console.error('Error fetching KYC share token:', error);
+          if (error.response) {
+            console.error('Error response status:', error.response.status);
+            console.error('Error response data:', error.response.data);
+          }
+        }
+    } else {
+    }
+    
+    // User Data Configuration - Pass information to skip screens
+    if (userDetails?.email) {
+      // Pass email to skip email entry screen
+      transakUrl.searchParams.set('email', userDetails.email);
+      
+      // Pass default amounts to skip amount selection screen
+      if (userDetails.defaultFiatAmount) {
+        transakUrl.searchParams.set('defaultFiatAmount', userDetails.defaultFiatAmount.toString());
+      }
+      if (userDetails.defaultCryptoAmount) {
+        transakUrl.searchParams.set('defaultCryptoAmount', userDetails.defaultCryptoAmount.toString());
+      }
+      
+      // Pass complete user data to skip personal details screens
+      const userData = {
+        firstName: userDetails.firstName || "John", // You can make this dynamic based on user data
+        lastName: userDetails.lastName || "Doe",   // You can make this dynamic based on user data
+        email: userDetails.email,
+        mobileNumber: userDetails.mobileNumber || "+918076127416", // You can make this dynamic based on user data
+        dob: userDetails.dateOfBirth || "1990-01-01", // You can make this dynamic based on user data
+        address: userDetails.address || {
+          addressLine1: "123 Main St",
+          addressLine2: "Apt 1",
+          city: "New York",
+          state: "NY",
+          postCode: "110070",
+          countryCode: "IN"
+        }
+      };
+      
+      // Stringify the userData object for URL parameter
+      transakUrl.searchParams.set('userData', JSON.stringify(userData));
+      
+      // Set isAutoFillUserData to false to skip screens completely
+      transakUrl.searchParams.set('isAutoFillUserData', 'false');
+    }
     
     // Payment method configuration
     transakUrl.searchParams.set('isDisableCard', 'false');
@@ -99,68 +179,25 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
     transakUrl.searchParams.set('isDisableApplePay', 'false');
     transakUrl.searchParams.set('isDisableGooglePay', 'false');
     transakUrl.searchParams.set('partnerOrderId', `order_${Date.now()}`);
-    transakUrl.searchParams.set('partnerCustomerId', "foodlai.foodlabs@gmail.com");
+    transakUrl.searchParams.set('partnerCustomerId', userDetails?.email || 'anonymous');
     
-    // KYC Configuration - Completely disable KYC for all users
-    transakUrl.searchParams.set('kycMode', 'DISABLED');
-    transakUrl.searchParams.set('skipKYC', 'true');
-    transakUrl.searchParams.set('kycSkipIfVerified', 'true');
-    transakUrl.searchParams.set('useExistingKYC', 'true');
-    transakUrl.searchParams.set('kycRequired', 'false');
-    transakUrl.searchParams.set('disableKYC', 'true');
-    transakUrl.searchParams.set('kycLevel', '0');
-    transakUrl.searchParams.set('noKYC', 'true');
+    // KYC Configuration - Use existing KYC if available
+    if (userDetails?.kycStatus === 'approved') {
+      transakUrl.searchParams.set('kycSkipIfVerified', 'true');
+      transakUrl.searchParams.set('useExistingKYC', 'true');
+    }
     
     // Sumsub Integration Parameters
     transakUrl.searchParams.set('kycProvider', 'sumsub');
     transakUrl.searchParams.set('sumsubIntegration', 'true');
     
-    // Always use the specified email
-    transakUrl.searchParams.set('email', "foodlai.foodlabs@gmail.com");
+    // Additional KYC parameters for better integration
+    transakUrl.searchParams.set('kycMode', 'reliance');
+    transakUrl.searchParams.set('kycReliance', 'true');
     
-    // Hard-coded card details for testing/development
-    // ⚠️ WARNING: Only use test card details, never real card details in production
-    const hardcodedCardDetails = {
-      paymentMethod: 'card',
-      cardNumber: '4024764449971519', // Test Visa card number
-      cardExpiry: '10/33', // MM/YY format
-      cardCvv: '123', // 3-digit CVV
-    };
-    
-    // Set default payment method to card
-    transakUrl.searchParams.set('defaultPaymentMethod', hardcodedCardDetails.paymentMethod);
-    transakUrl.searchParams.set('paymentMethod', hardcodedCardDetails.paymentMethod);
-    
-    // Configure payment method settings - enable only card payments
-    transakUrl.searchParams.set('isDisableCard', 'false');
-    transakUrl.searchParams.set('isDisableBank', 'true');
-    transakUrl.searchParams.set('isDisableApplePay', 'true');
-    transakUrl.searchParams.set('isDisableGooglePay', 'true');
-    
-    // Pre-fill hard-coded card details
-    transakUrl.searchParams.set('cardNumber', hardcodedCardDetails.cardNumber);
-    transakUrl.searchParams.set('cardExpiry', hardcodedCardDetails.cardExpiry);
-    transakUrl.searchParams.set('cardCvv', hardcodedCardDetails.cardCvv);
-    
-    // Additional user data for KYC recognition
-    const userData = {
-      email: "foodlai.foodlabs@gmail.com",
-      kycStatus: 'approved',
-      kycProvider: 'sumsub',
-      walletAddress: userDetails?.walletAddress,
-      kycLevel: '0',
-      kycStatusUrl: `${process.env.NEXT_PUBLIC_API_URL || 'https://api.kryptonfund.com'}/api/v1/kyc/status/foodlai.foodlabs@gmail.com`,
-      // Additional KYC info - Force KYC bypass
-      kycVerified: true,
-      kycLevel1: false,
-      skipDocumentUpload: true,
-      // Force skip KYC for all users
-      kycDisabled: true,
-      kycNotRequired: true,
-      existingKYC: true
-    };
-    
-    transakUrl.searchParams.set('userData', JSON.stringify(userData));
+    // Debug parameters for troubleshooting
+    transakUrl.searchParams.set('debugMode', 'true');
+    transakUrl.searchParams.set('enableLogging', 'true');
 
     const finalUrl = transakUrl.toString();
     return finalUrl;
@@ -173,12 +210,23 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
     if (visible) {
       document.addEventListener("keydown", handleKeyDown);
       setIsLoading(true);
+      
+      // Build Transak URL when modal becomes visible
+      buildTransakUrl().then(url => {
+        setTransakUrl(url);
+        setIsLoading(false);
+      }).catch(error => {
+        console.error('Error building Transak URL:', error);
+        setSdkLoadError('Failed to initialize Transak widget');
+        setIsLoading(false);
+      });
     } else {
       document.removeEventListener("keydown", handleKeyDown);
       setIsLoading(false);
+      setTransakUrl('');
     }
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [visible, onClose]);
+  }, [visible, onClose, userDetails]);
 
   // Handle iframe load
   const handleIframeLoad = () => {
@@ -244,15 +292,17 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
           )}
 
           {/* Transak iframe */}
-          <iframe
-            ref={iframeRef}
-            src={buildTransakUrl()}
-            className="w-full h-full border-0"
-            title="Transak Widget"
-            onLoad={handleIframeLoad}
-            allow="camera; microphone; payment"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
-          />
+          {transakUrl && (
+            <iframe
+              ref={iframeRef}
+              src={transakUrl}
+              className="w-full h-full border-0"
+              title="Transak Widget"
+              onLoad={handleIframeLoad}
+              allow="camera; microphone; payment"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+            />
+          )}
         </CardContent>
       </Card>
     </div>

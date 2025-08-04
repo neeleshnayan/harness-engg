@@ -75,6 +75,17 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
   return (
     <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-8">
       <div className="container mx-auto max-w-6xl">
+        {/* Header with Back to Wallet Button */}
+        <div className="flex justify-between items-start mb-12">
+          <div className="flex-1"></div>
+          <button
+            onClick={() => router.push(backRoute)}
+            className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-6 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-sm"
+          >
+            ← Back to Wallet
+          </button>
+        </div>
+
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4 text-center drop-shadow-lg">
@@ -92,24 +103,13 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
           </p>
         </div>
 
-        {/* Token Portfolio Section */}
-        <div className="mb-12">
-          <TokenBalances
-            balance={balance}
-            loading={balanceLoading}
-            error={balanceError}
-            className="mb-8"
-            onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
-          />
-        </div>
-
         {/* Investment Options */}
-        <div className="text-center mb-8">
+        {/* <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-white mb-6">Investment Opportunities</h2>
           <p className="text-zinc-400 text-lg mb-8">
             {getInvestmentDescription()}
           </p>
-        </div>
+        </div> */}
 
         <div className="flex flex-col md:flex-row gap-8 w-full max-w-4xl mx-auto justify-center">
           <button
@@ -133,7 +133,7 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
             <div className="w-16 h-16 rounded-full bg-fuchsia-400/20 flex items-center justify-center mb-6 group-hover:bg-fuchsia-400/30 transition-all">
               <Store className="h-10 w-10 text-fuchsia-300 group-hover:text-fuchsia-400 transition-all" />
             </div>
-            <span className="text-2xl font-bold text-white mb-2">Private Marketplace</span>
+            <span className="text-2xl font-bold text-white mb-2">Sharktank 3.0</span>
             <span className="text-zinc-400 text-base text-center">
               Discover exclusive deals and private market assets not available to the public.
             </span>
@@ -141,7 +141,7 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
         </div>
 
         {/* Business Management Option - Only for Business Users */}
-        {userType === 'business' && (
+        {/* {userType === 'business' && (
           <div className="text-center mt-12 mb-8">
             <h3 className="text-2xl font-bold text-white mb-6">Business Management</h3>
             <div className="flex justify-center">
@@ -160,16 +160,17 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
               </button>
             </div>
           </div>
-        )}
+        )} */}
 
-        {/* Back to Wallet Button */}
-        <div className="text-center mt-12">
-          <button
-            onClick={() => router.push(backRoute)}
-            className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-8 py-3 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200"
-          >
-            ← Back to Wallet
-          </button>
+        {/* Token Portfolio Section */}
+        <div className="mb-12">
+          <TokenBalances
+            balance={balance}
+            loading={balanceLoading}
+            error={balanceError}
+            className="mb-8"
+            onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
+          />
         </div>
       </div>
     </div>

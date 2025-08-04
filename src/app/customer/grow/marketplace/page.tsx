@@ -91,7 +91,7 @@ export default function MarketplaceCategoriesPage() {
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-8">
       <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4 text-center drop-shadow-lg">
-        Private Marketplace
+        Sharktank 3.0
       </h1>
       <p className="text-zinc-400 text-lg mb-12 text-center max-w-xl">
         Choose a startup category to explore investment opportunities.

@@ -575,7 +575,8 @@ export default function BusinessPage() {
             userDetails={{
               walletAddress: accountData?.wallet_address,
               email: accountData?.email,
-              kycStatus: kycStatus || undefined
+              kycStatus: "approved",
+              userId: accountData?.user_id
             }}
           />
         )}
