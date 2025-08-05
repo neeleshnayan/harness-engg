@@ -270,6 +270,14 @@ const TransakWidgetModal: FC<TransakWidgetModalProps> = ({
         onClick={(e: MouseEvent<HTMLDivElement>) => e.stopPropagation()}
         ref={modalRef}
       >
+        {/* Close button - positioned absolutely to be always visible */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-50 p-2 bg-zinc-800/80 hover:bg-zinc-700/80 border border-zinc-600/50 rounded-lg transition-colors duration-200 backdrop-blur-sm"
+          aria-label="Close Transak widget"
+        >
+          <X className="h-5 w-5 text-white" />
+        </button>
         
         <CardContent className="flex-1 p-0 relative">
 
