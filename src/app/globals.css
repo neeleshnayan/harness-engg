@@ -117,6 +117,16 @@
   }
   body {
     @apply bg-background text-foreground;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Ensure body can always scroll when not in modal */
+  body:not([style*="position: fixed"]) {
+    overflow-y: auto !important;
+    position: static !important;
+    top: auto !important;
   }
 }
 
@@ -124,7 +134,10 @@
 #sumsub-kyc-container {
   position: relative !important;
   z-index: 10000 !important;
-  overflow: visible !important;
+  overflow: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  width: 100% !important;
+  height: 100% !important;
 }
 
 #sumsub-kyc-container iframe {
@@ -134,6 +147,7 @@
   width: 100% !important;
   height: 100% !important;
   border: none !important;
+  -webkit-overflow-scrolling: touch !important;
 }
 
 /* Ensure Sumsub widget elements are clickable */
@@ -148,5 +162,52 @@
     height: 100vh !important;
     max-width: none !important;
     max-height: none !important;
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
   }
+  
+  #sumsub-kyc-container iframe {
+    width: 100% !important;
+    height: 100% !important;
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    position: relative !important;
+  }
+}
+
+/* Additional mobile fixes */
+@media (max-width: 480px) {
+  #sumsub-kyc-container {
+    width: 100% !important;
+    height: 100% !important;
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+}
+
+/* Force Sumsub iframe content to be scrollable */
+#sumsub-kyc-container iframe {
+  overflow: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* Target Sumsub's internal content */
+#sumsub-kyc-container iframe body,
+#sumsub-kyc-container iframe html {
+  overflow: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  height: auto !important;
+  min-height: 100% !important;
+}
+
+/* Ensure Sumsub's internal scroll containers work */
+#sumsub-kyc-container iframe .scroll-container,
+#sumsub-kyc-container iframe .scrollable,
+#sumsub-kyc-container iframe [data-scrollable] {
+  overflow: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  max-height: none !important;
 }

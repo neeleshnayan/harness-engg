@@ -23,6 +23,19 @@ const SumsubKYCModal: React.FC<SumsubKYCModalProps> = ({
   useEffect(() => {
     if (!visible || !accessToken) return;
 
+    // Prevent body scroll when modal is open - use a safer approach
+    const originalStyle = window.getComputedStyle(document.body).overflow;
+    const originalPosition = window.getComputedStyle(document.body).position;
+    const originalTop = window.getComputedStyle(document.body).top;
+    
+    // Store current scroll position
+    const scrollY = window.scrollY;
+    
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+
     // Load the Sumsub WebSDK script
     const loadSDK = async () => {
       return new Promise<void>((resolve, reject) => {
@@ -117,6 +130,37 @@ const SumsubKYCModal: React.FC<SumsubKYCModalProps> = ({
         setTimeout(() => {
           if (sdkInstanceRef.current) {
             sdkInstanceRef.current.launch('#sumsub-kyc-container');
+            
+            // Add additional setup for iframe scrolling
+            setTimeout(() => {
+              const iframe = containerRef.current?.querySelector('iframe');
+              if (iframe) {
+                // Ensure iframe has proper scrolling
+                iframe.style.overflow = 'auto';
+                (iframe.style as any)['-webkit-overflow-scrolling'] = 'touch';
+                iframe.style.height = '100%';
+                
+                // Try to access iframe content and fix scrolling
+                try {
+                  iframe.onload = () => {
+                    try {
+                      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+                      if (iframeDoc) {
+                        iframeDoc.body.style.overflow = 'auto';
+                        (iframeDoc.body.style as any)['-webkit-overflow-scrolling'] = 'touch';
+                        iframeDoc.documentElement.style.overflow = 'auto';
+                        (iframeDoc.documentElement.style as any)['-webkit-overflow-scrolling'] = 'touch';
+                      }
+                    } catch (e) {
+                      // Cross-origin restrictions, but that's okay
+                      console.log('Cannot access iframe content due to CORS');
+                    }
+                  };
+                } catch (e) {
+                  console.log('Cannot modify iframe due to CORS restrictions');
+                }
+              }
+            }, 500);
           }
         }, 100);
       } catch (error) {
@@ -129,6 +173,15 @@ const SumsubKYCModal: React.FC<SumsubKYCModalProps> = ({
 
     // Cleanup function
     return () => {
+      // Restore body scroll and position
+      document.body.style.overflow = originalStyle;
+      document.body.style.position = originalPosition;
+      document.body.style.top = originalTop;
+      document.body.style.width = '';
+      
+      // Restore scroll position
+      window.scrollTo(0, scrollY);
+      
       if (sdkInstanceRef.current) {
         try {
           // Clear the container content
@@ -168,7 +221,9 @@ const SumsubKYCModal: React.FC<SumsubKYCModalProps> = ({
       display: 'flex', 
       alignItems: 'center', 
       justifyContent: 'center',
-      padding: '0'
+      padding: '0',
+      overflow: 'hidden',
+      WebkitOverflowScrolling: 'touch'
     }}>
       <div style={{ 
         background: '#fff', 
@@ -180,7 +235,8 @@ const SumsubKYCModal: React.FC<SumsubKYCModalProps> = ({
         maxHeight: '100vh',
         overflow: 'hidden',
         display: 'flex',
-        flexDirection: 'column'
+        flexDirection: 'column',
+        WebkitOverflowScrolling: 'touch'
       }}>
         <button 
           onClick={onClose} 
@@ -219,10 +275,13 @@ const SumsubKYCModal: React.FC<SumsubKYCModalProps> = ({
           style={{ 
             width: '100%', 
             height: '100%',
-            overflow: 'visible',
+            overflow: 'auto',
             position: 'relative',
             zIndex: 10000,
-            minHeight: '600px'
+            minHeight: '600px',
+            WebkitOverflowScrolling: 'touch',
+            display: 'flex',
+            flexDirection: 'column'
           }} 
         />
       </div>
