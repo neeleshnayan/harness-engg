@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { 
-  Building2, 
-  DollarSign, 
-  Users, 
-  Save, 
+import {
+  Building2,
+  DollarSign,
+  Users,
+  Save,
   Loader2,
   CheckCircle,
   AlertCircle,
@@ -39,7 +39,7 @@ export default function ManageBusinessPage() {
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  
+
   const [businessData, setBusinessData] = useState<BusinessData>({
     name: '',
     description: '',
@@ -49,7 +49,7 @@ export default function ManageBusinessPage() {
     x: '',
     pitchVideo: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
   });
-  
+
   const [fundraisingData, setFundraisingData] = useState<FundraisingData>({
     tokenName: '',
     price: 0,
@@ -139,7 +139,7 @@ export default function ManageBusinessPage() {
 
     try {
       const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-      
+
       if (existingBusinessId) {
         // Update existing business
         const updateData = {
@@ -152,7 +152,7 @@ export default function ManageBusinessPage() {
           x: businessData.x || undefined,
           pitch_video: businessData.pitchVideo || undefined
         };
-        
+
         await api.put(`/api/v1/marketplace/${existingBusinessId}`, updateData);
       } else {
         // Create new marketplace item with business details
@@ -171,7 +171,7 @@ export default function ManageBusinessPage() {
         const response = await api.post('/api/v1/marketplace', marketplaceItem);
         setExistingBusinessId(response.data.id);
       }
-      
+
       setSaveSuccess('Business details saved successfully!');
       setTimeout(() => setSaveSuccess(null), 3000);
     } catch (err: any) {
@@ -204,9 +204,29 @@ export default function ManageBusinessPage() {
         price: fundraisingData.price,
         is_minting_active: fundraisingData.isMintingActive
       };
-      
+
       await api.put(`/api/v1/marketplace/business/${existingBusinessId}/fundraising`, fundraisingUpdate);
-      
+
+      // Get user wallet address for token deployment
+      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+      const walletAddress = userData.wallet_address;
+
+      if (!walletAddress) {
+        throw new Error('Wallet address not found. Please ensure you have a connected wallet.');
+      }
+
+      // Prepare token deployment data according to ApeDeployTokenRequest schema
+      const tokenDeploymentData = {
+        contract_name: "SmartToken",
+        name: businessData.name,
+        symbol: fundraisingData.tokenName,
+        initial_value: fundraisingData.price,
+        initial_supply: 100000, // Default initial supply
+        owners: [walletAddress] // User's wallet address as owner
+      };
+
+      await api.post('/api/v1/smarttoken/deploy_ape', tokenDeploymentData);
+
       setSaveSuccess('Fundraising settings saved successfully!');
       setTimeout(() => setSaveSuccess(null), 3000);
     } catch (err: any) {
@@ -323,7 +343,7 @@ export default function ManageBusinessPage() {
         {activeTab === 'details' && (
           <div className="bg-zinc-800/30 border border-zinc-700/50 rounded-xl p-8 backdrop-blur-sm">
             <h2 className="text-2xl font-bold text-white mb-6">Business Details</h2>
-            
+
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-2">
@@ -452,7 +472,7 @@ export default function ManageBusinessPage() {
         {activeTab === 'fundraising' && (
           <div className="bg-zinc-800/30 border border-zinc-700/50 rounded-xl p-8 backdrop-blur-sm">
             <h2 className="text-2xl font-bold text-white mb-6">Fundraising Settings</h2>
-            
+
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-2">
@@ -486,7 +506,7 @@ export default function ManageBusinessPage() {
                 <div>
                   <h3 className="text-lg font-medium text-white">Token Minting</h3>
                   <p className="text-zinc-400 text-sm">
-                    {fundraisingData.isMintingActive 
+                    {fundraisingData.isMintingActive
                       ? 'Minting is currently active and investors can purchase tokens'
                       : 'Minting is paused and no new tokens can be purchased'
                     }
@@ -569,4 +589,4 @@ export default function ManageBusinessPage() {
       </div>
     </div>
   );
-} 
+}
