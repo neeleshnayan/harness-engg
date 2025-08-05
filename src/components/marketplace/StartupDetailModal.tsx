@@ -164,7 +164,7 @@ export default function StartupDetailModal({ startup, isOpen, onClose, onBuy }: 
                 }`}
               >
                 <Linkedin className="h-4 w-4" />
-                <span>LinkedIn</span>
+                {/* <span>LinkedIn</span> */}
                 {startup.linkedin && <ExternalLink className="h-3 w-3" />}
               </button>
               <button
@@ -177,7 +177,7 @@ export default function StartupDetailModal({ startup, isOpen, onClose, onBuy }: 
                 }`}
               >
                 <Youtube className="h-4 w-4" />
-                <span>YouTube</span>
+                {/* <span>YouTube</span> */}
                 {startup.youtube && <ExternalLink className="h-3 w-3" />}
               </button>
               <button
@@ -190,7 +190,7 @@ export default function StartupDetailModal({ startup, isOpen, onClose, onBuy }: 
                 }`}
               >
                 <Twitter className="h-4 w-4" />
-                <span>X (Twitter)</span>
+                {/* <span>X (Twitter)</span> */}
                 {startup.x && <ExternalLink className="h-3 w-3" />}
               </button>
             </div>
