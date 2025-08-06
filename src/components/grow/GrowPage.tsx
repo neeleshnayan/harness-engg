@@ -163,7 +163,7 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
         )} */}
 
         {/* Token Portfolio Section */}
-        <div className="mb-12">
+        <div className="mt-12">
           <TokenBalances
             balance={balance}
             loading={balanceLoading}
