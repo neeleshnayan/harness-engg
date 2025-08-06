@@ -12,7 +12,7 @@ interface BuyTokenModalProps {
 }
 
 export default function BuyTokenModal({ startup, isOpen, onClose, onBuy }: BuyTokenModalProps) {
-  const [tokenCount, setTokenCount] = useState<string>("");
+  const [tokenCount, setTokenCount] = useState<string>("1");
   const [sellTarget, setSellTarget] = useState<string>("");
   const [tokenQuote, setTokenQuote] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -22,7 +22,7 @@ export default function BuyTokenModal({ startup, isOpen, onClose, onBuy }: BuyTo
   useEffect(() => {
     if (isOpen && startup) {
       // Reset form when modal opens
-      setTokenCount("");
+      setTokenCount("1");
       setSellTarget("");
       setTokenQuote("");
       setError(null);
@@ -158,7 +158,7 @@ export default function BuyTokenModal({ startup, isOpen, onClose, onBuy }: BuyTo
           <label className="block text-white text-sm font-medium mb-2">
             Token Quote
           </label>
-          <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 flex items-center justify-between">
+          {/* <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 flex items-center justify-between">
             <span className="text-zinc-400 text-sm">Estimated Quote</span>
             <span className="text-cyan-400 font-semibold">
               {quoteLoading ? (
@@ -167,7 +167,7 @@ export default function BuyTokenModal({ startup, isOpen, onClose, onBuy }: BuyTo
                 tokenQuote || "Loading..."
               )}
             </span>
-          </div>
+          </div> */}
         </div>
 
         {/* Total Cost */}
@@ -183,7 +183,7 @@ export default function BuyTokenModal({ startup, isOpen, onClose, onBuy }: BuyTo
         {/* Sell Target */}
         <div className="mb-6">
           <label className="block text-white text-sm font-medium mb-2">
-            Sell Target
+            Sell Target per Token
           </label>
           <div className="relative">
             <input

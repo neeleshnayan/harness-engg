@@ -10,7 +10,11 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
-  ExternalLink
+  ExternalLink,
+  Plus,
+  History,
+  ChevronDown,
+  UserPlus
 } from "lucide-react";
 import { MarketplaceService } from "@/lib/marketplace";
 import api from "@/lib/api";
@@ -29,6 +33,20 @@ interface FundraisingData {
   tokenName: string;
   price: number;
   isMintingActive: boolean;
+}
+
+interface TeamMember {
+  id: string;
+  name: string;
+  type: 'employee' | 'intern' | 'vendor';
+  usdcPayment: number;
+  tokenPayment: number;
+  schedule: 'monthly' | 'weekly' | 'custom';
+  createdAt: string;
+}
+
+interface TeamData {
+  members: TeamMember[];
 }
 
 export default function ManageBusinessPage() {
@@ -56,7 +74,19 @@ export default function ManageBusinessPage() {
     isMintingActive: false
   });
 
+  const [teamData, setTeamData] = useState<TeamData>({
+    members: []
+  });
+
   const [existingBusinessId, setExistingBusinessId] = useState<string | null>(null);
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [newMember, setNewMember] = useState<Omit<TeamMember, 'id' | 'createdAt'>>({
+    name: '',
+    type: 'employee',
+    usdcPayment: 0,
+    tokenPayment: 0,
+    schedule: 'monthly'
+  });
 
   useEffect(() => {
     const userData = localStorage.getItem('userData');
@@ -97,6 +127,11 @@ export default function ManageBusinessPage() {
               price: business.price || 0,
               isMintingActive: business.is_minting_active || false
             });
+            
+            // Load team data if available
+            if (business.team_data) {
+              setTeamData(business.team_data);
+            }
           }
         }
       } catch (err) {
@@ -125,6 +160,48 @@ export default function ManageBusinessPage() {
       ...prev,
       [field]: value
     }));
+  };
+
+  const handleNewMemberChange = (field: keyof typeof newMember, value: string | number) => {
+    setNewMember(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleAddMember = () => {
+    if (!newMember.name.trim()) {
+      setSaveError('Please enter a member name');
+      return;
+    }
+
+    const member: TeamMember = {
+      id: Date.now().toString(),
+      name: newMember.name,
+      type: newMember.type,
+      usdcPayment: newMember.usdcPayment,
+      tokenPayment: newMember.tokenPayment,
+      schedule: newMember.schedule,
+      createdAt: new Date().toISOString()
+    };
+
+    setTeamData(prev => ({
+      ...prev,
+      members: [...prev.members, member]
+    }));
+
+    // Reset form
+    setNewMember({
+      name: '',
+      type: 'employee',
+      usdcPayment: 0,
+      tokenPayment: 0,
+      schedule: 'monthly'
+    });
+
+    setShowAddMemberModal(false);
+    setSaveSuccess('Team member added successfully!');
+    setTimeout(() => setSaveSuccess(null), 3000);
   };
 
   const handleSaveDetails = async () => {
@@ -217,11 +294,58 @@ export default function ManageBusinessPage() {
     }
   };
 
+  const handleSaveTeam = async () => {
+    if (!existingBusinessId) {
+      setSaveError('Please save your business details first before configuring team settings');
+      return;
+    }
+
+    setSaving(true);
+    setSaveError(null);
+    setSaveSuccess(null);
+
+    try {
+      // Update marketplace item with team data
+      const teamUpdate = {
+        team_data: teamData
+      };
+      
+      await api.put(`/api/v1/marketplace/business/${existingBusinessId}/team`, teamUpdate);
+      
+      setSaveSuccess('Team settings saved successfully!');
+      setTimeout(() => setSaveSuccess(null), 3000);
+    } catch (err: any) {
+      console.error('Failed to save team settings:', err);
+      setSaveError(err.response?.data?.detail || 'Failed to save team settings. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSave = () => {
     if (activeTab === 'details') {
       handleSaveDetails();
     } else if (activeTab === 'fundraising') {
       handleSaveFundraising();
+    } else if (activeTab === 'team') {
+      handleSaveTeam();
+    }
+  };
+
+  const getMembersByType = (type: 'employee' | 'intern' | 'vendor') => {
+    return teamData.members.filter(member => member.type === type);
+  };
+
+  const getTypeColor = (type: 'employee' | 'intern' | 'vendor') => {
+    switch (type) {
+      case 'employee':
+        return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      case 'intern':
+        return 'bg-green-500/20 text-green-400 border-green-500/30';
+      case 'vendor':
+        return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+      default:
+        return 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30';
     }
   };
 
@@ -280,8 +404,12 @@ export default function ManageBusinessPage() {
             <span>Fundraising</span>
           </button>
           <button
-            disabled
-            className="flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-md transition-all text-zinc-600 cursor-not-allowed opacity-50"
+            onClick={() => setActiveTab('team')}
+            className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-md transition-all ${
+              activeTab === 'team'
+                ? 'bg-cyan-500 text-white shadow-lg'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-700/50'
+            }`}
           >
             <Users className="h-5 w-5" />
             <span>Team</span>
@@ -536,36 +664,266 @@ export default function ManageBusinessPage() {
 
         {activeTab === 'team' && (
           <div className="bg-zinc-800/30 border border-zinc-700/50 rounded-xl p-8 backdrop-blur-sm">
-            <div className="text-center py-12">
-              <Users className="h-16 w-16 text-zinc-600 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-white mb-2">Team Management</h2>
-              <p className="text-zinc-400">Team management features are coming soon!</p>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-white">Team Management</h2>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowAddMemberModal(true)}
+                  className="flex items-center space-x-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition-colors"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  <span>Add Member</span>
+                </button>
+                <button
+                  className="flex items-center space-x-2 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors"
+                >
+                  <History className="h-4 w-4" />
+                  <span>Past Settlements</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Team Table */}
+            <div className="space-y-6">
+              {/* Employees */}
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-4">Employees</h3>
+                <div className="bg-zinc-900/50 rounded-lg overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-zinc-800/50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider">Name</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider">Payments</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider">Schedule</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-700">
+                      {getMembersByType('employee').length > 0 ? (
+                        getMembersByType('employee').map((member) => (
+                          <tr key={member.id} className="hover:bg-zinc-800/30">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{member.name}</td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="space-y-1">
+                                <div className="text-sm text-zinc-300">USDC: ${member.usdcPayment}</div>
+                                <div className="text-sm text-zinc-300">{fundraisingData.tokenName}: {member.tokenPayment}</div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(member.type)}`}>
+                                {member.schedule}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={3} className="px-6 py-4 text-center text-sm text-zinc-500">
+                            No employees added yet
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Interns */}
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-4">Interns</h3>
+                <div className="bg-zinc-900/50 rounded-lg overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-zinc-800/50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider">Name</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider">Payments</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider">Schedule</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-700">
+                      {getMembersByType('intern').length > 0 ? (
+                        getMembersByType('intern').map((member) => (
+                          <tr key={member.id} className="hover:bg-zinc-800/30">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{member.name}</td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="space-y-1">
+                                <div className="text-sm text-zinc-300">USDC: ${member.usdcPayment}</div>
+                                <div className="text-sm text-zinc-300">{fundraisingData.tokenName}: {member.tokenPayment}</div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(member.type)}`}>
+                                {member.schedule}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={3} className="px-6 py-4 text-center text-sm text-zinc-500">
+                            No interns added yet
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Vendors */}
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-4">Vendors</h3>
+                <div className="bg-zinc-900/50 rounded-lg overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-zinc-800/50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider">Name</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider">Payments</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider">Schedule</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-700">
+                      {getMembersByType('vendor').length > 0 ? (
+                        getMembersByType('vendor').map((member) => (
+                          <tr key={member.id} className="hover:bg-zinc-800/30">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{member.name}</td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="space-y-1">
+                                <div className="text-sm text-zinc-300">USDC: ${member.usdcPayment}</div>
+                                <div className="text-sm text-zinc-300">{fundraisingData.tokenName}: {member.tokenPayment}</div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(member.type)}`}>
+                                {member.schedule}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={3} className="px-6 py-4 text-center text-sm text-zinc-500">
+                            No vendors added yet
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Member Modal */}
+        {showAddMemberModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-zinc-800 border border-zinc-700 rounded-xl p-6 w-full max-w-md mx-4">
+              <h3 className="text-xl font-bold text-white mb-4">Add Team Member</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300 mb-2">Name *</label>
+                  <input
+                    type="text"
+                    value={newMember.name}
+                    onChange={(e) => handleNewMemberChange('name', e.target.value)}
+                    className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-600/50 rounded-lg text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    placeholder="Enter member name"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300 mb-2">Type *</label>
+                  <select
+                    value={newMember.type}
+                    onChange={(e) => handleNewMemberChange('type', e.target.value as 'employee' | 'intern' | 'vendor')}
+                    className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  >
+                    <option value="employee">Employee</option>
+                    <option value="intern">Intern</option>
+                    <option value="vendor">Vendor</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-2">USDC Payment</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={newMember.usdcPayment}
+                      onChange={(e) => handleNewMemberChange('usdcPayment', parseFloat(e.target.value) || 0)}
+                      className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-600/50 rounded-lg text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-2">{fundraisingData.tokenName || 'Token'} Payment</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={newMember.tokenPayment}
+                      onChange={(e) => handleNewMemberChange('tokenPayment', parseFloat(e.target.value) || 0)}
+                      className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-600/50 rounded-lg text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300 mb-2">Schedule *</label>
+                  <select
+                    value={newMember.schedule}
+                    onChange={(e) => handleNewMemberChange('schedule', e.target.value as 'monthly' | 'weekly' | 'custom')}
+                    className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  >
+                    <option value="monthly">Monthly</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex space-x-3 mt-6">
+                <button
+                  onClick={() => setShowAddMemberModal(false)}
+                  className="flex-1 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddMember}
+                  className="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition-colors"
+                >
+                  Add Member
+                </button>
+              </div>
             </div>
           </div>
         )}
 
         {/* Save Button */}
-        {activeTab !== 'team' && (
-          <div className="mt-8 flex justify-end">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center space-x-2 px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="h-5 w-5" />
-                  <span>Save Changes</span>
-                </>
-              )}
-            </button>
-          </div>
-        )}
+        <div className="mt-8 flex justify-end">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center space-x-2 px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : (
+              <>
+                <Save className="h-5 w-5" />
+                <span>Save Changes</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
