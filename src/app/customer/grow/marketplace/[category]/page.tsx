@@ -71,11 +71,13 @@ export default function MarketplaceCategoryPage() {
     const userData = JSON.parse(localStorage.getItem('userData') || '{}');
 
     try {
-      var response = await api.post('/api/v1/send_usdc', {
+      let data = {
         sender_user_id: userData.user_id,
         receiver_username: getUserInfo(selectedStartup?.owner_id || ""),
         amount: tokenCount * (selectedStartup?.price || 0),
-      });
+      };
+      console.log(data);
+      var response = await api.post('/api/v1/send_usdc', data);
 
       response = await api.post('/api/v1/smarttoken/owner_transfer_from', {
         token_address: selectedStartup?.address,
