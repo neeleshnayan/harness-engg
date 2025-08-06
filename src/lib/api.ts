@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Set the base URL for API requests
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.kryptonfund.com';
+const API_BASE_URL = 'https://kryptonpaybackend-smarttoken.up.railway.app';
 // const API_BASE_URL = 'http://127.0.0.1:8000'
 
 // Create axios instance with base URL
@@ -60,4 +60,4 @@ export const getUserInfo = async (userId: string) => {
   }
 };
 
-export default api; 
+export default api;
