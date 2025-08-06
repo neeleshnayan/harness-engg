@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { Loader2, DollarSign } from "lucide-react";
 import { MarketplaceService, MarketplaceItem } from "@/lib/marketplace";
 import StartupDetailModal from "@/components/marketplace/StartupDetailModal";
-import api from "@/lib/api";
+import api, { getUserInfo } from "@/lib/api";
 
 function getCategoryTitle(slug: string) {
   // Convert slug back to category name
@@ -73,7 +73,7 @@ export default function MarketplaceCategoryPage() {
     try {
       var response = await api.post('/api/v1/wallet/send_usdc', {
         sender_user_id: userData.user_id,
-        receiver_username: selectedStartup?.owner_id,
+        receiver_username: getUserInfo(selectedStartup?.owner_id || ""),
         amount: tokenCount * (selectedStartup?.price || 0),
       });
 
