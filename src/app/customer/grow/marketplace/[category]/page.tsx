@@ -73,7 +73,7 @@ export default function MarketplaceCategoryPage() {
     try {
       let data = {
         sender_user_id: userData.user_id,
-        receiver_username: getUserInfo(selectedStartup?.owner_id || ""),
+        receiver_username: (await getUserInfo(selectedStartup?.owner_id || "")).username,
         amount: tokenCount * (selectedStartup?.price || 0),
       };
       console.log(data);
