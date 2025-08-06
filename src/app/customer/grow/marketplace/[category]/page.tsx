@@ -5,12 +5,13 @@ import { useParams } from "next/navigation";
 import { Loader2, DollarSign } from "lucide-react";
 import { MarketplaceService, MarketplaceItem } from "@/lib/marketplace";
 import StartupDetailModal from "@/components/marketplace/StartupDetailModal";
+import api from "@/lib/api";
 
 function getCategoryTitle(slug: string) {
   // Convert slug back to category name
   const categoryMap: Record<string, string> = {
     "fintech": "Fintech",
-    "healthtech": "HealthTech", 
+    "healthtech": "HealthTech",
     "ai-data": "AI & Data",
     "sustainability": "Sustainability"
   };
@@ -22,7 +23,7 @@ export default function MarketplaceCategoryPage() {
   const rawSlug = params.category;
   const slug = typeof rawSlug === 'string' ? rawSlug : Array.isArray(rawSlug) && rawSlug.length > 0 ? rawSlug[0] : '';
   const title = getCategoryTitle(slug);
-  
+
   const [startups, setStartups] = useState<MarketplaceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,13 +33,13 @@ export default function MarketplaceCategoryPage() {
   useEffect(() => {
     const fetchStartups = async () => {
       if (!slug) return;
-      
+
       try {
         setLoading(true);
         // Convert slug back to category name for API call
         const categoryMap: Record<string, string> = {
           "fintech": "Fintech",
-          "healthtech": "HealthTech", 
+          "healthtech": "HealthTech",
           "ai-data": "AI & Data",
           "sustainability": "Sustainability"
         };
@@ -67,19 +68,24 @@ export default function MarketplaceCategoryPage() {
   };
 
   const handleBuyStartup = async (startupId: string, tokenCount: number, sellTarget: number) => {
-   
-    // You can integrate with your wallet or payment system here
-    // Example implementation:
+    const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+
     try {
-      // TODO: Replace with actual API call
-      // const response = await api.post('/api/v1/marketplace/buy-tokens', {
-      //   startup_id: startupId,
-      //   token_count: tokenCount,
-      //   sell_target: sellTarget,
-      //   user_id: accountData.user_id
-      // });
-      
-      // For now, show a success message
+      var response = await api.post('/api/v1/wallet/send_usdc', {
+        sender_user_id: userData.user_id,
+        receiver_username: selectedStartup?.owner_id,
+        amount: tokenCount * (selectedStartup?.price || 0),
+      });
+
+      response = await api.post('/api/v1/smarttoken/owner_transfer_from', {
+        token_address: selectedStartup?.address,
+        from_owner: selectedStartup?.owners?.at(0),
+        from_addr: selectedStartup?.owners?.at(0),
+        to: userData.wallet_address,
+        amount: tokenCount,
+    });
+
+      // show a success message
       alert(`Successfully purchased ${tokenCount} tokens for startup ${startupId} with sell target $${sellTarget}`);
     } catch (error) {
       console.error('Failed to purchase tokens:', error);
@@ -101,7 +107,7 @@ export default function MarketplaceCategoryPage() {
     return (
       <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-8">
         <p className="text-red-400 text-lg mb-4">{error}</p>
-        <button 
+        <button
           onClick={() => window.location.reload()}
           className="px-6 py-3 bg-cyan-400 text-black rounded-lg hover:bg-cyan-300 transition-colors"
         >
@@ -148,7 +154,7 @@ export default function MarketplaceCategoryPage() {
           <div className="text-zinc-400 text-center col-span-2">No startups found for this category.</div>
         )}
       </div>
-      
+
       {/* Startup Detail Modal */}
       <StartupDetailModal
         startup={selectedStartup}
@@ -158,4 +164,4 @@ export default function MarketplaceCategoryPage() {
       />
     </div>
   );
-} 
+}
