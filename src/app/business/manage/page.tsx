@@ -222,7 +222,8 @@ export default function ManageBusinessPage() {
         symbol: fundraisingData.tokenName,
         initial_value: fundraisingData.price,
         initial_supply: 100000, // Default initial supply
-        owners: [walletAddress] // User's wallet address as owner
+        owners: [walletAddress], // User's wallet address as owner
+        business_id: existingBusinessId
       };
 
       await api.post('/api/v1/smarttoken/deploy_ape', tokenDeploymentData);

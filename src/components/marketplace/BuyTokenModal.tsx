@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { X, DollarSign, Calculator, Target } from "lucide-react";
 import { MarketplaceItem } from "@/lib/marketplace";
+import api from "@/lib/api";
 
 interface BuyTokenModalProps {
   startup: MarketplaceItem | null;
@@ -33,16 +34,11 @@ export default function BuyTokenModal({ startup, isOpen, onClose, onBuy }: BuyTo
 
   const fetchTokenQuote = async () => {
     if (!startup) return;
-    
+
     setQuoteLoading(true);
     try {
-      // TODO: Replace with actual API call
-      // const response = await api.get(`/api/v1/marketplace/token-quote/${startup.id}`);
-      // setTokenQuote(response.data.quote);
-      
-      // Placeholder for now
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
-      setTokenQuote("$1,250.00"); // Placeholder quote
+      const response = await api.get('/api/v1/smarttoken/price/' + startup.address);
+      setTokenQuote(response.data.current_price);
     } catch (err) {
       console.error('Failed to fetch token quote:', err);
       setTokenQuote("Quote unavailable");
@@ -239,4 +235,4 @@ export default function BuyTokenModal({ startup, isOpen, onClose, onBuy }: BuyTo
       </div>
     </div>
   );
-} 
+}

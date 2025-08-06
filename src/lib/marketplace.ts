@@ -11,6 +11,10 @@ export interface MarketplaceItem {
   x?: string;
   pitch_video?: string;
   token_name?: string;
+  address?: string;
+  owners?: Array<string>;
+  initial_price?: number;
+  supply?: number
   is_minting_active?: boolean;
   owner_id?: string;
   created_at?: string;
@@ -72,4 +76,4 @@ export class MarketplaceService {
       throw error;
     }
   }
-} 
+}
