@@ -71,22 +71,18 @@ export default function MarketplaceCategoryPage() {
     const userData = JSON.parse(localStorage.getItem('userData') || '{}');
 
     try {
-      var response = await api.post('/api/v1/send_usdc', {
-        sender_user_id: userData.user_id,
-        receiver_username: (await getUserInfo(selectedStartup?.owner_id || "")).username,
-        amount: tokenCount * (selectedStartup?.price || 0),
-      });
-
-      response = await api.post('/api/v1/smarttoken/owner_transfer_from', {
+      const response = await api.post('/api/v1/smarttoken/mint_exchange_usdc', {
         token_address: selectedStartup?.address,
         from_owner: selectedStartup?.owners?.at(0),
-        from_addr: selectedStartup?.owners?.at(0),
         to: userData.wallet_address,
         amount: tokenCount,
-    });
+        buyer_user_id: userData.user_id,
+        token_owner_username: (await getUserInfo(selectedStartup?.owner_id || "")).username,
+        business_id: selectedStartup?.id,
+      });
 
       // show a success message
-      alert(`Successfully purchased ${tokenCount} tokens for startup ${startupId} with sell target $${sellTarget}`);
+      alert(`Successfully purchased ${tokenCount} tokens for startup ${selectedStartup?.name} with sell target $${sellTarget}`);
     } catch (error) {
       console.error('Failed to purchase tokens:', error);
       alert('Failed to purchase tokens. Please try again.');

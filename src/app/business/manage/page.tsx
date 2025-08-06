@@ -333,7 +333,7 @@ export default function ManageBusinessPage() {
         name: businessData.name,
         symbol: fundraisingData.tokenName,
         initial_value: fundraisingData.price,
-        initial_supply: 100000, // Default initial supply
+        initial_supply: 0, // Default initial supply
         owners: [walletAddress], // User's wallet address as owner
         business_id: existingBusinessId
       };
