@@ -71,7 +71,7 @@ export default function MarketplaceCategoryPage() {
     const userData = JSON.parse(localStorage.getItem('userData') || '{}');
 
     try {
-      var response = await api.post('/api/v1/wallet/send_usdc', {
+      var response = await api.post('/api/v1/send_usdc', {
         sender_user_id: userData.user_id,
         receiver_username: getUserInfo(selectedStartup?.owner_id || ""),
         amount: tokenCount * (selectedStartup?.price || 0),
