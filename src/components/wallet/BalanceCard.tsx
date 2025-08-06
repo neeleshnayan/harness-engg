@@ -53,7 +53,6 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   const isKycApproved = kycStatus === 'approved';
   
   
-  
   return (
     <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 mb-8 ${className || ''}`}>
       <div className="text-center">
@@ -128,14 +127,14 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
                 <span className="text-red-400 text-2xl font-semibold">{error}</span>
               ) : (() => {
                 if (balance && Array.isArray(balance.tokenBalances) && balance.tokenBalances.length > 0) {
-                  // const transakToken = balance.tokenBalances.find(
-                  //   (b: any) => b.token && b.token.symbol === 'TRNSK'
-                  // );
+                  const transakToken = balance.tokenBalances.find(
+                    (b: any) => b.token && b.token.symbol === 'TRNSK'
+                  );
                   const usdc = balance.tokenBalances.find(
                     (b: any) => b.token && b.token.symbol === 'USDC'
                   );
                   if (usdc) {
-                    return `$${usdc.amount}`;
+                    return `$${parseFloat(transakToken.amount)+parseFloat(usdc.amount)}`;
                   }
                 }
                 return '-';

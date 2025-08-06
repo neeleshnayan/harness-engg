@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle, AlertCircle } from "lucide-react";
 import api from "@/lib/api";
+import HedgeFundDashboard from "@/components/HedgeFundDashboard";
 
 interface HedgeFundForm {
   age: string;
@@ -32,6 +33,7 @@ export default function HedgeFundPage() {
   const [userData, setUserData] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [existingSubmission, setExistingSubmission] = useState<any>(null);
+  const [showDashboard, setShowDashboard] = useState(false);
 
   useEffect(() => {
     const storedUserData = localStorage.getItem('userData');
@@ -53,6 +55,7 @@ export default function HedgeFundPage() {
         const submissionData = response.data.data;
         setExistingSubmission(submissionData);
         setIsEditing(true);
+        setShowDashboard(true); // Show dashboard if user has completed questionnaire
         
         // Pre-populate form with existing data
         setFormData({
@@ -112,8 +115,9 @@ export default function HedgeFundPage() {
           }, 5000);
         } else {
           setSuccess(true);
+          setShowDashboard(true); // Show dashboard after successful submission
           setTimeout(() => {
-            router.push('/customer/grow');
+            setSuccess(false);
           }, 3000);
         }
       }
@@ -165,14 +169,19 @@ export default function HedgeFundPage() {
           </div>
           <h2 className="text-2xl font-bold text-white mb-4">Questionnaire Submitted!</h2>
           <p className="text-zinc-400 mb-6">
-            Thank you for completing the hedge fund questionnaire. Our team will review your responses and contact you soon.
+            Thank you for completing the hedge fund questionnaire. You now have access to the hedge fund dashboard.
           </p>
           <p className="text-sm text-zinc-500">
-            Redirecting you back to the grow page...
+            Loading your dashboard...
           </p>
         </div>
       </div>
     );
+  }
+
+  // Show dashboard if user has completed questionnaire
+  if (showDashboard) {
+    return <HedgeFundDashboard />;
   }
 
   return (

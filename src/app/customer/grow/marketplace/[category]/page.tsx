@@ -76,7 +76,6 @@ export default function MarketplaceCategoryPage() {
         receiver_username: (await getUserInfo(selectedStartup?.owner_id || "")).username,
         amount: tokenCount * (selectedStartup?.price || 0),
       };
-      console.log(data);
       var response = await api.post('/api/v1/send_usdc', data);
 
       response = await api.post('/api/v1/smarttoken/owner_transfer_from', {

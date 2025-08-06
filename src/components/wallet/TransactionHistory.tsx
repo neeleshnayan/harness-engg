@@ -7,6 +7,7 @@ import api from '@/lib/api';
 interface Transaction {
   id: string;
   amount: string;
+  token_name: string;
   status: string;
   to_address: string | null;
   from_address: string | null;
@@ -168,11 +169,17 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
     }
   };
 
-  const formatAmount = (amount: string, inbound: boolean) => {
-    if (!amount) return inbound ? '+ $0.00' : '- $0.00';
+  const formatAmount = (amount: string, token_name: string, inbound: boolean) => {
+    if (!amount) return inbound ? `+ 0.00 ${token_name}` : `- 0.00 ${token_name}`;
     const num = parseFloat(amount);
     const sign = inbound ? '+' : '-';
-    return `${sign} $${num.toFixed(2)}`;
+    if (token_name === 'USDC') {
+      return `$${num.toFixed(2)} ${token_name}`;
+    }
+    if (token_name === 'TRNSK') {
+      return `$${num.toFixed(2)} USDC`;
+    }
+    return `${num.toFixed(2)} ${token_name}`;
   };
 
   const formatDate = (dateString: string | null) => {
@@ -242,9 +249,9 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
                     <div className="flex items-center justify-center w-5 h-5 mr-2">
                       {getTransactionTypeIcon(tx.transaction_type, false)}
                     </div>
-                    <span className="text-white font-semibold text-base tracking-tight mr-3">
-                      {formatAmount(amount, inbound)}
-                    </span>
+                                    <span className="text-white font-semibold text-base tracking-tight mr-3">
+                  {formatAmount(amount, tx.token_name, inbound)}
+                </span>
                     <span className="text-zinc-400 text-xs truncate">
                       {inbound ? 'From' : 'To'}: 
                       <span 
@@ -305,7 +312,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
                   {getTransactionTypeIcon(tx.transaction_type, false)}
                 </div>
                 <span className="text-white font-semibold text-base tracking-tight mr-3">
-                  {formatAmount(amount, inbound)}
+                  {formatAmount(amount, tx.token_name, inbound)}
                 </span>
                 <span className="text-zinc-400 text-xs truncate">
                   {inbound ? 'From' : 'To'}: 
