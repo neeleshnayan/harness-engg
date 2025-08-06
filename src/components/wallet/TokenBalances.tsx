@@ -52,6 +52,8 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
       // For USDC, show with 2 decimal places
       if (symbol.toUpperCase() === 'USDC') {
         return `$${numAmount.toFixed(2)}`;
+      } else if (symbol.toUpperCase() === 'TRNSK') {
+        return `$${numAmount.toFixed(2)} USDC`;
       }
       return `${numAmount.toFixed(2)}`;
       
@@ -67,15 +69,52 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
     }
   };
 
+  function mergeTrnskIntoUsdc(balances: any) {
+    let mergedBalances = [];
+    let usdcMerged = null;
+  
+    for (const entry of balances) {
+      const symbol = entry.token.symbol;
+      const amount = parseFloat(entry.amount);
+  
+      if (symbol === "USDC" || symbol === "TRNSK") {
+        if (!usdcMerged) {
+          // Start with the first USDC or TRNSK as base
+          usdcMerged = JSON.parse(JSON.stringify(entry));
+          usdcMerged.amount = amount;
+          usdcMerged.token.symbol = "USDC";
+          usdcMerged.token.name = "USDC";
+        } else {
+          // Add amount from TRNSK or additional USDC
+          usdcMerged.amount += amount;
+        }
+      } else {
+        // Leave other tokens unchanged
+        mergedBalances.push(entry);
+      }
+    }
+  
+    if (usdcMerged) {
+      // Convert amount back to string to match original format
+      usdcMerged.amount = usdcMerged.amount.toString();
+      mergedBalances.push(usdcMerged);
+    }
+  
+    return mergedBalances;
+  }
+  
+  
   const getTokenBalances = () => {
     if (!balance || !Array.isArray(balance.tokenBalances)) {
       return [];
     }
     
-    return balance.tokenBalances.filter((tokenBalance: TokenBalance) => {
+    var balances = balance.tokenBalances.filter((tokenBalance: TokenBalance) => {
       const amount = parseFloat(tokenBalance.amount);
       return !isNaN(amount) && amount > 0;
     });
+    balances = mergeTrnskIntoUsdc(balances)
+    return balances
   };
 
   const tokenBalances = getTokenBalances();
