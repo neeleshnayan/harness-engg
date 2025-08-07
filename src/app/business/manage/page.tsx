@@ -546,9 +546,9 @@ export default function ManageBusinessPage() {
                     className="w-full px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
                     placeholder="https://www.youtube.com/watch?v=..."
                   />
-                  {businessData.pitchVideo && (
+                  {/* {businessData.pitchVideo && (
                     <ExternalLink className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-cyan-300" />
-                  )}
+                  )} */}
                 </div>
                 <p className="text-zinc-400 text-sm mt-2">Add a YouTube video URL for your pitch video. This will be displayed to potential investors.</p>
               </div>
@@ -566,9 +566,9 @@ export default function ManageBusinessPage() {
                         className="w-full px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
                         placeholder="https://linkedin.com/company/..."
                       />
-                      {businessData.linkedin && (
+                      {/* {businessData.linkedin && (
                         <ExternalLink className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-cyan-300" />
-                      )}
+                      )} */}
                     </div>
                   </div>
                   <div>
@@ -581,9 +581,9 @@ export default function ManageBusinessPage() {
                         className="w-full px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
                         placeholder="https://youtube.com/..."
                       />
-                      {businessData.youtube && (
+                      {/* {businessData.youtube && (
                         <ExternalLink className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-cyan-300" />
-                      )}
+                      )} */}
                     </div>
                   </div>
                   <div>
@@ -596,9 +596,9 @@ export default function ManageBusinessPage() {
                         className="w-full px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
                         placeholder="https://x.com/..."
                       />
-                      {businessData.x && (
+                      {/* {businessData.x && (
                         <ExternalLink className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-cyan-300" />
-                      )}
+                      )} */}
                     </div>
                   </div>
                 </div>
@@ -633,7 +633,7 @@ export default function ManageBusinessPage() {
                   placeholder="0.00"
                 />
               </div>
-              <div className="flex items-center justify-between p-6 bg-zinc-900/60 rounded-2xl border border-cyan-400/10 shadow-inner">
+              <div className=" items-center justify-between p-6 bg-zinc-900/60 rounded-2xl border border-cyan-400/10 shadow-inner">
                 <div>
                   <h3 className="text-xl font-semibold text-white mb-1">Token Minting</h3>
                   <p className="text-zinc-400 text-base">
@@ -643,7 +643,8 @@ export default function ManageBusinessPage() {
                     }
                   </p>
                 </div>
-                <button
+                <br/>
+                <button 
                   onClick={() => handleFundraisingDataChange('isMintingActive', !fundraisingData.isMintingActive)}
                   className={`px-8 py-3 rounded-2xl font-semibold text-lg transition-all shadow-lg focus:outline-none focus:ring-2 focus:ring-cyan-400/60 border border-cyan-400/30
             ${fundraisingData.isMintingActive
