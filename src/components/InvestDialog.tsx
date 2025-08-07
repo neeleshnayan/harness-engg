@@ -51,7 +51,7 @@ const gradeStyles: Record<Strategy['riskGrade'], string> = {
 const InvestDialog: FC<InvestDialogProps> = ({ strategy, isOpen, onClose, onSubmit }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: { amount: 1000 },
   });
@@ -122,13 +122,14 @@ const InvestDialog: FC<InvestDialogProps> = ({ strategy, isOpen, onClose, onSubm
                   </Label>
                   <div className="relative">
                     <FormControl>
-                      <Input
-                        id="amount"
-                        type="number"
-                        step="100"
-                        className="col-span-3 text-lg pr-16 bg-zinc-800 border-zinc-700 text-white"
-                        {...field}
-                      />
+                    <Input
+                      id="amount"
+                      type="number"
+                      step="100"
+                      className="col-span-3 text-lg pr-16 bg-zinc-800 border-zinc-700 text-white"
+                      {...field}
+                      value={field.value as number}
+                    />
                     </FormControl>
                     <span className="absolute inset-y-0 right-0 flex items-center pr-4 font-semibold text-zinc-400">USDC</span>
                   </div>
