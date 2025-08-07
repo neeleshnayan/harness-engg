@@ -234,41 +234,63 @@ export default function HedgeFundDashboard() {
     <>
       <main className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900">
         <div className="container mx-auto px-4 py-8">
-        <header className="text-center mb-12">
-          <div className="flex justify-center items-center gap-4 mb-4">
-            <h1 className="text-5xl font-extrabold text-white tracking-tight drop-shadow-lg">
-              Tokenized Strategies
-            </h1>
+        <header className="flex flex-col md:flex-row justify-between items-center mb-8">
+          <div>
+            <h1 className="text-4xl font-bold text-white">Hedge Fund Dashboard</h1>
+            <p className="text-lg text-zinc-400 mt-1">Your portfolio overview and strategy hub.</p>
           </div>
-          <p className="text-xl text-zinc-400 mt-2 max-w-3xl mx-auto">
-            Your all-in-one dashboard for portfolio analysis and automated strategy discovery.
-          </p>
-          <div className="flex flex-col items-center justify-center mt-8">
-            <div className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-zinc-900/80 via-cyan-900/40 to-blue-900/40 backdrop-blur-xl border border-cyan-400/20 rounded-2xl shadow-lg">
-              <Circle className="h-6 w-6 text-cyan-400" />
-              <Label htmlFor="autopilot-mode" className="text-lg font-semibold text-white">Autopilot</Label>
-              <Switch id="autopilot-mode" checked={isAutopilotOn} onCheckedChange={setIsAutopilotOn} />
-            </div>
-            <span className="text-cyan-300 text-sm mt-2">Let AI optimize your portfolio</span>
+          <div className="flex items-center gap-3 mt-4 md:mt-0 px-4 py-2 bg-zinc-800/50 border border-zinc-700/50 rounded-lg">
+            <Label htmlFor="autopilot-mode" className="text-white font-medium">Autopilot</Label>
+            <Switch id="autopilot-mode" checked={isAutopilotOn} onCheckedChange={setIsAutopilotOn} />
+            <BrainCircuit className="h-5 w-5 text-cyan-400" />
           </div>
-          {isAutopilotOn && (
-            <Alert className="max-w-xl mx-auto mt-6 text-left border-cyan-400/30 bg-cyan-400/10">
-              <Circle className="h-4 w-4 text-cyan-400" />
-              <AlertTitle className="text-cyan-300">Autopilot is Active!</AlertTitle>
-              <AlertDescription className="text-cyan-200">
-                Your portfolio is being automatically rebalanced for optimal performance.
-              </AlertDescription>
-            </Alert>
-          )}
         </header>
 
+        {isAutopilotOn && (
+          <Alert className="mb-8 border-cyan-400/30 bg-cyan-400/10 text-cyan-200">
+            <Circle className="h-4 w-4" />
+            <AlertTitle className="text-cyan-300">Autopilot is Active!</AlertTitle>
+            <AlertDescription>
+              The AI is automatically rebalancing your portfolio for optimal performance.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <section id="portfolio-dashboard" className="mb-16">
-          <Card className="bg-gradient-to-br from-zinc-900/80 via-zinc-800/60 to-cyan-900/40 border-cyan-400/10 shadow-2xl rounded-3xl">
+          <Card className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 shadow-2xl rounded-3xl">
             <CardHeader>
-              <CardTitle className="text-2xl flex items-center gap-2 text-white">
-                <TrendingUp className="h-6 w-6" />
-                Portfolio Performance (12 Months)
-              </CardTitle>
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                <div>
+                  <CardTitle className="text-2xl flex items-center gap-2 text-white">
+                    <TrendingUp className="h-6 w-6" />
+                    Portfolio Performance
+                  </CardTitle>
+                  <CardDescription>Last 12 months performance</CardDescription>
+                </div>
+                <div className="flex items-center gap-x-6 gap-y-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <ArrowUpRight className="h-5 w-5 text-green-400" />
+                    <div>
+                      <p className="text-xs text-zinc-400">Total Return</p>
+                      <p className="text-base font-bold text-white">+{portfolioData.metrics.totalReturn.toFixed(2)}%</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-cyan-400" />
+                    <div>
+                      <p className="text-xs text-zinc-400">Volatility</p>
+                      <p className="text-base font-bold text-white">{portfolioData.metrics.volatility.toFixed(2)}%</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <BarChart className="h-5 w-5 text-purple-400" />
+                    <div>
+                      <p className="text-xs text-zinc-400">Sharpe Ratio</p>
+                      <p className="text-base font-bold text-white">{portfolioData.metrics.sharpeRatio.toFixed(2)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="aspect-video w-full">
@@ -278,7 +300,7 @@ export default function HedgeFundDashboard() {
                     data={portfolioData.performance}
                     margin={{ left: 12, right: 12, top: 20 }}
                   >
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(59, 130, 246, 0.2)" />
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
                     <XAxis
                       dataKey="month"
                       tickLine={false}
@@ -288,78 +310,46 @@ export default function HedgeFundDashboard() {
                       tick={{ fill: '#9ca3af' }}
                     />
                     <YAxis
-                      tickFormatter={(value) => `$${Number(value) / 1000}k`}
+                      tickFormatter={(value) => `${Number(value) / 1000}k`}
                       tickLine={false}
                       axisLine={false}
                       tick={{ fill: '#9ca3af' }}
                     />
                     <ChartTooltip
                       cursor={false}
-                      content={<ChartTooltipContent indicator="dot" />}
+                      content={<ChartTooltipContent indicator="dot" labelClassName="text-zinc-400" className="bg-zinc-900/80 backdrop-blur-sm border-zinc-700/50"/>}
                     />
                     <Area
                       dataKey="value"
                       type="natural"
-                      fill="#1e209c"
-                      fillOpacity={0.3}
-                      stroke="#292bba"
-                      strokeWidth={3}
+                      fill="rgba(59, 130, 246, 0.1)"
+                      stroke="#3b82f6"
+                      strokeWidth={2}
                       stackId="a"
                     />
                   </AreaChart>
                 </ChartContainer>
               </div>
             </CardContent>
-            <CardFooter className="border-t border-zinc-700 p-8">
-              <div className="flex flex-col sm:flex-row gap-6 w-full justify-between">
-                <div className="flex-1 bg-gradient-to-br from-zinc-900/80 via-cyan-900/40 to-blue-900/40 border border-cyan-400/10 rounded-2xl shadow-lg p-6 flex flex-col items-center min-w-[220px]">
-                  <div className="flex items-center gap-2 text-zinc-400 text-base font-medium mb-2">
-                    <ArrowUpRight className="h-5 w-5 text-green-400" />
-                    Total Return
-                  </div>
-                  <div className="text-3xl font-extrabold text-green-400 mb-1">+{portfolioData.metrics.totalReturn.toFixed(2)}%</div>
-                  <div className="text-xs text-zinc-500">Since inception</div>
-                  <div className="mt-2 pt-2 border-t border-zinc-700 w-full flex flex-col items-center">
-                    <div className="text-lg font-bold text-green-400">+12.00%</div>
-                    <div className="text-xs text-zinc-500">CAGR</div>
-                  </div>
-                </div>
-                <div className="flex-1 bg-gradient-to-br from-zinc-900/80 via-cyan-900/40 to-blue-900/40 border border-cyan-400/10 rounded-2xl shadow-lg p-6 flex flex-col items-center min-w-[220px]">
-                  <div className="flex items-center gap-2 text-zinc-400 text-base font-medium mb-2">
-                    <Zap className="h-5 w-5 text-cyan-300" />
-                    Volatility (Ann.)
-                  </div>
-                  <div className="text-3xl font-extrabold text-white mb-1">{portfolioData.metrics.volatility.toFixed(2)}%</div>
-                  <div className="text-xs text-zinc-500">Annualized std. deviation</div>
-                </div>
-                <div className="flex-1 bg-gradient-to-br from-zinc-900/80 via-cyan-900/40 to-blue-900/40 border border-cyan-400/10 rounded-2xl shadow-lg p-6 flex flex-col items-center min-w-[220px]">
-                  <div className="flex items-center gap-2 text-zinc-400 text-base font-medium mb-2">
-                    <BarChart className="h-5 w-5 text-purple-300" />
-                    Sharpe Ratio
-                  </div>
-                  <div className="text-3xl font-extrabold text-white mb-1">{portfolioData.metrics.sharpeRatio.toFixed(2)}</div>
-                  <div className="text-xs text-zinc-500">Risk-adjusted return</div>
-                </div>
-              </div>
-            </CardFooter>
+            
           </Card>
         </section>
         
-        <Separator className="my-16 bg-zinc-700" />
+        <Separator className="my-12 bg-zinc-800" />
 
         <section id="strategy-discovery">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
                 <h2 className="text-3xl font-bold text-white">
-                Explore Strategies
+                  Strategy Marketplace
                 </h2>
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
-                    <Filter className="w-4 h-4 text-zinc-400" />
+                    <Filter className="w-5 h-5 text-zinc-400" />
                     <Select value={riskFilter} onValueChange={setRiskFilter}>
-                      <SelectTrigger className="w-[180px] bg-zinc-800 border-zinc-700 text-white">
+                      <SelectTrigger className="w-[160px] bg-zinc-900/50 border-zinc-700 text-white">
                         <SelectValue placeholder="Filter by risk..." />
                       </SelectTrigger>
-                      <SelectContent className="bg-zinc-800 border-zinc-700">
+                      <SelectContent className="bg-zinc-900 border-zinc-700 text-white">
                         <SelectItem value="all">All Risk Grades</SelectItem>
                         <SelectItem value="A">Risk Grade A</SelectItem>
                         <SelectItem value="B">Risk Grade B</SelectItem>
@@ -369,12 +359,12 @@ export default function HedgeFundDashboard() {
                     </Select>
                   </div>
                    <div className="flex items-center gap-2">
-                     <SortAsc className="w-4 h-4 text-zinc-400" />
+                     <SortAsc className="w-5 h-5 text-zinc-400" />
                      <Select value={sortOrder} onValueChange={setSortOrder}>
-                        <SelectTrigger className="w-[180px] bg-zinc-800 border-zinc-700 text-white">
+                        <SelectTrigger className="w-[160px] bg-zinc-900/50 border-zinc-700 text-white">
                             <SelectValue placeholder="Sort by..." />
                         </SelectTrigger>
-                        <SelectContent className="bg-zinc-800 border-zinc-700">
+                        <SelectContent className="bg-zinc-900 border-zinc-700 text-white">
                             <SelectItem value="apy-desc">APY: High to Low</SelectItem>
                             <SelectItem value="apy-asc">APY: Low to High</SelectItem>
                         </SelectContent>
@@ -393,9 +383,10 @@ export default function HedgeFundDashboard() {
                 ))}
             </div>
             {displayedStrategies.length === 0 && (
-                <div className="col-span-full text-center py-16 text-zinc-400 rounded-lg bg-zinc-800/50">
-                  <p className="text-lg font-medium">No strategies match your criteria.</p>
-                  <p className="text-sm">Try adjusting your filters.</p>
+                <div className="col-span-full text-center py-20 px-4 text-zinc-400 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
+                  <Zap className="mx-auto h-12 w-12 text-zinc-500 mb-4" />
+                  <h3 className="text-xl font-semibold text-white">No Strategies Found</h3>
+                  <p className="text-zinc-500 mt-2">Try adjusting your filters to discover new opportunities.</p>
                 </div>
             )}
         </section>
@@ -408,15 +399,19 @@ export default function HedgeFundDashboard() {
         onSubmit={handleInvestmentSubmit}
       />
       
-      {/* Toast notifications */}
       <div className="fixed top-4 right-4 z-50 space-y-2">
         {toasts.map((toast) => (
-          <Toast key={toast.id} className="bg-zinc-900 border-zinc-700 text-white">
-            <ToastTitle>{toast.title}</ToastTitle>
-            {toast.description && <ToastDescription>{toast.description}</ToastDescription>}
+          <Toast key={toast.id} className="bg-zinc-800/50 backdrop-blur-sm border-zinc-700/50 text-white">
+            <div className="flex items-start gap-3">
+              <BrainCircuit className="h-5 w-5 text-cyan-400 mt-1" />
+              <div>
+                <ToastTitle>{toast.title}</ToastTitle>
+                {toast.description && <ToastDescription>{toast.description}</ToastDescription>}
+              </div>
+            </div>
           </Toast>
         ))}
       </div>
     </>
   );
-} 
+}

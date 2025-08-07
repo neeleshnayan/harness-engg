@@ -138,20 +138,20 @@ export default function HedgeFundPage() {
     field: keyof HedgeFundForm; 
     options: { value: string; label: string }[] 
   }) => (
-    <div className="mb-8">
+    <div className="mb-8 p-6 bg-zinc-900/50 rounded-xl border border-zinc-700/50">
       <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {options.map((option) => (
-          <label key={option.value} className="flex items-center space-x-3 cursor-pointer group">
+          <label key={option.value} className="flex items-center p-4 rounded-lg bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700/50 cursor-pointer transition-all duration-200">
             <input
               type="radio"
               name={field}
               value={option.value}
               checked={formData[field] === option.value}
               onChange={(e) => handleInputChange(field, e.target.value)}
-              className="w-4 h-4 text-blue-600 bg-zinc-800 border-zinc-600 focus:ring-blue-500 focus:ring-2"
+              className="w-5 h-5 text-blue-500 bg-zinc-700 border-zinc-600 focus:ring-blue-500 focus:ring-2 focus:ring-offset-2 focus:ring-offset-zinc-900"
             />
-            <span className="text-zinc-300 group-hover:text-white transition-colors">
+            <span className="ml-4 text-zinc-300 group-hover:text-white transition-colors">
               {option.label}
             </span>
           </label>
@@ -160,20 +160,31 @@ export default function HedgeFundPage() {
     </div>
   );
 
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const totalFields = Object.keys(formData).length;
+    const filledFields = Object.values(formData).filter(value => value !== "").length;
+    setProgress((filledFields / totalFields) * 100);
+  }, [formData]);
+
   if (success) {
     return (
       <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-8">
-        <div className="text-center max-w-md">
+        <div className="text-center max-w-md bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl p-8 shadow-2xl">
           <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="h-10 w-10 text-green-400" />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-4">Questionnaire Submitted!</h2>
-          <p className="text-zinc-400 mb-6">
-            Thank you for completing the hedge fund questionnaire. You now have access to the hedge fund dashboard.
+          <h2 className="text-3xl font-bold text-white mb-4">All Set!</h2>
+          <p className="text-zinc-400 mb-8">
+            Your investment profile is complete. You can now explore personalized hedge fund strategies.
           </p>
-          <p className="text-sm text-zinc-500">
-            Loading your dashboard...
-          </p>
+          <button
+            onClick={() => setShowDashboard(true)}
+            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+          >
+            Go to Dashboard
+          </button>
         </div>
       </div>
     );
@@ -211,6 +222,27 @@ export default function HedgeFundPage() {
                 </p>
               </div>
             )}
+          </div>
+
+          {/* Progress Bar */}
+          <div className="mb-8">
+            <div className="relative pt-1">
+              <div className="flex mb-2 items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
+                    Progress
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-semibold inline-block text-blue-600">
+                    {Math.round(progress)}%
+                  </span>
+                </div>
+              </div>
+              <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-blue-200">
+                <div style={{ width: `${progress}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500"></div>
+              </div>
+            </div>
           </div>
 
           {error && (
