@@ -354,6 +354,8 @@ export default function ManageBusinessPage() {
 
         if (tokenNameElement) tokenNameElement.readOnly = true;
         if (tokenPriceElement) tokenPriceElement.readOnly = true;
+
+        setHasExistingAddress(true);
       }
 
       setSaveSuccess('Fundraising settings saved successfully!');
