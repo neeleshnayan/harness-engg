@@ -145,7 +145,7 @@ export default function ManageBusinessPage() {
             }
 
             try {
-              const response = await api.get('/api/v1/smarttoken/token_address/' + existingBusinessId);
+              const response = await api.get('/api/v1/smarttoken/token_address/' + business.id);
               setHasExistingAddress(response.data.has_address);
             } catch (err) {
               console.error('Failed to fetch existing address:', err);
