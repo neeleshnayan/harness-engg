@@ -143,6 +143,13 @@ export default function ManageBusinessPage() {
               };
               setTeamData(fixedTeamData);
             }
+
+            try {
+              const response = await api.get('/api/v1/smarttoken/token_address/' + existingBusinessId);
+              setHasExistingAddress(response.data.has_address);
+            } catch (err) {
+              console.error('Failed to fetch existing address:', err);
+            }
           }
         }
       } catch (err) {
@@ -151,20 +158,8 @@ export default function ManageBusinessPage() {
       }
     };
 
-    const fetchHasExistingAddress = async () => {
-      try {
-        if (existingBusinessId) {
-          const response = await api.get('/api/v1/smarttoken/token_address/' + existingBusinessId);
-          setHasExistingAddress(response.data.has_address);
-        }
-      } catch (err) {
-        console.error('Failed to fetch existing address:', err);
-        // Don't show error for this as it's expected for new businesses
-      }
-    };
-
     const initializeData = async () => {
-      await Promise.all([fetchCategories(), fetchExistingBusiness(), fetchHasExistingAddress()]);
+      await Promise.all([fetchCategories(), fetchExistingBusiness()]);
       setLoading(false);
     };
 
