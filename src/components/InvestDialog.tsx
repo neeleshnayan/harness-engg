@@ -71,44 +71,26 @@ const InvestDialog: FC<InvestDialogProps> = ({ strategy, isOpen, onClose, onSubm
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-gradient-to-br from-zinc-900/90 via-zinc-800/80 to-cyan-900/60 border border-cyan-400/20 rounded-3xl shadow-2xl ring-2 ring-cyan-400/10">
+      <DialogContent className="sm:max-w-md bg-zinc-900/80 backdrop-blur-lg border border-zinc-700 rounded-xl shadow-lg">
         <DialogHeader>
           <DialogTitle className="text-2xl text-white">Invest in {strategy.name}</DialogTitle>
-          <DialogDescription className="text-zinc-400">Review the terms and enter the amount you'd like to invest.</DialogDescription>
+          <DialogDescription className="text-zinc-400">Enter the amount you'd like to invest in this strategy.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
-            <div className="flex justify-between items-center rounded-2xl bg-gradient-to-r from-zinc-900/70 via-cyan-900/30 to-blue-900/30 border border-cyan-400/10 p-4 shadow-inner">
-              <div className="flex flex-col items-center gap-1.5 w-1/3">
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      'px-2 py-0.5 font-bold border',
-                      gradeStyles[strategy.riskGrade]
-                    )}
-                  >
-                    <Shield className="w-3.5 h-3.5 mr-1" />
-                    Risk: {strategy.riskGrade}
-                  </Badge>
-              </div>
-              <div className="flex flex-col items-center gap-1.5 w-1/3">
-                <div className="flex items-center gap-1.5 text-sm">
-                  <TrendingUp className="w-4 h-4 text-green-400" />
-                  <span className="font-semibold text-white">{strategy.netApy.toFixed(1)}%</span>
-                </div>
-                <span className="text-xs text-zinc-500">{strategy.name === 'Pendle Fixed Yield' ? 'Fixed APY' : 'Net APY'}</span>
-              </div>
-              <div className="flex flex-col items-center gap-1.5 w-1/3">
-                 <div className="flex items-center gap-1.5 text-sm">
-                  <Clock className="w-4 h-4 text-zinc-400" />
-                  <span className="font-semibold text-white">{strategy.cooldown}</span>
-                </div>
-                <span className="text-xs text-zinc-500">Lock-in Period</span>
-              </div>
-            </div>
+        <div className="grid grid-cols-3 gap-4 py-4 text-center border-y border-zinc-800 my-4">
+          <div className="space-y-1">
+            <p className="text-sm text-zinc-400">Net APY</p>
+            <p className="font-semibold text-white">{strategy.netApy.toFixed(1)}%</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm text-zinc-400">Risk Grade</p>
+            <Badge variant="outline" className={cn("text-xs mx-auto", gradeStyles[strategy.riskGrade])}>{strategy.riskGrade}</Badge>
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm text-zinc-400">Cooldown</p>
+            <p className="font-semibold text-white">{strategy.cooldown}</p>
+          </div>
         </div>
-
-        <Separator className="bg-zinc-700" />
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -117,19 +99,17 @@ const InvestDialog: FC<InvestDialogProps> = ({ strategy, isOpen, onClose, onSubm
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <Label htmlFor="amount" className="text-right text-white">
-                    Investment Amount
-                  </Label>
+                  <Label htmlFor="amount" className="text-white">Investment Amount</Label>
                   <div className="relative">
                     <FormControl>
-                    <Input
-                      id="amount"
-                      type="number"
-                      step="100"
-                      className="col-span-3 text-lg pr-16 bg-zinc-900/80 border-cyan-400/20 text-white rounded-xl shadow-inner focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent"
-                      {...field}
-                      value={field.value as number}
-                    />
+                      <Input
+                        id="amount"
+                        type="number"
+                        step="100"
+                        className="text-lg pr-16 bg-zinc-800 border-zinc-600 text-white focus:ring-blue-500 focus:border-blue-500"
+                        {...field}
+                        value={field.value as number}
+                      />
                     </FormControl>
                     <span className="absolute inset-y-0 right-0 flex items-center pr-4 font-semibold text-zinc-400">USDC</span>
                   </div>
@@ -137,13 +117,11 @@ const InvestDialog: FC<InvestDialogProps> = ({ strategy, isOpen, onClose, onSubm
                 </FormItem>
               )}
             />
-            <DialogFooter className="pt-4 flex flex-row gap-4">
-              <DialogClose asChild>
-                <Button type="button" variant="secondary" className="bg-zinc-700 text-white hover:bg-zinc-600 rounded-xl shadow-md">
-                  Cancel
-                </Button>
-              </DialogClose>
-              <Button type="submit" disabled={isSubmitting} className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-xl shadow-lg">
+            <DialogFooter className="pt-4 flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={onClose} className="text-zinc-400 hover:bg-zinc-800 hover:text-white">
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700 text-white">
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
