@@ -10,14 +10,26 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
-  ExternalLink,
-  Plus,
   History,
-  ChevronDown,
-  UserPlus
+  UserPlus,
 } from "lucide-react";
-import { MarketplaceService } from "@/lib/marketplace";
+import { MarketplaceItem, MarketplaceService } from "@/lib/marketplace";
 import api from "@/lib/api";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart"
+import { AxiosResponse } from "axios";
 
 interface BusinessData {
   name: string;
@@ -50,6 +62,12 @@ interface TeamData {
   members: TeamMember[];
 }
 
+const chartConfig = {
+  // value: {
+  //   color: '#3b82f6', // Rich blue color
+  // },
+} satisfies ChartConfig;
+
 export default function ManageBusinessPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'details' | 'fundraising' | 'team'>('details');
@@ -58,6 +76,7 @@ export default function ManageBusinessPage() {
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [tranchingDetails, setTranchingDetails] = useState<Array<Object>>([]);
 
   const [businessData, setBusinessData] = useState<BusinessData>({
     name: '',
@@ -144,9 +163,15 @@ export default function ManageBusinessPage() {
               setTeamData(fixedTeamData);
             }
 
+            // fetch token address details
             try {
               const response = await api.get('/api/v1/smarttoken/token_address/' + business.id);
               setHasExistingAddress(response.data.has_address);
+
+              // fetch tranching details
+              if (response.data.has_address) {
+                await fetchTranchingDetails(business.price);
+              }
             } catch (err) {
               console.error('Failed to fetch existing address:', err);
             }
@@ -165,6 +190,28 @@ export default function ManageBusinessPage() {
 
     initializeData();
   }, [router]);
+
+  const fetchTranchingDetails = async (initial_price: number) => {
+    try {
+      const response = await api.post('/api/v1/smarttoken/tranching_details_for_demo', {
+        amount: 1e6,
+        initial_value: initial_price,
+      });
+
+      var tranches = [];
+      for (let tranche of response.data.minting_details.tranche_breakdown) {
+        tranches.push({
+          minted: tranche.current_supply,
+          raised: tranche.current_supply * tranche.price / 1e6,
+          price: tranche.price,
+        });
+      }
+
+      setTranchingDetails(tranches);
+    } catch (err) {
+      console.error('Failed to fetch tranching details:', err);
+    }
+  }
 
   const handleBusinessDataChange = (field: keyof BusinessData, value: string) => {
     setBusinessData(prev => ({
@@ -355,6 +402,7 @@ export default function ManageBusinessPage() {
         if (tokenNameElement) tokenNameElement.readOnly = true;
         if (tokenPriceElement) tokenPriceElement.readOnly = true;
 
+        await fetchTranchingDetails(fundraisingData.price);
         setHasExistingAddress(true);
       }
 
@@ -655,6 +703,60 @@ export default function ManageBusinessPage() {
                   readOnly={hasExistingAddress}
                 />
               </div>
+              <section id="bonded-curve" style={{ display: (hasExistingAddress) ? '' : 'none' }}>
+                <Card className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 shadow-2xl rounded-3xl">
+                  <CardHeader>
+                    <CardTitle className="text-2xl flex items-center gap-2 text-white">Bonding Curve</CardTitle>
+                    <CardDescription>
+                      Illustrative bonding curve given initial token price
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ChartContainer config={chartConfig}>
+                      <AreaChart
+                        accessibilityLayer
+                        data={tranchingDetails}
+                        margin={{
+                          left: -12,
+                          right: 12,
+                          top: 12,
+                        }}
+                      >
+                        <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)"/>
+                        <XAxis
+                          dataKey="minted"
+                          tickLine={true}
+                          axisLine={false}
+                          tickMargin={8}
+                          tickFormatter={(value) => (value / 1000).toString()}
+                        />
+                        <YAxis
+                          tickLine={true}
+                          axisLine={false}
+                          tickMargin={8}
+                        />
+                        <ChartTooltip cursor={true} content={<ChartTooltipContent />} />
+                        <Area
+                          dataKey="raised"
+                          type="natural"
+                          fill="rgba(59, 130, 246, 0.1)"
+                          stroke="#3b82f6"
+                          strokeWidth={2}
+                          stackId="a"
+                        />
+                        <Area
+                          dataKey="price"
+                          type="natural"
+                          fill="rgba(152, 184, 235, 0.1)"
+                          stroke="#98b8eb"
+                          strokeWidth={2}
+                          stackId="a"
+                        />
+                      </AreaChart>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+              </section>
               <div className=" items-center justify-between p-6 bg-zinc-900/60 rounded-2xl border border-cyan-400/10 shadow-inner">
                 <div>
                   <h3 className="text-xl font-semibold text-white mb-1">Token Minting</h3>
@@ -666,7 +768,7 @@ export default function ManageBusinessPage() {
                   </p>
                 </div>
                 <br/>
-                <button 
+                <button
                   onClick={() => handleFundraisingDataChange('isMintingActive', !fundraisingData.isMintingActive)}
                   className={`px-8 py-3 rounded-2xl font-semibold text-lg transition-all shadow-lg focus:outline-none focus:ring-2 focus:ring-cyan-400/60 border border-cyan-400/30
             ${fundraisingData.isMintingActive

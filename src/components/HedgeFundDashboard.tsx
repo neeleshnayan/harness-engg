@@ -99,19 +99,19 @@ const initialStrategies: Strategy[] = [
     apyTrend: 0.1,
     cooldown: 'None'
   },
-  { 
-    id: '4', 
-    name: 'Hyper Growth Arbitrage', 
-    riskGrade: 'D', 
-    maxDrawdown: 65.5, 
-    description: 'High-frequency trading strategy that exploits pricing inefficiencies across exchanges.', 
-    netApy: 135.3, 
-    sharpe: 0.85, 
-    depositors: 121, 
-    performanceFee: 30.0, 
-    aum: 8.9, 
-    apyTrend: 15.2, 
-    cooldown: '14d' 
+  {
+    id: '4',
+    name: 'Hyper Growth Arbitrage',
+    riskGrade: 'D',
+    maxDrawdown: 65.5,
+    description: 'High-frequency trading strategy that exploits pricing inefficiencies across exchanges.',
+    netApy: 135.3,
+    sharpe: 0.85,
+    depositors: 121,
+    performanceFee: 30.0,
+    aum: 8.9,
+    apyTrend: 15.2,
+    cooldown: '14d'
   },
 ];
 
@@ -176,10 +176,10 @@ export default function HedgeFundDashboard() {
           const availableNewStrategies = allPossibleStrategies.filter(
             s => !remainingStrategies.some(rs => rs.id === s.id) && s.id !== removedStrategy.id
           );
-          
+
           if (availableNewStrategies.length > 0) {
             const newStrategy = availableNewStrategies[Math.floor(Math.random() * availableNewStrategies.length)];
-            
+
             toast({
               title: "Autopilot Rebalanced!",
               description: `Removed "${removedStrategy.name}" and added "${newStrategy.name}".`,
@@ -206,7 +206,7 @@ export default function HedgeFundDashboard() {
     setSelectedStrategyForInvestment(strategy);
     setInvestDialogOpen(true);
   };
-  
+
   const handleInvestmentSubmit = (amount: number) => {
     toast({
       title: 'Investment Submitted!',
@@ -331,10 +331,10 @@ export default function HedgeFundDashboard() {
                 </ChartContainer>
               </div>
             </CardContent>
-            
+
           </Card>
         </section>
-        
+
         <Separator className="my-12 bg-zinc-800" />
 
         <section id="strategy-discovery">
@@ -398,7 +398,7 @@ export default function HedgeFundDashboard() {
         strategy={selectedStrategyForInvestment}
         onSubmit={handleInvestmentSubmit}
       />
-      
+
       <div className="fixed top-4 right-4 z-50 space-y-2">
         {toasts.map((toast) => (
           <Toast key={toast.id} className="bg-zinc-800/50 backdrop-blur-sm border-zinc-700/50 text-white">
