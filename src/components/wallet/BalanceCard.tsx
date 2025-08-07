@@ -134,7 +134,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
                     (b: any) => b.token && b.token.symbol === 'USDC'
                   );
                   if (usdc) {
-                    return `$${parseFloat(transakToken.amount)+parseFloat(usdc.amount)}`;
+                    return `$${parseFloat(transakToken?.amount || '0')+parseFloat(usdc.amount)}`;
                   }
                 }
                 return '-';
