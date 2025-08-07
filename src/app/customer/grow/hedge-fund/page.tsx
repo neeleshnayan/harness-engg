@@ -322,10 +322,10 @@ export default function HedgeFundPage() {
               title="Choose the portfolio you're most comfortable with:"
               field="portfolioComfort"
               options={[
-                { value: "conservative", label: "Conservative (20% stocks, 80% bonds)" },
-                { value: "moderate", label: "Moderate (60% stocks, 40% bonds)" },
-                { value: "aggressive", label: "Aggressive (80% stocks, 20% bonds)" },
-                { value: "very_aggressive", label: "Very Aggressive (100% stocks)" }
+                { value: "conservative", label: "Expected Annual Return: 4%, Worst Year Loss: -2%, Best Year Gain: +6%" },
+                { value: "moderate", label: "Expected Annual Return: 6%, Worst Year Loss: -10%, Best Year Gain: +12%" },
+                { value: "aggressive", label: "Expected Annual Return: 9%, Worst Year Loss: -20%, Best Year Gain: +25%" },
+                { value: "very_aggressive", label: "Expected Annual Return: 12%, Worst Year Loss: -35%, Best Year Gain: +40%" },
               ]}
             />
 
