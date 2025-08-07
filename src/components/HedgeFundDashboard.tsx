@@ -12,6 +12,7 @@ import {
   BarChart,
   Filter,
   SortAsc,
+  Circle,
 } from 'lucide-react';
 
 import type { Strategy } from '@/lib/types';
@@ -235,34 +236,34 @@ export default function HedgeFundDashboard() {
         <div className="container mx-auto px-4 py-8">
         <header className="text-center mb-12">
           <div className="flex justify-center items-center gap-4 mb-4">
-            <div className="inline-flex items-center gap-4">
-              <Rocket className="h-12 w-12 text-blue-500" />
-              <h1 className="text-5xl font-bold text-white">
-                Krypton Hedge Fund
-              </h1>
-            </div>
+            <h1 className="text-5xl font-extrabold text-white tracking-tight drop-shadow-lg">
+              Tokenized Strategies
+            </h1>
           </div>
           <p className="text-xl text-zinc-400 mt-2 max-w-3xl mx-auto">
-            Your all-in-one dashboard for portfolio analysis and strategy discovery.
+            Your all-in-one dashboard for portfolio analysis and automated strategy discovery.
           </p>
-          <div className="flex items-center justify-center space-x-2 mt-6">
-            <BrainCircuit className="h-6 w-6 text-blue-500" />
-            <Label htmlFor="autopilot-mode" className="text-lg font-medium text-white">Autopilot</Label>
-            <Switch id="autopilot-mode" checked={isAutopilotOn} onCheckedChange={setIsAutopilotOn} />
+          <div className="flex flex-col items-center justify-center mt-8">
+            <div className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-zinc-900/80 via-cyan-900/40 to-blue-900/40 backdrop-blur-xl border border-cyan-400/20 rounded-2xl shadow-lg">
+              <Circle className="h-6 w-6 text-cyan-400" />
+              <Label htmlFor="autopilot-mode" className="text-lg font-semibold text-white">Autopilot</Label>
+              <Switch id="autopilot-mode" checked={isAutopilotOn} onCheckedChange={setIsAutopilotOn} />
+            </div>
+            <span className="text-cyan-300 text-sm mt-2">Let AI optimize your portfolio</span>
           </div>
           {isAutopilotOn && (
-            <Alert className="max-w-xl mx-auto mt-6 text-left border-blue-500/30 bg-blue-500/10">
-              <BrainCircuit className="h-4 w-4 text-blue-500" />
-              <AlertTitle className="text-blue-400">Autopilot is Active!</AlertTitle>
-              <AlertDescription className="text-blue-300">
-                Krypton is now automatically rebalancing your portfolio to optimize for market conditions. Sit back and relax.
+            <Alert className="max-w-xl mx-auto mt-6 text-left border-cyan-400/30 bg-cyan-400/10">
+              <Circle className="h-4 w-4 text-cyan-400" />
+              <AlertTitle className="text-cyan-300">Autopilot is Active!</AlertTitle>
+              <AlertDescription className="text-cyan-200">
+                Your portfolio is being automatically rebalanced for optimal performance.
               </AlertDescription>
             </Alert>
           )}
         </header>
 
         <section id="portfolio-dashboard" className="mb-16">
-          <Card className="bg-slate-900/80 border-slate-700/50">
+          <Card className="bg-gradient-to-br from-zinc-900/80 via-zinc-800/60 to-cyan-900/40 border-cyan-400/10 shadow-2xl rounded-3xl">
             <CardHeader>
               <CardTitle className="text-2xl flex items-center gap-2 text-white">
                 <TrendingUp className="h-6 w-6" />
@@ -309,48 +310,36 @@ export default function HedgeFundDashboard() {
                 </ChartContainer>
               </div>
             </CardContent>
-            <CardFooter className="border-t border-zinc-700 p-6">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 w-full">
-                  <div className="flex flex-col gap-1">
-                    <div className='text-sm font-medium text-zinc-400 flex items-center justify-between'>
-                      <span>Total Return</span>
-                      <ArrowUpRight className="h-4 w-4" />
-                    </div>
-                    <div className="text-2xl font-bold text-green-500">
-                      +{portfolioData.metrics.totalReturn.toFixed(2)}%
-                    </div>
-                    <p className="text-xs text-zinc-500">Since inception</p>
-                    <div className="mt-2 pt-2 border-t border-zinc-700">
-                      <div className="text-lg font-bold text-green-400">
-                        +12.00%
-                      </div>
-                      <p className="text-xs text-zinc-500">CAGR</p>
-                    </div>
+            <CardFooter className="border-t border-zinc-700 p-8">
+              <div className="flex flex-col sm:flex-row gap-6 w-full justify-between">
+                <div className="flex-1 bg-gradient-to-br from-zinc-900/80 via-cyan-900/40 to-blue-900/40 border border-cyan-400/10 rounded-2xl shadow-lg p-6 flex flex-col items-center min-w-[220px]">
+                  <div className="flex items-center gap-2 text-zinc-400 text-base font-medium mb-2">
+                    <ArrowUpRight className="h-5 w-5 text-green-400" />
+                    Total Return
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <div className='text-sm font-medium text-zinc-400 flex items-center justify-between'>
-                      <span>Volatility (Ann.)</span>
-                      <Zap className="h-4 w-4" />
-                    </div>
-                    <div className="text-2xl font-bold text-white">
-                      {portfolioData.metrics.volatility.toFixed(2)}%
-                    </div>
-                    <p className="text-xs text-zinc-500">
-                      Annualized standard deviation
-                    </p>
+                  <div className="text-3xl font-extrabold text-green-400 mb-1">+{portfolioData.metrics.totalReturn.toFixed(2)}%</div>
+                  <div className="text-xs text-zinc-500">Since inception</div>
+                  <div className="mt-2 pt-2 border-t border-zinc-700 w-full flex flex-col items-center">
+                    <div className="text-lg font-bold text-green-400">+12.00%</div>
+                    <div className="text-xs text-zinc-500">CAGR</div>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <div className='text-sm font-medium text-zinc-400 flex items-center justify-between'>
-                      <span>Sharpe Ratio</span>
-                      <BarChart className="h-4 w-4" />
-                    </div>
-                    <div className="text-2xl font-bold text-white">
-                      {portfolioData.metrics.sharpeRatio.toFixed(2)}
-                    </div>
-                    <p className="text-xs text-zinc-500">
-                      Risk-adjusted return
-                    </p>
+                </div>
+                <div className="flex-1 bg-gradient-to-br from-zinc-900/80 via-cyan-900/40 to-blue-900/40 border border-cyan-400/10 rounded-2xl shadow-lg p-6 flex flex-col items-center min-w-[220px]">
+                  <div className="flex items-center gap-2 text-zinc-400 text-base font-medium mb-2">
+                    <Zap className="h-5 w-5 text-cyan-300" />
+                    Volatility (Ann.)
                   </div>
+                  <div className="text-3xl font-extrabold text-white mb-1">{portfolioData.metrics.volatility.toFixed(2)}%</div>
+                  <div className="text-xs text-zinc-500">Annualized std. deviation</div>
+                </div>
+                <div className="flex-1 bg-gradient-to-br from-zinc-900/80 via-cyan-900/40 to-blue-900/40 border border-cyan-400/10 rounded-2xl shadow-lg p-6 flex flex-col items-center min-w-[220px]">
+                  <div className="flex items-center gap-2 text-zinc-400 text-base font-medium mb-2">
+                    <BarChart className="h-5 w-5 text-purple-300" />
+                    Sharpe Ratio
+                  </div>
+                  <div className="text-3xl font-extrabold text-white mb-1">{portfolioData.metrics.sharpeRatio.toFixed(2)}</div>
+                  <div className="text-xs text-zinc-500">Risk-adjusted return</div>
+                </div>
               </div>
             </CardFooter>
           </Card>

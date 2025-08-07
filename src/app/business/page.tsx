@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { getAuth, signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { FaWallet, FaSignOutAlt, FaCopy, FaArrowUp, FaArrowDown, FaUser, FaCheck, FaTimes, FaBars, FaShieldAlt } from "react-icons/fa";
+import { FaWallet, FaSignOutAlt, FaCopy, FaArrowUp, FaArrowDown, FaUser, FaCheck, FaTimes, FaBars, FaShieldAlt, FaBuilding } from "react-icons/fa";
 import { getFirebaseApp } from "@/lib/firebaseClient";
 import UsernameCard from "@/components/wallet/UsernameCard";
 import BalanceCard from "@/components/wallet/BalanceCard";
@@ -522,7 +522,7 @@ export default function BusinessPage() {
             balanceLoading={balanceLoading}
           />
           {accountData?.username && kycStatus === 'approved' && (
-            <div className="flex flex-col gap-4 mb-8 w-full justify-center mt-8">
+            <>
               <div className="flex flex-row gap-4 w-full justify-center">
                 <button
                   type="button"
@@ -541,17 +541,17 @@ export default function BusinessPage() {
                   Grow
                 </button>
               </div>
-              <div className="flex justify-center">
+              <div className="flex flex-row gap-4 w-full justify-center mt-4">
                 <button
                   type="button"
                   onClick={() => router.push('/business/manage')}
-                  className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white py-4 px-8 rounded-full font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-lg"
+                  className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white py-5 px-10 rounded-full font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-xl"
                 >
-                  <FaUser className="mr-3 text-lg text-green-400" />
+                  <FaBuilding className="mr-3 text-lg text-white" />
                   Manage Business
                 </button>
               </div>
-            </div>
+            </>
           )}
         </div>
         {showSendForm && (

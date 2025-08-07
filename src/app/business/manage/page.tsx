@@ -38,6 +38,7 @@ interface FundraisingData {
 interface TeamMember {
   id: string;
   name: string;
+  kryptonId: string; // Added Krypton ID
   type: 'employee' | 'intern' | 'vendor';
   usdcPayment: number;
   tokenPayment: number;
@@ -82,6 +83,7 @@ export default function ManageBusinessPage() {
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [newMember, setNewMember] = useState<Omit<TeamMember, 'id' | 'createdAt'>>({
     name: '',
+    kryptonId: '', // Added Krypton ID
     type: 'employee',
     usdcPayment: 0,
     tokenPayment: 0,
@@ -130,7 +132,15 @@ export default function ManageBusinessPage() {
             
             // Load team data if available
             if (business.team_data) {
-              setTeamData(business.team_data);
+              // Ensure all members have kryptonId
+              const fixedTeamData = {
+                ...business.team_data,
+                members: (business.team_data.members || []).map((member: any) => ({
+                  ...member,
+                  kryptonId: member.kryptonId || '',
+                })),
+              };
+              setTeamData(fixedTeamData);
             }
           }
         }
@@ -178,6 +188,7 @@ export default function ManageBusinessPage() {
     const member: TeamMember = {
       id: Date.now().toString(),
       name: newMember.name,
+      kryptonId: newMember.kryptonId, // Added Krypton ID
       type: newMember.type,
       usdcPayment: newMember.usdcPayment,
       tokenPayment: newMember.tokenPayment,
@@ -193,6 +204,7 @@ export default function ManageBusinessPage() {
     // Reset form
     setNewMember({
       name: '',
+      kryptonId: '', // Added Krypton ID
       type: 'employee',
       usdcPayment: 0,
       tokenPayment: 0,
@@ -389,12 +401,6 @@ export default function ManageBusinessPage() {
               <h1 className="text-3xl font-bold text-white mb-2">Manage Business</h1>
               <p className="text-zinc-400">Configure your business profile and fundraising settings</p>
             </div>
-            <button
-              onClick={() => router.push('/business')}
-              className="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition-colors"
-            >
-              Back to Dashboard
-            </button>
           </div>
         </div>
       </div>
@@ -470,171 +476,144 @@ export default function ManageBusinessPage() {
 
         {/* Tab Content */}
         {activeTab === 'details' && (
-          <div className="bg-zinc-800/30 border border-zinc-700/50 rounded-xl p-8 backdrop-blur-sm">
-            <h2 className="text-2xl font-bold text-white mb-6">Business Details</h2>
-
-            <div className="space-y-6">
+          <div className="bg-gradient-to-br from-zinc-900/80 via-zinc-800/60 to-cyan-900/40 backdrop-blur-2xl border border-cyan-400/10 rounded-3xl p-12 shadow-2xl mb-8 transition-all duration-300">
+            <h2 className="text-3xl font-extrabold text-white tracking-tight drop-shadow-lg mb-10">Business Details</h2>
+            <div className="space-y-8">
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">
-                  Business Name *
-                </label>
+                <label className="block text-base font-semibold text-zinc-200 mb-2">Business Name *</label>
                 <input
                   type="text"
                   value={businessData.name}
                   onChange={(e) => handleBusinessDataChange('name', e.target.value)}
-                  className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-600/50 rounded-lg text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  className="w-full px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
                   placeholder="Enter your business name"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">
-                  Description *
-                </label>
+                <label className="block text-base font-semibold text-zinc-200 mb-2">Description *</label>
                 <textarea
                   value={businessData.description}
                   onChange={(e) => handleBusinessDataChange('description', e.target.value)}
                   rows={4}
-                  className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-600/50 rounded-lg text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
+                  className="w-full px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner resize-none"
                   placeholder="Describe your business and what makes it unique"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">
-                  Category *
-                </label>
+                <label className="block text-base font-semibold text-zinc-200 mb-2">Category *</label>
                 <select
                   value={businessData.category}
                   onChange={(e) => handleBusinessDataChange('category', e.target.value)}
-                  className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  className="w-full px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
                 >
                   <option value="">Select a category</option>
                   {categories.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
+                    <option key={category} value={category}>{category}</option>
                   ))}
                 </select>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-2">
-                    LinkedIn URL
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="url"
-                      value={businessData.linkedin}
-                      onChange={(e) => handleBusinessDataChange('linkedin', e.target.value)}
-                      className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-600/50 rounded-lg text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                      placeholder="https://linkedin.com/company/..."
-                    />
-                    {businessData.linkedin && (
-                      <ExternalLink className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-2">
-                    YouTube URL
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="url"
-                      value={businessData.youtube}
-                      onChange={(e) => handleBusinessDataChange('youtube', e.target.value)}
-                      className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-600/50 rounded-lg text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                      placeholder="https://youtube.com/..."
-                    />
-                    {businessData.youtube && (
-                      <ExternalLink className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-2">
-                    X (Twitter) URL
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="url"
-                      value={businessData.x}
-                      onChange={(e) => handleBusinessDataChange('x', e.target.value)}
-                      className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-600/50 rounded-lg text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                      placeholder="https://x.com/..."
-                    />
-                    {businessData.x && (
-                      <ExternalLink className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                    )}
-                  </div>
-                </div>
-              </div>
-
+              {/* Move Pitch Video URL here */}
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">
-                  Pitch Video URL (YouTube)
-                </label>
+                <label className="block text-base font-semibold text-zinc-200 mb-2">Pitch Video URL (YouTube)</label>
                 <div className="relative">
                   <input
                     type="url"
                     value={businessData.pitchVideo}
                     onChange={(e) => handleBusinessDataChange('pitchVideo', e.target.value)}
-                    className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-600/50 rounded-lg text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    className="w-full px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
                     placeholder="https://www.youtube.com/watch?v=..."
                   />
                   {businessData.pitchVideo && (
-                    <ExternalLink className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                    <ExternalLink className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-cyan-300" />
                   )}
                 </div>
-                <p className="text-zinc-500 text-sm mt-1">
-                  Add a YouTube video URL for your pitch video. This will be displayed to potential investors.
-                </p>
+                <p className="text-zinc-400 text-sm mt-2">Add a YouTube video URL for your pitch video. This will be displayed to potential investors.</p>
+              </div>
+              {/* Social section */}
+              <div className="mt-8">
+                <h3 className="text-xl font-bold text-cyan-300 mb-6 tracking-tight">Social</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <label className="block text-base font-semibold text-zinc-200 mb-2">LinkedIn URL</label>
+                    <div className="relative">
+                      <input
+                        type="url"
+                        value={businessData.linkedin}
+                        onChange={(e) => handleBusinessDataChange('linkedin', e.target.value)}
+                        className="w-full px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
+                        placeholder="https://linkedin.com/company/..."
+                      />
+                      {businessData.linkedin && (
+                        <ExternalLink className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-cyan-300" />
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-base font-semibold text-zinc-200 mb-2">YouTube URL</label>
+                    <div className="relative">
+                      <input
+                        type="url"
+                        value={businessData.youtube}
+                        onChange={(e) => handleBusinessDataChange('youtube', e.target.value)}
+                        className="w-full px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
+                        placeholder="https://youtube.com/..."
+                      />
+                      {businessData.youtube && (
+                        <ExternalLink className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-cyan-300" />
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-base font-semibold text-zinc-200 mb-2">X (Twitter) URL</label>
+                    <div className="relative">
+                      <input
+                        type="url"
+                        value={businessData.x}
+                        onChange={(e) => handleBusinessDataChange('x', e.target.value)}
+                        className="w-full px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
+                        placeholder="https://x.com/..."
+                      />
+                      {businessData.x && (
+                        <ExternalLink className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-cyan-300" />
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         )}
 
         {activeTab === 'fundraising' && (
-          <div className="bg-zinc-800/30 border border-zinc-700/50 rounded-xl p-8 backdrop-blur-sm">
-            <h2 className="text-2xl font-bold text-white mb-6">Fundraising Settings</h2>
-
-            <div className="space-y-6">
+          <div className="bg-gradient-to-br from-zinc-900/80 via-zinc-800/60 to-cyan-900/40 backdrop-blur-2xl border border-cyan-400/10 rounded-3xl p-12 shadow-2xl mb-8 transition-all duration-300">
+            <h2 className="text-3xl font-extrabold text-white tracking-tight drop-shadow-lg mb-10">Fundraising Settings</h2>
+            <div className="space-y-8">
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">
-                  Token Name *
-                </label>
+                <label className="block text-base font-semibold text-zinc-200 mb-2">Token Name *</label>
                 <input
                   type="text"
                   value={fundraisingData.tokenName}
                   onChange={(e) => handleFundraisingDataChange('tokenName', e.target.value)}
-                  className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-600/50 rounded-lg text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  className="w-full px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
                   placeholder="Enter your token name (e.g., MYTOKEN)"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">
-                  Token Price (USDC) *
-                </label>
+                <label className="block text-base font-semibold text-zinc-200 mb-2">Token Price (USDC) *</label>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
                   value={fundraisingData.price}
                   onChange={(e) => handleFundraisingDataChange('price', parseFloat(e.target.value) || 0)}
-                  className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-600/50 rounded-lg text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  className="w-full px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
                   placeholder="0.00"
                 />
               </div>
-
-              <div className="flex items-center justify-between p-4 bg-zinc-900/30 rounded-lg border border-zinc-600/30">
+              <div className="flex items-center justify-between p-6 bg-zinc-900/60 rounded-2xl border border-cyan-400/10 shadow-inner">
                 <div>
-                  <h3 className="text-lg font-medium text-white">Token Minting</h3>
-                  <p className="text-zinc-400 text-sm">
+                  <h3 className="text-xl font-semibold text-white mb-1">Token Minting</h3>
+                  <p className="text-zinc-400 text-base">
                     {fundraisingData.isMintingActive
                       ? 'Minting is currently active and investors can purchase tokens'
                       : 'Minting is paused and no new tokens can be purchased'
@@ -643,65 +622,62 @@ export default function ManageBusinessPage() {
                 </div>
                 <button
                   onClick={() => handleFundraisingDataChange('isMintingActive', !fundraisingData.isMintingActive)}
-                  className={`px-6 py-3 rounded-lg font-medium transition-all ${
-                    fundraisingData.isMintingActive
-                      ? 'bg-red-600 hover:bg-red-700 text-white'
-                      : 'bg-green-600 hover:bg-green-700 text-white'
-                  }`}
-                >
-                  {fundraisingData.isMintingActive ? 'Pause Minting' : 'Start Minting'}
-                </button>
-              </div>
-
-              {/* Fundraising Summary */}
-              {fundraisingData.tokenName && fundraisingData.price > 0 && (
-                <div className="p-4 bg-gradient-to-r from-cyan-900/20 to-blue-900/20 border border-cyan-500/30 rounded-lg">
-                  <h3 className="text-lg font-medium text-white mb-3">Fundraising Summary</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-zinc-400 text-sm">Token Name</p>
-                      <p className="text-white font-semibold">{fundraisingData.tokenName}</p>
-                    </div>
-                    <div>
-                      <p className="text-zinc-400 text-sm">Token Price</p>
-                      <p className="text-white font-semibold">${fundraisingData.price.toFixed(2)} USDC</p>
-                    </div>
-                    <div>
-                      <p className="text-zinc-400 text-sm">Minting Status</p>
-                      <p className={`font-semibold ${fundraisingData.isMintingActive ? 'text-green-400' : 'text-red-400'}`}>
-                        {fundraisingData.isMintingActive ? 'Active' : 'Paused'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-zinc-400 text-sm">Marketplace Status</p>
-                      <p className="text-green-400 font-semibold">Live</p>
-                    </div>
-                  </div>
-                </div>
-              )}
+                  className={`px-8 py-3 rounded-2xl font-semibold text-lg transition-all shadow-lg focus:outline-none focus:ring-2 focus:ring-cyan-400/60 border border-cyan-400/30
+            ${fundraisingData.isMintingActive
+              ? 'bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white'
+              : 'bg-gradient-to-r from-green-500 to-cyan-600 hover:from-green-600 hover:to-cyan-700 text-white'
+            }`}
+        >
+          {fundraisingData.isMintingActive ? 'Pause Minting' : 'Start Minting'}
+        </button>
+      </div>
+      {/* Fundraising Summary */}
+      {fundraisingData.tokenName && fundraisingData.price > 0 && (
+        <div className="p-6 bg-gradient-to-r from-cyan-900/30 to-blue-900/30 border border-cyan-500/30 rounded-2xl shadow-inner">
+          <h3 className="text-xl font-semibold text-white mb-4">Fundraising Summary</h3>
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <p className="text-zinc-400 text-base">Token Name</p>
+              <p className="text-white font-bold text-lg">{fundraisingData.tokenName}</p>
+            </div>
+            <div>
+              <p className="text-zinc-400 text-base">Token Price</p>
+              <p className="text-white font-bold text-lg">${fundraisingData.price.toFixed(2)} USDC</p>
+            </div>
+            <div>
+              <p className="text-zinc-400 text-base">Minting Status</p>
+              <p className={`font-bold text-lg ${fundraisingData.isMintingActive ? 'text-green-400' : 'text-red-400'}`}>{fundraisingData.isMintingActive ? 'Active' : 'Paused'}</p>
+            </div>
+            <div>
+              <p className="text-zinc-400 text-base">Marketplace Status</p>
+              <p className="text-green-400 font-bold text-lg">Live</p>
             </div>
           </div>
-        )}
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
         {activeTab === 'team' && (
-          <div className="bg-zinc-800/30 border border-zinc-700/50 rounded-xl p-8 backdrop-blur-sm">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-white">Team Management</h2>
-              <div className="flex space-x-3">
-                <button
-                  onClick={() => setShowAddMemberModal(true)}
-                  className="flex items-center space-x-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition-colors"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  <span>Add Member</span>
-                </button>
-                <button
-                  className="flex items-center space-x-2 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors"
-                >
-                  <History className="h-4 w-4" />
-                  <span>Past Settlements</span>
-                </button>
-              </div>
+          <div className="bg-gradient-to-br from-zinc-900/80 via-zinc-800/60 to-cyan-900/40 backdrop-blur-2xl border border-cyan-400/10 rounded-3xl p-12 shadow-2xl mb-8 transition-all duration-300">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
+              <h2 className="text-3xl font-extrabold text-white tracking-tight drop-shadow-lg">Your Team</h2>
+            </div>
+            <div className="flex flex-row gap-4 mb-10">
+              <button
+                onClick={() => setShowAddMemberModal(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 border border-cyan-400/30"
+              >
+                <UserPlus className="h-5 w-5 drop-shadow-[0_0_6px_rgba(34,211,238,0.7)]" />
+                <span>Member</span>
+              </button>
+              <button
+                className="flex items-center gap-2 px-6 py-3 bg-zinc-800/80 hover:bg-zinc-700/80 text-white rounded-2xl font-semibold text-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 border border-zinc-600/40"
+              >
+                <History className="h-5 w-5 text-cyan-300 drop-shadow-[0_0_6px_rgba(34,211,238,0.4)]" />
+                <span>Settlements</span>
+              </button>
             </div>
 
             {/* Team Table */}
@@ -837,68 +813,83 @@ export default function ManageBusinessPage() {
 
         {/* Add Member Modal */}
         {showAddMemberModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-zinc-800 border border-zinc-700 rounded-xl p-6 w-full max-w-md mx-4">
-              <h3 className="text-xl font-bold text-white mb-4">Add Team Member</h3>
-              
-              <div className="space-y-4">
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-2xl flex items-center justify-center z-50">
+            <div className="bg-gradient-to-br from-zinc-900/90 via-zinc-800/80 to-cyan-900/60 border border-cyan-400/20 rounded-3xl p-10 w-full max-w-lg mx-4 shadow-2xl ring-2 ring-cyan-400/10">
+              <h3 className="text-2xl font-extrabold text-white mb-6 tracking-tight drop-shadow-lg">Add Team Member</h3>
+              <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-2">Name *</label>
+                  <label className="block text-base font-semibold text-zinc-200 mb-2">Name *</label>
                   <input
                     type="text"
                     value={newMember.name}
                     onChange={(e) => handleNewMemberChange('name', e.target.value)}
-                    className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-600/50 rounded-lg text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    className="w-full px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
                     placeholder="Enter member name"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-2">Type *</label>
+                  <label className="block text-base font-semibold text-zinc-200 mb-2">Krypton ID</label>
+                  <div className="flex items-center">
+                    <span className="text-zinc-400 mr-2 text-lg">@</span>
+                    <input
+                      type="text"
+                      value={newMember.kryptonId}
+                      onChange={(e) => handleNewMemberChange('kryptonId', e.target.value)}
+                      className="flex-1 px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
+                      placeholder="kryptonid"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-base font-semibold text-zinc-200 mb-2">Type *</label>
                   <select
                     value={newMember.type}
                     onChange={(e) => handleNewMemberChange('type', e.target.value as 'employee' | 'intern' | 'vendor')}
-                    className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    className="w-full px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
                   >
                     <option value="employee">Employee</option>
                     <option value="intern">Intern</option>
                     <option value="vendor">Vendor</option>
                   </select>
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-2">USDC Payment</label>
+                    <label className="block text-base font-semibold text-zinc-200 mb-2">USDC Payment</label>
                     <input
                       type="number"
                       step="0.01"
                       min="0"
-                      value={newMember.usdcPayment}
-                      onChange={(e) => handleNewMemberChange('usdcPayment', parseFloat(e.target.value) || 0)}
-                      className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-600/50 rounded-lg text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                      value={newMember.usdcPayment === 0 ? '' : String(newMember.usdcPayment)}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/^0+(?=\d)/, '');
+                        handleNewMemberChange('usdcPayment', value === '' ? 0 : parseFloat(value));
+                      }}
+                      className="w-full px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
                       placeholder="0.00"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-2">{fundraisingData.tokenName || 'Token'} Payment</label>
+                    <label className="block text-base font-semibold text-zinc-200 mb-2">{fundraisingData.tokenName || 'Token'} Payment</label>
                     <input
                       type="number"
                       step="0.01"
                       min="0"
-                      value={newMember.tokenPayment}
-                      onChange={(e) => handleNewMemberChange('tokenPayment', parseFloat(e.target.value) || 0)}
-                      className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-600/50 rounded-lg text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                      value={newMember.tokenPayment === 0 ? '' : String(newMember.tokenPayment)}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/^0+(?=\d)/, '');
+                        handleNewMemberChange('tokenPayment', value === '' ? 0 : parseFloat(value));
+                      }}
+                      className="w-full px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
                       placeholder="0.00"
                     />
                   </div>
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-2">Schedule *</label>
+                  <label className="block text-base font-semibold text-zinc-200 mb-2">Schedule *</label>
                   <select
                     value={newMember.schedule}
                     onChange={(e) => handleNewMemberChange('schedule', e.target.value as 'monthly' | 'weekly' | 'custom')}
-                    className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    className="w-full px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
                   >
                     <option value="monthly">Monthly</option>
                     <option value="weekly">Weekly</option>
@@ -906,19 +897,18 @@ export default function ManageBusinessPage() {
                   </select>
                 </div>
               </div>
-
-              <div className="flex space-x-3 mt-6">
+              <div className="flex space-x-4 mt-8">
                 <button
                   onClick={() => setShowAddMemberModal(false)}
-                  className="flex-1 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors"
+                  className="flex-1 px-6 py-3 bg-zinc-700 hover:bg-zinc-600 text-white rounded-2xl font-semibold text-lg shadow-md transition-all duration-200"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleAddMember}
-                  className="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition-colors"
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 border border-cyan-400/30"
                 >
-                  Add Member
+                  Confirm
                 </button>
               </div>
             </div>
