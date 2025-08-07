@@ -71,14 +71,14 @@ const InvestDialog: FC<InvestDialogProps> = ({ strategy, isOpen, onClose, onSubm
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-zinc-900 border-zinc-700">
+      <DialogContent className="sm:max-w-md bg-gradient-to-br from-zinc-900/90 via-zinc-800/80 to-cyan-900/60 border border-cyan-400/20 rounded-3xl shadow-2xl ring-2 ring-cyan-400/10">
         <DialogHeader>
           <DialogTitle className="text-2xl text-white">Invest in {strategy.name}</DialogTitle>
           <DialogDescription className="text-zinc-400">Review the terms and enter the amount you'd like to invest.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-            <div className="flex justify-between items-center rounded-lg bg-zinc-800/50 p-3">
+            <div className="flex justify-between items-center rounded-2xl bg-gradient-to-r from-zinc-900/70 via-cyan-900/30 to-blue-900/30 border border-cyan-400/10 p-4 shadow-inner">
               <div className="flex flex-col items-center gap-1.5 w-1/3">
                   <Badge
                     variant="outline"
@@ -126,7 +126,7 @@ const InvestDialog: FC<InvestDialogProps> = ({ strategy, isOpen, onClose, onSubm
                       id="amount"
                       type="number"
                       step="100"
-                      className="col-span-3 text-lg pr-16 bg-zinc-800 border-zinc-700 text-white"
+                      className="col-span-3 text-lg pr-16 bg-zinc-900/80 border-cyan-400/20 text-white rounded-xl shadow-inner focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent"
                       {...field}
                       value={field.value as number}
                     />
@@ -137,13 +137,13 @@ const InvestDialog: FC<InvestDialogProps> = ({ strategy, isOpen, onClose, onSubm
                 </FormItem>
               )}
             />
-            <DialogFooter className="pt-4">
+            <DialogFooter className="pt-4 flex flex-row gap-4">
               <DialogClose asChild>
-                <Button type="button" variant="secondary" className="bg-zinc-700 text-white hover:bg-zinc-600">
+                <Button type="button" variant="secondary" className="bg-zinc-700 text-white hover:bg-zinc-600 rounded-xl shadow-md">
                   Cancel
                 </Button>
               </DialogClose>
-              <Button type="submit" disabled={isSubmitting} className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
+              <Button type="submit" disabled={isSubmitting} className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-xl shadow-lg">
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #3ecf8e;
+      }
+
+      .cls-2 {
+        fill: #fff;
+        font-family: Verdana, Verdana;
+        font-size: 31.35px;
+      }
+    </style>
+  </defs>
+  <g id="Layer_2" data-name="Layer 2">
+    <g id="Layer_3" data-name="Layer 3">
+      <g id="Layer_5" data-name="Layer 5">
+        <g id="Layer_50" data-name="Layer 50">
+          <g>
+            <polygon class="cls-1" points="26.39 127.71 12.19 108.28 12.19 77.63 26.39 77.63 26.39 94.97 41.94 77.63 58.53 77.63 40 99.61 52.55 115.9 44.48 126.22 28.48 107.53 26.54 109.83 26.39 127.71"/>
+            <text class="cls-2" transform="translate(62.5 110.27)"><tspan x="0" y="0">Krypton</tspan></text>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>
