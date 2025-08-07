@@ -94,11 +94,15 @@ export default function BuyTokenModal({ startup, isOpen, onClose, onBuy }: BuyTo
     onClose();
   };
 
-  const calculateTotalCost = () => {
+  const calculateTotalCost = async () => {
     if (!tokenCount || !startup) return "0";
     const count = parseFloat(tokenCount);
     if (isNaN(count)) return "0";
-    return (count * parseFloat(tokenQuote.replace(/[$,]/g, ''))).toFixed(2);
+    return (await api.post('/api/v1/smarttoken/total_cost', {
+      token_address: startup.address,
+      amount: count,
+      business_id: startup.id,
+    })).data.total_cost_usdc.toFixed(2);
   };
 
   if (!isOpen || !startup) return null;
