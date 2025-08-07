@@ -126,6 +126,17 @@ export default function MarketplaceCategoryPage() {
       <p className="text-zinc-400 text-lg mb-12 text-center max-w-xl">
         Explore promising startups in the {title} sector.
       </p>
+      <div className="w-full max-w-3xl mt-4 mb-12">
+        <div className="flex items-center bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-zinc-400 backdrop-blur-lg shadow-lg">
+          <span className="mr-3 text-white font-medium">GenAI Assistant:</span>
+          <input
+            type="text"
+            disabled
+            placeholder="Ask the assistant to find startups based on your use-case..."
+            className="flex-grow bg-transparent text-zinc-400 placeholder-zinc-500 outline-none"
+          />
+        </div>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-3xl">
         {startups.map((startup) => (
           <button

@@ -179,41 +179,64 @@ export default function ManageBusinessPage() {
     }));
   };
 
-  const handleAddMember = () => {
+  const handleAddMember = async () => {
     if (!newMember.name.trim()) {
       setSaveError('Please enter a member name');
       return;
     }
 
-    const member: TeamMember = {
-      id: Date.now().toString(),
-      name: newMember.name,
-      kryptonId: newMember.kryptonId, // Added Krypton ID
-      type: newMember.type,
-      usdcPayment: newMember.usdcPayment,
-      tokenPayment: newMember.tokenPayment,
-      schedule: newMember.schedule,
-      createdAt: new Date().toISOString()
-    };
+    if (!existingBusinessId) {
+      setSaveError('Please save your business details first before adding team members');
+      return;
+    }
 
-    setTeamData(prev => ({
-      ...prev,
-      members: [...prev.members, member]
-    }));
+    setSaving(true);
+    setSaveError(null);
+    setSaveSuccess(null);
 
-    // Reset form
-    setNewMember({
-      name: '',
-      kryptonId: '', // Added Krypton ID
-      type: 'employee',
-      usdcPayment: 0,
-      tokenPayment: 0,
-      schedule: 'monthly'
-    });
+    try {
+      const memberPayload = {
+        name: newMember.name,
+        kryptonId: newMember.kryptonId,
+        type: newMember.type,
+        usdcPayment: newMember.usdcPayment,
+        tokenPayment: newMember.tokenPayment,
+        schedule: newMember.schedule
+      };
 
-    setShowAddMemberModal(false);
-    setSaveSuccess('Team member added successfully!');
-    setTimeout(() => setSaveSuccess(null), 3000);
+      const response = await api.post(
+        `/api/v1/marketplace/business/${existingBusinessId}/team/member`,
+        memberPayload
+      );
+
+      const savedMember: TeamMember = {
+        ...response.data, // assuming API returns saved member with id and createdAt
+      };
+
+      setTeamData(prev => ({
+        ...prev,
+        members: [...prev.members, savedMember]
+      }));
+
+      // Reset form
+      setNewMember({
+        name: '',
+        kryptonId: '',
+        type: 'employee',
+        usdcPayment: 0,
+        tokenPayment: 0,
+        schedule: 'monthly'
+      });
+
+      setShowAddMemberModal(false);
+      setSaveSuccess('Team member added successfully!');
+      setTimeout(() => setSaveSuccess(null), 3000);
+    } catch (err: any) {
+      console.error('Failed to add member:', err);
+      setSaveError(err.response?.data?.detail || 'Failed to add member. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSaveDetails = async () => {
