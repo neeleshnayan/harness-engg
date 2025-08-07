@@ -80,6 +80,7 @@ export default function ManageBusinessPage() {
   });
 
   const [existingBusinessId, setExistingBusinessId] = useState<string | null>(null);
+  const [hasExistingAddress, setHasExistingAddress] = useState<boolean>(false);
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [newMember, setNewMember] = useState<Omit<TeamMember, 'id' | 'createdAt'>>({
     name: '',
@@ -129,7 +130,7 @@ export default function ManageBusinessPage() {
               price: business.price || 0,
               isMintingActive: business.is_minting_active || false
             });
-            
+
             // Load team data if available
             if (business.team_data) {
               // Ensure all members have kryptonId
@@ -150,8 +151,20 @@ export default function ManageBusinessPage() {
       }
     };
 
+    const fetchHasExistingAddress = async () => {
+      try {
+        if (existingBusinessId) {
+          const response = await api.get('/api/v1/smarttoken/token_address/' + existingBusinessId);
+          setHasExistingAddress(response.data.has_address);
+        }
+      } catch (err) {
+        console.error('Failed to fetch existing address:', err);
+        // Don't show error for this as it's expected for new businesses
+      }
+    };
+
     const initializeData = async () => {
-      await Promise.all([fetchCategories(), fetchExistingBusiness()]);
+      await Promise.all([fetchCategories(), fetchExistingBusiness(), fetchHasExistingAddress()]);
       setLoading(false);
     };
 
@@ -319,26 +332,34 @@ export default function ManageBusinessPage() {
 
       await api.put(`/api/v1/marketplace/business/${existingBusinessId}/fundraising`, fundraisingUpdate);
 
-      // Get user wallet address for token deployment
-      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-      const walletAddress = userData.wallet_address;
+      if (!hasExistingAddress) {
+        // Get user wallet address for token deployment
+        const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+        const walletAddress = userData.wallet_address;
 
-      if (!walletAddress) {
-        throw new Error('Wallet address not found. Please ensure you have a connected wallet.');
+        if (!walletAddress) {
+          throw new Error('Wallet address not found. Please ensure you have a connected wallet.');
+        }
+
+        // Prepare token deployment data according to ApeDeployTokenRequest schema
+        const tokenDeploymentData = {
+          contract_name: "SmartToken",
+          name: businessData.name,
+          symbol: fundraisingData.tokenName,
+          initial_value: fundraisingData.price,
+          initial_supply: 100, // Default initial supply
+          owners: [walletAddress], // User's wallet address as owner
+          business_id: existingBusinessId
+        };
+
+        await api.post('/api/v1/smarttoken/deploy_ape', tokenDeploymentData);
+
+        const tokenNameElement = document.getElementById("token-name") as HTMLInputElement;
+        const tokenPriceElement = document.getElementById("token-price") as HTMLInputElement;
+
+        if (tokenNameElement) tokenNameElement.readOnly = true;
+        if (tokenPriceElement) tokenPriceElement.readOnly = true;
       }
-
-      // Prepare token deployment data according to ApeDeployTokenRequest schema
-      const tokenDeploymentData = {
-        contract_name: "SmartToken",
-        name: businessData.name,
-        symbol: fundraisingData.tokenName,
-        initial_value: fundraisingData.price,
-        initial_supply: 100, // Default initial supply
-        owners: [walletAddress], // User's wallet address as owner
-        business_id: existingBusinessId
-      };
-
-      await api.post('/api/v1/smarttoken/deploy_ape', tokenDeploymentData);
 
       setSaveSuccess('Fundraising settings saved successfully!');
       setTimeout(() => setSaveSuccess(null), 3000);
@@ -365,9 +386,9 @@ export default function ManageBusinessPage() {
       const teamUpdate = {
         team_data: teamData
       };
-      
+
       await api.put(`/api/v1/marketplace/business/${existingBusinessId}/team`, teamUpdate);
-      
+
       setSaveSuccess('Team settings saved successfully!');
       setTimeout(() => setSaveSuccess(null), 3000);
     } catch (err: any) {
@@ -614,16 +635,19 @@ export default function ManageBusinessPage() {
               <div>
                 <label className="block text-base font-semibold text-zinc-200 mb-2">Token Name *</label>
                 <input
+                  id="token-name"
                   type="text"
                   value={fundraisingData.tokenName}
                   onChange={(e) => handleFundraisingDataChange('tokenName', e.target.value)}
                   className="w-full px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
                   placeholder="Enter your token name (e.g., MYTOKEN)"
+                  readOnly={hasExistingAddress}
                 />
               </div>
               <div>
                 <label className="block text-base font-semibold text-zinc-200 mb-2">Token Price (USDC) *</label>
                 <input
+                  id="token-price"
                   type="number"
                   step="0.01"
                   min="0"
@@ -631,6 +655,7 @@ export default function ManageBusinessPage() {
                   onChange={(e) => handleFundraisingDataChange('price', parseFloat(e.target.value) || 0)}
                   className="w-full px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
                   placeholder="0.00"
+                  readOnly={hasExistingAddress}
                 />
               </div>
               <div className="flex items-center justify-between p-6 bg-zinc-900/60 rounded-2xl border border-cyan-400/10 shadow-inner">
