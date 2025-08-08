@@ -269,40 +269,41 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
       {/* Token List - Only show when expanded */}
       {isExpanded && tokenDetails.length > 0 && (
         <div className="space-y-4 mb-6">
-          {tokenDetails.map((tokenDetail: TokenWithValue, index: number) => (
-            tokenDetail.token.symbol !== "ETH-SEPOLIA" &&
-            <div
-              key={`${tokenDetail.token.id}-${index}`}
-              className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl p-6 hover:bg-zinc-700/50 transition-all duration-200"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="flex-shrink-0">
-                    {getTokenIcon(tokenDetail.token.symbol)}
+          {tokenDetails
+            .filter((tokenDetail) => tokenDetail.token.symbol !== "ETH-SEPOLIA")
+            .map((tokenDetail: TokenWithValue, index: number) => (
+              <div
+                key={`${tokenDetail.token.id}-${index}`}
+                className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl p-6 hover:bg-zinc-700/50 transition-all duration-200"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="flex-shrink-0">
+                      {getTokenIcon(tokenDetail.token.symbol)}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-lg font-bold text-white">
+                        {tokenDetail.token.name || tokenDetail.token.symbol}
+                      </h4>
+                      <p className="text-zinc-400 text-sm">
+                        {tokenDetail.token.symbol} • {tokenDetail.token.blockchain}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <h4 className="text-lg font-bold text-white">
-                      {tokenDetail.token.name || tokenDetail.token.symbol}
-                    </h4>
-                    <p className="text-zinc-400 text-sm">
-                      {tokenDetail.token.symbol} • {tokenDetail.token.blockchain}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xl font-bold text-white">
-                    {formatTokenAmount(tokenDetail.amount, tokenDetail.token.decimals, tokenDetail.token.symbol)}
-                  </div>
-                  <div className="text-zinc-400 text-sm">
-                    @ ${tokenDetail.price.toFixed(4)}
-                  </div>
-                  <div className="text-green-400 text-sm font-semibold">
-                    {formatValue(tokenDetail.value)}
+                  <div className="text-right">
+                    <div className="text-xl font-bold text-white">
+                      {formatTokenAmount(tokenDetail.amount, tokenDetail.token.decimals, tokenDetail.token.symbol)}
+                    </div>
+                    <div className="text-zinc-400 text-sm">
+                      @ ${tokenDetail.price.toFixed(4)}
+                    </div>
+                    <div className="text-green-400 text-sm font-semibold">
+                      {formatValue(tokenDetail.value)}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
         </div>
       )}
 
@@ -310,7 +311,7 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
       <div className="pt-4 border-t border-zinc-700/50">
         <div className="text-center">
           <p className="text-zinc-400 text-sm">
-            Total tokens: {tokenDetails.length}
+            Total tokens: {tokenDetails.filter((token) => token.token.symbol !== "ETH-SEPOLIA").length}
           </p>
         </div>
       </div>
