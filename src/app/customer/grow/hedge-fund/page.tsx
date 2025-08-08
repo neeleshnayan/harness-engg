@@ -199,7 +199,7 @@ export default function HedgeFundPage() {
     <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-4">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="flex items-center mb-8">
+        {/* <div className="flex items-center mb-8">
           <button
             onClick={() => router.back()}
             className="flex items-center space-x-2 text-zinc-400 hover:text-white transition-colors mb-4"
@@ -207,139 +207,15 @@ export default function HedgeFundPage() {
             <ArrowLeft className="h-5 w-5" />
             <span>Back</span>
           </button>
-        </div>
-
-        <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl p-8 shadow-2xl">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-white mb-4">Hedge Fund Questionnaire</h1>
-            <p className="text-zinc-400">
-              Help us understand your investment profile to provide personalized hedge fund recommendations.
+        </div> */}
+        <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 dark overflow-x-hidden flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+            <p className="text-zinc-400 font-medium">
+            Loading your hedge fund dashboard...
             </p>
-            {isEditing && (
-              <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                <p className="text-blue-400 font-medium">
-                  You've already submitted the questionnaire. You can still edit your response.
-                </p>
-              </div>
-            )}
           </div>
-
-          {/* Progress Bar */}
-          <div className="mb-8">
-            <div className="relative pt-1">
-              <div className="flex mb-2 items-center justify-between">
-                <div>
-                  <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
-                    Progress
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs font-semibold inline-block text-blue-600">
-                    {Math.round(progress)}%
-                  </span>
-                </div>
-              </div>
-              <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-blue-200">
-                <div style={{ width: `${progress}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500"></div>
-              </div>
-            </div>
-          </div>
-
-          {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center space-x-3">
-              <AlertCircle className="h-5 w-5 text-red-400" />
-              <span className="text-red-400">{error}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <RadioGroup
-              title="Age"
-              field="age"
-              options={[
-                { value: "under_30", label: "Under 30" },
-                { value: "30_45", label: "30–45" },
-                { value: "46_60", label: "46–60" },
-                { value: "60_plus", label: "60+" }
-              ]}
-            />
-
-            <RadioGroup
-              title="Annual Income (approx.)"
-              field="annualIncome"
-              options={[
-                { value: "below_50000", label: "Below $50,000" },
-                { value: "50000_100000", label: "$50,000–$100,000" },
-                { value: "100000_250000", label: "$100,000–$250,000" },
-                { value: "above_250000", label: "Above $250,000" }
-              ]}
-            />
-
-            <RadioGroup
-              title="Emergency Fund"
-              field="emergencyFund"
-              options={[
-                { value: "none", label: "None" },
-                { value: "1_3_months", label: "Covers 1–3 months" },
-                { value: "3_6_months", label: "Covers 3–6 months" },
-                { value: "more_than_6_months", label: "More than 6 months" }
-              ]}
-            />
-
-            <RadioGroup
-              title="How would you feel if your investment dropped 20% in a year?"
-              field="investmentDropReaction"
-              options={[
-                { value: "very_anxious", label: "Very anxious—would consider selling" },
-                { value: "uncomfortable", label: "Uncomfortable—but would likely hold" },
-                { value: "acceptable", label: "Acceptable—it's part of investing" },
-                { value: "invest_more", label: "Would invest more at lower prices" }
-              ]}
-            />
-
-            <RadioGroup
-              title="Which investment style suits you best?"
-              field="investmentStyle"
-              options={[
-                { value: "safety_over_returns", label: "Prefer safety over returns" },
-                { value: "moderate_returns", label: "Want moderate returns with some risk" },
-                { value: "high_risk_high_returns", label: "Comfortable with high risk for high returns" }
-              ]}
-            />
-
-            <RadioGroup
-              title="Have you experienced a market loss before?"
-              field="marketLossExperience"
-              options={[
-                { value: "no", label: "No" },
-                { value: "yes_exited", label: "Yes, and I exited" },
-                { value: "yes_held", label: "Yes, and I held on" },
-                { value: "yes_bought_more", label: "Yes, and I bought more" }
-              ]}
-            />
-
-            <RadioGroup
-              title="Choose the portfolio you're most comfortable with:"
-              field="portfolioComfort"
-              options={[
-                { value: "conservative", label: "Expected Annual Return: 4%, Worst Year Loss: -2%, Best Year Gain: +6%" },
-                { value: "moderate", label: "Expected Annual Return: 6%, Worst Year Loss: -10%, Best Year Gain: +12%" },
-                { value: "aggressive", label: "Expected Annual Return: 9%, Worst Year Loss: -20%, Best Year Gain: +25%" },
-                { value: "very_aggressive", label: "Expected Annual Return: 12%, Worst Year Loss: -35%, Best Year Gain: +40%" },
-              ]}
-            />
-
-            <div className="pt-6">
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-zinc-600 disabled:to-zinc-700 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:transform-none"
-              >
-                {loading ? (isEditing ? "Updating..." : "Submitting...") : (isEditing ? "Update Questionnaire" : "Submit Questionnaire")}
-              </button>
-            </div>
-          </form>
-        </div>
+      </div>
       </div>
     </div>
   );
