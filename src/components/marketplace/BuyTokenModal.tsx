@@ -16,8 +16,10 @@ export default function BuyTokenModal({ startup, isOpen, onClose, onBuy }: BuyTo
   const [tokenCount, setTokenCount] = useState<string>("1");
   const [sellTarget, setSellTarget] = useState<string>("");
   const [tokenQuote, setTokenQuote] = useState<string>("");
+  const [tranchingCost, setTranchingCost] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [quoteLoading, setQuoteLoading] = useState(false);
+  const [tranchingLoading, setTranchingLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -26,11 +28,20 @@ export default function BuyTokenModal({ startup, isOpen, onClose, onBuy }: BuyTo
       setTokenCount("1");
       setSellTarget("");
       setTokenQuote("");
+      setTranchingCost(null);
       setError(null);
       // Fetch token quote when modal opens
       fetchTokenQuote();
     }
   }, [isOpen, startup]);
+
+  useEffect(() => {
+    if (startup && tokenCount && !isNaN(parseFloat(tokenCount))) {
+      fetchTranchingDetails();
+    } else {
+      setTranchingCost(null);
+    }
+  }, [tokenCount, startup]);
 
   const fetchTokenQuote = async () => {
     if (!startup) return;
@@ -44,6 +55,33 @@ export default function BuyTokenModal({ startup, isOpen, onClose, onBuy }: BuyTo
       setTokenQuote("Quote unavailable");
     } finally {
       setQuoteLoading(false);
+    }
+  };
+
+  const fetchTranchingDetails = async () => {
+    if (!startup || !tokenCount) return;
+
+    const count = parseFloat(tokenCount);
+    if (isNaN(count) || count <= 0) return;
+
+    setTranchingLoading(true);
+    try {
+      const response = await api.post('/api/v1/smarttoken/tranching_details', {
+        token_address: startup.address,
+        amount: count,
+        business_id: startup.id
+      });
+
+      if (response.data.success) {
+        setTranchingCost(response.data.total_cost_usdc);
+      } else {
+        setTranchingCost(null);
+      }
+    } catch (err) {
+      console.error('Failed to fetch tranching details:', err);
+      setTranchingCost(null);
+    } finally {
+      setTranchingLoading(false);
     }
   };
 
@@ -90,20 +128,40 @@ export default function BuyTokenModal({ startup, isOpen, onClose, onBuy }: BuyTo
     setTokenCount("");
     setSellTarget("");
     setTokenQuote("");
+    setTranchingCost(null);
     setError(null);
     onClose();
   };
 
   const calculateTotalCost = () => {
+    if (tranchingCost !== null) {
+      return tranchingCost.toFixed(2);
+    }
+
+    // Fallback to simple calculation if tranching cost is not available
     if (!tokenCount || !startup) return "0";
     const count = parseFloat(tokenCount);
     if (isNaN(count)) return "0";
-    // return (await api.post('/api/v1/smarttoken/total_cost', {
-    //   token_address: startup.address,
-    //   amount: count,
-    //   business_id: startup.id,
-    // })).data.total_cost_usdc.toFixed(2);
-    return (count * parseFloat(tokenQuote.replace(/[$,]/g, ''))).toFixed(2);
+
+    // Extract price from tokenQuote, handle edge cases
+    const priceMatch = tokenQuote.match(/\$?([\d.]+)/);
+    if (!priceMatch) return "0";
+
+    const price = parseFloat(priceMatch[1]);
+    if (isNaN(price)) return "0";
+
+    return (count * price).toFixed(2);
+  };
+
+  const calculateCostPerToken = () => {
+    const totalCost = calculateTotalCost();
+    const totalCostNum = parseFloat(totalCost);
+    if (isNaN(totalCostNum) || totalCostNum === 0) return "0";
+
+    const count = parseFloat(tokenCount);
+    if (isNaN(count) || count === 0) return "0";
+
+    return (totalCostNum / count).toFixed(2);
   };
 
   if (!isOpen || !startup) return null;
@@ -171,16 +229,35 @@ export default function BuyTokenModal({ startup, isOpen, onClose, onBuy }: BuyTo
           </div> */}
         </div>
 
+        {/* Cost Per Token */}
+        {tokenCount && (
+          <div className="mb-4">
+            <div className="bg-gradient-to-r from-cyan-400/10 to-purple-400/10 border border-cyan-400/20 rounded-xl px-4 py-3 flex items-center justify-between">
+              <span className="text-white text-sm font-medium">Estimated Cost Per Token</span>
+              <span className="text-cyan-400 font-bold text-lg">
+                {tranchingLoading || quoteLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-cyan-400 border-t-transparent"></div>
+                    <span className="text-sm">Calculating...</span>
+                  </div>
+                ) : (
+                  `$${calculateCostPerToken()}`
+                )}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Total Cost */}
         {tokenCount && (
           <div className="mb-4">
             <div className="bg-gradient-to-r from-cyan-400/10 to-purple-400/10 border border-cyan-400/20 rounded-xl px-4 py-3 flex items-center justify-between">
               <span className="text-white text-sm font-medium">Total Cost</span>
               <span className="text-cyan-400 font-bold text-lg">
-                {quoteLoading ? (
+                {tranchingLoading || quoteLoading ? (
                   <div className="flex items-center gap-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-cyan-400 border-t-transparent"></div>
-                    <span className="text-sm">Loading...</span>
+                    <span className="text-sm">Calculating...</span>
                   </div>
                 ) : (
                   `$${calculateTotalCost()}`
