@@ -11,7 +11,7 @@ function getCategoryTitle(slug: string) {
   // Convert slug back to category name
   const categoryMap: Record<string, string> = {
     "fintech": "Fintech",
-    "healthtech": "HealthTech",
+    "healthtech": "Healthtech",
     "ai-data": "AI & Data",
     "sustainability": "Sustainability"
   };
@@ -39,7 +39,7 @@ export default function MarketplaceCategoryPage() {
         // Convert slug back to category name for API call
         const categoryMap: Record<string, string> = {
           "fintech": "Fintech",
-          "healthtech": "HealthTech",
+          "healthtech": "Healthtech",
           "ai-data": "AI & Data",
           "sustainability": "Sustainability"
         };

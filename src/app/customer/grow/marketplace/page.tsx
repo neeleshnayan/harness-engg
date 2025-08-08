@@ -2,18 +2,18 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Rocket, HeartPulse, Cpu, Leaf, Loader2 } from "lucide-react";
+import { Rocket, HeartPulse, Leaf, Loader2, DollarSign } from "lucide-react";
 import { MarketplaceService, MarketplaceCategories } from "@/lib/marketplace";
 
 // Icon mapping for categories
 const getCategoryIcon = (categoryName: string) => {
   switch (categoryName.toLowerCase()) {
     case "fintech":
-      return <Rocket className="h-10 w-10 text-cyan-300 group-hover:text-cyan-400 transition-all" />;
+      return <DollarSign className="h-10 w-10 text-cyan-300 group-hover:text-cyan-400 transition-all" />;
     case "healthtech":
       return <HeartPulse className="h-10 w-10 text-pink-300 group-hover:text-pink-400 transition-all" />;
     case "ai & data":
-      return <Cpu className="h-10 w-10 text-purple-300 group-hover:text-purple-400 transition-all" />;
+      return <Rocket className="h-10 w-10 text-purple-300 group-hover:text-purple-400 transition-all" />;
     case "sustainability":
       return <Leaf className="h-10 w-10 text-green-300 group-hover:text-green-400 transition-all" />;
     default:
@@ -78,7 +78,7 @@ export default function MarketplaceCategoriesPage() {
     return (
       <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-8">
         <p className="text-red-400 text-lg mb-4">{error}</p>
-        <button 
+        <button
           onClick={() => window.location.reload()}
           className="px-6 py-3 bg-cyan-400 text-black rounded-lg hover:bg-cyan-300 transition-colors"
         >
@@ -116,4 +116,4 @@ export default function MarketplaceCategoriesPage() {
       </div>
     </div>
   );
-} 
+}
