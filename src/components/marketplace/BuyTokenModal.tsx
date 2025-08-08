@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, DollarSign, Calculator, Target } from "lucide-react";
+import { X, DollarSign, Calculator, Target, Loader2 } from "lucide-react";
 import { MarketplaceItem } from "@/lib/marketplace";
 import api from "@/lib/api";
 
@@ -227,17 +227,8 @@ export default function BuyTokenModal({ startup, isOpen, onClose, onBuy }: BuyTo
                 : 'bg-gray-600 text-gray-400 cursor-not-allowed'
             }`}
           >
-            {loading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent"></div>
-                Processing...
-              </>
-            ) : (
-              <>
-                <DollarSign className="h-5 w-5" />
-                Buy Tokens
-              </>
-            )}
+            <DollarSign className="h-5 w-5" />
+            Buy Tokens
           </button>
           <button
             onClick={handleClose}
@@ -247,6 +238,31 @@ export default function BuyTokenModal({ startup, isOpen, onClose, onBuy }: BuyTo
           </button>
         </div>
       </div>
+
+      {/* Token Purchase Loading Modal */}
+      {loading && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-2xl flex items-center justify-center z-50">
+          <div className="bg-gradient-to-br from-zinc-900/90 via-zinc-800/80 to-cyan-900/60 border border-cyan-400/20 rounded-3xl p-10 w-full max-w-md mx-4 shadow-2xl ring-2 ring-cyan-400/10">
+            <div className="flex flex-col items-center space-y-6">
+              <div className="relative">
+                <Loader2 className="h-16 w-16 text-cyan-400 animate-spin" />
+                <div className="absolute inset-0 bg-cyan-400/20 rounded-full animate-pulse"></div>
+              </div>
+              <div className="text-center">
+                <h3 className="text-2xl font-extrabold text-white mb-2 tracking-tight drop-shadow-lg">
+                  Processing Purchase
+                </h3>
+                <p className="text-zinc-300 text-lg">
+                  Deploying your transaction to the blockchain...
+                </p>
+                <p className="text-zinc-400 text-sm mt-2">
+                  This may take a few moments
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
