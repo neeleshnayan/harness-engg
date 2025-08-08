@@ -204,7 +204,7 @@ export default function ManageBusinessPage() {
       for (let tranche of response.data.minting_details.tranche_breakdown) {
         tranches.push({
           minted: tranche.current_supply,
-          raised: tranche.current_supply * tranche.price / 1e6,
+          raised: tranche.total_raised / 1e6,
           price: tranche.price,
         });
       }
