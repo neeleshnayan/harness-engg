@@ -734,9 +734,9 @@ export default function ManageBusinessPage() {
               <section id="bonded-curve" >
                 <Card className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 shadow-2xl rounded-3xl">
                   <CardHeader>
-                    <CardTitle className="text-2xl flex items-center gap-2 text-white">Bonding Curve</CardTitle>
+                    <CardTitle className="text-2xl flex items-center gap-2 text-white">Fundraising Bonding Curve</CardTitle>
                     <CardDescription>
-                      Illustrative bonding curve given initial token price
+                      Illustrative bonding curve for given initial token price
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
