@@ -22,14 +22,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { Area, CartesianGrid, XAxis, YAxis, ComposedChart, Line } from "recharts";
 import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
-import { AxiosResponse } from "axios";
 
 interface BusinessData {
   name: string;
@@ -63,9 +62,14 @@ interface TeamData {
 }
 
 const chartConfig = {
-  // value: {
-  //   color: '#3b82f6', // Rich blue color
-  // },
+  raised: {
+    label: "Funds Raised ($M)",
+    color: "#3b82f6",
+  },
+  price: {
+    label: "Token Price ($)",
+    color: "#98b8eb",
+  },
 } satisfies ChartConfig;
 
 export default function ManageBusinessPage() {
@@ -77,6 +81,7 @@ export default function ManageBusinessPage() {
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [tranchingDetails, setTranchingDetails] = useState<Array<Object>>([]);
+  const [priceInputValue, setPriceInputValue] = useState<string>('0.5');
 
   const [businessData, setBusinessData] = useState<BusinessData>({
     name: '',
@@ -90,7 +95,7 @@ export default function ManageBusinessPage() {
 
   const [fundraisingData, setFundraisingData] = useState<FundraisingData>({
     tokenName: '',
-    price: 0,
+    price: 0.5,
     isMintingActive: false
   });
 
@@ -144,11 +149,13 @@ export default function ManageBusinessPage() {
               x: business.x || '',
               pitchVideo: business.pitch_video || ''
             });
+            const price = business.price || 0.5;
             setFundraisingData({
               tokenName: business.token_name || '',
-              price: business.price || 0,
+              price: price,
               isMintingActive: business.is_minting_active || false
             });
+            setPriceInputValue(price.toString());
 
             // Load team data if available
             if (business.team_data) {
@@ -167,11 +174,6 @@ export default function ManageBusinessPage() {
             try {
               const response = await api.get('/api/v1/smarttoken/token_address/' + business.id);
               setHasExistingAddress(response.data.has_address);
-
-              // fetch tranching details
-              if (response.data.has_address) {
-                await fetchTranchingDetails(business.price);
-              }
             } catch (err) {
               console.error('Failed to fetch existing address:', err);
             }
@@ -184,7 +186,7 @@ export default function ManageBusinessPage() {
     };
 
     const initializeData = async () => {
-      await Promise.all([fetchCategories(), fetchExistingBusiness()]);
+      await Promise.all([fetchCategories(), fetchExistingBusiness(), fetchTranchingDetails(0.5)]);
       setLoading(false);
     };
 
@@ -402,7 +404,6 @@ export default function ManageBusinessPage() {
         if (tokenNameElement) tokenNameElement.readOnly = true;
         if (tokenPriceElement) tokenPriceElement.readOnly = true;
 
-        await fetchTranchingDetails(fundraisingData.price);
         setHasExistingAddress(true);
       }
 
@@ -691,19 +692,46 @@ export default function ManageBusinessPage() {
               </div>
               <div>
                 <label className="block text-base font-semibold text-zinc-200 mb-2">Token Price (USDC) *</label>
-                <input
-                  id="token-price"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={fundraisingData.price}
-                  onChange={(e) => handleFundraisingDataChange('price', parseFloat(e.target.value) || 0)}
-                  className="w-full px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
-                  placeholder="0.00"
-                  readOnly={hasExistingAddress}
-                />
+                <div className="flex gap-3 items-end">
+                  <input
+                    id="token-price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={priceInputValue}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setPriceInputValue(value);
+
+                      // Update the actual price value
+                      if (value === '' || value === '.') {
+                        handleFundraisingDataChange('price', 0);
+                      } else {
+                        const parsed = parseFloat(value);
+                        if (!isNaN(parsed) && parsed >= 0) {
+                          handleFundraisingDataChange('price', parsed);
+                        }
+                      }
+                    }}
+                    className="flex-1 px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
+                    placeholder="0.00"
+                    readOnly={hasExistingAddress}
+                  />
+                  <button
+                    onClick={() => {
+                      const price = parseFloat(priceInputValue) || 0;
+                      if (price > 0) {
+                        fetchTranchingDetails(price);
+                      }
+                    }}
+                    disabled={!priceInputValue || parseFloat(priceInputValue) <= 0}
+                    className="px-6 py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 disabled:from-zinc-600 disabled:to-zinc-700 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all shadow-lg focus:outline-none focus:ring-2 focus:ring-cyan-400/60 text-lg"
+                  >
+                    Recalculate
+                  </button>
+                </div>
               </div>
-              <section id="bonded-curve" style={{ display: (hasExistingAddress) ? '' : 'none' }}>
+              <section id="bonded-curve" >
                 <Card className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 shadow-2xl rounded-3xl">
                   <CardHeader>
                     <CardTitle className="text-2xl flex items-center gap-2 text-white">Bonding Curve</CardTitle>
@@ -713,11 +741,11 @@ export default function ManageBusinessPage() {
                   </CardHeader>
                   <CardContent>
                     <ChartContainer config={chartConfig}>
-                      <AreaChart
+                      <ComposedChart
                         accessibilityLayer
                         data={tranchingDetails}
                         margin={{
-                          left: -12,
+                          left: 12,
                           right: 12,
                           top: 12,
                         }}
@@ -731,28 +759,40 @@ export default function ManageBusinessPage() {
                           tickFormatter={(value) => (value / 1000).toString()}
                         />
                         <YAxis
+                          yAxisId="left"
                           tickLine={true}
                           axisLine={false}
                           tickMargin={8}
+                          orientation="left"
+                          label={{ value: 'Funds Raised ($M)', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#3b82f6' } }}
+                        />
+                        <YAxis
+                          yAxisId="right"
+                          tickLine={true}
+                          axisLine={false}
+                          tickMargin={8}
+                          orientation="right"
+                          label={{ value: 'Token Price ($)', angle: 90, position: 'insideRight', style: { textAnchor: 'middle', fill: '#98b8eb' } }}
                         />
                         <ChartTooltip cursor={true} content={<ChartTooltipContent />} />
                         <Area
+                          yAxisId="left"
                           dataKey="raised"
                           type="natural"
-                          fill="rgba(59, 130, 246, 0.1)"
-                          stroke="#3b82f6"
+                          fill="rgba(120, 241, 150, 0.4)"
+                          stroke="#78f196"
                           strokeWidth={2}
-                          stackId="a"
                         />
                         <Area
+                          yAxisId="right"
                           dataKey="price"
                           type="natural"
-                          fill="rgba(152, 184, 235, 0.1)"
+                          fill="rgba(120, 241, 150, 0.0)"
                           stroke="#98b8eb"
-                          strokeWidth={2}
-                          stackId="a"
+                          strokeWidth={3}
+                          // dot={{ r: 4, fill: "#98b8eb" }}
                         />
-                      </AreaChart>
+                      </ComposedChart>
                     </ChartContainer>
                   </CardContent>
                 </Card>
