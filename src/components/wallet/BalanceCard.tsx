@@ -30,13 +30,13 @@ const USDC_SVG = (
   </svg>
 );
 
-const BalanceCard: React.FC<BalanceCardProps> = ({ 
-  balance, 
-  error, 
-  accountData, 
-  showTransactions, 
-  setShowTransactions, 
-  className, 
+const BalanceCard: React.FC<BalanceCardProps> = ({
+  balance,
+  error,
+  accountData,
+  showTransactions,
+  setShowTransactions,
+  className,
   transactionHistoryRefresh,
   kycStatus,
   onKycClick,
@@ -51,16 +51,16 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   const showKycSection = accountData?.username && kycStatus !== 'approved' && onKycClick;
   const showBalanceSection = accountData?.username; // Always show balance if username exists
   const isKycApproved = kycStatus === 'approved';
-  
-  
+
+
   return (
     <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 mb-8 ${className || ''}`}>
       <div className="text-center">
         <div className="flex items-center justify-center mb-4">
           {USDC_SVG}
-          <h3 className="text-2xl font-bold text-white ml-2">USDC Balance</h3>
+          <h3 className="text-2xl font-bold text-white ml-2">Your Balance</h3>
         </div>
-        
+
         {/* Show KYC banner if username is set but KYC not approved */}
         {showKycSection && (
           <div className="mb-6">
@@ -99,8 +99,8 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
               </p>
               {kycMessage && (
                 <div className={`mt-3 p-3 rounded-lg text-sm text-center ${
-                  kycMessage.includes('approved') 
-                    ? 'bg-green-900/30 text-green-400 border border-green-500/30' 
+                  kycMessage.includes('approved')
+                    ? 'bg-green-900/30 text-green-400 border border-green-500/30'
                     : kycMessage.includes('error') || kycMessage.includes('Failed')
                     ? 'bg-red-900/30 text-red-400 border border-red-500/30'
                     : 'bg-blue-900/30 text-blue-400 border border-blue-500/30'
@@ -111,9 +111,9 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
             </div>
           </div>
         )}
-        
 
-        
+
+
         {/* Show balance always if username exists, but blur if KYC not approved */}
         {showBalanceSection && (
           <div className={`flex items-center justify-center mb-4 ${!isKycApproved ? 'blur-sm' : ''}`}>
@@ -136,7 +136,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
                   const transakAmount = parseFloat(transakToken?.amount ?? "0");
                   const usdcAmount = parseFloat(usdc?.amount ?? "0");
                   const total = transakAmount + usdcAmount;
-                  return `${total.toFixed(2)}`;
+                  return `\$${total.toFixed(2)}`;
                 }
                 return '-';
               })()}
@@ -152,23 +152,23 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
             )}
           </div>
         )}
-        
+
         {/* Show message based on status */}
         {!showBalanceSection && (
           <div className="text-2xl font-bold text-zinc-400 mb-4">
             {!accountData?.username ? 'Set username to continue' : 'Complete KYC to view balance'}
           </div>
         )}
-        
+
         <p className="text-zinc-400 font-medium">
-          {showBalanceSection 
-            ? (isKycApproved 
-                ? 'Available for transactions' 
+          {showBalanceSection
+            ? (isKycApproved
+                ? 'Available for transactions'
                 : 'Complete KYC to unlock full functionality')
             : 'Wallet functionality will be unlocked after verification'
           }
         </p>
-        
+
         {/* Transaction History Toggle - Only show if KYC is approved */}
         {showBalanceSection && isKycApproved && (
           <div className="mt-6 pt-4 border-t border-zinc-700/50">
@@ -205,4 +205,4 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   );
 };
 
-export default BalanceCard; 
+export default BalanceCard;
