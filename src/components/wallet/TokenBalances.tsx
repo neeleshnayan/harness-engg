@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { FaCoins, FaEthereum, FaSync } from "react-icons/fa";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import api from "@/lib/api";
 
 interface TokenBalance {
   token: {
@@ -8,8 +10,14 @@ interface TokenBalance {
     name: string;
     decimals: number;
     blockchain: string;
+    tokenAddress?: string;
   };
   amount: string;
+}
+
+interface TokenWithValue extends TokenBalance {
+  price: number;
+  value: number;
 }
 
 interface TokenBalancesProps {
@@ -20,13 +28,18 @@ interface TokenBalancesProps {
   onRefresh?: () => void;
 }
 
-const TokenBalances: React.FC<TokenBalancesProps> = ({ 
-  balance, 
-  loading = false, 
-  error = null, 
+const TokenBalances: React.FC<TokenBalancesProps> = ({
+  balance,
+  loading = false,
+  error = null,
   className = "",
   onRefresh
 }) => {
+  const [tokenDetails, setTokenDetails] = useState<TokenWithValue[]>([]);
+  const [priceLoading, setPriceLoading] = useState(false);
+  const [totalValue, setTotalValue] = useState<number>(0);
+  const [isExpanded, setIsExpanded] = useState(false);
+
   const getTokenIcon = (symbol: string) => {
     switch (symbol.toUpperCase()) {
       case 'USDC':
@@ -51,32 +64,28 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
       if (isNaN(numAmount)) return "0";
       // For USDC, show with 2 decimal places
       if (symbol.toUpperCase() === 'USDC') {
-        return `$${numAmount.toFixed(2)}`;
+        return `${numAmount.toFixed(2)}`;
       } else if (symbol.toUpperCase() === 'TRNSK') {
-        return `$${numAmount.toFixed(2)} USDC`;
+        return `${numAmount.toFixed(2)}`;
       }
-      return `${numAmount.toFixed(2)}`;
-      
-      // // For ETH, show with 4 decimal places
-      // if (symbol.toUpperCase() === 'ETH') {
-      //   return `${numAmount.toFixed(4)} ETH`;
-      // }
-      
-      // // For other tokens, show with appropriate decimals
-      // return `${numAmount.toFixed(decimals || 2)} ${symbol}`;
+      return `${numAmount.toFixed(4)}`;
     } catch (error) {
-      return `${amount} ${symbol}`;
+      return `${amount}`;
     }
+  };
+
+  const formatValue = (value: number) => {
+    return `$${value.toFixed(2)}`;
   };
 
   function mergeTrnskIntoUsdc(balances: any) {
     let mergedBalances = [];
     let usdcMerged = null;
-  
+
     for (const entry of balances) {
       const symbol = entry.token.symbol;
       const amount = parseFloat(entry.amount);
-  
+
       if (symbol === "USDC" || symbol === "TRNSK") {
         if (!usdcMerged) {
           // Start with the first USDC or TRNSK as base
@@ -93,22 +102,81 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
         mergedBalances.push(entry);
       }
     }
-  
+
     if (usdcMerged) {
       // Convert amount back to string to match original format
       usdcMerged.amount = usdcMerged.amount.toString();
       mergedBalances.push(usdcMerged);
     }
-  
+
     return mergedBalances;
   }
-  
-  
+
+  const calculateTokenValues = async (tokenBalances: TokenBalance[]) => {
+    setPriceLoading(true);
+    let totalValue = 0;
+    const tokensWithValues: TokenWithValue[] = [];
+
+    try {
+      for (const tokenBalance of tokenBalances) {
+        const { amount, token } = tokenBalance;
+        const tokenAmount = parseFloat(amount || "0");
+
+        if (tokenAmount <= 0) continue;
+
+        let tokenPrice = 1; // Default price for tokens without address
+
+        // Special case for USDC - it's always worth 1 USDC
+        if (token.symbol === 'USDC') {
+          tokenPrice = 1;
+        }
+        // If token has an address, query the Firebase price endpoint
+        else if (token.tokenAddress) {
+          try {
+            const response = await api.get(`/api/v1/smarttoken/firebase_price/${token.tokenAddress}`);
+            if (response.data && response.data.current_price) {
+              tokenPrice = response.data.current_price;
+            }
+          } catch (err) {
+            console.warn(`Failed to get Firebase price for token ${token.symbol}:`, err);
+            // Keep default price of 1 if API call fails
+          }
+        } else if (token.symbol !== 'USDC') {
+          // For tokens without address (except USDC), assume price of 1
+          console.log(`Token ${token.symbol} has no address, using default price of 1`);
+        }
+
+        // Calculate value for this token
+        const tokenValue = tokenAmount * tokenPrice;
+        totalValue += tokenValue;
+
+        // Add to tokens with values array
+        tokensWithValues.push({
+          ...tokenBalance,
+          price: tokenPrice,
+          value: tokenValue
+        });
+      }
+
+      // Sort tokens by value (highest first)
+      tokensWithValues.sort((a, b) => b.value - a.value);
+
+      setTokenDetails(tokensWithValues);
+      setTotalValue(totalValue);
+    } catch (err) {
+      console.error('Error calculating token values:', err);
+      setTokenDetails([]);
+      setTotalValue(0);
+    } finally {
+      setPriceLoading(false);
+    }
+  };
+
   const getTokenBalances = () => {
     if (!balance || !Array.isArray(balance.tokenBalances)) {
       return [];
     }
-    
+
     var balances = balance.tokenBalances.filter((tokenBalance: TokenBalance) => {
       const amount = parseFloat(tokenBalance.amount);
       return !isNaN(amount) && amount > 0;
@@ -116,6 +184,13 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
     balances = mergeTrnskIntoUsdc(balances)
     return balances
   };
+
+  useEffect(() => {
+    const tokenBalances = getTokenBalances();
+    if (tokenBalances.length > 0) {
+      calculateTokenValues(tokenBalances);
+    }
+  }, [balance]);
 
   const tokenBalances = getTokenBalances();
 
@@ -160,67 +235,87 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
 
   return (
     <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 ${className}`}>
-      {/* <div className="text-center mb-6">
-        <div className="flex items-center justify-center mb-4">
-          <FaCoins className="text-2xl text-yellow-400 mr-3" />
-          <h3 className="text-2xl font-bold text-white">Your Token Portfolio</h3>
-          {onRefresh && (
-            <button
-              onClick={onRefresh}
-              disabled={loading}
-              className="ml-4 p-2 bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Refresh token balances"
-            >
-              <FaSync className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
+      {/* Total Value Header */}
+      <div className="text-center mb-6">
+        <h3 className="text-2xl font-bold text-white mb-2">Token Portfolio</h3>
+        <div className="text-3xl font-bold text-green-400 mb-2">
+          {priceLoading ? (
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent mr-3"></div>
+              <span className="text-lg">Loading...</span>
+            </div>
+          ) : (
+            formatValue(totalValue)
           )}
         </div>
-        <p className="text-zinc-400">All tokens in your wallet</p>
-      </div> */}
-      
-      <div className="space-y-4">
-        {tokenBalances.map((tokenBalance: TokenBalance, index: number) => (
-          tokenBalance.token.symbol !== "ETH-SEPOLIA" && 
-          <div 
-            key={`${tokenBalance.token.id}-${index}`}
-            className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl p-6 hover:bg-zinc-700/50 transition-all duration-200"
+        <p className="text-zinc-400 text-sm mb-4">Total Estimated Value</p>
+
+        {/* Expandable/Collapsible Toggle */}
+        {tokenDetails.length > 0 && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex items-center justify-center space-x-2 text-zinc-400 hover:text-zinc-300 transition-colors text-sm w-full"
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="flex-shrink-0">
-                  {getTokenIcon(tokenBalance.token.symbol)}
+            <span>{isExpanded ? 'Hide Token Details' : 'View Token Details'}</span>
+            {isExpanded ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
+          </button>
+        )}
+      </div>
+
+      {/* Token List - Only show when expanded */}
+      {isExpanded && tokenDetails.length > 0 && (
+        <div className="space-y-4 mb-6">
+          {tokenDetails.map((tokenDetail: TokenWithValue, index: number) => (
+            tokenDetail.token.symbol !== "ETH-SEPOLIA" &&
+            <div
+              key={`${tokenDetail.token.id}-${index}`}
+              className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl p-6 hover:bg-zinc-700/50 transition-all duration-200"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="flex-shrink-0">
+                    {getTokenIcon(tokenDetail.token.symbol)}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-bold text-white">
+                      {tokenDetail.token.name || tokenDetail.token.symbol}
+                    </h4>
+                    <p className="text-zinc-400 text-sm">
+                      {tokenDetail.token.symbol} • {tokenDetail.token.blockchain}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <h4 className="text-lg font-bold text-white">
-                    {tokenBalance.token.name || tokenBalance.token.symbol}
-                  </h4>
-                  <p className="text-zinc-400 text-sm">
-                    {tokenBalance.token.symbol} • {tokenBalance.token.blockchain}
-                  </p>
+                <div className="text-right">
+                  <div className="text-xl font-bold text-white">
+                    {formatTokenAmount(tokenDetail.amount, tokenDetail.token.decimals, tokenDetail.token.symbol)}
+                  </div>
+                  <div className="text-zinc-400 text-sm">
+                    @ ${tokenDetail.price.toFixed(4)}
+                  </div>
+                  <div className="text-green-400 text-sm font-semibold">
+                    {formatValue(tokenDetail.value)}
+                  </div>
                 </div>
-              </div>
-              <div className="text-right">
-                <div className="text-xl font-bold text-white">
-                  {formatTokenAmount(tokenBalance.amount, tokenBalance.token.decimals, tokenBalance.token.symbol)}
-                </div>
-                {/* <div className="text-zinc-400 text-sm">
-                  Raw: {tokenBalance.amount}
-                </div> */}
               </div>
             </div>
-          </div>
-        ))}
-      </div>
-      
-      {/* <div className="mt-6 pt-4 border-t border-zinc-700/50">
+          ))}
+        </div>
+      )}
+
+      {/* Footer with token count */}
+      <div className="pt-4 border-t border-zinc-700/50">
         <div className="text-center">
           <p className="text-zinc-400 text-sm">
-            Total tokens: {tokenBalances.length}
+            Total tokens: {tokenDetails.length}
           </p>
         </div>
-      </div> */}
+      </div>
     </div>
   );
 };
 
-export default TokenBalances; 
+export default TokenBalances;

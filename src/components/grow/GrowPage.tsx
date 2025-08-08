@@ -25,7 +25,7 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
       try {
         const data = JSON.parse(userData);
         setAccountData(data);
-        
+
         // Fetch balance if wallet address exists
         if (data.wallet_address) {
           fetchBalance(data.wallet_address);
@@ -55,7 +55,7 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
   };
 
   const getPageDescription = () => {
-    return userType === 'business' 
+    return userType === 'business'
       ? 'Explore investment opportunities and grow your business portfolio.'
       : 'Explore exclusive investment opportunities tailored for you.';
   };
@@ -175,4 +175,4 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
       </div>
     </div>
   );
-} 
+}
