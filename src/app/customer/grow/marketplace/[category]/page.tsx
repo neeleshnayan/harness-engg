@@ -2,10 +2,18 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Loader2, DollarSign } from "lucide-react";
+import { Loader2, DollarSign, Flame } from "lucide-react";
 import { MarketplaceService, MarketplaceItem } from "@/lib/marketplace";
 import StartupDetailModal from "@/components/marketplace/StartupDetailModal";
 import api, { getUserInfo } from "@/lib/api";
+import ReactCountryFlag from "react-country-flag";
+
+const countryCodes = ["US", "GB", "DE", "IN", "FR", "JP", "CN", "BR", "AU", "ZA"];
+const fireList = [0, 1, 3, 5, 6]
+
+function getRandomCountryCode() {
+  return countryCodes[Math.floor(Math.random() * countryCodes.length)];
+}
 
 function getCategoryTitle(slug: string) {
   // Convert slug back to category name
@@ -133,20 +141,41 @@ export default function MarketplaceCategoryPage() {
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-3xl">
-        {startups.map((startup) => (
+        {startups.map((startup, idx) => (
           <button
             key={startup.id}
             onClick={() => handleStartupClick(startup)}
             className="bg-white/10 border border-white/20 rounded-3xl p-8 flex flex-col items-start shadow-xl hover:bg-cyan-400/10 hover:border-cyan-400/40 transition-all duration-200 backdrop-blur-xl group text-left focus:outline-none focus:ring-2 focus:ring-cyan-400"
             style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}
           >
-            <div className="flex justify-between items-start w-full mb-4">
-              <span className="text-xl font-bold text-white group-hover:text-cyan-300 transition-colors">{startup.name}</span>
+            <div className="flex justify-between items-start w-full mb-2">
+              <span className="text-xl font-bold text-white group-hover:text-cyan-300 transition-colors">{startup.name}
+              <span className={`text-sm font-semibold ${startup.is_minting_active ? 'text-green-400' : 'text-red-400'}`}>
+                &nbsp;&nbsp;{startup.is_minting_active ? "Minting Active" : "Minting Inactive"}
+              </span>
+              </span>
               <div className="flex items-center text-green-400 font-semibold">
                 <DollarSign className="h-4 w-4 mr-1" />
                 {startup.price.toLocaleString()}
               </div>
             </div>
+             <span className="mb-2 flex">
+              <ReactCountryFlag
+                countryCode={getRandomCountryCode()}
+                svg
+                style={{
+                  width: "1.5em",
+                  height: "1.5em"
+                }}
+                title={getRandomCountryCode()}
+              />
+              {
+                (fireList.includes(idx) || startup.name.toLowerCase().includes("krypton")) && 
+                <span className="flex items-center text-red-400 font-semibold">
+                  &nbsp;&nbsp;<Flame className="h-4 w-4 mr-1" />
+                </span>
+              }
+            </span>
             <span className="text-zinc-400 text-base group-hover:text-zinc-300 transition-colors">
               {startup.description}
             </span>
