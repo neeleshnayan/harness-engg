@@ -81,7 +81,7 @@ export default function ManageBusinessPage() {
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [tranchingDetails, setTranchingDetails] = useState<Array<Object>>([]);
-  const [priceInputValue, setPriceInputValue] = useState<string>('0.5');
+  const [priceInputValue, setPriceInputValue] = useState<string>('0.2');
 
   const [businessData, setBusinessData] = useState<BusinessData>({
     name: '',
@@ -106,6 +106,8 @@ export default function ManageBusinessPage() {
   const [existingBusinessId, setExistingBusinessId] = useState<string | null>(null);
   const [hasExistingAddress, setHasExistingAddress] = useState<boolean>(false);
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [showSavingFundraisingModal, setShowSavingFundraisingModal] = useState(false);
+  const [showTokenDeploymentModal, setShowTokenDeploymentModal] = useState(false);
   const [newMember, setNewMember] = useState<Omit<TeamMember, 'id' | 'createdAt'>>({
     name: '',
     kryptonId: '', // Added Krypton ID
@@ -186,7 +188,7 @@ export default function ManageBusinessPage() {
     };
 
     const initializeData = async () => {
-      await Promise.all([fetchCategories(), fetchExistingBusiness(), fetchTranchingDetails(0.5)]);
+      await Promise.all([fetchCategories(), fetchExistingBusiness(), fetchTranchingDetails(fundraisingData.price)]);
       setLoading(false);
     };
 
@@ -363,6 +365,7 @@ export default function ManageBusinessPage() {
     }
 
     setSaving(true);
+    setShowSavingFundraisingModal(true);
     setSaveError(null);
     setSaveSuccess(null);
 
@@ -377,6 +380,10 @@ export default function ManageBusinessPage() {
       await api.put(`/api/v1/marketplace/business/${existingBusinessId}/fundraising`, fundraisingUpdate);
 
       if (!hasExistingAddress) {
+        // Show token deployment loading modal
+        setShowSavingFundraisingModal(false);
+        setShowTokenDeploymentModal(true);
+
         // Get user wallet address for token deployment
         const userData = JSON.parse(localStorage.getItem('userData') || '{}');
         const walletAddress = userData.wallet_address;
@@ -414,6 +421,8 @@ export default function ManageBusinessPage() {
       setSaveError(err.response?.data?.detail || 'Failed to save fundraising settings. Please try again.');
     } finally {
       setSaving(false);
+      setShowSavingFundraisingModal(false);
+      setShowTokenDeploymentModal(false);
     }
   };
 
@@ -692,7 +701,7 @@ export default function ManageBusinessPage() {
               </div>
               <div>
                 <label className="block text-base font-semibold text-zinc-200 mb-2">Token Price (USDC) *</label>
-                <div className="flex gap-3 items-end">
+                <div className="flex gap-3 items-center">
                   <input
                     id="token-price"
                     type="number"
@@ -713,7 +722,7 @@ export default function ManageBusinessPage() {
                         }
                       }
                     }}
-                    className="flex-1 px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
+                    className="w-full px-4 py-3 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
                     placeholder="0.00"
                     readOnly={hasExistingAddress}
                   />
@@ -725,7 +734,7 @@ export default function ManageBusinessPage() {
                       }
                     }}
                     disabled={!priceInputValue || parseFloat(priceInputValue) <= 0}
-                    className="px-6 py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 disabled:from-zinc-600 disabled:to-zinc-700 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all shadow-lg focus:outline-none focus:ring-2 focus:ring-cyan-400/60 text-lg"
+                    className="px-4 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 disabled:from-zinc-600 disabled:to-zinc-700 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all shadow-lg focus:outline-none focus:ring-2 focus:ring-cyan-400/60 text-base whitespace-nowrap"
                   >
                     Recalculate
                   </button>
@@ -733,13 +742,13 @@ export default function ManageBusinessPage() {
               </div>
               <section id="bonded-curve" >
                 <Card className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 shadow-2xl rounded-3xl">
-                  <CardHeader>
-                    <CardTitle className="text-2xl flex items-center gap-2 text-white">Fundraising Bonding Curve</CardTitle>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-2xl flex items-center gap-2 text-white">Bonding Curve</CardTitle>
                     <CardDescription>
                       Illustrative bonding curve for given initial token price
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="pt-0">
                     <ChartContainer config={chartConfig}>
                       <ComposedChart
                         accessibilityLayer
@@ -852,147 +861,227 @@ export default function ManageBusinessPage() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
               <h2 className="text-3xl font-extrabold text-white tracking-tight drop-shadow-lg">Your Team</h2>
             </div>
-            <div className="flex flex-row gap-4 mb-10">
+            <div className="flex flex-col sm:flex-row gap-4 mb-10">
               <button
                 onClick={() => setShowAddMemberModal(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 border border-cyan-400/30"
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 border border-cyan-400/30"
               >
                 <UserPlus className="h-5 w-5 drop-shadow-[0_0_6px_rgba(34,211,238,0.7)]" />
-                <span>Member</span>
+                <span>Add Member</span>
               </button>
               <button
-                className="flex items-center gap-2 px-6 py-3 bg-zinc-800/80 hover:bg-zinc-700/80 text-white rounded-2xl font-semibold text-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 border border-zinc-600/40"
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-zinc-800/80 hover:bg-zinc-700/80 text-white rounded-2xl font-semibold text-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 border border-zinc-600/40"
               >
                 <History className="h-5 w-5 text-cyan-300 drop-shadow-[0_0_6px_rgba(34,211,238,0.4)]" />
                 <span>Settlements</span>
               </button>
             </div>
 
-            {/* Team Table */}
+            {/* Team Members - Mobile Friendly Cards */}
             <div className="space-y-6">
               {/* Employees */}
               <div>
-                <h3 className="text-lg font-semibold text-white mb-4">Employees</h3>
-                <div className="bg-zinc-900/50 rounded-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-zinc-800/50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider">Name</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider">Payments</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider">Schedule</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-700">
-                      {getMembersByType('employee').length > 0 ? (
-                        getMembersByType('employee').map((member) => (
-                          <tr key={member.id} className="hover:bg-zinc-800/30">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{member.name}</td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="space-y-1">
-                                <div className="text-sm text-zinc-300">USDC: ${member.usdcPayment}</div>
-                                <div className="text-sm text-zinc-300">{fundraisingData.tokenName}: {member.tokenPayment}</div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(member.type)}`}>
-                                {member.schedule}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={3} className="px-6 py-4 text-center text-sm text-zinc-500">
-                            No employees added yet
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white">Employees</h3>
+                  <span className="text-sm text-zinc-400 bg-zinc-800/50 px-3 py-1 rounded-full">
+                    {getMembersByType('employee').length} member{getMembersByType('employee').length !== 1 ? 's' : ''}
+                  </span>
                 </div>
+                {getMembersByType('employee').length > 0 ? (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {getMembersByType('employee').map((member) => (
+                      <div key={member.id} className="bg-zinc-900/50 rounded-xl p-4 border border-zinc-700/30 hover:border-cyan-400/30 transition-all duration-200 hover:shadow-lg hover:shadow-cyan-400/10 group">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-white font-semibold text-base truncate">{member.name}</h4>
+                            {member.kryptonId && (
+                              <p className="text-zinc-400 text-sm truncate">@{member.kryptonId}</p>
+                            )}
+                          </div>
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ml-2 flex-shrink-0 ${getTypeColor(member.type)}`}>
+                            {member.schedule}
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-zinc-400 text-sm">USDC Payment:</span>
+                            <span className="text-white font-medium">${member.usdcPayment}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-zinc-400 text-sm">{fundraisingData.tokenName} Payment:</span>
+                            <span className="text-white font-medium">{member.tokenPayment}</span>
+                          </div>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-zinc-700/30 flex items-center justify-between">
+                          <span className="text-xs text-zinc-500 capitalize">{member.type}</span>
+                          <button className="text-cyan-400 hover:text-cyan-300 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            Edit
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-zinc-900/30 rounded-xl p-8 text-center border-2 border-dashed border-zinc-700/50">
+                    <div className="text-zinc-500 mb-2">
+                      <UserPlus className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                    </div>
+                    <p className="text-zinc-400 text-sm">No employees added yet</p>
+                    <p className="text-zinc-500 text-xs mt-1">Click "Add Member" to get started</p>
+                  </div>
+                )}
               </div>
 
               {/* Interns */}
               <div>
-                <h3 className="text-lg font-semibold text-white mb-4">Interns</h3>
-                <div className="bg-zinc-900/50 rounded-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-zinc-800/50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider">Name</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider">Payments</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider">Schedule</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-700">
-                      {getMembersByType('intern').length > 0 ? (
-                        getMembersByType('intern').map((member) => (
-                          <tr key={member.id} className="hover:bg-zinc-800/30">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{member.name}</td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="space-y-1">
-                                <div className="text-sm text-zinc-300">USDC: ${member.usdcPayment}</div>
-                                <div className="text-sm text-zinc-300">{fundraisingData.tokenName}: {member.tokenPayment}</div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(member.type)}`}>
-                                {member.schedule}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={3} className="px-6 py-4 text-center text-sm text-zinc-500">
-                            No interns added yet
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white">Interns</h3>
+                  <span className="text-sm text-zinc-400 bg-zinc-800/50 px-3 py-1 rounded-full">
+                    {getMembersByType('intern').length} member{getMembersByType('intern').length !== 1 ? 's' : ''}
+                  </span>
                 </div>
+                {getMembersByType('intern').length > 0 ? (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {getMembersByType('intern').map((member) => (
+                      <div key={member.id} className="bg-zinc-900/50 rounded-xl p-4 border border-zinc-700/30 hover:border-cyan-400/30 transition-all duration-200 hover:shadow-lg hover:shadow-cyan-400/10 group">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-white font-semibold text-base truncate">{member.name}</h4>
+                            {member.kryptonId && (
+                              <p className="text-zinc-400 text-sm truncate">@{member.kryptonId}</p>
+                            )}
+                          </div>
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ml-2 flex-shrink-0 ${getTypeColor(member.type)}`}>
+                            {member.schedule}
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-zinc-400 text-sm">USDC Payment:</span>
+                            <span className="text-white font-medium">${member.usdcPayment}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-zinc-400 text-sm">{fundraisingData.tokenName} Payment:</span>
+                            <span className="text-white font-medium">{member.tokenPayment}</span>
+                          </div>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-zinc-700/30 flex items-center justify-between">
+                          <span className="text-xs text-zinc-500 capitalize">{member.type}</span>
+                          <button className="text-cyan-400 hover:text-cyan-300 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            Edit
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-zinc-900/30 rounded-xl p-8 text-center border-2 border-dashed border-zinc-700/50">
+                    <div className="text-zinc-500 mb-2">
+                      <UserPlus className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                    </div>
+                    <p className="text-zinc-400 text-sm">No interns added yet</p>
+                    <p className="text-zinc-500 text-xs mt-1">Click "Add Member" to get started</p>
+                  </div>
+                )}
               </div>
 
               {/* Vendors */}
               <div>
-                <h3 className="text-lg font-semibold text-white mb-4">Vendors</h3>
-                <div className="bg-zinc-900/50 rounded-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-zinc-800/50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider">Name</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider">Payments</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider">Schedule</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-700">
-                      {getMembersByType('vendor').length > 0 ? (
-                        getMembersByType('vendor').map((member) => (
-                          <tr key={member.id} className="hover:bg-zinc-800/30">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{member.name}</td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="space-y-1">
-                                <div className="text-sm text-zinc-300">USDC: ${member.usdcPayment}</div>
-                                <div className="text-sm text-zinc-300">{fundraisingData.tokenName}: {member.tokenPayment}</div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(member.type)}`}>
-                                {member.schedule}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={3} className="px-6 py-4 text-center text-sm text-zinc-500">
-                            No vendors added yet
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white">Vendors</h3>
+                  <span className="text-sm text-zinc-400 bg-zinc-800/50 px-3 py-1 rounded-full">
+                    {getMembersByType('vendor').length} member{getMembersByType('vendor').length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                {getMembersByType('vendor').length > 0 ? (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {getMembersByType('vendor').map((member) => (
+                      <div key={member.id} className="bg-zinc-900/50 rounded-xl p-4 border border-zinc-700/30 hover:border-cyan-400/30 transition-all duration-200 hover:shadow-lg hover:shadow-cyan-400/10 group">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-white font-semibold text-base truncate">{member.name}</h4>
+                            {member.kryptonId && (
+                              <p className="text-zinc-400 text-sm truncate">@{member.kryptonId}</p>
+                            )}
+                          </div>
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ml-2 flex-shrink-0 ${getTypeColor(member.type)}`}>
+                            {member.schedule}
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-zinc-400 text-sm">USDC Payment:</span>
+                            <span className="text-white font-medium">${member.usdcPayment}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-zinc-400 text-sm">{fundraisingData.tokenName} Payment:</span>
+                            <span className="text-white font-medium">{member.tokenPayment}</span>
+                          </div>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-zinc-700/30 flex items-center justify-between">
+                          <span className="text-xs text-zinc-500 capitalize">{member.type}</span>
+                          <button className="text-cyan-400 hover:text-cyan-300 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            Edit
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-zinc-900/30 rounded-xl p-8 text-center border-2 border-dashed border-zinc-700/50">
+                    <div className="text-zinc-500 mb-2">
+                      <UserPlus className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                    </div>
+                    <p className="text-zinc-400 text-sm">No vendors added yet</p>
+                    <p className="text-zinc-500 text-xs mt-1">Click "Add Member" to get started</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Saving Fundraising Loading Modal */}
+        {showSavingFundraisingModal && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-2xl flex items-center justify-center z-50">
+            <div className="bg-gradient-to-br from-zinc-900/90 via-zinc-800/80 to-cyan-900/60 border border-cyan-400/20 rounded-3xl p-10 w-full max-w-md mx-4 shadow-2xl ring-2 ring-cyan-400/10">
+              <div className="flex flex-col items-center space-y-6">
+                <div className="relative">
+                  <Loader2 className="h-16 w-16 text-cyan-400 animate-spin" />
+                  <div className="absolute inset-0 bg-cyan-400/20 rounded-full animate-pulse"></div>
+                </div>
+                <div className="text-center">
+                  <h3 className="text-2xl font-extrabold text-white mb-2 tracking-tight drop-shadow-lg">
+                    Saving Fundraising Settings
+                  </h3>
+                  <p className="text-zinc-300 text-lg">
+                    Updating your fundraising configuration...
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Token Deployment Loading Modal */}
+        {showTokenDeploymentModal && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-2xl flex items-center justify-center z-50">
+            <div className="bg-gradient-to-br from-zinc-900/90 via-zinc-800/80 to-cyan-900/60 border border-cyan-400/20 rounded-3xl p-10 w-full max-w-md mx-4 shadow-2xl ring-2 ring-cyan-400/10">
+              <div className="flex flex-col items-center space-y-6">
+                <div className="relative">
+                  <Loader2 className="h-16 w-16 text-cyan-400 animate-spin" />
+                  <div className="absolute inset-0 bg-cyan-400/20 rounded-full animate-pulse"></div>
+                </div>
+                <div className="text-center">
+                  <h3 className="text-2xl font-extrabold text-white mb-2 tracking-tight drop-shadow-lg">
+                    Deploying Smart Token
+                  </h3>
+                  <p className="text-zinc-300 text-lg">
+                    Creating your token contract on the blockchain...
+                  </p>
+                  <p className="text-zinc-400 text-sm mt-2">
+                    This may take a few moments
+                  </p>
                 </div>
               </div>
             </div>
