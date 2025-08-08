@@ -176,7 +176,16 @@ export default function BuyTokenModal({ startup, isOpen, onClose, onBuy }: BuyTo
           <div className="mb-4">
             <div className="bg-gradient-to-r from-cyan-400/10 to-purple-400/10 border border-cyan-400/20 rounded-xl px-4 py-3 flex items-center justify-between">
               <span className="text-white text-sm font-medium">Total Cost</span>
-              <span className="text-cyan-400 font-bold text-lg">${calculateTotalCost()}</span>
+              <span className="text-cyan-400 font-bold text-lg">
+                {quoteLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-cyan-400 border-t-transparent"></div>
+                    <span className="text-sm">Loading...</span>
+                  </div>
+                ) : (
+                  `$${calculateTotalCost()}`
+                )}
+              </span>
             </div>
           </div>
         )}
