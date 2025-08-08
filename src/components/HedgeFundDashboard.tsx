@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
+import HedgeFundQuestionnaire from './HedgeFundQuestionnaire';
 import {
   Rocket,
   TrendingUp,
@@ -160,11 +161,25 @@ export default function HedgeFundDashboard() {
   const { toast, toasts, dismiss } = useToast();
 
   const [isAutopilotOn, setIsAutopilotOn] = useState(false);
+  const [showQuestionnaire, setShowQuestionnaire] = useState(false);
   const [riskFilter, setRiskFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('apy-desc');
 
   useEffect(() => {
     if (isAutopilotOn) {
+      setShowQuestionnaire(true);
+    }
+    if (!isAutopilotOn) {
+      setShowQuestionnaire(false);
+      if (autopilotIntervalRef.current) {
+        clearInterval(autopilotIntervalRef.current);
+      }
+    }
+  }, [isAutopilotOn]);
+
+  // Start autopilot rebalancing only after questionnaire is completed
+  useEffect(() => {
+    if (isAutopilotOn && !showQuestionnaire) {
       autopilotIntervalRef.current = setInterval(() => {
         setStrategies(prevStrategies => {
           // Remove a random strategy
@@ -182,25 +197,20 @@ export default function HedgeFundDashboard() {
 
             toast({
               title: "Autopilot Rebalanced!",
-              description: `Removed "${removedStrategy.name}" and added "${newStrategy.name}".`,
+              description: `Removed \"${removedStrategy.name}\" and added \"${newStrategy.name}\".`,
             });
             return [...remainingStrategies, newStrategy];
           }
           return prevStrategies; // No change if no new strategies are available
         });
-      }, 5000); // Rebalance every 5 seconds
-    } else {
-      if (autopilotIntervalRef.current) {
-        clearInterval(autopilotIntervalRef.current);
-      }
+      }, 5000);
     }
-
     return () => {
       if (autopilotIntervalRef.current) {
         clearInterval(autopilotIntervalRef.current);
       }
     };
-  }, [isAutopilotOn]);
+  }, [isAutopilotOn, showQuestionnaire]);
 
   const handleInvestClick = (strategy: Strategy) => {
     setSelectedStrategyForInvestment(strategy);
@@ -232,166 +242,178 @@ export default function HedgeFundDashboard() {
 
   return (
     <>
-      <main className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900">
-        <div className="container mx-auto px-4 py-8">
-        <header className="flex flex-col md:flex-row justify-between items-center mb-8">
-          <div>
-            <h1 className="text-4xl font-bold text-white">Hedge Fund Dashboard</h1>
-            <p className="text-lg text-zinc-400 mt-1">Your portfolio overview and strategy hub.</p>
-          </div>
-          <div className="flex items-center gap-3 mt-4 md:mt-0 px-4 py-2 bg-zinc-800/50 border border-zinc-700/50 rounded-lg">
-            <Label htmlFor="autopilot-mode" className="text-white font-medium">Autopilot</Label>
-            <Switch id="autopilot-mode" checked={isAutopilotOn} onCheckedChange={setIsAutopilotOn} />
-            <BrainCircuit className="h-5 w-5 text-cyan-400" />
-          </div>
-        </header>
+      {showQuestionnaire && (
+        <HedgeFundQuestionnaire
+          onComplete={() => setShowQuestionnaire(false)}
+          onClose={() => {
+            setShowQuestionnaire(false);
+            setIsAutopilotOn(false);
+          }}
+          showBackButton={true}
+        />
+      )}
+      {!showQuestionnaire && (
+        <main className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900">
+          <div className="container mx-auto px-4 py-8">
+          <header className="flex flex-col md:flex-row justify-between items-center mb-8">
+            <div>
+              <h1 className="text-4xl font-bold text-white">Hedge Fund Dashboard</h1>
+              <p className="text-lg text-zinc-400 mt-1">Your portfolio overview and strategy hub.</p>
+            </div>
+            <div className="flex items-center gap-3 mt-4 md:mt-0 px-4 py-2 bg-zinc-800/50 border border-zinc-700/50 rounded-lg">
+              <Label htmlFor="autopilot-mode" className="text-white font-medium">Autopilot</Label>
+              <Switch id="autopilot-mode" checked={isAutopilotOn} onCheckedChange={setIsAutopilotOn} />
+              <BrainCircuit className="h-5 w-5 text-cyan-400" />
+            </div>
+          </header>
 
-        {isAutopilotOn && (
-          <Alert className="mb-8 border-cyan-400/30 bg-cyan-400/10 text-cyan-200">
-            <Circle className="h-4 w-4" />
-            <AlertTitle className="text-cyan-300">Autopilot is Active!</AlertTitle>
-            <AlertDescription>
-              The AI is automatically rebalancing your portfolio for optimal performance.
-            </AlertDescription>
-          </Alert>
-        )}
+          {isAutopilotOn && (
+            <Alert className="mb-8 border-cyan-400/30 bg-cyan-400/10 text-cyan-200">
+              <Circle className="h-4 w-4" />
+              <AlertTitle className="text-cyan-300">Autopilot is Active!</AlertTitle>
+              <AlertDescription>
+                The AI is automatically rebalancing your portfolio for optimal performance.
+              </AlertDescription>
+            </Alert>
+          )}
 
-        <section id="portfolio-dashboard" className="mb-16">
-          <Card className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 shadow-2xl rounded-3xl">
-            <CardHeader>
-              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                <div>
-                  <CardTitle className="text-2xl flex items-center gap-2 text-white">
-                    <TrendingUp className="h-6 w-6" />
-                    Portfolio Performance
-                  </CardTitle>
-                  <CardDescription>Last 12 months performance</CardDescription>
+          <section id="portfolio-dashboard" className="mb-16">
+            <Card className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 shadow-2xl rounded-3xl">
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                  <div>
+                    <CardTitle className="text-2xl flex items-center gap-2 text-white">
+                      <TrendingUp className="h-6 w-6" />
+                      Portfolio Performance
+                    </CardTitle>
+                    <CardDescription>Last 12 months performance</CardDescription>
+                  </div>
+                  <div className="flex items-center gap-x-6 gap-y-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <ArrowUpRight className="h-5 w-5 text-green-400" />
+                      <div>
+                        <p className="text-xs text-zinc-400">Total Return</p>
+                        <p className="text-base font-bold text-white">+{portfolioData.metrics.totalReturn.toFixed(2)}%</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-5 w-5 text-cyan-400" />
+                      <div>
+                        <p className="text-xs text-zinc-400">Volatility</p>
+                        <p className="text-base font-bold text-white">{portfolioData.metrics.volatility.toFixed(2)}%</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <BarChart className="h-5 w-5 text-purple-400" />
+                      <div>
+                        <p className="text-xs text-zinc-400">Sharpe Ratio</p>
+                        <p className="text-base font-bold text-white">{portfolioData.metrics.sharpeRatio.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-x-6 gap-y-2 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <ArrowUpRight className="h-5 w-5 text-green-400" />
-                    <div>
-                      <p className="text-xs text-zinc-400">Total Return</p>
-                      <p className="text-base font-bold text-white">+{portfolioData.metrics.totalReturn.toFixed(2)}%</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Zap className="h-5 w-5 text-cyan-400" />
-                    <div>
-                      <p className="text-xs text-zinc-400">Volatility</p>
-                      <p className="text-base font-bold text-white">{portfolioData.metrics.volatility.toFixed(2)}%</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <BarChart className="h-5 w-5 text-purple-400" />
-                    <div>
-                      <p className="text-xs text-zinc-400">Sharpe Ratio</p>
-                      <p className="text-base font-bold text-white">{portfolioData.metrics.sharpeRatio.toFixed(2)}</p>
-                    </div>
-                  </div>
+              </CardHeader>
+              <CardContent>
+                <div className="aspect-video w-full">
+                  <ChartContainer config={chartConfig}>
+                    <AreaChart
+                      accessibilityLayer
+                      data={portfolioData.performance}
+                      margin={{ left: 12, right: 12, top: 20 }}
+                    >
+                      <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
+                      <XAxis
+                        dataKey="month"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        tickFormatter={(value) => value.slice(0, 3)}
+                        tick={{ fill: '#9ca3af' }}
+                      />
+                      <YAxis
+                        tickFormatter={(value) => `${Number(value) / 1000}k`}
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: '#9ca3af' }}
+                      />
+                      <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent indicator="dot" labelClassName="text-zinc-400" className="bg-zinc-900/80 backdrop-blur-sm border-zinc-700/50"/>}
+                      />
+                      <Area
+                        dataKey="value"
+                        type="natural"
+                        fill="rgba(59, 130, 246, 0.1)"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        stackId="a"
+                      />
+                    </AreaChart>
+                  </ChartContainer>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="aspect-video w-full">
-                <ChartContainer config={chartConfig}>
-                  <AreaChart
-                    accessibilityLayer
-                    data={portfolioData.performance}
-                    margin={{ left: 12, right: 12, top: 20 }}
-                  >
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
-                    <XAxis
-                      dataKey="month"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      tickFormatter={(value) => value.slice(0, 3)}
-                      tick={{ fill: '#9ca3af' }}
-                    />
-                    <YAxis
-                      tickFormatter={(value) => `${Number(value) / 1000}k`}
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fill: '#9ca3af' }}
-                    />
-                    <ChartTooltip
-                      cursor={false}
-                      content={<ChartTooltipContent indicator="dot" labelClassName="text-zinc-400" className="bg-zinc-900/80 backdrop-blur-sm border-zinc-700/50"/>}
-                    />
-                    <Area
-                      dataKey="value"
-                      type="natural"
-                      fill="rgba(59, 130, 246, 0.1)"
-                      stroke="#3b82f6"
-                      strokeWidth={2}
-                      stackId="a"
-                    />
-                  </AreaChart>
-                </ChartContainer>
-              </div>
-            </CardContent>
+              </CardContent>
 
-          </Card>
-        </section>
+            </Card>
+          </section>
 
-        <Separator className="my-12 bg-zinc-800" />
+          <Separator className="my-12 bg-zinc-800" />
 
-        <section id="strategy-discovery">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
-                <h2 className="text-3xl font-bold text-white">
-                  Strategy Marketplace
-                </h2>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Filter className="w-5 h-5 text-zinc-400" />
-                    <Select value={riskFilter} onValueChange={setRiskFilter}>
-                      <SelectTrigger className="w-[160px] bg-zinc-900/50 border-zinc-700 text-white">
-                        <SelectValue placeholder="Filter by risk..." />
-                      </SelectTrigger>
-                      <SelectContent className="bg-zinc-900 border-zinc-700 text-white">
-                        <SelectItem value="all">All Risk Grades</SelectItem>
-                        <SelectItem value="A">Risk Grade A</SelectItem>
-                        <SelectItem value="B">Risk Grade B</SelectItem>
-                        <SelectItem value="C">Risk Grade C</SelectItem>
-                        <SelectItem value="D">Risk Grade D</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                   <div className="flex items-center gap-2">
-                     <SortAsc className="w-5 h-5 text-zinc-400" />
-                     <Select value={sortOrder} onValueChange={setSortOrder}>
+          <section id="strategy-discovery">
+              <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
+                  <h2 className="text-3xl font-bold text-white">
+                    Strategy Marketplace
+                  </h2>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <Filter className="w-5 h-5 text-zinc-400" />
+                      <Select value={riskFilter} onValueChange={setRiskFilter}>
                         <SelectTrigger className="w-[160px] bg-zinc-900/50 border-zinc-700 text-white">
-                            <SelectValue placeholder="Sort by..." />
+                          <SelectValue placeholder="Filter by risk..." />
                         </SelectTrigger>
                         <SelectContent className="bg-zinc-900 border-zinc-700 text-white">
-                            <SelectItem value="apy-desc">APY: High to Low</SelectItem>
-                            <SelectItem value="apy-asc">APY: Low to High</SelectItem>
+                          <SelectItem value="all">All Risk Grades</SelectItem>
+                          <SelectItem value="A">Risk Grade A</SelectItem>
+                          <SelectItem value="B">Risk Grade B</SelectItem>
+                          <SelectItem value="C">Risk Grade C</SelectItem>
+                          <SelectItem value="D">Risk Grade D</SelectItem>
                         </SelectContent>
-                     </Select>
-                   </div>
-                </div>
-            </div>
+                      </Select>
+                    </div>
+                     <div className="flex items-center gap-2">
+                       <SortAsc className="w-5 h-5 text-zinc-400" />
+                       <Select value={sortOrder} onValueChange={setSortOrder}>
+                          <SelectTrigger className="w-[160px] bg-zinc-900/50 border-zinc-700 text-white">
+                              <SelectValue placeholder="Sort by..." />
+                          </SelectTrigger>
+                          <SelectContent className="bg-zinc-900 border-zinc-700 text-white">
+                              <SelectItem value="apy-desc">APY: High to Low</SelectItem>
+                              <SelectItem value="apy-asc">APY: Low to High</SelectItem>
+                          </SelectContent>
+                       </Select>
+                     </div>
+                  </div>
+              </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {displayedStrategies.map((strategy) => (
-                <StrategyCard
-                    key={strategy.id}
-                    strategy={strategy}
-                    onInvest={handleInvestClick}
-                />
-                ))}
-            </div>
-            {displayedStrategies.length === 0 && (
-                <div className="col-span-full text-center py-20 px-4 text-zinc-400 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
-                  <Zap className="mx-auto h-12 w-12 text-zinc-500 mb-4" />
-                  <h3 className="text-xl font-semibold text-white">No Strategies Found</h3>
-                  <p className="text-zinc-500 mt-2">Try adjusting your filters to discover new opportunities.</p>
-                </div>
-            )}
-        </section>
-        </div>
-      </main>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {displayedStrategies.map((strategy) => (
+                  <StrategyCard
+                      key={strategy.id}
+                      strategy={strategy}
+                      onInvest={handleInvestClick}
+                  />
+                  ))}
+              </div>
+              {displayedStrategies.length === 0 && (
+                  <div className="col-span-full text-center py-20 px-4 text-zinc-400 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
+                    <Zap className="mx-auto h-12 w-12 text-zinc-500 mb-4" />
+                    <h3 className="text-xl font-semibold text-white">No Strategies Found</h3>
+                    <p className="text-zinc-500 mt-2">Try adjusting your filters to discover new opportunities.</p>
+                  </div>
+              )}
+          </section>
+          </div>
+        </main>
+      )}
       <InvestDialog
         isOpen={isInvestDialogOpen}
         onClose={() => setInvestDialogOpen(false)}
