@@ -95,7 +95,7 @@ export default function ManageBusinessPage() {
 
   const [fundraisingData, setFundraisingData] = useState<FundraisingData>({
     tokenName: '',
-    price: 0.5,
+    price: 0.2,
     isMintingActive: false
   });
 
