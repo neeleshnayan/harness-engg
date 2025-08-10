@@ -63,11 +63,15 @@ interface TeamData {
 
 const chartConfig = {
   raised: {
-    label: "Funds Raised ($M)",
-    color: "#3b82f6",
+    label: "Log10 (Funds Raised in $)",
+    color: "#98b8eb",
   },
   price: {
     label: "Token Price ($)",
+    color: "#98b8eb",
+  },
+  minted: {
+    label: "Tokens Minted",
     color: "#98b8eb",
   },
 } satisfies ChartConfig;
@@ -81,7 +85,7 @@ export default function ManageBusinessPage() {
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [tranchingDetails, setTranchingDetails] = useState<Array<Object>>([]);
-  const [priceInputValue, setPriceInputValue] = useState<string>('0.2');
+  const [priceInputValue, setPriceInputValue] = useState<string>('0.5');
 
   const [businessData, setBusinessData] = useState<BusinessData>({
     name: '',
@@ -95,7 +99,7 @@ export default function ManageBusinessPage() {
 
   const [fundraisingData, setFundraisingData] = useState<FundraisingData>({
     tokenName: '',
-    price: 0.2,
+    price: 0.5,
     isMintingActive: false
   });
 
@@ -206,7 +210,7 @@ export default function ManageBusinessPage() {
       for (let tranche of response.data.minting_details.tranche_breakdown) {
         tranches.push({
           minted: tranche.current_supply,
-          raised: tranche.total_raised / 1e6,
+          raised: Math.log10(tranche.total_raised),
           price: tranche.price,
         });
       }
@@ -757,6 +761,7 @@ export default function ManageBusinessPage() {
                           left: 12,
                           right: 12,
                           top: 12,
+                          bottom: 20,
                         }}
                       >
                         <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)"/>
@@ -765,7 +770,11 @@ export default function ManageBusinessPage() {
                           tickLine={true}
                           axisLine={false}
                           tickMargin={8}
-                          tickFormatter={(value) => (value / 1000).toString()}
+                          type="number"
+                          domain={['dataMin', 'dataMax']}
+                          ticks={[0, 100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000]}
+                          tickFormatter={(value) => ((value / 1000000) * 100).toFixed(0) + '%'}
+                          label={{ value: 'Tokens Minted', angle: 0, position: 'insideBottom', offset: -15, style: { textAnchor: 'middle', fill: '#98b8eb' } }}
                         />
                         <YAxis
                           yAxisId="left"
@@ -773,7 +782,7 @@ export default function ManageBusinessPage() {
                           axisLine={false}
                           tickMargin={8}
                           orientation="left"
-                          label={{ value: 'Funds Raised ($M)', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#3b82f6' } }}
+                          label={{ value: 'Log10 (Funds Raised in $)', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#98b8eb' } }}
                         />
                         <YAxis
                           yAxisId="right"
@@ -783,7 +792,39 @@ export default function ManageBusinessPage() {
                           orientation="right"
                           label={{ value: 'Token Price ($)', angle: 90, position: 'insideRight', style: { textAnchor: 'middle', fill: '#98b8eb' } }}
                         />
-                        <ChartTooltip cursor={true} content={<ChartTooltipContent />} />
+                        <ChartTooltip
+                          cursor={true}
+                          content={({ active, payload, label }) => {
+                            if (!active || !payload?.length) return null;
+
+                            const mintedValue = payload[0]?.payload?.minted;
+                            const mintedPercentage = mintedValue ? ((mintedValue / 1000000) * 100).toFixed(1) : '0';
+
+                            return (
+                              <div className="bg-zinc-900/90 backdrop-blur-sm border border-zinc-700/50 rounded-lg p-3 shadow-xl min-w-[12rem]">
+                                <div className="font-medium text-white mb-2 border-b border-zinc-600 pb-2">
+                                  Bonding Curve Data
+                                </div>
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-green-400"></div>
+                                    <span className="text-zinc-300">Log10 (Funds Raised in $):</span>
+                                    <span className="text-white font-mono ml-auto">{typeof payload[0]?.value === 'number' ? payload[0].value.toFixed(3) : payload[0]?.value}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-blue-400"></div>
+                                    <span className="text-zinc-300">Token Price ($):</span>
+                                    <span className="text-white font-mono ml-auto">{typeof payload[1]?.value === 'number' ? payload[1].value.toFixed(2) : payload[1]?.value}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 pt-2 border-t border-zinc-600">
+                                    <span className="text-zinc-300">Tokens Minted:</span>
+                                    <span className="text-white font-mono ml-auto">{mintedPercentage}%</span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }}
+                        />
                         <Area
                           yAxisId="left"
                           dataKey="raised"
