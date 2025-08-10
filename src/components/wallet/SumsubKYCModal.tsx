@@ -153,11 +153,9 @@ const SumsubKYCModal: React.FC<SumsubKYCModalProps> = ({
                       }
                     } catch (e) {
                       // Cross-origin restrictions, but that's okay
-                      console.log('Cannot access iframe content due to CORS');
                     }
                   };
                 } catch (e) {
-                  console.log('Cannot modify iframe due to CORS restrictions');
                 }
               }
             }, 500);

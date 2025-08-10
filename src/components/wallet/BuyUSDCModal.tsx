@@ -1,6 +1,9 @@
 import axios from "axios";
 import React, { useState, useEffect } from "react";
 import ReactCountryFlag from "react-country-flag";
+import { fetchOnrampQuote } from '@coinbase/onchainkit/fund';
+import { set } from "zod";
+// import TransakLogo from "./../../../public/transak-logo.svg"; 
 
 interface FiatCurrency {
   code: string;
@@ -19,7 +22,7 @@ const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose }) => {
   const [amount, setAmount] = useState<string>("");
   const [usdcAmount, setUsdcAmount] = useState<string>("0");
   const [loading, setLoading] = useState<boolean>(false);
-
+  const [bestExchange, setBestExchange] = useState<string>("Coinbase");
   // Dummy API function
   const fetchUSDC = (fiat: string, amt: number): Promise<string> => {
     return new Promise((resolve) => {
@@ -42,13 +45,31 @@ const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose }) => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fixed template literal syntax with backticks
-        const res = await axios.get(
+        const transakResponse = await axios.get(
           `https://api-stg.transak.com/api/v1/pricing/public/quotes?partnerApiKey=f4c10825-55fd-4ccc-bd3f-40fc021468e5&fiatCurrency=${selectedCurrency}&cryptoCurrency=USDC&fiatAmount=${amount}&isBuyOrSell=BUY&network=ethereum&paymentMethod=credit_debit_card`
         );
-        const val = res.data?.response?.cryptoAmount || 0;
+        const coinbaseResponse = await fetchOnrampQuote({
+          purchaseCurrency: 'USDC',
+          purchaseNetwork: 'ethereum',
+          paymentCurrency: selectedCurrency,
+          paymentMethod: 'CARD',
+          paymentAmount: amount,
+          country: 'US',
+          subdivision: 'CA', // Required for US residents
+          apiKey: 'XPGt5SREGfGGfgXf6SWACggGkjh3HwQE'
+        });
+        const transakAmount = transakResponse.data?.response?.cryptoAmount || 0;
+        const coinbaseAmount = coinbaseResponse?.purchaseAmount?.value || "0";
+        
+        const val = Math.max(parseFloat(transakAmount), parseFloat(coinbaseAmount)).toFixed(2);
+
         if (isMounted) {
-          setUsdcAmount(val.toFixed(2));
+          setUsdcAmount(val);
+          if (parseFloat(transakAmount) > parseFloat(coinbaseAmount)) {
+            setBestExchange("Transak");
+          } else {
+            setBestExchange("Coinbase");
+          }
         }
       } catch (error) {
         console.error("Error fetching USDC:", error);
@@ -73,8 +94,18 @@ const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose }) => {
     <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center p-2 pt-4 pb-4 mt-4 mb-10 justify-center z-50">
       <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl w-full max-w-md p-2 shadow-2xl">
         {/* Header */}
-        <h2 className="text-2xl font-bold text-white mb-6 text-center">
-          Buy USDC
+        <h2 className="flex items-center justify-center text-2xl font-bold text-white mb-6 text-center">
+          <img
+            src='/transak-logo.svg'
+            alt="Transak"
+            className="h-6 rounded-full"
+          />
+          &nbsp;&nbsp;Buy USDC&nbsp;
+          <img
+            src='/coinbase-logo.svg'
+            alt="Coinbase"
+            className="h-10 rounded-full"
+          />
         </h2>
 
         {/* Amount Input */}
@@ -126,27 +157,43 @@ const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose }) => {
         <div className="bg-zinc-800/50 border border-zinc-700 rounded-xl p-4 mb-6">
           <p className="text-3xl font-bold text-white mt-1">
             {loading ? (
-              <span className="text-blue-400 animate-pulse">Calculating...</span>
+              <span className="text-zinc-500 animate-pulse">Getting Quote...</span>
             ) : (
-              `$${usdcAmount} USDC`
+              <>{usdcAmount} <span className="text-zinc-400 text-lg" >USDC</span></>
             )}
           </p>
         </div>
 
         {/* Buttons */}
-        <div className="flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-5 py-3 border border-zinc-700 rounded-xl text-zinc-300 hover:bg-zinc-800 transition-colors duration-200"
-          >
-            Cancel
-          </button>
-          <button
-            className="px-5 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300"
-          >
-            Buy Now
-          </button>
-        </div>
+        <div className="flex justify-between gap-3 items-center">
+  {usdcAmount !== "0" && (
+    <button
+      className="px-5 py-3 bg-gradient-to-r from-blue-900 to-green-700 text-white rounded-xl font-semibold hover:from-blue-800 hover:to-green-600 shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300"
+    >
+      via {bestExchange}
+      {/* <img
+        src={bestExchange === "Transak" ? '/transak-logo.svg' : '/coinbase-logo.svg'}
+        alt={bestExchange}
+        className="h-10 rounded-full"
+      /> */}
+    </button>
+  )}
+
+  <div className="flex gap-3">
+    <button
+      onClick={onClose}
+      className="px-5 py-3 border border-zinc-700 rounded-xl text-zinc-300 hover:bg-zinc-800 transition-colors duration-200"
+    >
+      Cancel
+    </button>
+    <button
+      className="px-5 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300"
+    >
+      Buy Now
+    </button>
+  </div>
+</div>
+
       </div>
     </div>
   );

@@ -54,7 +54,7 @@ export default function HedgeFundQuestionnaire({
 
   const checkExistingSubmission = async (userId: string) => {
     try {
-        setLoading(true);
+      setLoading(true);
       const response = await api.get(`/api/v1/hedge-fund/${userId}`);
       if (response.status === 200 && response.data.status === "success") {
         const submissionData = response.data.data;
@@ -72,6 +72,7 @@ export default function HedgeFundQuestionnaire({
         setLoading(false);
       }
     } catch (err: any) {
+      setLoading(false);  
       if (err.response?.status !== 404) {
         console.error('Error checking existing submission:', err);
       }

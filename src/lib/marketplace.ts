@@ -19,6 +19,7 @@ export interface MarketplaceItem {
   owner_id?: string;
   created_at?: string;
   updated_at?: string;
+  countryCode?: string;
   team_data?: {
     members: Array<{
       id: string;

@@ -7,6 +7,8 @@ import { MarketplaceService, MarketplaceItem } from "@/lib/marketplace";
 import StartupDetailModal from "@/components/marketplace/StartupDetailModal";
 import api, { getUserInfo } from "@/lib/api";
 import ReactCountryFlag from "react-country-flag";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faFire } from '@fortawesome/free-solid-svg-icons';
 
 const countryCodes = ["US", "GB", "DE", "IN", "FR", "JP", "CN", "BR", "AU", "ZA"];
 const fireList = [0, 1, 3, 5, 6]
@@ -161,7 +163,7 @@ export default function MarketplaceCategoryPage() {
             </div>
              <span className="mb-2 flex">
               <ReactCountryFlag
-                countryCode={getRandomCountryCode()}
+                countryCode={startup?.countryCode? startup.countryCode : getRandomCountryCode()}
                 svg
                 style={{
                   width: "1.5em",
@@ -171,8 +173,11 @@ export default function MarketplaceCategoryPage() {
               />
               {
                 (fireList.includes(idx) || startup.name.toLowerCase().includes("krypton")) && 
+                // <span className="flex items-center text-red-400 font-semibold">
+                //   &nbsp;&nbsp;<Flame className="h-4 w-4 mr-1" />
+                // </span>
                 <span className="flex items-center text-red-400 font-semibold">
-                  &nbsp;&nbsp;<Flame className="h-4 w-4 mr-1" />
+                  &nbsp;&nbsp;<FontAwesomeIcon icon={faFire} className="h-4 w-4 mr-1" />
                 </span>
               }
             </span>

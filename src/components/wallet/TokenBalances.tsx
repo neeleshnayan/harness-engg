@@ -143,7 +143,6 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
           }
         } else if (token.symbol !== 'USDC') {
           // For tokens without address (except USDC), assume price of 1
-          console.log(`Token ${token.symbol} has no address, using default price of 1`);
         }
 
         // Calculate value for this token
