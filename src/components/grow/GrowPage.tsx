@@ -103,14 +103,7 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
           </p>
         </div>
 
-        {/* Investment Options */}
-        {/* <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-white mb-6">Investment Opportunities</h2>
-          <p className="text-zinc-400 text-lg mb-8">
-            {getInvestmentDescription()}
-          </p>
-        </div> */}
-
+        {/* Investment Options Section */}
         <div className="flex flex-col md:flex-row gap-8 w-full max-w-4xl mx-auto justify-center">
           <button
             className="flex-1 bg-white/10 border border-white/20 rounded-3xl p-8 flex flex-col items-center justify-center shadow-xl hover:bg-cyan-400/10 hover:border-cyan-400/40 transition-all duration-200 backdrop-blur-xl group focus:outline-none focus:ring-2 focus:ring-cyan-400"
@@ -140,30 +133,8 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
           </button>
         </div>
 
-        {/* Business Management Option - Only for Business Users */}
-        {/* {userType === 'business' && (
-          <div className="text-center mt-12 mb-8">
-            <h3 className="text-2xl font-bold text-white mb-6">Business Management</h3>
-            <div className="flex justify-center">
-              <button
-                className="bg-white/10 border border-white/20 rounded-3xl p-8 flex flex-col items-center justify-center shadow-xl hover:bg-green-400/10 hover:border-green-400/40 transition-all duration-200 backdrop-blur-xl group focus:outline-none focus:ring-2 focus:ring-green-400 max-w-md"
-                style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}
-                onClick={() => router.push('/business/manage')}
-              >
-                <div className="w-16 h-16 rounded-full bg-green-400/20 flex items-center justify-center mb-6 group-hover:bg-green-400/30 transition-all">
-                  <TrendingUp className="h-10 w-10 text-green-300 group-hover:text-green-400 transition-all" />
-                </div>
-                <span className="text-2xl font-bold text-white mb-2">Manage Business</span>
-                <span className="text-zinc-400 text-base text-center">
-                  Manage your business listings, track performance, and update your company information.
-                </span>
-              </button>
-            </div>
-          </div>
-        )} */}
-
-        {/* Token Portfolio Section */}
-        <div className="mt-12">
+        {/* Token Portfolio Section - Aligned with Investment Options */}
+        <div className="w-full max-w-4xl mx-auto mt-12">
           <TokenBalances
             balance={balance}
             loading={balanceLoading}
