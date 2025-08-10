@@ -3,17 +3,18 @@
 import React, { useState, useEffect } from "react";
 import { getAuth, signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { FaWallet, FaSignOutAlt, FaCopy, FaArrowUp, FaArrowDown, FaUser, FaCheck, FaTimes, FaBars, FaShieldAlt } from "react-icons/fa";
+import { FaArrowUp, FaCheck, FaTimes } from "react-icons/fa";
 import { getFirebaseApp } from "@/lib/firebaseClient";
 import UsernameCard from "@/components/wallet/UsernameCard";
 import BalanceCard from "@/components/wallet/BalanceCard";
 import SendUSDCModal from "@/components/wallet/SendUSDCModal";
 import HamburgerMenu from "@/components/wallet/HamburgerMenu";
-import QuickActions from "@/components/wallet/QuickActions";
 import api from "@/lib/api";
 import TransakWidgetModal from "@/components/wallet/TransakWidgetModal";
+import BuyUSDCModal from "@/components/wallet/BuyUSDCModal";
 import WalletHeader from "@/components/wallet/WalletHeader";
 import SumsubKYCModal from "@/components/wallet/SumsubKYCModal";
+import axios from "axios";
 
 export default function CustomerPage() {
   // --- All state and logic from WalletPage ---
@@ -43,7 +44,8 @@ export default function CustomerPage() {
   const [kycAccessToken, setKycAccessToken] = useState<string | null>(null);
   const [kycStatus, setKycStatus] = useState<string | null>(null);
   const [kycChecking, setKycChecking] = useState(false);
-  const [kycMessage, setKycMessage] = useState<string | null>(null);
+  const [kycMessage, setKycMessage] = useState<string | null>(null)
+  const [fiatData, setFiatData] = useState<any>([]);
   const router = useRouter();
 
   useEffect(() => {
@@ -77,6 +79,16 @@ export default function CustomerPage() {
       const userData = response.data;
       setKycStatus(userData.kyc_status || 'pending');
       
+      var res = await axios.get('https://api-stg.transak.com/fiat/public/v1/currencies/fiat-currencies?apiKey=f4c10825-55fd-4ccc-bd3f-40fc021468e5');
+      var fiatDataMap = []
+      for (const currency of res.data.response) {
+        fiatDataMap.push({
+          name: currency.name,
+          code: currency.symbol,
+          symbol: currency.logoSymbol
+        });
+      }
+      setFiatData(fiatDataMap);
       // Preserve existing wallet data if not in the response
       const currentData = accountData || {};
       const updatedData = { 
@@ -560,15 +572,9 @@ export default function CustomerPage() {
           />
         )}
         {showTransakModal && (
-          <TransakWidgetModal
-            visible={showTransakModal}
+          <BuyUSDCModal
+            fiatData={fiatData}
             onClose={() => setShowTransakModal(false)}
-            userDetails={{
-              walletAddress: accountData?.wallet_address,
-              email: accountData?.email,
-              kycStatus: "approved",
-              userId: accountData?.user_id
-            }}
           />
         )}
       </div>
