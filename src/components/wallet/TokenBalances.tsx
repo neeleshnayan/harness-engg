@@ -269,7 +269,6 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
       {isExpanded && tokenDetails.length > 0 && (
         <div className="space-y-4 mb-6">
           {tokenDetails
-            .filter((tokenDetail) => tokenDetail.token.symbol !== "ETH-SEPOLIA")
             .map((tokenDetail: TokenWithValue, index: number) => (
               <div
                 key={`${tokenDetail.token.id}-${index}`}
@@ -310,7 +309,7 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
       <div className="pt-4 border-t border-zinc-700/50">
         <div className="text-center">
           <p className="text-zinc-400 text-sm">
-            Total tokens: {tokenDetails.filter((token) => token.token.symbol !== "ETH-SEPOLIA").length}
+            Total tokens: {tokenDetails.length}
           </p>
         </div>
       </div>
