@@ -33,7 +33,7 @@ export default function HedgeFundPage() {
   const [userData, setUserData] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [existingSubmission, setExistingSubmission] = useState<any>(null);
-  const [showDashboard, setShowDashboard] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(true);
 
   useEffect(() => {
     const storedUserData = localStorage.getItem('userData');
@@ -43,7 +43,7 @@ export default function HedgeFundPage() {
       
       // Check if user has already submitted a questionnaire
       if (parsedData?.user_id) {
-        checkExistingSubmission(parsedData.user_id);
+        // checkExistingSubmission(parsedData.user_id);
       }
     }
   }, []);
@@ -70,6 +70,7 @@ export default function HedgeFundPage() {
       }
     } catch (err: any) {
       // If 404, user hasn't submitted yet, which is fine
+      setLoading(false);
       if (err.response?.status !== 404) {
         console.error('Error checking existing submission:', err);
       }
