@@ -229,8 +229,8 @@ export default function ManageBusinessPage() {
       for (let tranche of response.data.minting_details.tranche_breakdown) {
         tranches.push({
           minted: tranche.current_supply,
-          raised: Math.log10(tranche.total_raised),
-          price: tranche.price,
+          raised: tranche.total_raised,
+          price: Math.log10(tranche.price),
         });
       }
 
@@ -827,7 +827,8 @@ export default function ManageBusinessPage() {
                           axisLine={false}
                           tickMargin={8}
                           orientation="left"
-                          label={{ value: 'Log10 (Funds Raised in $)', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#98b8eb' } }}
+                          tickFormatter={(value) => (value / 1000000).toString()}
+                          label={{ value: 'Funds Raised ($M)', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#98b8eb' } }}
                         />
                         <YAxis
                           yAxisId="right"
@@ -835,6 +836,7 @@ export default function ManageBusinessPage() {
                           axisLine={false}
                           tickMargin={8}
                           orientation="right"
+                          tickFormatter={(value) => (10 ** value).toString()}
                           label={{ value: 'Token Price ($)', angle: 90, position: 'insideRight', style: { textAnchor: 'middle', fill: '#98b8eb' } }}
                         />
                         <ChartTooltip
@@ -853,13 +855,13 @@ export default function ManageBusinessPage() {
                                 <div className="space-y-2">
                                   <div className="flex items-center gap-2">
                                     <div className="w-3 h-3 rounded-full bg-green-400"></div>
-                                    <span className="text-zinc-300">Log10 (Funds Raised in $):</span>
+                                    <span className="text-zinc-300">Funds Raised ($):</span>
                                     <span className="text-white font-mono ml-auto">{typeof payload[0]?.value === 'number' ? payload[0].value.toFixed(3) : payload[0]?.value}</span>
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <div className="w-3 h-3 rounded-full bg-blue-400"></div>
                                     <span className="text-zinc-300">Token Price ($):</span>
-                                    <span className="text-white font-mono ml-auto">{typeof payload[1]?.value === 'number' ? payload[1].value.toFixed(2) : payload[1]?.value}</span>
+                                    <span className="text-white font-mono ml-auto">{typeof payload[1]?.value === 'number' ? (10 ** payload[1].value).toFixed(2) : payload[1]?.value}</span>
                                   </div>
                                   <div className="flex items-center gap-2 pt-2 border-t border-zinc-600">
                                     <span className="text-zinc-300">Tokens Minted:</span>
