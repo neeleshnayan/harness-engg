@@ -941,26 +941,28 @@ export default function ManageBusinessPage() {
             <div>
               <p className="text-zinc-400 text-sm sm:text-base">Token Price</p>
               <div className="flex items-center gap-2">
-                <p className="text-white font-bold text-base sm:text-lg">${fundraisingData.price.toFixed(2)} USDC</p>
+                <p className="text-white font-bold text-base sm:text-lg">
+                  ${tokenInfo && tokenInfo.price ? Number(tokenInfo.price).toFixed(2) : fundraisingData.price.toFixed(2)} USDC
+                </p>
                 {tokenAddress && (
                   tokenInfoLoading ? (
                     <div className="h-4 w-4 bg-zinc-700/50 rounded animate-pulse"></div>
                   ) : tokenInfo && tokenInfo.initial_price ? (
                     <div className="flex items-center gap-1">
-                      {fundraisingData.price > tokenInfo.initial_price ? (
+                      {(tokenInfo.price || fundraisingData.price) > tokenInfo.initial_price ? (
                         <TrendingUp className="h-4 w-4 text-green-400" />
-                      ) : fundraisingData.price < tokenInfo.initial_price ? (
+                      ) : (tokenInfo.price || fundraisingData.price) < tokenInfo.initial_price ? (
                         <TrendingDown className="h-4 w-4 text-red-400" />
                       ) : null}
                       <span className={`text-xs font-medium ${
-                        fundraisingData.price > tokenInfo.initial_price
+                        (tokenInfo.price || fundraisingData.price) > tokenInfo.initial_price
                           ? 'text-green-400'
-                          : fundraisingData.price < tokenInfo.initial_price
+                          : (tokenInfo.price || fundraisingData.price) < tokenInfo.initial_price
                           ? 'text-red-400'
                           : 'text-zinc-400'
                       }`}>
                         {tokenInfo.initial_price > 0
-                          ? `${((fundraisingData.price - tokenInfo.initial_price) / tokenInfo.initial_price * 100).toFixed(1)}%`
+                          ? `${(((tokenInfo.price || fundraisingData.price) - tokenInfo.initial_price) / tokenInfo.initial_price * 100).toFixed(1)}%`
                           : '0.0%'
                         }
                       </span>
