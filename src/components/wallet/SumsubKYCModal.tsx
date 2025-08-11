@@ -99,6 +99,26 @@ const SumsubKYCModal: React.FC<SumsubKYCModalProps> = ({
     position: 'relative',
   };
 
+  const closeButtonStyles: React.CSSProperties = {
+    position: 'absolute',
+    top: '16px',
+    right: '16px',
+    width: '32px',
+    height: '32px',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    border: 'none',
+    borderRadius: '50%',
+    color: 'white',
+    fontSize: '18px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10001,
+    transition: 'background-color 0.2s ease',
+  };
+
   const widgetContainerStyles: React.CSSProperties = {
     minHeight: '100%',
     display: 'flex',
@@ -130,6 +150,20 @@ const SumsubKYCModal: React.FC<SumsubKYCModalProps> = ({
         overflow-y: auto !important;
       }
     }
+    
+    .sumsub-close-button:hover {
+      background-color: rgba(0, 0, 0, 0.9) !important;
+    }
+    
+    @media (max-width: 768px) {
+      .sumsub-close-button {
+        top: 20px !important;
+        right: 20px !important;
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 20px !important;
+      }
+    }
   `;
 
   return (
@@ -141,6 +175,15 @@ const SumsubKYCModal: React.FC<SumsubKYCModalProps> = ({
           className="sumsub-modal-container"
           onClick={(e) => e.stopPropagation()}
         >
+          {/* Close button */}
+          <button
+            style={closeButtonStyles}
+            className="sumsub-close-button"
+            onClick={onClose}
+            aria-label="Close modal"
+          >
+            ×
+          </button>
           <div 
             style={scrollableContentStyles}
             className="sumsub-scrollable-content"
