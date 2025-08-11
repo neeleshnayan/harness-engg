@@ -204,7 +204,7 @@ export default function BuyTokenModal({ startup, isOpen, onClose, onBuy }: BuyTo
               value={tokenCount}
               onChange={(e) => setTokenCount(e.target.value)}
               placeholder="Enter number of tokens"
-              className="w-full bg-white/5 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
+              className="w-full bg-white/5 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               min="1"
               step="1"
             />
