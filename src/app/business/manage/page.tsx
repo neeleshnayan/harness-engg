@@ -12,6 +12,9 @@ import {
   AlertCircle,
   History,
   UserPlus,
+  TrendingUp,
+  TrendingDown,
+  RefreshCw,
 } from "lucide-react";
 import { MarketplaceItem, MarketplaceService } from "@/lib/marketplace";
 import api from "@/lib/api";
@@ -109,6 +112,9 @@ export default function ManageBusinessPage() {
 
   const [existingBusinessId, setExistingBusinessId] = useState<string | null>(null);
   const [hasExistingAddress, setHasExistingAddress] = useState<boolean>(false);
+  const [tokenAddress, setTokenAddress] = useState<string | null>(null);
+  const [tokenInfo, setTokenInfo] = useState<any>(null);
+  const [tokenInfoLoading, setTokenInfoLoading] = useState<boolean>(false);
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showSavingFundraisingModal, setShowSavingFundraisingModal] = useState(false);
   const [showTokenDeploymentModal, setShowTokenDeploymentModal] = useState(false);
@@ -180,6 +186,19 @@ export default function ManageBusinessPage() {
             try {
               const response = await api.get('/api/v1/smarttoken/token_address/' + business.id);
               setHasExistingAddress(response.data.has_address);
+              if (response.data.has_address && response.data.address) {
+                setTokenAddress(response.data.address);
+                // Fetch token info
+                try {
+                  setTokenInfoLoading(true);
+                  const tokenInfoResponse = await api.get(`/api/v1/smarttoken/token_info/${response.data.address}`);
+                  setTokenInfo(tokenInfoResponse.data);
+                } catch (tokenErr) {
+                  console.error('Failed to fetch token info:', tokenErr);
+                } finally {
+                  setTokenInfoLoading(false);
+                }
+              }
             } catch (err) {
               console.error('Failed to fetch existing address:', err);
             }
@@ -218,6 +237,20 @@ export default function ManageBusinessPage() {
       setTranchingDetails(tranches);
     } catch (err) {
       console.error('Failed to fetch tranching details:', err);
+    }
+  }
+
+  const fetchTokenInfo = async (address: string) => {
+    if (!address) return;
+
+    setTokenInfoLoading(true);
+    try {
+      const response = await api.get(`/api/v1/smarttoken/token_info/${address}`);
+      setTokenInfo(response.data);
+    } catch (err) {
+      console.error('Failed to fetch token info:', err);
+    } finally {
+      setTokenInfoLoading(false);
     }
   }
 
@@ -404,10 +437,17 @@ export default function ManageBusinessPage() {
           initial_value: fundraisingData.price,
           initial_supply: 100, // Default initial supply
           owners: [walletAddress], // User's wallet address as owner
-          business_id: existingBusinessId
+          business_id: existingBusinessId,
+          is_minting_active: fundraisingData.isMintingActive,
         };
 
-        await api.post('/api/v1/smarttoken/deploy_ape', tokenDeploymentData);
+        // Deploy the token and get the response
+        const deploymentResponse = await api.post('/api/v1/smarttoken/deploy_ape', tokenDeploymentData);
+        if (deploymentResponse.data && deploymentResponse.data.address) {
+          setTokenAddress(deploymentResponse.data.address);
+          // Fetch token info for the newly deployed token
+          await fetchTokenInfo(deploymentResponse.data.address);
+        }
 
         const tokenNameElement = document.getElementById("token-name") as HTMLInputElement;
         const tokenPriceElement = document.getElementById("token-price") as HTMLInputElement;
@@ -420,6 +460,11 @@ export default function ManageBusinessPage() {
 
       setSaveSuccess('Fundraising settings saved successfully!');
       setTimeout(() => setSaveSuccess(null), 3000);
+
+      // Refresh token info if we have a token address
+      if (tokenAddress) {
+        await fetchTokenInfo(tokenAddress);
+      }
     } catch (err: any) {
       console.error('Failed to save fundraising settings:', err);
       setSaveError(err.response?.data?.detail || 'Failed to save fundraising settings. Please try again.');
@@ -871,24 +916,94 @@ export default function ManageBusinessPage() {
       </div>
       {/* Fundraising Summary */}
       {fundraisingData.tokenName && fundraisingData.price > 0 && (
-        <div className="p-6 bg-gradient-to-r from-cyan-900/30 to-blue-900/30 border border-cyan-500/30 rounded-2xl shadow-inner">
-          <h3 className="text-xl font-semibold text-white mb-4">Fundraising Summary</h3>
-          <div className="grid grid-cols-2 gap-6">
+        <div className="p-4 sm:p-6 bg-gradient-to-r from-cyan-900/30 to-blue-900/30 border border-cyan-500/30 rounded-2xl shadow-inner">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg sm:text-xl font-semibold text-white">Fundraising Summary</h3>
+            {tokenAddress && (
+              tokenInfoLoading ? (
+                <Loader2 className="h-6 w-6 text-cyan-400 animate-spin" />
+              ) : (
+                <button
+                  onClick={() => fetchTokenInfo(tokenAddress)}
+                  className="p-2 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-400/10 rounded-lg transition-all duration-200 active:scale-95"
+                  title="Refresh token info"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </button>
+              )
+            )}
+          </div>
+          <div className={`grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`}>
             <div>
-              <p className="text-zinc-400 text-base">Token Name</p>
-              <p className="text-white font-bold text-lg">{fundraisingData.tokenName}</p>
+              <p className="text-zinc-400 text-sm sm:text-base">Token Name</p>
+              <p className="text-white font-bold text-base sm:text-lg">{fundraisingData.tokenName}</p>
             </div>
             <div>
-              <p className="text-zinc-400 text-base">Token Price</p>
-              <p className="text-white font-bold text-lg">${fundraisingData.price.toFixed(2)} USDC</p>
+              <p className="text-zinc-400 text-sm sm:text-base">Token Price</p>
+              <div className="flex items-center gap-2">
+                <p className="text-white font-bold text-base sm:text-lg">${fundraisingData.price.toFixed(2)} USDC</p>
+                {tokenAddress && (
+                  tokenInfoLoading ? (
+                    <div className="h-4 w-4 bg-zinc-700/50 rounded animate-pulse"></div>
+                  ) : tokenInfo && tokenInfo.initial_price ? (
+                    <div className="flex items-center gap-1">
+                      {fundraisingData.price > tokenInfo.initial_price ? (
+                        <TrendingUp className="h-4 w-4 text-green-400" />
+                      ) : fundraisingData.price < tokenInfo.initial_price ? (
+                        <TrendingDown className="h-4 w-4 text-red-400" />
+                      ) : null}
+                      <span className={`text-xs font-medium ${
+                        fundraisingData.price > tokenInfo.initial_price
+                          ? 'text-green-400'
+                          : fundraisingData.price < tokenInfo.initial_price
+                          ? 'text-red-400'
+                          : 'text-zinc-400'
+                      }`}>
+                        {tokenInfo.initial_price > 0
+                          ? `${((fundraisingData.price - tokenInfo.initial_price) / tokenInfo.initial_price * 100).toFixed(1)}%`
+                          : '0.0%'
+                        }
+                      </span>
+                    </div>
+                  ) : null
+                )}
+              </div>
             </div>
             <div>
-              <p className="text-zinc-400 text-base">Minting Status</p>
-              <p className={`font-bold text-lg ${fundraisingData.isMintingActive ? 'text-green-400' : 'text-red-400'}`}>{fundraisingData.isMintingActive ? 'Active' : 'Paused'}</p>
+              <p className="text-zinc-400 text-sm sm:text-base">Minting Status</p>
+              <p className={`font-bold text-base sm:text-lg ${fundraisingData.isMintingActive ? 'text-green-400' : 'text-red-400'}`}>{fundraisingData.isMintingActive ? 'Active' : 'Paused'}</p>
             </div>
+            {tokenAddress && (
+              <>
+                <div>
+                  <p className="text-zinc-400 text-sm sm:text-base">Total Raised</p>
+                  {tokenInfoLoading ? (
+                    <div className="h-6 bg-zinc-700/50 rounded animate-pulse"></div>
+                  ) : tokenInfo ? (
+                    <p className="text-white font-bold text-base sm:text-lg">
+                      ${tokenInfo.total_raised ? Number(tokenInfo.total_raised).toFixed(2) : '0.00'} USDC
+                    </p>
+                  ) : (
+                    <p className="text-zinc-500 text-sm">Not available</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-zinc-400 text-sm sm:text-base">Number of Investors</p>
+                  {tokenInfoLoading ? (
+                    <div className="h-6 bg-zinc-700/50 rounded animate-pulse"></div>
+                  ) : tokenInfo ? (
+                    <p className="text-white font-bold text-base sm:text-lg">
+                      {tokenInfo.holders ? Object.keys(tokenInfo.holders).length : 0}
+                    </p>
+                  ) : (
+                    <p className="text-zinc-500 text-sm">Not available</p>
+                  )}
+                </div>
+              </>
+            )}
             <div>
-              <p className="text-zinc-400 text-base">Marketplace Status</p>
-              <p className="text-green-400 font-bold text-lg">Live</p>
+              <p className="text-zinc-400 text-sm sm:text-base">Marketplace Status</p>
+              <p className="text-green-400 font-bold text-base sm:text-lg">Live</p>
             </div>
           </div>
         </div>
