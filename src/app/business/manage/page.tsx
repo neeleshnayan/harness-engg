@@ -17,7 +17,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { MarketplaceItem, MarketplaceService } from "@/lib/marketplace";
-import api from "@/lib/api";
+import api, { getTokenInfo } from "@/lib/api";
 import {
   Card,
   CardContent,
@@ -191,8 +191,8 @@ export default function ManageBusinessPage() {
                 // Fetch token info
                 try {
                   setTokenInfoLoading(true);
-                  const tokenInfoResponse = await api.get(`/api/v1/smarttoken/token_info/${response.data.address}`);
-                  setTokenInfo(tokenInfoResponse.data);
+                  const tokenInfoData = await getTokenInfo(response.data.address);
+                  setTokenInfo(tokenInfoData);
                 } catch (tokenErr) {
                   console.error('Failed to fetch token info:', tokenErr);
                 } finally {
@@ -245,8 +245,8 @@ export default function ManageBusinessPage() {
 
     setTokenInfoLoading(true);
     try {
-      const response = await api.get(`/api/v1/smarttoken/token_info/${address}`);
-      setTokenInfo(response.data);
+      const tokenInfoData = await getTokenInfo(address);
+      setTokenInfo(tokenInfoData);
     } catch (err) {
       console.error('Failed to fetch token info:', err);
     } finally {

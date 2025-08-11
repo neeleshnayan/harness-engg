@@ -60,4 +60,15 @@ export const getUserInfo = async (userId: string) => {
   }
 };
 
+// Helper function to get token info
+export const getTokenInfo = async (tokenAddress: string) => {
+  try {
+    const response = await api.get(`/api/v1/smarttoken/token_info/${tokenAddress}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting token info:', error);
+    throw error;
+  }
+};
+
 export default api;

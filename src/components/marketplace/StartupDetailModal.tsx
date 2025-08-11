@@ -1,9 +1,24 @@
 "use client";
 
-import React, { useState } from "react";
-import { X, ExternalLink, DollarSign, Tag, Globe, Linkedin, Youtube, Twitter, Play } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { X, ExternalLink, DollarSign, Tag, Globe, Linkedin, Youtube, Twitter, Play, Users, TrendingUp } from "lucide-react";
 import { MarketplaceItem } from "@/lib/marketplace";
+import { getTokenInfo } from "@/lib/api";
 import BuyTokenModal from "./BuyTokenModal";
+
+interface TokenInfo {
+  name: string;
+  symbol: string;
+  initial_price: number;
+  initial_supply: number;
+  supply: number;
+  price: number;
+  owners: string[];
+  business_id: string;
+  deployed_at: string;
+  holders: Record<string, number>;
+  total_raised?: number;
+}
 
 interface StartupDetailModalProps {
   startup: MarketplaceItem | null;
@@ -14,6 +29,37 @@ interface StartupDetailModalProps {
 
 export default function StartupDetailModal({ startup, isOpen, onClose, onBuy }: StartupDetailModalProps) {
   const [showBuyModal, setShowBuyModal] = useState(false);
+  const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
+  const [isLoadingTokenInfo, setIsLoadingTokenInfo] = useState(false);
+  const [tokenInfoError, setTokenInfoError] = useState<string | null>(null);
+
+  // Fetch token info when modal opens and startup has an address
+  useEffect(() => {
+    const fetchTokenInfo = async () => {
+      if (!startup?.address) {
+        setTokenInfo(null);
+        setIsLoadingTokenInfo(false);
+        return;
+      }
+
+      setIsLoadingTokenInfo(true);
+      setTokenInfoError(null);
+
+      try {
+        const data = await getTokenInfo(startup.address);
+        setTokenInfo(data);
+      } catch (error) {
+        console.error('Error fetching token info:', error);
+        setTokenInfoError('Failed to load token information');
+      } finally {
+        setIsLoadingTokenInfo(false);
+      }
+    };
+
+    if (isOpen && startup) {
+      fetchTokenInfo();
+    }
+  }, [isOpen, startup]);
 
   if (!isOpen || !startup) return null;
 
@@ -38,24 +84,27 @@ export default function StartupDetailModal({ startup, isOpen, onClose, onBuy }: 
   // Function to extract YouTube video ID from URL
   const getYouTubeVideoId = (url: string): string | null => {
     if (!url) return null;
-    
+
     // More comprehensive regex pattern for YouTube URLs
     const patterns = [
       /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/watch\?.*&v=)([^#&?]*)/,
       /youtube\.com\/watch\?.*v=([^#&?]*)/
     ];
-    
+
     for (const pattern of patterns) {
       const match = url.match(pattern);
       if (match && match[1] && match[1].length === 11) {
         return match[1];
       }
     }
-    
+
     return null;
   };
 
   const pitchVideoId = startup.pitch_video ? getYouTubeVideoId(startup.pitch_video) : null;
+
+  // Calculate number of investors from holders
+  const numberOfInvestors = tokenInfo?.holders ? Object.keys(tokenInfo.holders).length : 0;
 
   return (
     <>
@@ -104,7 +153,7 @@ export default function StartupDetailModal({ startup, isOpen, onClose, onBuy }: 
               </div>
             </div>
           )}
-          
+
           {/* Debug: Show pitch video info even if ID extraction fails */}
           {startup.pitch_video && !pitchVideoId && (
             <div className="mb-8">
@@ -113,9 +162,9 @@ export default function StartupDetailModal({ startup, isOpen, onClose, onBuy }: 
                 <p className="text-red-400 text-sm">
                   Video URL detected but could not extract video ID: {startup.pitch_video}
                 </p>
-                <a 
-                  href={startup.pitch_video} 
-                  target="_blank" 
+                <a
+                  href={startup.pitch_video}
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="text-cyan-400 hover:text-cyan-300 underline mt-2 inline-block"
                 >
@@ -128,26 +177,83 @@ export default function StartupDetailModal({ startup, isOpen, onClose, onBuy }: 
           {/* Token Information */}
           <div className="mb-8">
             <h3 className="text-lg font-semibold text-white mb-3">Token Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                <div className="flex items-center gap-2 text-zinc-400 mb-1">
-                  <Tag className="h-4 w-4" />
-                  <span className="text-sm">Token Name</span>
-                </div>
-                <p className="text-white font-semibold">
-                  {startup.token_name || "Not specified"}
-                </p>
+
+            {/* Show loading state only if we have an address and are fetching token info */}
+            {startup.address && isLoadingTokenInfo ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[...Array(4)].map((_, index) => (
+                  <div key={index} className="bg-white/5 border border-white/10 rounded-xl p-4 animate-pulse">
+                    <div className="h-4 bg-white/20 rounded mb-2"></div>
+                    <div className="h-6 bg-white/20 rounded"></div>
+                  </div>
+                ))}
               </div>
-              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                <div className="flex items-center gap-2 text-zinc-400 mb-1">
-                  <DollarSign className="h-4 w-4" />
-                  <span className="text-sm">Token Price</span>
-                </div>
-                <p className="text-green-400 font-semibold">
-                  ${startup.price.toLocaleString()}
-                </p>
+            ) : startup.address && tokenInfoError ? (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+                <p className="text-red-400 text-sm">{tokenInfoError}</p>
               </div>
-            </div>
+            ) : startup.address && tokenInfo ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="flex items-center gap-2 text-zinc-400 mb-1">
+                    <Tag className="h-4 w-4" />
+                    <span className="text-sm">Token Symbol</span>
+                  </div>
+                  <p className="text-white font-semibold">
+                    {tokenInfo.symbol || "Not specified"}
+                  </p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="flex items-center gap-2 text-zinc-400 mb-1">
+                    <DollarSign className="h-4 w-4" />
+                    <span className="text-sm">Token Price</span>
+                  </div>
+                  <p className="text-green-400 font-semibold">
+                    ${tokenInfo.price.toLocaleString()}
+                  </p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="flex items-center gap-2 text-zinc-400 mb-1">
+                    <TrendingUp className="h-4 w-4" />
+                    <span className="text-sm">Total Raised</span>
+                  </div>
+                  <p className="text-cyan-400 font-semibold">
+                    ${tokenInfo.total_raised ? tokenInfo.total_raised.toLocaleString() : '0'}
+                  </p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="flex items-center gap-2 text-zinc-400 mb-1">
+                    <Users className="h-4 w-4" />
+                    <span className="text-sm">Number of Investors</span>
+                  </div>
+                  <p className="text-purple-400 font-semibold">
+                    {numberOfInvestors}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              // Fallback: Show basic info when no address or token info available
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="flex items-center gap-2 text-zinc-400 mb-1">
+                    <Tag className="h-4 w-4" />
+                    <span className="text-sm">Token Name</span>
+                  </div>
+                  <p className="text-white font-semibold">
+                    {startup?.token_name || "Not specified"}
+                  </p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="flex items-center gap-2 text-zinc-400 mb-1">
+                    <DollarSign className="h-4 w-4" />
+                    <span className="text-sm">Token Price</span>
+                  </div>
+                  <p className="text-green-400 font-semibold">
+                    {startup?.address ? `$${startup.price.toLocaleString()}` : "—"}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Social Media Links */}
@@ -229,4 +335,4 @@ export default function StartupDetailModal({ startup, isOpen, onClose, onBuy }: 
       />
     </>
   );
-} 
+}
