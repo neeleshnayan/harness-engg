@@ -19,6 +19,8 @@ interface Transaction {
   tx_hash: string | null;
   blockchain: string;
   block_height: number | null;
+  from_name: string | null;
+  to_name: string | null;
 }
 
 interface TransactionHistoryProps {
@@ -84,7 +86,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
       ? 'https://sepolia.etherscan.io/tx/'
       : '';
     const upperStatus = status?.toUpperCase();
-    
+
     // Helper function to create clickable icon
     const createClickableIcon = (IconComponent: any, color: string, title: string) => {
       if (txHash) {
@@ -107,7 +109,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
         );
       }
     };
-    
+
     // Status mapping
     switch (upperStatus) {
       case 'INITIATED':
@@ -137,8 +139,8 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
 
   const getTransactionTypeIcon = (type: string | null, large = false) => {
     if (!type) return null;
-    return type.toUpperCase() === 'INBOUND' ? 
-      <ArrowDownLeft className={large ? 'h-6 w-6 text-green-600' : 'h-5 w-5 text-green-600'} /> : 
+    return type.toUpperCase() === 'INBOUND' ?
+      <ArrowDownLeft className={large ? 'h-6 w-6 text-green-600' : 'h-5 w-5 text-green-600'} /> :
       <ArrowUpRight className={large ? 'h-6 w-6 text-red-600' : 'h-5 w-5 text-red-600'} />;
   };
 
@@ -198,7 +200,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
   };
 
   const isInbound = (transaction: Transaction) => {
-    return transaction.transaction_type?.toUpperCase() === 'INBOUND' || 
+    return transaction.transaction_type?.toUpperCase() === 'INBOUND' ||
            transaction.to_address === userWalletAddress;
   };
 
@@ -228,13 +230,14 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
     );
   }
 
+  var zeroAddress = '0x0000000000000000000000000000000000000000';
   if (transactions.length > 0 && nextPageToken) {
     return (
       <>
         <div className="rounded-xl border border-white/10 bg-black/30">
           {transactions.map((tx, idx) => {
             const inbound = isInbound(tx);
-            const counterpartyAddress = inbound ? tx.from_address : tx.to_address;
+            const counterpartyAddress = inbound ? (tx.from_address == zeroAddress ? tx.from_name : tx.from_address) : tx.to_address;
             const counterpartyUsername = inbound ? tx.from_username : tx.to_username;
             const displayInfo = getDisplayName(counterpartyAddress, counterpartyUsername);
             const amount = tx.amount || '0';
@@ -253,8 +256,8 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
                   {formatAmount(amount, tx.token_name, inbound)}
                 </span>
                     <span className="text-zinc-400 text-xs truncate">
-                      {inbound ? 'From' : 'To'}: 
-                      <span 
+                      {inbound ? 'From: ' : 'To: '}
+                      <span
                         className={`${displayInfo.isUsername ? 'text-cyan-400 font-medium' : 'text-zinc-300'} flex items-center gap-1`}
                         title={displayInfo.fullAddress ? `Wallet: ${displayInfo.fullAddress}` : undefined}
                       >
@@ -296,7 +299,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
     <div className="rounded-xl border border-white/10 bg-black/30">
       {transactions.map((tx, idx) => {
         const inbound = isInbound(tx);
-        const counterpartyAddress = inbound ? tx.from_address : tx.to_address;
+        const counterpartyAddress = inbound ? (tx.from_address == zeroAddress ? tx.from_name : tx.from_address) : tx.to_address;
         const counterpartyUsername = inbound ? tx.from_username : tx.to_username;
         const displayInfo = getDisplayName(counterpartyAddress, counterpartyUsername);
         const amount = tx.amount || '0';
@@ -315,8 +318,8 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
                   {formatAmount(amount, tx.token_name, inbound)}
                 </span>
                 <span className="text-zinc-400 text-xs truncate">
-                  {inbound ? 'From' : 'To'}: 
-                  <span 
+                  {inbound ? 'From: ' : 'To: '}
+                  <span
                     className={`${displayInfo.isUsername ? 'text-cyan-400 font-medium' : 'text-zinc-300'}`}
                     title={displayInfo.fullAddress ? `Wallet: ${displayInfo.fullAddress}` : undefined}
                   >
@@ -341,4 +344,4 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
   );
 };
 
-export default TransactionHistory; 
+export default TransactionHistory;
