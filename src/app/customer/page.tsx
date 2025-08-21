@@ -575,6 +575,7 @@ export default function CustomerPage() {
           <BuyUSDCModal
             fiatData={fiatData}
             onClose={() => setShowTransakModal(false)}
+            walletAddress={accountData?.wallet_address}
           />
         )}
       </div>
