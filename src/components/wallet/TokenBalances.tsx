@@ -180,6 +180,8 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
       const amount = parseFloat(tokenBalance.amount);
       return !isNaN(amount) && amount > 0;
     });
+    console.log(balance)
+    console.log(balances)
     balances = mergeTrnskIntoUsdc(balances)
     return balances
   };

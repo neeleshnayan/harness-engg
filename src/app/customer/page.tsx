@@ -15,6 +15,14 @@ import BuyUSDCModal from "@/components/wallet/BuyUSDCModal";
 import WalletHeader from "@/components/wallet/WalletHeader";
 import SumsubKYCModal from "@/components/wallet/SumsubKYCModal";
 import axios from "axios";
+import { Alchemy, AlchemySubscription, Network } from "alchemy-sdk";
+
+const settings = {
+  apiKey: "hV61tl0KwMC2NDM5gCs0i",
+  network: Network.ETH_SEPOLIA,  // or whichever network you're monitoring
+};
+
+const alchemy = new Alchemy(settings);
 
 export default function CustomerPage() {
   // --- All state and logic from WalletPage ---
@@ -46,6 +54,7 @@ export default function CustomerPage() {
   const [kycChecking, setKycChecking] = useState(false);
   const [kycMessage, setKycMessage] = useState<string | null>(null)
   const [fiatData, setFiatData] = useState<any>([]);
+  const [wsSubscription, setWsSubscription] = useState<any>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -63,6 +72,8 @@ export default function CustomerPage() {
       }
       if (data.wallet_address) {
         fetchBalance(data.wallet_address);
+        // Set up WebSocket subscription for wallet address
+        setupWebSocketSubscription(data.wallet_address);
       }
       // Don't show error if wallet address is missing - it will be fetched by fetchUserData
     } catch (err) {
@@ -71,6 +82,51 @@ export default function CustomerPage() {
       setLoading(false);
     }
   }, [router]);
+
+  // Cleanup WebSocket subscription on unmount
+  useEffect(() => {
+    return () => {
+      if (wsSubscription) {
+        wsSubscription.remove();
+      }
+    };
+  }, [wsSubscription]);
+
+  const setupWebSocketSubscription = (walletAddress: string) => {
+    if (!walletAddress) return;
+
+    try {
+      const subscription = alchemy.ws.on(
+        {
+          method: AlchemySubscription.MINED_TRANSACTIONS,
+          addresses: [
+            {
+              from: walletAddress,
+            },
+            {
+              to: walletAddress,
+            },
+          ],
+          includeRemoved: true,
+          hashesOnly: false,
+        },
+        (tx) => {
+          console.log('Transaction detected:', tx);
+          // Refresh balance and transaction history when a transaction is received
+          if (accountData?.wallet_address) {
+            fetchBalance(accountData.wallet_address);
+            // Trigger transaction history refresh
+            setTransactionHistoryRefresh(prev => !prev);
+          }
+        }
+      );
+      
+      setWsSubscription(subscription);
+      console.log('WebSocket subscription set up for wallet:', walletAddress);
+    } catch (error) {
+      console.error('Failed to set up WebSocket subscription:', error);
+    }
+  };
 
   const fetchUserData = async (userId: string) => {
     try {
@@ -108,6 +164,8 @@ export default function CustomerPage() {
       // If we have a wallet address and it's not already being fetched, fetch balance
       if (updatedData.wallet_address && !balance) {
         fetchBalance(updatedData.wallet_address);
+        // Set up WebSocket subscription for new wallet address
+        setupWebSocketSubscription(updatedData.wallet_address);
       }
       
       // If user has username but KYC is not approved, check status
@@ -575,6 +633,7 @@ export default function CustomerPage() {
           <BuyUSDCModal
             fiatData={fiatData}
             onClose={() => setShowTransakModal(false)}
+            walletAddress={accountData?.wallet_address}
           />
         )}
       </div>
