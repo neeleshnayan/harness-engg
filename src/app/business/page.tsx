@@ -86,9 +86,9 @@ export default function BusinessPage() {
   // Cleanup WebSocket subscription on unmount
   useEffect(() => {
     return () => {
-      if (wsSubscription) {
-        wsSubscription.remove();
-      }
+      // if (wsSubscription) {
+      //   wsSubscription.remove();
+      // }
     };
   }, [wsSubscription]);
 

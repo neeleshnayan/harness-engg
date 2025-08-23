@@ -15,14 +15,7 @@ import BuyUSDCModal from "@/components/wallet/BuyUSDCModal";
 import WalletHeader from "@/components/wallet/WalletHeader";
 import SumsubKYCModal from "@/components/wallet/SumsubKYCModal";
 import axios from "axios";
-import { Alchemy, AlchemySubscription, Network } from "alchemy-sdk";
-
-const settings = {
-  apiKey: "hV61tl0KwMC2NDM5gCs0i",
-  network: Network.ETH_SEPOLIA,  // or whichever network you're monitoring
-};
-
-const alchemy = new Alchemy(settings);
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 export default function CustomerPage() {
   // --- All state and logic from WalletPage ---
@@ -54,8 +47,69 @@ export default function CustomerPage() {
   const [kycChecking, setKycChecking] = useState(false);
   const [kycMessage, setKycMessage] = useState<string | null>(null)
   const [fiatData, setFiatData] = useState<any>([]);
-  const [wsSubscription, setWsSubscription] = useState<any>(null);
+  const [webhookNotification, setWebhookNotification] = useState<string | null>(null);
   const router = useRouter();
+
+  // WebSocket connection for real-time webhook updates
+  const { isConnected: wsConnected, connectionStatus, reconnect: wsReconnect } = useWebSocket(
+    `${process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace('https://', 'wss://').replace('http://', 'ws://') : 'wss://api.kryptonfund.com'}/api/v1/ws`,
+    {
+      onMessage: (message) => {
+        console.log('WebSocket message received:', message);
+        
+        if (message.type === 'circle_webhook') {
+          console.log('Circle webhook received via WebSocket:', message);
+          
+          // Show notification to user
+          let notificationText = '';
+          if (message.event_type === 'INBOUND') {
+            notificationText = 'New transaction received! Refreshing balance...';
+          } else if (message.event_type === 'wallet.created') {
+            notificationText = 'Wallet created! Refreshing data...';
+          } else if (message.event_type === 'wallet.updated') {
+            notificationText = 'Wallet updated! Refreshing data...';
+          }
+          
+          if (notificationText) {
+            setWebhookNotification(notificationText);
+            setTimeout(() => setWebhookNotification(null), 5000);
+          }
+          
+          // Automatically refresh balance and user data
+          if (accountData?.wallet_address && message.address === accountData.wallet_address) {
+            console.log('Auto-refreshing balance due to webhook event');
+            fetchBalance(accountData.wallet_address);
+          }
+          if (accountData?.user_id) {
+            console.log('Auto-refreshing user data due to webhook event');
+            fetchUserData(accountData.user_id);
+          }
+          
+          // Also refresh transaction history if it's open
+          if (showTransactions) {
+            setTransactionHistoryRefresh(prev => !prev);
+          }
+        }
+      },
+      onOpen: () => {
+        console.log('WebSocket connected - listening for webhook events');
+        setWebhookNotification('WebSocket connected successfully!');
+        setTimeout(() => setWebhookNotification(null), 3000);
+      },
+      onClose: () => {
+        console.log('WebSocket disconnected');
+      },
+      onError: (error) => {
+        console.error('WebSocket error:', error);
+        console.error('WebSocket error details:', {
+          error,
+          errorType: error.type,
+          errorTarget: error.target,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+  );
 
   useEffect(() => {
     const userData = localStorage.getItem('userData');
@@ -72,8 +126,6 @@ export default function CustomerPage() {
       }
       if (data.wallet_address) {
         fetchBalance(data.wallet_address);
-        // Set up WebSocket subscription for wallet address
-        setupWebSocketSubscription(data.wallet_address);
       }
       // Don't show error if wallet address is missing - it will be fetched by fetchUserData
     } catch (err) {
@@ -82,51 +134,6 @@ export default function CustomerPage() {
       setLoading(false);
     }
   }, [router]);
-
-  // Cleanup WebSocket subscription on unmount
-  useEffect(() => {
-    return () => {
-      if (wsSubscription) {
-        wsSubscription.remove();
-      }
-    };
-  }, [wsSubscription]);
-
-  const setupWebSocketSubscription = (walletAddress: string) => {
-    if (!walletAddress) return;
-
-    try {
-      const subscription = alchemy.ws.on(
-        {
-          method: AlchemySubscription.MINED_TRANSACTIONS,
-          addresses: [
-            {
-              from: walletAddress,
-            },
-            {
-              to: walletAddress,
-            },
-          ],
-          includeRemoved: true,
-          hashesOnly: false,
-        },
-        (tx) => {
-          console.log('Transaction detected:', tx);
-          // Refresh balance and transaction history when a transaction is received
-          if (accountData?.wallet_address) {
-            fetchBalance(accountData.wallet_address);
-            // Trigger transaction history refresh
-            setTransactionHistoryRefresh(prev => !prev);
-          }
-        }
-      );
-      
-      setWsSubscription(subscription);
-      console.log('WebSocket subscription set up for wallet:', walletAddress);
-    } catch (error) {
-      console.error('Failed to set up WebSocket subscription:', error);
-    }
-  };
 
   const fetchUserData = async (userId: string) => {
     try {
@@ -164,8 +171,6 @@ export default function CustomerPage() {
       // If we have a wallet address and it's not already being fetched, fetch balance
       if (updatedData.wallet_address && !balance) {
         fetchBalance(updatedData.wallet_address);
-        // Set up WebSocket subscription for new wallet address
-        setupWebSocketSubscription(updatedData.wallet_address);
       }
       
       // If user has username but KYC is not approved, check status
@@ -539,6 +544,76 @@ export default function CustomerPage() {
           onLogout={handleLogout}
           onMenuToggle={() => setShowMenu(!showMenu)}
         />
+        
+        {/* WebSocket Connection Status */}
+        {/* <div className="fixed top-20 right-4 z-50">
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs font-medium ${
+            connectionStatus === 'connected'
+              ? 'bg-green-900/30 text-green-400 border border-green-700/50' 
+              : connectionStatus === 'connecting'
+              ? 'bg-yellow-900/30 text-yellow-400 border border-yellow-700/50'
+              : connectionStatus === 'error'
+              ? 'bg-red-900/30 text-red-400 border border-red-700/50'
+              : 'bg-zinc-900/30 text-zinc-400 border border-zinc-700/50'
+          }`}>
+            <div className={`w-2 h-2 rounded-full ${
+              connectionStatus === 'connected' ? 'bg-green-400' 
+              : connectionStatus === 'connecting' ? 'bg-yellow-400 animate-pulse'
+              : connectionStatus === 'error' ? 'bg-red-400'
+              : 'bg-zinc-400'
+            }`}></div>
+            {connectionStatus === 'connected' ? 'Live' 
+             : connectionStatus === 'connecting' ? 'Connecting...'
+             : connectionStatus === 'error' ? 'Error'
+             : 'Offline'}
+          </div>
+          <div className="text-xs text-zinc-500 mt-1 text-center">
+            WebSocket
+          </div>
+          {connectionStatus === 'error' && (
+            <button
+              onClick={wsReconnect}
+              className="mt-2 w-full bg-red-600 hover:bg-red-700 text-white text-xs px-2 py-1 rounded transition-colors"
+            >
+              Reconnect
+            </button>
+          )}
+          <div className="text-xs text-zinc-500 mt-1 text-center">
+            {wsConnected ? 'Connected' : 'Disconnected'}
+          </div>
+        </div> */}
+        
+        {/* Webhook Notification */}
+        {/* {webhookNotification && (
+          <div className="fixed top-32 right-4 z-50 max-w-sm">
+            <div className="bg-blue-900/30 border border-blue-700/50 text-blue-400 px-4 py-3 rounded-lg shadow-lg backdrop-blur-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium">{webhookNotification}</span>
+              </div>
+            </div>
+          </div>
+        )} */}
+        
+        {/* Manual Refresh Button */}
+        <div className="fixed top-44 right-4 z-50">
+          <button
+            onClick={() => {
+              if (accountData?.wallet_address) {
+                fetchBalance(accountData.wallet_address);
+              }
+              if (accountData?.user_id) {
+                fetchUserData(accountData.user_id);
+              }
+              setWebhookNotification('Manually refreshing data...');
+              setTimeout(() => setWebhookNotification(null), 2000);
+            }}
+            className="bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700/50 text-zinc-300 hover:text-white px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 backdrop-blur-sm"
+            title="Refresh data manually"
+          >
+            🔄 Refresh
+          </button>
+        </div>
         <HamburgerMenu 
           visible={showMenu} 
           onClose={() => setShowMenu(false)}
@@ -633,7 +708,6 @@ export default function CustomerPage() {
           <BuyUSDCModal
             fiatData={fiatData}
             onClose={() => setShowTransakModal(false)}
-            walletAddress={accountData?.wallet_address}
           />
         )}
       </div>
