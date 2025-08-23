@@ -15,14 +15,7 @@ import WalletHeader from "@/components/wallet/WalletHeader";
 import SumsubKYCModal from "@/components/wallet/SumsubKYCModal";
 import BuyUSDCModal from "@/components/wallet/BuyUSDCModal";
 import axios from "axios";
-import { Alchemy, AlchemySubscription, Network } from "alchemy-sdk";
-
-const settings = {
-  apiKey: "hV61tl0KwMC2NDM5gCs0i",
-  network: Network.ETH_SEPOLIA,  // or whichever network you're monitoring
-};
-
-const alchemy = new Alchemy(settings);
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 export default function BusinessPage() {
   // --- All state and logic from WalletPage ---
@@ -54,8 +47,69 @@ export default function BusinessPage() {
   const [kycMessage, setKycMessage] = useState<string | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [fiatData, setFiatData] = useState<any>([]);
-  const [wsSubscription, setWsSubscription] = useState<any>(null);
+  const [webhookNotification, setWebhookNotification] = useState<string | null>(null);
   const router = useRouter();
+
+  // WebSocket connection for real-time webhook updates
+  const { isConnected: wsConnected, connectionStatus, reconnect: wsReconnect } = useWebSocket(
+    `${process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace('https://', 'wss://').replace('http://', 'ws://') : 'wss://api.kryptonfund.com'}/api/v1/ws`,
+    {
+      onMessage: (message) => {
+        // console.log('WebSocket message received:', message);
+        
+        if (message.type === 'circle_webhook') {
+          // console.log('Circle webhook received via WebSocket:', message);
+          
+          // Show notification to user
+          let notificationText = '';
+          if (message.event_type === 'INBOUND') {
+            notificationText = 'New transaction received! Refreshing balance...';
+          } else if (message.event_type === 'wallet.created') {
+            notificationText = 'Wallet created! Refreshing data...';
+          } else if (message.event_type === 'wallet.updated') {
+            notificationText = 'Wallet updated! Refreshing data...';
+          }
+          
+          if (notificationText) {
+            setWebhookNotification(notificationText);
+            setTimeout(() => setWebhookNotification(null), 5000);
+          }
+          
+          // Automatically refresh balance and user data
+          if (accountData?.wallet_address && message.address === accountData.wallet_address) {
+            // console.log('Auto-refreshing balance due to webhook event');
+            fetchBalance(accountData.wallet_address);
+          }
+          if (accountData?.user_id) {
+            // console.log('Auto-refreshing user data due to webhook event');
+            fetchUserData(accountData.user_id);
+          }
+          
+          // Also refresh transaction history if it's open
+          if (showTransactions) {
+            setTransactionHistoryRefresh(prev => !prev);
+          }
+        }
+      },
+      onOpen: () => {
+        // console.log('WebSocket connected - listening for webhook events');
+        setWebhookNotification('WebSocket connected successfully!');
+        setTimeout(() => setWebhookNotification(null), 3000);
+      },
+      onClose: () => {
+        // console.log('WebSocket disconnected');
+      },
+      onError: (error) => {
+        console.error('WebSocket error:', error);
+        console.error('WebSocket error details:', {
+          error,
+          errorType: error.type,
+          errorTarget: error.target,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+  );
 
   useEffect(() => {
     const userData = localStorage.getItem('userData');
@@ -72,8 +126,6 @@ export default function BusinessPage() {
       }
       if (data.wallet_address) {
         fetchBalance(data.wallet_address);
-        // Set up WebSocket subscription for wallet address
-        setupWebSocketSubscription(data.wallet_address);
       }
       // Don't show error if wallet address is missing - it will be fetched by fetchUserData
     } catch (err) {
@@ -82,51 +134,6 @@ export default function BusinessPage() {
       setLoading(false);
     }
   }, [router]);
-
-  // Cleanup WebSocket subscription on unmount
-  useEffect(() => {
-    return () => {
-      // if (wsSubscription) {
-      //   wsSubscription.remove();
-      // }
-    };
-  }, [wsSubscription]);
-
-  const setupWebSocketSubscription = (walletAddress: string) => {
-    if (!walletAddress) return;
-
-    try {
-      const subscription = alchemy.ws.on(
-        {
-          method: AlchemySubscription.MINED_TRANSACTIONS,
-          addresses: [
-            {
-              from: walletAddress,
-            },
-            {
-              to: walletAddress,
-            },
-          ],
-          includeRemoved: true,
-          hashesOnly: false,
-        },
-        (tx) => {
-          console.log('Transaction detected:', tx);
-          // Refresh balance and transaction history when a transaction is received
-          if (accountData?.wallet_address) {
-            fetchBalance(accountData.wallet_address);
-            // Trigger transaction history refresh
-            setTransactionHistoryRefresh(prev => !prev);
-          }
-        }
-      );
-      
-      setWsSubscription(subscription);
-      console.log('WebSocket subscription set up for wallet:', walletAddress);
-    } catch (error) {
-      console.error('Failed to set up WebSocket subscription:', error);
-    }
-  };
 
   const fetchUserData = async (userId: string) => {
     try {
@@ -165,8 +172,6 @@ export default function BusinessPage() {
       // If we have a wallet address and it's not already being fetched, fetch balance
       if (updatedData.wallet_address && !balance) {
         fetchBalance(updatedData.wallet_address);
-        // Set up WebSocket subscription for new wallet address
-        setupWebSocketSubscription(updatedData.wallet_address);
       }
       
       // If user has username but KYC is not approved, check status
@@ -587,6 +592,8 @@ export default function BusinessPage() {
             kycStatus={kycStatus}
             onKycClick={() => openKycModal(accountData?.user_id)}
             onRefreshKyc={() => accountData?.user_id && fetchUserData(accountData.user_id)}
+            onCheckKycStatus={() => accountData?.user_id && checkKycStatus(accountData.user_id)}
+            kycChecking={kycChecking}
             kycMessage={kycMessage}
             onBuyClick={() => setShowTransakModal(true)}
             onSkipKyc={() => accountData?.user_id && skipKyc(accountData.user_id)}

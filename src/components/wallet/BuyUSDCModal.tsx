@@ -15,6 +15,7 @@ interface BuyUSDCModalProps {
   walletAddress?: string;
 }
 
+const TRANSAK_PARTNER_API_KEY = process.env.TRANSAK_PARTNER_API_KEY;
 const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose, walletAddress }) => {
   const [selectedCurrency, setSelectedCurrency] = useState<string>(
     fiatData[0]?.code || "EUR"
@@ -49,7 +50,7 @@ const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose, walletAd
       setLoading(true);
       try {
         const transakResponse = await axios.get(
-          `https://api-stg.transak.com/api/v1/pricing/public/quotes?partnerApiKey=f4c10825-55fd-4ccc-bd3f-40fc021468e5&fiatCurrency=${selectedCurrency}&cryptoCurrency=USDC&fiatAmount=${amount}&isBuyOrSell=BUY&network=ethereum&paymentMethod=credit_debit_card`
+          `https://api-stg.transak.com/api/v1/pricing/public/quotes?partnerApiKey=${TRANSAK_PARTNER_API_KEY}&fiatCurrency=${selectedCurrency}&cryptoCurrency=USDC&fiatAmount=${amount}&isBuyOrSell=BUY&network=ethereum&paymentMethod=credit_debit_card`
         );
         
         const coinbaseQuoteResponse = await fetch('https://api.developer.coinbase.com/onramp/v1/buy/quote', {
@@ -64,7 +65,7 @@ const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose, walletAd
             destinationAddress: walletAddress || ''
           }),
           headers: {
-            Authorization: `Bearer XPGt5SREGfGGfgXf6SWACggGkjh3HwQE`,
+            Authorization: `Bearer ${process.env.COINBASE_API_KEY}`,
           },
         });
         const coinbaseQuote = await coinbaseQuoteResponse.json();

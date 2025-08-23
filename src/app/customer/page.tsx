@@ -10,12 +10,24 @@ import BalanceCard from "@/components/wallet/BalanceCard";
 import SendUSDCModal from "@/components/wallet/SendUSDCModal";
 import HamburgerMenu from "@/components/wallet/HamburgerMenu";
 import api from "@/lib/api";
-import TransakWidgetModal from "@/components/wallet/TransakWidgetModal";
 import BuyUSDCModal from "@/components/wallet/BuyUSDCModal";
 import WalletHeader from "@/components/wallet/WalletHeader";
 import SumsubKYCModal from "@/components/wallet/SumsubKYCModal";
 import axios from "axios";
 import { useWebSocket } from "@/hooks/useWebSocket";
+
+import { 
+  setUserContext, 
+  clearUserContext, 
+  captureError, 
+  captureAPIError, 
+  captureWebSocketError, 
+  captureWalletError, 
+  captureKYCError,
+  addBreadcrumb,
+  startPerformanceSpan
+} from "@/lib/sentry";
+
 
 export default function CustomerPage() {
   // --- All state and logic from WalletPage ---
@@ -97,13 +109,13 @@ export default function CustomerPage() {
       onOpen: () => {
 
         // console.log('WebSocket connected - listening for webhook events');
-
         setWebhookNotification('WebSocket connected successfully!');
         setTimeout(() => setWebhookNotification(null), 3000);
+        addBreadcrumb('WebSocket connected', 'websocket', { status: 'connected' });
       },
       onClose: () => {
-
         // console.log('WebSocket disconnected');
+        addBreadcrumb('WebSocket disconnected', 'websocket', { status: 'disconnected' });
 
       },
       onError: (error) => {
@@ -114,6 +126,14 @@ export default function CustomerPage() {
           errorTarget: error.target,
           timestamp: new Date().toISOString()
         });
+
+        
+        // Capture WebSocket error with Sentry
+        captureWebSocketError(error, {
+          status: connectionStatus,
+          url: `${process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace('https://', 'wss://').replace('http://', 'ws://') : 'wss://api.kryptonfund.com'}/api/v1/ws`
+        });
+
       }
     }
   );
@@ -127,6 +147,10 @@ export default function CustomerPage() {
     try {
       const data = JSON.parse(userData);
       setAccountData(data);
+      
+      // Set user context in Sentry
+      setUserContext(data);
+      
       // Fetch fresh KYC status from backend instead of relying on localStorage
       if (data.user_id) {
         fetchUserData(data.user_id);
@@ -136,7 +160,9 @@ export default function CustomerPage() {
       }
       // Don't show error if wallet address is missing - it will be fetched by fetchUserData
     } catch (err) {
+      const error = err as Error;
       setError('Invalid user data.');
+      captureError(error, { context: 'parsing_user_data', userData });
     } finally {
       setLoading(false);
     }
@@ -145,6 +171,8 @@ export default function CustomerPage() {
   const fetchUserData = async (userId: string) => {
     try {
       setUserDataLoading(true);
+      addBreadcrumb('Fetching user data', 'api', { user_id: userId });
+      
       const response = await api.get(`/api/v1/user/${userId}`);
       const userData = response.data;
       setKycStatus(userData.kyc_status || 'pending');
@@ -175,6 +203,9 @@ export default function CustomerPage() {
       setAccountData(updatedData);
       localStorage.setItem('userData', JSON.stringify(updatedData));
       
+      // Update Sentry user context with fresh data
+      setUserContext(updatedData);
+      
       // If we have a wallet address and it's not already being fetched, fetch balance
       if (updatedData.wallet_address && !balance) {
         fetchBalance(updatedData.wallet_address);
@@ -186,8 +217,16 @@ export default function CustomerPage() {
           checkKycStatus(userId);
         }, 1000);
       }
+      
+      addBreadcrumb('User data fetched successfully', 'api', { 
+        user_id: userId, 
+        kyc_status: userData.kyc_status,
+        has_wallet: !!updatedData.wallet_address 
+      });
+      
     } catch (err) {
       console.error('Failed to fetch user data:', err);
+      captureAPIError(err, `/api/v1/user/${userId}`, { user_id: userId });
       // Fallback to localStorage data
       const data = JSON.parse(localStorage.getItem('userData') || '{}');
       setKycStatus(data.kyc_status || 'pending');
@@ -199,10 +238,19 @@ export default function CustomerPage() {
   const fetchBalance = async (address: string) => {
     try {
       setBalanceLoading(true);
+      addBreadcrumb('Fetching wallet balance', 'api', { wallet_address: address });
+      
       const response = await api.get(`/api/v1/wallet_balance/${address}`);
       setBalance(response.data);
+      
+      addBreadcrumb('Balance fetched successfully', 'api', { 
+        wallet_address: address,
+        balance: response.data 
+      });
+      
     } catch (err) {
       setError('Failed to fetch balance.');
+      captureAPIError(err, `/api/v1/wallet_balance/${address}`, { wallet_address: address });
     } finally {
       setBalanceLoading(false);
     }
@@ -216,13 +264,23 @@ export default function CustomerPage() {
         await signOut(auth);
       }
       localStorage.removeItem('userData');
+      
+      // Clear Sentry user context on logout
+      clearUserContext();
+      
+      addBreadcrumb('User logged out', 'auth', { user_id: accountData?.user_id });
+      
       router.push('/');
-    } catch (err) {}
+    } catch (err) {
+      const error = err as Error;
+      captureError(error, { context: 'logout', user_id: accountData?.user_id });
+    }
   };
 
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
+      addBreadcrumb('Address copied to clipboard', 'wallet', { address: text });
     } catch (err) {
       const textArea = document.createElement('textarea');
       textArea.value = text;
@@ -230,6 +288,7 @@ export default function CustomerPage() {
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
+      addBreadcrumb('Address copied to clipboard (fallback)', 'wallet', { address: text });
     }
   };
 
@@ -254,7 +313,13 @@ export default function CustomerPage() {
     setUsernameLoading(true);
     setUsernameError(null);
     setUsernameSuccess(null);
+    
     try {
+      addBreadcrumb('Setting username', 'api', { 
+        user_id: accountData.user_id, 
+        username: cleanUsername.trim() 
+      });
+      
       const response = await api.post("/api/v1/set_username", {
         user_id: accountData.user_id,
         username: cleanUsername.trim()
@@ -268,6 +333,15 @@ export default function CustomerPage() {
       };
       setAccountData(updatedAccountData);
       localStorage.setItem('userData', JSON.stringify(updatedAccountData));
+      
+      // Update Sentry user context
+      setUserContext(updatedAccountData);
+      
+      addBreadcrumb('Username set successfully', 'api', { 
+        user_id: accountData.user_id, 
+        username: cleanUsername.trim() 
+      });
+      
     } catch (err: any) {
       let errorMsg = err.response?.data?.detail || "Failed to set username";
       if (typeof errorMsg === 'object' && errorMsg !== null) {
@@ -279,6 +353,11 @@ export default function CustomerPage() {
         }
       }
       setUsernameError(errorMsg);
+      
+      captureAPIError(err, '/api/v1/set_username', { 
+        user_id: accountData.user_id, 
+        username: cleanUsername.trim() 
+      });
     } finally {
       setUsernameLoading(false);
     }
@@ -308,7 +387,14 @@ export default function CustomerPage() {
     setSendLoading(true);
     setSendError(null);
     setSendSuccess(null);
+    
     try {
+      addBreadcrumb('Sending USDC', 'api', { 
+        sender_id: accountData.user_id, 
+        receiver: receiverUsername.trim(), 
+        amount: amount 
+      });
+      
       const response = await api.post("/api/v1/send_usdc", {
         sender_user_id: accountData.user_id,
         receiver_username: receiverUsername.trim(),
@@ -323,6 +409,13 @@ export default function CustomerPage() {
         fetchBalance(accountData.wallet_address);
       }
       setTransactionHistoryRefresh(prev => !prev);
+      
+      addBreadcrumb('USDC sent successfully', 'api', { 
+        sender_id: accountData.user_id, 
+        receiver: receiverUsername.trim(), 
+        amount: amount 
+      });
+      
     } catch (err: any) {
       let errorMsg = err.response?.data?.detail || "Failed to send USDC";
       if (typeof errorMsg === 'object' && errorMsg !== null) {
@@ -334,6 +427,8 @@ export default function CustomerPage() {
         }
       }
       setSendError(errorMsg);
+      
+      captureWalletError(err, 'send_usdc', amount.toString(), receiverUsername.trim());
     } finally {
       setSendLoading(false);
     }
@@ -348,18 +443,31 @@ export default function CustomerPage() {
   };
 
   const openKycModal = async (userId: string) => {
-    // 1. Create applicant if needed
-    await api.post('/api/v1/kyc/applicant', { user_id: userId });
-    // 2. Get access token
-    const tokenRes = await api.post('/api/v1/kyc/access-token', { user_id: userId });
-    setKycAccessToken(tokenRes.data.token || tokenRes.data.accessToken || tokenRes.data.access_token);
-    setKycModalVisible(true);
+    try {
+      addBreadcrumb('Opening KYC modal', 'kyc', { user_id: userId });
+      
+      // 1. Create applicant if needed
+      await api.post('/api/v1/kyc/applicant', { user_id: userId });
+      
+      // 2. Get access token
+      const tokenRes = await api.post('/api/v1/kyc/access-token', { user_id: userId });
+      setKycAccessToken(tokenRes.data.token || tokenRes.data.accessToken || tokenRes.data.access_token);
+      setKycModalVisible(true);
+      
+      addBreadcrumb('KYC modal opened successfully', 'kyc', { user_id: userId });
+      
+    } catch (err) {
+      captureKYCError(err, 'open_modal', userId);
+    }
   };
 
   const checkKycStatus = async (userId: string) => {
     setKycChecking(true);
     setKycMessage(null);
+    
     try {
+      addBreadcrumb('Checking KYC status', 'kyc', { user_id: userId });
+      
       const response = await api.post(`/api/v1/kyc/check-status/${userId}`);
       
       if (response.data.status === 'success') {
@@ -368,6 +476,9 @@ export default function CustomerPage() {
         const updatedData = { ...accountData, kyc_status: newStatus };
         setAccountData(updatedData);
         localStorage.setItem('userData', JSON.stringify(updatedData));
+        
+        // Update Sentry user context
+        setUserContext(updatedData);
         
         if (newStatus === 'approved') {
           setKycMessage('KYC verification completed successfully!');
@@ -379,6 +490,12 @@ export default function CustomerPage() {
           setKycMessage(`KYC status: ${newStatus}`);
           setTimeout(() => setKycMessage(null), 3000);
         }
+        
+        addBreadcrumb('KYC status checked', 'kyc', { 
+          user_id: userId, 
+          status: newStatus 
+        });
+        
       } else {
         setKycMessage(response.data.message || 'Failed to check KYC status');
         setTimeout(() => setKycMessage(null), 5000);
@@ -387,6 +504,8 @@ export default function CustomerPage() {
       console.error('Failed to check KYC status:', err);
       setKycMessage(err.response?.data?.detail || 'Failed to check KYC status');
       setTimeout(() => setKycMessage(null), 5000);
+      
+      captureKYCError(err, 'check_status', userId);
     } finally {
       setKycChecking(false);
     }
@@ -394,6 +513,7 @@ export default function CustomerPage() {
 
   const skipKyc = async (userId: string) => {
     try {
+      addBreadcrumb('Skipping KYC', 'kyc', { user_id: userId });
       
       // Use accountData.id as fallback if userId is not provided
       const actualUserId = userId || accountData?.id;
@@ -404,7 +524,6 @@ export default function CustomerPage() {
         return;
       }
       
-      
       // Update KYC status to approved in the backend
       const response = await api.post(`/api/v1/kyc/skip/${actualUserId}`);
       
@@ -414,12 +533,19 @@ export default function CustomerPage() {
         setAccountData(updatedData);
         localStorage.setItem('userData', JSON.stringify(updatedData));
         setKycMessage('KYC skipped successfully');
+        
+        // Update Sentry user context
+        setUserContext(updatedData);
+        
+        addBreadcrumb('KYC skipped successfully', 'kyc', { user_id: actualUserId });
       } else {
         setKycMessage(response.data.message || 'Failed to skip KYC');
       }
     } catch (err: any) {
       console.error('Failed to skip KYC:', err);
       setKycMessage(err.response?.data?.detail || 'Failed to skip KYC');
+      
+      captureKYCError(err, 'skip_kyc', userId);
     } finally {
       // Clear message after 5 seconds
       setTimeout(() => setKycMessage(null), 5000);
@@ -427,6 +553,8 @@ export default function CustomerPage() {
   };
 
   const pollKycStatus = async (userId: string) => {
+    addBreadcrumb('Starting KYC status polling', 'kyc', { user_id: userId });
+    
     // Poll user data for KYC status
     for (let i = 0; i < 15; i++) { // Increased attempts
       try {
@@ -440,6 +568,10 @@ export default function CustomerPage() {
           setAccountData(updated);
           localStorage.setItem('userData', JSON.stringify(updated));
           setKycMessage('KYC verification completed successfully!');
+          
+          // Update Sentry user context
+          setUserContext(updated);
+          
           // Clear success message after 3 seconds
           setTimeout(() => setKycMessage(null), 3000);
           break;
@@ -474,6 +606,9 @@ export default function CustomerPage() {
         setAccountData(updated);
         localStorage.setItem('userData', JSON.stringify(updated));
         
+        // Update Sentry user context
+        setUserContext(updated);
+        
         if (finalStatus === 'approved') {
           setKycMessage('KYC verification completed successfully!');
           setTimeout(() => setKycMessage(null), 3000);
@@ -481,7 +616,13 @@ export default function CustomerPage() {
       }
     } catch (err) {
       console.error('Error in final KYC status check:', err);
+      captureKYCError(err, 'final_status_check', userId);
     }
+    
+    addBreadcrumb('KYC status polling completed', 'kyc', { 
+      user_id: userId, 
+      final_status: accountData?.kyc_status 
+    });
   };
 
   const handleKycModalClose = () => {
