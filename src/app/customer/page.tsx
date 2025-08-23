@@ -55,10 +55,11 @@ export default function CustomerPage() {
     `${process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace('https://', 'wss://').replace('http://', 'ws://') : 'wss://api.kryptonfund.com'}/api/v1/ws`,
     {
       onMessage: (message) => {
-        console.log('WebSocket message received:', message);
+
+        // console.log('WebSocket message received:', message);
         
         if (message.type === 'circle_webhook') {
-          console.log('Circle webhook received via WebSocket:', message);
+          // console.log('Circle webhook received via WebSocket:', message);
           
           // Show notification to user
           let notificationText = '';
@@ -77,11 +78,13 @@ export default function CustomerPage() {
           
           // Automatically refresh balance and user data
           if (accountData?.wallet_address && message.address === accountData.wallet_address) {
-            console.log('Auto-refreshing balance due to webhook event');
+
+            // console.log('Auto-refreshing balance due to webhook event');
             fetchBalance(accountData.wallet_address);
           }
           if (accountData?.user_id) {
-            console.log('Auto-refreshing user data due to webhook event');
+            // console.log('Auto-refreshing user data due to webhook event');
+
             fetchUserData(accountData.user_id);
           }
           
@@ -92,12 +95,16 @@ export default function CustomerPage() {
         }
       },
       onOpen: () => {
-        console.log('WebSocket connected - listening for webhook events');
+
+        // console.log('WebSocket connected - listening for webhook events');
+
         setWebhookNotification('WebSocket connected successfully!');
         setTimeout(() => setWebhookNotification(null), 3000);
       },
       onClose: () => {
-        console.log('WebSocket disconnected');
+
+        // console.log('WebSocket disconnected');
+
       },
       onError: (error) => {
         console.error('WebSocket error:', error);
@@ -596,6 +603,9 @@ export default function CustomerPage() {
         )} */}
         
         {/* Manual Refresh Button */}
+
+        {/*
+
         <div className="fixed top-44 right-4 z-50">
           <button
             onClick={() => {
@@ -614,6 +624,9 @@ export default function CustomerPage() {
             🔄 Refresh
           </button>
         </div>
+
+        */}
+
         <HamburgerMenu 
           visible={showMenu} 
           onClose={() => setShowMenu(false)}
