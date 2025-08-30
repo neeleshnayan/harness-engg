@@ -315,6 +315,9 @@ export default function ManageBusinessPage() {
           })
         );
 
+        response.data.all_payouts = response.data.all_payouts.sort(
+          (a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
         // Process the results, handling both fulfilled and rejected promises
         const processedSettlements = settlementsWithUsernames.map(result => {
           if (result.status === 'fulfilled') {
