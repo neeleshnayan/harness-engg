@@ -15,6 +15,7 @@ import {
   TrendingUp,
   TrendingDown,
   RefreshCw,
+  Zap,
 } from "lucide-react";
 import { MarketplaceItem, MarketplaceService } from "@/lib/marketplace";
 import api, { getTokenInfo } from "@/lib/api";
@@ -25,6 +26,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Area, CartesianGrid, XAxis, YAxis, ComposedChart, Line } from "recharts";
 import {
   ChartConfig,
@@ -56,7 +64,7 @@ interface TeamMember {
   type: 'employee' | 'intern' | 'vendor';
   usdcPayment: number;
   tokenPayment: number;
-  schedule: 'monthly' | 'weekly' | 'custom';
+  schedule: 'monthly' | 'bi-weekly' | 'weekly' | 'custom';
   createdAt: string;
 }
 
@@ -118,6 +126,13 @@ export default function ManageBusinessPage() {
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showSavingFundraisingModal, setShowSavingFundraisingModal] = useState(false);
   const [showTokenDeploymentModal, setShowTokenDeploymentModal] = useState(false);
+  const [showSalaryContractDeploymentModal, setShowSalaryContractDeploymentModal] = useState(false);
+  const [showAddingEmployeeModal, setShowAddingEmployeeModal] = useState(false);
+  const [showForcePayoutModal, setShowForcePayoutModal] = useState(false);
+  const [salaryContractAddress, setSalaryContractAddress] = useState<string | null>(null);
+  const [showSettlementsModal, setShowSettlementsModal] = useState(false);
+  const [settlementsData, setSettlementsData] = useState<any[]>([]);
+  const [settlementsLoading, setSettlementsLoading] = useState(false);
   const [newMember, setNewMember] = useState<Omit<TeamMember, 'id' | 'createdAt'>>({
     name: '',
     kryptonId: '', // Added Krypton ID
@@ -180,6 +195,18 @@ export default function ManageBusinessPage() {
                 })),
               };
               setTeamData(fixedTeamData);
+
+              // Try to load existing salary contract if team members exist
+              if (business.team_data.members && business.team_data.members.length > 0) {
+                try {
+                  const salaryContractResponse = await api.get(`/api/v1/salary_contract/contract_by_company/${business.id}`);
+                  if (salaryContractResponse.data && salaryContractResponse.data.address) {
+                    setSalaryContractAddress(salaryContractResponse.data.address);
+                  }
+                } catch (error) {
+                  console.log('No existing salary contract found, will deploy new one when adding first member');
+                }
+              }
             }
 
             // fetch token address details
@@ -254,6 +281,62 @@ export default function ManageBusinessPage() {
     }
   }
 
+  const fetchSettlements = async (contractAddress: string) => {
+    if (!contractAddress) return;
+
+    setSettlementsLoading(true);
+    try {
+      const response = await api.get(`/api/v1/salary_contract/all_payouts/${contractAddress}`);
+      if (response.data && response.data.all_payouts) {
+        // Resolve usernames for each payout
+        const settlementsWithUsernames = await Promise.allSettled(
+          response.data.all_payouts.map(async (payout: any) => {
+            try {
+              if (payout.employee_wallet) {
+                const usernameResponse = await api.get(`/api/v1/resolve_wallet/${payout.employee_wallet}`);
+                if (usernameResponse.data && usernameResponse.data.username) {
+                  return {
+                    ...payout,
+                    username: usernameResponse.data.username
+                  };
+                }
+              }
+              return {
+                ...payout,
+                username: null
+              };
+            } catch (err) {
+              console.error(`Failed to resolve username for wallet ${payout.employee_wallet}:`, err);
+              return {
+                ...payout,
+                username: null
+              };
+            }
+          })
+        );
+
+        // Process the results, handling both fulfilled and rejected promises
+        const processedSettlements = settlementsWithUsernames.map(result => {
+          if (result.status === 'fulfilled') {
+            return result.value;
+          } else {
+            console.error('Failed to process settlement:', result.reason);
+            return null;
+          }
+        }).filter(Boolean); // Remove null values
+
+        setSettlementsData(processedSettlements);
+      } else {
+        setSettlementsData([]);
+      }
+    } catch (err) {
+      console.error('Failed to fetch settlements:', err);
+      setSettlementsData([]);
+    } finally {
+      setSettlementsLoading(false);
+    }
+  }
+
   const handleBusinessDataChange = (field: keyof BusinessData, value: string) => {
     setBusinessData(prev => ({
       ...prev,
@@ -286,11 +369,22 @@ export default function ManageBusinessPage() {
       return;
     }
 
+    if (!tokenAddress) {
+      setSaveError('Please deploy your smart token from the Fundraising tab before adding team members');
+      return;
+    }
+
+    if (!newMember.kryptonId.trim()) {
+      setSaveError('Please enter a Krypton ID for the team member');
+      return;
+    }
+
     setSaving(true);
     setSaveError(null);
     setSaveSuccess(null);
 
     try {
+      // First, save the member to the marketplace
       const memberPayload = {
         name: newMember.name,
         kryptonId: newMember.kryptonId,
@@ -306,9 +400,122 @@ export default function ManageBusinessPage() {
       );
 
       const savedMember: TeamMember = {
-        ...response.data, // assuming API returns saved member with id and createdAt
+        ...response.data,
       };
 
+      // If this is the first member, deploy the salary contract
+      if (teamData.members.length === 0 && !salaryContractAddress) {
+        setShowAddMemberModal(false);
+        setShowSalaryContractDeploymentModal(true);
+
+        try {
+          const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+          const walletAddress = userData.wallet_address;
+
+          if (!walletAddress) {
+            throw new Error('Wallet address not found. Please ensure you have a connected wallet.');
+          }
+
+          if (!tokenAddress) {
+            throw new Error('Token address not found. Please deploy your smart token first.');
+          }
+
+          // Deploy salary contract
+          const deployRequest = {
+            usdc_token_address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+            custom_token_address: tokenAddress,
+            min_payout_amount: 1,
+            initial_owners: [walletAddress],
+            company_id: existingBusinessId
+          };
+
+          const deployResponse = await api.post('/api/v1/salary_contract/deploy', deployRequest);
+
+          if (deployResponse.data && deployResponse.data.address) {
+            setSalaryContractAddress(deployResponse.data.address);
+          } else {
+            throw new Error('Failed to get salary contract address from deployment response');
+          }
+
+          setShowSalaryContractDeploymentModal(false);
+          setShowAddingEmployeeModal(true);
+
+          // Now add the employee to the salary contract
+          const scheduleMapping = {
+            'monthly': 0,
+            'bi-weekly': 1,
+            'weekly': 2,
+            'custom': 3
+          };
+
+          const addEmployeeRequest = {
+            contract_address: deployResponse.data.address,
+            from_owner: walletAddress,
+            wallet_address: await getEmployeeWalletAddress(newMember.kryptonId),
+            salary_amount: newMember.usdcPayment,
+            custom_token_amount: Math.floor(newMember.tokenPayment),
+            payout_frequency: scheduleMapping[newMember.schedule as keyof typeof scheduleMapping],
+            day_of_month: 1
+          };
+
+          await api.post('/api/v1/salary_contract/add_employee', addEmployeeRequest);
+
+          setShowAddingEmployeeModal(false);
+          setShowAddMemberModal(true);
+
+        } catch (contractError: any) {
+          console.error('Failed to deploy salary contract or add employee:', contractError);
+          setSaveError(`Failed to set up salary contract: ${contractError.message || contractError.response?.data?.detail || 'Unknown error'}`);
+          setShowSalaryContractDeploymentModal(false);
+          setShowAddingEmployeeModal(false);
+          setShowAddMemberModal(true);
+          return;
+        }
+      } else if (salaryContractAddress) {
+        // Add employee to existing salary contract
+        setShowAddMemberModal(false);
+        setShowAddingEmployeeModal(true);
+
+        try {
+          const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+          const walletAddress = userData.wallet_address;
+
+          if (!walletAddress) {
+            throw new Error('Wallet address not found. Please ensure you have a connected wallet.');
+          }
+
+          const scheduleMapping = {
+            'monthly': 0,
+            'bi-weekly': 1,
+            'weekly': 2,
+            'custom': 3
+          };
+
+          const addEmployeeRequest = {
+            contract_address: salaryContractAddress,
+            from_owner: walletAddress,
+            wallet_address: await getEmployeeWalletAddress(newMember.kryptonId),
+            salary_amount: newMember.usdcPayment,
+            custom_token_amount: Math.floor(newMember.tokenPayment),
+            payout_frequency: scheduleMapping[newMember.schedule as keyof typeof scheduleMapping],
+            day_of_month: 1
+          };
+
+          await api.post('/api/v1/salary_contract/add_employee', addEmployeeRequest);
+
+          setShowAddingEmployeeModal(false);
+          setShowAddMemberModal(true);
+
+        } catch (employeeError: any) {
+          console.error('Failed to add employee to salary contract:', employeeError);
+          setSaveError(`Failed to add employee to salary contract: ${employeeError.message || employeeError.response?.data?.detail || 'Unknown error'}`);
+          setShowAddingEmployeeModal(false);
+          setShowAddMemberModal(true);
+          return;
+        }
+      }
+
+      // Add member to team data
       setTeamData(prev => ({
         ...prev,
         members: [...prev.members, savedMember]
@@ -481,6 +688,11 @@ export default function ManageBusinessPage() {
       return;
     }
 
+    if (!tokenAddress) {
+      setSaveError('Please deploy your smart token from the Fundraising tab before configuring team settings');
+      return;
+    }
+
     setSaving(true);
     setSaveError(null);
     setSaveSuccess(null);
@@ -500,6 +712,66 @@ export default function ManageBusinessPage() {
       setSaveError(err.response?.data?.detail || 'Failed to save team settings. Please try again.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleForcePayouts = async () => {
+    if (!salaryContractAddress) {
+      setSaveError('No salary contract found. Please add a team member first.');
+      return;
+    }
+
+    setShowForcePayoutModal(true);
+    setSaveError(null);
+    setSaveSuccess(null);
+
+    try {
+      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+      const walletAddress = userData.wallet_address;
+
+      if (!walletAddress) {
+        throw new Error('Wallet address not found. Please ensure you have a connected wallet.');
+      }
+
+      const forcePayoutRequest = {
+        contract_address: salaryContractAddress,
+        from_owner: walletAddress
+      };
+
+      await api.post('/api/v1/salary_contract/force_payout_all', forcePayoutRequest);
+
+      setSaveSuccess('Force payouts executed successfully!');
+      setTimeout(() => setSaveSuccess(null), 3000);
+    } catch (err: any) {
+      console.error('Failed to execute force payouts:', err);
+      setSaveError(err.response?.data?.detail || 'Failed to execute force payouts. Please try again.');
+    } finally {
+      setShowForcePayoutModal(false);
+    }
+  }
+
+  const handleSettlementsClick = async () => {
+    if (!salaryContractAddress) {
+      setSaveError('No salary contract found. Please add a team member first.');
+      return;
+    }
+
+    setShowSettlementsModal(true);
+    await fetchSettlements(salaryContractAddress);
+  }
+
+  const getEmployeeWalletAddress = async (kryptonId: string): Promise<string> => {
+    try {
+      // First get user by username
+      const userResponse = await api.get(`/api/v1/resolve_username/${kryptonId}`);
+      if (userResponse.data && userResponse.data.wallet_address) {
+        return userResponse.data.wallet_address;
+      }
+
+      throw new Error(`No wallet found for user @${kryptonId}`);
+    } catch (err: any) {
+      console.error(`Failed to get wallet address for @${kryptonId}:`, err);
+      throw new Error(`Failed to get wallet address for @${kryptonId}. Please ensure the user exists and has a wallet.`);
     }
   };
 
@@ -1020,22 +1292,59 @@ export default function ManageBusinessPage() {
           <div className="bg-gradient-to-br from-zinc-900/80 via-zinc-800/60 to-cyan-900/40 backdrop-blur-2xl border border-cyan-400/10 rounded-3xl p-12 shadow-2xl mb-8 transition-all duration-300">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
               <h2 className="text-3xl font-extrabold text-white tracking-tight drop-shadow-lg">Your Team</h2>
+              {salaryContractAddress && (
+                <div className="text-sm text-zinc-400 bg-zinc-800/50 px-3 py-2 rounded-full">
+                  Salary Contract: {salaryContractAddress.slice(0, 6)}...{salaryContractAddress.slice(-4)}
+                </div>
+              )}
             </div>
             <div className="flex flex-col sm:flex-row gap-4 mb-10">
               <button
                 onClick={() => setShowAddMemberModal(true)}
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 border border-cyan-400/30"
+                disabled={!tokenAddress}
+                className={`flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-semibold text-lg shadow-lg transition-all duration-200 transform focus:outline-none focus:ring-2 focus:ring-cyan-400/60 border ${
+                  tokenAddress
+                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white hover:shadow-xl hover:scale-105 border-cyan-400/30'
+                    : 'bg-zinc-600/80 text-zinc-400 cursor-not-allowed border-zinc-600/40'
+                }`}
+                title={!tokenAddress ? "Deploy your smart token first" : "Add a new team member"}
               >
                 <UserPlus className="h-5 w-5 drop-shadow-[0_0_6px_rgba(34,211,238,0.7)]" />
                 <span>Add Member</span>
               </button>
               <button
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-zinc-800/80 hover:bg-zinc-700/80 text-white rounded-2xl font-semibold text-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 border border-zinc-600/40"
+                onClick={handleSettlementsClick}
+                className="flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-semibold text-lg shadow-md transition-all duration-200 transform border bg-zinc-800/80 hover:bg-zinc-700/80 text-white hover:shadow-lg hover:scale-105 border-zinc-600/40"
+                title="View settlement history"
               >
                 <History className="h-5 w-5 text-cyan-300 drop-shadow-[0_0_6px_rgba(34,211,238,0.4)]" />
                 <span>Settlements</span>
               </button>
+              <button
+                onClick={handleForcePayouts}
+                disabled={!salaryContractAddress || !tokenAddress}
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 disabled:from-zinc-600 disabled:to-zinc-700 text-white rounded-2xl font-semibold text-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 border border-orange-400/30 disabled:border-zinc-600/40 disabled:cursor-not-allowed"
+                title={!tokenAddress ? "Deploy your smart token first" : !salaryContractAddress ? "Add a team member first" : "Execute force payouts for all employees"}
+              >
+                <Zap className="h-5 w-5 drop-shadow-[0_0_6px_rgba(255,165,0,0.7)]" />
+                <span>Force Payouts</span>
+              </button>
             </div>
+
+            {/* Token Address Required Message */}
+            {!tokenAddress && (
+              <div className="mb-6 p-4 bg-gradient-to-r from-amber-900/30 to-orange-900/30 border border-amber-500/30 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="h-5 w-5 text-amber-400" />
+                  <div>
+                    <p className="text-amber-200 font-medium">Smart Token Required</p>
+                    <p className="text-amber-300 text-sm">
+                      You need to deploy your smart token from the Fundraising tab before you can add team members or configure team settings.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Team Members - Mobile Friendly Cards */}
             <div className="space-y-6">
@@ -1248,6 +1557,81 @@ export default function ManageBusinessPage() {
           </div>
         )}
 
+        {/* Salary Contract Deployment Loading Modal */}
+        {showSalaryContractDeploymentModal && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-2xl flex items-center justify-center z-50">
+            <div className="bg-gradient-to-br from-zinc-900/90 via-zinc-800/80 to-cyan-900/60 border border-cyan-400/20 rounded-3xl p-10 w-full max-w-md mx-4 shadow-2xl ring-2 ring-cyan-400/10">
+              <div className="flex flex-col items-center space-y-6">
+                <div className="relative">
+                  <Loader2 className="h-16 w-16 text-cyan-400 animate-spin" />
+                  <div className="absolute inset-0 bg-cyan-400/20 rounded-full animate-pulse"></div>
+                </div>
+                <div className="text-center">
+                  <h3 className="text-2xl font-extrabold text-white mb-2 tracking-tight drop-shadow-lg">
+                    Deploying Salary Contract
+                  </h3>
+                  <p className="text-zinc-300 text-lg">
+                    Deploying your contract to the blockchain...
+                  </p>
+                  <p className="text-zinc-400 text-sm mt-2">
+                    This may take a few moments
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Adding Employee Loading Modal */}
+        {showAddingEmployeeModal && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-2xl flex items-center justify-center z-50">
+            <div className="bg-gradient-to-br from-zinc-900/90 via-zinc-800/80 to-cyan-900/60 border border-cyan-400/20 rounded-3xl p-10 w-full max-w-md mx-4 shadow-2xl ring-2 ring-cyan-400/10">
+              <div className="flex flex-col items-center space-y-6">
+                <div className="relative">
+                  <Loader2 className="h-16 w-16 text-cyan-400 animate-spin" />
+                  <div className="absolute inset-0 bg-cyan-400/20 rounded-full animate-pulse"></div>
+                </div>
+                <div className="text-center">
+                  <h3 className="text-2xl font-extrabold text-white mb-2 tracking-tight drop-shadow-lg">
+                    Adding Employee
+                  </h3>
+                  <p className="text-zinc-300 text-lg">
+                    Adding employee to salary contract...
+                  </p>
+                  <p className="text-zinc-400 text-sm mt-2">
+                    This may take a few moments
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Force Payout Loading Modal */}
+        {showForcePayoutModal && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-2xl flex items-center justify-center z-50">
+            <div className="bg-gradient-to-br from-zinc-900/90 via-zinc-800/80 to-cyan-900/60 border border-cyan-400/20 rounded-3xl p-10 w-full max-w-md mx-4 shadow-2xl ring-2 ring-cyan-400/10">
+              <div className="flex flex-col items-center space-y-6">
+                <div className="relative">
+                  <Loader2 className="h-16 w-16 text-cyan-400 animate-spin" />
+                  <div className="absolute inset-0 bg-cyan-400/20 rounded-full animate-pulse"></div>
+                </div>
+                <div className="text-center">
+                  <h3 className="text-2xl font-extrabold text-white mb-2 tracking-tight drop-shadow-lg">
+                    Deploying Transaction
+                  </h3>
+                  <p className="text-zinc-300 text-lg">
+                    Deploying transaction to blockchain...
+                  </p>
+                  <p className="text-zinc-400 text-sm mt-2">
+                    This may take a few moments
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Add Member Modal */}
         {showAddMemberModal && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-2xl flex items-center justify-center z-50">
@@ -1325,10 +1709,11 @@ export default function ManageBusinessPage() {
                   <label className="block text-base font-semibold text-zinc-200 mb-2">Schedule *</label>
                   <select
                     value={newMember.schedule}
-                    onChange={(e) => handleNewMemberChange('schedule', e.target.value as 'monthly' | 'weekly' | 'custom')}
+                    onChange={(e) => handleNewMemberChange('schedule', e.target.value as 'monthly' | 'bi-weekly' | 'weekly' | 'custom')}
                     className="w-full px-5 py-4 bg-zinc-900/70 border border-zinc-600/40 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-400/60 focus:border-transparent text-lg shadow-inner"
                   >
                     <option value="monthly">Monthly</option>
+                    <option value="bi-weekly">Bi-weekly</option>
                     <option value="weekly">Weekly</option>
                     <option value="custom">Custom</option>
                   </select>
@@ -1354,10 +1739,30 @@ export default function ManageBusinessPage() {
 
         {/* Save Button */}
         <div className="mt-8 flex justify-end">
+          {/* Team Tab Token Address Warning */}
+          {activeTab === 'team' && !tokenAddress && (
+            <div className="flex-1 mr-4 p-4 bg-gradient-to-r from-amber-900/30 to-orange-900/30 border border-amber-500/30 rounded-xl">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-400" />
+                <div>
+                  <p className="text-amber-200 font-medium">Cannot Save Team Settings</p>
+                  <p className="text-amber-300 text-sm">
+                    You need to deploy your smart token from the Fundraising tab before you can save team settings.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <button
             onClick={handleSave}
-            disabled={saving}
-            className="flex items-center space-x-2 px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={saving || (activeTab === 'team' && !tokenAddress)}
+            className={`flex items-center space-x-2 px-8 py-3 font-medium rounded-lg transition-all ${
+              activeTab === 'team' && !tokenAddress
+                ? 'bg-zinc-600/80 text-zinc-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white'
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+            title={activeTab === 'team' && !tokenAddress ? "Deploy your smart token first" : "Save changes"}
           >
             {saving ? (
               <>
@@ -1373,6 +1778,110 @@ export default function ManageBusinessPage() {
           </button>
         </div>
       </div>
+
+      {/* Settlements Modal */}
+      {showSettlementsModal && (
+        <Dialog open={showSettlementsModal} onOpenChange={setShowSettlementsModal}>
+          <DialogContent className="sm:max-w-4xl w-[95vw] max-h-[90vh] bg-zinc-900/95 backdrop-blur-lg border border-zinc-700 rounded-xl shadow-2xl">
+            <DialogHeader className="px-4 sm:px-6">
+              <DialogTitle className="text-xl sm:text-2xl text-white flex items-center gap-3">
+                <History className="h-5 w-5 sm:h-6 sm:w-6 text-cyan-400" />
+                Settlement History
+              </DialogTitle>
+              <DialogDescription className="text-sm sm:text-base text-zinc-400">
+                View all payout transactions for your team members
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="mt-4 sm:mt-6 px-4 sm:px-6 pb-4">
+              {settlementsLoading ? (
+                <div className="flex items-center justify-center py-8 sm:py-12">
+                  <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-cyan-400" />
+                  <span className="ml-3 text-sm sm:text-base text-zinc-400">Loading settlements and resolving usernames...</span>
+                </div>
+              ) : settlementsData.length > 0 ? (
+                <div className="max-h-[60vh] sm:max-h-96 overflow-y-auto space-y-3 pr-1 sm:pr-2">
+                  {settlementsData.map((payout, index) => (
+                    <div
+                      key={index}
+                      className="bg-zinc-800/50 rounded-lg p-3 sm:p-4 border border-zinc-700/30 hover:border-cyan-400/30 transition-all duration-200"
+                    >
+                      {/* Mobile-first layout: Stack vertically on small screens */}
+                      <div className="space-y-3 sm:space-y-0 sm:flex sm:items-start sm:justify-between">
+                        {/* Employee and Date Section */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                            <div className="w-2 h-2 bg-cyan-400 rounded-full flex-shrink-0"></div>
+                            <span className="text-white font-medium truncate text-sm sm:text-base">
+                              {payout.username ?
+                                `@${payout.username}` :
+                                payout.employee_wallet ?
+                                  `${payout.employee_wallet.slice(0, 6)}...${payout.employee_wallet.slice(-4)}` :
+                                  'Unknown Employee'
+                              }
+                            </span>
+                            {!payout.username && payout.employee_wallet && (
+                              <span className="text-xs text-zinc-500 bg-zinc-700/50 px-2 py-1 rounded-full flex-shrink-0">
+                                No username
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs sm:text-sm text-zinc-400">
+                            {payout.timestamp ?
+                              new Date(payout.timestamp).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                              }) :
+                              'Unknown Date'
+                            }
+                          </div>
+                        </div>
+
+                        {/* Amounts Section - Responsive layout */}
+                        <div className="grid grid-cols-2 gap-3 sm:flex sm:items-center sm:gap-4 sm:ml-4">
+                          <div className="text-center sm:text-right">
+                            <div className="text-xs sm:text-sm text-zinc-400 mb-1">USDC Amount</div>
+                            <div className="text-white font-semibold text-sm sm:text-base">
+                              ${payout.usdc_amount ? payout.usdc_amount.toFixed(2) : '0.00'}
+                            </div>
+                          </div>
+                          <div className="text-center sm:text-right">
+                            <div className="text-xs sm:text-sm text-zinc-400 mb-1">{fundraisingData.tokenName || 'Token'} Amount</div>
+                            <div className="text-white font-semibold text-sm sm:text-base">
+                              {payout.custom_token_amount ? payout.custom_token_amount.toLocaleString() : '0'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Payout Type Badge - Full width on mobile */}
+                      {payout.payout_type && (
+                        <div className="mt-3 pt-3 border-t border-zinc-700/30">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-zinc-700/50 text-zinc-300">
+                            {payout.payout_type.charAt(0).toUpperCase() + payout.payout_type.slice(1)} Payout
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 sm:py-12">
+                  <History className="h-10 w-10 sm:h-12 sm:w-12 text-zinc-500 mx-auto mb-3 opacity-50" />
+                  <p className="text-zinc-400 text-base sm:text-lg">No settlements found</p>
+                  <p className="text-zinc-500 text-sm mt-1">
+                    {salaryContractAddress ?
+                      'No payout transactions have been recorded yet.' :
+                      'Please add team members to start recording settlements.'
+                    }
+                  </p>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
