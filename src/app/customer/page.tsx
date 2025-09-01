@@ -15,6 +15,7 @@ import WalletHeader from "@/components/wallet/WalletHeader";
 import SumsubKYCModal from "@/components/wallet/SumsubKYCModal";
 import axios from "axios";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import LangChainChat from '@/components/LangChainChat';
 
 import { 
   setUserContext, 
@@ -68,10 +69,8 @@ export default function CustomerPage() {
     {
       onMessage: (message) => {
 
-        // console.log('WebSocket message received:', message);
         
         if (message.type === 'circle_webhook') {
-          // console.log('Circle webhook received via WebSocket:', message);
           
           // Show notification to user
           let notificationText = '';
@@ -91,11 +90,9 @@ export default function CustomerPage() {
           // Automatically refresh balance and user data
           if (accountData?.wallet_address && message.address === accountData.wallet_address) {
 
-            // console.log('Auto-refreshing balance due to webhook event');
             fetchBalance(accountData.wallet_address);
           }
           if (accountData?.user_id) {
-            // console.log('Auto-refreshing user data due to webhook event');
 
             fetchUserData(accountData.user_id);
           }
@@ -108,13 +105,11 @@ export default function CustomerPage() {
       },
       onOpen: () => {
 
-        // console.log('WebSocket connected - listening for webhook events');
         setWebhookNotification('WebSocket connected successfully!');
         setTimeout(() => setWebhookNotification(null), 3000);
         addBreadcrumb('WebSocket connected', 'websocket', { status: 'connected' });
       },
       onClose: () => {
-        // console.log('WebSocket disconnected');
         addBreadcrumb('WebSocket disconnected', 'websocket', { status: 'disconnected' });
 
       },
@@ -843,6 +838,7 @@ export default function CustomerPage() {
               </button>
             </div>
           )}
+          <LangChainChat userId={accountData?.user_id} />
         </div>
         {showSendForm && (
           <SendUSDCModal

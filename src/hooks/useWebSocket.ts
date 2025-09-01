@@ -85,12 +85,10 @@ export const useWebSocket = (
           onMessageRef.current?.(message);
         } catch (error) {
           console.error('Failed to parse WebSocket message:', error);
-          console.log('Raw message:', event.data);
         }
       };
 
       ws.onclose = (event) => {
-        console.log('WebSocket disconnected:', event.code, event.reason);
         isConnectingRef.current = false;
         setConnectionStatus('disconnected');
         onCloseRef.current?.();
@@ -99,7 +97,6 @@ export const useWebSocket = (
         if (event.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectTimeoutRef.current = setTimeout(() => {
             reconnectAttemptsRef.current++;
-            console.log(`Attempting to reconnect... (${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
             connect();
           }, reconnectInterval);
         } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
@@ -109,9 +106,6 @@ export const useWebSocket = (
       };
 
       ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        console.error('WebSocket readyState:', ws.readyState);
-        console.error('WebSocket URL:', url);
         isConnectingRef.current = false;
         setConnectionStatus('error');
         onErrorRef.current?.(error);
@@ -143,7 +137,6 @@ export const useWebSocket = (
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(data));
     } else {
-      console.warn('WebSocket is not connected');
     }
   }, []);
 

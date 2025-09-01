@@ -76,7 +76,7 @@ const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose, walletAd
       }
       var coinbase_fiatamount = "999999999";
       const coinbaseQuote = await coinbaseQuoteResponse.json();
-      console.log(coinbaseQuote)
+
       const coinbaseAmount = coinbaseQuote?.payment_total?.value || "999999999";
       coinbase_fiatamount = Math.min(999999999, parseFloat(coinbaseAmount)).toFixed(2);
       const min_fiatamount = Math.min(parseFloat(transak_fiatamount), parseFloat(coinbase_fiatamount));
