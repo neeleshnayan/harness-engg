@@ -75,7 +75,6 @@ export const useWebSocket = (
       ws.onmessage = (event) => {
         try {
           const message: WebSocketMessage = JSON.parse(event.data);
-          console.log('WebSocket message received:', message);
           
           // Handle connection confirmation
           if (message.type === 'connection_established') {

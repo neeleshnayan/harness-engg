@@ -61,6 +61,8 @@ export default function CustomerPage() {
   const [kycMessage, setKycMessage] = useState<string | null>(null)
   const [fiatData, setFiatData] = useState<any>([]);
   const [webhookNotification, setWebhookNotification] = useState<string | null>(null);
+  const [balanceCardRefresh, setBalanceCardRefresh] = useState(false);
+  const [balanceRefreshing, setBalanceRefreshing] = useState(false);
   const router = useRouter();
 
   // WebSocket connection for real-time webhook updates
@@ -77,9 +79,9 @@ export default function CustomerPage() {
           if (message.event_type === 'INBOUND') {
             notificationText = 'New transaction received! Refreshing balance...';
           } else if (message.event_type === 'wallet.created') {
-            notificationText = 'Wallet created! Refreshing data...';
+            notificationText = 'Wallet created! Refreshing balance...';
           } else if (message.event_type === 'wallet.updated') {
-            notificationText = 'Wallet updated! Refreshing data...';
+            notificationText = 'Wallet updated! Refreshing balance...';
           }
           
           if (notificationText) {
@@ -87,14 +89,14 @@ export default function CustomerPage() {
             setTimeout(() => setWebhookNotification(null), 5000);
           }
           
-          // Automatically refresh balance and user data
+          // Only refresh balance when WebSocket message is received
           if (accountData?.wallet_address && message.address === accountData.wallet_address) {
 
+            setBalanceRefreshing(true);
             fetchBalance(accountData.wallet_address);
-          }
-          if (accountData?.user_id) {
+            // Trigger BalanceCard refresh
+            setBalanceCardRefresh(prev => !prev);
 
-            fetchUserData(accountData.user_id);
           }
           
           // Also refresh transaction history if it's open
@@ -248,6 +250,7 @@ export default function CustomerPage() {
       captureAPIError(err, `/api/v1/wallet_balance/${address}`, { wallet_address: address });
     } finally {
       setBalanceLoading(false);
+      setBalanceRefreshing(false);
     }
   };
 
@@ -687,82 +690,6 @@ export default function CustomerPage() {
           onLogout={handleLogout}
           onMenuToggle={() => setShowMenu(!showMenu)}
         />
-        
-        {/* WebSocket Connection Status */}
-        {/* <div className="fixed top-20 right-4 z-50">
-          <div className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs font-medium ${
-            connectionStatus === 'connected'
-              ? 'bg-green-900/30 text-green-400 border border-green-700/50' 
-              : connectionStatus === 'connecting'
-              ? 'bg-yellow-900/30 text-yellow-400 border border-yellow-700/50'
-              : connectionStatus === 'error'
-              ? 'bg-red-900/30 text-red-400 border border-red-700/50'
-              : 'bg-zinc-900/30 text-zinc-400 border border-zinc-700/50'
-          }`}>
-            <div className={`w-2 h-2 rounded-full ${
-              connectionStatus === 'connected' ? 'bg-green-400' 
-              : connectionStatus === 'connecting' ? 'bg-yellow-400 animate-pulse'
-              : connectionStatus === 'error' ? 'bg-red-400'
-              : 'bg-zinc-400'
-            }`}></div>
-            {connectionStatus === 'connected' ? 'Live' 
-             : connectionStatus === 'connecting' ? 'Connecting...'
-             : connectionStatus === 'error' ? 'Error'
-             : 'Offline'}
-          </div>
-          <div className="text-xs text-zinc-500 mt-1 text-center">
-            WebSocket
-          </div>
-          {connectionStatus === 'error' && (
-            <button
-              onClick={wsReconnect}
-              className="mt-2 w-full bg-red-600 hover:bg-red-700 text-white text-xs px-2 py-1 rounded transition-colors"
-            >
-              Reconnect
-            </button>
-          )}
-          <div className="text-xs text-zinc-500 mt-1 text-center">
-            {wsConnected ? 'Connected' : 'Disconnected'}
-          </div>
-        </div> */}
-        
-        {/* Webhook Notification */}
-        {/* {webhookNotification && (
-          <div className="fixed top-32 right-4 z-50 max-w-sm">
-            <div className="bg-blue-900/30 border border-blue-700/50 text-blue-400 px-4 py-3 rounded-lg shadow-lg backdrop-blur-sm">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                <span className="text-sm font-medium">{webhookNotification}</span>
-              </div>
-            </div>
-          </div>
-        )} */}
-        
-        {/* Manual Refresh Button */}
-
-        {/*
-
-        <div className="fixed top-44 right-4 z-50">
-          <button
-            onClick={() => {
-              if (accountData?.wallet_address) {
-                fetchBalance(accountData.wallet_address);
-              }
-              if (accountData?.user_id) {
-                fetchUserData(accountData.user_id);
-              }
-              setWebhookNotification('Manually refreshing data...');
-              setTimeout(() => setWebhookNotification(null), 2000);
-            }}
-            className="bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700/50 text-zinc-300 hover:text-white px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 backdrop-blur-sm"
-            title="Refresh data manually"
-          >
-            🔄 Refresh
-          </button>
-        </div>
-
-        */}
-
         <HamburgerMenu 
           visible={showMenu} 
           onClose={() => setShowMenu(false)}
@@ -817,6 +744,8 @@ export default function CustomerPage() {
             onBuyClick={() => setShowTransakModal(true)}
             onSkipKyc={() => accountData?.user_id && skipKyc(accountData.user_id)}
             balanceLoading={balanceLoading}
+            balanceCardRefresh={balanceCardRefresh}
+            balanceRefreshing={balanceRefreshing}
           />
           {accountData?.username && kycStatus === 'approved' && (
             <div className="flex flex-row gap-4 mb-8 w-full justify-center mt-8">

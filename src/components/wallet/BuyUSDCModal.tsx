@@ -28,6 +28,24 @@ const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose, walletAd
   const [coinbaseBuyUrl, setCoinbaseBuyUrl] = useState<string>("");
   const [isCreatingQuote, setIsCreatingQuote] = useState<boolean>(false);
   const [inputMode, setInputMode] = useState<'fiat' | 'usdc'>('fiat');
+  const [exchangeRates, setExchangeRates] = useState<{ [key: string]: string }>({});
+
+  // Fetch exchange rates once at component initialization
+  useEffect(() => {
+    const fetchExchangeRates = async () => {
+      try {
+        const currencyToUSD = await fetch(`https://api.coinbase.com/v2/exchange-rates?currency=USD`);
+        const currencyToUSDJson = await currencyToUSD.json();
+        setExchangeRates(currencyToUSDJson.data.rates);
+      } catch (error) {
+        console.error('Error fetching exchange rates:', error);
+        // Set default rates if API fails
+        setExchangeRates({});
+      }
+    };
+
+    fetchExchangeRates();
+  }, []);
 
   // Function to calculate fiat amount needed for a specific USDC amount
   const calculateFiatAmount = async (usdcAmount: string, currency: string): Promise<string> => {
@@ -55,6 +73,11 @@ const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose, walletAd
       }
 
       try {
+        const conversionRate = exchangeRates[currency];
+        if (!conversionRate) {
+          console.error(`Exchange rate not found for currency: ${currency}`);
+          return "0";
+        }
         coinbaseQuoteResponse = await fetch('https://api.developer.coinbase.com/onramp/v1/buy/quote', {
           method: 'POST',
           body: JSON.stringify({
@@ -62,7 +85,7 @@ const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose, walletAd
             purchase_network: 'ethereum',
             payment_currency: currency,
             payment_method: 'CARD',
-            payment_amount: (parseFloat(usdcAmount)/0.97).toFixed(2),
+            payment_amount: (parseFloat(usdcAmount)*parseFloat(conversionRate)/0.97).toFixed(2),
             country: 'GB',
             destinationAddress: walletAddress || ''
           }),
@@ -76,7 +99,6 @@ const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose, walletAd
       }
       var coinbase_fiatamount = "999999999";
       const coinbaseQuote = await coinbaseQuoteResponse.json();
-
       const coinbaseAmount = coinbaseQuote?.payment_total?.value || "999999999";
       coinbase_fiatamount = Math.min(999999999, parseFloat(coinbaseAmount)).toFixed(2);
       const min_fiatamount = Math.min(parseFloat(transak_fiatamount), parseFloat(coinbase_fiatamount));
@@ -248,17 +270,21 @@ const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose, walletAd
       <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl w-full max-w-md p-2 shadow-2xl">
         {/* Header */}
         <h2 className="flex items-center justify-center text-2xl font-bold text-white mb-6 text-center">
-          <img
-            src='/transak-logo.svg'
-            alt="Transak"
-            className="h-6 rounded-full"
-          />
-          &nbsp;&nbsp;Buy USDC&nbsp;
-          <img
-            src='/coinbase-logo.svg'
-            alt="Coinbase"
-            className="h-10 rounded-full"
-          />
+          <svg
+            className="w-8 h-8 text-blue-400 mr-3"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          Add USDC
         </h2>
 
         {/* Amount Input */}
@@ -308,12 +334,13 @@ const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose, walletAd
           </div>
         </div>
 
-        {/* Floating swap icon on the right side between inputs */}
+        {/* Floating swap icon overlapping both inputs */}
         <div className="relative mb-5">
-          <div className="absolute -right-6 top-1/2 transform -translate-y-1/2 z-10">
-            <div className="bg-blue-600 hover:bg-blue-700 rounded-full p-4 shadow-lg cursor-pointer transition-all duration-200 hover:scale-110" onClick={handleSwapInputMode}>
+          <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
+            <div className="bg-zinc-700 hover:bg-zinc-600 rounded-full p-3 shadow-lg cursor-pointer transition-all duration-200 hover:scale-110 border-2 border-zinc-900" onClick={handleSwapInputMode}>
               <svg
-                className="w-7 h-7 text-white"
+                className="w-6 h-6 text-white"
+
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -393,6 +420,7 @@ const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose, walletAd
             </button>
           </div>
         </div>
+        <p className="text-sm text-zinc-400 mt-1 mb-1">Powered by Coinbase & Transak</p>
       </div>
     </div>
   );

@@ -92,7 +92,6 @@ export default function LangChainChat({ userId = '' }: LangChainChatProps) {
         query: query,
         user_id: userId
       });
-
       if (response.status >= 400) {
         const errorText = response.data;
         console.error('API Error Response:', errorText);

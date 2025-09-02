@@ -19,6 +19,8 @@ interface BalanceCardProps {
   onBuyClick?: () => void;
   onSkipKyc?: () => void;
   balanceLoading?: boolean;
+  balanceCardRefresh?: boolean;
+  balanceRefreshing?: boolean;
 }
 
 const USDC_SVG = (
@@ -46,7 +48,9 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   kycMessage,
   onBuyClick,
   onSkipKyc,
-  balanceLoading = false
+  balanceLoading = false,
+  balanceCardRefresh = false,
+  balanceRefreshing = false
 }) => {
   const showKycSection = accountData?.username && kycStatus !== 'approved' && onKycClick;
   const showBalanceSection = accountData?.username; // Always show balance if username exists
@@ -118,10 +122,10 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
         {showBalanceSection && (
           <div className={`flex items-center justify-center mb-4 ${!isKycApproved ? 'blur-sm' : ''}`}>
             <div className="text-6xl font-bold text-white">
-              {balanceLoading ? (
+              {balanceLoading || balanceRefreshing ? (
                 <div className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mr-3"></div>
-                  <span className="text-2xl">Loading...</span>
+                  <span className="text-2xl">{balanceRefreshing ? 'Refreshing...' : 'Loading...'}</span>
                 </div>
               ) : error ? (
                 <span className="text-red-400 text-2xl font-semibold">{error}</span>
@@ -141,7 +145,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
                 return '-';
               })()}
             </div>
-            {onBuyClick && isKycApproved && !balanceLoading && (
+            {onBuyClick && isKycApproved && !balanceLoading && !balanceRefreshing && (
               <button
                 onClick={onBuyClick}
                 className="ml-6 p-3 bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 group"
