@@ -70,12 +70,7 @@ export default function BusinessPage() {
     `${process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace('https://', 'wss://').replace('http://', 'ws://') : 'wss://api.kryptonfund.com'}/api/v1/ws`,
     {
       onMessage: (message) => {
-        
         if (message.type === 'circle_webhook') {
-        // console.log('WebSocket message received:', message);
-        
-        if (message.type === 'circle_webhook') {
-          // console.log('Circle webhook received via WebSocket:', message);
           
           // Show notification to user
           let notificationText = '';
@@ -113,9 +108,8 @@ export default function BusinessPage() {
       },
       onClose: () => {
         addBreadcrumb('WebSocket disconnected', 'websocket', { status: 'disconnected' });
-
       },
-      onError: (error) => {
+      onError: (error: any) => {
         console.error('WebSocket error:', error);
         console.error('WebSocket error details:', {
           error,
@@ -554,7 +548,6 @@ export default function BusinessPage() {
     // Poll user data for KYC status
     for (let i = 0; i < 15; i++) { // Increased attempts
       try {
-        (`Polling attempt ${i + 1}/15`);
         const res = await api.get(`/api/v1/user/${userId}`);
         const status = res.data.kyc_status;
         
@@ -593,7 +586,6 @@ export default function BusinessPage() {
     
     // If we've exhausted all attempts, try one final manual check
     try {
-      ('Performing final KYC status check...');
       const finalRes = await api.post(`/api/v1/kyc/check-status/${userId}`);
       if (finalRes.data.status === 'success') {
         const finalStatus = finalRes.data.kyc_status;
