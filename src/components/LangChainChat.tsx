@@ -26,7 +26,7 @@ export default function LangChainChat({ userId = '' }: LangChainChatProps) {
     {
       id: '1',
       type: 'assistant',
-      content: 'Hello! I can help you with financial actions. Try saying "Send 100 USDC to Krypton" or "Check my balance".',
+      content: 'Hello! I can help you with financial actions and automated trading. Try saying "Send 100 USDC to Krypton", "Check my balance", or "Start trading BTC/USDT".',
       timestamp: new Date(),
     }
   ]);
@@ -122,12 +122,27 @@ export default function LangChainChat({ userId = '' }: LangChainChatProps) {
 
     return (
       <div className="mt-2 space-y-1">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Badge variant={intent.confidence > 0.7 ? 'default' : 'secondary'}>
             {intent.action} ({Math.round(intent.confidence * 100)}%)
           </Badge>
           {intent.currency && (
             <Badge variant="outline">{intent.currency}</Badge>
+          )}
+          {intent.trading_pair && (
+            <Badge variant="outline" className="bg-blue-100 text-blue-800">
+              {intent.trading_pair}
+            </Badge>
+          )}
+          {intent.strategy && (
+            <Badge variant="outline" className="bg-green-100 text-green-800">
+              {intent.strategy}
+            </Badge>
+          )}
+          {intent.timeframe && (
+            <Badge variant="outline" className="bg-purple-100 text-purple-800">
+              {intent.timeframe}
+            </Badge>
           )}
         </div>
         {intent.amount && (
@@ -138,6 +153,11 @@ export default function LangChainChat({ userId = '' }: LangChainChatProps) {
         {intent.recipient && (
           <div className="text-sm text-muted-foreground">
             Recipient: {intent.recipient}
+          </div>
+        )}
+        {intent.trading_pair && intent.strategy && (
+          <div className="text-sm text-muted-foreground">
+            Trading: {intent.trading_pair} with {intent.strategy} strategy
           </div>
         )}
       </div>
@@ -223,7 +243,7 @@ export default function LangChainChat({ userId = '' }: LangChainChatProps) {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Type your request here... (e.g., 'Send 100 USDC to Krypton')"
+              placeholder="Type your request here... (e.g., 'Send 100 USDC to Krypton', 'Start trading BTC/USDT', 'Check my balance')"
               disabled={isLoading}
               className="flex-1"
             />
