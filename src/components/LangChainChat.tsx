@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Badge } from './ui/badge';
 import { Loader2, Send, Bot, User, CheckCircle, XCircle } from 'lucide-react';
 import api from '@/lib/api';
+import agentsApi from '@/lib/agents_api';
 
 interface ChatMessage {
   id: string;
@@ -26,7 +27,8 @@ export default function LangChainChat({ userId = '' }: LangChainChatProps) {
     {
       id: '1',
       type: 'assistant',
-      content: 'Hello! I can help you with financial actions and automated trading. Try saying "Send 100 USDC to Krypton", "Check my balance", or "Start trading BTC/USDT".',
+      content: 'Hello! I can help you with financial actions and automated paper trading. Try saying "Send 100 USDC to Krypton", "Check my balance", or "Start trading BTC/USD" (paper trading mode).',
+
       timestamp: new Date(),
     }
   ]);
@@ -88,7 +90,7 @@ export default function LangChainChat({ userId = '' }: LangChainChatProps) {
 
   const callLangChainAPI = async (query: string) => {
     try {
-      const response = await api.post('/api/v1/query', {
+      const response = await agentsApi.post('/api/v1/query', {
         query: query,
         user_id: userId
       });
@@ -155,11 +157,16 @@ export default function LangChainChat({ userId = '' }: LangChainChatProps) {
             Recipient: {intent.recipient}
           </div>
         )}
-        {intent.trading_pair && intent.strategy && (
-          <div className="text-sm text-muted-foreground">
-            Trading: {intent.trading_pair} with {intent.strategy} strategy
-          </div>
-        )}
+          {intent.trading_pair && intent.strategy && (
+            <div className="text-sm text-muted-foreground">
+              Trading: {intent.trading_pair} with {intent.strategy} strategy
+            </div>
+          )}
+          {intent.action && intent.action.includes('trading') && (
+            <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded mt-1">
+              📊 Paper Trading Mode (Alpaca Sandbox)
+            </div>
+          )}
       </div>
     );
   };
@@ -243,7 +250,7 @@ export default function LangChainChat({ userId = '' }: LangChainChatProps) {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Type your request here... (e.g., 'Send 100 USDC to Krypton', 'Start trading BTC/USDT', 'Check my balance')"
+              placeholder="Type your request here... (e.g., 'Send 100 USDC to Krypton', 'Start trading BTC/USD', 'Check my balance')"
               disabled={isLoading}
               className="flex-1"
             />

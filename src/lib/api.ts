@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 // Set the base URL for API requests
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.kryptonfund.com';
-// const API_BASE_URL = 'http://127.0.0.1:8000'
+// const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.kryptonfund.com';
+const API_BASE_URL = 'http://127.0.0.1:8000'
 
 // Create axios instance with base URL
 const api = axios.create({
@@ -70,5 +70,6 @@ export const getTokenInfo = async (tokenAddress: string) => {
     throw error;
   }
 };
+
 
 export default api;
