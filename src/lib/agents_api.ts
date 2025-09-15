@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Set the base URL for Agents API requests
-const AGENTS_API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://agent.kryptonfund.com/';
+const AGENTS_API_BASE_URL = process.env.NEXT_PUBLIC_AGENTS_API_URL || 'https://agent.kryptonfund.com/';
 // const AGENTS_API_BASE_URL = 'http://127.0.0.1:8000';
 
 // Create axios instance for Agents API
