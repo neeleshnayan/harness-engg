@@ -91,12 +91,12 @@ export default function CustomerPage() {
           
           // Only refresh balance when WebSocket message is received
           if (accountData?.wallet_address && message.address === accountData.wallet_address) {
-
+            // Set refreshing state and fetch balance in background (no page loader)
             setBalanceRefreshing(true);
-            fetchBalance(accountData.wallet_address);
-            // Trigger BalanceCard refresh
+            fetchBalance(accountData.wallet_address, { background: true });
+            
+            // Trigger BalanceCard refresh by toggling the refresh flag
             setBalanceCardRefresh(prev => !prev);
-
           }
           
           // Also refresh transaction history if it's open
@@ -205,7 +205,7 @@ export default function CustomerPage() {
       
       // If we have a wallet address and it's not already being fetched, fetch balance
       if (updatedData.wallet_address && !balance) {
-        fetchBalance(updatedData.wallet_address);
+        fetchBalance(updatedData.wallet_address, { background: true });
       }
       
       // If user has username but KYC is not approved, check status
@@ -232,25 +232,35 @@ export default function CustomerPage() {
     }
   };
 
-  const fetchBalance = async (address: string) => {
+  const fetchBalance = async (
+    address: string,
+    options?: { background?: boolean }
+  ) => {
+    const isBackground = options?.background === true;
     try {
-      setBalanceLoading(true);
-      addBreadcrumb('Fetching wallet balance', 'api', { wallet_address: address });
+      if (!isBackground) {
+        setBalanceLoading(true);
+      }
+      addBreadcrumb('Fetching wallet balance', 'api', { wallet_address: address, background: isBackground });
       
       const response = await api.get(`/api/v1/wallet_balance/${address}`);
       setBalance(response.data);
       
       addBreadcrumb('Balance fetched successfully', 'api', { 
         wallet_address: address,
+        background: isBackground,
         balance: response.data 
       });
       
     } catch (err) {
       setError('Failed to fetch balance.');
-      captureAPIError(err, `/api/v1/wallet_balance/${address}`, { wallet_address: address });
+      captureAPIError(err, `/api/v1/wallet_balance/${address}`, { wallet_address: address, background: isBackground });
     } finally {
-      setBalanceLoading(false);
-      setBalanceRefreshing(false);
+      if (isBackground) {
+        setBalanceRefreshing(false);
+      } else {
+        setBalanceLoading(false);
+      }
     }
   };
 
@@ -404,7 +414,7 @@ export default function CustomerPage() {
       setBalance(null);
       setRefreshingBalance(true);
       if (accountData.wallet_address) {
-        fetchBalance(accountData.wallet_address);
+        fetchBalance(accountData.wallet_address, { background: true });
       }
       setTransactionHistoryRefresh(prev => !prev);
       

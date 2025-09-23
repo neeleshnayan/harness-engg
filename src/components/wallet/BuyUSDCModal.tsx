@@ -29,6 +29,11 @@ const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose, walletAd
   const [isCreatingQuote, setIsCreatingQuote] = useState<boolean>(false);
   const [inputMode, setInputMode] = useState<'fiat' | 'usdc'>('fiat');
   const [exchangeRates, setExchangeRates] = useState<{ [key: string]: string }>({});
+  const [showRates, setShowRates] = useState<boolean>(false);
+  const [transakQuoteUSDC, setTransakQuoteUSDC] = useState<string>("0");
+  const [coinbaseQuoteUSDC, setCoinbaseQuoteUSDC] = useState<string>("0");
+  const [transakFiatQuote, setTransakFiatQuote] = useState<string>("0");
+  const [coinbaseFiatQuote, setCoinbaseFiatQuote] = useState<string>("0");
 
   // Fetch exchange rates once at component initialization
   useEffect(() => {
@@ -101,6 +106,9 @@ const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose, walletAd
       const coinbaseQuote = await coinbaseQuoteResponse.json();
       const coinbaseAmount = coinbaseQuote?.payment_total?.value || "999999999";
       coinbase_fiatamount = Math.min(999999999, parseFloat(coinbaseAmount)).toFixed(2);
+      // store individual fiat quotes for rate card
+      setTransakFiatQuote(transak_fiatamount);
+      setCoinbaseFiatQuote(coinbase_fiatamount);
       const min_fiatamount = Math.min(parseFloat(transak_fiatamount), parseFloat(coinbase_fiatamount));
       if (min_fiatamount == 999999999) {
         return "0";
@@ -177,6 +185,9 @@ const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose, walletAd
 
           if (isMounted) {
             setUsdcAmount(val);
+            // store individual usdc quotes for rate card
+            setTransakQuoteUSDC(parseFloat(transakAmount || 0).toFixed(2));
+            setCoinbaseQuoteUSDC(parseFloat(coinbaseAmount || 0).toFixed(2));
             if (parseFloat(transakAmount) > parseFloat(coinbaseAmount)) {
               setBestExchange("Transak");
             } else {
@@ -247,7 +258,6 @@ const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose, walletAd
           subdivision: 'CA',
           apiKey: 'XPGt5SREGfGGfgXf6SWACggGkjh3HwQE'
         });
-
         if ((quoteResponse as any)?.onrampUrl) {
           window.open((quoteResponse as any).onrampUrl, '_blank', 'width=500,height=700');
         }
@@ -263,6 +273,7 @@ const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose, walletAd
 
   const handleSwapInputMode = () => {
     setInputMode(inputMode === 'fiat' ? 'usdc' : 'fiat');
+    setShowRates(false);
   };
 
   return (
@@ -392,8 +403,6 @@ const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose, walletAd
         <div className="flex justify-between gap-3 items-center">
           {((inputMode === 'fiat' && usdcAmount !== "0") || (inputMode === 'usdc' && amount !== "")) && (
             <button
-              onClick={handleViaExchange}
-              disabled={isCreatingQuote}
               className="px-5 py-3 bg-gradient-to-r from-blue-900 to-green-700 text-white rounded-xl font-semibold hover:from-blue-800 hover:to-green-600 shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isCreatingQuote ? (
@@ -405,6 +414,14 @@ const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose, walletAd
           )}
 
           <div className="flex gap-3">
+            {((inputMode === 'fiat' && usdcAmount !== "0") || (inputMode === 'usdc' && calculatedFiatAmount !== "0")) && (
+              <button
+                onClick={() => setShowRates(!showRates)}
+                className="px-5 py-3 bg-gradient-to-r from-blue-900 to-green-700 text-white rounded-xl font-semibold hover:from-blue-800 hover:to-green-600 shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {showRates ? 'Hide rates' : 'View rates'}
+              </button>
+            )}
             <button
               onClick={onClose}
               className="px-5 py-3 border border-zinc-700 rounded-xl text-zinc-300 hover:bg-zinc-800 transition-colors duration-200"
@@ -420,6 +437,37 @@ const BuyUSDCModal: React.FC<BuyUSDCModalProps> = ({ fiatData, onClose, walletAd
             </button>
           </div>
         </div>
+        {showRates && (
+          <div className="mt-4 bg-zinc-800/50 border border-zinc-700 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-zinc-400">Best offer</span>
+              <span className="text-xs px-2 py-1 rounded-full bg-green-900/30 text-green-400 border border-green-600/30">{bestExchange}</span>
+            </div>
+            {inputMode === 'fiat' ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-zinc-900/40 rounded-lg p-3 border border-zinc-700/50">
+                  <div className="text-xs text-zinc-400 mb-1">Transak (USDC received)</div>
+                  <div className="text-white text-lg font-semibold">{transakQuoteUSDC} <span className="text-zinc-400 text-sm">USDC</span></div>
+                </div>
+                <div className="bg-zinc-900/40 rounded-lg p-3 border border-zinc-700/50">
+                  <div className="text-xs text-zinc-400 mb-1">Coinbase (USDC received)</div>
+                  <div className="text-white text-lg font-semibold">{coinbaseQuoteUSDC} <span className="text-zinc-400 text-sm">USDC</span></div>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-zinc-900/40 rounded-lg p-3 border border-zinc-700/50">
+                  <div className="text-xs text-zinc-400 mb-1">Transak (You pay)</div>
+                  <div className="text-white text-lg font-semibold">{transakFiatQuote} <span className="text-zinc-400 text-sm">{selectedCurrency}</span></div>
+                </div>
+                <div className="bg-zinc-900/40 rounded-lg p-3 border border-zinc-700/50">
+                  <div className="text-xs text-zinc-400 mb-1">Coinbase (You pay)</div>
+                  <div className="text-white text-lg font-semibold">{coinbaseFiatQuote} <span className="text-zinc-400 text-sm">{selectedCurrency}</span></div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         <p className="text-sm text-zinc-400 mt-1 mb-1">Powered by Coinbase & Transak</p>
       </div>
     </div>

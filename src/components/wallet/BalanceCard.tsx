@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
 import { FaShieldAlt, FaSync, FaPlus } from "react-icons/fa";
 
@@ -52,13 +52,27 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   balanceCardRefresh = false,
   balanceRefreshing = false
 }) => {
+  const [localRefreshing, setLocalRefreshing] = useState(false);
+  
   const showKycSection = accountData?.username && kycStatus !== 'approved' && onKycClick;
   const showBalanceSection = accountData?.username; // Always show balance if username exists
   const isKycApproved = kycStatus === 'approved';
 
+  // Handle balance card refresh from WebSocket
+  useEffect(() => {
+    if (balanceCardRefresh) {
+      setLocalRefreshing(true);
+      // Reset local refreshing state after a short delay to show the refresh animation
+      const timer = setTimeout(() => {
+        setLocalRefreshing(false);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [balanceCardRefresh]);
+
 
   return (
-    <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 mb-8 ${className || ''}`}>
+    <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 mb-8 transition-all duration-300 ${localRefreshing ? 'ring-2 ring-green-500/30 ring-opacity-50' : ''} ${className || ''}`}>
       <div className="text-center">
         <div className="flex items-center justify-center mb-4">
           {USDC_SVG}
@@ -121,11 +135,13 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
         {/* Show balance always if username exists, but blur if KYC not approved */}
         {showBalanceSection && (
           <div className={`flex items-center justify-center mb-4 ${!isKycApproved ? 'blur-sm' : ''}`}>
-            <div className="text-6xl font-bold text-white">
-              {balanceLoading || balanceRefreshing ? (
+            <div className="text-6xl font-bold text-white relative">
+              {balanceLoading || balanceRefreshing || localRefreshing ? (
                 <div className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mr-3"></div>
-                  <span className="text-2xl">{balanceRefreshing ? 'Refreshing...' : 'Loading...'}</span>
+                  <span className="text-2xl">
+                    {localRefreshing ? 'Updating...' : balanceRefreshing ? 'Refreshing...' : 'Loading...'}
+                  </span>
                 </div>
               ) : error ? (
                 <span className="text-red-400 text-2xl font-semibold">{error}</span>
@@ -144,8 +160,12 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
                 }
                 return '-';
               })()}
+              {/* Subtle refresh indicator */}
+              {localRefreshing && (
+                <div className="absolute -top-2 -right-2 w-4 h-4 bg-green-500 rounded-full animate-pulse"></div>
+              )}
             </div>
-            {onBuyClick && isKycApproved && !balanceLoading && !balanceRefreshing && (
+            {onBuyClick && isKycApproved && !balanceLoading && !balanceRefreshing && !localRefreshing && (
               <button
                 onClick={onBuyClick}
                 className="ml-6 p-3 bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 group"
