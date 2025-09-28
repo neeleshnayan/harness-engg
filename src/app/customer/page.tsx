@@ -63,6 +63,7 @@ export default function CustomerPage() {
   const [webhookNotification, setWebhookNotification] = useState<string | null>(null);
   const [balanceCardRefresh, setBalanceCardRefresh] = useState(false);
   const [balanceRefreshing, setBalanceRefreshing] = useState(false);
+  const [balanceFlickering, setBalanceFlickering] = useState(false);
   const router = useRouter();
 
   // WebSocket connection for real-time webhook updates
@@ -258,8 +259,16 @@ export default function CustomerPage() {
     } finally {
       if (isBackground) {
         setBalanceRefreshing(false);
+        // Stop flickering when balance refresh is complete
+        if (balanceFlickering) {
+          setBalanceFlickering(false);
+        }
       } else {
         setBalanceLoading(false);
+        // Stop flickering when balance loading is complete
+        if (balanceFlickering) {
+          setBalanceFlickering(false);
+        }
       }
     }
   };
@@ -413,6 +422,10 @@ export default function CustomerPage() {
       setSendAmount("");
       setBalance(null);
       setRefreshingBalance(true);
+      
+      // Trigger balance flickering effect
+      setBalanceFlickering(true);
+      
       if (accountData.wallet_address) {
         fetchBalance(accountData.wallet_address, { background: true });
       }
@@ -756,6 +769,7 @@ export default function CustomerPage() {
             balanceLoading={balanceLoading}
             balanceCardRefresh={balanceCardRefresh}
             balanceRefreshing={balanceRefreshing}
+            balanceFlickering={balanceFlickering}
           />
           {accountData?.username && kycStatus === 'approved' && (
             <div className="flex flex-row gap-4 mb-8 w-full justify-center mt-8">

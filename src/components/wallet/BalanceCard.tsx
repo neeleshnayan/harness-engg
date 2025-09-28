@@ -21,6 +21,7 @@ interface BalanceCardProps {
   balanceLoading?: boolean;
   balanceCardRefresh?: boolean;
   balanceRefreshing?: boolean;
+  balanceFlickering?: boolean;
 }
 
 const USDC_SVG = (
@@ -50,9 +51,11 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   onSkipKyc,
   balanceLoading = false,
   balanceCardRefresh = false,
-  balanceRefreshing = false
+  balanceRefreshing = false,
+  balanceFlickering = false
 }) => {
   const [localRefreshing, setLocalRefreshing] = useState(false);
+  const [isFlickering, setIsFlickering] = useState(false);
   
   const showKycSection = accountData?.username && kycStatus !== 'approved' && onKycClick;
   const showBalanceSection = accountData?.username; // Always show balance if username exists
@@ -70,10 +73,19 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
     }
   }, [balanceCardRefresh]);
 
+  // Handle balance flickering when USDC is sent out
+  useEffect(() => {
+    if (balanceFlickering) {
+      setIsFlickering(true);
+    } else {
+      setIsFlickering(false);
+    }
+  }, [balanceFlickering]);
+
 
   return (
     <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 mb-8 transition-all duration-300 ${localRefreshing ? 'ring-2 ring-green-500/30 ring-opacity-50' : ''} ${className || ''}`}>
-      <div className="text-center">
+        <div className="text-center">
         <div className="flex items-center justify-center mb-4">
           {USDC_SVG}
           <h3 className="text-2xl font-bold text-white ml-2">Your Balance</h3>
@@ -135,7 +147,9 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
         {/* Show balance always if username exists, but blur if KYC not approved */}
         {showBalanceSection && (
           <div className={`flex items-center justify-center mb-4 ${!isKycApproved ? 'blur-sm' : ''}`}>
-            <div className="text-6xl font-bold text-white relative">
+            <div className={`text-6xl font-bold text-white relative transition-all duration-200 ${
+              isFlickering ? 'balance-flicker' : ''
+            }`}>
               {balanceLoading || balanceRefreshing || localRefreshing ? (
                 <div className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mr-3"></div>
