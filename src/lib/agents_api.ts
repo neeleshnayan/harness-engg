@@ -52,24 +52,5 @@ export const processNaturalLanguageQuery = async (query: string, userId?: string
   }
 };
 
-export const getLangChainCapabilities = async () => {
-  try {
-    const response = await agentsApi.get('/api/v1/capabilities');
-    return response.data;
-  } catch (error) {
-    console.error('Error getting LangChain capabilities:', error);
-    throw error;
-  }
-};
-
-export const checkLangChainHealth = async () => {
-  try {
-    const response = await agentsApi.get('/api/v1/health');
-    return response.data;
-  } catch (error) {
-    console.error('Error checking LangChain health:', error);
-    throw error;
-  }
-};
 
 export default agentsApi;

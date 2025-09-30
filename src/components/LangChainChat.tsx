@@ -6,7 +6,6 @@ import { Input } from './ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Loader2, Send, Bot, User, CheckCircle, XCircle } from 'lucide-react';
-import api from '@/lib/api';
 import agentsApi from '@/lib/agents_api';
 
 interface ChatMessage {
