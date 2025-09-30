@@ -191,7 +191,7 @@ export default function BacktestPage() {
     
     try {
       // Make API call to LangChain service
-      const response = await agentsApi.post('/api/v1/query', {
+      const response = await agentsApi.post('/api/v1/agents/query', {
         query: inputValue,
         user_id: 'backtest_user'
       })

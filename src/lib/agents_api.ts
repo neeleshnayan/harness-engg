@@ -41,7 +41,7 @@ agentsApi.interceptors.response.use(
 // Agents API functions
 export const processNaturalLanguageQuery = async (query: string, userId?: string) => {
   try {
-    const response = await agentsApi.post('/api/v1/query', {
+    const response = await agentsApi.post('/api/v1/agents/query', {
       query,
       user_id: userId
     });

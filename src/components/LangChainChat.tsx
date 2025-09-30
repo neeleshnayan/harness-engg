@@ -90,7 +90,7 @@ export default function LangChainChat({ userId = '' }: LangChainChatProps) {
 
   const callLangChainAPI = async (query: string) => {
     try {
-      const response = await agentsApi.post('/api/v1/query', {
+      const response = await agentsApi.post('/api/v1/agents/query', {
         query: query,
         user_id: userId
       });
