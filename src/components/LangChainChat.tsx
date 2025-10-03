@@ -18,10 +18,18 @@ interface ChatMessage {
 }
 
 interface LangChainChatProps {
-  userId?: string
+  userId?: string;
+  onBalanceRefresh?: () => void;
+  onBalanceFlicker?: () => void;
+  onTransactionRefresh?: () => void;
 }
 
-export default function LangChainChat({ userId = '' }: LangChainChatProps) {
+export default function LangChainChat({ 
+  userId = '', 
+  onBalanceRefresh, 
+  onBalanceFlicker, 
+  onTransactionRefresh 
+}: LangChainChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
@@ -71,6 +79,26 @@ export default function LangChainChat({ userId = '' }: LangChainChatProps) {
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+      
+      // Check if this was a successful USDC transaction and trigger balance refresh/flicker
+      if (response.success && response.parsed_intent) {
+        const intent = response.parsed_intent;
+        // Check if it's a send USDC action with high confidence
+        if (intent.action === 'send_usdc' && intent.confidence > 0.7) {
+          // Trigger balance flicker effect
+          if (onBalanceFlicker) {
+            onBalanceFlicker();
+          }
+          // Trigger balance refresh
+          if (onBalanceRefresh) {
+            onBalanceRefresh();
+          }
+          // Trigger transaction history refresh
+          if (onTransactionRefresh) {
+            onTransactionRefresh();
+          }
+        }
+      }
     } catch (error) {
       console.error('LangChain API error:', error);
       const errorMessage: ChatMessage = {

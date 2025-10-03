@@ -14,6 +14,7 @@ import {
   Filter,
   SortAsc,
   Circle,
+  Bot,
 } from 'lucide-react';
 
 import type { Strategy } from '@/lib/types';
@@ -42,6 +43,8 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 import { Toast, ToastDescription, ToastTitle } from '@/components/ui/toast';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
 
 const initialStrategies: Strategy[] = [
   {
@@ -154,6 +157,7 @@ const chartConfig = {
 };
 
 export default function HedgeFundDashboard() {
+  const router = useRouter();
   const [strategies, setStrategies] = useState<Strategy[]>(initialStrategies);
   const [selectedStrategyForInvestment, setSelectedStrategyForInvestment] = useState<Strategy | null>(null);
   const [isInvestDialogOpen, setInvestDialogOpen] = useState(false);
@@ -260,10 +264,19 @@ export default function HedgeFundDashboard() {
               <h1 className="text-4xl font-bold text-white">Hedge Fund Dashboard</h1>
               <p className="text-lg text-zinc-400 mt-1">Your portfolio overview and strategy hub.</p>
             </div>
-            <div className="flex items-center gap-3 mt-4 md:mt-0 px-4 py-2 bg-zinc-800/50 border border-zinc-700/50 rounded-lg">
-              <Label htmlFor="autopilot-mode" className="text-white font-medium">Autopilot</Label>
-              <Switch id="autopilot-mode" checked={isAutopilotOn} onCheckedChange={setIsAutopilotOn} />
-              <BrainCircuit className="h-5 w-5 text-cyan-400" />
+            <div className="flex items-center gap-3 mt-4 md:mt-0">
+              <Button
+                onClick={() => router.push('/backtest')}
+                className="bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-semibold px-6 py-2 rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center gap-2"
+              >
+                <Bot className="h-4 w-4" />
+                Clark
+              </Button>
+              <div className="flex items-center gap-3 px-4 py-2 bg-zinc-800/50 border border-zinc-700/50 rounded-lg">
+                <Label htmlFor="autopilot-mode" className="text-white font-medium">Autopilot</Label>
+                <Switch id="autopilot-mode" checked={isAutopilotOn} onCheckedChange={setIsAutopilotOn} />
+                <BrainCircuit className="h-5 w-5 text-cyan-400" />
+              </div>
             </div>
           </header>
 

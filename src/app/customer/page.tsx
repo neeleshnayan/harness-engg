@@ -791,7 +791,20 @@ export default function CustomerPage() {
               </button>
             </div>
           )}
-          <LangChainChat userId={accountData?.user_id} />
+          <LangChainChat 
+            userId={accountData?.user_id}
+            onBalanceRefresh={() => {
+              if (accountData?.wallet_address) {
+                fetchBalance(accountData.wallet_address, { background: true });
+              }
+            }}
+            onBalanceFlicker={() => {
+              setBalanceFlickering(true);
+            }}
+            onTransactionRefresh={() => {
+              setTransactionHistoryRefresh(prev => !prev);
+            }}
+          />
         </div>
         {showSendForm && (
           <SendUSDCModal

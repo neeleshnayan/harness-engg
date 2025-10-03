@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar } from 'recharts'
 import { Badge } from '@/components/ui/badge'
-import { TrendingUp, TrendingDown, DollarSign, BarChart3, PieChart as PieChartIcon, Send, Bot, User, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { TrendingUp, TrendingDown, DollarSign, BarChart3, PieChart as PieChartIcon, Send, Bot, User, CheckCircle, XCircle, Loader2, ArrowLeft } from 'lucide-react'
 import agentsApi from '@/lib/agents_api'
+import { useRouter } from 'next/navigation'
 
 interface BacktestRequest {
   strategy: 'conservative' | 'aggressive'
@@ -144,22 +145,26 @@ const allocationColors = [
 ]
 
 export default function BacktestPage() {
+  const router = useRouter()
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
       type: 'assistant',
       content: `Hello! I can help you backtest crypto portfolio strategies and analyze technical indicators for specific assets. Try these examples:
 
-**Basic Backtesting:**
-• "Backtest conservative strategy from 10/01/2024 to 10/09/2025 with 1000 USD"
-• "Test aggressive strategy from 2024-01-01 to 2024-12-31 with 5000 USD"
+Basic Backtesting:
+• Backtest conservative strategy from 10/01/2024 to 09/09/2025 with 1000 USD
+• Test aggressive strategy from 2024-01-01 to 2024-12-31 with 5000 USD
 
-**Asset-Specific Technical Analysis:**
-• "Plot RSI and moving averages for Bitcoin from 2024-01-01 to 2024-12-31"
-• "Show Bollinger Bands for Ethereum over the last 6 months"
-• "Display technical indicators for Solana and Cardano"
-• "Plot 30, 100, and 200-day moving averages for BTC"
-• "Show RSI analysis for ETH and ADA"`,
+Custom Portfolio Allocation:
+• Backtest the following strategy Bitcoin (BTC) 35%, Ethereum (ETH) 25%, BNB (BNB) 10%, Solana (SOL) 7%, Cardano (ADA) 5%, XRP (Ripple) 5%, TRON (TRX) 4%, Dogecoin (DOGE) 3%, Polkadot (DOT) 3%, Stablecoin (USDT/USDC) 3%. from 10/01/2024 to 09/09/2025 with 1000 USD
+
+Asset-Specific Technical Analysis:
+• Plot RSI and moving averages for Bitcoin from 2024-01-01 to 2024-12-31
+• Show Bollinger Bands for Ethereum over the last 6 months
+• Display technical indicators for Solana and Cardano
+• Plot 30, 100, and 200-day moving averages for BTC
+• Show RSI analysis for ETH and ADA`,
       timestamp: new Date(),
     }
   ])
@@ -264,7 +269,7 @@ export default function BacktestPage() {
           </Badge>
           {intent.strategy && (
             <Badge variant="outline" className="bg-green-100 text-green-800">
-              {intent.strategy}
+              {intent.strategy === 'custom' ? 'Custom Portfolio' : intent.strategy}
             </Badge>
           )}
           {intent.start_date && (
@@ -293,114 +298,42 @@ export default function BacktestPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold">Portfolio Backtesting</h1>
-        <p className="text-muted-foreground">
-          Test crypto portfolio strategies with natural language commands
-        </p>
-      </div>
-
-      {/* Chat Interface */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bot className="h-5 w-5" />
-            Backtest Chat
-          </CardTitle>
-          <CardDescription>
-            Describe your backtest requirements in natural language
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {/* Chat Messages */}
-          <div className="h-96 overflow-y-auto border rounded-lg p-4 mb-4 bg-muted/20">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex gap-3 mb-4 ${
-                  message.type === 'user' ? 'justify-end' : 'justify-start'
-                }`}
-              >
-                {message.type === 'assistant' && (
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Bot className="h-4 w-4 text-primary" />
-                  </div>
-                )}
-                
-                <div
-                  className={`max-w-[80%] rounded-lg p-3 ${
-                    message.type === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-background border'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-medium">
-                      {message.type === 'user' ? 'You' : 'Assistant'}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {formatTimestamp(message.timestamp)}
-                    </span>
-                    {message.success !== undefined && (
-                      message.success ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-red-500" />
-                      )
-                    )}
-                  </div>
-                  
-                  <div className="text-sm whitespace-pre-wrap">{message.content}</div>
-                  
-                  {message.parsedIntent && renderIntentBadge(message.parsedIntent)}
-                </div>
-                
-                {message.type === 'user' && (
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <User className="h-4 w-4 text-primary" />
-                  </div>
-                )}
-              </div>
-            ))}
-            
-            {isLoading && (
-              <div className="flex gap-3 mb-4 justify-start">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Bot className="h-4 w-4 text-primary" />
-                </div>
-                <div className="bg-background border rounded-lg p-3">
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm">Processing your request...</span>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            <div ref={messagesEndRef} />
+    <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 dark overflow-x-hidden">
+      {/* Main Content Area */}
+      <div className="container mx-auto px-4 py-8 max-w-7xl pb-80">
+        {/* Header with Back Button */}
+        <div className="flex items-center justify-between mb-8">
+          <Button
+            onClick={() => router.push('/customer/grow/hedge-fund')}
+            variant="ghost"
+            className="flex items-center gap-2 text-zinc-400 hover:text-white hover:bg-zinc-800/50 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Hedge Fund
+          </Button>
+          <div className="text-center space-y-2">
+            <h1 className="text-3xl font-bold text-white mb-4">Clark</h1>
+            <p className="text-zinc-400">
+              AI Portfolio Manager
+            </p>
           </div>
+          <div className="w-24"></div> {/* Spacer for centering */}
+        </div>
 
-          {/* Input Area */}
-          <div className="flex gap-2">
-            <Input
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Try: 'Plot RSI for Bitcoin' or 'Show moving averages for ETH and ADA' or 'Backtest conservative strategy with technical analysis'"
-              disabled={isLoading}
-              className="flex-1"
-            />
-            <Button
-              onClick={handleSendMessage}
-              disabled={!inputValue.trim() || isLoading}
-              size="icon"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Show Krypton logo when no results are available */}
+      {!messages.some(m => m.backtestResult) && (
+        <div className="flex flex-col items-center justify-center py-20">
+          <img
+            src="/krypton_logo.svg"
+            alt="Krypton Logo"
+            className="h-32 w-auto drop-shadow-[0_2px_8px_rgba(16,255,180,0.18)] mb-8"
+          />
+          <h2 className="text-2xl font-bold text-white mb-4">Ready to Analyze</h2>
+          <p className="text-zinc-400 text-center max-w-md">
+            Start a conversation to backtest portfolio strategies and analyze technical indicators.
+          </p>
+        </div>
+      )}
 
       {/* Display backtest results if available */}
       {messages.some(m => m.backtestResult) && (
@@ -413,7 +346,7 @@ export default function BacktestPage() {
                 <div key={message.id} className="space-y-6">
                   {/* Summary Cards - Only show if performance stats are enabled */}
                   {backtestResult.show_performance_stats && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
                       <Card>
                         <CardContent className="p-6">
                           <div className="flex items-center space-x-2">
@@ -432,7 +365,9 @@ export default function BacktestPage() {
                             <TrendingUp className="h-4 w-4 text-muted-foreground" />
                             <div>
                               <p className="text-sm font-medium text-muted-foreground">Total Return</p>
-                              <p className="text-2xl font-bold text-green-600">
+                              <p className={`text-2xl font-bold ${
+                                backtestResult.metrics.total_return >= 0 ? 'text-green-600' : 'text-red-600'
+                              }`}>
                                 {formatPercentage(backtestResult.metrics.total_return)}
                               </p>
                             </div>
@@ -459,7 +394,7 @@ export default function BacktestPage() {
                             <div>
                               <p className="text-sm font-medium text-muted-foreground">Max Drawdown</p>
                               <p className="text-2xl font-bold text-red-600">
-                                {formatPercentage(backtestResult.metrics.max_drawdown)}
+                                {formatPercentage(Math.abs(backtestResult.metrics.max_drawdown))}
                               </p>
                             </div>
                           </div>
@@ -470,7 +405,7 @@ export default function BacktestPage() {
 
                   {/* Performance Chart - Only show if performance stats are enabled */}
                   {backtestResult.show_performance_stats && (
-                    <Card>
+                    <Card className="w-full">
                       <CardHeader>
                         <CardTitle>Portfolio Performance</CardTitle>
                         <CardDescription>
@@ -478,7 +413,7 @@ export default function BacktestPage() {
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <ChartContainer config={chartConfig} className="h-[400px]">
+                        <ChartContainer config={chartConfig} className="h-[400px] w-full">
                           <LineChart data={backtestResult.data_points}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis 
@@ -511,7 +446,7 @@ export default function BacktestPage() {
                       {(backtestResult.technical_indicators_requested.includes('dma_30') || 
                         backtestResult.technical_indicators_requested.includes('dma_100') || 
                         backtestResult.technical_indicators_requested.includes('dma_200')) && (
-                        <Card>
+                        <Card className="w-full">
                           <CardHeader>
                             <CardTitle>Moving Averages Analysis</CardTitle>
                             <CardDescription>
@@ -519,7 +454,7 @@ export default function BacktestPage() {
                             </CardDescription>
                           </CardHeader>
                           <CardContent>
-                            <ChartContainer config={chartConfig} className="h-[400px]">
+                            <ChartContainer config={chartConfig} className="h-[400px] w-full">
                               <LineChart data={backtestResult.data_points.filter(dp => 
                                 dp.technical_indicators?.sma_30 !== null && dp.technical_indicators?.sma_30 !== undefined
                               ).map(dp => ({
@@ -577,7 +512,7 @@ export default function BacktestPage() {
 
                       {/* RSI Chart */}
                       {backtestResult.technical_indicators_requested.includes('rsi') && (
-                        <Card>
+                        <Card className="w-full">
                           <CardHeader>
                             <CardTitle>Relative Strength Index (RSI)</CardTitle>
                             <CardDescription>
@@ -585,7 +520,7 @@ export default function BacktestPage() {
                             </CardDescription>
                           </CardHeader>
                           <CardContent>
-                            <ChartContainer config={chartConfig} className="h-[300px]">
+                            <ChartContainer config={chartConfig} className="h-[300px] w-full">
                               <LineChart data={backtestResult.data_points.filter(dp => 
                                 dp.technical_indicators?.rsi !== null && dp.technical_indicators?.rsi !== undefined
                               ).map(dp => ({
@@ -640,7 +575,7 @@ export default function BacktestPage() {
 
                       {/* Bollinger Bands Chart */}
                       {backtestResult.technical_indicators_requested.includes('bollinger_bands') && (
-                        <Card>
+                        <Card className="w-full">
                           <CardHeader>
                             <CardTitle>Bollinger Bands Analysis</CardTitle>
                             <CardDescription>
@@ -648,7 +583,7 @@ export default function BacktestPage() {
                             </CardDescription>
                           </CardHeader>
                           <CardContent>
-                            <ChartContainer config={chartConfig} className="h-[400px]">
+                            <ChartContainer config={chartConfig} className="h-[400px] w-full">
                               <LineChart data={(() => {
                                 const filteredData = backtestResult.data_points.filter(dp => 
                                   dp.technical_indicators?.bb_upper !== null && dp.technical_indicators?.bb_upper !== undefined
@@ -712,8 +647,8 @@ export default function BacktestPage() {
 
                   {/* Allocation Chart - Only show if performance stats are enabled */}
                   {backtestResult.show_performance_stats && (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <Card>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
+                      <Card className="w-full">
                         <CardHeader>
                           <CardTitle className="flex items-center gap-2">
                             <PieChartIcon className="h-5 w-5" />
@@ -724,7 +659,7 @@ export default function BacktestPage() {
                           </CardDescription>
                         </CardHeader>
                         <CardContent>
-                          <ChartContainer config={chartConfig} className="h-[300px]">
+                          <ChartContainer config={chartConfig} className="h-[300px] w-full">
                             <PieChart>
                               <Pie
                                 data={backtestResult.allocations}
@@ -747,7 +682,7 @@ export default function BacktestPage() {
                         </CardContent>
                       </Card>
 
-                      <Card>
+                      <Card className="w-full">
                         <CardHeader>
                           <CardTitle>Asset Performance</CardTitle>
                           <CardDescription>
@@ -755,7 +690,7 @@ export default function BacktestPage() {
                           </CardDescription>
                         </CardHeader>
                         <CardContent>
-                          <ChartContainer config={chartConfig} className="h-[300px]">
+                          <ChartContainer config={chartConfig} className="h-[300px] w-full">
                             <BarChart data={backtestResult.allocations}>
                               <CartesianGrid strokeDasharray="3 3" />
                               <XAxis 
@@ -770,7 +705,11 @@ export default function BacktestPage() {
                                 tick={{ fontSize: 12 }}
                               />
                               <ChartTooltip content={<ChartTooltipContent />} />
-                              <Bar dataKey="total_return" fill="var(--color-portfolio)" />
+                              <Bar dataKey="total_return" fill="#10b981">
+                                {backtestResult.allocations.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.total_return >= 0 ? '#10b981' : '#ef4444'} />
+                                ))}
+                              </Bar>
                             </BarChart>
                           </ChartContainer>
                         </CardContent>
@@ -782,6 +721,121 @@ export default function BacktestPage() {
             })}
         </div>
       )}
+      </div>
+
+      {/* Fixed Chat Interface at Bottom */}
+      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-br from-black via-zinc-900 to-neutral-900 shadow-lg px-4 py-2">
+        <div className="max-w-7xl mx-auto">
+          <Card className="rounded-lg border shadow-sm bg-zinc-800/50 backdrop-blur-sm border-zinc-700">
+            <CardHeader className="pb-2">
+              
+            </CardHeader>
+            <CardContent className="pt-0">
+            {/* Chat Messages */}
+            <div className="h-48 overflow-y-auto border rounded-lg p-3 mb-3 bg-zinc-900/50 border-zinc-700">
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex gap-3 mb-4 ${
+                    message.type === 'user' ? 'justify-end' : 'justify-start'
+                  }`}
+                >
+                {message.type === 'assistant' && (
+                  <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center">
+                    <Bot className="h-4 w-4 text-purple-400" />
+                  </div>
+                )}
+                
+                <div
+                  className={`max-w-[80%] rounded-lg p-3 ${
+                    message.type === 'user'
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+                      : 'bg-zinc-800 border border-zinc-700 text-white'
+                  }`}
+                >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-medium text-white">
+                        {message.type === 'user' ? 'You' : 'Assistant'}
+                      </span>
+                      <span className="text-xs text-zinc-400">
+                        {formatTimestamp(message.timestamp)}
+                      </span>
+                      {message.success !== undefined && (
+                        message.success ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-red-500" />
+                        )
+                      )}
+                    </div>
+                    
+                    <div className="text-sm whitespace-pre-wrap">{message.content}</div>
+                    
+                    {message.parsedIntent && renderIntentBadge(message.parsedIntent)}
+                    
+                    {message.parsedIntent?.custom_allocations && (
+                      <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <h4 className="text-sm font-semibold text-blue-800 mb-2">Custom Portfolio Allocation:</h4>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          {Object.entries(message.parsedIntent.custom_allocations).map(([asset, percentage]) => (
+                            <div key={asset} className="flex justify-between">
+                              <span className="text-blue-700">{asset.replace('/USDT', '')}:</span>
+                              <span className="font-medium text-blue-800">{percentage as number}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {message.type === 'user' && (
+                    <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
+                      <User className="h-4 w-4 text-blue-400" />
+                    </div>
+                  )}
+                </div>
+              ))}
+              
+              {isLoading && (
+                <div className="flex gap-3 mb-4 justify-start">
+                  <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center">
+                    <Bot className="h-4 w-4 text-purple-400" />
+                  </div>
+                  <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-3">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
+                      <span className="text-sm text-white">Processing your request...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input Area */}
+            <div className="flex gap-2">
+              <Input
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Try: 'Plot RSI for Bitcoin' or 'Show moving averages for ETH and ADA' or 'Backtest conservative strategy with technical analysis'"
+                disabled={isLoading}
+                className="flex-1 bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-400 focus:border-purple-500"
+              />
+              <Button
+                onClick={handleSendMessage}
+                disabled={!inputValue.trim() || isLoading}
+                size="icon"
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-0"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        </div>
+      </div>
     </div>
   )
 }
