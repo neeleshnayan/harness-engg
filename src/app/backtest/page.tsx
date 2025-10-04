@@ -164,7 +164,7 @@ Asset-Specific Technical Analysis:
 • Show Bollinger Bands for Ethereum over the last 6 months
 • Display technical indicators for Solana and Cardano
 • Plot 30, 100, and 200-day moving averages for BTC
-• Show RSI analysis for ETH and ADA`,
+• Show RSI analysis for ETH and ADA.`,
       timestamp: new Date(),
     }
   ])
