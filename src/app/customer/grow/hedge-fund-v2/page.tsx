@@ -1,0 +1,278 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, CheckCircle, AlertCircle } from "lucide-react";
+import api from "@/lib/api";
+import HedgeFundDashboard from "@/components/HedgeFundDashboard";
+import MAVCCard from "@/components/wallet/MAVCCard";
+import TokenBalances from "@/components/wallet/TokenBalances";
+
+interface HedgeFundForm {
+  age: string;
+  annualIncome: string;
+  emergencyFund: string;
+  investmentDropReaction: string;
+  investmentStyle: string;
+  marketLossExperience: string;
+  portfolioComfort: string;
+}
+
+export default function HedgeFundV2Page() {
+  const router = useRouter();
+  const [formData, setFormData] = useState<HedgeFundForm>({
+    age: "",
+    annualIncome: "",
+    emergencyFund: "",
+    investmentDropReaction: "",
+    investmentStyle: "",
+    marketLossExperience: "",
+    portfolioComfort: ""
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [userData, setUserData] = useState<any>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [existingSubmission, setExistingSubmission] = useState<any>(null);
+  const [showDashboard, setShowDashboard] = useState(false);
+  const [balance, setBalance] = useState<any>(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
+  const [accountData, setAccountData] = useState<any>(null);
+
+  useEffect(() => {
+    const storedUserData = localStorage.getItem('userData');
+    if (storedUserData) {
+      const parsedData = JSON.parse(storedUserData);
+      setUserData(parsedData);
+      setAccountData(parsedData);
+      
+      // Fetch balance if wallet address exists
+      if (parsedData.wallet_address) {
+        fetchBalance(parsedData.wallet_address);
+      }
+      
+      // Check if user has already submitted a questionnaire
+      if (parsedData?.user_id) {
+        // checkExistingSubmission(parsedData.user_id);
+      }
+    }
+  }, []);
+
+  const fetchBalance = async (address: string) => {
+    try {
+      setBalanceLoading(true);
+      setBalanceError(null);
+      const response = await api.get(`/api/v1/wallet_balance/${address}`);
+      setBalance(response.data);
+    } catch (err) {
+      console.error('Failed to fetch balance:', err);
+      setBalanceError('Failed to fetch token balances');
+    } finally {
+      setBalanceLoading(false);
+    }
+  };
+
+  const checkExistingSubmission = async (userId: string) => {
+    try {
+      const response = await api.get(`/api/v1/hedge-fund/${userId}`);
+      if (response.status === 200 && response.data.status === "success") {
+        const submissionData = response.data.data;
+        setExistingSubmission(submissionData);
+        setIsEditing(true);
+        setShowDashboard(true); // Show dashboard if user has completed questionnaire
+        
+        // Pre-populate form with existing data
+        setFormData({
+          age: submissionData.age,
+          annualIncome: submissionData.annualIncome,
+          emergencyFund: submissionData.emergencyFund,
+          investmentDropReaction: submissionData.investmentDropReaction,
+          investmentStyle: submissionData.investmentStyle,
+          marketLossExperience: submissionData.marketLossExperience,
+          portfolioComfort: submissionData.portfolioComfort
+        });
+      }
+    } catch (err: any) {
+      // If 404, user hasn't submitted yet, which is fine
+      setLoading(false);
+      if (err.response?.status !== 404) {
+        console.error('Error checking existing submission:', err);
+      }
+    }
+  };
+
+  const handleInputChange = (field: keyof HedgeFundForm, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate all fields are filled
+    const requiredFields = Object.keys(formData) as (keyof HedgeFundForm)[];
+    const emptyFields = requiredFields.filter(field => !formData[field]);
+    
+    if (emptyFields.length > 0) {
+      setError("Please fill in all required fields");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const endpoint = isEditing ? "/api/v1/hedge-fund/update" : "/api/v1/hedge-fund/submit";
+      const response = await api.post(endpoint, {
+        user_id: userData?.user_id,
+        submission_id: existingSubmission?.id, // Include submission ID for updates
+        ...formData
+      });
+
+      if (response.status === 200 || response.status === 201) {
+        // Check if user has already submitted
+        if (response.data.status === "already_submitted") {
+          setError("You have already submitted a hedge fund questionnaire. Please contact support if you need to update your responses.");
+          setTimeout(() => {
+            router.push('/customer/grow');
+          }, 5000);
+        } else {
+          setSuccess(true);
+          setShowDashboard(true); // Show dashboard after successful submission
+          setTimeout(() => {
+            setSuccess(false);
+          }, 3000);
+        }
+      }
+    } catch (err: any) {
+      console.error('Error submitting hedge fund form:', err);
+      setError(err.response?.data?.detail || "Failed to submit questionnaire. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const RadioGroup = ({ 
+    title, 
+    field, 
+    options 
+  }: { 
+    title: string; 
+    field: keyof HedgeFundForm; 
+    options: { value: string; label: string }[] 
+  }) => (
+    <div className="mb-8 p-6 bg-zinc-900/50 rounded-xl border border-zinc-700/50">
+      <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {options.map((option) => (
+          <label key={option.value} className="flex items-center p-4 rounded-lg bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700/50 cursor-pointer transition-all duration-200">
+            <input
+              type="radio"
+              name={field}
+              value={option.value}
+              checked={formData[field] === option.value}
+              onChange={(e) => handleInputChange(field, e.target.value)}
+              className="w-5 h-5 text-blue-500 bg-zinc-700 border-zinc-600 focus:ring-blue-500 focus:ring-2 focus:ring-offset-2 focus:ring-offset-zinc-900"
+            />
+            <span className="ml-4 text-zinc-300 group-hover:text-white transition-colors">
+              {option.label}
+            </span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const totalFields = Object.keys(formData).length;
+    const filledFields = Object.values(formData).filter(value => value !== "").length;
+    setProgress((filledFields / totalFields) * 100);
+  }, [formData]);
+
+  if (success) {
+    return (
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-8">
+        <div className="text-center max-w-md bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl p-8 shadow-2xl">
+          <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle className="h-10 w-10 text-green-400" />
+          </div>
+          <h2 className="text-3xl font-bold text-white mb-4">All Set!</h2>
+          <p className="text-zinc-400 mb-8">
+            Your investment profile is complete. You can now explore personalized hedge fund strategies.
+          </p>
+          <button
+            onClick={() => setShowDashboard(true)}
+            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+          >
+            Go to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show dashboard if user has completed questionnaire
+  if (showDashboard) {
+    return <HedgeFundDashboard />;
+  }
+
+  return (
+    <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-8">
+      <div className="container mx-auto max-w-6xl">
+        {/* Header with Back to Grow Button */}
+        <div className="flex justify-between items-start mb-12">
+          <div className="flex-1"></div>
+          <button
+            onClick={() => router.push('/customer/grow')}
+            className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-6 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-sm"
+          >
+            ← Back to Grow
+          </button>
+        </div>
+
+        {/* Header */}
+        <div className="text-center mb-12">
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4 text-center drop-shadow-lg">
+            Hedge Fund V2
+          </h1>
+          {accountData?.username && (
+            <div className="mb-4">
+              <p className="text-zinc-400 text-lg">
+                Welcome back, <span className="text-emerald-400 font-semibold">@{accountData.username}</span>
+              </p>
+            </div>
+          )}
+          <p className="text-zinc-400 text-lg mb-8 text-center max-w-xl mx-auto">
+            Access the Multi Asset Vault with advanced 50/50 USDC/WETH allocation strategy.
+          </p>
+        </div>
+
+        {/* MAVC Card */}
+        <div className="w-full max-w-4xl mx-auto mb-8">
+          <MAVCCard 
+            onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
+            subgraphUrl={process.env.NEXT_PUBLIC_SUBGRAPH_URL}
+          />
+        </div>
+
+        {/* Token Portfolio Section */}
+        <div className="w-full max-w-4xl mx-auto">
+          <TokenBalances
+            balance={balance}
+            loading={balanceLoading}
+            error={balanceError}
+            className="mb-8"
+            onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+

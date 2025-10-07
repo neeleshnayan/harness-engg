@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { QueryProvider } from "@/providers/QueryProvider";
 
 
 const geistSans = Geist({
@@ -29,7 +30,9 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" sizes="32x32" type="image/x-icon" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        {children}
+        <QueryProvider>
+          {children}
+        </QueryProvider>
       </body>
     </html>
   );
