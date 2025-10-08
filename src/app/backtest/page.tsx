@@ -78,6 +78,24 @@ interface BacktestResult {
   show_performance_stats: boolean
 }
 
+interface ScreenerResult {
+  screener_type: string
+  range: string
+  range_description: string
+  total_found: number
+  results: ScreenerCrypto[]
+}
+
+interface ScreenerCrypto {
+  symbol: string
+  name: string
+  price: number
+  daily_change_percent: number
+  market_cap: number
+  volume_24h: number
+  rank?: number
+}
+
 interface ChatMessage {
   id: string
   type: 'user' | 'assistant'
@@ -86,6 +104,7 @@ interface ChatMessage {
   parsedIntent?: any
   success?: boolean
   backtestResult?: BacktestResult
+  screenerResult?: ScreenerResult
 }
 
 const chartConfig = {
@@ -164,7 +183,15 @@ Asset-Specific Technical Analysis:
 • Show Bollinger Bands for Ethereum over the last 6 months
 • Display technical indicators for Solana and Cardano
 • Plot 30, 100, and 200-day moving averages for BTC
-• Show RSI analysis for ETH and ADA.`,
+• Show RSI analysis for ETH and ADA
+
+Crypto Screeners:
+• Find top 5 cryptos with price above $5
+• Show me cryptos priced between $10 and $1000
+• Find cryptos with daily gain over 30%
+• Show cryptos with daily change between 10% and 20%
+• Find cryptos with market cap above 200B
+• Show me cryptos with market cap between 300M and 10B`,
       timestamp: new Date(),
     }
   ])
@@ -210,7 +237,8 @@ Asset-Specific Technical Analysis:
         timestamp: new Date(),
         parsedIntent: data.parsed_intent,
         success: data.success,
-        backtestResult: data.data?.backtest_result
+        backtestResult: data.data?.backtest_result,
+        screenerResult: data.data?.screener_type ? data.data : undefined
       }
 
       setMessages(prev => [...prev, assistantMessage])
@@ -252,6 +280,18 @@ Asset-Specific Technical Analysis:
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString()
+  }
+
+  const formatNumber = (num: number) => {
+    if (num >= 1_000_000_000) {
+      return `$${(num / 1_000_000_000).toFixed(2)}B`
+    } else if (num >= 1_000_000) {
+      return `$${(num / 1_000_000).toFixed(2)}M`
+    } else if (num >= 1_000) {
+      return `$${(num / 1_000).toFixed(2)}K`
+    } else {
+      return `$${num.toFixed(2)}`
+    }
   }
 
   const formatTimestamp = (timestamp: Date) => {
@@ -321,7 +361,7 @@ Asset-Specific Technical Analysis:
         </div>
 
       {/* Show Krypton logo when no results are available */}
-      {!messages.some(m => m.backtestResult) && (
+      {!messages.some(m => m.backtestResult || m.screenerResult) && (
         <div className="flex flex-col items-center justify-center py-20">
           <img
             src="/krypton_logo.svg"
@@ -332,6 +372,65 @@ Asset-Specific Technical Analysis:
           <p className="text-zinc-400 text-center max-w-md">
             Start a conversation to backtest portfolio strategies and analyze technical indicators.
           </p>
+        </div>
+      )}
+
+      {/* Display screener results if available */}
+      {messages.some(m => m.screenerResult) && (
+        <div className="space-y-6 mb-8">
+          {messages
+            .filter(m => m.screenerResult)
+            .map((message) => {
+              const screenerResult = message.screenerResult!
+              return (
+                <Card key={message.id} className="w-full">
+                  <CardHeader>
+                    <CardTitle>
+                      {screenerResult.screener_type === 'price' && 'Price Screener Results'}
+                      {screenerResult.screener_type === 'daily_change' && 'Daily Change Screener Results'}
+                      {screenerResult.screener_type === 'market_cap' && 'Market Cap Screener Results'}
+                    </CardTitle>
+                    <CardDescription>
+                      {screenerResult.range_description} • {screenerResult.total_found} cryptos found
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-zinc-700">
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Rank</th>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Name</th>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Symbol</th>
+                            <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Price</th>
+                            <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">24h Change</th>
+                            <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Market Cap</th>
+                            <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Volume (24h)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {screenerResult.results.map((crypto, index) => (
+                            <tr key={crypto.symbol} className="border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors">
+                              <td className="py-3 px-4 text-sm text-zinc-300">{crypto.rank || index + 1}</td>
+                              <td className="py-3 px-4 text-sm font-medium text-white">{crypto.name}</td>
+                              <td className="py-3 px-4 text-sm text-zinc-300">{crypto.symbol}</td>
+                              <td className="py-3 px-4 text-sm text-right text-white">{formatCurrency(crypto.price)}</td>
+                              <td className={`py-3 px-4 text-sm text-right font-medium ${
+                                crypto.daily_change_percent >= 0 ? 'text-green-500' : 'text-red-500'
+                              }`}>
+                                {crypto.daily_change_percent >= 0 ? '+' : ''}{crypto.daily_change_percent.toFixed(2)}%
+                              </td>
+                              <td className="py-3 px-4 text-sm text-right text-zinc-300">{formatNumber(crypto.market_cap)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-zinc-300">{formatNumber(crypto.volume_24h)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
         </div>
       )}
 
@@ -819,7 +918,7 @@ Asset-Specific Technical Analysis:
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Try: 'Plot RSI for Bitcoin' or 'Show moving averages for ETH and ADA' or 'Backtest conservative strategy with technical analysis'"
+                placeholder="Try: 'Plot RSI for Bitcoin' or 'Find cryptos with daily gain over 30%' or 'Show me cryptos with market cap above 200B'"
                 disabled={isLoading}
                 className="flex-1 bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-400 focus:border-purple-500"
               />
