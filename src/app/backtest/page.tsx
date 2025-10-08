@@ -94,6 +94,13 @@ interface ScreenerCrypto {
   market_cap: number
   volume_24h: number
   rank?: number
+  high_52w?: number
+  low_52w?: number
+  percent_from_high?: number
+  percent_from_low?: number
+  rsi?: number
+  sma_50?: number
+  sma_200?: number
 }
 
 interface ChatMessage {
@@ -189,9 +196,10 @@ Crypto Screeners:
 • Find top 5 cryptos with price above $5
 • Show me cryptos priced between $10 and $1000
 • Find cryptos with daily gain over 30%
-• Show cryptos with daily change between 10% and 20%
-• Find cryptos with market cap above 200B
-• Show me cryptos with market cap between 300M and 10B`,
+• Find cryptos near 52-week high
+• Find cryptos with RSI bearish (oversold)
+• Find cryptos with RSI bullish (overbought)
+• Find cryptos with golden cross pattern`,
       timestamp: new Date(),
     }
   ])
@@ -404,6 +412,18 @@ Crypto Screeners:
                             <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Symbol</th>
                             <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Price</th>
                             <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">24h Change</th>
+                            {screenerResult.screener_type === '52w_high_low' && (
+                              <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">From High/Low</th>
+                            )}
+                            {screenerResult.screener_type === 'rsi' && (
+                              <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">RSI</th>
+                            )}
+                            {screenerResult.screener_type === 'technical_pattern' && (
+                              <>
+                                <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">50 SMA</th>
+                                <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">200 SMA</th>
+                              </>
+                            )}
                             <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Market Cap</th>
                             <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Volume (24h)</th>
                           </tr>
@@ -420,6 +440,33 @@ Crypto Screeners:
                               }`}>
                                 {crypto.daily_change_percent >= 0 ? '+' : ''}{crypto.daily_change_percent.toFixed(2)}%
                               </td>
+                              {screenerResult.screener_type === '52w_high_low' && (
+                                <td className={`py-3 px-4 text-sm text-right font-medium ${
+                                  crypto.percent_from_high !== undefined && crypto.percent_from_high >= -10 ? 'text-green-500' : 
+                                  crypto.percent_from_low !== undefined && crypto.percent_from_low <= 10 ? 'text-red-500' : 'text-zinc-300'
+                                }`}>
+                                  {crypto.percent_from_high !== undefined ? `${crypto.percent_from_high.toFixed(1)}% from high` : 
+                                   crypto.percent_from_low !== undefined ? `${crypto.percent_from_low.toFixed(1)}% from low` : 'N/A'}
+                                </td>
+                              )}
+                              {screenerResult.screener_type === 'rsi' && (
+                                <td className={`py-3 px-4 text-sm text-right font-medium ${
+                                  crypto.rsi !== undefined && crypto.rsi <= 30 ? 'text-red-500' : 
+                                  crypto.rsi !== undefined && crypto.rsi >= 70 ? 'text-green-500' : 'text-zinc-300'
+                                }`}>
+                                  {crypto.rsi !== undefined ? crypto.rsi.toFixed(1) : 'N/A'}
+                                </td>
+                              )}
+                              {screenerResult.screener_type === 'technical_pattern' && (
+                                <>
+                                  <td className="py-3 px-4 text-sm text-right text-zinc-300">
+                                    {crypto.sma_50 !== undefined ? formatCurrency(crypto.sma_50) : 'N/A'}
+                                  </td>
+                                  <td className="py-3 px-4 text-sm text-right text-zinc-300">
+                                    {crypto.sma_200 !== undefined ? formatCurrency(crypto.sma_200) : 'N/A'}
+                                  </td>
+                                </>
+                              )}
                               <td className="py-3 px-4 text-sm text-right text-zinc-300">{formatNumber(crypto.market_cap)}</td>
                               <td className="py-3 px-4 text-sm text-right text-zinc-300">{formatNumber(crypto.volume_24h)}</td>
                             </tr>
