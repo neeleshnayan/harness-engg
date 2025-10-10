@@ -78,30 +78,36 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
     for (let i = 0; i < maxAttempts; i++) {
       try {
         const statusResponse = await api.get(`/api/v1/mavc/transaction/${txId}`);
-        const transaction = statusResponse.data.transaction;
-        const txStatus = transaction?.state;
-        const txHash = transaction?.txHash;
+        const outerTransaction = statusResponse.data.transaction;
+        const transaction = outerTransaction?.transaction || outerTransaction;
         
-        console.log(`🔍 Poll attempt ${i + 1}/${maxAttempts}:`, {
-          txId: txId.substring(0, 8),
-          status: txStatus,
-          txHash: txHash,
-          fullTransaction: transaction
-        });
+        console.log(`🔍 Poll attempt ${i + 1}/${maxAttempts} - Full response:`, statusResponse.data);
+        console.log(`🔍 Transaction object:`, transaction);
+        console.log(`🔍 Transaction keys:`, transaction ? Object.keys(transaction) : 'no transaction');
+        
+        const txStatus = transaction?.state || transaction?.status;
+        const txHash = transaction?.txHash || transaction?.tx_hash || transaction?.transactionHash;
+        const errorReason = transaction?.errorReason;
+        const errorDetails = transaction?.errorDetails;
+        
+        console.log(`🔍 Extracted - Status: ${txStatus}, Hash: ${txHash}, Error: ${errorReason}`);
+        
+        if (txStatus === 'FAILED' || txStatus === 'DENIED' || txStatus === 'CANCELLED') {
+          const errorMsg = errorDetails || errorReason || 'Transaction failed';
+          throw new Error(`Transaction ${txStatus}: ${errorMsg}`);
+        }
         
         if (txHash) {
           const etherscanLink = `https://sepolia.etherscan.io/tx/${txHash}`;
           setTransactionSuccess(
-            `Status: ${txStatus || 'UNKNOWN'} | 🔗 View on Etherscan: ${etherscanLink} (${i + 1}/${maxAttempts})`
+            `Status: ${txStatus || 'PROCESSING'} | 🔗 View on Etherscan: ${etherscanLink} (${i + 1}/${maxAttempts})`
           );
         } else {
-          setTransactionSuccess(`Checking transaction... Status: ${txStatus || 'UNKNOWN'} (${i + 1}/${maxAttempts})`);
+          setTransactionSuccess(`Checking transaction... Status: ${txStatus || 'PROCESSING'} (${i + 1}/${maxAttempts})`);
         }
         
-        if (txStatus === 'COMPLETE' || txStatus === 'CONFIRMED') {
+        if (txStatus === 'COMPLETE' || txStatus === 'CONFIRMED' || txStatus === 'CONFIRM' || txStatus === 'SUCCESS') {
           return 'COMPLETE';
-        } else if (txStatus === 'FAILED' || txStatus === 'DENIED') {
-          return 'FAILED';
         }
         
         await new Promise(resolve => setTimeout(resolve, 3000));
@@ -198,23 +204,51 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
         throw new Error('Wallet address not found');
       }
       
-      const response = await api.post('/api/v1/mavc/withdraw', {
+      const payload = {
         amount: amount,
         wallet_address: parsedData.wallet_address,
         user_id: parsedData.user_id
-      });
+      };
+      
+      console.log('MAVC Withdraw Request:', payload);
+      
+      const response = await api.post('/api/v1/mavc/withdraw', payload);
+      
+      console.log('📤 Withdraw Response:', response.data);
       
       if (response.data.status === 'success') {
-        setTransactionSuccess(`Successfully withdrew ${amount} MAVC tokens!`);
+        const redeemTxId = response.data.redeem_tx;
         
-        if (onRefresh) onRefresh();
-        await fetchBalances();
+        console.log('✅ Withdrawal transaction created:', {
+          redeem: redeemTxId
+        });
+        
+        setTransactionSuccess(`Withdrawal submitted! TX: ${redeemTxId?.substring(0, 8)}...`);
+        
+        const finalStatus = await pollTransactionStatus(redeemTxId);
+        
+        if (finalStatus === 'COMPLETE') {
+          setTransactionSuccess(`Successfully withdrew ${amount} MAVC tokens!`);
+          
+          if (onRefresh) onRefresh();
+          await fetchBalances();
+        } else if (finalStatus === 'FAILED') {
+          throw new Error('Transaction failed on blockchain');
+        } else {
+          setTransactionSuccess(`Transaction pending. Your balance will update when it confirms on-chain.`);
+        }
       } else {
         throw new Error(response.data.message || 'Withdrawal failed');
       }
     } catch (err: any) {
-      console.error('Error withdrawing:', err);
-      setTransactionError(err.response?.data?.detail || err.message || 'Failed to withdraw from MAVC vault');
+      console.error('MAVC Withdraw Error:', err);
+      console.error('Error Response:', err.response?.data);
+      const errorMsg = err.response?.data?.detail 
+        ? (typeof err.response.data.detail === 'string' 
+          ? err.response.data.detail 
+          : JSON.stringify(err.response.data.detail))
+        : err.message || 'Failed to withdraw from MAVC vault';
+      setTransactionError(errorMsg);
     } finally {
       setTransactionLoading(false);
     }
@@ -343,7 +377,7 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
           <div className="flex justify-between items-center">
             <span className="text-sm text-zinc-400">Your MAVC Balance:</span>
             <span className="text-lg font-semibold text-white">
-              {parseFloat(mavcBalance).toFixed(6)} MAVC
+              {parseFloat(mavcBalance).toFixed(2)} MAVC
             </span>
           </div>
         </div>

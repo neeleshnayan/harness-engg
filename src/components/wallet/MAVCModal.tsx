@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -28,6 +28,12 @@ const MAVCModal: React.FC<MAVCModalProps> = ({
   success,
 }) => {
   const [amount, setAmount] = useState("");
+
+  useEffect(() => {
+    if (!visible) {
+      setAmount("");
+    }
+  }, [visible]);
 
   if (!visible) return null;
 
@@ -81,8 +87,13 @@ const MAVCModal: React.FC<MAVCModalProps> = ({
                 </svg>
               </div>
               <div className="text-green-400 text-lg font-semibold mb-2">Transaction Successful!</div>
-              <div className="text-zinc-300 text-sm text-center">{success}</div>
-              <div className="mt-6 text-zinc-500 text-xs">Tap anywhere to close</div>
+              <div className="text-zinc-300 text-sm text-center max-w-sm">{success}</div>
+              <Button
+                onClick={onClose}
+                className="mt-6 px-8 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white"
+              >
+                Done
+              </Button>
             </div>
           )}
 
@@ -102,7 +113,7 @@ const MAVCModal: React.FC<MAVCModalProps> = ({
                   {isDeposit ? 'Available USDC' : 'MAVC Balance'}
                 </div>
                 <div className="text-2xl font-bold text-white">
-                  {isDeposit ? '∞' : `${parseFloat(mavcBalance).toFixed(6)}`} 
+                  {isDeposit ? '∞' : `${parseFloat(mavcBalance).toFixed(2)}`} 
                   <span className="text-zinc-400 text-lg ml-1">
                     {isDeposit ? 'USDC' : 'MAVC'}
                   </span>
@@ -150,7 +161,7 @@ const MAVCModal: React.FC<MAVCModalProps> = ({
                         size="sm"
                         onClick={() => {
                           const percentage = parseFloat(percent) / 100;
-                          setAmount((parseFloat(mavcBalance) * percentage).toFixed(6));
+                          setAmount((parseFloat(mavcBalance) * percentage).toFixed(2));
                         }}
                         className="text-xs"
                         disabled={loading}
