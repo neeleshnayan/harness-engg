@@ -101,6 +101,8 @@ interface ScreenerCrypto {
   rsi?: number
   sma_50?: number
   sma_200?: number
+  ema_5?: number
+  ema_10?: number
 }
 
 interface ChatMessage {
@@ -199,7 +201,9 @@ Crypto Screeners:
 • Find cryptos near 52-week high
 • Find cryptos with RSI bearish (oversold)
 • Find cryptos with RSI bullish (overbought)
-• Find cryptos with golden cross pattern`,
+• Find cryptos with golden cross pattern
+• Find top 5 cryptos with current price above 10 Day EMA
+• Find top 5 cryptos with current price above 5 Day EMA`,
       timestamp: new Date(),
     }
   ])
@@ -397,6 +401,7 @@ Crypto Screeners:
                       {screenerResult.screener_type === 'price' && 'Price Screener Results'}
                       {screenerResult.screener_type === 'daily_change' && 'Daily Change Screener Results'}
                       {screenerResult.screener_type === 'market_cap' && 'Market Cap Screener Results'}
+                      {screenerResult.screener_type === 'ema' && 'EMA Screener Results'}
                     </CardTitle>
                     <CardDescription>
                       {screenerResult.range_description} • {screenerResult.total_found} cryptos found
@@ -422,6 +427,12 @@ Crypto Screeners:
                               <>
                                 <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">50 SMA</th>
                                 <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">200 SMA</th>
+                              </>
+                            )}
+                            {screenerResult.screener_type === 'ema' && (
+                              <>
+                                <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">5 EMA</th>
+                                <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">10 EMA</th>
                               </>
                             )}
                             <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Market Cap</th>
@@ -464,6 +475,16 @@ Crypto Screeners:
                                   </td>
                                   <td className="py-3 px-4 text-sm text-right text-zinc-300">
                                     {crypto.sma_200 !== undefined ? formatCurrency(crypto.sma_200) : 'N/A'}
+                                  </td>
+                                </>
+                              )}
+                              {screenerResult.screener_type === 'ema' && (
+                                <>
+                                  <td className="py-3 px-4 text-sm text-right text-zinc-300">
+                                    {crypto.ema_5 !== undefined ? formatCurrency(crypto.ema_5) : 'N/A'}
+                                  </td>
+                                  <td className="py-3 px-4 text-sm text-right text-zinc-300">
+                                    {crypto.ema_10 !== undefined ? formatCurrency(crypto.ema_10) : 'N/A'}
                                   </td>
                                 </>
                               )}
@@ -965,7 +986,7 @@ Crypto Screeners:
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Try: 'Plot RSI for Bitcoin' or 'Find cryptos with daily gain over 30%' or 'Show me cryptos with market cap above 200B'"
+                placeholder="Try: 'Plot RSI for Bitcoin' or 'Find top 5 cryptos with price above 10 Day EMA' or 'Show me cryptos with market cap above 200B'"
                 disabled={isLoading}
                 className="flex-1 bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-400 focus:border-purple-500"
               />
