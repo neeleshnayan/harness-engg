@@ -269,7 +269,7 @@ export default function HedgeFundDashboard() {
                 onClick={() => router.push('/backtest')}
                 className="bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-semibold px-6 py-2 rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center gap-2"
               >
-                <Bot className="h-4 w-4" />
+                <img src="/clark.svg" alt="Clark" className="h-8 w-8" />
                 Clark
               </Button>
               <div className="flex items-center gap-3 px-4 py-2 bg-zinc-800/50 border border-zinc-700/50 rounded-lg">

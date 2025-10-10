@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar } from 'recharts'
 import { Badge } from '@/components/ui/badge'
-import { TrendingUp, TrendingDown, DollarSign, BarChart3, PieChart as PieChartIcon, Send, Bot, User, CheckCircle, XCircle, Loader2, ArrowLeft } from 'lucide-react'
+import { TrendingUp, TrendingDown, DollarSign, BarChart3, PieChart as PieChartIcon, Send, User, CheckCircle, XCircle, Loader2, ArrowLeft } from 'lucide-react'
 import agentsApi from '@/lib/agents_api'
 import { useRouter } from 'next/navigation'
 
@@ -226,48 +226,74 @@ export default function BacktestPage() {
     {
       id: '1',
       type: 'assistant',
-      content: `Hello! I can help you backtest crypto portfolio strategies and analyze technical indicators for specific assets. Try these examples:
-
-Basic Backtesting:
-• Backtest conservative strategy from 10/01/2024 to 09/09/2025 with 1000 USD
-• Test aggressive strategy from 2024-01-01 to 2024-12-31 with 5000 USD
-
-Custom Portfolio Allocation:
-• Backtest the following strategy Bitcoin (BTC) 35%, Ethereum (ETH) 25%, BNB (BNB) 10%, Solana (SOL) 7%, Cardano (ADA) 5%, XRP (Ripple) 5%, TRON (TRX) 4%, Dogecoin (DOGE) 3%, Polkadot (DOT) 3%, Stablecoin (USDT/USDC) 3%. from 10/01/2024 to 09/09/2025 with 1000 USD
-
-Asset-Specific Technical Analysis:
-• Plot RSI and moving averages for Bitcoin from 2024-01-01 to 2024-12-31
-• Show Bollinger Bands for Ethereum over the last 6 months
-• Display technical indicators for Solana and Cardano
-• Plot 30, 100, and 200-day moving averages for BTC
-• Show RSI analysis for ETH and ADA
-
-Crypto Screeners:
-• Find top 5 cryptos with price above $5
-• Show me cryptos priced between $10 and $1000
-• Find cryptos with daily gain over 30%
-• Find cryptos near 52-week high
-• Find cryptos with RSI bearish (oversold)
-• Find cryptos with RSI bullish (overbought)
-• Find cryptos with golden cross pattern
-• Find top 5 cryptos with current price above 10 Day EMA
-• Find top 5 cryptos with current price above 5 Day EMA
-
-Economic Data Queries:
-• Show me GDP data for top 10 countries
-• What are the inflation rates for major economies?
-• Display unemployment rates
-• Show interest rates for countries
-• Show me the latest economic news
-• What's happening in the economy?
-• Show economic calendar
-• What are the upcoming economic events?`,
+      content: `Hello! how can I help you today?`,
       timestamp: new Date(),
     }
   ])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const categories = [
+    {
+      id: 'strategy',
+      title: 'Strategy & Backtesting',
+      icon: '/backtesting.svg',
+      description: 'Test portfolio strategies with historical data',
+      prompts: [
+        'Backtest conservative strategy from 10/01/2024 to 09/09/2025 with 1000 USD',
+        'Test aggressive strategy from 2024-01-01 to 2024-12-31 with 5000 USD',
+        'Backtest the following strategy Bitcoin (BTC) 50%, Ethereum (ETH) 50% from 10/01/2024 to 09/09/2025 with 1000 USD'
+      ]
+    },
+    {
+      id: 'technical',
+      title: 'Technical Analysis',
+      icon: '/technical.svg',
+      description: 'Analyze price trends and indicators',
+      prompts: [
+        'Plot RSI and moving averages for Bitcoin from 2024-01-01 to 2024-12-31',
+        'Show Bollinger Bands for Ethereum over the last 6 months',
+        'Display technical indicators for Solana and Cardano',
+        'Plot 30, 100, and 200-day moving averages for BTC',
+        'Show RSI analysis for ETH and ADA'
+      ]
+    },
+    {
+      id: 'screeners',
+      title: 'Crypto Screeners',
+      icon: '/screener.svg',
+      description: 'Find cryptos matching specific criteria',
+      prompts: [
+        'Find top 5 cryptos with price above $5',
+        'Show me cryptos priced between $10 and $1000',
+        'Find cryptos with daily gain over 30%',
+        'Find cryptos near 52-week high',
+        'Find cryptos with RSI bearish (oversold)',
+        'Find cryptos with RSI bullish (overbought)',
+        'Find cryptos with golden cross pattern',
+        'Find top 5 cryptos with current price above 10 Day EMA',
+        'Find top 5 cryptos with current price above 5 Day EMA'
+      ]
+    },
+    {
+      id: 'research',
+      title: 'Market Research & Data Intelligence',
+      icon: '/research.svg',
+      description: 'Access economic data and market insights',
+      prompts: [
+        'Show me GDP data for top 10 countries',
+        'What are the inflation rates for major economies?',
+        'Display unemployment rates',
+        'Show interest rates for countries',
+        'Show me the latest economic news',
+        'What\'s happening in the economy?',
+        'Show economic calendar',
+        'What are the upcoming economic events?'
+      ]
+    }
+  ]
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -276,6 +302,57 @@ Economic Data Queries:
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  const handlePromptClick = async (prompt: string) => {
+    setSelectedCategory(null)
+    setInputValue(prompt)
+    
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      type: 'user',
+      content: prompt,
+      timestamp: new Date(),
+    }
+
+    setMessages(prev => [...prev, userMessage])
+    setIsLoading(true)
+    
+    try {
+      const response = await agentsApi.post('/api/v1/agents/query', {
+        query: prompt,
+        user_id: 'backtest_user'
+      })
+
+      const data = response.data
+      
+      const assistantMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant',
+        content: data.message,
+        timestamp: new Date(),
+        parsedIntent: data.parsed_intent,
+        success: data.success,
+        backtestResult: data.data?.backtest_result,
+        screenerResult: data.data?.screener_type && data.data.screener_type !== 'economic' ? data.data : undefined,
+        economicResult: data.data?.screener_type === 'economic' ? data.data : undefined
+      }
+
+      setMessages(prev => [...prev, assistantMessage])
+    } catch (error) {
+      console.error('LangChain API error:', error)
+      const errorMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant',
+        content: 'Sorry, I encountered an error processing your request. Please try again.',
+        timestamp: new Date(),
+        success: false,
+      }
+
+      setMessages(prev => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return
@@ -423,7 +500,10 @@ Economic Data Queries:
             Back to Hedge Fund
           </Button>
           <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold text-white mb-4">Clark</h1>
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <img src="/clark.svg" alt="Clark" className="h-10 w-10" />
+              <h1 className="text-3xl font-bold text-white">Clark</h1>
+            </div>
             <p className="text-zinc-400">
               AI Portfolio Manager
             </p>
@@ -431,18 +511,106 @@ Economic Data Queries:
           <div className="w-24"></div> {/* Spacer for centering */}
         </div>
 
-      {/* Show Krypton logo when no results are available */}
+      {/* Show category tiles when no results are available */}
       {!messages.some(m => m.backtestResult || m.screenerResult || m.economicResult) && (
-        <div className="flex flex-col items-center justify-center py-20">
-          <img
+        <div className="flex flex-col items-center justify-center py-12 mb-4">
+          {/* <img
             src="/krypton_logo.svg"
             alt="Krypton Logo"
-            className="h-32 w-auto drop-shadow-[0_2px_8px_rgba(16,255,180,0.18)] mb-8"
-          />
-          <h2 className="text-2xl font-bold text-white mb-4">Ready to Analyze</h2>
-          <p className="text-zinc-400 text-center max-w-md">
-            Start a conversation to backtest portfolio strategies and analyze technical indicators.
-          </p>
+            className="h-24 w-auto drop-shadow-[0_2px_8px_rgba(16,255,180,0.18)] mb-6"
+          /> */}
+          {/* <h2 className="text-2xl font-bold text-white mb-2">Ready to Analyze</h2>
+          <p className="text-zinc-400 text-center max-w-md mb-8">
+            Choose a category to explore what Clark can do for you
+          </p> */}
+
+          {/* Category Tiles */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full max-w-6xl mb-8">
+            {categories.map((category) => (
+              <Card
+                key={category.id}
+                className="cursor-pointer hover:bg-zinc-800/80 transition-all duration-200 hover:scale-105 hover:shadow-lg border-zinc-700 bg-zinc-800/50"
+                onClick={() => setSelectedCategory(category.id)}
+              >
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg text-white flex items-center gap-2">
+                    {category.icon.startsWith('/') ? (
+                      <img src={category.icon} alt={category.title} className="h-6 w-6" />
+                    ) : (
+                      <span className="text-2xl">{category.icon}</span>
+                    )}
+                    {category.title}
+                  </CardTitle>
+                  <CardDescription className="text-sm text-zinc-400">
+                    {category.description}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xs text-purple-400 hover:text-purple-300 font-medium">
+                    Click to view examples →
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Prompts Modal */}
+          {selectedCategory && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                 onClick={() => setSelectedCategory(null)}>
+              <Card className="w-full max-w-2xl bg-zinc-900 border-zinc-700 shadow-2xl"
+                    onClick={(e) => e.stopPropagation()}>
+                <CardHeader className="border-b border-zinc-700">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-xl text-white flex items-center gap-2">
+                        {(() => {
+                          const category = categories.find(c => c.id === selectedCategory);
+                          const icon = category?.icon;
+                          return icon?.startsWith('/') ? (
+                            <img src={icon} alt={category?.title} className="h-8 w-8" />
+                          ) : (
+                            <span className="text-3xl">{icon}</span>
+                          );
+                        })()}
+                        {categories.find(c => c.id === selectedCategory)?.title}
+                      </CardTitle>
+                      <CardDescription className="text-zinc-400 mt-1">
+                        {categories.find(c => c.id === selectedCategory)?.description}
+                      </CardDescription>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedCategory(null)}
+                      className="text-zinc-400 hover:text-white"
+                    >
+                      ✕
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-6 max-h-[60vh] overflow-y-auto">
+                  <div className="space-y-3">
+                    {categories.find(c => c.id === selectedCategory)?.prompts.map((prompt, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handlePromptClick(prompt)}
+                        disabled={isLoading}
+                        className="w-full text-left p-4 rounded-lg bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700 hover:border-purple-500/50 transition-all duration-200 text-white disabled:opacity-50 disabled:cursor-not-allowed group"
+                      >
+                        <div className="flex items-start gap-3">
+                          <span className="text-purple-400 font-bold text-sm mt-0.5">•</span>
+                          <span className="flex-1 text-sm group-hover:text-purple-300 transition-colors">
+                            {prompt}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       )}
 
@@ -1120,8 +1288,8 @@ Economic Data Queries:
                   }`}
                 >
                 {message.type === 'assistant' && (
-                  <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center">
-                    <Bot className="h-4 w-4 text-purple-400" />
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <img src="/clark.svg" alt="Clark" className="h-8 w-8" />
                   </div>
                 )}
                 
@@ -1177,8 +1345,8 @@ Economic Data Queries:
               
               {isLoading && (
                 <div className="flex gap-3 mb-4 justify-start">
-                  <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center">
-                    <Bot className="h-4 w-4 text-purple-400" />
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <img src="/clark.svg" alt="Clark" className="h-8 w-8" />
                   </div>
                   <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-3">
                     <div className="flex items-center gap-2">

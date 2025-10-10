@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_6" data-name="Layer 6" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24">
+  <defs>
+    <style>
+      .cls-1 {
+        stroke: #66f1d9;
+      }
+
+      .cls-1, .cls-2 {
+        fill: none;
+        stroke-linecap: round;
+        stroke-miterlimit: 10;
+        stroke-width: .75px;
+      }
+
+      .cls-2 {
+        stroke: #3ecf8e;
+      }
+
+      .cls-3 {
+        fill: url(#linear-gradient);
+      }
+
+      .cls-4 {
+        fill: #d6eadf;
+      }
+    </style>
+    <linearGradient id="linear-gradient" x1="5.22" y1="12.01" x2="19" y2="12.01" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3ecf8e"/>
+      <stop offset="1" stop-color="#9fe1c6"/>
+    </linearGradient>
+  </defs>
+  <g>
+    <path class="cls-2" d="M8.56,9.87v-5.73c0-.47-.35-.85-.79-.85H3.26"/>
+    <circle class="cls-2" cx="3.39" cy="3.25" r=".87"/>
+  </g>
+  <g>
+    <path class="cls-2" d="M15.52,9.87v-5.73c0-.47.35-.85.79-.85h4.51"/>
+    <circle class="cls-2" cx="20.69" cy="3.25" r=".87"/>
+  </g>
+  <g>
+    <path class="cls-2" d="M8.48,15.48v5.73c0,.47-.35.85-.79.85H3.18"/>
+    <circle class="cls-2" cx="3.31" cy="22.09" r=".87"/>
+  </g>
+  <g>
+    <path class="cls-2" d="M15.44,15.48v5.73c0,.47.35.85.79.85h4.51"/>
+    <circle class="cls-2" cx="20.61" cy="22.09" r=".87"/>
+  </g>
+  <line class="cls-1" x1="12.11" y1=".52" x2="12.11" y2="23.48"/>
+  <line class="cls-1" x1=".62" y1="11.61" x2="23.47" y2="11.61"/>
+  <g>
+    <circle class="cls-3" cx="12.11" cy="12.01" r="6.89"/>
+    <polygon class="cls-4" points="16 9.41 16 14.6 12.11 15.9 8.21 14.6 8.21 9.41 12.11 8.11 16 9.41"/>
+  </g>
+</svg>
