@@ -105,6 +105,53 @@ interface ScreenerCrypto {
   ema_10?: number
 }
 
+interface EconomicData {
+  country: string
+  indicator: string
+  value: number | null
+  previous_value?: number | null
+  date?: string
+  category?: string
+  unit?: string
+  frequency?: string
+}
+
+interface EconomicResult {
+  screener_type: string
+  indicator: string
+  indicator_name: string
+  total_found: number
+  results: EconomicData[] | NewsData[] | CalendarData[]
+}
+
+interface NewsData {
+  id?: string
+  title: string
+  description?: string
+  date: string
+  country?: string
+  category?: string
+  url?: string
+  importance?: number
+}
+
+interface CalendarData {
+  event_id?: string
+  date: string
+  country: string
+  category: string
+  event: string
+  reference?: string
+  source?: string
+  actual?: number | null
+  previous?: number | null
+  forecast?: number | null
+  te_forecast?: number | null
+  url?: string
+  importance?: number
+  last_update?: string
+}
+
 interface ChatMessage {
   id: string
   type: 'user' | 'assistant'
@@ -114,6 +161,7 @@ interface ChatMessage {
   success?: boolean
   backtestResult?: BacktestResult
   screenerResult?: ScreenerResult
+  economicResult?: EconomicResult
 }
 
 const chartConfig = {
@@ -203,7 +251,17 @@ Crypto Screeners:
 • Find cryptos with RSI bullish (overbought)
 • Find cryptos with golden cross pattern
 • Find top 5 cryptos with current price above 10 Day EMA
-• Find top 5 cryptos with current price above 5 Day EMA`,
+• Find top 5 cryptos with current price above 5 Day EMA
+
+Economic Data Queries:
+• Show me GDP data for top 10 countries
+• What are the inflation rates for major economies?
+• Display unemployment rates
+• Show interest rates for countries
+• Show me the latest economic news
+• What's happening in the economy?
+• Show economic calendar
+• What are the upcoming economic events?`,
       timestamp: new Date(),
     }
   ])
@@ -250,7 +308,8 @@ Crypto Screeners:
         parsedIntent: data.parsed_intent,
         success: data.success,
         backtestResult: data.data?.backtest_result,
-        screenerResult: data.data?.screener_type ? data.data : undefined
+        screenerResult: data.data?.screener_type && data.data.screener_type !== 'economic' ? data.data : undefined,
+        economicResult: data.data?.screener_type === 'economic' ? data.data : undefined
       }
 
       setMessages(prev => [...prev, assistantMessage])
@@ -373,7 +432,7 @@ Crypto Screeners:
         </div>
 
       {/* Show Krypton logo when no results are available */}
-      {!messages.some(m => m.backtestResult || m.screenerResult) && (
+      {!messages.some(m => m.backtestResult || m.screenerResult || m.economicResult) && (
         <div className="flex flex-col items-center justify-center py-20">
           <img
             src="/krypton_logo.svg"
@@ -384,6 +443,159 @@ Crypto Screeners:
           <p className="text-zinc-400 text-center max-w-md">
             Start a conversation to backtest portfolio strategies and analyze technical indicators.
           </p>
+        </div>
+      )}
+
+      {/* Display economic results if available */}
+      {messages.some(m => m.economicResult) && (
+        <div className="space-y-6 mb-8">
+          {messages
+            .filter(m => m.economicResult)
+            .map((message) => {
+              const economicResult = message.economicResult!
+              const isNews = economicResult.indicator === 'news'
+              const isCalendar = economicResult.indicator === 'calendar'
+              
+              return (
+                <Card key={message.id} className="w-full">
+                  <CardHeader>
+                    <CardTitle>{economicResult.indicator_name}</CardTitle>
+                    <CardDescription>
+                      {isNews ? `${economicResult.total_found} latest news articles` : 
+                       isCalendar ? `${economicResult.total_found} upcoming economic events` :
+                       `Economic indicators for ${economicResult.total_found} countries`}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      {isNews ? (
+                        <div className="space-y-4">
+                          {(economicResult.results as NewsData[]).map((news, index) => (
+                            <div key={news.id || index} className="border-b border-zinc-800 pb-4 hover:bg-zinc-900/50 transition-colors p-4 rounded-lg">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <h3 className="text-lg font-semibold text-white mb-2">{news.title}</h3>
+                                  {news.description && (
+                                    <p className="text-sm text-zinc-400 mb-2">{news.description}</p>
+                                  )}
+                                  <div className="flex items-center gap-4 text-xs text-zinc-500">
+                                    <span>{new Date(news.date).toLocaleDateString()}</span>
+                                    {news.country && <span>• {news.country}</span>}
+                                    {news.category && <span>• {news.category}</span>}
+                                  </div>
+                                </div>
+                                {news.url && (
+                                  <a
+                                    href={news.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="ml-4 text-blue-400 hover:text-blue-300 text-sm"
+                                  >
+                                    Read more →
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : isCalendar ? (
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b border-zinc-700">
+                              <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Date</th>
+                              <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Country</th>
+                              <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Event</th>
+                              <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Actual</th>
+                              <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Forecast</th>
+                              <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Previous</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(economicResult.results as CalendarData[]).map((event, index) => (
+                              <tr key={event.event_id || index} className="border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors">
+                                <td className="py-3 px-4 text-sm text-zinc-300">
+                                  {new Date(event.date).toLocaleDateString()}
+                                </td>
+                                <td className="py-3 px-4 text-sm font-medium text-white">{event.country}</td>
+                                <td className="py-3 px-4 text-sm text-zinc-300">
+                                  <div>
+                                    <div className="font-medium text-white">{event.event}</div>
+                                    {event.category && <div className="text-xs text-zinc-500">{event.category}</div>}
+                                  </div>
+                                </td>
+                                <td className="py-3 px-4 text-sm text-right text-white font-medium">
+                                  {event.actual !== null && event.actual !== undefined ? event.actual : '-'}
+                                </td>
+                                <td className="py-3 px-4 text-sm text-right text-zinc-300">
+                                  {event.forecast !== null && event.forecast !== undefined ? event.forecast : '-'}
+                                </td>
+                                <td className="py-3 px-4 text-sm text-right text-zinc-300">
+                                  {event.previous !== null && event.previous !== undefined ? event.previous : '-'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b border-zinc-700">
+                              <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Rank</th>
+                              <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Country</th>
+                              <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Current Value</th>
+                              <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Previous Value</th>
+                              <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Change</th>
+                              <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Unit</th>
+                              <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Last Updated</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(economicResult.results as EconomicData[]).map((data, index) => {
+                            const change = data.value !== null && data.previous_value !== null && data.previous_value !== undefined
+                              ? data.value - data.previous_value 
+                              : null
+                            const changePercent = data.value !== null && data.previous_value !== null && data.previous_value !== undefined && data.previous_value !== 0
+                              ? ((data.value - data.previous_value) / data.previous_value) * 100
+                              : null
+                            
+                            return (
+                              <tr key={data.country} className="border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors">
+                                <td className="py-3 px-4 text-sm text-zinc-300">{index + 1}</td>
+                                <td className="py-3 px-4 text-sm font-medium text-white">{data.country}</td>
+                                <td className="py-3 px-4 text-sm text-right text-white font-medium">
+                                  {data.value !== null ? data.value.toLocaleString() : 'N/A'}
+                                </td>
+                                <td className="py-3 px-4 text-sm text-right text-zinc-300">
+                                  {data.previous_value !== null && data.previous_value !== undefined ? data.previous_value.toLocaleString() : 'N/A'}
+                                </td>
+                                <td className={`py-3 px-4 text-sm text-right font-medium ${
+                                  change !== null && change > 0 ? 'text-green-500' : 
+                                  change !== null && change < 0 ? 'text-red-500' : 'text-zinc-300'
+                                }`}>
+                                  {change !== null ? (
+                                    <>
+                                      {change > 0 ? '+' : ''}{change.toFixed(2)}
+                                      {changePercent !== null && (
+                                        <span className="ml-1 text-xs">({changePercent > 0 ? '+' : ''}{changePercent.toFixed(1)}%)</span>
+                                      )}
+                                    </>
+                                  ) : 'N/A'}
+                                </td>
+                                <td className="py-3 px-4 text-sm text-zinc-300">{data.unit || 'N/A'}</td>
+                                <td className="py-3 px-4 text-sm text-zinc-300">
+                                  {data.date ? new Date(data.date).toLocaleDateString() : 'N/A'}
+                                </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
         </div>
       )}
 
@@ -986,7 +1198,7 @@ Crypto Screeners:
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Try: 'Plot RSI for Bitcoin' or 'Find top 5 cryptos with price above 10 Day EMA' or 'Show me cryptos with market cap above 200B'"
+                placeholder="Try: 'Show me GDP data' or 'What are inflation rates?' or 'Find top 5 cryptos with price above $5'"
                 disabled={isLoading}
                 className="flex-1 bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-400 focus:border-purple-500"
               />
