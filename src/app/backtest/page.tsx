@@ -226,7 +226,7 @@ export default function BacktestPage() {
     {
       id: '1',
       type: 'assistant',
-      content: `Hello! how can I help you today?`,
+      content: `Welcome! I'm Clark, your AI Portfolio Manager. I can help you with backtesting, technical analysis, crypto screening, and economic research. What would you like to explore today?`,
       timestamp: new Date(),
     }
   ])
@@ -240,7 +240,7 @@ export default function BacktestPage() {
       id: 'strategy',
       title: 'Strategy & Backtesting',
       icon: '/backtesting.svg',
-      description: 'Test portfolio strategies with historical data',
+      description: 'Test portfolio strategies',
       prompts: [
         'Backtest conservative strategy from 10/01/2024 to 09/09/2025 with 1000 USD',
         'Test aggressive strategy from 2024-01-01 to 2024-12-31 with 5000 USD',
@@ -251,7 +251,7 @@ export default function BacktestPage() {
       id: 'technical',
       title: 'Technical Analysis',
       icon: '/technical.svg',
-      description: 'Analyze price trends and indicators',
+      description: 'Analyze price trends',
       prompts: [
         'Plot RSI and moving averages for Bitcoin from 2024-01-01 to 2024-12-31',
         'Show Bollinger Bands for Ethereum over the last 6 months',
@@ -264,7 +264,7 @@ export default function BacktestPage() {
       id: 'screeners',
       title: 'Crypto Screeners',
       icon: '/screener.svg',
-      description: 'Find cryptos matching specific criteria',
+      description: 'Filter cryptos for specific criteria',
       prompts: [
         'Find top 5 cryptos with price above $5',
         'Show me cryptos priced between $10 and $1000',
@@ -279,9 +279,9 @@ export default function BacktestPage() {
     },
     {
       id: 'research',
-      title: 'Market Research & Data Intelligence',
+      title: 'Market Research',
       icon: '/research.svg',
-      description: 'Access economic data and market insights',
+      description: 'Access economic data',
       prompts: [
         'Show me GDP data for top 10 countries',
         'What are the inflation rates for major economies?',
@@ -486,137 +486,108 @@ export default function BacktestPage() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 dark overflow-x-hidden">
+    <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 overflow-x-hidden">
       {/* Main Content Area */}
-      <div className="container mx-auto px-4 py-8 max-w-7xl pb-80">
-        {/* Header with Back Button */}
-        <div className="flex items-center justify-between mb-8">
-          <Button
-            onClick={() => router.push('/customer/grow/hedge-fund')}
-            variant="ghost"
-            className="flex items-center gap-2 text-zinc-400 hover:text-white hover:bg-zinc-800/50 transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Hedge Fund
-          </Button>
-          <div className="text-center space-y-2">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <img src="/clark.svg" alt="Clark" className="h-10 w-10" />
-              <h1 className="text-3xl font-bold text-white">Clark</h1>
-            </div>
-            <p className="text-zinc-400">
-              AI Portfolio Manager
-            </p>
+      <div className="container mx-auto px-4 py-6 max-w-6xl pb-96">
+        {/* Clean Header */}
+        <div className="text-center mb-4">
+          <div className="flex items-center justify-center gap-3 mb-1">
+            <img src="/clark.svg" alt="Clark" className="h-16 w-16" />
           </div>
-          <div className="w-24"></div> {/* Spacer for centering */}
+          <p className="text-zinc-400 text-sm">
+            AI Portfolio Manager
+          </p>
         </div>
 
-      {/* Show category tiles when no results are available */}
-      {!messages.some(m => m.backtestResult || m.screenerResult || m.economicResult) && (
-        <div className="flex flex-col items-center justify-center py-12 mb-4">
-          {/* <img
-            src="/krypton_logo.svg"
-            alt="Krypton Logo"
-            className="h-24 w-auto drop-shadow-[0_2px_8px_rgba(16,255,180,0.18)] mb-6"
-          /> */}
-          {/* <h2 className="text-2xl font-bold text-white mb-2">Ready to Analyze</h2>
-          <p className="text-zinc-400 text-center max-w-md mb-8">
-            Choose a category to explore what Clark can do for you
-          </p> */}
+      {/* Category Tiles - Always visible */}
+      <div className="pb-8 mb-6">
+        {/* Category Tiles */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full max-w-4xl mx-auto">
+          {categories.map((category) => (
+            <Card
+              key={category.id}
+              className="cursor-pointer hover:bg-zinc-800/60 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg border-zinc-700/50 bg-zinc-800/30 backdrop-blur-sm"
+              onClick={() => setSelectedCategory(category.id)}
+            >
+              <CardHeader className="pb-3 pt-3 px-3">
+                <CardTitle className="text-sm text-white flex items-center gap-2">
+                  {category.icon.startsWith('/') ? (
+                    <img src={category.icon} alt={category.title} className="h-4 w-4" />
+                  ) : (
+                    <span className="text-lg">{category.icon}</span>
+                  )}
+                  {category.title}
+                </CardTitle>
+                <CardDescription className="text-xs text-zinc-400 leading-tight">
+                  {category.description}
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
 
-          {/* Category Tiles */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full max-w-6xl mb-8">
-            {categories.map((category) => (
-              <Card
-                key={category.id}
-                className="cursor-pointer hover:bg-zinc-800/80 transition-all duration-200 hover:scale-105 hover:shadow-lg border-zinc-700 bg-zinc-800/50"
-                onClick={() => setSelectedCategory(category.id)}
-              >
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-white flex items-center gap-2">
-                    {category.icon.startsWith('/') ? (
-                      <img src={category.icon} alt={category.title} className="h-6 w-6" />
-                    ) : (
-                      <span className="text-2xl">{category.icon}</span>
-                    )}
-                    {category.title}
-                  </CardTitle>
-                  <CardDescription className="text-sm text-zinc-400">
-                    {category.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-xs text-purple-400 hover:text-purple-300 font-medium">
-                    Click to view examples →
+        {/* Prompts Modal */}
+        {selectedCategory && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+               onClick={() => setSelectedCategory(null)}>
+            <Card className="w-full max-w-2xl bg-zinc-900/95 border-zinc-700/50 shadow-2xl backdrop-blur-sm"
+                  onClick={(e) => e.stopPropagation()}>
+              <CardHeader className="border-b border-zinc-700/50">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg text-white flex items-center gap-2">
+                      {(() => {
+                        const category = categories.find(c => c.id === selectedCategory);
+                        const icon = category?.icon;
+                        return icon?.startsWith('/') ? (
+                          <img src={icon} alt={category?.title} className="h-6 w-6" />
+                        ) : (
+                          <span className="text-2xl">{icon}</span>
+                        );
+                      })()}
+                      {categories.find(c => c.id === selectedCategory)?.title}
+                    </CardTitle>
+                    <CardDescription className="text-zinc-400 mt-1 text-sm">
+                      {categories.find(c => c.id === selectedCategory)?.description}
+                    </CardDescription>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Prompts Modal */}
-          {selectedCategory && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-                 onClick={() => setSelectedCategory(null)}>
-              <Card className="w-full max-w-2xl bg-zinc-900 border-zinc-700 shadow-2xl"
-                    onClick={(e) => e.stopPropagation()}>
-                <CardHeader className="border-b border-zinc-700">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-xl text-white flex items-center gap-2">
-                        {(() => {
-                          const category = categories.find(c => c.id === selectedCategory);
-                          const icon = category?.icon;
-                          return icon?.startsWith('/') ? (
-                            <img src={icon} alt={category?.title} className="h-8 w-8" />
-                          ) : (
-                            <span className="text-3xl">{icon}</span>
-                          );
-                        })()}
-                        {categories.find(c => c.id === selectedCategory)?.title}
-                      </CardTitle>
-                      <CardDescription className="text-zinc-400 mt-1">
-                        {categories.find(c => c.id === selectedCategory)?.description}
-                      </CardDescription>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedCategory(null)}
-                      className="text-zinc-400 hover:text-white"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedCategory(null)}
+                    className="text-zinc-400 hover:text-white h-8 w-8 p-0"
+                  >
+                    ✕
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4 max-h-[60vh] overflow-y-auto">
+                <div className="space-y-2">
+                  {categories.find(c => c.id === selectedCategory)?.prompts.map((prompt, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handlePromptClick(prompt)}
+                      disabled={isLoading}
+                      className="w-full text-left p-3 rounded-lg bg-zinc-800/40 hover:bg-zinc-700/60 border border-zinc-700/50 hover:border-purple-500/50 transition-all duration-200 text-white disabled:opacity-50 disabled:cursor-not-allowed group"
                     >
-                      ✕
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-6 max-h-[60vh] overflow-y-auto">
-                  <div className="space-y-3">
-                    {categories.find(c => c.id === selectedCategory)?.prompts.map((prompt, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handlePromptClick(prompt)}
-                        disabled={isLoading}
-                        className="w-full text-left p-4 rounded-lg bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700 hover:border-purple-500/50 transition-all duration-200 text-white disabled:opacity-50 disabled:cursor-not-allowed group"
-                      >
-                        <div className="flex items-start gap-3">
-                          <span className="text-purple-400 font-bold text-sm mt-0.5">•</span>
-                          <span className="flex-1 text-sm group-hover:text-purple-300 transition-colors">
-                            {prompt}
-                          </span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-        </div>
-      )}
+                      <div className="flex items-start gap-2">
+                        <span className="text-purple-400 font-bold text-xs mt-1">•</span>
+                        <span className="flex-1 text-sm group-hover:text-purple-300 transition-colors leading-relaxed">
+                          {prompt}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
 
       {/* Display economic results if available */}
       {messages.some(m => m.economicResult) && (
-        <div className="space-y-6 mb-8">
+        <div className="space-y-4 mb-6">
           {messages
             .filter(m => m.economicResult)
             .map((message) => {
@@ -625,10 +596,10 @@ export default function BacktestPage() {
               const isCalendar = economicResult.indicator === 'calendar'
               
               return (
-                <Card key={message.id} className="w-full">
-                  <CardHeader>
-                    <CardTitle>{economicResult.indicator_name}</CardTitle>
-                    <CardDescription>
+                <Card key={message.id} className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg text-white">{economicResult.indicator_name}</CardTitle>
+                    <CardDescription className="text-zinc-400">
                       {isNews ? `${economicResult.total_found} latest news articles` : 
                        isCalendar ? `${economicResult.total_found} upcoming economic events` :
                        `Economic indicators for ${economicResult.total_found} countries`}
@@ -769,21 +740,21 @@ export default function BacktestPage() {
 
       {/* Display screener results if available */}
       {messages.some(m => m.screenerResult) && (
-        <div className="space-y-6 mb-8">
+        <div className="space-y-4 mb-6">
           {messages
             .filter(m => m.screenerResult)
             .map((message) => {
               const screenerResult = message.screenerResult!
               return (
-                <Card key={message.id} className="w-full">
-                  <CardHeader>
-                    <CardTitle>
+                <Card key={message.id} className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg text-white">
                       {screenerResult.screener_type === 'price' && 'Price Screener Results'}
                       {screenerResult.screener_type === 'daily_change' && 'Daily Change Screener Results'}
                       {screenerResult.screener_type === 'market_cap' && 'Market Cap Screener Results'}
                       {screenerResult.screener_type === 'ema' && 'EMA Screener Results'}
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="text-zinc-400">
                       {screenerResult.range_description} • {screenerResult.total_found} cryptos found
                     </CardDescription>
                   </CardHeader>
@@ -884,36 +855,36 @@ export default function BacktestPage() {
 
       {/* Display backtest results if available */}
       {messages.some(m => m.backtestResult) && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {messages
             .filter(m => m.backtestResult)
             .map((message) => {
               const backtestResult = message.backtestResult!
               return (
-                <div key={message.id} className="space-y-6">
+                <div key={message.id} className="space-y-4">
                   {/* Summary Cards - Only show if performance stats are enabled */}
                   {backtestResult.show_performance_stats && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-                      <Card>
-                        <CardContent className="p-6">
-                          <div className="flex items-center space-x-2">
-                            <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
+                      <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+                        <CardContent className="p-4">
+                          <div className="flex items-center space-x-3">
+                            <DollarSign className="h-5 w-5 text-green-400" />
                             <div>
-                              <p className="text-sm font-medium text-muted-foreground">Final Value</p>
-                              <p className="text-2xl font-bold">{formatCurrency(backtestResult.final_capital)}</p>
+                              <p className="text-xs font-medium text-zinc-400">Final Value</p>
+                              <p className="text-xl font-bold text-white">{formatCurrency(backtestResult.final_capital)}</p>
                             </div>
                           </div>
                         </CardContent>
                       </Card>
 
-                      <Card>
-                        <CardContent className="p-6">
-                          <div className="flex items-center space-x-2">
-                            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                      <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+                        <CardContent className="p-4">
+                          <div className="flex items-center space-x-3">
+                            <TrendingUp className="h-5 w-5 text-blue-400" />
                             <div>
-                              <p className="text-sm font-medium text-muted-foreground">Total Return</p>
-                              <p className={`text-2xl font-bold ${
-                                backtestResult.metrics.total_return >= 0 ? 'text-green-600' : 'text-red-600'
+                              <p className="text-xs font-medium text-zinc-400">Total Return</p>
+                              <p className={`text-xl font-bold ${
+                                backtestResult.metrics.total_return >= 0 ? 'text-green-400' : 'text-red-400'
                               }`}>
                                 {formatPercentage(backtestResult.metrics.total_return)}
                               </p>
@@ -922,25 +893,25 @@ export default function BacktestPage() {
                         </CardContent>
                       </Card>
 
-                      <Card>
-                        <CardContent className="p-6">
-                          <div className="flex items-center space-x-2">
-                            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                      <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+                        <CardContent className="p-4">
+                          <div className="flex items-center space-x-3">
+                            <BarChart3 className="h-5 w-5 text-purple-400" />
                             <div>
-                              <p className="text-sm font-medium text-muted-foreground">Sharpe Ratio</p>
-                              <p className="text-2xl font-bold">{backtestResult.metrics.sharpe_ratio.toFixed(2)}</p>
+                              <p className="text-xs font-medium text-zinc-400">Sharpe Ratio</p>
+                              <p className="text-xl font-bold text-white">{backtestResult.metrics.sharpe_ratio.toFixed(2)}</p>
                             </div>
                           </div>
                         </CardContent>
                       </Card>
 
-                      <Card>
-                        <CardContent className="p-6">
-                          <div className="flex items-center space-x-2">
-                            <TrendingDown className="h-4 w-4 text-muted-foreground" />
+                      <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+                        <CardContent className="p-4">
+                          <div className="flex items-center space-x-3">
+                            <TrendingDown className="h-5 w-5 text-red-400" />
                             <div>
-                              <p className="text-sm font-medium text-muted-foreground">Max Drawdown</p>
-                              <p className="text-2xl font-bold text-red-600">
+                              <p className="text-xs font-medium text-zinc-400">Max Drawdown</p>
+                              <p className="text-xl font-bold text-red-400">
                                 {formatPercentage(Math.abs(backtestResult.metrics.max_drawdown))}
                               </p>
                             </div>
@@ -952,10 +923,10 @@ export default function BacktestPage() {
 
                   {/* Performance Chart - Only show if performance stats are enabled */}
                   {backtestResult.show_performance_stats && (
-                    <Card className="w-full">
-                      <CardHeader>
-                        <CardTitle>Portfolio Performance</CardTitle>
-                        <CardDescription>
+                    <Card className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+                      <CardHeader className="pb-4">
+                        <CardTitle className="text-lg text-white">Portfolio Performance</CardTitle>
+                        <CardDescription className="text-zinc-400">
                           Portfolio value over time from {formatDate(backtestResult.start_date)} to {formatDate(backtestResult.end_date)}
                         </CardDescription>
                       </CardHeader>
@@ -1271,15 +1242,11 @@ export default function BacktestPage() {
       </div>
 
       {/* Fixed Chat Interface at Bottom */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-br from-black via-zinc-900 to-neutral-900 shadow-lg px-4 py-2">
-        <div className="max-w-7xl mx-auto">
-          <Card className="rounded-lg border shadow-sm bg-zinc-800/50 backdrop-blur-sm border-zinc-700">
-            <CardHeader className="pb-2">
-              
-            </CardHeader>
-            <CardContent className="pt-0">
+      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-br from-black/95 via-zinc-900/95 to-neutral-900/95 backdrop-blur-sm shadow-2xl border-t border-zinc-800/50">
+        <Card className="rounded-none border-0 border-t border-zinc-700/50 shadow-xl bg-zinc-800/60 backdrop-blur-sm">
+          <CardContent className="p-4">
             {/* Chat Messages */}
-            <div className="h-48 overflow-y-auto border rounded-lg p-3 mb-3 bg-zinc-900/50 border-zinc-700">
+            <div className="h-40 overflow-y-auto border rounded-lg p-3 mb-3 bg-zinc-900/40 border-zinc-700/50 scrollbar-thin scrollbar-thumb-zinc-600 scrollbar-track-transparent">
               {messages.map((message) => (
                 <div
                   key={message.id}
@@ -1289,45 +1256,45 @@ export default function BacktestPage() {
                 >
                 {message.type === 'assistant' && (
                   <div className="w-8 h-8 flex items-center justify-center">
-                    <img src="/clark.svg" alt="Clark" className="h-8 w-8" />
+                    <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
                   </div>
                 )}
                 
                 <div
-                  className={`max-w-[80%] rounded-lg p-3 ${
+                  className={`max-w-[85%] rounded-lg p-3 ${
                     message.type === 'user'
                       ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
-                      : 'bg-zinc-800 border border-zinc-700 text-white'
+                      : 'bg-zinc-800/60 border border-zinc-700/50 text-white backdrop-blur-sm'
                   }`}
                 >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-medium text-white">
-                        {message.type === 'user' ? 'You' : 'Assistant'}
-                      </span>
-                      <span className="text-xs text-zinc-400">
-                        {formatTimestamp(message.timestamp)}
-                      </span>
-                      {message.success !== undefined && (
-                        message.success ? (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <XCircle className="h-4 w-4 text-red-500" />
-                        )
-                      )}
-                    </div>
-                    
-                    <div className="text-sm whitespace-pre-wrap">{message.content}</div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs font-medium text-white/90">
+                      {message.type === 'user' ? 'You' : 'Clark'}
+                    </span>
+                    <span className="text-xs text-zinc-400/80">
+                      {formatTimestamp(message.timestamp)}
+                    </span>
+                    {message.success !== undefined && (
+                      message.success ? (
+                        <CheckCircle className="h-3 w-3 text-green-400" />
+                      ) : (
+                        <XCircle className="h-3 w-3 text-red-400" />
+                      )
+                    )}
+                  </div>
+                  
+                  <div className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</div>
                     
                     {message.parsedIntent && renderIntentBadge(message.parsedIntent)}
                     
                     {message.parsedIntent?.custom_allocations && (
-                      <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                        <h4 className="text-sm font-semibold text-blue-800 mb-2">Custom Portfolio Allocation:</h4>
+                      <div className="mt-3 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                        <h4 className="text-sm font-semibold text-blue-300 mb-2">Custom Portfolio Allocation:</h4>
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           {Object.entries(message.parsedIntent.custom_allocations).map(([asset, percentage]) => (
                             <div key={asset} className="flex justify-between">
-                              <span className="text-blue-700">{asset.replace('/USDT', '')}:</span>
-                              <span className="font-medium text-blue-800">{percentage as number}%</span>
+                              <span className="text-blue-200">{asset.replace('/USDT', '')}:</span>
+                              <span className="font-medium text-blue-100">{percentage as number}%</span>
                             </div>
                           ))}
                         </div>
@@ -1346,9 +1313,9 @@ export default function BacktestPage() {
               {isLoading && (
                 <div className="flex gap-3 mb-4 justify-start">
                   <div className="w-8 h-8 flex items-center justify-center">
-                    <img src="/clark.svg" alt="Clark" className="h-8 w-8" />
+                    <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
                   </div>
-                  <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-3">
+                  <div className="bg-zinc-800/60 border border-zinc-700/50 rounded-lg p-3 backdrop-blur-sm">
                     <div className="flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
                       <span className="text-sm text-white">Processing your request...</span>
@@ -1361,27 +1328,26 @@ export default function BacktestPage() {
             </div>
 
             {/* Input Area */}
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <Input
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Try: 'Show me GDP data' or 'What are inflation rates?' or 'Find top 5 cryptos with price above $5'"
+                placeholder="Ask me anything about backtesting, technical analysis, or market research..."
                 disabled={isLoading}
-                className="flex-1 bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-400 focus:border-purple-500"
+                className="flex-1 bg-zinc-800/60 border-zinc-700/50 text-white placeholder:text-zinc-400 focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/20 rounded-lg"
               />
               <Button
                 onClick={handleSendMessage}
                 disabled={!inputValue.trim() || isLoading}
                 size="icon"
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-0"
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-0 rounded-lg shadow-lg"
               >
                 <Send className="h-4 w-4" />
               </Button>
             </div>
           </CardContent>
         </Card>
-        </div>
       </div>
     </div>
   )
