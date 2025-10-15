@@ -34,13 +34,21 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
   };
 
   useEffect(() => {
-    fetchBalances();
+    fetchBalances(true);
+    
+    const interval = setInterval(() => {
+      fetchBalances(false);
+    }, 5000);
+    
+    return () => clearInterval(interval);
   }, []);
 
-  const fetchBalances = async () => {
+  const fetchBalances = async (showLoading = false) => {
     try {
-      setLoading(true);
-      setError(null);
+      if (showLoading) {
+        setLoading(true);
+        setError(null);
+      }
       
       const userData = localStorage.getItem('userData');
       if (userData) {
@@ -68,71 +76,37 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
       }
     } catch (err: any) {
       console.error('Error fetching balances:', err);
-      setError('Failed to fetch balances');
+      if (showLoading) {
+        setError('Failed to fetch balances');
+      }
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const pollTransactionStatus = async (txId: string, maxAttempts = 30): Promise<string> => {
-    for (let i = 0; i < maxAttempts; i++) {
-      try {
-        const statusResponse = await api.get(`/api/v1/mavc/transaction/${txId}`);
-        const outerTransaction = statusResponse.data.transaction;
-        const transaction = outerTransaction?.transaction || outerTransaction;
-        
-        console.log(`🔍 Poll attempt ${i + 1}/${maxAttempts} - Full response:`, statusResponse.data);
-        console.log(`🔍 Transaction object:`, transaction);
-        console.log(`🔍 Transaction keys:`, transaction ? Object.keys(transaction) : 'no transaction');
-        
-        const txStatus = transaction?.state || transaction?.status;
-        const txHash = transaction?.txHash || transaction?.tx_hash || transaction?.transactionHash;
-        const errorReason = transaction?.errorReason;
-        const errorDetails = transaction?.errorDetails;
-        
-        console.log(`🔍 Extracted - Status: ${txStatus}, Hash: ${txHash}, Error: ${errorReason}`);
-        
-        if (txStatus === 'FAILED' || txStatus === 'DENIED' || txStatus === 'CANCELLED') {
-          const errorMsg = errorDetails || errorReason || 'Transaction failed';
-          throw new Error(`Transaction ${txStatus}: ${errorMsg}`);
-        }
-        
-        if (txHash) {
-          const etherscanLink = `https://sepolia.etherscan.io/tx/${txHash}`;
-          setTransactionSuccess(
-            `Status: ${txStatus || 'PROCESSING'} | 🔗 View on Etherscan: ${etherscanLink} (${i + 1}/${maxAttempts})`
-          );
-        } else {
-          setTransactionSuccess(`Checking transaction... Status: ${txStatus || 'PROCESSING'} (${i + 1}/${maxAttempts})`);
-        }
-        
-        if (txStatus === 'COMPLETE' || txStatus === 'CONFIRMED' || txStatus === 'CONFIRM' || txStatus === 'SUCCESS') {
-          return 'COMPLETE';
-        }
-        
-        await new Promise(resolve => setTimeout(resolve, 3000));
-      } catch (err: any) {
-        console.error('❌ Error polling transaction:', err);
-        console.error('Error details:', err.response?.data);
-        setTransactionSuccess(`Polling error (attempt ${i + 1}): ${err.message}`);
+      if (showLoading) {
+        setLoading(false);
       }
     }
-    return 'PENDING';
   };
 
   const handleDeposit = async (amount: string) => {
+    console.log('🚀 handleDeposit called with amount:', amount);
     try {
+      console.log('💰 Setting transaction loading state...');
       setTransactionLoading(true);
       setTransactionError(null);
       
+      console.log('📱 Getting user data from localStorage...');
       const userData = localStorage.getItem('userData');
+      console.log('👤 User data:', userData);
+      
       if (!userData) {
+        console.error('❌ No user data found!');
         throw new Error('User data not found');
       }
       
       const parsedData = JSON.parse(userData);
+      console.log('✅ Parsed user data:', parsedData);
       
       if (!parsedData.wallet_address) {
+        console.error('❌ No wallet address in user data!');
         throw new Error('Wallet address not found');
       }
       
@@ -142,49 +116,60 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
         user_id: parsedData.user_id
       };
       
-      console.log('MAVC Deposit Request:', payload);
+      console.log('📤 MAVC Deposit Request Payload:', payload);
       
+      // Step 1: Approve USDC for vault
+      console.log('🔓 Step 1: Approving USDC for vault...');
+      const approveResponse = await api.post('/api/v1/mavc/approve', payload);
+      console.log('✅ Approval Response:', approveResponse.data);
+      
+      if (approveResponse.data.status !== 'success') {
+        throw new Error('USDC approval failed');
+      }
+      
+      setTransactionSuccess(`Approval submitted! Now depositing...`);
+      
+      // Wait a moment for approval to be broadcast
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Step 2: Deposit to vault
+      console.log('💰 Step 2: Depositing to vault...');
       const response = await api.post('/api/v1/mavc/deposit', payload);
       
-      console.log('📥 Deposit Response:', response.data);
+      console.log('📥 Deposit Response Status:', response.status);
+      console.log('📥 Deposit Response Data:', response.data);
       
       if (response.data.status === 'success') {
         const depositTxId = response.data.deposit_tx;
-        const approveTxId = response.data.approve_tx;
         
-        console.log('✅ Transactions created:', {
-          approve: approveTxId,
-          deposit: depositTxId
-        });
+        console.log('✅ Deposit transaction created:', depositTxId);
         
-        setTransactionSuccess(`Transactions submitted! Approve: ${approveTxId?.substring(0, 8)}... Deposit: ${depositTxId?.substring(0, 8)}...`);
+        const successMessage = `Successfully deposited ${amount} USDC to MAVC! Transaction will process on-chain.`;
+        console.log('🎉 Setting success message:', successMessage);
+        setTransactionSuccess(successMessage);
+        console.log('🎉 Success message set! transactionSuccess should now be:', successMessage);
         
-        const finalStatus = await pollTransactionStatus(depositTxId);
-        
-        if (finalStatus === 'COMPLETE') {
-          setTransactionSuccess(`Successfully deposited ${amount} USDC to MAVC vault!`);
-          
-          if (onRefresh) onRefresh();
-          await fetchBalances();
-        } else if (finalStatus === 'FAILED') {
-          throw new Error('Transaction failed on blockchain');
-        } else {
-          setTransactionSuccess(`Transaction pending. Your balance will update when it confirms on-chain.`);
-        }
+        if (onRefresh) onRefresh();
+        setTimeout(() => {
+          fetchBalances(false);
+        }, 1000);
       } else {
         throw new Error(response.data.message || 'Deposit failed');
       }
     } catch (err: any) {
-      console.error('MAVC Deposit Error:', err);
-      console.error('Error Response:', err.response?.data);
+      console.error('❌ MAVC Deposit Error:', err);
+      console.error('❌ Error Response:', err.response?.data);
       const errorMsg = err.response?.data?.detail 
         ? (typeof err.response.data.detail === 'string' 
           ? err.response.data.detail 
           : JSON.stringify(err.response.data.detail))
         : err.message || 'Failed to deposit to MAVC vault';
+      console.error('❌ Setting error message:', errorMsg);
       setTransactionError(errorMsg);
     } finally {
+      console.log('🏁 Finally block: Setting transactionLoading to false');
       setTransactionLoading(false);
+      console.log('🏁 Finally block complete');
     }
   };
 
@@ -219,24 +204,14 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
       if (response.data.status === 'success') {
         const redeemTxId = response.data.redeem_tx;
         
-        console.log('✅ Withdrawal transaction created:', {
-          redeem: redeemTxId
-        });
+        console.log('✅ Withdrawal transaction created:', redeemTxId);
         
-        setTransactionSuccess(`Withdrawal submitted! TX: ${redeemTxId?.substring(0, 8)}...`);
+        setTransactionSuccess(`Successfully withdrew ${amount} MAVC tokens! Transaction will process on-chain.`);
         
-        const finalStatus = await pollTransactionStatus(redeemTxId);
-        
-        if (finalStatus === 'COMPLETE') {
-          setTransactionSuccess(`Successfully withdrew ${amount} MAVC tokens!`);
-          
-          if (onRefresh) onRefresh();
-          await fetchBalances();
-        } else if (finalStatus === 'FAILED') {
-          throw new Error('Transaction failed on blockchain');
-        } else {
-          setTransactionSuccess(`Transaction pending. Your balance will update when it confirms on-chain.`);
-        }
+        if (onRefresh) onRefresh();
+        setTimeout(() => {
+          fetchBalances();
+        }, 1000);
       } else {
         throw new Error(response.data.message || 'Withdrawal failed');
       }
@@ -255,6 +230,7 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
   };
 
   const openDepositModal = () => {
+    console.log('🎯 Opening Deposit Modal');
     setModalAction('deposit');
     setShowModal(true);
     setTransactionError(null);

@@ -183,10 +183,10 @@ export const SubgraphAnalytics: React.FC<SubgraphAnalyticsProps> = ({ subgraphUr
           <button
             type="button"
             onClick={() => refetch()}
-            className="self-start rounded-full border border-zinc-700/50 bg-zinc-800/50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-300 transition hover:border-zinc-600/50 hover:text-white"
+            className="self-start rounded-full border border-zinc-700/50 bg-zinc-800/50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-300 transition hover:border-zinc-600/50 hover:text-white disabled:opacity-50"
             disabled={isFetching}
           >
-            {isFetching ? 'Refreshing...' : 'Refresh'}
+            Refresh
           </button>
         )}
       </header>

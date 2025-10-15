@@ -38,15 +38,39 @@ const MAVCModal: React.FC<MAVCModalProps> = ({
   if (!visible) return null;
 
   const handleSubmit = () => {
+    console.log('🔘 Modal Submit Button Clicked');
+    console.log('📋 Action:', action);
+    console.log('💵 Amount:', amount);
+    console.log('🔓 Loading state:', loading);
+    console.log('✔️ Amount validation:', {
+      trimmed: amount.trim(),
+      parsed: parseFloat(amount),
+      isValid: parseFloat(amount) > 0
+    });
+    
     if (action === 'deposit') {
+      console.log('✅ Calling onDeposit...');
       onDeposit(amount);
     } else {
+      console.log('✅ Calling onWithdraw...');
       onWithdraw(amount);
     }
   };
 
   const isDeposit = action === 'deposit';
-  const maxAmount = isDeposit ? "1000000" : mavcBalance; // For deposit, set a reasonable max
+  const maxAmount = isDeposit ? "1000000" : mavcBalance;
+  const isButtonDisabled = loading || !amount.trim() || parseFloat(amount) <= 0;
+  
+  console.log('🔍 Modal State:', {
+    visible,
+    action,
+    amount,
+    loading,
+    error,
+    success,
+    isButtonDisabled,
+    mavcBalance
+  });
 
   return (
     <div
@@ -176,7 +200,7 @@ const MAVCModal: React.FC<MAVCModalProps> = ({
               <div className="flex space-x-3 pt-4">
                 <Button
                   onClick={handleSubmit}
-                  disabled={loading || !amount.trim() || parseFloat(amount) <= 0}
+                  disabled={isButtonDisabled}
                   className={`flex-1 py-3 rounded-lg text-lg font-semibold shadow-md ${
                     isDeposit
                       ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white'

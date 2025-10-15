@@ -69,8 +69,10 @@ export const useSubgraphData = (subgraphUrl?: string) => {
     queryKey: ['subgraph', 'vault-analytics', subgraphUrl],
     queryFn: () => fetchSubgraph(subgraphUrl!),
     enabled,
-    refetchInterval: enabled ? 60_000 : false,
-    staleTime: 30_000,
+    refetchInterval: enabled ? 5_000 : false,
+    staleTime: 2_000,
+    refetchOnWindowFocus: false,
+    keepPreviousData: true,
   });
 };
 
