@@ -306,7 +306,7 @@ export default function BacktestPage() {
 
   const handlePromptClick = async (prompt: string) => {
     setSelectedCategory(null)
-    setInputValue(prompt)
+    setInputValue('') // Clear the input immediately
     
     // Transform the query if it contains "backtest top X" pattern
     const transformedQuery = transformBacktestQuery(prompt)
