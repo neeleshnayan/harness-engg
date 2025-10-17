@@ -294,6 +294,22 @@ export default function BacktestPage() {
         'Show economic calendar',
         'What are the upcoming economic events?'
       ]
+    },
+    {
+      id: 'tax',
+      title: 'Tax & Regulations',
+      icon: '/tax.svg',
+      description: 'Tax guidance and compliance',
+      prompts: [
+        'What are the tax implications of crypto trading?',
+        'How do I report crypto gains and losses?',
+        'What are the tax regulations for DeFi transactions?',
+        'How to calculate capital gains tax on crypto?',
+        'What are the tax requirements for crypto mining?',
+        'How to handle crypto tax reporting for businesses?',
+        'What are the tax implications of staking rewards?',
+        'How to optimize crypto tax strategy?'
+      ]
     }
   ]
 
@@ -711,7 +727,7 @@ export default function BacktestPage() {
         {/* Category Tiles - Always visible at the top */}
         <div className="pb-6 mb-6">
         {/* Category Tiles */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full max-w-4xl mx-auto">
+        <div className="grid grid-cols-5 gap-2 w-full max-w-6xl mx-auto">
           {categories.map((category) => (
             <Card
               key={category.id}
