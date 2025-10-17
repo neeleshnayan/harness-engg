@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar } from 'recharts'
 import { Badge } from '@/components/ui/badge'
-import { TrendingUp, TrendingDown, DollarSign, BarChart3, PieChart as PieChartIcon, Send, User, CheckCircle, XCircle, Loader2, ArrowLeft } from 'lucide-react'
+import { TrendingUp, TrendingDown, DollarSign, BarChart3, PieChart as PieChartIcon, Send, User, CheckCircle, XCircle, Loader2, ArrowLeft, Menu } from 'lucide-react'
 import agentsApi from '@/lib/agents_api'
 import { useRouter } from 'next/navigation'
 
@@ -234,6 +234,7 @@ export default function BacktestPage() {
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [showMenu, setShowMenu] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const categories = [
@@ -458,6 +459,22 @@ export default function BacktestPage() {
     return timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
+  // Helper function to determine if we should show the Clark logo
+  const shouldShowClarkLogo = () => {
+    // Don't show if loading
+    if (isLoading) return false
+    
+    // Don't show if there are any results (backtest, screener, or economic)
+    const hasResults = messages.some(m => 
+      m.backtestResult || m.screenerResult || m.economicResult
+    )
+    
+    // Don't show if there are more than just the welcome message
+    const hasUserMessages = messages.some(m => m.type === 'user')
+    
+    return !hasResults && !hasUserMessages
+  }
+
   // Helper function to convert word numbers to digits
   const wordToNumber = (word: string): number => {
     const wordMap: { [key: string]: number } = {
@@ -663,20 +680,36 @@ export default function BacktestPage() {
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 overflow-x-hidden">
-      {/* Main Content Area */}
-      <div className="container mx-auto px-4 py-6 max-w-6xl pb-96">
-        {/* Clean Header */}
-        <div className="text-center mb-4">
-          <div className="flex items-center justify-center gap-3 mb-1">
-            <img src="/clark.svg" alt="Clark" className="h-16 w-16" />
+      {/* Navbar */}
+      <header>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-2 min-h-[4rem]">
+            <div className="flex items-center">
+              <img
+                src="/krypton_logo.svg"
+                alt="Krypton Logo"
+                className="h-20 w-auto drop-shadow-[0_2px_8px_rgba(16,255,180,0.18)]"
+              />
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="relative">
+                <button
+                  onClick={() => setShowMenu(!showMenu)}
+                  className="flex items-center bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-xl transition-colors font-medium"
+                  aria-label="Open menu"
+                >
+                  <Menu className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           </div>
-          <p className="text-zinc-400 text-sm">
-            AI Portfolio Manager
-          </p>
         </div>
+      </header>
 
-      {/* Category Tiles - Always visible */}
-      <div className="pb-8 mb-6">
+      {/* Main Content Area */}
+      <div className="container mx-auto px-4 py-4 max-w-6xl pb-96">
+        {/* Category Tiles - Always visible at the top */}
+        <div className="pb-6 mb-6">
         {/* Category Tiles */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full max-w-4xl mx-auto">
           {categories.map((category) => (
@@ -759,7 +792,18 @@ export default function BacktestPage() {
             </Card>
           </div>
         )}
-      </div>
+        </div>
+
+        {/* Centered Clark Logo - Only show when no results */}
+        {shouldShowClarkLogo() && (
+          <div className="flex flex-col items-center justify-center min-h-[50vh] mb-8">
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-3 mb-6">
+                <img src="/clark.svg" alt="Clark" className="h-32 w-32 drop-shadow-[0_4px_16px_rgba(162,89,247,0.3)]" />
+              </div>
+            </div>
+          </div>
+        )}
 
       {/* Display economic results if available */}
       {messages.some(m => m.economicResult) && (
@@ -1460,8 +1504,8 @@ export default function BacktestPage() {
       </div>
 
       {/* Fixed Chat Interface at Bottom */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-br from-black/95 via-zinc-900/95 to-neutral-900/95 backdrop-blur-sm shadow-2xl">
-        <Card className="rounded-none border-0 shadow-xl bg-zinc-800/60 backdrop-blur-sm">
+      <div className="fixed bottom-0 left-0 right-0">
+        <Card className="rounded-none border-0 shadow-xl bg-transparent backdrop-blur-sm">
           <CardContent className="p-4">
             {/* Chat Messages */}
             <div className="h-40 overflow-y-auto border rounded-lg p-3 mb-3 bg-zinc-900/40 border-zinc-700/50 scrollbar-thin scrollbar-thumb-zinc-600 scrollbar-track-transparent">
