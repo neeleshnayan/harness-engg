@@ -933,15 +933,19 @@ export default function BacktestPage() {
                       <CardContent>
                         <ChartContainer config={chartConfig} className="h-[400px] w-full">
                           <LineChart data={backtestResult.data_points}>
-                            <CartesianGrid strokeDasharray="3 3" />
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                             <XAxis 
                               dataKey="date" 
                               tickFormatter={(value) => formatDate(value)}
-                              tick={{ fontSize: 12 }}
+                              tick={{ fontSize: 12, fill: 'rgba(255,255,255,0.6)' }}
+                              axisLine={{ stroke: 'rgba(255,255,255,0.12)' }}
+                              tickLine={{ stroke: 'rgba(255,255,255,0.12)' }}
                             />
                             <YAxis 
                               tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
-                              tick={{ fontSize: 12 }}
+                              tick={{ fontSize: 12, fill: 'rgba(255,255,255,0.6)' }}
+                              axisLine={{ stroke: 'rgba(255,255,255,0.12)' }}
+                              tickLine={{ stroke: 'rgba(255,255,255,0.12)' }}
                             />
                             <ChartTooltip content={<ChartTooltipContent />} />
                             <Line
@@ -981,15 +985,19 @@ export default function BacktestPage() {
                                 sma_100: dp.technical_indicators?.sma_100,
                                 sma_200: dp.technical_indicators?.sma_200
                               }))}>
-                                <CartesianGrid strokeDasharray="3 3" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                                 <XAxis 
                                   dataKey="date" 
                                   tickFormatter={(value) => formatDate(value)}
-                                  tick={{ fontSize: 12 }}
+                                  tick={{ fontSize: 12, fill: 'rgba(255,255,255,0.6)' }}
+                                  axisLine={{ stroke: 'rgba(255,255,255,0.12)' }}
+                                  tickLine={{ stroke: 'rgba(255,255,255,0.12)' }}
                                 />
                                 <YAxis 
                                   tickFormatter={(value) => `$${value.toFixed(0)}`}
-                                  tick={{ fontSize: 12 }}
+                                  tick={{ fontSize: 12, fill: 'rgba(255,255,255,0.6)' }}
+                                  axisLine={{ stroke: 'rgba(255,255,255,0.12)' }}
+                                  tickLine={{ stroke: 'rgba(255,255,255,0.12)' }}
                                 />
                                 <ChartTooltip content={<ChartTooltipContent />} />
                                 {backtestResult.technical_indicators_requested.includes('dma_30') && (
@@ -1045,15 +1053,19 @@ export default function BacktestPage() {
                                 ...dp,
                                 rsi: Number(dp.technical_indicators?.rsi)
                               })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())}>
-                                <CartesianGrid strokeDasharray="3 3" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                                 <XAxis 
                                   dataKey="date" 
                                   tickFormatter={(value) => formatDate(value)}
-                                  tick={{ fontSize: 12 }}
+                                  tick={{ fontSize: 12, fill: 'rgba(255,255,255,0.6)' }}
+                                  axisLine={{ stroke: 'rgba(255,255,255,0.12)' }}
+                                  tickLine={{ stroke: 'rgba(255,255,255,0.12)' }}
                                 />
                                 <YAxis 
                                   domain={[0, 100]}
-                                  tick={{ fontSize: 12 }}
+                                  tick={{ fontSize: 12, fill: 'rgba(255,255,255,0.6)' }}
+                                  axisLine={{ stroke: 'rgba(255,255,255,0.12)' }}
+                                  tickLine={{ stroke: 'rgba(255,255,255,0.12)' }}
                                 />
                                 <ChartTooltip content={<ChartTooltipContent />} />
                                 <Line
@@ -1114,15 +1126,19 @@ export default function BacktestPage() {
                                 console.log('Bollinger Bands Chart Data:', filteredData.slice(0, 3));
                                 return filteredData;
                               })()}>
-                                <CartesianGrid strokeDasharray="3 3" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                                 <XAxis 
                                   dataKey="date" 
                                   tickFormatter={(value) => formatDate(value)}
-                                  tick={{ fontSize: 12 }}
+                                  tick={{ fontSize: 12, fill: 'rgba(255,255,255,0.6)' }}
+                                  axisLine={{ stroke: 'rgba(255,255,255,0.12)' }}
+                                  tickLine={{ stroke: 'rgba(255,255,255,0.12)' }}
                                 />
                                 <YAxis 
                                   tickFormatter={(value) => `$${value.toFixed(0)}`}
-                                  tick={{ fontSize: 12 }}
+                                  tick={{ fontSize: 12, fill: 'rgba(255,255,255,0.6)' }}
+                                  axisLine={{ stroke: 'rgba(255,255,255,0.12)' }}
+                                  tickLine={{ stroke: 'rgba(255,255,255,0.12)' }}
                                 />
                                 <ChartTooltip content={<ChartTooltipContent />} />
                                 <Line
@@ -1166,9 +1182,9 @@ export default function BacktestPage() {
                   {/* Allocation Chart - Only show if performance stats are enabled */}
                   {backtestResult.show_performance_stats && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-                      <Card className="w-full">
+                      <Card className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
                         <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
+                          <CardTitle className="flex items-center gap-2 text-white">
                             <PieChartIcon className="h-5 w-5" />
                             Portfolio Allocation
                           </CardTitle>
@@ -1178,7 +1194,7 @@ export default function BacktestPage() {
                         </CardHeader>
                         <CardContent>
                           <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                            <PieChart>
+                            <PieChart style={{ background: 'transparent' }}>
                               <Pie
                                 data={backtestResult.allocations}
                                 dataKey="allocation_percentage"
@@ -1186,9 +1202,32 @@ export default function BacktestPage() {
                                 cx="50%"
                                 cy="50%"
                                 outerRadius={100}
-                                label={({ symbol, allocation_percentage }) => 
-                                  `${symbol}: ${allocation_percentage.toFixed(1)}%`
-                                }
+                                labelLine={{ stroke: 'rgba(255,255,255,0.25)' }}
+                                label={(props) => {
+                                  const RADIAN = Math.PI / 180
+                                  const {
+                                    cx, cy, midAngle, outerRadius,
+                                    percent, name, symbol, allocation_percentage
+                                  } = props as any
+                                  const radius = outerRadius + 10
+                                  const x = cx + radius * Math.cos(-midAngle * RADIAN)
+                                  const y = cy + radius * Math.sin(-midAngle * RADIAN)
+                                  const labelText = `${(symbol || name)}: ${(
+                                    allocation_percentage !== undefined ? allocation_percentage : percent * 100
+                                  ).toFixed(1)}%`
+                                  return (
+                                    <text
+                                      x={x}
+                                      y={y}
+                                      fill="rgba(255,255,255,0.85)"
+                                      textAnchor={x > cx ? 'start' : 'end'}
+                                      dominantBaseline="central"
+                                      fontSize={12}
+                                    >
+                                      {labelText}
+                                    </text>
+                                  )
+                                }}
                               >
                                 {backtestResult.allocations.map((_, index) => (
                                   <Cell key={`cell-${index}`} fill={allocationColors[index % allocationColors.length]} />
@@ -1200,27 +1239,31 @@ export default function BacktestPage() {
                         </CardContent>
                       </Card>
 
-                      <Card className="w-full">
+                      <Card className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
                         <CardHeader>
-                          <CardTitle>Asset Performance</CardTitle>
+                          <CardTitle className=' text-white'>Asset Performance</CardTitle>
                           <CardDescription>
                             Individual asset returns during backtest period
                           </CardDescription>
                         </CardHeader>
                         <CardContent>
-                          <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                            <BarChart data={backtestResult.allocations}>
-                              <CartesianGrid strokeDasharray="3 3" />
+                            <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                            <BarChart data={backtestResult.allocations} style={{ background: 'transparent' }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                               <XAxis 
                                 dataKey="symbol" 
-                                tick={{ fontSize: 12 }}
+                                tick={{ fontSize: 12, fill: 'rgba(255,255,255,0.6)' }}
                                 angle={-45}
                                 textAnchor="end"
                                 height={80}
+                                axisLine={{ stroke: 'rgba(255,255,255,0.12)' }}
+                                tickLine={{ stroke: 'rgba(255,255,255,0.12)' }}
                               />
                               <YAxis 
                                 tickFormatter={(value) => `${value.toFixed(1)}%`}
-                                tick={{ fontSize: 12 }}
+                                tick={{ fontSize: 12, fill: 'rgba(255,255,255,0.6)' }}
+                                axisLine={{ stroke: 'rgba(255,255,255,0.12)' }}
+                                tickLine={{ stroke: 'rgba(255,255,255,0.12)' }}
                               />
                               <ChartTooltip content={<ChartTooltipContent />} />
                               <Bar dataKey="total_return" fill="#10b981">
@@ -1242,8 +1285,8 @@ export default function BacktestPage() {
       </div>
 
       {/* Fixed Chat Interface at Bottom */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-br from-black/95 via-zinc-900/95 to-neutral-900/95 backdrop-blur-sm shadow-2xl border-t border-zinc-800/50">
-        <Card className="rounded-none border-0 border-t border-zinc-700/50 shadow-xl bg-zinc-800/60 backdrop-blur-sm">
+      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-br from-black/95 via-zinc-900/95 to-neutral-900/95 backdrop-blur-sm shadow-2xl">
+        <Card className="rounded-none border-0 shadow-xl bg-zinc-800/60 backdrop-blur-sm">
           <CardContent className="p-4">
             {/* Chat Messages */}
             <div className="h-40 overflow-y-auto border rounded-lg p-3 mb-3 bg-zinc-900/40 border-zinc-700/50 scrollbar-thin scrollbar-thumb-zinc-600 scrollbar-track-transparent">
