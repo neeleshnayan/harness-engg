@@ -162,6 +162,7 @@ interface ChatMessage {
   backtestResult?: BacktestResult
   screenerResult?: ScreenerResult
   economicResult?: EconomicResult
+  transformedQuery?: string
 }
 
 const chartConfig = {
@@ -307,19 +308,26 @@ export default function BacktestPage() {
     setSelectedCategory(null)
     setInputValue(prompt)
     
+    // Transform the query if it contains "backtest top X" pattern
+    const transformedQuery = transformBacktestQuery(prompt)
+    
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       type: 'user',
       content: prompt,
       timestamp: new Date(),
+      transformedQuery: transformedQuery !== prompt ? transformedQuery : undefined,
     }
 
     setMessages(prev => [...prev, userMessage])
     setIsLoading(true)
     
+    console.log("Prompt", prompt)
+    console.log("Transformed Query", transformedQuery)
+    
     try {
       const response = await agentsApi.post('/api/v1/agents/query', {
-        query: prompt,
+        query: transformedQuery,
         user_id: 'backtest_user'
       })
 
@@ -357,11 +365,15 @@ export default function BacktestPage() {
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return
 
+    // Transform the query if it contains "backtest top X" pattern
+    const transformedQuery = transformBacktestQuery(inputValue)
+
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       type: 'user',
       content: inputValue,
       timestamp: new Date(),
+      transformedQuery: transformedQuery !== inputValue ? transformedQuery : undefined,
     }
 
     setMessages(prev => [...prev, userMessage])
@@ -371,7 +383,7 @@ export default function BacktestPage() {
     try {
       // Make API call to LangChain service
       const response = await agentsApi.post('/api/v1/agents/query', {
-        query: inputValue,
+        query: transformedQuery,
         user_id: 'backtest_user'
       })
 
@@ -444,6 +456,170 @@ export default function BacktestPage() {
 
   const formatTimestamp = (timestamp: Date) => {
     return timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+
+  // Helper function to convert word numbers to digits
+  const wordToNumber = (word: string): number => {
+    const wordMap: { [key: string]: number } = {
+      'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+      'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10
+    }
+    return wordMap[word.toLowerCase()] || parseInt(word) || 0
+  }
+
+  // Helper function to detect if query contains "backtest top X" pattern
+  const detectBacktestTopPattern = (query: string): { count: number; weight: number } | null => {
+    // More flexible regex to handle variations like "backtest top 2", "Backtest the top two", "backtest top 5 with 20% weightage"
+    // Handle both numeric and word representations
+    const patterns = [
+      /backtest\s+(?:the\s+)?top\s+(\d+|\w+)(?:\s+with\s+(\d+)%\s+weightage)?/i,
+      /backtest\s+(?:the\s+)?top\s+(\d+|\w+)(?:\s+with\s+(\d+)%\s+weight)?/i,
+      /backtest\s+(?:the\s+)?top\s+(\d+|\w+)(?:\s+(\d+)%)?/i
+    ]
+    
+    console.log("Pattern detection for query:", query)
+    
+    // Manual test with the exact query
+    const testQuery = "Backtest the top two with 50% weightage from 10/01/2024 to 09/09/2025 with 1000 USD"
+    console.log("Testing exact query:", testQuery)
+    console.log("Query matches test:", query === testQuery)
+    
+    for (let i = 0; i < patterns.length; i++) {
+      const match = query.match(patterns[i])
+      console.log(`Testing pattern ${i + 1}:`, patterns[i], "Match:", match)
+      
+      // Also test with the exact query
+      const testMatch = testQuery.match(patterns[i])
+      console.log(`Test query with pattern ${i + 1}:`, testMatch)
+      
+      if (match) {
+        const count = wordToNumber(match[1])
+        const weight = match[2] ? parseInt(match[2]) : Math.floor(100 / count)
+        console.log("Detected pattern - count:", count, "weight:", weight)
+        return { count, weight }
+      }
+    }
+    
+    console.log("No pattern detected")
+    return null
+  }
+
+  // Helper function to get the most recent screener results
+  const getLatestScreenerResults = (): ScreenerCrypto[] | null => {
+    // Find the most recent message with screener results
+    const screenerMessages = messages
+      .filter(m => m.screenerResult)
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+    
+    console.log("Total messages:", messages.length)
+    console.log("Messages with screener results:", screenerMessages.length)
+    
+    if (screenerMessages.length > 0) {
+      const latestResult = screenerMessages[0].screenerResult!
+      console.log("Latest screener result:", {
+        screener_type: latestResult.screener_type,
+        total_found: latestResult.total_found,
+        results_count: latestResult.results.length,
+        top_3_results: latestResult.results.slice(0, 3).map(r => `${r.name} (${r.symbol})`)
+      })
+      return latestResult.results
+    }
+    
+    return null
+  }
+
+  // Helper function to map screener crypto names to backend expected names
+  const mapCryptoNameToBackendFormat = (crypto: ScreenerCrypto): string => {
+    // Backend expects specific asset names that it can map to symbols
+    // Based on the backend mapping, we need to map common crypto names
+    const nameMapping: { [key: string]: string } = {
+      // Common mappings from screener results to backend expected names
+      'bitcoin': 'Bitcoin',
+      'ethereum': 'Ethereum', 
+      'binance coin': 'Binance',
+      'solana': 'Solana',
+      'cardano': 'Cardano',
+      'ripple': 'Ripple',
+      'tron': 'Tron',
+      'dogecoin': 'Dogecoin',
+      'polkadot': 'Polkadot',
+      'tether': 'Stablecoin',
+      'usd coin': 'Stablecoin',
+      'chainlink': 'Chainlink',
+      'litecoin': 'Litecoin',
+      'uniswap': 'Uniswap',
+      'avalanche': 'Avalanche'
+    }
+    
+    // Try exact match first
+    const lowerName = crypto.name.toLowerCase()
+    if (nameMapping[lowerName]) {
+      return nameMapping[lowerName]
+    }
+    
+    // Try partial matches
+    for (const [key, value] of Object.entries(nameMapping)) {
+      if (lowerName.includes(key)) {
+        return value
+      }
+    }
+    
+    // If no mapping found, return the original name (backend might handle it)
+    return crypto.name
+  }
+
+  // Helper function to transform backtest query with specific crypto symbols
+  const transformBacktestQuery = (originalQuery: string): string => {
+    const patternMatch = detectBacktestTopPattern(originalQuery)
+    
+    if (!patternMatch) {
+      return originalQuery
+    }
+    
+    const screenerResults = getLatestScreenerResults()
+    
+    if (!screenerResults || screenerResults.length === 0) {
+      console.log("No screener results found for transformation")
+      return originalQuery
+    }
+    
+    const { count, weight } = patternMatch
+    const topCryptos = screenerResults.slice(0, count)
+    
+    if (topCryptos.length === 0) {
+      console.log("No cryptos found in screener results")
+      return originalQuery
+    }
+    
+    console.log("Top cryptos found:", topCryptos.map(c => `${c.name} (${c.symbol})`))
+    
+    // Create allocation strings for each crypto in the format expected by backend
+    // Backend expects: "Bitcoin 50%, Ethereum 50%" (without parentheses)
+    const allocations = topCryptos.map(crypto => {
+      const mappedName = mapCryptoNameToBackendFormat(crypto)
+      return `${mappedName} ${weight}%`
+    }).join(', ')
+    
+    // Replace the "backtest top X" part with specific crypto allocations
+    // Try multiple patterns to match what was detected
+    let transformedQuery = originalQuery
+    const replacePatterns = [
+      /backtest\s+(?:the\s+)?top\s+(\d+|\w+)(?:\s+with\s+\d+%\s+weightage)?/i,
+      /backtest\s+(?:the\s+)?top\s+(\d+|\w+)(?:\s+with\s+\d+%\s+weight)?/i,
+      /backtest\s+(?:the\s+)?top\s+(\d+|\w+)(?:\s+\d+%)?/i
+    ]
+    
+    for (const pattern of replacePatterns) {
+      if (pattern.test(originalQuery)) {
+        transformedQuery = originalQuery.replace(pattern, `Backtest ${allocations}`)
+        break
+      }
+    }
+    
+    console.log("Original query:", originalQuery)
+    console.log("Transformed query:", transformedQuery)
+    
+    return transformedQuery
   }
 
   const renderIntentBadge = (intent: any) => {
@@ -1326,6 +1502,15 @@ export default function BacktestPage() {
                   </div>
                   
                   <div className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</div>
+                    
+                    {message.transformedQuery && (
+                      <div className="mt-3 p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                        <h4 className="text-sm font-semibold text-purple-300 mb-2">✨ Query Enhanced:</h4>
+                        <div className="text-xs text-purple-200 whitespace-pre-wrap leading-relaxed">
+                          {message.transformedQuery}
+                        </div>
+                      </div>
+                    )}
                     
                     {message.parsedIntent && renderIntentBadge(message.parsedIntent)}
                     
