@@ -1265,7 +1265,6 @@ export default function BacktestPage() {
                                 axisLine={{ stroke: 'rgba(255,255,255,0.12)' }}
                                 tickLine={{ stroke: 'rgba(255,255,255,0.12)' }}
                               />
-                              <ChartTooltip content={<ChartTooltipContent />} />
                               <Bar dataKey="total_return" fill="#10b981">
                                 {backtestResult.allocations.map((entry, index) => (
                                   <Cell key={`cell-${index}`} fill={entry.total_return >= 0 ? '#10b981' : '#ef4444'} />
