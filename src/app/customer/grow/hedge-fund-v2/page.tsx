@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle, AlertCircle } from "lucide-react";
 import api from "@/lib/api";
 import HedgeFundDashboard from "@/components/HedgeFundDashboard";
-import MAVCCard from "@/components/wallet/MAVCCard";
+import MAVCStrategyCard from "@/components/wallet/MAVCStrategyCard";
+import MAVPStrategyCard from "@/components/wallet/MAVPStrategyCard";
 import TokenBalances from "@/components/wallet/TokenBalances";
 
 interface HedgeFundForm {
@@ -249,27 +250,21 @@ export default function HedgeFundV2Page() {
             </div>
           )}
           <p className="text-zinc-400 text-lg mb-8 text-center max-w-xl mx-auto">
-            Access the Multi Asset Vault with advanced 50/50 USDC/WETH allocation strategy.
+            Advanced investment strategies with on-chain analytics and subgraph monitoring.
           </p>
         </div>
 
-        {/* MAVC Card */}
-        <div className="w-full max-w-4xl mx-auto mb-8">
-          <MAVCCard 
-            onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
-            subgraphUrl={process.env.NEXT_PUBLIC_SUBGRAPH_URL}
-          />
-        </div>
-
-        {/* Token Portfolio Section */}
-        <div className="w-full max-w-4xl mx-auto">
-          <TokenBalances
-            balance={balance}
-            loading={balanceLoading}
-            error={balanceError}
-            className="mb-8"
-            onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
-          />
+        {/* Strategy Cards */}
+        <div className="w-full max-w-6xl mx-auto mb-12">
+          <h2 className="text-2xl font-bold text-white mb-6">Available Strategies</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <MAVCStrategyCard 
+              onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
+            />
+            <MAVPStrategyCard 
+              onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
+            />
+          </div>
         </div>
       </div>
     </div>
