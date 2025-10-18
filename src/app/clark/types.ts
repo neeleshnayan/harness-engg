@@ -1,0 +1,161 @@
+export interface BacktestRequest {
+  strategy: 'conservative' | 'aggressive'
+  start_date: string
+  end_date: string
+  initial_capital: number
+  rebalance_frequency: string
+}
+
+export interface BacktestMetrics {
+  total_return: number
+  annualized_return: number
+  volatility: number
+  sharpe_ratio: number
+  max_drawdown: number
+  calmar_ratio: number
+  win_rate: number
+  best_month: number
+  worst_month: number
+}
+
+export interface BacktestAllocation {
+  symbol: string
+  allocation_percentage: number
+  final_value: number
+  total_return: number
+}
+
+export interface TechnicalIndicators {
+  sma_30?: number
+  sma_100?: number
+  sma_200?: number
+  rsi?: number
+  rsi_overbought: boolean
+  rsi_oversold: boolean
+  bb_upper?: number
+  bb_middle?: number
+  bb_lower?: number
+  bb_upper_break: boolean
+  bb_lower_break: boolean
+}
+
+export interface BacktestDataPoint {
+  date: string
+  portfolio_value: number
+  daily_return: number
+  cumulative_return: number
+  technical_indicators?: TechnicalIndicators
+}
+
+export interface BacktestResult {
+  success: boolean
+  message: string
+  strategy: string
+  start_date: string
+  end_date: string
+  initial_capital: number
+  final_capital: number
+  total_days: number
+  metrics: BacktestMetrics
+  allocations: BacktestAllocation[]
+  data_points: BacktestDataPoint[]
+  include_technical_analysis: boolean
+  technical_indicators_requested: string[]
+  target_assets: string[]
+  show_performance_stats: boolean
+}
+
+export interface ScreenerResult {
+  screener_type: string
+  range: string
+  range_description: string
+  total_found: number
+  results: ScreenerCrypto[]
+}
+
+export interface ScreenerCrypto {
+  symbol: string
+  name: string
+  price: number
+  daily_change_percent: number
+  market_cap: number
+  volume_24h: number
+  rank?: number
+  high_52w?: number
+  low_52w?: number
+  percent_from_high?: number
+  percent_from_low?: number
+  rsi?: number
+  sma_50?: number
+  sma_200?: number
+  ema_5?: number
+  ema_10?: number
+}
+
+export interface EconomicData {
+  country: string
+  indicator: string
+  value: number | null
+  previous_value?: number | null
+  date?: string
+  category?: string
+  unit?: string
+  frequency?: string
+}
+
+export interface EconomicResult {
+  screener_type: string
+  indicator: string
+  indicator_name: string
+  total_found: number
+  results: EconomicData[] | NewsData[] | CalendarData[]
+}
+
+export interface NewsData {
+  id?: string
+  title: string
+  description?: string
+  date: string
+  country?: string
+  category?: string
+  url?: string
+  importance?: number
+}
+
+export interface CalendarData {
+  event_id?: string
+  date: string
+  country: string
+  category: string
+  event: string
+  reference?: string
+  source?: string
+  actual?: number | null
+  previous?: number | null
+  forecast?: number | null
+  te_forecast?: number | null
+  url?: string
+  importance?: number
+  last_update?: string
+}
+
+export interface ChatMessage {
+  id: string
+  type: 'user' | 'assistant'
+  content: string
+  timestamp: Date
+  parsedIntent?: any
+  success?: boolean
+  backtestResult?: BacktestResult
+  screenerResult?: ScreenerResult
+  economicResult?: EconomicResult
+  transformedQuery?: string
+}
+
+export interface Category {
+  id: string
+  title: string
+  icon: string
+  description: string
+  prompts: string[]
+}
