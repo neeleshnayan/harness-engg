@@ -65,14 +65,14 @@ const fetchSubgraph = async (subgraphUrl: string): Promise<MetricResult> => {
 
 export const useSubgraphData = (subgraphUrl?: string) => {
   const enabled = Boolean(subgraphUrl);
-  return useQuery({
+  return useQuery<MetricResult, Error>({
     queryKey: ['subgraph', 'vault-analytics', subgraphUrl],
     queryFn: () => fetchSubgraph(subgraphUrl!),
     enabled,
     refetchInterval: enabled ? 5_000 : false,
     staleTime: 2_000,
     refetchOnWindowFocus: false,
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData, // keepPreviousData is deprecated, use placeholderData
   });
 };
 
