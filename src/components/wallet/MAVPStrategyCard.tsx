@@ -322,3 +322,4 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
 };
 
 export default MAVPStrategyCard;
+

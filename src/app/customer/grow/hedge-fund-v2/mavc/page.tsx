@@ -4,9 +4,11 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { SubgraphAnalytics } from "@/components/wallet/SubgraphAnalytics";
+import { useMAVCConfig } from "@/hooks/useMAVCConfig";
 
 export default function MAVCDetailPage() {
   const router = useRouter();
+  const { data: mavcConfig, isLoading: configLoading } = useMAVCConfig();
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-8">
@@ -30,7 +32,11 @@ export default function MAVCDetailPage() {
           </p>
         </div>
 
-        <SubgraphAnalytics subgraphUrl={process.env.NEXT_PUBLIC_SUBGRAPH_URL} />
+        {configLoading ? (
+          <div className="text-center text-zinc-400">Loading configuration...</div>
+        ) : (
+          <SubgraphAnalytics subgraphUrl={mavcConfig?.subgraph_url} />
+        )}
       </div>
     </div>
   );
