@@ -149,7 +149,6 @@ export interface ChatMessage {
   backtestResult?: BacktestResult
   screenerResult?: ScreenerResult
   economicResult?: EconomicResult
-  transformedQuery?: string
 }
 
 export interface Category {

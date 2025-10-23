@@ -1,12 +1,11 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Menu } from 'lucide-react'
 import agentsApi from '@/lib/agents_api'
 import { useRouter } from 'next/navigation'
 import { ChatMessage } from './types'
 import { categories } from './constants'
-import { useQueryTransformation } from './hooks/useQueryTransformation'
 import CategoryTiles from './components/CategoryTiles'
 import ChatInterface from './components/ChatInterface'
 import ResultsDisplay from './components/ResultsDisplay'
@@ -28,21 +27,36 @@ export default function BacktestPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [showMenu, setShowMenu] = useState(false)
   
-  const { transformBacktestQuery } = useQueryTransformation(messages)
+  // Session management for mem0 integration
+  const [userId, setUserId] = useState<string>('')
+  const [sessionId, setSessionId] = useState<string>('')
+  
+
+  // Initialize session and user IDs on component mount
+  useEffect(() => {
+    // Generate or retrieve user ID (persistent across sessions)
+    let storedUserId = localStorage.getItem('clark_user_id')
+    if (!storedUserId) {
+      storedUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      localStorage.setItem('clark_user_id', storedUserId)
+    }
+    setUserId(storedUserId)
+
+    // Generate session ID (new for each browser session)
+    const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    setSessionId(newSessionId)
+  }, [])
 
 
   const handlePromptClick = async (prompt: string) => {
     setSelectedCategory(null)
     setInputValue('')
     
-    const transformedQuery = transformBacktestQuery(prompt)
-    
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       type: 'user',
       content: prompt,
       timestamp: new Date(),
-      transformedQuery: transformedQuery !== prompt ? transformedQuery : undefined,
     }
 
     setMessages(prev => [...prev, userMessage])
@@ -50,8 +64,9 @@ export default function BacktestPage() {
     
     try {
       const response = await agentsApi.post('/api/v1/agents/query', {
-        query: transformedQuery,
-        user_id: 'backtest_user'
+        query: prompt,
+        user_id: userId,
+        session_id: sessionId
       })
 
       const data = response.data
@@ -88,14 +103,11 @@ export default function BacktestPage() {
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return
 
-    const transformedQuery = transformBacktestQuery(inputValue)
-
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       type: 'user',
       content: inputValue,
       timestamp: new Date(),
-      transformedQuery: transformedQuery !== inputValue ? transformedQuery : undefined,
     }
 
     setMessages(prev => [...prev, userMessage])
@@ -104,8 +116,9 @@ export default function BacktestPage() {
     
     try {
       const response = await agentsApi.post('/api/v1/agents/query', {
-        query: transformedQuery,
-        user_id: 'backtest_user'
+        query: inputValue,
+        user_id: userId,
+        session_id: sessionId
       })
 
       const data = response.data
