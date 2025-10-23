@@ -171,6 +171,23 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
     }
   };
 
+  const convertMavcToHumanReadable = (balances: any[]) => {
+    return balances.map((balance) => {
+      if (balance.token.symbol === 'MAVC') {
+        // MAVC has 6 decimals - convert from Wei to human-readable format
+        const rawAmount = parseFloat(balance.amount || "0");
+        const decimals = balance.token.decimals || 6;
+        const humanReadable = rawAmount / Math.pow(10, decimals);
+
+        return {
+          ...balance,
+          amount: humanReadable.toString()
+        };
+      }
+      return balance;
+    });
+  };
+
   const getTokenBalances = () => {
     if (!balance || !Array.isArray(balance.tokenBalances)) {
       return [];
@@ -180,8 +197,9 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
       const amount = parseFloat(tokenBalance.amount);
       return !isNaN(amount) && amount > 0;
     });
-    balances = mergeTrnskIntoUsdc(balances)
-    return balances
+    balances = mergeTrnskIntoUsdc(balances);
+    balances = convertMavcToHumanReadable(balances);
+    return balances;
   };
 
   useEffect(() => {

@@ -9,6 +9,7 @@ interface MAVCModalProps {
   onClose: () => void;
   action: 'deposit' | 'withdraw';
   mavcBalance: string;
+  usdcBalance: string;
   onDeposit: (amount: string) => void;
   onWithdraw: (amount: string) => void;
   loading: boolean;
@@ -21,6 +22,7 @@ const MAVCModal: React.FC<MAVCModalProps> = ({
   onClose,
   action,
   mavcBalance,
+  usdcBalance,
   onDeposit,
   onWithdraw,
   loading,
@@ -137,11 +139,18 @@ const MAVCModal: React.FC<MAVCModalProps> = ({
                   {isDeposit ? 'Available USDC' : 'MAVC Balance'}
                 </div>
                 <div className="text-2xl font-bold text-white">
-                  {isDeposit ? '∞' : `${parseFloat(mavcBalance).toFixed(2)}`} 
+                  {isDeposit
+                    ? (Number.isFinite(parseFloat(usdcBalance)) ? parseFloat(usdcBalance).toFixed(2) : '0.00')
+                    : (Number.isFinite(parseFloat(mavcBalance)) ? parseFloat(mavcBalance).toFixed(2) : '0.00')}
                   <span className="text-zinc-400 text-lg ml-1">
                     {isDeposit ? 'USDC' : 'MAVC'}
                   </span>
                 </div>
+                {!isDeposit && (
+                  <div className="text-sm text-zinc-400 mt-2">
+                    ≈ ${Number.isFinite(parseFloat(mavcBalance)) ? parseFloat(mavcBalance).toFixed(2) : '0.00'} USDC
+                  </div>
+                )}
               </div>
 
               <div className="space-y-4">

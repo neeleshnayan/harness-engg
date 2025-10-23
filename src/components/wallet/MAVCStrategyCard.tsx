@@ -54,22 +54,65 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
       const userData = localStorage.getItem('userData');
       if (userData) {
         const parsedData = JSON.parse(userData);
+        console.log('🔍 User Data from localStorage:', parsedData);
+        console.log('🔍 Wallet Address being used:', parsedData.wallet_address);
+
         if (parsedData.wallet_address) {
+          // Fetch wallet balances (includes both USDC and MAVC tokens)
           try {
-            const mavcResponse = await api.get(`/api/v1/mavc/balance/${parsedData.wallet_address}`);
-            setMavcBalance(mavcResponse.data.balance || "0");
+            console.log(`🔍 Fetching wallet balances for: ${parsedData.wallet_address}`);
+            const walletResponse = await api.get(`/api/v1/wallet_balance/${parsedData.wallet_address}`);
+            console.log('✅ Wallet Balance Response:', walletResponse.data);
+
+            // The API returns tokenBalances array
+            if (walletResponse.data && Array.isArray(walletResponse.data.tokenBalances)) {
+              // Find USDC tokens (also merge TRNSK which is treated as USDC)
+              const allUSDCTokens = walletResponse.data.tokenBalances.filter((b: any) =>
+                b.token && (b.token.symbol === 'USDC' || b.token.symbol === 'TRNSK')
+              );
+
+              if (allUSDCTokens.length > 0) {
+                const totalUSDC = allUSDCTokens.reduce((sum: number, token: any) => {
+                  return sum + parseFloat(token.amount || "0");
+                }, 0);
+                setUsdcBalance(totalUSDC.toString());
+                console.log('✅ USDC Balance set to:', totalUSDC);
+              } else {
+                setUsdcBalance("0");
+                console.log('⚠️ No USDC or TRNSK token found');
+              }
+
+              // Find MAVC tokens
+              const mavcToken = walletResponse.data.tokenBalances.find((b: any) =>
+                b.token && b.token.symbol === 'MAVC'
+              );
+
+              if (mavcToken) {
+                console.log('🔍 MAVC Token Object:', mavcToken);
+                console.log('🔍 MAVC Amount (raw Wei):', mavcToken.amount);
+                console.log('🔍 MAVC Token Details:', mavcToken.token);
+                console.log('🔍 MAVC Decimals:', mavcToken.token?.decimals);
+
+                // MAVC has 6 decimals - convert from Wei to human-readable format
+                const rawAmount = parseFloat(mavcToken.amount || "0");
+                const decimals = mavcToken.token?.decimals || 6;
+                const humanReadable = rawAmount / Math.pow(10, decimals);
+
+                setMavcBalance(humanReadable.toString());
+                console.log('✅ MAVC Balance converted:', rawAmount, '/', Math.pow(10, decimals), '=', humanReadable);
+              } else {
+                setMavcBalance("0");
+                console.log('⚠️ No MAVC token found in wallet');
+              }
+            } else {
+              setUsdcBalance("0");
+              setMavcBalance("0");
+              console.warn('⚠️ Invalid response format - no tokenBalances array');
+            }
           } catch (err) {
-            console.warn('MAVC balance not available:', err);
-            setMavcBalance("0");
-          }
-          
-          try {
-            const usdcResponse = await api.get(`/api/v1/wallet_balance/${parsedData.wallet_address}`);
-            const usdcBalance = usdcResponse.data.balances?.find((b: any) => b.token.symbol === 'USDC')?.amount || "0";
-            setUsdcBalance(usdcBalance);
-          } catch (err) {
-            console.warn('USDC balance not available:', err);
+            console.warn('❌ Wallet balances not available:', err);
             setUsdcBalance("0");
+            setMavcBalance("0");
           }
         }
       }
@@ -210,8 +253,12 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
 
   const formatBalance = (balance: string): string => {
     try {
-      const numBalance = parseFloat(balance) / 1e12;
+      const numBalance = parseFloat(balance);
+      console.log('📊 formatBalance input:', balance, '-> parsed:', numBalance);
+
       if (isNaN(numBalance) || numBalance === 0) return '0';
+
+      // Display the balance as-is (should already be in correct format from tokenBalances)
       if (numBalance < 0.01) return numBalance.toFixed(4);
       if (numBalance < 1) return numBalance.toFixed(3);
       if (numBalance < 100) return numBalance.toFixed(2);
@@ -321,6 +368,7 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
         onClose={closeModal}
         action={modalAction}
         mavcBalance={mavcBalance}
+        usdcBalance={usdcBalance}
         onDeposit={handleDeposit}
         onWithdraw={handleWithdraw}
         loading={transactionLoading}
