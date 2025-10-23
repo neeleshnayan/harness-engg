@@ -119,15 +119,6 @@ export default function ChatInterface({
                   
                   <div className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</div>
                     
-                  {message.transformedQuery && (
-                    <div className="mt-3 p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
-                      <h4 className="text-sm font-semibold text-purple-300 mb-2">✨ Query Enhanced:</h4>
-                      <div className="text-xs text-purple-200 whitespace-pre-wrap leading-relaxed">
-                        {message.transformedQuery}
-                      </div>
-                    </div>
-                  )}
-                    
                   {message.parsedIntent && renderIntentBadge(message.parsedIntent)}
                     
                   {message.parsedIntent?.custom_allocations && (
