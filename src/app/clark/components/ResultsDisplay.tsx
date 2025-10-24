@@ -17,21 +17,9 @@ export default function ResultsDisplay({ messages }: ResultsDisplayProps) {
   const hasResults = messages.some(m => m.backtestResult || m.screenerResult || m.economicResult)
   const hasUserMessages = messages.some(m => m.type === 'user')
 
-  // Helper function to determine if we should show the Clark logo
-  const shouldShowClarkLogo = () => {
-    return !hasResults && !hasUserMessages
-  }
-
-  if (shouldShowClarkLogo()) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] mb-8">
-        <div className="text-center">
-          <div className="flex items-center justify-center gap-3 mb-6">
-            <img src="/clark.svg" alt="Clark" className="h-32 w-32 drop-shadow-[0_4px_16px_rgba(162,89,247,0.3)]" />
-          </div>
-        </div>
-      </div>
-    )
+  // If no results and no user messages, don't render anything (logo and tiles are handled in main page)
+  if (!hasResults && !hasUserMessages) {
+    return null
   }
 
   return (

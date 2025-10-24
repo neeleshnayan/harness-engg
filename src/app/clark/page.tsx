@@ -188,15 +188,28 @@ export default function BacktestPage() {
       </header>
 
       {/* Main Content Area */}
-      <div className="container mx-auto px-4 py-4 max-w-6xl pb-96">
-        {/* Category Tiles */}
-        <CategoryTiles
-          categories={categories}
-          selectedCategory={selectedCategory}
-          onCategorySelect={setSelectedCategory}
-          onPromptClick={handlePromptClick}
-          isLoading={isLoading}
-        />
+      <div className="container mx-auto px-4 py-2 max-w-6xl pb-20">
+        {/* Clark Logo - Show only when no user messages or results */}
+        {!messages.some(m => m.type === 'user') && !messages.some(m => m.backtestResult || m.screenerResult || m.economicResult) && (
+          <div className="flex flex-col items-center justify-center mb-2">
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-3 mb-2">
+                <img src="/clark.svg" alt="Clark" className="h-16 w-16 sm:h-20 sm:w-20 drop-shadow-[0_4px_16px_rgba(162,89,247,0.3)]" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Category Tiles - Show only when no user messages or results */}
+        {!messages.some(m => m.type === 'user') && !messages.some(m => m.backtestResult || m.screenerResult || m.economicResult) && (
+          <CategoryTiles
+            categories={categories}
+            selectedCategory={selectedCategory}
+            onCategorySelect={setSelectedCategory}
+            onPromptClick={handlePromptClick}
+            isLoading={isLoading}
+          />
+        )}
 
         {/* Results Display */}
         <ResultsDisplay messages={messages} />
@@ -209,7 +222,7 @@ export default function BacktestPage() {
         setInputValue={setInputValue}
         isLoading={isLoading}
         onSendMessage={handleSendMessage}
-                onKeyPress={handleKeyPress}
+        onKeyPress={handleKeyPress}
       />
     </div>
   )
