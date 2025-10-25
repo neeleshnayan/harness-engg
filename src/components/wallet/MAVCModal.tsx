@@ -15,6 +15,7 @@ interface MAVCModalProps {
   loading: boolean;
   error: string | null;
   success: string | null;
+  mavcPrice?: string | null;
 }
 
 const MAVCModal: React.FC<MAVCModalProps> = ({
@@ -28,6 +29,7 @@ const MAVCModal: React.FC<MAVCModalProps> = ({
   loading,
   error,
   success,
+  mavcPrice,
 }) => {
   const [amount, setAmount] = useState("");
 
@@ -146,9 +148,11 @@ const MAVCModal: React.FC<MAVCModalProps> = ({
                     {isDeposit ? 'USDC' : 'MAVC'}
                   </span>
                 </div>
-                {!isDeposit && (
+                {!isDeposit && mavcPrice && (
                   <div className="text-sm text-zinc-400 mt-2">
-                    ≈ ${Number.isFinite(parseFloat(mavcBalance)) ? parseFloat(mavcBalance).toFixed(2) : '0.00'} USDC
+                    ≈ ${(Number.isFinite(parseFloat(mavcBalance)) && Number.isFinite(parseFloat(mavcPrice))
+                      ? (parseFloat(mavcBalance) * parseFloat(mavcPrice)).toFixed(2)
+                      : '0.00')} USDC
                   </div>
                 )}
               </div>
@@ -169,6 +173,17 @@ const MAVCModal: React.FC<MAVCModalProps> = ({
                     className="w-full px-4 py-3 border border-zinc-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-zinc-800 text-white"
                     disabled={loading}
                   />
+                  {/* Show approximate USDC for withdrawal */}
+                  {!isDeposit && amount && mavcPrice && parseFloat(amount) > 0 && (
+                    <div className="mt-2 p-3 bg-green-900/20 border border-green-700/30 rounded-lg">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-zinc-300">You will receive approximately:</span>
+                        <span className="text-lg font-semibold text-green-400">
+                          ${(parseFloat(amount) * parseFloat(mavcPrice)).toFixed(2)} USDC
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Quick Amount Buttons */}
@@ -205,6 +220,18 @@ const MAVCModal: React.FC<MAVCModalProps> = ({
                   )}
                 </div>
               </div>
+
+              {loading && (
+                <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-4 mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="animate-spin rounded-full h-6 w-6 border-3 border-blue-500 border-t-transparent"></div>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-blue-300">Processing transaction...</div>
+                      <div className="text-xs text-zinc-400 mt-1">Waiting for balance to update on-chain</div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex space-x-3 pt-4">
                 <Button

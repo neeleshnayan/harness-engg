@@ -11,6 +11,7 @@ import {
   Line,
 } from "recharts";
 import { useSubgraphData } from "@/hooks/useSubgraphData";
+import { useMAVCPriceHistory, MAVCPriceUpdate } from "@/hooks/useMAVCPrice";
 
 const formatNumber = (value?: string | number, options?: Intl.NumberFormatOptions) => {
   if (value === undefined || value === null) return '0';
@@ -46,6 +47,17 @@ const formatTimestamp = (value?: string) => {
 
 const formatShortDate = (timestamp: number) =>
   new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+const formatDateTime = (timestamp: number) => {
+  const date = new Date(timestamp);
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+};
 
 const formatAddress = (address?: string) => {
   if (!address) return '';
@@ -120,6 +132,40 @@ const buildTimeline = (
   });
 };
 
+type PricePoint = {
+  timestamp: number;
+  price: number;
+};
+
+const buildPriceTimeline = (priceUpdates: MAVCPriceUpdate[]): PricePoint[] => {
+  const THIRTY_MINUTES = 30 * 60 * 1000; // 30 minutes in milliseconds
+  const bucket = new Map<number, number[]>();
+
+  // Bucket prices into 30-minute intervals
+  priceUpdates.forEach((update) => {
+    const ts = Number(update.timestamp) * 1000; // Convert to milliseconds
+    if (!Number.isFinite(ts)) return;
+
+    const price = Number(update.price);
+    if (!Number.isFinite(price)) return;
+
+    // Round down to nearest 30-minute interval
+    const bucketKey = Math.floor(ts / THIRTY_MINUTES) * THIRTY_MINUTES;
+
+    const prices = bucket.get(bucketKey) ?? [];
+    prices.push(price);
+    bucket.set(bucketKey, prices);
+  });
+
+  // Average prices in each bucket and sort by timestamp
+  return Array.from(bucket.entries())
+    .map(([timestamp, prices]) => ({
+      timestamp,
+      price: prices.reduce((sum, p) => sum + p, 0) / prices.length, // Average price
+    }))
+    .sort((a, b) => a.timestamp - b.timestamp);
+};
+
 const ChartTooltip = ({ label, payload }: { label?: string | number; payload?: any[] }) => {
   if (!payload?.length) return null;
   return (
@@ -143,6 +189,7 @@ interface SubgraphAnalyticsProps {
 
 export const SubgraphAnalytics: React.FC<SubgraphAnalyticsProps> = ({ subgraphUrl }) => {
   const { data, isLoading, isError, error, refetch, isFetching } = useSubgraphData(subgraphUrl);
+  const { data: priceHistory } = useMAVCPriceHistory(subgraphUrl);
 
   const metrics = data?.vaultMetric;
   const deposits = data?.deposits ?? [];
@@ -156,8 +203,34 @@ export const SubgraphAnalytics: React.FC<SubgraphAnalyticsProps> = ({ subgraphUr
   }, [metrics]);
 
   const timeline = useMemo(() => buildTimeline(deposits, withdrawals), [deposits, withdrawals]);
+  const priceTimeline = useMemo(() => buildPriceTimeline(priceHistory ?? []), [priceHistory]);
+
+  // Calculate dynamic y-axis domain for price chart
+  const priceDomain = useMemo(() => {
+    if (priceTimeline.length === 0) return [0, 20];
+
+    const prices = priceTimeline.map(p => p.price);
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+
+    // If all prices are the same, create a small range around that price
+    if (minPrice === maxPrice) {
+      const padding = minPrice * 0.01; // 1% padding
+      return [minPrice - padding, maxPrice + padding];
+    }
+
+    // Add 5% padding to top and bottom for better visualization
+    const range = maxPrice - minPrice;
+    const padding = range * 0.05;
+
+    return [
+      Math.max(0, minPrice - padding), // Don't go below 0
+      maxPrice + padding
+    ];
+  }, [priceTimeline]);
 
   const hasChartData = timeline.length > 0;
+  const hasPriceData = priceTimeline.length > 0;
 
   if (!subgraphUrl) {
     return (
@@ -332,6 +405,71 @@ export const SubgraphAnalytics: React.FC<SubgraphAnalyticsProps> = ({ subgraphUr
                 </AreaChart>
               </ResponsiveContainer>
             </div>
+          </div>
+        </div>
+      )}
+
+      {hasPriceData && (
+        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 shadow-2xl backdrop-blur">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-xl font-bold text-white">MAVC Price Over Time</h3>
+              <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">30-minute interval average</p>
+            </div>
+          </div>
+          <div className="mt-6 h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={priceTimeline} margin={{ left: 0, right: 20, bottom: 60, top: 10 }}>
+                <defs>
+                  <linearGradient id="priceArea" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.8} />
+                    <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.1} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                <XAxis
+                  dataKey="timestamp"
+                  tickFormatter={formatDateTime}
+                  stroke="rgba(255,255,255,0.4)"
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                  tick={{ fontSize: 11 }}
+                  minTickGap={50}
+                />
+                <YAxis
+                  domain={priceDomain}
+                  tickFormatter={(value) => formatCurrency(value)}
+                  stroke="rgba(255,255,255,0.4)"
+                />
+                <Tooltip
+                  content={({ label, payload }) => {
+                    if (!payload?.length) return null;
+                    return (
+                      <div className="space-y-1 rounded-2xl border border-zinc-700/50 bg-zinc-800/90 px-4 py-3 text-xs text-zinc-200 shadow-xl">
+                        <p className="font-semibold text-white">
+                          {typeof label === 'number' ? formatDateTime(label) : label}
+                        </p>
+                        <div className="flex justify-between gap-4">
+                          <span className="uppercase tracking-wide text-zinc-400">MAVC Price</span>
+                          <span className="font-semibold text-white">
+                            {formatCurrency(payload[0].value as number)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="price"
+                  name="Price (USD)"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  fill="url(#priceArea)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
       )}

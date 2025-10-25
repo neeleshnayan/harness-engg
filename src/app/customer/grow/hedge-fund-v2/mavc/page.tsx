@@ -10,6 +10,13 @@ export default function MAVCDetailPage() {
   const router = useRouter();
   const { data: mavcConfig, isLoading: configLoading } = useMAVCConfig();
 
+  // Debug logging
+  console.log('🔍 MAVC Config Debug:', {
+    mavcConfig,
+    subgraph_url: mavcConfig?.subgraph_url,
+    configLoading
+  });
+
   return (
     <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-8">
       <div className="container mx-auto max-w-7xl">

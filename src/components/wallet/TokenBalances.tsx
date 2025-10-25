@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import { FaCoins, FaEthereum, FaSync } from "react-icons/fa";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import api from "@/lib/api";
+import { useMAVCConfig } from "@/hooks/useMAVCConfig";
+import { useMAVCPrice } from "@/hooks/useMAVCPrice";
+import { MAVCMiniChart } from "./MAVCMiniChart";
 
 interface TokenBalance {
   token: {
@@ -26,6 +29,7 @@ interface TokenBalancesProps {
   error?: string | null;
   className?: string;
   onRefresh?: () => void;
+  subgraphUrl?: string;
 }
 
 const TokenBalances: React.FC<TokenBalancesProps> = ({
@@ -33,8 +37,11 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
   loading = false,
   error = null,
   className = "",
-  onRefresh
+  onRefresh,
+  subgraphUrl
 }) => {
+  const { data: mavcConfig } = useMAVCConfig();
+  const { data: mavcPriceData } = useMAVCPrice(subgraphUrl || mavcConfig?.subgraph_url);
   const [tokenDetails, setTokenDetails] = useState<TokenWithValue[]>([]);
   const [priceLoading, setPriceLoading] = useState(false);
   const [totalValue, setTotalValue] = useState<number>(0);
@@ -62,13 +69,22 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
     try {
       const numAmount = parseFloat(amount);
       if (isNaN(numAmount)) return "0";
+
+      // Use the smart formatTokenBalance utility for better readability
       // For USDC, show with 2 decimal places
       if (symbol.toUpperCase() === 'USDC') {
         return `${numAmount.toFixed(2)}`;
       } else if (symbol.toUpperCase() === 'TRNSK') {
         return `${numAmount.toFixed(2)}`;
       }
-      return `${numAmount.toFixed(4)}`;
+
+      // For all other tokens including MAVC, use formatTokenBalance for smart formatting
+      const formatted = parseFloat(amount);
+      if (formatted < 0.0001) return formatted.toFixed(6);
+      if (formatted < 0.01) return formatted.toFixed(4);
+      if (formatted < 1) return formatted.toFixed(3);
+      if (formatted < 100) return formatted.toFixed(2);
+      return formatted.toFixed(1);
     } catch (error) {
       return `${amount}`;
     }
@@ -130,6 +146,11 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
         if (token.symbol === 'USDC') {
           tokenPrice = 1;
         }
+        // Special case for MAVC - use subgraph price
+        else if (token.symbol === 'MAVC' && mavcPriceData?.price) {
+          tokenPrice = Number(mavcPriceData.price);
+          console.log('Using MAVC price from subgraph:', tokenPrice);
+        }
         // If token has an address, query the Firebase price endpoint
         else if (token.tokenAddress) {
           try {
@@ -148,6 +169,8 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
         // Calculate value for this token
         const tokenValue = tokenAmount * tokenPrice;
         totalValue += tokenValue;
+
+        console.log(`Token ${token.symbol}: amount=${tokenAmount}, price=${tokenPrice}, value=${tokenValue}`);
 
         // Add to tokens with values array
         tokensWithValues.push({
@@ -172,20 +195,32 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
   };
 
   const convertMavcToHumanReadable = (balances: any[]) => {
-    return balances.map((balance) => {
-      if (balance.token.symbol === 'MAVC') {
-        // MAVC has 6 decimals - convert from Wei to human-readable format
-        const rawAmount = parseFloat(balance.amount || "0");
-        const decimals = balance.token.decimals || 6;
-        const humanReadable = rawAmount / Math.pow(10, decimals);
+    // Get the correct MAVC token address from Firestore config
+    const mavcTokenAddress = mavcConfig?.token_address;
 
-        return {
-          ...balance,
-          amount: humanReadable.toString()
-        };
-      }
-      return balance;
-    });
+    return balances
+      .filter((balance) => {
+        // Filter out old MAVC tokens (keep only the correct one from config)
+        if (balance.token.symbol === 'MAVC') {
+          return mavcTokenAddress && balance.token.tokenAddress?.toLowerCase() === mavcTokenAddress.toLowerCase();
+        }
+        return true; // Keep all non-MAVC tokens
+      })
+      .map((balance) => {
+        if (balance.token.symbol === 'MAVC' &&
+            mavcTokenAddress &&
+            balance.token.tokenAddress?.toLowerCase() === mavcTokenAddress.toLowerCase()) {
+          // MAVC uses 12 decimals (10^12) - convert to human-readable format
+          const rawAmount = parseFloat(balance.amount || "0");
+          const humanReadable = rawAmount / Math.pow(10, 12);
+
+          return {
+            ...balance,
+            amount: humanReadable.toString()
+          };
+        }
+        return balance;
+      });
   };
 
   const getTokenBalances = () => {
@@ -207,7 +242,7 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
     if (tokenBalances.length > 0) {
       calculateTokenValues(tokenBalances);
     }
-  }, [balance]);
+  }, [balance, mavcPriceData]);
 
   const tokenBalances = getTokenBalances();
 
@@ -307,17 +342,37 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xl font-bold text-white">
-                      {formatTokenAmount(tokenDetail.amount, tokenDetail.token.decimals, tokenDetail.token.symbol)}
-                    </div>
-                    <div className="text-zinc-400 text-sm">
-                      @ ${tokenDetail.price.toFixed(4)}
-                    </div>
-                    <div className="text-green-400 text-sm font-semibold">
-                      {formatValue(tokenDetail.value)}
-                    </div>
+                    {tokenDetail.token.symbol === 'MAVC' ? (
+                      <>
+                        <div className="text-2xl font-bold text-green-400">
+                          {formatValue(tokenDetail.value)}
+                        </div>
+                        <div className="text-zinc-400 text-sm mt-1">
+                          {formatTokenAmount(tokenDetail.amount, tokenDetail.token.decimals, tokenDetail.token.symbol)} × ${tokenDetail.price.toFixed(4)}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-xl font-bold text-white">
+                          {formatTokenAmount(tokenDetail.amount, tokenDetail.token.decimals, tokenDetail.token.symbol)}
+                        </div>
+                        <div className="text-zinc-400 text-sm">
+                          @ ${tokenDetail.price.toFixed(4)}
+                        </div>
+                        <div className="text-green-400 text-sm font-semibold">
+                          {formatValue(tokenDetail.value)}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
+                {/* Add mini chart for MAVC tokens */}
+                {tokenDetail.token.symbol === 'MAVC' && (
+                  <MAVCMiniChart
+                    subgraphUrl={subgraphUrl || mavcConfig?.subgraph_url}
+                    tokenAddress={tokenDetail.token.tokenAddress}
+                  />
+                )}
               </div>
             ))}
         </div>

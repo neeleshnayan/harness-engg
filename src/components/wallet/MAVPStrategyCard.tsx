@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import MAVCModal from "./MAVCModal";
 import api from "@/lib/api";
+import { useMAVPConfig } from "@/hooks/useMAVPConfig";
 
 interface MAVPStrategyCardProps {
   onRefresh?: () => void;
@@ -15,6 +16,8 @@ interface MAVPStrategyCardProps {
 
 const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
   const router = useRouter();
+  const { data: mavpConfig } = useMAVPConfig();
+
   const [mavpBalance, setMavpBalance] = useState("0");
   const [usdcBalance, setUsdcBalance] = useState("0");
   const [showModal, setShowModal] = useState(false);
@@ -23,16 +26,17 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
   const [transactionError, setTransactionError] = useState<string | null>(null);
   const [transactionSuccess, setTransactionSuccess] = useState<string | null>(null);
 
-  const mockData = {
-    name: "Multi Asset Vault Protocol",
-    description: "Advanced yield farming protocol with automated rebalancing and risk management.",
-    netApy: 89.7,
-    aum: 15.2,
-    sharpe: 1.45,
-    maxDrawdown: 28.3,
-    lockInPeriod: "7d",
-    participants: 342,
-    performanceFee: 15.0,
+  // Fetch strategy metrics from database via mavpConfig
+  const strategyMetrics = {
+    name: mavpConfig?.name ?? "Multi Asset Vault Protocol",
+    description: mavpConfig?.description ?? "Advanced yield farming protocol with automated rebalancing and risk management.",
+    netApy: mavpConfig?.net_apy ?? 89.7,
+    aum: mavpConfig?.aum ?? 15.2,
+    sharpe: mavpConfig?.sharpe_ratio ?? 1.45,
+    maxDrawdown: mavpConfig?.max_drawdown ?? 28.3,
+    lockInPeriod: mavpConfig?.lock_in_period ?? "7d",
+    participants: mavpConfig?.participants ?? 342,
+    performanceFee: mavpConfig?.performance_fee ?? 15.0,
   };
 
   useEffect(() => {
@@ -219,13 +223,13 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
       >
         <CardHeader className="pb-4">
           <div className="flex justify-between items-start gap-4">
-            <CardTitle className="text-xl text-white">{mockData.name}</CardTitle>
+            <CardTitle className="text-xl text-white">{strategyMetrics.name}</CardTitle>
             <div className="flex items-center gap-2 bg-blue-500/20 text-blue-300 px-3 py-1 rounded-lg border border-blue-500/30">
               <Wallet className="w-4 h-4" />
               <span className="text-sm font-semibold">{formatBalance(mavpBalance)} MAVP</span>
             </div>
           </div>
-          <CardDescription className="pt-2 text-sm text-zinc-400">{mockData.description}</CardDescription>
+          <CardDescription className="pt-2 text-sm text-zinc-400">{strategyMetrics.description}</CardDescription>
         </CardHeader>
         
         <CardContent className="flex-grow space-y-5">
@@ -237,13 +241,13 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
                   <TrendingUp className="w-6 h-6 text-green-400" />
                   <div>
                     <p className="text-xs text-zinc-500">Net APY</p>
-                    <span className="font-semibold text-lg text-white">{mockData.netApy.toFixed(1)}%</span>
+                    <span className="font-semibold text-lg text-white">{strategyMetrics.netApy.toFixed(1)}%</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 text-right">
                   <div>
                     <p className="text-xs text-zinc-500">AUM</p>
-                    <span className="font-semibold text-lg text-white">${mockData.aum.toLocaleString()}M</span>
+                    <span className="font-semibold text-lg text-white">${strategyMetrics.aum.toLocaleString()}M</span>
                   </div>
                   <Wallet className="w-6 h-6 text-zinc-500" />
                 </div>
@@ -254,17 +258,17 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
               <div className="flex justify-between items-center text-center">
                 <div className="flex flex-col items-center gap-1">
                   <BarChart className="w-5 h-5 text-blue-400" />
-                  <span className="font-semibold text-white">{mockData.sharpe.toFixed(2)}</span>
+                  <span className="font-semibold text-white">{strategyMetrics.sharpe.toFixed(2)}</span>
                   <span className="text-xs text-zinc-500">Sharpe</span>
                 </div>
                 <div className="flex flex-col items-center gap-1">
                   <TrendingDown className="w-5 h-5 text-red-400" />
-                  <span className="font-semibold text-white">{mockData.maxDrawdown.toFixed(2)}%</span>
+                  <span className="font-semibold text-white">{strategyMetrics.maxDrawdown.toFixed(2)}%</span>
                   <span className="text-xs text-zinc-500">Max Drawdown</span>
                 </div>
                 <div className="flex flex-col items-center gap-1">
                   <Clock className="w-5 h-5 text-zinc-500" />
-                  <span className="font-semibold text-white">{mockData.lockInPeriod}</span>
+                  <span className="font-semibold text-white">{strategyMetrics.lockInPeriod}</span>
                   <span className="text-xs text-zinc-500">Lock-in Period</span>
                 </div>
               </div>
@@ -277,11 +281,11 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
             <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5" />
-                <span className="font-semibold text-white">{mockData.participants.toLocaleString()}</span>
+                <span className="font-semibold text-white">{strategyMetrics.participants.toLocaleString()}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Percent className="w-5 h-5" />
-                <span className="font-semibold text-white">{mockData.performanceFee.toFixed(1)}%</span>
+                <span className="font-semibold text-white">{strategyMetrics.performanceFee.toFixed(1)}%</span>
               </div>
             </div>
           </div>

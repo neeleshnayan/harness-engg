@@ -1,10 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 
-interface MAVCConfig {
-  vault_address?: string;
-  token_address?: string;
+interface MAVPConfig {
+  contract_address?: string;
   subgraph_url?: string;
-  usdc_address?: string;
   // Strategy metrics
   net_apy?: number;
   aum?: number;
@@ -19,24 +17,24 @@ interface MAVCConfig {
   description?: string;
 }
 
-interface MAVCConfigResponse {
+interface MAVPConfigResponse {
   status: string;
-  config: MAVCConfig;
+  config: MAVPConfig;
 }
 
-const fetchMAVCConfig = async (): Promise<MAVCConfig> => {
-  const response = await fetch('/api/v1/config/mavc');
+const fetchMAVPConfig = async (): Promise<MAVPConfig> => {
+  const response = await fetch('/api/v1/config/mavp');
   if (!response.ok) {
-    throw new Error('Failed to fetch MAVC configuration');
+    throw new Error('Failed to fetch MAVP configuration');
   }
-  const data: MAVCConfigResponse = await response.json();
+  const data: MAVPConfigResponse = await response.json();
   return data.config;
 };
 
-export const useMAVCConfig = () => {
-  return useQuery<MAVCConfig, Error>({
-    queryKey: ['mavc-config'],
-    queryFn: fetchMAVCConfig,
+export const useMAVPConfig = () => {
+  return useQuery<MAVPConfig, Error>({
+    queryKey: ['mavp-config'],
+    queryFn: fetchMAVPConfig,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (cacheTime is deprecated, use gcTime)
     refetchOnWindowFocus: false,
