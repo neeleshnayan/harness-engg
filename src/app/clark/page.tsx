@@ -14,14 +14,7 @@ import ResultsDisplay from './components/ResultsDisplay'
 
 export default function BacktestPage() {
   const router = useRouter()
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      type: 'assistant',
-      content: `Welcome! I'm Clark, your AI Portfolio Manager. I can help you with backtesting, technical analysis, crypto screening, and economic research. What would you like to explore today?`,
-      timestamp: new Date(),
-    }
-  ])
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
@@ -188,15 +181,11 @@ export default function BacktestPage() {
       </header>
 
       {/* Main Content Area */}
-      <div className="container mx-auto px-4 py-2 max-w-6xl pb-20">
+      <div className="container mx-auto px-4 py-0 sm:py-2 max-w-6xl pb-10">
         {/* Clark Logo - Show only when no user messages or results */}
         {!messages.some(m => m.type === 'user') && !messages.some(m => m.backtestResult || m.screenerResult || m.economicResult) && (
-          <div className="flex flex-col items-center justify-center mb-2">
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-3 mb-2">
-                <img src="/clark.svg" alt="Clark" className="h-16 w-16 sm:h-20 sm:w-20 drop-shadow-[0_4px_16px_rgba(162,89,247,0.3)]" />
-              </div>
-            </div>
+          <div className="flex items-center justify-center mb-2 -mt-4 sm:mt-0">
+            <img src="/clark.svg" alt="Clark" className="h-[5.2rem] w-[5.2rem] sm:h-[6.5rem] sm:w-[6.5rem] drop-shadow-[0_4px_16px_rgba(162,89,247,0.3)]" />
           </div>
         )}
 

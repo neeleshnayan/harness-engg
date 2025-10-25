@@ -23,7 +23,7 @@ export default function CategoryTiles({
   return (
     <div className="pb-1 mb-1">
       {/* Category Tiles */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 w-full max-w-6xl mx-auto px-2 sm:px-0">
+      <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 w-full max-w-6xl mx-auto px-2 sm:px-0">
         {categories.map((category) => (
           <Card
             key={category.id}
