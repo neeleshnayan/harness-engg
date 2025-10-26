@@ -82,7 +82,7 @@ export default function BacktestPage() {
       const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: 'Sorry, I encountered an error processing your request. Please try again.',
+        content: 'Sorry, I\'m unable to process your request at the moment.',
         timestamp: new Date(),
         success: false,
       }
@@ -134,7 +134,7 @@ export default function BacktestPage() {
       const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: 'Sorry, I encountered an error processing your request. Please try again.',
+        content: 'Sorry, I\'m unable to process your request at the moment.',
         timestamp: new Date(),
         success: false,
       }

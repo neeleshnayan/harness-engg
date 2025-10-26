@@ -52,5 +52,4 @@ export const processNaturalLanguageQuery = async (query: string, userId?: string
   }
 };
 
-
 export default agentsApi;

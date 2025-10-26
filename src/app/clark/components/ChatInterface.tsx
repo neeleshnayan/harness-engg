@@ -107,33 +107,37 @@ export default function ChatInterface({
                       )}
                       
                       <div
-                        className={`max-w-[85%] rounded-2xl p-4 ${
+                        className={`max-w-[85%] ${
                           message.type === 'user'
-                            ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
-                            : 'bg-zinc-800/60 border border-zinc-700/50 text-white backdrop-blur-sm'
+                            ? 'rounded-2xl p-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+                            : message.success === false
+                            ? 'text-white'
+                            : 'rounded-2xl p-4 bg-zinc-800/60 border border-zinc-700/50 text-white backdrop-blur-sm'
                         }`}
                       >
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs font-medium text-white/90">
-                            {message.type === 'user' ? 'You' : 'Clark'}
-                          </span>
-                          <span className="text-xs text-zinc-400/80">
-                            {formatTimestamp(message.timestamp)}
-                          </span>
-                          {message.success !== undefined && (
-                            message.success ? (
-                              <CheckCircle className="h-3 w-3 text-green-400" />
-                            ) : (
-                              <XCircle className="h-3 w-3 text-red-400" />
-                            )
-                          )}
-                        </div>
+                        {(message.type === 'user' || message.success !== false) && (
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs font-medium text-white/90">
+                              {message.type === 'user' ? 'You' : 'Clark'}
+                            </span>
+                            <span className="text-xs text-zinc-400/80">
+                              {formatTimestamp(message.timestamp)}
+                            </span>
+                            {message.success !== undefined && (
+                              message.success ? (
+                                <CheckCircle className="h-3 w-3 text-green-400" />
+                              ) : (
+                                <XCircle className="h-3 w-3 text-red-400" />
+                              )
+                            )}
+                          </div>
+                        )}
                         
                         <div className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</div>
                           
-                        {message.parsedIntent && renderIntentBadge(message.parsedIntent)}
+                        {message.success !== false && message.parsedIntent && renderIntentBadge(message.parsedIntent)}
                           
-                        {message.parsedIntent?.custom_allocations && (
+                        {message.success !== false && message.parsedIntent?.custom_allocations && (
                           <div className="mt-3 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
                             <h4 className="text-sm font-semibold text-blue-300 mb-2">Custom Portfolio Allocation:</h4>
                             <div className="grid grid-cols-2 gap-2 text-xs">
