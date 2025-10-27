@@ -30,11 +30,15 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
       return [];
     }
 
+    // Debug: Log all environment variables
+    console.log('All NEXT_PUBLIC env vars:', Object.keys(process.env).filter(key => key.startsWith('NEXT_PUBLIC_')));
+
     // Get all k-token addresses from environment
     const kTokenAddresses = K_TOKEN_CONFIG
       .map(token => {
         const address = process.env[token.envVar as keyof typeof process.env] || token.fallback;
         console.log(`Environment variable ${token.envVar}:`, address);
+        console.log(`Using fallback:`, !process.env[token.envVar as keyof typeof process.env]);
         return {
           symbol: token.symbol,
           address: address?.toLowerCase(),
