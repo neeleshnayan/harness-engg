@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
+import KTTokenBalances from "@/components/wallet/KTTokenBalances";
 import { FaShieldAlt, FaSync, FaPlus } from "react-icons/fa";
 
 interface BalanceCardProps {
@@ -56,7 +57,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
 }) => {
   const [localRefreshing, setLocalRefreshing] = useState(false);
   const [isFlickering, setIsFlickering] = useState(false);
-  
+
   const showKycSection = accountData?.username && kycStatus !== 'approved' && onKycClick;
   const showBalanceSection = accountData?.username; // Always show balance if username exists
   const isKycApproved = kycStatus === 'approved';
@@ -237,6 +238,11 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
               </div>
             )}
           </div>
+        )}
+
+        {/* K-Token Balances - Show at the bottom if KYC is approved */}
+        {showBalanceSection && isKycApproved && balance && (
+          <KTTokenBalances balance={balance} />
         )}
       </div>
     </div>
