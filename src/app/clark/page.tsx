@@ -181,7 +181,7 @@ export default function BacktestPage() {
       </header>
 
       {/* Main Content Area */}
-      <div className="container mx-auto px-4 py-0 sm:py-2 max-w-6xl pb-10">
+      <div className="container mx-auto px-4 py-0 sm:py-2 max-w-6xl pb-[500px] sm:pb-64">
         {/* Clark Logo - Show only when no user messages or results */}
         {!messages.some(m => m.type === 'user') && !messages.some(m => m.backtestResult || m.screenerResult || m.economicResult) && (
           <div className="flex items-center justify-center mb-2 -mt-4 sm:mt-0">
