@@ -20,22 +20,64 @@ export default function CategoryTiles({
   onPromptClick,
   isLoading
 }: CategoryTilesProps) {
+  // Calculate number of rows needed for 2 columns layout
+  const totalTiles = categories.length
+  const tilesPerRow = 2
+  const totalRows = Math.ceil(totalTiles / tilesPerRow)
+  
   return (
     <div className="pb-1 mb-1">
       {/* Category Tiles */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 w-full max-w-6xl mx-auto px-2 sm:px-0">
+      {/* Mobile: 2 columns with horizontal scrolling (2 rows visible) */}
+      <div className="block sm:hidden overflow-x-auto pb-2 px-2 -mx-2 snap-x snap-mandatory">
+        <div className="flex gap-3 w-max">
+          {Array.from({ length: totalRows }).map((_, rowIndex) => {
+            const startIndex = rowIndex * tilesPerRow
+            const rowTiles = categories.slice(startIndex, startIndex + tilesPerRow)
+            
+            return (
+              <div key={rowIndex} className="flex flex-col gap-3 snap-start">
+                {rowTiles.map((category) => (
+                  <Card
+                    key={category.id}
+                    className="cursor-pointer hover:bg-zinc-800/60 active:bg-zinc-700/60 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg border-zinc-700/50 bg-zinc-800/30 backdrop-blur-sm min-h-[80px] w-[calc(50vw-1.5rem)] touch-manipulation"
+                    onClick={() => onCategorySelect(category.id)}
+                  >
+                    <CardHeader className="pb-3 pt-3 px-3 h-full flex flex-col justify-center">
+                      <CardTitle className="text-xs text-white flex items-center gap-2 mb-1">
+                        {category.icon.startsWith('/') ? (
+                          <img src={category.icon} alt={category.title} className="h-4 w-4 flex-shrink-0" />
+                        ) : (
+                          <span className="text-base flex-shrink-0">{category.icon}</span>
+                        )}
+                        <span className="truncate">{category.title}</span>
+                      </CardTitle>
+                      <CardDescription className="text-xs text-zinc-400 leading-tight line-clamp-2">
+                        {category.description}
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                ))}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+      
+      {/* Desktop: Responsive grid */}
+      <div className="hidden sm:grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 w-full max-w-6xl mx-auto px-0">
         {categories.map((category) => (
           <Card
             key={category.id}
-            className="cursor-pointer hover:bg-zinc-800/60 active:bg-zinc-700/60 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg border-zinc-700/50 bg-zinc-800/30 backdrop-blur-sm min-h-[80px] sm:min-h-[90px] touch-manipulation"
+            className="cursor-pointer hover:bg-zinc-800/60 active:bg-zinc-700/60 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg border-zinc-700/50 bg-zinc-800/30 backdrop-blur-sm min-h-[90px] touch-manipulation"
             onClick={() => onCategorySelect(category.id)}
           >
             <CardHeader className="pb-3 pt-3 px-3 h-full flex flex-col justify-center">
-              <CardTitle className="text-xs sm:text-sm text-white flex items-center gap-2 mb-1">
+              <CardTitle className="text-sm text-white flex items-center gap-2 mb-1">
                 {category.icon.startsWith('/') ? (
-                  <img src={category.icon} alt={category.title} className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                  <img src={category.icon} alt={category.title} className="h-5 w-5 flex-shrink-0" />
                 ) : (
-                  <span className="text-base sm:text-lg flex-shrink-0">{category.icon}</span>
+                  <span className="text-lg flex-shrink-0">{category.icon}</span>
                 )}
                 <span className="truncate">{category.title}</span>
               </CardTitle>
