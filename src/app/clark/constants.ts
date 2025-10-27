@@ -63,9 +63,9 @@ export const categories: Category[] = [
     icon: '/backtesting.svg',
     description: 'Test portfolio strategies',
     prompts: [
-      'Backtest Bitcoin & Ethereum with 50% each from 10/01/2024 to 09/09/2025 with 1000 USD',
-      'Backtest Bitcoin & Ethereum with equal weightage from 10/01/2024 to 09/09/2025 with 1000 USD',
-      'Backtest the following strategy Bitcoin (BTC) 50%, Ethereum (ETH) 50% from 10/01/2024 to 09/09/2025 with 1000 USD'
+      'Backtest Bitcoin & Ethereum with 50% each from 01/01/2024 to 09/09/2025 with 1000 USD',
+      'Backtest Bitcoin & Ethereum with equal weightage from 01/01/2025 to 09/09/2025 with 1000 USD',
+      'Backtest the following strategy Bitcoin (BTC) 50%, Ethereum (ETH) 50% from 01/01/2025 to 09/09/2025 with 1000 USD'
     ]
   },
   {
