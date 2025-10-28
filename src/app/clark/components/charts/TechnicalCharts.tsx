@@ -50,10 +50,10 @@ export default function TechnicalCharts({
       {(technicalIndicatorsRequested.includes('dma_30') || 
         technicalIndicatorsRequested.includes('dma_100') || 
         technicalIndicatorsRequested.includes('dma_200')) && (
-        <Card className="w-full">
+        <Card className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle>Moving Averages Analysis</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-lg text-white">Moving Averages Analysis</CardTitle>
+            <CardDescription className="text-zinc-400">
               Simple Moving Averages (SMA) for {targetAssets.length > 0 ? targetAssets.join(', ') : 'selected assets'}
             </CardDescription>
           </CardHeader>
@@ -113,10 +113,10 @@ export default function TechnicalCharts({
 
       {/* RSI Chart */}
       {technicalIndicatorsRequested.includes('rsi') && (
-        <Card className="w-full">
+        <Card className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle>Relative Strength Index (RSI)</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-lg text-white">Relative Strength Index (RSI)</CardTitle>
+            <CardDescription className="text-zinc-400">
               RSI with overbought (70) and oversold (30) levels for {targetAssets.length > 0 ? targetAssets.join(', ') : 'selected assets'}
             </CardDescription>
           </CardHeader>
@@ -141,7 +141,7 @@ export default function TechnicalCharts({
                 <Line
                   type="monotone"
                   dataKey="rsi"
-                  stroke="#8884d8"
+                  stroke="var(--color-rsi)"
                   strokeWidth={2}
                   dot={false}
                   name="RSI"
@@ -175,10 +175,10 @@ export default function TechnicalCharts({
 
       {/* Bollinger Bands Chart */}
       {technicalIndicatorsRequested.includes('bollinger_bands') && (
-        <Card className="w-full">
+        <Card className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle>Bollinger Bands Analysis</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-lg text-white">Bollinger Bands Analysis</CardTitle>
+            <CardDescription className="text-zinc-400">
               Bollinger Bands (20-period, 2 standard deviations) for volatility analysis of {targetAssets.length > 0 ? targetAssets.join(', ') : 'selected assets'}
             </CardDescription>
           </CardHeader>
@@ -203,7 +203,7 @@ export default function TechnicalCharts({
                 <Line
                   type="monotone"
                   dataKey="bb_upper"
-                  stroke="#8884d8"
+                  stroke="var(--color-bb_upper)"
                   strokeWidth={2}
                   dot={false}
                   name="Upper Band"
@@ -213,7 +213,7 @@ export default function TechnicalCharts({
                 <Line
                   type="monotone"
                   dataKey="bb_middle"
-                  stroke="#82ca9d"
+                  stroke="var(--color-bb_middle)"
                   strokeWidth={2}
                   dot={false}
                   name="Middle Band (SMA)"
@@ -223,7 +223,7 @@ export default function TechnicalCharts({
                 <Line
                   type="monotone"
                   dataKey="bb_lower"
-                  stroke="#ffc658"
+                  stroke="var(--color-bb_lower)"
                   strokeWidth={2}
                   dot={false}
                   name="Lower Band"

@@ -201,7 +201,9 @@ export default function BacktestPage() {
         )}
 
         {/* Results Display */}
-        <ResultsDisplay messages={messages} />
+        <div className="dark">
+          <ResultsDisplay messages={messages} />
+        </div>
                     </div>
 
       {/* Chat Interface */}

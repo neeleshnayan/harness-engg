@@ -54,6 +54,12 @@
     --chart-4: 43 74% 66%;
 
     --chart-5: 27 87% 67%;
+  /* Technical chart colors harmonized with portfolio */
+  --chart-6: 220 70% 50%;
+  --chart-7: 160 60% 45%;
+  --chart-8: 30 80% 55%;
+  --chart-9: 280 65% 60%;
+  --chart-10: 340 75% 55%;
 
     --radius: 0.5rem
   }
@@ -106,6 +112,11 @@
     --chart-4: 280 65% 60%;
 
     --chart-5: 340 75% 55%
+  --chart-6: 220 70% 50%;
+  --chart-7: 160 60% 45%;
+  --chart-8: 30 80% 55%;
+  --chart-9: 280 65% 60%;
+  --chart-10: 340 75% 55%
   }
 }
 
