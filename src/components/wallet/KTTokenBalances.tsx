@@ -13,10 +13,10 @@ interface KTTokenBalancesProps {
 
 // K-Token configuration - addresses loaded from env
 const K_TOKEN_CONFIG = [
-  { symbol: 'kUSD', envVar: 'NEXT_PUBLIC_KUSD_ADDRESS', fallback: '0x5C58471Bc18E004F02Bc0D68573BDcdFb9C0F5D2' },
-  { symbol: 'kAED', envVar: 'NEXT_PUBLIC_KAED_ADDRESS', fallback: '0x0780c2f253126C25a579f8E99A1a7BEFa3ae440b' },
-  { symbol: 'kGBP', envVar: 'NEXT_PUBLIC_KGBP_ADDRESS', fallback: '0x11F1C75e7D89a152953f2708B95B60caC6f13195' },
-  { symbol: 'kEUR', envVar: 'NEXT_PUBLIC_KEUR_ADDRESS', fallback: '0x52c2B994E2151aE66763b7ab95E003a82d911e53' },
+  { symbol: 'kUSD', envVar: 'NEXT_PUBLIC_KUSD_ADDRESS', fallback: '0x6c356a95EB804F6D97a67Fa245454beeBB1d1F95' },
+  { symbol: 'kAED', envVar: 'NEXT_PUBLIC_KAED_ADDRESS', fallback: '0x1f20824f285Fc2d397E41Bd553e3fc192243971d' },
+  { symbol: 'kGBP', envVar: 'NEXT_PUBLIC_KGBP_ADDRESS', fallback: '0x25DdF755F8007aeB76D7f8320DDc725059Afb0e6' },
+  { symbol: 'kEUR', envVar: 'NEXT_PUBLIC_KEUR_ADDRESS', fallback: '0x0a49420F264504e2b532DdB7Ab7CEF06587D4e3B' },
   { symbol: 'kJPY', envVar: 'NEXT_PUBLIC_KJPY_ADDRESS', fallback: '0x5678901234567890123456789012345678901234' },
   { symbol: 'kCAD', envVar: 'NEXT_PUBLIC_KCAD_ADDRESS', fallback: '0x6789012345678901234567890123456789012345' },
   { symbol: 'kAUD', envVar: 'NEXT_PUBLIC_KAUD_ADDRESS', fallback: '0x7890123456789012345678901234567890123456' },
