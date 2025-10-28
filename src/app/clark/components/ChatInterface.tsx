@@ -137,19 +137,6 @@ export default function ChatInterface({
                           
                         {message.success !== false && message.parsedIntent && renderIntentBadge(message.parsedIntent)}
                           
-                        {message.success !== false && message.parsedIntent?.custom_allocations && (
-                          <div className="mt-3 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                            <h4 className="text-sm font-semibold text-blue-300 mb-2">Custom Portfolio Allocation:</h4>
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                              {Object.entries(message.parsedIntent.custom_allocations).map(([asset, percentage]) => (
-                                <div key={asset} className="flex justify-between">
-                                  <span className="text-blue-200">{asset.replace('/USDT', '')}:</span>
-                                  <span className="font-medium text-blue-100">{percentage as number}%</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
                       
                       {message.type === 'user' && (
