@@ -1,10 +1,10 @@
 import axios from 'axios';
 
 // Set the base URL for API requests
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '127.0.0.1:8000';
-const WEB3_API_BASE_URL = process.env.NEXT_PUBLIC_WEB3_API_URL || '127.0.0.1:8080';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+const WEB3_API_BASE_URL = process.env.NEXT_PUBLIC_WEB3_API_URL || 'http://127.0.0.1:8080';
 
-const web3Api = axios.create({
+export const web3Api = axios.create({
   baseURL: WEB3_API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
@@ -80,3 +80,14 @@ export const getTokenInfo = async (tokenAddress: string) => {
 
 
 export default api;
+
+// ERC20/Smart Token Service helpers
+export const listERC20Tokens = async () => {
+  try {
+    const response = await web3Api.get('/erc20/tokens');
+    return response.data;
+  } catch (error) {
+    console.error('Error listing ERC20 tokens:', error);
+    throw error;
+  }
+};
