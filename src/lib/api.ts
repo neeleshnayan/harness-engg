@@ -1,8 +1,15 @@
 import axios from 'axios';
 
 // Set the base URL for API requests
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
-// const API_BASE_URL = 'https://api.kryptonfund.com'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '127.0.0.1:8000';
+const WEB3_API_BASE_URL = process.env.NEXT_PUBLIC_WEB3_API_URL || '127.0.0.1:8080';
+
+const web3Api = axios.create({
+  baseURL: WEB3_API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
 // Create axios instance with base URL
 const api = axios.create({

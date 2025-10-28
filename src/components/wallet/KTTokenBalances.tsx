@@ -78,7 +78,7 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
       <div className="mb-2">
         <div className="flex items-center text-zinc-400 text-sm">
           <FaCoins className="mr-2" />
-          K-Token Balances
+          All Currencies
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -87,9 +87,8 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
             key={token.symbol}
             className="bg-zinc-800/60 border border-zinc-700/50 rounded-lg px-3 py-2 flex items-center"
           >
-            <span className="text-white font-medium text-sm">{token.symbol}</span>
-            <span className="text-zinc-300 ml-2 text-sm">
-              {parseFloat(token.balance).toFixed(2)}
+            <span className="text-white font-medium text-sm">
+              {parseFloat(token.balance).toFixed(2)} {token.symbol.replace(/^k/, '')}
             </span>
           </div>
         ))}
