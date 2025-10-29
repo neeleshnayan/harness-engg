@@ -212,15 +212,26 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
       console.log('💰 Initial MAVC Balance:', initialMAVCBalance);
       console.log('💵 Initial USDC Balance:', initialUSDCBalance);
 
+      console.log('🔍 STEP 1: Calling approve endpoint...');
       const approveResponse = await api.post('/api/v1/mavc/approve', payload);
 
       if (approveResponse.data.status !== 'success') {
         throw new Error('USDC approval failed');
       }
 
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Extract the transaction ID from approval response
+      const approveTxId = approveResponse.data.transaction_id;
+      console.log('✅ Approval transaction submitted:', approveTxId);
+      console.log('🔗 Monitor at: https://console.circle.com/wallets/dev/transactions/' + approveTxId);
 
-      const response = await api.post('/api/v1/mavc/deposit', payload);
+      // The backend will now poll for approval confirmation before proceeding with deposit
+      console.log('🔍 STEP 2: Calling deposit endpoint (will wait for approval confirmation)...');
+      const depositPayload = {
+        ...payload,
+        approve_tx_id: approveTxId  // Required: backend will wait for this to be confirmed
+      };
+
+      const response = await api.post('/api/v1/mavc/deposit', depositPayload);
 
       if (response.data.status === 'success') {
         console.log('✅ Deposit transaction created');

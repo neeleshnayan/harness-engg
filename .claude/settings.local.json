@@ -18,7 +18,9 @@
       "Bash(forge script:*)",
       "Bash(cast call:*)",
       "Bash(git add:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(cast block-number:*)",
+      "Bash(cast logs:*)"
     ],
     "deny": [],
     "ask": []
