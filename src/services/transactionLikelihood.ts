@@ -88,7 +88,8 @@ export async function estimateTransactionLikelihood(
   }
 
   // Check 5: Network congestion (placeholder - could integrate with gas price APIs)
-  const networkCongestion: 'low' | 'medium' | 'high' = 'low';
+  // TODO: Implement actual network congestion detection via gas price APIs
+  let networkCongestion: 'low' | 'medium' | 'high' = 'low';
   if (networkCongestion === 'high') {
     score -= 10;
     warnings.push('High network congestion may delay transaction');

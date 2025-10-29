@@ -17,7 +17,8 @@
       "Bash(test:*)",
       "Bash(forge script:*)",
       "Bash(cast call:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(echo:*)"
     ],
     "deny": [],
     "ask": []
