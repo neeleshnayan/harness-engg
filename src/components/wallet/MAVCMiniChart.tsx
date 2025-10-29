@@ -6,6 +6,7 @@ import { useMAVCPriceHistory, MAVCPriceUpdate } from "@/hooks/useMAVCPrice";
 interface MAVCMiniChartProps {
   subgraphUrl?: string;
   tokenAddress?: string;
+  userBalance?: number;  // User's MAVC token balance
 }
 
 type PricePoint = {
@@ -13,7 +14,7 @@ type PricePoint = {
   price: number;
 };
 
-const buildPriceTimeline = (priceUpdates: MAVCPriceUpdate[]): PricePoint[] => {
+const buildPriceTimeline = (priceUpdates: MAVCPriceUpdate[], userBalance?: number): PricePoint[] => {
   const THIRTY_MINUTES = 30 * 60 * 1000; // 30 minutes in milliseconds
   const bucket = new Map<number, number[]>();
 
@@ -35,17 +36,22 @@ const buildPriceTimeline = (priceUpdates: MAVCPriceUpdate[]): PricePoint[] => {
 
   // Average prices in each bucket and sort by timestamp
   return Array.from(bucket.entries())
-    .map(([timestamp, prices]) => ({
-      timestamp,
-      price: prices.reduce((sum, p) => sum + p, 0) / prices.length, // Average price
-    }))
+    .map(([timestamp, prices]) => {
+      const avgPrice = prices.reduce((sum, p) => sum + p, 0) / prices.length;
+      // If userBalance is provided, multiply price by balance to show portfolio value
+      const value = userBalance && userBalance > 0 ? avgPrice * userBalance : avgPrice;
+      return {
+        timestamp,
+        price: value
+      };
+    })
     .sort((a, b) => a.timestamp - b.timestamp);
 };
 
-export const MAVCMiniChart: React.FC<MAVCMiniChartProps> = ({ subgraphUrl, tokenAddress }) => {
+export const MAVCMiniChart: React.FC<MAVCMiniChartProps> = ({ subgraphUrl, tokenAddress, userBalance }) => {
   const { data: priceHistory, isLoading } = useMAVCPriceHistory(subgraphUrl);
 
-  const priceTimeline = useMemo(() => buildPriceTimeline(priceHistory ?? []), [priceHistory]);
+  const priceTimeline = useMemo(() => buildPriceTimeline(priceHistory ?? [], userBalance), [priceHistory, userBalance]);
 
   // Calculate price statistics
   const priceStats = useMemo(() => {
@@ -101,7 +107,9 @@ export const MAVCMiniChart: React.FC<MAVCMiniChartProps> = ({ subgraphUrl, token
       {/* Price Change Summary */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-zinc-400">Price Change</span>
+          <span className="text-xs text-zinc-400">
+            {userBalance && userBalance > 0 ? 'Portfolio Change' : 'Price Change'}
+          </span>
           {priceStats.isPositive ? (
             <TrendingUp className="w-3 h-3 text-green-400" />
           ) : (

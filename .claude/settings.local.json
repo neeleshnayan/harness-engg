@@ -7,7 +7,17 @@
       "Bash(node -e:*)",
       "Bash(python -m json.tool:*)",
       "Bash(python update_strategy_metrics.py:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(npm install:*)",
+      "Bash(python check_transaction_status.py:*)",
+      "Bash(python:*)",
+      "Bash(npm run compile:*)",
+      "Bash(npm run:*)",
+      "Bash(forge build:*)",
+      "Bash(test:*)",
+      "Bash(forge script:*)",
+      "Bash(cast call:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

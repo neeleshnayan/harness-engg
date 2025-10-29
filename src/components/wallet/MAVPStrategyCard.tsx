@@ -1,14 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { TrendingUp, TrendingDown, ArrowUp, ArrowDown, Wallet, Users, Percent, BarChart, Clock } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { formatTokenBalance } from "@/lib/utils";
 import MAVCModal from "./MAVCModal";
 import api from "@/lib/api";
 import { useMAVPConfig } from "@/hooks/useMAVPConfig";
+import { useMAVPPrice } from "@/hooks/useMAVPPrice";
+import { useMAVPSubgraphData } from "@/hooks/useMAVPSubgraphData";
 
 interface MAVPStrategyCardProps {
   onRefresh?: () => void;
@@ -18,24 +21,68 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
   const router = useRouter();
   const { data: mavpConfig } = useMAVPConfig();
 
+  // Fetch MAVP price from subgraph (updates every 60 seconds)
+  const { data: mavpPriceData, isLoading: priceLoading, error: priceError } = useMAVPPrice(
+    mavpConfig?.subgraph_url
+  );
+
+  // Fetch subgraph data to get net MAVP supply
+  const { data: subgraphData } = useMAVPSubgraphData(mavpConfig?.subgraph_url);
+
   const [mavpBalance, setMavpBalance] = useState("0");
   const [usdcBalance, setUsdcBalance] = useState("0");
+  const [walletAddress, setWalletAddress] = useState<string>("");
   const [showModal, setShowModal] = useState(false);
   const [modalAction, setModalAction] = useState<'deposit' | 'withdraw'>('deposit');
   const [transactionLoading, setTransactionLoading] = useState(false);
   const [transactionError, setTransactionError] = useState<string | null>(null);
   const [transactionSuccess, setTransactionSuccess] = useState<string | null>(null);
 
+  // Calculate net MAVP supply (minted - burned)
+  const netMAVPSupply = useMemo(() => {
+    if (!subgraphData?.vaultMetric) return 0;
+    const minted = Number(subgraphData.vaultMetric.mintedShares ?? '0');
+    const burned = Number(subgraphData.vaultMetric.burnedShares ?? '0');
+    return minted - burned;
+  }, [subgraphData]);
+
+  // Calculate AUM dynamically: total_MAVP_supply * price_of_MAVP_in_USD
+  const calculatedAUM = useMemo(() => {
+    if (!mavpPriceData?.price || netMAVPSupply === 0) {
+      return { value: mavpConfig?.aum ?? 15.2, unit: 'M' }; // Fallback to config value
+    }
+    const priceInUSD = Number(mavpPriceData.price);
+    const aumInUSD = netMAVPSupply * priceInUSD;
+
+    // Display based on magnitude
+    if (aumInUSD >= 1_000_000) {
+      return { value: aumInUSD / 1_000_000, unit: 'M' }; // Millions
+    } else if (aumInUSD >= 1_000) {
+      return { value: aumInUSD / 1_000, unit: 'K' }; // Thousands
+    } else {
+      return { value: aumInUSD, unit: '' }; // Raw value
+    }
+  }, [netMAVPSupply, mavpPriceData, mavpConfig?.aum]);
+
+  // Get unique depositors from subgraph data
+  const uniqueDepositors = subgraphData?.vaultMetric?.uniqueDepositors ?? mavpConfig?.participants ?? 342;
+
+  // MAVP Price in USDC (fetched from subgraph, updates every 60 seconds)
+  const mavpPriceInUSDC = mavpPriceData?.price
+    ? formatTokenBalance(mavpPriceData.price)
+    : null;
+
   // Fetch strategy metrics from database via mavpConfig
   const strategyMetrics = {
     name: mavpConfig?.name ?? "Multi Asset Vault Protocol",
     description: mavpConfig?.description ?? "Advanced yield farming protocol with automated rebalancing and risk management.",
     netApy: mavpConfig?.net_apy ?? 89.7,
-    aum: mavpConfig?.aum ?? 15.2,
+    aum: calculatedAUM.value,
+    aumUnit: calculatedAUM.unit,
     sharpe: mavpConfig?.sharpe_ratio ?? 1.45,
     maxDrawdown: mavpConfig?.max_drawdown ?? 28.3,
     lockInPeriod: mavpConfig?.lock_in_period ?? "7d",
-    participants: mavpConfig?.participants ?? 342,
+    participants: uniqueDepositors,
     performanceFee: mavpConfig?.performance_fee ?? 15.0,
   };
 
@@ -49,6 +96,8 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
       if (userData) {
         const parsedData = JSON.parse(userData);
         if (parsedData.wallet_address) {
+          setWalletAddress(parsedData.wallet_address);
+
           try {
             const mavpResponse = await api.get(`/api/v1/mavp/balance/${parsedData.wallet_address}`);
             setMavpBalance(mavpResponse.data.balance || "0");
@@ -56,7 +105,7 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
             console.warn('MAVP balance not available:', err);
             setMavpBalance("0");
           }
-          
+
           try {
             const usdcResponse = await api.get(`/api/v1/wallet_balance/${parsedData.wallet_address}`);
             const usdcBalance = usdcResponse.data.balances?.find((b: any) => b.token.symbol === 'USDC')?.amount || "0";
@@ -224,9 +273,20 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
         <CardHeader className="pb-4">
           <div className="flex justify-between items-start gap-4">
             <CardTitle className="text-xl text-white">{strategyMetrics.name}</CardTitle>
-            <div className="flex items-center gap-2 bg-blue-500/20 text-blue-300 px-3 py-1 rounded-lg border border-blue-500/30">
-              <Wallet className="w-4 h-4" />
-              <span className="text-sm font-semibold">{formatBalance(mavpBalance)} MAVP</span>
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex items-center gap-2 bg-blue-500/20 text-blue-300 px-3 py-1 rounded-lg border border-blue-500/30">
+                <Wallet className="w-4 h-4" />
+                <span className="text-sm font-semibold">{formatBalance(mavpBalance)} MAVP</span>
+              </div>
+              {priceLoading ? (
+                <span className="text-xs text-zinc-500">Loading price...</span>
+              ) : priceError ? (
+                <span className="text-xs text-red-400">Price unavailable</span>
+              ) : mavpPriceInUSDC ? (
+                <span className="text-xs text-green-400 font-medium">
+                  1 MAVP = ${mavpPriceInUSDC}
+                </span>
+              ) : null}
             </div>
           </div>
           <CardDescription className="pt-2 text-sm text-zinc-400">{strategyMetrics.description}</CardDescription>
@@ -247,7 +307,9 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
                 <div className="flex items-center gap-3 text-right">
                   <div>
                     <p className="text-xs text-zinc-500">AUM</p>
-                    <span className="font-semibold text-lg text-white">${strategyMetrics.aum.toLocaleString()}M</span>
+                    <span className="font-semibold text-lg text-white">
+                      ${strategyMetrics.aum.toFixed(2)}{strategyMetrics.aumUnit}
+                    </span>
                   </div>
                   <Wallet className="w-6 h-6 text-zinc-500" />
                 </div>
@@ -315,11 +377,15 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
         onClose={closeModal}
         action={modalAction}
         mavcBalance={mavpBalance}
+        usdcBalance={usdcBalance}
         onDeposit={handleDeposit}
         onWithdraw={handleWithdraw}
         loading={transactionLoading}
         error={transactionError}
         success={transactionSuccess}
+        mavcPrice={mavpPriceInUSDC}
+        walletAddress={walletAddress}
+        tokenAddress="0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
       />
     </>
   );

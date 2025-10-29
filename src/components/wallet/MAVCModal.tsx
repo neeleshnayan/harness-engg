@@ -3,6 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, ArrowUp, ArrowDown } from "lucide-react";
+import TransactionStatusIndicator from "./TransactionStatusIndicator";
+import {
+  estimateTransactionLikelihood,
+  TransactionLikelihoodResult,
+  TransactionStatusUpdate,
+} from "../../services/transactionLikelihood";
 
 interface MAVCModalProps {
   visible: boolean;
@@ -16,6 +22,8 @@ interface MAVCModalProps {
   error: string | null;
   success: string | null;
   mavcPrice?: string | null;
+  walletAddress?: string;
+  tokenAddress?: string;
 }
 
 const MAVCModal: React.FC<MAVCModalProps> = ({
@@ -30,14 +38,76 @@ const MAVCModal: React.FC<MAVCModalProps> = ({
   error,
   success,
   mavcPrice,
+  walletAddress,
+  tokenAddress,
 }) => {
   const [amount, setAmount] = useState("");
+  const [likelihoodResult, setLikelihoodResult] = useState<TransactionLikelihoodResult | null>(null);
+  const [transactionStatus, setTransactionStatus] = useState<TransactionStatusUpdate>({
+    stage: 'validating',
+    likelihood: 'very_likely',
+    message: 'Ready to process',
+  });
 
+  // Reset state when modal closes
   useEffect(() => {
     if (!visible) {
       setAmount("");
+      setLikelihoodResult(null);
+      setTransactionStatus({
+        stage: 'validating',
+        likelihood: 'very_likely',
+        message: 'Ready to process',
+      });
     }
   }, [visible]);
+
+  // Estimate transaction likelihood when amount changes
+  useEffect(() => {
+    const estimateLikelihood = async () => {
+      if (!amount || parseFloat(amount) <= 0) {
+        setLikelihoodResult(null);
+        return;
+      }
+
+      const currentBalance = action === 'deposit' ? usdcBalance : mavcBalance;
+
+      const result = await estimateTransactionLikelihood({
+        walletAddress: walletAddress || '',
+        tokenAddress: tokenAddress || '',
+        amount,
+        type: action,
+        currentBalance,
+        mavcPrice: mavcPrice || undefined,
+      });
+
+      setLikelihoodResult(result);
+    };
+
+    if (visible && !loading) {
+      estimateLikelihood();
+    }
+  }, [amount, action, mavcBalance, usdcBalance, visible, loading, walletAddress, tokenAddress, mavcPrice]);
+
+  // Update transaction status based on loading state
+  useEffect(() => {
+    if (loading) {
+      // Simulate transaction stages
+      setTransactionStatus({ stage: 'broadcasting', likelihood: 'very_likely', message: 'Broadcasting transaction...' });
+
+      const timer1 = setTimeout(() => {
+        setTransactionStatus({ stage: 'confirming', likelihood: 'likely', message: 'Waiting for confirmation...' });
+      }, 2000);
+
+      return () => clearTimeout(timer1);
+    } else if (success) {
+      setTransactionStatus({ stage: 'confirmed', likelihood: 'very_likely', message: 'Transaction confirmed!' });
+    } else if (error) {
+      setTransactionStatus({ stage: 'failed', likelihood: 'very_unlikely', message: error });
+    } else {
+      setTransactionStatus({ stage: 'validating', likelihood: 'very_likely', message: 'Ready to process' });
+    }
+  }, [loading, success, error]);
 
   if (!visible) return null;
 
@@ -221,16 +291,13 @@ const MAVCModal: React.FC<MAVCModalProps> = ({
                 </div>
               </div>
 
-              {loading && (
-                <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-4 mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="animate-spin rounded-full h-6 w-6 border-3 border-blue-500 border-t-transparent"></div>
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-blue-300">Processing transaction...</div>
-                      <div className="text-xs text-zinc-400 mt-1">Waiting for balance to update on-chain</div>
-                    </div>
-                  </div>
-                </div>
+              {/* Transaction Status Indicator - Show during processing or when there's a likelihood estimate */}
+              {(loading || (likelihoodResult && amount && parseFloat(amount) > 0)) && (
+                <TransactionStatusIndicator
+                  likelihoodResult={likelihoodResult || undefined}
+                  status={transactionStatus}
+                  showDetails={!loading}
+                />
               )}
 
               <div className="flex space-x-3 pt-4">

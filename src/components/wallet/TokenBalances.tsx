@@ -371,6 +371,7 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
                   <MAVCMiniChart
                     subgraphUrl={subgraphUrl || mavcConfig?.subgraph_url}
                     tokenAddress={tokenDetail.token.tokenAddress}
+                    userBalance={parseFloat(tokenDetail.amount) || 0}
                   />
                 )}
               </div>

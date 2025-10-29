@@ -32,6 +32,7 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
 
   const [mavcBalance, setMavcBalance] = useState("0");
   const [usdcBalance, setUsdcBalance] = useState("0");
+  const [walletAddress, setWalletAddress] = useState<string>("");
   const [showModal, setShowModal] = useState(false);
   const [modalAction, setModalAction] = useState<'deposit' | 'withdraw'>('deposit');
   const [transactionLoading, setTransactionLoading] = useState(false);
@@ -104,6 +105,7 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
         console.log('🔍 Wallet Address being used:', parsedData.wallet_address);
 
         if (parsedData.wallet_address) {
+          setWalletAddress(parsedData.wallet_address);
           // Fetch wallet balances (includes both USDC and MAVC tokens)
           try {
             console.log(`🔍 Fetching wallet balances for: ${parsedData.wallet_address}`);
@@ -573,6 +575,8 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
         error={transactionError}
         success={transactionSuccess}
         mavcPrice={mavcPriceInUSDC}
+        walletAddress={walletAddress}
+        tokenAddress="0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
       />
     </>
   );

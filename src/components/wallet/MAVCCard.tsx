@@ -27,6 +27,7 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
 
   const [mavcBalance, setMavcBalance] = useState("0");
   const [usdcBalance, setUsdcBalance] = useState("0");
+  const [walletAddress, setWalletAddress] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -95,11 +96,12 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
         setLoading(true);
         setError(null);
       }
-      
+
       const userData = localStorage.getItem('userData');
       if (userData) {
         const parsedData = JSON.parse(userData);
         if (parsedData.wallet_address) {
+          setWalletAddress(parsedData.wallet_address);
           // Fetch wallet balances (includes both USDC and MAVC tokens)
           try {
             const walletResponse = await api.get(`/api/v1/wallet_balance/${parsedData.wallet_address}`);
@@ -324,7 +326,11 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
     : null;
 
   const handleWithdraw = async (amount: string) => {
-    console.log('🚀 handleWithdraw called with amount:', amount);
+    console.log('='.repeat(80));
+    console.log('🚀 MAVC WITHDRAWAL STARTED');
+    console.log('='.repeat(80));
+    console.log('📋 Withdrawal amount requested:', amount);
+
     try {
       setTransactionLoading(true);
       setTransactionError(null);
@@ -332,12 +338,18 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
 
       const userData = localStorage.getItem('userData');
       if (!userData) {
+        console.error('❌ User data not found in localStorage');
         throw new Error('User data not found');
       }
 
       const parsedData = JSON.parse(userData);
+      console.log('✅ User data loaded:', {
+        user_id: parsedData.user_id,
+        wallet_address: parsedData.wallet_address,
+      });
 
       if (!parsedData.wallet_address) {
+        console.error('❌ Wallet address not found in user data');
         throw new Error('Wallet address not found');
       }
 
@@ -347,22 +359,41 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
         user_id: parsedData.user_id
       };
 
-      console.log('📤 MAVC Withdraw Request:', payload);
+      console.log('📤 Sending MAVC Withdraw Request to Backend:');
+      console.log('   - Amount:', payload.amount, 'MAVC');
+      console.log('   - Destination Wallet:', payload.wallet_address);
+      console.log('   - User ID:', payload.user_id);
+      console.log('   - API Endpoint: /api/v1/mavc/withdraw');
+
+      // Log the FULL payload for debugging
+      console.log('📦 Full Request Payload:', JSON.stringify(payload, null, 2));
+      console.log('🎯 KEY INFO - WITHDRAWAL WILL SEND FUNDS TO:', payload.wallet_address);
 
       // Capture initial balance before transaction
       const initialMAVCBalance = parseFloat(mavcBalance);
       const initialUSDCBalance = parseFloat(usdcBalance);
-      console.log('💰 Initial MAVC Balance:', initialMAVCBalance);
-      console.log('💵 Initial USDC Balance:', initialUSDCBalance);
+      console.log('💰 Initial Balances (before withdrawal):');
+      console.log('   - MAVC Balance:', initialMAVCBalance);
+      console.log('   - USDC Balance:', initialUSDCBalance);
 
+      console.log('🌐 Making API call to backend...');
       const response = await api.post('/api/v1/mavc/withdraw', payload);
 
-      console.log('📤 Withdraw Response:', response.data);
+      console.log('✅ API call completed!');
+
+      console.log('📨 Backend Response Received:');
+      console.log('   - Status Code:', response.status);
+      console.log('   - Response Data:', JSON.stringify(response.data, null, 2));
 
       if (response.data.status === 'success') {
         const redeemTxId = response.data.redeem_tx;
-        console.log('✅ Withdrawal transaction created:', redeemTxId);
-        console.log('⏳ Waiting for balance to change...');
+        const txState = response.data.tx_state;
+        const txHash = response.data.tx_hash;
+        console.log('✅ Withdrawal transaction created successfully!');
+        console.log('   - Transaction ID:', redeemTxId);
+        console.log('   - Transaction State:', txState);
+        console.log('   - TX Hash:', txHash || 'Pending...');
+        console.log('⏳ Starting balance polling (max 2 minutes)...');
 
         // Poll for balance change
         const maxAttempts = 60; // 60 attempts = 2 minutes max
@@ -371,9 +402,13 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
 
         while (attempts < maxAttempts && !balanceChanged) {
           await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds between checks
+          attempts++;
+
+          console.log(`🔍 Balance Check Attempt ${attempts}/${maxAttempts}...`);
 
           // Fetch updated balance
           const walletResponse = await api.get(`/api/v1/wallet_balance/${parsedData.wallet_address}`);
+          console.log(`   - Fetched wallet data for: ${parsedData.wallet_address}`);
 
           if (walletResponse.data && Array.isArray(walletResponse.data.tokenBalances)) {
             // Check MAVC balance (should decrease) and USDC balance (should increase)
@@ -405,11 +440,14 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
               }, 0);
             }
 
-            console.log(`🔍 Attempt ${attempts + 1}: MAVC = ${currentMAVCBalance} (initial: ${initialMAVCBalance}), USDC = ${currentUSDCBalance} (initial: ${initialUSDCBalance})`);
+            console.log(`   - Current MAVC: ${currentMAVCBalance} (initial: ${initialMAVCBalance}) [${currentMAVCBalance < initialMAVCBalance ? 'DECREASED ✓' : 'NO CHANGE'}]`);
+            console.log(`   - Current USDC: ${currentUSDCBalance} (initial: ${initialUSDCBalance}) [${currentUSDCBalance > initialUSDCBalance ? 'INCREASED ✓' : 'NO CHANGE'}]`);
 
             // Check if MAVC balance decreased OR USDC balance increased
             if (currentMAVCBalance < initialMAVCBalance || currentUSDCBalance > initialUSDCBalance) {
-              console.log('✅ Balance changed! MAVC:', initialMAVCBalance, '->', currentMAVCBalance, '| USDC:', initialUSDCBalance, '->', currentUSDCBalance);
+              console.log('✅ BALANCE CHANGED DETECTED!');
+              console.log('   - MAVC:', initialMAVCBalance, '->', currentMAVCBalance);
+              console.log('   - USDC:', initialUSDCBalance, '->', currentUSDCBalance);
               balanceChanged = true;
 
               // Update local state
@@ -420,22 +458,33 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
               setTransactionSuccess(successMessage);
 
               if (onRefresh) onRefresh();
+              console.log('='.repeat(80));
+              console.log('✅ WITHDRAWAL COMPLETED SUCCESSFULLY!');
+              console.log('='.repeat(80));
             }
           }
-
-          attempts++;
         }
 
         if (!balanceChanged) {
-          console.warn('⚠️ Balance did not change within timeout period');
+          console.warn('='.repeat(80));
+          console.warn('⚠️ TIMEOUT: Balance did not change within 2 minutes');
+          console.warn('   - Transaction may still be processing on-chain');
+          console.warn('   - Check Circle dashboard or block explorer');
+          console.warn('   - Transaction ID:', redeemTxId);
+          console.warn('='.repeat(80));
           throw new Error('Transaction submitted but balance not updated yet. Please check back in a moment.');
         }
       } else {
+        console.error('❌ Backend returned non-success status:', response.data);
         throw new Error(response.data.message || 'Withdrawal failed');
       }
     } catch (err: any) {
-      console.error('❌ MAVC Withdraw Error:', err);
-      console.error('❌ Error Response:', err.response?.data);
+      console.error('='.repeat(80));
+      console.error('❌ MAVC WITHDRAWAL ERROR');
+      console.error('='.repeat(80));
+      console.error('Error:', err);
+      console.error('Error Message:', err.message);
+      console.error('Response Data:', err.response?.data);
       const errorMsg = err.response?.data?.detail
         ? (typeof err.response.data.detail === 'string'
           ? err.response.data.detail
@@ -612,6 +661,8 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
         error={transactionError}
         success={transactionSuccess}
         mavcPrice={mavcPriceInUSDC}
+        walletAddress={walletAddress}
+        tokenAddress="0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
       />
     </>
   );
