@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 import { ChatMessage } from './types'
 import { categories } from './constants'
 import CategoryTiles from './components/CategoryTiles'
-import ChatInterface from './components/ChatInterface'
+import ChatInputBar, { ChatMessages } from './components/ChatInterface'
 import ResultsDisplay from './components/ResultsDisplay'
 
 
@@ -155,7 +155,7 @@ export default function BacktestPage() {
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 overflow-x-hidden">
       {/* Navbar */}
-      <header>
+      <header className="fixed top-0 left-0 right-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-2 min-h-[4rem]">
             <div className="flex items-center">
@@ -179,9 +179,24 @@ export default function BacktestPage() {
           </div>
         </div>
       </header>
+      {/* Spacer for fixed navbar height */}
+      <div className="h-24" />
+
+      {/* Fixed Chat Box just below navbar; overlays results on scroll (visible when user has started) */}
+      {(messages.some(m => m.type === 'user') || messages.some(m => m.backtestResult || m.screenerResult || m.economicResult)) && (
+        <div className="fixed top-20 left-0 right-0 z-50">
+          <div className="container mx-auto px-4 max-w-6xl">
+            <div className="h-[8.5rem]">
+              <ChatMessages messages={messages} isLoading={isLoading} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
-      <div className="container mx-auto px-4 py-0 sm:py-2 max-w-6xl pb-[500px] sm:pb-64">
+      <div className={`container fixed top-0 sm:top-32 mx-auto px-4 py-0 sm:py-2 max-w-6xl relative z-0 ${
+        (messages.some(m => m.type === 'user') || messages.some(m => m.backtestResult || m.screenerResult || m.economicResult)) ? 'pt-[8.5rem]' : ''
+      }`}>
         {/* Clark Logo - Show only when no user messages or results */}
         {!messages.some(m => m.type === 'user') && !messages.some(m => m.backtestResult || m.screenerResult || m.economicResult) && (
           <div className="flex items-center justify-center mb-2 -mt-4 sm:mt-0">
@@ -200,15 +215,22 @@ export default function BacktestPage() {
           />
         )}
 
-        {/* Results Display */}
+        {/* Results Display - bounded scroll between top chat and bottom input */}
         <div className="dark">
-          <ResultsDisplay messages={messages} />
+          <div
+            className={
+              (messages.some(m => m.type === 'user') || messages.some(m => m.backtestResult || m.screenerResult || m.economicResult))
+                ? 'max-h-[calc(100vh-6rem-8.5rem-6.5rem)] overflow-y-auto'
+                : 'max-h-[calc(100vh-6rem-6.5rem)] overflow-y-auto'
+            }
+          >
+            <ResultsDisplay messages={messages} />
+          </div>
         </div>
                     </div>
 
-      {/* Chat Interface */}
-      <ChatInterface
-        messages={messages}
+      {/* Chat Input Bar - fixed at bottom */}
+      <ChatInputBar
         inputValue={inputValue}
         setInputValue={setInputValue}
         isLoading={isLoading}

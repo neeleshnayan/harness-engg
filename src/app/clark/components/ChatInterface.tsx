@@ -9,36 +9,20 @@ import { Send, User, CheckCircle, XCircle, Loader2 } from 'lucide-react'
 import { ChatMessage } from '../types'
 import { formatTimestamp } from '../utils'
 
-interface ChatInterfaceProps {
+interface ChatMessagesProps {
   messages: ChatMessage[]
-  inputValue: string
-  setInputValue: (value: string) => void
   isLoading: boolean
-  onSendMessage: () => void
-  onKeyPress: (e: React.KeyboardEvent) => void
 }
 
-export default function ChatInterface({
-  messages,
-  inputValue,
-  setInputValue,
-  isLoading,
-  onSendMessage,
-  onKeyPress
-}: ChatInterfaceProps) {
+export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
   useEffect(() => {
-    scrollToBottom()
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
   const renderIntentBadge = (intent: any) => {
     if (!intent) return null
-
     return (
       <div className="mt-2 space-y-1">
         <div className="flex items-center gap-2 flex-wrap">
@@ -76,97 +60,106 @@ export default function ChatInterface({
   }
 
   return (
+    <Card className="bg-zinc-900/60 border-zinc-700/50 backdrop-blur-md h-full">
+      <CardContent className="p-0 h-full">
+        <div className="flex flex-col h-full">
+          <div className="flex-1 overflow-y-auto p-4 border-b border-zinc-700/50 scrollbar-thin scrollbar-thumb-zinc-600 scrollbar-track-transparent">
+            {messages.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-zinc-400">
+                <div className="text-center">
+                  <img src="/clark process.svg" alt="Clark" className="h-12 w-12 mx-auto mb-3 opacity-60" />
+                  <p className="text-sm">Start a conversation with Clark</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex gap-3 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    {message.type === 'assistant' && (
+                      <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                        <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
+                      </div>
+                    )}
+                    <div
+                      className={`max-w-[85%] ${
+                        message.type === 'user'
+                          ? 'rounded-2xl p-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+                          : message.success === false
+                          ? 'text-white'
+                          : 'rounded-2xl p-4 bg-zinc-800/60 border border-zinc-700/50 text-white backdrop-blur-sm'
+                      }`}
+                    >
+                      {(message.type === 'user' || message.success !== false) && (
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs font-medium text-white/90">
+                            {message.type === 'user' ? 'You' : 'Clark'}
+                          </span>
+                          <span className="text-xs text-zinc-400/80">{formatTimestamp(message.timestamp)}</span>
+                          {message.success !== undefined && (
+                            message.success ? (
+                              <CheckCircle className="h-3 w-3 text-green-400" />
+                            ) : (
+                              <XCircle className="h-3 w-3 text-red-400" />
+                            )
+                          )}
+                        </div>
+                      )}
+                      <div className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</div>
+                      {message.success !== false && message.parsedIntent && renderIntentBadge(message.parsedIntent)}
+                    </div>
+                    {message.type === 'user' && (
+                      <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                        <User className="h-4 w-4 text-blue-400" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {isLoading && (
+                  <div className="flex gap-3 justify-start">
+                    <div className="w-8 h-8 flex items-center justify-center">
+                      <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
+                    </div>
+                    <div className="bg-zinc-800/60 border border-zinc-700/50 rounded-2xl p-4 backdrop-blur-sm">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
+                        <span className="text-sm text-white">Processing your request...</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+interface ChatInputBarProps {
+  inputValue: string
+  setInputValue: (value: string) => void
+  isLoading: boolean
+  onSendMessage: () => void
+  onKeyPress: (e: React.KeyboardEvent) => void
+}
+
+export default function ChatInputBar({
+  inputValue,
+  setInputValue,
+  isLoading,
+  onSendMessage,
+  onKeyPress
+}: ChatInputBarProps) {
+  return (
     <div className="fixed bottom-0 left-0 right-0 z-40">
       <div className="container mx-auto px-4 max-w-6xl">
         <Card className="rounded-t-2xl sm:rounded-none border-0 shadow-2xl bg-zinc-900/95 backdrop-blur-md border-t border-zinc-700/50">
-        <CardContent className="p-0">
-          {/* Combined Chat Interface */}
-          <div className={`flex flex-col ${messages.length <= 1 ? 'h-50 sm:h-52' : 'h-56 sm:h-56'}`}>
-            {/* Chat Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 border-b border-zinc-700/50 scrollbar-thin scrollbar-thumb-zinc-600 scrollbar-track-transparent">
-              {messages.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-zinc-400">
-                  <div className="text-center">
-                    <img src="/clark process.svg" alt="Clark" className="h-12 w-12 mx-auto mb-3 opacity-60" />
-                    <p className="text-sm">Start a conversation with Clark</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex gap-3 ${
-                        message.type === 'user' ? 'justify-end' : 'justify-start'
-                      }`}
-                    >
-                      {message.type === 'assistant' && (
-                        <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                          <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
-                        </div>
-                      )}
-                      
-                      <div
-                        className={`max-w-[85%] ${
-                          message.type === 'user'
-                            ? 'rounded-2xl p-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white'
-                            : message.success === false
-                            ? 'text-white'
-                            : 'rounded-2xl p-4 bg-zinc-800/60 border border-zinc-700/50 text-white backdrop-blur-sm'
-                        }`}
-                      >
-                        {(message.type === 'user' || message.success !== false) && (
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-xs font-medium text-white/90">
-                              {message.type === 'user' ? 'You' : 'Clark'}
-                            </span>
-                            <span className="text-xs text-zinc-400/80">
-                              {formatTimestamp(message.timestamp)}
-                            </span>
-                            {message.success !== undefined && (
-                              message.success ? (
-                                <CheckCircle className="h-3 w-3 text-green-400" />
-                              ) : (
-                                <XCircle className="h-3 w-3 text-red-400" />
-                              )
-                            )}
-                          </div>
-                        )}
-                        
-                        <div className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</div>
-                          
-                        {message.success !== false && message.parsedIntent && renderIntentBadge(message.parsedIntent)}
-                          
-                      </div>
-                      
-                      {message.type === 'user' && (
-                        <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                          <User className="h-4 w-4 text-blue-400" />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  
-                  {isLoading && (
-                    <div className="flex gap-3 justify-start">
-                      <div className="w-8 h-8 flex items-center justify-center">
-                        <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
-                      </div>
-                      <div className="bg-zinc-800/60 border border-zinc-700/50 rounded-2xl p-4 backdrop-blur-sm">
-                        <div className="flex items-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
-                          <span className="text-sm text-white">Processing your request...</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div ref={messagesEndRef} />
-                </div>
-              )}
-            </div>
-
-            {/* Input Area */}
+          <CardContent className="p-0">
             <div className="p-4 bg-zinc-800/30 backdrop-blur-sm">
               <div className="flex gap-3">
                 <Input
@@ -187,9 +180,8 @@ export default function ChatInterface({
                 </Button>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
