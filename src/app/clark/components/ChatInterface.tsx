@@ -1,11 +1,11 @@
 "use client"
 
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Send, User, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { Send, User, CheckCircle, XCircle, Loader2, Info } from 'lucide-react'
 import { ChatMessage } from '../types'
 import { formatTimestamp } from '../utils'
 
@@ -16,6 +16,7 @@ interface ChatMessagesProps {
 
 export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [revealedAssistantIds, setRevealedAssistantIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -72,8 +73,10 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
                 </div>
               </div>
             ) : (
-              <div className="space-y-4">
-                {messages.map((message) => (
+      <div className="space-y-4">
+                {messages.map((message, index) => (
+                  // Hide assistant message entirely if success=true and not revealed
+                  (message.type === 'assistant' && message.success === true && !revealedAssistantIds.has(message.id)) ? null : (
                   <div
                     key={message.id}
                     className={`flex gap-3 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -105,8 +108,27 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
                               <XCircle className="h-3 w-3 text-red-400" />
                             )
                           )}
+                          {/* Info icon for revealing hidden assistant message when success=true */}
+                          {message.type === 'user' && (() => {
+                            const nextAssistant = messages.slice(index + 1).find(m => m.type === 'assistant')
+                            const shouldShowInfo = nextAssistant && nextAssistant.success === true && !revealedAssistantIds.has(nextAssistant.id)
+                            if (!shouldShowInfo) return null
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setRevealedAssistantIds(prev => new Set(prev).add(nextAssistant!.id))
+                                }}
+                                className="ml-1 inline-flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                                title="Show Clark's response"
+                              >
+                                <Info className="h-3.5 w-3.5 text-white" />
+                              </button>
+                            )
+                          })()}
                         </div>
                       )}
+                      {/* Message content */}
                       <div className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</div>
                       {message.success !== false && message.parsedIntent && renderIntentBadge(message.parsedIntent)}
                     </div>
@@ -116,6 +138,7 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
                       </div>
                     )}
                   </div>
+                  )
                 ))}
                 {isLoading && (
                   <div className="flex gap-3 justify-start">
