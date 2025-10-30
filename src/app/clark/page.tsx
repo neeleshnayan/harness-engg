@@ -64,16 +64,20 @@ export default function BacktestPage() {
 
       const data = response.data
       
+      const backtestResult = data.data?.backtest_result
+      const screenerResult = data.data?.screener_type && data.data.screener_type !== 'economic' ? data.data : undefined
+      const economicResult = data.data?.screener_type === 'economic' ? data.data : undefined
+      const hasResults = Boolean(backtestResult || screenerResult || economicResult)
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: data.message,
+        content: hasResults ? data.message : 'Sorry, I\'m unable to process your request at the moment.',
         timestamp: new Date(),
         parsedIntent: data.parsed_intent,
-        success: data.success,
-        backtestResult: data.data?.backtest_result,
-        screenerResult: data.data?.screener_type && data.data.screener_type !== 'economic' ? data.data : undefined,
-        economicResult: data.data?.screener_type === 'economic' ? data.data : undefined
+        success: data.success && hasResults ? true : false,
+        backtestResult,
+        screenerResult,
+        economicResult
       }
 
       setMessages(prev => [...prev, assistantMessage])
@@ -116,16 +120,20 @@ export default function BacktestPage() {
 
       const data = response.data
       
+      const backtestResult2 = data.data?.backtest_result
+      const screenerResult2 = data.data?.screener_type && data.data.screener_type !== 'economic' ? data.data : undefined
+      const economicResult2 = data.data?.screener_type === 'economic' ? data.data : undefined
+      const hasResults2 = Boolean(backtestResult2 || screenerResult2 || economicResult2)
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: data.message,
+        content: hasResults2 ? data.message : 'Sorry, I\'m unable to process your request at the moment.',
         timestamp: new Date(),
         parsedIntent: data.parsed_intent,
-        success: data.success,
-        backtestResult: data.data?.backtest_result,
-        screenerResult: data.data?.screener_type && data.data.screener_type !== 'economic' ? data.data : undefined,
-        economicResult: data.data?.screener_type === 'economic' ? data.data : undefined
+        success: data.success && hasResults2 ? true : false,
+        backtestResult: backtestResult2,
+        screenerResult: screenerResult2,
+        economicResult: economicResult2
       }
 
       setMessages(prev => [...prev, assistantMessage])

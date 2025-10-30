@@ -1,9 +1,9 @@
 "use client"
 
-import React from 'react'
+import React, { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { DollarSign, TrendingUp, BarChart3, TrendingDown } from 'lucide-react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Info, User } from 'lucide-react'
 import { ChatMessage, BacktestResult, ScreenerResult, EconomicResult, NewsData, CalendarData, EconomicData } from '../types'
 import { formatCurrency, formatPercentage, formatDate, formatNumber } from '../utils'
 import PortfolioChart from './charts/PortfolioChart'
@@ -16,6 +16,7 @@ interface ResultsDisplayProps {
 }
 
 export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayProps) {
+  const [revealedAssistantIds, setRevealedAssistantIds] = useState<Set<string>>(new Set())
   const hasAnyContent = messages.length > 0
   if (!hasAnyContent) return null
 
@@ -361,21 +362,71 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
 
   return (
     <div className="space-y-6">
-      {messages.map((message) => (
+      {messages.map((message, index) => (
         <div key={message.id} className="space-y-3">
           {message.type === 'user' && (
-            <div className="flex justify-end">
-              <div className="max-w-[85%] rounded-2xl p-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-                <div className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</div>
+            <div className="flex justify-end items-start gap-2">
+              <div className="max-w-[85%] rounded-2xl p-3 sm:p-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+                <div className="text-sm leading-relaxed">
+                  <span className="whitespace-pre-wrap align-middle">{message.content}</span>
+                  {(() => {
+                    const nextAssistant = messages.slice(index + 1).find(m => m.type === 'assistant')
+                    const shouldShowInfo = nextAssistant && nextAssistant.success === true
+                    if (!shouldShowInfo) return null
+                    const revealed = revealedAssistantIds.has(nextAssistant!.id)
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRevealedAssistantIds(prev => {
+                            const next = new Set(prev)
+                            if (revealed) {
+                              next.delete(nextAssistant!.id)
+                            } else {
+                              next.add(nextAssistant!.id)
+                            }
+                            return next
+                          })
+                        }}
+                        className={`align-middle inline-flex ml-2 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors h-5 w-5 sm:h-6 sm:w-6 ${revealed ? 'opacity-60' : ''}`}
+                        title={revealed ? "Hide Clark's response" : "Show Clark's response"}
+                        aria-label={revealed ? "Hide Clark's response" : "Show Clark's response"}
+                      >
+                        <Info className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-white" />
+                      </button>
+                    )
+                  })()}
+                </div>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0 mt-1">
+                <User className="h-4 w-4 text-blue-400" />
               </div>
             </div>
           )}
+
+          {/* Secondary text reveal under the user message when success=true and info clicked */}
+          {message.type === 'user' && (() => {
+            const nextAssistant = messages.slice(index + 1).find(m => m.type === 'assistant')
+            if (!nextAssistant || nextAssistant.success !== true) return null
+            if (!revealedAssistantIds.has(nextAssistant.id)) return null
+            return (
+              <div className="flex justify-end">
+                <div className="max-w-[85%] rounded-xl px-4 py-3 bg-zinc-800/60 border border-zinc-700/50 text-zinc-200">
+                  <div className="text-xs uppercase tracking-wide text-zinc-400 mb-1">Clark’s response</div>
+                  <div className="text-sm whitespace-pre-wrap leading-relaxed">{nextAssistant.content}</div>
+                </div>
+              </div>
+            )
+          })()}
 
           {message.type === 'assistant' && (
             <>
               {/* Only show assistant text when success === false */}
               {message.success === false && (
-                <div className="flex justify-start">
+                <div className="flex gap-2 justify-start items-start">
+                  <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                    <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
+                  </div>
                   <div className="max-w-[85%] rounded-2xl p-4 bg-zinc-800/60 border border-zinc-700/50 text-white backdrop-blur-sm">
                     <div className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</div>
                   </div>
