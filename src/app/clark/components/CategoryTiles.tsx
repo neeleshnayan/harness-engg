@@ -64,9 +64,10 @@ export default function CategoryTiles({
 
             const pages = [] as React.ReactNode[]
             for (let i = 0; i < columns.length; i += 2) {
+              const hasSecondColumn = Boolean(columns[i + 1])
               pages.push(
                 <div key={`page-${i/2}`} className="min-w-full snap-start px-2">
-                  <div className="flex justify-center gap-3">
+                  <div className={`flex ${hasSecondColumn ? 'justify-center' : 'justify-start'} gap-3`}>
                     {columns[i]}
                     {columns[i + 1]}
                   </div>
