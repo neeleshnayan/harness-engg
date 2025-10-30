@@ -166,7 +166,7 @@ export default function ChatInputBar({
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={onKeyPress}
-                  placeholder="Ask me anything..."
+                  placeholder="Ask Clark"
                   disabled={isLoading}
                   className="flex-1 bg-zinc-800/60 border-zinc-700/50 text-white placeholder:text-zinc-400 focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/20 rounded-xl h-12"
                 />
