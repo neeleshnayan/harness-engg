@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 import { ChatMessage } from './types'
 import { categories } from './constants'
 import CategoryTiles from './components/CategoryTiles'
-import ChatInputBar, { ChatMessages } from './components/ChatInterface'
+import ChatInputBar from './components/ChatInterface'
 import ResultsDisplay from './components/ResultsDisplay'
 
 
@@ -182,21 +182,8 @@ export default function BacktestPage() {
       {/* Spacer for fixed navbar height */}
       <div className="h-24" />
 
-      {/* Fixed Chat Box just below navbar; overlays results on scroll (visible when user has started) */}
-      {(messages.some(m => m.type === 'user') || messages.some(m => m.backtestResult || m.screenerResult || m.economicResult)) && (
-        <div className="fixed top-20 left-0 right-0 z-50">
-          <div className="container mx-auto px-4 max-w-6xl">
-            <div className="h-[8.5rem]">
-              <ChatMessages messages={messages} isLoading={isLoading} />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Content Area */}
-      <div className={`container fixed top-0 sm:top-32 mx-auto px-4 py-0 sm:py-2 max-w-6xl relative z-0 ${
-        (messages.some(m => m.type === 'user') || messages.some(m => m.backtestResult || m.screenerResult || m.economicResult)) ? 'pt-[8.5rem]' : ''
-      }`}>
+      {/* Main Content Area - continuous feed */}
+      <div className={`container mx-auto px-4 py-2 max-w-6xl relative z-0`}>
         {/* Clark Logo - Show only when no user messages or results */}
         {!messages.some(m => m.type === 'user') && !messages.some(m => m.backtestResult || m.screenerResult || m.economicResult) && (
           <div className="flex items-center justify-center mb-2 mt-20 sm:mt-0">
@@ -215,16 +202,10 @@ export default function BacktestPage() {
           />
         )}
 
-        {/* Results Display - bounded scroll between top chat and bottom input */}
+        {/* Continuous Feed: scrollable area bounded by navbar (top) and chat input (bottom) */}
         <div className="dark">
-          <div
-            className={
-              (messages.some(m => m.type === 'user') || messages.some(m => m.backtestResult || m.screenerResult || m.economicResult))
-                ? 'max-h-[calc(100vh-6rem-8.5rem-6.5rem)] overflow-y-auto'
-                : 'max-h-[calc(100vh-6rem-6.5rem)] overflow-y-auto'
-            }
-          >
-            <ResultsDisplay messages={messages} />
+          <div className="max-h-[calc(100vh-6rem-6.5rem)] overflow-y-auto">
+            <ResultsDisplay messages={messages} isLoading={isLoading} />
           </div>
         </div>
                     </div>
