@@ -185,7 +185,7 @@ export default function BacktestPage() {
         {/* Clark Logo - Show only when no user messages or results */}
         {!messages.some(m => m.type === 'user') && !messages.some(m => m.backtestResult || m.screenerResult || m.economicResult) && (
           <div className="flex items-center justify-center mb-2 -mt-4 sm:mt-0">
-            <img src="/clark.svg" alt="Clark" className="h-[5.2rem] w-[5.2rem] sm:h-[6.5rem] sm:w-[6.5rem] drop-shadow-[0_4px_16px_rgba(162,89,247,0.3)]" />
+            <img src="/clark.svg" alt="Clark" className="h-[7.28rem] w-[7.28rem] sm:h-[9.1rem] sm:w-[9.1rem] drop-shadow-[0_4px_16px_rgba(162,89,247,0.3)]" />
           </div>
         )}
 

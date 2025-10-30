@@ -28,39 +28,53 @@ export default function CategoryTiles({
   return (
     <div className="pb-1 mb-1">
       {/* Category Tiles */}
-      {/* Mobile: 2 columns with horizontal scrolling (2 rows visible) */}
-      <div className="block sm:hidden overflow-x-auto pb-2 px-2 -mx-2 snap-x snap-mandatory">
-        <div className="flex gap-3 w-max">
-          {Array.from({ length: totalRows }).map((_, rowIndex) => {
-            const startIndex = rowIndex * tilesPerRow
-            const rowTiles = categories.slice(startIndex, startIndex + tilesPerRow)
-            
-            return (
-              <div key={rowIndex} className="flex flex-col gap-3 snap-start">
-                {rowTiles.map((category) => (
-                  <Card
-                    key={category.id}
-                    className="cursor-pointer hover:bg-zinc-800/60 active:bg-zinc-700/60 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg border-zinc-700/50 bg-zinc-800/30 backdrop-blur-sm min-h-[80px] w-[calc(50vw-1.5rem)] touch-manipulation"
-                    onClick={() => onCategorySelect(category.id)}
-                  >
-                    <CardHeader className="pb-3 pt-3 px-3 h-full flex flex-col justify-center">
-                      <CardTitle className="text-xs text-white flex items-center gap-2 mb-1">
-                        {category.icon.startsWith('/') ? (
-                          <img src={category.icon} alt={category.title} className="h-4 w-4 flex-shrink-0" />
-                        ) : (
-                          <span className="text-base flex-shrink-0">{category.icon}</span>
-                        )}
-                        <span className="truncate">{category.title}</span>
-                      </CardTitle>
-                      <CardDescription className="text-xs text-zinc-400 leading-tight line-clamp-2">
-                        {category.description}
-                      </CardDescription>
-                    </CardHeader>
-                  </Card>
-                ))}
-              </div>
-            )
-          })}
+      {/* Mobile: center 4 tiles on first page; 5th appears on swipe */}
+      <div className="block sm:hidden overflow-x-auto pb-2 -mx-2 snap-x snap-mandatory">
+        <div className="flex w-[100vw]">
+          {(() => {
+            const columns = Array.from({ length: totalRows }).map((_, colIndex) => {
+              const startIndex = colIndex * tilesPerRow
+              const colTiles = categories.slice(startIndex, startIndex + tilesPerRow)
+              return (
+                <div key={`col-${colIndex}`} className="flex flex-col gap-3">
+                  {colTiles.map((category) => (
+                    <Card
+                      key={category.id}
+                      className="cursor-pointer hover:bg-zinc-800/60 active:bg-zinc-700/60 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg border-zinc-700/50 bg-zinc-800/30 backdrop-blur-sm min-h-[80px] w-[calc(50vw-1.5rem)] touch-manipulation"
+                      onClick={() => onCategorySelect(category.id)}
+                    >
+                      <CardHeader className="pb-3 pt-3 px-3 h-full flex flex-col justify-center">
+                        <CardTitle className="text-xs text-white flex items-center gap-2 mb-1">
+                          {category.icon.startsWith('/') ? (
+                            <img src={category.icon} alt={category.title} className="h-4 w-4 flex-shrink-0" />
+                          ) : (
+                            <span className="text-base flex-shrink-0">{category.icon}</span>
+                          )}
+                          <span className="truncate">{category.title}</span>
+                        </CardTitle>
+                        <CardDescription className="text-xs text-zinc-400 leading-tight line-clamp-2">
+                          {category.description}
+                        </CardDescription>
+                      </CardHeader>
+                    </Card>
+                  ))}
+                </div>
+              )
+            })
+
+            const pages = [] as React.ReactNode[]
+            for (let i = 0; i < columns.length; i += 2) {
+              pages.push(
+                <div key={`page-${i/2}`} className="min-w-full snap-start px-2">
+                  <div className="flex justify-center gap-3">
+                    {columns[i]}
+                    {columns[i + 1]}
+                  </div>
+                </div>
+              )
+            }
+            return pages
+          })()}
         </div>
       </div>
       
