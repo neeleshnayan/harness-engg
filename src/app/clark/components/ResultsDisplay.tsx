@@ -433,6 +433,23 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                 </div>
               )}
 
+              {/* When success === true, show the last line of Clark's response alongside plots */}
+              {message.success === true && message.content && (() => {
+                const lines = message.content.split('\n').map(l => l.trim()).filter(Boolean)
+                const lastLine = lines.length > 0 ? lines[lines.length - 1] : ''
+                if (!lastLine) return null
+                return (
+                  <div className="flex gap-2 justify-start items-start">
+                    <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                      <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
+                    </div>
+                    <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-zinc-800/40 border border-zinc-700/40 text-zinc-200 backdrop-blur-sm">
+                      <div className="text-sm leading-relaxed">{lastLine}</div>
+                    </div>
+                  </div>
+                )
+              })()}
+
               {/* Render any results tied to this assistant message */}
               {renderBacktest(message)}
               {renderScreener(message)}
