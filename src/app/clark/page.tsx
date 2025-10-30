@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Menu } from 'lucide-react'
 import agentsApi from '@/lib/agents_api'
 import { useRouter } from 'next/navigation'
@@ -19,6 +19,7 @@ export default function BacktestPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [showMenu, setShowMenu] = useState(false)
+  const feedRef = useRef<HTMLDivElement>(null)
   
   // Session management for mem0 integration
   const [userId, setUserId] = useState<string>('')
@@ -39,6 +40,12 @@ export default function BacktestPage() {
     const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     setSessionId(newSessionId)
   }, [])
+
+  useEffect(() => {
+    if (feedRef.current) {
+      feedRef.current.scrollTo({ top: feedRef.current.scrollHeight, behavior: 'smooth' })
+    }
+  }, [messages])
 
 
   const handlePromptClick = async (prompt: string) => {
@@ -212,7 +219,7 @@ export default function BacktestPage() {
 
         {/* Continuous Feed: scrollable area bounded by navbar (top) and chat input (bottom) */}
         <div className="dark">
-          <div className="max-h-[calc(100vh-6rem-6.5rem)] overflow-y-auto">
+          <div ref={feedRef} className="max-h-[calc(100vh-6rem-6.5rem)] overflow-y-auto">
             <ResultsDisplay messages={messages} isLoading={isLoading} />
           </div>
         </div>
