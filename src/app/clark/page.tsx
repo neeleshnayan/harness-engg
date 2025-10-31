@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { Menu } from 'lucide-react'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import agentsApi from '@/lib/agents_api'
 import { useRouter } from 'next/navigation'
 import { ChatMessage } from './types'
@@ -19,6 +20,7 @@ export default function BacktestPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [showMenu, setShowMenu] = useState(false)
+  const [isPromptModalOpen, setIsPromptModalOpen] = useState(false)
   const feedRef = useRef<HTMLDivElement>(null)
   
   // Session management for mem0 integration
@@ -50,6 +52,7 @@ export default function BacktestPage() {
 
   const handlePromptClick = async (prompt: string) => {
     setSelectedCategory(null)
+    setIsPromptModalOpen(false)
     setInputValue('')
     
     const userMessage: ChatMessage = {
@@ -223,7 +226,65 @@ export default function BacktestPage() {
             <ResultsDisplay messages={messages} isLoading={isLoading} />
           </div>
         </div>
+        
+        {/* Prompts modal opened by left icon */}
+        <Dialog open={isPromptModalOpen} onOpenChange={setIsPromptModalOpen}>
+          <DialogContent className="sm:max-w-2xl bg-zinc-900/95 border border-zinc-700/60 rounded-2xl">
+            <div className="max-h-[70vh] overflow-y-auto px-2">
+              {(!selectedCategory) && (
+                <div className="w-full flex flex-col items-center">
+                  <div className="w-full max-w-md space-y-3">
+                    {categories.map((category) => (
+                      <button
+                        key={category.id}
+                        onClick={() => setSelectedCategory(category.id)}
+                        className="w-full text-left p-4 rounded-xl bg-zinc-800/40 hover:bg-zinc-700/60 border border-zinc-700/50 hover:border-purple-500/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          {category.icon.startsWith('/') ? (
+                            <img src={category.icon} alt={category.title} className="h-5 w-5" />
+                          ) : (
+                            <span className="text-lg">{category.icon}</span>
+                          )}
+                          <div className="min-w-0">
+                            <div className="text-white font-medium truncate">{category.title}</div>
+                            <div className="text-xs text-zinc-400 truncate">{category.description}</div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {selectedCategory && (
+                <div className="w-full flex flex-col items-center space-y-4">
+                  <div className="w-full max-w-md">
+                    <button
+                      onClick={() => setSelectedCategory(null)}
+                      className="mb-3 text-xs text-zinc-400 hover:text-white"
+                    >
+                      ← Back
+                    </button>
+                    <div className="space-y-3">
+                      {categories.find(c => c.id === selectedCategory)?.prompts.map((prompt, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => handlePromptClick(prompt)}
+                          disabled={isLoading}
+                          className="w-full text-left p-4 rounded-xl bg-zinc-800/40 hover:bg-zinc-700/60 border border-zinc-700/50 hover:border-purple-500/50 transition-colors text-white disabled:opacity-50"
+                        >
+                          {prompt}
+                        </button>
+                      ))}
                     </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+      </div>
 
       {/* Chat Input Bar - fixed at bottom */}
       <ChatInputBar
@@ -232,6 +293,7 @@ export default function BacktestPage() {
         isLoading={isLoading}
         onSendMessage={handleSendMessage}
         onKeyPress={handleKeyPress}
+        onOpenPromptModal={() => setIsPromptModalOpen(true)}
       />
     </div>
   )

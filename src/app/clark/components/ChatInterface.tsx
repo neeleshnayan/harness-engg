@@ -169,6 +169,7 @@ interface ChatInputBarProps {
   isLoading: boolean
   onSendMessage: () => void
   onKeyPress: (e: React.KeyboardEvent) => void
+  onOpenPromptModal?: () => void
 }
 
 export default function ChatInputBar({
@@ -176,7 +177,8 @@ export default function ChatInputBar({
   setInputValue,
   isLoading,
   onSendMessage,
-  onKeyPress
+  onKeyPress,
+  onOpenPromptModal
 }: ChatInputBarProps) {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40">
@@ -184,7 +186,15 @@ export default function ChatInputBar({
         <Card className="rounded-t-2xl sm:rounded-none border-0 shadow-2xl bg-zinc-900/95 backdrop-blur-md border-t border-zinc-700/50">
           <CardContent className="p-0">
             <div className="p-4 bg-zinc-800/30 backdrop-blur-sm">
-              <div className="flex gap-3">
+              <div className="flex gap-3 items-center">
+                <button
+                  type="button"
+                  aria-label="Open prompt library"
+                  onClick={onOpenPromptModal}
+                  className="h-12 w-12 flex items-center justify-center rounded-xl bg-zinc-900/80 border border-zinc-700/60 shadow hover:bg-zinc-800/80"
+                >
+                  <img src="/clark process.svg" alt="Prompts" className="h-6 w-6" />
+                </button>
                 <Input
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
