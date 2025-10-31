@@ -88,31 +88,38 @@ export default function SendERC20Modal({ visible, onClose, userAddress }: SendER
     return balances;
   };
 
-  const performSwapIfNeeded = async (targetSymbol: string, requiredAmount: number): Promise<void> => {
-    // Determine a source token to swap from: pick the largest balance token that's not the target
-    setLoadingMessage(`Checking balances for swap...`);
+  const performSwapIfNeeded = async (targetSymbol: string, requiredTargetAmount: number): Promise<void> => {
+    setLoadingMessage(`Checking balances and prices for swap...`);
     const balances = await fetchUserBalances();
-    let bestSource = "";
-    let bestAmount = 0;
-    Object.entries(balances).forEach(([sym, amt]) => {
-      if (sym !== targetSymbol && amt > bestAmount) {
-        bestAmount = amt;
-        bestSource = sym;
-      }
-    });
 
-    if (!bestSource || bestAmount <= 0) {
-      throw new Error("Insufficient funds to perform swap.");
+    const safety = 1.02; // +2% buffer for slippage/fees
+
+    // Find the first source token that can cover the required target amount
+    for (const [sym, amt] of Object.entries(balances)) {
+      if (sym === targetSymbol || amt <= 0) continue;
+      try {
+        const priceResp = await web3Api.get(`/pools/price/${sym}/${targetSymbol}`);
+        const price = Number(priceResp?.data?.price) || 0; // target per 1 source
+        if (price <= 0) continue;
+
+        const requiredSourceAmount = (requiredTargetAmount / price) * safety;
+        if (amt >= requiredSourceAmount) {
+          const amountToSwap = requiredSourceAmount;
+          setLoadingMessage(`Swapping ${amountToSwap.toFixed(4)} ${sym.replace(/^k/, "")} → ${targetSymbol.replace(/^k/, "")}...`);
+          await web3Api.post(`/pools/swap`, {
+            from_token: sym,
+            to_token: targetSymbol,
+            amount: amountToSwap,
+            user_address: userAddress,
+          });
+          return;
+        }
+      } catch (e) {
+        // Ignore this token and try next
+      }
     }
 
-    const amountToSwap = requiredAmount; // aim to swap the required amount
-    setLoadingMessage(`Swapping ${amountToSwap.toFixed(2)} ${bestSource.replace(/^k/, "")} → ${targetSymbol.replace(/^k/, "")}...`);
-    await web3Api.post(`/pools/swap`, {
-      from_token: bestSource,
-      to_token: targetSymbol,
-      amount: amountToSwap,
-      user_address: userAddress,
-    });
+    throw new Error("Insufficient funds to perform swap for the requested currency.");
   };
 
   const transferTokens = async (targetSymbol: string, toAddress: string, amount: number): Promise<void> => {
@@ -155,8 +162,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress }: SendER
       const current = balances[kSymbol] || 0;
 
       if (current < amountNum) {
-        const deficit = amountNum - current;
-        await performSwapIfNeeded(kSymbol, deficit);
+        const deficitTarget = amountNum - current;
+        await performSwapIfNeeded(kSymbol, deficitTarget);
       }
 
       await transferTokens(kSymbol, toAddress, amountNum);
