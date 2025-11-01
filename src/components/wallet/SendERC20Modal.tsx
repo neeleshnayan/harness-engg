@@ -432,39 +432,28 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
                 <Button
                   onClick={handleSend}
                   disabled={loading || !receiverUsername.trim() || !sendAmount.trim() || !selectedCurrency}
-                  className="w-full bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white py-4 rounded-2xl text-lg font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="w-full bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white py-4 rounded-2xl text-lg font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                 >
-                  {loading ? (loadingMessage || "Processing...") : "Review"}
+                  {loading && (
+                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  )}
+                  Send
                 </Button>
               </div>
+
+              {/* Loading Message Display at Bottom */}
+              {loading && loadingMessage && (
+                <div className="pt-4 text-center">
+                  <p className="text-zinc-300 text-sm">{loadingMessage}</p>
+                </div>
+              )}
             </>
           )}
         </CardContent>
       </Card>
-
-      {/* Global Loading Overlay for long operations (swap/transfer) */}
-      {loading && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-2xl flex items-center justify-center z-50">
-          <div className="bg-gradient-to-br from-zinc-900/90 via-zinc-800/80 to-emerald-900/60 border border-emerald-400/20 rounded-3xl p-10 w-full max-w-md mx-4 shadow-2xl ring-2 ring-emerald-400/10">
-            <div className="flex flex-col items-center space-y-6">
-              <div className="relative">
-                <svg className="animate-spin" width="48" height="48" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" stroke="#10b981" strokeWidth="2" fill="none" opacity="0.2" />
-                  <path d="M22 12a10 10 0 0 1-10 10" stroke="#22d3ee" strokeWidth="2" fill="none" />
-                </svg>
-                <div className="absolute inset-0 bg-emerald-400/20 rounded-full animate-pulse"></div>
-              </div>
-              <div className="text-center">
-                <h3 className="text-2xl font-extrabold text-white mb-2 tracking-tight drop-shadow-lg">
-                  Processing Transaction
-                </h3>
-                <p className="text-zinc-300 text-lg">{loadingMessage || "Working..."}</p>
-                <p className="text-zinc-400 text-sm mt-2">This may take a few moments</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
