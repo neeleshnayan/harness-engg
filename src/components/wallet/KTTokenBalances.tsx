@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { FaCoins } from "react-icons/fa";
-import { listERC20Tokens } from "@/lib/api";
+import { K_TOKEN_ADDRESSES } from "@/lib/kTokens";
 
 interface KTTokenBalance {
   symbol: string;
@@ -13,29 +13,6 @@ interface KTTokenBalancesProps {
 }
 
 const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = "" }) => {
-  const [addressToSymbol, setAddressToSymbol] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      try {
-        const data = await listERC20Tokens();
-        const map: Record<string, string> = {};
-        if (data && Array.isArray(data.tokens)) {
-          for (const t of data.tokens) {
-            if (t?.address && t?.symbol) {
-              map[String(t.address).toLowerCase()] = String(t.symbol);
-            }
-          }
-        }
-        if (isMounted) setAddressToSymbol(map);
-      } catch (e) {
-        console.error('Failed to load ERC20 tokens list:', e);
-      }
-    })();
-    return () => { isMounted = false; };
-  }, []);
-
   // Extract k-token balances from the balance data
   const kTokenBalances = useMemo(() => {
     if (!balance || !balance.tokenBalances || !Array.isArray(balance.tokenBalances)) {
@@ -45,13 +22,13 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
     const balances: KTTokenBalance[] = [];
     for (const tb of balance.tokenBalances) {
       const tokenAddress = tb?.token?.tokenAddress?.toLowerCase();
-      const symbol = tokenAddress ? addressToSymbol[tokenAddress] : undefined;
+      const symbol = tokenAddress ? K_TOKEN_ADDRESSES[tokenAddress] : undefined;
       if (symbol && parseFloat(tb.amount) > 0) {
         balances.push({ symbol, balance: tb.amount });
       }
     }
     return balances;
-  }, [balance, addressToSymbol]);
+  }, [balance]);
 
   console.log(kTokenBalances);
   if (kTokenBalances.length === 0) {

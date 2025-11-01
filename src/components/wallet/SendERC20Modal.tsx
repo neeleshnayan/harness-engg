@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { FaArrowUp } from "react-icons/fa";
-import api, { listERC20Tokens, web3Api } from "@/lib/api";
+import api, { web3Api } from "@/lib/api";
+import { K_TOKEN_SYMBOLS } from "@/lib/kTokens";
 
 interface SendERC20ModalProps {
   visible: boolean;
@@ -37,28 +38,28 @@ export default function SendERC20Modal({ visible, onClose, userAddress }: SendER
     setError(null);
     setSuccess(null);
 
-    (async () => {
-      try {
-        setLoading(true);
-        setLoadingMessage("Loading supported currencies...");
-        const data = await listERC20Tokens();
-        const list: SupportedToken[] = Array.isArray(data?.tokens)
-          ? data.tokens.map((t: any) => ({ symbol: String(t.symbol), address: String(t.address), decimals: t.decimals }))
-          : [];
-        setTokens(list);
-        // Default select first if available
-        if (list.length > 0) {
-          const first = list[0].symbol.replace(/^k/, "");
-          setSelectedCurrency(first);
-        }
-      } catch (e) {
-        console.error(e);
-        setError("Failed to load supported currencies.");
-      } finally {
-        setLoading(false);
-        setLoadingMessage("");
+    // Load supported currencies from static mapping
+    try {
+      setLoading(true);
+      setLoadingMessage("Loading supported currencies...");
+      const list: SupportedToken[] = Object.entries(K_TOKEN_SYMBOLS).map(([symbol, address]) => ({
+        symbol,
+        address,
+        decimals: 18, // Most ERC20 tokens use 18 decimals
+      }));
+      setTokens(list);
+      // Default select first if available
+      if (list.length > 0) {
+        const first = list[0].symbol.replace(/^k/, "");
+        setSelectedCurrency(first);
       }
-    })();
+    } catch (e) {
+      console.error(e);
+      setError("Failed to load supported currencies.");
+    } finally {
+      setLoading(false);
+      setLoadingMessage("");
+    }
   }, [visible]);
 
   const kSymbol = useMemo(() => (selectedCurrency ? `k${selectedCurrency}` : ""), [selectedCurrency]);
