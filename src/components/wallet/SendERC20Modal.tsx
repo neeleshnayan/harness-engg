@@ -30,6 +30,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [currentBalanceValue, setCurrentBalanceValue] = useState<number>(0);
+  const [equivalentBalance, setEquivalentBalance] = useState<number | null>(null);
+  const [equivalentBalanceLoading, setEquivalentBalanceLoading] = useState<boolean>(false);
   const [toCurrency, setToCurrency] = useState<string>("");
   const [availableTokens, setAvailableTokens] = useState<SupportedToken[]>([]);
 
@@ -41,6 +43,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
     setSelectedCurrency("");
     setToCurrency("");
     setCurrentBalanceValue(0);
+    setEquivalentBalance(null);
+    setEquivalentBalanceLoading(false);
     setError(null);
     setSuccess(null);
 
@@ -118,6 +122,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
     const updateBalance = async () => {
       if (!kSymbol) {
         setCurrentBalanceValue(0);
+        setEquivalentBalance(null);
+        setEquivalentBalanceLoading(false);
         return;
       }
       const balances = await fetchUserBalances();
@@ -126,6 +132,38 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
     updateBalance();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kSymbol, balance, visible]);
+
+  // Calculate equivalent balance in toCurrency
+  useEffect(() => {
+    // Reset equivalent balance if currencies are same or invalid
+    if (!visible || !kSymbol || !toKSymbol || kSymbol === toKSymbol || currentBalanceValue === 0) {
+      setEquivalentBalance(null);
+      setEquivalentBalanceLoading(false);
+      return;
+    }
+
+    const calculateEquivalent = async () => {
+      setEquivalentBalanceLoading(true);
+      try {
+        const priceResp = await web3Api.get(`/pools/price/${kSymbol}/${toKSymbol}`);
+        const price = Number(priceResp?.data?.price) || 0; // toCurrency per 1 fromCurrency
+        if (price > 0) {
+          const equivalent = currentBalanceValue * price;
+          setEquivalentBalance(equivalent);
+        } else {
+          setEquivalentBalance(null);
+        }
+      } catch (e) {
+        console.error('Failed to fetch exchange rate:', e);
+        setEquivalentBalance(null);
+      } finally {
+        setEquivalentBalanceLoading(false);
+      }
+    };
+
+    calculateEquivalent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kSymbol, toKSymbol, currentBalanceValue, visible]);
 
   // Set toCurrency to match fromCurrency initially
   useEffect(() => {
@@ -379,7 +417,19 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
 
                 {/* Balance Display */}
                 <div className="text-sm text-zinc-400">
-                  Balance: <span className="text-zinc-300 font-medium">{currentBalanceValue.toFixed(4)}</span>
+                  <span>Balance: </span>
+                  <span className="text-zinc-300 font-medium">{currentBalanceValue.toFixed(4)}</span>
+                  {kSymbol !== toKSymbol && (
+                    <>
+                      {equivalentBalanceLoading ? (
+                        <span className="text-zinc-500 ml-1">(...)</span>
+                      ) : equivalentBalance !== null ? (
+                        <span className="text-zinc-500 ml-1">
+                          ({equivalentBalance.toFixed(4)} {toCurrency})
+                        </span>
+                      ) : null}
+                    </>
+                  )}
                 </div>
               </div>
 
