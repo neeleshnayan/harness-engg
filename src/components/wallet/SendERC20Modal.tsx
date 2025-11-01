@@ -6,6 +6,7 @@ import { AlertCircle } from "lucide-react";
 import { FaArrowUp } from "react-icons/fa";
 import api, { web3Api } from "@/lib/api";
 import { K_TOKEN_SYMBOLS, K_TOKEN_ADDRESSES } from "@/lib/kTokens";
+import { getPoolPrice } from "@/lib/priceCache";
 
 interface SendERC20ModalProps {
   visible: boolean;
@@ -32,6 +33,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
   const [currentBalanceValue, setCurrentBalanceValue] = useState<number>(0);
   const [equivalentBalance, setEquivalentBalance] = useState<number | null>(null);
   const [equivalentBalanceLoading, setEquivalentBalanceLoading] = useState<boolean>(false);
+  const [equivalentDebitAmount, setEquivalentDebitAmount] = useState<number | null>(null);
+  const [equivalentDebitAmountLoading, setEquivalentDebitAmountLoading] = useState<boolean>(false);
   const [toCurrency, setToCurrency] = useState<string>("");
   const [availableTokens, setAvailableTokens] = useState<SupportedToken[]>([]);
 
@@ -45,6 +48,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
     setCurrentBalanceValue(0);
     setEquivalentBalance(null);
     setEquivalentBalanceLoading(false);
+    setEquivalentDebitAmount(null);
+    setEquivalentDebitAmountLoading(false);
     setError(null);
     setSuccess(null);
 
@@ -124,6 +129,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
         setCurrentBalanceValue(0);
         setEquivalentBalance(null);
         setEquivalentBalanceLoading(false);
+        setEquivalentDebitAmount(null);
+        setEquivalentDebitAmountLoading(false);
         return;
       }
       const balances = await fetchUserBalances();
@@ -132,6 +139,48 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
     updateBalance();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kSymbol, balance, visible]);
+
+  // Calculate equivalent debit amount (how much FROM currency will be debited)
+  useEffect(() => {
+    // Reset if currencies are same, invalid, or no amount entered
+    if (!visible || !kSymbol || !toKSymbol || kSymbol === toKSymbol || !sendAmount) {
+      setEquivalentDebitAmount(null);
+      setEquivalentDebitAmountLoading(false);
+      return;
+    }
+
+    const amountNum = parseFloat(sendAmount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setEquivalentDebitAmount(null);
+      setEquivalentDebitAmountLoading(false);
+      return;
+    }
+
+    const calculateDebitAmount = async () => {
+      setEquivalentDebitAmountLoading(true);
+      try {
+        // Get price: how much toCurrency per 1 fromCurrency
+        const price = await getPoolPrice(kSymbol, toKSymbol);
+
+        if (price > 0) {
+          // Calculate how much FROM currency is needed to get the TO currency amount
+          // amountNum is in TO currency, price is TO per FROM, so FROM needed = amountNum / price
+          const debitAmount = amountNum / price;
+          setEquivalentDebitAmount(debitAmount);
+        } else {
+          setEquivalentDebitAmount(null);
+        }
+      } catch (e) {
+        console.error('Failed to fetch exchange rate for debit amount:', e);
+        setEquivalentDebitAmount(null);
+      } finally {
+        setEquivalentDebitAmountLoading(false);
+      }
+    };
+
+    calculateDebitAmount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sendAmount, kSymbol, toKSymbol, visible]);
 
   // Calculate equivalent balance in toCurrency
   useEffect(() => {
@@ -145,8 +194,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
     const calculateEquivalent = async () => {
       setEquivalentBalanceLoading(true);
       try {
-        const priceResp = await web3Api.get(`/pools/price/${kSymbol}/${toKSymbol}`);
-        const price = Number(priceResp?.data?.price) || 0; // toCurrency per 1 fromCurrency
+        const price = await getPoolPrice(kSymbol, toKSymbol); // toCurrency per 1 fromCurrency
         if (price > 0) {
           const equivalent = currentBalanceValue * price;
           setEquivalentBalance(equivalent);
@@ -189,8 +237,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
     const balances = await fetchUserBalances();
 
     // Get price: how much toCurrency per 1 fromCurrency
-    const priceResp = await web3Api.get(`/pools/price/${fromSymbol}/${toSymbol}`);
-    const price = Number(priceResp?.data?.price) || 0; // toCurrency per 1 fromCurrency
+    const price = await getPoolPrice(fromSymbol, toSymbol); // toCurrency per 1 fromCurrency
 
     if (price <= 0) {
       throw new Error(`Cannot get price for swap ${fromSymbol.replace(/^k/, "")} → ${toSymbol.replace(/^k/, "")}`);
@@ -381,7 +428,13 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
                 {/* From Currency Selector */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="text-3xl font-bold text-white">
-                    {selectedCurrency || "Select"}
+                    {equivalentDebitAmountLoading ? (
+                      <span className="text-zinc-500">...</span>
+                    ) : equivalentDebitAmount !== null && kSymbol !== toKSymbol ? (
+                      equivalentDebitAmount.toFixed(4)
+                    ) : (
+                      selectedCurrency || "Select"
+                    )}
                   </div>
                   <div className="relative">
                     <select
