@@ -850,6 +850,7 @@ export default function CustomerPage() {
             visible={showSendERC20Form}
             onClose={handleCancelSendERC20}
             userAddress={accountData?.wallet_address}
+            balance={balance}
           />
         )}
         {showTransakModal && (

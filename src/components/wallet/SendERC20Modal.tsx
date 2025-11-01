@@ -5,12 +5,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { FaArrowUp } from "react-icons/fa";
 import api, { web3Api } from "@/lib/api";
-import { K_TOKEN_SYMBOLS } from "@/lib/kTokens";
+import { K_TOKEN_SYMBOLS, K_TOKEN_ADDRESSES } from "@/lib/kTokens";
 
 interface SendERC20ModalProps {
   visible: boolean;
   onClose: () => void;
   userAddress: string;
+  balance?: any;
 }
 
 type SupportedToken = {
@@ -19,7 +20,7 @@ type SupportedToken = {
   decimals?: number;
 };
 
-export default function SendERC20Modal({ visible, onClose, userAddress }: SendERC20ModalProps) {
+export default function SendERC20Modal({ visible, onClose, userAddress, balance }: SendERC20ModalProps) {
   const [receiverUsername, setReceiverUsername] = useState<string>("");
   const [selectedCurrency, setSelectedCurrency] = useState<string>("");
   const [sendAmount, setSendAmount] = useState<string>("");
@@ -77,15 +78,24 @@ export default function SendERC20Modal({ visible, onClose, userAddress }: SendER
   };
 
   const fetchUserBalances = async (): Promise<Record<string, number>> => {
-    // Get balances from pools service
-    const result = await web3Api.get(`/pools/balances/${userAddress}`);
+    // Extract k-token balances from the balance prop (similar to KTTokenBalances)
     const balances: Record<string, number> = {};
-    const list = result?.data?.balances || [];
-    for (const b of list) {
-      if (b?.token && typeof b?.balance === "number") {
-        balances[String(b.token)] = Number(b.balance);
+
+    if (!balance || !balance.tokenBalances || !Array.isArray(balance.tokenBalances)) {
+      return balances;
+    }
+
+    for (const tb of balance.tokenBalances) {
+      const tokenAddress = tb?.token?.tokenAddress?.toLowerCase();
+      const symbol = tokenAddress ? K_TOKEN_ADDRESSES[tokenAddress] : undefined;
+      if (symbol) {
+        const amount = parseFloat(tb.amount || "0");
+        if (!isNaN(amount) && amount > 0) {
+          balances[symbol] = amount;
+        }
       }
     }
+
     return balances;
   };
 
