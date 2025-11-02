@@ -1,26 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dir /B c:projectsKryptonPay)",
-      "Bash(curl:*)",
-      "Bash(dir /B c:projectsKryptonPaysrchooks)",
-      "Bash(node -e:*)",
-      "Bash(python -m json.tool:*)",
-      "Bash(python update_strategy_metrics.py:*)",
-      "Bash(dir:*)",
-      "Bash(npm install:*)",
-      "Bash(python check_transaction_status.py:*)",
-      "Bash(python:*)",
-      "Bash(npm run compile:*)",
-      "Bash(npm run:*)",
+      "Bash(graph deploy:*)",
+      "Bash(cast send:*)",
+      "Bash(cat:*)",
+      "Bash(graph codegen)",
+      "Bash(graph build)",
+      "Bash(cast tx:*)",
+      "Bash(printf:*)",
+      "Bash(forge install:*)",
       "Bash(forge build:*)",
-      "Bash(test:*)",
-      "Bash(forge script:*)",
       "Bash(cast call:*)",
-      "Bash(git add:*)",
-      "Bash(echo:*)",
-      "Bash(cast block-number:*)",
-      "Bash(cast logs:*)"
+      "Bash(cast code:*)"
     ],
     "deny": [],
     "ask": []

@@ -3,7 +3,7 @@ import { gql, GraphQLClient } from 'graphql-request';
 
 const QUERY = gql`
   query VaultAnalytics {
-    vaultMetric(id: "vault") {
+    mavcvaultMetric(id: "mavc-vault") {
       totalDeposits
       totalWithdrawals
       mintedShares
@@ -12,14 +12,14 @@ const QUERY = gql`
       uniqueWithdrawers
       lastUpdated
     }
-    deposits(first: 5, orderBy: timestamp, orderDirection: desc) {
+    deposits(first: 1000, orderBy: timestamp, orderDirection: desc) {
       id
       owner
       assets
       shares
       timestamp
     }
-    withdrawals(first: 5, orderBy: timestamp, orderDirection: desc) {
+    withdrawals(first: 1000, orderBy: timestamp, orderDirection: desc) {
       id
       owner
       receiver
@@ -31,7 +31,7 @@ const QUERY = gql`
 `;
 
 type MetricResult = {
-  vaultMetric: {
+  mavcvaultMetric: {
     totalDeposits: string;
     totalWithdrawals: string;
     mintedShares: string;
@@ -60,7 +60,16 @@ type MetricResult = {
 const fetchSubgraph = async (subgraphUrl: string): Promise<MetricResult> => {
   const client = new GraphQLClient(subgraphUrl);
   const data = await client.request<MetricResult>(QUERY);
-  return data;
+  
+  // Filter deposits and withdrawals to only include MAVC ones (ID contains "-MAVC-")
+  const filteredDeposits = data.deposits.filter(d => d.id.includes('-MAVC-')).slice(0, 5);
+  const filteredWithdrawals = data.withdrawals.filter(w => w.id.includes('-MAVC-')).slice(0, 5);
+  
+  return {
+    ...data,
+    deposits: filteredDeposits,
+    withdrawals: filteredWithdrawals
+  };
 };
 
 export const useSubgraphData = (subgraphUrl?: string) => {

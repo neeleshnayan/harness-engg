@@ -72,15 +72,16 @@ const fetchSubgraph = async (subgraphUrl: string): Promise<MetricResult> => {
   };
 };
 
-export const useMAVPSubgraphData = (subgraphUrl?: string) => {
+export const useSubgraphDataMAVP = (subgraphUrl?: string) => {
   const enabled = Boolean(subgraphUrl);
   return useQuery<MetricResult, Error>({
-    queryKey: ['mavp-subgraph', 'vault-analytics', subgraphUrl],
+    queryKey: ['subgraph', 'mavp-vault-analytics', subgraphUrl],
     queryFn: () => fetchSubgraph(subgraphUrl!),
     enabled,
     refetchInterval: enabled ? 5_000 : false,
     staleTime: 2_000,
     refetchOnWindowFocus: false,
-    placeholderData: (previousData) => previousData, // keepPreviousData is deprecated, use placeholderData
+    placeholderData: (previousData) => previousData,
   });
 };
+

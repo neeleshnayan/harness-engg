@@ -7,7 +7,9 @@ import api from "@/lib/api";
 import HedgeFundDashboard from "@/components/HedgeFundDashboard";
 import MAVCStrategyCard from "@/components/wallet/MAVCStrategyCard";
 import MAVPStrategyCard from "@/components/wallet/MAVPStrategyCard";
+import MAVCYearnStrategyCard from "@/components/wallet/MAVCYearnStrategyCard";
 import TokenBalances from "@/components/wallet/TokenBalances";
+import { Toaster } from "@/components/ui/toaster";
 
 interface HedgeFundForm {
   age: string;
@@ -224,8 +226,10 @@ export default function HedgeFundV2Page() {
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-8">
-      <div className="container mx-auto max-w-6xl">
+    <>
+      <Toaster />
+      <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-8">
+        <div className="container mx-auto max-w-6xl">
         {/* Header with Back to Grow Button */}
         <div className="flex justify-between items-start mb-12">
           <div className="flex-1"></div>
@@ -258,16 +262,20 @@ export default function HedgeFundV2Page() {
         <div className="w-full max-w-6xl mx-auto mb-12">
           <h2 className="text-2xl font-bold text-white mb-6">Available Strategies</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <MAVCStrategyCard 
+            <MAVCStrategyCard
               onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
             />
-            <MAVPStrategyCard 
+            <MAVPStrategyCard
+              onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
+            />
+            <MAVCYearnStrategyCard
               onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
             />
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 

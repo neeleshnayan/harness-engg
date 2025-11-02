@@ -3,10 +3,18 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { SubgraphAnalytics } from "@/components/wallet/SubgraphAnalytics";
+import { SubgraphAnalyticsMAVP } from "@/components/wallet/SubgraphAnalyticsMAVP";
+import { useMAVPConfig } from "@/hooks/useMAVPConfig";
 
 export default function MAVPDetailPage() {
   const router = useRouter();
+  const { data: mavpConfig, isLoading: configLoading } = useMAVPConfig();
+
+  console.log('🔍 MAVP Config Debug:', {
+    mavpConfig,
+    subgraph_url: mavpConfig?.subgraph_url,
+    configLoading
+  });
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-8">
@@ -30,7 +38,11 @@ export default function MAVPDetailPage() {
           </p>
         </div>
 
-        <SubgraphAnalytics subgraphUrl="https://api.studio.thegraph.com/query/121450/mavp/version/latest" />
+        {configLoading ? (
+          <div className="text-center text-zinc-400">Loading configuration...</div>
+        ) : (
+          <SubgraphAnalyticsMAVP subgraphUrl={mavpConfig?.subgraph_url} />
+        )}
       </div>
     </div>
   );

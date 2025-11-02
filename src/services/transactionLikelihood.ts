@@ -144,31 +144,31 @@ function calculateLikelihood(score: number): TransactionLikelihood {
 export function getLikelihoodDisplay(likelihood: TransactionLikelihood) {
   const displays = {
     very_likely: {
-      label: 'Very likely to succeed',
+      label: 'Ready to proceed',
       color: '#10B981', // green
       icon: '✓',
       emoji: '🟢',
     },
     likely: {
-      label: 'Likely to succeed',
+      label: 'Good to go',
       color: '#22C55E', // light green
       icon: '✓',
       emoji: '🟢',
     },
     uncertain: {
-      label: 'Uncertain',
+      label: 'Check details',
       color: '#F59E0B', // amber
       icon: '⚠',
       emoji: '🟡',
     },
     unlikely: {
-      label: 'Unlikely to succeed',
+      label: 'Review transaction',
       color: '#F97316', // orange
       icon: '⚠',
       emoji: '🟠',
     },
     very_unlikely: {
-      label: 'Very unlikely to succeed',
+      label: 'Cannot proceed',
       color: '#EF4444', // red
       icon: '✗',
       emoji: '🔴',
@@ -192,11 +192,11 @@ export interface TransactionStatusUpdate {
 
 export function getTransactionStageMessage(stage: TransactionStatusUpdate['stage']): string {
   const messages = {
-    validating: 'Validating transaction parameters...',
-    signing: 'Waiting for signature...',
-    broadcasting: 'Broadcasting to network...',
-    confirming: 'Waiting for blockchain confirmation...',
-    confirmed: 'Transaction confirmed!',
+    validating: 'Preparing transaction...',
+    signing: 'Please approve in your wallet',
+    broadcasting: 'Sending to blockchain network',
+    confirming: 'Processing on blockchain',
+    confirmed: 'Success! Transaction complete',
     failed: 'Transaction failed',
   };
   return messages[stage];

@@ -10,8 +10,8 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { useSubgraphData } from "@/hooks/useSubgraphData";
-import { useMAVCPriceHistory, MAVCPriceUpdate } from "@/hooks/useMAVCPrice";
+import { useSubgraphDataMAVP } from "@/hooks/useSubgraphDataMAVP";
+import { useMAVPPriceHistory, MAVPPriceUpdate } from "@/hooks/useMAVPPrice";
 
 const formatNumber = (value?: string | number, options?: Intl.NumberFormatOptions) => {
   if (value === undefined || value === null) return '0';
@@ -137,7 +137,7 @@ type PricePoint = {
   price: number;
 };
 
-const buildPriceTimeline = (priceUpdates: MAVCPriceUpdate[]): PricePoint[] => {
+const buildPriceTimeline = (priceUpdates: MAVPPriceUpdate[]): PricePoint[] => {
   const THIRTY_MINUTES = 30 * 60 * 1000; // 30 minutes in milliseconds
   const bucket = new Map<number, number[]>();
 
@@ -183,15 +183,15 @@ const ChartTooltip = ({ label, payload }: { label?: string | number; payload?: a
   );
 };
 
-interface SubgraphAnalyticsProps {
+interface SubgraphAnalyticsMAVPProps {
   subgraphUrl?: string;
 }
 
-export const SubgraphAnalytics: React.FC<SubgraphAnalyticsProps> = ({ subgraphUrl }) => {
-  const { data, isLoading, isError, error, refetch, isFetching } = useSubgraphData(subgraphUrl);
-  const { data: priceHistory } = useMAVCPriceHistory(subgraphUrl);
+export const SubgraphAnalyticsMAVP: React.FC<SubgraphAnalyticsMAVPProps> = ({ subgraphUrl }) => {
+  const { data, isLoading, isError, error, refetch, isFetching } = useSubgraphDataMAVP(subgraphUrl);
+  const { data: priceHistory } = useMAVPPriceHistory(subgraphUrl);
 
-  const metrics = data?.mavcvaultMetric;
+  const metrics = data?.mavpvaultMetric;
   const deposits = data?.deposits ?? [];
   const withdrawals = data?.withdrawals ?? [];
 
@@ -237,7 +237,7 @@ export const SubgraphAnalytics: React.FC<SubgraphAnalyticsProps> = ({ subgraphUr
       <div className="mt-8 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-6 py-5 text-amber-100">
         <p className="font-semibold">Subgraph not configured.</p>
         <p className="mt-2 text-sm text-amber-50/80">
-          Set VITE_SUBGRAPH_URL in your environment to enable analytics.
+          Configure the SUBGRAPH_URL field in Firestore (quant_strategies/MAVP) to enable analytics.
         </p>
       </div>
     );
@@ -249,7 +249,7 @@ export const SubgraphAnalytics: React.FC<SubgraphAnalyticsProps> = ({ subgraphUr
         <div>
           <h2 className="text-2xl font-bold text-white">On-Chain Analytics</h2>
           <p className="text-sm text-zinc-400">
-            Live MAVC vault metrics powered by The Graph subgraph.
+            Live MAVP vault metrics powered by The Graph subgraph.
           </p>
         </div>
         {data && (
@@ -268,7 +268,7 @@ export const SubgraphAnalytics: React.FC<SubgraphAnalyticsProps> = ({ subgraphUr
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-6 py-5 text-amber-100">
           <p className="font-semibold">No subgraph data detected.</p>
           <p className="mt-2 text-sm text-amber-50/80">
-            Deploy the subgraph and point VITE_SUBGRAPH_URL to the query endpoint to activate analytics.
+            Verify the subgraph is deployed and the SUBGRAPH_URL in Firestore points to the correct endpoint.
           </p>
           {isError && (
             <p className="mt-2 text-xs text-amber-50/60">{error instanceof Error ? error.message : 'Failed to query subgraph.'}</p>
@@ -291,11 +291,11 @@ export const SubgraphAnalytics: React.FC<SubgraphAnalyticsProps> = ({ subgraphUr
             <p className="mt-3 text-3xl font-bold text-white">{formatCurrency(Number(metrics.totalWithdrawals ?? '0'))}</p>
           </div>
           <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
-            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">MAVC Minted</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">MAVP Minted</p>
             <p className="mt-3 text-3xl font-bold text-white">{formatShare(Number(metrics.mintedShares ?? '0'))}</p>
           </div>
           <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
-            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Net MAVC Supply</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Net MAVP Supply</p>
             <p className="mt-3 text-3xl font-bold text-white">{formatShare(netShares)}</p>
           </div>
         </div>
@@ -358,7 +358,7 @@ export const SubgraphAnalytics: React.FC<SubgraphAnalyticsProps> = ({ subgraphUr
           <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 shadow-2xl backdrop-blur">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-xl font-bold text-white">MAVC Mint vs Burn</h3>
+                <h3 className="text-xl font-bold text-white">MAVP Mint vs Burn</h3>
                 <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Cumulative shares minted and burned</p>
               </div>
             </div>
@@ -389,7 +389,7 @@ export const SubgraphAnalytics: React.FC<SubgraphAnalyticsProps> = ({ subgraphUr
                   <Area
                     type="monotone"
                     dataKey="cumMinted"
-                    name="Minted (MAVC)"
+                    name="Minted (MAVP)"
                     stroke="#34d399"
                     strokeWidth={2}
                     fill="url(#mintedArea)"
@@ -397,7 +397,7 @@ export const SubgraphAnalytics: React.FC<SubgraphAnalyticsProps> = ({ subgraphUr
                   <Area
                     type="monotone"
                     dataKey="cumBurned"
-                    name="Burned (MAVC)"
+                    name="Burned (MAVP)"
                     stroke="#f97316"
                     strokeWidth={2}
                     fill="url(#burnedArea)"
@@ -413,7 +413,7 @@ export const SubgraphAnalytics: React.FC<SubgraphAnalyticsProps> = ({ subgraphUr
         <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 shadow-2xl backdrop-blur">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-xl font-bold text-white">MAVC Price Over Time</h3>
+              <h3 className="text-xl font-bold text-white">MAVP Price Over Time</h3>
               <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">30-minute interval average</p>
             </div>
           </div>
@@ -451,7 +451,7 @@ export const SubgraphAnalytics: React.FC<SubgraphAnalyticsProps> = ({ subgraphUr
                           {typeof label === 'number' ? formatDateTime(label) : label}
                         </p>
                         <div className="flex justify-between gap-4">
-                          <span className="uppercase tracking-wide text-zinc-400">MAVC Price</span>
+                          <span className="uppercase tracking-wide text-zinc-400">MAVP Price</span>
                           <span className="font-semibold text-white">
                             {formatCurrency(payload[0].value as number)}
                           </span>
@@ -488,7 +488,7 @@ export const SubgraphAnalytics: React.FC<SubgraphAnalyticsProps> = ({ subgraphUr
                   </div>
                   <div className="mt-2 flex justify-between text-sm text-white">
                     <span>{formatCurrency(Number(entry.assets ?? '0'))}</span>
-                    <span>{formatShare(Number(entry.shares ?? '0'))} MAVC</span>
+                    <span>{formatShare(Number(entry.shares ?? '0'))} MAVP</span>
                   </div>
                 </li>
               ))}
@@ -507,7 +507,7 @@ export const SubgraphAnalytics: React.FC<SubgraphAnalyticsProps> = ({ subgraphUr
                   </div>
                   <div className="mt-2 flex justify-between text-sm text-white">
                     <span>{formatCurrency(Number(entry.assets ?? '0'))}</span>
-                    <span>{formatShare(Number(entry.shares ?? '0'))} MAVC</span>
+                    <span>{formatShare(Number(entry.shares ?? '0'))} MAVP</span>
                   </div>
                 </li>
               ))}
@@ -518,4 +518,3 @@ export const SubgraphAnalytics: React.FC<SubgraphAnalyticsProps> = ({ subgraphUr
     </div>
   );
 };
-

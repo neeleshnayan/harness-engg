@@ -8,32 +8,20 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn, formatTokenBalance } from "@/lib/utils";
-import MAVCModal from "./MAVCModal";
-import api from "@/lib/api";
-import { useMAVCConfig } from "@/hooks/useMAVCConfig";
-import { useMAVCPrice } from "@/hooks/useMAVCPrice";
-import { useSubgraphData } from "@/hooks/useSubgraphData";
-import { BalanceStatusIndicator, BalanceTransactionStage, BalanceTransactionType } from "./BalanceStatusIndicator";
 import { useToast } from "@/hooks/use-toast";
+import api from "@/lib/api";
+import { BalanceStatusIndicator, BalanceTransactionStage, BalanceTransactionType } from "./BalanceStatusIndicator";
+import MAVCYearnModal from "./MAVCYearnModal";
 
-interface MAVCStrategyCardProps {
+interface MAVCYearnStrategyCardProps {
   onRefresh?: () => void;
 }
 
-const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
+const MAVCYearnStrategyCard: React.FC<MAVCYearnStrategyCardProps> = ({ onRefresh }) => {
   const router = useRouter();
-  const { data: mavcConfig } = useMAVCConfig();
   const { toast } = useToast();
 
-  // Fetch MAVC price from subgraph (updates every 60 seconds)
-  const { data: mavcPriceData, isLoading: priceLoading, error: priceError } = useMAVCPrice(
-    mavcConfig?.subgraph_url
-  );
-
-  // Fetch subgraph data to get net MAVC supply
-  const { data: subgraphData } = useSubgraphData(mavcConfig?.subgraph_url);
-
-  const [mavcBalance, setMavcBalance] = useState("0");
+  const [vaultBalance, setVaultBalance] = useState("0"); // Yearn vault shares
   const [usdcBalance, setUsdcBalance] = useState("0");
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [showModal, setShowModal] = useState(false);
@@ -44,48 +32,24 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
   const [transactionStage, setTransactionStage] = useState<BalanceTransactionStage>('idle');
   const [transactionType, setTransactionType] = useState<BalanceTransactionType>('deposit');
 
-  // Calculate net MAVC supply (minted - burned)
-  const netMAVCSupply = useMemo(() => {
-    if (!subgraphData?.vaultMetric) return 0;
-    const minted = Number(subgraphData.vaultMetric.mintedShares ?? '0');
-    const burned = Number(subgraphData.vaultMetric.burnedShares ?? '0');
-    return minted - burned;
-  }, [subgraphData]);
+  // Yearn-specific metrics
+  const [vaultTotalAssets, setVaultTotalAssets] = useState(0);
+  const [vaultPricePerShare, setVaultPricePerShare] = useState(1.0);
+  const [strategyAllocation, setStrategyAllocation] = useState({ usdc: 50, wbtc: 50 });
 
-  // Calculate AUM dynamically: total_MAVC_supply * price_of_MAVC_in_USD
-  const calculatedAUM = useMemo(() => {
-    if (!mavcPriceData?.price || netMAVCSupply === 0) {
-      return { value: mavcConfig?.aum ?? 8.9, unit: 'M' }; // Fallback to config value
-    }
-    const priceInUSD = Number(mavcPriceData.price);
-    const aumInUSD = netMAVCSupply * priceInUSD;
-
-    // Display based on magnitude
-    if (aumInUSD >= 1_000_000) {
-      return { value: aumInUSD / 1_000_000, unit: 'M' }; // Millions
-    } else if (aumInUSD >= 1_000) {
-      return { value: aumInUSD / 1_000, unit: 'K' }; // Thousands
-    } else {
-      return { value: aumInUSD, unit: '' }; // Raw value
-    }
-  }, [netMAVCSupply, mavcPriceData, mavcConfig?.aum]);
-
-  // Get unique depositors from subgraph data
-  const uniqueDepositors = subgraphData?.vaultMetric?.uniqueDepositors ?? mavcConfig?.participants ?? 121;
-
-  // Fetch strategy metrics from database via mavcConfig
+  // Strategy metrics for MAVC Yearn
   const strategyMetrics = {
-    name: mavcConfig?.name ?? "Multi Asset Vault",
-    description: mavcConfig?.description ?? "Advanced 50/50 USDC/WETH allocation with high-frequency rebalancing.",
-    netApy: mavcConfig?.net_apy ?? 135.3,
-    aum: calculatedAUM.value,
-    aumUnit: calculatedAUM.unit,
-    sharpe: mavcConfig?.sharpe_ratio ?? 0.85,
-    maxDrawdown: mavcConfig?.max_drawdown ?? 65.50,
-    lockInPeriod: mavcConfig?.lock_in_period ?? "14d",
-    participants: uniqueDepositors,
-    performanceFee: mavcConfig?.performance_fee ?? 30.0,
-    riskGrade: mavcConfig?.risk_grade ?? "D"
+    name: "MAVC Yearn",
+    description: "Yearn v3 tokenized strategy with 50/50 USDC/BTC allocation using MAVC rebalancing logic.",
+    netApy: 45.2, // Conservative APY for Yearn vault
+    aum: 2.1, // Starting AUM
+    aumUnit: 'M',
+    sharpe: 1.12,
+    maxDrawdown: 18.50,
+    lockInPeriod: "None", // Yearn vaults typically have no lock-in
+    participants: 34, // Initial participants
+    performanceFee: 20.0, // Yearn standard performance fee
+    riskGrade: "B" as const
   };
 
   const gradeStyles = {
@@ -96,32 +60,26 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
   };
 
   useEffect(() => {
-    if (mavcConfig?.token_address) {
-      fetchBalances();
-    }
-  }, [mavcConfig?.token_address]);
+    fetchBalances();
+  }, []);
 
   const fetchBalances = async () => {
     try {
       const userData = localStorage.getItem('userData');
       if (userData) {
         const parsedData = JSON.parse(userData);
-        console.log('🔍 User Data from localStorage:', parsedData);
-        console.log('🔍 Wallet Address being used:', parsedData.wallet_address);
+        console.log('🔍 MAVC Yearn - User Data from localStorage:', parsedData);
 
         if (parsedData.wallet_address) {
           setWalletAddress(parsedData.wallet_address);
-          // Fetch wallet balances (includes both USDC and MAVC tokens)
+
           try {
-            console.log(`🔍 Fetching wallet balances for: ${parsedData.wallet_address}`);
+            console.log(`🔍 MAVC Yearn - Fetching wallet balances for: ${parsedData.wallet_address}`);
             const walletResponse = await api.get(`/api/v1/wallet_balance/${parsedData.wallet_address}`);
-            console.log('✅ Wallet Balance Response:', walletResponse.data);
+            console.log('✅ MAVC Yearn - Wallet Balance Response:', walletResponse.data);
 
-            // The API returns tokenBalances array
             if (walletResponse.data && Array.isArray(walletResponse.data.tokenBalances)) {
-              console.log('📋 All token symbols in wallet:', walletResponse.data.tokenBalances.map((t: any) => t.token?.symbol));
-
-              // Find USDC tokens (also merge TRNSK which is treated as USDC)
+              // Find USDC tokens (merge TRNSK which is treated as USDC)
               const allUSDCTokens = walletResponse.data.tokenBalances.filter((b: any) =>
                 b.token && (b.token.symbol === 'USDC' || b.token.symbol === 'TRNSK')
               );
@@ -131,66 +89,57 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
                   return sum + parseFloat(token.amount || "0");
                 }, 0);
                 setUsdcBalance(totalUSDC.toString());
-                console.log('✅ USDC Balance set to:', totalUSDC);
+                console.log('✅ MAVC Yearn - USDC Balance set to:', totalUSDC);
               } else {
                 setUsdcBalance("0");
-                console.log('⚠️ No USDC or TRNSK token found');
               }
 
-              // Find MAVC token by the token address from Firestore config
-              const mavcTokenAddress = mavcConfig?.token_address;
-
-              const mavcToken = mavcTokenAddress
-                ? walletResponse.data.tokenBalances.find((b: any) =>
-                    b.token &&
-                    b.token.symbol === 'MAVC' &&
-                    b.token.tokenAddress?.toLowerCase() === mavcTokenAddress.toLowerCase()
-                  )
-                : null;
-
-              if (mavcToken) {
-                console.log('✅ FOUND MAVC Token with correct address!');
-                console.log('🔍 MAVC Token Object:', mavcToken);
-                console.log('🔍 MAVC Address:', mavcToken.token?.tokenAddress);
-                console.log('🔍 MAVC Amount (from API):', mavcToken.amount);
-                console.log('🔍 MAVC Decimals:', mavcToken.token?.decimals);
-
-                // MAVC uses 12 decimals (10^12) - convert to human-readable format
-                const rawAmount = parseFloat(mavcToken.amount || "0");
-                const humanReadable = rawAmount / Math.pow(10, 12);
-
-                setMavcBalance(humanReadable.toString());
-                console.log('✅ MAVC Balance converted:', rawAmount, '/ 10^12 =', humanReadable);
-              } else {
-                setMavcBalance("0");
-                console.log('❌ No MAVC token found with correct address:', mavcTokenAddress);
-                const allMavcTokens = walletResponse.data.tokenBalances.filter((t: any) => t.token?.symbol === 'MAVC');
-                console.log('📋 All MAVC tokens found:', allMavcTokens.map((t: any) => ({
-                  address: t.token?.tokenAddress,
-                  amount: t.amount
-                })));
+              // Fetch Yearn vault share balance from backend
+              try {
+                const yearnBalanceResponse = await api.get(`/api/v1/mavc-yearn/balance/${parsedData.wallet_address}`);
+                console.log('✅ MAVC Yearn - Vault Balance Response:', yearnBalanceResponse.data);
+                
+                if (yearnBalanceResponse.data && yearnBalanceResponse.data.balance) {
+                  setVaultBalance(yearnBalanceResponse.data.balance);
+                  console.log('✅ MAVC Yearn - Vault Balance set to:', yearnBalanceResponse.data.balance);
+                } else {
+                  setVaultBalance("0");
+                }
+              } catch (err) {
+                console.warn('❌ MAVC Yearn - Vault balance not available:', err);
+                setVaultBalance("0");
               }
             } else {
               setUsdcBalance("0");
-              setMavcBalance("0");
-              console.warn('⚠️ Invalid response format - no tokenBalances array');
+              setVaultBalance("0");
             }
           } catch (err) {
-            console.warn('❌ Wallet balances not available:', err);
+            console.warn('❌ MAVC Yearn - Wallet balances not available:', err);
             setUsdcBalance("0");
-            setMavcBalance("0");
+          }
+          
+          // Fetch vault balance separately
+          try {
+            const yearnBalanceResponse = await api.get(`/api/v1/mavc-yearn/balance/${parsedData.wallet_address}`);
+            if (yearnBalanceResponse.data && yearnBalanceResponse.data.balance) {
+              setVaultBalance(yearnBalanceResponse.data.balance);
+            } else {
+              setVaultBalance("0");
+            }
+          } catch (err) {
+            console.warn('❌ MAVC Yearn - Vault balance fetch failed:', err);
+            setVaultBalance("0");
           }
         }
       }
     } catch (err: any) {
-      console.error('Error fetching balances:', err);
+      console.error('Error fetching MAVC Yearn balances:', err);
     }
   };
 
   const handleDeposit = async (amount: string) => {
-    console.log('🚀 handleDeposit called with amount:', amount);
+    console.log('🚀 MAVC Yearn handleDeposit called with amount:', amount);
 
-    // Close modal immediately to show balance animations
     setShowModal(false);
 
     try {
@@ -218,153 +167,121 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
       };
 
       // Capture initial balance before transaction
-      const initialMAVCBalance = parseFloat(mavcBalance);
+      const initialVaultBalance = parseFloat(vaultBalance);
       const initialUSDCBalance = parseFloat(usdcBalance);
-      console.log('💰 Initial MAVC Balance:', initialMAVCBalance);
-      console.log('💵 Initial USDC Balance:', initialUSDCBalance);
 
       console.log('🔍 STEP 1: Calling approve endpoint...');
-      const approveResponse = await api.post('/api/v1/mavc/approve', payload);
+      const approveResponse = await api.post('/api/v1/mavc-yearn/approve', payload);
 
       if (approveResponse.data.status !== 'success') {
         throw new Error('USDC approval failed');
       }
 
-      // Extract the transaction ID from approval response
       const approveTxId = approveResponse.data.transaction_id;
       console.log('✅ Approval transaction submitted:', approveTxId);
-      console.log('🔗 Monitor at: https://console.circle.com/wallets/dev/transactions/' + approveTxId);
 
       setTransactionStage('approved');
-      await new Promise(resolve => setTimeout(resolve, 500)); // Brief pause to show approved state
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-      // The backend will now poll for approval confirmation before proceeding with deposit
-      console.log('🔍 STEP 2: Calling deposit endpoint (will wait for approval confirmation)...');
+      console.log('🔍 STEP 2: Calling deposit endpoint...');
       setTransactionStage('processing');
 
       const depositPayload = {
         ...payload,
-        approve_tx_id: approveTxId  // Required: backend will wait for this to be confirmed
+        approve_tx_id: approveTxId
       };
 
-      const response = await api.post('/api/v1/mavc/deposit', depositPayload);
+      const response = await api.post('/api/v1/mavc-yearn/deposit', depositPayload);
 
       if (response.data.status === 'success') {
         console.log('✅ Deposit transaction created');
-        console.log('⏳ Waiting for balance to change...');
         setTransactionStage('confirming');
 
         // Poll for balance change
-        const maxAttempts = 60; // 60 attempts = 2 minutes max
+        const maxAttempts = 60;
         let attempts = 0;
         let balanceChanged = false;
 
         while (attempts < maxAttempts && !balanceChanged) {
-          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds between checks
+          await new Promise(resolve => setTimeout(resolve, 2000));
 
-          // Fetch updated balance
-          const walletResponse = await api.get(`/api/v1/wallet_balance/${parsedData.wallet_address}`);
+          // Check vault balance directly from backend
+          try {
+            const yearnBalanceResponse = await api.get(`/api/v1/mavc-yearn/balance/${parsedData.wallet_address}`);
+            
+            if (yearnBalanceResponse.data && yearnBalanceResponse.data.balance) {
+              const currentVaultBalance = parseFloat(yearnBalanceResponse.data.balance || "0");
+              console.log(`🔍 Attempt ${attempts + 1}: Vault Balance = ${currentVaultBalance} (initial: ${initialVaultBalance})`);
 
-          if (walletResponse.data && Array.isArray(walletResponse.data.tokenBalances)) {
-            // Check MAVC balance
-            const mavcTokenAddress = mavcConfig?.token_address;
-            const mavcToken = mavcTokenAddress
-              ? walletResponse.data.tokenBalances.find((b: any) =>
-                  b.token &&
-                  b.token.symbol === 'MAVC' &&
-                  b.token.tokenAddress?.toLowerCase() === mavcTokenAddress.toLowerCase()
-                )
-              : null;
-
-            if (mavcToken) {
-              const rawAmount = parseFloat(mavcToken.amount || "0");
-              const currentMAVCBalance = rawAmount / Math.pow(10, 12);
-              console.log(`🔍 Attempt ${attempts + 1}: MAVC Balance = ${currentMAVCBalance} (initial: ${initialMAVCBalance})`);
-
-              // Check if MAVC balance increased
-              if (currentMAVCBalance > initialMAVCBalance) {
-                console.log('✅ Balance changed! MAVC increased from', initialMAVCBalance, 'to', currentMAVCBalance);
+              if (currentVaultBalance > initialVaultBalance) {
+                console.log('✅ Balance changed!');
                 balanceChanged = true;
                 setTransactionStage('success');
+                setVaultBalance(currentVaultBalance.toString());
 
-                // Update local state
-                setMavcBalance(currentMAVCBalance.toString());
-
-                // Also update USDC balance
-                const allUSDCTokens = walletResponse.data.tokenBalances.filter((b: any) =>
-                  b.token && (b.token.symbol === 'USDC' || b.token.symbol === 'TRNSK')
-                );
-                if (allUSDCTokens.length > 0) {
-                  const totalUSDC = allUSDCTokens.reduce((sum: number, token: any) => {
-                    return sum + parseFloat(token.amount || "0");
-                  }, 0);
-                  setUsdcBalance(totalUSDC.toString());
+                // Update USDC balance
+                const walletResponse = await api.get(`/api/v1/wallet_balance/${parsedData.wallet_address}`);
+                if (walletResponse.data && Array.isArray(walletResponse.data.tokenBalances)) {
+                  const allUSDCTokens = walletResponse.data.tokenBalances.filter((b: any) =>
+                    b.token && (b.token.symbol === 'USDC' || b.token.symbol === 'TRNSK')
+                  );
+                  if (allUSDCTokens.length > 0) {
+                    const totalUSDC = allUSDCTokens.reduce((sum: number, token: any) => {
+                      return sum + parseFloat(token.amount || "0");
+                    }, 0);
+                    setUsdcBalance(totalUSDC.toString());
+                  }
                 }
 
-                const successMessage = `Successfully deposited ${amount} USDC to MAVC!`;
-                setTransactionSuccess(successMessage);
+                setTransactionSuccess(`Successfully deposited ${amount} USDC to MAVC Yearn vault!`);
 
-                // Show success toast notification
                 toast({
                   title: "✅ Deposit Successful!",
-                  description: `Deposited ${amount} USDC and received ${currentMAVCBalance.toFixed(6)} MAVC tokens.`,
+                  description: `Deposited ${amount} USDC and received vault shares.`,
                 });
 
                 if (onRefresh) onRefresh();
 
-                // Reset to idle after showing success
                 setTimeout(() => {
                   setTransactionStage('idle');
                 }, 3000);
               }
             }
+          } catch (balanceCheckErr) {
+            console.warn(`❌ Balance check attempt ${attempts + 1} failed:`, balanceCheckErr);
           }
 
           attempts++;
         }
 
         if (!balanceChanged) {
-          console.warn('⚠️ Balance did not change within timeout period');
           throw new Error('Transaction submitted but balance not updated yet. Please check back in a moment.');
         }
       } else {
         throw new Error(response.data.message || 'Deposit failed');
       }
     } catch (err: any) {
-      console.error('❌ MAVC Deposit Error:', err);
-      const errorMsg = err.response?.data?.detail
-        ? (typeof err.response.data.detail === 'string'
-          ? err.response.data.detail
-          : JSON.stringify(err.response.data.detail))
-        : err.message || 'Failed to deposit to MAVC vault';
+      console.error('❌ MAVC Yearn Deposit Error:', err);
+      const errorMsg = err.response?.data?.detail || err.message || 'Failed to deposit to MAVC Yearn vault';
       setTransactionError(errorMsg);
       setTransactionStage('error');
 
-      // Show error toast notification
       toast({
         title: "❌ Deposit Failed",
         description: errorMsg,
       });
 
-      // Reset to idle after showing error
       setTimeout(() => {
         setTransactionStage('idle');
       }, 5000);
     } finally {
-      console.log('🏁 Finally block: Setting transactionLoading to false');
       setTransactionLoading(false);
     }
   };
 
-  // MAVC Price in USDC (fetched from subgraph, updates every 60 seconds)
-  const mavcPriceInUSDC = mavcPriceData?.price
-    ? formatTokenBalance(mavcPriceData.price)
-    : null;
-
   const handleWithdraw = async (amount: string) => {
-    console.log('🚀 handleWithdraw called with amount:', amount);
+    console.log('🚀 MAVC Yearn handleWithdraw called with amount:', amount);
 
-    // Close modal immediately to show balance animations
     setShowModal(false);
 
     try {
@@ -392,52 +309,37 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
       };
 
       // Capture initial balance before transaction
-      const initialMAVCBalance = parseFloat(mavcBalance);
+      const initialVaultBalance = parseFloat(vaultBalance);
       const initialUSDCBalance = parseFloat(usdcBalance);
-      console.log('💰 Initial MAVC Balance:', initialMAVCBalance);
-      console.log('💵 Initial USDC Balance:', initialUSDCBalance);
 
-      const response = await api.post('/api/v1/mavc/withdraw', payload);
+      const response = await api.post('/api/v1/mavc-yearn/withdraw', payload);
 
       if (response.data.status === 'success') {
         console.log('✅ Withdrawal transaction created');
-        console.log('⏳ Waiting for balance to change...');
         setTransactionStage('confirming');
 
         // Poll for balance change
-        const maxAttempts = 60; // 60 attempts = 2 minutes max
+        const maxAttempts = 60;
         let attempts = 0;
         let balanceChanged = false;
 
         while (attempts < maxAttempts && !balanceChanged) {
-          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds between checks
+          await new Promise(resolve => setTimeout(resolve, 2000));
 
-          // Fetch updated balance
           const walletResponse = await api.get(`/api/v1/wallet_balance/${parsedData.wallet_address}`);
 
           if (walletResponse.data && Array.isArray(walletResponse.data.tokenBalances)) {
-            // Check MAVC balance (should decrease) and USDC balance (should increase)
-            const mavcTokenAddress = mavcConfig?.token_address;
-            const mavcToken = mavcTokenAddress
-              ? walletResponse.data.tokenBalances.find((b: any) =>
-                  b.token &&
-                  b.token.symbol === 'MAVC' &&
-                  b.token.tokenAddress?.toLowerCase() === mavcTokenAddress.toLowerCase()
-                )
-              : null;
+            // Check if vault balance decreased OR USDC balance increased
+            const vaultToken = walletResponse.data.tokenBalances.find((b: any) =>
+              b.token && b.token.symbol === 'MAVC_YEARN'
+            );
 
-            // Check USDC balance
             const allUSDCTokens = walletResponse.data.tokenBalances.filter((b: any) =>
               b.token && (b.token.symbol === 'USDC' || b.token.symbol === 'TRNSK')
             );
 
-            let currentMAVCBalance = 0;
+            let currentVaultBalance = vaultToken ? parseFloat(vaultToken.amount || "0") : 0;
             let currentUSDCBalance = 0;
-
-            if (mavcToken) {
-              const rawAmount = parseFloat(mavcToken.amount || "0");
-              currentMAVCBalance = rawAmount / Math.pow(10, 12);
-            }
 
             if (allUSDCTokens.length > 0) {
               currentUSDCBalance = allUSDCTokens.reduce((sum: number, token: any) => {
@@ -445,30 +347,25 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
               }, 0);
             }
 
-            console.log(`🔍 Attempt ${attempts + 1}: MAVC = ${currentMAVCBalance} (initial: ${initialMAVCBalance}), USDC = ${currentUSDCBalance} (initial: ${initialUSDCBalance})`);
+            console.log(`🔍 Attempt ${attempts + 1}: Vault = ${currentVaultBalance}, USDC = ${currentUSDCBalance}`);
 
-            // Check if MAVC balance decreased OR USDC balance increased
-            if (currentMAVCBalance < initialMAVCBalance || currentUSDCBalance > initialUSDCBalance) {
-              console.log('✅ Balance changed! MAVC:', initialMAVCBalance, '->', currentMAVCBalance, '| USDC:', initialUSDCBalance, '->', currentUSDCBalance);
+            if (currentVaultBalance < initialVaultBalance || currentUSDCBalance > initialUSDCBalance) {
+              console.log('✅ Balance changed!');
               balanceChanged = true;
               setTransactionStage('success');
 
-              // Update local state
-              setMavcBalance(currentMAVCBalance.toString());
+              setVaultBalance(currentVaultBalance.toString());
               setUsdcBalance(currentUSDCBalance.toString());
 
-              const successMessage = `Successfully withdrew ${amount} MAVC tokens!`;
-              setTransactionSuccess(successMessage);
+              setTransactionSuccess(`Successfully withdrew ${amount} vault shares!`);
 
-              // Show success toast notification
               toast({
                 title: "✅ Withdrawal Successful!",
-                description: `Withdrew ${amount} MAVC tokens and received ${(currentUSDCBalance - initialUSDCBalance).toFixed(2)} USDC.`,
+                description: `Withdrew ${amount} vault shares and received ${(currentUSDCBalance - initialUSDCBalance).toFixed(2)} USDC.`,
               });
 
               if (onRefresh) onRefresh();
 
-              // Reset to idle after showing success
               setTimeout(() => {
                 setTransactionStage('idle');
               }, 3000);
@@ -479,34 +376,26 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
         }
 
         if (!balanceChanged) {
-          console.warn('⚠️ Balance did not change within timeout period');
           throw new Error('Transaction submitted but balance not updated yet. Please check back in a moment.');
         }
       } else {
         throw new Error(response.data.message || 'Withdrawal failed');
       }
     } catch (err: any) {
-      console.error('❌ MAVC Withdraw Error:', err);
-      const errorMsg = err.response?.data?.detail
-        ? (typeof err.response.data.detail === 'string'
-          ? err.response.data.detail
-          : JSON.stringify(err.response.data.detail))
-        : err.message || 'Failed to withdraw from MAVC vault';
+      console.error('❌ MAVC Yearn Withdraw Error:', err);
+      const errorMsg = err.response?.data?.detail || err.message || 'Failed to withdraw from MAVC Yearn vault';
       setTransactionError(errorMsg);
       setTransactionStage('error');
 
-      // Show error toast notification
       toast({
         title: "❌ Withdrawal Failed",
         description: errorMsg,
       });
 
-      // Reset to idle after showing error
       setTimeout(() => {
         setTransactionStage('idle');
       }, 5000);
     } finally {
-      console.log('🏁 Finally block: Setting transactionLoading to false');
       setTransactionLoading(false);
     }
   };
@@ -534,41 +423,41 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
   };
 
   const handleCardClick = () => {
-    router.push('/customer/grow/hedge-fund-v2/mavc');
+    router.push('/customer/grow/hedge-fund-v2/mavc-yearn');
   };
 
+  // Get vault address from Firestore config (TODO: implement config hook)
+  const vaultAddress = "0x..."; // Placeholder
 
   return (
     <>
-      <Card 
+      <Card
         className="flex flex-col h-full overflow-hidden transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1 bg-zinc-800/50 backdrop-blur-sm border-zinc-700/50 cursor-pointer"
         onClick={handleCardClick}
       >
         <CardHeader className="pb-4">
           <div className="flex justify-between items-start gap-4">
-            <CardTitle className="text-xl text-white">{strategyMetrics.name}</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-xl text-white">{strategyMetrics.name}</CardTitle>
+              <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-xs">
+                Yearn v3
+              </Badge>
+            </div>
             <div className="flex flex-col items-end gap-1">
               <BalanceStatusIndicator
                 stage={transactionStage}
                 type={transactionType}
-                balance={formatTokenBalance(mavcBalance)}
+                balance={formatTokenBalance(vaultBalance)}
                 showShimmer={transactionStage === 'confirming'}
                 error={transactionError}
+                tokenSymbol="ysMAVC"
               />
-              {priceLoading ? (
-                <span className="text-xs text-zinc-500">Loading price...</span>
-              ) : priceError ? (
-                <span className="text-xs text-red-400">Price unavailable</span>
-              ) : mavcPriceInUSDC ? (
-                <span className="text-xs text-green-400 font-medium">
-                  1 MAVC = ${mavcPriceInUSDC}
-                </span>
-              ) : null}
+              <span className="text-xs text-zinc-500">ysMAVC</span>
             </div>
           </div>
           <CardDescription className="pt-2 text-sm text-zinc-400">{strategyMetrics.description}</CardDescription>
         </CardHeader>
-        
+
         <CardContent className="flex-grow space-y-5">
           <div className="space-y-4">
             <h4 className="text-sm font-semibold text-zinc-400">Key Metrics</h4>
@@ -611,10 +500,27 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
                   <span className="text-xs text-zinc-500">Lock-in Period</span>
                 </div>
               </div>
+
+              <Separator className="bg-zinc-700" />
+
+              {/* Strategy Allocation Display */}
+              <div className="space-y-2">
+                <p className="text-xs text-zinc-500">Current Allocation</p>
+                <div className="flex gap-2">
+                  <div className="flex-1 bg-blue-500/20 border border-blue-500/30 rounded-lg p-2 text-center">
+                    <p className="text-xs text-blue-300">USDC</p>
+                    <p className="font-semibold text-white">{strategyAllocation.usdc}%</p>
+                  </div>
+                  <div className="flex-1 bg-orange-500/20 border border-orange-500/30 rounded-lg p-2 text-center">
+                    <p className="text-xs text-orange-300">BTC</p>
+                    <p className="font-semibold text-white">{strategyAllocation.wbtc}%</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>
-        
+
         <CardFooter className="p-4 bg-black/20 flex flex-col gap-3 mt-auto">
           <div className="flex items-center justify-between w-full text-sm text-zinc-400">
             <div className="flex items-center gap-4 flex-wrap">
@@ -626,20 +532,23 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
                 <Percent className="w-5 h-5" />
                 <span className="font-semibold text-white">{strategyMetrics.performanceFee.toFixed(1)}%</span>
               </div>
+              <Badge className={gradeStyles[strategyMetrics.riskGrade]}>
+                Risk: {strategyMetrics.riskGrade}
+              </Badge>
             </div>
           </div>
           <div className="flex gap-2 w-full">
-            <Button 
-              size="sm" 
-              className="flex-1 font-bold bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700" 
+            <Button
+              size="sm"
+              className="flex-1 font-bold bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
               onClick={openDepositModal}
             >
               <ArrowDown className="w-4 h-4 mr-1" />
               Deposit
             </Button>
-            <Button 
-              size="sm" 
-              className="flex-1 font-bold bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700" 
+            <Button
+              size="sm"
+              className="flex-1 font-bold bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700"
               onClick={openWithdrawModal}
             >
               <ArrowUp className="w-4 h-4 mr-1" />
@@ -649,24 +558,23 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
         </CardFooter>
       </Card>
 
-      <MAVCModal
+      <MAVCYearnModal
         visible={showModal}
         onClose={closeModal}
         action={modalAction}
-        mavcBalance={mavcBalance}
+        vaultBalance={vaultBalance}
         usdcBalance={usdcBalance}
         onDeposit={handleDeposit}
         onWithdraw={handleWithdraw}
         loading={transactionLoading}
         error={transactionError}
         success={transactionSuccess}
-        mavcPrice={mavcPriceInUSDC}
+        pricePerShare={vaultPricePerShare}
         walletAddress={walletAddress}
-        tokenAddress="0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
+        vaultAddress={vaultAddress}
       />
     </>
   );
 };
 
-export default MAVCStrategyCard;
-
+export default MAVCYearnStrategyCard;

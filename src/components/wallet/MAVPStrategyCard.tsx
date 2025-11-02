@@ -12,6 +12,8 @@ import api from "@/lib/api";
 import { useMAVPConfig } from "@/hooks/useMAVPConfig";
 import { useMAVPPrice } from "@/hooks/useMAVPPrice";
 import { useMAVPSubgraphData } from "@/hooks/useMAVPSubgraphData";
+import { BalanceStatusIndicator, BalanceTransactionStage, BalanceTransactionType } from "./BalanceStatusIndicator";
+import { useToast } from "@/hooks/use-toast";
 
 interface MAVPStrategyCardProps {
   onRefresh?: () => void;
@@ -20,6 +22,7 @@ interface MAVPStrategyCardProps {
 const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
   const router = useRouter();
   const { data: mavpConfig } = useMAVPConfig();
+  const { toast } = useToast();
 
   // Fetch MAVP price from subgraph (updates every 60 seconds)
   const { data: mavpPriceData, isLoading: priceLoading, error: priceError } = useMAVPPrice(
@@ -37,12 +40,14 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
   const [transactionLoading, setTransactionLoading] = useState(false);
   const [transactionError, setTransactionError] = useState<string | null>(null);
   const [transactionSuccess, setTransactionSuccess] = useState<string | null>(null);
+  const [transactionStage, setTransactionStage] = useState<BalanceTransactionStage>('idle');
+  const [transactionType, setTransactionType] = useState<BalanceTransactionType>('deposit');
 
   // Calculate net MAVP supply (minted - burned)
   const netMAVPSupply = useMemo(() => {
-    if (!subgraphData?.vaultMetric) return 0;
-    const minted = Number(subgraphData.vaultMetric.mintedShares ?? '0');
-    const burned = Number(subgraphData.vaultMetric.burnedShares ?? '0');
+    if (!subgraphData?.mavpvaultMetric) return 0;
+    const minted = Number(subgraphData.mavpvaultMetric.mintedShares ?? '0');
+    const burned = Number(subgraphData.mavpvaultMetric.burnedShares ?? '0');
     return minted - burned;
   }, [subgraphData]);
 
@@ -65,7 +70,7 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
   }, [netMAVPSupply, mavpPriceData, mavpConfig?.aum]);
 
   // Get unique depositors from subgraph data
-  const uniqueDepositors = subgraphData?.vaultMetric?.uniqueDepositors ?? mavpConfig?.participants ?? 342;
+  const uniqueDepositors = subgraphData?.mavpvaultMetric?.uniqueDepositors ?? mavpConfig?.participants ?? 342;
 
   // MAVP Price in USDC (fetched from subgraph, updates every 60 seconds)
   const mavpPriceInUSDC = mavpPriceData?.price
@@ -122,105 +127,300 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
   };
 
   const handleDeposit = async (amount: string) => {
+    console.log('🚀 handleDeposit called with amount:', amount);
+
+    // Close modal immediately to show balance animations
+    setShowModal(false);
+
     try {
       setTransactionLoading(true);
       setTransactionError(null);
-      
+      setTransactionSuccess(null);
+      setTransactionType('deposit');
+      setTransactionStage('approving');
+
       const userData = localStorage.getItem('userData');
       if (!userData) {
         throw new Error('User data not found');
       }
-      
+
       const parsedData = JSON.parse(userData);
-      
+
       if (!parsedData.wallet_address) {
         throw new Error('Wallet address not found');
       }
-      
+
       const payload = {
         amount: amount,
         wallet_address: parsedData.wallet_address,
         user_id: parsedData.user_id
       };
-      
+
+      // Capture initial balance before transaction
+      const initialMAVPBalance = parseFloat(mavpBalance);
+      const initialUSDCBalance = parseFloat(usdcBalance);
+      console.log('💰 Initial MAVP Balance:', initialMAVPBalance);
+      console.log('💵 Initial USDC Balance:', initialUSDCBalance);
+
+      console.log('🔍 STEP 1: Calling approve endpoint...');
       const approveResponse = await api.post('/api/v1/mavp/approve', payload);
-      
+
       if (approveResponse.data.status !== 'success') {
         throw new Error('USDC approval failed');
       }
-      
-      setTransactionSuccess(`Approval submitted! Now depositing...`);
-      
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const response = await api.post('/api/v1/mavp/deposit', payload);
-      
+
+      // Extract the transaction ID from approval response
+      const approveTxId = approveResponse.data.transaction_id;
+      console.log('✅ Approval transaction submitted:', approveTxId);
+      console.log('🔗 Monitor at: https://console.circle.com/wallets/dev/transactions/' + approveTxId);
+
+      setTransactionStage('approved');
+      await new Promise(resolve => setTimeout(resolve, 500)); // Brief pause to show approved state
+
+      // The backend will now poll for approval confirmation before proceeding with deposit
+      console.log('🔍 STEP 2: Calling deposit endpoint (will wait for approval confirmation)...');
+      setTransactionStage('processing');
+
+      const depositPayload = {
+        ...payload,
+        approve_tx_id: approveTxId  // Required: backend will wait for this to be confirmed
+      };
+
+      const response = await api.post('/api/v1/mavp/deposit', depositPayload);
+
       if (response.data.status === 'success') {
-        setTransactionSuccess(`Successfully deposited ${amount} USDC to MAVP!`);
-        
-        if (onRefresh) onRefresh();
-        setTimeout(() => {
-          fetchBalances();
-        }, 1000);
+        console.log('✅ Deposit transaction created');
+        console.log('⏳ Waiting for balance to change...');
+        setTransactionStage('confirming');
+
+        // Poll for balance change
+        const maxAttempts = 60; // 60 attempts = 2 minutes max
+        let attempts = 0;
+        let balanceChanged = false;
+
+        while (attempts < maxAttempts && !balanceChanged) {
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds between checks
+
+          // Fetch updated balance
+          try {
+            const mavpResponse = await api.get(`/api/v1/mavp/balance/${parsedData.wallet_address}`);
+            const currentMAVPBalance = parseFloat(mavpResponse.data.balance || "0") / 1e12;
+            
+            console.log(`🔍 Attempt ${attempts + 1}: MAVP Balance = ${currentMAVPBalance} (initial: ${initialMAVPBalance})`);
+
+            // Check if MAVP balance increased
+            if (currentMAVPBalance > initialMAVPBalance) {
+              console.log('✅ Balance changed! MAVP increased from', initialMAVPBalance, 'to', currentMAVPBalance);
+              balanceChanged = true;
+              setTransactionStage('success');
+
+              // Update local state
+              setMavpBalance(currentMAVPBalance.toString());
+
+              // Also update USDC balance
+              const usdcResponse = await api.get(`/api/v1/wallet_balance/${parsedData.wallet_address}`);
+              if (usdcResponse.data && Array.isArray(usdcResponse.data.tokenBalances)) {
+                const allUSDCTokens = usdcResponse.data.tokenBalances.filter((b: any) =>
+                  b.token && (b.token.symbol === 'USDC' || b.token.symbol === 'TRNSK')
+                );
+                if (allUSDCTokens.length > 0) {
+                  const totalUSDC = allUSDCTokens.reduce((sum: number, token: any) => {
+                    return sum + parseFloat(token.amount || "0");
+                  }, 0);
+                  setUsdcBalance(totalUSDC.toString());
+                }
+              }
+
+              const successMessage = `Successfully deposited ${amount} USDC to MAVP!`;
+              setTransactionSuccess(successMessage);
+
+              // Show success toast notification
+              toast({
+                title: "✅ Deposit Successful!",
+                description: `Deposited ${amount} USDC and received ${currentMAVPBalance.toFixed(6)} MAVP tokens.`,
+              });
+
+              if (onRefresh) onRefresh();
+
+              // Reset to idle after showing success
+              setTimeout(() => {
+                setTransactionStage('idle');
+              }, 3000);
+            }
+          } catch (balanceErr) {
+            console.warn('Error fetching balance during polling:', balanceErr);
+          }
+
+          attempts++;
+        }
+
+        if (!balanceChanged) {
+          console.warn('⚠️ Balance did not change within timeout period');
+          throw new Error('Transaction submitted but balance not updated yet. Please check back in a moment.');
+        }
       } else {
         throw new Error(response.data.message || 'Deposit failed');
       }
     } catch (err: any) {
-      console.error('MAVP Deposit Error:', err);
-      const errorMsg = err.response?.data?.detail 
-        ? (typeof err.response.data.detail === 'string' 
-          ? err.response.data.detail 
+      console.error('❌ MAVP Deposit Error:', err);
+      const errorMsg = err.response?.data?.detail
+        ? (typeof err.response.data.detail === 'string'
+          ? err.response.data.detail
           : JSON.stringify(err.response.data.detail))
         : err.message || 'Failed to deposit to MAVP vault';
       setTransactionError(errorMsg);
+      setTransactionStage('error');
+
+      // Show error toast notification
+      toast({
+        title: "❌ Deposit Failed",
+        description: errorMsg,
+      });
+
+      // Reset to idle after showing error
+      setTimeout(() => {
+        setTransactionStage('idle');
+      }, 5000);
     } finally {
+      console.log('🏁 Finally block: Setting transactionLoading to false');
       setTransactionLoading(false);
     }
   };
 
   const handleWithdraw = async (amount: string) => {
+    console.log('🚀 handleWithdraw called with amount:', amount);
+
+    // Close modal immediately to show balance animations
+    setShowModal(false);
+
     try {
       setTransactionLoading(true);
       setTransactionError(null);
-      
+      setTransactionSuccess(null);
+      setTransactionType('withdraw');
+      setTransactionStage('processing');
+
       const userData = localStorage.getItem('userData');
       if (!userData) {
         throw new Error('User data not found');
       }
-      
+
       const parsedData = JSON.parse(userData);
-      
+
       if (!parsedData.wallet_address) {
         throw new Error('Wallet address not found');
       }
-      
+
       const payload = {
         amount: amount,
         wallet_address: parsedData.wallet_address,
         user_id: parsedData.user_id
       };
-      
+
+      // Capture initial balance before transaction
+      const initialMAVPBalance = parseFloat(mavpBalance);
+      const initialUSDCBalance = parseFloat(usdcBalance);
+      console.log('💰 Initial MAVP Balance:', initialMAVPBalance);
+      console.log('💵 Initial USDC Balance:', initialUSDCBalance);
+
       const response = await api.post('/api/v1/mavp/withdraw', payload);
-      
+
       if (response.data.status === 'success') {
-        setTransactionSuccess(`Successfully withdrew ${amount} MAVP tokens!`);
-        
-        if (onRefresh) onRefresh();
-        setTimeout(() => {
-          fetchBalances();
-        }, 1000);
+        console.log('✅ Withdrawal transaction created');
+        console.log('⏳ Waiting for balance to change...');
+        setTransactionStage('confirming');
+
+        // Poll for balance change
+        const maxAttempts = 60; // 60 attempts = 2 minutes max
+        let attempts = 0;
+        let balanceChanged = false;
+
+        while (attempts < maxAttempts && !balanceChanged) {
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds between checks
+
+          // Fetch updated balances
+          try {
+            const mavpResponse = await api.get(`/api/v1/mavp/balance/${parsedData.wallet_address}`);
+            const currentMAVPBalance = parseFloat(mavpResponse.data.balance || "0") / 1e12;
+
+            const usdcResponse = await api.get(`/api/v1/wallet_balance/${parsedData.wallet_address}`);
+            let currentUSDCBalance = 0;
+
+            if (usdcResponse.data && Array.isArray(usdcResponse.data.tokenBalances)) {
+              const allUSDCTokens = usdcResponse.data.tokenBalances.filter((b: any) =>
+                b.token && (b.token.symbol === 'USDC' || b.token.symbol === 'TRNSK')
+              );
+              if (allUSDCTokens.length > 0) {
+                currentUSDCBalance = allUSDCTokens.reduce((sum: number, token: any) => {
+                  return sum + parseFloat(token.amount || "0");
+                }, 0);
+              }
+            }
+
+            console.log(`🔍 Attempt ${attempts + 1}: MAVP = ${currentMAVPBalance} (initial: ${initialMAVPBalance}), USDC = ${currentUSDCBalance} (initial: ${initialUSDCBalance})`);
+
+            // Check if MAVP balance decreased OR USDC balance increased
+            if (currentMAVPBalance < initialMAVPBalance || currentUSDCBalance > initialUSDCBalance) {
+              console.log('✅ Balance changed! MAVP:', initialMAVPBalance, '->', currentMAVPBalance, '| USDC:', initialUSDCBalance, '->', currentUSDCBalance);
+              balanceChanged = true;
+              setTransactionStage('success');
+
+              // Update local state
+              setMavpBalance(currentMAVPBalance.toString());
+              setUsdcBalance(currentUSDCBalance.toString());
+
+              const successMessage = `Successfully withdrew ${amount} MAVP tokens!`;
+              setTransactionSuccess(successMessage);
+
+              // Show success toast notification
+              toast({
+                title: "✅ Withdrawal Successful!",
+                description: `Withdrew ${amount} MAVP tokens and received ${(currentUSDCBalance - initialUSDCBalance).toFixed(2)} USDC.`,
+              });
+
+              if (onRefresh) onRefresh();
+
+              // Reset to idle after showing success
+              setTimeout(() => {
+                setTransactionStage('idle');
+              }, 3000);
+            }
+          } catch (balanceErr) {
+            console.warn('Error fetching balance during polling:', balanceErr);
+          }
+
+          attempts++;
+        }
+
+        if (!balanceChanged) {
+          console.warn('⚠️ Balance did not change within timeout period');
+          throw new Error('Transaction submitted but balance not updated yet. Please check back in a moment.');
+        }
       } else {
         throw new Error(response.data.message || 'Withdrawal failed');
       }
     } catch (err: any) {
-      console.error('MAVP Withdraw Error:', err);
-      const errorMsg = err.response?.data?.detail 
-        ? (typeof err.response.data.detail === 'string' 
-          ? err.response.data.detail 
+      console.error('❌ MAVP Withdraw Error:', err);
+      const errorMsg = err.response?.data?.detail
+        ? (typeof err.response.data.detail === 'string'
+          ? err.response.data.detail
           : JSON.stringify(err.response.data.detail))
         : err.message || 'Failed to withdraw from MAVP vault';
       setTransactionError(errorMsg);
+      setTransactionStage('error');
+
+      // Show error toast notification
+      toast({
+        title: "❌ Withdrawal Failed",
+        description: errorMsg,
+      });
+
+      // Reset to idle after showing error
+      setTimeout(() => {
+        setTransactionStage('idle');
+      }, 5000);
     } finally {
+      console.log('🏁 Finally block: Setting transactionLoading to false');
       setTransactionLoading(false);
     }
   };
@@ -274,10 +474,12 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
           <div className="flex justify-between items-start gap-4">
             <CardTitle className="text-xl text-white">{strategyMetrics.name}</CardTitle>
             <div className="flex flex-col items-end gap-1">
-              <div className="flex items-center gap-2 bg-blue-500/20 text-blue-300 px-3 py-1 rounded-lg border border-blue-500/30">
-                <Wallet className="w-4 h-4" />
-                <span className="text-sm font-semibold">{formatBalance(mavpBalance)} MAVP</span>
-              </div>
+              <BalanceStatusIndicator
+                stage={transactionStage}
+                type={transactionType}
+                balance={formatBalance(mavpBalance)}
+                tokenSymbol="MAVP"
+              />
               {priceLoading ? (
                 <span className="text-xs text-zinc-500">Loading price...</span>
               ) : priceError ? (

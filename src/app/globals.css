@@ -250,3 +250,49 @@
 .balance-flicker {
   animation: balance-flicker 1.2s ease-in-out infinite;
 }
+
+/* Shimmer animation for loading states */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+}
+
+/* Checkmark animation for success states */
+@keyframes checkmark {
+  0% {
+    stroke-dashoffset: 100;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-checkmark circle {
+  animation: checkmark-circle 0.6s ease-in-out;
+}
+
+.checkmark-path {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: checkmark 0.6s 0.2s ease-in-out forwards;
+}
+
+@keyframes checkmark-circle {
+  0% {
+    stroke-dasharray: 0 220;
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dasharray: 220 220;
+    stroke-dashoffset: 0;
+  }
+}
