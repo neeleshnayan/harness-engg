@@ -113,8 +113,21 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
 
           try {
             const usdcResponse = await api.get(`/api/v1/wallet_balance/${parsedData.wallet_address}`);
-            const usdcBalance = usdcResponse.data.balances?.find((b: any) => b.token.symbol === 'USDC')?.amount || "0";
-            setUsdcBalance(usdcBalance);
+            if (usdcResponse.data && Array.isArray(usdcResponse.data.tokenBalances)) {
+              const allUSDCTokens = usdcResponse.data.tokenBalances.filter((b: any) =>
+                b.token && (b.token.symbol === 'USDC' || b.token.symbol === 'TRNSK')
+              );
+              if (allUSDCTokens.length > 0) {
+                const totalUSDC = allUSDCTokens.reduce((sum: number, token: any) => {
+                  return sum + parseFloat(token.amount || "0");
+                }, 0);
+                setUsdcBalance(totalUSDC.toString());
+              } else {
+                setUsdcBalance("0");
+              }
+            } else {
+              setUsdcBalance("0");
+            }
           } catch (err) {
             console.warn('USDC balance not available:', err);
             setUsdcBalance("0");
@@ -204,7 +217,7 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
           // Fetch updated balance
           try {
             const mavpResponse = await api.get(`/api/v1/mavp/balance/${parsedData.wallet_address}`);
-            const currentMAVPBalance = parseFloat(mavpResponse.data.balance || "0") / 1e12;
+            const currentMAVPBalance = parseFloat(mavpResponse.data.balance || "0");
             
             console.log(`🔍 Attempt ${attempts + 1}: MAVP Balance = ${currentMAVPBalance} (initial: ${initialMAVPBalance})`);
 
@@ -588,6 +601,7 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
         mavcPrice={mavpPriceInUSDC}
         walletAddress={walletAddress}
         tokenAddress="0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
+        tokenSymbol="MAVP"
       />
     </>
   );

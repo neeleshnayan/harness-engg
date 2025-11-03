@@ -24,6 +24,7 @@ interface MAVCModalProps {
   mavcPrice?: string | null;
   walletAddress?: string;
   tokenAddress?: string;
+  tokenSymbol?: string;
 }
 
 const MAVCModal: React.FC<MAVCModalProps> = ({
@@ -40,6 +41,7 @@ const MAVCModal: React.FC<MAVCModalProps> = ({
   mavcPrice,
   walletAddress,
   tokenAddress,
+  tokenSymbol = 'MAVC',
 }) => {
   const [amount, setAmount] = useState("");
   const [likelihoodResult, setLikelihoodResult] = useState<TransactionLikelihoodResult | null>(null);
@@ -163,7 +165,7 @@ const MAVCModal: React.FC<MAVCModalProps> = ({
             ) : (
               <ArrowUp className="mr-3 text-red-400" />
             )}
-            {isDeposit ? 'Deposit' : 'Withdraw'} MAVC
+            {isDeposit ? 'Deposit' : 'Withdraw'} {tokenSymbol}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -208,14 +210,14 @@ const MAVCModal: React.FC<MAVCModalProps> = ({
               {/* Balance Display */}
               <div className="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4">
                 <div className="text-sm text-zinc-400 mb-1">
-                  {isDeposit ? 'Available USDC' : 'MAVC Balance'}
+                  {isDeposit ? 'Available USDC' : `${tokenSymbol} Balance`}
                 </div>
                 <div className="text-2xl font-bold text-white">
                   {isDeposit
                     ? (Number.isFinite(parseFloat(usdcBalance)) ? parseFloat(usdcBalance).toFixed(2) : '0.00')
                     : (Number.isFinite(parseFloat(mavcBalance)) ? parseFloat(mavcBalance).toFixed(2) : '0.00')}
                   <span className="text-zinc-400 text-lg ml-1">
-                    {isDeposit ? 'USDC' : 'MAVC'}
+                    {isDeposit ? 'USDC' : tokenSymbol}
                   </span>
                 </div>
                 {!isDeposit && mavcPrice && (
@@ -230,7 +232,7 @@ const MAVCModal: React.FC<MAVCModalProps> = ({
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-zinc-200 mb-2">
-                    Amount ({isDeposit ? 'USDC to deposit' : 'MAVC to withdraw'})
+                    Amount ({isDeposit ? 'USDC to deposit' : `${tokenSymbol} to withdraw`})
                   </label>
                   <input
                     type="number"
@@ -310,7 +312,7 @@ const MAVCModal: React.FC<MAVCModalProps> = ({
                       : 'bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white'
                   }`}
                 >
-                  {loading ? "Processing..." : `${isDeposit ? 'Deposit' : 'Withdraw'} MAVC`}
+                  {loading ? "Processing..." : `${isDeposit ? 'Deposit' : 'Withdraw'} ${tokenSymbol}`}
                 </Button>
                 <Button
                   onClick={onClose}
