@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
 import KTTokenBalances from "@/components/wallet/KTTokenBalances";
 import { FaShieldAlt, FaSync, FaPlus } from "react-icons/fa";
+import { getOracleRates } from "@/lib/priceCache";
+import { K_TOKEN_ADDRESSES, K_TOKEN_SYMBOL_LIST } from "@/lib/kTokens";
 
 interface BalanceCardProps {
   balance: any;
@@ -57,6 +59,8 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
 }) => {
   const [localRefreshing, setLocalRefreshing] = useState(false);
   const [isFlickering, setIsFlickering] = useState(false);
+  const [selectedCurrency, setSelectedCurrency] = useState('USD');
+  const [oracleRates, setOracleRates] = useState<{ [key: string]: number }>({});
 
   const showKycSection = accountData?.username && kycStatus !== 'approved' && onKycClick;
   const showBalanceSection = accountData?.username; // Always show balance if username exists
@@ -83,13 +87,132 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
     }
   }, [balanceFlickering]);
 
+  // Fetch oracle rates and convert to map
+  useEffect(() => {
+    const fetchRates = async () => {
+      try {
+        const rates = await getOracleRates();
+        // Convert array to map for easier lookup: { "USD/EUR": 1.16251899, ... }
+        const ratesMap: { [key: string]: number } = {};
+        rates.forEach((rate) => {
+          ratesMap[rate.pair] = rate.rate;
+        });
+        setOracleRates(ratesMap);
+      } catch (error) {
+        console.error('Failed to fetch oracle rates:', error);
+      }
+    };
+    fetchRates();
+    const interval = setInterval(fetchRates, 60000); // Refresh every minute
+    return () => clearInterval(interval);
+  }, []);
+
+  // Calculate total balance in selected currency
+  const calculateTotalBalance = (): number => {
+    if (!balance || !Array.isArray(balance.tokenBalances) || balance.tokenBalances.length === 0) {
+      return 0;
+    }
+
+    let totalInUSD = 0;
+
+    // Get USDC and TRNSK balances (both are in USD)
+    const transakToken = balance.tokenBalances.find(
+      (b: any) => b.token && b.token.symbol === 'TRNSK'
+    );
+    const usdc = balance.tokenBalances.find(
+      (b: any) => b.token && b.token.symbol === 'USDC'
+    );
+    const transakAmount = parseFloat(transakToken?.amount ?? "0");
+    const usdcAmount = parseFloat(usdc?.amount ?? "0");
+    totalInUSD += transakAmount + usdcAmount;
+
+    // Get kToken balances and convert to USD
+    for (const tb of balance.tokenBalances) {
+      const tokenAddress = tb?.token?.tokenAddress?.toLowerCase();
+      const kTokenSymbol = tokenAddress ? K_TOKEN_ADDRESSES[tokenAddress] : undefined;
+
+      if (kTokenSymbol && parseFloat(tb.amount) > 0) {
+        const kTokenAmount = parseFloat(tb.amount || "0");
+        let usdValue = 0;
+
+        if (kTokenSymbol === 'kUSD') {
+          // kUSD is 1:1 with USD
+          usdValue = kTokenAmount;
+        } else {
+          // Get the rate pair for this kToken
+          // kEUR -> "USD/EUR", kGBP -> "USD/GBP", kAED -> "USD/AED"
+          const currency = kTokenSymbol.replace(/^k/, '');
+          const ratePair = `USD/${currency}`;
+          const rate = oracleRates[ratePair];
+
+          if (rate && rate > 0) {
+            // Rate is already in format: USD/EUR = 1.16251899 means 1 EUR = 1.16251899 USD
+            // So to convert kToken to USD: multiply by rate
+            usdValue = kTokenAmount * rate;
+          }
+        }
+
+        totalInUSD += usdValue;
+      }
+    }
+
+    // Convert from USD to selected currency if needed
+    if (selectedCurrency === 'USD') {
+      return totalInUSD;
+    }
+
+    // Get conversion rate from USD to selected currency
+    const ratePair = `USD/${selectedCurrency}`;
+    const rate = oracleRates[ratePair];
+
+    if (rate && rate > 0) {
+      // Rate is USD/Currency, so to convert USD to Currency: divide by rate
+      return totalInUSD / rate;
+    }
+
+    // If rate not available, return USD value
+    return totalInUSD;
+  };
+
+
+  // Get available currencies for dropdown (USD + kToken currencies, excluding kUSD since it's USD)
+  const availableCurrencies = [
+    'USD',
+    ...K_TOKEN_SYMBOL_LIST.filter(s => s !== 'kUSD').map(s => s.replace(/^k/, ''))
+  ];
+  const currencySymbol = selectedCurrency === 'USD' ? '$' : selectedCurrency === 'EUR' ? '€' : selectedCurrency === 'GBP' ? '£' : selectedCurrency === 'AED' ? 'د.إ' : '';
 
   return (
     <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 mb-8 transition-all duration-300 ${localRefreshing ? 'ring-2 ring-green-500/30 ring-opacity-50' : ''} ${className || ''}`}>
         <div className="text-center">
-        <div className="flex items-center justify-center mb-4">
+        <div className="flex items-center justify-center mb-4 relative">
           {USDC_SVG}
           <h3 className="text-2xl font-bold text-white ml-2">Your Balance</h3>
+          {/* Currency Dropdown - Top Right */}
+          {showBalanceSection && isKycApproved && (
+            <div className="absolute top-0 right-0">
+              <select
+                value={selectedCurrency}
+                onChange={(e) => setSelectedCurrency(e.target.value)}
+                className="appearance-none bg-zinc-800/60 hover:bg-zinc-700/80 border border-zinc-700/50 rounded-xl px-4 py-2 pr-8 text-white font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-sm"
+              >
+                {availableCurrencies.map((currency) => (
+                  <option key={currency} value={currency}>
+                    {currency}
+                  </option>
+                ))}
+              </select>
+              <svg
+                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400"
+                width="12"
+                height="12"
+                viewBox="0 0 12 12"
+                fill="none"
+              >
+                <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+          )}
         </div>
 
         {/* Show KYC banner if username is set but KYC not approved */}
@@ -161,17 +284,9 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
               ) : error ? (
                 <span className="text-red-400 text-2xl font-semibold">{error}</span>
               ) : (() => {
-                if (balance && Array.isArray(balance.tokenBalances) && balance.tokenBalances.length > 0) {
-                  const transakToken = balance.tokenBalances.find(
-                    (b: any) => b.token && b.token.symbol === 'TRNSK'
-                  );
-                  const usdc = balance.tokenBalances.find(
-                    (b: any) => b.token && b.token.symbol === 'USDC'
-                  );
-                  const transakAmount = parseFloat(transakToken?.amount ?? "0");
-                  const usdcAmount = parseFloat(usdc?.amount ?? "0");
-                  const total = transakAmount + usdcAmount;
-                  return `\$${total.toFixed(2)}`;
+                const totalBalance = calculateTotalBalance();
+                if (totalBalance > 0) {
+                  return `${currencySymbol}${totalBalance.toFixed(2)}`;
                 }
                 return '-';
               })()}

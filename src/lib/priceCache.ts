@@ -5,9 +5,23 @@ interface CachedPrice {
   timestamp: number; // Unix timestamp in milliseconds
 }
 
+interface OracleRate {
+  pair: string;
+  rate: number;
+  rate_wei: string;
+}
+
+interface CachedOracleRates {
+  rates: OracleRate[];
+  timestamp: number; // Unix timestamp in milliseconds
+}
+
 // In-memory cache for pool prices
 // Key format: "fromToken-toToken" (e.g., "kUSD-kEUR")
 const priceCache: Map<string, CachedPrice> = new Map();
+
+// In-memory cache for oracle rates
+let cachedOracleRates: CachedOracleRates | null = null;
 
 // Cache duration: 1 hour in milliseconds
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
@@ -80,6 +94,49 @@ export async function getPoolPrice(fromToken: string, toToken: string): Promise<
 }
 
 /**
+ * Get oracle rates from cache or API
+ * Returns the latest oracle rates, fetching from API if cache is stale or missing
+ *
+ * @returns Promise resolving to an array of oracle rates
+ */
+export async function getOracleRates(): Promise<OracleRate[]> {
+  // Check if we have valid cached oracle rates
+  if (cachedOracleRates && isCacheValid({ price: 0, timestamp: cachedOracleRates.timestamp })) {
+    return cachedOracleRates.rates;
+  }
+
+  // Fetch fresh oracle rates from API
+  try {
+    const response = await web3Api.get('/pools/oracle/rates');
+    const rates = response?.data?.rates || [];
+
+    // Validate rates structure
+    if (!Array.isArray(rates)) {
+      console.error('Invalid oracle rates format received from API');
+      throw new Error('Invalid oracle rates format');
+    }
+
+    // Update cache with new rates and timestamp
+    cachedOracleRates = {
+      rates,
+      timestamp: Date.now(),
+    };
+
+    return rates;
+  } catch (error) {
+    console.error('Failed to fetch oracle rates:', error);
+
+    // If we have stale cache, return it as fallback
+    if (cachedOracleRates) {
+      console.warn('Using stale cached oracle rates');
+      return cachedOracleRates.rates;
+    }
+
+    throw error;
+  }
+}
+
+/**
  * Clear the entire price cache
  */
 export function clearPriceCache(): void {
@@ -95,15 +152,23 @@ export function clearCachedPrice(fromToken: string, toToken: string): void {
 }
 
 /**
+ * Clear the oracle rates cache
+ */
+export function clearOracleRatesCache(): void {
+  cachedOracleRates = null;
+}
+
+/**
  * Get cache statistics (for debugging)
  */
 export function getCacheStats(): {
   size: number;
   keys: string[];
+  oracleRatesCached: boolean;
 } {
   return {
     size: priceCache.size,
     keys: Array.from(priceCache.keys()),
+    oracleRatesCached: cachedOracleRates !== null,
   };
 }
-
