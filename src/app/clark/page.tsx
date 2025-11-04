@@ -32,6 +32,10 @@ export default function BacktestPage() {
   const [sessionId, setSessionId] = useState<string>('')
   const [userData, setUserData] = useState<any>(null)
   
+  // Cost tracking
+  const [sessionCost, setSessionCost] = useState<number>(0)
+  const [overallCost, setOverallCost] = useState<number>(0)
+  
 
   // Initialize session and user IDs on component mount
   useEffect(() => {
@@ -128,6 +132,11 @@ export default function BacktestPage() {
       })
 
       const data = response.data
+      // Update costs if available
+      if (data.costs) {
+        setSessionCost(data.costs.session_cost || 0)
+        setOverallCost(data.costs.overall_cost || 0)
+      }
       
       const backtestResult = data.data?.backtest_result
       const screenerResult = data.data?.screener_type && data.data.screener_type !== 'economic' ? data.data : undefined
@@ -185,6 +194,12 @@ export default function BacktestPage() {
 
       const data = response.data
       
+      // Update costs if available
+      if (data.costs) {
+        setSessionCost(data.costs.session_cost || 0)
+        setOverallCost(data.costs.overall_cost || 0)
+      }
+      
       const backtestResult2 = data.data?.backtest_result
       const screenerResult2 = data.data?.screener_type && data.data.screener_type !== 'economic' ? data.data : undefined
       const economicResult2 = data.data?.screener_type === 'economic' ? data.data : undefined
@@ -239,6 +254,19 @@ export default function BacktestPage() {
               />
             </div>
             <div className="flex items-center space-x-3">
+              {/* Cost Display */}
+              {(sessionCost > 0 || overallCost > 0) && (
+                <div className="flex items-center space-x-2 text-xs text-zinc-400">
+                  <div className="px-2 py-1 bg-zinc-800/50 rounded-lg">
+                    <span className="text-zinc-300">Session: </span>
+                    <span className="text-green-400">${sessionCost.toFixed(6)}</span>
+                  </div>
+                  <div className="px-2 py-1 bg-zinc-800/50 rounded-lg">
+                    <span className="text-zinc-300">Total: </span>
+                    <span className="text-blue-400">${overallCost.toFixed(6)}</span>
+                  </div>
+                </div>
+              )}
               <div className="relative">
                 <button
                   onClick={() => setShowMenu(!showMenu)}
