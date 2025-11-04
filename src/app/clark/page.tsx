@@ -5,6 +5,10 @@ import { Menu } from 'lucide-react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import agentsApi from '@/lib/agents_api'
 import { useRouter } from 'next/navigation'
+import { getAuth, signOut } from 'firebase/auth'
+import { getFirebaseApp } from '@/lib/firebaseClient'
+import HamburgerMenu from '@/components/wallet/HamburgerMenu'
+import { clearUserContext, addBreadcrumb } from '@/lib/sentry'
 import { ChatMessage } from './types'
 import { categories } from './constants'
 import CategoryTiles from './components/CategoryTiles'
@@ -26,18 +30,31 @@ export default function BacktestPage() {
   // Session management for mem0 integration
   const [userId, setUserId] = useState<string>('')
   const [sessionId, setSessionId] = useState<string>('')
+  const [userData, setUserData] = useState<any>(null)
   
 
   // Initialize session and user IDs on component mount
   useEffect(() => {
-    // Generate or retrieve user ID (persistent across sessions)
-    let storedUserId = localStorage.getItem('clark_user_id')
-    if (!storedUserId) {
-      storedUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      localStorage.setItem('clark_user_id', storedUserId)
+    // Get user data from localStorage (set during login)
+    const storedUserData = localStorage.getItem('userData')
+    if (storedUserData) {
+      try {
+        const parsedData = JSON.parse(storedUserData)
+        setUserData(parsedData)
+        // Use actual user_id from userData, fallback to generated ID if not available
+        const actualUserId = parsedData.user_id
+        setUserId(actualUserId)
+      } catch (error) {
+        console.error('Error parsing user data:', error)
+        // Fallback to generated ID if parsing fails
+        const fallbackUserId = `user_krypton`
+        setUserId(fallbackUserId)
+      }
+    } else {
+      // If no userData exists, generate a temporary ID (for unauthenticated users)
+      const defaultUserId = `user_krypton`
+      setUserId(defaultUserId)
     }
-    setUserId(storedUserId)
-
     // Generate session ID (new for each browser session)
     const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     setSessionId(newSessionId)
@@ -49,6 +66,44 @@ export default function BacktestPage() {
     }
   }, [messages])
 
+  const handleLogout = async () => {
+    try {
+      const app = getFirebaseApp()
+      if (app) {
+        const auth = getAuth(app)
+        await signOut(auth)
+      }
+      localStorage.removeItem('userData')
+      setUserData(null)
+      
+      // Clear Sentry user context on logout
+      clearUserContext()
+      
+      addBreadcrumb('User logged out', 'auth', { user_id: userData?.user_id })
+      
+      router.push('/')
+    } catch (err) {
+      console.error('Error during logout:', err)
+    }
+  }
+
+  const handleCopyAddress = async () => {
+    if (userData?.wallet_address) {
+      try {
+        await navigator.clipboard.writeText(userData.wallet_address)
+        addBreadcrumb('Address copied to clipboard', 'wallet', { address: userData.wallet_address })
+      } catch (err) {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea')
+        textArea.value = userData.wallet_address
+        document.body.appendChild(textArea)
+        textArea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textArea)
+        addBreadcrumb('Address copied to clipboard (fallback)', 'wallet', { address: userData.wallet_address })
+      }
+    }
+  }
 
   const handlePromptClick = async (prompt: string) => {
     setSelectedCategory(null)
@@ -294,6 +349,15 @@ export default function BacktestPage() {
         onSendMessage={handleSendMessage}
         onKeyPress={handleKeyPress}
         onOpenPromptModal={() => setIsPromptModalOpen(true)}
+      />
+
+      {/* Hamburger Menu */}
+      <HamburgerMenu
+        visible={showMenu}
+        onClose={() => setShowMenu(false)}
+        onLogout={handleLogout}
+        accountData={userData}
+        onCopyAddress={handleCopyAddress}
       />
     </div>
   )

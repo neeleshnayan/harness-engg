@@ -1,5 +1,6 @@
 import React from "react";
 import { FaTimes, FaSignOutAlt, FaCopy } from "react-icons/fa";
+import { useRouter } from "next/navigation";
 
 interface HamburgerMenuProps {
   visible: boolean;
@@ -16,6 +17,8 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
   accountData, 
   onCopyAddress 
 }) => {
+  const router = useRouter();
+  
   if (!visible) return null;
   
   const handleBackdropClick = (e: React.MouseEvent) => {
@@ -36,6 +39,12 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
   const handleSignOutClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onLogout();
+  };
+
+  const handleNavigateToClark = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onClose();
+    router.push('/clark');
   };
   
   return (
@@ -70,6 +79,17 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* Navigation Section */}
+          <div className="mb-8">
+            <button
+              onClick={handleNavigateToClark}
+              className="flex items-center justify-center w-full text-cyan-400 hover:text-cyan-300 hover:bg-cyan-900/20 px-6 py-4 rounded-2xl transition-all duration-200 font-medium border border-cyan-900/30 hover:border-cyan-700/50 mb-4"
+            >
+              <img src="/clark.svg" alt="Clark" className="h-6 w-6 mr-3" />
+              Open Clark AI
+            </button>
           </div>
 
           {/* Sign Out Section */}
