@@ -35,7 +35,6 @@ const MAVCYearnStrategyCard: React.FC<MAVCYearnStrategyCardProps> = ({ onRefresh
   // Yearn-specific metrics
   const [vaultTotalAssets, setVaultTotalAssets] = useState(0);
   const [vaultPricePerShare, setVaultPricePerShare] = useState(1.0);
-  const [strategyAllocation, setStrategyAllocation] = useState({ usdc: 50, wbtc: 50 });
 
   // Strategy metrics for MAVC Yearn
   const strategyMetrics = {
@@ -498,23 +497,6 @@ const MAVCYearnStrategyCard: React.FC<MAVCYearnStrategyCardProps> = ({ onRefresh
                   <Clock className="w-5 h-5 text-zinc-500" />
                   <span className="font-semibold text-white">{strategyMetrics.lockInPeriod}</span>
                   <span className="text-xs text-zinc-500">Lock-in Period</span>
-                </div>
-              </div>
-
-              <Separator className="bg-zinc-700" />
-
-              {/* Strategy Allocation Display */}
-              <div className="space-y-2">
-                <p className="text-xs text-zinc-500">Current Allocation</p>
-                <div className="flex gap-2">
-                  <div className="flex-1 bg-blue-500/20 border border-blue-500/30 rounded-lg p-2 text-center">
-                    <p className="text-xs text-blue-300">USDC</p>
-                    <p className="font-semibold text-white">{strategyAllocation.usdc}%</p>
-                  </div>
-                  <div className="flex-1 bg-orange-500/20 border border-orange-500/30 rounded-lg p-2 text-center">
-                    <p className="text-xs text-orange-300">BTC</p>
-                    <p className="font-semibold text-white">{strategyAllocation.wbtc}%</p>
-                  </div>
                 </div>
               </div>
             </div>

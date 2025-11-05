@@ -13,6 +13,10 @@ import {
   MAVPPriceUpdated as MAVPPriceUpdatedEvent,
 } from '../generated/MAVP/MAVP';
 import {
+  Deposit as MAVCYearnDepositEvent,
+  Withdraw as MAVCYearnWithdrawEvent,
+} from '../generated/MAVCYearnStrategyUSDCWETH/MAVCYearnStrategyUSDCWETH';
+import {
   Deposit,
   Withdrawal,
   AssetSwapIn,
@@ -26,11 +30,13 @@ import {
   MAVCPriceCurrent,
   MAVPPriceUpdate,
   MAVPPriceCurrent,
+  MAVCYearnVaultMetric,
 } from '../generated/schema';
 
 const VAULT_METRIC_ID = 'vault';
 const MAVC_VAULT_METRIC_ID = 'mavc-vault';
 const MAVP_VAULT_METRIC_ID = 'mavp-vault';
+const MAVC_YEARN_VAULT_METRIC_ID = 'mavc-yearn-vault';
 const USDC_DECIMALS = 6;
 const SHARE_DECIMALS = 18;
 const PRICE_DECIMALS = 8;
@@ -103,6 +109,22 @@ function getMAVPMetric(): MAVPVaultMetric {
     metric.save();
   }
   return metric as MAVPVaultMetric;
+}
+
+function getMAVCYearnMetric(): MAVCYearnVaultMetric {
+  let metric = MAVCYearnVaultMetric.load(MAVC_YEARN_VAULT_METRIC_ID);
+  if (!metric) {
+    metric = new MAVCYearnVaultMetric(MAVC_YEARN_VAULT_METRIC_ID);
+    metric.totalDeposits = ZERO_BD;
+    metric.totalWithdrawals = ZERO_BD;
+    metric.mintedShares = ZERO_BD;
+    metric.burnedShares = ZERO_BD;
+    metric.uniqueDepositors = 0;
+    metric.uniqueWithdrawers = 0;
+    metric.lastUpdated = ZERO_BI;
+    metric.save();
+  }
+  return metric as MAVCYearnVaultMetric;
 }
 
 function trackParticipant(id: string, role: string, vault: string): bool {
@@ -337,4 +359,67 @@ export function handleMAVPPriceUpdated(event: MAVPPriceUpdatedEvent): void {
   currentPrice.lastUpdate = event.block.timestamp;
   currentPrice.updateCount += 1;
   currentPrice.save();
+}
+
+export function handleMAVCYearnDeposit(event: MAVCYearnDepositEvent): void {
+  const metric = getMAVCYearnMetric();
+
+  const assets = bigDecimalFromBigInt(event.params.assets, USDC_DECIMALS);
+  const shares = bigDecimalFromBigInt(event.params.shares, SHARE_DECIMALS);
+
+  const entity = new Deposit(event.transaction.hash
+    .toHex()
+    .concat('-MAVC-YEARN-')
+    .concat(event.logIndex.toString()));
+
+  entity.txHash = event.transaction.hash;
+  entity.sender = event.params.caller;
+  entity.owner = event.params.owner;
+  entity.assets = assets;
+  entity.shares = shares;
+  entity.timestamp = event.block.timestamp;
+  entity.save();
+
+  metric.totalDeposits = metric.totalDeposits.plus(assets);
+  metric.mintedShares = metric.mintedShares.plus(shares);
+
+  const isNewDepositor = trackParticipant(event.params.owner.toHexString(), DEPOSIT_ROLE, 'MAVC-YEARN');
+  if (isNewDepositor) {
+    metric.uniqueDepositors += 1;
+  }
+
+  metric.lastUpdated = event.block.timestamp;
+  metric.save();
+}
+
+export function handleMAVCYearnWithdraw(event: MAVCYearnWithdrawEvent): void {
+  const metric = getMAVCYearnMetric();
+
+  const assets = bigDecimalFromBigInt(event.params.assets, USDC_DECIMALS);
+  const shares = bigDecimalFromBigInt(event.params.shares, SHARE_DECIMALS);
+
+  const entity = new Withdrawal(event.transaction.hash
+    .toHex()
+    .concat('-MAVC-YEARN-')
+    .concat(event.logIndex.toString()));
+
+  entity.txHash = event.transaction.hash;
+  entity.sender = event.params.caller;
+  entity.receiver = event.params.receiver;
+  entity.owner = event.params.owner;
+  entity.assets = assets;
+  entity.shares = shares;
+  entity.timestamp = event.block.timestamp;
+  entity.save();
+
+  metric.totalWithdrawals = metric.totalWithdrawals.plus(assets);
+  metric.burnedShares = metric.burnedShares.plus(shares);
+
+  const isNewWithdrawer = trackParticipant(event.params.owner.toHexString(), WITHDRAW_ROLE, 'MAVC-YEARN');
+  if (isNewWithdrawer) {
+    metric.uniqueWithdrawers += 1;
+  }
+
+  metric.lastUpdated = event.block.timestamp;
+  metric.save();
 }

@@ -100,7 +100,7 @@ export const BalanceStatusIndicator: React.FC<BalanceStatusIndicatorProps> = ({
   if (stage === 'idle' || !display) {
     return (
       <div className="flex items-center gap-2 bg-purple-500/20 text-purple-300 px-3 py-1 rounded-lg border border-purple-500/30">
-        <span className="text-sm font-semibold">{balance} {tokenSymbol}</span>
+        <span className="text-sm font-semibold whitespace-nowrap">{balance} {tokenSymbol}</span>
       </div>
     );
   }
@@ -150,12 +150,12 @@ export const BalanceStatusIndicator: React.FC<BalanceStatusIndicatorProps> = ({
         {/* Balance with shimmer effect */}
         {showShimmer && isLoading ? (
           <div className="relative">
-            <span className="text-sm font-semibold text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-white to-purple-300 animate-shimmer">
+            <span className="text-sm font-semibold text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-white to-purple-300 animate-shimmer whitespace-nowrap">
               {balance} {tokenSymbol}
             </span>
           </div>
         ) : (
-          <span className={`text-sm font-semibold ${display.color}`}>
+          <span className={`text-sm font-semibold ${display.color} whitespace-nowrap`}>
             {balance} {tokenSymbol}
           </span>
         )}

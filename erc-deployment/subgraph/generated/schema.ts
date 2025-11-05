@@ -1355,3 +1355,138 @@ export class MAVPPriceCurrent extends Entity {
     this.set("updateCount", Value.fromI32(value));
   }
 }
+
+export class MAVCYearnVaultMetric extends Entity {
+  constructor(id: string) {
+    super();
+    this.set("id", Value.fromString(id));
+  }
+
+  save(): void {
+    let id = this.get("id");
+    assert(id != null, "Cannot save MAVCYearnVaultMetric entity without an ID");
+    if (id) {
+      assert(
+        id.kind == ValueKind.STRING,
+        `Entities of type MAVCYearnVaultMetric must have an ID of type String but the id '${id.displayData()}' is of type ${id.displayKind()}`,
+      );
+      store.set("MAVCYearnVaultMetric", id.toString(), this);
+    }
+  }
+
+  static loadInBlock(id: string): MAVCYearnVaultMetric | null {
+    return changetype<MAVCYearnVaultMetric | null>(
+      store.get_in_block("MAVCYearnVaultMetric", id),
+    );
+  }
+
+  static load(id: string): MAVCYearnVaultMetric | null {
+    return changetype<MAVCYearnVaultMetric | null>(
+      store.get("MAVCYearnVaultMetric", id),
+    );
+  }
+
+  get id(): string {
+    let value = this.get("id");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toString();
+    }
+  }
+
+  set id(value: string) {
+    this.set("id", Value.fromString(value));
+  }
+
+  get totalDeposits(): BigDecimal {
+    let value = this.get("totalDeposits");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBigDecimal();
+    }
+  }
+
+  set totalDeposits(value: BigDecimal) {
+    this.set("totalDeposits", Value.fromBigDecimal(value));
+  }
+
+  get totalWithdrawals(): BigDecimal {
+    let value = this.get("totalWithdrawals");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBigDecimal();
+    }
+  }
+
+  set totalWithdrawals(value: BigDecimal) {
+    this.set("totalWithdrawals", Value.fromBigDecimal(value));
+  }
+
+  get mintedShares(): BigDecimal {
+    let value = this.get("mintedShares");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBigDecimal();
+    }
+  }
+
+  set mintedShares(value: BigDecimal) {
+    this.set("mintedShares", Value.fromBigDecimal(value));
+  }
+
+  get burnedShares(): BigDecimal {
+    let value = this.get("burnedShares");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBigDecimal();
+    }
+  }
+
+  set burnedShares(value: BigDecimal) {
+    this.set("burnedShares", Value.fromBigDecimal(value));
+  }
+
+  get uniqueDepositors(): i32 {
+    let value = this.get("uniqueDepositors");
+    if (!value || value.kind == ValueKind.NULL) {
+      return 0;
+    } else {
+      return value.toI32();
+    }
+  }
+
+  set uniqueDepositors(value: i32) {
+    this.set("uniqueDepositors", Value.fromI32(value));
+  }
+
+  get uniqueWithdrawers(): i32 {
+    let value = this.get("uniqueWithdrawers");
+    if (!value || value.kind == ValueKind.NULL) {
+      return 0;
+    } else {
+      return value.toI32();
+    }
+  }
+
+  set uniqueWithdrawers(value: i32) {
+    this.set("uniqueWithdrawers", Value.fromI32(value));
+  }
+
+  get lastUpdated(): BigInt {
+    let value = this.get("lastUpdated");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set lastUpdated(value: BigInt) {
+    this.set("lastUpdated", Value.fromBigInt(value));
+  }
+}

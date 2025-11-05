@@ -105,7 +105,9 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
 
           try {
             const mavpResponse = await api.get(`/api/v1/mavp/balance/${parsedData.wallet_address}`);
-            setMavpBalance(mavpResponse.data.balance || "0");
+            const rawBalance = mavpResponse.data.balance || "0";
+            const humanReadable = parseFloat(rawBalance) / 1e18;
+            setMavpBalance(humanReadable.toString());
           } catch (err) {
             console.warn('MAVP balance not available:', err);
             setMavpBalance("0");
@@ -217,7 +219,8 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
           // Fetch updated balance
           try {
             const mavpResponse = await api.get(`/api/v1/mavp/balance/${parsedData.wallet_address}`);
-            const currentMAVPBalance = parseFloat(mavpResponse.data.balance || "0");
+            const rawBalance = mavpResponse.data.balance || "0";
+            const currentMAVPBalance = parseFloat(rawBalance) / 1e18;
             
             console.log(`🔍 Attempt ${attempts + 1}: MAVP Balance = ${currentMAVPBalance} (initial: ${initialMAVPBalance})`);
 
@@ -330,13 +333,17 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
         user_id: parsedData.user_id
       };
 
+      console.log('📤 MAVP Withdraw Payload:', payload);
+
       // Capture initial balance before transaction
       const initialMAVPBalance = parseFloat(mavpBalance);
       const initialUSDCBalance = parseFloat(usdcBalance);
       console.log('💰 Initial MAVP Balance:', initialMAVPBalance);
       console.log('💵 Initial USDC Balance:', initialUSDCBalance);
 
+      console.log('🌐 Calling POST /api/v1/mavp/withdraw...');
       const response = await api.post('/api/v1/mavp/withdraw', payload);
+      console.log('✅ API Response received:', response.data);
 
       if (response.data.status === 'success') {
         console.log('✅ Withdrawal transaction created');
@@ -414,11 +421,36 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
       }
     } catch (err: any) {
       console.error('❌ MAVP Withdraw Error:', err);
-      const errorMsg = err.response?.data?.detail
-        ? (typeof err.response.data.detail === 'string'
-          ? err.response.data.detail
-          : JSON.stringify(err.response.data.detail))
-        : err.message || 'Failed to withdraw from MAVP vault';
+      console.error('❌ Error Details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        config: err.config
+      });
+      
+      let errorMsg = 'Failed to withdraw from MAVP vault';
+      
+      if (err.response) {
+        if (err.response.data?.detail) {
+          errorMsg = typeof err.response.data.detail === 'string'
+            ? err.response.data.detail
+            : JSON.stringify(err.response.data.detail);
+        } else if (err.response.data?.message) {
+          errorMsg = err.response.data.message;
+        } else if (err.response.status === 404) {
+          errorMsg = 'Withdrawal endpoint not found. Please check backend connection.';
+        } else if (err.response.status === 500) {
+          errorMsg = `Server error: ${err.response.data?.detail || err.response.statusText}`;
+        } else {
+          errorMsg = `Request failed: ${err.response.status} ${err.response.statusText}`;
+        }
+      } else if (err.request) {
+        errorMsg = 'No response from server. Please check backend connection.';
+      } else {
+        errorMsg = err.message || 'Failed to withdraw from MAVP vault';
+      }
+      
       setTransactionError(errorMsg);
       setTransactionStage('error');
 
@@ -466,7 +498,7 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
 
   const formatBalance = (balance: string): string => {
     try {
-      const numBalance = parseFloat(balance) / 1e18;
+      const numBalance = parseFloat(balance);
       if (isNaN(numBalance) || numBalance === 0) return '0';
       if (numBalance < 0.01) return numBalance.toFixed(4);
       if (numBalance < 1) return numBalance.toFixed(3);
@@ -492,13 +524,14 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
                 type={transactionType}
                 balance={formatBalance(mavpBalance)}
                 tokenSymbol="MAVP"
+                error={transactionError}
               />
               {priceLoading ? (
                 <span className="text-xs text-zinc-500">Loading price...</span>
               ) : priceError ? (
                 <span className="text-xs text-red-400">Price unavailable</span>
               ) : mavpPriceInUSDC ? (
-                <span className="text-xs text-green-400 font-medium">
+                <span className="text-xs text-green-400 font-medium whitespace-nowrap">
                   1 MAVP = ${mavpPriceInUSDC}
                 </span>
               ) : null}

@@ -110,3 +110,14 @@ type MAVPPriceCurrent @entity(immutable: false) {
   lastUpdate: BigInt!
   updateCount: Int!
 }
+
+type MAVCYearnVaultMetric @entity(immutable: false) {
+  id: ID!
+  totalDeposits: BigDecimal!
+  totalWithdrawals: BigDecimal!
+  mintedShares: BigDecimal!
+  burnedShares: BigDecimal!
+  uniqueDepositors: Int!
+  uniqueWithdrawers: Int!
+  lastUpdated: BigInt!
+}

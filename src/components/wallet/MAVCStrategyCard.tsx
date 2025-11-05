@@ -31,7 +31,29 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
   );
 
   // Fetch subgraph data to get net MAVC supply
-  const { data: subgraphData } = useSubgraphData(mavcConfig?.subgraph_url);
+  const { data: subgraphData, isLoading: subgraphLoading, error: subgraphError } = useSubgraphData(mavcConfig?.subgraph_url);
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('🔍 MAVC Subgraph Debug:', {
+      subgraphUrl: mavcConfig?.subgraph_url,
+      subgraphLoading,
+      subgraphError: subgraphError?.message,
+      hasData: !!subgraphData,
+      mavcvaultMetric: subgraphData?.mavcvaultMetric,
+    });
+    if (subgraphData) {
+      console.log('✅ MAVC Subgraph Data:', {
+        uniqueDepositors: subgraphData.mavcvaultMetric?.uniqueDepositors,
+        mintedShares: subgraphData.mavcvaultMetric?.mintedShares,
+        burnedShares: subgraphData.mavcvaultMetric?.burnedShares,
+        totalDeposits: subgraphData.mavcvaultMetric?.totalDeposits,
+      });
+    }
+    if (subgraphError) {
+      console.error('❌ MAVC Subgraph Error:', subgraphError);
+    }
+  }, [subgraphData, subgraphError, subgraphLoading, mavcConfig?.subgraph_url]);
 
   const [mavcBalance, setMavcBalance] = useState("0");
   const [usdcBalance, setUsdcBalance] = useState("0");
@@ -46,9 +68,9 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
 
   // Calculate net MAVC supply (minted - burned)
   const netMAVCSupply = useMemo(() => {
-    if (!subgraphData?.vaultMetric) return 0;
-    const minted = Number(subgraphData.vaultMetric.mintedShares ?? '0');
-    const burned = Number(subgraphData.vaultMetric.burnedShares ?? '0');
+    if (!subgraphData?.mavcvaultMetric) return 0;
+    const minted = Number(subgraphData.mavcvaultMetric.mintedShares ?? '0');
+    const burned = Number(subgraphData.mavcvaultMetric.burnedShares ?? '0');
     return minted - burned;
   }, [subgraphData]);
 
@@ -71,7 +93,7 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
   }, [netMAVCSupply, mavcPriceData, mavcConfig?.aum]);
 
   // Get unique depositors from subgraph data
-  const uniqueDepositors = subgraphData?.vaultMetric?.uniqueDepositors ?? mavcConfig?.participants ?? 121;
+  const uniqueDepositors = subgraphData?.mavcvaultMetric?.uniqueDepositors ?? mavcConfig?.participants ?? 121;
 
   // Fetch strategy metrics from database via mavcConfig
   const strategyMetrics = {
@@ -560,7 +582,7 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
               ) : priceError ? (
                 <span className="text-xs text-red-400">Price unavailable</span>
               ) : mavcPriceInUSDC ? (
-                <span className="text-xs text-green-400 font-medium">
+                <span className="text-xs text-green-400 font-medium whitespace-nowrap">
                   1 MAVC = ${mavcPriceInUSDC}
                 </span>
               ) : null}

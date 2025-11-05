@@ -67,3 +67,27 @@ dataSources:
         - event: MAVPPriceUpdated(uint256,uint256)
           handler: handleMAVPPriceUpdated
       file: ./src/mapping.ts
+  - kind: ethereum/contract
+    name: MAVCYearnStrategyUSDCWETH
+    network: sepolia
+    source:
+      address: "0xE3cb802600f59b45d9e991bD9cd154ECE87A0217"
+      abi: MAVCYearnStrategyUSDCWETH
+      startBlock: 9562500
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - MAVCYearnVaultMetric
+        - Deposit
+        - Withdrawal
+      abis:
+        - name: MAVCYearnStrategyUSDCWETH
+          file: ./abis/MAVCYearnStrategyUSDCWETH.json
+      eventHandlers:
+        - event: Deposit(indexed address,indexed address,uint256,uint256)
+          handler: handleMAVCYearnDeposit
+        - event: Withdraw(indexed address,indexed address,indexed address,uint256,uint256)
+          handler: handleMAVCYearnWithdraw
+      file: ./src/mapping.ts

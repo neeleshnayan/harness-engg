@@ -38,9 +38,9 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
 
   // Calculate net MAVC supply (minted - burned)
   const netMAVCSupply = useMemo(() => {
-    if (!subgraphData?.vaultMetric) return 0;
-    const minted = Number(subgraphData.vaultMetric.mintedShares ?? '0');
-    const burned = Number(subgraphData.vaultMetric.burnedShares ?? '0');
+    if (!subgraphData?.mavcvaultMetric) return 0;
+    const minted = Number(subgraphData.mavcvaultMetric.mintedShares ?? '0');
+    const burned = Number(subgraphData.mavcvaultMetric.burnedShares ?? '0');
     return minted - burned;
   }, [subgraphData]);
 
@@ -63,7 +63,7 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
   }, [netMAVCSupply, mavcPriceData, mavcConfig?.aum]);
 
   // Get unique depositors from subgraph data
-  const uniqueDepositors = subgraphData?.vaultMetric?.uniqueDepositors ?? mavcConfig?.participants ?? 121;
+  const uniqueDepositors = subgraphData?.mavcvaultMetric?.uniqueDepositors ?? mavcConfig?.participants ?? 121;
 
   // Fetch strategy metrics from database via mavcConfig
   const strategyMetrics = {
