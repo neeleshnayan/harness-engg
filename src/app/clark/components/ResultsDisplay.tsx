@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { DollarSign, TrendingUp, BarChart3, TrendingDown } from 'lucide-react'
+import { DollarSign, TrendingUp, BarChart3, TrendingDown, ChevronDown, ChevronUp } from 'lucide-react'
 import { Loader2, Info, User } from 'lucide-react'
 import { ChatMessage, BacktestResult, ScreenerResult, EconomicResult, NewsData, CalendarData, EconomicData } from '../types'
 import { formatCurrency, formatPercentage, formatDate, formatNumber } from '../utils'
@@ -17,6 +17,7 @@ interface ResultsDisplayProps {
 
 export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayProps) {
   const [revealedAssistantIds, setRevealedAssistantIds] = useState<Set<string>>(new Set())
+  const [expandedTradeTables, setExpandedTradeTables] = useState<Set<string>>(new Set())
   const hasAnyContent = messages.length > 0
   if (!hasAnyContent) return null
 
@@ -337,6 +338,155 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
           </div>
         )}
 
+        {/* Trade Statistics Cards - Show if trades exist */}
+        {backtestResult.metrics.total_trades !== null && backtestResult.metrics.total_trades !== undefined && backtestResult.metrics.total_trades > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 w-full">
+            <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-3">
+                  <BarChart3 className="h-5 w-5 text-blue-400" />
+                  <div>
+                    <p className="text-xs font-medium text-zinc-400">Total Trades</p>
+                    <p className="text-xl font-bold text-white">{backtestResult.metrics.total_trades}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-3">
+                  <TrendingUp className="h-5 w-5 text-green-400" />
+                  <div>
+                    <p className="text-xs font-medium text-zinc-400">Winning Trades</p>
+                    <p className="text-xl font-bold text-green-400">
+                      {backtestResult.metrics.winning_trades ?? 0}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-3">
+                  <TrendingDown className="h-5 w-5 text-red-400" />
+                  <div>
+                    <p className="text-xs font-medium text-zinc-400">Losing Trades</p>
+                    <p className="text-xl font-bold text-red-400">
+                      {backtestResult.metrics.losing_trades ?? 0}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-3">
+                  <DollarSign className="h-5 w-5 text-purple-400" />
+                  <div>
+                    <p className="text-xs font-medium text-zinc-400">Avg Trade Return</p>
+                    <p className={`text-xl font-bold ${
+                      (backtestResult.metrics.avg_trade_return ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                    }`}>
+                      {backtestResult.metrics.avg_trade_return !== null && backtestResult.metrics.avg_trade_return !== undefined
+                        ? formatCurrency(backtestResult.metrics.avg_trade_return)
+                        : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Trades Table - Show if trades exist */}
+        {backtestResult.trades && backtestResult.trades.length > 0 && (() => {
+          const tableId = `trades-${message.id}`
+          const isExpanded = expandedTradeTables.has(tableId)
+          return (
+            <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg text-white">Trade History</CardTitle>
+                    <CardDescription className="text-zinc-400">
+                      {backtestResult.trades.length} {backtestResult.trades.length === 1 ? 'trade' : 'trades'} executed during backtest
+                    </CardDescription>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setExpandedTradeTables(prev => {
+                        const next = new Set(prev)
+                        if (isExpanded) {
+                          next.delete(tableId)
+                        } else {
+                          next.add(tableId)
+                        }
+                        return next
+                      })
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-400 hover:text-white transition-colors rounded-lg hover:bg-zinc-700/50"
+                    aria-label={isExpanded ? 'Collapse trades table' : 'Expand trades table'}
+                  >
+                    <span>{isExpanded ? 'Hide' : 'Show'} Details</span>
+                    {isExpanded ? (
+                      <ChevronUp className="h-4 w-4" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </CardHeader>
+              {isExpanded && (
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-zinc-700">
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">#</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Entry Date</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Exit Date</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Entry Price</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Exit Price</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Size</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">P&L</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Return %</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Duration</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {backtestResult.trades.map((trade) => (
+                          <tr key={trade.trade_number} className="border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors">
+                            <td className="py-3 px-4 text-sm text-zinc-300">{trade.trade_number}</td>
+                            <td className="py-3 px-4 text-sm text-zinc-300">{formatDate(trade.entry_date)}</td>
+                            <td className="py-3 px-4 text-sm text-zinc-300">{formatDate(trade.exit_date)}</td>
+                            <td className="py-3 px-4 text-sm text-right text-white">{formatCurrency(trade.entry_price)}</td>
+                            <td className="py-3 px-4 text-sm text-right text-white">{formatCurrency(trade.exit_price)}</td>
+                            <td className="py-3 px-4 text-sm text-right text-zinc-300">{formatNumber(trade.size)}</td>
+                            <td className={`py-3 px-4 text-sm text-right font-medium ${
+                              trade.pnl >= 0 ? 'text-green-400' : 'text-red-400'
+                            }`}>
+                              {trade.pnl >= 0 ? '+' : ''}{formatCurrency(trade.pnl)}
+                            </td>
+                            <td className={`py-3 px-4 text-sm text-right font-medium ${
+                              trade.return_pct >= 0 ? 'text-green-400' : 'text-red-400'
+                            }`}>
+                              {trade.return_pct >= 0 ? '+' : ''}{formatPercentage(trade.return_pct)}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-right text-zinc-300">{trade.duration_days} {trade.duration_days === 1 ? 'day' : 'days'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+          )
+        })()}
+        
         {backtestResult.show_performance_stats && (
           <PortfolioChart 
             dataPoints={backtestResult.data_points}

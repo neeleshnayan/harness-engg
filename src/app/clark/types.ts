@@ -16,6 +16,10 @@ export interface BacktestMetrics {
   win_rate: number
   best_month: number
   worst_month: number
+  total_trades?: number | null
+  winning_trades?: number | null
+  losing_trades?: number | null
+  avg_trade_return?: number | null
 }
 
 export interface BacktestAllocation {
@@ -23,6 +27,19 @@ export interface BacktestAllocation {
   allocation_percentage: number
   final_value: number
   total_return: number
+}
+
+export interface BacktestTrade {
+  trade_number: number
+  entry_date: string
+  exit_date: string
+  entry_price: number
+  exit_price: number
+  size: number
+  pnl: number
+  return_pct: number
+  duration_days: number
+  is_win: boolean
 }
 
 export interface TechnicalIndicators {
@@ -63,6 +80,7 @@ export interface BacktestResult {
   technical_indicators_requested: string[]
   target_assets: string[]
   show_performance_stats: boolean
+  trades: BacktestTrade[]
 }
 
 export interface ScreenerResult {
