@@ -1,0 +1,112 @@
+type VaultMetric @entity(immutable: false) {
+  id: ID!
+  totalDeposits: BigDecimal!
+  totalWithdrawals: BigDecimal!
+  mintedShares: BigDecimal!
+  burnedShares: BigDecimal!
+  uniqueDepositors: Int!
+  uniqueWithdrawers: Int!
+  lastUpdated: BigInt!
+}
+
+type MAVCVaultMetric @entity(immutable: false) {
+  id: ID!
+  totalDeposits: BigDecimal!
+  totalWithdrawals: BigDecimal!
+  mintedShares: BigDecimal!
+  burnedShares: BigDecimal!
+  uniqueDepositors: Int!
+  uniqueWithdrawers: Int!
+  lastUpdated: BigInt!
+}
+
+type MAVPVaultMetric @entity(immutable: false) {
+  id: ID!
+  totalDeposits: BigDecimal!
+  totalWithdrawals: BigDecimal!
+  mintedShares: BigDecimal!
+  burnedShares: BigDecimal!
+  uniqueDepositors: Int!
+  uniqueWithdrawers: Int!
+  lastUpdated: BigInt!
+}
+
+type Participant @entity(immutable: true) {
+  id: ID!
+  role: String!
+}
+
+type Deposit @entity(immutable: true) {
+  id: ID!
+  txHash: Bytes!
+  sender: Bytes!
+  owner: Bytes!
+  assets: BigDecimal!
+  shares: BigDecimal!
+  timestamp: BigInt!
+}
+
+type Withdrawal @entity(immutable: true) {
+  id: ID!
+  txHash: Bytes!
+  sender: Bytes!
+  receiver: Bytes!
+  owner: Bytes!
+  assets: BigDecimal!
+  shares: BigDecimal!
+  timestamp: BigInt!
+}
+
+type AssetSwapIn @entity(immutable: true) {
+  id: ID!
+  txHash: Bytes!
+  token: Bytes!
+  usdcAmountIn: BigDecimal!
+  tokenAmountOut: BigDecimal!
+  timestamp: BigInt!
+}
+
+type AssetSwapOut @entity(immutable: true) {
+  id: ID!
+  txHash: Bytes!
+  token: Bytes!
+  tokenAmountIn: BigDecimal!
+  usdcAmountOut: BigDecimal!
+  timestamp: BigInt!
+}
+
+type AllocationInitialized @entity(immutable: true) {
+  id: ID!
+  txHash: Bytes!
+  token: Bytes!
+  allocationBps: BigInt!
+  timestamp: BigInt!
+}
+
+type MAVCPriceUpdate @entity(immutable: true) {
+  id: ID!
+  txHash: Bytes!
+  price: BigDecimal!
+  timestamp: BigInt!
+}
+
+type MAVCPriceCurrent @entity(immutable: false) {
+  id: ID!
+  price: BigDecimal!
+  lastUpdate: BigInt!
+  updateCount: Int!
+}
+
+type MAVPPriceUpdate @entity(immutable: true) {
+  id: ID!
+  txHash: Bytes!
+  price: BigDecimal!
+  timestamp: BigInt!
+}
+
+type MAVPPriceCurrent @entity(immutable: false) {
+  id: ID!
+  price: BigDecimal!
+  lastUpdate: BigInt!
+  updateCount: Int!
+}

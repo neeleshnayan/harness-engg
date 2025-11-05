@@ -1,0 +1,21 @@
+# Foundry
+out/
+cache/
+broadcast/
+
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+drawio-mcp-server/
+
+subgraph/node_modules/
