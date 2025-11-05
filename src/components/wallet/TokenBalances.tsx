@@ -4,7 +4,10 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import api from "@/lib/api";
 import { useMAVCConfig } from "@/hooks/useMAVCConfig";
 import { useMAVCPrice } from "@/hooks/useMAVCPrice";
+import { useMAVPPrice } from "@/hooks/useMAVPPrice";
+import { useMAVPConfig } from "@/hooks/useMAVPConfig";
 import { MAVCMiniChart } from "./MAVCMiniChart";
+import { MAVPMiniChart } from "./MAVPMiniChart";
 
 interface TokenBalance {
   token: {
@@ -42,6 +45,8 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
 }) => {
   const { data: mavcConfig } = useMAVCConfig();
   const { data: mavcPriceData } = useMAVCPrice(subgraphUrl || mavcConfig?.subgraph_url);
+  const { data: mavpConfig } = useMAVPConfig();
+  const { data: mavpPriceData } = useMAVPPrice(mavpConfig?.subgraph_url);
   const [tokenDetails, setTokenDetails] = useState<TokenWithValue[]>([]);
   const [priceLoading, setPriceLoading] = useState(false);
   const [totalValue, setTotalValue] = useState<number>(0);
@@ -151,6 +156,11 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
           tokenPrice = Number(mavcPriceData.price);
           console.log('Using MAVC price from subgraph:', tokenPrice);
         }
+        // Special case for MAVP - use subgraph price
+        else if (token.symbol === 'MAVP' && mavpPriceData?.price) {
+          tokenPrice = Number(mavpPriceData.price);
+          console.log('Using MAVP price from subgraph:', tokenPrice);
+        }
         // If token has an address, query the Firebase price endpoint
         else if (token.tokenAddress) {
           try {
@@ -219,6 +229,16 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
             amount: humanReadable.toString()
           };
         }
+        // MAVP uses 12 decimals (10^12) - convert to human-readable format
+        if (balance.token.symbol === 'MAVP') {
+          const rawAmount = parseFloat(balance.amount || "0");
+          const humanReadable = rawAmount / Math.pow(10, 12);
+
+          return {
+            ...balance,
+            amount: humanReadable.toString()
+          };
+        }
         return balance;
       });
   };
@@ -242,7 +262,7 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
     if (tokenBalances.length > 0) {
       calculateTokenValues(tokenBalances);
     }
-  }, [balance, mavcPriceData]);
+  }, [balance, mavcPriceData, mavpPriceData]);
 
   const tokenBalances = getTokenBalances();
 
@@ -342,7 +362,7 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
                     </div>
                   </div>
                   <div className="text-right">
-                    {tokenDetail.token.symbol === 'MAVC' ? (
+                    {(tokenDetail.token.symbol === 'MAVC' || tokenDetail.token.symbol === 'MAVP') ? (
                       <>
                         <div className="text-2xl font-bold text-green-400">
                           {formatValue(tokenDetail.value)}
@@ -370,6 +390,14 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
                 {tokenDetail.token.symbol === 'MAVC' && (
                   <MAVCMiniChart
                     subgraphUrl={subgraphUrl || mavcConfig?.subgraph_url}
+                    tokenAddress={tokenDetail.token.tokenAddress}
+                    userBalance={parseFloat(tokenDetail.amount) || 0}
+                  />
+                )}
+                {/* Add mini chart for MAVP tokens */}
+                {tokenDetail.token.symbol === 'MAVP' && (
+                  <MAVPMiniChart
+                    subgraphUrl={mavpConfig?.subgraph_url}
                     tokenAddress={tokenDetail.token.tokenAddress}
                     userBalance={parseFloat(tokenDetail.amount) || 0}
                   />

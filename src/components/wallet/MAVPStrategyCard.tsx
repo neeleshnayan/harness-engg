@@ -354,7 +354,7 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
           // Fetch updated balances
           try {
             const mavpResponse = await api.get(`/api/v1/mavp/balance/${parsedData.wallet_address}`);
-            const currentMAVPBalance = parseFloat(mavpResponse.data.balance || "0") / 1e12;
+            const currentMAVPBalance = parseFloat(mavpResponse.data.balance || "0") / 1e18;
 
             const usdcResponse = await api.get(`/api/v1/wallet_balance/${parsedData.wallet_address}`);
             let currentUSDCBalance = 0;
@@ -466,7 +466,7 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
 
   const formatBalance = (balance: string): string => {
     try {
-      const numBalance = parseFloat(balance) / 1e12;
+      const numBalance = parseFloat(balance) / 1e18;
       if (isNaN(numBalance) || numBalance === 0) return '0';
       if (numBalance < 0.01) return numBalance.toFixed(4);
       if (numBalance < 1) return numBalance.toFixed(3);
