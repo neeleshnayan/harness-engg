@@ -6,8 +6,11 @@ import { useMAVCConfig } from "@/hooks/useMAVCConfig";
 import { useMAVCPrice } from "@/hooks/useMAVCPrice";
 import { useMAVPPrice } from "@/hooks/useMAVPPrice";
 import { useMAVPConfig } from "@/hooks/useMAVPConfig";
+import { useSubgraphData } from "@/hooks/useSubgraphData";
+import { useMAVPSubgraphData } from "@/hooks/useMAVPSubgraphData";
 import { MAVCMiniChart } from "./MAVCMiniChart";
 import { MAVPMiniChart } from "./MAVPMiniChart";
+import { UserDepositChart } from "./UserDepositChart";
 
 interface TokenBalance {
   token: {
@@ -33,6 +36,7 @@ interface TokenBalancesProps {
   className?: string;
   onRefresh?: () => void;
   subgraphUrl?: string;
+  userWalletAddress?: string;
 }
 
 const TokenBalances: React.FC<TokenBalancesProps> = ({
@@ -41,12 +45,15 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
   error = null,
   className = "",
   onRefresh,
-  subgraphUrl
+  subgraphUrl,
+  userWalletAddress
 }) => {
   const { data: mavcConfig } = useMAVCConfig();
   const { data: mavcPriceData } = useMAVCPrice(subgraphUrl || mavcConfig?.subgraph_url);
   const { data: mavpConfig } = useMAVPConfig();
   const { data: mavpPriceData } = useMAVPPrice(mavpConfig?.subgraph_url);
+  const { data: mavcSubgraphData } = useSubgraphData(subgraphUrl || mavcConfig?.subgraph_url);
+  const { data: mavpSubgraphData } = useMAVPSubgraphData(mavpConfig?.subgraph_url);
   const [tokenDetails, setTokenDetails] = useState<TokenWithValue[]>([]);
   const [priceLoading, setPriceLoading] = useState(false);
   const [totalValue, setTotalValue] = useState<number>(0);
@@ -387,19 +394,20 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
                   </div>
                 </div>
                 {/* Add mini chart for MAVC tokens */}
-                {tokenDetail.token.symbol === 'MAVC' && (
-                  <MAVCMiniChart
-                    subgraphUrl={subgraphUrl || mavcConfig?.subgraph_url}
-                    tokenAddress={tokenDetail.token.tokenAddress}
-                    userBalance={parseFloat(tokenDetail.amount) || 0}
+                {tokenDetail.token.symbol === 'MAVC' && mavcSubgraphData && (
+                  <UserDepositChart
+                    deposits={mavcSubgraphData.deposits || []}
+                    withdrawals={mavcSubgraphData.withdrawals || []}
+                    userWalletAddress={userWalletAddress}
+                    tokenSymbol="MAVC"
                   />
                 )}
-                {/* Add mini chart for MAVP tokens */}
-                {tokenDetail.token.symbol === 'MAVP' && (
-                  <MAVPMiniChart
-                    subgraphUrl={mavpConfig?.subgraph_url}
-                    tokenAddress={tokenDetail.token.tokenAddress}
-                    userBalance={parseFloat(tokenDetail.amount) || 0}
+                {tokenDetail.token.symbol === 'MAVP' && mavpSubgraphData && (
+                  <UserDepositChart
+                    deposits={mavpSubgraphData.deposits || []}
+                    withdrawals={mavpSubgraphData.withdrawals || []}
+                    userWalletAddress={userWalletAddress}
+                    tokenSymbol="MAVP"
                   />
                 )}
               </div>

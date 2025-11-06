@@ -61,9 +61,8 @@ const fetchSubgraph = async (subgraphUrl: string): Promise<MetricResult> => {
   const client = new GraphQLClient(subgraphUrl);
   const data = await client.request<MetricResult>(QUERY);
   
-  // Filter deposits and withdrawals to only include MAVP ones (ID contains "-MAVP-")
-  const filteredDeposits = data.deposits.filter(d => d.id.includes('-MAVP-')).slice(0, 5);
-  const filteredWithdrawals = data.withdrawals.filter(w => w.id.includes('-MAVP-')).slice(0, 5);
+  const filteredDeposits = data.deposits.filter(d => d.id.includes('-MAVP-'));
+  const filteredWithdrawals = data.withdrawals.filter(w => w.id.includes('-MAVP-'));
   
   return {
     ...data,

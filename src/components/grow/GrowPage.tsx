@@ -157,6 +157,7 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
             className="mb-8"
             onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
             subgraphUrl={mavcConfig?.subgraph_url}
+            userWalletAddress={accountData?.wallet_address}
           />
         </div>
       </div>
