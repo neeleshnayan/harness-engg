@@ -41,31 +41,37 @@ const getFilterPattern = (strategyName: StrategyName): string => {
   }
 };
 
+type MetricData = {
+  totalDeposits: string;
+  totalWithdrawals: string;
+  mintedShares: string;
+  burnedShares: string;
+  uniqueDepositors: number;
+  uniqueWithdrawers: number;
+  lastUpdated: string;
+};
+
+type Deposit = {
+  id: string;
+  owner: string;
+  assets: string;
+  shares: string;
+  timestamp: string;
+};
+
+type Withdrawal = {
+  id: string;
+  owner: string;
+  receiver: string;
+  assets: string;
+  shares: string;
+  timestamp: string;
+};
+
 type MetricResult = {
-  [key: string]: {
-    totalDeposits: string;
-    totalWithdrawals: string;
-    mintedShares: string;
-    burnedShares: string;
-    uniqueDepositors: number;
-    uniqueWithdrawers: number;
-    lastUpdated: string;
-  } | null;
-  deposits: Array<{
-    id: string;
-    owner: string;
-    assets: string;
-    shares: string;
-    timestamp: string;
-  }>;
-  withdrawals: Array<{
-    id: string;
-    owner: string;
-    receiver: string;
-    assets: string;
-    shares: string;
-    timestamp: string;
-  }>;
+  [key: string]: MetricData | null | Deposit[] | Withdrawal[] | any;
+  deposits: Deposit[];
+  withdrawals: Withdrawal[];
 };
 
 const createQuery = (strategyName: StrategyName) => {
