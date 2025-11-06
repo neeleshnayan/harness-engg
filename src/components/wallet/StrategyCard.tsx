@@ -151,35 +151,29 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh }) 
             console.warn(`Error fetching USDC balance:`, err);
           }
 
-          // Fetch strategy balance from unified API (backend handles decimal conversion)
+          // Fetch strategy balance from unified API (backend returns raw wei)
           try {
             const balanceResponse = await api.get(`/api/v1/strategy/${strategyName}/balance/${parsedData.wallet_address}`);
             console.log(`✅ ${strategyName} Balance Response:`, balanceResponse.data);
             
             if (balanceResponse.data) {
-              let balance = balanceResponse.data.balance || "0";
-              let balanceNum = parseFloat(balance);
+              const balance_wei = balanceResponse.data.balance || "0";
+              const contract_decimals = balanceResponse.data.decimals || 18;
               
-              // Safety checks: if balance seems too large, might be raw wei (edge case)
-              // Backend should handle this, but extra safety for edge cases
-              if (strategyName === 'MAVC' && balanceNum > 1e6) {
-                // MAVC should use 12 decimals (10^12 conversion)
-                console.warn('⚠️ MAVC balance seems too large, applying correction (dividing by 10^12):', balanceNum);
-                balanceNum = balanceNum / 1e12;
-                balance = balanceNum.toString();
-              } else if (strategyName === 'MAVP' && balanceNum > 1e12) {
-                // MAVP should use 18 decimals
-                console.warn('⚠️ MAVP balance seems too large, applying correction (dividing by 10^18):', balanceNum);
-                balanceNum = balanceNum / 1e18;
-                balance = balanceNum.toString();
+              // Frontend display decimals for human-readable format
+              // MAVC: divide by 10^12 to show readable numbers (e.g., 18.19 MAVC)
+              // MAVP: divide by 10^12 to show readable numbers (e.g., 466.49 MAVP)
+              // MAVC_YEARN: divide by 10^18 (use contract decimals)
+              let display_decimals = contract_decimals;
+              if (strategyName === 'MAVC' || strategyName === 'MAVP') {
+                display_decimals = 18; // Display with 12 decimals for readability
               }
               
-              // Backend already returns formatted balance with proper decimals:
-              // - MAVC: display_decimals: 12 (10^12 conversion)
-              // - MAVP: display_decimals: 18 (10^18 conversion)
-              // - MAVC_YEARN: contract decimals (6, no modifier)
+              const balanceNum = parseFloat(balance_wei) / Math.pow(10, display_decimals);
+              const balance = balanceNum.toString();
+              
               setStrategyBalance(balance);
-              console.log(`✅ ${strategyName} Balance (formatted):`, balance);
+              console.log(`✅ ${strategyName} Balance: ${balance} (wei: ${balance_wei}, contract decimals: ${contract_decimals}, display decimals: ${display_decimals})`);
             } else {
               setStrategyBalance("0");
             }
@@ -223,9 +217,14 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh }) 
       const parsedData = JSON.parse(userData);
       if (!parsedData.wallet_address) throw new Error('Wallet address not found');
 
+      // Convert human-readable amount to wei (USDC has 6 decimals)
+      const amountFloat = parseFloat(amount);
+      const amountWei = Math.floor(amountFloat * Math.pow(10, 6)).toString();
+      console.log(`💰 Deposit: ${amount} USDC → ${amountWei} wei`);
+
       // Step 1: Approve
       const approveResponse = await api.post(`/api/v1/strategy/${strategyName}/approve`, {
-        amount,
+        amount: amountWei,  // Send wei amount
         wallet_address: parsedData.wallet_address,
         user_id: parsedData.user_id,
       });
@@ -241,18 +240,55 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh }) 
       await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds for approval
 
       const depositResponse = await api.post(`/api/v1/strategy/${strategyName}/deposit`, {
-        amount,
+        amount: amountWei,  // Send wei amount
         wallet_address: parsedData.wallet_address,
         user_id: parsedData.user_id,
         approve_tx_id: approveTxId,
       });
 
       if (depositResponse.data.status === 'success') {
-        setTransactionStage('success');
-        setTimeout(() => {
-          fetchBalances();
-          if (onRefresh) onRefresh();
-        }, 2000);
+        // Poll blockchain directly for balance update
+        const initialBalance = parseFloat(strategyBalance);
+        let attempts = 0;
+        const maxAttempts = 30; // Poll for up to 60 seconds
+        
+        const pollBalance = async () => {
+          attempts++;
+          
+          try {
+            // Fetch fresh balance directly from blockchain via backend API
+            const balanceResponse = await api.get(`/api/v1/strategy/${strategyName}/balance/${parsedData.wallet_address}`);
+            
+            if (balanceResponse.data) {
+              const balance_wei = balanceResponse.data.balance || "0";
+              const contract_decimals = balanceResponse.data.decimals || 18;
+              
+              let display_decimals = contract_decimals;
+              if (strategyName === 'MAVC' || strategyName === 'MAVP') {
+                display_decimals = 18;
+              }
+              
+              const currentBalance = parseFloat(balance_wei) / Math.pow(10, display_decimals);
+              
+              // Check if balance increased (deposit should increase balance)
+              if (currentBalance > initialBalance || attempts >= maxAttempts) {
+                // Balance updated or timeout reached
+                setStrategyBalance(currentBalance.toString());
+                setTransactionStage('success');
+                if (onRefresh) onRefresh();
+                return;
+              }
+            }
+          } catch (error) {
+            console.error('Balance poll error:', error);
+          }
+          
+          // Keep polling
+          setTimeout(pollBalance, 2000);
+        };
+        
+        // Start polling immediately
+        setTimeout(pollBalance, 2000);
       }
     } catch (err: any) {
       console.error(`❌ ${strategyName} Deposit Error:`, err);
@@ -284,18 +320,62 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh }) 
       const parsedData = JSON.parse(userData);
       if (!parsedData.wallet_address) throw new Error('Wallet address not found');
 
+      // Convert human-readable amount to wei
+      // For withdraw, user enters strategy token amount (MAVC/MAVP/ysMAVC)
+      // Strategy tokens have 18 decimals (contract decimals)
+      const amountFloat = parseFloat(amount);
+      const amountWei = Math.floor(amountFloat * Math.pow(10, 18)).toString();
+      console.log(`💰 Withdraw: ${amount} ${strategyName} → ${amountWei} wei`);
+
       const response = await api.post(`/api/v1/strategy/${strategyName}/withdraw`, {
-        amount,
+        amount: amountWei,  // Send wei amount
         wallet_address: parsedData.wallet_address,
         user_id: parsedData.user_id,
       });
 
       if (response.data.status === 'success') {
-        setTransactionStage('success');
-        setTimeout(() => {
-          fetchBalances();
-          if (onRefresh) onRefresh();
-        }, 2000);
+        // Poll blockchain directly for balance update
+        const initialBalance = parseFloat(strategyBalance);
+        let attempts = 0;
+        const maxAttempts = 30; // Poll for up to 60 seconds
+        
+        const pollBalance = async () => {
+          attempts++;
+          
+          try {
+            // Fetch fresh balance directly from blockchain via backend API
+            const balanceResponse = await api.get(`/api/v1/strategy/${strategyName}/balance/${parsedData.wallet_address}`);
+            
+            if (balanceResponse.data) {
+              const balance_wei = balanceResponse.data.balance || "0";
+              const contract_decimals = balanceResponse.data.decimals || 18;
+              
+              let display_decimals = contract_decimals;
+              if (strategyName === 'MAVC' || strategyName === 'MAVP') {
+                display_decimals = 18;
+              }
+              
+              const currentBalance = parseFloat(balance_wei) / Math.pow(10, display_decimals);
+              
+              // Check if balance decreased (withdraw should decrease balance)
+              if (currentBalance < initialBalance || attempts >= maxAttempts) {
+                // Balance updated or timeout reached
+                setStrategyBalance(currentBalance.toString());
+                setTransactionStage('success');
+                if (onRefresh) onRefresh();
+                return;
+              }
+            }
+          } catch (error) {
+            console.error('Balance poll error:', error);
+          }
+          
+          // Keep polling
+          setTimeout(pollBalance, 2000);
+        };
+        
+        // Start polling immediately
+        setTimeout(pollBalance, 2000);
       }
     } catch (err: any) {
       console.error(`❌ ${strategyName} Withdraw Error:`, err);
