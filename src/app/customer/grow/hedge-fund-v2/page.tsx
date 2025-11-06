@@ -5,9 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle, AlertCircle } from "lucide-react";
 import api from "@/lib/api";
 import HedgeFundDashboard from "@/components/HedgeFundDashboard";
-import MAVCStrategyCard from "@/components/wallet/MAVCStrategyCard";
-import MAVPStrategyCard from "@/components/wallet/MAVPStrategyCard";
-import MAVCYearnStrategyCard from "@/components/wallet/MAVCYearnStrategyCard";
+import StrategyCard from "@/components/wallet/StrategyCard";
 import TokenBalances from "@/components/wallet/TokenBalances";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -262,13 +260,16 @@ export default function HedgeFundV2Page() {
         <div className="w-full max-w-6xl mx-auto mb-12">
           <h2 className="text-2xl font-bold text-white mb-6">Available Strategies</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <MAVCStrategyCard
+            <StrategyCard
+              strategyName="MAVC"
               onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
             />
-            <MAVPStrategyCard
+            <StrategyCard
+              strategyName="MAVP"
               onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
             />
-            <MAVCYearnStrategyCard
+            <StrategyCard
+              strategyName="MAVC_YEARN"
               onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
             />
           </div>
