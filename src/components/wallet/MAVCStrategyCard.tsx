@@ -246,7 +246,7 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
       console.log('💵 Initial USDC Balance:', initialUSDCBalance);
 
       console.log('🔍 STEP 1: Calling approve endpoint...');
-      const approveResponse = await api.post('/api/v1/mavc/approve', payload);
+      const approveResponse = await api.post('/api/v1/strategy/MAVC/approve', payload);
 
       if (approveResponse.data.status !== 'success') {
         throw new Error('USDC approval failed');
@@ -269,7 +269,7 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
         approve_tx_id: approveTxId  // Required: backend will wait for this to be confirmed
       };
 
-      const response = await api.post('/api/v1/mavc/deposit', depositPayload);
+      const response = await api.post('/api/v1/strategy/MAVC/deposit', depositPayload);
 
       if (response.data.status === 'success') {
         console.log('✅ Deposit transaction created');
@@ -419,7 +419,7 @@ const MAVCStrategyCard: React.FC<MAVCStrategyCardProps> = ({ onRefresh }) => {
       console.log('💰 Initial MAVC Balance:', initialMAVCBalance);
       console.log('💵 Initial USDC Balance:', initialUSDCBalance);
 
-      const response = await api.post('/api/v1/mavc/withdraw', payload);
+      const response = await api.post('/api/v1/strategy/MAVC/withdraw', payload);
 
       if (response.data.status === 'success') {
         console.log('✅ Withdrawal transaction created');

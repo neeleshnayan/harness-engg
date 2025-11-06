@@ -217,7 +217,7 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
 
       // Step 1: Approve USDC for vault
       console.log('🔓 Step 1: Approving USDC for vault...');
-      const approveResponse = await api.post('/api/v1/mavc/approve', payload);
+      const approveResponse = await api.post('/api/v1/strategy/MAVC/approve', payload);
       console.log('✅ Approval Response:', approveResponse.data);
 
       if (approveResponse.data.status !== 'success') {
@@ -229,7 +229,7 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
 
       // Step 2: Deposit to vault
       console.log('💰 Step 2: Depositing to vault...');
-      const response = await api.post('/api/v1/mavc/deposit', payload);
+      const response = await api.post('/api/v1/strategy/MAVC/deposit', payload);
 
       console.log('📥 Deposit Response Status:', response.status);
       console.log('📥 Deposit Response Data:', response.data);
@@ -363,7 +363,7 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
       console.log('   - Amount:', payload.amount, 'MAVC');
       console.log('   - Destination Wallet:', payload.wallet_address);
       console.log('   - User ID:', payload.user_id);
-      console.log('   - API Endpoint: /api/v1/mavc/withdraw');
+      console.log('   - API Endpoint: /api/v1/strategy/MAVC/withdraw');
 
       // Log the FULL payload for debugging
       console.log('📦 Full Request Payload:', JSON.stringify(payload, null, 2));
@@ -377,7 +377,7 @@ const MAVCCard: React.FC<MAVCCardProps> = ({ className = "", onRefresh, subgraph
       console.log('   - USDC Balance:', initialUSDCBalance);
 
       console.log('🌐 Making API call to backend...');
-      const response = await api.post('/api/v1/mavc/withdraw', payload);
+      const response = await api.post('/api/v1/strategy/MAVC/withdraw', payload);
 
       console.log('✅ API call completed!');
 

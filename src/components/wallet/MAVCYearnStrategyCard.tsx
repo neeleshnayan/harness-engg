@@ -95,17 +95,30 @@ const MAVCYearnStrategyCard: React.FC<MAVCYearnStrategyCardProps> = ({ onRefresh
 
               // Fetch Yearn vault share balance from backend
               try {
-                const yearnBalanceResponse = await api.get(`/api/v1/mavc-yearn/balance/${parsedData.wallet_address}`);
+                const yearnBalanceResponse = await api.get(`/api/v1/strategy/MAVC_YEARN/balance/${parsedData.wallet_address}`);
                 console.log('✅ MAVC Yearn - Vault Balance Response:', yearnBalanceResponse.data);
                 
-                if (yearnBalanceResponse.data && yearnBalanceResponse.data.balance) {
-                  setVaultBalance(yearnBalanceResponse.data.balance);
-                  console.log('✅ MAVC Yearn - Vault Balance set to:', yearnBalanceResponse.data.balance);
+                if (yearnBalanceResponse.data) {
+                  const balance = yearnBalanceResponse.data.balance;
+                  console.log('✅ MAVC Yearn - Raw balance from API:', balance);
+                  console.log('✅ MAVC Yearn - Balance type:', typeof balance);
+                  console.log('✅ MAVC Yearn - Balance_wei:', yearnBalanceResponse.data.balance_wei);
+                  console.log('✅ MAVC Yearn - Decimals:', yearnBalanceResponse.data.decimals);
+                  
+                  if (balance !== undefined && balance !== null) {
+                    setVaultBalance(balance.toString());
+                    console.log('✅ MAVC Yearn - Vault Balance set to:', balance);
+                  } else {
+                    console.warn('⚠️ MAVC Yearn - Balance is undefined/null, setting to 0');
+                    setVaultBalance("0");
+                  }
                 } else {
+                  console.warn('⚠️ MAVC Yearn - No data in response');
                   setVaultBalance("0");
                 }
-              } catch (err) {
-                console.warn('❌ MAVC Yearn - Vault balance not available:', err);
+              } catch (err: any) {
+                console.error('❌ MAVC Yearn - Vault balance fetch error:', err);
+                console.error('❌ MAVC Yearn - Error details:', err.response?.data || err.message);
                 setVaultBalance("0");
               }
             } else {
@@ -117,16 +130,25 @@ const MAVCYearnStrategyCard: React.FC<MAVCYearnStrategyCardProps> = ({ onRefresh
             setUsdcBalance("0");
           }
           
-          // Fetch vault balance separately
+          // Fetch vault balance separately (backup fetch if first one failed)
           try {
-            const yearnBalanceResponse = await api.get(`/api/v1/mavc-yearn/balance/${parsedData.wallet_address}`);
-            if (yearnBalanceResponse.data && yearnBalanceResponse.data.balance) {
-              setVaultBalance(yearnBalanceResponse.data.balance);
+            const yearnBalanceResponse = await api.get(`/api/v1/strategy/MAVC_YEARN/balance/${parsedData.wallet_address}`);
+            console.log('✅ MAVC Yearn - Backup Vault Balance Response:', yearnBalanceResponse.data);
+            if (yearnBalanceResponse.data) {
+              const balance = yearnBalanceResponse.data.balance;
+              if (balance !== undefined && balance !== null) {
+                setVaultBalance(balance.toString());
+                console.log('✅ MAVC Yearn - Backup Vault Balance set to:', balance);
+              } else {
+                console.warn('⚠️ MAVC Yearn - Backup balance is undefined/null');
+                setVaultBalance("0");
+              }
             } else {
               setVaultBalance("0");
             }
-          } catch (err) {
-            console.warn('❌ MAVC Yearn - Vault balance fetch failed:', err);
+          } catch (err: any) {
+            console.error('❌ MAVC Yearn - Backup vault balance fetch failed:', err);
+            console.error('❌ MAVC Yearn - Backup error details:', err.response?.data || err.message);
             setVaultBalance("0");
           }
         }
@@ -170,7 +192,7 @@ const MAVCYearnStrategyCard: React.FC<MAVCYearnStrategyCardProps> = ({ onRefresh
       const initialUSDCBalance = parseFloat(usdcBalance);
 
       console.log('🔍 STEP 1: Calling approve endpoint...');
-      const approveResponse = await api.post('/api/v1/mavc-yearn/approve', payload);
+      const approveResponse = await api.post('/api/v1/strategy/MAVC_YEARN/approve', payload);
 
       if (approveResponse.data.status !== 'success') {
         throw new Error('USDC approval failed');
@@ -190,7 +212,7 @@ const MAVCYearnStrategyCard: React.FC<MAVCYearnStrategyCardProps> = ({ onRefresh
         approve_tx_id: approveTxId
       };
 
-      const response = await api.post('/api/v1/mavc-yearn/deposit', depositPayload);
+      const response = await api.post('/api/v1/strategy/MAVC_YEARN/deposit', depositPayload);
 
       if (response.data.status === 'success') {
         console.log('✅ Deposit transaction created');
@@ -206,7 +228,7 @@ const MAVCYearnStrategyCard: React.FC<MAVCYearnStrategyCardProps> = ({ onRefresh
 
           // Check vault balance directly from backend
           try {
-            const yearnBalanceResponse = await api.get(`/api/v1/mavc-yearn/balance/${parsedData.wallet_address}`);
+            const yearnBalanceResponse = await api.get(`/api/v1/strategy/MAVC_YEARN/balance/${parsedData.wallet_address}`);
             
             if (yearnBalanceResponse.data && yearnBalanceResponse.data.balance) {
               const currentVaultBalance = parseFloat(yearnBalanceResponse.data.balance || "0");
@@ -311,7 +333,7 @@ const MAVCYearnStrategyCard: React.FC<MAVCYearnStrategyCardProps> = ({ onRefresh
       const initialVaultBalance = parseFloat(vaultBalance);
       const initialUSDCBalance = parseFloat(usdcBalance);
 
-      const response = await api.post('/api/v1/mavc-yearn/withdraw', payload);
+      const response = await api.post('/api/v1/strategy/MAVC_YEARN/withdraw', payload);
 
       if (response.data.status === 'success') {
         console.log('✅ Withdrawal transaction created');

@@ -6,7 +6,7 @@ dataSources:
     name: MultiAssetVaultUSDCWETH
     network: sepolia
     source:
-      address: "0xb3975b4294ed871013d2B47ADe5da9015Df5C54a"
+      address: "0xeBbca96f25F6198C37b7d439e8724a50f9b266DD"
       abi: MultiAssetVaultUSDCWETH
       startBlock: 9477000
     mapping:
@@ -17,6 +17,8 @@ dataSources:
         - MAVCVaultMetric
         - Deposit
         - Withdrawal
+        - StrategyPriceUpdate
+        - StrategyPriceCurrent
         - MAVCPriceUpdate
         - MAVCPriceCurrent
       abis:
@@ -27,14 +29,14 @@ dataSources:
           handler: handleDeposit
         - event: Withdraw(indexed address,indexed address,indexed address,uint256,uint256)
           handler: handleWithdraw
-        - event: MAVCPriceUpdated(uint256,uint256)
-          handler: handleMAVCPriceUpdated
+        - event: StrategyPriceUpdated(uint256,uint256)
+          handler: handleStrategyPriceUpdated
       file: MultiAssetVaultUSDCWETH\MultiAssetVaultUSDCWETH.wasm
   - kind: ethereum/contract
     name: MAVP
     network: sepolia
     source:
-      address: "0x23FD6333F573D6D1ac5A5bF587CCEadA24D1008d"
+      address: "0x26C3a3635431aB9FB447c63A64909433bF9Bd5C1"
       abi: MAVP
       startBlock: 9562500
     mapping:
@@ -48,6 +50,8 @@ dataSources:
         - AssetSwapIn
         - AssetSwapOut
         - AllocationInitialized
+        - StrategyPriceUpdate
+        - StrategyPriceCurrent
         - MAVPPriceUpdate
         - MAVPPriceCurrent
       abis:
@@ -64,14 +68,14 @@ dataSources:
           handler: handleAssetSwapOut
         - event: AllocationInitialized(indexed address,uint256)
           handler: handleAllocationInitialized
-        - event: MAVPPriceUpdated(uint256,uint256)
-          handler: handleMAVPPriceUpdated
+        - event: StrategyPriceUpdated(uint256,uint256)
+          handler: handleMAVPStrategyPriceUpdated
       file: MultiAssetVaultUSDCWETH\MultiAssetVaultUSDCWETH.wasm
   - kind: ethereum/contract
     name: MAVCYearnStrategyUSDCWETH
     network: sepolia
     source:
-      address: "0xE3cb802600f59b45d9e991bD9cd154ECE87A0217"
+      address: "0x8F06D54B651c5172a43C693064C1432C447B9016"
       abi: MAVCYearnStrategyUSDCWETH
       startBlock: 9562500
     mapping:

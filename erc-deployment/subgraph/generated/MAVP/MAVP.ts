@@ -140,16 +140,16 @@ export class Deposit__Params {
   }
 }
 
-export class MAVPPriceUpdated extends ethereum.Event {
-  get params(): MAVPPriceUpdated__Params {
-    return new MAVPPriceUpdated__Params(this);
+export class StrategyPriceUpdated extends ethereum.Event {
+  get params(): StrategyPriceUpdated__Params {
+    return new StrategyPriceUpdated__Params(this);
   }
 }
 
-export class MAVPPriceUpdated__Params {
-  _event: MAVPPriceUpdated;
+export class StrategyPriceUpdated__Params {
+  _event: StrategyPriceUpdated;
 
-  constructor(event: MAVPPriceUpdated) {
+  constructor(event: StrategyPriceUpdated) {
     this._event = event;
   }
 

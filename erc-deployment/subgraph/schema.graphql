@@ -83,6 +83,22 @@ type AllocationInitialized @entity(immutable: true) {
   timestamp: BigInt!
 }
 
+type StrategyPriceUpdate @entity(immutable: true) {
+  id: ID!
+  txHash: Bytes!
+  price: BigDecimal!
+  timestamp: BigInt!
+  strategy: String!
+}
+
+type StrategyPriceCurrent @entity(immutable: false) {
+  id: ID!
+  price: BigDecimal!
+  lastUpdate: BigInt!
+  updateCount: Int!
+  strategy: String!
+}
+
 type MAVCPriceUpdate @entity(immutable: true) {
   id: ID!
   txHash: Bytes!

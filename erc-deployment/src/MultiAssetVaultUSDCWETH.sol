@@ -27,15 +27,13 @@ contract MultiAssetVaultUSDCWETH is ERC4626, ReentrancyGuard, Pausable, Ownable 
     uint256 public usdcHeld;
     uint256 public wethHeld;
 
-    // MAVC price tracking (8 decimals, in USD)
-    uint256 public mavcPriceUSD;
+    uint256 public strategyPriceUSD;
     uint256 public lastPriceUpdate;
     uint256 public constant PRICE_UPDATE_INTERVAL = 30 minutes;
 
-    // Events
     event Rebalance(uint256 usdcAmount, uint256 wethAmount);
     event AllocationUpdate(uint256 usdcPercent, uint256 wethPercent);
-    event MAVCPriceUpdated(uint256 newPrice, uint256 timestamp);
+    event StrategyPriceUpdated(uint256 newPrice, uint256 timestamp);
     
     constructor(
         address _usdc,
@@ -50,8 +48,7 @@ contract MultiAssetVaultUSDCWETH is ERC4626, ReentrancyGuard, Pausable, Ownable 
         DEX_INTEGRATION = UniswapV4Integration(_dexIntegration);
         PRICE_ORACLE = ChainlinkPriceOracle(_priceOracle);
 
-        // Initialize MAVC price
-        _updateMAVCPrice();
+        _updateStrategyPrice();
     }
     
     /**
@@ -291,59 +288,33 @@ contract MultiAssetVaultUSDCWETH is ERC4626, ReentrancyGuard, Pausable, Ownable 
         return assets;
     }
     
-    /**
-     * @dev Get current MAVC price in USD (8 decimals)
-     * Formula: 1 MAVC = 0.005*USDC_price + 0.005*WETH_price
-     * @notice This calculates price in real-time from oracle
-     */
-    function getMAVCPrice() public view returns (uint256 mavcPrice) {
+    function getStrategyPrice() public view returns (uint256 strategyPrice) {
         uint256 usdcPriceUSD = PRICE_ORACLE.getUsdcPrice();
         uint256 ethPriceUSD = PRICE_ORACLE.getEthPrice();
 
-        mavcPrice = (5 * usdcPriceUSD / 1000) + (5 * ethPriceUSD / 1000);
+        strategyPrice = (5 * usdcPriceUSD / 1000) + (5 * ethPriceUSD / 1000);
 
-        return mavcPrice;
+        return strategyPrice;
     }
 
-    /**
-     * @dev Get cached MAVC price in USD (8 decimals)
-     * @notice Returns the last updated price, updated every 30 minutes
-     * @return price The cached MAVC price in USD
-     * @return lastUpdate Timestamp of last price update
-     */
-    function getCachedMAVCPrice() external view returns (uint256 price, uint256 lastUpdate) {
-        return (mavcPriceUSD, lastPriceUpdate);
+    function getCachedStrategyPrice() external view returns (uint256 price, uint256 lastUpdate) {
+        return (strategyPriceUSD, lastPriceUpdate);
     }
 
-    /**
-     * @dev Update MAVC price from Chainlink oracles
-     * @notice Can only be called once every 30 minutes
-     * @notice This function is meant to be called by external services (subgraph indexer, keepers, etc.)
-     * @return newPrice The updated MAVC price
-     */
-    function updateMAVCPrice() external returns (uint256 newPrice) {
-        // require(
-        //     block.timestamp >= lastPriceUpdate + PRICE_UPDATE_INTERVAL,
-        //     "Price update interval not reached"
-        // );
-
-        return _updateMAVCPrice();
+    function updateStrategyPrice() external returns (uint256 newPrice) {
+        return _updateStrategyPrice();
     }
 
-    /**
-     * @dev Internal function to update MAVC price
-     * @return newPrice The updated MAVC price
-     */
-    function _updateMAVCPrice() internal returns (uint256 newPrice) {
+    function _updateStrategyPrice() internal returns (uint256 newPrice) {
         uint256 usdcPriceUSD = PRICE_ORACLE.getUsdcPrice();
         uint256 ethPriceUSD = PRICE_ORACLE.getEthPrice();
 
         newPrice = (5 * usdcPriceUSD / 1000) + (5 * ethPriceUSD / 1000);
 
-        mavcPriceUSD = newPrice;
+        strategyPriceUSD = newPrice;
         lastPriceUpdate = block.timestamp;
 
-        emit MAVCPriceUpdated(newPrice, block.timestamp);
+        emit StrategyPriceUpdated(newPrice, block.timestamp);
 
         return newPrice;
     }
@@ -351,12 +322,12 @@ contract MultiAssetVaultUSDCWETH is ERC4626, ReentrancyGuard, Pausable, Ownable 
     /**
      * @dev Get current allocation percentages
      */
-    function getCurrentAllocation() public view returns (uint256 usdcPercent, uint256 wethPercent) {
+    function getCurrentAllocation() public view returns (uint256 usdcBps, uint256 wethBps) {
         uint256 total = totalAssets();
-        if (total == 0) return (50, 50); // Default 50/50
+        if (total == 0) return (5000, 5000);
         
-        usdcPercent = (usdcHeld * 100) / total;
-        wethPercent = (wethHeld * 100) / total;
+        usdcBps = (usdcHeld * 10000) / total;
+        wethBps = (wethHeld * 10000) / total;
     }
     
     /**

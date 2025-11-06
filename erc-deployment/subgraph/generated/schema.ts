@@ -1028,6 +1028,198 @@ export class AllocationInitialized extends Entity {
   }
 }
 
+export class StrategyPriceUpdate extends Entity {
+  constructor(id: string) {
+    super();
+    this.set("id", Value.fromString(id));
+  }
+
+  save(): void {
+    let id = this.get("id");
+    assert(id != null, "Cannot save StrategyPriceUpdate entity without an ID");
+    if (id) {
+      assert(
+        id.kind == ValueKind.STRING,
+        `Entities of type StrategyPriceUpdate must have an ID of type String but the id '${id.displayData()}' is of type ${id.displayKind()}`,
+      );
+      store.set("StrategyPriceUpdate", id.toString(), this);
+    }
+  }
+
+  static loadInBlock(id: string): StrategyPriceUpdate | null {
+    return changetype<StrategyPriceUpdate | null>(
+      store.get_in_block("StrategyPriceUpdate", id),
+    );
+  }
+
+  static load(id: string): StrategyPriceUpdate | null {
+    return changetype<StrategyPriceUpdate | null>(
+      store.get("StrategyPriceUpdate", id),
+    );
+  }
+
+  get id(): string {
+    let value = this.get("id");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toString();
+    }
+  }
+
+  set id(value: string) {
+    this.set("id", Value.fromString(value));
+  }
+
+  get txHash(): Bytes {
+    let value = this.get("txHash");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBytes();
+    }
+  }
+
+  set txHash(value: Bytes) {
+    this.set("txHash", Value.fromBytes(value));
+  }
+
+  get price(): BigDecimal {
+    let value = this.get("price");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBigDecimal();
+    }
+  }
+
+  set price(value: BigDecimal) {
+    this.set("price", Value.fromBigDecimal(value));
+  }
+
+  get timestamp(): BigInt {
+    let value = this.get("timestamp");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set timestamp(value: BigInt) {
+    this.set("timestamp", Value.fromBigInt(value));
+  }
+
+  get strategy(): string {
+    let value = this.get("strategy");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toString();
+    }
+  }
+
+  set strategy(value: string) {
+    this.set("strategy", Value.fromString(value));
+  }
+}
+
+export class StrategyPriceCurrent extends Entity {
+  constructor(id: string) {
+    super();
+    this.set("id", Value.fromString(id));
+  }
+
+  save(): void {
+    let id = this.get("id");
+    assert(id != null, "Cannot save StrategyPriceCurrent entity without an ID");
+    if (id) {
+      assert(
+        id.kind == ValueKind.STRING,
+        `Entities of type StrategyPriceCurrent must have an ID of type String but the id '${id.displayData()}' is of type ${id.displayKind()}`,
+      );
+      store.set("StrategyPriceCurrent", id.toString(), this);
+    }
+  }
+
+  static loadInBlock(id: string): StrategyPriceCurrent | null {
+    return changetype<StrategyPriceCurrent | null>(
+      store.get_in_block("StrategyPriceCurrent", id),
+    );
+  }
+
+  static load(id: string): StrategyPriceCurrent | null {
+    return changetype<StrategyPriceCurrent | null>(
+      store.get("StrategyPriceCurrent", id),
+    );
+  }
+
+  get id(): string {
+    let value = this.get("id");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toString();
+    }
+  }
+
+  set id(value: string) {
+    this.set("id", Value.fromString(value));
+  }
+
+  get price(): BigDecimal {
+    let value = this.get("price");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBigDecimal();
+    }
+  }
+
+  set price(value: BigDecimal) {
+    this.set("price", Value.fromBigDecimal(value));
+  }
+
+  get lastUpdate(): BigInt {
+    let value = this.get("lastUpdate");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set lastUpdate(value: BigInt) {
+    this.set("lastUpdate", Value.fromBigInt(value));
+  }
+
+  get updateCount(): i32 {
+    let value = this.get("updateCount");
+    if (!value || value.kind == ValueKind.NULL) {
+      return 0;
+    } else {
+      return value.toI32();
+    }
+  }
+
+  set updateCount(value: i32) {
+    this.set("updateCount", Value.fromI32(value));
+  }
+
+  get strategy(): string {
+    let value = this.get("strategy");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toString();
+    }
+  }
+
+  set strategy(value: string) {
+    this.set("strategy", Value.fromString(value));
+  }
+}
+
 export class MAVCPriceUpdate extends Entity {
   constructor(id: string) {
     super();

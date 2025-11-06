@@ -2,7 +2,7 @@ import { BigDecimal, BigInt } from '@graphprotocol/graph-ts';
 import {
   Deposit as DepositEvent,
   Withdraw as WithdrawEvent,
-  MAVCPriceUpdated as MAVCPriceUpdatedEvent,
+  StrategyPriceUpdated as StrategyPriceUpdatedEvent,
 } from '../generated/MultiAssetVaultUSDCWETH/MultiAssetVaultUSDCWETH';
 import {
   Deposit as MAVPDepositEvent,
@@ -10,7 +10,7 @@ import {
   AssetSwapIn as AssetSwapInEvent,
   AssetSwapOut as AssetSwapOutEvent,
   AllocationInitialized as AllocationInitializedEvent,
-  MAVPPriceUpdated as MAVPPriceUpdatedEvent,
+  StrategyPriceUpdated as MAVPStrategyPriceUpdatedEvent,
 } from '../generated/MAVP/MAVP';
 import {
   Deposit as MAVCYearnDepositEvent,
@@ -26,6 +26,8 @@ import {
   MAVCVaultMetric,
   MAVPVaultMetric,
   Participant,
+  StrategyPriceUpdate,
+  StrategyPriceCurrent,
   MAVCPriceUpdate,
   MAVCPriceCurrent,
   MAVPPriceUpdate,
@@ -44,8 +46,10 @@ const PRICE_DECIMALS = 8;
 const DEPOSIT_ROLE = 'DEPOSITOR';
 const WITHDRAW_ROLE = 'WITHDRAWER';
 
-const MAVC_PRICE_CURRENT_ID = 'current';
-const MAVP_PRICE_CURRENT_ID = 'current';
+const MAVC_PRICE_CURRENT_ID = 'mavc-current';
+const MAVP_PRICE_CURRENT_ID = 'mavp-current';
+const MAVC_STRATEGY_PRICE_CURRENT_ID = 'mavc-strategy-current';
+const MAVP_STRATEGY_PRICE_CURRENT_ID = 'mavp-strategy-current';
 
 const ZERO_BD = BigDecimal.fromString('0');
 const ZERO_BI = BigInt.zero();
@@ -307,58 +311,100 @@ export function handleAllocationInitialized(event: AllocationInitializedEvent): 
   entity.save();
 }
 
-export function handleMAVCPriceUpdated(event: MAVCPriceUpdatedEvent): void {
-  // Create immutable price update record
-  const priceUpdate = new MAVCPriceUpdate(event.transaction.hash
-    .toHex()
-    .concat('-')
-    .concat(event.logIndex.toString()));
-
+export function handleStrategyPriceUpdated(event: StrategyPriceUpdatedEvent): void {
   const priceInUSD = bigDecimalFromBigInt(event.params.newPrice, PRICE_DECIMALS);
 
+  const priceUpdateId = event.transaction.hash
+    .toHex()
+    .concat('-MAVC-')
+    .concat(event.logIndex.toString());
+
+  const priceUpdate = new StrategyPriceUpdate(priceUpdateId);
   priceUpdate.txHash = event.transaction.hash;
   priceUpdate.price = priceInUSD;
   priceUpdate.timestamp = event.block.timestamp;
+  priceUpdate.strategy = 'MAVC';
   priceUpdate.save();
 
-  // Update current price entity
-  let currentPrice = MAVCPriceCurrent.load(MAVC_PRICE_CURRENT_ID);
+  const legacyPriceUpdate = new MAVCPriceUpdate(event.transaction.hash
+    .toHex()
+    .concat('-')
+    .concat(event.logIndex.toString()));
+  legacyPriceUpdate.txHash = event.transaction.hash;
+  legacyPriceUpdate.price = priceInUSD;
+  legacyPriceUpdate.timestamp = event.block.timestamp;
+  legacyPriceUpdate.save();
+
+  let currentPrice = StrategyPriceCurrent.load(MAVC_STRATEGY_PRICE_CURRENT_ID);
   if (!currentPrice) {
-    currentPrice = new MAVCPriceCurrent(MAVC_PRICE_CURRENT_ID);
+    currentPrice = new StrategyPriceCurrent(MAVC_STRATEGY_PRICE_CURRENT_ID);
     currentPrice.updateCount = 0;
+    currentPrice.strategy = 'MAVC';
   }
 
   currentPrice.price = priceInUSD;
   currentPrice.lastUpdate = event.block.timestamp;
   currentPrice.updateCount += 1;
   currentPrice.save();
+
+  let legacyCurrentPrice = MAVCPriceCurrent.load(MAVC_PRICE_CURRENT_ID);
+  if (!legacyCurrentPrice) {
+    legacyCurrentPrice = new MAVCPriceCurrent(MAVC_PRICE_CURRENT_ID);
+    legacyCurrentPrice.updateCount = 0;
+  }
+
+  legacyCurrentPrice.price = priceInUSD;
+  legacyCurrentPrice.lastUpdate = event.block.timestamp;
+  legacyCurrentPrice.updateCount += 1;
+  legacyCurrentPrice.save();
 }
 
-export function handleMAVPPriceUpdated(event: MAVPPriceUpdatedEvent): void {
-  // Create immutable price update record
-  const priceUpdate = new MAVPPriceUpdate(event.transaction.hash
-    .toHex()
-    .concat('-')
-    .concat(event.logIndex.toString()));
-
+export function handleMAVPStrategyPriceUpdated(event: MAVPStrategyPriceUpdatedEvent): void {
   const priceInUSD = bigDecimalFromBigInt(event.params.newPrice, PRICE_DECIMALS);
 
+  const priceUpdateId = event.transaction.hash
+    .toHex()
+    .concat('-MAVP-')
+    .concat(event.logIndex.toString());
+
+  const priceUpdate = new StrategyPriceUpdate(priceUpdateId);
   priceUpdate.txHash = event.transaction.hash;
   priceUpdate.price = priceInUSD;
   priceUpdate.timestamp = event.block.timestamp;
+  priceUpdate.strategy = 'MAVP';
   priceUpdate.save();
 
-  // Update current price entity
-  let currentPrice = MAVPPriceCurrent.load(MAVP_PRICE_CURRENT_ID);
+  const legacyPriceUpdate = new MAVPPriceUpdate(event.transaction.hash
+    .toHex()
+    .concat('-')
+    .concat(event.logIndex.toString()));
+  legacyPriceUpdate.txHash = event.transaction.hash;
+  legacyPriceUpdate.price = priceInUSD;
+  legacyPriceUpdate.timestamp = event.block.timestamp;
+  legacyPriceUpdate.save();
+
+  let currentPrice = StrategyPriceCurrent.load(MAVP_STRATEGY_PRICE_CURRENT_ID);
   if (!currentPrice) {
-    currentPrice = new MAVPPriceCurrent(MAVP_PRICE_CURRENT_ID);
+    currentPrice = new StrategyPriceCurrent(MAVP_STRATEGY_PRICE_CURRENT_ID);
     currentPrice.updateCount = 0;
+    currentPrice.strategy = 'MAVP';
   }
 
   currentPrice.price = priceInUSD;
   currentPrice.lastUpdate = event.block.timestamp;
   currentPrice.updateCount += 1;
   currentPrice.save();
+
+  let legacyCurrentPrice = MAVPPriceCurrent.load(MAVP_PRICE_CURRENT_ID);
+  if (!legacyCurrentPrice) {
+    legacyCurrentPrice = new MAVPPriceCurrent(MAVP_PRICE_CURRENT_ID);
+    legacyCurrentPrice.updateCount = 0;
+  }
+
+  legacyCurrentPrice.price = priceInUSD;
+  legacyCurrentPrice.lastUpdate = event.block.timestamp;
+  legacyCurrentPrice.updateCount += 1;
+  legacyCurrentPrice.save();
 }
 
 export function handleMAVCYearnDeposit(event: MAVCYearnDepositEvent): void {

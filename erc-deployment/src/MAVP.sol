@@ -34,17 +34,16 @@ contract MultiAssetVaultPortfolio is ERC4626, ReentrancyGuard, Pausable, Ownable
     TargetAsset[] private _assets;
     mapping(address => uint256) private _assetIndexPlusOne;
 
-    uint256 public usdcHeld; // Tracked in 6-decimal USDC units
+    uint256 public usdcHeld;
 
-    // MAVP price tracking (8 decimals, in USD)
-    uint256 public mavpPriceUSD;
+    uint256 public strategyPriceUSD;
     uint256 public lastPriceUpdate;
     uint256 public constant PRICE_UPDATE_INTERVAL = 30 minutes;
 
     event AssetSwapIn(address indexed token, uint256 usdcAmountIn, uint256 tokenAmountOut);
     event AssetSwapOut(address indexed token, uint256 tokenAmountIn, uint256 usdcAmountOut);
     event AllocationInitialized(address indexed token, uint256 allocationBps);
-    event MAVPPriceUpdated(uint256 newPrice, uint256 timestamp);
+    event StrategyPriceUpdated(uint256 newPrice, uint256 timestamp);
 
     constructor(
         address _usdc,
@@ -78,8 +77,7 @@ contract MultiAssetVaultPortfolio is ERC4626, ReentrancyGuard, Pausable, Ownable
             emit AllocationInitialized(tokenAddress, perAssetBps);
         }
 
-        // Initialize MAVP price from oracle
-        _updateMAVPPrice();
+        _updateStrategyPrice();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -413,7 +411,7 @@ contract MultiAssetVaultPortfolio is ERC4626, ReentrancyGuard, Pausable, Ownable
     }
 
     function getCurrentAllocation() external view returns (address[] memory tokens, uint256[] memory allocationBps) {
-        uint256 len = _assets.length + 1; // Include USDC holdings
+        uint256 len = _assets.length + 1;
         tokens = new address[](len);
         allocationBps = new uint256[](len);
 
@@ -434,32 +432,22 @@ contract MultiAssetVaultPortfolio is ERC4626, ReentrancyGuard, Pausable, Ownable
     //////////////////////////////////////////////////////////////*/
 
 
-    /**
-     * @dev Get the current MAVP price in USD from Chainlink oracles
-     * @return price MAVP price in USD (8 decimals)
-     */
-    function getMAVPPriceUSD() external view returns (uint256 price) {
+    function getStrategyPrice() external view returns (uint256 price) {
         return PRICE_ORACLE.getMAVPPriceUSD();
     }
 
-    /**
-     * @dev Get individual asset prices and MAVP price
-     */
-    function getAssetPricesUSD() external view returns (
+    function getAssetPrices() external view returns (
         uint256 ethPrice,
         uint256 btcPrice,
         uint256 usdtPrice,
         uint256 uniPrice,
         uint256 linkPrice,
-        uint256 mavpPrice
+        uint256 strategyPrice
     ) {
         return PRICE_ORACLE.getAssetPrices();
     }
 
-    /**
-     * @dev Get MAVP price breakdown by asset contribution
-     */
-    function getMAVPPriceBreakdown() external view returns (
+    function getStrategyPriceBreakdown() external view returns (
         uint256 ethContribution,
         uint256 btcContribution,
         uint256 usdtContribution,
@@ -469,44 +457,24 @@ contract MultiAssetVaultPortfolio is ERC4626, ReentrancyGuard, Pausable, Ownable
         return PRICE_ORACLE.getMAVPBreakdown();
     }
 
-    /**
-     * @dev Check if all Chainlink price feeds are healthy
-     */
     function arePriceFeedsHealthy() external view returns (bool) {
         return PRICE_ORACLE.arePriceFeedsHealthy();
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        PRICE TRACKING & UPDATES
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @dev Get cached MAVP price (last updated price)
-     * @return price Cached MAVP price in USD (8 decimals)
-     * @return timestamp When the price was last updated
-     */
-    function getCachedMAVPPrice() external view returns (uint256 price, uint256 timestamp) {
-        return (mavpPriceUSD, lastPriceUpdate);
+    function getCachedStrategyPrice() external view returns (uint256 price, uint256 timestamp) {
+        return (strategyPriceUSD, lastPriceUpdate);
     }
 
-    /**
-     * @dev Update MAVP price from oracle and emit event
-     * @notice Can be called by anyone to update the cached price and trigger subgraph indexing
-     * @return newPrice The updated MAVP price
-     */
-    function updateMAVPPrice() external returns (uint256 newPrice) {
-        return _updateMAVPPrice();
+    function updateStrategyPrice() external returns (uint256 newPrice) {
+        return _updateStrategyPrice();
     }
 
-    /**
-     * @dev Internal function to update MAVP price
-     */
-    function _updateMAVPPrice() internal returns (uint256 newPrice) {
+    function _updateStrategyPrice() internal returns (uint256 newPrice) {
         newPrice = PRICE_ORACLE.getMAVPPriceUSD();
-        mavpPriceUSD = newPrice;
+        strategyPriceUSD = newPrice;
         lastPriceUpdate = block.timestamp;
 
-        emit MAVPPriceUpdated(newPrice, block.timestamp);
+        emit StrategyPriceUpdated(newPrice, block.timestamp);
 
         return newPrice;
     }
@@ -521,26 +489,17 @@ contract MultiAssetVaultPortfolio is ERC4626, ReentrancyGuard, Pausable, Ownable
      * @return shares Amount of MAVP shares (18 decimals)
      */
     function _calculateSharesFromPrice(uint256 assets) internal view returns (uint256 shares) {
-        uint256 mavpPrice = PRICE_ORACLE.getMAVPPriceUSD(); // 8 decimals
-        require(mavpPrice > 0, "Invalid MAVP price");
+        uint256 strategyPrice = PRICE_ORACLE.getMAVPPriceUSD();
+        require(strategyPrice > 0, "Invalid strategy price");
 
-        // Formula: shares = (assets * 1e8 * 1e18) / (mavpPrice * 1e6)
-        // assets: 6 decimals (USDC)
-        // shares: 18 decimals (MAVP token)
-        shares = (assets * 1e8 * 1e18) / (mavpPrice * 1e6);
+        shares = (assets * 1e8 * 1e18) / (strategyPrice * 1e6);
     }
 
-    /**
-     * @dev Calculate assets based on shares using inverse formula
-     * @param shares Amount of MAVP shares (18 decimals)
-     * @return assets Amount of USDC (6 decimals)
-     */
     function _calculateAssetsFromPrice(uint256 shares) internal view returns (uint256 assets) {
-        uint256 mavpPrice = PRICE_ORACLE.getMAVPPriceUSD(); // 8 decimals
-        require(mavpPrice > 0, "Invalid MAVP price");
+        uint256 strategyPrice = PRICE_ORACLE.getMAVPPriceUSD();
+        require(strategyPrice > 0, "Invalid strategy price");
 
-        // Formula: assets = (shares * mavpPrice * 1e6) / (1e8 * 1e18)
-        assets = (shares * mavpPrice * 1e6) / (1e8 * 1e18);
+        assets = (shares * strategyPrice * 1e6) / (1e8 * 1e18);
     }
 }
 

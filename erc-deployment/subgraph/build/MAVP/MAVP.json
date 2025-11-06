@@ -1052,7 +1052,7 @@
   },
   {
     "type": "event",
-    "name": "MAVPPriceUpdated",
+    "name": "StrategyPriceUpdated",
     "inputs": [
       {
         "name": "newPrice",

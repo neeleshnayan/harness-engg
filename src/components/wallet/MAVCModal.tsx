@@ -215,7 +215,21 @@ const MAVCModal: React.FC<MAVCModalProps> = ({
                 <div className="text-2xl font-bold text-white">
                   {isDeposit
                     ? (Number.isFinite(parseFloat(usdcBalance)) ? parseFloat(usdcBalance).toFixed(2) : '0.00')
-                    : (Number.isFinite(parseFloat(mavcBalance)) ? parseFloat(mavcBalance).toFixed(2) : '0.00')}
+                    : (() => {
+                        const balance = parseFloat(mavcBalance);
+                        if (!Number.isFinite(balance) || balance === 0) return '0.00';
+                        // MAVP needs more precision (shows like MAVC / 10^12, so very small numbers)
+                        if (tokenSymbol === 'MAVP') {
+                          if (balance < 0.00000001) return balance.toExponential(4);
+                          if (balance < 0.0001) return balance.toFixed(10);
+                          if (balance < 0.01) return balance.toFixed(8);
+                          if (balance < 1) return balance.toFixed(6);
+                          if (balance < 100) return balance.toFixed(4);
+                          return balance.toFixed(2);
+                        }
+                        // MAVC and others use standard formatting
+                        return balance.toFixed(2);
+                      })()}
                   <span className="text-zinc-400 text-lg ml-1">
                     {isDeposit ? 'USDC' : tokenSymbol}
                   </span>

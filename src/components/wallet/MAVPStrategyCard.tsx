@@ -104,10 +104,22 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
           setWalletAddress(parsedData.wallet_address);
 
           try {
-            const mavpResponse = await api.get(`/api/v1/mavp/balance/${parsedData.wallet_address}`);
-            const rawBalance = mavpResponse.data.balance || "0";
-            const humanReadable = parseFloat(rawBalance) / 1e18;
-            setMavpBalance(humanReadable.toString());
+            const mavpResponse = await api.get(`/api/v1/strategy/MAVP/balance/${parsedData.wallet_address}`);
+            console.log('✅ MAVP Balance Response:', mavpResponse.data);
+            // Backend should return formatted balance (already divided by display_decimals: 18)
+            let balance = mavpResponse.data.balance || "0";
+            let balanceNum = parseFloat(balance);
+            
+            // Safety check: if balance is suspiciously large (> 1e12), it might be raw wei
+            // Divide by 10^18 to get human-readable format (MAVP uses 18 decimals)
+            if (balanceNum > 1e12) {
+              console.warn('⚠️ MAVP balance seems too large, applying correction (dividing by 10^18):', balanceNum);
+              balanceNum = balanceNum / 1e18;
+              balance = balanceNum.toString();
+            }
+            
+            console.log('✅ MAVP Balance (formatted):', balanceNum);
+            setMavpBalance(balance);
           } catch (err) {
             console.warn('MAVP balance not available:', err);
             setMavpBalance("0");
@@ -178,7 +190,7 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
       console.log('💵 Initial USDC Balance:', initialUSDCBalance);
 
       console.log('🔍 STEP 1: Calling approve endpoint...');
-      const approveResponse = await api.post('/api/v1/mavp/approve', payload);
+      const approveResponse = await api.post('/api/v1/strategy/MAVP/approve', payload);
 
       if (approveResponse.data.status !== 'success') {
         throw new Error('USDC approval failed');
@@ -201,7 +213,7 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
         approve_tx_id: approveTxId  // Required: backend will wait for this to be confirmed
       };
 
-      const response = await api.post('/api/v1/mavp/deposit', depositPayload);
+      const response = await api.post('/api/v1/strategy/MAVP/deposit', depositPayload);
 
       if (response.data.status === 'success') {
         console.log('✅ Deposit transaction created');
@@ -218,9 +230,9 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
 
           // Fetch updated balance
           try {
-            const mavpResponse = await api.get(`/api/v1/mavp/balance/${parsedData.wallet_address}`);
-            const rawBalance = mavpResponse.data.balance || "0";
-            const currentMAVPBalance = parseFloat(rawBalance) / 1e18;
+            const mavpResponse = await api.get(`/api/v1/strategy/MAVP/balance/${parsedData.wallet_address}`);
+            // Backend already returns formatted balance (already divided by decimals)
+            const currentMAVPBalance = parseFloat(mavpResponse.data.balance || "0");
             
             console.log(`🔍 Attempt ${attempts + 1}: MAVP Balance = ${currentMAVPBalance} (initial: ${initialMAVPBalance})`);
 
@@ -341,8 +353,8 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
       console.log('💰 Initial MAVP Balance:', initialMAVPBalance);
       console.log('💵 Initial USDC Balance:', initialUSDCBalance);
 
-      console.log('🌐 Calling POST /api/v1/mavp/withdraw...');
-      const response = await api.post('/api/v1/mavp/withdraw', payload);
+      console.log('🌐 Calling POST /api/v1/strategy/MAVP/withdraw...');
+      const response = await api.post('/api/v1/strategy/MAVP/withdraw', payload);
       console.log('✅ API Response received:', response.data);
 
       if (response.data.status === 'success') {
@@ -360,8 +372,9 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
 
           // Fetch updated balances
           try {
-            const mavpResponse = await api.get(`/api/v1/mavp/balance/${parsedData.wallet_address}`);
-            const currentMAVPBalance = parseFloat(mavpResponse.data.balance || "0") / 1e18;
+            const mavpResponse = await api.get(`/api/v1/strategy/MAVP/balance/${parsedData.wallet_address}`);
+            // Backend already returns formatted balance (already divided by decimals)
+            const currentMAVPBalance = parseFloat(mavpResponse.data.balance || "0");
 
             const usdcResponse = await api.get(`/api/v1/wallet_balance/${parsedData.wallet_address}`);
             let currentUSDCBalance = 0;
@@ -499,11 +512,30 @@ const MAVPStrategyCard: React.FC<MAVPStrategyCardProps> = ({ onRefresh }) => {
   const formatBalance = (balance: string): string => {
     try {
       const numBalance = parseFloat(balance);
-      if (isNaN(numBalance) || numBalance === 0) return '0';
-      if (numBalance < 0.01) return numBalance.toFixed(4);
-      if (numBalance < 1) return numBalance.toFixed(3);
-      if (numBalance < 100) return numBalance.toFixed(2);
-      return numBalance.toFixed(1);
+      if (isNaN(numBalance)) return '0';
+      if (numBalance === 0) return '0';
+      
+      // MAVP should show like MAVC / 10^12, so handle very small numbers
+      // Also handle edge case where backend might return very large number (shouldn't happen but just in case)
+      if (numBalance > 1e12) {
+        // If number is suspiciously large, it might be raw wei - divide by 10^18
+        console.warn('⚠️ MAVP balance seems too large, dividing by 10^18:', numBalance);
+        const corrected = numBalance / 1e18;
+        if (corrected < 0.00000001) return corrected.toExponential(4);
+        if (corrected < 0.0001) return corrected.toFixed(10);
+        if (corrected < 0.01) return corrected.toFixed(8);
+        if (corrected < 1) return corrected.toFixed(6);
+        if (corrected < 100) return corrected.toFixed(4);
+        return corrected.toFixed(2);
+      }
+      
+      // Normal formatting for properly formatted balances
+      if (numBalance < 0.00000001) return numBalance.toExponential(4);
+      if (numBalance < 0.0001) return numBalance.toFixed(10);
+      if (numBalance < 0.01) return numBalance.toFixed(8);
+      if (numBalance < 1) return numBalance.toFixed(6);
+      if (numBalance < 100) return numBalance.toFixed(4);
+      return numBalance.toFixed(2);
     } catch {
       return '0';
     }

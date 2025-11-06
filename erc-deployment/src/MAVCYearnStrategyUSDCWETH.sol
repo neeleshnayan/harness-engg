@@ -30,9 +30,14 @@ contract MAVCYearnStrategyUSDCWETH is BaseStrategy {
     uint256 public usdcHeld;
     uint256 public wethHeld;
 
+    uint256 public strategyPriceUSD;
+    uint256 public lastPriceUpdate;
+    uint256 public constant PRICE_UPDATE_INTERVAL = 30 minutes;
+
     event Rebalanced(uint256 usdcAmount, uint256 wethAmount);
     event SwapExecuted(address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut);
     event SwapFailed(string reason);
+    event StrategyPriceUpdated(uint256 newPrice, uint256 timestamp);
 
     constructor(
         address _asset,
@@ -164,6 +169,43 @@ contract MAVCYearnStrategyUSDCWETH is BaseStrategy {
     function getActualBalances() external view returns (uint256 usdcBalance, uint256 wethBalance) {
         usdcBalance = USDC.balanceOf(address(this));
         wethBalance = WETH.balanceOf(address(this));
+    }
+
+    function getStrategyPrice() external view returns (uint256) {
+        return 0;
+    }
+
+    function getCachedStrategyPrice() external view returns (uint256 price, uint256 timestamp) {
+        return (strategyPriceUSD, lastPriceUpdate);
+    }
+
+    function updateStrategyPrice() external returns (uint256) {
+        return 0;
+    }
+
+    function getAssetPrices() external pure returns (
+        uint256,
+        uint256,
+        uint256,
+        uint256,
+        uint256,
+        uint256
+    ) {
+        return (0, 0, 0, 0, 0, 0);
+    }
+
+    function getStrategyPriceBreakdown() external pure returns (
+        uint256,
+        uint256,
+        uint256,
+        uint256,
+        uint256
+    ) {
+        return (0, 0, 0, 0, 0);
+    }
+
+    function arePriceFeedsHealthy() external pure returns (bool) {
+        return false;
     }
 }
 
