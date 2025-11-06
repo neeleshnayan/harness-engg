@@ -122,7 +122,7 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
         tokenAddress: tokenAddress || '',
         amount,
         currentBalance,
-        transactionType: action,
+        type: action,
       });
 
       setLikelihoodResult(result);
