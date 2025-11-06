@@ -127,7 +127,7 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
 
       setLikelihoodResult(result);
       setTransactionStatus({
-        stage: result.likelihood === 'very_unlikely' ? 'error' : 'validating',
+        stage: result.likelihood === 'very_unlikely' ? 'failed' : 'validating',
         likelihood: result.likelihood,
         message: result.message || 'Ready to process',
       });
