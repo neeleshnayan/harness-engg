@@ -109,7 +109,20 @@ export default function BacktestPage() {
     }
   }
 
-  const handlePromptClick = async (prompt: string) => {
+  const buildQueryForCategory = (prompt: string, categoryId?: string | null) => {
+    if (!categoryId) return prompt
+    if (categoryId === 'technical') {
+      return `Technical analysis request: ${prompt}`
+    }
+    if (categoryId === 'strategy') {
+      return `Backtest request: ${prompt}`
+    }
+    return prompt
+  }
+
+  const handlePromptClick = async (prompt: string, categoryId: string) => {
+    const routedPrompt = buildQueryForCategory(prompt, categoryId)
+
     setSelectedCategory(null)
     setIsPromptModalOpen(false)
     setInputValue('')
@@ -126,7 +139,7 @@ export default function BacktestPage() {
     
     try {
       const response = await agentsApi.post('/api/v1/agents/query', {
-        query: prompt,
+        query: routedPrompt,
         user_id: userId,
         session_id: sessionId
       })
@@ -297,7 +310,7 @@ export default function BacktestPage() {
           <CategoryTiles
             categories={categories}
             selectedCategory={selectedCategory}
-            onCategorySelect={setSelectedCategory}
+            onCategorySelect={(categoryId) => setSelectedCategory(categoryId || null)}
             onPromptClick={handlePromptClick}
             isLoading={isLoading}
           />

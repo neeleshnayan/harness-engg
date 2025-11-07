@@ -9,7 +9,7 @@ interface CategoryTilesProps {
   categories: Category[]
   selectedCategory: string | null
   onCategorySelect: (categoryId: string) => void
-  onPromptClick: (prompt: string) => void
+  onPromptClick: (prompt: string, categoryId: string) => void
   isLoading: boolean
 }
 
@@ -141,10 +141,10 @@ export default function CategoryTiles({
             </CardHeader>
             <CardContent className="pt-4 p-4 sm:p-6 max-h-[calc(85vh-120px)] sm:max-h-[60vh] overflow-y-auto">
               <div className="space-y-3">
-                {categories.find(c => c.id === selectedCategory)?.prompts.map((prompt, index) => (
+                    {categories.find(c => c.id === selectedCategory)?.prompts.map((prompt, index) => (
                   <button
                     key={index}
-                    onClick={() => onPromptClick(prompt)}
+                    onClick={() => onPromptClick(prompt, selectedCategory as string)}
                     disabled={isLoading}
                     className="w-full text-left p-4 rounded-lg bg-zinc-800/40 hover:bg-zinc-700/60 active:bg-zinc-600/60 border border-zinc-700/50 hover:border-purple-500/50 transition-all duration-200 text-white disabled:opacity-50 disabled:cursor-not-allowed group touch-manipulation min-h-[60px] flex items-center"
                   >

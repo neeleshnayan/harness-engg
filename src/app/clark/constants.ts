@@ -81,7 +81,7 @@ export const categories: Category[] = [
     icon: '/technical.svg',
     description: 'Analyze price trends',
     prompts: [
-      'Plot RSI and moving averages for Bitcoin from 2024-01-01 to 2024-12-31',
+      'Plot RSI and moving averages for Bitcoin from 2025-01-01 to 2025-09-09',
       'Show Bollinger Bands for Ethereum over the last 6 months',
       'Display technical indicators for Solana and Cardano',
       'Plot 30, 100, and 200-day moving averages for BTC',
