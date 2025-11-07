@@ -41,6 +41,10 @@ export const chartConfig = {
     label: "Bollinger Lower",
     color: "hsl(var(--chart-10))",
   },
+  price: {
+    label: "Price",
+    color: "#fbbf24",
+  },
 }
 
 export const allocationColors = [

@@ -54,6 +54,9 @@ export interface TechnicalIndicators {
   bb_lower?: number
   bb_upper_break: boolean
   bb_lower_break: boolean
+  current_price?: number
+  entry_price?: number
+  profit_percentage?: number
 }
 
 export interface BacktestDataPoint {

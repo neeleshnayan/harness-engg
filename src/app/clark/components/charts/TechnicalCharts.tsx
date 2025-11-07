@@ -41,7 +41,10 @@ export default function TechnicalCharts({
     ...dp,
     bb_upper: Number(dp.technical_indicators?.bb_upper),
     bb_middle: Number(dp.technical_indicators?.bb_middle),
-    bb_lower: Number(dp.technical_indicators?.bb_lower)
+    bb_lower: Number(dp.technical_indicators?.bb_lower),
+    price: dp.technical_indicators?.current_price !== undefined && dp.technical_indicators?.current_price !== null
+      ? Number(dp.technical_indicators.current_price)
+      : null
   })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
   return (
@@ -227,6 +230,16 @@ export default function TechnicalCharts({
                   strokeWidth={2}
                   dot={false}
                   name="Lower Band"
+                  connectNulls={false}
+                  isAnimationActive={true}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="price"
+                  stroke="var(--color-price)"
+                  strokeWidth={2}
+                  dot={false}
+                  name="Price"
                   connectNulls={false}
                   isAnimationActive={true}
                 />
