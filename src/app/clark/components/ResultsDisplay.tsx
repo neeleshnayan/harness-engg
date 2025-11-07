@@ -339,69 +339,6 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
           </div>
         )}
 
-        {/* Trade Statistics Cards - Show if trades exist */}
-        {!isTechnicalAnalysisOnly && backtestResult.metrics.total_trades !== null && backtestResult.metrics.total_trades !== undefined && backtestResult.metrics.total_trades > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 w-full">
-            <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-3">
-                  <BarChart3 className="h-5 w-5 text-blue-400" />
-                  <div>
-                    <p className="text-xs font-medium text-zinc-400">Total Trades</p>
-                    <p className="text-xl font-bold text-white">{backtestResult.metrics.total_trades}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-3">
-                  <TrendingUp className="h-5 w-5 text-green-400" />
-                  <div>
-                    <p className="text-xs font-medium text-zinc-400">Winning Trades</p>
-                    <p className="text-xl font-bold text-green-400">
-                      {backtestResult.metrics.winning_trades ?? 0}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-3">
-                  <TrendingDown className="h-5 w-5 text-red-400" />
-                  <div>
-                    <p className="text-xs font-medium text-zinc-400">Losing Trades</p>
-                    <p className="text-xl font-bold text-red-400">
-                      {backtestResult.metrics.losing_trades ?? 0}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-3">
-                  <DollarSign className="h-5 w-5 text-purple-400" />
-                  <div>
-                    <p className="text-xs font-medium text-zinc-400">Avg Trade Return</p>
-                    <p className={`text-xl font-bold ${
-                      (backtestResult.metrics.avg_trade_return ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'
-                    }`}>
-                      {backtestResult.metrics.avg_trade_return !== null && backtestResult.metrics.avg_trade_return !== undefined
-                        ? formatCurrency(backtestResult.metrics.avg_trade_return)
-                        : 'N/A'}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
         {/* Trades Table - Show if trades exist */}
         {!isTechnicalAnalysisOnly && backtestResult.trades && backtestResult.trades.length > 0 && (() => {
           const tableId = `trades-${message.id}`
@@ -442,6 +379,67 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
               </CardHeader>
               {isExpanded && (
                 <CardContent>
+                  {backtestResult.metrics.total_trades !== null && backtestResult.metrics.total_trades !== undefined && backtestResult.metrics.total_trades > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 w-full mb-4">
+                      <Card className="bg-zinc-900/40 border-zinc-700/50">
+                        <CardContent className="p-4">
+                          <div className="flex items-center space-x-3">
+                            <BarChart3 className="h-5 w-5 text-blue-400" />
+                            <div>
+                              <p className="text-xs font-medium text-zinc-400">Total Trades</p>
+                              <p className="text-xl font-bold text-white">{backtestResult.metrics.total_trades}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="bg-zinc-900/40 border-zinc-700/50">
+                        <CardContent className="p-4">
+                          <div className="flex items-center space-x-3">
+                            <TrendingUp className="h-5 w-5 text-green-400" />
+                            <div>
+                              <p className="text-xs font-medium text-zinc-400">Winning Trades</p>
+                              <p className="text-xl font-bold text-green-400">
+                                {backtestResult.metrics.winning_trades ?? 0}
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="bg-zinc-900/40 border-zinc-700/50">
+                        <CardContent className="p-4">
+                          <div className="flex items-center space-x-3">
+                            <TrendingDown className="h-5 w-5 text-red-400" />
+                            <div>
+                              <p className="text-xs font-medium text-zinc-400">Losing Trades</p>
+                              <p className="text-xl font-bold text-red-400">
+                                {backtestResult.metrics.losing_trades ?? 0}
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="bg-zinc-900/40 border-zinc-700/50">
+                        <CardContent className="p-4">
+                          <div className="flex items-center space-x-3">
+                            <DollarSign className="h-5 w-5 text-purple-400" />
+                            <div>
+                              <p className="text-xs font-medium text-zinc-400">Avg Trade Return</p>
+                              <p className={`text-xl font-bold ${
+                                (backtestResult.metrics.avg_trade_return ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                              }`}>
+                                {backtestResult.metrics.avg_trade_return !== null && backtestResult.metrics.avg_trade_return !== undefined
+                                  ? formatCurrency(backtestResult.metrics.avg_trade_return)
+                                  : 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
