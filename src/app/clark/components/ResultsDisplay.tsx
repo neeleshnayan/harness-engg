@@ -21,6 +21,22 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
   const hasAnyContent = messages.length > 0
   if (!hasAnyContent) return null
 
+  const hasStructuredResults = (message?: ChatMessage | null) =>
+    Boolean(
+      message &&
+        (message.backtestResult ||
+          message.screenerResult ||
+          message.economicResult)
+    )
+
+  const formatSourceLabel = (source?: string) => {
+    if (!source) return null
+    if (source === 'llm_fallback') {
+      return 'LLM fallback response'
+    }
+    return source.replace(/_/g, ' ')
+  }
+
   const renderEconomic = (message: ChatMessage) => {
     if (!message.economicResult) return null
     const economicResult = message.economicResult
@@ -520,7 +536,10 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                   <span className="whitespace-pre-wrap align-middle">{message.content}</span>
                   {(() => {
                     const nextAssistant = messages.slice(index + 1).find(m => m.type === 'assistant')
-                    const shouldShowInfo = nextAssistant && nextAssistant.success === true
+                    const shouldShowInfo =
+                      nextAssistant &&
+                      nextAssistant.success === true &&
+                      hasStructuredResults(nextAssistant)
                     if (!shouldShowInfo) return null
                     const revealed = revealedAssistantIds.has(nextAssistant!.id)
                     return (
@@ -556,7 +575,7 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
           {/* Secondary text reveal under the user message when success=true and info clicked */}
           {message.type === 'user' && (() => {
             const nextAssistant = messages.slice(index + 1).find(m => m.type === 'assistant')
-            if (!nextAssistant || nextAssistant.success !== true) return null
+            if (!nextAssistant || nextAssistant.success !== true || !hasStructuredResults(nextAssistant)) return null
             if (!revealedAssistantIds.has(nextAssistant.id)) return null
             return (
               <div className="flex justify-end">
@@ -570,20 +589,41 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
 
           {message.type === 'assistant' && (
             <>
-              {/* Only show assistant text when success === false */}
-              {message.success === false && (
+              {message.content && (message.success === false || !hasStructuredResults(message)) && (
                 <div className="flex gap-2 justify-start items-start">
                   <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
                     <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
                   </div>
-                  <div className="max-w-[85%] rounded-2xl p-4 bg-zinc-800/60 border border-zinc-700/50 text-white backdrop-blur-sm">
-                    <div className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</div>
+                  <div
+                    className={`max-w-[85%] rounded-2xl p-4 border backdrop-blur-sm ${
+                      message.success === false
+                        ? 'bg-zinc-800/60 border-zinc-700/50 text-white'
+                        : 'bg-zinc-800/40 border-zinc-700/40 text-zinc-100'
+                    }`}
+                  >
+                    {(() => {
+                      const sourceLabel = formatSourceLabel(message.source)
+                      if (!sourceLabel) return null
+                      return (
+                        <div className="text-[10px] uppercase tracking-[0.2em] text-purple-300/80 mb-2">
+                          {sourceLabel}
+                        </div>
+                      )
+                    })()}
+                    <div className="text-sm whitespace-pre-wrap leading-relaxed">
+                      {message.content}
+                    </div>
+                    {message.capabilitiesSummary && (
+                      <div className="mt-3 text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                        {message.capabilitiesSummary}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
               {/* When success === true, show the last line of Clark's response alongside plots */}
-              {message.success === true && message.content && (() => {
+              {message.success === true && hasStructuredResults(message) && message.content && (() => {
                 const lines = message.content.split('\n').map(l => l.trim()).filter(Boolean)
                 const lastLine = lines.length > 0 ? lines[lines.length - 1] : ''
                 if (!lastLine) return null

@@ -170,6 +170,8 @@ export interface ChatMessage {
   backtestResult?: BacktestResult
   screenerResult?: ScreenerResult
   economicResult?: EconomicResult
+  source?: string
+  capabilitiesSummary?: string
 }
 
 export interface Category {

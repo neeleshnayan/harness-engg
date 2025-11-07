@@ -120,8 +120,37 @@ export default function BacktestPage() {
     return prompt
   }
 
-  const handlePromptClick = async (prompt: string, categoryId: string) => {
-    const routedPrompt = buildQueryForCategory(prompt, categoryId)
+  const createAssistantMessage = (payload: any): ChatMessage => {
+    const messageId = (Date.now() + Math.random()).toString()
+    const responseMessage: string =
+      payload?.message ?? "Sorry, I'm unable to process your request at the moment."
+    const rawData = payload?.data
+
+    const backtestResult = rawData?.backtest_result ?? rawData?.backtestResult
+    const screenerResult =
+      rawData && rawData?.screener_type && rawData.screener_type !== 'economic'
+        ? rawData
+        : undefined
+    const economicResult =
+      rawData && rawData?.screener_type === 'economic' ? rawData : undefined
+
+    return {
+      id: messageId,
+      type: 'assistant',
+      content: responseMessage,
+      timestamp: new Date(),
+      parsedIntent: payload?.parsed_intent,
+      success: payload?.success ?? false,
+      backtestResult,
+      screenerResult,
+      economicResult,
+      source: payload?.source ?? rawData?.source,
+      capabilitiesSummary: payload?.capabilities_summary ?? rawData?.capabilities_summary,
+    }
+  }
+
+  const handlePromptClick = async (prompt: string, categoryId?: string | null) => {
+    const routedPrompt = buildQueryForCategory(prompt, categoryId ?? null)
 
     setSelectedCategory(null)
     setIsPromptModalOpen(false)
@@ -144,28 +173,14 @@ export default function BacktestPage() {
         session_id: sessionId
       })
 
-      const data = response.data
+      const payload = response.data
       // Update costs if available
-      if (data.costs) {
-        setSessionCost(data.costs.session_cost || 0)
-        setOverallCost(data.costs.overall_cost || 0)
+      if (payload.costs) {
+        setSessionCost(payload.costs.session_cost || 0)
+        setOverallCost(payload.costs.overall_cost || 0)
       }
       
-      const backtestResult = data.data?.backtest_result
-      const screenerResult = data.data?.screener_type && data.data.screener_type !== 'economic' ? data.data : undefined
-      const economicResult = data.data?.screener_type === 'economic' ? data.data : undefined
-      const hasResults = Boolean(backtestResult || screenerResult || economicResult)
-      const assistantMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        type: 'assistant',
-        content: hasResults ? data.message : 'Sorry, I\'m unable to process your request at the moment.',
-        timestamp: new Date(),
-        parsedIntent: data.parsed_intent,
-        success: data.success && hasResults ? true : false,
-        backtestResult,
-        screenerResult,
-        economicResult
-      }
+      const assistantMessage = createAssistantMessage(payload)
 
       setMessages(prev => [...prev, assistantMessage])
     } catch (error) {
@@ -205,29 +220,15 @@ export default function BacktestPage() {
         session_id: sessionId
       })
 
-      const data = response.data
+      const payload = response.data
       
       // Update costs if available
-      if (data.costs) {
-        setSessionCost(data.costs.session_cost || 0)
-        setOverallCost(data.costs.overall_cost || 0)
+      if (payload.costs) {
+        setSessionCost(payload.costs.session_cost || 0)
+        setOverallCost(payload.costs.overall_cost || 0)
       }
       
-      const backtestResult2 = data.data?.backtest_result
-      const screenerResult2 = data.data?.screener_type && data.data.screener_type !== 'economic' ? data.data : undefined
-      const economicResult2 = data.data?.screener_type === 'economic' ? data.data : undefined
-      const hasResults2 = Boolean(backtestResult2 || screenerResult2 || economicResult2)
-      const assistantMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        type: 'assistant',
-        content: hasResults2 ? data.message : 'Sorry, I\'m unable to process your request at the moment.',
-        timestamp: new Date(),
-        parsedIntent: data.parsed_intent,
-        success: data.success && hasResults2 ? true : false,
-        backtestResult: backtestResult2,
-        screenerResult: screenerResult2,
-        economicResult: economicResult2
-      }
+      const assistantMessage = createAssistantMessage(payload)
 
       setMessages(prev => [...prev, assistantMessage])
     } catch (error) {
