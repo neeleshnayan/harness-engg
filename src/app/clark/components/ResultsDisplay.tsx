@@ -278,6 +278,7 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
   const renderBacktest = (message: ChatMessage) => {
     if (!message.backtestResult) return null
     const backtestResult = message.backtestResult
+    const isTechnicalAnalysisOnly = backtestResult.include_technical_analysis && !backtestResult.show_performance_stats
     return (
       <div key={`bt-${message.id}`} className="space-y-4">
         {backtestResult.show_performance_stats && (
@@ -339,7 +340,7 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
         )}
 
         {/* Trade Statistics Cards - Show if trades exist */}
-        {backtestResult.metrics.total_trades !== null && backtestResult.metrics.total_trades !== undefined && backtestResult.metrics.total_trades > 0 && (
+        {!isTechnicalAnalysisOnly && backtestResult.metrics.total_trades !== null && backtestResult.metrics.total_trades !== undefined && backtestResult.metrics.total_trades > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 w-full">
             <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
               <CardContent className="p-4">
@@ -402,7 +403,7 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
         )}
 
         {/* Trades Table - Show if trades exist */}
-        {backtestResult.trades && backtestResult.trades.length > 0 && (() => {
+        {!isTechnicalAnalysisOnly && backtestResult.trades && backtestResult.trades.length > 0 && (() => {
           const tableId = `trades-${message.id}`
           const isExpanded = expandedTradeTables.has(tableId)
           return (
