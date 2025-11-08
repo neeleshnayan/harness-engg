@@ -1,6 +1,6 @@
-# Sentry Integration for Krypton Wallet
+# Sentry Integration for Krypton
 
-This document explains how to use the Sentry observability integration that has been added to your Krypton Wallet application.
+This document explains how to use the Sentry observability integration that has been added to your Krypton application.
 
 ## What is Sentry?
 

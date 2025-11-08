@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Krypton Wallet",
-  description: "Your secure digital wallet",
+  title: "Krypton",
+  description: "DeFi for the next Billion",
 };
 
 export default function RootLayout({
