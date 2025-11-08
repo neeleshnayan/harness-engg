@@ -135,6 +135,11 @@ const buildTimeline = (
   });
 };
 
+type PricePoint = {
+  timestamp: number;
+  price: number;
+};
+
 type AUMPoint = {
   timestamp: number;
   aum: number;
