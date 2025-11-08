@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -11,7 +11,10 @@ import {
   Line,
 } from "recharts";
 import { useSubgraphDataMAVP } from "@/hooks/useSubgraphDataMAVP";
-import { useMAVPPriceHistory, MAVPPriceUpdate } from "@/hooks/useMAVPPrice";
+import { useMAVPPriceHistory, useMAVPPrice, MAVPPriceUpdate } from "@/hooks/useMAVPPrice";
+import api from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { RefreshCw } from "lucide-react";
 
 const formatNumber = (value?: string | number, options?: Intl.NumberFormatOptions) => {
   if (value === undefined || value === null) return '0';
@@ -132,9 +135,52 @@ const buildTimeline = (
   });
 };
 
-type PricePoint = {
+type AUMPoint = {
   timestamp: number;
-  price: number;
+  aum: number;
+};
+
+const buildAUMTimeline = (
+  timeline: TimelinePoint[],
+  priceTimeline: PricePoint[]
+): AUMPoint[] => {
+  if (priceTimeline.length === 0 || timeline.length === 0) return [];
+
+  const aumPoints: AUMPoint[] = [];
+  const priceMap = new Map<number, number>();
+
+  priceTimeline.forEach(({ timestamp, price }) => {
+    priceMap.set(timestamp, price);
+  });
+
+  timeline.forEach((point) => {
+    const netShares = point.cumMinted - point.cumBurned;
+    if (netShares <= 0) return;
+
+    let price = 0;
+    const pointTime = point.timestamp;
+
+    if (priceMap.has(pointTime)) {
+      price = priceMap.get(pointTime)!;
+    } else {
+      const sortedPrices = Array.from(priceMap.entries()).sort((a, b) => a[0] - b[0]);
+      const closestPrice = sortedPrices.find(([ts]) => ts >= pointTime);
+      if (closestPrice) {
+        price = closestPrice[1];
+      } else if (sortedPrices.length > 0) {
+        price = sortedPrices[sortedPrices.length - 1][1];
+      }
+    }
+
+    if (price > 0) {
+      aumPoints.push({
+        timestamp: pointTime,
+        aum: netShares * price,
+      });
+    }
+  });
+
+  return aumPoints.sort((a, b) => a.timestamp - b.timestamp);
 };
 
 const buildPriceTimeline = (priceUpdates: MAVPPriceUpdate[]): PricePoint[] => {
@@ -190,6 +236,9 @@ interface SubgraphAnalyticsMAVPProps {
 export const SubgraphAnalyticsMAVP: React.FC<SubgraphAnalyticsMAVPProps> = ({ subgraphUrl }) => {
   const { data, isLoading, isError, error, refetch, isFetching } = useSubgraphDataMAVP(subgraphUrl);
   const { data: priceHistory } = useMAVPPriceHistory(subgraphUrl);
+  const { data: currentPrice } = useMAVPPrice(subgraphUrl);
+  const { toast } = useToast();
+  const [isForceUpdating, setIsForceUpdating] = useState(false);
 
   const metrics = data?.mavpvaultMetric;
   const deposits = data?.deposits ?? [];
@@ -202,8 +251,40 @@ export const SubgraphAnalyticsMAVP: React.FC<SubgraphAnalyticsMAVPProps> = ({ su
     return minted - burned;
   }, [metrics]);
 
+  const totalAUM = useMemo(() => {
+    if (!metrics || netShares === 0) return 0;
+    const price = currentPrice?.price ? Number(currentPrice.price) : 0;
+    if (price === 0) return 0;
+    return netShares * price;
+  }, [metrics, netShares, currentPrice]);
+
   const timeline = useMemo(() => buildTimeline(deposits, withdrawals), [deposits, withdrawals]);
   const priceTimeline = useMemo(() => buildPriceTimeline(priceHistory ?? []), [priceHistory]);
+  const aumTimeline = useMemo(() => buildAUMTimeline(timeline, priceTimeline), [timeline, priceTimeline]);
+
+  const handleForcePriceUpdate = async () => {
+    setIsForceUpdating(true);
+    try {
+      const response = await api.post('/api/v1/admin/force-price-update/MAVP');
+      toast({
+        title: "Price update triggered",
+        description: "The price update transaction has been sent. It may take a few moments to appear.",
+      });
+      setTimeout(() => {
+        refetch();
+      }, 5000);
+    } catch (error: any) {
+      console.error('Force price update error:', error);
+      const errorMessage = error.response?.data?.detail || error.message || "Failed to trigger price update. Check backend logs.";
+      toast({
+        title: "Price update failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsForceUpdating(false);
+    }
+  };
 
   // Calculate dynamic y-axis domain for price chart
   const priceDomain = useMemo(() => {
@@ -231,6 +312,29 @@ export const SubgraphAnalyticsMAVP: React.FC<SubgraphAnalyticsMAVPProps> = ({ su
 
   const hasChartData = timeline.length > 0;
   const hasPriceData = priceTimeline.length > 0;
+  const hasAUMData = aumTimeline.length > 0;
+
+  // Calculate dynamic y-axis domain for AUM chart
+  const aumDomain = useMemo(() => {
+    if (aumTimeline.length === 0) return [0, 1000];
+
+    const aumValues = aumTimeline.map(p => p.aum);
+    const minAUM = Math.min(...aumValues);
+    const maxAUM = Math.max(...aumValues);
+
+    if (minAUM === maxAUM) {
+      const padding = minAUM * 0.01;
+      return [Math.max(0, minAUM - padding), maxAUM + padding];
+    }
+
+    const range = maxAUM - minAUM;
+    const padding = range * 0.05;
+
+    return [
+      Math.max(0, minAUM - padding),
+      maxAUM + padding
+    ];
+  }, [aumTimeline]);
 
   if (!subgraphUrl) {
     return (
@@ -253,14 +357,25 @@ export const SubgraphAnalyticsMAVP: React.FC<SubgraphAnalyticsMAVPProps> = ({ su
           </p>
         </div>
         {data && (
-          <button
-            type="button"
-            onClick={() => refetch()}
-            className="self-start rounded-full border border-zinc-700/50 bg-zinc-800/50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-300 transition hover:border-zinc-600/50 hover:text-white disabled:opacity-50"
-            disabled={isFetching}
-          >
-            Refresh
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="self-start rounded-full border border-zinc-700/50 bg-zinc-800/50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-300 transition hover:border-zinc-600/50 hover:text-white disabled:opacity-50"
+              disabled={isFetching}
+            >
+              Refresh
+            </button>
+            <button
+              type="button"
+              onClick={handleForcePriceUpdate}
+              disabled={isForceUpdating}
+              className="self-start rounded-full border border-amber-500/50 bg-amber-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-amber-300 transition hover:border-amber-400/50 hover:bg-amber-500/20 hover:text-amber-200 disabled:opacity-50 flex items-center gap-2"
+            >
+              <RefreshCw className={`w-3 h-3 ${isForceUpdating ? 'animate-spin' : ''}`} />
+              {isForceUpdating ? 'Updating...' : 'Force Price Update'}
+            </button>
+          </div>
         )}
       </header>
 
@@ -283,6 +398,14 @@ export const SubgraphAnalyticsMAVP: React.FC<SubgraphAnalyticsMAVPProps> = ({ su
       {metrics && (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
+            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total AUM</p>
+            <p className="mt-3 text-3xl font-bold text-white">{formatCurrency(totalAUM)}</p>
+          </div>
+          <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
+            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Net MAVP Supply</p>
+            <p className="mt-3 text-3xl font-bold text-white">{formatShare(netShares)}</p>
+          </div>
+          <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total Deposits</p>
             <p className="mt-3 text-3xl font-bold text-white">{formatCurrency(Number(metrics.totalDeposits ?? '0'))}</p>
           </div>
@@ -290,14 +413,140 @@ export const SubgraphAnalyticsMAVP: React.FC<SubgraphAnalyticsMAVPProps> = ({ su
             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total Withdrawals</p>
             <p className="mt-3 text-3xl font-bold text-white">{formatCurrency(Number(metrics.totalWithdrawals ?? '0'))}</p>
           </div>
-          <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
-            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">MAVP Minted</p>
-            <p className="mt-3 text-3xl font-bold text-white">{formatShare(Number(metrics.mintedShares ?? '0'))}</p>
-          </div>
-          <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
-            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Net MAVP Supply</p>
-            <p className="mt-3 text-3xl font-bold text-white">{formatShare(netShares)}</p>
-          </div>
+        </div>
+      )}
+
+      {(hasPriceData || hasAUMData) && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {hasPriceData && (
+            <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 shadow-2xl backdrop-blur">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold text-white">MAVP Price Over Time</h3>
+                  <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">30-minute interval average</p>
+                </div>
+              </div>
+              <div className="mt-6 h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={priceTimeline} margin={{ left: 0, right: 20, bottom: 60, top: 10 }}>
+                    <defs>
+                      <linearGradient id="priceAreaMAVP" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.8} />
+                        <stop offset="100%" stopColor="#06b6d4" stopOpacity={0.1} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                    <XAxis
+                      dataKey="timestamp"
+                      tickFormatter={formatDateTime}
+                      stroke="rgba(255,255,255,0.4)"
+                      angle={-45}
+                      textAnchor="end"
+                      height={60}
+                      tick={{ fontSize: 11 }}
+                      minTickGap={50}
+                    />
+                    <YAxis
+                      domain={priceDomain}
+                      tickFormatter={(value) => formatCurrency(value)}
+                      stroke="rgba(255,255,255,0.4)"
+                    />
+                    <Tooltip
+                      content={({ label, payload }) => {
+                        if (!payload?.length) return null;
+                        return (
+                          <div className="space-y-1 rounded-2xl border border-zinc-700/50 bg-zinc-800/90 px-4 py-3 text-xs text-zinc-200 shadow-xl">
+                            <p className="font-semibold text-white">
+                              {typeof label === 'number' ? formatDateTime(label) : label}
+                            </p>
+                            <div className="flex justify-between gap-4">
+                              <span className="uppercase tracking-wide text-zinc-400">MAVP Price</span>
+                              <span className="font-semibold text-white">
+                                {formatCurrency(payload[0].value as number)}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="price"
+                      name="Price (USD)"
+                      stroke="#06b6d4"
+                      strokeWidth={2}
+                      fill="url(#priceAreaMAVP)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {hasAUMData && (
+            <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 shadow-2xl backdrop-blur">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold text-white">Total AUM Over Time</h3>
+                  <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Net shares × price</p>
+                </div>
+              </div>
+              <div className="mt-6 h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={aumTimeline} margin={{ left: 0, right: 20, bottom: 60, top: 10 }}>
+                    <defs>
+                      <linearGradient id="aumAreaMAVP" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.8} />
+                        <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.1} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                    <XAxis
+                      dataKey="timestamp"
+                      tickFormatter={formatDateTime}
+                      stroke="rgba(255,255,255,0.4)"
+                      angle={-45}
+                      textAnchor="end"
+                      height={60}
+                      tick={{ fontSize: 11 }}
+                      minTickGap={50}
+                    />
+                    <YAxis
+                      domain={aumDomain}
+                      tickFormatter={(value) => formatCurrency(value)}
+                      stroke="rgba(255,255,255,0.4)"
+                    />
+                    <Tooltip
+                      content={({ label, payload }) => {
+                        if (!payload?.length) return null;
+                        return (
+                          <div className="space-y-1 rounded-2xl border border-zinc-700/50 bg-zinc-800/90 px-4 py-3 text-xs text-zinc-200 shadow-xl">
+                            <p className="font-semibold text-white">
+                              {typeof label === 'number' ? formatDateTime(label) : label}
+                            </p>
+                            <div className="flex justify-between gap-4">
+                              <span className="uppercase tracking-wide text-zinc-400">Total AUM</span>
+                              <span className="font-semibold text-white">
+                                {formatCurrency(payload[0].value as number)}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="aum"
+                      name="AUM (USD)"
+                      stroke="#f59e0b"
+                      strokeWidth={2}
+                      fill="url(#aumAreaMAVP)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -315,12 +564,12 @@ export const SubgraphAnalyticsMAVP: React.FC<SubgraphAnalyticsMAVPProps> = ({ su
                 <LineChart data={timeline} margin={{ left: -8, right: 8 }}>
                   <defs>
                     <linearGradient id="depositLine" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#6366f1" stopOpacity={0.9} />
-                      <stop offset="100%" stopColor="#6366f1" stopOpacity={0.1} />
+                      <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.9} />
+                      <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.1} />
                     </linearGradient>
                     <linearGradient id="withdrawLine" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#f472b6" stopOpacity={0.9} />
-                      <stop offset="100%" stopColor="#f472b6" stopOpacity={0.1} />
+                      <stop offset="0%" stopColor="#ef4444" stopOpacity={0.9} />
+                      <stop offset="100%" stopColor="#ef4444" stopOpacity={0.1} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
@@ -338,7 +587,7 @@ export const SubgraphAnalyticsMAVP: React.FC<SubgraphAnalyticsMAVPProps> = ({ su
                     type="monotone"
                     dataKey="cumDeposits"
                     name="Deposits (USD)"
-                    stroke="url(#depositLine)"
+                    stroke="#8b5cf6"
                     strokeWidth={3}
                     dot={false}
                   />
@@ -346,7 +595,7 @@ export const SubgraphAnalyticsMAVP: React.FC<SubgraphAnalyticsMAVPProps> = ({ su
                     type="monotone"
                     dataKey="cumWithdrawals"
                     name="Withdrawals (USD)"
-                    stroke="url(#withdrawLine)"
+                    stroke="#ef4444"
                     strokeWidth={3}
                     dot={false}
                   />
@@ -367,12 +616,12 @@ export const SubgraphAnalyticsMAVP: React.FC<SubgraphAnalyticsMAVPProps> = ({ su
                 <AreaChart data={timeline} margin={{ left: -8, right: 8 }}>
                   <defs>
                     <linearGradient id="mintedArea" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#34d399" stopOpacity={0.8} />
-                      <stop offset="100%" stopColor="#34d399" stopOpacity={0.1} />
+                      <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.8} />
+                      <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.1} />
                     </linearGradient>
                     <linearGradient id="burnedArea" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#f97316" stopOpacity={0.8} />
-                      <stop offset="100%" stopColor="#f97316" stopOpacity={0.1} />
+                      <stop offset="0%" stopColor="#ea580c" stopOpacity={0.8} />
+                      <stop offset="100%" stopColor="#ea580c" stopOpacity={0.1} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
@@ -390,7 +639,7 @@ export const SubgraphAnalyticsMAVP: React.FC<SubgraphAnalyticsMAVPProps> = ({ su
                     type="monotone"
                     dataKey="cumMinted"
                     name="Minted (MAVP)"
-                    stroke="#34d399"
+                    stroke="#3b82f6"
                     strokeWidth={2}
                     fill="url(#mintedArea)"
                   />
@@ -398,78 +647,13 @@ export const SubgraphAnalyticsMAVP: React.FC<SubgraphAnalyticsMAVPProps> = ({ su
                     type="monotone"
                     dataKey="cumBurned"
                     name="Burned (MAVP)"
-                    stroke="#f97316"
+                    stroke="#ea580c"
                     strokeWidth={2}
                     fill="url(#burnedArea)"
                   />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-          </div>
-        </div>
-      )}
-
-      {hasPriceData && (
-        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 shadow-2xl backdrop-blur">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-xl font-bold text-white">MAVP Price Over Time</h3>
-              <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">30-minute interval average</p>
-            </div>
-          </div>
-          <div className="mt-6 h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={priceTimeline} margin={{ left: 0, right: 20, bottom: 60, top: 10 }}>
-                <defs>
-                  <linearGradient id="priceArea" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.8} />
-                    <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.1} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                <XAxis
-                  dataKey="timestamp"
-                  tickFormatter={formatDateTime}
-                  stroke="rgba(255,255,255,0.4)"
-                  angle={-45}
-                  textAnchor="end"
-                  height={60}
-                  tick={{ fontSize: 11 }}
-                  minTickGap={50}
-                />
-                <YAxis
-                  domain={priceDomain}
-                  tickFormatter={(value) => formatCurrency(value)}
-                  stroke="rgba(255,255,255,0.4)"
-                />
-                <Tooltip
-                  content={({ label, payload }) => {
-                    if (!payload?.length) return null;
-                    return (
-                      <div className="space-y-1 rounded-2xl border border-zinc-700/50 bg-zinc-800/90 px-4 py-3 text-xs text-zinc-200 shadow-xl">
-                        <p className="font-semibold text-white">
-                          {typeof label === 'number' ? formatDateTime(label) : label}
-                        </p>
-                        <div className="flex justify-between gap-4">
-                          <span className="uppercase tracking-wide text-zinc-400">MAVP Price</span>
-                          <span className="font-semibold text-white">
-                            {formatCurrency(payload[0].value as number)}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="price"
-                  name="Price (USD)"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  fill="url(#priceArea)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
           </div>
         </div>
       )}

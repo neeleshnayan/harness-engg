@@ -19,11 +19,11 @@ contract MAVPPriceOracle is Ownable {
     AggregatorV3Interface public immutable linkUsdFeed;
     
     // Price feed staleness thresholds (in seconds)
-    uint256 public constant ETH_HEARTBEAT = 3600;   // 1 hour
-    uint256 public constant BTC_HEARTBEAT = 3600;   // 1 hour
-    uint256 public constant USDT_HEARTBEAT = 86400; // 24 hours
-    uint256 public constant UNI_HEARTBEAT = 86400;  // 24 hours (mock)
-    uint256 public constant LINK_HEARTBEAT = 86400; // 24 hours
+    uint256 public constant ETH_HEARTBEAT = 86400;   // 24 hours (Sepolia testnet)
+    uint256 public constant BTC_HEARTBEAT = 86400;   // 24 hours (Sepolia testnet)
+    uint256 public constant USDT_HEARTBEAT = 86400;  // 24 hours
+    uint256 public constant UNI_HEARTBEAT = 172800;  // 48 hours (mock feed)
+    uint256 public constant LINK_HEARTBEAT = 172800; // 48 hours (testnet)
     
     // Portfolio weights (0.2% each = 20 basis points)
     uint256 public constant WEIGHT_BPS = 20; // 0.2% in basis points

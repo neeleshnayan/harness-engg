@@ -3,14 +3,14 @@ import { FaCoins, FaEthereum, FaSync } from "react-icons/fa";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import api from "@/lib/api";
 import { useMAVCConfig } from "@/hooks/useMAVCConfig";
-import { useMAVCPrice } from "@/hooks/useMAVCPrice";
-import { useMAVPPrice } from "@/hooks/useMAVPPrice";
+import { useMAVCPrice, useMAVCPriceHistory } from "@/hooks/useMAVCPrice";
+import { useMAVPPrice, useMAVPPriceHistory } from "@/hooks/useMAVPPrice";
 import { useMAVPConfig } from "@/hooks/useMAVPConfig";
 import { useSubgraphData } from "@/hooks/useSubgraphData";
 import { useMAVPSubgraphData } from "@/hooks/useMAVPSubgraphData";
 import { MAVCMiniChart } from "./MAVCMiniChart";
 import { MAVPMiniChart } from "./MAVPMiniChart";
-import { UserDepositChart } from "./UserDepositChart";
+import { NetAUMChart } from "./NetAUMChart";
 
 interface TokenBalance {
   token: {
@@ -50,8 +50,10 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
 }) => {
   const { data: mavcConfig } = useMAVCConfig();
   const { data: mavcPriceData } = useMAVCPrice(subgraphUrl || mavcConfig?.subgraph_url);
+  const { data: mavcPriceHistory } = useMAVCPriceHistory(subgraphUrl || mavcConfig?.subgraph_url);
   const { data: mavpConfig } = useMAVPConfig();
   const { data: mavpPriceData } = useMAVPPrice(mavpConfig?.subgraph_url);
+  const { data: mavpPriceHistory } = useMAVPPriceHistory(mavpConfig?.subgraph_url);
   const { data: mavcSubgraphData } = useSubgraphData(subgraphUrl || mavcConfig?.subgraph_url);
   const { data: mavpSubgraphData } = useMAVPSubgraphData(mavpConfig?.subgraph_url);
   const [tokenDetails, setTokenDetails] = useState<TokenWithValue[]>([]);
@@ -394,18 +396,20 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
                   </div>
                 </div>
                 {/* Add mini chart for MAVC tokens */}
-                {tokenDetail.token.symbol === 'MAVC' && mavcSubgraphData && (
-                  <UserDepositChart
+                {tokenDetail.token.symbol === 'MAVC' && mavcSubgraphData && mavcPriceHistory && (
+                  <NetAUMChart
                     deposits={mavcSubgraphData.deposits || []}
                     withdrawals={mavcSubgraphData.withdrawals || []}
+                    priceHistory={mavcPriceHistory || []}
                     userWalletAddress={userWalletAddress}
                     tokenSymbol="MAVC"
                   />
                 )}
-                {tokenDetail.token.symbol === 'MAVP' && mavpSubgraphData && (
-                  <UserDepositChart
+                {tokenDetail.token.symbol === 'MAVP' && mavpSubgraphData && mavpPriceHistory && (
+                  <NetAUMChart
                     deposits={mavpSubgraphData.deposits || []}
                     withdrawals={mavpSubgraphData.withdrawals || []}
+                    priceHistory={mavpPriceHistory || []}
                     userWalletAddress={userWalletAddress}
                     tokenSymbol="MAVP"
                   />

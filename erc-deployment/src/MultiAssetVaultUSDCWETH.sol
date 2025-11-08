@@ -306,6 +306,11 @@ contract MultiAssetVaultUSDCWETH is ERC4626, ReentrancyGuard, Pausable, Ownable 
     }
 
     function _updateStrategyPrice() internal returns (uint256 newPrice) {
+        require(
+            lastPriceUpdate == 0 || block.timestamp >= lastPriceUpdate + PRICE_UPDATE_INTERVAL,
+            "Price update too soon"
+        );
+
         uint256 usdcPriceUSD = PRICE_ORACLE.getUsdcPrice();
         uint256 ethPriceUSD = PRICE_ORACLE.getEthPrice();
 

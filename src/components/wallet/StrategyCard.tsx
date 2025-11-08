@@ -320,15 +320,21 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh }) 
       const parsedData = JSON.parse(userData);
       if (!parsedData.wallet_address) throw new Error('Wallet address not found');
 
-      // Convert human-readable amount to wei
-      // For withdraw, user enters strategy token amount (MAVC/MAVP/ysMAVC)
-      // Strategy tokens have 18 decimals (contract decimals)
-      const amountFloat = parseFloat(amount);
-      const amountWei = Math.floor(amountFloat * Math.pow(10, 18)).toString();
-      console.log(`💰 Withdraw: ${amount} ${strategyName} → ${amountWei} wei`);
+      // For MAVC_YEARN: send raw decimal string (e.g., "10")
+      // For other strategies: convert to wei format
+      let amountToSend: string;
+      if (strategyName === 'MAVC_YEARN') {
+        amountToSend = amount; // Send raw decimal string, backend will convert
+        console.log(`💰 Withdraw MAVC_YEARN: ${amount} (raw decimal, backend will convert)`);
+      } else {
+        // Convert human-readable amount to wei
+        const amountFloat = parseFloat(amount);
+        amountToSend = Math.floor(amountFloat * Math.pow(10, 18)).toString();
+        console.log(`💰 Withdraw ${strategyName}: ${amount} → ${amountToSend} wei`);
+      }
 
       const response = await api.post(`/api/v1/strategy/${strategyName}/withdraw`, {
-        amount: amountWei,  // Send wei amount
+        amount: amountToSend,
         wallet_address: parsedData.wallet_address,
         user_id: parsedData.user_id,
       });
@@ -401,6 +407,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh }) 
 
   const openWithdrawModal = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (parseFloat(strategyBalance) === 0) return;
     setModalAction('withdraw');
     setShowModal(true);
     setTransactionError(null);
@@ -529,8 +536,14 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh }) 
             </Button>
             <Button 
               size="sm" 
-              className="flex-1 font-bold bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700" 
+              className={cn(
+                "flex-1 font-bold",
+                parseFloat(strategyBalance) === 0
+                  ? "bg-zinc-600/50 text-zinc-400 cursor-not-allowed hover:bg-zinc-600/50"
+                  : "bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700"
+              )}
               onClick={openWithdrawModal}
+              disabled={parseFloat(strategyBalance) === 0}
             >
               <ArrowUp className="w-4 h-4 mr-1" />
               Withdraw

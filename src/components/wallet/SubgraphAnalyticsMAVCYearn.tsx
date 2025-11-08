@@ -120,8 +120,19 @@ const buildTimeline = (
   });
 };
 
+type AUMPoint = {
+  timestamp: number;
+  aum: number;
+};
+
+const buildAUMTimeline = (timeline: TimelinePoint[]): AUMPoint[] => {
+  return timeline.map((point) => ({
+    timestamp: point.timestamp,
+    aum: point.cumDeposits - point.cumWithdrawals,
+  }));
+};
+
 const ChartTooltip = ({ label, payload }: { label?: string | number; payload?: any[] }) => {
-  if (!payload?.length) return null;
   return (
     <div className="space-y-1 rounded-2xl border border-zinc-700/50 bg-zinc-800/90 px-4 py-3 text-xs text-zinc-200 shadow-xl">
       <p className="font-semibold text-white">{typeof label === 'number' ? formatShortDate(label) : label}</p>
@@ -155,9 +166,40 @@ export const SubgraphAnalyticsMAVCYearn: React.FC<SubgraphAnalyticsMAVCYearnProp
     return minted - burned;
   }, [metrics]);
 
+  const totalAUM = useMemo(() => {
+    if (!metrics) return 0;
+    const deposits = Number(metrics.totalDeposits ?? '0');
+    const withdrawals = Number(metrics.totalWithdrawals ?? '0');
+    return deposits - withdrawals;
+  }, [metrics]);
+
   const timeline = useMemo(() => buildTimeline(deposits, withdrawals), [deposits, withdrawals]);
+  const aumTimeline = useMemo(() => buildAUMTimeline(timeline), [timeline]);
 
   const hasChartData = timeline.length > 0;
+  const hasAUMData = aumTimeline.length > 0;
+
+  // Calculate dynamic y-axis domain for AUM chart
+  const aumDomain = useMemo(() => {
+    if (aumTimeline.length === 0) return [0, 1000];
+
+    const aumValues = aumTimeline.map(p => p.aum);
+    const minAUM = Math.min(...aumValues);
+    const maxAUM = Math.max(...aumValues);
+
+    if (minAUM === maxAUM) {
+      const padding = minAUM * 0.01;
+      return [Math.max(0, minAUM - padding), maxAUM + padding];
+    }
+
+    const range = maxAUM - minAUM;
+    const padding = range * 0.05;
+
+    return [
+      Math.max(0, minAUM - padding),
+      maxAUM + padding
+    ];
+  }, [aumTimeline]);
 
   if (!subgraphUrl) {
     return (
@@ -235,6 +277,14 @@ export const SubgraphAnalyticsMAVCYearn: React.FC<SubgraphAnalyticsMAVCYearnProp
       {metrics && (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
+            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total AUM</p>
+            <p className="mt-3 text-3xl font-bold text-white">{formatCurrency(totalAUM)}</p>
+          </div>
+          <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
+            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Net Share Supply</p>
+            <p className="mt-3 text-3xl font-bold text-white">{formatShare(netShares)}</p>
+          </div>
+          <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total Deposits</p>
             <p className="mt-3 text-3xl font-bold text-white">{formatCurrency(Number(metrics.totalDeposits ?? '0'))}</p>
           </div>
@@ -242,13 +292,67 @@ export const SubgraphAnalyticsMAVCYearn: React.FC<SubgraphAnalyticsMAVCYearnProp
             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total Withdrawals</p>
             <p className="mt-3 text-3xl font-bold text-white">{formatCurrency(Number(metrics.totalWithdrawals ?? '0'))}</p>
           </div>
-          <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
-            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Shares Minted</p>
-            <p className="mt-3 text-3xl font-bold text-white">{formatShare(Number(metrics.mintedShares ?? '0'))}</p>
-          </div>
-          <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
-            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Net Share Supply</p>
-            <p className="mt-3 text-3xl font-bold text-white">{formatShare(netShares)}</p>
+        </div>
+      )}
+
+      {hasAUMData && (
+        <div className="grid gap-6">
+          <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 shadow-2xl backdrop-blur">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-white">Total AUM Over Time</h3>
+                <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Cumulative deposits minus withdrawals</p>
+              </div>
+            </div>
+            <div className="mt-6 h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={aumTimeline} margin={{ left: 0, right: 20, bottom: 60, top: 10 }}>
+                  <defs>
+                    <linearGradient id="aumAreaYearn" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.8} />
+                      <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.1} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                  <XAxis
+                    dataKey="timestamp"
+                    tickFormatter={formatShortDate}
+                    stroke="rgba(255,255,255,0.4)"
+                  />
+                  <YAxis
+                    domain={aumDomain}
+                    tickFormatter={(value) => formatCurrency(value)}
+                    stroke="rgba(255,255,255,0.4)"
+                  />
+                  <Tooltip
+                    content={({ label, payload }) => {
+                      if (!payload?.length) return null;
+                      return (
+                        <div className="space-y-1 rounded-2xl border border-zinc-700/50 bg-zinc-800/90 px-4 py-3 text-xs text-zinc-200 shadow-xl">
+                          <p className="font-semibold text-white">
+                            {typeof label === 'number' ? formatShortDate(label) : label}
+                          </p>
+                          <div className="flex justify-between gap-4">
+                            <span className="uppercase tracking-wide text-zinc-400">Total AUM</span>
+                            <span className="font-semibold text-white">
+                              {formatCurrency(payload[0].value as number)}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="aum"
+                    name="AUM (USD)"
+                    stroke="#f59e0b"
+                    strokeWidth={2}
+                    fill="url(#aumAreaYearn)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       )}
@@ -267,12 +371,12 @@ export const SubgraphAnalyticsMAVCYearn: React.FC<SubgraphAnalyticsMAVCYearnProp
                 <LineChart data={timeline} margin={{ left: -8, right: 8 }}>
                   <defs>
                     <linearGradient id="depositLineYearn" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#6366f1" stopOpacity={0.9} />
-                      <stop offset="100%" stopColor="#6366f1" stopOpacity={0.1} />
+                      <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.9} />
+                      <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.1} />
                     </linearGradient>
                     <linearGradient id="withdrawLineYearn" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#f472b6" stopOpacity={0.9} />
-                      <stop offset="100%" stopColor="#f472b6" stopOpacity={0.1} />
+                      <stop offset="0%" stopColor="#ef4444" stopOpacity={0.9} />
+                      <stop offset="100%" stopColor="#ef4444" stopOpacity={0.1} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
@@ -290,7 +394,7 @@ export const SubgraphAnalyticsMAVCYearn: React.FC<SubgraphAnalyticsMAVCYearnProp
                     type="monotone"
                     dataKey="cumDeposits"
                     name="Deposits (USD)"
-                    stroke="url(#depositLineYearn)"
+                    stroke="#8b5cf6"
                     strokeWidth={3}
                     dot={false}
                   />
@@ -298,7 +402,7 @@ export const SubgraphAnalyticsMAVCYearn: React.FC<SubgraphAnalyticsMAVCYearnProp
                     type="monotone"
                     dataKey="cumWithdrawals"
                     name="Withdrawals (USD)"
-                    stroke="url(#withdrawLineYearn)"
+                    stroke="#ef4444"
                     strokeWidth={3}
                     dot={false}
                   />
@@ -319,12 +423,12 @@ export const SubgraphAnalyticsMAVCYearn: React.FC<SubgraphAnalyticsMAVCYearnProp
                 <AreaChart data={timeline} margin={{ left: -8, right: 8 }}>
                   <defs>
                     <linearGradient id="mintedAreaYearn" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#34d399" stopOpacity={0.8} />
-                      <stop offset="100%" stopColor="#34d399" stopOpacity={0.1} />
+                      <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.8} />
+                      <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.1} />
                     </linearGradient>
                     <linearGradient id="burnedAreaYearn" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#f97316" stopOpacity={0.8} />
-                      <stop offset="100%" stopColor="#f97316" stopOpacity={0.1} />
+                      <stop offset="0%" stopColor="#ea580c" stopOpacity={0.8} />
+                      <stop offset="100%" stopColor="#ea580c" stopOpacity={0.1} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
@@ -342,7 +446,7 @@ export const SubgraphAnalyticsMAVCYearn: React.FC<SubgraphAnalyticsMAVCYearnProp
                     type="monotone"
                     dataKey="cumMinted"
                     name="Minted (Shares)"
-                    stroke="#34d399"
+                    stroke="#3b82f6"
                     strokeWidth={2}
                     fill="url(#mintedAreaYearn)"
                   />
@@ -350,7 +454,7 @@ export const SubgraphAnalyticsMAVCYearn: React.FC<SubgraphAnalyticsMAVCYearnProp
                     type="monotone"
                     dataKey="cumBurned"
                     name="Burned (Shares)"
-                    stroke="#f97316"
+                    stroke="#ea580c"
                     strokeWidth={2}
                     fill="url(#burnedAreaYearn)"
                   />

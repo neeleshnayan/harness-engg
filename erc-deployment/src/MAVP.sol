@@ -470,6 +470,11 @@ contract MultiAssetVaultPortfolio is ERC4626, ReentrancyGuard, Pausable, Ownable
     }
 
     function _updateStrategyPrice() internal returns (uint256 newPrice) {
+        require(
+            lastPriceUpdate == 0 || block.timestamp >= lastPriceUpdate + PRICE_UPDATE_INTERVAL,
+            "Price update too soon"
+        );
+
         newPrice = PRICE_ORACLE.getMAVPPriceUSD();
         strategyPriceUSD = newPrice;
         lastPriceUpdate = block.timestamp;
