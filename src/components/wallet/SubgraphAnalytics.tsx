@@ -284,7 +284,6 @@ export const SubgraphAnalytics: React.FC<SubgraphAnalyticsProps> = ({ subgraphUr
       toast({
         title: "Price update failed",
         description: errorMessage,
-        variant: "destructive",
       });
     } finally {
       setIsForceUpdating(false);

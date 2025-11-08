@@ -279,7 +279,6 @@ export const SubgraphAnalyticsMAVP: React.FC<SubgraphAnalyticsMAVPProps> = ({ su
       toast({
         title: "Price update failed",
         description: errorMessage,
-        variant: "destructive",
       });
     } finally {
       setIsForceUpdating(false);
