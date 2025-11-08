@@ -133,6 +133,7 @@ const buildAUMTimeline = (timeline: TimelinePoint[]): AUMPoint[] => {
 };
 
 const ChartTooltip = ({ label, payload }: { label?: string | number; payload?: any[] }) => {
+  if (!payload?.length) return null;
   return (
     <div className="space-y-1 rounded-2xl border border-zinc-700/50 bg-zinc-800/90 px-4 py-3 text-xs text-zinc-200 shadow-xl">
       <p className="font-semibold text-white">{typeof label === 'number' ? formatShortDate(label) : label}</p>
