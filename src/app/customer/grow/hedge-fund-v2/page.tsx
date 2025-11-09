@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle, AlertCircle } from "lucide-react";
 import api from "@/lib/api";
 import HedgeFundDashboard from "@/components/HedgeFundDashboard";
 import StrategyCard from "@/components/wallet/StrategyCard";
 import TokenBalances from "@/components/wallet/TokenBalances";
+import { CumulativeAUMChart } from "@/components/wallet/CumulativeAUMChart";
+import { useMAVCConfig } from "@/hooks/useMAVCConfig";
 import { Toaster } from "@/components/ui/toaster";
 
 interface HedgeFundForm {
@@ -21,6 +23,7 @@ interface HedgeFundForm {
 
 export default function HedgeFundV2Page() {
   const router = useRouter();
+  const { data: mavcConfig } = useMAVCConfig();
   const [formData, setFormData] = useState<HedgeFundForm>({
     age: "",
     annualIncome: "",
@@ -41,6 +44,35 @@ export default function HedgeFundV2Page() {
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceError, setBalanceError] = useState<string | null>(null);
   const [accountData, setAccountData] = useState<any>(null);
+
+  const tokenBalances = useMemo(() => {
+    if (!balance || !Array.isArray(balance.tokenBalances)) {
+      return { mavc: undefined, mavp: undefined };
+    }
+
+    let balances = balance.tokenBalances.filter((tokenBalance: any) => {
+      const amount = parseFloat(tokenBalance.amount);
+      return !isNaN(amount) && amount > 0;
+    });
+
+    const mavcTokenAddress = mavcConfig?.token_address;
+    let mavcBalance: number | undefined;
+    let mavpBalance: number | undefined;
+
+    balances.forEach((tokenBalance: any) => {
+      const symbol = tokenBalance.token.symbol;
+      const rawAmount = parseFloat(tokenBalance.amount || "0");
+
+      if (symbol === 'MAVC' && mavcTokenAddress && 
+          tokenBalance.token.tokenAddress?.toLowerCase() === mavcTokenAddress.toLowerCase()) {
+        mavcBalance = rawAmount / Math.pow(10, 12);
+      } else if (symbol === 'MAVP') {
+        mavpBalance = rawAmount / Math.pow(10, 12);
+      }
+    });
+
+    return { mavc: mavcBalance, mavp: mavpBalance };
+  }, [balance, mavcConfig]);
 
   useEffect(() => {
     const storedUserData = localStorage.getItem('userData');
@@ -255,6 +287,17 @@ export default function HedgeFundV2Page() {
             Advanced investment strategies with on-chain analytics and subgraph monitoring.
           </p>
         </div>
+
+        {/* Portfolio Performance Chart */}
+        {accountData?.wallet_address && (
+          <div className="w-full max-w-6xl mx-auto mb-12">
+            <CumulativeAUMChart 
+              userWalletAddress={accountData.wallet_address}
+              mavcCurrentBalance={tokenBalances.mavc}
+              mavpCurrentBalance={tokenBalances.mavp}
+            />
+          </div>
+        )}
 
         {/* Strategy Cards */}
         <div className="w-full max-w-6xl mx-auto mb-12">

@@ -26,6 +26,7 @@ interface NetAUMChartProps {
   priceHistory: MAVCPriceUpdate[];
   userWalletAddress?: string;
   tokenSymbol: string;
+  currentBalance?: number;
 }
 
 type AUMDataPoint = {
@@ -68,7 +69,8 @@ const buildNetAUMTimeline = (
   deposits: Deposit[],
   withdrawals: Withdrawal[],
   priceHistory: MAVCPriceUpdate[],
-  userWalletAddress?: string
+  userWalletAddress?: string,
+  currentBalance?: number
 ): AUMDataPoint[] => {
   if (!userWalletAddress || priceHistory.length === 0) return [];
 
@@ -90,7 +92,7 @@ const buildNetAUMTimeline = (
     }))
     .sort((a, b) => a.timestamp - b.timestamp);
 
-  if (userDeposits.length === 0) return [];
+  if (userDeposits.length === 0 && (!currentBalance || currentBalance === 0)) return [];
 
   const allTimestamps = new Set<number>();
   userDeposits.forEach(d => allTimestamps.add(d.timestamp));
@@ -128,6 +130,33 @@ const buildNetAUMTimeline = (
     }
   }
 
+  if (currentBalance !== undefined && priceHistory.length > 0) {
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+    const latestPriceUpdate = priceHistory[priceHistory.length - 1];
+    const currentPrice = Number(latestPriceUpdate.price);
+    
+    if (currentPrice > 0) {
+      const currentAUM = (currentBalance || 0) * currentPrice;
+      const existingLatestPoint = dataPoints[dataPoints.length - 1];
+      
+      if (!existingLatestPoint || existingLatestPoint.timestamp < currentTimestamp - 3600) {
+        dataPoints.push({
+          date: formatDate(currentTimestamp),
+          timestamp: currentTimestamp,
+          netShares: currentBalance || 0,
+          price: currentPrice,
+          aum: currentAUM,
+          formattedAUM: formatAUM(currentAUM)
+        });
+      } else if (existingLatestPoint && existingLatestPoint.timestamp < currentTimestamp) {
+        existingLatestPoint.netShares = currentBalance || 0;
+        existingLatestPoint.price = currentPrice;
+        existingLatestPoint.aum = currentAUM;
+        existingLatestPoint.formattedAUM = formatAUM(currentAUM);
+      }
+    }
+  }
+
   return dataPoints;
 };
 
@@ -154,11 +183,12 @@ export const NetAUMChart: React.FC<NetAUMChartProps> = ({
   withdrawals,
   priceHistory,
   userWalletAddress,
-  tokenSymbol
+  tokenSymbol,
+  currentBalance
 }) => {
   const aumTimeline = useMemo(
-    () => buildNetAUMTimeline(deposits, withdrawals, priceHistory, userWalletAddress),
-    [deposits, withdrawals, priceHistory, userWalletAddress]
+    () => buildNetAUMTimeline(deposits, withdrawals, priceHistory, userWalletAddress, currentBalance),
+    [deposits, withdrawals, priceHistory, userWalletAddress, currentBalance]
   );
 
   const stats = useMemo(() => {
@@ -255,4 +285,7 @@ export const NetAUMChart: React.FC<NetAUMChartProps> = ({
     </div>
   );
 };
+
+
+
 

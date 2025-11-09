@@ -403,6 +403,7 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
                     priceHistory={mavcPriceHistory || []}
                     userWalletAddress={userWalletAddress}
                     tokenSymbol="MAVC"
+                    currentBalance={parseFloat(tokenDetail.amount)}
                   />
                 )}
                 {tokenDetail.token.symbol === 'MAVP' && mavpSubgraphData && mavpPriceHistory && (
@@ -412,6 +413,7 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
                     priceHistory={mavpPriceHistory || []}
                     userWalletAddress={userWalletAddress}
                     tokenSymbol="MAVP"
+                    currentBalance={parseFloat(tokenDetail.amount)}
                   />
                 )}
               </div>

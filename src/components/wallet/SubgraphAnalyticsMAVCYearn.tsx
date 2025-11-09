@@ -11,6 +11,7 @@ import {
   Line,
 } from "recharts";
 import { useMAVCYearnSubgraphData } from "@/hooks/useMAVCYearnSubgraphData";
+import { useYearnAUM } from "@/hooks/useYearnAUM";
 
 const formatNumber = (value?: string | number, options?: Intl.NumberFormatOptions) => {
   if (value === undefined || value === null) return '0';
@@ -155,6 +156,7 @@ interface SubgraphAnalyticsMAVCYearnProps {
 
 export const SubgraphAnalyticsMAVCYearn: React.FC<SubgraphAnalyticsMAVCYearnProps> = ({ subgraphUrl }) => {
   const { data, isLoading, isError, error, refetch, isFetching } = useMAVCYearnSubgraphData(subgraphUrl);
+  const { data: yearnAUM } = useYearnAUM('MAVC_YEARN');
 
   const metrics = data?.mavcyearnVaultMetric;
   const deposits = data?.deposits ?? [];
@@ -168,11 +170,16 @@ export const SubgraphAnalyticsMAVCYearn: React.FC<SubgraphAnalyticsMAVCYearnProp
   }, [metrics]);
 
   const totalAUM = useMemo(() => {
+    // Use Yearn's totalAssets() function for current AUM if available
+    if (yearnAUM !== undefined) {
+      return yearnAUM;
+    }
+    // Fallback to subgraph calculation (deposits - withdrawals)
     if (!metrics) return 0;
     const deposits = Number(metrics.totalDeposits ?? '0');
     const withdrawals = Number(metrics.totalWithdrawals ?? '0');
     return deposits - withdrawals;
-  }, [metrics]);
+  }, [yearnAUM, metrics]);
 
   const timeline = useMemo(() => buildTimeline(deposits, withdrawals), [deposits, withdrawals]);
   const aumTimeline = useMemo(() => buildAUMTimeline(timeline), [timeline]);

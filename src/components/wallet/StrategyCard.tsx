@@ -13,6 +13,7 @@ import api from "@/lib/api";
 import { StrategyName, useStrategyConfig } from "@/hooks/useStrategyConfig";
 import { useStrategyPrice } from "@/hooks/useStrategyPrice";
 import { useStrategySubgraphData } from "@/hooks/useStrategySubgraphData";
+import { useYearnAUM } from "@/hooks/useYearnAUM";
 import { BalanceStatusIndicator, BalanceTransactionStage, BalanceTransactionType } from "./BalanceStatusIndicator";
 import StrategyModal from "./StrategyModal";
 
@@ -59,6 +60,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh }) 
     config?.subgraph_url
   );
   const { data: subgraphData } = useStrategySubgraphData(strategyName, config?.subgraph_url);
+  const { data: yearnAUM } = useYearnAUM(strategyName);
 
   const [strategyBalance, setStrategyBalance] = useState("0");
   const [usdcBalance, setUsdcBalance] = useState("0");
@@ -85,6 +87,18 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh }) 
 
   // Calculate AUM dynamically
   const calculatedAUM = useMemo(() => {
+    // For MAVC_YEARN, use Yearn's totalAssets() function directly
+    if (strategyName === 'MAVC_YEARN' && yearnAUM !== undefined) {
+      const aumInUSD = yearnAUM;
+      if (aumInUSD >= 1_000_000) {
+        return { value: aumInUSD / 1_000_000, unit: 'M' };
+      } else if (aumInUSD >= 1_000) {
+        return { value: aumInUSD / 1_000, unit: 'K' };
+      } else {
+        return { value: aumInUSD, unit: '' };
+      }
+    }
+    
     if (!priceData?.price || netSupply === 0) {
       return { value: config?.aum ?? 8.9, unit: 'M' };
     }
@@ -98,13 +112,13 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh }) 
     } else {
       return { value: aumInUSD, unit: '' };
     }
-  }, [netSupply, priceData, config?.aum]);
+  }, [strategyName, yearnAUM, netSupply, priceData, config?.aum]);
 
   const uniqueDepositors = subgraphData?.[strategyDetails.metricField]?.uniqueDepositors ?? config?.participants ?? 121;
 
   // Strategy metrics from config
   const strategyMetrics = {
-    name: config?.name ?? (strategyName === 'MAVC' ? 'Multi Asset Vault' : strategyName === 'MAVP' ? 'Multi Asset Vault Protocol' : 'MAVC Yearn'),
+    name: strategyName === 'MAVC' ? 'MAVC' : strategyName === 'MAVP' ? 'MAVP' : 'MAVC Yearn',
     description: config?.description ?? '',
     netApy: config?.net_apy ?? 135.3,
     aum: calculatedAUM.value,
@@ -434,9 +448,6 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh }) 
           <div className="flex justify-between items-start gap-4">
             <div className="flex items-center gap-2">
               <CardTitle className="text-xl text-white">{strategyMetrics.name}</CardTitle>
-              {strategyName === 'MAVC_YEARN' && (
-                <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/20">Yearn v3</Badge>
-              )}
             </div>
             <div className="flex flex-col items-end gap-1">
               <BalanceStatusIndicator
