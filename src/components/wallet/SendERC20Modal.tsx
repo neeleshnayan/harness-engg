@@ -5,7 +5,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { FaArrowUp } from "react-icons/fa";
 import api, { web3Api } from "@/lib/api";
-import { K_TOKEN_SYMBOLS, K_TOKEN_ADDRESSES } from "@/lib/kTokens";
+import { K_TOKEN_SYMBOLS, K_TOKEN_ADDRESSES_LOWERCASE } from "@/lib/kTokens";
 import { getPoolPrice } from "@/lib/priceCache";
 
 interface SendERC20ModalProps {
@@ -109,7 +109,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
 
     for (const tb of balance.tokenBalances) {
       const tokenAddress = tb?.token?.tokenAddress?.toLowerCase();
-      const symbol = tokenAddress ? K_TOKEN_ADDRESSES[tokenAddress] : undefined;
+      const symbol = tokenAddress ? K_TOKEN_ADDRESSES_LOWERCASE[tokenAddress] : undefined;
       if (symbol) {
         const amount = parseFloat(tb.amount || "0");
         if (!isNaN(amount) && amount > 0) {

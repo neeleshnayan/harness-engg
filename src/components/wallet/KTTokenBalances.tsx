@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { FaCoins } from "react-icons/fa";
-import { K_TOKEN_ADDRESSES } from "@/lib/kTokens";
+import { K_TOKEN_ADDRESSES, K_TOKEN_ADDRESSES_LOWERCASE } from "@/lib/kTokens";
 
 interface KTTokenBalance {
   symbol: string;
@@ -15,6 +15,7 @@ interface KTTokenBalancesProps {
 const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = "" }) => {
   // Extract k-token balances from the balance data
   const kTokenBalances = useMemo(() => {
+    console.log("balance", balance);
     if (!balance || !balance.tokenBalances || !Array.isArray(balance.tokenBalances)) {
       return [];
     }
@@ -22,7 +23,7 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
     const balances: KTTokenBalance[] = [];
     for (const tb of balance.tokenBalances) {
       const tokenAddress = tb?.token?.tokenAddress?.toLowerCase();
-      const symbol = tokenAddress ? K_TOKEN_ADDRESSES[tokenAddress] : undefined;
+      const symbol = tokenAddress ? K_TOKEN_ADDRESSES_LOWERCASE[tokenAddress] : undefined;
       if (symbol && parseFloat(tb.amount) > 0) {
         balances.push({ symbol, balance: tb.amount });
       }
