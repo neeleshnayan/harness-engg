@@ -3,7 +3,7 @@ import TransactionHistory from "@/components/wallet/TransactionHistory";
 import KTTokenBalances from "@/components/wallet/KTTokenBalances";
 import { FaShieldAlt, FaSync, FaPlus } from "react-icons/fa";
 import { getOracleRates } from "@/lib/priceCache";
-import { K_TOKEN_ADDRESSES, K_TOKEN_SYMBOL_LIST } from "@/lib/kTokens";
+import { K_TOKEN_ADDRESSES_LOWERCASE, K_TOKEN_SYMBOL_LIST } from "@/lib/kTokens";
 
 interface BalanceCardProps {
   balance: any;
@@ -129,7 +129,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
     // Get kToken balances and convert to USD
     for (const tb of balance.tokenBalances) {
       const tokenAddress = tb?.token?.tokenAddress?.toLowerCase();
-      const kTokenSymbol = tokenAddress ? K_TOKEN_ADDRESSES[tokenAddress] : undefined;
+      const kTokenSymbol = tokenAddress ? K_TOKEN_ADDRESSES_LOWERCASE[tokenAddress] : undefined;
 
       if (kTokenSymbol && parseFloat(tb.amount) > 0) {
         const kTokenAmount = parseFloat(tb.amount || "0");
