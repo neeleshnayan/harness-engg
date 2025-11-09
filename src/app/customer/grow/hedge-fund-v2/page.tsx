@@ -47,7 +47,7 @@ export default function HedgeFundV2Page() {
 
   const tokenBalances = useMemo(() => {
     if (!balance || !Array.isArray(balance.tokenBalances)) {
-      return { mavc: undefined, mavp: undefined };
+      return { mavc: undefined, mavp: undefined, mavcYearn: undefined };
     }
 
     let balances = balance.tokenBalances.filter((tokenBalance: any) => {
@@ -58,20 +58,36 @@ export default function HedgeFundV2Page() {
     const mavcTokenAddress = mavcConfig?.token_address;
     let mavcBalance: number | undefined;
     let mavpBalance: number | undefined;
+    let mavcYearnBalance: number | undefined;
 
     balances.forEach((tokenBalance: any) => {
       const symbol = tokenBalance.token.symbol;
       const rawAmount = parseFloat(tokenBalance.amount || "0");
 
+      console.log('🔍 Token in hedge-fund-v2:', { 
+        symbol, 
+        rawAmount, 
+        amount: tokenBalance.amount 
+      });
+
       if (symbol === 'MAVC' && mavcTokenAddress && 
           tokenBalance.token.tokenAddress?.toLowerCase() === mavcTokenAddress.toLowerCase()) {
         mavcBalance = rawAmount / Math.pow(10, 12);
       } else if (symbol === 'MAVP') {
-        mavpBalance = rawAmount / Math.pow(10, 12);
+        mavpBalance = (mavpBalance || 0) + rawAmount / Math.pow(10, 12);
+      } else if (symbol === 'ysMAVC' || symbol === 'ysUSDC' || symbol === 'MAVC_YEARN' || symbol === 'MAVC-YEARN') {
+        console.log('💚 Found ysUSDC/MAVC Yearn:', { symbol, rawAmount });
+        mavcYearnBalance = (mavcYearnBalance || 0) + rawAmount;
       }
     });
 
-    return { mavc: mavcBalance, mavp: mavpBalance };
+    console.log('💼 Portfolio Balances:', { 
+      mavc: mavcBalance, 
+      mavp: mavpBalance, 
+      mavcYearn: mavcYearnBalance,
+      totalBalances: balances.length 
+    });
+    return { mavc: mavcBalance, mavp: mavpBalance, mavcYearn: mavcYearnBalance };
   }, [balance, mavcConfig]);
 
   useEffect(() => {
@@ -250,6 +266,19 @@ export default function HedgeFundV2Page() {
     );
   }
 
+  if (balanceLoading) {
+    return (
+      <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 dark overflow-x-hidden flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-zinc-400 font-medium">
+            Loading balance...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Show dashboard if user has completed questionnaire
   if (showDashboard) {
     return <HedgeFundDashboard />;
@@ -295,6 +324,7 @@ export default function HedgeFundV2Page() {
               userWalletAddress={accountData.wallet_address}
               mavcCurrentBalance={tokenBalances.mavc}
               mavpCurrentBalance={tokenBalances.mavp}
+              mavcYearnCurrentBalance={tokenBalances.mavcYearn}
             />
           </div>
         )}

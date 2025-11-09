@@ -70,9 +70,14 @@ const buildNetAUMTimeline = (
   withdrawals: Withdrawal[],
   priceHistory: MAVCPriceUpdate[],
   userWalletAddress?: string,
-  currentBalance?: number
+  currentBalance?: number,
+  tokenSymbol?: string
 ): AUMDataPoint[] => {
-  if (!userWalletAddress || priceHistory.length === 0) return [];
+  if (!userWalletAddress) return [];
+
+  const isMAVCYearn = tokenSymbol === 'MAVC_YEARN' || tokenSymbol === 'ysMAVC' || tokenSymbol === 'ysUSDC' || tokenSymbol === 'MAVC-YEARN';
+  const decimals = isMAVCYearn ? 1e18 : 1e12;
+  const fixedPrice = isMAVCYearn ? 1 : 0;
 
   const normalizedAddress = userWalletAddress.toLowerCase();
   
@@ -80,7 +85,7 @@ const buildNetAUMTimeline = (
     .filter((d) => d.owner.toLowerCase() === normalizedAddress)
     .map(d => ({
       timestamp: Number(d.timestamp),
-      shares: Number(d.shares) / 1e12
+      shares: Number(d.shares) / decimals
     }))
     .sort((a, b) => a.timestamp - b.timestamp);
 
@@ -88,11 +93,26 @@ const buildNetAUMTimeline = (
     .filter((w) => w.owner.toLowerCase() === normalizedAddress)
     .map(w => ({
       timestamp: Number(w.timestamp),
-      shares: Number(w.shares) / 1e12
+      shares: Number(w.shares) / decimals
     }))
     .sort((a, b) => a.timestamp - b.timestamp);
 
-  if (userDeposits.length === 0 && (!currentBalance || currentBalance === 0)) return [];
+  if (userDeposits.length === 0 && userWithdrawals.length === 0) {
+    if (!currentBalance || currentBalance === 0) return [];
+    if (isMAVCYearn) {
+      const currentTimestamp = Math.floor(Date.now() / 1000);
+      const currentAUM = currentBalance * fixedPrice;
+      return [{
+        date: formatDate(currentTimestamp),
+        timestamp: currentTimestamp,
+        netShares: currentBalance,
+        price: fixedPrice,
+        aum: currentAUM,
+        formattedAUM: formatAUM(currentAUM)
+      }];
+    }
+    return [];
+  }
 
   const allTimestamps = new Set<number>();
   userDeposits.forEach(d => allTimestamps.add(d.timestamp));
@@ -115,45 +135,56 @@ const buildNetAUMTimeline = (
       cumulativeShares -= w.shares;
     });
 
-    const price = getPriceAtTimestamp(timestamp, priceHistory);
-    const aum = cumulativeShares * price;
-
-    if (price > 0) {
-      dataPoints.push({
-        date: formatDate(timestamp),
-        timestamp,
-        netShares: cumulativeShares,
-        price,
-        aum,
-        formattedAUM: formatAUM(aum)
-      });
+    let price: number;
+    if (isMAVCYearn) {
+      price = fixedPrice;
+    } else {
+      if (priceHistory.length === 0) continue;
+      price = getPriceAtTimestamp(timestamp, priceHistory);
+      if (price === 0) continue;
     }
+
+    const aum = cumulativeShares * price;
+    dataPoints.push({
+      date: formatDate(timestamp),
+      timestamp,
+      netShares: cumulativeShares,
+      price,
+      aum,
+      formattedAUM: formatAUM(aum)
+    });
   }
 
-  if (currentBalance !== undefined && priceHistory.length > 0) {
+  if (currentBalance !== undefined) {
     const currentTimestamp = Math.floor(Date.now() / 1000);
-    const latestPriceUpdate = priceHistory[priceHistory.length - 1];
-    const currentPrice = Number(latestPriceUpdate.price);
+    let currentPrice: number;
     
-    if (currentPrice > 0) {
-      const currentAUM = (currentBalance || 0) * currentPrice;
-      const existingLatestPoint = dataPoints[dataPoints.length - 1];
-      
-      if (!existingLatestPoint || existingLatestPoint.timestamp < currentTimestamp - 3600) {
-        dataPoints.push({
-          date: formatDate(currentTimestamp),
-          timestamp: currentTimestamp,
-          netShares: currentBalance || 0,
-          price: currentPrice,
-          aum: currentAUM,
-          formattedAUM: formatAUM(currentAUM)
-        });
-      } else if (existingLatestPoint && existingLatestPoint.timestamp < currentTimestamp) {
-        existingLatestPoint.netShares = currentBalance || 0;
-        existingLatestPoint.price = currentPrice;
-        existingLatestPoint.aum = currentAUM;
-        existingLatestPoint.formattedAUM = formatAUM(currentAUM);
-      }
+    if (isMAVCYearn) {
+      currentPrice = fixedPrice;
+    } else {
+      if (priceHistory.length === 0) return dataPoints;
+      const latestPriceUpdate = priceHistory[priceHistory.length - 1];
+      currentPrice = Number(latestPriceUpdate.price);
+      if (currentPrice === 0) return dataPoints;
+    }
+    
+    const currentAUM = (currentBalance || 0) * currentPrice;
+    const existingLatestPoint = dataPoints[dataPoints.length - 1];
+    
+    if (!existingLatestPoint || existingLatestPoint.timestamp < currentTimestamp - 3600) {
+      dataPoints.push({
+        date: formatDate(currentTimestamp),
+        timestamp: currentTimestamp,
+        netShares: currentBalance || 0,
+        price: currentPrice,
+        aum: currentAUM,
+        formattedAUM: formatAUM(currentAUM)
+      });
+    } else if (existingLatestPoint && existingLatestPoint.timestamp < currentTimestamp) {
+      existingLatestPoint.netShares = currentBalance || 0;
+      existingLatestPoint.price = currentPrice;
+      existingLatestPoint.aum = currentAUM;
+      existingLatestPoint.formattedAUM = formatAUM(currentAUM);
     }
   }
 
@@ -187,8 +218,8 @@ export const NetAUMChart: React.FC<NetAUMChartProps> = ({
   currentBalance
 }) => {
   const aumTimeline = useMemo(
-    () => buildNetAUMTimeline(deposits, withdrawals, priceHistory, userWalletAddress, currentBalance),
-    [deposits, withdrawals, priceHistory, userWalletAddress, currentBalance]
+    () => buildNetAUMTimeline(deposits, withdrawals, priceHistory, userWalletAddress, currentBalance, tokenSymbol),
+    [deposits, withdrawals, priceHistory, userWalletAddress, currentBalance, tokenSymbol]
   );
 
   const stats = useMemo(() => {
@@ -197,9 +228,20 @@ export const NetAUMChart: React.FC<NetAUMChartProps> = ({
     const latestDataPoint = aumTimeline[aumTimeline.length - 1];
     const firstDataPoint = aumTimeline[0];
     const aumChange = latestDataPoint.aum - firstDataPoint.aum;
-    const aumChangePercent = firstDataPoint.aum > 0 
-      ? ((aumChange / firstDataPoint.aum) * 100).toFixed(2)
-      : '0';
+    
+    const threshold = 0.01;
+    let aumChangePercent: string;
+    
+    if (firstDataPoint.aum < threshold) {
+      if (latestDataPoint.aum > threshold) {
+        aumChangePercent = Math.round(latestDataPoint.aum).toString();
+      } else {
+        aumChangePercent = '0';
+      }
+    } else {
+      const percent = (aumChange / firstDataPoint.aum) * 100;
+      aumChangePercent = percent.toFixed(2);
+    }
 
     return {
       currentAUM: latestDataPoint.aum,
