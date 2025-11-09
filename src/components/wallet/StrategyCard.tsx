@@ -54,15 +54,16 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh }) 
   const { toast } = useToast();
   const strategyDetails = STRATEGY_DETAILS[strategyName];
   
-  const { data: config } = useStrategyConfig(strategyName);
+  const { data: config, isLoading: configLoading } = useStrategyConfig(strategyName);
   const { data: priceData, isLoading: priceLoading, error: priceError } = useStrategyPrice(
     strategyName,
     config?.subgraph_url
   );
-  const { data: subgraphData } = useStrategySubgraphData(strategyName, config?.subgraph_url);
+  const { data: subgraphData, isLoading: subgraphLoading } = useStrategySubgraphData(strategyName, config?.subgraph_url);
   const { data: yearnAUM } = useYearnAUM(strategyName);
 
   const [strategyBalance, setStrategyBalance] = useState("0");
+  const [balanceLoading, setBalanceLoading] = useState(false);
   const [usdcBalance, setUsdcBalance] = useState("0");
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [showModal, setShowModal] = useState(false);
@@ -140,6 +141,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh }) 
 
   // Fetch balances - handles different strategies appropriately
   const fetchBalances = async () => {
+    setBalanceLoading(true);
     try {
       const userData = localStorage.getItem('userData');
       if (userData) {
@@ -200,6 +202,8 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh }) 
       }
     } catch (err: any) {
       console.error(`Error fetching ${strategyName} balances:`, err);
+    } finally {
+      setBalanceLoading(false);
     }
   };
 
@@ -450,16 +454,25 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh }) 
               <CardTitle className="text-xl text-white">{strategyMetrics.name}</CardTitle>
             </div>
             <div className="flex flex-col items-end gap-1">
-              <BalanceStatusIndicator
-                stage={transactionStage}
-                type={transactionType}
-                balance={formatTokenBalance(strategyBalance)}
-                showShimmer={transactionStage === 'confirming'}
-                error={transactionError}
-                tokenSymbol={strategyDetails.tokenSymbol}
-              />
-              {priceLoading ? (
-                <span className="text-xs text-zinc-500">Loading price...</span>
+              {balanceLoading || configLoading ? (
+                <div className="flex items-center gap-2 px-3 py-1 rounded-lg border bg-zinc-700/20 border-zinc-700/30">
+                  <div className="animate-spin rounded-full h-3 w-3 border-2 border-zinc-400 border-t-transparent"></div>
+                  <span className="text-sm font-semibold text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-white to-purple-300 animate-shimmer whitespace-nowrap">
+                    ••• {strategyDetails.tokenSymbol}
+                  </span>
+                </div>
+              ) : (
+                <BalanceStatusIndicator
+                  stage={transactionStage}
+                  type={transactionType}
+                  balance={formatTokenBalance(strategyBalance)}
+                  showShimmer={transactionStage === 'confirming'}
+                  error={transactionError}
+                  tokenSymbol={strategyDetails.tokenSymbol}
+                />
+              )}
+              {priceLoading || configLoading ? (
+                <span className="text-xs text-zinc-500 animate-pulse">Loading price...</span>
               ) : priceError ? (
                 <span className="text-xs text-red-400">Price unavailable</span>
               ) : priceInUSDC ? (

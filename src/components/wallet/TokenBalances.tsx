@@ -11,6 +11,7 @@ import { useMAVPSubgraphData } from "@/hooks/useMAVPSubgraphData";
 import { MAVCMiniChart } from "./MAVCMiniChart";
 import { MAVPMiniChart } from "./MAVPMiniChart";
 import { NetAUMChart } from "./NetAUMChart";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface TokenBalance {
   token: {
@@ -320,10 +321,9 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
       <div className="text-center mb-6">
         <h3 className="text-2xl font-bold text-white mb-2">Token Portfolio</h3>
         <div className="text-3xl font-bold text-green-400 mb-2">
-          {priceLoading ? (
+          {priceLoading || loading ? (
             <div className="flex items-center justify-center">
-              <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent mr-3"></div>
-              <span className="text-lg">Loading...</span>
+              <Skeleton className="h-8 w-32 bg-zinc-700/50" />
             </div>
           ) : (
             formatValue(totalValue)

@@ -9,6 +9,7 @@ import { useMAVPConfig } from "@/hooks/useMAVPConfig";
 import { useMAVPPriceHistory } from "@/hooks/useMAVPPrice";
 import { useSubgraphData } from "@/hooks/useSubgraphData";
 import { useMAVPSubgraphData } from "@/hooks/useMAVPSubgraphData";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Deposit {
   id: string;
@@ -237,12 +238,14 @@ export const CumulativeAUMChart: React.FC<CumulativeAUMChartProps> = ({
   mavcCurrentBalance,
   mavpCurrentBalance
 }) => {
-  const { data: mavcConfig } = useMAVCConfig();
-  const { data: mavpConfig } = useMAVPConfig();
-  const { data: mavcPriceHistory } = useMAVCPriceHistory(mavcConfig?.subgraph_url);
-  const { data: mavpPriceHistory } = useMAVPPriceHistory(mavpConfig?.subgraph_url);
-  const { data: mavcSubgraphData } = useSubgraphData(mavcConfig?.subgraph_url);
-  const { data: mavpSubgraphData } = useMAVPSubgraphData(mavpConfig?.subgraph_url);
+  const { data: mavcConfig, isLoading: mavcConfigLoading } = useMAVCConfig();
+  const { data: mavpConfig, isLoading: mavpConfigLoading } = useMAVPConfig();
+  const { data: mavcPriceHistory, isLoading: mavcPriceLoading } = useMAVCPriceHistory(mavcConfig?.subgraph_url);
+  const { data: mavpPriceHistory, isLoading: mavpPriceLoading } = useMAVPPriceHistory(mavpConfig?.subgraph_url);
+  const { data: mavcSubgraphData, isLoading: mavcSubgraphLoading } = useSubgraphData(mavcConfig?.subgraph_url);
+  const { data: mavpSubgraphData, isLoading: mavpSubgraphLoading } = useMAVPSubgraphData(mavpConfig?.subgraph_url);
+
+  const isLoading = mavcConfigLoading || mavpConfigLoading || mavcPriceLoading || mavpPriceLoading || mavcSubgraphLoading || mavpSubgraphLoading;
 
   const combinedPriceHistory = useMemo(() => {
     const combined: CombinedPriceUpdate[] = [];
@@ -302,6 +305,39 @@ export const CumulativeAUMChart: React.FC<CumulativeAUMChartProps> = ({
       isPositive: aumChange >= 0
     };
   }, [aumTimeline]);
+
+  if (isLoading) {
+    return (
+      <div className="bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800">
+        <div className="mb-6">
+          <h3 className="text-2xl font-bold text-white mb-2">Portfolio Performance</h3>
+          <p className="text-zinc-400 text-sm mb-4">Total Assets Under Management Across All Strategies</p>
+          <div className="text-3xl font-bold text-green-400 mb-2">
+            <Skeleton className="h-10 w-32 bg-zinc-700/50" />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-zinc-400">PORTFOLIO PERFORMANCE OVER TIME</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <Skeleton className="h-3 w-3 rounded-full bg-zinc-700/50" />
+            <Skeleton className="h-4 w-12 bg-zinc-700/50" />
+          </div>
+        </div>
+
+        <div className="h-64">
+          <Skeleton className="h-full w-full bg-zinc-700/50 rounded-lg" />
+        </div>
+
+        <div className="flex justify-between mt-4 text-xs">
+          <Skeleton className="h-4 w-24 bg-zinc-700/50" />
+          <Skeleton className="h-4 w-24 bg-zinc-700/50" />
+        </div>
+      </div>
+    );
+  }
 
   if (aumTimeline.length === 0) {
     return (
