@@ -433,7 +433,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
                     ) : equivalentDebitAmount !== null && kSymbol !== toKSymbol ? (
                       equivalentDebitAmount.toFixed(4)
                     ) : (
-                      selectedCurrency || "Select"
+                      "-"
                     )}
                   </div>
                   <div className="relative">
