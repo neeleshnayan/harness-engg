@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { AreaChart, Area, ResponsiveContainer, YAxis } from "recharts";
 import { TrendingUp, TrendingDown } from "lucide-react";
-import { useMAVCPriceHistory, MAVCPriceUpdate } from "@/hooks/useMAVCPrice";
+import { useMAVCPriceHistory, MAVCPriceUpdate } from "@/hooks/useStrategyPrice";
 
 interface MAVCMiniChartProps {
   subgraphUrl?: string;

@@ -1,14 +1,9 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { TrendingUp, Activity } from "lucide-react";
-import { useMAVCConfig } from "@/hooks/useMAVCConfig";
-import { useMAVCPriceHistory } from "@/hooks/useMAVCPrice";
-import { useMAVPConfig } from "@/hooks/useMAVPConfig";
-import { useMAVPPriceHistory } from "@/hooks/useMAVPPrice";
-import { useSubgraphData } from "@/hooks/useSubgraphData";
-import { useMAVPSubgraphData } from "@/hooks/useMAVPSubgraphData";
-import { useMAVCYearnSubgraphData } from "@/hooks/useMAVCYearnSubgraphData";
-import { useMAVCYearnConfig } from "@/hooks/useMAVCYearnConfig";
+import { useMAVCConfig, useMAVPConfig, useMAVCYearnConfig } from "@/hooks/useStrategyConfig";
+import { useMAVCPriceHistory, useMAVPPriceHistory } from "@/hooks/useStrategyPrice";
+import { useSubgraphData, useMAVPSubgraphData, useMAVCYearnSubgraphData } from "@/hooks/useStrategySubgraphData";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 

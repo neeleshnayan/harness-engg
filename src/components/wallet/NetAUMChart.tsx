@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, Area, AreaChart } from "recharts";
 import { TrendingUp, Activity } from "lucide-react";
-import { MAVCPriceUpdate } from "@/hooks/useMAVCPrice";
+import { MAVCPriceUpdate } from "@/hooks/useStrategyPrice";
 
 interface Deposit {
   id: string;

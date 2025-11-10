@@ -10,8 +10,8 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { useSubgraphData } from "@/hooks/useSubgraphData";
-import { useMAVCPriceHistory, useMAVCPrice, MAVCPriceUpdate } from "@/hooks/useMAVCPrice";
+import { useSubgraphData } from "@/hooks/useStrategySubgraphData";
+import { useMAVCPriceHistory, useMAVCPrice, MAVCPriceUpdate } from "@/hooks/useStrategyPrice";
 import api from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { RefreshCw } from "lucide-react";

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Shield, Store, TrendingUp } from "lucide-react";
 import TokenBalances from "@/components/wallet/TokenBalances";
-import { useMAVCConfig } from "@/hooks/useMAVCConfig";
+import { useMAVCConfig } from "@/hooks/useStrategyConfig";
 import api from "@/lib/api";
 
 interface GrowPageProps {

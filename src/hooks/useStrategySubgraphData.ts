@@ -74,9 +74,50 @@ type MetricResult = {
   withdrawals: Withdrawal[];
 };
 
-const createQuery = (strategyName: StrategyName) => {
+const createQuery = (strategyName: StrategyName, withOwner: boolean) => {
   const metricId = getMetricId(strategyName);
   const metricField = getMetricFieldName(strategyName);
+  
+  if (withOwner) {
+    return gql`
+      query ${strategyName}VaultAnalytics($owner: String!) {
+        ${metricField}(id: "${metricId}") {
+          totalDeposits
+          totalWithdrawals
+          mintedShares
+          burnedShares
+          uniqueDepositors
+          uniqueWithdrawers
+          lastUpdated
+        }
+        deposits(
+          first: 1000
+          where: { owner: $owner }
+          orderBy: timestamp
+          orderDirection: desc
+        ) {
+          id
+          owner
+          assets
+          shares
+          timestamp
+        }
+        withdrawals(
+          first: 1000
+          where: { owner: $owner }
+          orderBy: timestamp
+          orderDirection: desc
+        ) {
+          id
+          owner
+          receiver
+          assets
+          shares
+          timestamp
+        }
+      }
+    `;
+  }
   
   return gql`
     query ${strategyName}VaultAnalytics {
@@ -108,15 +149,16 @@ const createQuery = (strategyName: StrategyName) => {
   `;
 };
 
-const fetchSubgraph = async (subgraphUrl: string, strategyName: StrategyName): Promise<MetricResult> => {
+const fetchSubgraph = async (subgraphUrl: string, strategyName: StrategyName, walletAddress?: string): Promise<MetricResult> => {
   try {
     const client = new GraphQLClient(subgraphUrl);
-    const query = createQuery(strategyName);
-    const data = await client.request<MetricResult>(query);
+    const query = createQuery(strategyName, !!walletAddress);
+    const variables = walletAddress ? { owner: walletAddress.toLowerCase() } : {};
+    const data = await client.request<MetricResult>(query, variables);
     
     const filterPattern = getFilterPattern(strategyName);
-    const filteredDeposits = data.deposits.filter(d => d.id.includes(filterPattern)).slice(0, 5);
-    const filteredWithdrawals = data.withdrawals.filter(w => w.id.includes(filterPattern)).slice(0, 5);
+    const filteredDeposits = data.deposits.filter(d => d.id.includes(filterPattern));
+    const filteredWithdrawals = data.withdrawals.filter(w => w.id.includes(filterPattern));
     
     return {
       ...data,
@@ -129,11 +171,11 @@ const fetchSubgraph = async (subgraphUrl: string, strategyName: StrategyName): P
   }
 };
 
-export const useStrategySubgraphData = (strategyName: StrategyName, subgraphUrl?: string) => {
+export const useStrategySubgraphData = (strategyName: StrategyName, subgraphUrl?: string, walletAddress?: string) => {
   const enabled = Boolean(subgraphUrl);
   return useQuery<MetricResult, Error>({
-    queryKey: ['subgraph', `${strategyName.toLowerCase()}-vault-analytics`, subgraphUrl],
-    queryFn: () => fetchSubgraph(subgraphUrl!, strategyName),
+    queryKey: ['subgraph', `${strategyName.toLowerCase()}-vault-analytics`, subgraphUrl, walletAddress],
+    queryFn: () => fetchSubgraph(subgraphUrl!, strategyName, walletAddress),
     enabled,
     refetchInterval: enabled ? 5_000 : false,
     staleTime: 2_000,
@@ -143,7 +185,7 @@ export const useStrategySubgraphData = (strategyName: StrategyName, subgraphUrl?
 };
 
 // Backward compatibility exports
-export const useSubgraphData = (subgraphUrl?: string) => useStrategySubgraphData('MAVC', subgraphUrl);
-export const useMAVPSubgraphData = (subgraphUrl?: string) => useStrategySubgraphData('MAVP', subgraphUrl);
-export const useMAVCYearnSubgraphData = (subgraphUrl?: string) => useStrategySubgraphData('MAVC_YEARN', subgraphUrl);
+export const useSubgraphData = (subgraphUrl?: string, walletAddress?: string) => useStrategySubgraphData('MAVC', subgraphUrl, walletAddress);
+export const useMAVPSubgraphData = (subgraphUrl?: string, walletAddress?: string) => useStrategySubgraphData('MAVP', subgraphUrl, walletAddress);
+export const useMAVCYearnSubgraphData = (subgraphUrl?: string, walletAddress?: string) => useStrategySubgraphData('MAVC_YEARN', subgraphUrl, walletAddress);
 

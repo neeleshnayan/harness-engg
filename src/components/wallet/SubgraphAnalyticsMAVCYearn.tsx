@@ -10,7 +10,7 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { useMAVCYearnSubgraphData } from "@/hooks/useMAVCYearnSubgraphData";
+import { useMAVCYearnSubgraphData } from "@/hooks/useStrategySubgraphData";
 import { useYearnAUM } from "@/hooks/useYearnAUM";
 
 const formatNumber = (value?: string | number, options?: Intl.NumberFormatOptions) => {

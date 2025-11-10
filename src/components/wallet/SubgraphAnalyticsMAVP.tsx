@@ -10,8 +10,8 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { useSubgraphDataMAVP } from "@/hooks/useSubgraphDataMAVP";
-import { useMAVPPriceHistory, useMAVPPrice, MAVPPriceUpdate } from "@/hooks/useMAVPPrice";
+import { useMAVPSubgraphData } from "@/hooks/useStrategySubgraphData";
+import { useMAVPPriceHistory, useMAVPPrice, MAVPPriceUpdate } from "@/hooks/useStrategyPrice";
 import api from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { RefreshCw } from "lucide-react";
@@ -239,7 +239,7 @@ interface SubgraphAnalyticsMAVPProps {
 }
 
 export const SubgraphAnalyticsMAVP: React.FC<SubgraphAnalyticsMAVPProps> = ({ subgraphUrl }) => {
-  const { data, isLoading, isError, error, refetch, isFetching } = useSubgraphDataMAVP(subgraphUrl);
+  const { data, isLoading, isError, error, refetch, isFetching } = useMAVPSubgraphData(subgraphUrl);
   const { data: priceHistory } = useMAVPPriceHistory(subgraphUrl);
   const { data: currentPrice } = useMAVPPrice(subgraphUrl);
   const { toast } = useToast();

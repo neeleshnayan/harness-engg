@@ -219,3 +219,7 @@ export const useMAVPPrice = (subgraphUrl?: string) => useStrategyPrice('MAVP', s
 export const useMAVCPriceHistory = (subgraphUrl?: string) => useStrategyPriceHistory('MAVC', subgraphUrl);
 export const useMAVPPriceHistory = (subgraphUrl?: string) => useStrategyPriceHistory('MAVP', subgraphUrl);
 
+// Backward compatibility type exports
+export type MAVCPriceUpdate = StrategyPriceUpdate;
+export type MAVPPriceUpdate = StrategyPriceUpdate;
+
