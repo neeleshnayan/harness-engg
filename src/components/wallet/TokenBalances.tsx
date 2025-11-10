@@ -163,17 +163,14 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
         // Special case for MAVC - use subgraph price
         else if (token.symbol === 'MAVC' && mavcPriceData?.price) {
           tokenPrice = Number(mavcPriceData.price);
-          console.log('Using MAVC price from subgraph:', tokenPrice);
         }
         // Special case for MAVP - use subgraph price
         else if (token.symbol === 'MAVP' && mavpPriceData?.price) {
           tokenPrice = Number(mavpPriceData.price);
-          console.log('Using MAVP price from subgraph:', tokenPrice);
         }
         // Special case for MAVC Yearn - fixed $1 price
         else if ((token.symbol === 'ysMAVC' || token.symbol === 'MAVC_YEARN' || token.symbol === 'MAVC-YEARN')) {
           tokenPrice = 1;
-          console.log('Using MAVC Yearn fixed price: $1');
         }
         // If token has an address, query the Firebase price endpoint
         else if (token.tokenAddress) {
@@ -183,7 +180,6 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
               tokenPrice = response.data.current_price;
             }
           } catch (err) {
-            console.warn(`Failed to get Firebase price for token ${token.symbol}:`, err);
             // Keep default price of 1 if API call fails
           }
         } else if (token.symbol !== 'USDC') {
@@ -193,8 +189,6 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
         // Calculate value for this token
         const tokenValue = tokenAmount * tokenPrice;
         totalValue += tokenValue;
-
-        console.log(`Token ${token.symbol}: amount=${tokenAmount}, price=${tokenPrice}, value=${tokenValue}`);
 
         // Add to tokens with values array
         tokensWithValues.push({
@@ -210,7 +204,6 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
       setTokenDetails(tokensWithValues);
       setTotalValue(totalValue);
     } catch (err) {
-      console.error('Error calculating token values:', err);
       setTokenDetails([]);
       setTotalValue(0);
     } finally {
@@ -366,22 +359,6 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
         <div className="space-y-4 mb-6">
           {tokenDetails
             .map((tokenDetail: TokenWithValue, index: number) => {
-               if (tokenDetail.token.symbol === 'ysMAVC' || 
-                   tokenDetail.token.symbol === 'ysUSDC' ||
-                   tokenDetail.token.symbol === 'MAVC_YEARN' || 
-                   tokenDetail.token.symbol === 'MAVC-YEARN') {
-                console.log('🔍 MAVC Yearn Token Found:', {
-                  symbol: tokenDetail.token.symbol,
-                  exactSymbol: JSON.stringify(tokenDetail.token.symbol),
-                  symbolLength: tokenDetail.token.symbol.length,
-                  charCodes: tokenDetail.token.symbol.split('').map(c => c.charCodeAt(0)),
-                  amount: tokenDetail.amount,
-                  parsedBalance: parseFloat(tokenDetail.amount),
-                  userWalletAddress: userWalletAddress,
-                  fullToken: tokenDetail.token
-                });
-              }
-              
               return (
               <div
                 key={`${tokenDetail.token.id}-${index}`}

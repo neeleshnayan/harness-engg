@@ -11,4 +11,14 @@ export interface Strategy {
   aum: number;
   apyTrend: number;
   cooldown: string;
+}
+
+export interface HedgeFundForm {
+  age: string;
+  annualIncome: string;
+  emergencyFund: string;
+  investmentDropReaction: string;
+  investmentStyle: string;
+  marketLossExperience: string;
+  portfolioComfort: string;
 } 

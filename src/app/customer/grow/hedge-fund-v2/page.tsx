@@ -13,16 +13,7 @@ import { SubgraphAnalytics } from "@/components/wallet/SubgraphAnalytics";
 import { SubgraphAnalyticsMAVP } from "@/components/wallet/SubgraphAnalyticsMAVP";
 import { SubgraphAnalyticsMAVCYearn } from "@/components/wallet/SubgraphAnalyticsMAVCYearn";
 import { Toaster } from "@/components/ui/toaster";
-
-interface HedgeFundForm {
-  age: string;
-  annualIncome: string;
-  emergencyFund: string;
-  investmentDropReaction: string;
-  investmentStyle: string;
-  marketLossExperience: string;
-  portfolioComfort: string;
-}
+import { HedgeFundForm } from "@/lib/types";
 
 type StrategyView = 'overview' | 'mavc' | 'mavp' | 'mavc-yearn';
 
@@ -72,28 +63,14 @@ export default function HedgeFundV2Page() {
       const symbol = tokenBalance.token.symbol;
       const rawAmount = parseFloat(tokenBalance.amount || "0");
 
-      console.log('🔍 Token in hedge-fund-v2:', { 
-        symbol, 
-        rawAmount, 
-        amount: tokenBalance.amount 
-      });
-
       if (symbol === 'MAVC' && mavcTokenAddress && 
           tokenBalance.token.tokenAddress?.toLowerCase() === mavcTokenAddress.toLowerCase()) {
         mavcBalance = rawAmount / Math.pow(10, 12);
       } else if (symbol === 'MAVP') {
         mavpBalance = (mavpBalance || 0) + rawAmount / Math.pow(10, 12);
       } else if (symbol === 'ysMAVC' || symbol === 'ysUSDC' || symbol === 'MAVC_YEARN' || symbol === 'MAVC-YEARN') {
-        console.log('💚 Found ysUSDC/MAVC Yearn:', { symbol, rawAmount });
         mavcYearnBalance = (mavcYearnBalance || 0) + rawAmount;
       }
-    });
-
-    console.log('💼 Portfolio Balances:', { 
-      mavc: mavcBalance, 
-      mavp: mavpBalance, 
-      mavcYearn: mavcYearnBalance,
-      totalBalances: balances.length 
     });
     return { mavc: mavcBalance, mavp: mavpBalance, mavcYearn: mavcYearnBalance };
   }, [balance, mavcConfig]);
@@ -124,7 +101,6 @@ export default function HedgeFundV2Page() {
       const response = await api.get(`/api/v1/wallet_balance/${address}`);
       setBalance(response.data);
     } catch (err) {
-      console.error('Failed to fetch balance:', err);
       setBalanceError('Failed to fetch token balances');
     } finally {
       setBalanceLoading(false);
@@ -152,11 +128,7 @@ export default function HedgeFundV2Page() {
         });
       }
     } catch (err: any) {
-      // If 404, user hasn't submitted yet, which is fine
       setLoading(false);
-      if (err.response?.status !== 404) {
-        console.error('Error checking existing submission:', err);
-      }
     }
   };
 
@@ -206,7 +178,6 @@ export default function HedgeFundV2Page() {
         }
       }
     } catch (err: any) {
-      console.error('Error submitting hedge fund form:', err);
       setError(err.response?.data?.detail || "Failed to submit questionnaire. Please try again.");
     } finally {
       setLoading(false);

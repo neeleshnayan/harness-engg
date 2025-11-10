@@ -165,13 +165,12 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
               }
             }
           } catch (err) {
-            console.warn(`Error fetching USDC balance:`, err);
+            // Silently handle USDC balance fetch error
           }
 
           // Fetch strategy balance from unified API (backend returns raw wei)
           try {
             const balanceResponse = await api.get(`/api/v1/strategy/${strategyName}/balance/${parsedData.wallet_address}`);
-            console.log(`✅ ${strategyName} Balance Response:`, balanceResponse.data);
             
             if (balanceResponse.data) {
               const balance_wei = balanceResponse.data.balance || "0";
@@ -190,19 +189,16 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
               const balance = balanceNum.toString();
               
               setStrategyBalance(balance);
-              console.log(`✅ ${strategyName} Balance: ${balance} (wei: ${balance_wei}, contract decimals: ${contract_decimals}, display decimals: ${display_decimals})`);
             } else {
               setStrategyBalance("0");
             }
           } catch (err: any) {
-            console.error(`❌ ${strategyName} balance fetch error:`, err);
-            console.error(`❌ Error details:`, err.response?.data || err.message);
             setStrategyBalance("0");
           }
         }
       }
     } catch (err: any) {
-      console.error(`Error fetching ${strategyName} balances:`, err);
+      // Silently handle balance fetch error
     } finally {
       setBalanceLoading(false);
     }
@@ -239,7 +235,6 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
       // Convert human-readable amount to wei (USDC has 6 decimals)
       const amountFloat = parseFloat(amount);
       const amountWei = Math.floor(amountFloat * Math.pow(10, 6)).toString();
-      console.log(`💰 Deposit: ${amount} USDC → ${amountWei} wei`);
 
       // Step 1: Approve
       const approveResponse = await api.post(`/api/v1/strategy/${strategyName}/approve`, {
@@ -299,7 +294,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
               }
             }
           } catch (error) {
-            console.error('Balance poll error:', error);
+            // Silently handle balance poll error
           }
           
           // Keep polling
@@ -310,7 +305,6 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
         setTimeout(pollBalance, 2000);
       }
     } catch (err: any) {
-      console.error(`❌ ${strategyName} Deposit Error:`, err);
       const errorMsg = err.response?.data?.detail || err.message || `Failed to deposit to ${strategyName}`;
       setTransactionError(errorMsg);
       setTransactionStage('error');
@@ -343,13 +337,10 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
       // For other strategies: convert to wei format
       let amountToSend: string;
       if (strategyName === 'MAVC_YEARN') {
-        amountToSend = amount; // Send raw decimal string, backend will convert
-        console.log(`💰 Withdraw MAVC_YEARN: ${amount} (raw decimal, backend will convert)`);
+        amountToSend = amount;
       } else {
-        // Convert human-readable amount to wei
         const amountFloat = parseFloat(amount);
         amountToSend = Math.floor(amountFloat * Math.pow(10, 18)).toString();
-        console.log(`💰 Withdraw ${strategyName}: ${amount} → ${amountToSend} wei`);
       }
 
       const response = await api.post(`/api/v1/strategy/${strategyName}/withdraw`, {
@@ -392,7 +383,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
               }
             }
           } catch (error) {
-            console.error('Balance poll error:', error);
+            // Silently handle balance poll error
           }
           
           // Keep polling
@@ -403,7 +394,6 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
         setTimeout(pollBalance, 2000);
       }
     } catch (err: any) {
-      console.error(`❌ ${strategyName} Withdraw Error:`, err);
       const errorMsg = err.response?.data?.detail || err.message || `Failed to withdraw from ${strategyName}`;
       setTransactionError(errorMsg);
       setTransactionStage('error');

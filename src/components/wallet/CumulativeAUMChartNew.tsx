@@ -124,7 +124,6 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
       try {
         const response = await fetch(`/api/v1/strategy/MAVC_YEARN/balance/${userWalletAddress}`);
         if (!response.ok) {
-          console.error('Failed to fetch MAVC Yearn balance: HTTP', response.status);
           return;
         }
 
@@ -132,19 +131,11 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
         if (data.balance) {
           const balance_wei = data.balance || "0";
           const contract_decimals = data.decimals || 6;
-
-          // Convert from wei to human-readable
           const balance = Number(balance_wei) / Math.pow(10, contract_decimals);
           setActualMavcYearnBalance(balance);
-          console.log('✅ Fetched MAVC Yearn Balance from Vault:', {
-            balance,
-            balance_wei,
-            decimals: contract_decimals,
-            vaultAddress: mavcYearnConfig.vault_address
-          });
         }
       } catch (error) {
-        console.error('Failed to fetch MAVC Yearn balance:', error);
+        // Silently handle error - balance will fallback to transaction-derived value
       }
     };
 
@@ -174,23 +165,6 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
 
     const mavcYearnDeposits = mavcYearnSubgraphData?.deposits || [];
     const mavcYearnWithdrawals = mavcYearnSubgraphData?.withdrawals || [];
-
-    console.log('🔍 MAVC Yearn Debug:', {
-      deposits: mavcYearnDeposits.length,
-      withdrawals: mavcYearnWithdrawals.length,
-      sampleDeposit: mavcYearnDeposits[0],
-      sampleDepositShares: mavcYearnDeposits[0]?.shares,
-      sampleDepositAssets: mavcYearnDeposits[0]?.assets,
-      sampleDepositSharesNumber: mavcYearnDeposits[0] ? Number(mavcYearnDeposits[0].shares) : undefined,
-      sampleDepositAssetsNumber: mavcYearnDeposits[0] ? Number(mavcYearnDeposits[0].assets) : undefined,
-      sampleWithdrawal: mavcYearnWithdrawals[0],
-      sampleWithdrawalShares: mavcYearnWithdrawals[0]?.shares,
-      sampleWithdrawalAssets: mavcYearnWithdrawals[0]?.assets,
-      propBalance: mavcYearnCurrentBalance,
-      actualVaultBalance: actualMavcYearnBalance,
-      vaultAddressFromConfig: mavcYearnConfig?.vault_address,
-      allDepositShares: mavcYearnDeposits.map(d => ({ shares: d.shares, assets: d.assets, timestamp: d.timestamp }))
-    });
 
     // Create combined price history
     const combinedPriceHistory: Array<{ timestamp: number; price: number; strategy: string }> = [];
@@ -328,25 +302,7 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
     // Otherwise use accumulated shares from transactions
     const currentMavcShares = (mavcCurrentBalance !== undefined && mavcCurrentBalance > 0) ? mavcCurrentBalance : mavcShares;
     const currentMavpShares = (mavpCurrentBalance !== undefined && mavpCurrentBalance > 0) ? mavpCurrentBalance : mavpShares;
-    // Use actualMavcYearnBalance from vault API, not the prop which aggregates all ysUSDC
     const currentMavcYearnShares = (actualMavcYearnBalance !== undefined && actualMavcYearnBalance > 0) ? actualMavcYearnBalance : mavcYearnShares;
-
-    console.log('💎 Final Shares for Chart:', {
-      mavcShares: currentMavcShares,
-      mavpShares: currentMavpShares,
-      mavcYearnShares: currentMavcYearnShares,
-      fromCurrentBalance: {
-        mavc: mavcCurrentBalance,
-        mavp: mavpCurrentBalance,
-        mavcYearnProp: mavcYearnCurrentBalance,
-        mavcYearnActual: actualMavcYearnBalance
-      },
-      fromTransactions: {
-        mavc: mavcShares,
-        mavp: mavpShares,
-        mavcYearn: mavcYearnShares
-      }
-    });
 
     // Update last data point's MAVC Yearn balance if actual balance exists and is different
     // This handles cases where transactions haven't been indexed yet or are missing
@@ -466,14 +422,6 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
         ];
       }
     }
-
-    console.log('📈 Timeline Built:', {
-      totalTransactions: sortedTimestamps.length,
-      totalDataPoints: dataPoints.length,
-      filteredPoints: filteredPoints.length,
-      timescale: selectedTimescale,
-      extrapolated: filteredPoints.length === 2 && (selectedTimescale === "15m" || selectedTimescale === "1h") && dataPoints.length === 0
-    });
 
     return filteredPoints;
   }, [

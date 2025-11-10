@@ -103,44 +103,6 @@ const buildNetAUMTimeline = (
     })
     .sort((a, b) => a.timestamp - b.timestamp);
 
-  const rawSampleDeposit = deposits.find(d => d.owner.toLowerCase() === normalizedAddress);
-  const rawSampleWithdrawal = withdrawals.find(w => w.owner.toLowerCase() === normalizedAddress);
-  
-  if (rawSampleDeposit) {
-    console.log(`🔍 RAW SHARES DEBUG [${tokenSymbol}]:`, {
-      rawSharesString: rawSampleDeposit.shares,
-      rawSharesType: typeof rawSampleDeposit.shares,
-      rawSharesNumber: Number(rawSampleDeposit.shares),
-      decimals,
-      usingDirectValue: Number(rawSampleDeposit.shares),
-      usingDividedValue: Number(rawSampleDeposit.shares) / decimals,
-      expectedIf1Share: 1,
-      expectedIf100Shares: 100,
-      currentBalance,
-      note: 'Shares appear to be already normalized, using direct value'
-    });
-  }
-  
-  console.log(`🔍 NetAUMChart Debug [${tokenSymbol}]:`, {
-    totalDeposits: deposits.length,
-    totalWithdrawals: withdrawals.length,
-    userDeposits: userDeposits.length,
-    userWithdrawals: userWithdrawals.length,
-    sampleDeposit: userDeposits[0] ? {
-      timestamp: userDeposits[0].timestamp,
-      shares: userDeposits[0].shares,
-      date: new Date(userDeposits[0].timestamp * 1000).toLocaleString()
-    } : null,
-    sampleWithdrawal: userWithdrawals[0] ? {
-      timestamp: userWithdrawals[0].timestamp,
-      shares: userWithdrawals[0].shares,
-      date: new Date(userWithdrawals[0].timestamp * 1000).toLocaleString()
-    } : null,
-    decimals,
-    isMAVCYearn,
-    currentBalance,
-    userAddress: normalizedAddress
-  });
 
   if (userDeposits.length === 0 && userWithdrawals.length === 0) {
     if (!currentBalance || currentBalance === 0) return [];
@@ -231,20 +193,6 @@ const buildNetAUMTimeline = (
     }
 
     const aum = cumulativeShares * price;
-    
-    if (depositsAtTime.length > 0 || withdrawalsAtTime.length > 0) {
-      console.log(`📊 Processing timestamp ${timestamp} [${tokenSymbol}]:`, {
-        date: new Date(timestamp * 1000).toLocaleString(),
-        depositsAtTime: depositsAtTime.length,
-        withdrawalsAtTime: withdrawalsAtTime.length,
-        sharesBefore,
-        sharesAfter: cumulativeShares,
-        deposits: depositsAtTime.map(d => ({ shares: d.shares })),
-        withdrawals: withdrawalsAtTime.map(w => ({ shares: w.shares })),
-        price,
-        aum
-      });
-    }
     
     dataPoints.push({
       date: formatDate(timestamp),

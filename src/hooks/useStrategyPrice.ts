@@ -129,8 +129,7 @@ const fetchStrategyPrice = async (subgraphUrl: string, strategyName: StrategyNam
       const fallbackData = await client.request<{ [key: string]: StrategyPriceCurrent | null }>(fallbackQuery);
       return fallbackData[legacyEntity];
     } catch (fallbackError) {
-      console.error(`Error fetching ${strategyName} price from subgraph (both new and legacy failed):`, error, fallbackError);
-      return null; // Return null instead of throwing to prevent crashes
+      return null;
     }
   }
 };
@@ -163,8 +162,7 @@ const fetchStrategyPriceHistory = async (subgraphUrl: string, strategyName: Stra
       const fallbackData = await client.request<{ [key: string]: StrategyPriceUpdate[] }>(fallbackQuery);
       return fallbackData[legacyEntity] || [];
     } catch (fallbackError) {
-      console.error(`Error fetching ${strategyName} price history from subgraph (both new and legacy failed):`, error, fallbackError);
-      return []; // Return empty array instead of throwing to prevent crashes
+      return [];
     }
   }
 };
@@ -179,8 +177,7 @@ export const useStrategyPrice = (strategyName: StrategyName, subgraphUrl?: strin
       try {
         return await fetchStrategyPrice(subgraphUrl, strategyName);
       } catch (error) {
-        console.error(`useStrategyPrice error for ${strategyName}:`, error);
-        return null; // Return null on error instead of throwing
+        return null;
       }
     },
     enabled: !!subgraphUrl && strategyName !== 'MAVC_YEARN', // Only run query if subgraphUrl is available and strategy has price oracle
@@ -201,8 +198,7 @@ export const useStrategyPriceHistory = (strategyName: StrategyName, subgraphUrl?
       try {
         return await fetchStrategyPriceHistory(subgraphUrl, strategyName);
       } catch (error) {
-        console.error(`useStrategyPriceHistory error for ${strategyName}:`, error);
-        return []; // Return empty array on error instead of throwing
+        return [];
       }
     },
     enabled: !!subgraphUrl && strategyName !== 'MAVC_YEARN', // Only run query if subgraphUrl is available and strategy has price oracle
