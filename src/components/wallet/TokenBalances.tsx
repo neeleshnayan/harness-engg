@@ -2,6 +2,13 @@ import React, { useState, useEffect } from "react";
 import { FaCoins, FaEthereum, FaSync } from "react-icons/fa";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import api from "@/lib/api";
+import { useMAVCConfig, useMAVPConfig, useMAVCYearnConfig } from "@/hooks/useStrategyConfig";
+import { useMAVCPrice, useMAVCPriceHistory, useMAVPPrice, useMAVPPriceHistory } from "@/hooks/useStrategyPrice";
+import { useSubgraphData, useMAVPSubgraphData, useMAVCYearnSubgraphData } from "@/hooks/useStrategySubgraphData";
+import { MAVCMiniChart } from "./MAVCMiniChart";
+import { MAVPMiniChart } from "./MAVPMiniChart";
+import { NetAUMChart } from "./NetAUMChart";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface TokenBalance {
   token: {
@@ -26,6 +33,8 @@ interface TokenBalancesProps {
   error?: string | null;
   className?: string;
   onRefresh?: () => void;
+  subgraphUrl?: string;
+  userWalletAddress?: string;
 }
 
 const TokenBalances: React.FC<TokenBalancesProps> = ({
@@ -33,8 +42,20 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
   loading = false,
   error = null,
   className = "",
-  onRefresh
+  onRefresh,
+  subgraphUrl,
+  userWalletAddress
 }) => {
+  const { data: mavcConfig } = useMAVCConfig();
+  const { data: mavcPriceData } = useMAVCPrice(subgraphUrl || mavcConfig?.subgraph_url);
+  const { data: mavcPriceHistory } = useMAVCPriceHistory(subgraphUrl || mavcConfig?.subgraph_url);
+  const { data: mavpConfig } = useMAVPConfig();
+  const { data: mavpPriceData } = useMAVPPrice(mavpConfig?.subgraph_url);
+  const { data: mavpPriceHistory } = useMAVPPriceHistory(mavpConfig?.subgraph_url);
+  const { data: mavcSubgraphData } = useSubgraphData(subgraphUrl || mavcConfig?.subgraph_url);
+  const { data: mavpSubgraphData } = useMAVPSubgraphData(mavpConfig?.subgraph_url);
+  const { data: mavcYearnConfig } = useMAVCYearnConfig();
+  const { data: mavcYearnSubgraphData } = useMAVCYearnSubgraphData(mavcYearnConfig?.subgraph_url);
   const [tokenDetails, setTokenDetails] = useState<TokenWithValue[]>([]);
   const [priceLoading, setPriceLoading] = useState(false);
   const [totalValue, setTotalValue] = useState<number>(0);
@@ -62,13 +83,22 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
     try {
       const numAmount = parseFloat(amount);
       if (isNaN(numAmount)) return "0";
+
+      // Use the smart formatTokenBalance utility for better readability
       // For USDC, show with 2 decimal places
       if (symbol.toUpperCase() === 'USDC') {
         return `${numAmount.toFixed(2)}`;
       } else if (symbol.toUpperCase() === 'TRNSK') {
         return `${numAmount.toFixed(2)}`;
       }
-      return `${numAmount.toFixed(4)}`;
+
+      // For all other tokens including MAVC, use formatTokenBalance for smart formatting
+      const formatted = parseFloat(amount);
+      if (formatted < 0.0001) return formatted.toFixed(6);
+      if (formatted < 0.01) return formatted.toFixed(4);
+      if (formatted < 1) return formatted.toFixed(3);
+      if (formatted < 100) return formatted.toFixed(2);
+      return formatted.toFixed(1);
     } catch (error) {
       return `${amount}`;
     }
@@ -130,6 +160,18 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
         if (token.symbol === 'USDC') {
           tokenPrice = 1;
         }
+        // Special case for MAVC - use subgraph price
+        else if (token.symbol === 'MAVC' && mavcPriceData?.price) {
+          tokenPrice = Number(mavcPriceData.price);
+        }
+        // Special case for MAVP - use subgraph price
+        else if (token.symbol === 'MAVP' && mavpPriceData?.price) {
+          tokenPrice = Number(mavpPriceData.price);
+        }
+        // Special case for MAVC Yearn - fixed $1 price
+        else if ((token.symbol === 'ysMAVC' || token.symbol === 'MAVC_YEARN' || token.symbol === 'MAVC-YEARN')) {
+          tokenPrice = 1;
+        }
         // If token has an address, query the Firebase price endpoint
         else if (token.tokenAddress) {
           try {
@@ -138,7 +180,6 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
               tokenPrice = response.data.current_price;
             }
           } catch (err) {
-            console.warn(`Failed to get Firebase price for token ${token.symbol}:`, err);
             // Keep default price of 1 if API call fails
           }
         } else if (token.symbol !== 'USDC') {
@@ -163,12 +204,60 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
       setTokenDetails(tokensWithValues);
       setTotalValue(totalValue);
     } catch (err) {
-      console.error('Error calculating token values:', err);
       setTokenDetails([]);
       setTotalValue(0);
     } finally {
       setPriceLoading(false);
     }
+  };
+
+  const convertMavcToHumanReadable = (balances: any[]) => {
+    // Get the correct MAVC token address from Firestore config
+    const mavcTokenAddress = mavcConfig?.token_address;
+
+    return balances
+      .filter((balance) => {
+        // Filter out old MAVC tokens (keep only the correct one from config)
+        if (balance.token.symbol === 'MAVC') {
+          return mavcTokenAddress && balance.token.tokenAddress?.toLowerCase() === mavcTokenAddress.toLowerCase();
+        }
+        return true; // Keep all non-MAVC tokens
+      })
+      .map((balance) => {
+        if (balance.token.symbol === 'MAVC' &&
+            mavcTokenAddress &&
+            balance.token.tokenAddress?.toLowerCase() === mavcTokenAddress.toLowerCase()) {
+          // MAVC uses 12 decimals (10^12) - convert to human-readable format
+          const rawAmount = parseFloat(balance.amount || "0");
+          const humanReadable = rawAmount / Math.pow(10, 12);
+
+          return {
+            ...balance,
+            amount: humanReadable.toString()
+          };
+        }
+        // MAVP uses 12 decimals (10^12) - convert to human-readable format
+        if (balance.token.symbol === 'MAVP') {
+          const rawAmount = parseFloat(balance.amount || "0");
+          const humanReadable = rawAmount / Math.pow(10, 12);
+
+          return {
+            ...balance,
+            amount: humanReadable.toString()
+          };
+        }
+        // MAVC Yearn uses 18 decimals (10^18) - convert to human-readable format
+        if (balance.token.symbol === 'ysMAVC' || balance.token.symbol === 'MAVC_YEARN' || balance.token.symbol === 'MAVC-YEARN') {
+          const rawAmount = parseFloat(balance.amount || "0");
+          const humanReadable = rawAmount / Math.pow(10, 18);
+
+          return {
+            ...balance,
+            amount: humanReadable.toString()
+          };
+        }
+        return balance;
+      });
   };
 
   const getTokenBalances = () => {
@@ -180,8 +269,9 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
       const amount = parseFloat(tokenBalance.amount);
       return !isNaN(amount) && amount > 0;
     });
-    balances = mergeTrnskIntoUsdc(balances)
-    return balances
+    balances = mergeTrnskIntoUsdc(balances);
+    balances = convertMavcToHumanReadable(balances);
+    return balances;
   };
 
   useEffect(() => {
@@ -189,7 +279,7 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
     if (tokenBalances.length > 0) {
       calculateTokenValues(tokenBalances);
     }
-  }, [balance]);
+  }, [balance, mavcPriceData, mavpPriceData]);
 
   const tokenBalances = getTokenBalances();
 
@@ -238,10 +328,9 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
       <div className="text-center mb-6">
         <h3 className="text-2xl font-bold text-white mb-2">Token Portfolio</h3>
         <div className="text-3xl font-bold text-green-400 mb-2">
-          {priceLoading ? (
+          {priceLoading || loading ? (
             <div className="flex items-center justify-center">
-              <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent mr-3"></div>
-              <span className="text-lg">Loading...</span>
+              <Skeleton className="h-8 w-32 bg-zinc-700/50" />
             </div>
           ) : (
             formatValue(totalValue)
@@ -269,7 +358,8 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
       {isExpanded && tokenDetails.length > 0 && (
         <div className="space-y-4 mb-6">
           {tokenDetails
-            .map((tokenDetail: TokenWithValue, index: number) => (
+            .map((tokenDetail: TokenWithValue, index: number) => {
+              return (
               <div
                 key={`${tokenDetail.token.id}-${index}`}
                 className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl p-6 hover:bg-zinc-700/50 transition-all duration-200"
@@ -289,19 +379,64 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xl font-bold text-white">
-                      {formatTokenAmount(tokenDetail.amount, tokenDetail.token.decimals, tokenDetail.token.symbol)}
-                    </div>
-                    <div className="text-zinc-400 text-sm">
-                      @ ${tokenDetail.price.toFixed(4)}
-                    </div>
-                    <div className="text-green-400 text-sm font-semibold">
-                      {formatValue(tokenDetail.value)}
-                    </div>
+                    {(tokenDetail.token.symbol === 'MAVC' || tokenDetail.token.symbol === 'MAVP') ? (
+                      <>
+                        <div className="text-2xl font-bold text-green-400">
+                          {formatValue(tokenDetail.value)}
+                        </div>
+                        <div className="text-zinc-400 text-sm mt-1">
+                          {formatTokenAmount(tokenDetail.amount, tokenDetail.token.decimals, tokenDetail.token.symbol)} × ${tokenDetail.price.toFixed(4)}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-xl font-bold text-white">
+                          {formatTokenAmount(tokenDetail.amount, tokenDetail.token.decimals, tokenDetail.token.symbol)}
+                        </div>
+                        <div className="text-zinc-400 text-sm">
+                          @ ${tokenDetail.price.toFixed(4)}
+                        </div>
+                        <div className="text-green-400 text-sm font-semibold">
+                          {formatValue(tokenDetail.value)}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
+                {/* Add mini chart for MAVC tokens */}
+                {tokenDetail.token.symbol === 'MAVC' && mavcSubgraphData && mavcPriceHistory && (
+                  <NetAUMChart
+                    deposits={mavcSubgraphData.deposits || []}
+                    withdrawals={mavcSubgraphData.withdrawals || []}
+                    priceHistory={mavcPriceHistory || []}
+                    userWalletAddress={userWalletAddress}
+                    tokenSymbol="MAVC"
+                    currentBalance={parseFloat(tokenDetail.amount)}
+                  />
+                )}
+                {tokenDetail.token.symbol === 'MAVP' && mavpSubgraphData && mavpPriceHistory && (
+                  <NetAUMChart
+                    deposits={mavpSubgraphData.deposits || []}
+                    withdrawals={mavpSubgraphData.withdrawals || []}
+                    priceHistory={mavpPriceHistory || []}
+                    userWalletAddress={userWalletAddress}
+                    tokenSymbol="MAVP"
+                    currentBalance={parseFloat(tokenDetail.amount)}
+                  />
+                )}
+                 {(tokenDetail.token.symbol === 'ysMAVC' || tokenDetail.token.symbol === 'ysUSDC' || tokenDetail.token.symbol === 'MAVC_YEARN' || tokenDetail.token.symbol === 'MAVC-YEARN') && (
+                  <NetAUMChart
+                    deposits={mavcYearnSubgraphData?.deposits || []}
+                    withdrawals={mavcYearnSubgraphData?.withdrawals || []}
+                    priceHistory={[]}
+                    userWalletAddress={userWalletAddress}
+                    tokenSymbol="MAVC_YEARN"
+                    currentBalance={parseFloat(tokenDetail.amount)}
+                  />
+                )}
               </div>
-            ))}
+              );
+            })}
         </div>
       )}
 

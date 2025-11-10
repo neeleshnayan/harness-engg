@@ -5,16 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle, AlertCircle } from "lucide-react";
 import api from "@/lib/api";
 import HedgeFundDashboard from "@/components/HedgeFundDashboard";
-
-interface HedgeFundForm {
-  age: string;
-  annualIncome: string;
-  emergencyFund: string;
-  investmentDropReaction: string;
-  investmentStyle: string;
-  marketLossExperience: string;
-  portfolioComfort: string;
-}
+import { HedgeFundForm } from "@/lib/types";
 
 export default function HedgeFundPage() {
   const router = useRouter();
@@ -69,11 +60,7 @@ export default function HedgeFundPage() {
         });
       }
     } catch (err: any) {
-      // If 404, user hasn't submitted yet, which is fine
       setLoading(false);
-      if (err.response?.status !== 404) {
-        console.error('Error checking existing submission:', err);
-      }
     }
   };
 
@@ -123,7 +110,6 @@ export default function HedgeFundPage() {
         }
       }
     } catch (err: any) {
-      console.error('Error submitting hedge fund form:', err);
       setError(err.response?.data?.detail || "Failed to submit questionnaire. Please try again.");
     } finally {
       setLoading(false);

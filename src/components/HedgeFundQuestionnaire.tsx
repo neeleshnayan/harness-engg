@@ -4,16 +4,7 @@
 import React, { useState, useEffect } from "react";
 import { CheckCircle, AlertCircle, ArrowLeft } from "lucide-react";
 import api from "@/lib/api";
-
-interface HedgeFundForm {
-  age: string;
-  annualIncome: string;
-  emergencyFund: string;
-  investmentDropReaction: string;
-  investmentStyle: string;
-  marketLossExperience: string;
-  portfolioComfort: string;
-}
+import { HedgeFundForm } from "@/lib/types";
 
 export default function HedgeFundQuestionnaire({
   onComplete,
@@ -73,9 +64,6 @@ export default function HedgeFundQuestionnaire({
       }
     } catch (err: any) {
       setLoading(false);  
-      if (err.response?.status !== 404) {
-        console.error('Error checking existing submission:', err);
-      }
     }
   };
 
