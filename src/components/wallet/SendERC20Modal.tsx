@@ -309,15 +309,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
 
       // If from and to currencies are different, perform swap first
       if (kSymbol !== toKSymbol) {
-        // Check if we have enough toCurrency already
-        const toBalance = balances[toKSymbol] || 0;
-
-        if (toBalance < amountNum) {
-          // Calculate exactly how much toCurrency we need to swap (deficit only)
-          // This ensures we only swap the minimum required amount
-          const requiredToAmount = amountNum - toBalance;
-          await performSwap(kSymbol, toKSymbol, requiredToAmount);
-        }
+          await performSwap(kSymbol, toKSymbol, amountNum);
         // If toBalance >= amountNum, we already have enough - no swap needed
       } else {
         // Same currency: check if we have enough balance
