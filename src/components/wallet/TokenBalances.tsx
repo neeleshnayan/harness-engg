@@ -4,7 +4,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import api from "@/lib/api";
 import { useMAVCConfig, useMAVPConfig, useMAVCYearnConfig } from "@/hooks/useStrategyConfig";
 import { useMAVCPrice, useMAVCPriceHistory, useMAVPPrice, useMAVPPriceHistory } from "@/hooks/useStrategyPrice";
-import { useSubgraphData, useMAVCYearnSubgraphData } from "@/hooks/useStrategySubgraphData";
+import { useSubgraphData, useMAVPSubgraphData, useMAVCYearnSubgraphData } from "@/hooks/useStrategySubgraphData";
 import { MAVCMiniChart } from "./MAVCMiniChart";
 import { MAVPMiniChart } from "./MAVPMiniChart";
 import { NetAUMChart } from "./NetAUMChart";
