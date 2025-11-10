@@ -19,7 +19,6 @@ export const web3Api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 6000000,
   httpAgent: httpAgent,
   httpsAgent: httpsAgent,
 });
