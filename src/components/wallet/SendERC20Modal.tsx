@@ -63,25 +63,41 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
         const balances = await fetchUserBalances();
 
         // All supported tokens (for "to" dropdown)
-        const allTokens: SupportedToken[] = Object.entries(K_TOKEN_SYMBOLS).map(([symbol, address]) => ({
-          symbol,
-          address,
-          decimals: 18, // Most ERC20 tokens use 18 decimals
-        }));
+        const allTokens: SupportedToken[] = [
+          ...Object.entries(K_TOKEN_SYMBOLS).map(([symbol, address]) => ({
+            symbol,
+            address,
+            decimals: 18, // Most ERC20 tokens use 18 decimals
+          })),
+          {
+            symbol: "USDC",
+            address: "",
+            decimals: 6,
+          },
+        ];
 
         // Filter tokens to only include those with non-zero balances (for "from" dropdown)
         const availableList: SupportedToken[] = allTokens.filter((token) => {
-          const balance = balances[token.symbol] || 0;
-          return balance > 0;
+          if (token.symbol === "USDC") {
+            return false;
+          }
+          const tokenBalance = balances[token.symbol] || 0;
+          return tokenBalance > 0;
         });
 
         setTokens(allTokens); // All tokens for "to" dropdown
         setAvailableTokens(availableList); // Only available tokens for "from" dropdown
 
-        // Default select first available token
+        // Default selections based on available balances
         if (availableList.length > 0) {
           const first = availableList[0].symbol.replace(/^k/, "");
           setSelectedCurrency(first);
+          setToCurrency(first);
+        } else {
+          setSelectedCurrency("");
+          if ((balances["USDC"] || 0) > 0) {
+            setToCurrency("USDC");
+          }
         }
       } catch (e) {
         console.error(e);
@@ -96,8 +112,24 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, balance]);
 
-  const kSymbol = useMemo(() => (selectedCurrency ? `k${selectedCurrency}` : ""), [selectedCurrency]);
-  const toKSymbol = useMemo(() => (toCurrency ? `k${toCurrency}` : ""), [toCurrency]);
+  const isToUSDC = toCurrency === "USDC";
+
+  const fromTokenSymbol = useMemo(() => {
+    if (isToUSDC) {
+      return "USDC";
+    }
+    if (!selectedCurrency) {
+      return "";
+    }
+    return selectedCurrency === "USDC" ? "USDC" : `k${selectedCurrency}`;
+  }, [selectedCurrency, isToUSDC]);
+
+  const toTokenSymbol = useMemo(() => {
+    if (!toCurrency) {
+      return "";
+    }
+    return toCurrency === "USDC" ? "USDC" : `k${toCurrency}`;
+  }, [toCurrency]);
 
   const fetchUserBalances = async (): Promise<Record<string, number>> => {
     // Extract k-token balances from the balance prop (similar to KTTokenBalances)
@@ -109,12 +141,21 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
 
     for (const tb of balance.tokenBalances) {
       const tokenAddress = tb?.token?.tokenAddress?.toLowerCase();
-      const symbol = tokenAddress ? K_TOKEN_ADDRESSES_LOWERCASE[tokenAddress] : undefined;
-      if (symbol) {
-        const amount = parseFloat(tb.amount || "0");
-        if (!isNaN(amount) && amount > 0) {
-          balances[symbol] = amount;
-        }
+      const kSymbol = tokenAddress ? K_TOKEN_ADDRESSES_LOWERCASE[tokenAddress] : undefined;
+      const tokenSymbol = tb?.token?.symbol;
+
+      const rawAmount = parseFloat(tb?.amount ?? "0");
+      if (isNaN(rawAmount) || rawAmount <= 0) {
+        continue;
+      }
+
+      if (kSymbol) {
+        balances[kSymbol] = (balances[kSymbol] || 0) + rawAmount;
+        continue;
+      }
+
+      if (tokenSymbol === "USDC" || tokenSymbol === "TRNSK") {
+        balances["USDC"] = (balances["USDC"] || 0) + rawAmount;
       }
     }
 
@@ -125,7 +166,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
   useEffect(() => {
     if (!visible) return;
     const updateBalance = async () => {
-      if (!kSymbol) {
+      if (!fromTokenSymbol) {
         setCurrentBalanceValue(0);
         setEquivalentBalance(null);
         setEquivalentBalanceLoading(false);
@@ -134,16 +175,24 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
         return;
       }
       const balances = await fetchUserBalances();
-      setCurrentBalanceValue(balances[kSymbol] || 0);
+      setCurrentBalanceValue(balances[fromTokenSymbol] || 0);
     };
     updateBalance();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kSymbol, balance, visible]);
+  }, [fromTokenSymbol, balance, visible]);
 
   // Calculate equivalent debit amount (how much FROM currency will be debited)
   useEffect(() => {
     // Reset if currencies are same, invalid, or no amount entered
-    if (!visible || !kSymbol || !toKSymbol || kSymbol === toKSymbol || !sendAmount) {
+    if (
+      !visible ||
+      !fromTokenSymbol ||
+      !toTokenSymbol ||
+      fromTokenSymbol === toTokenSymbol ||
+      !sendAmount ||
+      !fromTokenSymbol.startsWith("k") ||
+      !toTokenSymbol.startsWith("k")
+    ) {
       setEquivalentDebitAmount(null);
       setEquivalentDebitAmountLoading(false);
       return;
@@ -160,7 +209,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
       setEquivalentDebitAmountLoading(true);
       try {
         // Get price: how much toCurrency per 1 fromCurrency
-        const price = await getPoolPrice(kSymbol, toKSymbol);
+        const price = await getPoolPrice(fromTokenSymbol, toTokenSymbol);
 
         if (price > 0) {
           // Calculate how much FROM currency is needed to get the TO currency amount
@@ -180,12 +229,20 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
 
     calculateDebitAmount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sendAmount, kSymbol, toKSymbol, visible]);
+  }, [sendAmount, fromTokenSymbol, toTokenSymbol, visible]);
 
   // Calculate equivalent balance in toCurrency
   useEffect(() => {
     // Reset equivalent balance if currencies are same or invalid
-    if (!visible || !kSymbol || !toKSymbol || kSymbol === toKSymbol || currentBalanceValue === 0) {
+    if (
+      !visible ||
+      !fromTokenSymbol ||
+      !toTokenSymbol ||
+      fromTokenSymbol === toTokenSymbol ||
+      currentBalanceValue === 0 ||
+      !fromTokenSymbol.startsWith("k") ||
+      !toTokenSymbol.startsWith("k")
+    ) {
       setEquivalentBalance(null);
       setEquivalentBalanceLoading(false);
       return;
@@ -194,7 +251,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
     const calculateEquivalent = async () => {
       setEquivalentBalanceLoading(true);
       try {
-        const price = await getPoolPrice(kSymbol, toKSymbol); // toCurrency per 1 fromCurrency
+        const price = await getPoolPrice(fromTokenSymbol, toTokenSymbol); // toCurrency per 1 fromCurrency
         if (price > 0) {
           const equivalent = currentBalanceValue * price;
           setEquivalentBalance(equivalent);
@@ -211,7 +268,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
 
     calculateEquivalent();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kSymbol, toKSymbol, currentBalanceValue, visible]);
+  }, [fromTokenSymbol, toTokenSymbol, currentBalanceValue, visible]);
 
   // Set toCurrency to match fromCurrency initially
   useEffect(() => {
@@ -284,12 +341,12 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
       setError("Please enter a valid amount.");
       return;
     }
-    if (!kSymbol || !selectedCurrency) {
-      setError("Please select a from currency.");
+    if (!toTokenSymbol || !toCurrency) {
+      setError("Please select a to currency.");
       return;
     }
-    if (!toKSymbol || !toCurrency) {
-      setError("Please select a to currency.");
+    if (!isToUSDC && !fromTokenSymbol) {
+      setError("Please select a from currency.");
       return;
     }
 
@@ -304,23 +361,33 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
       const balances = await fetchUserBalances();
 
       // Determine which currency to send (the "to" currency)
-      const sendCurrency = toKSymbol;
-      const sendCurrencyDisplay = toCurrency;
+      const sendCurrency = toTokenSymbol;
+      const sendCurrencyDisplay = sendCurrency === "USDC" ? "USDC" : sendCurrency.replace(/^k/, "");
 
-      // If from and to currencies are different, perform swap first
-      if (kSymbol !== toKSymbol) {
-          await performSwap(kSymbol, toKSymbol, amountNum);
-        // If toBalance >= amountNum, we already have enough - no swap needed
-      } else {
-        // Same currency: check if we have enough balance
-        const fromBalance = balances[kSymbol] || 0;
-        if (fromBalance < amountNum) {
-          throw new Error(`Insufficient balance. You have ${fromBalance.toFixed(4)} ${selectedCurrency}, but need ${amountNum.toFixed(4)}`);
+      if (sendCurrency === "USDC") {
+        const usdcBalance = balances["USDC"] || 0;
+        if (usdcBalance < amountNum) {
+          throw new Error(`Insufficient USDC balance. You have ${usdcBalance.toFixed(2)} USDC, but need ${amountNum.toFixed(2)}.`);
         }
-      }
+        await transferTokens("USDC", toAddress, amountNum);
+      } else {
+        const fromCurrency = fromTokenSymbol;
+        if (!fromCurrency) {
+          throw new Error("Please select a from currency.");
+        }
 
-      // Transfer the toCurrency tokens
-      await transferTokens(sendCurrency, toAddress, amountNum);
+        if (fromCurrency !== sendCurrency) {
+          await performSwap(fromCurrency, sendCurrency, amountNum);
+        } else {
+          const fromBalance = balances[fromCurrency] || 0;
+          if (fromBalance < amountNum) {
+            const fromDisplay = fromCurrency.replace(/^k/, "");
+            throw new Error(`Insufficient balance. You have ${fromBalance.toFixed(4)} ${fromDisplay}, but need ${amountNum.toFixed(4)}.`);
+          }
+        }
+
+        await transferTokens(sendCurrency, toAddress, amountNum);
+      }
 
       setSuccess(`Successfully sent ${amountNum.toFixed(2)} ${sendCurrencyDisplay} to @${receiverUsername}`);
     } catch (e: any) {
@@ -412,71 +479,73 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
               </div>
 
               {/* From Currency Card (Uniswap style) */}
-              <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-zinc-400">From</span>
-                </div>
+              {!isToUSDC && (
+                <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium text-zinc-400">From</span>
+                  </div>
 
-                {/* From Currency Selector */}
-                <div className="flex items-center justify-between mb-3">
-                  <div className="text-3xl font-bold text-white">
-                    {equivalentDebitAmountLoading ? (
-                      <span className="text-zinc-500">...</span>
-                    ) : equivalentDebitAmount !== null && kSymbol !== toKSymbol ? (
-                      equivalentDebitAmount.toFixed(4)
-                    ) : (
-                      "-"
+                  {/* From Currency Selector */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="text-3xl font-bold text-white">
+                      {equivalentDebitAmountLoading ? (
+                        <span className="text-zinc-500">...</span>
+                      ) : equivalentDebitAmount !== null && fromTokenSymbol !== toTokenSymbol ? (
+                        equivalentDebitAmount.toFixed(4)
+                      ) : (
+                        "-"
+                      )}
+                    </div>
+                    <div className="relative">
+                      <select
+                        value={selectedCurrency}
+                        onChange={(e) => {
+                          setSelectedCurrency(e.target.value);
+                          setSendAmount(""); // Reset amount when currency changes
+                        }}
+                        className="appearance-none bg-zinc-700/50 hover:bg-zinc-700 border border-zinc-600 rounded-xl px-4 py-2.5 text-white font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 pr-10"
+                        disabled={loading}
+                      >
+                        {availableTokens.length === 0 ? (
+                          <option value="">No available balances</option>
+                        ) : (
+                          availableTokens.map((t) => (
+                            <option key={t.symbol} value={t.symbol.replace(/^k/, "")}>
+                              {t.symbol.replace(/^k/, "")}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                      <svg
+                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400"
+                        width="12"
+                        height="12"
+                        viewBox="0 0 12 12"
+                        fill="none"
+                      >
+                        <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                  </div>
+
+                  {/* Balance Display */}
+                  <div className="text-sm text-zinc-400">
+                    <span>Balance: </span>
+                    <span className="text-zinc-300 font-medium">{currentBalanceValue.toFixed(4)}</span>
+                    {fromTokenSymbol !== toTokenSymbol && (
+                      <>
+                        {equivalentBalanceLoading ? (
+                          <span className="text-zinc-500 ml-1">(...)</span>
+                        ) : equivalentBalance !== null ? (
+                          <span className="text-zinc-500 ml-1">
+                            ({equivalentBalance.toFixed(4)} {toCurrency})
+                          </span>
+                        ) : null}
+                      </>
                     )}
                   </div>
-                  <div className="relative">
-                    <select
-                      value={selectedCurrency}
-                      onChange={(e) => {
-                        setSelectedCurrency(e.target.value);
-                        setSendAmount(""); // Reset amount when currency changes
-                      }}
-                      className="appearance-none bg-zinc-700/50 hover:bg-zinc-700 border border-zinc-600 rounded-xl px-4 py-2.5 text-white font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 pr-10"
-                      disabled={loading}
-                    >
-                      {availableTokens.length === 0 ? (
-                        <option value="">No available balances</option>
-                      ) : (
-                        availableTokens.map((t) => (
-                          <option key={t.symbol} value={t.symbol.replace(/^k/, "")}>
-                            {t.symbol.replace(/^k/, "")}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                    <svg
-                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400"
-                      width="12"
-                      height="12"
-                      viewBox="0 0 12 12"
-                      fill="none"
-                    >
-                      <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
                 </div>
-
-                {/* Balance Display */}
-                <div className="text-sm text-zinc-400">
-                  <span>Balance: </span>
-                  <span className="text-zinc-300 font-medium">{currentBalanceValue.toFixed(4)}</span>
-                  {kSymbol !== toKSymbol && (
-                    <>
-                      {equivalentBalanceLoading ? (
-                        <span className="text-zinc-500 ml-1">(...)</span>
-                      ) : equivalentBalance !== null ? (
-                        <span className="text-zinc-500 ml-1">
-                          ({equivalentBalance.toFixed(4)} {toCurrency})
-                        </span>
-                      ) : null}
-                    </>
-                  )}
-                </div>
-              </div>
+              )}
 
               {/* Amount Input and To Currency Row */}
               <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
@@ -520,13 +589,19 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
                     </svg>
                   </div>
                 </div>
+                {isToUSDC && (
+                  <div className="text-sm text-zinc-400 text-right mt-2">
+                    <span>Balance: </span>
+                    <span className="text-zinc-300 font-medium">{currentBalanceValue.toFixed(2)} USDC</span>
+                  </div>
+                )}
               </div>
 
               {/* Action Button */}
               <div className="pt-2">
                 <Button
                   onClick={handleSend}
-                  disabled={loading || !receiverUsername.trim() || !sendAmount.trim() || !selectedCurrency}
+                  disabled={loading || !receiverUsername.trim() || !sendAmount.trim() || (!isToUSDC && !selectedCurrency)}
                   className="w-full bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white py-4 rounded-2xl text-lg font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                 >
                   {loading && (

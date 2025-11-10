@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { FaCoins } from "react-icons/fa";
-import { K_TOKEN_ADDRESSES, K_TOKEN_ADDRESSES_LOWERCASE } from "@/lib/kTokens";
+import { K_TOKEN_ADDRESSES_LOWERCASE } from "@/lib/kTokens";
 
 interface KTTokenBalance {
   symbol: string;
@@ -20,14 +20,38 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
       return [];
     }
 
-    const balances: KTTokenBalance[] = [];
+    const aggregatedBalances: Record<string, number> = {};
+    let usdcTotal = 0;
+
     for (const tb of balance.tokenBalances) {
+      const rawAmount = parseFloat(tb?.amount ?? "0");
+      if (isNaN(rawAmount) || rawAmount <= 0) {
+        continue;
+      }
+
       const tokenAddress = tb?.token?.tokenAddress?.toLowerCase();
-      const symbol = tokenAddress ? K_TOKEN_ADDRESSES_LOWERCASE[tokenAddress] : undefined;
-      if (symbol && parseFloat(tb.amount) > 0) {
-        balances.push({ symbol, balance: tb.amount });
+      const kTokenSymbol = tokenAddress ? K_TOKEN_ADDRESSES_LOWERCASE[tokenAddress] : undefined;
+      const tokenSymbol = tb?.token?.symbol;
+
+      if (kTokenSymbol) {
+        aggregatedBalances[kTokenSymbol] = (aggregatedBalances[kTokenSymbol] || 0) + rawAmount;
+        continue;
+      }
+
+      if (tokenSymbol === "USDC" || tokenSymbol === "TRNSK") {
+        usdcTotal += rawAmount;
       }
     }
+
+    const balances: KTTokenBalance[] = Object.entries(aggregatedBalances).map(([symbol, amount]) => ({
+      symbol,
+      balance: amount.toString(),
+    }));
+
+    if (usdcTotal > 0) {
+      balances.push({ symbol: "USDC", balance: usdcTotal.toString() });
+    }
+
     return balances;
   }, [balance]);
 
