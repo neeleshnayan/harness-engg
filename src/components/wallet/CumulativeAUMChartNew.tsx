@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
+import { ComposedChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, Line } from "recharts";
 import { TrendingUp, Activity } from "lucide-react";
 import { useMAVCConfig, useMAVPConfig, useMAVCYearnConfig } from "@/hooks/useStrategyConfig";
 import { useMAVCPriceHistory, useMAVPPriceHistory } from "@/hooks/useStrategyPrice";
@@ -88,7 +88,7 @@ const CustomTooltip = ({ active, payload }: any) => {
         )}
         {data.mavcYearnAUM > 0 && (
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+            <div className="w-3 h-3 rounded-full bg-orange-500"></div>
             <span className="text-xs text-zinc-300">MAVC Yearn: {formatAUM(data.mavcYearnAUM)}</span>
           </div>
         )}
@@ -595,7 +595,7 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
               <span className="text-xs text-zinc-400">MAVP</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+              <div className="w-3 h-3 rounded-full bg-orange-500"></div>
               <span className="text-xs text-zinc-400">MAVC Yearn</span>
             </div>
           </div>
@@ -610,7 +610,7 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
 
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 20 }}>
+          <ComposedChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 20 }}>
             <defs>
               <linearGradient id="mavcGradientNew" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
@@ -621,8 +621,8 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
                 <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
               </linearGradient>
               <linearGradient id="mavcYearnGradientNew" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
-                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                <stop offset="5%" stopColor="#f97316" stopOpacity={0.4}/>
+                <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
               </linearGradient>
             </defs>
             <XAxis
@@ -643,27 +643,29 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
               type="monotone"
               dataKey="mavcAUM"
               stackId="1"
-              stroke="#3b82f6"
-              strokeWidth={2}
               fill="url(#mavcGradientNew)"
             />
             <Area
               type="monotone"
               dataKey="mavpAUM"
               stackId="1"
-              stroke="#a855f7"
-              strokeWidth={2}
               fill="url(#mavpGradientNew)"
             />
             <Area
               type="monotone"
               dataKey="mavcYearnAUM"
               stackId="1"
-              stroke="#10b981"
-              strokeWidth={2}
               fill="url(#mavcYearnGradientNew)"
             />
-          </AreaChart>
+            <Line
+              type="monotone"
+              dataKey="totalAUM"
+              stroke="#22c55e"
+              strokeWidth={3}
+              dot={false}
+              activeDot={{ r: 4 }}
+            />
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
     </div>
