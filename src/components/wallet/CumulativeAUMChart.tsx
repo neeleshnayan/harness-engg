@@ -102,7 +102,7 @@ const formatAUM = (aum: number): string => {
   return `$${aum.toFixed(2)}`;
 };
 
-const getPriceAtTimestamp = (timestamp: number, priceHistory: CombinedPriceUpdate[]): { mavc: number; mavp: number } => {
+const getPriceAtTimestamp = (timestamp: number, priceHistory: CombinedPriceUpdate[], fallbackToLatest: boolean = false): { mavc: number; mavp: number } => {
   let mavcPrice = 0;
   let mavpPrice = 0;
 
@@ -115,6 +115,14 @@ const getPriceAtTimestamp = (timestamp: number, priceHistory: CombinedPriceUpdat
         mavpPrice = priceUpdate.price;
       }
     }
+  }
+
+  // Fallback to latest price if no price found for timestamp
+  if (fallbackToLatest && (mavcPrice === 0 || mavpPrice === 0)) {
+    const latestMavcPrice = priceHistory.filter(p => p.strategy === 'MAVC').slice(-1)[0]?.price || 0;
+    const latestMavpPrice = priceHistory.filter(p => p.strategy === 'MAVP').slice(-1)[0]?.price || 0;
+    if (mavcPrice === 0) mavcPrice = latestMavcPrice;
+    if (mavpPrice === 0) mavpPrice = latestMavpPrice;
   }
 
   return { mavc: mavcPrice, mavp: mavpPrice };
@@ -137,11 +145,24 @@ const buildCumulativeAUMTimeline = (
 
   const normalizedAddress = userWalletAddress.toLowerCase();
 
+  // Log raw values from subgraph
+  if (mavcDeposits.length > 0) {
+    const firstDeposit = mavcDeposits.filter((d) => d.owner.toLowerCase() === normalizedAddress)[0];
+    if (firstDeposit) {
+      console.log('🔬 Raw Subgraph Deposit:', {
+        rawShares: firstDeposit.shares,
+        rawSharesNumber: Number(firstDeposit.shares),
+        dividedBy1e12: Number(firstDeposit.shares) / 1e12,
+        dividedBy1e18: Number(firstDeposit.shares) / 1e18
+      });
+    }
+  }
+
   const mavcUserDeposits = mavcDeposits
     .filter((d) => d.owner.toLowerCase() === normalizedAddress)
     .map(d => ({
       timestamp: Number(d.timestamp),
-      shares: Number(d.shares) / 1e12,
+      shares: Number(d.shares) / 1e12,  // Using 1e12 like current balance
       strategy: 'MAVC' as const
     }))
     .sort((a, b) => a.timestamp - b.timestamp);
@@ -150,16 +171,30 @@ const buildCumulativeAUMTimeline = (
     .filter((w) => w.owner.toLowerCase() === normalizedAddress)
     .map(w => ({
       timestamp: Number(w.timestamp),
-      shares: Number(w.shares) / 1e12,
+      shares: Number(w.shares) / 1e12,  // Using 1e12 like current balance
       strategy: 'MAVC' as const
     }))
     .sort((a, b) => a.timestamp - b.timestamp);
+
+  console.log('🔍 User Transactions Debug:', {
+    userAddress: normalizedAddress,
+    mavcDeposits: mavcUserDeposits.length,
+    mavcWithdrawals: mavcUserWithdrawals.length,
+    mavcDepositDetails: mavcUserDeposits.map(d => ({
+      time: new Date(d.timestamp * 1000).toLocaleString(),
+      shares: d.shares
+    })),
+    mavcWithdrawalDetails: mavcUserWithdrawals.map(w => ({
+      time: new Date(w.timestamp * 1000).toLocaleString(),
+      shares: w.shares
+    }))
+  });
 
   const mavpUserDeposits = mavpDeposits
     .filter((d) => d.owner.toLowerCase() === normalizedAddress)
     .map(d => ({
       timestamp: Number(d.timestamp),
-      shares: Number(d.shares) / 1e12,
+      shares: Number(d.shares) / 1e12,  // Using 1e12 like current balance
       strategy: 'MAVP' as const
     }))
     .sort((a, b) => a.timestamp - b.timestamp);
@@ -168,7 +203,7 @@ const buildCumulativeAUMTimeline = (
     .filter((w) => w.owner.toLowerCase() === normalizedAddress)
     .map(w => ({
       timestamp: Number(w.timestamp),
-      shares: Number(w.shares) / 1e12,
+      shares: Number(w.shares) / 1e12,  // Using 1e12 like current balance
       strategy: 'MAVP' as const
     }))
     .sort((a, b) => a.timestamp - b.timestamp);
@@ -203,8 +238,18 @@ const buildCumulativeAUMTimeline = (
   mavcYearnUserDeposits.forEach(d => allTimestamps.add(d.timestamp));
   mavcYearnUserWithdrawals.forEach(w => allTimestamps.add(w.timestamp));
 
+  console.log('📊 Price History:', {
+    totalPriceUpdates: priceHistory.length,
+    mavcPrices: priceHistory.filter(p => p.strategy === 'MAVC').length,
+    mavpPrices: priceHistory.filter(p => p.strategy === 'MAVP').length,
+    firstPrice: priceHistory[0] ? new Date(priceHistory[0].timestamp * 1000).toLocaleString() : 'none',
+    lastPrice: priceHistory[priceHistory.length - 1] ? new Date(priceHistory[priceHistory.length - 1].timestamp * 1000).toLocaleString() : 'none'
+  });
+
   const dataPoints: AUMDataPoint[] = [];
   const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b);
+
+  console.log('⏰ Transaction Timestamps:', sortedTimestamps.map(t => new Date(t * 1000).toLocaleString()));
 
   let mavcCumulativeShares = 0;
   let mavpCumulativeShares = 0;
@@ -242,12 +287,12 @@ const buildCumulativeAUMTimeline = (
       mavcYearnCumulativeShares -= w.shares;
     });
 
-    const prices = getPriceAtTimestamp(timestamp, priceHistory);
-    
+    const prices = getPriceAtTimestamp(timestamp, priceHistory, true);
+
     let mavcAUM = 0;
     let mavpAUM = 0;
     let mavcYearnAUM = 0;
-    
+
     if (mavcCumulativeShares > 0 && prices.mavc > 0) {
       mavcAUM = mavcCumulativeShares * prices.mavc;
     }
@@ -257,21 +302,51 @@ const buildCumulativeAUMTimeline = (
     if (mavcYearnCumulativeShares > 0) {
       mavcYearnAUM = mavcYearnCumulativeShares * 1;
     }
-    
+
     const totalAUM = mavcAUM + mavpAUM + mavcYearnAUM;
 
-    if (totalAUM > 0) {
-      dataPoints.push({
-        date: formatDate(timestamp),
-        timestamp,
-        aum: totalAUM,
+    // Always create data point for each transaction to show portfolio changes
+    dataPoints.push({
+      date: formatDate(timestamp),
+      timestamp,
+      aum: totalAUM,
+      mavcAUM,
+      mavpAUM,
+      mavcYearnAUM,
+      formattedAUM: formatAUM(totalAUM)
+    });
+
+    // Debug first few points
+    if (dataPoints.length <= 3) {
+      console.log(`📍 Point ${dataPoints.length}:`, {
+        time: new Date(timestamp * 1000).toLocaleString(),
+        mavcShares: mavcCumulativeShares,
+        mavpShares: mavpCumulativeShares,
+        mavcPrice: prices.mavc,
+        mavpPrice: prices.mavp,
         mavcAUM,
         mavpAUM,
-        mavcYearnAUM,
-        formattedAUM: formatAUM(totalAUM)
+        totalAUM
       });
     }
   }
+
+  console.log('📈 Data Points Created:', {
+    count: dataPoints.length,
+    firstPoint: dataPoints[0] ? {
+      time: new Date(dataPoints[0].timestamp * 1000).toLocaleString(),
+      aum: dataPoints[0].aum,
+      mavcAUM: dataPoints[0].mavcAUM,
+      mavpAUM: dataPoints[0].mavpAUM
+    } : null,
+    lastPoint: dataPoints[dataPoints.length - 1] ? {
+      time: new Date(dataPoints[dataPoints.length - 1].timestamp * 1000).toLocaleString(),
+      aum: dataPoints[dataPoints.length - 1].aum,
+      mavcAUM: dataPoints[dataPoints.length - 1].mavcAUM,
+      mavpAUM: dataPoints[dataPoints.length - 1].mavpAUM
+    } : null,
+    allPointsAUM: dataPoints.map(p => p.aum)
+  });
 
   if ((mavcCurrentBalance !== undefined || mavpCurrentBalance !== undefined || mavcYearnCurrentBalance !== undefined)) {
     const currentTimestamp = Math.floor(Date.now() / 1000);
@@ -383,9 +458,9 @@ export const CumulativeAUMChart: React.FC<CumulativeAUMChartProps> = ({
   const { data: mavcYearnConfig, isLoading: mavcYearnConfigLoading } = useMAVCYearnConfig();
   const { data: mavcPriceHistory, isLoading: mavcPriceLoading } = useMAVCPriceHistory(mavcConfig?.subgraph_url);
   const { data: mavpPriceHistory, isLoading: mavpPriceLoading } = useMAVPPriceHistory(mavpConfig?.subgraph_url);
-  const { data: mavcSubgraphData, isLoading: mavcSubgraphLoading } = useSubgraphData(mavcConfig?.subgraph_url);
-  const { data: mavpSubgraphData, isLoading: mavpSubgraphLoading } = useMAVPSubgraphData(mavpConfig?.subgraph_url);
-  const { data: mavcYearnSubgraphData, isLoading: mavcYearnSubgraphLoading } = useMAVCYearnSubgraphData(mavcYearnConfig?.subgraph_url);
+  const { data: mavcSubgraphData, isLoading: mavcSubgraphLoading } = useSubgraphData(mavcConfig?.subgraph_url, userWalletAddress);
+  const { data: mavpSubgraphData, isLoading: mavpSubgraphLoading } = useMAVPSubgraphData(mavpConfig?.subgraph_url, userWalletAddress);
+  const { data: mavcYearnSubgraphData, isLoading: mavcYearnSubgraphLoading } = useMAVCYearnSubgraphData(mavcYearnConfig?.subgraph_url, userWalletAddress);
 
   const isLoading = mavcConfigLoading || mavpConfigLoading || mavcYearnConfigLoading || mavcPriceLoading || mavpPriceLoading || mavcSubgraphLoading || mavpSubgraphLoading || mavcYearnSubgraphLoading;
 
@@ -431,20 +506,57 @@ export const CumulativeAUMChart: React.FC<CumulativeAUMChartProps> = ({
         mavcYearnCurrentBalance
       );
       
-      if (timeline.length === 0) return [];
-      
+      console.log('🔧 Before Filtering:', {
+        timelineLength: timeline.length,
+        selectedTimescale,
+        timelineHasData: timeline.length > 0
+      });
+
+      if (timeline.length === 0) {
+        console.log('❌ Timeline is empty - returning empty array');
+        return [];
+      }
+
       const timescaleStart = getTimescaleSeconds(selectedTimescale);
+      const currentTimestamp = Math.floor(Date.now() / 1000);
       const pointsAfterStart = timeline.filter(point => point.timestamp >= timescaleStart);
-      
-      if (pointsAfterStart.length === 0) return [];
-      
-      let filteredTimeline = pointsAfterStart.map(point => ({
-        ...point,
-        date: formatDate(point.timestamp, selectedTimescale)
-      }));
-      
-      const firstPointBeforeStart = timeline.filter(point => point.timestamp < timescaleStart).slice(-1)[0];
-      if (firstPointBeforeStart && filteredTimeline[0].timestamp !== timescaleStart) {
+      const pointsBeforeStart = timeline.filter(point => point.timestamp < timescaleStart);
+      const firstPointBeforeStart = pointsBeforeStart.slice(-1)[0];
+
+      console.log('🔍 Timescale Filtering:', {
+        timescale: selectedTimescale,
+        timescaleStartTime: new Date(timescaleStart * 1000).toLocaleString(),
+        currentTime: new Date(currentTimestamp * 1000).toLocaleString(),
+        totalPoints: timeline.length,
+        pointsAfterStart: pointsAfterStart.length,
+        pointsBeforeStart: pointsBeforeStart.length,
+        hasFirstPointBeforeStart: !!firstPointBeforeStart
+      });
+
+      let filteredTimeline: AUMDataPoint[] = [];
+
+      // If there are points within the timescale, use them
+      if (pointsAfterStart.length > 0) {
+        filteredTimeline = pointsAfterStart.map(point => ({
+          ...point,
+          date: formatDate(point.timestamp, selectedTimescale)
+        }));
+
+        // Add a starting point at the timescale boundary if we have historical data
+        if (firstPointBeforeStart && filteredTimeline[0].timestamp !== timescaleStart) {
+          const startPoint: AUMDataPoint = {
+            date: formatDate(timescaleStart, selectedTimescale),
+            timestamp: timescaleStart,
+            aum: firstPointBeforeStart.aum,
+            mavcAUM: firstPointBeforeStart.mavcAUM,
+            mavpAUM: firstPointBeforeStart.mavpAUM,
+            mavcYearnAUM: firstPointBeforeStart.mavcYearnAUM,
+            formattedAUM: formatAUM(firstPointBeforeStart.aum)
+          };
+          filteredTimeline = [startPoint, ...filteredTimeline];
+        }
+      } else if (firstPointBeforeStart) {
+        // No points in timescale, but we have historical data - show a flat line from start to current
         const startPoint: AUMDataPoint = {
           date: formatDate(timescaleStart, selectedTimescale),
           timestamp: timescaleStart,
@@ -454,9 +566,36 @@ export const CumulativeAUMChart: React.FC<CumulativeAUMChartProps> = ({
           mavcYearnAUM: firstPointBeforeStart.mavcYearnAUM,
           formattedAUM: formatAUM(firstPointBeforeStart.aum)
         };
-        filteredTimeline = [startPoint, ...filteredTimeline];
+
+        // Add current point if it's different from the last historical point
+        const latestPoint = timeline[timeline.length - 1];
+        if (latestPoint.timestamp < currentTimestamp - 60) { // More than 1 minute gap
+          const currentPoint: AUMDataPoint = {
+            date: formatDate(currentTimestamp, selectedTimescale),
+            timestamp: currentTimestamp,
+            aum: latestPoint.aum,
+            mavcAUM: latestPoint.mavcAUM,
+            mavpAUM: latestPoint.mavpAUM,
+            mavcYearnAUM: latestPoint.mavcYearnAUM,
+            formattedAUM: formatAUM(latestPoint.aum)
+          };
+          filteredTimeline = [startPoint, currentPoint];
+        } else {
+          filteredTimeline = [startPoint];
+        }
       }
-      
+
+      console.log('🎯 Filtered Timeline for Display:', {
+        timescale: selectedTimescale,
+        timescaleStartTime: new Date(timescaleStart * 1000).toLocaleString(),
+        totalPoints: timeline.length,
+        filteredPoints: filteredTimeline.length,
+        displayPoints: filteredTimeline.map(p => ({
+          time: p.date,
+          aum: p.aum
+        }))
+      });
+
       return filteredTimeline;
     },
     [mavcSubgraphData, mavpSubgraphData, mavcYearnSubgraphData, combinedPriceHistory, userWalletAddress, mavcCurrentBalance, mavpCurrentBalance, mavcYearnCurrentBalance, selectedTimescale]

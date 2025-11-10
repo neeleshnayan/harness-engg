@@ -20,6 +20,7 @@ import StrategyModal from "./StrategyModal";
 interface StrategyCardProps {
   strategyName: StrategyName;
   onRefresh?: () => void;
+  onCardClick?: () => void;
 }
 
 // Strategy-specific configuration
@@ -49,7 +50,7 @@ const STRATEGY_DETAILS: Record<StrategyName, {
   },
 };
 
-const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh }) => {
+const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, onCardClick }) => {
   const router = useRouter();
   const { toast } = useToast();
   const strategyDetails = STRATEGY_DETAILS[strategyName];
@@ -439,7 +440,11 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh }) 
   };
 
   const handleCardClick = () => {
-    router.push(strategyDetails.routePath);
+    if (onCardClick) {
+      onCardClick();
+    } else {
+      router.push(strategyDetails.routePath);
+    }
   };
 
   return (

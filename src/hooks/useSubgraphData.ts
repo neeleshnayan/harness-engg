@@ -1,7 +1,46 @@
 import { useQuery } from '@tanstack/react-query';
 import { gql, GraphQLClient } from 'graphql-request';
 
-const QUERY = gql`
+const QUERY_WITH_OWNER = gql`
+  query VaultAnalytics($owner: String!) {
+    mavcvaultMetric(id: "mavc-vault") {
+      totalDeposits
+      totalWithdrawals
+      mintedShares
+      burnedShares
+      uniqueDepositors
+      uniqueWithdrawers
+      lastUpdated
+    }
+    deposits(
+      first: 1000
+      where: { owner: $owner }
+      orderBy: timestamp
+      orderDirection: desc
+    ) {
+      id
+      owner
+      assets
+      shares
+      timestamp
+    }
+    withdrawals(
+      first: 1000
+      where: { owner: $owner }
+      orderBy: timestamp
+      orderDirection: desc
+    ) {
+      id
+      owner
+      receiver
+      assets
+      shares
+      timestamp
+    }
+  }
+`;
+
+const QUERY_WITHOUT_OWNER = gql`
   query VaultAnalytics {
     mavcvaultMetric(id: "mavc-vault") {
       totalDeposits
@@ -57,9 +96,11 @@ type MetricResult = {
   }>;
 };
 
-const fetchSubgraph = async (subgraphUrl: string): Promise<MetricResult> => {
+const fetchSubgraph = async (subgraphUrl: string, walletAddress?: string): Promise<MetricResult> => {
   const client = new GraphQLClient(subgraphUrl);
-  const data = await client.request<MetricResult>(QUERY);
+  const query = walletAddress ? QUERY_WITH_OWNER : QUERY_WITHOUT_OWNER;
+  const variables = walletAddress ? { owner: walletAddress.toLowerCase() } : {};
+  const data = await client.request<MetricResult>(query, variables);
   
   const filteredDeposits = data.deposits.filter(d => d.id.includes('-MAVC-'));
   const filteredWithdrawals = data.withdrawals.filter(w => w.id.includes('-MAVC-'));
@@ -71,11 +112,11 @@ const fetchSubgraph = async (subgraphUrl: string): Promise<MetricResult> => {
   };
 };
 
-export const useSubgraphData = (subgraphUrl?: string) => {
+export const useSubgraphData = (subgraphUrl?: string, walletAddress?: string) => {
   const enabled = Boolean(subgraphUrl);
   return useQuery<MetricResult, Error>({
-    queryKey: ['subgraph', 'vault-analytics', subgraphUrl],
-    queryFn: () => fetchSubgraph(subgraphUrl!),
+    queryKey: ['subgraph', 'vault-analytics', subgraphUrl, walletAddress],
+    queryFn: () => fetchSubgraph(subgraphUrl!, walletAddress),
     enabled,
     refetchInterval: enabled ? 5_000 : false,
     staleTime: 2_000,

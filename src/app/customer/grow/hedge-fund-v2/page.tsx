@@ -8,7 +8,13 @@ import HedgeFundDashboard from "@/components/HedgeFundDashboard";
 import StrategyCard from "@/components/wallet/StrategyCard";
 import TokenBalances from "@/components/wallet/TokenBalances";
 import { CumulativeAUMChart } from "@/components/wallet/CumulativeAUMChart";
+import { CumulativeAUMChartNew } from "@/components/wallet/CumulativeAUMChartNew";
 import { useMAVCConfig } from "@/hooks/useMAVCConfig";
+import { useMAVPConfig } from "@/hooks/useMAVPConfig";
+import { useMAVCYearnConfig } from "@/hooks/useMAVCYearnConfig";
+import { SubgraphAnalytics } from "@/components/wallet/SubgraphAnalytics";
+import { SubgraphAnalyticsMAVP } from "@/components/wallet/SubgraphAnalyticsMAVP";
+import { SubgraphAnalyticsMAVCYearn } from "@/components/wallet/SubgraphAnalyticsMAVCYearn";
 import { Toaster } from "@/components/ui/toaster";
 
 interface HedgeFundForm {
@@ -21,9 +27,14 @@ interface HedgeFundForm {
   portfolioComfort: string;
 }
 
+type StrategyView = 'overview' | 'mavc' | 'mavp' | 'mavc-yearn';
+
 export default function HedgeFundV2Page() {
   const router = useRouter();
-  const { data: mavcConfig } = useMAVCConfig();
+  const { data: mavcConfig, isLoading: mavcConfigLoading } = useMAVCConfig();
+  const { data: mavpConfig, isLoading: mavpConfigLoading } = useMAVPConfig();
+  const { data: mavcYearnConfig, isLoading: mavcYearnConfigLoading } = useMAVCYearnConfig();
+  const [selectedView, setSelectedView] = useState<StrategyView>('overview');
   const [formData, setFormData] = useState<HedgeFundForm>({
     age: "",
     annualIncome: "",
@@ -279,75 +290,155 @@ export default function HedgeFundV2Page() {
     );
   }
 
-  // Show dashboard if user has completed questionnaire
   if (showDashboard) {
     return <HedgeFundDashboard />;
   }
+
+  const renderStrategyDetail = () => {
+    switch (selectedView) {
+      case 'mavc':
+        return (
+          <>
+            <div className="mb-8">
+              <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-2 drop-shadow-lg">
+                Multi Asset Vault (MAVC)
+              </h1>
+              <p className="text-zinc-400 text-lg max-w-3xl">
+                Real-time on-chain analytics and subgraph data for the Multi Asset Vault strategy.
+              </p>
+            </div>
+            {mavcConfigLoading ? (
+              <div className="text-center text-zinc-400">Loading configuration...</div>
+            ) : (
+              <SubgraphAnalytics subgraphUrl={mavcConfig?.subgraph_url} />
+            )}
+          </>
+        );
+      case 'mavp':
+        return (
+          <>
+            <div className="mb-8">
+              <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-2 drop-shadow-lg">
+                Multi Asset Vault Protocol (MAVP)
+              </h1>
+              <p className="text-zinc-400 text-lg max-w-3xl">
+                Real-time on-chain analytics and subgraph data for the Multi Asset Vault Protocol strategy.
+              </p>
+            </div>
+            {mavpConfigLoading ? (
+              <div className="text-center text-zinc-400">Loading configuration...</div>
+            ) : (
+              <SubgraphAnalyticsMAVP subgraphUrl={mavpConfig?.subgraph_url} />
+            )}
+          </>
+        );
+      case 'mavc-yearn':
+        return (
+          <>
+            <div className="mb-8">
+              <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-2 drop-shadow-lg">
+                MAVC Yearn
+              </h1>
+              <p className="text-zinc-400 text-lg max-w-3xl">
+                Real-time on-chain analytics and subgraph data for the MAVC Yearn strategy.
+              </p>
+            </div>
+            {mavcYearnConfigLoading ? (
+              <div className="text-center text-zinc-400">Loading configuration...</div>
+            ) : (
+              <SubgraphAnalyticsMAVCYearn subgraphUrl={mavcYearnConfig?.subgraph_url} />
+            )}
+          </>
+        );
+      default:
+        return (
+          <>
+            {/* Portfolio Performance Chart */}
+            {accountData?.wallet_address && (
+              <div className="w-full max-w-6xl mx-auto mb-12">
+                <CumulativeAUMChartNew
+                  userWalletAddress={accountData.wallet_address}
+                  mavcCurrentBalance={tokenBalances.mavc}
+                  mavpCurrentBalance={tokenBalances.mavp}
+                  mavcYearnCurrentBalance={tokenBalances.mavcYearn}
+                />
+              </div>
+            )}
+
+            {/* Strategy Cards */}
+            <div className="w-full max-w-6xl mx-auto mb-12">
+              <h2 className="text-2xl font-bold text-white mb-6">Available Strategies</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <StrategyCard
+                  strategyName="MAVC"
+                  onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
+                  onCardClick={() => setSelectedView('mavc')}
+                />
+                <StrategyCard
+                  strategyName="MAVP"
+                  onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
+                  onCardClick={() => setSelectedView('mavp')}
+                />
+                <StrategyCard
+                  strategyName="MAVC_YEARN"
+                  onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
+                  onCardClick={() => setSelectedView('mavc-yearn')}
+                />
+              </div>
+            </div>
+          </>
+        );
+    }
+  };
 
   return (
     <>
       <Toaster />
       <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-8">
-        <div className="container mx-auto max-w-6xl">
-        {/* Header with Back to Grow Button */}
-        <div className="flex justify-between items-start mb-12">
-          <div className="flex-1"></div>
-          <button
-            onClick={() => router.push('/customer/grow')}
-            className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-6 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-sm"
-          >
-            ← Back to Grow
-          </button>
-        </div>
+        <div className="container mx-auto max-w-7xl">
+          {/* Header with Back Button */}
+          <div className="flex justify-between items-start mb-8">
+            {selectedView !== 'overview' ? (
+              <button
+                onClick={() => setSelectedView('overview')}
+                className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-6 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-sm flex items-center"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Strategies
+              </button>
+            ) : (
+              <div className="flex-1"></div>
+            )}
+            <button
+              onClick={() => router.push('/customer/grow')}
+              className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-6 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-sm"
+            >
+              ← Back to Grow
+            </button>
+          </div>
 
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4 text-center drop-shadow-lg">
-            Hedge Fund V2
-          </h1>
-          {accountData?.username && (
-            <div className="mb-4">
-              <p className="text-zinc-400 text-lg">
-                Welcome back, <span className="text-emerald-400 font-semibold">@{accountData.username}</span>
+          {/* Header */}
+          {selectedView === 'overview' && (
+            <div className="text-center mb-12">
+              <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4 text-center drop-shadow-lg">
+                Hedge Fund V2
+              </h1>
+              {accountData?.username && (
+                <div className="mb-4">
+                  <p className="text-zinc-400 text-lg">
+                    Welcome back, <span className="text-emerald-400 font-semibold">@{accountData.username}</span>
+                  </p>
+                </div>
+              )}
+              <p className="text-zinc-400 text-lg mb-8 text-center max-w-xl mx-auto">
+                Advanced investment strategies with on-chain analytics and subgraph monitoring.
               </p>
             </div>
           )}
-          <p className="text-zinc-400 text-lg mb-8 text-center max-w-xl mx-auto">
-            Advanced investment strategies with on-chain analytics and subgraph monitoring.
-          </p>
-        </div>
 
-        {/* Portfolio Performance Chart */}
-        {accountData?.wallet_address && (
-          <div className="w-full max-w-6xl mx-auto mb-12">
-            <CumulativeAUMChart 
-              userWalletAddress={accountData.wallet_address}
-              mavcCurrentBalance={tokenBalances.mavc}
-              mavpCurrentBalance={tokenBalances.mavp}
-              mavcYearnCurrentBalance={tokenBalances.mavcYearn}
-            />
-          </div>
-        )}
-
-        {/* Strategy Cards */}
-        <div className="w-full max-w-6xl mx-auto mb-12">
-          <h2 className="text-2xl font-bold text-white mb-6">Available Strategies</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <StrategyCard
-              strategyName="MAVC"
-              onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
-            />
-            <StrategyCard
-              strategyName="MAVP"
-              onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
-            />
-            <StrategyCard
-              strategyName="MAVC_YEARN"
-              onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
-            />
-          </div>
+          {/* Content */}
+          {renderStrategyDetail()}
         </div>
-      </div>
       </div>
     </>
   );

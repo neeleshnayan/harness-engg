@@ -83,35 +83,104 @@ const buildNetAUMTimeline = (
   
   const userDeposits = deposits
     .filter((d) => d.owner.toLowerCase() === normalizedAddress)
-    .map(d => ({
-      timestamp: Number(d.timestamp),
-      shares: Number(d.shares) / decimals
-    }))
+    .map(d => {
+      const shares = Number(d.shares);
+      return {
+        timestamp: Number(d.timestamp),
+        shares: shares
+      };
+    })
     .sort((a, b) => a.timestamp - b.timestamp);
 
   const userWithdrawals = withdrawals
     .filter((w) => w.owner.toLowerCase() === normalizedAddress)
-    .map(w => ({
-      timestamp: Number(w.timestamp),
-      shares: Number(w.shares) / decimals
-    }))
+    .map(w => {
+      const shares = Number(w.shares);
+      return {
+        timestamp: Number(w.timestamp),
+        shares: shares
+      };
+    })
     .sort((a, b) => a.timestamp - b.timestamp);
+
+  const rawSampleDeposit = deposits.find(d => d.owner.toLowerCase() === normalizedAddress);
+  const rawSampleWithdrawal = withdrawals.find(w => w.owner.toLowerCase() === normalizedAddress);
+  
+  if (rawSampleDeposit) {
+    console.log(`🔍 RAW SHARES DEBUG [${tokenSymbol}]:`, {
+      rawSharesString: rawSampleDeposit.shares,
+      rawSharesType: typeof rawSampleDeposit.shares,
+      rawSharesNumber: Number(rawSampleDeposit.shares),
+      decimals,
+      usingDirectValue: Number(rawSampleDeposit.shares),
+      usingDividedValue: Number(rawSampleDeposit.shares) / decimals,
+      expectedIf1Share: 1,
+      expectedIf100Shares: 100,
+      currentBalance,
+      note: 'Shares appear to be already normalized, using direct value'
+    });
+  }
+  
+  console.log(`🔍 NetAUMChart Debug [${tokenSymbol}]:`, {
+    totalDeposits: deposits.length,
+    totalWithdrawals: withdrawals.length,
+    userDeposits: userDeposits.length,
+    userWithdrawals: userWithdrawals.length,
+    sampleDeposit: userDeposits[0] ? {
+      timestamp: userDeposits[0].timestamp,
+      shares: userDeposits[0].shares,
+      date: new Date(userDeposits[0].timestamp * 1000).toLocaleString()
+    } : null,
+    sampleWithdrawal: userWithdrawals[0] ? {
+      timestamp: userWithdrawals[0].timestamp,
+      shares: userWithdrawals[0].shares,
+      date: new Date(userWithdrawals[0].timestamp * 1000).toLocaleString()
+    } : null,
+    decimals,
+    isMAVCYearn,
+    currentBalance,
+    userAddress: normalizedAddress
+  });
 
   if (userDeposits.length === 0 && userWithdrawals.length === 0) {
     if (!currentBalance || currentBalance === 0) return [];
+    
+    // Create timeline with start point (30 days ago) and current point
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+    const startTimestamp = currentTimestamp - (30 * 24 * 60 * 60); // 30 days ago
+    
+    let startPrice: number;
+    let currentPrice: number;
+    
     if (isMAVCYearn) {
-      const currentTimestamp = Math.floor(Date.now() / 1000);
-      const currentAUM = currentBalance * fixedPrice;
-      return [{
+      startPrice = fixedPrice;
+      currentPrice = fixedPrice;
+    } else {
+      if (priceHistory.length === 0) return [];
+      startPrice = getPriceAtTimestamp(startTimestamp, priceHistory);
+      const latestPriceUpdate = priceHistory[priceHistory.length - 1];
+      currentPrice = Number(latestPriceUpdate.price);
+      if (startPrice === 0 || currentPrice === 0) return [];
+    }
+    
+    return [
+      {
+        date: formatDate(startTimestamp),
+        timestamp: startTimestamp,
+        netShares: 0,
+        price: startPrice,
+        aum: 0,
+        formattedAUM: formatAUM(0)
+      },
+      {
         date: formatDate(currentTimestamp),
         timestamp: currentTimestamp,
         netShares: currentBalance,
-        price: fixedPrice,
-        aum: currentAUM,
-        formattedAUM: formatAUM(currentAUM)
-      }];
-    }
-    return [];
+        price: currentPrice,
+        aum: currentBalance * currentPrice,
+        formattedAUM: formatAUM(currentBalance * currentPrice)
+      }
+    ];
   }
 
   const allTimestamps = new Set<number>();
@@ -121,12 +190,29 @@ const buildNetAUMTimeline = (
   const dataPoints: AUMDataPoint[] = [];
   const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b);
   
+  // Add starting point at 0 before first transaction
+  if (sortedTimestamps.length > 0) {
+    const firstTimestamp = sortedTimestamps[0];
+    const startPrice = isMAVCYearn ? fixedPrice : (priceHistory.length > 0 ? getPriceAtTimestamp(firstTimestamp, priceHistory) : 0);
+    if (startPrice > 0 || isMAVCYearn) {
+      dataPoints.push({
+        date: formatDate(firstTimestamp),
+        timestamp: firstTimestamp,
+        netShares: 0,
+        price: startPrice,
+        aum: 0,
+        formattedAUM: formatAUM(0)
+      });
+    }
+  }
+  
   let cumulativeShares = 0;
 
   for (const timestamp of sortedTimestamps) {
     const depositsAtTime = userDeposits.filter(d => d.timestamp === timestamp);
     const withdrawalsAtTime = userWithdrawals.filter(w => w.timestamp === timestamp);
     
+    const sharesBefore = cumulativeShares;
     depositsAtTime.forEach(d => {
       cumulativeShares += d.shares;
     });
@@ -145,6 +231,21 @@ const buildNetAUMTimeline = (
     }
 
     const aum = cumulativeShares * price;
+    
+    if (depositsAtTime.length > 0 || withdrawalsAtTime.length > 0) {
+      console.log(`📊 Processing timestamp ${timestamp} [${tokenSymbol}]:`, {
+        date: new Date(timestamp * 1000).toLocaleString(),
+        depositsAtTime: depositsAtTime.length,
+        withdrawalsAtTime: withdrawalsAtTime.length,
+        sharesBefore,
+        sharesAfter: cumulativeShares,
+        deposits: depositsAtTime.map(d => ({ shares: d.shares })),
+        withdrawals: withdrawalsAtTime.map(w => ({ shares: w.shares })),
+        price,
+        aum
+      });
+    }
+    
     dataPoints.push({
       date: formatDate(timestamp),
       timestamp,
@@ -153,6 +254,18 @@ const buildNetAUMTimeline = (
       aum,
       formattedAUM: formatAUM(aum)
     });
+  }
+
+  // Update last data point's balance if current balance exists and differs from transaction-derived shares
+  // This handles cases where transactions haven't been indexed yet or are missing (especially for MAVC Yearn)
+  if (dataPoints.length > 0 && currentBalance !== undefined && currentBalance > 0 && isMAVCYearn) {
+    const lastPoint = dataPoints[dataPoints.length - 1];
+    if (Math.abs(lastPoint.netShares - currentBalance) > 0.01) {
+      // Balance differs significantly, update the last point
+      lastPoint.netShares = currentBalance;
+      lastPoint.aum = currentBalance * fixedPrice;
+      lastPoint.formattedAUM = formatAUM(lastPoint.aum);
+    }
   }
 
   if (currentBalance !== undefined) {

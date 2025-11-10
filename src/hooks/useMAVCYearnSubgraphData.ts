@@ -1,7 +1,46 @@
 import { useQuery } from '@tanstack/react-query';
 import { gql, GraphQLClient } from 'graphql-request';
 
-const QUERY = gql`
+const QUERY_WITH_OWNER = gql`
+  query MAVCYearnVaultAnalytics($owner: String!) {
+    mavcyearnVaultMetric(id: "mavc-yearn-vault") {
+      totalDeposits
+      totalWithdrawals
+      mintedShares
+      burnedShares
+      uniqueDepositors
+      uniqueWithdrawers
+      lastUpdated
+    }
+    deposits(
+      first: 1000
+      where: { owner: $owner }
+      orderBy: timestamp
+      orderDirection: desc
+    ) {
+      id
+      owner
+      assets
+      shares
+      timestamp
+    }
+    withdrawals(
+      first: 1000
+      where: { owner: $owner }
+      orderBy: timestamp
+      orderDirection: desc
+    ) {
+      id
+      owner
+      receiver
+      assets
+      shares
+      timestamp
+    }
+  }
+`;
+
+const QUERY_WITHOUT_OWNER = gql`
   query MAVCYearnVaultAnalytics {
     mavcyearnVaultMetric(id: "mavc-yearn-vault") {
       totalDeposits
@@ -57,13 +96,17 @@ type MetricResult = {
   }>;
 };
 
-const fetchSubgraph = async (subgraphUrl: string): Promise<MetricResult> => {
+const fetchSubgraph = async (subgraphUrl: string, walletAddress?: string): Promise<MetricResult> => {
   try {
     const client = new GraphQLClient(subgraphUrl);
-    const data = await client.request<MetricResult>(QUERY);
+    const query = walletAddress ? QUERY_WITH_OWNER : QUERY_WITHOUT_OWNER;
+    const variables = walletAddress ? { owner: walletAddress.toLowerCase() } : {};
+    const data = await client.request<MetricResult>(query, variables);
     
-    const filteredDeposits = data.deposits.filter(d => d.id.includes('MAVC-YEARN'));
-    const filteredWithdrawals = data.withdrawals.filter(w => w.id.includes('MAVC-YEARN'));
+    // Filter deposits/withdrawals by ID pattern matching MAVC/MAVP style
+    // MAVC uses '-MAVC-', MAVP uses '-MAVP-', so MAVC Yearn should use '-MAVC-YEARN-' or similar
+    const filteredDeposits = data.deposits.filter(d => d.id.includes('-MAVC-YEARN-') || d.id.includes('MAVC-YEARN'));
+    const filteredWithdrawals = data.withdrawals.filter(w => w.id.includes('-MAVC-YEARN-') || w.id.includes('MAVC-YEARN'));
     
     return {
       ...data,
@@ -76,11 +119,11 @@ const fetchSubgraph = async (subgraphUrl: string): Promise<MetricResult> => {
   }
 };
 
-export const useMAVCYearnSubgraphData = (subgraphUrl?: string) => {
+export const useMAVCYearnSubgraphData = (subgraphUrl?: string, walletAddress?: string) => {
   const enabled = Boolean(subgraphUrl);
   return useQuery<MetricResult, Error>({
-    queryKey: ['subgraph', 'mavc-yearn-vault-analytics', subgraphUrl],
-    queryFn: () => fetchSubgraph(subgraphUrl!),
+    queryKey: ['subgraph', 'mavc-yearn-vault-analytics', subgraphUrl, walletAddress],
+    queryFn: () => fetchSubgraph(subgraphUrl!, walletAddress),
     enabled,
     refetchInterval: enabled ? 5_000 : false,
     staleTime: 2_000,
