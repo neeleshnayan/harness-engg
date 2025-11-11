@@ -160,6 +160,23 @@ export interface CalendarData {
   last_update?: string
 }
 
+export interface ParameterMeta {
+  description?: string
+  example?: string
+  type?: string
+  label?: string
+}
+
+export interface ParameterRequest {
+  service: string
+  actionType?: string
+  prompt?: string
+  missingParameters: Record<string, ParameterMeta>
+  receivedParameters: Record<string, unknown>
+  requiredParameters: Record<string, ParameterMeta>
+  context?: Record<string, unknown>
+}
+
 export interface ChatMessage {
   id: string
   type: 'user' | 'assistant'
@@ -172,6 +189,7 @@ export interface ChatMessage {
   economicResult?: EconomicResult
   source?: string
   capabilitiesSummary?: string
+  parameterRequest?: ParameterRequest
 }
 
 export interface Category {

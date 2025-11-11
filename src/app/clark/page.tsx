@@ -134,6 +134,19 @@ export default function BacktestPage() {
     const economicResult =
       rawData && rawData?.screener_type === 'economic' ? rawData : undefined
 
+    const rawParameterRequest = payload?.parameter_request
+    const parameterRequest = rawParameterRequest
+      ? {
+          service: rawParameterRequest.service,
+          actionType: rawParameterRequest.action_type,
+          prompt: rawParameterRequest.prompt,
+          missingParameters: rawParameterRequest.missing_parameters ?? {},
+          receivedParameters: rawParameterRequest.received_parameters ?? {},
+          requiredParameters: rawParameterRequest.required_parameters ?? {},
+          context: rawParameterRequest.context ?? {},
+        }
+      : undefined
+
     return {
       id: messageId,
       type: 'assistant',
@@ -146,6 +159,7 @@ export default function BacktestPage() {
       economicResult,
       source: payload?.source ?? rawData?.source,
       capabilitiesSummary: payload?.capabilities_summary ?? rawData?.capabilities_summary,
+      parameterRequest,
     }
   }
 
