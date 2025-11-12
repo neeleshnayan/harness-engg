@@ -122,7 +122,7 @@ export default function BacktestPage() {
 
   const createAssistantMessage = (payload: any): ChatMessage => {
     const messageId = (Date.now() + Math.random()).toString()
-    const responseMessage: string =
+    let responseMessage: string =
       payload?.message ?? "Sorry, I'm unable to process your request at the moment."
     const rawData = payload?.data
 
@@ -133,6 +133,23 @@ export default function BacktestPage() {
         : undefined
     const economicResult =
       rawData && rawData?.screener_type === 'economic' ? rawData : undefined
+    const regulationResult = rawData?.regulation_result ?? rawData?.regulationResult
+    if (regulationResult) {
+      responseMessage = ''
+    }
+
+    const rawParameterRequest = payload?.parameter_request
+    const parameterRequest = rawParameterRequest
+      ? {
+          service: rawParameterRequest.service,
+          actionType: rawParameterRequest.action_type,
+          prompt: rawParameterRequest.prompt,
+          missingParameters: rawParameterRequest.missing_parameters ?? {},
+          receivedParameters: rawParameterRequest.received_parameters ?? {},
+          requiredParameters: rawParameterRequest.required_parameters ?? {},
+          context: rawParameterRequest.context ?? {},
+        }
+      : undefined
 
     const rawParameterRequest = payload?.parameter_request
     const parameterRequest = rawParameterRequest
@@ -157,6 +174,7 @@ export default function BacktestPage() {
       backtestResult,
       screenerResult,
       economicResult,
+      regulationResult,
       source: payload?.source ?? rawData?.source,
       capabilitiesSummary: payload?.capabilities_summary ?? rawData?.capabilities_summary,
       parameterRequest,

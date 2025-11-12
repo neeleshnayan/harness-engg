@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { DollarSign, TrendingUp, BarChart3, TrendingDown, ChevronDown, ChevronUp } from 'lucide-react'
 import { Loader2, Info, User } from 'lucide-react'
-import { ChatMessage, BacktestResult, ScreenerResult, EconomicResult, NewsData, CalendarData, EconomicData } from '../types'
+import { ChatMessage, BacktestResult, ScreenerResult, EconomicResult, NewsData, CalendarData, EconomicData, RegulationResult } from '../types'
 import { formatCurrency, formatPercentage, formatDate, formatNumber } from '../utils'
 import PortfolioChart from './charts/PortfolioChart'
 import TechnicalCharts from './charts/TechnicalCharts'
@@ -26,7 +26,8 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
       message &&
         (message.backtestResult ||
           message.screenerResult ||
-          message.economicResult)
+          message.economicResult ||
+          message.regulationResult)
     )
 
   const formatSourceLabel = (source?: string) => {
@@ -176,6 +177,67 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                 </tbody>
               </table>
             )}
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const renderRegulation = (message: ChatMessage) => {
+    if (!message.regulationResult) return null
+    const regulationResult = message.regulationResult as RegulationResult
+    const summary = regulationResult.summary || message.content
+    const summaryHtml = summary ? markdownToHtml(summary) : ''
+    return (
+      <Card key={`reg-${message.id}`} className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-lg text-white">Regulation Guidance</CardTitle>
+          {/* <CardDescription className="text-zinc-400">
+            {regulationResult.jurisdiction
+              ? `Focus: ${regulationResult.jurisdiction}`
+              : 'Jurisdiction not specified'}
+          </CardDescription> */}
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {summary && (
+            <div
+              className="bg-zinc-900/40 border border-zinc-700/40 rounded-xl p-4 text-sm text-zinc-200 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: summaryHtml }}
+            />
+          )}
+          <div className="space-y-3">
+            {regulationResult.matches.map((match, index) => (
+              <div key={`${match.title}-${index}`} className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-4 hover:border-purple-500/40 transition-colors">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">{match.title}</h3>
+                    <div className="text-xs text-zinc-400">
+                      {match.jurisdiction && <span>{match.jurisdiction}</span>}
+                      {match.source_title && (
+                        <span className={match.jurisdiction ? 'ml-2' : ''}>{match.source_title}</span>
+                      )}
+                    </div>
+                  </div>
+                  {match.url && (
+                    <a
+                      href={match.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-400 hover:text-blue-300"
+                    >
+                      View source →
+                    </a>
+                  )}
+                </div>
+                {match.description && (
+                  <p className="mt-2 text-xs text-zinc-400">{match.description}</p>
+                )}
+                <p className="mt-2 text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                  {match.snippet}
+                </p>
+                <div className="mt-2 text-xs text-zinc-500">Relevance score: {match.score.toFixed(2)}</div>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -643,6 +705,7 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
               {renderBacktest(message)}
               {renderScreener(message)}
               {renderEconomic(message)}
+              {renderRegulation(message)}
             </>
           )}
         </div>
@@ -659,4 +722,60 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
       )}
     </div>
   )
+}
+
+const markdownToHtml = (markdown: string): string => {
+  if (!markdown) return ''
+
+  const escapeHtml = (text: string) =>
+    text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+
+  const applyInline = (text: string) => {
+    const escaped = escapeHtml(text)
+    return escaped
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/__(.+?)__/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/_(.+?)_/g, '<em>$1</em>')
+  }
+
+  const lines = markdown.split(/\n+/)
+  const htmlParts: string[] = []
+  let inList = false
+
+  lines.forEach((line) => {
+    const trimmed = line.trim()
+    if (!trimmed) {
+      if (inList) {
+        htmlParts.push('</ul>')
+        inList = false
+      }
+      return
+    }
+
+    if (trimmed.startsWith('- ')) {
+      if (!inList) {
+        htmlParts.push('<ul class="list-disc pl-5 space-y-1">')
+        inList = true
+      }
+      htmlParts.push(`<li>${applyInline(trimmed.slice(2).trim())}</li>`)
+    } else {
+      if (inList) {
+        htmlParts.push('</ul>')
+        inList = false
+      }
+      htmlParts.push(`<p>${applyInline(trimmed)}</p>`)
+    }
+  })
+
+  if (inList) {
+    htmlParts.push('</ul>')
+  }
+
+  return htmlParts.join('')
 }

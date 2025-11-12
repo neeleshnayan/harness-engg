@@ -160,6 +160,24 @@ export interface CalendarData {
   last_update?: string
 }
 
+export interface RegulationMatch {
+  title: string
+  url?: string
+  source_title?: string
+  description?: string
+  snippet: string
+  jurisdiction?: string
+  score: number
+}
+
+export interface RegulationResult {
+  query: string
+  topic?: string | null
+  jurisdiction?: string | null
+  summary?: string
+  matches: RegulationMatch[]
+}
+
 export interface ParameterMeta {
   description?: string
   example?: string
@@ -187,6 +205,7 @@ export interface ChatMessage {
   backtestResult?: BacktestResult
   screenerResult?: ScreenerResult
   economicResult?: EconomicResult
+  regulationResult?: RegulationResult
   source?: string
   capabilitiesSummary?: string
   parameterRequest?: ParameterRequest
