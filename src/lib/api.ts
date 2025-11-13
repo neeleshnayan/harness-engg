@@ -21,6 +21,7 @@ export const web3Api = axios.create({
   },
   httpAgent: httpAgent,
   httpsAgent: httpsAgent,
+  timeout: 600000,
 });
 
 // Create axios instance with base URL
