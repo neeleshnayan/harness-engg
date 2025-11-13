@@ -126,14 +126,11 @@ export const categories: Category[] = [
     icon: '/tax.svg',
     description: 'Tax guidance and compliance',
     prompts: [
-      'What are the tax implications of crypto trading?',
-      'How do I report crypto gains and losses?',
-      'What are the tax regulations for DeFi transactions?',
-      'How to calculate capital gains tax on crypto?',
-      'What are the tax requirements for crypto mining?',
-      'How to handle crypto tax reporting for businesses?',
-      'What are the tax implications of staking rewards?',
-      'How to optimize crypto tax strategy?'
+      'Summarize how crypto income is taxed in India, especially consulting fees or advisory revenue.',
+      'What documentation should I prepare when responding to an Indian Section 142(1) crypto notice?',
+      'Explain the TDS obligations for trades on foreign exchanges or DEXs from an Indian tax perspective.',
+      'How does the Indian IT Department track offshore crypto wallets, and what risks trigger audits?',
+      'Provide an overview of crypto tax obligations in Germany and any jurisdiction-specific nuances.'
     ]
   }
 ]
