@@ -183,11 +183,11 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
   const isButtonDisabled = loading || amountFloat <= 0 || isInsufficientBalance;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <Card className="w-full max-w-md bg-zinc-900 border-zinc-700 shadow-2xl">
-        <CardHeader className="border-b border-zinc-700">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4">
+      <Card className="w-full max-w-md bg-zinc-900 border-zinc-700 shadow-2xl max-h-[95vh] overflow-y-auto">
+        <CardHeader className="border-b border-zinc-700 p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-xl font-bold text-white">
+            <CardTitle className="text-lg sm:text-xl font-bold text-white">
               {isDeposit ? `Deposit ${tokenSymbol}` : `Withdraw ${tokenSymbol}`}
             </CardTitle>
             <Button
@@ -202,7 +202,7 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
           </div>
         </CardHeader>
 
-        <CardContent className="p-6 space-y-6">
+        <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Success Screen */}
           {success && (
             <div className="flex flex-col items-center justify-center py-8">
@@ -244,20 +244,20 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
               )}
 
               {/* Balance Display */}
-              <div className="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4">
-                <div className="text-sm text-zinc-400 mb-1">
+              <div className="bg-zinc-800/50 border border-zinc-700 rounded-lg p-3 sm:p-4">
+                <div className="text-xs sm:text-sm text-zinc-400 mb-1">
                   {isDeposit ? 'Available USDC' : `${tokenSymbol} Balance`}
                 </div>
-                <div className="text-2xl font-bold text-white">
+                <div className="text-xl sm:text-2xl font-bold text-white">
                   {isDeposit
                     ? (Number.isFinite(parseFloat(usdcBalance)) ? parseFloat(usdcBalance).toFixed(2) : '0.00')
                     : formatStrategyBalance(strategyBalance, strategyName)}
-                  <span className="text-zinc-400 text-lg ml-1">
+                  <span className="text-zinc-400 text-base sm:text-lg ml-1">
                     {isDeposit ? 'USDC' : tokenSymbol}
                   </span>
                 </div>
                 {!isDeposit && price && (
-                  <div className="text-sm text-zinc-400 mt-2">
+                  <div className="text-xs sm:text-sm text-zinc-400 mt-2">
                     ≈ ${(Number.isFinite(parseFloat(strategyBalance)) && Number.isFinite(parseFloat(price))
                       ? (parseFloat(strategyBalance) * parseFloat(price)).toFixed(2)
                       : '0.00')} USDC
@@ -317,7 +317,7 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
                 </div>
 
                 {/* Quick Amount Buttons */}
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
                   {isDeposit ? (
                     ['100', '500', '1000', '5000'].map((value) => (
                       <Button
@@ -325,7 +325,7 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
                         variant="outline"
                         size="sm"
                         onClick={() => setAmount(value)}
-                        className="text-xs"
+                        className="text-xs px-2 py-1.5 h-auto"
                         disabled={loading}
                       >
                         ${value}
@@ -342,7 +342,7 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
                           const balanceNum = parseFloat(strategyBalance);
                           setAmount(formatStrategyBalance((balanceNum * percentage).toString(), strategyName));
                         }}
-                        className="text-xs"
+                        className="text-xs px-2 py-1.5 h-auto"
                         disabled={loading}
                       >
                         {percent}

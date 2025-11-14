@@ -465,15 +465,15 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
 
   if (chartData.length === 0) {
     return (
-      <div className="bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800">
-        <div className="mb-6">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <h3 className="text-2xl font-bold text-white mb-2">Portfolio Performance</h3>
-              <p className="text-zinc-400 text-sm mb-4">Total Assets Under Management Across All Strategies</p>
+      <div className="bg-zinc-900/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-2xl border border-zinc-800">
+        <div className="mb-4 sm:mb-6">
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4 mb-4">
+            <div className="flex-1 w-full">
+              <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Portfolio Performance</h3>
+              <p className="text-zinc-400 text-xs sm:text-sm mb-3 sm:mb-4">Total Assets Under Management Across All Strategies</p>
             </div>
             <Select value={selectedTimescale} onValueChange={(value) => setSelectedTimescale(value as TimescaleOption)}>
-              <SelectTrigger className="w-[160px] bg-zinc-800/50 border-zinc-700 text-white">
+              <SelectTrigger className="w-full sm:w-[160px] bg-zinc-800/50 border-zinc-700 text-white">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-zinc-800 border-zinc-700">
@@ -492,7 +492,7 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
         </div>
         <div className="flex items-center justify-center py-6 text-zinc-500">
           <Activity className="w-4 h-4 mr-2" />
-          <span className="text-sm">No portfolio data available for selected time period</span>
+          <span className="text-xs sm:text-sm">No portfolio data available for selected time period</span>
         </div>
       </div>
     );
@@ -501,18 +501,18 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
   if (!stats) return null;
 
   return (
-    <div className="bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800">
-      <div className="mb-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
-            <h3 className="text-2xl font-bold text-white mb-2">Portfolio Performance</h3>
-            <p className="text-zinc-400 text-sm mb-4">Total Assets Under Management Across All Strategies</p>
-            <div className="text-3xl font-bold text-green-400 mb-2">
+    <div className="bg-zinc-900/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-2xl border border-zinc-800">
+      <div className="mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4 mb-4">
+          <div className="flex-1 w-full">
+            <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Portfolio Performance</h3>
+            <p className="text-zinc-400 text-xs sm:text-sm mb-3 sm:mb-4">Total Assets Under Management Across All Strategies</p>
+            <div className="text-2xl sm:text-3xl font-bold text-green-400 mb-2">
               {formatAUM(stats.current)}
             </div>
           </div>
           <Select value={selectedTimescale} onValueChange={(value) => setSelectedTimescale(value as TimescaleOption)}>
-            <SelectTrigger className="w-[160px] bg-zinc-800/50 border-zinc-700 text-white">
+            <SelectTrigger className="w-full sm:w-[160px] bg-zinc-800/50 border-zinc-700 text-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-zinc-800 border-zinc-700">
@@ -530,24 +530,8 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
         </div>
       </div>
 
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-4">
-          <span className="text-xs text-zinc-400">PORTFOLIO PERFORMANCE OVER TIME</span>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-              <span className="text-xs text-zinc-400">MAVC</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-              <span className="text-xs text-zinc-400">MAVP</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-              <span className="text-xs text-zinc-400">MAVC Yearn</span>
-            </div>
-          </div>
-        </div>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
+        <span className="text-xs text-zinc-400 whitespace-nowrap">PORTFOLIO PERFORMANCE OVER TIME</span>
         <div className="flex items-center gap-2 text-xs">
           <TrendingUp className={`w-3 h-3 ${stats.isPositive ? 'text-green-400' : 'text-red-400'}`} />
           <span className={stats.isPositive ? 'text-green-400' : 'text-red-400'}>
@@ -556,21 +540,13 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
         </div>
       </div>
 
-      <div className="h-64">
+      <div className="h-48 sm:h-56 md:h-64">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 20 }}>
+          <ComposedChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 20 }}>
             <defs>
-              <linearGradient id="mavcGradientNew" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
-                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-              </linearGradient>
-              <linearGradient id="mavpGradientNew" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#a855f7" stopOpacity={0.4}/>
-                <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
-              </linearGradient>
-              <linearGradient id="mavcYearnGradientNew" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#f97316" stopOpacity={0.4}/>
-                <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+              <linearGradient id="totalAUMGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#22c55e" stopOpacity={0.6}/>
+                <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
               </linearGradient>
             </defs>
             <XAxis
@@ -589,29 +565,10 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
             <Tooltip content={<CustomTooltip />} />
             <Area
               type="monotone"
-              dataKey="mavcAUM"
-              stackId="1"
-              fill="url(#mavcGradientNew)"
-            />
-            <Area
-              type="monotone"
-              dataKey="mavpAUM"
-              stackId="1"
-              fill="url(#mavpGradientNew)"
-            />
-            <Area
-              type="monotone"
-              dataKey="mavcYearnAUM"
-              stackId="1"
-              fill="url(#mavcYearnGradientNew)"
-            />
-            <Line
-              type="monotone"
               dataKey="totalAUM"
+              fill="url(#totalAUMGradient)"
               stroke="#22c55e"
-              strokeWidth={3}
-              dot={false}
-              activeDot={{ r: 4 }}
+              strokeWidth={2}
             />
           </ComposedChart>
         </ResponsiveContainer>
