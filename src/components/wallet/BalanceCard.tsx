@@ -3,7 +3,7 @@ import TransactionHistory from "@/components/wallet/TransactionHistory";
 import KTTokenBalances from "@/components/wallet/KTTokenBalances";
 import { FaShieldAlt, FaSync, FaPlus } from "react-icons/fa";
 import { getOracleRates } from "@/lib/priceCache";
-import { K_TOKEN_ADDRESSES_LOWERCASE, K_TOKEN_SYMBOL_LIST } from "@/lib/kTokens";
+import { K_TOKEN_ADDRESSES_LOWERCASE, K_TOKEN_SYMBOL_LIST, CURRENCY_SYMBOLS } from "@/lib/kTokens";
 
 interface BalanceCardProps {
   balance: any;
@@ -103,7 +103,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
       }
     };
     fetchRates();
-    const interval = setInterval(fetchRates, 60000); // Refresh every minute
+    const interval = setInterval(fetchRates, 3600000); // Refresh every hour
     return () => clearInterval(interval);
   }, []);
 
@@ -180,40 +180,49 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
     'USD',
     ...K_TOKEN_SYMBOL_LIST.filter(s => s !== 'kUSD').map(s => s.replace(/^k/, ''))
   ];
-  const currencySymbol = selectedCurrency === 'USD' ? '$' : selectedCurrency === 'EUR' ? '€' : selectedCurrency === 'GBP' ? '£' : selectedCurrency === 'AED' ? 'د.إ' : '';
+  const currencySymbol = CURRENCY_SYMBOLS[selectedCurrency] || '$';
 
   return (
     <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 mb-8 transition-all duration-300 ${localRefreshing ? 'ring-2 ring-green-500/30 ring-opacity-50' : ''} ${className || ''}`}>
         <div className="text-center">
-        <div className="flex items-center justify-center mb-4 relative">
+        <div className="flex items-center justify-center mb-4 gap-2">
           {USDC_SVG}
-          <h3 className="text-2xl font-bold text-white ml-2">Your Balance</h3>
-          {/* Currency Dropdown - Top Right */}
-          {showBalanceSection && isKycApproved && (
-            <div className="absolute top-0 right-0">
-              <select
-                value={selectedCurrency}
-                onChange={(e) => setSelectedCurrency(e.target.value)}
-                className="appearance-none bg-zinc-800/60 hover:bg-zinc-700/80 border border-zinc-700/50 rounded-xl px-4 py-2 pr-8 text-white font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-sm"
-              >
-                {availableCurrencies.map((currency) => (
-                  <option key={currency} value={currency}>
-                    {currency}
-                  </option>
-                ))}
-              </select>
-              <svg
-                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400"
-                width="12"
-                height="12"
-                viewBox="0 0 12 12"
-                fill="none"
-              >
-                <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-          )}
+          <h3 className="text-2xl font-bold text-white">
+            Your Balance{' '}
+            <span className="text-lg font-normal text-zinc-400">
+              (in{' '}
+              {showBalanceSection && isKycApproved ? (
+                <span className="inline-flex items-center relative group cursor-pointer">
+                  <select
+                    value={selectedCurrency}
+                    onChange={(e) => setSelectedCurrency(e.target.value)}
+                    className="appearance-none bg-transparent text-cyan-400 hover:text-cyan-300 font-normal cursor-pointer focus:outline-none text-lg pr-4"
+                  >
+                    {availableCurrencies.map((currency) => (
+                      <option key={currency} value={currency} className="bg-zinc-800">
+                        {currency}
+                      </option>
+                    ))}
+                  </select>
+                  <svg
+                    className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-cyan-400 group-hover:text-cyan-300 transition-colors"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 12 12"
+                    fill="none"
+                  >
+                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </span>
+              ) : (
+                <span>USD</span>
+              )}
+              )
+            </span>
+          </h3>
         </div>
+
+        {/* <div className={`mt-4 pt-4 border-t border-zinc-700/50 ${className || ''}`}></div> */}
 
         {/* Show KYC banner if username is set but KYC not approved */}
         {showKycSection && (
@@ -323,6 +332,11 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
           }
         </p>
 
+        {/* K-Token Balances - Show at the bottom if KYC is approved */}
+        {showBalanceSection && isKycApproved && balance && (
+          <KTTokenBalances balance={balance} />
+        )}
+
         {/* Transaction History Toggle - Only show if KYC is approved */}
         {showBalanceSection && isKycApproved && (
           <div className="mt-6 pt-4 border-t border-zinc-700/50">
@@ -353,11 +367,6 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
               </div>
             )}
           </div>
-        )}
-
-        {/* K-Token Balances - Show at the bottom if KYC is approved */}
-        {showBalanceSection && isKycApproved && balance && (
-          <KTTokenBalances balance={balance} />
         )}
       </div>
     </div>

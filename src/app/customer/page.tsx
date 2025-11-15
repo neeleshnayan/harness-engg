@@ -793,7 +793,7 @@ export default function CustomerPage() {
               <button
                 type="button"
                 onClick={() => setShowSendERC20Form(true)}
-                className="flex-1 bg-gradient-to-r from-emerald-500 via-cyan-500 to-emerald-600 hover:from-emerald-600 hover:to-cyan-700 text-white py-5 px-10 rounded-full font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-xl"
+                className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-5 px-10 rounded-full font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-xl"
               >
                 <FaArrowUp className="mr-3 text-lg" />
                 Pay

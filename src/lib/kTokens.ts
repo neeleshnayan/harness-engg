@@ -20,3 +20,11 @@ export const K_TOKEN_SYMBOLS_LOWERCASE: Record<string, string> = Object.fromEntr
 // Array of supported k-token symbols
 export const K_TOKEN_SYMBOL_LIST = Object.keys(K_TOKEN_SYMBOLS);
 
+// Currency symbol map for display
+export const CURRENCY_SYMBOLS: Record<string, string> = {
+  'USD': '$',
+  'EUR': '€',
+  'GBP': '£',
+  'AED': 'د.إ',
+};
+
