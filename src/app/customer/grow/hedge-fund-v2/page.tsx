@@ -14,6 +14,7 @@ import { SubgraphAnalyticsMAVP } from "@/components/wallet/SubgraphAnalyticsMAVP
 import { SubgraphAnalyticsMAVCYearn } from "@/components/wallet/SubgraphAnalyticsMAVCYearn";
 import { Toaster } from "@/components/ui/toaster";
 import { HedgeFundForm } from "@/lib/types";
+import HedgeFundChat from "@/components/HedgeFundChat";
 
 type StrategyView = 'overview' | 'mavc' | 'mavp' | 'mavc-yearn';
 
@@ -332,6 +333,11 @@ export default function HedgeFundV2Page() {
                 />
               </div>
             )}
+
+            {/* Hedge Fund Chat */}
+            <section id="clark-chat" className="mb-4">
+              <HedgeFundChat userId={accountData?.user_id} />
+            </section>
 
             {/* Strategy Cards */}
             <div className="w-full max-w-6xl mx-auto mb-8 sm:mb-12 px-4">
