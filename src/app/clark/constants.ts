@@ -29,6 +29,18 @@ export const chartConfig = {
     label: "RSI",
     color: "hsl(var(--chart-7))",
   },
+  stochastic_rsi: {
+    label: "Stochastic RSI",
+    color: "#34d399",
+  },
+  stochastic_rsi_k: {
+    label: "Stoch RSI %K",
+    color: "#34d399",
+  },
+  stochastic_rsi_d: {
+    label: "Stoch RSI %D",
+    color: "#60a5fa",
+  },
   bb_upper: {
     label: "Bollinger Upper",
     color: "hsl(var(--chart-8))",
@@ -44,6 +56,10 @@ export const chartConfig = {
   price: {
     label: "Price",
     color: "#fbbf24",
+  },
+  super_trend: {
+    label: "Super Trend",
+    color: "#10b981",
   },
 }
 
@@ -69,9 +85,11 @@ export const categories: Category[] = [
     prompts: [
       'Backtest Bitcoin & Ethereum with 50% each from 01/01/2025 to 09/09/2025 with 1000 USD',
       'Backtest BTC & ETH 50/50 with monthly rebalancing from 01/01/2025 to 09/09/2025 with 1000 USD',
-      'Run trading strategy where Buy when RSI < 30 & Sell when RSI > 70 with 1000 USD from 01/01/2025 to 09/09/2025',
-      'Run strategy where Buy when EMA(9) crosses above EMA(21) and RSI(14) > 50 & Sell when EMA(9) crosses below EMA(21) or RSI(14) < 45 with 1000 USD from 01/01/2025 to 09/09/2025',
-      'Run strategy where Buy when MACD(12,26,9) cross up and ADX(14) > 20 & Sell when MACD cross down or ADX < 18 with 1000 USD from 01/01/2025 to 09/09/2025'
+      'Backtest a strategy where Buy when RSI < 30 & Sell when RSI > 70 with 1000 USD from 01/01/2025 to 09/09/2025',
+      'Backtest a strategy where Buy when EMA(9) crosses above EMA(21) and RSI(14) > 50 & Sell when EMA(9) crosses below EMA(21) or RSI(14) < 45 with 1000 USD from 01/01/2025 to 09/09/2025',
+      'Backtest a strategy where Buy when MACD(12,26,9) cross up and ADX(14) > 20 & Sell when MACD cross down or ADX < 18 with 1000 USD from 01/01/2025 to 09/09/2025',
+      'Backtest a strategy where Buy when Stochastic RSI %K < 20 and RSI(14) > 50 & Sell when Stochastic RSI %K > 80 with 1500 USD from 01/01/2025 to 09/09/2025',
+      'Backtest using Super Trend on Bitcoin from 2025-01-01 to 2025-09-09 with 1000 USD'
     ]
   },
   {
@@ -84,7 +102,9 @@ export const categories: Category[] = [
       'Show Bollinger Bands for Ethereum over the last 6 months',
       'Display technical indicators for Solana and Cardano',
       'Plot 30, 100, and 200-day moving averages for BTC',
-      'Show RSI analysis for ETH and ADA'
+      'Show RSI analysis for ETH and ADA',
+      'Overlay Stochastic RSI and RSI for BTC over the last quarter',
+      'Show me Super Trend analysis for Bitcoin from 2025-01-01 to 2025-09-09'
     ]
   },
   {

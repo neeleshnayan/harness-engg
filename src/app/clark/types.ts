@@ -49,11 +49,28 @@ export interface TechnicalIndicators {
   rsi?: number
   rsi_overbought: boolean
   rsi_oversold: boolean
+  stochastic_rsi?: number
+  stochastic_rsi_k?: number
+  stochastic_rsi_d?: number
+  stochastic_rsi_overbought: boolean
+  stochastic_rsi_oversold: boolean
   bb_upper?: number
   bb_middle?: number
   bb_lower?: number
   bb_upper_break: boolean
   bb_lower_break: boolean
+  macd?: number
+  macd_signal?: number
+  macd_histogram?: number
+  macd_cross_up: boolean
+  macd_cross_down: boolean
+  adx?: number
+  adx_strong_trend: boolean
+  adx_weak_trend: boolean
+  super_trend?: number
+  super_trend_direction?: string
+  super_trend_buy_signal: boolean
+  super_trend_sell_signal: boolean
   current_price?: number
   entry_price?: number
   profit_percentage?: number

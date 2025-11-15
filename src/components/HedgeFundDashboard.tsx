@@ -45,6 +45,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Toast, ToastDescription, ToastTitle } from '@/components/ui/toast';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import HedgeFundChat from '@/components/HedgeFundChat';
 
 const initialStrategies: Strategy[] = [
   {
@@ -168,6 +169,22 @@ export default function HedgeFundDashboard() {
   const [showQuestionnaire, setShowQuestionnaire] = useState(false);
   const [riskFilter, setRiskFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('apy-desc');
+  const [userId, setUserId] = useState<string>('');
+
+  // Get userId from localStorage
+  useEffect(() => {
+    const storedUserData = localStorage.getItem('userData');
+    if (storedUserData) {
+      try {
+        const parsedData = JSON.parse(storedUserData);
+        const actualUserId = parsedData.user_id;
+        setUserId(actualUserId || '');
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        setUserId('');
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (isAutopilotOn) {
@@ -289,7 +306,7 @@ export default function HedgeFundDashboard() {
             </Alert>
           )}
 
-          <section id="portfolio-dashboard" className="mb-16">
+          <section id="portfolio-dashboard" className="mb-4">
             <Card className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 shadow-2xl rounded-3xl">
               <CardHeader>
                 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
@@ -368,7 +385,13 @@ export default function HedgeFundDashboard() {
             </Card>
           </section>
 
-          <Separator className="my-12 bg-zinc-800" />
+          {/* <Separator className="my-2 bg-zinc-800" /> */}
+
+          <section id="clark-chat" className="mb-4">
+            <HedgeFundChat userId={userId} />
+          </section>
+
+          <Separator className="my-2 bg-zinc-800" />
 
           <section id="strategy-discovery">
               <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
