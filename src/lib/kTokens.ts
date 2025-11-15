@@ -1,9 +1,9 @@
 // Static mapping of k-token addresses to their symbols
 export const K_TOKEN_ADDRESSES: Record<string, string> = {
-  '0x05B028e473aaad016C1D058A6BFDe24e718E3244': 'kUSD',
-  '0x13536b6c8f7588511a840874e68adD8198285855': 'kEUR',
-  '0x9fBFb6Ca7A4bA04d614f92607a2555b20094d562': 'kGBP',
-  '0xaf7C7521306d2c9EAA3F4c6083C53fE11aB397a2': 'kAED',
+  '0xda0a97267334450A65480138272880b8639541BF': 'kUSD',
+  '0xEfC3D4f8e34719F4c333Ab0751B6a7cd95e8C93B': 'kEUR',
+  '0x830B57829515D6CC2AeA7E59c54DFd8F4Bf913ba': 'kGBP',
+  '0x816886d27de24B1F3fBd840ef5E1d046378361f1': 'kAED',
 };
 
 // Mapping of k-token addresses to their symbols in lowercase
