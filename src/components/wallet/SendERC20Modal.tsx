@@ -219,11 +219,16 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
       return;
     }
 
+    let cancelled = false;
+
     const calculateDebitAmount = async () => {
       setEquivalentDebitAmountLoading(true);
       try {
         // Get price: how much toCurrency per 1 fromCurrency
         const price = await getPoolPrice(fromTokenSymbol, toTokenSymbol);
+
+        // Check if this effect was cancelled (dependencies changed)
+        if (cancelled) return;
 
         if (price > 0) {
           // Calculate how much FROM currency is needed to get the TO currency amount
@@ -234,14 +239,23 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
           setEquivalentDebitAmount(null);
         }
       } catch (e) {
+        // Don't update state if effect was cancelled
+        if (cancelled) return;
         console.error('Failed to fetch exchange rate for debit amount:', e);
         setEquivalentDebitAmount(null);
       } finally {
-        setEquivalentDebitAmountLoading(false);
+        if (!cancelled) {
+          setEquivalentDebitAmountLoading(false);
+        }
       }
     };
 
     calculateDebitAmount();
+
+    // Cleanup function to cancel the effect if dependencies change
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sendAmount, fromTokenSymbol, toTokenSymbol, visible, loading]);
 
@@ -264,10 +278,16 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
       return;
     }
 
+    let cancelled = false;
+
     const calculateEquivalent = async () => {
       setEquivalentBalanceLoading(true);
       try {
         const price = await getPoolPrice(fromTokenSymbol, toTokenSymbol); // toCurrency per 1 fromCurrency
+
+        // Check if this effect was cancelled (dependencies changed)
+        if (cancelled) return;
+
         if (price > 0) {
           const equivalent = currentBalanceValue * price;
           setEquivalentBalance(equivalent);
@@ -275,14 +295,23 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
           setEquivalentBalance(null);
         }
       } catch (e) {
+        // Don't update state if effect was cancelled
+        if (cancelled) return;
         console.error('Failed to fetch exchange rate:', e);
         setEquivalentBalance(null);
       } finally {
-        setEquivalentBalanceLoading(false);
+        if (!cancelled) {
+          setEquivalentBalanceLoading(false);
+        }
       }
     };
 
     calculateEquivalent();
+
+    // Cleanup function to cancel the effect if dependencies change
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromTokenSymbol, toTokenSymbol, currentBalanceValue, visible, loading]);
 
