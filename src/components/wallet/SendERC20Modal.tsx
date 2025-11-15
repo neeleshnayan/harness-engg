@@ -523,22 +523,6 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                 </Alert>
               )}
 
-              {/* Receiver Username */}
-              <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">Receiver</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-zinc-500 text-lg">@</span>
-                  <input
-                    type="text"
-                    value={receiverUsername}
-                    onChange={(e) => setReceiverUsername(e.target.value)}
-                    placeholder="username"
-                    className="w-full pl-8 pr-4 py-3.5 border border-zinc-700 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 bg-zinc-800/50 text-white placeholder-zinc-500"
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
               {/* From Currency Card (Uniswap style) */}
               {!isToUSDC && (
                 <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
@@ -607,6 +591,22 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                   </div>
                 </div>
               )}
+
+              {/* Receiver Username */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-2">Receiver</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-zinc-500 text-lg">@</span>
+                  <input
+                    type="text"
+                    value={receiverUsername}
+                    onChange={(e) => setReceiverUsername(e.target.value)}
+                    placeholder="username"
+                    className="w-full pl-8 pr-4 py-3.5 border border-zinc-700 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 bg-zinc-800/50 text-white placeholder-zinc-500"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
 
               {/* Amount Input and To Currency Row */}
               <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
