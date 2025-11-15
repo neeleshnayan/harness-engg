@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -37,10 +37,21 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
   const [equivalentDebitAmountLoading, setEquivalentDebitAmountLoading] = useState<boolean>(false);
   const [toCurrency, setToCurrency] = useState<string>("");
   const [availableTokens, setAvailableTokens] = useState<SupportedToken[]>([]);
+  const isTransactionInProgress = useRef<boolean>(false);
 
   useEffect(() => {
-    if (!visible) return;
-    // Reset when opened
+    if (!visible) {
+      // Reset transaction flag when modal closes
+      isTransactionInProgress.current = false;
+      return;
+    }
+
+    // Don't reset state if a transaction is in progress (balance might be refreshing)
+    if (isTransactionInProgress.current) {
+      return;
+    }
+
+    // Reset when opened (only if not in transaction)
     setReceiverUsername("");
     setSendAmount("");
     setSelectedCurrency("");
@@ -110,7 +121,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
 
     loadAvailableTokens();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, balance]);
+  }, [visible]); // Only depend on visible, not balance - prevents reset during transactions
 
   const isToUSDC = toCurrency === "USDC";
 
@@ -164,7 +175,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
 
   // Update balance when currency changes
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || loading || isTransactionInProgress.current) return;
     const updateBalance = async () => {
       if (!fromTokenSymbol) {
         setCurrentBalanceValue(0);
@@ -179,13 +190,15 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
     };
     updateBalance();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromTokenSymbol, balance, visible]);
+  }, [fromTokenSymbol, balance, visible, loading]);
 
   // Calculate equivalent debit amount (how much FROM currency will be debited)
   useEffect(() => {
-    // Reset if currencies are same, invalid, or no amount entered
+    // Reset if currencies are same, invalid, or no amount entered, or if transaction in progress
     if (
       !visible ||
+      loading ||
+      isTransactionInProgress.current ||
       !fromTokenSymbol ||
       !toTokenSymbol ||
       fromTokenSymbol === toTokenSymbol ||
@@ -229,13 +242,15 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
 
     calculateDebitAmount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sendAmount, fromTokenSymbol, toTokenSymbol, visible]);
+  }, [sendAmount, fromTokenSymbol, toTokenSymbol, visible, loading]);
 
   // Calculate equivalent balance in toCurrency
   useEffect(() => {
-    // Reset equivalent balance if currencies are same or invalid
+    // Reset equivalent balance if currencies are same or invalid, or if transaction in progress
     if (
       !visible ||
+      loading ||
+      isTransactionInProgress.current ||
       !fromTokenSymbol ||
       !toTokenSymbol ||
       fromTokenSymbol === toTokenSymbol ||
@@ -268,7 +283,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
 
     calculateEquivalent();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromTokenSymbol, toTokenSymbol, currentBalanceValue, visible]);
+  }, [fromTokenSymbol, toTokenSymbol, currentBalanceValue, visible, loading]);
 
   // Set toCurrency to match fromCurrency initially
   useEffect(() => {
@@ -350,6 +365,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
       return;
     }
 
+    // Set transaction flag to prevent UI resets during the transaction
+    isTransactionInProgress.current = true;
     setLoading(true);
     setLoadingMessage("Resolving receiver address...");
 
@@ -394,6 +411,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
       console.error(e);
       setError(e?.message || "Transaction failed. Please try again.");
     } finally {
+      // Clear transaction flag after transaction completes (success or error)
+      isTransactionInProgress.current = false;
       setLoading(false);
       setLoadingMessage("");
     }
