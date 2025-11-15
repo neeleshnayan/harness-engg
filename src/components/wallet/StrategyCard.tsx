@@ -32,19 +32,19 @@ const STRATEGY_DETAILS: Record<StrategyName, {
 }> = {
   MAVC: {
     tokenSymbol: 'MAVC',
-    routePath: '/customer/grow/hedge-fund-v2/mavc',
+    routePath: '/customer/grow/hedge-fund/mavc',
     metricField: 'mavcvaultMetric',
     useTokenDetection: true, // MAVC uses wallet_balance API for token detection
   },
   MAVP: {
     tokenSymbol: 'MAVP',
-    routePath: '/customer/grow/hedge-fund-v2/mavp',
+    routePath: '/customer/grow/hedge-fund/mavp',
     metricField: 'mavpvaultMetric',
     useTokenDetection: false,
   },
   MAVC_YEARN: {
     tokenSymbol: 'ysMAVC',
-    routePath: '/customer/grow/hedge-fund-v2/mavc-yearn',
+    routePath: '/customer/grow/hedge-fund/mavc-yearn',
     metricField: 'mavcyearnVaultMetric',
     useTokenDetection: false,
   },

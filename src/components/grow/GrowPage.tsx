@@ -108,27 +108,14 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
         {/* Investment Options Section */}
         <div className="flex flex-col lg:flex-row gap-8 w-full max-w-6xl mx-auto justify-center">
           <button
-            className="flex-1 bg-white/10 border border-white/20 rounded-3xl p-8 flex flex-col items-center justify-center shadow-xl hover:bg-cyan-400/10 hover:border-cyan-400/40 transition-all duration-200 backdrop-blur-xl group focus:outline-none focus:ring-2 focus:ring-cyan-400"
-            style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}
-            onClick={() => router.push('/customer/grow/hedge-fund')}
-          >
-            <div className="w-16 h-16 rounded-full bg-cyan-400/20 flex items-center justify-center mb-6 group-hover:bg-cyan-400/30 transition-all">
-              <Shield className="h-10 w-10 text-cyan-300 group-hover:text-cyan-400 transition-all" />
-            </div>
-            <span className="text-2xl font-bold text-white mb-2">Hedge Fund</span>
-            <span className="text-zinc-400 text-base text-center">
-              {getHedgeFundDescription()}
-            </span>
-          </button>
-          <button
             className="flex-1 bg-white/10 border border-white/20 rounded-3xl p-8 flex flex-col items-center justify-center shadow-xl hover:bg-emerald-400/10 hover:border-emerald-400/40 transition-all duration-200 backdrop-blur-xl group focus:outline-none focus:ring-2 focus:ring-emerald-400"
             style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}
-            onClick={() => router.push('/customer/grow/hedge-fund-v2')}
+            onClick={() => router.push('/customer/grow/hedge-fund')}
           >
             <div className="w-16 h-16 rounded-full bg-emerald-400/20 flex items-center justify-center mb-6 group-hover:bg-emerald-400/30 transition-all">
               <Shield className="h-10 w-10 text-emerald-300 group-hover:text-emerald-400 transition-all" />
             </div>
-            <span className="text-2xl font-bold text-white mb-2">Hedge Fund V2</span>
+            <span className="text-2xl font-bold text-white mb-2">Hedge Fund</span>
             <span className="text-zinc-400 text-base text-center">
               {getHedgeFundDescription()}
             </span>

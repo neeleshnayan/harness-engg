@@ -395,7 +395,7 @@ export default function HedgeFundV2Page() {
           {selectedView === 'overview' && (
             <div className="text-center mb-8 sm:mb-12 px-4">
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white mb-4 text-center drop-shadow-lg">
-                Hedge Fund V2
+                Hedge Fund
               </h1>
               {accountData?.username && (
                 <div className="mb-4">
