@@ -12,6 +12,7 @@ interface SendERC20ModalProps {
   visible: boolean;
   onClose: () => void;
   userAddress: string;
+  userId?: string;
   balance?: any;
 }
 
@@ -21,7 +22,7 @@ type SupportedToken = {
   decimals?: number;
 };
 
-export default function SendERC20Modal({ visible, onClose, userAddress, balance }: SendERC20ModalProps) {
+export default function SendERC20Modal({ visible, onClose, userAddress, userId, balance }: SendERC20ModalProps) {
   const [receiverUsername, setReceiverUsername] = useState<string>("");
   const [selectedCurrency, setSelectedCurrency] = useState<string>("");
   const [sendAmount, setSendAmount] = useState<string>("");
@@ -368,11 +369,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
     // Set transaction flag to prevent UI resets during the transaction
     isTransactionInProgress.current = true;
     setLoading(true);
-    setLoadingMessage("Resolving receiver address...");
 
     try {
-      const toAddress = await resolveReceiverAddress(receiverUsername.trim());
-
       // Get current balances
       setLoadingMessage("Checking your balance...");
       const balances = await fetchUserBalances();
@@ -382,12 +380,27 @@ export default function SendERC20Modal({ visible, onClose, userAddress, balance 
       const sendCurrencyDisplay = sendCurrency === "USDC" ? "USDC" : sendCurrency.replace(/^k/, "");
 
       if (sendCurrency === "USDC") {
+        // Use the USDC send endpoint (same as SendUSDCModal)
+        if (!userId) {
+          throw new Error("User ID is required to send USDC.");
+        }
+
         const usdcBalance = balances["USDC"] || 0;
         if (usdcBalance < amountNum) {
           throw new Error(`Insufficient USDC balance. You have ${usdcBalance.toFixed(2)} USDC, but need ${amountNum.toFixed(2)}.`);
         }
-        await transferTokens("USDC", toAddress, amountNum);
+
+        setLoadingMessage(`Sending ${amountNum.toFixed(2)} USDC...`);
+        await api.post("/api/v1/send_usdc", {
+          sender_user_id: userId,
+          receiver_username: receiverUsername.trim(),
+          amount: amountNum
+        });
       } else {
+        // For k-tokens, resolve address and use swap/transfer flow
+        setLoadingMessage("Resolving receiver address...");
+        const toAddress = await resolveReceiverAddress(receiverUsername.trim());
+
         const fromCurrency = fromTokenSymbol;
         if (!fromCurrency) {
           throw new Error("Please select a from currency.");

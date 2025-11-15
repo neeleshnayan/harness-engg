@@ -850,6 +850,7 @@ export default function CustomerPage() {
             visible={showSendERC20Form}
             onClose={handleCancelSendERC20}
             userAddress={accountData?.wallet_address}
+            userId={accountData?.user_id}
             balance={balance}
           />
         )}
