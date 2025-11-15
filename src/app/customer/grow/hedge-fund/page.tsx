@@ -335,7 +335,7 @@ export default function HedgeFundV2Page() {
             )}
 
             {/* Hedge Fund Chat */}
-            <section id="clark-chat" className="mb-10">
+            <section id="clark-chat" className="w-full max-w-6xl mx-auto mb-10 px-4">
               <HedgeFundChat userId={accountData?.user_id} />
             </section>
 
