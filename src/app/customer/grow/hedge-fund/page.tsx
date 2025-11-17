@@ -2,11 +2,9 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle, AlertCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle, AlertCircle, SlidersHorizontal } from "lucide-react";
 import api from "@/lib/api";
-import HedgeFundDashboard from "@/components/HedgeFundDashboard";
 import StrategyCard from "@/components/wallet/StrategyCard";
-import TokenBalances from "@/components/wallet/TokenBalances";
 import { CumulativeAUMChartNew } from "@/components/wallet/CumulativeAUMChartNew";
 import { useMAVCConfig, useMAVPConfig, useMAVCYearnConfig } from "@/hooks/useStrategyConfig";
 import { SubgraphAnalytics } from "@/components/wallet/SubgraphAnalytics";
@@ -14,7 +12,7 @@ import { SubgraphAnalyticsMAVP } from "@/components/wallet/SubgraphAnalyticsMAVP
 import { SubgraphAnalyticsMAVCYearn } from "@/components/wallet/SubgraphAnalyticsMAVCYearn";
 import { Toaster } from "@/components/ui/toaster";
 import { HedgeFundForm } from "@/lib/types";
-import HedgeFundChat from "@/components/HedgeFundChat";
+import HedgeFundQuestionnaire from "@/components/HedgeFundQuestionnaire";
 
 type StrategyView = 'overview' | 'mavc' | 'mavp' | 'mavc-yearn';
 
@@ -44,6 +42,7 @@ export default function HedgeFundV2Page() {
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceError, setBalanceError] = useState<string | null>(null);
   const [accountData, setAccountData] = useState<any>(null);
+  const [showQuestionnaire, setShowQuestionnaire] = useState(false);
 
   const tokenBalances = useMemo(() => {
     if (!balance || !Array.isArray(balance.tokenBalances)) {
@@ -259,10 +258,6 @@ export default function HedgeFundV2Page() {
     );
   }
 
-  if (showDashboard) {
-    return <HedgeFundDashboard />;
-  }
-
   const renderStrategyDetail = () => {
     switch (selectedView) {
       case 'mavc':
@@ -334,11 +329,6 @@ export default function HedgeFundV2Page() {
               </div>
             )}
 
-            {/* Hedge Fund Chat */}
-            <section id="clark-chat" className="w-full max-w-6xl mx-auto mb-10 px-4">
-              <HedgeFundChat userId={accountData?.user_id} />
-            </section>
-
             {/* Strategy Cards */}
             <div className="w-full max-w-6xl mx-auto mb-8 sm:mb-12 px-4">
               <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Available Strategies</h2>
@@ -368,34 +358,50 @@ export default function HedgeFundV2Page() {
   return (
     <>
       <Toaster />
+      {showQuestionnaire && (
+        <HedgeFundQuestionnaire
+          onComplete={() => setShowQuestionnaire(false)}
+          onClose={() => setShowQuestionnaire(false)}
+          showBackButton={true}
+        />
+      )}
       <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-4 sm:p-6 md:p-8">
         <div className="container mx-auto max-w-7xl">
           {/* Header with Back Button */}
-          <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-0 mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
             {selectedView !== 'overview' ? (
               <button
                 onClick={() => setSelectedView('overview')}
-                className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-4 sm:px-6 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-xs sm:text-sm flex items-center w-full sm:w-auto justify-center"
+                className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-4 sm:px-6 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-xs sm:text-sm flex items-center justify-center w-full sm:w-auto"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Strategies
               </button>
             ) : (
-              <div className="flex-1"></div>
+              <div className="w-full sm:flex-1" />
             )}
-            <button
-              onClick={() => router.push('/customer/grow')}
-              className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-4 sm:px-6 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-xs sm:text-sm w-full sm:w-auto justify-center flex items-center"
-            >
-              ← Back to Grow
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <button
+                onClick={() => setShowQuestionnaire(true)}
+                className="bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 hover:from-cyan-400 hover:via-blue-500 hover:to-purple-500 text-white font-semibold px-4 sm:px-6 py-2 rounded-xl border border-transparent transition-all duration-200 text-xs sm:text-sm w-full sm:w-auto justify-center flex items-center shadow-lg shadow-blue-900/40"
+              >
+                <SlidersHorizontal className="h-4 w-4 mr-2" />
+                Adjust Risk
+              </button>
+              <button
+                onClick={() => router.push('/customer/grow')}
+                className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-4 sm:px-6 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-xs sm:text-sm w-full sm:w-auto justify-center flex items-center"
+              >
+                ← Back to Grow
+              </button>
+            </div>
           </div>
 
           {/* Header */}
           {selectedView === 'overview' && (
             <div className="text-center mb-8 sm:mb-12 px-4">
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white mb-4 text-center drop-shadow-lg">
-                Hedge Fund
+                Hedge Fund V2
               </h1>
               {accountData?.username && (
                 <div className="mb-4">
@@ -417,4 +423,3 @@ export default function HedgeFundV2Page() {
     </>
   );
 }
-
