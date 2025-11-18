@@ -61,6 +61,18 @@ export const chartConfig = {
     label: "Super Trend",
     color: "#10b981",
   },
+  adx: {
+    label: "ADX",
+    color: "#8b5cf6",
+  },
+  adx_plus_dmi: {
+    label: "+DMI",
+    color: "#10b981",
+  },
+  adx_minus_dmi: {
+    label: "-DMI",
+    color: "#ef4444",
+  },
 }
 
 export const allocationColors = [

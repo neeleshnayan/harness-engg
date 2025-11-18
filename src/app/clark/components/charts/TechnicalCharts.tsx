@@ -72,6 +72,21 @@ export default function TechnicalCharts({
       : null
   })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
+  const adxData = dataPoints.filter(dp => 
+    dp.technical_indicators?.adx !== null && dp.technical_indicators?.adx !== undefined
+  ).map(dp => ({
+    ...dp,
+    adx: dp.technical_indicators?.adx !== null && dp.technical_indicators?.adx !== undefined
+      ? Number(dp.technical_indicators.adx)
+      : null,
+    adx_plus_dmi: dp.technical_indicators?.adx_plus_dmi !== null && dp.technical_indicators?.adx_plus_dmi !== undefined
+      ? Number(dp.technical_indicators.adx_plus_dmi)
+      : null,
+    adx_minus_dmi: dp.technical_indicators?.adx_minus_dmi !== null && dp.technical_indicators?.adx_minus_dmi !== undefined
+      ? Number(dp.technical_indicators.adx_minus_dmi)
+      : null,
+  })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
   return (
     <div className="space-y-6">
       {/* Moving Averages Chart */}
@@ -403,6 +418,104 @@ export default function TechnicalCharts({
                   connectNulls={false}
                   isAnimationActive={true}
                 />
+              </LineChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ADX Chart */}
+      {(technicalIndicatorsRequested.includes('adx') || 
+        technicalIndicatorsRequested.includes('adx_plus_dmi') || 
+        technicalIndicatorsRequested.includes('adx_minus_dmi')) && (
+        <Card className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="text-lg text-white">Average Directional Index (ADX)</CardTitle>
+            <CardDescription className="text-zinc-400">
+              ADX with +DMI (Positive Directional Movement) and -DMI (Negative Directional Movement) for {targetAssets.length > 0 ? targetAssets.join(', ') : 'selected assets'}.
+              ADX measures trend strength, +DMI shows upward momentum, -DMI shows downward momentum.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="h-[400px] w-full">
+              <LineChart data={adxData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                <XAxis 
+                  dataKey="date" 
+                  tickFormatter={(value) => formatDate(value)}
+                  tick={{ fontSize: 12, fill: 'rgba(255,255,255,0.6)' }}
+                  axisLine={{ stroke: 'rgba(255,255,255,0.12)' }}
+                  tickLine={{ stroke: 'rgba(255,255,255,0.12)' }}
+                />
+                <YAxis 
+                  tick={{ fontSize: 12, fill: 'rgba(255,255,255,0.6)' }}
+                  axisLine={{ stroke: 'rgba(255,255,255,0.12)' }}
+                  tickLine={{ stroke: 'rgba(255,255,255,0.12)' }}
+                />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                {(technicalIndicatorsRequested.includes('adx') || 
+                  technicalIndicatorsRequested.includes('adx_plus_dmi') || 
+                  technicalIndicatorsRequested.includes('adx_minus_dmi')) && (
+                  <Line
+                    type="monotone"
+                    dataKey="adx"
+                    stroke="var(--color-adx)"
+                    strokeWidth={2}
+                    dot={false}
+                    name="ADX"
+                    connectNulls={false}
+                    isAnimationActive={true}
+                  />
+                )}
+                {(technicalIndicatorsRequested.includes('adx') || 
+                  technicalIndicatorsRequested.includes('adx_plus_dmi')) && (
+                  <Line
+                    type="monotone"
+                    dataKey="adx_plus_dmi"
+                    stroke="var(--color-adx_plus_dmi)"
+                    strokeWidth={2}
+                    dot={false}
+                    name="+DMI"
+                    connectNulls={false}
+                    isAnimationActive={true}
+                  />
+                )}
+                {(technicalIndicatorsRequested.includes('adx') || 
+                  technicalIndicatorsRequested.includes('adx_minus_dmi')) && (
+                  <Line
+                    type="monotone"
+                    dataKey="adx_minus_dmi"
+                    stroke="var(--color-adx_minus_dmi)"
+                    strokeWidth={2}
+                    dot={false}
+                    name="-DMI"
+                    connectNulls={false}
+                    isAnimationActive={true}
+                  />
+                )}
+                {/* Reference lines for ADX trend strength */}
+                {technicalIndicatorsRequested.includes('adx') && (
+                  <>
+                    <Line
+                      type="monotone"
+                      dataKey={() => 20}
+                      stroke="#fbbf24"
+                      strokeWidth={1}
+                      strokeDasharray="3 3"
+                      dot={false}
+                      name="Strong Trend (20)"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey={() => 25}
+                      stroke="#f59e0b"
+                      strokeWidth={1}
+                      strokeDasharray="3 3"
+                      dot={false}
+                      name="Very Strong Trend (25)"
+                    />
+                  </>
+                )}
               </LineChart>
             </ChartContainer>
           </CardContent>

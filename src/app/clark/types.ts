@@ -67,6 +67,8 @@ export interface TechnicalIndicators {
   adx?: number
   adx_strong_trend: boolean
   adx_weak_trend: boolean
+  adx_plus_dmi?: number
+  adx_minus_dmi?: number
   super_trend?: number
   super_trend_direction?: string
   super_trend_buy_signal: boolean
