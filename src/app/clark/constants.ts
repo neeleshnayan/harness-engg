@@ -101,7 +101,8 @@ export const categories: Category[] = [
       'Backtest a strategy where Buy when EMA(9) crosses above EMA(21) and RSI(14) > 50 & Sell when EMA(9) crosses below EMA(21) or RSI(14) < 45 with 1000 USD from 01/01/2025 to 09/09/2025',
       'Backtest a strategy where Buy when MACD(12,26,9) cross up and ADX(14) > 20 & Sell when MACD cross down or ADX < 18 with 1000 USD from 01/01/2025 to 09/09/2025',
       'Backtest a strategy where Buy when Stochastic RSI %K < 20 and RSI(14) > 50 & Sell when Stochastic RSI %K > 80 with 1500 USD from 01/01/2025 to 09/09/2025',
-      'Backtest using Super Trend on Bitcoin from 2025-01-01 to 2025-09-09 with 1000 USD'
+      'Backtest using Super Trend on Bitcoin from 2025-01-01 to 2025-09-09 with 1000 USD',
+      'Backtest a strategy: Buy when ADX > 20 and +DMI > -DMI, Sell when ADX < 18 or -DMI > +DMI on Bitcoin from 2025-01-01 to 2025-09-09 with 1000 USD'
     ]
   },
   {
@@ -116,7 +117,9 @@ export const categories: Category[] = [
       'Plot 30, 100, and 200-day moving averages for BTC',
       'Show RSI analysis for ETH and ADA',
       'Overlay Stochastic RSI and RSI for BTC over the last quarter',
-      'Show me Super Trend analysis for Bitcoin from 2025-01-01 to 2025-09-09'
+      'Show me Super Trend analysis for Bitcoin from 2025-01-01 to 2025-09-09',
+      'Plot technical analysis for Bitcoin with ADX from 01-01-2025 to 09-09-2025',
+      'Plot ADX indicator for Ethereum from 01-01-2025 to 09-09-2025'
     ]
   },
   {
