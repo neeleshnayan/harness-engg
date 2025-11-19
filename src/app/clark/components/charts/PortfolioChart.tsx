@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
 import type { DotProps } from 'recharts'
+import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
 import { BacktestDataPoint, BacktestTrade } from '../../types'
 import { chartConfig } from '../../constants'
 import { formatDate } from '../../utils'
@@ -29,7 +30,62 @@ const normalizeDate = (value: string) => {
   return parsed.toISOString().slice(0, 10)
 }
 
+type TradeDotProps = DotProps & {
+  payload?: BacktestDataPoint
+}
+
+const formatAxisValue = (value: number) => {
+  const abs = Math.abs(value)
+
+  if (abs >= 1_000_000) {
+    const decimals = abs >= 10_000_000 ? 0 : 1
+    return `$${(value / 1_000_000).toFixed(decimals)}M`
+  }
+
+  if (abs >= 1_000) {
+    const decimals = abs >= 10_000 ? 0 : 1
+    return `$${(value / 1_000).toFixed(decimals)}k`
+  }
+
+  if (abs >= 100) {
+    return `$${value.toFixed(0)}`
+  }
+
+  if (abs >= 1) {
+    return `$${value.toFixed(2)}`
+  }
+
+  return `$${value.toFixed(2)}`
+}
+
 export default function PortfolioChart({ dataPoints, startDate, endDate, trades }: PortfolioChartProps) {
+  const { domainMin, domainMax } = useMemo(() => {
+    if (!dataPoints.length) {
+      return { domainMin: 0, domainMax: 1 }
+    }
+
+    let minValue = Number.POSITIVE_INFINITY
+    let maxValue = Number.NEGATIVE_INFINITY
+
+    dataPoints.forEach(point => {
+      if (typeof point.portfolio_value === 'number') {
+        if (point.portfolio_value < minValue) minValue = point.portfolio_value
+        if (point.portfolio_value > maxValue) maxValue = point.portfolio_value
+      }
+    })
+
+    if (!Number.isFinite(minValue) || !Number.isFinite(maxValue)) {
+      return { domainMin: 0, domainMax: 1 }
+    }
+
+    const range = maxValue - minValue
+    const padding = range > 0 ? range * 0.5 : Math.max(minValue * 0.5, 1)
+    const lowerBound = Math.max(0, minValue - padding)
+    const upperBound = maxValue + padding
+
+    return { domainMin: lowerBound, domainMax: upperBound }
+  }, [dataPoints])
+
   const tradesByDate = useMemo(() => {
     if (!trades?.length) {
       return new Map<string, TradeBucket>()
@@ -54,13 +110,13 @@ export default function PortfolioChart({ dataPoints, startDate, endDate, trades 
     return buckets
   }, [trades])
 
-  const renderTradeDot = (props: DotProps) => {
+  const renderTradeDot = (props: TradeDotProps) => {
     const { cx, cy, payload } = props
     if (typeof cx !== 'number' || typeof cy !== 'number' || !payload?.date) {
-      return null
+      return <g />
     }
     const bucket = tradesByDate.get(normalizeDate(payload.date))
-    if (!bucket) return null
+    if (!bucket) return <g />
 
     const hasBuy = bucket.buys.length > 0
     const hasSell = bucket.sells.length > 0
@@ -106,11 +162,18 @@ export default function PortfolioChart({ dataPoints, startDate, endDate, trades 
       : formatDate(value)
   }
 
-  const tooltipValueFormatter = (value: number | string) => {
-    if (typeof value !== 'number') return value
-    return `$${value.toLocaleString(undefined, {
+  const tooltipValueFormatter = (
+    value: ValueType,
+    name?: NameType
+  ): [string, string] => {
+    const label = chartConfig.portfolio.label || 'Portfolio Value'
+    if (typeof value !== 'number') {
+      return [String(value ?? ''), label]
+    }
+    const formatted = `$${value.toLocaleString(undefined, {
       maximumFractionDigits: value >= 1000 ? 0 : 2,
     })}`
+    return [formatted, label]
   }
 
   return (
@@ -133,16 +196,17 @@ export default function PortfolioChart({ dataPoints, startDate, endDate, trades 
               tickLine={{ stroke: 'rgba(255,255,255,0.12)' }}
             />
             <YAxis 
-              tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+              tickFormatter={formatAxisValue}
               tick={{ fontSize: 12, fill: 'rgba(255,255,255,0.6)' }}
               axisLine={{ stroke: 'rgba(255,255,255,0.12)' }}
               tickLine={{ stroke: 'rgba(255,255,255,0.12)' }}
+              domain={[domainMin, domainMax]}
             />
             <ChartTooltip
               content={
                 <ChartTooltipContent
                   labelFormatter={tooltipLabelFormatter}
-                  formatter={(value) => [tooltipValueFormatter(value), chartConfig.portfolio.label]}
+                  formatter={tooltipValueFormatter}
                 />
               }
             />
