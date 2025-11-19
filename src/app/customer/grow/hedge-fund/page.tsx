@@ -13,6 +13,7 @@ import { SubgraphAnalyticsMAVCYearn } from "@/components/wallet/SubgraphAnalytic
 import { Toaster } from "@/components/ui/toaster";
 import { HedgeFundForm } from "@/lib/types";
 import HedgeFundQuestionnaire from "@/components/HedgeFundQuestionnaire";
+import HedgeFundChat from '@/components/HedgeFundChat';
 
 type StrategyView = 'overview' | 'mavc' | 'mavp' | 'mavc-yearn';
 
@@ -319,7 +320,7 @@ export default function HedgeFundV2Page() {
           <>
             {/* Portfolio Performance Chart */}
             {accountData?.wallet_address && (
-              <div className="w-full max-w-6xl mx-auto mb-12">
+              <div className="w-full max-w-6xl mx-auto mb-4">
                 <CumulativeAUMChartNew
                   userWalletAddress={accountData.wallet_address}
                   mavcCurrentBalance={tokenBalances.mavc}
@@ -329,6 +330,10 @@ export default function HedgeFundV2Page() {
               </div>
             )}
 
+            <section id="clark-chat" className="mb-4">
+              <HedgeFundChat userId={accountData?.user_id} />
+            </section>
+            
             {/* Strategy Cards */}
             <div className="w-full max-w-6xl mx-auto mb-8 sm:mb-12 px-4">
               <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Tokenized Strategies</h2>
