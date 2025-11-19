@@ -6,7 +6,7 @@ import { AlertCircle } from "lucide-react";
 import { FaArrowUp } from "react-icons/fa";
 import api, { web3Api } from "@/lib/api";
 import { K_TOKEN_SYMBOLS, K_TOKEN_ADDRESSES_LOWERCASE } from "@/lib/kTokens";
-import { getPoolPrice } from "@/lib/priceCache";
+import { getPoolRate } from "@/lib/priceCache";
 
 interface SendERC20ModalProps {
   visible: boolean;
@@ -195,11 +195,15 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
 
   // Calculate equivalent debit amount (how much FROM currency will be debited)
   useEffect(() => {
-    // Reset if currencies are same, invalid, or no amount entered, or if transaction in progress
+    // Skip reset if transaction is in progress - preserve the calculated value
+    if (isTransactionInProgress.current) {
+      return;
+    }
+
+    // Reset if currencies are same, invalid, or no amount entered
     if (
       !visible ||
       loading ||
-      isTransactionInProgress.current ||
       !fromTokenSymbol ||
       !toTokenSymbol ||
       fromTokenSymbol === toTokenSymbol ||
@@ -224,8 +228,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
     const calculateDebitAmount = async () => {
       setEquivalentDebitAmountLoading(true);
       try {
-        // Get price: how much toCurrency per 1 fromCurrency
-        const price = await getPoolPrice(fromTokenSymbol, toTokenSymbol);
+        // Get rate: how much toCurrency per 1 fromCurrency
+        const price = await getPoolRate(toTokenSymbol, fromTokenSymbol);
 
         // Check if this effect was cancelled (dependencies changed)
         if (cancelled) return;
@@ -283,7 +287,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
     const calculateEquivalent = async () => {
       setEquivalentBalanceLoading(true);
       try {
-        const price = await getPoolPrice(fromTokenSymbol, toTokenSymbol); // toCurrency per 1 fromCurrency
+        const price = await getPoolRate(toTokenSymbol, fromTokenSymbol); // toCurrency per 1 fromCurrency
 
         // Check if this effect was cancelled (dependencies changed)
         if (cancelled) return;
@@ -338,8 +342,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
     setLoadingMessage(`Checking swap price from ${fromSymbol.replace(/^k/, "")} to ${toSymbol.replace(/^k/, "")}...`);
     const balances = await fetchUserBalances();
 
-    // Get price: how much toCurrency per 1 fromCurrency
-    const price = await getPoolPrice(fromSymbol, toSymbol); // toCurrency per 1 fromCurrency
+    // Get rate: how much toCurrency per 1 fromCurrency
+    const price = await getPoolRate(toSymbol, fromSymbol); // toCurrency per 1 fromCurrency
 
     if (price <= 0) {
       throw new Error(`Cannot get price for swap ${fromSymbol.replace(/^k/, "")} → ${toSymbol.replace(/^k/, "")}`);

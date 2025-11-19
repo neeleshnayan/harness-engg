@@ -24,6 +24,16 @@ export const web3Api = axios.create({
   timeout: 600000,
 });
 
+// Subgraph API client for Krypton liquidity pools
+const SUBGRAPH_API_BASE_URL = process.env.NEXT_PUBLIC_SUBGRAPH_API_URL || 'https://api.studio.thegraph.com/query/1714038/krypton-liquidity-pools-sepolia/version/latest';
+
+export const kryptonPoolsSubgraphApi = axios.create({
+  baseURL: SUBGRAPH_API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
 // Create axios instance with base URL
 const api = axios.create({
   baseURL: API_BASE_URL,

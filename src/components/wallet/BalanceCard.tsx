@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
 import KTTokenBalances from "@/components/wallet/KTTokenBalances";
 import { FaShieldAlt, FaSync, FaPlus } from "react-icons/fa";
-import { getOracleRates } from "@/lib/priceCache";
+import { getAllPoolRates } from "@/lib/priceCache";
 import { K_TOKEN_ADDRESSES_LOWERCASE, K_TOKEN_SYMBOL_LIST, CURRENCY_SYMBOLS } from "@/lib/kTokens";
 
 interface BalanceCardProps {
@@ -60,7 +60,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   const [localRefreshing, setLocalRefreshing] = useState(false);
   const [isFlickering, setIsFlickering] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState('USD');
-  const [oracleRates, setOracleRates] = useState<{ [key: string]: number }>({});
+  const [poolRates, setPoolRates] = useState<{ [key: string]: number }>({});
 
   const showKycSection = accountData?.username && kycStatus !== 'approved' && onKycClick;
   const showBalanceSection = accountData?.username; // Always show balance if username exists
@@ -87,19 +87,19 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
     }
   }, [balanceFlickering]);
 
-  // Fetch oracle rates and convert to map
+  // Fetch pool rates and convert to map
   useEffect(() => {
     const fetchRates = async () => {
       try {
-        const rates = await getOracleRates();
+        const rates = await getAllPoolRates();
         // Convert array to map for easier lookup: { "USD/EUR": 1.16251899, ... }
         const ratesMap: { [key: string]: number } = {};
         rates.forEach((rate) => {
           ratesMap[rate.pair] = rate.rate;
         });
-        setOracleRates(ratesMap);
+        setPoolRates(ratesMap);
       } catch (error) {
-        console.error('Failed to fetch oracle rates:', error);
+        console.error('Failed to fetch pool rates:', error);
       }
     };
     fetchRates();
@@ -140,10 +140,8 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
           usdValue = kTokenAmount;
         } else {
           // Get the rate pair for this kToken
-          // kEUR -> "USD/EUR", kGBP -> "USD/GBP", kAED -> "USD/AED"
-          const currency = kTokenSymbol.replace(/^k/, '');
-          const ratePair = `USD/${currency}`;
-          const rate = oracleRates[ratePair];
+          const ratePair = `kUSD/${kTokenSymbol}`;
+          const rate = poolRates[ratePair];
 
           if (rate && rate > 0) {
             // Rate is already in format: USD/EUR = 1.16251899 means 1 EUR = 1.16251899 USD
@@ -162,8 +160,8 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
     }
 
     // Get conversion rate from USD to selected currency
-    const ratePair = `USD/${selectedCurrency}`;
-    const rate = oracleRates[ratePair];
+    const ratePair = `kUSD/k${selectedCurrency}`;
+    const rate = poolRates[ratePair];
 
     if (rate && rate > 0) {
       // Rate is USD/Currency, so to convert USD to Currency: divide by rate
