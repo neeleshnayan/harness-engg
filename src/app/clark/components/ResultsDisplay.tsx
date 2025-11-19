@@ -569,6 +569,7 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
             dataPoints={backtestResult.data_points}
             startDate={backtestResult.start_date}
             endDate={backtestResult.end_date}
+            trades={backtestResult.trades}
           />
         )}
 

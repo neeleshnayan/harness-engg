@@ -2,7 +2,7 @@ import { Category } from './types'
 
 export const chartConfig = {
   portfolio: {
-    label: "Portfolio Value",
+    label: " Value",
     color: "hsl(var(--chart-1))",
   },
   cumulative: {
