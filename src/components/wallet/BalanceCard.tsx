@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
+import KTTokenBalances from "@/components/wallet/KTTokenBalances";
 import { FaShieldAlt, FaSync, FaPlus } from "react-icons/fa";
+import { getAllPoolRates } from "@/lib/priceCache";
+import { K_TOKEN_ADDRESSES_LOWERCASE, K_TOKEN_SYMBOL_LIST, CURRENCY_SYMBOLS } from "@/lib/kTokens";
 
 interface BalanceCardProps {
   balance: any;
@@ -56,7 +59,9 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
 }) => {
   const [localRefreshing, setLocalRefreshing] = useState(false);
   const [isFlickering, setIsFlickering] = useState(false);
-  
+  const [selectedCurrency, setSelectedCurrency] = useState('USD');
+  const [poolRates, setPoolRates] = useState<{ [key: string]: number }>({});
+
   const showKycSection = accountData?.username && kycStatus !== 'approved' && onKycClick;
   const showBalanceSection = accountData?.username; // Always show balance if username exists
   const isKycApproved = kycStatus === 'approved';
@@ -82,14 +87,140 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
     }
   }, [balanceFlickering]);
 
+  // Fetch pool rates and convert to map
+  useEffect(() => {
+    const fetchRates = async () => {
+      try {
+        const rates = await getAllPoolRates();
+        // Convert array to map for easier lookup: { "USD/EUR": 1.16251899, ... }
+        const ratesMap: { [key: string]: number } = {};
+        rates.forEach((rate) => {
+          ratesMap[rate.pair] = rate.rate;
+        });
+        setPoolRates(ratesMap);
+      } catch (error) {
+        console.error('Failed to fetch pool rates:', error);
+      }
+    };
+    fetchRates();
+    const interval = setInterval(fetchRates, 3600000); // Refresh every hour
+    return () => clearInterval(interval);
+  }, []);
+
+  // Calculate total balance in selected currency
+  const calculateTotalBalance = (): number => {
+    if (!balance || !Array.isArray(balance.tokenBalances) || balance.tokenBalances.length === 0) {
+      return 0;
+    }
+
+    let totalInUSD = 0;
+
+    // Get USDC and TRNSK balances (both are in USD)
+    const transakToken = balance.tokenBalances.find(
+      (b: any) => b.token && b.token.symbol === 'TRNSK'
+    );
+    const usdc = balance.tokenBalances.find(
+      (b: any) => b.token && b.token.symbol === 'USDC'
+    );
+    const transakAmount = parseFloat(transakToken?.amount ?? "0");
+    const usdcAmount = parseFloat(usdc?.amount ?? "0");
+    totalInUSD += transakAmount + usdcAmount;
+
+    // Get kToken balances and convert to USD
+    for (const tb of balance.tokenBalances) {
+      const tokenAddress = tb?.token?.tokenAddress?.toLowerCase();
+      const kTokenSymbol = tokenAddress ? K_TOKEN_ADDRESSES_LOWERCASE[tokenAddress] : undefined;
+
+      if (kTokenSymbol && parseFloat(tb.amount) > 0) {
+        const kTokenAmount = parseFloat(tb.amount || "0");
+        let usdValue = 0;
+
+        if (kTokenSymbol === 'kUSD') {
+          // kUSD is 1:1 with USD
+          usdValue = kTokenAmount;
+        } else {
+          // Get the rate pair for this kToken
+          const ratePair = `kUSD/${kTokenSymbol}`;
+          const rate = poolRates[ratePair];
+
+          if (rate && rate > 0) {
+            // Rate is already in format: USD/EUR = 1.16251899 means 1 EUR = 1.16251899 USD
+            // So to convert kToken to USD: multiply by rate
+            usdValue = kTokenAmount * rate;
+          }
+        }
+
+        totalInUSD += usdValue;
+      }
+    }
+
+    // Convert from USD to selected currency if needed
+    if (selectedCurrency === 'USD') {
+      return totalInUSD;
+    }
+
+    // Get conversion rate from USD to selected currency
+    const ratePair = `kUSD/k${selectedCurrency}`;
+    const rate = poolRates[ratePair];
+
+    if (rate && rate > 0) {
+      // Rate is USD/Currency, so to convert USD to Currency: divide by rate
+      return totalInUSD / rate;
+    }
+
+    // If rate not available, return USD value
+    return totalInUSD;
+  };
+
+
+  // Get available currencies for dropdown (USD + kToken currencies, excluding kUSD since it's USD)
+  const availableCurrencies = [
+    'USD',
+    ...K_TOKEN_SYMBOL_LIST.filter(s => s !== 'kUSD').map(s => s.replace(/^k/, ''))
+  ];
+  const currencySymbol = CURRENCY_SYMBOLS[selectedCurrency] || '$';
 
   return (
     <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 mb-8 transition-all duration-300 ${localRefreshing ? 'ring-2 ring-green-500/30 ring-opacity-50' : ''} ${className || ''}`}>
         <div className="text-center">
-        <div className="flex items-center justify-center mb-4">
+        <div className="flex items-center justify-center mb-4 gap-2">
           {USDC_SVG}
-          <h3 className="text-2xl font-bold text-white ml-2">Your Balance</h3>
+          <h3 className="text-2xl font-bold text-white">
+            Your Balance{' '}
+            <span className="text-lg font-normal text-zinc-400">
+              (in{' '}
+              {showBalanceSection && isKycApproved ? (
+                <span className="inline-flex items-center relative group cursor-pointer">
+                  <select
+                    value={selectedCurrency}
+                    onChange={(e) => setSelectedCurrency(e.target.value)}
+                    className="appearance-none bg-transparent text-cyan-400 hover:text-cyan-300 font-normal cursor-pointer focus:outline-none text-lg pr-4"
+                  >
+                    {availableCurrencies.map((currency) => (
+                      <option key={currency} value={currency} className="bg-zinc-800">
+                        {currency}
+                      </option>
+                    ))}
+                  </select>
+                  <svg
+                    className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-cyan-400 group-hover:text-cyan-300 transition-colors"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 12 12"
+                    fill="none"
+                  >
+                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </span>
+              ) : (
+                <span>USD</span>
+              )}
+              )
+            </span>
+          </h3>
         </div>
+
+        {/* <div className={`mt-4 pt-4 border-t border-zinc-700/50 ${className || ''}`}></div> */}
 
         {/* Show KYC banner if username is set but KYC not approved */}
         {showKycSection && (
@@ -160,17 +291,9 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
               ) : error ? (
                 <span className="text-red-400 text-2xl font-semibold">{error}</span>
               ) : (() => {
-                if (balance && Array.isArray(balance.tokenBalances) && balance.tokenBalances.length > 0) {
-                  const transakToken = balance.tokenBalances.find(
-                    (b: any) => b.token && b.token.symbol === 'TRNSK'
-                  );
-                  const usdc = balance.tokenBalances.find(
-                    (b: any) => b.token && b.token.symbol === 'USDC'
-                  );
-                  const transakAmount = parseFloat(transakToken?.amount ?? "0");
-                  const usdcAmount = parseFloat(usdc?.amount ?? "0");
-                  const total = transakAmount + usdcAmount;
-                  return `\$${total.toFixed(2)}`;
+                const totalBalance = calculateTotalBalance();
+                if (totalBalance > 0) {
+                  return `${currencySymbol}${totalBalance.toFixed(2)}`;
                 }
                 return '-';
               })()}
@@ -206,6 +329,11 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
             : 'Wallet functionality will be unlocked after verification'
           }
         </p>
+
+        {/* K-Token Balances - Show at the bottom if KYC is approved */}
+        {showBalanceSection && isKycApproved && balance && (
+          <KTTokenBalances balance={balance} />
+        )}
 
         {/* Transaction History Toggle - Only show if KYC is approved */}
         {showBalanceSection && isKycApproved && (

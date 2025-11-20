@@ -1,8 +1,38 @@
 import axios from 'axios';
+import http from 'http';
+import https from 'https';
 
 // Set the base URL for API requests
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
-// const API_BASE_URL = 'https://api.kryptonfund.com'
+const WEB3_API_BASE_URL = process.env.NEXT_PUBLIC_WEB3_API_URL || 'http://127.0.0.1:8080';
+
+const httpAgent = new http.Agent({
+  keepAlive: true,
+});
+
+const httpsAgent = new https.Agent({
+  keepAlive: true,
+});
+
+export const web3Api = axios.create({
+  baseURL: WEB3_API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  httpAgent: httpAgent,
+  httpsAgent: httpsAgent,
+  timeout: 600000,
+});
+
+// Subgraph API client for Krypton liquidity pools
+const SUBGRAPH_API_BASE_URL = process.env.NEXT_PUBLIC_SUBGRAPH_API_URL || 'https://api.studio.thegraph.com/query/1714038/krypton-liquidity-pools-sepolia/version/latest';
+
+export const kryptonPoolsSubgraphApi = axios.create({
+  baseURL: SUBGRAPH_API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
 // Create axios instance with base URL
 const api = axios.create({
@@ -73,3 +103,14 @@ export const getTokenInfo = async (tokenAddress: string) => {
 
 
 export default api;
+
+// ERC20/Smart Token Service helpers
+export const listERC20Tokens = async () => {
+  try {
+    const response = await web3Api.get('/erc20/tokens');
+    return response.data;
+  } catch (error) {
+    console.error('Error listing ERC20 tokens:', error);
+    throw error;
+  }
+};

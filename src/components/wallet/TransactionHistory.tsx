@@ -174,7 +174,6 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
   const formatAmount = (amount: string, token_name: string, inbound: boolean) => {
     if (!amount) return inbound ? `+ 0.00 ${token_name}` : `- 0.00 ${token_name}`;
     const num = parseFloat(amount);
-    const sign = inbound ? '+' : '-';
     if (token_name === 'USDC') {
       return `$${num.toFixed(2)}`;
     }

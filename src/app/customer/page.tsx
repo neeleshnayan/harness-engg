@@ -17,17 +17,18 @@ import axios from "axios";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import LangChainChat from '@/components/LangChainChat';
 
-import { 
-  setUserContext, 
-  clearUserContext, 
-  captureError, 
-  captureAPIError, 
-  captureWebSocketError, 
-  captureWalletError, 
+import {
+  setUserContext,
+  clearUserContext,
+  captureError,
+  captureAPIError,
+  captureWebSocketError,
+  captureWalletError,
   captureKYCError,
   addBreadcrumb,
   startPerformanceSpan
 } from "@/lib/sentry";
+import SendERC20Modal from "@/components/wallet/SendERC20Modal";
 
 
 export default function CustomerPage() {
@@ -44,11 +45,16 @@ export default function CustomerPage() {
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [usernameSuccess, setUsernameSuccess] = useState<string | null>(null);
   const [showSendForm, setShowSendForm] = useState(false);
+  const [showSendERC20Form, setShowSendERC20Form] = useState(false);
   const [receiverUsername, setReceiverUsername] = useState<string>("");
+  const [sendCurrency, setSendCurrency] = useState<string>("");
   const [sendAmount, setSendAmount] = useState<string>("");
   const [sendLoading, setSendLoading] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendSuccess, setSendSuccess] = useState<string | null>(null);
+  const [sendERC20Loading, setSendERC20Loading] = useState(false);
+  const [sendERC20Error, setSendERC20Error] = useState<string | null>(null);
+  const [sendERC20Success, setSendERC20Success] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [showTransactions, setShowTransactions] = useState(false);
   const [refreshingBalance, setRefreshingBalance] = useState(false);
@@ -72,9 +78,9 @@ export default function CustomerPage() {
     {
       onMessage: (message) => {
 
-        
+
         if (message.type === 'circle_webhook') {
-          
+
           // Show notification to user
           let notificationText = '';
           if (message.event_type === 'INBOUND') {
@@ -84,22 +90,22 @@ export default function CustomerPage() {
           } else if (message.event_type === 'wallet.updated') {
             notificationText = 'Wallet updated! Refreshing balance...';
           }
-          
+
           if (notificationText) {
             setWebhookNotification(notificationText);
             setTimeout(() => setWebhookNotification(null), 5000);
           }
-          
+
           // Only refresh balance when WebSocket message is received
           if (accountData?.wallet_address && message.address === accountData.wallet_address) {
             // Set refreshing state and fetch balance in background (no page loader)
             setBalanceRefreshing(true);
             fetchBalance(accountData.wallet_address, { background: true });
-            
+
             // Trigger BalanceCard refresh by toggling the refresh flag
             setBalanceCardRefresh(prev => !prev);
           }
-          
+
           // Also refresh transaction history if it's open
           if (showTransactions) {
             setTransactionHistoryRefresh(prev => !prev);
@@ -125,7 +131,7 @@ export default function CustomerPage() {
           timestamp: new Date().toISOString()
         });
 
-        
+
         // Capture WebSocket error with Sentry
         captureWebSocketError(error, {
           status: connectionStatus,
@@ -145,10 +151,10 @@ export default function CustomerPage() {
     try {
       const data = JSON.parse(userData);
       setAccountData(data);
-      
+
       // Set user context in Sentry
       setUserContext(data);
-      
+
       // Fetch fresh KYC status from backend instead of relying on localStorage
       if (data.user_id) {
         fetchUserData(data.user_id);
@@ -170,11 +176,11 @@ export default function CustomerPage() {
     try {
       setUserDataLoading(true);
       addBreadcrumb('Fetching user data', 'api', { user_id: userId });
-      
+
       const response = await api.get(`/api/v1/user/${userId}`);
       const userData = response.data;
       setKycStatus(userData.kyc_status || 'pending');
-      
+
       var res = await axios.get('https://api-stg.transak.com/fiat/public/v1/currencies/fiat-currencies?apiKey=f4c10825-55fd-4ccc-bd3f-40fc021468e5');
       var fiatDataMap = []
       for (const currency of res.data.response) {
@@ -187,8 +193,8 @@ export default function CustomerPage() {
       setFiatData(fiatDataMap);
       // Preserve existing wallet data if not in the response
       const currentData = accountData || {};
-      const updatedData = { 
-        ...currentData, 
+      const updatedData = {
+        ...currentData,
         ...userData,
         // Ensure wallet data is preserved
         wallet_address: userData.wallet_address || currentData.wallet_address,
@@ -197,31 +203,31 @@ export default function CustomerPage() {
         // Ensure user_id is preserved (Firestore returns 'id' but we need 'user_id')
         user_id: userData.id || currentData.user_id || userId
       };
-      
+
       setAccountData(updatedData);
       localStorage.setItem('userData', JSON.stringify(updatedData));
-      
+
       // Update Sentry user context with fresh data
       setUserContext(updatedData);
-      
+
       // If we have a wallet address and it's not already being fetched, fetch balance
       if (updatedData.wallet_address && !balance) {
         fetchBalance(updatedData.wallet_address, { background: true });
       }
-      
+
       // If user has username but KYC is not approved, check status
       if (updatedData.username && userData.kyc_status !== 'approved') {
         setTimeout(() => {
           checkKycStatus(userId);
         }, 1000);
       }
-      
-      addBreadcrumb('User data fetched successfully', 'api', { 
-        user_id: userId, 
+
+      addBreadcrumb('User data fetched successfully', 'api', {
+        user_id: userId,
         kyc_status: userData.kyc_status,
-        has_wallet: !!updatedData.wallet_address 
+        has_wallet: !!updatedData.wallet_address
       });
-      
+
     } catch (err) {
       console.error('Failed to fetch user data:', err);
       captureAPIError(err, `/api/v1/user/${userId}`, { user_id: userId });
@@ -243,16 +249,16 @@ export default function CustomerPage() {
         setBalanceLoading(true);
       }
       addBreadcrumb('Fetching wallet balance', 'api', { wallet_address: address, background: isBackground });
-      
+
       const response = await api.get(`/api/v1/wallet_balance/${address}`);
       setBalance(response.data);
-      
-      addBreadcrumb('Balance fetched successfully', 'api', { 
+
+      addBreadcrumb('Balance fetched successfully', 'api', {
         wallet_address: address,
         background: isBackground,
-        balance: response.data 
+        balance: response.data
       });
-      
+
     } catch (err) {
       setError('Failed to fetch balance.');
       captureAPIError(err, `/api/v1/wallet_balance/${address}`, { wallet_address: address, background: isBackground });
@@ -281,12 +287,12 @@ export default function CustomerPage() {
         await signOut(auth);
       }
       localStorage.removeItem('userData');
-      
+
       // Clear Sentry user context on logout
       clearUserContext();
-      
+
       addBreadcrumb('User logged out', 'auth', { user_id: accountData?.user_id });
-      
+
       router.push('/');
     } catch (err) {
       const error = err as Error;
@@ -330,13 +336,13 @@ export default function CustomerPage() {
     setUsernameLoading(true);
     setUsernameError(null);
     setUsernameSuccess(null);
-    
+
     try {
-      addBreadcrumb('Setting username', 'api', { 
-        user_id: accountData.user_id, 
-        username: cleanUsername.trim() 
+      addBreadcrumb('Setting username', 'api', {
+        user_id: accountData.user_id,
+        username: cleanUsername.trim()
       });
-      
+
       const response = await api.post("/api/v1/set_username", {
         user_id: accountData.user_id,
         username: cleanUsername.trim()
@@ -350,15 +356,15 @@ export default function CustomerPage() {
       };
       setAccountData(updatedAccountData);
       localStorage.setItem('userData', JSON.stringify(updatedAccountData));
-      
+
       // Update Sentry user context
       setUserContext(updatedAccountData);
-      
-      addBreadcrumb('Username set successfully', 'api', { 
-        user_id: accountData.user_id, 
-        username: cleanUsername.trim() 
+
+      addBreadcrumb('Username set successfully', 'api', {
+        user_id: accountData.user_id,
+        username: cleanUsername.trim()
       });
-      
+
     } catch (err: any) {
       let errorMsg = err.response?.data?.detail || "Failed to set username";
       if (typeof errorMsg === 'object' && errorMsg !== null) {
@@ -370,10 +376,10 @@ export default function CustomerPage() {
         }
       }
       setUsernameError(errorMsg);
-      
-      captureAPIError(err, '/api/v1/set_username', { 
-        user_id: accountData.user_id, 
-        username: cleanUsername.trim() 
+
+      captureAPIError(err, '/api/v1/set_username', {
+        user_id: accountData.user_id,
+        username: cleanUsername.trim()
       });
     } finally {
       setUsernameLoading(false);
@@ -404,14 +410,14 @@ export default function CustomerPage() {
     setSendLoading(true);
     setSendError(null);
     setSendSuccess(null);
-    
+
     try {
-      addBreadcrumb('Sending USDC', 'api', { 
-        sender_id: accountData.user_id, 
-        receiver: receiverUsername.trim(), 
-        amount: amount 
+      addBreadcrumb('Sending USDC', 'api', {
+        sender_id: accountData.user_id,
+        receiver: receiverUsername.trim(),
+        amount: amount
       });
-      
+
       const response = await api.post("/api/v1/send_usdc", {
         sender_user_id: accountData.user_id,
         receiver_username: receiverUsername.trim(),
@@ -422,21 +428,21 @@ export default function CustomerPage() {
       setSendAmount("");
       setBalance(null);
       setRefreshingBalance(true);
-      
+
       // Trigger balance flickering effect
       setBalanceFlickering(true);
-      
+
       if (accountData.wallet_address) {
         fetchBalance(accountData.wallet_address, { background: true });
       }
       setTransactionHistoryRefresh(prev => !prev);
-      
-      addBreadcrumb('USDC sent successfully', 'api', { 
-        sender_id: accountData.user_id, 
-        receiver: receiverUsername.trim(), 
-        amount: amount 
+
+      addBreadcrumb('USDC sent successfully', 'api', {
+        sender_id: accountData.user_id,
+        receiver: receiverUsername.trim(),
+        amount: amount
       });
-      
+
     } catch (err: any) {
       let errorMsg = err.response?.data?.detail || "Failed to send USDC";
       if (typeof errorMsg === 'object' && errorMsg !== null) {
@@ -448,35 +454,46 @@ export default function CustomerPage() {
         }
       }
       setSendError(errorMsg);
-      
+
       captureWalletError(err, 'send_usdc', amount.toString(), receiverUsername.trim());
     } finally {
       setSendLoading(false);
     }
   };
 
-  const handleCancelSend = () => {
+  const handleCancelSendUSDC = () => {
     setShowSendForm(false);
     setReceiverUsername("");
     setSendAmount("");
     setSendError(null);
     setSendSuccess(null);
+    setSendLoading(false);
+  };
+
+  const handleCancelSendERC20 = () => {
+    setShowSendERC20Form(false);
+    setReceiverUsername("");
+    setSendAmount("");
+    setSendCurrency("");
+    setSendERC20Error(null);
+    setSendERC20Success(null);
+    setSendERC20Loading(false);
   };
 
   const openKycModal = async (userId: string) => {
     try {
       addBreadcrumb('Opening KYC modal', 'kyc', { user_id: userId });
-      
+
       // 1. Create applicant if needed
       await api.post('/api/v1/kyc/applicant', { user_id: userId });
-      
+
       // 2. Get access token
       const tokenRes = await api.post('/api/v1/kyc/access-token', { user_id: userId });
       setKycAccessToken(tokenRes.data.token || tokenRes.data.accessToken || tokenRes.data.access_token);
       setKycModalVisible(true);
-      
+
       addBreadcrumb('KYC modal opened successfully', 'kyc', { user_id: userId });
-      
+
     } catch (err) {
       captureKYCError(err, 'open_modal', userId);
     }
@@ -485,22 +502,22 @@ export default function CustomerPage() {
   const checkKycStatus = async (userId: string) => {
     setKycChecking(true);
     setKycMessage(null);
-    
+
     try {
       addBreadcrumb('Checking KYC status', 'kyc', { user_id: userId });
-      
+
       const response = await api.post(`/api/v1/kyc/check-status/${userId}`);
-      
+
       if (response.data.status === 'success') {
         const newStatus = response.data.kyc_status;
         setKycStatus(newStatus);
         const updatedData = { ...accountData, kyc_status: newStatus };
         setAccountData(updatedData);
         localStorage.setItem('userData', JSON.stringify(updatedData));
-        
+
         // Update Sentry user context
         setUserContext(updatedData);
-        
+
         if (newStatus === 'approved') {
           setKycMessage('KYC verification completed successfully!');
           setTimeout(() => setKycMessage(null), 3000);
@@ -511,12 +528,12 @@ export default function CustomerPage() {
           setKycMessage(`KYC status: ${newStatus}`);
           setTimeout(() => setKycMessage(null), 3000);
         }
-        
-        addBreadcrumb('KYC status checked', 'kyc', { 
-          user_id: userId, 
-          status: newStatus 
+
+        addBreadcrumb('KYC status checked', 'kyc', {
+          user_id: userId,
+          status: newStatus
         });
-        
+
       } else {
         setKycMessage(response.data.message || 'Failed to check KYC status');
         setTimeout(() => setKycMessage(null), 5000);
@@ -525,7 +542,7 @@ export default function CustomerPage() {
       console.error('Failed to check KYC status:', err);
       setKycMessage(err.response?.data?.detail || 'Failed to check KYC status');
       setTimeout(() => setKycMessage(null), 5000);
-      
+
       captureKYCError(err, 'check_status', userId);
     } finally {
       setKycChecking(false);
@@ -535,29 +552,29 @@ export default function CustomerPage() {
   const skipKyc = async (userId: string) => {
     try {
       addBreadcrumb('Skipping KYC', 'kyc', { user_id: userId });
-      
+
       // Use accountData.id as fallback if userId is not provided
       const actualUserId = userId || accountData?.id;
-      
+
       if (!actualUserId) {
         console.error('No user ID provided for skip KYC');
         setKycMessage('No user ID found');
         return;
       }
-      
+
       // Update KYC status to approved in the backend
       const response = await api.post(`/api/v1/kyc/skip/${actualUserId}`);
-      
+
       if (response.data.status === 'success') {
         setKycStatus('approved');
         const updatedData = { ...accountData, kyc_status: 'approved' };
         setAccountData(updatedData);
         localStorage.setItem('userData', JSON.stringify(updatedData));
         setKycMessage('KYC skipped successfully');
-        
+
         // Update Sentry user context
         setUserContext(updatedData);
-        
+
         addBreadcrumb('KYC skipped successfully', 'kyc', { user_id: actualUserId });
       } else {
         setKycMessage(response.data.message || 'Failed to skip KYC');
@@ -565,7 +582,7 @@ export default function CustomerPage() {
     } catch (err: any) {
       console.error('Failed to skip KYC:', err);
       setKycMessage(err.response?.data?.detail || 'Failed to skip KYC');
-      
+
       captureKYCError(err, 'skip_kyc', userId);
     } finally {
       // Clear message after 5 seconds
@@ -575,24 +592,24 @@ export default function CustomerPage() {
 
   const pollKycStatus = async (userId: string) => {
     addBreadcrumb('Starting KYC status polling', 'kyc', { user_id: userId });
-    
+
     // Poll user data for KYC status
     for (let i = 0; i < 15; i++) { // Increased attempts
       try {
         (`Polling attempt ${i + 1}/15`);
         const res = await api.get(`/api/v1/user/${userId}`);
         const status = res.data.kyc_status;
-        
+
         if (status === 'approved') {
           setKycStatus('approved');
           const updated = { ...accountData, kyc_status: 'approved' };
           setAccountData(updated);
           localStorage.setItem('userData', JSON.stringify(updated));
           setKycMessage('KYC verification completed successfully!');
-          
+
           // Update Sentry user context
           setUserContext(updated);
-          
+
           // Clear success message after 3 seconds
           setTimeout(() => setKycMessage(null), 3000);
           break;
@@ -606,7 +623,7 @@ export default function CustomerPage() {
           // Update status even if pending to ensure UI reflects current state
           setKycStatus(status || 'pending');
         }
-        
+
         // Wait 2 seconds between checks (reduced from 3)
         await new Promise(r => setTimeout(r, 2000));
       } catch (err) {
@@ -615,7 +632,7 @@ export default function CustomerPage() {
         await new Promise(r => setTimeout(r, 2000));
       }
     }
-    
+
     // If we've exhausted all attempts, try one final manual check
     try {
       ('Performing final KYC status check...');
@@ -626,10 +643,10 @@ export default function CustomerPage() {
         const updated = { ...accountData, kyc_status: finalStatus };
         setAccountData(updated);
         localStorage.setItem('userData', JSON.stringify(updated));
-        
+
         // Update Sentry user context
         setUserContext(updated);
-        
+
         if (finalStatus === 'approved') {
           setKycMessage('KYC verification completed successfully!');
           setTimeout(() => setKycMessage(null), 3000);
@@ -639,21 +656,21 @@ export default function CustomerPage() {
       console.error('Error in final KYC status check:', err);
       captureKYCError(err, 'final_status_check', userId);
     }
-    
-    addBreadcrumb('KYC status polling completed', 'kyc', { 
-      user_id: userId, 
-      final_status: accountData?.kyc_status 
+
+    addBreadcrumb('KYC status polling completed', 'kyc', {
+      user_id: userId,
+      final_status: accountData?.kyc_status
     });
   };
 
   const handleKycModalClose = () => {
     setKycModalVisible(false);
-    
+
     // Immediately check status once
     if (accountData?.user_id) {
       checkKycStatus(accountData.user_id);
     }
-    
+
     // Add a small delay to allow webhook processing, then start polling
     setTimeout(() => {
       if (accountData?.user_id) {
@@ -708,13 +725,13 @@ export default function CustomerPage() {
         applicantEmail={accountData?.email}
       />
       <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 dark overflow-x-hidden">
-        <WalletHeader 
+        <WalletHeader
           accountData={accountData}
           onLogout={handleLogout}
           onMenuToggle={() => setShowMenu(!showMenu)}
         />
-        <HamburgerMenu 
-          visible={showMenu} 
+        <HamburgerMenu
+          visible={showMenu}
           onClose={() => setShowMenu(false)}
           onLogout={handleLogout}
           accountData={accountData}
@@ -775,7 +792,7 @@ export default function CustomerPage() {
             <div className="flex flex-row gap-4 mb-8 w-full justify-center mt-8">
               <button
                 type="button"
-                onClick={() => setShowSendForm(true)}
+                onClick={() => setShowSendERC20Form(true)}
                 className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-5 px-10 rounded-full font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-xl"
               >
                 <FaArrowUp className="mr-3 text-lg" />
@@ -791,7 +808,7 @@ export default function CustomerPage() {
               </button>
             </div>
           )}
-          <LangChainChat 
+          <LangChainChat
             userId={accountData?.user_id}
             onBalanceRefresh={() => {
               if (accountData?.wallet_address) {
@@ -809,7 +826,7 @@ export default function CustomerPage() {
         {showSendForm && (
           <SendUSDCModal
             visible={showSendForm}
-            onClose={handleCancelSend}
+            onClose={handleCancelSendUSDC}
             receiverUsername={receiverUsername}
             setReceiverUsername={setReceiverUsername}
             sendAmount={sendAmount}
@@ -818,6 +835,15 @@ export default function CustomerPage() {
             sendError={sendError}
             sendSuccess={sendSuccess}
             onSend={handleSendUSDC}
+          />
+        )}
+        {showSendERC20Form && (
+          <SendERC20Modal
+            visible={showSendERC20Form}
+            onClose={handleCancelSendERC20}
+            userAddress={accountData?.wallet_address}
+            userId={accountData?.user_id}
+            balance={balance}
           />
         )}
         {showTransakModal && (
@@ -829,4 +855,4 @@ export default function CustomerPage() {
       </div>
     </>
   );
-} 
+}
