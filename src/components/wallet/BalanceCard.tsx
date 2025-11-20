@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
 import KTTokenBalances from "@/components/wallet/KTTokenBalances";
-import { FaShieldAlt, FaSync, FaPlus } from "react-icons/fa";
+import { FaShieldAlt, FaPlus } from "react-icons/fa";
+import { TbArrowsExchange2 } from "react-icons/tb";
 import { getAllPoolRates } from "@/lib/priceCache";
 import { K_TOKEN_ADDRESSES_LOWERCASE, K_TOKEN_SYMBOL_LIST, CURRENCY_SYMBOLS } from "@/lib/kTokens";
+import BuyUSDCModal from "@/components/wallet/BuyUSDCModal";
+import SwapModal from "@/components/wallet/SwapModal";
 
 interface BalanceCardProps {
   balance: any;
@@ -36,6 +39,12 @@ const USDC_SVG = (
   </svg>
 );
 
+const DEFAULT_FIAT_DATA = [
+  { code: "USD", symbol: "$" },
+  { code: "EUR", symbol: "€" },
+  { code: "GBP", symbol: "£" },
+];
+
 const BalanceCard: React.FC<BalanceCardProps> = ({
   balance,
   error,
@@ -61,6 +70,46 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   const [isFlickering, setIsFlickering] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState('USD');
   const [poolRates, setPoolRates] = useState<{ [key: string]: number }>({});
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchEndX, setTouchEndX] = useState<number | null>(null);
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showSwapModal, setShowSwapModal] = useState(false);
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    setTouchStartX(e.touches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    setTouchEndX(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStartX === null || touchEndX === null) {
+      setTouchStartX(null);
+      setTouchEndX(null);
+      return;
+    }
+
+    const delta = touchStartX - touchEndX;
+    const threshold = 50;
+    if (delta > threshold && activeSlide < 1) {
+      setActiveSlide(1);
+    } else if (delta < -threshold && activeSlide > 0) {
+      setActiveSlide(0);
+    }
+
+    setTouchStartX(null);
+    setTouchEndX(null);
+  };
+
+  const openDepositModal = () => {
+    setShowDepositModal(true);
+  };
+
+  const openSwapModal = () => {
+    setShowSwapModal(true);
+  };
+
 
   const showKycSection = accountData?.username && kycStatus !== 'approved' && onKycClick;
   const showBalanceSection = accountData?.username; // Always show balance if username exists
@@ -181,8 +230,19 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   const currencySymbol = CURRENCY_SYMBOLS[selectedCurrency] || '$';
 
   return (
-    <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 mb-8 transition-all duration-300 ${localRefreshing ? 'ring-2 ring-green-500/30 ring-opacity-50' : ''} ${className || ''}`}>
-        <div className="text-center">
+    <>
+      <div
+        className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-0 shadow-2xl border border-zinc-800 mb-8 transition-all duration-300 overflow-hidden ${localRefreshing ? 'ring-2 ring-green-500/30 ring-opacity-50' : ''} ${className || ''}`}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div
+          className="flex transition-transform duration-300"
+          style={{ transform: `translateX(-${activeSlide * 100}%)` }}
+        >
+          <div className="w-full flex-shrink-0 p-8">
+            <div className="text-center">
         <div className="flex items-center justify-center mb-4 gap-2">
           {USDC_SVG}
           <h3 className="text-2xl font-bold text-white">
@@ -366,8 +426,66 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
             )}
           </div>
         )}
+            </div>
+          </div>
+          <div className="w-full flex-shrink-0 p-8">
+            <div className="text-white">
+              <h3 className="text-2xl font-bold mb-2">Quick Actions</h3>
+              <p className="text-zinc-400 mb-6">Deposit USDC or swap between currencies instantly.</p>
+              <div className="flex flex-col md:flex-row gap-4 md:gap-8 justify-center md:px-6">
+                <button
+                  onClick={openDepositModal}
+                  className="w-full md:w-64 h-36 flex flex-col justify-between bg-gradient-to-r from-blue-500/30 to-purple-500/30 border border-blue-400/30 rounded-2xl px-6 py-5 hover:from-blue-500/40 hover:to-purple-500/40 transition-all duration-200"
+                >
+                  <div className="flex items-start justify-between">
+                    <p className="text-xl font-semibold text-white">Deposit</p>
+                    <FaPlus className="text-2xl text-white" />
+                  </div>
+                  <p className="text-sm text-zinc-200">Add USDC to your wallet</p>
+                </button>
+                <button
+                  onClick={openSwapModal}
+                  className="w-full md:w-64 h-36 flex flex-col justify-between bg-gradient-to-r from-emerald-500/30 to-cyan-500/30 border border-emerald-400/30 rounded-2xl px-6 py-5 hover:from-emerald-500/40 hover:to-cyan-500/40 transition-all duration-200"
+                >
+                  <div className="flex items-start justify-between">
+                    <p className="text-xl font-semibold text-white">Swap</p>
+                    <TbArrowsExchange2 className="text-2xl text-white" />
+                  </div>
+                  <p className="text-sm text-zinc-200">Move between supported currencies</p>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-center gap-2 py-4 border-t border-zinc-800 bg-zinc-900/70">
+          {[0, 1].map((index) => (
+            <button
+              key={index}
+              onClick={() => setActiveSlide(index)}
+              className={`w-2.5 h-2.5 rounded-full transition-all ${activeSlide === index ? 'bg-white' : 'bg-zinc-600/70'}`}
+              aria-label={`Go to slide ${index + 1}`}
+            />
+          ))}
+        </div>
       </div>
-    </div>
+
+      {showDepositModal && (
+        <BuyUSDCModal
+          fiatData={DEFAULT_FIAT_DATA}
+          onClose={() => setShowDepositModal(false)}
+          walletAddress={accountData?.wallet_address}
+        />
+      )}
+
+      {showSwapModal && (
+        <SwapModal
+          visible={showSwapModal}
+          onClose={() => setShowSwapModal(false)}
+          userAddress={accountData?.wallet_address}
+          balance={balance}
+        />
+      )}
+    </>
   );
 };
 
