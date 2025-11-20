@@ -28,10 +28,10 @@ interface SubgraphResponse {
 // kUSD is always 1, so we only need to track the other token
 // Addresses maintain their original casing for GraphQL queries
 const POOL_TO_TOKEN: Record<string, string> = {
-  '0xa77c527c1d5C21D85CAeB6d0c418ffc3BA6DDA7E': 'kEUR',
-  '0x4E54D62e0a3fD51CFd250Ce4e3C24A97A0EE705c': 'kGBP',
-  '0xe2bB15D9ae335a1b9B8DB6569482b27b7402557f': 'kAED',
-  '0xD73faeD7ba1Cb495C8DEfb38F993356586FaeBe2': 'USDC',
+  '0x266D3085674B06ecaC9128AB7c7B29d8C495e88B': 'kEUR',
+  '0x1E2f986761Db2d62C5b6C14c02Eb826C58AA44a4': 'kGBP',
+  '0x3B5A2A4ea314eEDD5a45c9F0a6163dB60eB985d9': 'kAED',
+  '0x347b207913954b1f2fd26a4e3aB0B82990F80d81': 'USDC',
 };
 
 // In-memory cache for pool prices
