@@ -13,7 +13,7 @@ import { SubgraphAnalyticsMAVCYearn } from "@/components/wallet/SubgraphAnalytic
 import { Toaster } from "@/components/ui/toaster";
 import { HedgeFundForm } from "@/lib/types";
 import HedgeFundQuestionnaire from "@/components/HedgeFundQuestionnaire";
-import HedgeFundChat from '@/components/HedgeFundChat';
+import MiniHedgeFundChat from '@/components/MiniHedgeFundChat';
 
 type StrategyView = 'overview' | 'mavc' | 'mavp' | 'mavc-yearn';
 
@@ -331,7 +331,7 @@ export default function HedgeFundV2Page() {
             )}
 
             <section id="clark-chat" className="mb-4">
-              <HedgeFundChat userId={accountData?.user_id} />
+              <MiniHedgeFundChat userId={accountData?.user_id} />
             </section>
             
             {/* Strategy Cards */}
@@ -373,8 +373,8 @@ export default function HedgeFundV2Page() {
       <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-4 sm:p-6 md:p-8">
         <div className="container mx-auto max-w-7xl">
           {/* Header with Back Button */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
-            {selectedView !== 'overview' ? (
+          {selectedView !== 'overview' && (
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
               <button
                 onClick={() => setSelectedView('overview')}
                 className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-4 sm:px-6 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-xs sm:text-sm flex items-center justify-center w-full sm:w-auto"
@@ -382,43 +382,71 @@ export default function HedgeFundV2Page() {
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Strategies
               </button>
-            ) : (
-              <div className="w-full sm:flex-1" />
-            )}
-            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-              <button
-                onClick={() => setShowQuestionnaire(true)}
-                className="bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 hover:from-cyan-400 hover:via-blue-500 hover:to-purple-500 text-white font-semibold px-4 sm:px-6 py-2 rounded-xl border border-transparent transition-all duration-200 text-xs sm:text-sm w-full sm:w-auto justify-center flex items-center shadow-lg shadow-blue-900/40"
-              >
-                <SlidersHorizontal className="h-4 w-4 mr-2" />
-                Adjust Risk
-              </button>
-              <button
-                onClick={() => router.push('/customer/grow')}
-                className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-4 sm:px-6 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-xs sm:text-sm w-full sm:w-auto justify-center flex items-center"
-              >
-                ← Back to Grow
-              </button>
             </div>
-          </div>
+          )}
 
           {/* Header */}
           {selectedView === 'overview' && (
-            <div className="text-center mb-8 sm:mb-12 px-4">
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white mb-4 text-center drop-shadow-lg">
-                Hedge Fund V2
-              </h1>
-              {accountData?.username && (
-                <div className="mb-4">
-                  <p className="text-zinc-400 text-base sm:text-lg">
-                    Welcome back, <span className="text-emerald-400 font-semibold">@{accountData.username}</span>
-                  </p>
+            <>
+              {/* Mobile: Title and buttons on same row */}
+              <div className="flex items-center justify-between gap-3 mb-4 sm:hidden px-4">
+                <h1 className="text-4xl font-extrabold text-white drop-shadow-lg">
+                  Hedge Fund
+                </h1>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowQuestionnaire(true)}
+                    className="bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 hover:from-cyan-400 hover:via-blue-500 hover:to-purple-500 text-white font-semibold px-3 py-2 rounded-xl border border-transparent transition-all duration-200 text-xs justify-center flex items-center shadow-lg shadow-blue-900/40"
+                  >
+                    <SlidersHorizontal className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => router.push('/customer/grow')}
+                    className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-3 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-xs justify-center flex items-center"
+                  >
+                    ←
+                  </button>
                 </div>
-              )}
-              <p className="text-zinc-400 text-sm sm:text-base md:text-lg mb-8 text-center max-w-xl mx-auto">
-                Advanced investment strategies with on-chain analytics and subgraph monitoring.
-              </p>
-            </div>
+              </div>
+
+              {/* Desktop: Centered header with buttons in separate row */}
+              <div className="hidden sm:block">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
+                  <div className="w-full sm:flex-1" />
+                  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                    <button
+                      onClick={() => setShowQuestionnaire(true)}
+                      className="bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 hover:from-cyan-400 hover:via-blue-500 hover:to-purple-500 text-white font-semibold px-4 sm:px-6 py-2 rounded-xl border border-transparent transition-all duration-200 text-xs sm:text-sm w-full sm:w-auto justify-center flex items-center shadow-lg shadow-blue-900/40"
+                    >
+                      <SlidersHorizontal className="h-4 w-4 mr-2" />
+                      {/* Adjust Risk */}
+                    </button>
+                    <button
+                      onClick={() => router.push('/customer/grow')}
+                      className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-4 sm:px-6 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-xs sm:text-sm w-full sm:w-auto justify-center flex items-center"
+                    >
+                      ←
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-center mb-8 sm:mb-12 px-4">
+                <h1 className="text-4xl sm:text-4xl md:text-5xl font-extrabold text-white mb-4 text-center drop-shadow-lg hidden sm:block">
+                  Hedge Fund
+                </h1>
+                {accountData?.username && (
+                  <div className="mb-4">
+                    <p className="text-zinc-400 text-base sm:text-lg">
+                      Welcome back, <span className="text-emerald-400 font-semibold">@{accountData.username}</span>
+                    </p>
+                  </div>
+                )}
+                <p className="text-zinc-400 text-sm sm:text-base md:text-lg mb-8 text-center max-w-xl mx-auto">
+                  Advanced investment strategies with on-chain analytics and subgraph monitoring.
+                </p>
+              </div>
+            </>
           )}
 
           {/* Content */}

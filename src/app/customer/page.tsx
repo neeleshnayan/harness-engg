@@ -15,7 +15,7 @@ import WalletHeader from "@/components/wallet/WalletHeader";
 import SumsubKYCModal from "@/components/wallet/SumsubKYCModal";
 import axios from "axios";
 import { useWebSocket } from "@/hooks/useWebSocket";
-import LangChainChat from '@/components/LangChainChat';
+import MiniClarkChat from '@/components/MiniClarkChat';
 
 import {
   setUserContext,
@@ -808,7 +808,7 @@ export default function CustomerPage() {
               </button>
             </div>
           )}
-          <LangChainChat
+          <MiniClarkChat 
             userId={accountData?.user_id}
             onBalanceRefresh={() => {
               if (accountData?.wallet_address) {
