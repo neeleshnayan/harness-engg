@@ -27,7 +27,7 @@ interface StrategyCardProps {
 const STRATEGY_DETAILS: Record<StrategyName, {
   tokenSymbol: string;
   routePath: string;
-  metricField: 'mavcvaultMetric' | 'mavpvaultMetric' | 'mavcyearnVaultMetric';
+  metricField: 'mavcvaultMetric' | 'mavpvaultMetric' | 'mavcyearnVaultMetric' | 'yearnWbtcVaultMetric';
   useTokenDetection?: boolean; // MAVC needs wallet_balance API for token detection
 }> = {
   MAVC: {
@@ -48,13 +48,19 @@ const STRATEGY_DETAILS: Record<StrategyName, {
     metricField: 'mavcyearnVaultMetric',
     useTokenDetection: false,
   },
+  YEARN_WBTC: {
+    tokenSymbol: 'ysWBTC',
+    routePath: '/customer/grow/hedge-fund-v2/yearn-wbtc',
+    metricField: 'yearnWbtcVaultMetric',
+    useTokenDetection: false,
+  },
 };
 
 const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, onCardClick }) => {
   const router = useRouter();
   const { toast } = useToast();
   const strategyDetails = STRATEGY_DETAILS[strategyName];
-  
+
   const { data: config, isLoading: configLoading } = useStrategyConfig(strategyName);
   const { data: priceData, isLoading: priceLoading, error: priceError } = useStrategyPrice(
     strategyName,
@@ -74,7 +80,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
   const [transactionSuccess, setTransactionSuccess] = useState<string | null>(null);
   const [transactionStage, setTransactionStage] = useState<BalanceTransactionStage>('idle');
   const [transactionType, setTransactionType] = useState<BalanceTransactionType>('deposit');
-  
+
   // Yearn-specific state
   const [vaultPricePerShare, setVaultPricePerShare] = useState(1.0);
 
@@ -100,7 +106,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
         return { value: aumInUSD, unit: '' };
       }
     }
-    
+
     if (!priceData?.price || netSupply === 0) {
       return { value: config?.aum ?? 8.9, unit: 'M' };
     }
@@ -120,7 +126,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
 
   // Strategy metrics from config
   const strategyMetrics = {
-    name: strategyName === 'MAVC' ? 'MAVC' : strategyName === 'MAVP' ? 'MAVP' : 'MAVC Yearn',
+    name: strategyName === 'MAVC' ? 'MAVC' : strategyName === 'MAVP' ? 'MAVP' : strategyName === 'YEARN_WBTC' ? 'Yearn WBTC' : 'MAVC Yearn',
     description: config?.description ?? '',
     netApy: config?.net_apy ?? 135.3,
     aum: calculatedAUM.value,
@@ -171,11 +177,11 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
           // Fetch strategy balance from unified API (backend returns raw wei)
           try {
             const balanceResponse = await api.get(`/api/v1/strategy/${strategyName}/balance/${parsedData.wallet_address}`);
-            
+
             if (balanceResponse.data) {
               const balance_wei = balanceResponse.data.balance || "0";
               const contract_decimals = balanceResponse.data.decimals || 18;
-              
+
               // Frontend display decimals for human-readable format
               // MAVC: divide by 10^12 to show readable numbers (e.g., 18.19 MAVC)
               // MAVP: divide by 10^12 to show readable numbers (e.g., 466.49 MAVP)
@@ -184,10 +190,10 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
               if (strategyName === 'MAVC' || strategyName === 'MAVP') {
                 display_decimals = 18; // Display with 12 decimals for readability
               }
-              
+
               const balanceNum = parseFloat(balance_wei) / Math.pow(10, display_decimals);
               const balance = balanceNum.toString();
-              
+
               setStrategyBalance(balance);
             } else {
               setStrategyBalance("0");
@@ -265,25 +271,25 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
         const initialBalance = parseFloat(strategyBalance);
         let attempts = 0;
         const maxAttempts = 30; // Poll for up to 60 seconds
-        
+
         const pollBalance = async () => {
           attempts++;
-          
+
           try {
             // Fetch fresh balance directly from blockchain via backend API
             const balanceResponse = await api.get(`/api/v1/strategy/${strategyName}/balance/${parsedData.wallet_address}`);
-            
+
             if (balanceResponse.data) {
               const balance_wei = balanceResponse.data.balance || "0";
               const contract_decimals = balanceResponse.data.decimals || 18;
-              
+
               let display_decimals = contract_decimals;
               if (strategyName === 'MAVC' || strategyName === 'MAVP') {
                 display_decimals = 18;
               }
-              
+
               const currentBalance = parseFloat(balance_wei) / Math.pow(10, display_decimals);
-              
+
               // Check if balance increased (deposit should increase balance)
               if (currentBalance > initialBalance || attempts >= maxAttempts) {
                 // Balance updated or timeout reached
@@ -296,11 +302,11 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
           } catch (error) {
             // Silently handle balance poll error
           }
-          
+
           // Keep polling
           setTimeout(pollBalance, 2000);
         };
-        
+
         // Start polling immediately
         setTimeout(pollBalance, 2000);
       }
@@ -354,25 +360,25 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
         const initialBalance = parseFloat(strategyBalance);
         let attempts = 0;
         const maxAttempts = 30; // Poll for up to 60 seconds
-        
+
         const pollBalance = async () => {
           attempts++;
-          
+
           try {
             // Fetch fresh balance directly from blockchain via backend API
             const balanceResponse = await api.get(`/api/v1/strategy/${strategyName}/balance/${parsedData.wallet_address}`);
-            
+
             if (balanceResponse.data) {
               const balance_wei = balanceResponse.data.balance || "0";
               const contract_decimals = balanceResponse.data.decimals || 18;
-              
+
               let display_decimals = contract_decimals;
               if (strategyName === 'MAVC' || strategyName === 'MAVP') {
                 display_decimals = 18;
               }
-              
+
               const currentBalance = parseFloat(balance_wei) / Math.pow(10, display_decimals);
-              
+
               // Check if balance decreased (withdraw should decrease balance)
               if (currentBalance < initialBalance || attempts >= maxAttempts) {
                 // Balance updated or timeout reached
@@ -385,11 +391,11 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
           } catch (error) {
             // Silently handle balance poll error
           }
-          
+
           // Keep polling
           setTimeout(pollBalance, 2000);
         };
-        
+
         // Start polling immediately
         setTimeout(pollBalance, 2000);
       }
@@ -404,6 +410,122 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
     } finally {
       setTransactionLoading(false);
     }
+  };
+
+  // Handle buy (YEARN_WBTC only)
+  const handleBuy = async (amount: string) => {
+    setShowModal(false);
+    try {
+      setTransactionLoading(true);
+      setTransactionError(null);
+      setTransactionSuccess(null);
+      setTransactionType('deposit'); // Reuse deposit type for buy
+      setTransactionStage('approving');
+
+      const userData = localStorage.getItem('userData');
+      if (!userData) throw new Error('User data not found');
+
+      const parsedData = JSON.parse(userData);
+      if (!parsedData.wallet_address) throw new Error('Wallet address not found');
+
+      // Convert USDC amount to wei (6 decimals)
+      const amountFloat = parseFloat(amount);
+      const amountWei = Math.floor(amountFloat * Math.pow(10, 6)).toString();
+
+      setTransactionStage('confirming');
+
+      // Call buy endpoint
+      const response = await api.post(`/api/v1/strategy/YEARN_WBTC/buy`, {
+        amount: amountWei,
+        wallet_address: parsedData.wallet_address,
+        user_id: parsedData.user_id,
+      });
+
+      if (response.data.status === 'success') {
+        setTransactionStage('success');
+        await fetchBalances();
+        if (onRefresh) onRefresh();
+        toast({
+          title: "✅ Buy Successful",
+          description: `Successfully swapped ${amount} USDC for WBTC`,
+        });
+      }
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.detail || err.message || 'Failed to buy WBTC';
+      setTransactionError(errorMsg);
+      setTransactionStage('error');
+      toast({
+        title: "❌ Buy Failed",
+        description: errorMsg,
+      });
+    } finally {
+      setTransactionLoading(false);
+    }
+  };
+
+  // Handle sell (YEARN_WBTC only)
+  const handleSell = async (amount: string) => {
+    setShowModal(false);
+    try {
+      setTransactionLoading(true);
+      setTransactionError(null);
+      setTransactionSuccess(null);
+      setTransactionType('withdraw'); // Reuse withdraw type for sell
+      setTransactionStage('confirming');
+
+      const userData = localStorage.getItem('userData');
+      if (!userData) throw new Error('User data not found');
+
+      const parsedData = JSON.parse(userData);
+      if (!parsedData.wallet_address) throw new Error('Wallet address not found');
+
+      // Convert WBTC amount to wei (8 decimals)
+      const amountFloat = parseFloat(amount);
+      const amountWei = Math.floor(amountFloat * Math.pow(10, 8)).toString();
+
+      // Call sell endpoint
+      const response = await api.post(`/api/v1/strategy/YEARN_WBTC/sell`, {
+        amount: amountWei,
+        wallet_address: parsedData.wallet_address,
+        user_id: parsedData.user_id,
+      });
+
+      if (response.data.status === 'success') {
+        setTransactionStage('success');
+        await fetchBalances();
+        if (onRefresh) onRefresh();
+        toast({
+          title: "✅ Sell Successful",
+          description: `Successfully swapped ${amount} WBTC for USDC`,
+        });
+      }
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.detail || err.message || 'Failed to sell WBTC';
+      setTransactionError(errorMsg);
+      setTransactionStage('error');
+      toast({
+        title: "❌ Sell Failed",
+        description: errorMsg,
+      });
+    } finally {
+      setTransactionLoading(false);
+    }
+  };
+
+  const openBuyModal = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setModalAction('deposit'); // Reuse deposit action for buy
+    setShowModal(true);
+    setTransactionError(null);
+    setTransactionSuccess(null);
+  };
+
+  const openSellModal = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setModalAction('withdraw'); // Reuse withdraw action for sell
+    setShowModal(true);
+    setTransactionError(null);
+    setTransactionSuccess(null);
   };
 
   const openDepositModal = (e: React.MouseEvent) => {
@@ -439,7 +561,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
 
   return (
     <>
-      <Card 
+      <Card
         className="flex flex-col h-full overflow-hidden transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1 bg-zinc-800/50 backdrop-blur-sm border-zinc-700/50 cursor-pointer"
         onClick={handleCardClick}
       >
@@ -525,7 +647,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
             </div>
           </div>
         </CardContent>
-        
+
         <CardFooter className="p-3 sm:p-4 bg-black/20 flex flex-col gap-2 sm:gap-3 mt-auto">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-2 text-xs sm:text-sm text-zinc-400">
             <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
