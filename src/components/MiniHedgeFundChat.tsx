@@ -11,6 +11,7 @@ import { Category } from '@/app/clark/types'
 import { ChatMessage } from '@/app/clark/types'
 import { categories } from '@/app/clark/constants'
 import ResultsDisplay from '@/app/clark/components/ResultsDisplay'
+import CategoryTiles from '@/app/clark/components/CategoryTiles'
 
 interface MiniHedgeFundChatProps {
   userId?: string
@@ -30,7 +31,7 @@ export default function MiniHedgeFundChat({
   
   // Dynamic height management
   const [containerHeight, setContainerHeight] = useState<number>(350) // Initial height
-  const MIN_HEIGHT = 200
+  const MIN_HEIGHT = 150
   const MAX_HEIGHT = 400 // Fixed max height - becomes scrollable after this
   const HEIGHT_PER_MESSAGE = 80 // Approximate height per message
 
@@ -47,12 +48,17 @@ export default function MiniHedgeFundChat({
     }
   }, [messages])
 
+  // Check if we should show tiles (no user messages or results)
+  const shouldShowTiles = !messages.some(m => m.type === 'user') && 
+    !messages.some(m => m.backtestResult || m.screenerResult || m.economicResult)
+
   // Calculate dynamic height based on message count
   // Height grows with messages but caps at MAX_HEIGHT, then becomes scrollable
   useEffect(() => {
     const messageCount = messages.length
-    if (messageCount === 0) {
-      setContainerHeight(MIN_HEIGHT)
+    if (messageCount === 0 || shouldShowTiles) {
+      // When showing tiles, use a larger height to accommodate them
+      setContainerHeight(shouldShowTiles ? MAX_HEIGHT : MIN_HEIGHT)
     } else {
       // Calculate height based on message count, but cap at MAX_HEIGHT
       // After MAX_HEIGHT, the container becomes fixed and scrollable
@@ -62,7 +68,7 @@ export default function MiniHedgeFundChat({
       )
       setContainerHeight(calculatedHeight)
     }
-  }, [messages.length])
+  }, [messages.length, shouldShowTiles])
 
   const createAssistantMessage = (payload: any): ChatMessage => {
     const messageId = (Date.now() + Math.random()).toString()
@@ -240,16 +246,35 @@ export default function MiniHedgeFundChat({
           maxHeight: `${MAX_HEIGHT}px`,
         }}
       >
-        {messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-zinc-400">
-            <div className="text-center">
-              <img src="/clark.svg" alt="Clark" className="h-14 w-14 mx-auto mb-2" />
+        {shouldShowTiles ? (
+          <div className="dark">
+            {/* Clark Logo */}
+            <div className="flex items-center justify-center mb-4 mt-2">
+              <img 
+                src="/clark.svg" 
+                alt="Clark" 
+                className="h-16 w-16 sm:h-20 sm:w-20 drop-shadow-[0_4px_16px_rgba(162,89,247,0.3)]" 
+              />
             </div>
+            {/* Category Tiles */}
+            <CategoryTiles
+              categories={categories}
+              selectedCategory={selectedCategory}
+              onCategorySelect={(categoryId) => setSelectedCategory(categoryId || null)}
+              onPromptClick={handlePromptClick}
+              isLoading={isLoading}
+            />
           </div>
-        ) : (
+        ) : messages.length > 0 ? (
           <div className="dark">
             <div className="space-y-3">
               <ResultsDisplay messages={messages} isLoading={isLoading} />
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-full text-zinc-400">
+            <div className="text-center">
+              <img src="/clark.svg" alt="Clark" className="h-14 w-14 mx-auto mb-2" />
             </div>
           </div>
         )}
