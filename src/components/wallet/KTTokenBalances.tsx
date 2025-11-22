@@ -68,13 +68,19 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
           All Currencies
         </div>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div
+        className="flex gap-2 overflow-x-auto pb-2 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-zinc-600"
+        style={{
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'thin'
+        }}
+      >
         {kTokenBalances.map((token) => (
           <div
             key={token.symbol}
-            className="bg-zinc-800/60 border border-zinc-700/50 rounded-lg px-3 py-2 flex items-center"
+            className="bg-zinc-800/60 border border-zinc-700/50 rounded-lg px-3 py-2 flex items-center flex-shrink-0"
           >
-            <span className="text-white font-medium text-sm">
+            <span className="text-white font-medium text-sm whitespace-nowrap">
               {parseFloat(token.balance).toFixed(2)} {token.symbol.replace(/^k/, '')}
             </span>
           </div>

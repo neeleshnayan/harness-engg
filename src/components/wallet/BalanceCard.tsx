@@ -483,10 +483,10 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
             <div className="text-white">
               <h3 className="text-2xl font-bold mb-2">Quick Actions</h3>
               <p className="text-zinc-400 mb-6">Deposit USDC or swap between currencies instantly.</p>
-              <div className="flex flex-col md:flex-row gap-4 md:gap-8 justify-center md:px-6">
+              <div className="flex flex-row gap-4 justify-center">
                 <button
                   onClick={openDepositModal}
-                  className="w-full md:w-64 h-36 flex flex-col justify-between bg-gradient-to-r from-blue-500/30 to-purple-500/30 border border-blue-400/30 rounded-2xl px-6 py-5 hover:from-blue-500/40 hover:to-purple-500/40 transition-all duration-200"
+                  className="flex-1 h-36 flex flex-col justify-between bg-gradient-to-r from-blue-500/30 to-purple-500/30 border border-blue-400/30 rounded-2xl px-6 py-5 hover:from-blue-500/40 hover:to-purple-500/40 transition-all duration-200"
                 >
                   <div className="flex items-start justify-between">
                     <p className="text-xl font-semibold text-white">Deposit</p>
@@ -496,7 +496,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
                 </button>
                 <button
                   onClick={openSwapModal}
-                  className="w-full md:w-64 h-36 flex flex-col justify-between bg-gradient-to-r from-emerald-500/30 to-cyan-500/30 border border-emerald-400/30 rounded-2xl px-6 py-5 hover:from-emerald-500/40 hover:to-cyan-500/40 transition-all duration-200"
+                  className="flex-1 h-36 flex flex-col justify-between bg-gradient-to-r from-emerald-500/30 to-cyan-500/30 border border-emerald-400/30 rounded-2xl px-6 py-5 hover:from-emerald-500/40 hover:to-cyan-500/40 transition-all duration-200"
                 >
                   <div className="flex items-start justify-between">
                     <p className="text-xl font-semibold text-white">Swap</p>
