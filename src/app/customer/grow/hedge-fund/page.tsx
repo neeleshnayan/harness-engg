@@ -330,7 +330,7 @@ export default function HedgeFundV2Page() {
               </div>
             )}
 
-            <section id="clark-chat" className="mb-4">
+            <section id="clark-chat" className="w-full max-w-6xl mx-auto mb-4">
               <MiniHedgeFundChat userId={accountData?.user_id} />
             </section>
             
