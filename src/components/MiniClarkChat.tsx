@@ -16,6 +16,7 @@ interface MiniClarkChatProps {
   onBalanceRefresh?: () => void
   onBalanceFlicker?: () => void
   onTransactionRefresh?: () => void
+  showInputOnly?: boolean
 }
 
 export default function MiniClarkChat({
@@ -23,6 +24,7 @@ export default function MiniClarkChat({
   onBalanceRefresh,
   onBalanceFlicker,
   onTransactionRefresh,
+  showInputOnly = false,
 }: MiniClarkChatProps) {
   const router = useRouter()
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -32,12 +34,16 @@ export default function MiniClarkChat({
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const feedRef = useRef<HTMLDivElement>(null)
+  const [hasSentMessage, setHasSentMessage] = useState(false)
   
   // Dynamic height management
   const [containerHeight, setContainerHeight] = useState<number>(350) // Initial height
   const MIN_HEIGHT = 100
   const MAX_HEIGHT = 300 // Fixed max height - becomes scrollable after this
   const HEIGHT_PER_MESSAGE = 100 // Approximate height per message (accounts for structured results)
+  
+  // Determine if we should show only input (when showInputOnly is true and no messages sent yet)
+  const shouldShowInputOnly = showInputOnly && !hasSentMessage
 
   // Initialize session ID
   useEffect(() => {
@@ -130,6 +136,7 @@ export default function MiniClarkChat({
     setMessages(prev => [...prev, userMessage])
     setInputValue('')
     setIsLoading(true)
+    setHasSentMessage(true) // Mark that a message has been sent
     
     try {
       const response = await agentsApi.post('/api/v1/agents/query', {
@@ -206,6 +213,7 @@ export default function MiniClarkChat({
 
     setMessages(prev => [...prev, userMessage])
     setIsLoading(true)
+    setHasSentMessage(true) // Mark that a message has been sent
     
     try {
       const response = await agentsApi.post('/api/v1/agents/query', {
@@ -244,6 +252,100 @@ export default function MiniClarkChat({
     }
   }
 
+  // When showing input only, render without container border
+  if (shouldShowInputOnly) {
+    return (
+      <>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label="Open prompt library"
+            onClick={() => setIsPromptModalOpen(true)}
+            className="h-10 w-10 flex items-center justify-center rounded-xl bg-zinc-900/80 border border-zinc-700/60 shadow hover:bg-zinc-800/80 flex-shrink-0"
+          >
+            <img src="/clark process.svg" alt="Prompts" className="h-5 w-5" />
+          </button>
+          <Input
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Ask Clark..."
+            disabled={isLoading}
+            className="flex-1 bg-zinc-800/60 border-zinc-700/50 text-white placeholder:text-zinc-400 focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/20 rounded-xl h-10 text-sm"
+          />
+          <Button
+            onClick={handleSendMessage}
+            disabled={!inputValue.trim() || isLoading}
+            size="icon"
+            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-0 rounded-xl shadow-lg h-10 w-10"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <img src="/send button.svg" alt="send" className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+        {/* Prompts modal */}
+        <Dialog open={isPromptModalOpen} onOpenChange={setIsPromptModalOpen}>
+          <DialogContent className="sm:max-w-2xl bg-zinc-900/95 border border-zinc-700/60 rounded-2xl">
+            <div className="max-h-[70vh] overflow-y-auto px-2">
+              {(!selectedCategory) && (
+                <div className="w-full flex flex-col items-center">
+                  <div className="w-full max-w-md space-y-3">
+                    {categories.map((category) => (
+                      <button
+                        key={category.id}
+                        onClick={() => setSelectedCategory(category.id)}
+                        className="w-full text-left p-4 rounded-xl bg-zinc-800/40 hover:bg-zinc-700/60 border border-zinc-700/50 hover:border-purple-500/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          {category.icon.startsWith('/') ? (
+                            <img src={category.icon} alt={category.title} className="h-5 w-5" />
+                          ) : (
+                            <span className="text-lg">{category.icon}</span>
+                          )}
+                          <div className="min-w-0">
+                            <div className="text-white font-medium truncate">{category.title}</div>
+                            <div className="text-xs text-zinc-400 truncate">{category.description}</div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {selectedCategory && (
+                <div className="w-full flex flex-col items-center space-y-4">
+                  <div className="w-full max-w-md">
+                    <button
+                      onClick={() => setSelectedCategory(null)}
+                      className="mb-3 text-xs text-zinc-400 hover:text-white"
+                    >
+                      ← Back
+                    </button>
+                    <div className="space-y-3">
+                      {categories.find(c => c.id === selectedCategory)?.prompts.map((prompt, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => handlePromptClick(prompt, selectedCategory)}
+                          disabled={isLoading}
+                          className="w-full text-left p-4 rounded-xl bg-zinc-800/40 hover:bg-zinc-700/60 border border-zinc-700/50 hover:border-purple-500/50 transition-colors text-white disabled:opacity-50"
+                        >
+                          {prompt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      </>
+    )
+  }
+
   return (
     <div className="relative w-full rounded-2xl border border-zinc-700/50 bg-zinc-900/60 backdrop-blur-sm overflow-hidden shadow-lg">
       {/* Expand button overlay - fixed at top-right corner, doesn't scroll */}
@@ -254,7 +356,8 @@ export default function MiniClarkChat({
         className="absolute top-2 right-2 z-10 h-8 w-8 p-0 text-zinc-400 hover:text-white hover:bg-zinc-700/50 bg-zinc-900/80 backdrop-blur-sm rounded-full"
         aria-label="Expand to full Clark view"
       >
-        <Expand className="h-4 w-4" />
+        {/* <Expand className="h-4 w-4" /> */}
+        <img src="/maximize.svg" alt="Maximize" className="h-4 w-4" />
       </Button>
       
       {/* Messages area - dynamic height that grows with messages, then becomes fixed and scrollable */}
@@ -310,7 +413,7 @@ export default function MiniClarkChat({
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Send className="h-4 w-4" />
+              <img src="/send button.svg" alt="send" className="h-4 w-4" />
             )}
           </Button>
         </div>

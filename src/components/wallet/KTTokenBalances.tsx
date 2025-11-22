@@ -15,7 +15,7 @@ interface KTTokenBalancesProps {
 const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = "" }) => {
   // Extract k-token balances from the balance data
   const kTokenBalances = useMemo(() => {
-    console.log("balance", balance);
+    // console.log("balance", balance);
     if (!balance || !balance.tokenBalances || !Array.isArray(balance.tokenBalances)) {
       return [];
     }
@@ -55,7 +55,7 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
     return balances;
   }, [balance]);
 
-  console.log(kTokenBalances);
+  // console.log(kTokenBalances);
   if (kTokenBalances.length === 0) {
     return null; // Don't show anything if user has no k-tokens
   }

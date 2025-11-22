@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Expand, Send, Loader2 } from 'lucide-react'
+import { Send, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
@@ -233,7 +233,7 @@ export default function MiniHedgeFundChat({
         className="absolute top-2 right-2 z-10 h-8 w-8 p-0 text-zinc-400 hover:text-white hover:bg-zinc-700/50 bg-zinc-900/80 backdrop-blur-sm rounded-full"
         aria-label="Expand to full Clark view"
       >
-        <Expand className="h-4 w-4" />
+        <img src="/maximize.svg" alt="Maximize" className="h-4 w-4" />
       </Button>
       
       {/* Messages area - dynamic height that grows with messages, then becomes fixed and scrollable */}
@@ -308,7 +308,7 @@ export default function MiniHedgeFundChat({
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Send className="h-4 w-4" />
+              <img src="/send button.svg" alt="send" className="h-4 w-4" />
             )}
           </Button>
         </div>

@@ -70,6 +70,7 @@ export default function CustomerPage() {
   const [balanceCardRefresh, setBalanceCardRefresh] = useState(false);
   const [balanceRefreshing, setBalanceRefreshing] = useState(false);
   const [balanceFlickering, setBalanceFlickering] = useState(false);
+  const [showClarkChat, setShowClarkChat] = useState(false);
   const router = useRouter();
 
   // WebSocket connection for real-time webhook updates
@@ -808,20 +809,23 @@ export default function CustomerPage() {
               </button>
             </div>
           )}
-          <MiniClarkChat 
-            userId={accountData?.user_id}
-            onBalanceRefresh={() => {
-              if (accountData?.wallet_address) {
-                fetchBalance(accountData.wallet_address, { background: true });
-              }
-            }}
-            onBalanceFlicker={() => {
-              setBalanceFlickering(true);
-            }}
-            onTransactionRefresh={() => {
-              setTransactionHistoryRefresh(prev => !prev);
-            }}
-          />
+          {showClarkChat && (
+            <MiniClarkChat 
+              userId={accountData?.user_id}
+              onBalanceRefresh={() => {
+                if (accountData?.wallet_address) {
+                  fetchBalance(accountData.wallet_address, { background: true });
+                }
+              }}
+              onBalanceFlicker={() => {
+                setBalanceFlickering(true);
+              }}
+              onTransactionRefresh={() => {
+                setTransactionHistoryRefresh(prev => !prev);
+              }}
+              showInputOnly={true}
+            />
+          )}
         </div>
         {showSendForm && (
           <SendUSDCModal
@@ -851,6 +855,17 @@ export default function CustomerPage() {
             fiatData={fiatData}
             onClose={() => setShowTransakModal(false)}
           />
+        )}
+        {/* Fixed bottom-right Clark button */}
+        {accountData?.username && kycStatus === 'approved' && !showClarkChat && (
+          <button
+            type="button"
+            onClick={() => setShowClarkChat(true)}
+            className="fixed bottom-6 right-6 p-4 rounded-full bg-zinc-800/60 hover:bg-zinc-700/80 border border-zinc-700/50 hover:border-purple-500/50 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 z-50"
+            aria-label="Open Clark Chat"
+          >
+            <img src="/clark plain.svg" alt="Clark" className="h-12 w-12" />
+          </button>
         )}
       </div>
     </>
