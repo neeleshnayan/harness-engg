@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { ArrowUpRight, ArrowDownLeft, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import api from '@/lib/api';
 
@@ -29,37 +29,46 @@ interface TransactionHistoryProps {
   refresh?: boolean;
 }
 
-const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userWalletAddress, refresh }) => {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
+export interface TransactionHistoryRef {
+  refresh: () => void;
+}
 
-  const fetchTransactions = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await api.get(`/api/v1/latest_transactions_by_username/${username}`);
-      const data = response.data;
-      if (data.error) {
-        setError(data.error);
-      } else {
-        setTransactions(data.transactions || []);
-        setNextPageToken(data.next_page_after || null);
+const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryProps>(
+  ({ username, userWalletAddress, refresh }, ref) => {
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [nextPageToken, setNextPageToken] = useState<string | null>(null);
+    const [loadingMore, setLoadingMore] = useState(false);
+
+    const fetchTransactions = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await api.get(`/api/v1/latest_transactions_by_username/${username}`);
+        const data = response.data;
+        if (data.error) {
+          setError(data.error);
+        } else {
+          setTransactions(data.transactions || []);
+          setNextPageToken(data.next_page_after || null);
+        }
+      } catch (err) {
+        console.error('Error fetching transactions:', err);
+        setError('Failed to fetch transactions');
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Error fetching transactions:', err);
-      setError('Failed to fetch transactions');
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  useEffect(() => {
-    fetchTransactions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [username, refresh]);
+    useImperativeHandle(ref, () => ({
+      refresh: fetchTransactions
+    }));
+
+    useEffect(() => {
+      fetchTransactions();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [username, refresh]);
 
   const loadMore = async () => {
     if (!nextPageToken) return;
@@ -232,7 +241,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
   var zeroAddress = '0x0000000000000000000000000000000000000000';
   if (transactions.length > 0 && nextPageToken) {
     return (
-      <>
+      <div className="flex flex-col">
         <div className="rounded-xl border border-white/10 bg-black/30">
           {transactions.map((tx, idx) => {
             const inbound = isInbound(tx);
@@ -251,9 +260,9 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
                     <div className="flex items-center justify-center w-5 h-5 mr-2">
                       {getTransactionTypeIcon(tx.transaction_type, false)}
                     </div>
-                                    <span className="text-white font-semibold text-base tracking-tight mr-3">
-                  {formatAmount(amount, tx.token_name, inbound)}
-                </span>
+                    <span className="text-white font-semibold text-base tracking-tight mr-3">
+                      {formatAmount(amount, tx.token_name, inbound)}
+                    </span>
                     <span className="text-zinc-400 text-xs truncate">
                       {inbound ? 'From: ' : 'To: '}
                       <span
@@ -290,57 +299,61 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ username, userW
             {loadingMore ? '-' : 'Load more'}
           </button>
         </div>
-      </>
+      </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-white/10 bg-black/30">
-      {transactions.map((tx, idx) => {
-        const inbound = isInbound(tx);
-        const counterpartyAddress = inbound ? (tx.from_address == zeroAddress ? tx.from_name : tx.from_address) : tx.to_address;
-        const counterpartyUsername = inbound ? tx.from_username : tx.to_username;
-        const displayInfo = getDisplayName(counterpartyAddress, counterpartyUsername);
-        const amount = tx.amount || '0';
-        return (
-          <div
-            key={tx.id}
-            className={`px-3 py-2 flex flex-col ${idx !== transactions.length - 1 ? 'border-b border-white/10' : ''}`}
-          >
-            <div className="flex items-center justify-between min-w-0">
-              {/* First line: Arrow, Amount, From/To, Status icon */}
-              <div className="flex items-center min-w-0 flex-1">
-                <div className="flex items-center justify-center w-5 h-5 mr-2">
-                  {getTransactionTypeIcon(tx.transaction_type, false)}
-                </div>
-                <span className="text-white font-semibold text-base tracking-tight mr-3">
-                  {formatAmount(amount, tx.token_name, inbound)}
-                </span>
-                <span className="text-zinc-400 text-xs truncate">
-                  {inbound ? 'From: ' : 'To: '}
-                  <span
-                    className={`${displayInfo.isUsername ? 'text-cyan-400 font-medium' : 'text-zinc-300'}`}
-                    title={displayInfo.fullAddress ? `Wallet: ${displayInfo.fullAddress}` : undefined}
-                  >
-                    {displayInfo.display}
+    <div className="flex flex-col">
+      <div className="rounded-xl border border-white/10 bg-black/30">
+        {transactions.map((tx, idx) => {
+          const inbound = isInbound(tx);
+          const counterpartyAddress = inbound ? (tx.from_address == zeroAddress ? tx.from_name : tx.from_address) : tx.to_address;
+          const counterpartyUsername = inbound ? tx.from_username : tx.to_username;
+          const displayInfo = getDisplayName(counterpartyAddress, counterpartyUsername);
+          const amount = tx.amount || '0';
+          return (
+            <div
+              key={tx.id}
+              className={`px-3 py-2 flex flex-col ${idx !== transactions.length - 1 ? 'border-b border-white/10' : ''}`}
+            >
+              <div className="flex items-center justify-between min-w-0">
+                {/* First line: Arrow, Amount, From/To, Status icon */}
+                <div className="flex items-center min-w-0 flex-1">
+                  <div className="flex items-center justify-center w-5 h-5 mr-2">
+                    {getTransactionTypeIcon(tx.transaction_type, false)}
+                  </div>
+                  <span className="text-white font-semibold text-base tracking-tight mr-3">
+                    {formatAmount(amount, tx.token_name, inbound)}
                   </span>
-                </span>
+                  <span className="text-zinc-400 text-xs truncate">
+                    {inbound ? 'From: ' : 'To: '}
+                    <span
+                      className={`${displayInfo.isUsername ? 'text-cyan-400 font-medium' : 'text-zinc-300'}`}
+                      title={displayInfo.fullAddress ? `Wallet: ${displayInfo.fullAddress}` : undefined}
+                    >
+                      {displayInfo.display}
+                    </span>
+                  </span>
+                </div>
+                <div className="flex items-center justify-center w-5 h-5 ml-2">
+                  {getStatusIcon(tx.status, tx.tx_hash, tx.blockchain)}
+                </div>
               </div>
-              <div className="flex items-center justify-center w-5 h-5 ml-2">
-                {getStatusIcon(tx.status, tx.tx_hash, tx.blockchain)}
+              {/* Second line: timestamp and chain, aligned with amount */}
+              <div className="flex items-center gap-2 text-zinc-500 text-[11px] ml-6 mt-0.5">
+                <span>{formatDate(tx.created_at)}</span>
+                <span>•</span>
+                <span>{tx.blockchain}</span>
               </div>
             </div>
-            {/* Second line: timestamp and chain, aligned with amount */}
-            <div className="flex items-center gap-2 text-zinc-500 text-[11px] ml-6 mt-0.5">
-              <span>{formatDate(tx.created_at)}</span>
-              <span>•</span>
-              <span>{tx.blockchain}</span>
-            </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
-};
+});
+
+TransactionHistory.displayName = 'TransactionHistory';
 
 export default TransactionHistory;

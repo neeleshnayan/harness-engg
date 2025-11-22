@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
-import TransactionHistory from "@/components/wallet/TransactionHistory";
+import React, { useEffect, useState, useRef } from "react";
+import TransactionHistory, { TransactionHistoryRef } from "@/components/wallet/TransactionHistory";
 import KTTokenBalances from "@/components/wallet/KTTokenBalances";
 import { FaShieldAlt, FaPlus } from "react-icons/fa";
 import { TbArrowsExchange2 } from "react-icons/tb";
+import { FiRefreshCw } from "react-icons/fi";
 import { getAllPoolRates } from "@/lib/priceCache";
 import { K_TOKEN_ADDRESSES_LOWERCASE, K_TOKEN_SYMBOL_LIST, CURRENCY_SYMBOLS } from "@/lib/kTokens";
 import BuyUSDCModal from "@/components/wallet/BuyUSDCModal";
@@ -70,36 +71,76 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   const [isFlickering, setIsFlickering] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState('USD');
   const [poolRates, setPoolRates] = useState<{ [key: string]: number }>({});
-  const [activeSlide, setActiveSlide] = useState(0);
+  const [activeSlide, setActiveSlide] = useState(1); // Start at balance (middle slide)
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [touchEndX, setTouchEndX] = useState<number | null>(null);
+  const [touchStartY, setTouchStartY] = useState<number | null>(null);
+  const [isScrolling, setIsScrolling] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showSwapModal, setShowSwapModal] = useState(false);
+  const [transactionHistoryRefreshKey, setTransactionHistoryRefreshKey] = useState(0);
+  const transactionHistoryRef = useRef<TransactionHistoryRef | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    // Check if touch started inside the scroll container
+    if (scrollContainerRef.current?.contains(e.target as Node)) {
+      setIsScrolling(true);
+      return;
+    }
     setTouchStartX(e.touches[0].clientX);
+    setTouchStartY(e.touches[0].clientY);
+    setIsScrolling(false);
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    setTouchEndX(e.touches[0].clientX);
+    // If already determined to be scrolling, ignore
+    if (isScrolling) return;
+
+    if (touchStartX === null || touchStartY === null) return;
+
+    const currentX = e.touches[0].clientX;
+    const currentY = e.touches[0].clientY;
+    const deltaX = Math.abs(currentX - touchStartX);
+    const deltaY = Math.abs(currentY - touchStartY);
+
+    // If vertical movement is greater than horizontal, it's a scroll
+    if (deltaY > deltaX && deltaY > 10) {
+      setIsScrolling(true);
+      return;
+    }
+
+    setTouchEndX(currentX);
   };
 
   const handleTouchEnd = () => {
-    if (touchStartX === null || touchEndX === null) {
+    if (touchStartX === null || touchEndX === null || isScrolling) {
       setTouchStartX(null);
       setTouchEndX(null);
+      setTouchStartY(null);
+      setIsScrolling(false);
       return;
     }
 
     const delta = touchStartX - touchEndX;
     const threshold = 50;
-    if (delta > threshold && activeSlide < 1) {
-      setActiveSlide(1);
+    if (delta > threshold && activeSlide < 2) {
+      setActiveSlide(activeSlide + 1);
     } else if (delta < -threshold && activeSlide > 0) {
-      setActiveSlide(0);
+      setActiveSlide(activeSlide - 1);
     }
 
     setTouchStartX(null);
     setTouchEndX(null);
+    setTouchStartY(null);
+    setIsScrolling(false);
+  };
+
+  const handleTransactionHistoryRefresh = () => {
+    setTransactionHistoryRefreshKey(prev => prev + 1);
+    if (transactionHistoryRef.current?.refresh) {
+      transactionHistoryRef.current.refresh();
+    }
   };
 
   const openDepositModal = () => {
@@ -241,6 +282,47 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
           className="flex transition-transform duration-300"
           style={{ transform: `translateX(-${activeSlide * 100}%)` }}
         >
+          {/* Transaction History Tab */}
+          <div className="w-full flex-shrink-0 p-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-2xl font-bold text-white">Transaction History</h3>
+              <button
+                onClick={handleTransactionHistoryRefresh}
+                className="p-2 bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 group"
+                title="Refresh transaction history"
+              >
+                <FiRefreshCw className="text-lg group-hover:rotate-180 transition-transform duration-500" />
+              </button>
+            </div>
+            {showBalanceSection && isKycApproved ? (
+              <div
+                ref={scrollContainerRef}
+                style={{
+                  maxHeight: '200px',
+                  overflowY: 'scroll',
+                  paddingRight: '8px',
+                  WebkitOverflowScrolling: 'touch',
+                  overscrollBehavior: 'contain'
+                }}
+                className="[&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-zinc-600"
+                onWheel={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                <TransactionHistory
+                  ref={transactionHistoryRef}
+                  username={accountData.username}
+                  userWalletAddress={accountData.wallet_address}
+                  refresh={transactionHistoryRefresh || transactionHistoryRefreshKey > 0}
+                />
+              </div>
+            ) : (
+              <div className="flex items-center justify-center text-zinc-400 py-8">
+                <p>Complete KYC to view transaction history</p>
+              </div>
+            )}
+          </div>
+          {/* Balance Tab */}
           <div className="w-full flex-shrink-0 p-8">
             <div className="text-center">
         <div className="flex items-center justify-center mb-4 gap-2">
@@ -395,37 +477,6 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
           <KTTokenBalances balance={balance} />
         )}
 
-        {/* Transaction History Toggle - Only show if KYC is approved */}
-        {showBalanceSection && isKycApproved && (
-          <div className="mt-6 pt-4 border-t border-zinc-700/50">
-            <button
-              onClick={() => {
-                setShowTransactions(!showTransactions);
-              }}
-              className="flex items-center justify-center space-x-2 text-zinc-400 hover:text-zinc-300 transition-colors text-sm"
-            >
-              <span>Transaction History</span>
-              <svg
-                className={`w-3 h-3 transition-transform duration-200 ${showTransactions ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {/* Transaction History Dropdown */}
-            {showTransactions && (
-              <div className="mt-4">
-                <TransactionHistory
-                  username={accountData.username}
-                  userWalletAddress={accountData.wallet_address}
-                  refresh={transactionHistoryRefresh}
-                />
-              </div>
-            )}
-          </div>
-        )}
             </div>
           </div>
           <div className="w-full flex-shrink-0 p-8">
@@ -458,7 +509,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
           </div>
         </div>
         <div className="flex justify-center gap-2 py-4 border-t border-zinc-800 bg-zinc-900/70">
-          {[0, 1].map((index) => (
+          {[0, 1, 2].map((index) => (
             <button
               key={index}
               onClick={() => setActiveSlide(index)}
