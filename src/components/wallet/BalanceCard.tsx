@@ -31,13 +31,10 @@ interface BalanceCardProps {
   balanceFlickering?: boolean;
 }
 
-const USDC_SVG = (
-  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className="ml-2">
-    <circle cx="16" cy="16" r="16" fill="#2775CA"/>
-    <path d="M16 23.5C19.866 23.5 23 20.366 23 16.5C23 12.634 19.866 9.5 16 9.5C12.134 9.5 9 12.634 9 16.5C9 20.366 12.134 23.5 16 23.5Z" fill="white"/>
-    <path d="M16 21.5C18.4853 21.5 20.5 19.4853 20.5 17C20.5 14.5147 18.4853 12.5 16 12.5C13.5147 12.5 11.5 14.5147 11.5 17C11.5 19.4853 13.5147 21.5 16 21.5Z" fill="#2775CA"/>
-    <text x="10" y="22" fill="white" fontSize="10" fontWeight="bold">$</text>
-  </svg>
+const WALLET_ICON = (
+  <div className="rounded-full p-1 flex items-center justify-center" style={{ backgroundColor: '#2775CA', width: '36px', height: '36px' }}>
+    <img src="/wallet.svg" alt="Wallet" width="24" height="24" style={{ filter: 'brightness(0) invert(1)' }} />
+  </div>
 );
 
 const DEFAULT_FIAT_DATA = [
@@ -298,13 +295,12 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
               <div
                 ref={scrollContainerRef}
                 style={{
-                  maxHeight: '200px',
                   overflowY: 'scroll',
                   paddingRight: '8px',
                   WebkitOverflowScrolling: 'touch',
                   overscrollBehavior: 'contain'
                 }}
-                className="[&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-zinc-600"
+                className="max-h-[250px] md:max-h-[200px] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-zinc-600"
                 onWheel={(e) => {
                   e.stopPropagation();
                 }}
@@ -326,7 +322,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
           <div className="w-full flex-shrink-0 p-8">
             <div className="text-center">
         <div className="flex items-center justify-center mb-4 gap-2">
-          {USDC_SVG}
+          {WALLET_ICON}
           <h3 className="text-2xl font-bold text-white">
             Your Balance{' '}
             <span className="text-lg font-normal text-zinc-400">
@@ -444,15 +440,6 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
                 <div className="absolute -top-2 -right-2 w-4 h-4 bg-green-500 rounded-full animate-pulse"></div>
               )}
             </div>
-            {onBuyClick && isKycApproved && !balanceLoading && !balanceRefreshing && !localRefreshing && (
-              <button
-                onClick={onBuyClick}
-                className="ml-6 p-3 bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 group"
-                title="Add USDC to your wallet"
-              >
-                <FaPlus className="text-lg group-hover:scale-110 transition-transform duration-200" />
-              </button>
-            )}
           </div>
         )}
 
@@ -474,7 +461,9 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
 
         {/* K-Token Balances - Show at the bottom if KYC is approved */}
         {showBalanceSection && isKycApproved && balance && (
-          <KTTokenBalances balance={balance} />
+          <div className="text-left">
+            <KTTokenBalances balance={balance} />
+          </div>
         )}
 
             </div>
@@ -483,32 +472,32 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
             <div className="text-white">
               <h3 className="text-2xl font-bold mb-2">Quick Actions</h3>
               <p className="text-zinc-400 mb-6">Deposit USDC or swap between currencies instantly.</p>
-              <div className="flex flex-row gap-4 justify-center">
+              <div className="flex flex-row gap-3 md:gap-6 justify-center md:px-8">
                 <button
                   onClick={openDepositModal}
-                  className="flex-1 h-36 flex flex-col justify-between bg-gradient-to-r from-blue-500/30 to-purple-500/30 border border-blue-400/30 rounded-2xl px-6 py-5 hover:from-blue-500/40 hover:to-purple-500/40 transition-all duration-200"
+                  className="flex-1 md:max-w-xs h-40 flex flex-col justify-between bg-gradient-to-r from-blue-500/30 to-purple-500/30 border border-blue-400/30 rounded-2xl px-4 md:px-6 py-4 md:py-5 hover:from-blue-500/40 hover:to-purple-500/40 transition-all duration-200"
                 >
                   <div className="flex items-start justify-between">
-                    <p className="text-xl font-semibold text-white">Deposit</p>
-                    <FaPlus className="text-2xl text-white" />
+                    <p className="text-sm md:text-lg text-zinc-200 pr-1 md:pr-2 leading-tight md:leading-snug text-left">Add USDC to your wallet</p>
+                    <FaPlus className="text-3xl md:text-4xl text-white flex-shrink-0 ml-5 md:ml-3" />
                   </div>
-                  <p className="text-sm text-zinc-200">Add USDC to your wallet</p>
+                  <p className="text-xl md:text-2xl font-bold text-white text-left">Deposit</p>
                 </button>
                 <button
                   onClick={openSwapModal}
-                  className="flex-1 h-36 flex flex-col justify-between bg-gradient-to-r from-emerald-500/30 to-cyan-500/30 border border-emerald-400/30 rounded-2xl px-6 py-5 hover:from-emerald-500/40 hover:to-cyan-500/40 transition-all duration-200"
+                  className="flex-1 md:max-w-xs h-40 flex flex-col justify-between bg-gradient-to-r from-emerald-500/30 to-cyan-500/30 border border-emerald-400/30 rounded-2xl px-4 md:px-6 py-4 md:py-5 hover:from-emerald-500/40 hover:to-cyan-500/40 transition-all duration-200"
                 >
                   <div className="flex items-start justify-between">
-                    <p className="text-xl font-semibold text-white">Swap</p>
-                    <TbArrowsExchange2 className="text-2xl text-white" />
+                    <p className="text-sm md:text-lg text-zinc-200 pr-1 md:pr-2 leading-tight md:leading-snug text-left">Move between supported currencies</p>
+                    <TbArrowsExchange2 className="text-4xl md:text-4xl text-white flex-shrink-0 ml-5 md:ml-3" />
                   </div>
-                  <p className="text-sm text-zinc-200">Move between supported currencies</p>
+                  <p className="text-xl md:text-2xl font-bold text-white text-left">Swap</p>
                 </button>
               </div>
             </div>
           </div>
         </div>
-        <div className="flex justify-center gap-2 py-4 border-t border-zinc-800 bg-zinc-900/70">
+        <div className="flex justify-center gap-2 py-4 bg-zinc-900/70">
           {[0, 1, 2].map((index) => (
             <button
               key={index}

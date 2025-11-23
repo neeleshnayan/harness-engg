@@ -305,50 +305,50 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
 
   return (
     <div className="flex flex-col">
-      <div className="rounded-xl border border-white/10 bg-black/30">
-        {transactions.map((tx, idx) => {
-          const inbound = isInbound(tx);
-          const counterpartyAddress = inbound ? (tx.from_address == zeroAddress ? tx.from_name : tx.from_address) : tx.to_address;
-          const counterpartyUsername = inbound ? tx.from_username : tx.to_username;
-          const displayInfo = getDisplayName(counterpartyAddress, counterpartyUsername);
-          const amount = tx.amount || '0';
-          return (
-            <div
-              key={tx.id}
-              className={`px-3 py-2 flex flex-col ${idx !== transactions.length - 1 ? 'border-b border-white/10' : ''}`}
-            >
-              <div className="flex items-center justify-between min-w-0">
-                {/* First line: Arrow, Amount, From/To, Status icon */}
-                <div className="flex items-center min-w-0 flex-1">
-                  <div className="flex items-center justify-center w-5 h-5 mr-2">
-                    {getTransactionTypeIcon(tx.transaction_type, false)}
-                  </div>
-                  <span className="text-white font-semibold text-base tracking-tight mr-3">
-                    {formatAmount(amount, tx.token_name, inbound)}
-                  </span>
-                  <span className="text-zinc-400 text-xs truncate">
-                    {inbound ? 'From: ' : 'To: '}
-                    <span
-                      className={`${displayInfo.isUsername ? 'text-cyan-400 font-medium' : 'text-zinc-300'}`}
-                      title={displayInfo.fullAddress ? `Wallet: ${displayInfo.fullAddress}` : undefined}
-                    >
-                      {displayInfo.display}
-                    </span>
-                  </span>
+    <div className="rounded-xl border border-white/10 bg-black/30">
+      {transactions.map((tx, idx) => {
+        const inbound = isInbound(tx);
+        const counterpartyAddress = inbound ? (tx.from_address == zeroAddress ? tx.from_name : tx.from_address) : tx.to_address;
+        const counterpartyUsername = inbound ? tx.from_username : tx.to_username;
+        const displayInfo = getDisplayName(counterpartyAddress, counterpartyUsername);
+        const amount = tx.amount || '0';
+        return (
+          <div
+            key={tx.id}
+            className={`px-3 py-2 flex flex-col ${idx !== transactions.length - 1 ? 'border-b border-white/10' : ''}`}
+          >
+            <div className="flex items-center justify-between min-w-0">
+              {/* First line: Arrow, Amount, From/To, Status icon */}
+              <div className="flex items-center min-w-0 flex-1">
+                <div className="flex items-center justify-center w-5 h-5 mr-2">
+                  {getTransactionTypeIcon(tx.transaction_type, false)}
                 </div>
-                <div className="flex items-center justify-center w-5 h-5 ml-2">
-                  {getStatusIcon(tx.status, tx.tx_hash, tx.blockchain)}
-                </div>
+                <span className="text-white font-semibold text-base tracking-tight mr-3">
+                  {formatAmount(amount, tx.token_name, inbound)}
+                </span>
+                <span className="text-zinc-400 text-xs truncate">
+                  {inbound ? 'From: ' : 'To: '}
+                  <span
+                    className={`${displayInfo.isUsername ? 'text-cyan-400 font-medium' : 'text-zinc-300'}`}
+                    title={displayInfo.fullAddress ? `Wallet: ${displayInfo.fullAddress}` : undefined}
+                  >
+                    {displayInfo.display}
+                  </span>
+                </span>
               </div>
-              {/* Second line: timestamp and chain, aligned with amount */}
-              <div className="flex items-center gap-2 text-zinc-500 text-[11px] ml-6 mt-0.5">
-                <span>{formatDate(tx.created_at)}</span>
-                <span>•</span>
-                <span>{tx.blockchain}</span>
+              <div className="flex items-center justify-center w-5 h-5 ml-2">
+                {getStatusIcon(tx.status, tx.tx_hash, tx.blockchain)}
               </div>
             </div>
-          );
-        })}
+            {/* Second line: timestamp and chain, aligned with amount */}
+            <div className="flex items-center gap-2 text-zinc-500 text-[11px] ml-6 mt-0.5">
+              <span>{formatDate(tx.created_at)}</span>
+              <span>•</span>
+              <span>{tx.blockchain}</span>
+            </div>
+          </div>
+        );
+      })}
       </div>
     </div>
   );
