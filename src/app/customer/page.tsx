@@ -826,6 +826,23 @@ export default function CustomerPage() {
               showInputOnly={true}
             />
           )}
+          {/* Clark button - appears at bottom right after all content */}
+          {accountData?.username && kycStatus === 'approved' && !showClarkChat && (
+            <div className="flex justify-end mt-8 mb-4">
+              <button
+                type="button"
+                onClick={() => setShowClarkChat(true)}
+                className="flex items-center gap-2 px-3 py-2 rounded-full bg-zinc-800/60 hover:bg-zinc-700/80 border border-zinc-700/50 hover:border-purple-500/50 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+                aria-label="Open Clark Chat"
+              >
+                <img src="/clark plain.svg" alt="Clark" className="h-7 w-7 flex-shrink-0" />
+                <div className="flex flex-col items-start leading-tight">
+                  <span className="text-white font-medium text-xs">Ask</span>
+                  <span className="text-white font-medium text-xs">Clark</span>
+                </div>
+              </button>
+            </div>
+          )}
         </div>
         {showSendForm && (
           <SendUSDCModal
@@ -855,21 +872,6 @@ export default function CustomerPage() {
             fiatData={fiatData}
             onClose={() => setShowTransakModal(false)}
           />
-        )}
-        {/* Fixed bottom-right Clark button */}
-        {accountData?.username && kycStatus === 'approved' && !showClarkChat && (
-          <button
-            type="button"
-            onClick={() => setShowClarkChat(true)}
-            className="fixed bottom-6 right-6 flex items-center gap-3 px-4 py-3 rounded-full bg-zinc-800/60 hover:bg-zinc-700/80 border border-zinc-700/50 hover:border-purple-500/50 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 z-50"
-            aria-label="Open Clark Chat"
-          >
-            <img src="/clark plain.svg" alt="Clark" className="h-10 w-10 flex-shrink-0" />
-            <div className="flex flex-col items-start leading-tight">
-              <span className="text-white font-medium text-sm">Ask</span>
-              <span className="text-white font-medium text-sm">Clark</span>
-            </div>
-          </button>
         )}
       </div>
     </>
