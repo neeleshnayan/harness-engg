@@ -31,7 +31,7 @@ export default function MiniHedgeFundChat({
   
   // Dynamic height management
   const [containerHeight, setContainerHeight] = useState<number>(350) // Initial height
-  const MIN_HEIGHT = 150
+  const MIN_HEIGHT = 110
   const MAX_HEIGHT = 400 // Fixed max height - becomes scrollable after this
   const HEIGHT_PER_MESSAGE = 80 // Approximate height per message
 

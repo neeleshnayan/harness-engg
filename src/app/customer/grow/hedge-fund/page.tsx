@@ -330,8 +330,23 @@ export default function HedgeFundV2Page() {
               </div>
             )}
 
-            <section id="clark-chat" className="w-full max-w-6xl mx-auto mb-4">
-              <MiniHedgeFundChat userId={accountData?.user_id} />
+            <section id="clark-chat" className="w-full max-w-6xl mx-auto mb-4 relative">
+              <div className="relative h-100 overflow-hidden rounded-2xl">
+                <div className="blur-[2px]">
+                  <MiniHedgeFundChat userId={accountData?.user_id} />
+                </div>
+                {/* Overlay with button */}
+                <div className="absolute inset-0 bg-zinc-900/40 flex items-center justify-center rounded-2xl">
+                  <button
+                    type="button"
+                    onClick={() => router.push('/clark')}
+                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-full transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 flex items-center gap-2"
+                  >
+                    <span>Ask Clark</span>
+                    <span>→</span>
+                  </button>
+                </div>
+              </div>
             </section>
             
             {/* Strategy Cards */}
