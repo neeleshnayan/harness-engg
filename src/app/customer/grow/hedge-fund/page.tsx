@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { getAuth, signOut } from "firebase/auth";
 import { ArrowLeft, CheckCircle, AlertCircle, SlidersHorizontal } from "lucide-react";
 import api from "@/lib/api";
 import StrategyCard from "@/components/wallet/StrategyCard";
@@ -14,6 +15,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { HedgeFundForm } from "@/lib/types";
 import HedgeFundQuestionnaire from "@/components/HedgeFundQuestionnaire";
 import MiniHedgeFundChat from '@/components/MiniHedgeFundChat';
+import WalletHeader from "@/components/wallet/WalletHeader";
+import HamburgerMenu from "@/components/wallet/HamburgerMenu";
+import { getFirebaseApp } from "@/lib/firebaseClient";
 
 type StrategyView = 'overview' | 'mavc' | 'mavp' | 'mavc-yearn';
 
@@ -44,6 +48,7 @@ export default function HedgeFundV2Page() {
   const [balanceError, setBalanceError] = useState<string | null>(null);
   const [accountData, setAccountData] = useState<any>(null);
   const [showQuestionnaire, setShowQuestionnaire] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
   const tokenBalances = useMemo(() => {
     if (!balance || !Array.isArray(balance.tokenBalances)) {
@@ -105,6 +110,33 @@ export default function HedgeFundV2Page() {
       setBalanceError('Failed to fetch token balances');
     } finally {
       setBalanceLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      const app = getFirebaseApp();
+      if (app) {
+        const auth = getAuth(app);
+        await signOut(auth);
+      }
+      localStorage.removeItem('userData');
+      router.push('/');
+    } catch (err) {
+      console.error('Error logging out:', err);
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (err) {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
     }
   };
 
@@ -331,22 +363,7 @@ export default function HedgeFundV2Page() {
             )}
 
             <section id="clark-chat" className="w-full max-w-6xl mx-auto mb-4 relative">
-              <div className="relative h-100 overflow-hidden rounded-2xl">
-                <div className="blur-[2px]">
-                  <MiniHedgeFundChat userId={accountData?.user_id} />
-                </div>
-                {/* Overlay with button */}
-                <div className="absolute inset-0 bg-zinc-900/40 flex items-center justify-center rounded-2xl">
-                  <button
-                    type="button"
-                    onClick={() => router.push('/clark')}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-full transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 flex items-center gap-2"
-                  >
-                    <span>Ask Clark</span>
-                    <span>→</span>
-                  </button>
-                </div>
-              </div>
+              <MiniHedgeFundChat userId={accountData?.user_id} />
             </section>
             
             {/* Strategy Cards */}
@@ -378,15 +395,27 @@ export default function HedgeFundV2Page() {
   return (
     <>
       <Toaster />
-      {showQuestionnaire && (
-        <HedgeFundQuestionnaire
-          onComplete={() => setShowQuestionnaire(false)}
-          onClose={() => setShowQuestionnaire(false)}
-          showBackButton={true}
+      <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 dark overflow-x-hidden">
+        <WalletHeader
+          accountData={accountData}
+          onLogout={handleLogout}
+          onMenuToggle={() => setShowMenu(!showMenu)}
         />
-      )}
-      <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-4 sm:p-6 md:p-8">
-        <div className="container mx-auto max-w-7xl">
+        <HamburgerMenu
+          visible={showMenu}
+          onClose={() => setShowMenu(false)}
+          onLogout={handleLogout}
+          accountData={accountData}
+          onCopyAddress={() => copyToClipboard(accountData?.wallet_address || '')}
+        />
+        {showQuestionnaire && (
+          <HedgeFundQuestionnaire
+            onComplete={() => setShowQuestionnaire(false)}
+            onClose={() => setShowQuestionnaire(false)}
+            showBackButton={true}
+          />
+        )}
+        <div className="container mx-auto px-4 py-8 max-w-7xl">
           {/* Header with Back Button */}
           {selectedView !== 'overview' && (
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
@@ -411,7 +440,7 @@ export default function HedgeFundV2Page() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setShowQuestionnaire(true)}
-                    className="bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 hover:from-cyan-400 hover:via-blue-500 hover:to-purple-500 text-white font-semibold px-3 py-2 rounded-xl border border-transparent transition-all duration-200 text-xs justify-center flex items-center shadow-lg shadow-blue-900/40"
+                    className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-3 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-xs justify-center flex items-center"
                   >
                     <SlidersHorizontal className="h-4 w-4" />
                   </button>
@@ -431,10 +460,9 @@ export default function HedgeFundV2Page() {
                   <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                     <button
                       onClick={() => setShowQuestionnaire(true)}
-                      className="bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 hover:from-cyan-400 hover:via-blue-500 hover:to-purple-500 text-white font-semibold px-4 sm:px-6 py-2 rounded-xl border border-transparent transition-all duration-200 text-xs sm:text-sm w-full sm:w-auto justify-center flex items-center shadow-lg shadow-blue-900/40"
+                      className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-4 sm:px-6 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-xs sm:text-sm w-full sm:w-auto justify-center flex items-center"
                     >
                       <SlidersHorizontal className="h-4 w-4 mr-2" />
-                      {/* Adjust Risk */}
                     </button>
                     <button
                       onClick={() => router.push('/customer/grow')}

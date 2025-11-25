@@ -291,25 +291,12 @@ export default function MiniHedgeFundChat({
           >
             <img src="/clark process.svg" alt="Prompts" className="h-5 w-5" />
           </button>
-          <Input
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Ask Clark..."
-            disabled={isLoading}
-            className="flex-1 bg-zinc-800/60 border-zinc-700/50 text-white placeholder:text-zinc-400 focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/20 rounded-xl h-10 text-sm"
-          />
           <Button
-            onClick={handleSendMessage}
-            disabled={!inputValue.trim() || isLoading}
-            size="icon"
-            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-0 rounded-xl shadow-lg h-10 w-10"
+            onClick={() => router.push('/clark')}
+            className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 h-10 text-sm"
           >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <img src="/send button.svg" alt="send" className="h-4 w-4" />
-            )}
+            <span>Ask Clark</span>
+            <span>→</span>
           </Button>
         </div>
       </div>
