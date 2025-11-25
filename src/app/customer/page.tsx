@@ -760,13 +760,16 @@ export default function CustomerPage() {
                 <h3 className="text-2xl font-bold" style={{ color: '#a259f7' }}>
                   @{accountData.username}
                 </h3>
-                <span className="flex items-center gap-1 bg-green-900/30 text-green-400 text-xs font-semibold px-2 py-1 rounded-full">
-                  <FaCheck className="text-green-400 text-base" /> Active
-                </span>
+                {kycStatus === 'approved' ? (
+                  <span className="flex items-center gap-1 bg-green-900/30 text-green-400 text-xs font-semibold px-3 py-1.5 rounded-full">
+                    <FaCheck className="text-green-400 text-base" /> Active
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 bg-yellow-900/30 text-yellow-400 text-xs font-semibold px-3 py-1.5 rounded-full">
+                    KYC needed
+                  </span>
+                )}
               </div>
-              <p className="text-zinc-400">
-                {kycStatus === 'approved' ? 'Your secure digital wallet is ready' : 'Complete KYC to unlock full wallet functionality'}
-              </p>
             </div>
           )}
           <BalanceCard
@@ -810,7 +813,7 @@ export default function CustomerPage() {
             </div>
           )}
           {showClarkChat && (
-            <MiniClarkChat 
+            <MiniClarkChat
               userId={accountData?.user_id}
               onBalanceRefresh={() => {
                 if (accountData?.wallet_address) {
