@@ -326,6 +326,33 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
     }
   }, [selectedCurrency, toCurrency]);
 
+  // Check if balance is sufficient for the transaction
+  const hasSufficientBalance = useMemo(() => {
+    if (!sendAmount) return false;
+    const amountNum = parseFloat(sendAmount);
+    if (isNaN(amountNum) || amountNum <= 0) return false;
+
+    // For USDC, check USDC balance
+    if (isToUSDC) {
+      return currentBalanceValue >= amountNum;
+    }
+
+    // For k-tokens, need fromTokenSymbol
+    if (!fromTokenSymbol) return false;
+
+    // If currencies are the same, check if balance >= send amount
+    if (fromTokenSymbol === toTokenSymbol) {
+      return currentBalanceValue >= amountNum;
+    }
+
+    // If currencies are different, check if balance >= equivalent debit amount
+    if (equivalentDebitAmount !== null && equivalentDebitAmount > 0) {
+      return currentBalanceValue >= equivalentDebitAmount;
+    }
+
+    return false;
+  }, [sendAmount, fromTokenSymbol, toTokenSymbol, currentBalanceValue, equivalentDebitAmount, isToUSDC]);
+
   const resolveReceiverAddress = async (username: string): Promise<string> => {
     // Reuse existing user API to resolve username to address
     try {
@@ -539,6 +566,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                     <div className="text-3xl font-bold text-white">
                       {equivalentDebitAmountLoading ? (
                         <span className="text-zinc-500">...</span>
+                      ) : fromTokenSymbol === toTokenSymbol && sendAmount ? (
+                        parseFloat(sendAmount).toFixed(4)
                       ) : equivalentDebitAmount !== null && fromTokenSymbol !== toTokenSymbol ? (
                         equivalentDebitAmount.toFixed(4)
                       ) : (
@@ -666,7 +695,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
               <div className="pt-2">
                 <Button
                   onClick={handleSend}
-                  disabled={loading || !receiverUsername.trim() || !sendAmount.trim() || (!isToUSDC && !selectedCurrency)}
+                  disabled={loading || !receiverUsername.trim() || !sendAmount.trim() || (!isToUSDC && !selectedCurrency) || !hasSufficientBalance}
                   className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-4 rounded-2xl text-lg font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                 >
                   {loading && (

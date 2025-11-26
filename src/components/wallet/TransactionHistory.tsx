@@ -189,7 +189,7 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
     if (token_name === 'TRNSK') {
       return `$${num.toFixed(2)}`;
     }
-    return `${num.toFixed(2)} ${token_name}`;
+    return `${num.toFixed(2)} ${token_name.replace(/^k/, "")}`;
   };
 
   const formatDate = (dateString: string | null) => {
@@ -359,9 +359,7 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
                     title={displayInfo.fullAddress ? `Wallet: ${displayInfo.fullAddress}` : undefined}
                   >
                     {displayInfo.display}
-                    {displayInfo.isUsername && (
-                      <span className="inline-block w-1.5 h-1.5 bg-cyan-400 rounded-full flex-shrink-0" title="Krypton User"></span>
-                    )}
+                    {displayInfo.isUsername}
                   </span>
                 </span>
               </div>

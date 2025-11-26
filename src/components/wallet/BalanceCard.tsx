@@ -68,6 +68,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   const [isFlickering, setIsFlickering] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState('USD');
   const [poolRates, setPoolRates] = useState<{ [key: string]: number }>({});
+  const [poolRatesLoading, setPoolRatesLoading] = useState(true);
   const [activeSlide, setActiveSlide] = useState(1); // Start at balance (middle slide)
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [touchEndX, setTouchEndX] = useState<number | null>(null);
@@ -78,6 +79,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   const [transactionHistoryRefreshKey, setTransactionHistoryRefreshKey] = useState(0);
   const transactionHistoryRef = useRef<TransactionHistoryRef | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const poolRatesInitialFetch = useRef(true);
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     // Check if touch started inside the scroll container
@@ -178,6 +180,9 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   useEffect(() => {
     const fetchRates = async () => {
       try {
+        if (poolRatesInitialFetch.current) {
+          setPoolRatesLoading(true);
+        }
         const rates = await getAllPoolRates();
         // Convert array to map for easier lookup: { "USD/EUR": 1.16251899, ... }
         const ratesMap: { [key: string]: number } = {};
@@ -187,6 +192,11 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
         setPoolRates(ratesMap);
       } catch (error) {
         console.error('Failed to fetch pool rates:', error);
+      } finally {
+        if (poolRatesInitialFetch.current) {
+          setPoolRatesLoading(false);
+          poolRatesInitialFetch.current = false;
+        }
       }
     };
     fetchRates();
@@ -419,7 +429,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
             <div className={`text-6xl font-bold text-white relative transition-all duration-200 ${
               isFlickering ? 'balance-flicker' : ''
             }`}>
-              {balanceLoading || balanceRefreshing || localRefreshing ? (
+              {balanceLoading || balanceRefreshing || localRefreshing || poolRatesLoading ? (
                 <div className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mr-3"></div>
                   <span className="text-2xl">
