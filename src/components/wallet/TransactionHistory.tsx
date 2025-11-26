@@ -207,6 +207,32 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
     }
   };
 
+  const formatDateOnly = (dateString: string | null) => {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      return '';
+    }
+  };
+
+  const formatTimeOnly = (dateString: string | null) => {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return '';
+    }
+  };
+
   const isInbound = (transaction: Transaction) => {
     return transaction.transaction_type?.toUpperCase() === 'INBOUND' ||
            transaction.to_address === userWalletAddress;
@@ -242,7 +268,7 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
   if (transactions.length > 0 && nextPageToken) {
     return (
       <div className="flex flex-col">
-        <div className="rounded-xl border border-white/10 bg-black/30">
+        <div className="rounded-t-none rounded-b-xl border border-white/10 bg-black/30">
           {transactions.map((tx, idx) => {
             const inbound = isInbound(tx);
             const counterpartyAddress = inbound ? (tx.from_address == zeroAddress ? tx.from_name : tx.from_address) : tx.to_address;
@@ -252,39 +278,39 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
             return (
               <div
                 key={tx.id}
-                className={`px-3 py-2 flex flex-col ${idx !== transactions.length - 1 ? 'border-b border-white/10' : ''}`}
+                className={`px-3 py-2 flex items-start justify-between min-w-0 overflow-visible ${idx !== transactions.length - 1 ? 'border-b border-white/10' : ''}`}
               >
-                <div className="flex items-center justify-between min-w-0">
-                  {/* First line: Arrow, Amount, From/To, Status icon */}
-                  <div className="flex items-center min-w-0 flex-1">
-                    <div className="flex items-center justify-center w-5 h-5 mr-2">
-                      {getTransactionTypeIcon(tx.transaction_type, false)}
-                    </div>
-                    <span className="text-white font-semibold text-base tracking-tight mr-3">
+                {/* First column: Arrow, Amount, To/From */}
+                <div className="flex items-start min-w-0 flex-1">
+                  <div className="flex items-center justify-center w-5 h-5 mr-2 flex-shrink-0 mt-0.5">
+                    {getTransactionTypeIcon(tx.transaction_type, false)}
+                  </div>
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="text-white font-semibold text-base tracking-tight whitespace-nowrap">
                       {formatAmount(amount, tx.token_name, inbound)}
                     </span>
-                    <span className="text-zinc-400 text-xs truncate">
+                    <span className="text-zinc-400 text-xs mt-0.5 whitespace-nowrap">
                       {inbound ? 'From: ' : 'To: '}
                       <span
-                        className={`${displayInfo.isUsername ? 'text-cyan-400 font-medium' : 'text-zinc-300'} flex items-center gap-1`}
+                        className={`${displayInfo.isUsername ? 'text-cyan-400 font-medium' : 'text-zinc-300'} inline-flex items-center gap-1`}
                         title={displayInfo.fullAddress ? `Wallet: ${displayInfo.fullAddress}` : undefined}
                       >
                         {displayInfo.display}
                         {displayInfo.isUsername && (
-                          <span className="inline-block w-1.5 h-1.5 bg-cyan-400 rounded-full" title="Krypton User"></span>
+                          <span className="inline-block w-1.5 h-1.5 bg-cyan-400 rounded-full flex-shrink-0" title="Krypton User"></span>
                         )}
                       </span>
                     </span>
                   </div>
-                  <div className="flex items-center justify-center w-5 h-5 ml-2">
-                    {getStatusIcon(tx.status, tx.tx_hash, tx.blockchain)}
-                  </div>
                 </div>
-                {/* Second line: timestamp and chain, aligned with amount */}
-                <div className="flex items-center gap-2 text-zinc-500 text-[11px] ml-6 mt-0.5">
-                  <span>{formatDate(tx.created_at)}</span>
-                  <span>•</span>
-                  <span>{tx.blockchain}</span>
+                {/* Second column: Timestamp (fixed width for alignment) */}
+                <div className="flex flex-col text-zinc-400 text-xs text-right flex-shrink-0 ml-2 md:ml-4" style={{ minWidth: '70px' }}>
+                  <span className="whitespace-nowrap">{formatDateOnly(tx.created_at)}</span>
+                  <span className="whitespace-nowrap">{formatTimeOnly(tx.created_at)}</span>
+                </div>
+                {/* Status icon */}
+                <div className="flex items-center justify-center w-5 h-5 ml-2 flex-shrink-0">
+                  {getStatusIcon(tx.status, tx.tx_hash, tx.blockchain)}
                 </div>
               </div>
             );
@@ -305,7 +331,7 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
 
   return (
     <div className="flex flex-col">
-    <div className="rounded-xl border border-white/10 bg-black/30">
+    <div className="rounded-t-none rounded-b-xl border border-white/10 bg-black/30">
       {transactions.map((tx, idx) => {
         const inbound = isInbound(tx);
         const counterpartyAddress = inbound ? (tx.from_address == zeroAddress ? tx.from_name : tx.from_address) : tx.to_address;
@@ -315,36 +341,39 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
         return (
           <div
             key={tx.id}
-            className={`px-3 py-2 flex flex-col ${idx !== transactions.length - 1 ? 'border-b border-white/10' : ''}`}
+            className={`px-3 py-2 flex items-start justify-between min-w-0 ${idx !== transactions.length - 1 ? 'border-b border-white/10' : ''}`}
           >
-            <div className="flex items-center justify-between min-w-0">
-              {/* First line: Arrow, Amount, From/To, Status icon */}
-              <div className="flex items-center min-w-0 flex-1">
-                <div className="flex items-center justify-center w-5 h-5 mr-2">
-                  {getTransactionTypeIcon(tx.transaction_type, false)}
-                </div>
-                <span className="text-white font-semibold text-base tracking-tight mr-3">
+            {/* First column: Arrow, Amount, To/From */}
+            <div className="flex items-start min-w-0 flex-1 overflow-hidden">
+              <div className="flex items-center justify-center w-5 h-5 mr-2 flex-shrink-0 mt-0.5">
+                {getTransactionTypeIcon(tx.transaction_type, false)}
+              </div>
+              <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
+                <span className="text-white font-semibold text-base tracking-tight whitespace-nowrap">
                   {formatAmount(amount, tx.token_name, inbound)}
                 </span>
-                <span className="text-zinc-400 text-xs truncate">
+                <span className="text-zinc-400 text-xs mt-0.5 whitespace-nowrap overflow-visible">
                   {inbound ? 'From: ' : 'To: '}
                   <span
-                    className={`${displayInfo.isUsername ? 'text-cyan-400 font-medium' : 'text-zinc-300'}`}
+                    className={`${displayInfo.isUsername ? 'text-cyan-400 font-medium' : 'text-zinc-300'} inline-flex items-center gap-1`}
                     title={displayInfo.fullAddress ? `Wallet: ${displayInfo.fullAddress}` : undefined}
                   >
                     {displayInfo.display}
+                    {displayInfo.isUsername && (
+                      <span className="inline-block w-1.5 h-1.5 bg-cyan-400 rounded-full flex-shrink-0" title="Krypton User"></span>
+                    )}
                   </span>
                 </span>
               </div>
-              <div className="flex items-center justify-center w-5 h-5 ml-2">
-                {getStatusIcon(tx.status, tx.tx_hash, tx.blockchain)}
-              </div>
             </div>
-            {/* Second line: timestamp and chain, aligned with amount */}
-            <div className="flex items-center gap-2 text-zinc-500 text-[11px] ml-6 mt-0.5">
-              <span>{formatDate(tx.created_at)}</span>
-              <span>•</span>
-              <span>{tx.blockchain}</span>
+            {/* Second column: Timestamp (fixed width for alignment) */}
+            <div className="flex flex-col text-zinc-400 text-xs text-right flex-shrink-0 ml-2 md:ml-4" style={{ minWidth: '70px' }}>
+              <span className="whitespace-nowrap">{formatDateOnly(tx.created_at)}</span>
+              <span className="whitespace-nowrap">{formatTimeOnly(tx.created_at)}</span>
+            </div>
+            {/* Status icon */}
+            <div className="flex items-center justify-center w-5 h-5 ml-2 flex-shrink-0">
+              {getStatusIcon(tx.status, tx.tx_hash, tx.blockchain)}
             </div>
           </div>
         );
