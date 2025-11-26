@@ -471,27 +471,21 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
           <div className="w-full flex-shrink-0 p-8">
             <div className="text-white">
               <h3 className="text-2xl font-bold mb-2">Quick Actions</h3>
-              <p className="text-zinc-400 mb-6">Deposit USDC or swap between currencies instantly.</p>
+              <p className="text-zinc-400 mb-6">Add funds or swap between currencies instantly.</p>
               <div className="flex flex-row gap-3 md:gap-6 justify-center items-center md:px-8">
                 <button
                   onClick={openDepositModal}
-                  className="w-[calc(50%-0.375rem)] md:w-[calc(50%-0.75rem)] max-w-xs h-40 flex flex-col justify-between bg-gradient-to-r from-blue-500/30 to-purple-500/30 border border-blue-400/30 rounded-2xl px-4 md:px-6 py-4 md:py-5 hover:from-blue-500/40 hover:to-purple-500/40 transition-all duration-200 overflow-hidden"
+                  className="w-[calc(50%-0.375rem)] md:w-[calc(50%-0.75rem)] max-w-xs h-40 flex flex-col justify-center items-center gap-3 bg-gradient-to-r from-blue-500/30 to-purple-500/30 border border-blue-400/30 rounded-2xl px-4 md:px-6 py-4 md:py-5 hover:from-blue-500/40 hover:to-purple-500/40 transition-all duration-200 overflow-hidden"
                 >
-                  <div className="flex items-start justify-between gap-2 min-w-0">
-                    <p className="text-sm md:text-lg text-zinc-200 leading-tight md:leading-snug text-left flex-1 min-w-0">Add USDC to your<br></br>wallet</p>
-                    <FaPlus className="text-3xl md:text-4xl text-white flex-shrink-0" />
-                  </div>
-                  <p className="text-xl md:text-2xl font-bold text-white text-left">Deposit</p>
+                  <FaPlus className="text-3xl md:text-4xl text-white flex-shrink-0" />
+                  <p className="text-2xl md:text-xl font-bold text-white text-center">Deposit</p>
                 </button>
                 <button
                   onClick={openSwapModal}
-                  className="w-[calc(50%-0.375rem)] md:w-[calc(50%-0.75rem)] max-w-xs h-40 flex flex-col justify-between bg-gradient-to-r from-emerald-500/30 to-cyan-500/30 border border-emerald-400/30 rounded-2xl px-4 md:px-6 py-4 md:py-5 hover:from-emerald-500/40 hover:to-cyan-500/40 transition-all duration-200 overflow-hidden"
+                  className="w-[calc(50%-0.375rem)] md:w-[calc(50%-0.75rem)] max-w-xs h-40 flex flex-col justify-center items-center gap-3 bg-gradient-to-r from-emerald-500/30 to-cyan-500/30 border border-emerald-400/30 rounded-2xl px-4 md:px-6 py-4 md:py-5 hover:from-emerald-500/40 hover:to-cyan-500/40 transition-all duration-200 overflow-hidden"
                 >
-                  <div className="flex items-start justify-between gap-2 min-w-0">
-                    <p className="text-sm md:text-lg text-zinc-200 leading-tight md:leading-snug text-left flex-1 min-w-0">Move between supported currencies</p>
-                    <TbArrowsExchange2 className="text-4xl md:text-4xl text-white flex-shrink-0" />
-                  </div>
-                  <p className="text-xl md:text-2xl font-bold text-white text-left">Swap</p>
+                  <TbArrowsExchange2 className="text-3xl md:text-4xl text-white flex-shrink-0" />
+                  <p className="text-2xl md:text-xl font-bold text-white text-center">Swap</p>
                 </button>
               </div>
             </div>

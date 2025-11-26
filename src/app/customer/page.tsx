@@ -755,7 +755,7 @@ export default function CustomerPage() {
           )}
           {accountData?.username && (
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-4">Welcome back</h2>
+              <h2 className="text-3xl font-bold text-white mb-2">Welcome back</h2>
               <div className="flex items-center justify-center mb-3 gap-2">
                 <h3 className="text-2xl font-bold" style={{ color: '#a259f7' }}>
                   @{accountData.username}
