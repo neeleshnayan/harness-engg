@@ -15,11 +15,19 @@ interface PoolRateData {
   pool: string;
   blockNumber: string;
   tokenRates: string[];
+  tokenPair: string;
+  blockTimestamp: string;
 }
 
-interface SubgraphResponse {
+interface SubgraphResponseLatest {
   data: {
     latestPoolRates: PoolRateData[];
+  };
+}
+
+interface SubgraphResponseHistorical {
+  data: {
+    poolRates: PoolRateData[];
   };
 }
 
@@ -48,6 +56,14 @@ let pendingPoolRatesRequest: Promise<PoolRate[]> | null = null;
 // Track pending requests for individual pool prices
 // Key format: "fromToken-toToken", Value: Promise<number>
 const pendingPriceRequests: Map<string, Promise<number>> = new Map();
+
+// In-memory cache for closing pool rates (previous day's closing rate)
+// Key format: "fromToken/toToken" (e.g., "kUSD/kEUR"), Value: CachedPrice
+const closingPoolRateCache: Map<string, CachedPrice> = new Map();
+
+// Track pending requests for closing pool rates
+// Key format: "fromToken/toToken", Value: Promise<number>
+const pendingClosingPoolRateRequests: Map<string, Promise<number>> = new Map();
 
 // Cache duration: 1 hour in milliseconds
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
@@ -109,12 +125,14 @@ async function fetchAllPoolRatesFromSubgraph(): Promise<PoolRate[]> {
         pool
         blockNumber
         tokenRates
+        tokenPair
+        blockTimestamp
       }
     }
   `;
 
   try {
-    const response = await kryptonPoolsSubgraphApi.post<SubgraphResponse>('', {
+    const response = await kryptonPoolsSubgraphApi.post<SubgraphResponseLatest>('', {
       query,
     });
 
@@ -174,6 +192,137 @@ async function fetchAllPoolRatesFromSubgraph(): Promise<PoolRate[]> {
     console.error('Failed to fetch pool rates from subgraph:', error);
     throw error;
   }
+}
+
+async function fetchHistoricalPoolRatesFromSubgraph(): Promise<PoolRateData[]> {
+  // Get pool addresses from the map keys (maintains original casing)
+  const poolAddresses = Object.keys(POOL_TO_TOKEN);
+  // Format pool addresses for GraphQL query
+  const poolAddressesList = poolAddresses.map(addr => `"${addr}"`).join(', ');
+  const query = `
+    query {
+      poolRates(
+        where: {
+          pool_in: [${poolAddressesList}],
+        },
+        orderBy: blockNumber,
+        orderDirection: asc,
+        first: 1000
+      ) {
+        id
+        pool
+        blockNumber
+        blockTimestamp
+        tokenRates
+        tokenPair
+      }
+    }
+  `;
+
+  try {
+    const response = await kryptonPoolsSubgraphApi.post<SubgraphResponseHistorical>('', {
+      query,
+    });
+
+    return response.data?.data?.poolRates || [];
+  } catch (error) {
+      console.error('Failed to fetch closing pool rates from subgraph:', error);
+      return [];
+  }
+}
+
+/**
+ * Strip the 'k' prefix from token symbol if present
+ * tokenPair in subgraph response uses format like "USD/GBP" without 'k' prefix
+ *
+ * @param token - Token symbol (e.g., "kUSD" or "USD")
+ * @returns Token without 'k' prefix (e.g., "USD")
+ */
+function stripKPrefix(token: string): string {
+  return token.startsWith('k') ? token.substring(1) : token;
+}
+
+/**
+ * Get the closing pool rate from the previous day
+ * Uses cache and fetches historical data from subgraph if needed
+ *
+ * Note: The tokenPair in the subgraph response uses format like "USD/GBP" without the 'k' prefix,
+ * so tokens with 'k' prefix (e.g., "kUSD", "kEUR") will be automatically converted.
+ *
+ * @param fromToken - Source token symbol (e.g., "kUSD" or "USD")
+ * @param toToken - Destination token symbol (e.g., "kEUR" or "EUR")
+ * @returns Promise resolving to the closing rate (number)
+ */
+export async function getClosingPoolRate(fromToken: string, toToken: string): Promise<number> {
+  const cacheKey = getCacheKey(fromToken, toToken);
+  // Strip 'k' prefix from tokens to match tokenPair format in subgraph response (e.g., "USD/GBP")
+  const tokenPair = `${stripKPrefix(fromToken)}/${stripKPrefix(toToken)}`;
+  const cached = closingPoolRateCache.get(cacheKey);
+
+  // Check if we have a valid cached closing rate
+  if (cached && isCacheValid(cached.timestamp)) {
+    return cached.price;
+  }
+
+  // Check if there's already a pending request for this token pair
+  const pendingRequest = pendingClosingPoolRateRequests.get(cacheKey);
+  if (pendingRequest) {
+    return pendingRequest;
+  }
+
+  // Create a new request promise
+  const requestPromise = (async () => {
+    try {
+      // Fetch historical pool rates from subgraph
+      const historicalRates = await fetchHistoricalPoolRatesFromSubgraph();
+
+      // Filter rates where tokenPair matches (e.g., "USD/GBP" format without 'k' prefix)
+      const poolRates = historicalRates.filter(
+        (rate) => rate.tokenPair === tokenPair
+      );
+
+      if (poolRates.length === 0) {
+        console.warn(`No historical rates found for token pair ${cacheKey} (matched as ${tokenPair} in subgraph)`);
+        return 0;
+      }
+
+      // Get the first entry (oldest, since rates are ordered asc by blockNumber)
+      const firstRate = poolRates[0];
+      const closingRate = extractRate(firstRate.tokenRates);
+
+      if (closingRate === 0) {
+        console.warn(`No valid closing rate found for token pair ${cacheKey}`);
+        return 0;
+      }
+
+      // Cache the closing rate
+      closingPoolRateCache.set(cacheKey, {
+        price: closingRate,
+        timestamp: Date.now(),
+      });
+
+      console.log(`Closing rate for ${cacheKey}: ${closingRate}`);
+      return closingRate;
+    } catch (error) {
+      console.error(`Failed to fetch closing pool rate for ${cacheKey}:`, error);
+
+      // If we have a stale cache, return it as fallback
+      if (cached) {
+        console.warn(`Using stale cached closing rate for ${cacheKey}`);
+        return cached.price;
+      }
+
+      throw error;
+    } finally {
+      // Remove from pending requests once done
+      pendingClosingPoolRateRequests.delete(cacheKey);
+    }
+  })();
+
+  // Store the pending request
+  pendingClosingPoolRateRequests.set(cacheKey, requestPromise);
+
+  return requestPromise;
 }
 
 /**
@@ -344,6 +493,8 @@ export function clearPriceCache(): void {
   cachedPoolRatesTimestamp = 0;
   pendingPoolRatesRequest = null;
   pendingPriceRequests.clear();
+  closingPoolRateCache.clear();
+  pendingClosingPoolRateRequests.clear();
 }
 
 /**
