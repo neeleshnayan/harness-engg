@@ -79,9 +79,6 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
             getClosingPoolRate("kUSD", token.symbol == "kUSD" ? "USDC" : token.symbol),
           ]);
 
-          console.log(`Current rate for ${token.symbol}: ${currentRate}`);
-          console.log(`Closing rate for ${token.symbol}: ${closingRate}`);
-
           // If closing price > current price, token has depreciated (reddish)
           // If closing price <= current price, token has appreciated (greenish)
           if (currentRate > 0 && closingRate > 0) {

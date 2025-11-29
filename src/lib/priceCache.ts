@@ -31,6 +31,26 @@ interface SubgraphResponseHistorical {
   };
 }
 
+interface ClosingPoolRateHistory {
+  id: string;
+  blockNumber: string;
+  blockTimestamp: string;
+  history: {
+    id: string;
+    tokenPair: string;
+    pool: string;
+    blockTimestamp: string;
+    blockNumber: string;
+    tokenRates: string[];
+  };
+}
+
+interface SubgraphResponseClosingPoolRates {
+  data: {
+    closingPoolRateHistories: ClosingPoolRateHistory[];
+  };
+}
+
 // Mapping of pool addresses to token (non-kUSD token in the pool)
 // Format: poolAddress -> tokenSymbol
 // kUSD is always 1, so we only need to track the other token
@@ -194,40 +214,38 @@ async function fetchAllPoolRatesFromSubgraph(): Promise<PoolRate[]> {
   }
 }
 
-async function fetchHistoricalPoolRatesFromSubgraph(): Promise<PoolRateData[]> {
-  // Get pool addresses from the map keys (maintains original casing)
-  const poolAddresses = Object.keys(POOL_TO_TOKEN);
-  // Format pool addresses for GraphQL query
-  const poolAddressesList = poolAddresses.map(addr => `"${addr}"`).join(', ');
+async function fetchClosingPoolRatesFromSubgraph(): Promise<ClosingPoolRateHistory[]> {
   const query = `
     query {
-      poolRates(
-        where: {
-          pool_in: [${poolAddressesList}],
-        },
+      closingPoolRateHistories(
+        first: 4,
         orderBy: blockNumber,
-        orderDirection: asc,
-        first: 1000
+        orderDirection: desc
       ) {
         id
-        pool
         blockNumber
         blockTimestamp
-        tokenRates
-        tokenPair
+        history {
+          id
+          tokenPair
+          pool
+          blockTimestamp
+          blockNumber
+          tokenRates
+        }
       }
     }
   `;
 
   try {
-    const response = await kryptonPoolsSubgraphApi.post<SubgraphResponseHistorical>('', {
+    const response = await kryptonPoolsSubgraphApi.post<SubgraphResponseClosingPoolRates>('', {
       query,
     });
 
-    return response.data?.data?.poolRates || [];
+    return response.data?.data?.closingPoolRateHistories || [];
   } catch (error) {
-      console.error('Failed to fetch closing pool rates from subgraph:', error);
-      return [];
+    console.error('Failed to fetch closing pool rates from subgraph:', error);
+    return [];
   }
 }
 
@@ -273,22 +291,21 @@ export async function getClosingPoolRate(fromToken: string, toToken: string): Pr
   // Create a new request promise
   const requestPromise = (async () => {
     try {
-      // Fetch historical pool rates from subgraph
-      const historicalRates = await fetchHistoricalPoolRatesFromSubgraph();
+      // Fetch closing pool rates from subgraph (already sorted desc by blockNumber)
+      const closingRates = await fetchClosingPoolRatesFromSubgraph();
 
-      // Filter rates where tokenPair matches (e.g., "USD/GBP" format without 'k' prefix)
-      const poolRates = historicalRates.filter(
-        (rate) => rate.tokenPair === tokenPair
+      // Find the rate where tokenPair matches (e.g., "USD/GBP" format without 'k' prefix)
+      // Since results are sorted desc, the first match will be the latest closing rate
+      const matchingRate = closingRates.find(
+        (rate) => rate.history.tokenPair === tokenPair
       );
 
-      if (poolRates.length === 0) {
-        console.warn(`No historical rates found for token pair ${cacheKey} (matched as ${tokenPair} in subgraph)`);
+      if (!matchingRate) {
+        console.warn(`No closing rate found for token pair ${cacheKey} (matched as ${tokenPair} in subgraph)`);
         return 0;
       }
 
-      // Get the first entry (oldest, since rates are ordered asc by blockNumber)
-      const firstRate = poolRates[0];
-      const closingRate = extractRate(firstRate.tokenRates);
+      const closingRate = extractRate(matchingRate.history.tokenRates);
 
       if (closingRate === 0) {
         console.warn(`No valid closing rate found for token pair ${cacheKey}`);
