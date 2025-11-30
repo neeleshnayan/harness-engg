@@ -55,7 +55,7 @@ const formatDateShort = (dateString: string) => {
 
 // Factory function to create custom dot component with data bound
 const createCustomDot = (chartData: any[]) => {
-  return (props: any) => {
+  const CustomDotComponent = (props: any) => {
     const { cx, cy, payload, index } = props;
     const innerRadius = 3;
     const middleRadius = 5.5;
@@ -109,11 +109,13 @@ const createCustomDot = (chartData: any[]) => {
       </g>
     );
   };
+  CustomDotComponent.displayName = 'CustomDot';
+  return CustomDotComponent;
 };
 
 // Factory function to create custom active dot component with data bound
 const createCustomActiveDot = (chartData: any[]) => {
-  return (props: any) => {
+  const CustomActiveDotComponent = (props: any) => {
     const { cx, cy, payload, index } = props;
     const innerRadius = 5;
     const middleRadius = 8;
@@ -167,6 +169,8 @@ const createCustomActiveDot = (chartData: any[]) => {
       </g>
     );
   };
+  CustomActiveDotComponent.displayName = 'CustomActiveDot';
+  return CustomActiveDotComponent;
 };
 
 export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
