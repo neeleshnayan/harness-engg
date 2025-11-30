@@ -369,6 +369,8 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, ba
                     inputMode="decimal"
                     value={fromAmount}
                     onChange={(e) => {
+                      // Set focus immediately to prevent auto-updates while typing
+                      focusedFieldRef.current = "from";
                       // Only allow numbers and decimal point
                       const value = e.target.value.replace(/[^0-9.]/g, '');
                       // Prevent multiple decimal points
@@ -383,9 +385,10 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, ba
                       focusedFieldRef.current = "from";
                     }}
                     onBlur={() => {
+                      // Delay clearing focus to allow any pending calculations to complete
                       setTimeout(() => {
                         focusedFieldRef.current = null;
-                      }, 100);
+                      }, 200);
                     }}
                     placeholder="0.00"
                     className="w-full text-2xl font-bold bg-transparent text-white placeholder-zinc-500 focus:outline-none"
@@ -460,6 +463,8 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, ba
                     inputMode="decimal"
                     value={toAmount}
                     onChange={(e) => {
+                      // Set focus immediately to prevent auto-updates while typing
+                      focusedFieldRef.current = "to";
                       // Only allow numbers and decimal point
                       const value = e.target.value.replace(/[^0-9.]/g, '');
                       // Prevent multiple decimal points
@@ -474,9 +479,10 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, ba
                       focusedFieldRef.current = "to";
                     }}
                     onBlur={() => {
+                      // Delay clearing focus to allow any pending calculations to complete
                       setTimeout(() => {
                         focusedFieldRef.current = null;
-                      }, 100);
+                      }, 200);
                     }}
                     placeholder="0.00"
                     className="w-full text-2xl font-bold bg-transparent text-white placeholder-zinc-500 focus:outline-none"

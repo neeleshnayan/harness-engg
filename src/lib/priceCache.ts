@@ -23,6 +23,11 @@ export enum PriceChangeDirection {
   SAME = "SAME"
 }
 
+export interface PriceChangeInfo {
+  direction: PriceChangeDirection;
+  percentageChange: number;
+}
+
 interface PoolRateData {
   id: string;
   pool: string;
@@ -830,7 +835,7 @@ function calculateTotalBalanceInUSD(
  * @param balance - Balance data object containing tokenBalances array
  * @returns Promise resolving to PriceChangeDirection enum
  */
-export async function haveRatesAppreciated(balance: any): Promise<PriceChangeDirection> {
+export async function haveRatesAppreciated(balance: any): Promise<PriceChangeInfo> {
   try {
     // Fetch both current and closing pool rates
     const [currentRates, closingRates] = await Promise.all([
@@ -857,17 +862,32 @@ export async function haveRatesAppreciated(balance: any): Promise<PriceChangeDir
     const threshold = 0.01; // $0.01 threshold
     const diff = currentTotalUSD - closingTotalUSD;
 
-    if (Math.abs(diff) < threshold) {
-      return PriceChangeDirection.SAME;
-    } else if (diff > 0) {
-      return PriceChangeDirection.UP;
-    } else {
-      return PriceChangeDirection.DOWN;
+    // Calculate percentage change
+    let percentageChange = 0;
+    if (closingTotalUSD > 0) {
+      percentageChange = (diff / closingTotalUSD) * 100;
     }
+
+    let direction: PriceChangeDirection;
+    if (Math.abs(diff) < threshold) {
+      direction = PriceChangeDirection.SAME;
+    } else if (diff > 0) {
+      direction = PriceChangeDirection.UP;
+    } else {
+      direction = PriceChangeDirection.DOWN;
+    }
+
+    return {
+      direction,
+      percentageChange
+    };
   } catch (error) {
     console.error('Failed to compare rates appreciation:', error);
     // Return SAME on error to avoid showing incorrect indicators
-    return PriceChangeDirection.SAME;
+    return {
+      direction: PriceChangeDirection.SAME,
+      percentageChange: 0
+    };
   }
 }
 

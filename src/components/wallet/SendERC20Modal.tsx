@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { FaArrowUp } from "react-icons/fa";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import api, { web3Api } from "@/lib/api";
 import { K_TOKEN_SYMBOLS, K_TOKEN_ADDRESSES_LOWERCASE } from "@/lib/kTokens";
 import { getPoolRate } from "@/lib/priceCache";
@@ -196,7 +196,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
 
   // Calculate To amount when From amount changes
   useEffect(() => {
-    // Don't update if user is currently typing in the "to" field
+    // Don't update "to" field if user is currently typing in it
+    // Never update the field the user is currently editing
     if (focusedFieldRef.current === "to") {
       return;
     }
@@ -275,7 +276,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
 
   // Calculate From amount when To amount changes
   useEffect(() => {
-    // Don't update if user is currently typing in the "from" field
+    // Don't update "from" field if user is currently typing in it
+    // Never update the field the user is currently editing
     if (focusedFieldRef.current === "from") {
       return;
     }
@@ -679,6 +681,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                       inputMode="decimal"
                       value={fromAmount}
                       onChange={(e) => {
+                        // Set focus immediately to prevent auto-updates while typing
+                        focusedFieldRef.current = "from";
                         // Only allow numbers and decimal point
                         const value = e.target.value.replace(/[^0-9.]/g, '');
                         // Prevent multiple decimal points
@@ -693,10 +697,10 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                         focusedFieldRef.current = "from";
                       }}
                       onBlur={() => {
-                        // Small delay to allow effects to run after blur
+                        // Delay clearing focus to allow any pending calculations to complete
                         setTimeout(() => {
                           focusedFieldRef.current = null;
-                        }, 100);
+                        }, 200);
                       }}
                       placeholder="0.00"
                       className="w-full text-2xl font-bold bg-transparent text-white placeholder-zinc-500 focus:outline-none"
@@ -756,7 +760,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                   disabled={loading || !fromTokenSymbol || !toTokenSymbol}
                   className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-zinc-700 hover:bg-zinc-600 border-2 border-zinc-600 flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed z-30 shadow-lg"
                 >
-                  <ArrowUpDown className="w-5 h-5 text-white rotate-90" />
+                  <ArrowRight className="w-5 h-5 text-white" />
                 </button>
 
                 {/* To Box */}
@@ -768,6 +772,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                       inputMode="decimal"
                       value={toAmount}
                       onChange={(e) => {
+                        // Set focus immediately to prevent auto-updates while typing
+                        focusedFieldRef.current = "to";
                         // Only allow numbers and decimal point
                         const value = e.target.value.replace(/[^0-9.]/g, '');
                         // Prevent multiple decimal points
@@ -782,10 +788,10 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                         focusedFieldRef.current = "to";
                       }}
                       onBlur={() => {
-                        // Small delay to allow effects to run after blur
+                        // Delay clearing focus to allow any pending calculations to complete
                         setTimeout(() => {
                           focusedFieldRef.current = null;
-                        }, 100);
+                        }, 200);
                       }}
                       placeholder="0.00"
                       className="w-full text-2xl font-bold bg-transparent text-white placeholder-zinc-500 focus:outline-none"

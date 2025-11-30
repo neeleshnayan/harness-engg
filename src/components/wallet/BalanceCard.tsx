@@ -4,7 +4,7 @@ import KTTokenBalances from "@/components/wallet/KTTokenBalances";
 import { FaShieldAlt, FaPlus } from "react-icons/fa";
 import { TbArrowsExchange2 } from "react-icons/tb";
 import { FiRefreshCw } from "react-icons/fi";
-import { getAllPoolRates, haveRatesAppreciated, PriceChangeDirection } from "@/lib/priceCache";
+import { getAllPoolRates, haveRatesAppreciated, PriceChangeDirection, PriceChangeInfo } from "@/lib/priceCache";
 import { K_TOKEN_ADDRESSES_LOWERCASE, K_TOKEN_SYMBOL_LIST, CURRENCY_SYMBOLS } from "@/lib/kTokens";
 import BuyUSDCModal from "@/components/wallet/BuyUSDCModal";
 import SwapModal from "@/components/wallet/SwapModal";
@@ -69,7 +69,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   const [selectedCurrency, setSelectedCurrency] = useState('USD');
   const [poolRates, setPoolRates] = useState<{ [key: string]: number }>({});
   const [poolRatesLoading, setPoolRatesLoading] = useState(true);
-  const [priceChangeDirection, setPriceChangeDirection] = useState<PriceChangeDirection | null>(null);
+  const [priceChangeInfo, setPriceChangeInfo] = useState<PriceChangeInfo | null>(null);
   const [activeSlide, setActiveSlide] = useState(1); // Start at balance (middle slide)
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [touchEndX, setTouchEndX] = useState<number | null>(null);
@@ -83,8 +83,20 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   const poolRatesInitialFetch = useRef(true);
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+
+    // Check if touch started inside a modal/dialog
+    // Radix UI Dialog uses [role="dialog"] and data attributes
+    const isInModal = target.closest('[role="dialog"]') ||
+                      target.closest('[data-radix-portal]') ||
+                      target.closest('[data-state="open"]');
+
+    if (isInModal) {
+      return; // Ignore touches when modal is open
+    }
+
     // Check if touch started inside the scroll container
-    if (scrollContainerRef.current?.contains(e.target as Node)) {
+    if (scrollContainerRef.current?.contains(target)) {
       setIsScrolling(true);
       return;
     }
@@ -94,6 +106,22 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+
+    // Check if touch is inside a modal/dialog
+    const isInModal = target.closest('[role="dialog"]') ||
+                      target.closest('[data-radix-portal]') ||
+                      target.closest('[data-state="open"]');
+
+    if (isInModal) {
+      // Reset touch state if moved into modal
+      setTouchStartX(null);
+      setTouchEndX(null);
+      setTouchStartY(null);
+      setIsScrolling(false);
+      return;
+    }
+
     // If already determined to be scrolling, ignore
     if (isScrolling) return;
 
@@ -113,7 +141,23 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
     setTouchEndX(currentX);
   };
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+
+    // Check if touch ended inside a modal/dialog
+    const isInModal = target.closest('[role="dialog"]') ||
+                      target.closest('[data-radix-portal]') ||
+                      target.closest('[data-state="open"]');
+
+    if (isInModal) {
+      // Reset touch state if ended in modal
+      setTouchStartX(null);
+      setTouchEndX(null);
+      setTouchStartY(null);
+      setIsScrolling(false);
+      return;
+    }
+
     if (touchStartX === null || touchEndX === null || isScrolling) {
       setTouchStartX(null);
       setTouchEndX(null);
@@ -213,11 +257,11 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
       }
 
       try {
-        const direction = await haveRatesAppreciated(balance);
-        setPriceChangeDirection(direction);
+        const info = await haveRatesAppreciated(balance);
+        setPriceChangeInfo(info);
       } catch (error) {
         console.error('Failed to check rates appreciation:', error);
-        setPriceChangeDirection(null);
+        setPriceChangeInfo(null);
       }
     };
 
@@ -472,13 +516,13 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
                 )}
               </div>
               {/* Price change indicator */}
-              {isKycApproved && !balanceLoading && !balanceRefreshing && !localRefreshing && !poolRatesLoading && priceChangeDirection && priceChangeDirection !== PriceChangeDirection.SAME && (
-                <div className={`flex items-center ${
-                  priceChangeDirection === PriceChangeDirection.UP
+              {isKycApproved && !balanceLoading && !balanceRefreshing && !localRefreshing && !poolRatesLoading && priceChangeInfo && priceChangeInfo.direction !== PriceChangeDirection.SAME && (
+                <div className={`flex flex-col items-center gap-0.5 ${
+                  priceChangeInfo.direction === PriceChangeDirection.UP
                     ? 'text-green-400'
                     : 'text-red-400'
                 }`}>
-                  {priceChangeDirection === PriceChangeDirection.UP ? (
+                  {priceChangeInfo.direction === PriceChangeDirection.UP ? (
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
                     </svg>
@@ -487,6 +531,9 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   )}
+                  <span className="text-sm font-semibold">
+                    {Math.abs(priceChangeInfo.percentageChange).toFixed(2)}%
+                  </span>
                 </div>
               )}
             </div>
