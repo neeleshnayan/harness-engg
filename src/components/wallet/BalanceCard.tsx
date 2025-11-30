@@ -8,6 +8,7 @@ import { getAllPoolRates, haveRatesAppreciated, PriceChangeDirection, PriceChang
 import { K_TOKEN_ADDRESSES_LOWERCASE, K_TOKEN_SYMBOL_LIST, CURRENCY_SYMBOLS } from "@/lib/kTokens";
 import BuyUSDCModal from "@/components/wallet/BuyUSDCModal";
 import SwapModal from "@/components/wallet/SwapModal";
+import { Triangle } from "lucide-react";
 
 interface BalanceCardProps {
   balance: any;
@@ -523,13 +524,9 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
                     : 'text-red-400'
                 }`}>
                   {priceChangeInfo.direction === PriceChangeDirection.UP ? (
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                    </svg>
+                    <Triangle className="h-3 w-3 fill-emerald-400" />
                   ) : (
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
+                    <Triangle className="h-3 w-3 rotate-180 fill-red-400" />
                   )}
                   <span className="text-sm font-semibold">
                     {Math.abs(priceChangeInfo.percentageChange).toFixed(2)}%

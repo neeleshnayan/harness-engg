@@ -13,6 +13,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine } from "recharts";
 import { getHistoricalClosingPoolRates, HistoricalPricePoint } from "@/lib/priceCache";
+import { X, Triangle } from "lucide-react";
 
 interface TokenPriceHistoryModalProps {
   open: boolean;
@@ -50,6 +51,122 @@ const formatDateShort = (dateString: string) => {
   } catch {
     return dateString;
   }
+};
+
+// Factory function to create custom dot component with data bound
+const createCustomDot = (chartData: any[]) => {
+  return (props: any) => {
+    const { cx, cy, payload, index } = props;
+    const innerRadius = 3;
+    const middleRadius = 5.5;
+    const outerRadius = 8;
+
+    // Determine color based on price change compared to previous point
+    let middleRingColor: string | null = null;
+    if (index > 0 && chartData && chartData[index - 1]) {
+      const currentPrice = payload.price;
+      const previousPrice = chartData[index - 1].price;
+      if (currentPrice > previousPrice) {
+        middleRingColor = '#10b981'; // emerald-500 (green)
+      } else if (currentPrice < previousPrice) {
+        middleRingColor = '#ef4444'; // red-500
+      }
+      // If prices are equal, middleRingColor stays null (no ring)
+    }
+
+    return (
+      <g>
+        {/* Outer circle - blue */}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={outerRadius}
+          fill="none"
+          stroke="#3b82f6"
+          strokeWidth={1.5}
+          opacity={0.75}
+        />
+        {/* Middle ring - green/red based on price change */}
+        {middleRingColor && (
+          <circle
+            cx={cx}
+            cy={cy}
+            r={middleRadius}
+            fill="none"
+            stroke={middleRingColor}
+            strokeWidth={3}
+            opacity={0.9}
+          />
+        )}
+        {/* Inner dot - white */}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={innerRadius}
+          fill="#ffffff"
+          stroke="none"
+        />
+      </g>
+    );
+  };
+};
+
+// Factory function to create custom active dot component with data bound
+const createCustomActiveDot = (chartData: any[]) => {
+  return (props: any) => {
+    const { cx, cy, payload, index } = props;
+    const innerRadius = 5;
+    const middleRadius = 8;
+    const outerRadius = 11;
+
+    // Determine color based on price change compared to previous point
+    let middleRingColor: string | null = null;
+    if (index > 0 && chartData && chartData[index - 1]) {
+      const currentPrice = payload.price;
+      const previousPrice = chartData[index - 1].price;
+      if (currentPrice > previousPrice) {
+        middleRingColor = '#10b981'; // emerald-500 (green)
+      } else if (currentPrice < previousPrice) {
+        middleRingColor = '#ef4444'; // red-500
+      }
+      // If prices are equal, middleRingColor stays null (no ring)
+    }
+
+    return (
+      <g>
+        {/* Outer circle - blue */}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={outerRadius}
+          fill="none"
+          stroke="#3b82f6"
+          strokeWidth={2}
+          opacity={0.85}
+        />
+        {/* Middle ring - green/red based on price change */}
+        {middleRingColor && (
+          <circle
+            cx={cx}
+            cy={cy}
+            r={middleRadius}
+            fill="none"
+            stroke={middleRingColor}
+            strokeWidth={4}
+            opacity={0.9}
+          />
+        )}
+        {/* Inner dot - white */}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={innerRadius}
+          fill="#ffffff"
+          stroke="none"
+        />
+      </g>
+    );
+  };
 };
 
 export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
@@ -150,11 +267,11 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
       <DialogPortal>
         <DialogOverlay className="bg-black/80 backdrop-blur-sm" />
         <DialogPrimitive.Content
-          className="fixed left-[50%] top-[50%] z-50 w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 shadow-2xl p-0 overflow-hidden rounded-3xl max-h-[90vh] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]"
+          className="fixed left-[50%] top-[50%] z-50 w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 shadow-2xl p-0 overflow-hidden rounded-3xl max-h-[90vh] focus:outline-none focus:ring-0 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]"
         >
         {/* Header */}
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-zinc-800/50 !text-left">
-          <div className="flex items-center justify-between">
+          <div className="flex items-start justify-between">
             <div className="flex-1 text-left">
               <DialogTitle className="text-xl font-bold text-white text-left">
                 {displaySymbol} Price History
@@ -168,7 +285,10 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
                     <p className={`text-sm font-medium ${
                       priceChange.percentChange >= 0 ? 'text-emerald-400' : 'text-red-400'
                     }`}>
-                      {priceChange.percentChange >= 0 ? '+' : ''}{priceChange.percentChange.toFixed(2)}%
+                      <div className="flex items-center gap-1">
+                        {priceChange.percentChange >= 0 ? <Triangle className="h-3 w-3 fill-emerald-400" /> : <Triangle className="h-3 w-3 rotate-180 fill-red-400" />}
+                        <span>{priceChange.percentChange.toFixed(2)}%</span>
+                      </div>
                     </p>
                   )}
                 </div>
@@ -176,13 +296,10 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
             </div>
             <button
               onClick={onClose}
-              className="text-zinc-400 hover:text-white transition-colors ml-4"
+              className="text-zinc-400 hover:text-white transition-colors ml-4 mt-0.5"
               disabled={loading}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
+              <X className="h-5 w-5" />
             </button>
           </div>
         </DialogHeader>
@@ -222,14 +339,14 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
                         data={chartData.slice(0, 1)} // Minimal data just for Y-axis
                         width={55}
                         height={320}
-                        margin={{ left: 0, right: 0, top: 8, bottom: 30 }}
+                        margin={{ left: 0, right: 0, top: 8, bottom: 0 }}
                       >
                         <YAxis
                           type="number"
                           domain={yAxisDomain}
                           tickLine={false}
                           axisLine={false}
-                          tick={{ fill: '#a1a1aa', fontSize: 9, fontWeight: 300 }}
+                          tick={{ fill: '#a1a1aa', fontSize: 9, fontWeight: 300, dy: 0 }}
                           tickFormatter={(value) => `$${value.toFixed(4)}`}
                           width={55}
                           orientation="left"
@@ -256,7 +373,7 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
                             data={chartData}
                             width={chartMinWidth}
                             height={320}
-                            margin={{ left: 30, right: 16, top: 8, bottom: 30 }}
+                            margin={{ left: 30, right: 16, top: 8, bottom: 40 }}
                           >
                             <CartesianGrid
                               vertical={false}
@@ -320,20 +437,8 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
                               dataKey="price"
                               stroke="#3b82f6"
                               strokeWidth={2}
-                              dot={{
-                                r: 3,
-                                fill: '#3b82f6',
-                                stroke: '#fff',
-                                strokeWidth: 1.5,
-                                className: 'drop-shadow-md'
-                              }}
-                              activeDot={{
-                                r: 5,
-                                fill: '#3b82f6',
-                                stroke: '#fff',
-                                strokeWidth: 2,
-                                className: 'drop-shadow-lg'
-                              }}
+                              dot={createCustomDot(chartData)}
+                              activeDot={createCustomActiveDot(chartData)}
                               className="drop-shadow-lg"
                             />
                           </LineChart>
