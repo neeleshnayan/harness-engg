@@ -29,11 +29,8 @@ export default function MiniHedgeFundChat({
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const feedRef = useRef<HTMLDivElement>(null)
   
-  // Dynamic height management
-  const [containerHeight, setContainerHeight] = useState<number>(350) // Initial height
-  const MIN_HEIGHT = 110
-  const MAX_HEIGHT = 400 // Fixed max height - becomes scrollable after this
-  const HEIGHT_PER_MESSAGE = 80 // Approximate height per message
+  // Max height for scrolling when content is too long
+  const MAX_HEIGHT = 600 // Max height before scrolling kicks in
 
   // Initialize session ID
   useEffect(() => {
@@ -51,24 +48,6 @@ export default function MiniHedgeFundChat({
   // Check if we should show tiles (no user messages or results)
   const shouldShowTiles = !messages.some(m => m.type === 'user') && 
     !messages.some(m => m.backtestResult || m.screenerResult || m.economicResult)
-
-  // Calculate dynamic height based on message count
-  // Height grows with messages but caps at MAX_HEIGHT, then becomes scrollable
-  useEffect(() => {
-    const messageCount = messages.length
-    if (messageCount === 0 || shouldShowTiles) {
-      // When showing tiles, use a larger height to accommodate them
-      setContainerHeight(shouldShowTiles ? MAX_HEIGHT : MIN_HEIGHT)
-    } else {
-      // Calculate height based on message count, but cap at MAX_HEIGHT
-      // After MAX_HEIGHT, the container becomes fixed and scrollable
-      const calculatedHeight = Math.min(
-        MIN_HEIGHT + (messageCount * HEIGHT_PER_MESSAGE),
-        MAX_HEIGHT
-      )
-      setContainerHeight(calculatedHeight)
-    }
-  }, [messages.length, shouldShowTiles])
 
   const createAssistantMessage = (payload: any): ChatMessage => {
     const messageId = (Date.now() + Math.random()).toString()
@@ -236,13 +215,11 @@ export default function MiniHedgeFundChat({
         <img src="/maximize.svg" alt="Maximize" className="h-4 w-4" />
       </Button>
       
-      {/* Messages area - dynamic height that grows with messages, then becomes fixed and scrollable */}
+      {/* Messages area - grows naturally with content, scrollable when exceeding max height */}
       <div
         ref={feedRef}
         className="overflow-y-auto px-4 py-3 scrollbar-thin scrollbar-thumb-zinc-600 scrollbar-track-transparent"
         style={{
-          height: `${containerHeight}px`,
-          transition: 'height 0.3s ease-in-out',
           maxHeight: `${MAX_HEIGHT}px`,
         }}
       >
@@ -293,7 +270,7 @@ export default function MiniHedgeFundChat({
           </button>
           <Button
             onClick={() => router.push('/clark')}
-            className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 h-10 text-sm"
+            className="flex-1 px-4 py-2 bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-4 sm:px-6 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-xs sm:text-sm w-full sm:w-auto justify-center flex items-center gap-2 h-10 text-sm"
           >
             <span>Ask Clark</span>
             <span>→</span>

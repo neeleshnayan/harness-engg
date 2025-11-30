@@ -433,7 +433,7 @@ export default function HedgeFundV2Page() {
           {selectedView === 'overview' && (
             <>
               {/* Mobile: Title and buttons on same row */}
-              <div className="flex items-center justify-between gap-3 mb-4 sm:hidden px-4">
+              {/* <div className="flex items-center justify-between gap-3 mb-4 sm:hidden px-4">
                 <h1 className="text-4xl font-extrabold text-white drop-shadow-lg">
                   Hedge Fund
                 </h1>
@@ -451,10 +451,10 @@ export default function HedgeFundV2Page() {
                     ←
                   </button>
                 </div>
-              </div>
+              </div> */}
 
               {/* Desktop: Centered header with buttons in separate row */}
-              <div className="hidden sm:block">
+              {/* <div className="hidden sm:block">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
                   <div className="w-full sm:flex-1" />
                   <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
@@ -472,12 +472,12 @@ export default function HedgeFundV2Page() {
                     </button>
                   </div>
                 </div>
-              </div>
+              </div> */}
 
               <div className="text-center mb-8 sm:mb-12 px-4">
-                <h1 className="text-4xl sm:text-4xl md:text-5xl font-extrabold text-white mb-4 text-center drop-shadow-lg hidden sm:block">
+                {/* <h1 className="text-4xl sm:text-4xl md:text-5xl font-extrabold text-white mb-4 text-center drop-shadow-lg hidden sm:block">
                   Hedge Fund
-                </h1>
+                </h1> */}
                 {accountData?.username && (
                   <div className="mb-4">
                     <p className="text-zinc-400 text-base sm:text-lg">
