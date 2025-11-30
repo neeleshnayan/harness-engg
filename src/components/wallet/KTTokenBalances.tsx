@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useEffect, useState } from "react";
 import { FaCoins } from "react-icons/fa";
 import { K_TOKEN_ADDRESSES_LOWERCASE } from "@/lib/kTokens";
 import { getPoolRate, getClosingPoolRate } from "@/lib/priceCache";
+import TokenPriceHistoryModal from "./TokenPriceHistoryModal";
 
 interface KTTokenBalance {
   symbol: string;
@@ -58,17 +59,18 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [itemsPerRow, setItemsPerRow] = useState<number>(Math.ceil(kTokenBalances.length / 2));
-  // Track price comparisons: true if closing price > current price (reddish), false otherwise (greenish)
-  const [priceComparisons, setPriceComparisons] = useState<Record<string, boolean>>({});
+  // Track price comparisons: "up" if current > closing (green), "down" if current < closing (red), undefined if same or no data
+  const [priceComparisons, setPriceComparisons] = useState<Record<string, "up" | "down" | undefined>>({});
+  const [selectedTokenForModal, setSelectedTokenForModal] = useState<string | null>(null);
 
   // Fetch and compare closing vs current pool prices for each token
   useEffect(() => {
     const fetchPriceComparisons = async () => {
-      const comparisons: Record<string, boolean> = {};
+      const comparisons: Record<string, "up" | "down" | undefined> = {};
 
       for (const token of kTokenBalances) {
-        // Skip USDC as it's always 1:1 with USD
-        if (token.symbol === "USDC") {
+        // Skip USDC and kUSD as they're always 1:1 with USD
+        if (token.symbol === "USDC" || token.symbol === "kUSD") {
           continue;
         }
 
@@ -79,10 +81,16 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
             getClosingPoolRate("kUSD", token.symbol == "kUSD" ? "USDC" : token.symbol),
           ]);
 
-          // If closing price > current price, token has depreciated (reddish)
-          // If closing price <= current price, token has appreciated (greenish)
+          console.log(`Current rate for ${token.symbol}: ${currentRate}, Closing rate: ${closingRate}`);
+
+          // Compare prices: green if current > closing, red if current < closing, undefined if same
           if (currentRate > 0 && closingRate > 0) {
-            comparisons[token.symbol] = closingRate > currentRate;
+            if (currentRate > closingRate) {
+              comparisons[token.symbol] = "up"; // Green - price went up
+            } else if (currentRate < closingRate) {
+              comparisons[token.symbol] = "down"; // Red - price went down
+            }
+            // If prices are equal, leave undefined (will show normal/uncolored)
           }
         } catch (error) {
           console.error(`Failed to fetch prices for ${token.symbol}:`, error);
@@ -140,64 +148,58 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
     }
   });
 
-  return (
-    <div className={`mt-4 pt-4 border-t border-zinc-700/50 ${className}`}>
-      <div className="mb-2">
-        <div className="flex items-center text-zinc-400 text-sm">
-          <FaCoins className="mr-2" />
-          All Currencies
-        </div>
-      </div>
-      <div
-        ref={containerRef}
-        className="overflow-x-auto overflow-y-hidden pb-2 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-zinc-600"
-        style={{
-          WebkitOverflowScrolling: 'touch',
-          scrollbarWidth: 'thin',
-          overscrollBehavior: 'contain'
-        }}
-        onTouchStart={(e) => e.stopPropagation()}
-        onTouchMove={(e) => e.stopPropagation()}
-        onTouchEnd={(e) => e.stopPropagation()}
-      >
-        <div className="inline-block">
-          <div className="flex gap-2 mb-2">
-            {finalFirstRow.map((token, idx) => {
-              const isDepreciated = priceComparisons[token.symbol];
-              const hasPriceData = token.symbol in priceComparisons || token.symbol === "USDC";
-              const bgColor = hasPriceData && token.symbol !== "USDC"
-                ? isDepreciated
-                  ? "bg-red-950/40 border-red-800/50"
-                  : "bg-green-950/40 border-green-800/50"
-                : "bg-zinc-800/60 border-zinc-700/50";
+  const handleTokenClick = (tokenSymbol: string) => {
+    // Only allow clicking on tokens that aren't USDC or kUSD
+    if (tokenSymbol !== "USDC" && tokenSymbol !== "kUSD") {
+      setSelectedTokenForModal(tokenSymbol);
+    }
+  };
 
-              return (
-                <div
-                  key={`${token.symbol}-${idx}`}
-                  className={`${bgColor} border rounded-lg px-3 py-2 flex items-center flex-shrink-0`}
-                >
-                  <span className="text-white font-medium text-sm whitespace-nowrap">
-                    {parseFloat(token.balance).toFixed(2)} {token.symbol.replace(/^k/, '')}
-                  </span>
-                </div>
-              );
-            })}
+  const isClickable = (tokenSymbol: string) => {
+    return tokenSymbol !== "USDC" && tokenSymbol !== "kUSD";
+  };
+
+  return (
+    <>
+      <div className={`mt-4 pt-4 border-t border-zinc-700/50 ${className}`}>
+        <div className="mb-2">
+          <div className="flex items-center text-zinc-400 text-sm">
+            <FaCoins className="mr-2" />
+            All Currencies
           </div>
-          {finalSecondRow.length > 0 && (
-            <div className="flex gap-2">
-              {finalSecondRow.map((token, idx) => {
-                const isDepreciated = priceComparisons[token.symbol];
-                const hasPriceData = token.symbol in priceComparisons || token.symbol === "USDC";
-                const bgColor = hasPriceData && token.symbol !== "USDC"
-                  ? isDepreciated
-                    ? "bg-red-950/40 border-red-800/50"
-                    : "bg-green-950/40 border-green-800/50"
+        </div>
+        <div
+          ref={containerRef}
+          className="overflow-x-auto overflow-y-hidden pb-2 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-zinc-600"
+          style={{
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'thin',
+            overscrollBehavior: 'contain'
+          }}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+        >
+          <div className="inline-block">
+            <div className="flex gap-2 mb-2">
+              {finalFirstRow.map((token, idx) => {
+                const priceComparison = priceComparisons[token.symbol];
+                const bgColor = token.symbol !== "USDC" && token.symbol !== "kUSD" && priceComparison
+                  ? priceComparison === "up"
+                    ? "bg-green-950/40 border-green-800/50"
+                    : "bg-red-950/40 border-red-800/50"
                   : "bg-zinc-800/60 border-zinc-700/50";
+                const clickable = isClickable(token.symbol);
 
                 return (
                   <div
-                    key={`${token.symbol}-row2-${idx}`}
-                    className={`${bgColor} border rounded-lg px-3 py-2 flex items-center flex-shrink-0`}
+                    key={`${token.symbol}-${idx}`}
+                    onClick={() => handleTokenClick(token.symbol)}
+                    className={`${bgColor} border rounded-lg px-3 py-2 flex items-center flex-shrink-0 ${
+                      clickable
+                        ? "cursor-pointer hover:opacity-80 transition-opacity"
+                        : ""
+                    }`}
                   >
                     <span className="text-white font-medium text-sm whitespace-nowrap">
                       {parseFloat(token.balance).toFixed(2)} {token.symbol.replace(/^k/, '')}
@@ -206,10 +208,47 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
                 );
               })}
             </div>
-          )}
+            {finalSecondRow.length > 0 && (
+              <div className="flex gap-2">
+                {finalSecondRow.map((token, idx) => {
+                  const priceComparison = priceComparisons[token.symbol];
+                  const bgColor = token.symbol !== "USDC" && token.symbol !== "kUSD" && priceComparison
+                    ? priceComparison === "up"
+                      ? "bg-green-950/40 border-green-800/50"
+                      : "bg-red-950/40 border-red-800/50"
+                    : "bg-zinc-800/60 border-zinc-700/50";
+                  const clickable = isClickable(token.symbol);
+
+                  return (
+                    <div
+                      key={`${token.symbol}-row2-${idx}`}
+                      onClick={() => handleTokenClick(token.symbol)}
+                      className={`${bgColor} border rounded-lg px-3 py-2 flex items-center flex-shrink-0 ${
+                        clickable
+                          ? "cursor-pointer hover:opacity-80 transition-opacity"
+                          : ""
+                      }`}
+                    >
+                      <span className="text-white font-medium text-sm whitespace-nowrap">
+                        {parseFloat(token.balance).toFixed(2)} {token.symbol.replace(/^k/, '')}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {selectedTokenForModal && (
+        <TokenPriceHistoryModal
+          open={!!selectedTokenForModal}
+          onClose={() => setSelectedTokenForModal(null)}
+          tokenSymbol={selectedTokenForModal}
+        />
+      )}
+    </>
   );
 };
 

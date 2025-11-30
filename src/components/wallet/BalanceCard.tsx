@@ -4,7 +4,7 @@ import KTTokenBalances from "@/components/wallet/KTTokenBalances";
 import { FaShieldAlt, FaPlus } from "react-icons/fa";
 import { TbArrowsExchange2 } from "react-icons/tb";
 import { FiRefreshCw } from "react-icons/fi";
-import { getAllPoolRates } from "@/lib/priceCache";
+import { getAllPoolRates, haveRatesAppreciated, PriceChangeDirection } from "@/lib/priceCache";
 import { K_TOKEN_ADDRESSES_LOWERCASE, K_TOKEN_SYMBOL_LIST, CURRENCY_SYMBOLS } from "@/lib/kTokens";
 import BuyUSDCModal from "@/components/wallet/BuyUSDCModal";
 import SwapModal from "@/components/wallet/SwapModal";
@@ -69,6 +69,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   const [selectedCurrency, setSelectedCurrency] = useState('USD');
   const [poolRates, setPoolRates] = useState<{ [key: string]: number }>({});
   const [poolRatesLoading, setPoolRatesLoading] = useState(true);
+  const [priceChangeDirection, setPriceChangeDirection] = useState<PriceChangeDirection | null>(null);
   const [activeSlide, setActiveSlide] = useState(1); // Start at balance (middle slide)
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [touchEndX, setTouchEndX] = useState<number | null>(null);
@@ -203,6 +204,25 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
     const interval = setInterval(fetchRates, 3600000); // Refresh every hour
     return () => clearInterval(interval);
   }, []);
+
+  // Check if rates have appreciated when balance or pool rates change
+  useEffect(() => {
+    const checkRatesAppreciation = async () => {
+      if (!balance || poolRatesLoading || !poolRates || Object.keys(poolRates).length === 0) {
+        return;
+      }
+
+      try {
+        const direction = await haveRatesAppreciated(balance);
+        setPriceChangeDirection(direction);
+      } catch (error) {
+        console.error('Failed to check rates appreciation:', error);
+        setPriceChangeDirection(null);
+      }
+    };
+
+    checkRatesAppreciation();
+  }, [balance, poolRates, poolRatesLoading]);
 
   // Calculate total balance in selected currency
   const calculateTotalBalance = (): number => {
@@ -426,28 +446,48 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
         {/* Show balance always if username exists, but blur if KYC not approved */}
         {showBalanceSection && (
           <div className={`flex items-center justify-center mb-4 ${!isKycApproved ? 'blur-sm' : ''}`}>
-            <div className={`text-6xl font-bold text-white relative transition-all duration-200 ${
-              isFlickering ? 'balance-flicker' : ''
-            }`}>
-              {balanceLoading || balanceRefreshing || localRefreshing || poolRatesLoading ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mr-3"></div>
-                  <span className="text-2xl">
-                    {localRefreshing ? 'Updating...' : balanceRefreshing ? 'Refreshing...' : 'Loading...'}
-                  </span>
+            <div className="flex items-center gap-3">
+              <div className={`text-6xl font-bold text-white relative transition-all duration-200 ${
+                isFlickering ? 'balance-flicker' : ''
+              }`}>
+                {balanceLoading || balanceRefreshing || localRefreshing || poolRatesLoading ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mr-3"></div>
+                    <span className="text-2xl">
+                      {localRefreshing ? 'Updating...' : balanceRefreshing ? 'Refreshing...' : 'Loading...'}
+                    </span>
+                  </div>
+                ) : error ? (
+                  <span className="text-red-400 text-2xl font-semibold">{error}</span>
+                ) : (() => {
+                  const totalBalance = calculateTotalBalance();
+                  if (totalBalance > 0) {
+                    return `${currencySymbol}${totalBalance.toFixed(2)}`;
+                  }
+                  return '-';
+                })()}
+                {/* Subtle refresh indicator */}
+                {localRefreshing && (
+                  <div className="absolute -top-2 -right-2 w-4 h-4 bg-green-500 rounded-full animate-pulse"></div>
+                )}
+              </div>
+              {/* Price change indicator */}
+              {isKycApproved && !balanceLoading && !balanceRefreshing && !localRefreshing && !poolRatesLoading && priceChangeDirection && priceChangeDirection !== PriceChangeDirection.SAME && (
+                <div className={`flex items-center ${
+                  priceChangeDirection === PriceChangeDirection.UP
+                    ? 'text-green-400'
+                    : 'text-red-400'
+                }`}>
+                  {priceChangeDirection === PriceChangeDirection.UP ? (
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  )}
                 </div>
-              ) : error ? (
-                <span className="text-red-400 text-2xl font-semibold">{error}</span>
-              ) : (() => {
-                const totalBalance = calculateTotalBalance();
-                if (totalBalance > 0) {
-                  return `${currencySymbol}${totalBalance.toFixed(2)}`;
-                }
-                return '-';
-              })()}
-              {/* Subtle refresh indicator */}
-              {localRefreshing && (
-                <div className="absolute -top-2 -right-2 w-4 h-4 bg-green-500 rounded-full animate-pulse"></div>
               )}
             </div>
           </div>

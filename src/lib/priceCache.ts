@@ -1,4 +1,5 @@
 import { kryptonPoolsSubgraphApi } from './api';
+import { K_TOKEN_ADDRESSES_LOWERCASE } from './kTokens';
 
 interface CachedPrice {
   price: number;
@@ -8,6 +9,18 @@ interface CachedPrice {
 export interface PoolRate {
   pair: string;
   rate: number;
+}
+
+export interface HistoricalPricePoint {
+  date: string; // ISO date string (YYYY-MM-DD)
+  timestamp: number; // Unix timestamp in milliseconds
+  price: number; // USD price of the token
+}
+
+export enum PriceChangeDirection {
+  UP = "UP",
+  DOWN = "DOWN",
+  SAME = "SAME"
 }
 
 interface PoolRateData {
@@ -70,8 +83,13 @@ const priceCache: Map<string, CachedPrice> = new Map();
 let cachedPoolRates: PoolRate[] | null = null;
 let cachedPoolRatesTimestamp: number = 0;
 
+// In-memory cache for all closing pool rates
+let cachedClosingPoolRates: PoolRate[] | null = null;
+let cachedClosingPoolRatesTimestamp: number = 0;
+
 // Track ongoing requests to prevent duplicate API calls
 let pendingPoolRatesRequest: Promise<PoolRate[]> | null = null;
+let pendingClosingPoolRatesRequest: Promise<PoolRate[]> | null = null;
 
 // Track pending requests for individual pool prices
 // Key format: "fromToken-toToken", Value: Promise<number>
@@ -214,11 +232,11 @@ async function fetchAllPoolRatesFromSubgraph(): Promise<PoolRate[]> {
   }
 }
 
-async function fetchClosingPoolRatesFromSubgraph(): Promise<ClosingPoolRateHistory[]> {
+async function fetchClosingPoolRatesFromSubgraph(numEntries: number = 4): Promise<ClosingPoolRateHistory[]> {
   const query = `
     query {
       closingPoolRateHistories(
-        first: 4,
+        first: ${numEntries},
         orderBy: blockNumber,
         orderDirection: desc
       ) {
@@ -250,6 +268,59 @@ async function fetchClosingPoolRatesFromSubgraph(): Promise<ClosingPoolRateHisto
 }
 
 /**
+ * Fetch all closing pool rates from subgraph and convert to PoolRate format
+ */
+async function fetchAllClosingPoolRatesFromSubgraph(numEntries: number = 4): Promise<PoolRate[]> {
+  try {
+    const closingRates = await fetchClosingPoolRatesFromSubgraph(numEntries);
+    const rates: PoolRate[] = [];
+
+    // Create a lowercase lookup map for case-insensitive matching
+    const poolToTokenLowercase: Record<string, string> = {};
+    for (const [address, token] of Object.entries(POOL_TO_TOKEN)) {
+      poolToTokenLowercase[address.toLowerCase()] = token;
+    }
+
+    // Convert closing pool rates to PoolRate format
+    for (const closingRateHistory of closingRates) {
+      const poolRate = closingRateHistory.history;
+      const poolAddress = poolRate.pool.toLowerCase();
+      const token = poolToTokenLowercase[poolAddress];
+
+      if (!token) {
+        continue;
+      }
+
+      // Extract rate: amount of kUSD per 1 token
+      const usdPerToken = extractRate(poolRate.tokenRates);
+      // Calculate inverse: amount of token per 1 kUSD
+      const tokenPerUsd = 1 / usdPerToken;
+
+      if (usdPerToken > 0) {
+        // Only add if we haven't already added this token pair
+        // Since results are sorted desc, the first occurrence is the latest closing rate
+        if (!rates.find(r => r.pair === `kUSD/${token}`)) {
+          rates.push({
+            pair: `kUSD/${token}`,
+            rate: usdPerToken, // USD per token
+          });
+
+          rates.push({
+            pair: `${token}/kUSD`,
+            rate: tokenPerUsd, // token per kUSD
+          });
+        }
+      }
+    }
+
+    return rates;
+  } catch (error) {
+    console.error('Failed to fetch all closing pool rates from subgraph:', error);
+    throw error;
+  }
+}
+
+/**
  * Strip the 'k' prefix from token symbol if present
  * tokenPair in subgraph response uses format like "USD/GBP" without 'k' prefix
  *
@@ -258,6 +329,116 @@ async function fetchClosingPoolRatesFromSubgraph(): Promise<ClosingPoolRateHisto
  */
 function stripKPrefix(token: string): string {
   return token.startsWith('k') ? token.substring(1) : token;
+}
+
+/**
+ * Get historical closing pool rates for a specific token
+ * Fetches closing rates over time and formats them for charting
+ *
+ * @param tokenSymbol - Token symbol (e.g., "kEUR", "kGBP", "kAED")
+ * @param numEntries - Number of historical entries to fetch (default: 1000)
+ * @returns Promise resolving to array of HistoricalPricePoint sorted by date (oldest first)
+ */
+export async function getHistoricalClosingPoolRates(
+  tokenSymbol: string,
+  numEntries: number = 1000
+): Promise<HistoricalPricePoint[]> {
+  try {
+    // Strip 'k' prefix to match tokenPair format in subgraph
+    const tokenWithoutK = stripKPrefix(tokenSymbol);
+    const tokenPair = `USD/${tokenWithoutK}`; // Format in subgraph: "USD/EUR"
+
+    // Fetch closing pool rates from subgraph
+    const closingRates = await fetchClosingPoolRatesFromSubgraph(numEntries);
+
+    // Get pool address for this token to match
+    const poolAddress = Object.entries(POOL_TO_TOKEN).find(
+      ([_, symbol]) => symbol === tokenSymbol
+    )?.[0];
+
+    if (!poolAddress) {
+      console.warn(`No pool address found for token ${tokenSymbol}`);
+      return [];
+    }
+
+    // Filter and map historical data
+    const historicalData: HistoricalPricePoint[] = [];
+
+    for (const closingRateHistory of closingRates) {
+      const poolRate = closingRateHistory.history;
+
+      // Match by pool address and tokenPair
+      if (
+        poolRate.pool.toLowerCase() === poolAddress.toLowerCase() &&
+        poolRate.tokenPair === tokenPair
+      ) {
+        const rate = extractRate(poolRate.tokenRates);
+
+        if (rate > 0) {
+          // Use the closing rate history blockTimestamp (in seconds, convert to milliseconds)
+          const timestamp = parseInt(closingRateHistory.blockTimestamp) * 1000;
+          const date = new Date(timestamp);
+
+          // Format date as YYYY-MM-DD for consistent grouping by day
+          const dateString = date.toISOString().split('T')[0];
+
+          historicalData.push({
+            date: dateString,
+            timestamp: timestamp,
+            price: rate, // USD per token
+          });
+        }
+      }
+    }
+
+    // Sort by date (oldest first) and remove duplicates by date (keep first occurrence)
+    const uniqueByDate = new Map<string, HistoricalPricePoint>();
+    for (const point of historicalData.sort((a, b) => a.timestamp - b.timestamp)) {
+      if (!uniqueByDate.has(point.date)) {
+        uniqueByDate.set(point.date, point);
+      }
+    }
+
+    const sortedHistorical = Array.from(uniqueByDate.values()).sort((a, b) => a.timestamp - b.timestamp);
+
+    // Fetch current pool rate and add it as the last data point
+    try {
+      const currentRate = await getPoolRate("kUSD", tokenSymbol);
+      if (currentRate > 0) {
+        const now = Date.now();
+        const today = new Date(now);
+        const todayDateString = today.toISOString().split('T')[0];
+
+        // Check if today's date already exists in historical data
+        const existingIndex = sortedHistorical.findIndex(p => p.date === todayDateString);
+
+        if (existingIndex !== -1) {
+          // If today's date exists, update it with the current rate (which is more up-to-date than closing rate)
+          sortedHistorical[existingIndex] = {
+            date: todayDateString,
+            timestamp: now,
+            price: currentRate, // USD per token
+          };
+        } else {
+          // If today's date doesn't exist, add the current rate as the last data point
+          sortedHistorical.push({
+            date: todayDateString,
+            timestamp: now,
+            price: currentRate, // USD per token
+          });
+        }
+      }
+    } catch (error) {
+      console.warn(`Failed to fetch current pool rate for ${tokenSymbol}:`, error);
+      // Continue without current rate if it fails
+    }
+
+    // Return sorted by timestamp (oldest to newest)
+    return sortedHistorical.sort((a, b) => a.timestamp - b.timestamp);
+  } catch (error) {
+    console.error(`Failed to fetch historical closing pool rates for ${tokenSymbol}:`, error);
+    return [];
+  }
 }
 
 /**
@@ -271,7 +452,7 @@ function stripKPrefix(token: string): string {
  * @param toToken - Destination token symbol (e.g., "kEUR" or "EUR")
  * @returns Promise resolving to the closing rate (number)
  */
-export async function getClosingPoolRate(fromToken: string, toToken: string): Promise<number> {
+export async function getClosingPoolRate(fromToken: string, toToken: string, numEntries: number = 4): Promise<number> {
   const cacheKey = getCacheKey(fromToken, toToken);
   // Strip 'k' prefix from tokens to match tokenPair format in subgraph response (e.g., "USD/GBP")
   const tokenPair = `${stripKPrefix(fromToken)}/${stripKPrefix(toToken)}`;
@@ -292,7 +473,7 @@ export async function getClosingPoolRate(fromToken: string, toToken: string): Pr
   const requestPromise = (async () => {
     try {
       // Fetch closing pool rates from subgraph (already sorted desc by blockNumber)
-      const closingRates = await fetchClosingPoolRatesFromSubgraph();
+      const closingRates = await fetchClosingPoolRatesFromSubgraph(numEntries);
 
       // Find the rate where tokenPair matches (e.g., "USD/GBP" format without 'k' prefix)
       // Since results are sorted desc, the first match will be the latest closing rate
@@ -318,7 +499,6 @@ export async function getClosingPoolRate(fromToken: string, toToken: string): Pr
         timestamp: Date.now(),
       });
 
-      console.log(`Closing rate for ${cacheKey}: ${closingRate}`);
       return closingRate;
     } catch (error) {
       console.error(`Failed to fetch closing pool rate for ${cacheKey}:`, error);
@@ -387,6 +567,55 @@ export async function getAllPoolRates(): Promise<PoolRate[]> {
 
   // Store the pending request
   pendingPoolRatesRequest = requestPromise;
+
+  return requestPromise;
+}
+
+/**
+ * Get all closing pool rates
+ * Fetches from subgraph if cache is stale or missing
+ *
+ * @returns Promise resolving to an array of closing pool rates
+ */
+export async function getAllClosingPoolRates(numEntries: number = 4): Promise<PoolRate[]> {
+  // Check if we have valid cached closing rates
+  if (cachedClosingPoolRates && isCacheValid(cachedClosingPoolRatesTimestamp)) {
+    return cachedClosingPoolRates;
+  }
+
+  // Check if there's already a pending request
+  if (pendingClosingPoolRatesRequest) {
+    return pendingClosingPoolRatesRequest;
+  }
+
+  // Create a new request promise
+  const requestPromise = (async () => {
+    try {
+      const rates = await fetchAllClosingPoolRatesFromSubgraph(numEntries);
+
+      // Update cache
+      cachedClosingPoolRates = rates;
+      cachedClosingPoolRatesTimestamp = Date.now();
+
+      return rates;
+    } catch (error) {
+      console.error('Failed to fetch closing pool rates:', error);
+
+      // If we have stale cache, return it as fallback
+      if (cachedClosingPoolRates) {
+        console.warn('Using stale cached closing pool rates');
+        return cachedClosingPoolRates;
+      }
+
+      throw error;
+    } finally {
+      // Clear pending request
+      pendingClosingPoolRatesRequest = null;
+    }
+  })();
+
+  // Store the pending request
+  pendingClosingPoolRatesRequest = requestPromise;
 
   return requestPromise;
 }
@@ -508,7 +737,10 @@ export function clearPriceCache(): void {
   priceCache.clear();
   cachedPoolRates = null;
   cachedPoolRatesTimestamp = 0;
+  cachedClosingPoolRates = null;
+  cachedClosingPoolRatesTimestamp = 0;
   pendingPoolRatesRequest = null;
+  pendingClosingPoolRatesRequest = null;
   pendingPriceRequests.clear();
   closingPoolRateCache.clear();
   pendingClosingPoolRateRequests.clear();
@@ -529,8 +761,114 @@ export function clearCachedPrice(fromToken: string, toToken: string): void {
 export function clearOracleRatesCache(): void {
   cachedPoolRates = null;
   cachedPoolRatesTimestamp = 0;
+  cachedClosingPoolRates = null;
+  cachedClosingPoolRatesTimestamp = 0;
   pendingPoolRatesRequest = null;
+  pendingClosingPoolRatesRequest = null;
   pendingPriceRequests.clear();
+}
+
+/**
+ * Calculate total balance value in USD using given pool rates
+ */
+function calculateTotalBalanceInUSD(
+  balance: any,
+  poolRatesMap: { [key: string]: number }
+): number {
+  if (!balance || !Array.isArray(balance.tokenBalances) || balance.tokenBalances.length === 0) {
+    return 0;
+  }
+
+  let totalInUSD = 0;
+
+  // Get USDC and TRNSK balances (both are in USD)
+  const transakToken = balance.tokenBalances.find(
+    (b: any) => b.token && b.token.symbol === 'TRNSK'
+  );
+  const usdc = balance.tokenBalances.find(
+    (b: any) => b.token && b.token.symbol === 'USDC'
+  );
+  const transakAmount = parseFloat(transakToken?.amount ?? "0");
+  const usdcAmount = parseFloat(usdc?.amount ?? "0");
+  totalInUSD += transakAmount + usdcAmount;
+
+  // Get kToken balances and convert to USD
+  for (const tb of balance.tokenBalances) {
+    const tokenAddress = tb?.token?.tokenAddress?.toLowerCase();
+    const kTokenSymbol = tokenAddress ? K_TOKEN_ADDRESSES_LOWERCASE[tokenAddress] : undefined;
+
+    if (kTokenSymbol && parseFloat(tb.amount) > 0) {
+      const kTokenAmount = parseFloat(tb.amount || "0");
+      let usdValue = 0;
+
+      if (kTokenSymbol === 'kUSD') {
+        // kUSD is 1:1 with USD
+        usdValue = kTokenAmount;
+      } else {
+        // Get the rate pair for this kToken
+        const ratePair = `kUSD/${kTokenSymbol}`;
+        const rate = poolRatesMap[ratePair];
+
+        if (rate && rate > 0) {
+          // Rate is already in format: USD/EUR = 1.16251899 means 1 EUR = 1.16251899 USD
+          // So to convert kToken to USD: multiply by rate
+          usdValue = kTokenAmount * rate;
+        }
+      }
+
+      totalInUSD += usdValue;
+    }
+  }
+
+  return totalInUSD;
+}
+
+/**
+ * Compare total balance value between current and closing rates
+ * Returns UP if current > closing, DOWN if current < closing, SAME if equal
+ *
+ * @param balance - Balance data object containing tokenBalances array
+ * @returns Promise resolving to PriceChangeDirection enum
+ */
+export async function haveRatesAppreciated(balance: any): Promise<PriceChangeDirection> {
+  try {
+    // Fetch both current and closing pool rates
+    const [currentRates, closingRates] = await Promise.all([
+      getAllPoolRates(),
+      getAllClosingPoolRates(),
+    ]);
+
+    // Convert arrays to maps for easier lookup
+    const currentRatesMap: { [key: string]: number } = {};
+    currentRates.forEach((rate) => {
+      currentRatesMap[rate.pair] = rate.rate;
+    });
+
+    const closingRatesMap: { [key: string]: number } = {};
+    closingRates.forEach((rate) => {
+      closingRatesMap[rate.pair] = rate.rate;
+    });
+
+    // Calculate total balance in USD using both rate sets
+    const currentTotalUSD = calculateTotalBalanceInUSD(balance, currentRatesMap);
+    const closingTotalUSD = calculateTotalBalanceInUSD(balance, closingRatesMap);
+
+    // Compare with small threshold to handle floating point precision
+    const threshold = 0.01; // $0.01 threshold
+    const diff = currentTotalUSD - closingTotalUSD;
+
+    if (Math.abs(diff) < threshold) {
+      return PriceChangeDirection.SAME;
+    } else if (diff > 0) {
+      return PriceChangeDirection.UP;
+    } else {
+      return PriceChangeDirection.DOWN;
+    }
+  } catch (error) {
+    console.error('Failed to compare rates appreciation:', error);
+    // Return SAME on error to avoid showing incorrect indicators
+    return PriceChangeDirection.SAME;
+  }
 }
 
 /**

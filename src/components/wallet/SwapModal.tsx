@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { web3Api } from "@/lib/api";
 import { K_TOKEN_ADDRESSES_LOWERCASE, K_TOKEN_SYMBOL_LIST } from "@/lib/kTokens";
 import { getPoolRate } from "@/lib/priceCache";
+import { ArrowUpDown } from "lucide-react";
 
 interface SwapModalProps {
   visible: boolean;
@@ -14,11 +15,17 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, ba
   const [fromAmount, setFromAmount] = useState<string>("");
   const [fromCurrency, setFromCurrency] = useState<string>("kUSD");
   const [toCurrency, setToCurrency] = useState<string>("kEUR");
-  const [toAmount, setToAmount] = useState<string>("0");
+  const [toAmount, setToAmount] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
-  const [loadingRate, setLoadingRate] = useState<boolean>(false);
+  const [isCalculatingFrom, setIsCalculatingFrom] = useState<boolean>(false);
+  const [isCalculatingTo, setIsCalculatingTo] = useState<boolean>(false);
+  const [exchangeRate, setExchangeRate] = useState<number | null>(null);
+  const [exchangeRateLoading, setExchangeRateLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const isUpdatingFromRef = useRef<boolean>(false);
+  const isUpdatingToRef = useRef<boolean>(false);
+  const focusedFieldRef = useRef<"from" | "to" | null>(null);
 
   const balances = useMemo(() => {
     const result: Record<string, number> = {};
@@ -55,54 +62,206 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, ba
   useEffect(() => {
     if (!visible) {
       setFromAmount("");
-      setToAmount("0");
+      setToAmount("");
       setError(null);
       setSuccess(null);
+      setExchangeRate(null);
+      setExchangeRateLoading(false);
+      focusedFieldRef.current = null;
       return;
     }
   }, [visible]);
 
+  // Calculate To amount when From amount changes
   useEffect(() => {
-    let cancelled = false;
-    const calculateRate = async () => {
-      if (!fromAmount || isNaN(Number(fromAmount)) || Number(fromAmount) <= 0) {
-        setToAmount("0");
-        return;
+    // Don't update if user is currently typing in the "to" field
+    if (focusedFieldRef.current === "to") {
+      return;
+    }
+
+    if (!visible || !fromCurrency || !toCurrency || !fromAmount) {
+      if (!fromAmount) {
+        setToAmount("");
       }
-      setLoadingRate(true);
+      return;
+    }
+
+    const amountNum = parseFloat(fromAmount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setToAmount("");
+      return;
+    }
+
+    // If currencies are the same, just set equal amounts
+    if (fromCurrency === toCurrency) {
+      isUpdatingToRef.current = true;
+      setToAmount(fromAmount);
+      setTimeout(() => {
+        isUpdatingToRef.current = false;
+      }, 100);
+      return;
+    }
+
+    let cancelled = false;
+
+    const calculateToAmount = async () => {
+      setIsCalculatingTo(true);
       try {
-        const rate = await getPoolRate(toCurrency, fromCurrency);
+        const price = await getPoolRate(toCurrency, fromCurrency);
         if (cancelled) return;
-        if (rate > 0) {
-          const calculated = Number(fromAmount) * rate;
-          setToAmount(calculated.toFixed(4));
+        if (price > 0) {
+          isUpdatingToRef.current = true;
+          const calculatedTo = amountNum * price;
+          setToAmount(calculatedTo.toFixed(2));
+          setTimeout(() => {
+            isUpdatingToRef.current = false;
+          }, 100);
         } else {
-          setToAmount("0");
+          setToAmount("");
         }
-      } catch (err) {
-        if (!cancelled) {
-          console.error("Failed to fetch swap rate:", err);
-          setToAmount("0");
-        }
+      } catch (e) {
+        if (cancelled) return;
+        console.error('Failed to fetch exchange rate for To amount:', e);
+        setToAmount("");
       } finally {
         if (!cancelled) {
-          setLoadingRate(false);
+          setIsCalculatingTo(false);
         }
       }
     };
 
-    calculateRate();
+    calculateToAmount();
     return () => {
       cancelled = true;
     };
-  }, [fromAmount, fromCurrency, toCurrency]);
+  }, [fromAmount, fromCurrency, toCurrency, visible]);
+
+  // Calculate From amount when To amount changes
+  useEffect(() => {
+    // Don't update if user is currently typing in the "from" field
+    if (focusedFieldRef.current === "from") {
+      return;
+    }
+
+    if (!visible || !fromCurrency || !toCurrency || !toAmount) {
+      if (!toAmount) {
+        setFromAmount("");
+      }
+      return;
+    }
+
+    const amountNum = parseFloat(toAmount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setFromAmount("");
+      return;
+    }
+
+    // If currencies are the same, just set equal amounts
+    if (fromCurrency === toCurrency) {
+      isUpdatingFromRef.current = true;
+      setFromAmount(toAmount);
+      setTimeout(() => {
+        isUpdatingFromRef.current = false;
+      }, 100);
+      return;
+    }
+
+    let cancelled = false;
+
+    const calculateFromAmount = async () => {
+      setIsCalculatingFrom(true);
+      try {
+        const price = await getPoolRate(toCurrency, fromCurrency);
+        if (cancelled) return;
+        if (price > 0) {
+          isUpdatingFromRef.current = true;
+          const calculatedFrom = amountNum / price;
+          setFromAmount(calculatedFrom.toFixed(2));
+          setTimeout(() => {
+            isUpdatingFromRef.current = false;
+          }, 100);
+        } else {
+          setFromAmount("");
+        }
+      } catch (e) {
+        if (cancelled) return;
+        console.error('Failed to fetch exchange rate for From amount:', e);
+        setFromAmount("");
+      } finally {
+        if (!cancelled) {
+          setIsCalculatingFrom(false);
+        }
+      }
+    };
+
+    calculateFromAmount();
+    return () => {
+      cancelled = true;
+    };
+  }, [toAmount, fromCurrency, toCurrency, visible]);
+
+  // Calculate exchange rate for display
+  useEffect(() => {
+    if (!visible || !fromCurrency || !toCurrency) {
+      setExchangeRate(null);
+      setExchangeRateLoading(false);
+      return;
+    }
+
+    if (fromCurrency === toCurrency) {
+      setExchangeRate(1);
+      setExchangeRateLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchExchangeRate = async () => {
+      setExchangeRateLoading(true);
+      try {
+        const price = await getPoolRate(fromCurrency, toCurrency);
+        if (cancelled) return;
+        if (price > 0) {
+          setExchangeRate(price);
+        } else {
+          setExchangeRate(null);
+        }
+      } catch (e) {
+        if (cancelled) return;
+        console.error('Failed to fetch exchange rate:', e);
+        setExchangeRate(null);
+      } finally {
+        if (!cancelled) {
+          setExchangeRateLoading(false);
+        }
+      }
+    };
+
+    fetchExchangeRate();
+    return () => {
+      cancelled = true;
+    };
+  }, [fromCurrency, toCurrency, visible]);
+
+  // Handle swap currencies
+  const handleSwapCurrencies = () => {
+    const tempCurrency = fromCurrency;
+    setFromCurrency(toCurrency);
+    setToCurrency(tempCurrency);
+    const tempAmount = fromAmount;
+    setFromAmount(toAmount);
+    setToAmount(tempAmount);
+  };
 
   const amountValue = parseFloat(fromAmount);
   const fromBalance = balances[fromCurrency] || 0;
+  const toBalance = balances[toCurrency] || 0;
   const canSwap =
-    !loadingRate &&
+    !isCalculatingFrom &&
+    !isCalculatingTo &&
     !loading &&
     fromAmount !== "" &&
+    toAmount !== "" &&
     !isNaN(amountValue) &&
     amountValue > 0 &&
     fromBalance >= amountValue &&
@@ -144,7 +303,7 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, ba
 
       setSuccess(`Swapped ${amountValue.toFixed(2)} ${fromCurrency.replace(/^k/, "")} to ${swapResponse.data.estimated_output.toFixed(2)} ${toCurrency.replace(/^k/, "")}`);
       setFromAmount("");
-      setToAmount("0");
+      setToAmount("");
     } catch (err: any) {
       console.error("Swap failed:", err);
       setError(err?.response?.data?.message || err?.message || "Swap failed. Try again.");
@@ -199,87 +358,194 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, ba
           <>
             {error && <div className="mb-3 rounded-xl border border-red-500/40 bg-red-500/10 text-red-200 px-4 py-2 text-sm">{error}</div>}
 
-            <div className="space-y-4">
-          <div className="bg-zinc-800/40 border border-zinc-700/40 rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-zinc-400">From</span>
-              <span className="text-xs text-zinc-500">Balance: {fromBalance.toFixed(4)}</span>
-            </div>
-            <div className="relative mt-3">
-              <div className="bg-zinc-900/40 rounded-xl px-4 py-3">
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  pattern="[0-9]*"
-                  min="0"
-                  value={fromAmount}
-                  onChange={(e) => setFromAmount(e.target.value.replace(/[^0-9.]/g, ""))}
-                  placeholder="0.00"
-                  className="w-full bg-transparent text-3xl text-white font-bold focus:outline-none"
-                />
+            {/* From and To Boxes Row */}
+            <div className="relative flex items-center gap-2">
+              {/* From Box */}
+              <div className="flex-1 relative">
+                <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50 pb-12">
+                  <div className="text-xs font-medium text-zinc-400 mb-2">From</div>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={fromAmount}
+                    onChange={(e) => {
+                      // Only allow numbers and decimal point
+                      const value = e.target.value.replace(/[^0-9.]/g, '');
+                      // Prevent multiple decimal points
+                      const parts = value.split('.');
+                      const filteredValue = parts.length > 2
+                        ? parts[0] + '.' + parts.slice(1).join('')
+                        : value;
+                      isUpdatingToRef.current = false;
+                      setFromAmount(filteredValue);
+                    }}
+                    onFocus={() => {
+                      focusedFieldRef.current = "from";
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        focusedFieldRef.current = null;
+                      }, 100);
+                    }}
+                    placeholder="0.00"
+                    className="w-full text-2xl font-bold bg-transparent text-white placeholder-zinc-500 focus:outline-none"
+                    disabled={loading}
+                  />
+                  <div className="text-xs text-zinc-400 mt-2">
+                    Balance: <span className="text-zinc-300">{fromBalance.toFixed(2)}</span>
+                  </div>
+                </div>
+                {/* Currency Dropdown Overlay - Bottom Center */}
+                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 z-10">
+                  <div className="relative">
+                    <select
+                      value={fromCurrency}
+                      onChange={(e) => {
+                        const newValue = e.target.value;
+                        setFromCurrency(newValue);
+                        setFromAmount("");
+                        setToAmount("");
+                        if (newValue === toCurrency) {
+                          const alternative = supportedTokens.find((token) => token !== newValue);
+                          if (alternative) {
+                            setToCurrency(alternative);
+                          }
+                        }
+                      }}
+                      className="appearance-none bg-zinc-700 hover:bg-zinc-600 border-2 border-zinc-600 rounded-xl px-4 py-2 text-white font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 pr-8 shadow-lg"
+                      disabled={loading}
+                    >
+                      {supportedTokens.map((token) => (
+                        <option key={token} value={token}>
+                          {token.replace(/^k/, "")}
+                        </option>
+                      ))}
+                    </select>
+                    <svg
+                      className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400"
+                      width="12"
+                      height="12"
+                      viewBox="0 0 12 12"
+                      fill="none"
+                    >
+                      <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                </div>
+                {isCalculatingTo && (
+                  <div className="absolute top-2 right-2">
+                    <svg className="animate-spin h-4 w-4 text-zinc-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </div>
+                )}
               </div>
-              <select
-                value={fromCurrency}
-                onChange={(e) => {
-                  const newValue = e.target.value;
-                  setFromCurrency(newValue);
-                  if (newValue === toCurrency) {
-                    const alternative = supportedTokens.find((token) => token !== newValue);
-                    if (alternative) {
-                      setToCurrency(alternative);
-                    }
-                  }
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 bg-zinc-900/80 border border-zinc-700 rounded-xl px-4 py-2 text-white focus:outline-none"
-              >
-                {supportedTokens.map((token) => (
-                  <option key={token} value={token} className="bg-zinc-900">
-                    {token.replace(/^k/, "")}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
 
-          <div className="bg-zinc-800/40 border border-zinc-700/40 rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-zinc-400">To (estimated)</span>
-              <span className="text-xs text-zinc-500">
-                {loadingRate ? "Fetching rate..." : `Rate updates as you type`}
-              </span>
-            </div>
-            <div className="relative mt-3">
-              <div className="bg-zinc-900/40 rounded-xl px-4 py-3 text-3xl font-bold text-white">
-                {loadingRate ? <span className="text-zinc-500 animate-pulse">...</span> : Number(toAmount).toFixed(4)}
-              </div>
-              <select
-                value={toCurrency}
-                onChange={(e) => {
-                  const newValue = e.target.value;
-                  setToCurrency(newValue);
-                  if (newValue === fromCurrency) {
-                    const alternative = supportedTokens.find((token) => token !== newValue);
-                    if (alternative) {
-                      setFromCurrency(alternative);
-                    }
-                  }
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 bg-zinc-900/80 border border-zinc-700 rounded-xl px-4 py-2 text-white focus:outline-none"
+              {/* Swap Button - Overlay */}
+              <button
+                onClick={handleSwapCurrencies}
+                disabled={loading || !fromCurrency || !toCurrency}
+                className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-zinc-700 hover:bg-zinc-600 border-2 border-zinc-600 flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed z-30 shadow-lg"
               >
-                {supportedTokens.map((token) => (
-                  <option key={token} value={token} className="bg-zinc-900">
-                    {token.replace(/^k/, "")}
-                  </option>
-                ))}
-              </select>
+                <ArrowUpDown className="w-5 h-5 text-white rotate-90" />
+              </button>
+
+              {/* To Box */}
+              <div className="flex-1 relative">
+                <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50 pb-12">
+                  <div className="text-xs font-medium text-zinc-400 mb-2">To</div>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={toAmount}
+                    onChange={(e) => {
+                      // Only allow numbers and decimal point
+                      const value = e.target.value.replace(/[^0-9.]/g, '');
+                      // Prevent multiple decimal points
+                      const parts = value.split('.');
+                      const filteredValue = parts.length > 2
+                        ? parts[0] + '.' + parts.slice(1).join('')
+                        : value;
+                      isUpdatingFromRef.current = false;
+                      setToAmount(filteredValue);
+                    }}
+                    onFocus={() => {
+                      focusedFieldRef.current = "to";
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        focusedFieldRef.current = null;
+                      }, 100);
+                    }}
+                    placeholder="0.00"
+                    className="w-full text-2xl font-bold bg-transparent text-white placeholder-zinc-500 focus:outline-none"
+                    disabled={loading}
+                  />
+                  <div className="text-xs text-zinc-400 mt-2">
+                    {exchangeRateLoading ? (
+                      <span className="text-zinc-500">Loading rate...</span>
+                    ) : exchangeRate !== null ? (
+                      <>
+                        1 {toCurrency.replace(/^k/, "")} = <span className="text-zinc-300">{exchangeRate.toFixed(2)}</span> {fromCurrency.replace(/^k/, "")}
+                      </>
+                    ) : fromCurrency && toCurrency ? (
+                      <span className="text-zinc-500">Rate unavailable</span>
+                    ) : null}
+                  </div>
+                </div>
+                {/* Currency Dropdown Overlay - Bottom Center */}
+                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 z-10">
+                  <div className="relative">
+                    <select
+                      value={toCurrency}
+                      onChange={(e) => {
+                        const newValue = e.target.value;
+                        setToCurrency(newValue);
+                        setFromAmount("");
+                        setToAmount("");
+                        if (newValue === fromCurrency) {
+                          const alternative = supportedTokens.find((token) => token !== newValue);
+                          if (alternative) {
+                            setFromCurrency(alternative);
+                          }
+                        }
+                      }}
+                      className="appearance-none bg-zinc-700 hover:bg-zinc-600 border-2 border-zinc-600 rounded-xl px-4 py-2 text-white font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 pr-8 shadow-lg"
+                      disabled={loading}
+                    >
+                      {supportedTokens.map((token) => (
+                        <option key={token} value={token}>
+                          {token.replace(/^k/, "")}
+                        </option>
+                      ))}
+                    </select>
+                    <svg
+                      className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400"
+                      width="12"
+                      height="12"
+                      viewBox="0 0 12 12"
+                      fill="none"
+                    >
+                      <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                </div>
+                {isCalculatingFrom && (
+                  <div className="absolute top-2 right-2">
+                    <svg className="animate-spin h-4 w-4 text-zinc-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
 
             <button
               onClick={handleSwap}
               disabled={!canSwap}
-              className="mt-6 w-full bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white font-semibold py-3 rounded-2xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="mt-10 w-full bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white font-semibold py-3 rounded-2xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Swapping..." : "Swap"}
             </button>
