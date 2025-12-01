@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useYearnWBTCSubgraphData } from "@/hooks/useStrategySubgraphData";
 import {
     AreaChart,
@@ -12,6 +12,7 @@ import {
     Line,
     Legend
 } from 'recharts';
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 const formatNumber = (value?: string | number, options?: Intl.NumberFormatOptions) => {
     if (value === undefined || value === null) return '0';
@@ -63,6 +64,9 @@ export const SubgraphAnalyticsYearnWBTC: React.FC<SubgraphAnalyticsYearnWBTCProp
     const signals = data?.signalExecuteds ?? [];
     const deposits = data?.deposits ?? [];
     const withdrawals = data?.withdrawals ?? [];
+
+    const [isExpanded, setIsExpanded] = useState(false);
+    const displayedSignals = isExpanded ? signals : signals.slice(0, 5);
 
     // Process data for charts
     const chartData = useMemo(() => {
@@ -117,7 +121,25 @@ export const SubgraphAnalyticsYearnWBTC: React.FC<SubgraphAnalyticsYearnWBTCProp
             {
                 signals.length > 0 && (
                     <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
-                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-400 mb-4">Recent Signals</p>
+                        <div className="flex items-center justify-between mb-4">
+                            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Recent Signals</p>
+                            {signals.length > 5 && (
+                                <button
+                                    onClick={() => setIsExpanded(!isExpanded)}
+                                    className="flex items-center text-xs text-zinc-400 hover:text-white transition-colors"
+                                >
+                                    {isExpanded ? (
+                                        <>
+                                            Show Less <ChevronUp className="ml-1 h-3 w-3" />
+                                        </>
+                                    ) : (
+                                        <>
+                                            Show All <ChevronDown className="ml-1 h-3 w-3" />
+                                        </>
+                                    )}
+                                </button>
+                            )}
+                        </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left text-sm text-zinc-400">
                                 <thead className="text-xs uppercase text-zinc-500 border-b border-zinc-700/50">
@@ -130,7 +152,7 @@ export const SubgraphAnalyticsYearnWBTC: React.FC<SubgraphAnalyticsYearnWBTCProp
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-700/30">
-                                    {signals.map((signal) => (
+                                    {displayedSignals.map((signal) => (
                                         <tr key={signal.id} className="group hover:bg-zinc-700/20 transition-colors">
                                             <td className="py-3">{formatTimestamp(signal.timestamp)}</td>
                                             <td className="py-3">
