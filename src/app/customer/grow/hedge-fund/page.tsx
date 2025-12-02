@@ -473,22 +473,6 @@ export default function HedgeFundV2Page() {
                   </div>
                 </div>
               </div> */}
-
-              <div className="text-center mb-8 sm:mb-12 px-4">
-                {/* <h1 className="text-4xl sm:text-4xl md:text-5xl font-extrabold text-white mb-4 text-center drop-shadow-lg hidden sm:block">
-                  Hedge Fund
-                </h1> */}
-                {accountData?.username && (
-                  <div className="mb-4">
-                    <p className="text-zinc-400 text-base sm:text-lg">
-                      Welcome back, <span className="text-emerald-400 font-semibold">@{accountData.username}</span>
-                    </p>
-                  </div>
-                )}
-                <p className="text-zinc-400 text-sm sm:text-base md:text-lg mb-8 text-center max-w-xl mx-auto">
-                  Advanced investment strategies with on-chain analytics and subgraph monitoring.
-                </p>
-              </div>
             </>
           )}
 
