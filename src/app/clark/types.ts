@@ -86,6 +86,20 @@ export interface BacktestDataPoint {
   technical_indicators?: TechnicalIndicators
 }
 
+export interface CandleDataPoint {
+  date: string
+  open: number
+  high: number
+  low: number
+  close: number
+  volume?: number | null
+}
+
+export interface CandleData {
+  symbol: string
+  candles: CandleDataPoint[]
+}
+
 export interface BacktestResult {
   success: boolean
   message: string
@@ -103,6 +117,7 @@ export interface BacktestResult {
   target_assets: string[]
   show_performance_stats: boolean
   trades: BacktestTrade[]
+  candle_data?: CandleData[]
 }
 
 export interface ScreenerResult {

@@ -9,6 +9,7 @@ import { formatCurrency, formatPercentage, formatDate, formatNumber } from '../u
 import PortfolioChart from './charts/PortfolioChart'
 import TechnicalCharts from './charts/TechnicalCharts'
 import AllocationCharts from './charts/AllocationCharts'
+import CandleChart from './charts/CandleChart'
 import AgentFlow from './AgentFlow'
 
 interface ResultsDisplayProps {
@@ -565,6 +566,18 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
           )
         })()}
         
+        {/* Candle Charts - Show for each asset with candle data */}
+        {backtestResult.candle_data && backtestResult.candle_data.length > 0 && (
+          <div className="space-y-4">
+            {backtestResult.candle_data.map((candleData, index) => (
+              <CandleChart
+                key={`candle-${index}-${candleData.symbol}`}
+                candleData={candleData}
+              />
+            ))}
+          </div>
+        )}
+
         {backtestResult.show_performance_stats && (
           <PortfolioChart 
             dataPoints={backtestResult.data_points}
