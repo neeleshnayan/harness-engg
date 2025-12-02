@@ -52,15 +52,27 @@ export default function CandleChart({ candleData, title }: CandleChartProps) {
   const chartData = useMemo<CandleChartDataPoint[]>(() => {
     if (!candleData?.candles?.length) return []
 
-    return candleData.candles.map((candle: CandleDataPoint) => ({
-      date: candle.date,
-      open: candle.open,
-      high: candle.high,
-      low: candle.low,
-      close: candle.close,
-      volume: candle.volume,
-      isUp: candle.close >= candle.open,
-    }))
+    return candleData.candles.map((candle: CandleDataPoint) => {
+      // Ensure all values are numbers
+      const open = Number(candle.open)
+      const close = Number(candle.close)
+      const high = Number(candle.high)
+      const low = Number(candle.low)
+      
+      // Determine if candle is up (close > open) or down (close < open)
+      // If equal, treat as down (red) to be more conservative
+      const isUp = close > open
+      
+      return {
+        date: candle.date,
+        open,
+        high,
+        low,
+        close,
+        volume: candle.volume,
+        isUp,
+      }
+    })
   }, [candleData])
 
   const containerRef = useRef<HTMLDivElement>(null)
