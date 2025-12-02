@@ -165,6 +165,7 @@ export default function BacktestPage() {
       source: payload?.source ?? rawData?.source,
       capabilitiesSummary: payload?.capabilities_summary ?? rawData?.capabilities_summary,
       parameterRequest,
+      agentFlow: payload?.agent_flow,
     }
   }
 

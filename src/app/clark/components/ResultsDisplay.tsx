@@ -9,6 +9,7 @@ import { formatCurrency, formatPercentage, formatDate, formatNumber } from '../u
 import PortfolioChart from './charts/PortfolioChart'
 import TechnicalCharts from './charts/TechnicalCharts'
 import AllocationCharts from './charts/AllocationCharts'
+import AgentFlow from './AgentFlow'
 
 interface ResultsDisplayProps {
   messages: ChatMessage[]
@@ -701,6 +702,11 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                   </div>
                 )
               })()}
+
+              {/* Render agent flow visualization */}
+              {message.agentFlow && message.agentFlow.length > 0 && (
+                <AgentFlow flow={message.agentFlow} />
+              )}
 
               {/* Render any results tied to this assistant message */}
               {renderBacktest(message)}

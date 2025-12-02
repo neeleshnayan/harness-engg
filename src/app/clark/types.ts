@@ -214,6 +214,16 @@ export interface ParameterRequest {
   context?: Record<string, unknown>
 }
 
+export interface AgentFlowStep {
+  id: string
+  name: string
+  type: 'orchestrator' | 'specialized'
+  tool_name?: string
+  status: 'completed' | 'pending' | 'error'
+  color?: string
+  timestamp?: string | null
+}
+
 export interface ChatMessage {
   id: string
   type: 'user' | 'assistant'
@@ -228,6 +238,7 @@ export interface ChatMessage {
   source?: string
   capabilitiesSummary?: string
   parameterRequest?: ParameterRequest
+  agentFlow?: AgentFlowStep[]
 }
 
 export interface Category {
