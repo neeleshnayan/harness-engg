@@ -380,12 +380,13 @@ export async function getHistoricalClosingPoolRates(
         const rate = extractRate(poolRate.tokenRates);
 
         if (rate > 0) {
-          // Use the closing rate history blockTimestamp (in seconds, convert to milliseconds)
-          const timestamp = parseInt(closingRateHistory.blockTimestamp) * 1000;
-          const date = new Date(timestamp);
+          // poolRate.blockTimestamp is in yyyy-mm-dd format, parse it directly
+          // closingRateHistory.blockTimestamp is in seconds since epoch
+          const dateString = poolRate.blockTimestamp; // Already in yyyy-mm-dd format
 
-          // Format date as YYYY-MM-DD for consistent grouping by day
-          const dateString = date.toISOString().split('T')[0];
+          // Parse the date string and convert to timestamp
+          const date = new Date(dateString + 'T00:00:00Z'); // Add time to ensure UTC parsing
+          const timestamp = date.getTime();
 
           historicalData.push({
             date: dateString,

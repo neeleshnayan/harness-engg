@@ -419,11 +419,14 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
 
                                 const value = payload[0]?.value;
                                 const numValue = typeof value === 'number' ? value : parseFloat(value as string);
+                                // Get the actual date from the payload data (dateLabel is the formatted short version)
+                                const payloadData = payload[0]?.payload;
+                                const actualDate = payloadData?.date || label;
 
                                 return (
                                   <div className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-800/50 rounded-xl p-4 shadow-2xl min-w-[12rem]">
                                     <div className="text-xs text-zinc-400 mb-2 font-light">
-                                      {formatDate(label as string)}
+                                      {formatDate(actualDate)}
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
