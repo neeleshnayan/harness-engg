@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { DollarSign, TrendingUp, BarChart3, TrendingDown, ChevronDown, ChevronUp } from 'lucide-react'
 import { Loader2, Info, User } from 'lucide-react'
-import { ChatMessage, BacktestResult, ScreenerResult, EconomicResult, NewsData, CalendarData, EconomicData, RegulationResult } from '../types'
+import { ChatMessage, BacktestResult, ScreenerResult, EconomicResult, NewsData, CalendarData, EconomicData, RegulationResult, AgentFlowGraph, AgentFlowStep } from '../types'
 import { formatCurrency, formatPercentage, formatDate, formatNumber } from '../utils'
 import PortfolioChart from './charts/PortfolioChart'
 import TechnicalCharts from './charts/TechnicalCharts'
@@ -249,6 +249,137 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
   const renderScreener = (message: ChatMessage) => {
     if (!message.screenerResult) return null
     const screenerResult = message.screenerResult
+    
+    // Handle stock/crypto/forex quotes and profiles
+    const isStockQuote = screenerResult.screener_type === 'stock_quote'
+    const isStockScreener = screenerResult.screener_type === 'stock_screener'
+    const isStockProfile = screenerResult.screener_type === 'stock_profile'
+    const isCryptoQuote = screenerResult.screener_type === 'crypto_quote'
+    const isForexQuote = screenerResult.screener_type === 'forex_quote'
+    
+    if (isStockQuote || isStockProfile) {
+      // Single stock display
+      if (!screenerResult.results || screenerResult.results.length === 0) {
+        return (
+          <Card key={`stock-${message.id}`} className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg text-white">No Data Available</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-zinc-400">No stock data found for this query.</p>
+            </CardContent>
+          </Card>
+        )
+      }
+      const stock = screenerResult.results[0]
+      return (
+        <Card key={`stock-${message.id}`} className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg text-white">
+              {isStockProfile ? 'Company Profile' : 'Stock Quote'} - {stock.name || stock.symbol}
+            </CardTitle>
+            <CardDescription className="text-zinc-400">
+              {stock.symbol} {stock.exchange && `• ${stock.exchange}`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <div className="text-xs text-zinc-400 mb-1">Price</div>
+                  <div className="text-xl font-bold text-white">{formatCurrency(stock.price)}</div>
+                </div>
+                {stock.daily_change_percent !== undefined && (
+                  <div>
+                    <div className="text-xs text-zinc-400 mb-1">24h Change</div>
+                    <div className={`text-xl font-bold ${stock.daily_change_percent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      {stock.daily_change_percent >= 0 ? '+' : ''}{stock.daily_change_percent.toFixed(2)}%
+                    </div>
+                  </div>
+                )}
+                {stock.market_cap && (
+                  <div>
+                    <div className="text-xs text-zinc-400 mb-1">Market Cap</div>
+                    <div className="text-xl font-bold text-white">{formatNumber(stock.market_cap)}</div>
+                  </div>
+                )}
+                {stock.volume_24h && (
+                  <div>
+                    <div className="text-xs text-zinc-400 mb-1">Volume</div>
+                    <div className="text-xl font-bold text-white">{formatNumber(stock.volume_24h)}</div>
+                  </div>
+                )}
+              </div>
+              {isStockProfile && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-zinc-700">
+                  {stock.sector && (
+                    <div>
+                      <div className="text-xs text-zinc-400 mb-1">Sector</div>
+                      <div className="text-sm text-white">{stock.sector}</div>
+                    </div>
+                  )}
+                  {stock.industry && (
+                    <div>
+                      <div className="text-xs text-zinc-400 mb-1">Industry</div>
+                      <div className="text-sm text-white">{stock.industry}</div>
+                    </div>
+                  )}
+                  {stock.ceo && (
+                    <div>
+                      <div className="text-xs text-zinc-400 mb-1">CEO</div>
+                      <div className="text-sm text-white">{stock.ceo}</div>
+                    </div>
+                  )}
+                  {stock.website && (
+                    <div>
+                      <div className="text-xs text-zinc-400 mb-1">Website</div>
+                      <a href={stock.website} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-400 hover:text-blue-300">
+                        {stock.website}
+                      </a>
+                    </div>
+                  )}
+                  {stock.description && (
+                    <div className="md:col-span-2">
+                      <div className="text-xs text-zinc-400 mb-1">Description</div>
+                      <div className="text-sm text-zinc-300">{stock.description}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {(stock.day_low || stock.day_high || stock.year_low || stock.year_high) && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-zinc-700">
+                  {stock.day_low && (
+                    <div>
+                      <div className="text-xs text-zinc-400 mb-1">Day Low</div>
+                      <div className="text-sm text-white">{formatCurrency(stock.day_low)}</div>
+                    </div>
+                  )}
+                  {stock.day_high && (
+                    <div>
+                      <div className="text-xs text-zinc-400 mb-1">Day High</div>
+                      <div className="text-sm text-white">{formatCurrency(stock.day_high)}</div>
+                    </div>
+                  )}
+                  {stock.year_low && (
+                    <div>
+                      <div className="text-xs text-zinc-400 mb-1">52W Low</div>
+                      <div className="text-sm text-white">{formatCurrency(stock.year_low)}</div>
+                    </div>
+                  )}
+                  {stock.year_high && (
+                    <div>
+                      <div className="text-xs text-zinc-400 mb-1">52W High</div>
+                      <div className="text-sm text-white">{formatCurrency(stock.year_high)}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )
+    }
+    
     return (
       <Card key={`scr-${message.id}`} className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
         <CardHeader className="pb-4">
@@ -257,9 +388,12 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
             {screenerResult.screener_type === 'daily_change' && 'Daily Change Screener Results'}
             {screenerResult.screener_type === 'market_cap' && 'Market Cap Screener Results'}
             {screenerResult.screener_type === 'ema' && 'EMA Screener Results'}
+            {isStockScreener && 'Stock Screener Results'}
+            {isCryptoQuote && 'Cryptocurrency Quotes'}
+            {isForexQuote && 'Forex Quotes'}
           </CardTitle>
           <CardDescription className="text-zinc-400">
-            {screenerResult.range_description} • {screenerResult.total_found} cryptos found
+            {screenerResult.range_description} • {screenerResult.total_found} {isStockScreener ? 'stocks' : isCryptoQuote ? 'cryptocurrencies' : isForexQuote ? 'forex pairs' : 'cryptos'} found
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -290,61 +424,81 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                       <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">10 EMA</th>
                     </>
                   )}
-                  <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Market Cap</th>
-                  <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Volume (24h)</th>
+                  {isStockScreener && (
+                    <>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Sector</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Exchange</th>
+                    </>
+                  )}
+                  {!isForexQuote && (
+                    <>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Market Cap</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Volume (24h)</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {screenerResult.results.map((crypto, index) => (
-                  <tr key={crypto.symbol} className="border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors">
-                    <td className="py-3 px-4 text-sm text-zinc-300">{crypto.rank || index + 1}</td>
-                    <td className="py-3 px-4 text-sm font-medium text-white">{crypto.name}</td>
-                    <td className="py-3 px-4 text-sm text-zinc-300">{crypto.symbol}</td>
-                    <td className="py-3 px-4 text-sm text-right text-white">{formatCurrency(crypto.price)}</td>
+                {screenerResult.results.map((item: any, index) => (
+                  <tr key={item.symbol || index} className="border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors">
+                    <td className="py-3 px-4 text-sm text-zinc-300">{item.rank || index + 1}</td>
+                    <td className="py-3 px-4 text-sm font-medium text-white">{item.name || item.symbol}</td>
+                    <td className="py-3 px-4 text-sm text-zinc-300">{item.symbol}</td>
+                    <td className="py-3 px-4 text-sm text-right text-white">{formatCurrency(item.price)}</td>
                     <td className={`py-3 px-4 text-sm text-right font-medium ${
-                      crypto.daily_change_percent >= 0 ? 'text-green-500' : 'text-red-500'
+                      (item.daily_change_percent || 0) >= 0 ? 'text-green-500' : 'text-red-500'
                     }`}>
-                      {crypto.daily_change_percent >= 0 ? '+' : ''}{crypto.daily_change_percent.toFixed(2)}%
+                      {(item.daily_change_percent || 0) >= 0 ? '+' : ''}{(item.daily_change_percent || 0).toFixed(2)}%
                     </td>
                     {screenerResult.screener_type === '52w_high_low' && (
                       <td className={`py-3 px-4 text-sm text-right font-medium ${
-                        crypto.percent_from_high !== undefined && crypto.percent_from_high >= -10 ? 'text-green-500' :
-                        crypto.percent_from_low !== undefined && crypto.percent_from_low <= 10 ? 'text-red-500' : 'text-zinc-300'
+                        item.percent_from_high !== undefined && item.percent_from_high >= -10 ? 'text-green-500' :
+                        item.percent_from_low !== undefined && item.percent_from_low <= 10 ? 'text-red-500' : 'text-zinc-300'
                       }`}>
-                        {crypto.percent_from_high !== undefined ? `${crypto.percent_from_high.toFixed(1)}% from high` :
-                         crypto.percent_from_low !== undefined ? `${crypto.percent_from_low.toFixed(1)}% from low` : 'N/A'}
+                        {item.percent_from_high !== undefined ? `${item.percent_from_high.toFixed(1)}% from high` :
+                         item.percent_from_low !== undefined ? `${item.percent_from_low.toFixed(1)}% from low` : 'N/A'}
                       </td>
                     )}
                     {screenerResult.screener_type === 'rsi' && (
                       <td className={`py-3 px-4 text-sm text-right font-medium ${
-                        crypto.rsi !== undefined && crypto.rsi <= 30 ? 'text-red-500' :
-                        crypto.rsi !== undefined && crypto.rsi >= 70 ? 'text-green-500' : 'text-zinc-300'
+                        item.rsi !== undefined && item.rsi <= 30 ? 'text-red-500' :
+                        item.rsi !== undefined && item.rsi >= 70 ? 'text-green-500' : 'text-zinc-300'
                       }`}>
-                        {crypto.rsi !== undefined ? crypto.rsi.toFixed(1) : 'N/A'}
+                        {item.rsi !== undefined ? item.rsi.toFixed(1) : 'N/A'}
                       </td>
                     )}
                     {screenerResult.screener_type === 'technical_pattern' && (
                       <>
                         <td className="py-3 px-4 text-sm text-right text-zinc-300">
-                          {crypto.sma_50 !== undefined ? formatCurrency(crypto.sma_50) : 'N/A'}
+                          {item.sma_50 !== undefined ? formatCurrency(item.sma_50) : 'N/A'}
                         </td>
                         <td className="py-3 px-4 text-sm text-right text-zinc-300">
-                          {crypto.sma_200 !== undefined ? formatCurrency(crypto.sma_200) : 'N/A'}
+                          {item.sma_200 !== undefined ? formatCurrency(item.sma_200) : 'N/A'}
                         </td>
                       </>
                     )}
                     {screenerResult.screener_type === 'ema' && (
                       <>
                         <td className="py-3 px-4 text-sm text-right text-zinc-300">
-                          {crypto.ema_5 !== undefined ? formatCurrency(crypto.ema_5) : 'N/A'}
+                          {item.ema_5 !== undefined ? formatCurrency(item.ema_5) : 'N/A'}
                         </td>
                         <td className="py-3 px-4 text-sm text-right text-zinc-300">
-                          {crypto.ema_10 !== undefined ? formatCurrency(crypto.ema_10) : 'N/A'}
+                          {item.ema_10 !== undefined ? formatCurrency(item.ema_10) : 'N/A'}
                         </td>
                       </>
                     )}
-                    <td className="py-3 px-4 text-sm text-right text-zinc-300">{formatNumber(crypto.market_cap)}</td>
-                    <td className="py-3 px-4 text-sm text-right text-zinc-300">{formatNumber(crypto.volume_24h)}</td>
+                    {isStockScreener && (
+                      <>
+                        <td className="py-3 px-4 text-sm text-zinc-300">{item.sector || 'N/A'}</td>
+                        <td className="py-3 px-4 text-sm text-zinc-300">{item.exchange || 'N/A'}</td>
+                      </>
+                    )}
+                    {screenerResult.screener_type !== 'forex_quote' && (
+                      <>
+                        <td className="py-3 px-4 text-sm text-right text-zinc-300">{formatNumber(item.market_cap || 0)}</td>
+                        <td className="py-3 px-4 text-sm text-right text-zinc-300">{formatNumber(item.volume_24h || 0)}</td>
+                      </>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -678,6 +832,7 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                         : 'bg-zinc-800/40 border-zinc-700/40 text-zinc-100'
                     }`}
                   >
+                    {/* Render optional source label, but hide noisy internal tags */}
                     {(() => {
                       const sourceLabel = formatSourceLabel(message.source)
                       if (!sourceLabel) return null
@@ -687,9 +842,11 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                         </div>
                       )
                     })()}
-                    <div className="text-sm whitespace-pre-wrap leading-relaxed">
-                      {message.content}
-                    </div>
+                    {/* Render assistant message content as markdown-formatted HTML */}
+                    <div
+                      className="text-sm leading-relaxed prose prose-invert max-w-none"
+                      dangerouslySetInnerHTML={{ __html: markdownToHtml(message.content) }}
+                    />
                     {message.capabilitiesSummary && (
                       <div className="mt-3 text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed">
                         {message.capabilitiesSummary}
@@ -717,9 +874,14 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
               })()}
 
               {/* Render agent flow visualization */}
-              {message.agentFlow && message.agentFlow.length > 0 && (
-                <AgentFlow flow={message.agentFlow} />
-              )}
+              {message.agentFlow && (() => {
+                // Handle both old array format and new graph format
+                const hasContent = Array.isArray(message.agentFlow) 
+                  ? message.agentFlow.length > 0 
+                  : (message.agentFlow as AgentFlowGraph)?.steps?.length > 0 || 
+                    (message.agentFlow as AgentFlowGraph)?.nodes?.length > 0
+                return hasContent ? <AgentFlow flow={message.agentFlow} /> : null
+              })()}
 
               {/* Render any results tied to this assistant message */}
               {renderBacktest(message)}

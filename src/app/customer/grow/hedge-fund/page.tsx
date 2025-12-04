@@ -400,6 +400,7 @@ export default function HedgeFundV2Page() {
           accountData={accountData}
           onLogout={handleLogout}
           onMenuToggle={() => setShowMenu(!showMenu)}
+          onOpenQuestionnaire={() => setShowQuestionnaire(true)}
         />
         <HamburgerMenu
           visible={showMenu}

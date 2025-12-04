@@ -145,6 +145,17 @@ export interface ScreenerCrypto {
   sma_200?: number
   ema_5?: number
   ema_10?: number
+  // Stock-specific fields
+  sector?: string
+  industry?: string
+  exchange?: string
+  ceo?: string
+  website?: string
+  description?: string
+  day_low?: number
+  day_high?: number
+  year_low?: number
+  year_high?: number
 }
 
 export interface EconomicData {
@@ -232,11 +243,24 @@ export interface ParameterRequest {
 export interface AgentFlowStep {
   id: string
   name: string
-  type: 'orchestrator' | 'specialized'
+  type: 'orchestrator' | 'specialized' | 'start' | 'end'
   tool_name?: string
   status: 'completed' | 'pending' | 'error'
   color?: string
   timestamp?: string | null
+}
+
+export interface AgentFlowEdge {
+  from: string
+  to: string
+}
+
+export interface AgentFlowGraph {
+  nodes: AgentFlowStep[]
+  edges: AgentFlowEdge[]
+  execution_order: string[]
+  flow_type: 'single' | 'sequential' | 'parallel'
+  steps: AgentFlowStep[]  // Flattened array for backwards compatibility
 }
 
 export interface ChatMessage {
@@ -253,7 +277,7 @@ export interface ChatMessage {
   source?: string
   capabilitiesSummary?: string
   parameterRequest?: ParameterRequest
-  agentFlow?: AgentFlowStep[]
+  agentFlow?: AgentFlowGraph | AgentFlowStep[]  // Support both old array and new graph format
 }
 
 export interface Category {
