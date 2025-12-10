@@ -10,7 +10,6 @@ import PortfolioChart from './charts/PortfolioChart'
 import TechnicalCharts from './charts/TechnicalCharts'
 import AllocationCharts from './charts/AllocationCharts'
 import CandleChart from './charts/CandleChart'
-import AgentFlow from './AgentFlow'
 
 interface ResultsDisplayProps {
   messages: ChatMessage[]
@@ -25,11 +24,7 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
 
   const hasStructuredResults = (message?: ChatMessage | null) =>
     Boolean(
-      message &&
-        (message.backtestResult ||
-          message.screenerResult ||
-          message.economicResult ||
-          message.regulationResult)
+      message && message.backtestResult
     )
 
   const formatSourceLabel = (source?: string) => {
@@ -43,16 +38,35 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
   const renderEconomic = (message: ChatMessage) => {
     if (!message.economicResult) return null
     const economicResult = message.economicResult
+    
+    // If we only have markdown (from economic agent), render it as markdown
+    if (economicResult.markdown && !economicResult.results) {
+      return (
+        <Card key={`econ-${message.id}`} className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg text-white">Economic Data</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div
+              className="text-sm leading-relaxed prose prose-invert max-w-none"
+              dangerouslySetInnerHTML={{ __html: markdownToHtml(economicResult.markdown) }}
+            />
+          </CardContent>
+        </Card>
+      )
+    }
+    
+    // Otherwise, render structured data
     const isNews = economicResult.indicator === 'news'
     const isCalendar = economicResult.indicator === 'calendar'
     return (
       <Card key={`econ-${message.id}`} className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
         <CardHeader className="pb-4">
-          <CardTitle className="text-lg text-white">{economicResult.indicator_name}</CardTitle>
+          <CardTitle className="text-lg text-white">{economicResult.indicator_name || 'Economic Data'}</CardTitle>
           <CardDescription className="text-zinc-400">
-            {isNews ? `${economicResult.total_found} latest news articles` :
-             isCalendar ? `${economicResult.total_found} upcoming economic events` :
-             `Economic indicators for ${economicResult.total_found} countries`}
+            {isNews ? `${economicResult.total_found || 0} latest news articles` :
+             isCalendar ? `${economicResult.total_found || 0} upcoming economic events` :
+             `Economic indicators for ${economicResult.total_found || 0} countries`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -125,7 +139,7 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                   ))}
                 </tbody>
               </table>
-            ) : (
+            ) : economicResult.results && Array.isArray(economicResult.results) && economicResult.results.length > 0 ? (
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-zinc-700">
@@ -140,21 +154,23 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                 </thead>
                 <tbody>
                   {(economicResult.results as EconomicData[]).map((data, index) => {
-                    const change = data.value !== null && data.previous_value !== null && data.previous_value !== undefined
-                      ? data.value - data.previous_value
+                    const hasValue = data.value !== null && data.value !== undefined && typeof data.value === 'number'
+                    const hasPreviousValue = data.previous_value !== null && data.previous_value !== undefined && typeof data.previous_value === 'number'
+                    const change = hasValue && hasPreviousValue
+                      ? (data.value as number) - (data.previous_value as number)
                       : null
-                    const changePercent = data.value !== null && data.previous_value !== null && data.previous_value !== undefined && data.previous_value !== 0
-                      ? ((data.value - data.previous_value) / data.previous_value) * 100
+                    const changePercent = hasValue && hasPreviousValue && (data.previous_value as number) !== 0
+                      ? (((data.value as number) - (data.previous_value as number)) / (data.previous_value as number)) * 100
                       : null
                     return (
-                      <tr key={data.country} className="border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors">
+                      <tr key={data.country || index} className="border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors">
                         <td className="py-3 px-4 text-sm text-zinc-300">{index + 1}</td>
-                        <td className="py-3 px-4 text-sm font-medium text-white">{data.country}</td>
+                        <td className="py-3 px-4 text-sm font-medium text-white">{data.country || 'N/A'}</td>
                         <td className="py-3 px-4 text-sm text-right text-white font-medium">
-                          {data.value !== null ? data.value.toLocaleString() : 'N/A'}
+                          {hasValue && typeof data.value === 'number' ? data.value.toLocaleString() : 'N/A'}
                         </td>
                         <td className="py-3 px-4 text-sm text-right text-zinc-300">
-                          {data.previous_value !== null && data.previous_value !== undefined ? data.previous_value.toLocaleString() : 'N/A'}
+                          {hasPreviousValue && typeof data.previous_value === 'number' ? data.previous_value.toLocaleString() : 'N/A'}
                         </td>
                         <td className={`py-3 px-4 text-sm text-right font-medium ${
                           change !== null && change > 0 ? 'text-green-500' :
@@ -178,6 +194,18 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                   })}
                 </tbody>
               </table>
+            ) : (
+              // Fallback: show markdown if available, or a message
+              <div className="text-sm text-zinc-400">
+                {economicResult.markdown ? (
+                  <div
+                    className="text-sm leading-relaxed prose prose-invert max-w-none"
+                    dangerouslySetInnerHTML={{ __html: markdownToHtml(economicResult.markdown) }}
+                  />
+                ) : (
+                  'No economic data available'
+                )}
+              </div>
             )}
           </div>
         </CardContent>
@@ -873,21 +901,8 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                 )
               })()}
 
-              {/* Render agent flow visualization */}
-              {message.agentFlow && (() => {
-                // Handle both old array format and new graph format
-                const hasContent = Array.isArray(message.agentFlow) 
-                  ? message.agentFlow.length > 0 
-                  : (message.agentFlow as AgentFlowGraph)?.steps?.length > 0 || 
-                    (message.agentFlow as AgentFlowGraph)?.nodes?.length > 0
-                return hasContent ? <AgentFlow flow={message.agentFlow} /> : null
-              })()}
-
-              {/* Render any results tied to this assistant message */}
+              {/* Render only backtest results */}
               {renderBacktest(message)}
-              {renderScreener(message)}
-              {renderEconomic(message)}
-              {renderRegulation(message)}
             </>
           )}
         </div>

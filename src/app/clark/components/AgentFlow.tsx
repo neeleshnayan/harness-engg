@@ -1,9 +1,9 @@
 "use client"
 
-import React from 'react'
+import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AgentFlowStep, AgentFlowGraph, AgentFlowEdge } from '../types'
-import { ArrowRight, ArrowDown, CheckCircle2, Loader2, XCircle, GitBranch, GitMerge } from 'lucide-react'
+import { ArrowRight, ArrowDown, CheckCircle2, Loader2, XCircle, GitBranch, GitMerge, ChevronDown, ChevronUp, Code, MessageSquare } from 'lucide-react'
 
 interface AgentFlowProps {
   flow: AgentFlowGraph | AgentFlowStep[]
@@ -15,6 +15,7 @@ function isFlowGraph(flow: AgentFlowGraph | AgentFlowStep[]): flow is AgentFlowG
 }
 
 export default function AgentFlow({ flow }: AgentFlowProps) {
+  const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set())
   if (!flow) {
     console.log('[AgentFlow] No flow data provided')
     return null
@@ -45,6 +46,94 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
   }
 
   console.log('[AgentFlow] Rendering card with', steps.length, 'steps')
+
+  const toggleAgentExpansion = (agentId: string) => {
+    setExpandedAgents(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(agentId)) {
+        newSet.delete(agentId)
+      } else {
+        newSet.add(agentId)
+      }
+      return newSet
+    })
+  }
+
+  const renderAgentNode = (step: AgentFlowStep, showExpandButton: boolean = true) => {
+    const isExpanded = expandedAgents.has(step.id)
+    const hasInputOutput = step.input || step.output
+    const canExpand = showExpandButton && hasInputOutput
+
+    return (
+      <div className="flex flex-col gap-2">
+        <div
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${canExpand ? 'cursor-pointer hover:opacity-80' : ''}`}
+          onClick={canExpand ? () => toggleAgentExpansion(step.id) : undefined}
+          style={{
+            backgroundColor: `${getAgentColor(step)}20`,
+            borderColor: `${getAgentColor(step)}60`,
+          }}
+        >
+          {getStatusIcon(step.status)}
+          <span
+            className="text-sm font-medium"
+            style={{ color: getAgentColor(step) }}
+          >
+            {step.name}
+          </span>
+          {canExpand && (
+            isExpanded ? (
+              <ChevronUp className="h-4 w-4 text-zinc-400 ml-auto" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-zinc-400 ml-auto" />
+            )
+          )}
+        </div>
+        
+        {/* Expanded input/output details */}
+        {isExpanded && hasInputOutput && (
+          <div className="ml-4 space-y-2 border-l-2 border-zinc-700 pl-4">
+            {step.input && (
+              <div className="bg-zinc-900/50 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Code className="h-3 w-3 text-blue-400" />
+                  <span className="text-xs font-semibold text-blue-400 uppercase">Input</span>
+                </div>
+                <p className="text-xs text-zinc-300 whitespace-pre-wrap break-words">{step.input}</p>
+              </div>
+            )}
+            {step.output && (
+              <div className="bg-zinc-900/50 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <MessageSquare className="h-3 w-3 text-green-400" />
+                  <span className="text-xs font-semibold text-green-400 uppercase">Output</span>
+                  {step.output.success ? (
+                    <CheckCircle2 className="h-3 w-3 text-green-400 ml-auto" />
+                  ) : (
+                    <XCircle className="h-3 w-3 text-red-400 ml-auto" />
+                  )}
+                </div>
+                <div className="space-y-1">
+                  {step.output.message && (
+                    <p className="text-xs text-zinc-300 whitespace-pre-wrap break-words">{step.output.message}</p>
+                  )}
+                  {step.output.data_keys && step.output.data_keys.length > 0 && (
+                    <div className="mt-2">
+                      <span className="text-xs text-zinc-500">Data keys: </span>
+                      <span className="text-xs text-zinc-400">{step.output.data_keys.join(', ')}</span>
+                    </div>
+                  )}
+                  {step.output.has_data && (
+                    <span className="inline-block text-xs text-green-400 mt-1">✓ Has data</span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -102,21 +191,7 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
     return (
       <div className="flex flex-col items-center gap-3">
         {/* Orchestrator */}
-        <div
-          className="flex items-center gap-2 px-3 py-2 rounded-lg border transition-all"
-          style={{
-            backgroundColor: `${getAgentColor(orchestrator)}20`,
-            borderColor: `${getAgentColor(orchestrator)}60`,
-          }}
-        >
-          {getStatusIcon(orchestrator.status)}
-          <span
-            className="text-sm font-medium"
-            style={{ color: getAgentColor(orchestrator) }}
-          >
-            {orchestrator.name}
-          </span>
-        </div>
+        {renderAgentNode(orchestrator, false)}
 
         {/* Arrow down */}
         {otherAgents.length > 0 && (
@@ -125,26 +200,15 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
 
         {/* Parallel agents */}
         {otherAgents.length > 0 && (
-          <div className="flex items-center gap-3 flex-wrap justify-center">
+          <div className="flex items-start gap-3 flex-wrap justify-center">
             {otherAgents.map((step, index) => (
               <React.Fragment key={step.id}>
-                <div
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg border transition-all"
-                  style={{
-                    backgroundColor: `${getAgentColor(step)}20`,
-                    borderColor: `${getAgentColor(step)}60`,
-                  }}
-                >
-                  {getStatusIcon(step.status)}
-                  <span
-                    className="text-sm font-medium"
-                    style={{ color: getAgentColor(step) }}
-                  >
-                    {step.name}
-                  </span>
+                <div className="flex flex-col items-center">
+                  {renderAgentNode(step, true)}
                 </div>
                 {index < otherAgents.length - 1 && (
-                  <span className="text-zinc-500 text-xs">+</span>
+                  <span className="text-zinc-500 text-xs self-center">+</span>
+
                 )}
               </React.Fragment>
             ))}
@@ -160,21 +224,7 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
       <div className="flex flex-col items-center gap-2">
         {steps.map((step, index) => (
           <React.Fragment key={step.id}>
-            <div
-              className="flex items-center gap-2 px-3 py-2 rounded-lg border transition-all"
-              style={{
-                backgroundColor: `${getAgentColor(step)}20`,
-                borderColor: `${getAgentColor(step)}60`,
-              }}
-            >
-              {getStatusIcon(step.status)}
-              <span
-                className="text-sm font-medium"
-                style={{ color: getAgentColor(step) }}
-              >
-                {step.name}
-              </span>
-            </div>
+            {renderAgentNode(step, true)}
             {index < steps.length - 1 && (
               <ArrowDown className="h-4 w-4 text-zinc-500" />
             )}
@@ -187,29 +237,15 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
   // Linear flow (default)
   const renderLinearFlow = () => {
     return (
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex flex-col gap-2">
         {steps.map((step, index) => (
           <React.Fragment key={step.id}>
-            <div
-              className="flex items-center gap-2 px-3 py-2 rounded-lg border transition-all"
-              style={{
-                backgroundColor: `${getAgentColor(step)}20`,
-                borderColor: `${getAgentColor(step)}60`,
-              }}
-            >
-              <div className="flex items-center gap-2">
-                {getStatusIcon(step.status)}
-                <span
-                  className="text-sm font-medium"
-                  style={{ color: getAgentColor(step) }}
-                >
-                  {step.name}
-                </span>
-              </div>
+            <div className="flex items-start gap-2">
+              {renderAgentNode(step, true)}
+              {index < steps.length - 1 && (
+                <ArrowRight className="h-4 w-4 text-zinc-500 flex-shrink-0 mt-3" />
+              )}
             </div>
-            {index < steps.length - 1 && (
-              <ArrowRight className="h-4 w-4 text-zinc-500 flex-shrink-0" />
-            )}
           </React.Fragment>
         ))}
       </div>

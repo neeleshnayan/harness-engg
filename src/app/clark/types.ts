@@ -170,11 +170,14 @@ export interface EconomicData {
 }
 
 export interface EconomicResult {
-  screener_type: string
-  indicator: string
-  indicator_name: string
-  total_found: number
-  results: EconomicData[] | NewsData[] | CalendarData[]
+  screener_type?: string
+  indicator?: string
+  indicator_name?: string
+  total_found?: number
+  results?: EconomicData[] | NewsData[] | CalendarData[]
+  markdown?: string // For economic agent responses with markdown content
+  raw_fmp?: any // Raw FMP data
+  economic_data?: boolean // Flag to indicate economic data is present
 }
 
 export interface NewsData {
@@ -248,6 +251,26 @@ export interface AgentFlowStep {
   status: 'completed' | 'pending' | 'error'
   color?: string
   timestamp?: string | null
+  input?: string  // Agent-specific query/input
+  output?: {      // Agent result summary
+    success: boolean
+    message: string
+    has_data: boolean
+    data_keys?: string[] | null
+  }
+}
+
+export interface AgentFlowEdge {
+  from: string
+  to: string
+}
+
+export interface AgentFlowGraph {
+  nodes: AgentFlowStep[]
+  edges: AgentFlowEdge[]
+  execution_order: string[]
+  flow_type: 'single' | 'sequential' | 'parallel'
+  steps: AgentFlowStep[]  // Flattened array for backwards compatibility
 }
 
 export interface AgentFlowEdge {
