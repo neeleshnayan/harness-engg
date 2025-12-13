@@ -1,9 +1,10 @@
 "use client"
 
 import React, { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AgentFlowStep, AgentFlowGraph, AgentFlowEdge } from '../types'
-import { ArrowRight, ArrowDown, CheckCircle2, Loader2, XCircle, GitBranch, GitMerge, ChevronDown, ChevronUp, Code, MessageSquare, Clock, Zap, Database } from 'lucide-react'
+import { ArrowRight, ArrowDown, CheckCircle2, Loader2, XCircle, GitBranch, GitMerge, ChevronDown, ChevronUp, Code, MessageSquare, Clock, Zap, Database, Sparkles } from 'lucide-react'
 
 interface AgentFlowProps {
   flow: AgentFlowGraph | AgentFlowStep[]
@@ -121,10 +122,27 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
           </span>
           {/* Show latency badge if available */}
           {step.latency_ms !== undefined && step.latency_ms !== null && (
-            <div className="flex items-center gap-1 px-2 py-0.5 bg-zinc-700/50 rounded text-xs text-zinc-300">
-              <Zap className="h-3 w-3" />
-              <span>{formatLatency(step.latency_ms)}</span>
-            </div>
+            <motion.div
+              className="flex items-center gap-1 px-2 py-0.5 bg-zinc-700/50 rounded text-xs text-zinc-300"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              <Zap className="h-3 w-3 text-yellow-400" />
+              <span className="font-medium">{formatLatency(step.latency_ms)}</span>
+            </motion.div>
+          )}
+          {/* Special badge for finalise agent */}
+          {step.id === 'finalise' && (
+            <motion.div
+              className="flex items-center gap-1 px-2 py-0.5 bg-orange-500/20 rounded text-xs text-orange-300 border border-orange-500/30"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              <Sparkles className="h-3 w-3" />
+              <span>Finalise</span>
+            </motion.div>
           )}
           {canExpand && (
             isExpanded ? (
@@ -136,8 +154,15 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
         </div>
         
         {/* Expanded input/output details */}
-        {isExpanded && hasInputOutput && (
-          <div className="ml-4 space-y-2 border-l-2 border-zinc-700 pl-4">
+        <AnimatePresence>
+          {isExpanded && hasInputOutput && (
+            <motion.div
+              className="ml-4 space-y-2 border-l-2 border-zinc-700 pl-4"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+            >
             {/* Timing Information */}
             {(step.timestamp_start || step.timestamp_end || step.latency_ms !== undefined) && (
               <div className="bg-zinc-900/50 rounded-lg p-3">
@@ -219,17 +244,26 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
                     <ChevronDown className="h-3 w-3 text-zinc-400 ml-auto" />
                   )}
                 </div>
-                {expandedData.has(step.id) && (
-                  <div className="mt-2 max-h-96 overflow-auto">
-                    <pre className="text-xs text-zinc-300 bg-zinc-950/50 p-3 rounded border border-zinc-700/50 overflow-x-auto">
-                      {JSON.stringify(step.output.data, null, 2)}
-                    </pre>
-                  </div>
-                )}
+                <AnimatePresence>
+                  {expandedData.has(step.id) && (
+                    <motion.div
+                      className="mt-2 max-h-96 overflow-auto"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <pre className="text-xs text-zinc-300 bg-zinc-950/50 p-3 rounded border border-zinc-700/50 overflow-x-auto">
+                        {JSON.stringify(step.output.data, null, 2)}
+                      </pre>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             )}
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     )
   }
@@ -280,7 +314,8 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
   const renderParallelFlow = () => {
     // Find the orchestrator
     const orchestrator = steps.find(s => s.type === 'orchestrator')
-    const otherAgents = steps.filter(s => s.type !== 'orchestrator')
+    const specializedAgents = steps.filter(s => s.type === 'specialized' && s.id !== 'finalise')
+    const finaliseAgent = steps.find(s => s.id === 'finalise')
 
     if (!orchestrator) {
       // Fallback to linear rendering
@@ -288,30 +323,67 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
     }
 
     return (
-      <div className="flex flex-col items-center gap-3">
+      <div className="flex flex-col items-center gap-4">
         {/* Orchestrator */}
-        {renderAgentNode(orchestrator, false)}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          {renderAgentNode(orchestrator, false)}
+        </motion.div>
 
         {/* Arrow down */}
-        {otherAgents.length > 0 && (
-          <ArrowDown className="h-4 w-4 text-zinc-500" />
+        {specializedAgents.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <ArrowDown className="h-4 w-4 text-zinc-500" />
+          </motion.div>
         )}
 
         {/* Parallel agents */}
-        {otherAgents.length > 0 && (
-          <div className="flex items-start gap-3 flex-wrap justify-center">
-            {otherAgents.map((step, index) => (
-              <React.Fragment key={step.id}>
-                <div className="flex flex-col items-center">
-                  {renderAgentNode(step, true)}
-                </div>
-                {index < otherAgents.length - 1 && (
-                  <span className="text-zinc-500 text-xs self-center">+</span>
-
-                )}
-              </React.Fragment>
+        {specializedAgents.length > 0 && (
+          <motion.div
+            className="flex items-start gap-4 flex-wrap justify-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            {specializedAgents.map((step, index) => (
+              <motion.div
+                key={step.id}
+                className="flex flex-col items-center"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.4 + index * 0.1 }}
+              >
+                {renderAgentNode(step, true)}
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
+        )}
+
+        {/* Finalise agent - always at the end */}
+        {finaliseAgent && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 + specializedAgents.length * 0.1 }}
+            >
+              <ArrowDown className="h-4 w-4 text-zinc-500" />
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.6 + specializedAgents.length * 0.1 }}
+            >
+              {renderAgentNode(finaliseAgent, true)}
+            </motion.div>
+          </>
         )}
       </div>
     )
@@ -320,12 +392,24 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
   // For sequential flows, render in order
   const renderSequentialFlow = () => {
     return (
-      <div className="flex flex-col items-center gap-2">
+      <div className="flex flex-col items-center gap-3">
         {steps.map((step, index) => (
           <React.Fragment key={step.id}>
-            {renderAgentNode(step, true)}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.15, duration: 0.3 }}
+            >
+              {renderAgentNode(step, true)}
+            </motion.div>
             {index < steps.length - 1 && (
-              <ArrowDown className="h-4 w-4 text-zinc-500" />
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: index * 0.15 + 0.1 }}
+              >
+                <ArrowDown className="h-4 w-4 text-zinc-500" />
+              </motion.div>
             )}
           </React.Fragment>
         ))}
@@ -336,13 +420,27 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
   // Linear flow (default)
   const renderLinearFlow = () => {
     return (
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3">
         {steps.map((step, index) => (
           <React.Fragment key={step.id}>
-            <div className="flex items-start gap-2">
-              {renderAgentNode(step, true)}
+            <div className="flex items-start gap-3">
+              <motion.div
+                className="flex-1"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1, duration: 0.3 }}
+              >
+                {renderAgentNode(step, true)}
+              </motion.div>
               {index < steps.length - 1 && (
-                <ArrowRight className="h-4 w-4 text-zinc-500 flex-shrink-0 mt-3" />
+                <motion.div
+                  className="flex-shrink-0 mt-3"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: index * 0.1 + 0.15 }}
+                >
+                  <ArrowRight className="h-4 w-4 text-zinc-500" />
+                </motion.div>
               )}
             </div>
           </React.Fragment>
