@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AgentFlowStep, AgentFlowGraph, AgentFlowEdge } from '../types'
-import { ArrowRight, ArrowDown, CheckCircle2, Loader2, XCircle, GitBranch, GitMerge, ChevronDown, ChevronUp, Code, MessageSquare } from 'lucide-react'
+import { ArrowRight, ArrowDown, CheckCircle2, Loader2, XCircle, GitBranch, GitMerge, ChevronDown, ChevronUp, Code, MessageSquare, Clock, Zap, Database } from 'lucide-react'
 
 interface AgentFlowProps {
   flow: AgentFlowGraph | AgentFlowStep[]
@@ -16,6 +16,7 @@ function isFlowGraph(flow: AgentFlowGraph | AgentFlowStep[]): flow is AgentFlowG
 
 export default function AgentFlow({ flow }: AgentFlowProps) {
   const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set())
+  const [expandedData, setExpandedData] = useState<Set<string>>(new Set())
   if (!flow) {
     console.log('[AgentFlow] No flow data provided')
     return null
@@ -59,9 +60,46 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
     })
   }
 
+  const toggleDataExpansion = (agentId: string) => {
+    setExpandedData(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(agentId)) {
+        newSet.delete(agentId)
+      } else {
+        newSet.add(agentId)
+      }
+      return newSet
+    })
+  }
+
+  const formatTimestamp = (timestamp?: string) => {
+    if (!timestamp) return null
+    try {
+      const date = new Date(timestamp)
+      return date.toLocaleTimeString('en-US', { 
+        hour12: false, 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit',
+        fractionalSecondDigits: 3
+      })
+    } catch {
+      return timestamp
+    }
+  }
+
+  const formatLatency = (latencyMs?: number) => {
+    if (latencyMs === undefined || latencyMs === null) return null
+    if (latencyMs < 1000) {
+      return `${latencyMs.toFixed(0)}ms`
+    }
+    return `${(latencyMs / 1000).toFixed(2)}s`
+  }
+
   const renderAgentNode = (step: AgentFlowStep, showExpandButton: boolean = true) => {
     const isExpanded = expandedAgents.has(step.id)
-    const hasInputOutput = step.input || step.output
+    const hasData = step.output && 'data' in step.output && step.output.data !== undefined
+    const hasInputOutput = step.input || step.output || step.timestamp_start || step.latency_ms || hasData
     const canExpand = showExpandButton && hasInputOutput
 
     return (
@@ -81,6 +119,13 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
           >
             {step.name}
           </span>
+          {/* Show latency badge if available */}
+          {step.latency_ms !== undefined && step.latency_ms !== null && (
+            <div className="flex items-center gap-1 px-2 py-0.5 bg-zinc-700/50 rounded text-xs text-zinc-300">
+              <Zap className="h-3 w-3" />
+              <span>{formatLatency(step.latency_ms)}</span>
+            </div>
+          )}
           {canExpand && (
             isExpanded ? (
               <ChevronUp className="h-4 w-4 text-zinc-400 ml-auto" />
@@ -93,6 +138,36 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
         {/* Expanded input/output details */}
         {isExpanded && hasInputOutput && (
           <div className="ml-4 space-y-2 border-l-2 border-zinc-700 pl-4">
+            {/* Timing Information */}
+            {(step.timestamp_start || step.timestamp_end || step.latency_ms !== undefined) && (
+              <div className="bg-zinc-900/50 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="h-3 w-3 text-purple-400" />
+                  <span className="text-xs font-semibold text-purple-400 uppercase">Execution Timing</span>
+                </div>
+                <div className="space-y-1 text-xs">
+                  {step.timestamp_start && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-zinc-500">Start:</span>
+                      <span className="text-zinc-300">{formatTimestamp(step.timestamp_start)}</span>
+                    </div>
+                  )}
+                  {step.timestamp_end && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-zinc-500">End:</span>
+                      <span className="text-zinc-300">{formatTimestamp(step.timestamp_end)}</span>
+                    </div>
+                  )}
+                  {step.latency_ms !== undefined && step.latency_ms !== null && (
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-3 w-3 text-yellow-400" />
+                      <span className="text-zinc-500">Latency:</span>
+                      <span className="text-yellow-400 font-medium">{formatLatency(step.latency_ms)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             {step.input && (
               <div className="bg-zinc-900/50 rounded-lg p-3">
                 <div className="flex items-center gap-2 mb-2">
@@ -127,6 +202,30 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
                     <span className="inline-block text-xs text-green-400 mt-1">✓ Has data</span>
                   )}
                 </div>
+              </div>
+            )}
+            {/* Full Data Display */}
+            {step.output?.data && (
+              <div className="bg-zinc-900/50 rounded-lg p-3">
+                <div 
+                  className="flex items-center gap-2 mb-2 cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => toggleDataExpansion(step.id)}
+                >
+                  <Database className="h-3 w-3 text-cyan-400" />
+                  <span className="text-xs font-semibold text-cyan-400 uppercase">Data</span>
+                  {expandedData.has(step.id) ? (
+                    <ChevronUp className="h-3 w-3 text-zinc-400 ml-auto" />
+                  ) : (
+                    <ChevronDown className="h-3 w-3 text-zinc-400 ml-auto" />
+                  )}
+                </div>
+                {expandedData.has(step.id) && (
+                  <div className="mt-2 max-h-96 overflow-auto">
+                    <pre className="text-xs text-zinc-300 bg-zinc-950/50 p-3 rounded border border-zinc-700/50 overflow-x-auto">
+                      {JSON.stringify(step.output.data, null, 2)}
+                    </pre>
+                  </div>
+                )}
               </div>
             )}
           </div>

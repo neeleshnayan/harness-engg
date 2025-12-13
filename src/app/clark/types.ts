@@ -248,15 +248,19 @@ export interface AgentFlowStep {
   name: string
   type: 'orchestrator' | 'specialized' | 'start' | 'end'
   tool_name?: string
-  status: 'completed' | 'pending' | 'error'
+  status: 'completed' | 'pending' | 'error' | 'failed' | 'in_progress'
   color?: string
   timestamp?: string | null
+  timestamp_start?: string  // ISO timestamp when agent execution started
+  timestamp_end?: string    // ISO timestamp when agent execution ended
+  latency_ms?: number       // Execution latency in milliseconds
   input?: string  // Agent-specific query/input
   output?: {      // Agent result summary
     success: boolean
     message: string
     has_data: boolean
     data_keys?: string[] | null
+    data?: any    // Full data returned by the agent
   }
 }
 

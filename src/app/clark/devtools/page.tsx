@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Clock, Zap, TrendingUp } from 'lucide-react'
 import { ChatMessage, AgentFlowGraph, AgentFlowStep } from '../types'
 import AgentFlow from '../components/AgentFlow'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -56,6 +56,35 @@ export default function DevtoolsPage() {
            (flow as AgentFlowGraph)?.nodes?.length > 0
   }
 
+  const calculateTotalLatency = (flow: AgentFlowGraph | AgentFlowStep[] | undefined): number | null => {
+    if (!flow) return null
+    
+    const steps: AgentFlowStep[] = Array.isArray(flow) 
+      ? flow 
+      : (flow as AgentFlowGraph)?.steps || (flow as AgentFlowGraph)?.nodes || []
+    
+    const latencies = steps
+      .map(step => step.latency_ms)
+      .filter((latency): latency is number => latency !== undefined && latency !== null)
+    
+    if (latencies.length === 0) return null
+    
+    return latencies.reduce((sum, latency) => sum + latency, 0)
+  }
+
+  const getAgentCount = (flow: AgentFlowGraph | AgentFlowStep[] | undefined): number => {
+    if (!flow) return 0
+    
+    const steps: AgentFlowStep[] = Array.isArray(flow) 
+      ? flow 
+      : (flow as AgentFlowGraph)?.steps || (flow as AgentFlowGraph)?.nodes || []
+    
+    // Exclude start and orchestrator nodes
+    return steps.filter(step => 
+      step.type !== 'start' && step.type !== 'orchestrator'
+    ).length
+  }
+
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 overflow-x-hidden">
       {/* Navbar */}
@@ -99,6 +128,10 @@ export default function DevtoolsPage() {
           <div className="space-y-6">
             {queriesWithFlows.map((queryData, index) => {
               const isExpanded = selectedQueryIndex === index
+              const totalLatency = calculateTotalLatency(queryData.agentFlow)
+              const agentCount = getAgentCount(queryData.agentFlow)
+              const flowType = (queryData.agentFlow as AgentFlowGraph)?.flow_type || 'single'
+              
               return (
                 <Card 
                   key={index} 
@@ -107,14 +140,38 @@ export default function DevtoolsPage() {
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <CardTitle className="text-lg text-white mb-2">
-                          Query #{queriesWithFlows.length - index}
-                        </CardTitle>
-                        <CardDescription className="text-zinc-300 mb-2">
+                        <div className="flex items-center gap-3 mb-2">
+                          <CardTitle className="text-lg text-white">
+                            Query #{queriesWithFlows.length - index}
+                          </CardTitle>
+                          {flowType !== 'single' && (
+                            <span className="px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded border border-purple-500/30">
+                              {flowType === 'parallel' ? 'Parallel' : 'Sequential'}
+                            </span>
+                          )}
+                        </div>
+                        <CardDescription className="text-zinc-300 mb-3">
                           {queryData.query}
                         </CardDescription>
-                        <div className="text-xs text-zinc-500">
-                          {queryData.timestamp.toLocaleString()}
+                        <div className="flex items-center gap-4 flex-wrap">
+                          <div className="text-xs text-zinc-500 flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {queryData.timestamp.toLocaleString()}
+                          </div>
+                          {agentCount > 0 && (
+                            <div className="text-xs text-zinc-400 flex items-center gap-1">
+                              <TrendingUp className="h-3 w-3" />
+                              {agentCount} agent{agentCount !== 1 ? 's' : ''}
+                            </div>
+                          )}
+                          {totalLatency !== null && (
+                            <div className="text-xs text-yellow-400 flex items-center gap-1">
+                              <Zap className="h-3 w-3" />
+                              Total: {totalLatency < 1000 
+                                ? `${totalLatency.toFixed(0)}ms` 
+                                : `${(totalLatency / 1000).toFixed(2)}s`}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <button
@@ -126,7 +183,7 @@ export default function DevtoolsPage() {
                     </div>
                   </CardHeader>
                   {isExpanded && queryData.agentFlow && hasFlowContent(queryData.agentFlow) && (
-                    <CardContent>
+                    <CardContent className="pt-4">
                       <AgentFlow flow={queryData.agentFlow} />
                     </CardContent>
                   )}
