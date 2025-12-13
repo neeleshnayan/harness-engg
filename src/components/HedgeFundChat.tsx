@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Loader2, Send, User, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, Send, User } from 'lucide-react';
 import agentsApi from '@/lib/agents_api';
 import { Category } from '@/app/clark/types';
 

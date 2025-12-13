@@ -17,7 +17,7 @@ import {
   RefreshCw,
   Zap,
 } from "lucide-react";
-import { MarketplaceItem, MarketplaceService } from "@/lib/marketplace";
+import { MarketplaceService } from "@/lib/marketplace";
 import api, { getTokenInfo } from "@/lib/api";
 import {
   Card,
