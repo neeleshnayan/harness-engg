@@ -48,6 +48,7 @@ export default function DevtoolsPage() {
       return null
     })
     .filter((item): item is NonNullable<typeof item> => item !== null && item.agentFlow !== undefined)
+    .reverse() // Reverse to show latest queries first
 
   const hasFlowContent = (flow: AgentFlowGraph | AgentFlowStep[] | undefined) => {
     if (!flow) return false
@@ -291,7 +292,7 @@ export default function DevtoolsPage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <CardTitle className="text-lg text-white">
-                            Query #{queriesWithFlows.length - originalIndex}
+                            Query #{originalIndex + 1}
                           </CardTitle>
                           {flowType !== 'single' && (
                             <span className="px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded border border-purple-500/30">
