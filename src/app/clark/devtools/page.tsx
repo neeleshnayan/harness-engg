@@ -176,7 +176,7 @@ export default function DevtoolsPage() {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-zinc-400 mb-1">Avg Latency</p>
+                        <p className="text-xs text-zinc-400 mb-1">Total Latency</p>
                         <p className="text-2xl font-bold text-white">
                           {stats.avgLatency < 1000 
                             ? `${stats.avgLatency.toFixed(0)}ms` 
