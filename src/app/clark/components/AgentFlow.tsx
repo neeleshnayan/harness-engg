@@ -138,7 +138,7 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
       return `${count} asset${count !== 1 ? 's' : ''} fetched`
     }
 
-    if (agentId === 'fmp' && (data.raw_fmp || data.fmp_data || Array.isArray(data))) {
+    if (agentId === 'economic' && (data.raw_fmp || data.fmp_data || Array.isArray(data))) {
       const fmpData = data.raw_fmp || data.fmp_data || data
       const dataArray = Array.isArray(fmpData) ? fmpData : (fmpData.data || [])
       return `${dataArray.length} data point${dataArray.length !== 1 ? 's' : ''}`
@@ -518,8 +518,8 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
       )
     }
 
-    // FMP Agent Data
-    if (agentId === 'fmp' && (data.raw_fmp || data.fmp_data || Array.isArray(data))) {
+    // Economic Agent Data (handles FMP functionality)
+    if (agentId === 'economic' && (data.raw_fmp || data.fmp_data || Array.isArray(data))) {
       const fmpData = data.raw_fmp || data.fmp_data || data
       const dataArray = Array.isArray(fmpData) ? fmpData : (fmpData.data || [])
       
