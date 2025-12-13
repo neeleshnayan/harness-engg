@@ -19,11 +19,8 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
   const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set())
   const [expandedData, setExpandedData] = useState<Set<string>>(new Set())
   if (!flow) {
-    console.log('[AgentFlow] No flow data provided')
     return null
   }
-
-  console.log('[AgentFlow] Received flow:', flow)
 
   // Handle both old array format and new graph format
   let steps: AgentFlowStep[]
@@ -35,19 +32,14 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
     steps = flow.steps || flow.nodes.filter(n => n.type !== 'start' && n.type !== 'end')
     flowType = flow.flow_type || 'single'
     edges = flow.edges || []
-    console.log('[AgentFlow] Graph format detected - flow_type:', flowType, 'steps:', steps.length)
   } else {
     // Old array format
     steps = flow
-    console.log('[AgentFlow] Array format detected - steps:', steps.length)
   }
 
   if (!steps || steps.length === 0) {
-    console.log('[AgentFlow] No steps to display')
     return null
   }
-
-  console.log('[AgentFlow] Rendering card with', steps.length, 'steps')
 
   const toggleAgentExpansion = (agentId: string) => {
     setExpandedAgents(prev => {

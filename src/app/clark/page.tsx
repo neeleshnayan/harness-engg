@@ -179,19 +179,6 @@ export default function BacktestPage() {
       agentFlow: payload?.agent_flow, // Keep agent flow graph
     }
     
-    // Debug logging for agent flow
-    if (payload?.agent_flow) {
-      console.log('[createAssistantMessage] Agent flow received:', payload.agent_flow)
-    } else {
-      console.log('[createAssistantMessage] No agent flow in payload')
-    }
-    
-    // Debug logging for agent flow
-    if (payload?.agent_flow) {
-      console.log('[createAssistantMessage] Agent flow received:', payload.agent_flow)
-    } else {
-      console.log('[createAssistantMessage] No agent flow in payload')
-    }
   }
 
   const handlePromptClick = async (prompt: string, categoryId?: string | null) => {

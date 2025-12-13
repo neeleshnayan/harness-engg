@@ -142,10 +142,7 @@ export default function DevtoolsPage() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-white mb-2">Agent Flow Devtools</h1>
-          <p className="text-zinc-400 mb-4">
-            View agent flow graphs for all queries sent by the user
-          </p>
+          <h1 className="text-3xl font-bold text-white mb-2">Agent Flow</h1>
           
           {/* Statistics Cards */}
           {queriesWithFlows.length > 0 && (
