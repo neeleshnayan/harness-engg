@@ -96,13 +96,18 @@ export const categories: Category[] = [
     description: 'Test portfolio strategies',
     prompts: [
       'Backtest Bitcoin & Ethereum with 50% each from 01/01/2025 to 09/09/2025 with 1000 USD',
-      'Backtest BTC & ETH 50/50 with monthly rebalancing from 01/01/2025 to 09/09/2025 with 1000 USD',
-      'Backtest a strategy where Buy when RSI < 30 & Sell when RSI > 70 with 1000 USD from 01/01/2025 to 09/09/2025',
-      'Backtest a strategy where Buy when EMA(9) crosses above EMA(21) and RSI(14) > 50 & Sell when EMA(9) crosses below EMA(21) or RSI(14) < 45 with 1000 USD from 01/01/2025 to 09/09/2025',
-      'Backtest a strategy where Buy when MACD(12,26,9) cross up and ADX(14) > 20 & Sell when MACD cross down or ADX < 18 with 1000 USD from 01/01/2025 to 09/09/2025',
-      'Backtest a strategy where Buy when Stochastic RSI %K < 20 and RSI(14) > 50 & Sell when Stochastic RSI %K > 80 with 1500 USD from 01/01/2025 to 09/09/2025',
-      'Backtest using Super Trend on Bitcoin from 2025-01-01 to 2025-09-09 with 1000 USD',
-      'Backtest a strategy: Buy when ADX > 20 and +DMI > -DMI, Sell when ADX < 18 or -DMI > +DMI on Bitcoin from 2025-01-01 to 2025-09-09 with 1000 USD'
+      'Backtest a 50/200 EMA crossover on BTC from 2024-01-01 to 2024-06-30 with $5,000',
+      'Backtest RSI strategy on Bitcoin from 2024-01-01 to 2024-06-30 with $10,000',
+      'Backtest portfolio with 60% Bitcoin, 30% Ethereum, 10% Solana using 10000 USD from 2024-01-01 to 2024-12-31',
+      'Backtest monthly momentum on BTC, ETH, SOL (hold top 2 each rebalance) from 2023-01-01 to 2024-01-01 with $15,000',
+      'Backtest a 100-day SMA filter on ETH; stay in cash when below SMA; from 2024-01-01 to 2024-09-30 with $12,000'
+      // 'Backtest BTC & ETH 50/50 with monthly rebalancing from 01/01/2025 to 09/09/2025 with 1000 USD',
+      // 'Backtest a strategy where Buy when RSI < 30 & Sell when RSI > 70 with 1000 USD from 01/01/2025 to 09/09/2025',
+      // 'Backtest a strategy where Buy when EMA(9) crosses above EMA(21) and RSI(14) > 50 & Sell when EMA(9) crosses below EMA(21) or RSI(14) < 45 with 1000 USD from 01/01/2025 to 09/09/2025',
+      // 'Backtest a strategy where Buy when MACD(12,26,9) cross up and ADX(14) > 20 & Sell when MACD cross down or ADX < 18 with 1000 USD from 01/01/2025 to 09/09/2025',
+      // 'Backtest a strategy where Buy when Stochastic RSI %K < 20 and RSI(14) > 50 & Sell when Stochastic RSI %K > 80 with 1500 USD from 01/01/2025 to 09/09/2025',
+      // 'Backtest using Super Trend on Bitcoin from 2025-01-01 to 2025-09-09 with 1000 USD',
+      // 'Backtest a strategy: Buy when ADX > 20 and +DMI > -DMI, Sell when ADX < 18 or -DMI > +DMI on Bitcoin from 2025-01-01 to 2025-09-09 with 1000 USD'
     ]
   },
   {
