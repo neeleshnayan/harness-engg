@@ -90,9 +90,14 @@ export default function TechnicalCharts({
   return (
     <div className="space-y-6">
       {/* Moving Averages Chart */}
-      {(technicalIndicatorsRequested.includes('dma_30') || 
-        technicalIndicatorsRequested.includes('dma_100') || 
-        technicalIndicatorsRequested.includes('dma_200')) && (
+      {(
+        technicalIndicatorsRequested.includes('dma_30') ||
+        technicalIndicatorsRequested.includes('dma_100') ||
+        technicalIndicatorsRequested.includes('dma_200') ||
+        technicalIndicatorsRequested.includes('sma_30') ||
+        technicalIndicatorsRequested.includes('sma_100') ||
+        technicalIndicatorsRequested.includes('sma_200')
+      ) && (
         <Card className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-lg text-white">Moving Averages Analysis</CardTitle>
@@ -118,7 +123,7 @@ export default function TechnicalCharts({
                   tickLine={{ stroke: 'rgba(255,255,255,0.12)' }}
                 />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                {technicalIndicatorsRequested.includes('dma_30') && (
+                {(technicalIndicatorsRequested.includes('dma_30') || technicalIndicatorsRequested.includes('sma_30')) && (
                   <Line
                     type="monotone"
                     dataKey="sma_30"
@@ -128,7 +133,7 @@ export default function TechnicalCharts({
                     name="30-day SMA"
                   />
                 )}
-                {technicalIndicatorsRequested.includes('dma_100') && (
+                {(technicalIndicatorsRequested.includes('dma_100') || technicalIndicatorsRequested.includes('sma_100')) && (
                   <Line
                     type="monotone"
                     dataKey="sma_100"
@@ -138,7 +143,7 @@ export default function TechnicalCharts({
                     name="100-day SMA"
                   />
                 )}
-                {technicalIndicatorsRequested.includes('dma_200') && (
+                {(technicalIndicatorsRequested.includes('dma_200') || technicalIndicatorsRequested.includes('sma_200')) && (
                   <Line
                     type="monotone"
                     dataKey="sma_200"
