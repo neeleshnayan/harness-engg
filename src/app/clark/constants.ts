@@ -101,6 +101,10 @@ export const categories: Category[] = [
       'Backtest portfolio with 60% Bitcoin, 30% Ethereum, 10% Solana using 10000 USD from 2024-01-01 to 2024-12-31',
       'Backtest monthly momentum on BTC, ETH, SOL (hold top 2 each rebalance) from 2023-01-01 to 2024-01-01 with $15,000',
       'Backtest a 100-day SMA filter on ETH; stay in cash when below SMA; from 2024-01-01 to 2024-09-30 with $12,000'
+      // 'Backtest Bollinger Bands (20,2) mean reversion on BTC from 2024-03-01 to 2024-07-31 with $7,500',
+      // 'Backtest MACD (12,26,9) on ETH from 2024-02-01 to 2024-08-01 with $8,000',
+      // 'Backtest Stochastic RSI (14,3,3,3) on SOL from 2024-01-15 to 2024-06-30 with $6,000',
+      // 'Backtest BTC with a 2x ATR(14) trailing stop from 2024-01-01 to 2024-09-30 with $10,000',
       // 'Backtest BTC & ETH 50/50 with monthly rebalancing from 01/01/2025 to 09/09/2025 with 1000 USD',
       // 'Backtest a strategy where Buy when RSI < 30 & Sell when RSI > 70 with 1000 USD from 01/01/2025 to 09/09/2025',
       // 'Backtest a strategy where Buy when EMA(9) crosses above EMA(21) and RSI(14) > 50 & Sell when EMA(9) crosses below EMA(21) or RSI(14) < 45 with 1000 USD from 01/01/2025 to 09/09/2025',
