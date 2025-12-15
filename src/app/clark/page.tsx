@@ -14,6 +14,7 @@ import { categories } from './constants'
 import CategoryTiles from './components/CategoryTiles'
 import ChatInputBar from './components/ChatInterface'
 import ResultsDisplay from './components/ResultsDisplay'
+import DevtoolsOverlay from './components/DevtoolsOverlay'
 
 
 
@@ -25,6 +26,7 @@ export default function BacktestPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [showMenu, setShowMenu] = useState(false)
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false)
+  const [isDevtoolsOpen, setIsDevtoolsOpen] = useState(false)
   const feedRef = useRef<HTMLDivElement>(null)
   
   // Session management for mem0 integration
@@ -314,7 +316,7 @@ export default function BacktestPage() {
                 </div>
               )}
               <button
-                onClick={() => router.push('/clark/devtools')}
+                onClick={() => setIsDevtoolsOpen(true)}
                 className="flex items-center bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-xl transition-colors font-medium"
                 aria-label="Open devtools"
               >
@@ -439,6 +441,13 @@ export default function BacktestPage() {
         onLogout={handleLogout}
         accountData={userData}
         onCopyAddress={handleCopyAddress}
+      />
+
+      {/* Devtools Overlay */}
+      <DevtoolsOverlay
+        isOpen={isDevtoolsOpen}
+        onClose={() => setIsDevtoolsOpen(false)}
+        messages={messages}
       />
     </div>
   )
