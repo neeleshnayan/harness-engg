@@ -111,7 +111,16 @@ export const categories: Category[] = [
       // 'Backtest a strategy where Buy when MACD(12,26,9) cross up and ADX(14) > 20 & Sell when MACD cross down or ADX < 18 with 1000 USD from 01/01/2025 to 09/09/2025',
       // 'Backtest a strategy where Buy when Stochastic RSI %K < 20 and RSI(14) > 50 & Sell when Stochastic RSI %K > 80 with 1500 USD from 01/01/2025 to 09/09/2025',
       // 'Backtest using Super Trend on Bitcoin from 2025-01-01 to 2025-09-09 with 1000 USD',
-      // 'Backtest a strategy: Buy when ADX > 20 and +DMI > -DMI, Sell when ADX < 18 or -DMI > +DMI on Bitcoin from 2025-01-01 to 2025-09-09 with 1000 USD'
+      // 'Backtest a strategy: Buy when ADX > 20 and +DMI > -DMI, Sell when ADX < 18 or -DMI > +DMI on Bitcoin from 2025-01-01 to 2025-09-09 with 1000 USD',
+      // 'Please backtest a simple Bitcoin strategy where I buy BTC with $2,000 on 2024‑01‑01 and take profit if the price goes up 20% or sell if it falls 10%, checking this until 2024‑09‑30.',
+      // 'Backtest a simple Super Trend strategy on Bitcoin that goes long when Super Trend turns green and exits when it turns red, from 2024‑01‑01 to 2024‑09‑30 with $4,000.',
+      // 'Backtest a basic ADX trend strategy on Bitcoin where we only stay in trades when ADX shows a strong trend, from 2024‑01‑01 to 2024‑09‑30 with $3,000.',
+      // 'Backtest a simple VWAP trend strategy on Bitcoin that stays in the trade when price is above the 30‑period VWAP and goes to cash when price is below it, from 2024‑02‑01 to 2024‑09‑30 with $4,000.',
+      // 'Backtest a simple ATR trailing stop strategy on Bitcoin where I buy once at the start and then sell if price falls 2 times ATR(14) from the highest point, from 2024‑01‑01 to 2024‑09‑30 with $5,000.',
+      // 'I want to try a very simple MACD strategy on Ethereum: buy when MACD goes above its signal line and sell when it goes back below, from 2024‑01‑01 to 2024‑09‑30 using $4,000.',
+      // 'Backtest a simple Bollinger Bands strategy on Bitcoin that buys when the price closes below the lower band and sells when it closes above the upper band, from 2024‑01‑01 to 2024‑06‑30 with $2,500.'
+      // 'Backtest a very simple RSI strategy on Bitcoin where it buys when the RSI falls below 30 and sells when RSI goes above 70, from 2024‑01‑01 to 2024‑06‑30 using $3,000.',
+      // 'Please backtest a simple Bitcoin strategy that buys when the 50‑day EMA goes above the 200‑day EMA and sells when it goes back below, from 2024‑01‑01 to 2024‑12‑31 with $5,000.'
     ]
   },
   {
