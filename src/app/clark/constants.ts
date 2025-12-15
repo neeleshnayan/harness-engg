@@ -134,7 +134,6 @@ export const categories: Category[] = [
       'Display technical indicators for Solana and Cardano',
       'Plot 30, 100, and 200-day moving averages for BTC',
       'Show RSI analysis for ETH and ADA',
-      'Overlay Stochastic RSI and RSI for BTC over the last quarter',
       'Show me Super Trend analysis for Bitcoin from 2025-01-01 to 2025-09-09',
       'Plot technical analysis for Bitcoin with ADX from 01-01-2025 to 09-09-2025',
       'Plot ADX indicator for Ethereum from 01-01-2025 to 09-09-2025'
