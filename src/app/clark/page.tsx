@@ -320,7 +320,11 @@ export default function BacktestPage() {
                 className="flex items-center bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-xl transition-colors font-medium"
                 aria-label="Open devtools"
               >
-                Devtools
+                <img
+                  src="/devtools.svg"
+                  alt="Devtools"
+                  className="h-4 w-4"
+                />
               </button>
               <div className="relative">
                 <button
