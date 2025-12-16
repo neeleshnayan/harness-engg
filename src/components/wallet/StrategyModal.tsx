@@ -38,8 +38,8 @@ const getTokenSymbol = (strategyName: StrategyName): string => {
       return 'MAVP';
     case 'MAVC_YEARN':
       return 'ysMAVC';
-    case 'YEARN_WBTC':
-      return 'ysWBTC';
+    case 'YEARN_WETH':
+      return 'ysWETH';
     case 'YEARN_PAXG':
       return 'ysPAXG';
     default:
@@ -63,7 +63,7 @@ const formatStrategyBalance = (balance: string, strategyName: StrategyName): str
       return numBalance.toFixed(2);
     case 'MAVC':
     case 'MAVC_YEARN':
-    case 'YEARN_WBTC':
+    case 'YEARN_WETH':
     case 'YEARN_PAXG':
       // Standard formatting for Yearn schemes
       return numBalance.toFixed(2);
