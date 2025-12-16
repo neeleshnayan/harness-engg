@@ -10,7 +10,7 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { useMAVCYearnSubgraphData } from "@/hooks/useStrategySubgraphData";
+import { useMAVCYearnSubgraphData, Snapshot } from "@/hooks/useStrategySubgraphData";
 import { useYearnAUM } from "@/hooks/useYearnAUM";
 
 const formatNumber = (value?: string | number, options?: Intl.NumberFormatOptions) => {
@@ -65,60 +65,20 @@ type TimelinePoint = {
   cumBurned: number;
 };
 
-const buildTimeline = (
-  deposits: Array<{ assets: string; shares: string; timestamp: string }>,
-  withdrawals: Array<{ assets: string; shares: string; timestamp: string }>,
-): TimelinePoint[] => {
-  const bucket = new Map<number, { deposits: number; withdrawals: number; minted: number; burned: number }>();
-
-  deposits.forEach((entry) => {
-    const ts = Number(entry.timestamp) * 1000;
-    if (!Number.isFinite(ts)) return;
-    const assets = Number(entry.assets);
-    const shares = Number(entry.shares);
-    const current = bucket.get(ts) ?? { deposits: 0, withdrawals: 0, minted: 0, burned: 0 };
-    current.deposits += Number.isFinite(assets) ? assets : 0;
-    current.minted += Number.isFinite(shares) ? shares : 0;
-    bucket.set(ts, current);
-  });
-
-  withdrawals.forEach((entry) => {
-    const ts = Number(entry.timestamp) * 1000;
-    if (!Number.isFinite(ts)) return;
-    const assets = Number(entry.assets);
-    const shares = Number(entry.shares);
-    const current = bucket.get(ts) ?? { deposits: 0, withdrawals: 0, minted: 0, burned: 0 };
-    current.withdrawals += Number.isFinite(assets) ? assets : 0;
-    current.burned += Number.isFinite(shares) ? shares : 0;
-    bucket.set(ts, current);
-  });
-
-  const sorted = Array.from(bucket.entries())
-    .sort(([a], [b]) => a - b)
-    .map(([timestamp, values]) => ({ timestamp, ...values }));
-
-  let cumDeposits = 0;
-  let cumWithdrawals = 0;
-  let cumMinted = 0;
-  let cumBurned = 0;
-
-  return sorted.map(({ timestamp, deposits: dep, withdrawals: wit, minted, burned }) => {
-    cumDeposits += dep;
-    cumWithdrawals += wit;
-    cumMinted += minted;
-    cumBurned += burned;
-    return {
-      timestamp,
-      deposits: dep,
-      withdrawals: wit,
-      minted,
-      burned,
-      cumDeposits,
-      cumWithdrawals,
-      cumMinted,
-      cumBurned,
-    };
-  });
+const processSnapshots = (snapshots: Snapshot[]): TimelinePoint[] => {
+  return snapshots
+    .map((s) => ({
+      timestamp: Number(s.timestamp),
+      cumDeposits: Number(s.totalDeposits),
+      cumWithdrawals: Number(s.totalWithdrawals),
+      cumMinted: Number(s.mintedShares),
+      cumBurned: Number(s.burnedShares),
+      deposits: 0,
+      withdrawals: 0,
+      minted: 0,
+      burned: 0,
+    }))
+    .sort((a, b) => a.timestamp - b.timestamp);
 };
 
 type AUMPoint = {
@@ -181,7 +141,7 @@ export const SubgraphAnalyticsMAVCYearn: React.FC<SubgraphAnalyticsMAVCYearnProp
     return deposits - withdrawals;
   }, [yearnAUM, metrics]);
 
-  const timeline = useMemo(() => buildTimeline(deposits, withdrawals), [deposits, withdrawals]);
+  const timeline = useMemo(() => processSnapshots(data?.snapshots ?? []), [data?.snapshots]);
   const aumTimeline = useMemo(() => buildAUMTimeline(timeline), [timeline]);
 
   const hasChartData = timeline.length > 0;

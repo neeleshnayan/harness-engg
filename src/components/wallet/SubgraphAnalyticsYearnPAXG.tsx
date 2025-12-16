@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { useYearnWBTCSubgraphData } from "@/hooks/useStrategySubgraphData";
+import { useYearnPAXGSubgraphData, Snapshot } from "@/hooks/useStrategySubgraphData";
 import {
     AreaChart,
     Area,
@@ -51,65 +51,41 @@ const formatTxHash = (hash?: string) => {
     return `${hash.slice(0, 6)}...${hash.slice(-4)}`;
 };
 
-interface SubgraphAnalyticsYearnWBTCProps {
+interface SubgraphAnalyticsYearnPAXGProps {
     subgraphUrl?: string;
 }
+export const SubgraphAnalyticsYearnPAXG: React.FC<SubgraphAnalyticsYearnPAXGProps> = ({ subgraphUrl }) => {
+    const { data, isLoading, isError, error, refetch, isFetching } = useYearnPAXGSubgraphData(subgraphUrl);
 
-export const SubgraphAnalyticsYearnWBTC: React.FC<SubgraphAnalyticsYearnWBTCProps> = ({ subgraphUrl }) => {
-    const { data, isLoading, isError, error, refetch, isFetching } = useYearnWBTCSubgraphData(subgraphUrl);
-
-    console.log('SubgraphAnalyticsYearnWBTC Data:', data);
-
-    const metrics = data?.yearnStrategyMetric;
+    // Update to use correct field name from hook
+    const metrics = data?.yearnPaxgStrategyMetric;
     const signals = data?.signalExecuteds ?? [];
-    const deposits = data?.deposits ?? [];
-    const withdrawals = data?.withdrawals ?? [];
 
     const [isExpanded, setIsExpanded] = useState(false);
     const displayedSignals = isExpanded ? signals : signals.slice(0, 5);
 
-    // Process data for charts
+    // Process data for charts using snapshots
     const chartData = useMemo(() => {
-        if (!deposits.length && !withdrawals.length) return [];
+        const snapshots = data?.snapshots ?? [];
 
-        const events = [
-            ...deposits.map(d => ({ ...d, type: 'deposit', amount: Number(d.assets), shares: Number(d.shares) })),
-            ...withdrawals.map(w => ({ ...w, type: 'withdrawal', amount: Number(w.assets), shares: Number(w.shares) }))
-        ].sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
-
-        let cumulativeDeposits = 0;
-        let cumulativeWithdrawals = 0;
-        let cumulativeMinted = 0;
-        let cumulativeBurned = 0;
-
-        return events.map(event => {
-            if (event.type === 'deposit') {
-                cumulativeDeposits += event.amount; // USDC 6 decimals
-                cumulativeMinted += event.shares;
-            } else {
-                cumulativeWithdrawals += event.amount;
-                cumulativeBurned += event.shares;
-            }
-
-            return {
-                timestamp: Number(event.timestamp),
-                date: new Date(Number(event.timestamp) * 1000).toLocaleDateString(),
-                aum: cumulativeDeposits - cumulativeWithdrawals,
-                totalDeposits: cumulativeDeposits,
-                totalWithdrawals: cumulativeWithdrawals,
-                mintedShares: cumulativeMinted,
-                burnedShares: cumulativeBurned,
-                netShares: cumulativeMinted - cumulativeBurned
-            };
-        });
-    }, [deposits, withdrawals]);
+        return snapshots.map(s => ({
+            timestamp: Number(s.timestamp),
+            date: new Date(Number(s.timestamp) * 1000).toLocaleDateString(),
+            aum: Number(s.totalDeposits) - Number(s.totalWithdrawals),
+            totalDeposits: Number(s.totalDeposits),
+            totalWithdrawals: Number(s.totalWithdrawals),
+            mintedShares: Number(s.mintedShares),
+            burnedShares: Number(s.burnedShares),
+            netShares: Number(s.mintedShares) - Number(s.burnedShares)
+        })).sort((a, b) => a.timestamp - b.timestamp);
+    }, [data?.snapshots]);
 
     if (!subgraphUrl) {
         return (
             <div className="mt-8 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-6 py-5 text-amber-100">
                 <p className="font-semibold">Subgraph not configured.</p>
                 <p className="mt-2 text-sm text-amber-50/80">
-                    Configure the SUBGRAPH_URL field in Firestore (quant_strategies/YEARN_WBTC) to enable analytics.
+                    Configure the SUBGRAPH_URL field in Firestore (quant_strategies/YEARN_PAXG) to enable analytics.
                 </p>
             </div>
         );
@@ -160,17 +136,17 @@ export const SubgraphAnalyticsYearnWBTC: React.FC<SubgraphAnalyticsYearnWBTCProp
                                                     ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                                                     : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
                                                     }`}>
-                                                    {signal.signalType === 1 ? 'BUY (USDC → WETH)' : 'SELL (WETH → USDC)'}
+                                                    {signal.signalType === 1 ? 'BUY (USDC → PAXG)' : 'SELL (PAXG → USDC)'}
                                                 </span>
                                             </td>
                                             <td className="py-3 text-white font-medium">
                                                 {signal.signalType === 1
                                                     ? formatCurrency(Number(signal.amountIn))
-                                                    : formatTokenAmount(Number(signal.amountIn)) + ' WETH'}
+                                                    : formatTokenAmount(Number(signal.amountIn)) + ' PAXG'}
                                             </td>
                                             <td className="py-3 text-white font-medium">
                                                 {signal.signalType === 1
-                                                    ? formatTokenAmount(Number(signal.amountOut)) + ' WETH'
+                                                    ? formatTokenAmount(Number(signal.amountOut)) + ' PAXG'
                                                     : formatCurrency(Number(signal.amountOut))}
                                             </td>
                                             <td className="py-3 font-mono text-xs">
@@ -193,7 +169,7 @@ export const SubgraphAnalyticsYearnWBTC: React.FC<SubgraphAnalyticsYearnWBTCProp
             }
 
             <header className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-white">Yearn WBTC Strategy Analytics</h2>
+                <h2 className="text-2xl font-bold text-white">Yearn PAXG Strategy Analytics</h2>
                 {data && (
                     <button
                         type="button"
@@ -227,7 +203,7 @@ export const SubgraphAnalyticsYearnWBTC: React.FC<SubgraphAnalyticsYearnWBTCProp
                         </p>
                         <ul className="mt-2 text-xs text-amber-50/60 list-disc list-inside space-y-1">
                             <li>The subgraph hasn't indexed any events yet</li>
-                            <li>The metric entity hasn't been created (id: "yearn-strategy")</li>
+                            <li>The metric entity hasn't been created (id: "yearn-paxg-strategy")</li>
                             <li>No signals have been executed yet</li>
                         </ul>
                         <p className="mt-3 text-xs text-amber-50/60 break-all">
@@ -283,8 +259,8 @@ export const SubgraphAnalyticsYearnWBTC: React.FC<SubgraphAnalyticsYearnWBTCProp
                             <p className="mt-3 text-3xl font-bold text-white">{formatCurrency(Number(metrics.totalUsdcSwapped ?? '0'))}</p>
                         </div>
                         <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
-                            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total WETH Swapped</p>
-                            <p className="mt-3 text-3xl font-bold text-white">{formatTokenAmount(Number(metrics.totalWbtcSwapped ?? '0'))}</p>
+                            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total PAXG Swapped</p>
+                            <p className="mt-3 text-3xl font-bold text-white">{formatTokenAmount(Number(metrics.totalPaxgSwapped ?? '0'))}</p>
                         </div>
                     </div>
                 )

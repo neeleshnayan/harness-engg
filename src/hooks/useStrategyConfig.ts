@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-export type StrategyName = 'MAVC' | 'MAVP' | 'MAVC_YEARN' | 'YEARN_WBTC';
+export type StrategyName = 'MAVC' | 'MAVP' | 'MAVC_YEARN' | 'YEARN_WETH' | 'YEARN_PAXG';
 
 interface StrategyConfig {
   vault_address?: string;
@@ -35,8 +35,10 @@ const getConfigEndpoint = (strategyName: StrategyName): string => {
       return '/api/v1/config/mavp';
     case 'MAVC_YEARN':
       return '/api/v1/config/mavc-yearn';
-    case 'YEARN_WBTC':
-      return '/api/v1/config/yearn-wbtc';
+    case 'YEARN_WETH':
+      return '/api/v1/config/yearn-weth';
+    case 'YEARN_PAXG':
+      return '/api/v1/config/yearn-paxg';
     default:
       throw new Error(`Unknown strategy: ${strategyName}`);
   }
@@ -66,6 +68,7 @@ export const useStrategyConfig = (strategyName: StrategyName) => {
 export const useMAVCConfig = () => useStrategyConfig('MAVC');
 export const useMAVPConfig = () => useStrategyConfig('MAVP');
 export const useMAVCYearnConfig = () => useStrategyConfig('MAVC_YEARN');
-export const useYearnWBTCConfig = () => useStrategyConfig('YEARN_WBTC');
+export const useYearnWETHConfig = () => useStrategyConfig('YEARN_WETH');
+export const useYearnPAXGConfig = () => useStrategyConfig('YEARN_PAXG');
 
 

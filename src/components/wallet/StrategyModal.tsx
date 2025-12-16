@@ -38,6 +38,10 @@ const getTokenSymbol = (strategyName: StrategyName): string => {
       return 'MAVP';
     case 'MAVC_YEARN':
       return 'ysMAVC';
+    case 'YEARN_WBTC':
+      return 'ysWBTC';
+    case 'YEARN_PAXG':
+      return 'ysPAXG';
     default:
       return 'TOKEN';
   }
@@ -59,7 +63,9 @@ const formatStrategyBalance = (balance: string, strategyName: StrategyName): str
       return numBalance.toFixed(2);
     case 'MAVC':
     case 'MAVC_YEARN':
-      // Standard formatting for MAVC and Yearn
+    case 'YEARN_WBTC':
+    case 'YEARN_PAXG':
+      // Standard formatting for Yearn schemes
       return numBalance.toFixed(2);
     default:
       return numBalance.toFixed(2);
@@ -84,6 +90,10 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
   tokenAddress,
   vaultAddress,
 }) => {
+  console.log(`[StrategyModal] ${strategyName} ${action} - usdcBalance prop:`, usdcBalance);
+  console.log(`[StrategyModal] Parsed float:`, parseFloat(usdcBalance));
+  console.log(`[StrategyModal] Number.isFinite:`, Number.isFinite(parseFloat(usdcBalance)));
+
   const tokenSymbol = getTokenSymbol(strategyName);
   const isDeposit = action === 'deposit';
   const [amount, setAmount] = useState("");
@@ -126,8 +136,8 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
       });
 
       setLikelihoodResult(result);
-      const statusMessage = result.warnings.length > 0 
-        ? result.warnings.join('. ') 
+      const statusMessage = result.warnings.length > 0
+        ? result.warnings.join('. ')
         : 'Ready to process';
       setTransactionStatus({
         stage: result.likelihood === 'very_unlikely' ? 'failed' : 'validating',
@@ -281,7 +291,7 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
                     className="w-full px-4 py-3 border border-zinc-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-zinc-800 text-white"
                     disabled={loading}
                   />
-                  
+
                   {/* Show estimates */}
                   {strategyName === 'MAVC_YEARN' && amount && parseFloat(amount) > 0 && (
                     <div className="mt-2 p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg">
@@ -302,7 +312,7 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
                       )}
                     </div>
                   )}
-                  
+
                   {/* Show approximate USDC for withdrawal (MAVC/MAVP) */}
                   {!isDeposit && amount && price && parseFloat(amount) > 0 && strategyName !== 'MAVC_YEARN' && (
                     <div className="mt-2 p-3 bg-green-900/20 border border-green-700/30 rounded-lg">
@@ -374,11 +384,10 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
                 <Button
                   onClick={handleSubmit}
                   disabled={isButtonDisabled}
-                  className={`flex-1 py-3 rounded-lg text-lg font-semibold shadow-md ${
-                    isDeposit
-                      ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white'
-                      : 'bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white'
-                  }`}
+                  className={`flex-1 py-3 rounded-lg text-lg font-semibold shadow-md ${isDeposit
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white'
+                    : 'bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white'
+                    }`}
                 >
                   {loading ? "Processing..." : `${isDeposit ? 'Deposit' : 'Withdraw'} ${tokenSymbol}`}
                 </Button>

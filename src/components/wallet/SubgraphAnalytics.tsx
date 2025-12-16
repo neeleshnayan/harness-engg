@@ -10,7 +10,7 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { useSubgraphData } from "@/hooks/useStrategySubgraphData";
+import { useSubgraphData, Snapshot } from "@/hooks/useStrategySubgraphData";
 import { useMAVCPriceHistory, useMAVCPrice, MAVCPriceUpdate } from "@/hooks/useStrategyPrice";
 import api from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -79,60 +79,21 @@ type TimelinePoint = {
   cumBurned: number;
 };
 
-const buildTimeline = (
-  deposits: Array<{ assets: string; shares: string; timestamp: string }>,
-  withdrawals: Array<{ assets: string; shares: string; timestamp: string }>,
-): TimelinePoint[] => {
-  const bucket = new Map<number, { deposits: number; withdrawals: number; minted: number; burned: number }>();
-
-  deposits.forEach((entry) => {
-    const ts = Number(entry.timestamp) * 1000;
-    if (!Number.isFinite(ts)) return;
-    const assets = Number(entry.assets);
-    const shares = Number(entry.shares);
-    const current = bucket.get(ts) ?? { deposits: 0, withdrawals: 0, minted: 0, burned: 0 };
-    current.deposits += Number.isFinite(assets) ? assets : 0;
-    current.minted += Number.isFinite(shares) ? shares : 0;
-    bucket.set(ts, current);
-  });
-
-  withdrawals.forEach((entry) => {
-    const ts = Number(entry.timestamp) * 1000;
-    if (!Number.isFinite(ts)) return;
-    const assets = Number(entry.assets);
-    const shares = Number(entry.shares);
-    const current = bucket.get(ts) ?? { deposits: 0, withdrawals: 0, minted: 0, burned: 0 };
-    current.withdrawals += Number.isFinite(assets) ? assets : 0;
-    current.burned += Number.isFinite(shares) ? shares : 0;
-    bucket.set(ts, current);
-  });
-
-  const sorted = Array.from(bucket.entries())
-    .sort(([a], [b]) => a - b)
-    .map(([timestamp, values]) => ({ timestamp, ...values }));
-
-  let cumDeposits = 0;
-  let cumWithdrawals = 0;
-  let cumMinted = 0;
-  let cumBurned = 0;
-
-  return sorted.map(({ timestamp, deposits: dep, withdrawals: wit, minted, burned }) => {
-    cumDeposits += dep;
-    cumWithdrawals += wit;
-    cumMinted += minted;
-    cumBurned += burned;
-    return {
-      timestamp,
-      deposits: dep,
-      withdrawals: wit,
-      minted,
-      burned,
-      cumDeposits,
-      cumWithdrawals,
-      cumMinted,
-      cumBurned,
-    };
-  });
+const processSnapshots = (snapshots: Snapshot[]): TimelinePoint[] => {
+  return snapshots
+    .map((s) => ({
+      timestamp: Number(s.timestamp),
+      cumDeposits: Number(s.totalDeposits),
+      cumWithdrawals: Number(s.totalWithdrawals),
+      cumMinted: Number(s.mintedShares),
+      cumBurned: Number(s.burnedShares),
+      // Deltas are not strictly needed for current charts, but could be computed if valid
+      deposits: 0,
+      withdrawals: 0,
+      minted: 0,
+      burned: 0,
+    }))
+    .sort((a, b) => a.timestamp - b.timestamp);
 };
 
 type PricePoint = {
@@ -263,7 +224,7 @@ export const SubgraphAnalytics: React.FC<SubgraphAnalyticsProps> = ({ subgraphUr
     return netShares * price;
   }, [metrics, netShares, currentPrice]);
 
-  const timeline = useMemo(() => buildTimeline(deposits, withdrawals), [deposits, withdrawals]);
+  const timeline = useMemo(() => processSnapshots(data?.snapshots ?? []), [data?.snapshots]);
   const priceTimeline = useMemo(() => buildPriceTimeline(priceHistory ?? []), [priceHistory]);
   const aumTimeline = useMemo(() => buildAUMTimeline(timeline, priceTimeline), [timeline, priceTimeline]);
 
