@@ -99,6 +99,17 @@ const hedgeFundCategories: Category[] = [
       'Provide an overview of crypto tax obligations in Germany and any jurisdiction-specific nuances.'
     ]
   },
+  {
+    id: 'kryptonpay',
+    title: 'Krypton Pay',
+    icon: '/kryptonpay.svg',
+    description: 'Krypton Pay',
+    prompts: [
+      'Send 10 dollars to @krypton',
+      'Swap 50 euros for GBP',
+      'Transfer 100 AED to krypton',
+    ]
+  },
 ];
 
 export default function HedgeFundChat({ userId = '' }: HedgeFundChatProps) {
@@ -149,10 +160,10 @@ export default function HedgeFundChat({ userId = '' }: HedgeFundChatProps) {
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsLoading(true);
-    
+
     try {
       const response = await callLangChainAPI(inputValue);
-      
+
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
@@ -182,7 +193,7 @@ export default function HedgeFundChat({ userId = '' }: HedgeFundChatProps) {
   const handlePromptClick = async (prompt: string, categoryId?: string | null) => {
     setSelectedCategory(null);
     setInputValue('');
-    
+
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       type: 'user',
@@ -192,10 +203,10 @@ export default function HedgeFundChat({ userId = '' }: HedgeFundChatProps) {
 
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
-    
+
     try {
       const response = await callLangChainAPI(prompt);
-      
+
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
@@ -320,7 +331,7 @@ export default function HedgeFundChat({ userId = '' }: HedgeFundChatProps) {
                       const totalTiles = hedgeFundCategories.length;
                       const tilesPerRow = 2;
                       const totalRows = Math.ceil(totalTiles / tilesPerRow);
-                      
+
                       const columns = Array.from({ length: totalRows }).map((_, colIndex) => {
                         const startIndex = colIndex * tilesPerRow;
                         const colTiles = hedgeFundCategories.slice(startIndex, startIndex + tilesPerRow);
@@ -505,11 +516,11 @@ export default function HedgeFundChat({ userId = '' }: HedgeFundChatProps) {
 
       {/* Prompts Modal */}
       {selectedCategory && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           onClick={() => setSelectedCategory(null)}
         >
-          <Card 
+          <Card
             className="w-full max-w-2xl bg-zinc-900/95 border-zinc-700/50 shadow-2xl backdrop-blur-sm rounded-2xl max-h-[80vh]"
             onClick={(e) => e.stopPropagation()}
           >

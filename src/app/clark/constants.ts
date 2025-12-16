@@ -185,5 +185,16 @@ export const categories: Category[] = [
       'How does the Indian IT Department track offshore crypto wallets, and what risks trigger audits?',
       'Provide an overview of crypto tax obligations in Germany and any jurisdiction-specific nuances.'
     ]
-  }
+  },
+  {
+    id: 'kryptonpay',
+    title: 'Krypton Pay',
+    icon: '/kryptonpay.svg',
+    description: 'Krypton Pay',
+    prompts: [
+      'Send 10 dollars to @krypton',
+      'Swap 50 euros for GBP',
+      'Transfer 100 AED to krypton',
+    ]
+  },
 ]
