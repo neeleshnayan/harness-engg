@@ -6,11 +6,15 @@ import { getAuth, signOut } from "firebase/auth";
 import { ArrowLeft, CheckCircle, AlertCircle, SlidersHorizontal } from "lucide-react";
 import api from "@/lib/api";
 import StrategyCard from "@/components/wallet/StrategyCard";
+import StrategyCardYearnPAXG from "@/components/wallet/StrategyCardYearnPAXG";
 import { CumulativeAUMChartNew } from "@/components/wallet/CumulativeAUMChartNew";
-import { useMAVCConfig, useMAVPConfig, useMAVCYearnConfig } from "@/hooks/useStrategyConfig";
+import { useMAVCConfig, useMAVPConfig, useMAVCYearnConfig, useYearnWETHConfig, useYearnPAXGConfig } from "@/hooks/useStrategyConfig";
 import { SubgraphAnalytics } from "@/components/wallet/SubgraphAnalytics";
 import { SubgraphAnalyticsMAVP } from "@/components/wallet/SubgraphAnalyticsMAVP";
 import { SubgraphAnalyticsMAVCYearn } from "@/components/wallet/SubgraphAnalyticsMAVCYearn";
+import { SubgraphAnalyticsYearnWETH } from "@/components/wallet/SubgraphAnalyticsYearnWETH";
+import { SubgraphAnalyticsYearnPAXG } from "@/components/wallet/SubgraphAnalyticsYearnPAXG";
+import { TradingSignals } from "@/components/wallet/TradingSignals";
 import { Toaster } from "@/components/ui/toaster";
 import { HedgeFundForm } from "@/lib/types";
 import HedgeFundQuestionnaire from "@/components/HedgeFundQuestionnaire";
@@ -19,13 +23,15 @@ import WalletHeader from "@/components/wallet/WalletHeader";
 import HamburgerMenu from "@/components/wallet/HamburgerMenu";
 import { getFirebaseApp } from "@/lib/firebaseClient";
 
-type StrategyView = 'overview' | 'mavc' | 'mavp' | 'mavc-yearn';
+type StrategyView = 'overview' | 'mavc' | 'mavp' | 'mavc-yearn' | 'yearn-weth' | 'yearn-paxg';
 
 export default function HedgeFundV2Page() {
   const router = useRouter();
   const { data: mavcConfig, isLoading: mavcConfigLoading } = useMAVCConfig();
   const { data: mavpConfig, isLoading: mavpConfigLoading } = useMAVPConfig();
   const { data: mavcYearnConfig, isLoading: mavcYearnConfigLoading } = useMAVCYearnConfig();
+  const { data: yearnWethConfig, isLoading: yearnWethConfigLoading } = useYearnWETHConfig();
+  const { data: yearnPaxgConfig, isLoading: yearnPaxgConfigLoading } = useYearnPAXGConfig();
   const [selectedView, setSelectedView] = useState<StrategyView>('overview');
   const [formData, setFormData] = useState<HedgeFundForm>({
     age: "",
@@ -69,8 +75,8 @@ export default function HedgeFundV2Page() {
       const symbol = tokenBalance.token.symbol;
       const rawAmount = parseFloat(tokenBalance.amount || "0");
 
-      if (symbol === 'MAVC' && mavcTokenAddress && 
-          tokenBalance.token.tokenAddress?.toLowerCase() === mavcTokenAddress.toLowerCase()) {
+      if (symbol === 'MAVC' && mavcTokenAddress &&
+        tokenBalance.token.tokenAddress?.toLowerCase() === mavcTokenAddress.toLowerCase()) {
         mavcBalance = rawAmount / Math.pow(10, 12);
       } else if (symbol === 'MAVP') {
         mavpBalance = (mavpBalance || 0) + rawAmount / Math.pow(10, 12);
@@ -87,12 +93,12 @@ export default function HedgeFundV2Page() {
       const parsedData = JSON.parse(storedUserData);
       setUserData(parsedData);
       setAccountData(parsedData);
-      
+
       // Fetch balance if wallet address exists
       if (parsedData.wallet_address) {
         fetchBalance(parsedData.wallet_address);
       }
-      
+
       // Check if user has already submitted a questionnaire
       if (parsedData?.user_id) {
         // checkExistingSubmission(parsedData.user_id);
@@ -148,7 +154,7 @@ export default function HedgeFundV2Page() {
         setExistingSubmission(submissionData);
         setIsEditing(true);
         setShowDashboard(true); // Show dashboard if user has completed questionnaire
-        
+
         // Pre-populate form with existing data
         setFormData({
           age: submissionData.age,
@@ -174,11 +180,11 @@ export default function HedgeFundV2Page() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate all fields are filled
     const requiredFields = Object.keys(formData) as (keyof HedgeFundForm)[];
     const emptyFields = requiredFields.filter(field => !formData[field]);
-    
+
     if (emptyFields.length > 0) {
       setError("Please fill in all required fields");
       return;
@@ -217,14 +223,14 @@ export default function HedgeFundV2Page() {
     }
   };
 
-  const RadioGroup = ({ 
-    title, 
-    field, 
-    options 
-  }: { 
-    title: string; 
-    field: keyof HedgeFundForm; 
-    options: { value: string; label: string }[] 
+  const RadioGroup = ({
+    title,
+    field,
+    options
+  }: {
+    title: string;
+    field: keyof HedgeFundForm;
+    options: { value: string; label: string }[]
   }) => (
     <div className="mb-8 p-6 bg-zinc-900/50 rounded-xl border border-zinc-700/50">
       <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
@@ -347,6 +353,56 @@ export default function HedgeFundV2Page() {
             )}
           </>
         );
+      case 'yearn-weth':
+        return (
+          <>
+            <div className="mb-6 sm:mb-8 px-4">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-2 drop-shadow-lg">
+                YEARN WETH
+              </h1>
+              <p className="text-zinc-400 text-sm sm:text-base md:text-lg max-w-3xl">
+                Real-time on-chain analytics and trading data for the Yearn USDC/WETH strategy.
+              </p>
+            </div>
+
+            {/* Trading Signals Section */}
+            <div className="px-4 mb-6">
+              <TradingSignals strategyName="YEARN_WETH" />
+            </div>
+
+            {/* Subgraph Analytics */}
+            {yearnWethConfigLoading ? (
+              <div className="text-center text-zinc-400">Loading configuration...</div>
+            ) : (
+              <SubgraphAnalyticsYearnWETH subgraphUrl={yearnWethConfig?.subgraph_url} />
+            )}
+          </>
+        );
+      case 'yearn-paxg':
+        return (
+          <>
+            <div className="mb-6 sm:mb-8 px-4">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-2 drop-shadow-lg">
+                YEARN PAXG
+              </h1>
+              <p className="text-zinc-400 text-sm sm:text-base md:text-lg max-w-3xl">
+                Real-time on-chain analytics and trading data for the Yearn USDC/PAXG strategy.
+              </p>
+            </div>
+
+            {/* Trading Signals Section */}
+            <div className="px-4 mb-6">
+              <TradingSignals strategyName="YEARN_PAXG" />
+            </div>
+
+            {/* Subgraph Analytics */}
+            {yearnPaxgConfigLoading ? (
+              <div className="text-center text-zinc-400">Loading configuration...</div>
+            ) : (
+              <SubgraphAnalyticsYearnPAXG subgraphUrl={yearnPaxgConfig?.subgraph_url} />
+            )}
+          </>
+        );
       default:
         return (
           <>
@@ -365,10 +421,10 @@ export default function HedgeFundV2Page() {
             <section id="clark-chat" className="w-full max-w-6xl mx-auto mb-4 relative">
               <MiniHedgeFundChat userId={accountData?.user_id} />
             </section>
-            
+
             {/* Strategy Cards */}
             <div className="w-full max-w-6xl mx-auto mb-8 sm:mb-12 px-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Tokenized Strategies</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Available Strategies</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 <StrategyCard
                   strategyName="MAVC"
@@ -384,6 +440,15 @@ export default function HedgeFundV2Page() {
                   strategyName="MAVC_YEARN"
                   onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
                   onCardClick={() => setSelectedView('mavc-yearn')}
+                />
+                <StrategyCard
+                  strategyName="YEARN_WETH"
+                  onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
+                  onCardClick={() => setSelectedView('yearn-weth')}
+                />
+                <StrategyCardYearnPAXG
+                  onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
+                  onCardClick={() => setSelectedView('yearn-paxg')}
                 />
               </div>
             </div>
@@ -433,47 +498,7 @@ export default function HedgeFundV2Page() {
           {/* Header */}
           {selectedView === 'overview' && (
             <>
-              {/* Mobile: Title and buttons on same row */}
-              {/* <div className="flex items-center justify-between gap-3 mb-4 sm:hidden px-4">
-                <h1 className="text-4xl font-extrabold text-white drop-shadow-lg">
-                  Hedge Fund
-                </h1>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowQuestionnaire(true)}
-                    className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-3 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-xs justify-center flex items-center"
-                  >
-                    <SlidersHorizontal className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => router.push('/customer/grow')}
-                    className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-3 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-xs justify-center flex items-center"
-                  >
-                    ←
-                  </button>
-                </div>
-              </div> */}
-
-              {/* Desktop: Centered header with buttons in separate row */}
-              {/* <div className="hidden sm:block">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
-                  <div className="w-full sm:flex-1" />
-                  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                    <button
-                      onClick={() => setShowQuestionnaire(true)}
-                      className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-4 sm:px-6 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-xs sm:text-sm w-full sm:w-auto justify-center flex items-center"
-                    >
-                      <SlidersHorizontal className="h-4 w-4 mr-2" />
-                    </button>
-                    <button
-                      onClick={() => router.push('/customer/grow')}
-                      className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-4 sm:px-6 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-xs sm:text-sm w-full sm:w-auto justify-center flex items-center"
-                    >
-                      ←
-                    </button>
-                  </div>
-                </div>
-              </div> */}
+              {/* V1 Header retained content would go here if needed, but implementation above handles it via WalletHeader */}
             </>
           )}
 
