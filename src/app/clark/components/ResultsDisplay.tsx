@@ -42,7 +42,7 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
     // If we only have markdown (from economic agent), render it as markdown
     if (economicResult.markdown && !economicResult.results) {
       return (
-        <Card key={`econ-${message.id}`} className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+        <Card key={`econ-${message.id}`} className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
           <CardHeader className="pb-4">
             <CardTitle className="text-lg text-white">Economic Data</CardTitle>
           </CardHeader>
@@ -60,10 +60,10 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
     const isNews = economicResult.indicator === 'news'
     const isCalendar = economicResult.indicator === 'calendar'
     return (
-      <Card key={`econ-${message.id}`} className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+      <Card key={`econ-${message.id}`} className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
         <CardHeader className="pb-4">
           <CardTitle className="text-lg text-white">{economicResult.indicator_name || 'Economic Data'}</CardTitle>
-          <CardDescription className="text-zinc-400">
+          <CardDescription className="text-teal-200/70">
             {isNews ? `${economicResult.total_found || 0} latest news articles` :
              isCalendar ? `${economicResult.total_found || 0} upcoming economic events` :
              `Economic indicators for ${economicResult.total_found || 0} countries`}
@@ -74,14 +74,14 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
             {isNews ? (
               <div className="space-y-4">
                 {(economicResult.results as NewsData[]).map((news, index) => (
-                  <div key={news.id || index} className="border-b border-zinc-800 pb-4 hover:bg-zinc-900/50 transition-colors p-4 rounded-lg">
+                  <div key={news.id || index} className="border-b border-teal-800/30 pb-4 hover:bg-teal-900/30 transition-colors p-4 rounded-lg">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <h3 className="text-lg font-semibold text-white mb-2">{news.title}</h3>
                         {news.description && (
-                          <p className="text-sm text-zinc-400 mb-2">{news.description}</p>
+                          <p className="text-sm text-teal-200/70 mb-2">{news.description}</p>
                         )}
-                        <div className="flex items-center gap-4 text-xs text-zinc-500">
+                        <div className="flex items-center gap-4 text-xs text-teal-300/60">
                           <span>{new Date(news.date).toLocaleDateString()}</span>
                           {news.country && <span>• {news.country}</span>}
                           {news.category && <span>• {news.category}</span>}
@@ -92,7 +92,7 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                           href={news.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="ml-4 text-blue-400 hover:text-blue-300 text-sm"
+                          className="ml-4 text-cyan-400 hover:text-cyan-300 text-sm"
                         >
                           Read more →
                         </a>
@@ -104,35 +104,35 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
             ) : isCalendar ? (
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-zinc-700">
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Date</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Country</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Event</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Actual</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Forecast</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Previous</th>
+                  <tr className="border-b border-teal-700/30">
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Date</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Country</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Event</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Actual</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Forecast</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Previous</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(economicResult.results as CalendarData[]).map((event, index) => (
-                    <tr key={event.event_id || index} className="border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors">
-                      <td className="py-3 px-4 text-sm text-zinc-300">
+                    <tr key={event.event_id || index} className="border-b border-teal-800/30 hover:bg-teal-900/30 transition-colors">
+                      <td className="py-3 px-4 text-sm text-white/90">
                         {new Date(event.date).toLocaleDateString()}
                       </td>
                       <td className="py-3 px-4 text-sm font-medium text-white">{event.country}</td>
-                      <td className="py-3 px-4 text-sm text-zinc-300">
+                      <td className="py-3 px-4 text-sm text-white/90">
                         <div>
                           <div className="font-medium text-white">{event.event}</div>
-                          {event.category && <div className="text-xs text-zinc-500">{event.category}</div>}
+                          {event.category && <div className="text-xs text-teal-300/60">{event.category}</div>}
                         </div>
                       </td>
                       <td className="py-3 px-4 text-sm text-right text-white font-medium">
                         {event.actual !== null && event.actual !== undefined ? event.actual : '-'}
                       </td>
-                      <td className="py-3 px-4 text-sm text-right text-zinc-300">
+                      <td className="py-3 px-4 text-sm text-right text-white/90">
                         {event.forecast !== null && event.forecast !== undefined ? event.forecast : '-'}
                       </td>
-                      <td className="py-3 px-4 text-sm text-right text-zinc-300">
+                      <td className="py-3 px-4 text-sm text-right text-white/90">
                         {event.previous !== null && event.previous !== undefined ? event.previous : '-'}
                       </td>
                     </tr>
@@ -142,14 +142,14 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
             ) : economicResult.results && Array.isArray(economicResult.results) && economicResult.results.length > 0 ? (
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-zinc-700">
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Rank</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Country</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Current Value</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Previous Value</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Change</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Unit</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Last Updated</th>
+                  <tr className="border-b border-teal-700/30">
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Rank</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Country</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Current Value</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Previous Value</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Change</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Unit</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Last Updated</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -163,18 +163,18 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                       ? (((data.value as number) - (data.previous_value as number)) / (data.previous_value as number)) * 100
                       : null
                     return (
-                      <tr key={data.country || index} className="border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors">
-                        <td className="py-3 px-4 text-sm text-zinc-300">{index + 1}</td>
+                      <tr key={data.country || index} className="border-b border-teal-800/30 hover:bg-teal-900/30 transition-colors">
+                        <td className="py-3 px-4 text-sm text-white/90">{index + 1}</td>
                         <td className="py-3 px-4 text-sm font-medium text-white">{data.country || 'N/A'}</td>
                         <td className="py-3 px-4 text-sm text-right text-white font-medium">
                           {hasValue && typeof data.value === 'number' ? data.value.toLocaleString() : 'N/A'}
                         </td>
-                        <td className="py-3 px-4 text-sm text-right text-zinc-300">
+                        <td className="py-3 px-4 text-sm text-right text-white/90">
                           {hasPreviousValue && typeof data.previous_value === 'number' ? data.previous_value.toLocaleString() : 'N/A'}
                         </td>
                         <td className={`py-3 px-4 text-sm text-right font-medium ${
                           change !== null && change > 0 ? 'text-green-500' :
-                          change !== null && change < 0 ? 'text-red-500' : 'text-zinc-300'
+                          change !== null && change < 0 ? 'text-red-500' : 'text-white/90'
                         }`}>
                           {change !== null ? (
                             <>
@@ -185,8 +185,8 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                             </>
                           ) : 'N/A'}
                         </td>
-                        <td className="py-3 px-4 text-sm text-zinc-300">{data.unit || 'N/A'}</td>
-                        <td className="py-3 px-4 text-sm text-zinc-300">
+                        <td className="py-3 px-4 text-sm text-white/90">{data.unit || 'N/A'}</td>
+                        <td className="py-3 px-4 text-sm text-white/90">
                           {data.date ? new Date(data.date).toLocaleDateString() : 'N/A'}
                         </td>
                       </tr>
@@ -196,7 +196,7 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
               </table>
             ) : (
               // Fallback: show markdown if available, or a message
-              <div className="text-sm text-zinc-400">
+              <div className="text-sm text-teal-200/70">
                 {economicResult.markdown ? (
                   <div
                     className="text-sm leading-relaxed prose prose-invert max-w-none"
@@ -219,10 +219,10 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
     const summary = regulationResult.summary || message.content
     const summaryHtml = summary ? markdownToHtml(summary) : ''
     return (
-      <Card key={`reg-${message.id}`} className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+      <Card key={`reg-${message.id}`} className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
         <CardHeader className="pb-4">
           <CardTitle className="text-lg text-white">Regulation Guidance</CardTitle>
-          {/* <CardDescription className="text-zinc-400">
+          {/* <CardDescription className="text-teal-200/70">
             {regulationResult.jurisdiction
               ? `Focus: ${regulationResult.jurisdiction}`
               : 'Jurisdiction not specified'}
@@ -231,17 +231,17 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
         <CardContent className="space-y-4">
           {summary && (
             <div
-              className="bg-zinc-900/40 border border-zinc-700/40 rounded-xl p-4 text-sm text-zinc-200 leading-relaxed"
+              className="bg-zinc-900/40 border border-teal-700/30/40 rounded-xl p-4 text-sm text-white leading-relaxed"
               dangerouslySetInnerHTML={{ __html: summaryHtml }}
             />
           )}
           <div className="space-y-3">
             {regulationResult.matches.map((match, index) => (
-              <div key={`${match.title}-${index}`} className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-4 hover:border-purple-500/40 transition-colors">
+              <div key={`${match.title}-${index}`} className="rounded-lg border border-teal-800/30 bg-teal-900/20 p-4 hover:border-teal-400/50 transition-colors">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                   <div>
                     <h3 className="text-sm font-semibold text-white">{match.title}</h3>
-                    <div className="text-xs text-zinc-400">
+                    <div className="text-xs text-teal-200/70">
                       {match.jurisdiction && <span>{match.jurisdiction}</span>}
                       {match.source_title && (
                         <span className={match.jurisdiction ? 'ml-2' : ''}>{match.source_title}</span>
@@ -253,19 +253,19 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                       href={match.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-blue-400 hover:text-blue-300"
+                      className="text-xs text-cyan-400 hover:text-cyan-300"
                     >
                       View source →
                     </a>
                   )}
                 </div>
                 {match.description && (
-                  <p className="mt-2 text-xs text-zinc-400">{match.description}</p>
+                  <p className="mt-2 text-xs text-teal-200/70">{match.description}</p>
                 )}
-                <p className="mt-2 text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                <p className="mt-2 text-sm text-white/90 whitespace-pre-wrap leading-relaxed">
                   {match.snippet}
                 </p>
-                <div className="mt-2 text-xs text-zinc-500">Relevance score: {match.score.toFixed(2)}</div>
+                <div className="mt-2 text-xs text-teal-300/60">Relevance score: {match.score.toFixed(2)}</div>
               </div>
             ))}
           </div>
@@ -289,24 +289,24 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
       // Single stock display
       if (!screenerResult.results || screenerResult.results.length === 0) {
         return (
-          <Card key={`stock-${message.id}`} className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+          <Card key={`stock-${message.id}`} className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg text-white">No Data Available</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-zinc-400">No stock data found for this query.</p>
+              <p className="text-teal-200/70">No stock data found for this query.</p>
             </CardContent>
           </Card>
         )
       }
       const stock = screenerResult.results[0]
       return (
-        <Card key={`stock-${message.id}`} className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+        <Card key={`stock-${message.id}`} className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
           <CardHeader className="pb-4">
             <CardTitle className="text-lg text-white">
               {isStockProfile ? 'Company Profile' : 'Stock Quote'} - {stock.name || stock.symbol}
             </CardTitle>
-            <CardDescription className="text-zinc-400">
+            <CardDescription className="text-teal-200/70">
               {stock.symbol} {stock.exchange && `• ${stock.exchange}`}
             </CardDescription>
           </CardHeader>
@@ -314,12 +314,12 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
             <div className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <div className="text-xs text-zinc-400 mb-1">Price</div>
+                  <div className="text-xs text-teal-200/70 mb-1">Price</div>
                   <div className="text-xl font-bold text-white">{formatCurrency(stock.price)}</div>
                 </div>
                 {stock.daily_change_percent !== undefined && (
                   <div>
-                    <div className="text-xs text-zinc-400 mb-1">24h Change</div>
+                    <div className="text-xs text-teal-200/70 mb-1">24h Change</div>
                     <div className={`text-xl font-bold ${stock.daily_change_percent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                       {stock.daily_change_percent >= 0 ? '+' : ''}{stock.daily_change_percent.toFixed(2)}%
                     </div>
@@ -327,76 +327,76 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                 )}
                 {stock.market_cap && (
                   <div>
-                    <div className="text-xs text-zinc-400 mb-1">Market Cap</div>
+                    <div className="text-xs text-teal-200/70 mb-1">Market Cap</div>
                     <div className="text-xl font-bold text-white">{formatNumber(stock.market_cap)}</div>
                   </div>
                 )}
                 {stock.volume_24h && (
                   <div>
-                    <div className="text-xs text-zinc-400 mb-1">Volume</div>
+                    <div className="text-xs text-teal-200/70 mb-1">Volume</div>
                     <div className="text-xl font-bold text-white">{formatNumber(stock.volume_24h)}</div>
                   </div>
                 )}
               </div>
               {isStockProfile && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-zinc-700">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-teal-700/30">
                   {stock.sector && (
                     <div>
-                      <div className="text-xs text-zinc-400 mb-1">Sector</div>
+                      <div className="text-xs text-teal-200/70 mb-1">Sector</div>
                       <div className="text-sm text-white">{stock.sector}</div>
                     </div>
                   )}
                   {stock.industry && (
                     <div>
-                      <div className="text-xs text-zinc-400 mb-1">Industry</div>
+                      <div className="text-xs text-teal-200/70 mb-1">Industry</div>
                       <div className="text-sm text-white">{stock.industry}</div>
                     </div>
                   )}
                   {stock.ceo && (
                     <div>
-                      <div className="text-xs text-zinc-400 mb-1">CEO</div>
+                      <div className="text-xs text-teal-200/70 mb-1">CEO</div>
                       <div className="text-sm text-white">{stock.ceo}</div>
                     </div>
                   )}
                   {stock.website && (
                     <div>
-                      <div className="text-xs text-zinc-400 mb-1">Website</div>
-                      <a href={stock.website} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-400 hover:text-blue-300">
+                      <div className="text-xs text-teal-200/70 mb-1">Website</div>
+                      <a href={stock.website} target="_blank" rel="noopener noreferrer" className="text-sm text-cyan-400 hover:text-cyan-300">
                         {stock.website}
                       </a>
                     </div>
                   )}
                   {stock.description && (
                     <div className="md:col-span-2">
-                      <div className="text-xs text-zinc-400 mb-1">Description</div>
-                      <div className="text-sm text-zinc-300">{stock.description}</div>
+                      <div className="text-xs text-teal-200/70 mb-1">Description</div>
+                      <div className="text-sm text-white/90">{stock.description}</div>
                     </div>
                   )}
                 </div>
               )}
               {(stock.day_low || stock.day_high || stock.year_low || stock.year_high) && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-zinc-700">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-teal-700/30">
                   {stock.day_low && (
                     <div>
-                      <div className="text-xs text-zinc-400 mb-1">Day Low</div>
+                      <div className="text-xs text-teal-200/70 mb-1">Day Low</div>
                       <div className="text-sm text-white">{formatCurrency(stock.day_low)}</div>
                     </div>
                   )}
                   {stock.day_high && (
                     <div>
-                      <div className="text-xs text-zinc-400 mb-1">Day High</div>
+                      <div className="text-xs text-teal-200/70 mb-1">Day High</div>
                       <div className="text-sm text-white">{formatCurrency(stock.day_high)}</div>
                     </div>
                   )}
                   {stock.year_low && (
                     <div>
-                      <div className="text-xs text-zinc-400 mb-1">52W Low</div>
+                      <div className="text-xs text-teal-200/70 mb-1">52W Low</div>
                       <div className="text-sm text-white">{formatCurrency(stock.year_low)}</div>
                     </div>
                   )}
                   {stock.year_high && (
                     <div>
-                      <div className="text-xs text-zinc-400 mb-1">52W High</div>
+                      <div className="text-xs text-teal-200/70 mb-1">52W High</div>
                       <div className="text-sm text-white">{formatCurrency(stock.year_high)}</div>
                     </div>
                   )}
@@ -409,7 +409,7 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
     }
     
     return (
-      <Card key={`scr-${message.id}`} className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+      <Card key={`scr-${message.id}`} className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
         <CardHeader className="pb-4">
           <CardTitle className="text-lg text-white">
             {screenerResult.screener_type === 'price' && 'Price Screener Results'}
@@ -420,7 +420,7 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
             {isCryptoQuote && 'Cryptocurrency Quotes'}
             {isForexQuote && 'Forex Quotes'}
           </CardTitle>
-          <CardDescription className="text-zinc-400">
+          <CardDescription className="text-teal-200/70">
             {screenerResult.range_description} • {screenerResult.total_found} {isStockScreener ? 'stocks' : isCryptoQuote ? 'cryptocurrencies' : isForexQuote ? 'forex pairs' : 'cryptos'} found
           </CardDescription>
         </CardHeader>
@@ -428,50 +428,50 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-zinc-700">
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Rank</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Name</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Symbol</th>
-                  <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Price</th>
-                  <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">24h Change</th>
+                <tr className="border-b border-teal-700/30">
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Rank</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Name</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Symbol</th>
+                  <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Price</th>
+                  <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">24h Change</th>
                   {screenerResult.screener_type === '52w_high_low' && (
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">From High/Low</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">From High/Low</th>
                   )}
                   {screenerResult.screener_type === 'rsi' && (
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">RSI</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">RSI</th>
                   )}
                   {screenerResult.screener_type === 'technical_pattern' && (
                     <>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">50 SMA</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">200 SMA</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">50 SMA</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">200 SMA</th>
                     </>
                   )}
                   {screenerResult.screener_type === 'ema' && (
                     <>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">5 EMA</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">10 EMA</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">5 EMA</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">10 EMA</th>
                     </>
                   )}
                   {isStockScreener && (
                     <>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Sector</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Exchange</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Sector</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Exchange</th>
                     </>
                   )}
                   {!isForexQuote && (
                     <>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Market Cap</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Volume (24h)</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Market Cap</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Volume (24h)</th>
                     </>
                   )}
                 </tr>
               </thead>
               <tbody>
                 {screenerResult.results.map((item: any, index) => (
-                  <tr key={item.symbol || index} className="border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors">
-                    <td className="py-3 px-4 text-sm text-zinc-300">{item.rank || index + 1}</td>
+                  <tr key={item.symbol || index} className="border-b border-teal-800/30 hover:bg-teal-900/30 transition-colors">
+                    <td className="py-3 px-4 text-sm text-white/90">{item.rank || index + 1}</td>
                     <td className="py-3 px-4 text-sm font-medium text-white">{item.name || item.symbol}</td>
-                    <td className="py-3 px-4 text-sm text-zinc-300">{item.symbol}</td>
+                    <td className="py-3 px-4 text-sm text-white/90">{item.symbol}</td>
                     <td className="py-3 px-4 text-sm text-right text-white">{formatCurrency(item.price)}</td>
                     <td className={`py-3 px-4 text-sm text-right font-medium ${
                       (item.daily_change_percent || 0) >= 0 ? 'text-green-500' : 'text-red-500'
@@ -481,7 +481,7 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                     {screenerResult.screener_type === '52w_high_low' && (
                       <td className={`py-3 px-4 text-sm text-right font-medium ${
                         item.percent_from_high !== undefined && item.percent_from_high >= -10 ? 'text-green-500' :
-                        item.percent_from_low !== undefined && item.percent_from_low <= 10 ? 'text-red-500' : 'text-zinc-300'
+                        item.percent_from_low !== undefined && item.percent_from_low <= 10 ? 'text-red-500' : 'text-white/90'
                       }`}>
                         {item.percent_from_high !== undefined ? `${item.percent_from_high.toFixed(1)}% from high` :
                          item.percent_from_low !== undefined ? `${item.percent_from_low.toFixed(1)}% from low` : 'N/A'}
@@ -490,41 +490,41 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                     {screenerResult.screener_type === 'rsi' && (
                       <td className={`py-3 px-4 text-sm text-right font-medium ${
                         item.rsi !== undefined && item.rsi <= 30 ? 'text-red-500' :
-                        item.rsi !== undefined && item.rsi >= 70 ? 'text-green-500' : 'text-zinc-300'
+                        item.rsi !== undefined && item.rsi >= 70 ? 'text-green-500' : 'text-white/90'
                       }`}>
                         {item.rsi !== undefined ? item.rsi.toFixed(1) : 'N/A'}
                       </td>
                     )}
                     {screenerResult.screener_type === 'technical_pattern' && (
                       <>
-                        <td className="py-3 px-4 text-sm text-right text-zinc-300">
+                        <td className="py-3 px-4 text-sm text-right text-white/90">
                           {item.sma_50 !== undefined ? formatCurrency(item.sma_50) : 'N/A'}
                         </td>
-                        <td className="py-3 px-4 text-sm text-right text-zinc-300">
+                        <td className="py-3 px-4 text-sm text-right text-white/90">
                           {item.sma_200 !== undefined ? formatCurrency(item.sma_200) : 'N/A'}
                         </td>
                       </>
                     )}
                     {screenerResult.screener_type === 'ema' && (
                       <>
-                        <td className="py-3 px-4 text-sm text-right text-zinc-300">
+                        <td className="py-3 px-4 text-sm text-right text-white/90">
                           {item.ema_5 !== undefined ? formatCurrency(item.ema_5) : 'N/A'}
                         </td>
-                        <td className="py-3 px-4 text-sm text-right text-zinc-300">
+                        <td className="py-3 px-4 text-sm text-right text-white/90">
                           {item.ema_10 !== undefined ? formatCurrency(item.ema_10) : 'N/A'}
                         </td>
                       </>
                     )}
                     {isStockScreener && (
                       <>
-                        <td className="py-3 px-4 text-sm text-zinc-300">{item.sector || 'N/A'}</td>
-                        <td className="py-3 px-4 text-sm text-zinc-300">{item.exchange || 'N/A'}</td>
+                        <td className="py-3 px-4 text-sm text-white/90">{item.sector || 'N/A'}</td>
+                        <td className="py-3 px-4 text-sm text-white/90">{item.exchange || 'N/A'}</td>
                       </>
                     )}
                     {screenerResult.screener_type !== 'forex_quote' && (
                       <>
-                        <td className="py-3 px-4 text-sm text-right text-zinc-300">{formatNumber(item.market_cap || 0)}</td>
-                        <td className="py-3 px-4 text-sm text-right text-zinc-300">{formatNumber(item.volume_24h || 0)}</td>
+                        <td className="py-3 px-4 text-sm text-right text-white/90">{formatNumber(item.market_cap || 0)}</td>
+                        <td className="py-3 px-4 text-sm text-right text-white/90">{formatNumber(item.volume_24h || 0)}</td>
                       </>
                     )}
                   </tr>
@@ -545,24 +545,24 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
       <div key={`bt-${message.id}`} className="space-y-4">
         {backtestResult.show_performance_stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
-            <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+            <Card className="bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
               <CardContent className="p-4">
                 <div className="flex items-center space-x-3">
                   <DollarSign className="h-5 w-5 text-green-400" />
                   <div>
-                    <p className="text-xs font-medium text-zinc-400">Final Value</p>
+                    <p className="text-xs font-medium text-teal-200/70">Final Value</p>
                     <p className="text-xl font-bold text-white">{formatCurrency(backtestResult.final_capital)}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+            <Card className="bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
               <CardContent className="p-4">
                 <div className="flex items-center space-x-3">
-                  <TrendingUp className="h-5 w-5 text-blue-400" />
+                  <TrendingUp className="h-5 w-5 text-cyan-400" />
                   <div>
-                    <p className="text-xs font-medium text-zinc-400">Total Return</p>
+                    <p className="text-xs font-medium text-teal-200/70">Total Return</p>
                     <p className={`text-xl font-bold ${
                       backtestResult.metrics.total_return >= 0 ? 'text-green-400' : 'text-red-400'
                     }`}>
@@ -573,24 +573,24 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
               </CardContent>
             </Card>
 
-            <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+            <Card className="bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
               <CardContent className="p-4">
                 <div className="flex items-center space-x-3">
-                  <BarChart3 className="h-5 w-5 text-purple-400" />
+                  <BarChart3 className="h-5 w-5 text-teal-400" />
                   <div>
-                    <p className="text-xs font-medium text-zinc-400">Sharpe Ratio</p>
+                    <p className="text-xs font-medium text-teal-200/70">Sharpe Ratio</p>
                     <p className="text-xl font-bold text-white">{backtestResult.metrics.sharpe_ratio.toFixed(2)}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+            <Card className="bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
               <CardContent className="p-4">
                 <div className="flex items-center space-x-3">
                   <TrendingDown className="h-5 w-5 text-red-400" />
                   <div>
-                    <p className="text-xs font-medium text-zinc-400">Max Drawdown</p>
+                    <p className="text-xs font-medium text-teal-200/70">Max Drawdown</p>
                     <p className="text-xl font-bold text-red-400">
                       {formatPercentage(Math.abs(backtestResult.metrics.max_drawdown))}
                     </p>
@@ -606,12 +606,12 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
           const tableId = `trades-${message.id}`
           const isExpanded = expandedTradeTables.has(tableId)
           return (
-            <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+            <Card className="bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-lg text-white">Trade History</CardTitle>
-                    <CardDescription className="text-zinc-400">
+                    <CardDescription className="text-teal-200/70">
                       {backtestResult.trades.length} {backtestResult.trades.length === 1 ? 'trade' : 'trades'} executed during backtest
                     </CardDescription>
                   </div>
@@ -627,7 +627,7 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                         return next
                       })
                     }}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-400 hover:text-white transition-colors rounded-lg hover:bg-zinc-700/50"
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-teal-200/70 hover:text-white transition-colors rounded-lg hover:bg-teal-700/30"
                     aria-label={isExpanded ? 'Collapse trades table' : 'Expand trades table'}
                   >
                     <span>{isExpanded ? 'Hide' : 'Show'} Details</span>
@@ -643,24 +643,24 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                 <CardContent>
                   {backtestResult.metrics.total_trades !== null && backtestResult.metrics.total_trades !== undefined && backtestResult.metrics.total_trades > 0 && (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 w-full mb-4">
-                      <Card className="bg-zinc-900/40 border-zinc-700/50">
+                      <Card className="bg-teal-900/30 border-teal-700/50">
                         <CardContent className="p-4">
                           <div className="flex items-center space-x-3">
-                            <BarChart3 className="h-5 w-5 text-blue-400" />
+                            <BarChart3 className="h-5 w-5 text-cyan-400" />
                             <div>
-                              <p className="text-xs font-medium text-zinc-400">Total Trades</p>
+                              <p className="text-xs font-medium text-teal-200/70">Total Trades</p>
                               <p className="text-xl font-bold text-white">{backtestResult.metrics.total_trades}</p>
                             </div>
                           </div>
                         </CardContent>
                       </Card>
 
-                      <Card className="bg-zinc-900/40 border-zinc-700/50">
+                      <Card className="bg-teal-900/30 border-teal-700/50">
                         <CardContent className="p-4">
                           <div className="flex items-center space-x-3">
                             <TrendingUp className="h-5 w-5 text-green-400" />
                             <div>
-                              <p className="text-xs font-medium text-zinc-400">Winning Trades</p>
+                              <p className="text-xs font-medium text-teal-200/70">Winning Trades</p>
                               <p className="text-xl font-bold text-green-400">
                                 {backtestResult.metrics.winning_trades ?? 0}
                               </p>
@@ -669,12 +669,12 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                         </CardContent>
                       </Card>
 
-                      <Card className="bg-zinc-900/40 border-zinc-700/50">
+                      <Card className="bg-teal-900/30 border-teal-700/50">
                         <CardContent className="p-4">
                           <div className="flex items-center space-x-3">
                             <TrendingDown className="h-5 w-5 text-red-400" />
                             <div>
-                              <p className="text-xs font-medium text-zinc-400">Losing Trades</p>
+                              <p className="text-xs font-medium text-teal-200/70">Losing Trades</p>
                               <p className="text-xl font-bold text-red-400">
                                 {backtestResult.metrics.losing_trades ?? 0}
                               </p>
@@ -683,12 +683,12 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                         </CardContent>
                       </Card>
 
-                      <Card className="bg-zinc-900/40 border-zinc-700/50">
+                      <Card className="bg-teal-900/30 border-teal-700/50">
                         <CardContent className="p-4">
                           <div className="flex items-center space-x-3">
-                            <DollarSign className="h-5 w-5 text-purple-400" />
+                            <DollarSign className="h-5 w-5 text-teal-400" />
                             <div>
-                              <p className="text-xs font-medium text-zinc-400">Avg Trade Return</p>
+                              <p className="text-xs font-medium text-teal-200/70">Avg Trade Return</p>
                               <p className={`text-xl font-bold ${
                                 (backtestResult.metrics.avg_trade_return ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'
                               }`}>
@@ -705,27 +705,27 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
-                        <tr className="border-b border-zinc-700">
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">#</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Entry Date</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Exit Date</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Entry Price</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Exit Price</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Size</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">P&L</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Return %</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Duration</th>
+                        <tr className="border-b border-teal-700/30">
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">#</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Entry Date</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Exit Date</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Entry Price</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Exit Price</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Size</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">P&L</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Return %</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Duration</th>
                         </tr>
                       </thead>
                       <tbody>
                         {backtestResult.trades.map((trade) => (
-                          <tr key={trade.trade_number} className="border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors">
-                            <td className="py-3 px-4 text-sm text-zinc-300">{trade.trade_number}</td>
-                            <td className="py-3 px-4 text-sm text-zinc-300">{formatDate(trade.entry_date)}</td>
-                            <td className="py-3 px-4 text-sm text-zinc-300">{formatDate(trade.exit_date)}</td>
+                          <tr key={trade.trade_number} className="border-b border-teal-800/30 hover:bg-teal-900/30 transition-colors">
+                            <td className="py-3 px-4 text-sm text-white/90">{trade.trade_number}</td>
+                            <td className="py-3 px-4 text-sm text-white/90">{formatDate(trade.entry_date)}</td>
+                            <td className="py-3 px-4 text-sm text-white/90">{formatDate(trade.exit_date)}</td>
                             <td className="py-3 px-4 text-sm text-right text-white">{formatCurrency(trade.entry_price)}</td>
                             <td className="py-3 px-4 text-sm text-right text-white">{formatCurrency(trade.exit_price)}</td>
-                            <td className="py-3 px-4 text-sm text-right text-zinc-300">{formatNumber(trade.size)}</td>
+                            <td className="py-3 px-4 text-sm text-right text-white/90">{formatNumber(trade.size)}</td>
                             <td className={`py-3 px-4 text-sm text-right font-medium ${
                               trade.pnl >= 0 ? 'text-green-400' : 'text-red-400'
                             }`}>
@@ -736,7 +736,7 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                             }`}>
                               {trade.return_pct >= 0 ? '+' : ''}{formatPercentage(trade.return_pct)}
                             </td>
-                            <td className="py-3 px-4 text-sm text-right text-zinc-300">{trade.duration_days} {trade.duration_days === 1 ? 'day' : 'days'}</td>
+                            <td className="py-3 px-4 text-sm text-right text-white/90">{trade.duration_days} {trade.duration_days === 1 ? 'day' : 'days'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -790,7 +790,7 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
         <div key={message.id} className="space-y-3">
           {message.type === 'user' && (
             <div className="flex justify-end items-start gap-2">
-              <div className="max-w-[85%] rounded-2xl p-3 sm:p-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+              <div className="max-w-[85%] rounded-2xl p-3 sm:p-4 bg-gradient-to-r from-teal-600 to-cyan-600 text-white">
                 <div className="text-sm leading-relaxed">
                   <span className="whitespace-pre-wrap align-middle">{message.content}</span>
                   {(() => {
@@ -825,8 +825,8 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                   })()}
                 </div>
               </div>
-              <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0 mt-1">
-                <User className="h-4 w-4 text-blue-400" />
+              <div className="w-8 h-8 rounded-full bg-teal-500/20 flex items-center justify-center flex-shrink-0 mt-1">
+                <User className="h-4 w-4 text-cyan-400" />
               </div>
             </div>
           )}
@@ -838,8 +838,8 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
             if (!revealedAssistantIds.has(nextAssistant.id)) return null
             return (
               <div className="flex justify-end">
-                <div className="max-w-[85%] rounded-xl px-4 py-3 bg-zinc-800/60 border border-zinc-700/50 text-zinc-200">
-                  <div className="text-xs uppercase tracking-wide text-zinc-400 mb-1">Clark’s response</div>
+                <div className="max-w-[85%] rounded-xl px-4 py-3 bg-zinc-800/60 border border-teal-700/30/50 text-white">
+                  <div className="text-xs uppercase tracking-wide text-teal-200/70 mb-1">Clark’s response</div>
                   <div className="text-sm whitespace-pre-wrap leading-relaxed">{nextAssistant.content}</div>
                 </div>
               </div>
@@ -856,8 +856,8 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                   <div
                     className={`max-w-[85%] rounded-2xl p-4 border backdrop-blur-sm ${
                       message.success === false
-                        ? 'bg-zinc-800/60 border-zinc-700/50 text-white'
-                        : 'bg-zinc-800/40 border-zinc-700/40 text-zinc-100'
+                        ? 'bg-teal-800/40 border-teal-700/30 text-white'
+                        : 'bg-teal-800/30 border-teal-700/30 text-white'
                     }`}
                   >
                     {/* Render optional source label, but hide noisy internal tags */}
@@ -865,7 +865,7 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                       const sourceLabel = formatSourceLabel(message.source)
                       if (!sourceLabel) return null
                       return (
-                        <div className="text-[10px] uppercase tracking-[0.2em] text-purple-300/80 mb-2">
+                        <div className="text-[10px] uppercase tracking-[0.2em] text-teal-300/80 mb-2">
                           {sourceLabel}
                         </div>
                       )
@@ -876,7 +876,7 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                       dangerouslySetInnerHTML={{ __html: markdownToHtml(message.content) }}
                     />
                     {message.capabilitiesSummary && (
-                      <div className="mt-3 text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                      <div className="mt-3 text-xs text-white/90 whitespace-pre-wrap leading-relaxed">
                         {message.capabilitiesSummary}
                       </div>
                     )}
@@ -894,7 +894,7 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
                     <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
                       <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
                     </div>
-                    <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-zinc-800/40 border border-zinc-700/40 text-zinc-200 backdrop-blur-sm">
+                    <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-zinc-800/40 border border-teal-700/30/40 text-white backdrop-blur-sm">
                       <div className="text-sm leading-relaxed">{lastLine}</div>
                     </div>
                   </div>
@@ -909,9 +909,9 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
       ))}
       {isLoading && (
         <div className="flex gap-3 justify-start">
-          <div className="bg-zinc-800/60 border border-zinc-700/50 rounded-2xl p-4 backdrop-blur-sm">
+          <div className="bg-zinc-800/60 border border-teal-700/30/50 rounded-2xl p-4 backdrop-blur-sm">
             <div className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
+              <Loader2 className="h-4 w-4 animate-spin text-teal-400" />
               <span className="text-sm text-white">Processing your request...</span>
             </div>
           </div>

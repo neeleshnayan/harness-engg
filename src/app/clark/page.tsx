@@ -289,9 +289,9 @@ export default function BacktestPage() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 overflow-x-hidden">
+    <div className="min-h-screen w-full bg-[#071414] overflow-x-hidden">
       {/* Navbar */}
-      <header className="fixed top-0 left-0 right-0 z-50">
+      <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-[#071414]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-2 min-h-[4rem]">
             <div className="flex items-center">
@@ -304,20 +304,20 @@ export default function BacktestPage() {
             <div className="flex items-center space-x-3">
               {/* Cost Display */}
               {(sessionCost > 0 || overallCost > 0) && (
-                <div className="flex items-center space-x-2 text-xs text-zinc-400">
-                  <div className="px-2 py-1 bg-zinc-800/50 rounded-lg">
-                    <span className="text-zinc-300">Session: </span>
-                    <span className="text-green-400">${sessionCost.toFixed(6)}</span>
+                <div className="flex items-center space-x-2 text-xs text-teal-200/80">
+                  <div className="px-2 py-1 bg-teal-900/40 backdrop-blur-sm border border-teal-700/30 rounded-lg">
+                    <span className="text-teal-100/90">Session: </span>
+                    <span className="text-teal-300">${sessionCost.toFixed(6)}</span>
                   </div>
-                  <div className="px-2 py-1 bg-zinc-800/50 rounded-lg">
-                    <span className="text-zinc-300">Total: </span>
-                    <span className="text-blue-400">${overallCost.toFixed(6)}</span>
+                  <div className="px-2 py-1 bg-teal-900/40 backdrop-blur-sm border border-teal-700/30 rounded-lg">
+                    <span className="text-teal-100/90">Total: </span>
+                    <span className="text-cyan-300">${overallCost.toFixed(6)}</span>
                   </div>
                 </div>
               )}
               <button
                 onClick={() => setIsDevtoolsOpen(true)}
-                className="flex items-center bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-xl transition-colors font-medium"
+                className="flex items-center bg-teal-900/40 hover:bg-teal-800/50 backdrop-blur-sm border border-teal-700/30 text-white px-4 py-2 rounded-xl transition-colors font-medium"
                 aria-label="Open devtools"
               >
                 <img
@@ -329,7 +329,7 @@ export default function BacktestPage() {
               <div className="relative">
                 <button
                   onClick={() => setShowMenu(!showMenu)}
-                  className="flex items-center bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-xl transition-colors font-medium"
+                  className="flex items-center bg-teal-900/40 hover:bg-teal-800/50 backdrop-blur-sm border border-teal-700/30 text-white px-4 py-2 rounded-xl transition-colors font-medium"
                   aria-label="Open menu"
                 >
                   <Menu className="h-4 w-4" />
@@ -347,7 +347,7 @@ export default function BacktestPage() {
         {/* Clark Logo - Show only when no user messages or results */}
         {!messages.some(m => m.type === 'user') && !messages.some(m => m.backtestResult) && (
           <div className="flex items-center justify-center mb-2 mt-20 sm:mt-0">
-            <img src="/clark.svg" alt="Clark" className="h-[7.28rem] w-[7.28rem] sm:h-[9.1rem] sm:w-[9.1rem] drop-shadow-[0_4px_16px_rgba(162,89,247,0.3)]" />
+            <img src="/clark.svg" alt="Clark" className="h-[7.28rem] w-[7.28rem] sm:h-[9.1rem] sm:w-[9.1rem] drop-shadow-[0_4px_16px_rgba(20,184,166,0.3)]" />
           </div>
         )}
 
@@ -371,7 +371,7 @@ export default function BacktestPage() {
         
         {/* Prompts modal opened by left icon */}
         <Dialog open={isPromptModalOpen} onOpenChange={setIsPromptModalOpen}>
-          <DialogContent className="sm:max-w-2xl bg-zinc-900/95 border border-zinc-700/60 rounded-2xl">
+          <DialogContent className="sm:max-w-2xl bg-teal-900/40 backdrop-blur-md border border-teal-700/30 rounded-2xl shadow-2xl">
             <div className="max-h-[70vh] overflow-y-auto px-2">
               {(!selectedCategory) && (
                 <div className="w-full flex flex-col items-center">
@@ -380,7 +380,7 @@ export default function BacktestPage() {
                       <button
                         key={category.id}
                         onClick={() => setSelectedCategory(category.id)}
-                        className="w-full text-left p-4 rounded-xl bg-zinc-800/40 hover:bg-zinc-700/60 border border-zinc-700/50 hover:border-purple-500/50 transition-colors"
+                        className="w-full text-left p-4 rounded-xl bg-teal-800/30 hover:bg-teal-700/40 backdrop-blur-sm border border-teal-700/30 hover:border-teal-400/50 transition-colors"
                       >
                         <div className="flex items-center gap-3">
                           {category.icon.startsWith('/') ? (
@@ -390,7 +390,7 @@ export default function BacktestPage() {
                           )}
                           <div className="min-w-0">
                             <div className="text-white font-medium truncate">{category.title}</div>
-                            <div className="text-xs text-zinc-400 truncate">{category.description}</div>
+                            <div className="text-xs text-teal-200/70 truncate">{category.description}</div>
                           </div>
                         </div>
                       </button>
@@ -403,7 +403,7 @@ export default function BacktestPage() {
                   <div className="w-full max-w-md">
                     <button
                       onClick={() => setSelectedCategory(null)}
-                      className="mb-3 text-xs text-zinc-400 hover:text-white"
+                      className="mb-3 text-xs text-teal-200/70 hover:text-white transition-colors"
                     >
                       ← Back
                     </button>
@@ -413,7 +413,7 @@ export default function BacktestPage() {
                           key={idx}
                           onClick={() => handlePromptClick(prompt)}
                           disabled={isLoading}
-                          className="w-full text-left p-4 rounded-xl bg-zinc-800/40 hover:bg-zinc-700/60 border border-zinc-700/50 hover:border-purple-500/50 transition-colors text-white disabled:opacity-50"
+                          className="w-full text-left p-4 rounded-xl bg-teal-800/30 hover:bg-teal-700/40 backdrop-blur-sm border border-teal-700/30 hover:border-teal-400/50 transition-colors text-white disabled:opacity-50"
                         >
                           {prompt}
                         </button>

@@ -40,7 +40,7 @@ export default function CategoryTiles({
                   {colTiles.map((category) => (
                     <Card
                       key={category.id}
-                      className="cursor-pointer hover:bg-zinc-800/60 active:bg-zinc-700/60 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg border-zinc-700/50 bg-zinc-800/30 backdrop-blur-sm min-h-[80px] w-[calc(50vw-1.5rem)] touch-manipulation"
+                      className="cursor-pointer hover:bg-teal-800/40 active:bg-teal-700/40 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg border-teal-700/30 bg-teal-800/20 backdrop-blur-sm min-h-[80px] w-[calc(50vw-1.5rem)] touch-manipulation"
                       onClick={() => onCategorySelect(category.id)}
                     >
                       <CardHeader className="pb-3 pt-3 px-3 h-full flex flex-col justify-center">
@@ -52,7 +52,7 @@ export default function CategoryTiles({
                           )}
                           <span className="truncate">{category.title}</span>
                         </CardTitle>
-                        <CardDescription className="text-xs text-zinc-400 leading-tight line-clamp-2">
+                        <CardDescription className="text-xs text-teal-200/70 leading-tight line-clamp-2">
                           {category.description}
                         </CardDescription>
                       </CardHeader>
@@ -84,7 +84,7 @@ export default function CategoryTiles({
         {categories.map((category) => (
           <Card
             key={category.id}
-            className="cursor-pointer hover:bg-zinc-800/60 active:bg-zinc-700/60 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg border-zinc-700/50 bg-zinc-800/30 backdrop-blur-sm min-h-[90px] touch-manipulation"
+            className="cursor-pointer hover:bg-teal-800/40 active:bg-teal-700/40 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg border-teal-700/30 bg-teal-800/20 backdrop-blur-sm min-h-[90px] touch-manipulation"
             onClick={() => onCategorySelect(category.id)}
           >
             <CardHeader className="pb-3 pt-3 px-3 h-full flex flex-col justify-center">
@@ -96,7 +96,7 @@ export default function CategoryTiles({
                 )}
                 <span className="truncate">{category.title}</span>
               </CardTitle>
-              <CardDescription className="text-xs text-zinc-400 leading-tight line-clamp-2">
+              <CardDescription className="text-xs text-teal-200/70 leading-tight line-clamp-2">
                 {category.description}
               </CardDescription>
             </CardHeader>
@@ -106,11 +106,11 @@ export default function CategoryTiles({
 
       {/* Prompts Modal */}
       {selectedCategory && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+        <div className="fixed inset-0 bg-teal-950/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
              onClick={() => onCategorySelect('')}>
-          <Card className="w-full h-[85vh] sm:h-auto sm:max-h-[80vh] sm:max-w-2xl bg-zinc-900/95 border-zinc-700/50 shadow-2xl backdrop-blur-sm rounded-t-2xl sm:rounded-2xl"
+          <Card className="w-full h-[85vh] sm:h-auto sm:max-h-[80vh] sm:max-w-2xl bg-teal-900/40 border-teal-700/30 shadow-2xl backdrop-blur-md rounded-t-2xl sm:rounded-2xl"
                 onClick={(e) => e.stopPropagation()}>
-            <CardHeader className="border-b border-zinc-700/50 p-4 sm:p-6">
+            <CardHeader className="border-b border-teal-700/30 p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
                   <CardTitle className="text-base sm:text-lg text-white flex items-center gap-2">
@@ -125,7 +125,7 @@ export default function CategoryTiles({
                     })()}
                     <span className="truncate">{categories.find(c => c.id === selectedCategory)?.title}</span>
                   </CardTitle>
-                  <CardDescription className="text-zinc-400 mt-1 text-xs sm:text-sm line-clamp-2">
+                  <CardDescription className="text-teal-200/70 mt-1 text-xs sm:text-sm line-clamp-2">
                     {categories.find(c => c.id === selectedCategory)?.description}
                   </CardDescription>
                 </div>
@@ -133,7 +133,7 @@ export default function CategoryTiles({
                   variant="ghost"
                   size="sm"
                   onClick={() => onCategorySelect('')}
-                  className="text-zinc-400 hover:text-white h-8 w-8 p-0 ml-2 flex-shrink-0 touch-manipulation"
+                  className="text-teal-200/70 hover:text-white h-8 w-8 p-0 ml-2 flex-shrink-0 touch-manipulation"
                 >
                   ✕
                 </Button>
@@ -146,11 +146,11 @@ export default function CategoryTiles({
                     key={index}
                     onClick={() => onPromptClick(prompt, selectedCategory as string)}
                     disabled={isLoading}
-                    className="w-full text-left p-4 rounded-lg bg-zinc-800/40 hover:bg-zinc-700/60 active:bg-zinc-600/60 border border-zinc-700/50 hover:border-purple-500/50 transition-all duration-200 text-white disabled:opacity-50 disabled:cursor-not-allowed group touch-manipulation min-h-[60px] flex items-center"
+                    className="w-full text-left p-4 rounded-lg bg-teal-800/30 hover:bg-teal-700/40 active:bg-teal-600/40 border border-teal-700/30 hover:border-teal-400/50 transition-all duration-200 text-white disabled:opacity-50 disabled:cursor-not-allowed group touch-manipulation min-h-[60px] flex items-center"
                   >
                     <div className="flex items-start gap-3 w-full">
-                      <span className="text-purple-400 font-bold text-sm mt-1 flex-shrink-0">•</span>
-                      <span className="flex-1 text-sm sm:text-base group-hover:text-purple-300 transition-colors leading-relaxed">
+                      <span className="text-teal-300 font-bold text-sm mt-1 flex-shrink-0">•</span>
+                      <span className="flex-1 text-sm sm:text-base group-hover:text-teal-200 transition-colors leading-relaxed">
                         {prompt}
                       </span>
                     </div>
