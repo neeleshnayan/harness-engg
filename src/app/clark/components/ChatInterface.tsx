@@ -1,5 +1,14 @@
 import { Send } from "lucide-react";
 
+interface ChatInputBarProps {
+  inputValue: string
+  setInputValue: (value: string) => void
+  isLoading: boolean
+  onSendMessage: () => void
+  onKeyPress: (e: React.KeyboardEvent) => void
+  onOpenPromptModal?: () => void
+}
+
 export default function ChatInputBar({
   inputValue,
   setInputValue,
@@ -22,9 +31,9 @@ export default function ChatInputBar({
         ">
           <div className="flex items-center gap-4">
             {/* Clark icon */}
-            <button
-              type="button"
-              onClick={onOpenPromptModal}
+                <button
+                  type="button"
+                  onClick={onOpenPromptModal}
               className="
                 h-12 w-12 
                 rounded-full 
@@ -36,15 +45,15 @@ export default function ChatInputBar({
               "
             >
               <img src="/clark process.svg" alt="Clark" className="h-6 w-6" />
-            </button>
+                </button>
 
             {/* Input */}
             <input
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={onKeyPress}
-              placeholder="Ask Clark"
-              disabled={isLoading}
+                  placeholder="Ask Clark"
+                  disabled={isLoading}
               className="
                 flex-1
                 h-12
@@ -62,8 +71,8 @@ export default function ChatInputBar({
 
             {/* Send button */}
             <button
-              onClick={onSendMessage}
-              disabled={!inputValue.trim() || isLoading}
+                  onClick={onSendMessage}
+                  disabled={!inputValue.trim() || isLoading}
               className="
                 h-12 w-12
                 rounded-xl
@@ -77,8 +86,8 @@ export default function ChatInputBar({
             >
               <Send className="h-5 w-5 text-white" />
             </button>
-          </div>
-        </div>
+              </div>
+            </div>
       </div>
     </div>
   )

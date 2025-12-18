@@ -371,7 +371,7 @@ export default function BacktestPage() {
         
         {/* Prompts modal opened by left icon */}
         <Dialog open={isPromptModalOpen} onOpenChange={setIsPromptModalOpen}>
-          <DialogContent className="sm:max-w-2xl bg-teal-900/40 backdrop-blur-md border border-teal-700/30 rounded-2xl shadow-2xl">
+          <DialogContent className="sm:max-w-2xl bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 backdrop-blur-xl border border-white/15 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.6)]">
             <div className="max-h-[70vh] overflow-y-auto px-2">
               {(!selectedCategory) && (
                 <div className="w-full flex flex-col items-center">
@@ -380,7 +380,7 @@ export default function BacktestPage() {
                       <button
                         key={category.id}
                         onClick={() => setSelectedCategory(category.id)}
-                        className="w-full text-left p-4 rounded-xl bg-teal-800/30 hover:bg-teal-700/40 backdrop-blur-sm border border-teal-700/30 hover:border-teal-400/50 transition-colors"
+                        className="w-full text-left p-4 rounded-xl bg-white/10 hover:bg-white/15 backdrop-blur-sm border border-white/15 hover:border-white/20 transition-all duration-200"
                       >
                         <div className="flex items-center gap-3">
                           {category.icon.startsWith('/') ? (
@@ -390,7 +390,7 @@ export default function BacktestPage() {
                           )}
                           <div className="min-w-0">
                             <div className="text-white font-medium truncate">{category.title}</div>
-                            <div className="text-xs text-teal-200/70 truncate">{category.description}</div>
+                            <div className="text-xs text-white/60 truncate">{category.description}</div>
                           </div>
                         </div>
                       </button>
@@ -403,7 +403,7 @@ export default function BacktestPage() {
                   <div className="w-full max-w-md">
                     <button
                       onClick={() => setSelectedCategory(null)}
-                      className="mb-3 text-xs text-teal-200/70 hover:text-white transition-colors"
+                      className="mb-3 text-xs text-white/70 hover:text-white transition-colors"
                     >
                       ← Back
                     </button>
@@ -413,7 +413,7 @@ export default function BacktestPage() {
                           key={idx}
                           onClick={() => handlePromptClick(prompt)}
                           disabled={isLoading}
-                          className="w-full text-left p-4 rounded-xl bg-teal-800/30 hover:bg-teal-700/40 backdrop-blur-sm border border-teal-700/30 hover:border-teal-400/50 transition-colors text-white disabled:opacity-50"
+                          className="w-full text-left p-4 rounded-xl bg-white/10 hover:bg-white/15 active:bg-white/20 backdrop-blur-sm border border-white/15 hover:border-white/20 transition-all duration-200 text-white disabled:opacity-50"
                         >
                           {prompt}
                         </button>
