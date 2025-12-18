@@ -580,10 +580,11 @@ export async function getAllPoolRates(): Promise<PoolRate[]> {
 /**
  * Get all closing pool rates
  * Fetches from subgraph if cache is stale or missing
+ * Internal function used by haveRatesAppreciated
  *
  * @returns Promise resolving to an array of closing pool rates
  */
-export async function getAllClosingPoolRates(numEntries: number = 4): Promise<PoolRate[]> {
+async function getAllClosingPoolRates(numEntries: number = 4): Promise<PoolRate[]> {
   // Check if we have valid cached closing rates
   if (cachedClosingPoolRates && isCacheValid(cachedClosingPoolRatesTimestamp)) {
     return cachedClosingPoolRates;
@@ -737,44 +738,6 @@ export async function getPoolRate(fromToken: string, toToken: string): Promise<n
 }
 
 /**
- * Clear the entire price cache
- */
-export function clearPriceCache(): void {
-  priceCache.clear();
-  cachedPoolRates = null;
-  cachedPoolRatesTimestamp = 0;
-  cachedClosingPoolRates = null;
-  cachedClosingPoolRatesTimestamp = 0;
-  pendingPoolRatesRequest = null;
-  pendingClosingPoolRatesRequest = null;
-  pendingPriceRequests.clear();
-  closingPoolRateCache.clear();
-  pendingClosingPoolRateRequests.clear();
-}
-
-/**
- * Clear a specific price from cache
- */
-export function clearCachedPrice(fromToken: string, toToken: string): void {
-  const cacheKey = getCacheKey(fromToken, toToken);
-  priceCache.delete(cacheKey);
-  // Note: We don't clear the full pool rates cache here as it may be used by other functions
-}
-
-/**
- * Clear the pool rates cache
- */
-export function clearOracleRatesCache(): void {
-  cachedPoolRates = null;
-  cachedPoolRatesTimestamp = 0;
-  cachedClosingPoolRates = null;
-  cachedClosingPoolRatesTimestamp = 0;
-  pendingPoolRatesRequest = null;
-  pendingClosingPoolRatesRequest = null;
-  pendingPriceRequests.clear();
-}
-
-/**
  * Calculate total balance value in USD using given pool rates
  */
 function calculateTotalBalanceInUSD(
@@ -892,17 +855,3 @@ export async function haveRatesAppreciated(balance: any): Promise<PriceChangeInf
   }
 }
 
-/**
- * Get cache statistics (for debugging)
- */
-export function getCacheStats(): {
-  size: number;
-  keys: string[];
-  poolRatesCached: boolean;
-} {
-  return {
-    size: priceCache.size,
-    keys: Array.from(priceCache.keys()),
-    poolRatesCached: cachedPoolRates !== null,
-  };
-}

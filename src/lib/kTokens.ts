@@ -13,10 +13,6 @@ export const K_TOKEN_ADDRESSES_LOWERCASE: Record<string, string> = Object.fromEn
 // Reverse mapping: symbol to address
 export const K_TOKEN_SYMBOLS: Record<string, string> = Object.fromEntries(Object.entries(K_TOKEN_ADDRESSES).map(([address, symbol]) => [symbol, address]));
 
-// Mapping of k-token symbols to their addresses in lowercase
-export const K_TOKEN_SYMBOLS_LOWERCASE: Record<string, string> = Object.fromEntries(
-  Object.entries(K_TOKEN_SYMBOLS).map(([symbol, address]) => [symbol, address.toLowerCase()]));
-
 // Array of supported k-token symbols
 export const K_TOKEN_SYMBOL_LIST = Object.keys(K_TOKEN_SYMBOLS);
 
