@@ -23,11 +23,11 @@ export const PriceChart: React.FC<PriceChartProps> = ({ data }) => {
                     <LineChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" vertical={false} />
                         <XAxis dataKey="date" stroke="#71717a" tick={{ fontSize: 12 }} tickLine={false} />
-                        <YAxis stroke="#71717a" tick={{ fontSize: 12 }} tickLine={false} domain={['auto', 'auto']} tickFormatter={(val) => `$${val}`} />
+                        <YAxis stroke="#71717a" tick={{ fontSize: 12 }} tickLine={false} domain={['auto', 'auto']} tickFormatter={(val) => `$${Number(val).toLocaleString(undefined, { maximumFractionDigits: 6 })}`} />
                         <Tooltip
                             contentStyle={{ backgroundColor: '#18181b', borderColor: '#3f3f46', borderRadius: '0.5rem' }}
                             itemStyle={{ color: '#e4e4e7' }}
-                            formatter={(value: number) => [`$${value.toFixed(2)}`, 'Price']}
+                            formatter={(value: number) => [`$${value < 1 ? value.toFixed(6) : value.toFixed(2)}`, 'Price']}
                         />
                         <Line type="monotone" dataKey="price" stroke="#ec4899" strokeWidth={2} dot={false} />
                     </LineChart>
