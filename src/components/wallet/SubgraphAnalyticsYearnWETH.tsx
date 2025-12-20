@@ -13,6 +13,9 @@ import {
     Legend
 } from 'recharts';
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { AssetAllocationChart } from '@/components/charts/AssetAllocationChart';
+import { PriceChart } from '@/components/charts/PriceChart';
+import { AumChart } from '@/components/charts/AumChart';
 
 const formatNumber = (value?: string | number, options?: Intl.NumberFormatOptions) => {
     if (value === undefined || value === null) return '0';
@@ -271,8 +274,23 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                 chartData.length > 0 && (
                     <div className="grid gap-6 lg:grid-cols-2">
                         {/* AUM Chart */}
+                        <div className="lg:col-span-2">
+                            <AumChart data={data?.snapshots ?? []} />
+                        </div>
+
+                        {/* Asset Allocation Chart */}
+                        <div className="lg:col-span-1">
+                            <AssetAllocationChart data={data?.snapshots ?? []} />
+                        </div>
+
+                        {/* Price Chart */}
+                        <div className="lg:col-span-1">
+                            <PriceChart data={data?.snapshots ?? []} />
+                        </div>
+
+                        {/* Old AUM Chart (Deposits - Withdrawals) - Renamed to Net Flows AUM */}
                         <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur lg:col-span-2">
-                            <h3 className="text-lg font-bold text-white mb-1">Total AUM Over Time</h3>
+                            <h3 className="text-lg font-bold text-white mb-1">Net Deposits (Legacy AUM)</h3>
                             <p className="text-xs text-zinc-400 mb-6">CUMULATIVE DEPOSITS MINUS WITHDRAWALS</p>
                             <div className="h-[300px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">

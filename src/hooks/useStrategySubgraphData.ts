@@ -124,6 +124,10 @@ export type Snapshot = {
   totalUsdcSwapped?: string;
   totalWethSwapped?: string;
   totalPaxgSwapped?: string;
+  usdcBalance?: string;
+  wethBalance?: string;
+  wethPrice?: string;
+  aum?: string;
 };
 
 type MetricResult = {
@@ -176,6 +180,10 @@ const createQuery = (strategyName: StrategyName, withOwner: boolean) => {
           totalSellSignals
           totalUsdcSwapped
           totalWethSwapped
+          usdcBalance
+          wethBalance
+          wethPrice
+          aum
         }
         signalExecuteds(
           first: 1000
@@ -382,17 +390,31 @@ const fetchSubgraph = async (subgraphUrl: string, strategyName: StrategyName, wa
     //   };
     // }
 
+    if (!data) {
+      console.warn(`[useStrategySubgraphData] No data returned for ${strategyName}`);
+      return {
+        deposits: [],
+        withdrawals: [],
+        signalExecuteds: [],
+        snapshots: [],
+      } as unknown as MetricResult;
+    }
+
     const filterPattern = getFilterPattern(strategyName);
-    const filteredDeposits = data.deposits.filter(d => d.id.includes(filterPattern));
-    const filteredWithdrawals = data.withdrawals.filter(w => w.id.includes(filterPattern));
+    const rawDeposits = data.deposits || [];
+    const rawWithdrawals = data.withdrawals || [];
+
+    const filteredDeposits = rawDeposits.filter(d => d.id && d.id.includes(filterPattern));
+    const filteredWithdrawals = rawWithdrawals.filter(w => w.id && w.id.includes(filterPattern));
 
     const signalFilterPattern = getSignalFilterPattern(strategyName);
+    const rawSignals = data.signalExecuteds || [];
     const filteredSignals = signalFilterPattern
-      ? (data.signalExecuteds || []).filter(s => s.id.includes(signalFilterPattern))
-      : (data.signalExecuteds || []);
+      ? rawSignals.filter(s => s.id && s.id.includes(signalFilterPattern))
+      : rawSignals;
 
     const snapshotField = getSnapshotFieldName(strategyName);
-    const snapshots = data[snapshotField] as Snapshot[] || [];
+    const snapshots = (data as any)[snapshotField] as Snapshot[] || [];
 
     return {
       ...data,
