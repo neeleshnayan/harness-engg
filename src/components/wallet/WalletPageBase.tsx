@@ -46,7 +46,7 @@ export interface WalletPageConfig {
     onBalanceRefresh: () => void;
     onBalanceFlicker: () => void;
     onTransactionRefresh: () => void;
-  }) => ReactNode; // Customer uses MiniClarkChat, business uses LangChainChat
+  }) => ReactNode; // Both customer and business use MiniClarkChat
   showChatToggle?: boolean; // Customer has toggle button, business always shows
   
   // Payment modal configuration
