@@ -15,13 +15,13 @@ interface AllocationChartsProps {
 export default function AllocationCharts({ allocations }: AllocationChartsProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-      <Card className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+      <Card className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-white">
             <PieChartIcon className="h-5 w-5" />
             Portfolio Allocation
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-teal-200/70">
             Final allocation percentages by asset
           </CardDescription>
         </CardHeader>
@@ -72,10 +72,10 @@ export default function AllocationCharts({ allocations }: AllocationChartsProps)
         </CardContent>
       </Card>
 
-      <Card className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+      <Card className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
         <CardHeader>
           <CardTitle className=' text-white'>Asset Performance</CardTitle>
-          <CardDescription>
+          <CardDescription className="text-teal-200/70">
             Individual asset returns during backtest period
           </CardDescription>
         </CardHeader>

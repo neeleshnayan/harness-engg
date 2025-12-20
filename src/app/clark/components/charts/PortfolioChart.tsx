@@ -177,10 +177,10 @@ export default function PortfolioChart({ dataPoints, startDate, endDate, trades 
   }
 
   return (
-    <Card className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+    <Card className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
       <CardHeader className="pb-4">
         <CardTitle className="text-lg text-white">Portfolio Performance</CardTitle>
-        <CardDescription className="text-zinc-400">
+        <CardDescription className="text-teal-200/70">
           Portfolio value over time from {formatDate(startDate)} to {formatDate(endDate)}
         </CardDescription>
       </CardHeader>

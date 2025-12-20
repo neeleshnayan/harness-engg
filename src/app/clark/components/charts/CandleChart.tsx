@@ -170,12 +170,12 @@ export default function CandleChart({ candleData, title }: CandleChartProps) {
   }
 
   return (
-    <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+    <Card className="bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
       <CardHeader>
         <CardTitle className="text-white text-lg">
           {title || `${candleData.symbol} Price Chart`}
         </CardTitle>
-        <CardDescription className="text-zinc-400 text-sm">
+        <CardDescription className="text-teal-200/70 text-sm">
           OHLC Candlestick Chart
         </CardDescription>
       </CardHeader>
@@ -202,7 +202,7 @@ export default function CandleChart({ candleData, title }: CandleChartProps) {
                     y1={y}
                     x2={width - margin.right}
                     y2={y}
-                    stroke="#374151"
+                    stroke="rgba(255,255,255,0.08)"
                     strokeWidth={1}
                     strokeDasharray="3 3"
                     opacity={0.3}
@@ -210,7 +210,7 @@ export default function CandleChart({ candleData, title }: CandleChartProps) {
                   <text
                     x={margin.left - 10}
                     y={y + 4}
-                    fill="#9ca3af"
+                    fill="rgba(255,255,255,0.6)"
                     fontSize="12"
                     textAnchor="end"
                   >
@@ -226,7 +226,7 @@ export default function CandleChart({ candleData, title }: CandleChartProps) {
               y1={margin.top}
               x2={margin.left}
               y2={height - margin.bottom}
-              stroke="#4b5563"
+              stroke="rgba(255,255,255,0.12)"
               strokeWidth={1}
             />
 
@@ -236,7 +236,7 @@ export default function CandleChart({ candleData, title }: CandleChartProps) {
               y1={height - margin.bottom}
               x2={width - margin.right}
               y2={height - margin.bottom}
-              stroke="#4b5563"
+              stroke="rgba(255,255,255,0.12)"
               strokeWidth={1}
             />
 
@@ -291,7 +291,7 @@ export default function CandleChart({ candleData, title }: CandleChartProps) {
                   key={`label-${index}`}
                   x={x}
                   y={height - margin.bottom + 20}
-                  fill="#9ca3af"
+                  fill="rgba(255,255,255,0.6)"
                   fontSize="11"
                   textAnchor="middle"
                   transform={`rotate(-45 ${x} ${height - margin.bottom + 20})`}
@@ -305,45 +305,45 @@ export default function CandleChart({ candleData, title }: CandleChartProps) {
           {/* Tooltip */}
           {hoveredCandle && tooltipPosition && (
             <div
-              className="fixed z-50 rounded-lg border bg-zinc-900/95 p-3 shadow-lg border-zinc-700 pointer-events-none"
+              className="fixed z-50 rounded-lg border bg-teal-900/95 backdrop-blur-sm p-3 shadow-lg border-teal-700/50 pointer-events-none"
               style={{
                 left: `${tooltipPosition.x + 10}px`,
                 top: `${tooltipPosition.y - 10}px`,
                 transform: 'translateY(-100%)',
               }}
             >
-              <div className="text-xs font-medium text-zinc-400 mb-2">
+              <div className="text-xs font-medium text-teal-200/70 mb-2">
                 {formatDate(hoveredCandle.date)}
               </div>
               <div className="space-y-1">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-zinc-400 text-xs">Open:</span>
+                  <span className="text-teal-200/70 text-xs">Open:</span>
                   <span className="text-white text-xs font-medium">
                     {formatAxisValue(hoveredCandle.open)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-zinc-400 text-xs">High:</span>
+                  <span className="text-teal-200/70 text-xs">High:</span>
                   <span className="text-green-400 text-xs font-medium">
                     {formatAxisValue(hoveredCandle.high)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-zinc-400 text-xs">Low:</span>
+                  <span className="text-teal-200/70 text-xs">Low:</span>
                   <span className="text-red-400 text-xs font-medium">
                     {formatAxisValue(hoveredCandle.low)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-zinc-400 text-xs">Close:</span>
+                  <span className="text-teal-200/70 text-xs">Close:</span>
                   <span className={`text-xs font-medium ${hoveredCandle.isUp ? 'text-green-400' : 'text-red-400'}`}>
                     {formatAxisValue(hoveredCandle.close)}
                   </span>
                 </div>
                 {hoveredCandle.volume !== null && hoveredCandle.volume !== undefined && (
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-zinc-400 text-xs">Volume:</span>
-                    <span className="text-zinc-300 text-xs font-medium">
+                    <span className="text-teal-200/70 text-xs">Volume:</span>
+                    <span className="text-teal-200/90 text-xs font-medium">
                       {formatAxisValue(hoveredCandle.volume)}
                     </span>
                   </div>

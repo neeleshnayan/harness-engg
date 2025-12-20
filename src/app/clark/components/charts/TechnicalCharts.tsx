@@ -98,10 +98,10 @@ export default function TechnicalCharts({
         technicalIndicatorsRequested.includes('sma_100') ||
         technicalIndicatorsRequested.includes('sma_200')
       ) && (
-        <Card className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+        <Card className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-lg text-white">Moving Averages Analysis</CardTitle>
-            <CardDescription className="text-zinc-400">
+            <CardDescription className="text-teal-200/70">
               Simple Moving Averages (SMA) for {targetAssets.length > 0 ? targetAssets.join(', ') : 'selected assets'}
             </CardDescription>
           </CardHeader>
@@ -161,10 +161,10 @@ export default function TechnicalCharts({
 
       {/* RSI Chart */}
       {technicalIndicatorsRequested.includes('rsi') && (
-        <Card className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+        <Card className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-lg text-white">Relative Strength Index (RSI)</CardTitle>
-            <CardDescription className="text-zinc-400">
+            <CardDescription className="text-teal-200/70">
               RSI with overbought (70) and oversold (30) levels for {targetAssets.length > 0 ? targetAssets.join(', ') : 'selected assets'}
             </CardDescription>
           </CardHeader>
@@ -223,10 +223,10 @@ export default function TechnicalCharts({
 
       {/* Stochastic RSI Chart */}
       {technicalIndicatorsRequested.includes('stochastic_rsi') && (
-        <Card className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+        <Card className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-lg text-white">Stochastic RSI Oscillator</CardTitle>
-            <CardDescription className="text-zinc-400">
+            <CardDescription className="text-teal-200/70">
               Stochastic RSI %K and %D with overbought (80) and oversold (20) levels for {targetAssets.length > 0 ? targetAssets.join(', ') : 'selected assets'}
             </CardDescription>
           </CardHeader>
@@ -305,10 +305,10 @@ export default function TechnicalCharts({
 
       {/* Bollinger Bands Chart */}
       {technicalIndicatorsRequested.includes('bollinger_bands') && (
-        <Card className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+        <Card className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-lg text-white">Bollinger Bands Analysis</CardTitle>
-            <CardDescription className="text-zinc-400">
+            <CardDescription className="text-teal-200/70">
               Bollinger Bands (20-period, 2 standard deviations) for volatility analysis of {targetAssets.length > 0 ? targetAssets.join(', ') : 'selected assets'}
             </CardDescription>
           </CardHeader>
@@ -378,10 +378,10 @@ export default function TechnicalCharts({
 
       {/* Super Trend Chart */}
       {(technicalIndicatorsRequested.includes('super_trend') || technicalIndicatorsRequested.includes('supertrend')) && (
-        <Card className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+        <Card className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-lg text-white">Super Trend Analysis</CardTitle>
-            <CardDescription className="text-zinc-400">
+            <CardDescription className="text-teal-200/70">
               Super Trend indicator (volatility adjusted trend levels) for {targetAssets.length > 0 ? targetAssets.join(', ') : 'selected assets'}.
             </CardDescription>
           </CardHeader>
@@ -433,10 +433,10 @@ export default function TechnicalCharts({
       {(technicalIndicatorsRequested.includes('adx') || 
         technicalIndicatorsRequested.includes('adx_plus_dmi') || 
         technicalIndicatorsRequested.includes('adx_minus_dmi')) && (
-        <Card className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+        <Card className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-lg text-white">Average Directional Index (ADX)</CardTitle>
-            <CardDescription className="text-zinc-400">
+            <CardDescription className="text-teal-200/70">
               ADX with +DMI (Positive Directional Movement) and -DMI (Negative Directional Movement) for {targetAssets.length > 0 ? targetAssets.join(', ') : 'selected assets'}.
               ADX measures trend strength, +DMI shows upward momentum, -DMI shows downward momentum.
             </CardDescription>
