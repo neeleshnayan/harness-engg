@@ -144,15 +144,15 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages }: DevtoolsO
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed top-0 right-0 h-full w-3/4 bg-gradient-to-br from-black via-zinc-900 to-neutral-900 z-50 shadow-2xl overflow-y-auto"
+            className="fixed top-0 right-0 h-full w-3/4 bg-gradient-to-b from-[#1c2f2f]/95 to-[#0b1515]/95 backdrop-blur-xl border-l border-white/15 z-50 shadow-[0_20px_60px_rgba(0,0,0,0.6)] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 bg-zinc-900/95 backdrop-blur-sm border-b border-zinc-700/50 z-10">
+            <div className="sticky top-0 bg-gradient-to-b from-[#1c2f2f]/95 to-[#0b1515]/95 backdrop-blur-xl border-b border-white/15 z-10">
               <div className="flex items-center justify-between p-4">
                 <h1 className="text-2xl font-bold text-white">Agent Flow Devtools</h1>
                 <button
                   onClick={onClose}
-                  className="flex items-center justify-center w-10 h-10 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white transition-colors"
+                  className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white transition-colors"
                   aria-label="Close devtools"
                 >
                   <X className="h-5 w-5" />
@@ -169,14 +169,14 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages }: DevtoolsO
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
                   >
-                    <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+                    <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-xs text-zinc-400 mb-1">Total Queries</p>
+                            <p className="text-xs text-white/60 mb-1">Total Queries</p>
                             <p className="text-2xl font-bold text-white">{stats.totalQueries}</p>
                           </div>
-                          <Activity className="h-8 w-8 text-blue-400" />
+                          <Activity className="h-8 w-8 text-teal-400" />
                         </div>
                       </CardContent>
                     </Card>
@@ -187,18 +187,18 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages }: DevtoolsO
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
                   >
-                    <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+                    <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-xs text-zinc-400 mb-1">Avg Latency</p>
+                            <p className="text-xs text-white/60 mb-1">Avg Latency</p>
                             <p className="text-2xl font-bold text-white">
                               {stats.avgLatency < 1000 
                                 ? `${stats.avgLatency.toFixed(0)}ms` 
                                 : `${(stats.avgLatency / 1000).toFixed(2)}s`}
                             </p>
                           </div>
-                          <Zap className="h-8 w-8 text-yellow-400" />
+                          <Zap className="h-8 w-8 text-cyan-400" />
                         </div>
                       </CardContent>
                     </Card>
@@ -209,14 +209,14 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages }: DevtoolsO
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
                   >
-                    <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+                    <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-xs text-zinc-400 mb-1">Parallel Flows</p>
+                            <p className="text-xs text-white/60 mb-1">Parallel Flows</p>
                             <p className="text-2xl font-bold text-white">{stats.flowTypeCounts.parallel}</p>
                           </div>
-                          <BarChart3 className="h-8 w-8 text-purple-400" />
+                          <BarChart3 className="h-8 w-8 text-teal-300" />
                         </div>
                       </CardContent>
                     </Card>
@@ -227,14 +227,14 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages }: DevtoolsO
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
                   >
-                    <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+                    <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-xs text-zinc-400 mb-1">Sequential Flows</p>
+                            <p className="text-xs text-white/60 mb-1">Sequential Flows</p>
                             <p className="text-2xl font-bold text-white">{stats.flowTypeCounts.sequential}</p>
                           </div>
-                          <TrendingUp className="h-8 w-8 text-green-400" />
+                          <TrendingUp className="h-8 w-8 text-cyan-300" />
                         </div>
                       </CardContent>
                     </Card>
@@ -245,16 +245,16 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages }: DevtoolsO
               {/* Filter Buttons */}
               {queriesWithFlows.length > 0 && (
                 <div className="flex items-center gap-2 mb-6">
-                  <Filter className="h-4 w-4 text-zinc-400" />
-                  <span className="text-sm text-zinc-400">Filter:</span>
+                  <Filter className="h-4 w-4 text-white/60" />
+                  <span className="text-sm text-white/60">Filter:</span>
                   {(['all', 'single', 'sequential', 'parallel'] as const).map((type) => (
                     <button
                       key={type}
                       onClick={() => setFilterType(type)}
-                      className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+                      className={`px-3 py-1 rounded-xl text-sm transition-colors border ${
                         filterType === type
-                          ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-                          : 'bg-zinc-700/50 text-zinc-400 hover:bg-zinc-700/70'
+                          ? 'bg-teal-900/40 text-teal-300 border-teal-700/30 hover:bg-teal-800/50'
+                          : 'bg-white/10 text-white/60 border-white/15 hover:bg-white/15'
                       }`}
                     >
                       {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -264,17 +264,17 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages }: DevtoolsO
               )}
 
               {queriesWithFlows.length === 0 ? (
-                <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+                <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
                   <CardContent className="p-8 text-center">
-                    <p className="text-zinc-400">
+                    <p className="text-white/60">
                       No agent flow data available. Send some queries in the main Clark interface to see flow graphs here.
                     </p>
                   </CardContent>
                 </Card>
               ) : filteredQueries.length === 0 ? (
-                <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+                <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
                   <CardContent className="p-8 text-center">
-                    <p className="text-zinc-400">
+                    <p className="text-white/60">
                       No queries match the selected filter.
                     </p>
                   </CardContent>
@@ -298,7 +298,7 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages }: DevtoolsO
                           transition={{ duration: 0.3, delay: index * 0.05 }}
                         >
                           <Card 
-                            className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm hover:border-zinc-600/50 transition-colors"
+                            className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.4)] hover:border-white/25 transition-colors"
                           >
                             <CardHeader>
                               <div className="flex items-start justify-between">
@@ -308,27 +308,27 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages }: DevtoolsO
                                       Query #{originalIndex + 1}
                                     </CardTitle>
                                     {flowType !== 'single' && (
-                                      <span className="px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded border border-purple-500/30">
+                                      <span className="px-2 py-1 bg-teal-900/40 text-teal-300 text-xs rounded-xl border border-teal-700/30">
                                         {flowType === 'parallel' ? 'Parallel' : 'Sequential'}
                                       </span>
                                     )}
                                   </div>
-                                  <CardDescription className="text-zinc-300 mb-3">
+                                  <CardDescription className="text-white/70 mb-3">
                                     {queryData.query}
                                   </CardDescription>
                                   <div className="flex items-center gap-4 flex-wrap">
-                                    <div className="text-xs text-zinc-500 flex items-center gap-1">
+                                    <div className="text-xs text-white/50 flex items-center gap-1">
                                       <Clock className="h-3 w-3" />
                                       {queryData.timestamp.toLocaleString()}
                                     </div>
                                     {agentCount > 0 && (
-                                      <div className="text-xs text-zinc-400 flex items-center gap-1">
+                                      <div className="text-xs text-white/60 flex items-center gap-1">
                                         <TrendingUp className="h-3 w-3" />
                                         {agentCount} agent{agentCount !== 1 ? 's' : ''}
                                       </div>
                                     )}
                                     {totalLatency !== null && (
-                                      <div className="text-xs text-yellow-400 flex items-center gap-1">
+                                      <div className="text-xs text-cyan-300 flex items-center gap-1">
                                         <Zap className="h-3 w-3" />
                                         Total: {totalLatency < 1000 
                                           ? `${totalLatency.toFixed(0)}ms` 
@@ -339,7 +339,7 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages }: DevtoolsO
                                 </div>
                                 <button
                                   onClick={() => setSelectedQueryIndex(isExpanded ? null : originalIndex)}
-                                  className="ml-4 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors text-sm"
+                                  className="ml-4 px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/20 text-white rounded-xl transition-colors text-sm"
                                 >
                                   {isExpanded ? 'Hide Flow' : 'Show Flow'}
                                 </button>
