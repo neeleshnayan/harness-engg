@@ -364,8 +364,10 @@ export default function BacktestPage() {
 
         {/* Continuous Feed: scrollable area bounded by navbar (top) and chat input (bottom) */}
         <div className="dark">
-          <div ref={feedRef} className="max-h-[calc(100vh-6rem-6.5rem)] overflow-y-auto">
-            <ResultsDisplay messages={messages} isLoading={isLoading} />
+          <div ref={feedRef} className="max-h-[calc(100vh-6rem-8rem)] overflow-y-auto">
+            <div className="pb-40">
+              <ResultsDisplay messages={messages} isLoading={isLoading} />
+            </div>
           </div>
         </div>
         
