@@ -47,18 +47,43 @@ export default function BacktestPage() {
       try {
         const parsedData = JSON.parse(storedUserData)
         setUserData(parsedData)
-        // Use actual user_id from userData, fallback to generated ID if not available
-        const actualUserId = parsedData.user_id
-        setUserId(actualUserId)
+        // Use actual user_id from userData, fallback to other unique identifiers
+        // Try user_id first, then uid (Firebase), then email
+        // These should all be unique per user and consistent across sessions
+        const actualUserId = parsedData.user_id || 
+                            parsedData.uid || 
+                            parsedData.email
+        if (actualUserId) {
+          setUserId(actualUserId)
+        } else {
+          // If no unique identifier found, log warning and use a fallback
+          console.warn('No user_id, uid, or email found in userData. Using fallback ID.')
+          // For authenticated users without identifiers, use a consistent ID from localStorage
+          let fallbackUserId = localStorage.getItem('krypton_user_id')
+          if (!fallbackUserId) {
+            fallbackUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+            localStorage.setItem('krypton_user_id', fallbackUserId)
+          }
+          setUserId(fallbackUserId)
+        }
       } catch (error) {
         console.error('Error parsing user data:', error)
-        // Fallback to generated ID if parsing fails
-        const fallbackUserId = `user_krypton`
+        // Fallback to consistent ID from localStorage if parsing fails
+        let fallbackUserId = localStorage.getItem('krypton_user_id')
+        if (!fallbackUserId) {
+          fallbackUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+          localStorage.setItem('krypton_user_id', fallbackUserId)
+        }
         setUserId(fallbackUserId)
       }
     } else {
-      // If no userData exists, generate a temporary ID (for unauthenticated users)
-      const defaultUserId = `user_krypton`
+      // If no userData exists, use a consistent ID from localStorage for unauthenticated users
+      // This ensures they keep their conversation history across page reloads
+      let defaultUserId = localStorage.getItem('krypton_user_id')
+      if (!defaultUserId) {
+        defaultUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        localStorage.setItem('krypton_user_id', defaultUserId)
+      }
       setUserId(defaultUserId)
     }
     // Generate session ID (new for each browser session)
