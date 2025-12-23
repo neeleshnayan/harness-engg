@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { DollarSign, TrendingUp, BarChart3, TrendingDown, ChevronDown, ChevronUp } from 'lucide-react'
 import { Loader2, Info, User } from 'lucide-react'
 import { ChatMessage, BacktestResult, ScreenerResult, EconomicResult, NewsData, CalendarData, EconomicData, RegulationResult, AgentFlowGraph, AgentFlowStep } from '../types'
-import { formatCurrency, formatPercentage, formatDate, formatNumber } from '../utils'
+import { formatCurrency, formatPercentage, formatDate, formatNumber, formatTimestamp } from '../utils'
 import PortfolioChart from './charts/PortfolioChart'
 import TechnicalCharts from './charts/TechnicalCharts'
 import AllocationCharts from './charts/AllocationCharts'
@@ -793,6 +793,9 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
               <div className="max-w-[85%] rounded-2xl p-3 sm:p-4 bg-gradient-to-r from-teal-600 to-cyan-600 text-white">
                 <div className="text-sm leading-relaxed">
                   <span className="whitespace-pre-wrap align-middle">{message.content}</span>
+                  <div className="text-xs text-white/70 mt-1.5">
+                    {formatTimestamp(message.timestamp)}
+                  </div>
                   {(() => {
                     const nextAssistant = messages.slice(index + 1).find(m => m.type === 'assistant')
                     const shouldShowInfo =

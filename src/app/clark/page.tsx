@@ -34,9 +34,10 @@ export default function BacktestPage() {
   const [sessionId, setSessionId] = useState<string>('')
   const [userData, setUserData] = useState<any>(null)
   
-  // Cost tracking
+  // Cost tracking - session cost resets on new session, overall cost fetched from Firebase
   const [sessionCost, setSessionCost] = useState<number>(0)
   const [overallCost, setOverallCost] = useState<number>(0)
+  const [isFetchingCosts, setIsFetchingCosts] = useState<boolean>(false)
   
 
   // Initialize session and user IDs on component mount
@@ -89,7 +90,49 @@ export default function BacktestPage() {
     // Generate session ID (new for each browser session)
     const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     setSessionId(newSessionId)
+    // Reset session cost for new session
+    setSessionCost(0)
   }, [])
+
+  // Fetch initial costs from Firebase via API when userId is available
+  useEffect(() => {
+    const fetchInitialCosts = async () => {
+      if (!userId || isFetchingCosts) return
+      
+      setIsFetchingCosts(true)
+      try {
+        // Fetch overall cost from Firebase using dedicated endpoint (no query processing)
+        const response = await agentsApi.get('/api/v1/agents/cost', {
+          params: { user_id: userId }
+        })
+
+        const payload = response.data
+        if (payload.success && payload.overall_cost !== undefined) {
+          const newOverallCost = payload.overall_cost || 0
+          setSessionCost(0) // Always 0 for new session
+          setOverallCost(newOverallCost)
+          // Persist overall cost to localStorage as backup
+          localStorage.setItem('clark_overall_cost', newOverallCost.toString())
+        }
+      } catch (error) {
+        console.error('Error fetching initial costs:', error)
+        // Fallback to localStorage if API call fails
+        if (typeof window !== 'undefined') {
+          const stored = localStorage.getItem('clark_overall_cost')
+          if (stored) {
+            setOverallCost(parseFloat(stored))
+          }
+        }
+      } finally {
+        setIsFetchingCosts(false)
+      }
+    }
+
+    // Fetch costs when userId is available
+    if (userId) {
+      fetchInitialCosts()
+    }
+  }, [userId])
 
   useEffect(() => {
     if (feedRef.current) {
@@ -233,10 +276,14 @@ export default function BacktestPage() {
       })
 
       const payload = response.data
-      // Update costs if available
+      // Update costs if available and persist overall cost to localStorage
       if (payload.costs) {
-        setSessionCost(payload.costs.session_cost || 0)
-        setOverallCost(payload.costs.overall_cost || 0)
+        const newSessionCost = payload.costs.session_cost || 0
+        const newOverallCost = payload.costs.overall_cost || 0
+        setSessionCost(newSessionCost)
+        setOverallCost(newOverallCost)
+        // Persist overall cost to localStorage (session cost resets on new session)
+        localStorage.setItem('clark_overall_cost', newOverallCost.toString())
       }
       
       const assistantMessage = createAssistantMessage(payload)
@@ -281,10 +328,14 @@ export default function BacktestPage() {
 
       const payload = response.data
       
-      // Update costs if available
+      // Update costs if available and persist overall cost to localStorage
       if (payload.costs) {
-        setSessionCost(payload.costs.session_cost || 0)
-        setOverallCost(payload.costs.overall_cost || 0)
+        const newSessionCost = payload.costs.session_cost || 0
+        const newOverallCost = payload.costs.overall_cost || 0
+        setSessionCost(newSessionCost)
+        setOverallCost(newOverallCost)
+        // Persist overall cost to localStorage (session cost resets on new session)
+        localStorage.setItem('clark_overall_cost', newOverallCost.toString())
       }
       
       const assistantMessage = createAssistantMessage(payload)
@@ -327,19 +378,17 @@ export default function BacktestPage() {
               />
             </div>
             <div className="flex items-center space-x-3">
-              {/* Cost Display */}
-              {(sessionCost > 0 || overallCost > 0) && (
-                <div className="flex items-center space-x-2 text-xs text-teal-200/80">
-                  <div className="px-2 py-1 bg-teal-900/40 backdrop-blur-sm border border-teal-700/30 rounded-lg">
-                    <span className="text-teal-100/90">Session: </span>
-                    <span className="text-teal-300">${sessionCost.toFixed(6)}</span>
-                  </div>
-                  <div className="px-2 py-1 bg-teal-900/40 backdrop-blur-sm border border-teal-700/30 rounded-lg">
-                    <span className="text-teal-100/90">Total: </span>
-                    <span className="text-cyan-300">${overallCost.toFixed(6)}</span>
-                  </div>
+              {/* Cost Display - Always show */}
+              <div className="flex items-center space-x-2 text-xs text-teal-200/80">
+                <div className="px-2 py-1 bg-teal-900/40 backdrop-blur-sm border border-teal-700/30 rounded-lg">
+                  <span className="text-teal-100/90">Session: </span>
+                  <span className="text-teal-300">${sessionCost.toFixed(6)}</span>
                 </div>
-              )}
+                <div className="px-2 py-1 bg-teal-900/40 backdrop-blur-sm border border-teal-700/30 rounded-lg">
+                  <span className="text-teal-100/90">Total: </span>
+                  <span className="text-cyan-300">${overallCost.toFixed(6)}</span>
+                </div>
+              </div>
               <button
                 onClick={() => setIsDevtoolsOpen(true)}
                 className="flex items-center bg-teal-900/40 hover:bg-teal-800/50 backdrop-blur-sm border border-teal-700/30 text-white px-4 py-2 rounded-xl transition-colors font-medium"
