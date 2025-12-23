@@ -13,6 +13,7 @@ import {
     Legend
 } from 'recharts';
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { TokenPriceChart } from '@/components/charts/TokenPriceChart';
 import { AssetAllocationChart } from '@/components/charts/AssetAllocationChart';
 import { PriceChart } from '@/components/charts/PriceChart';
 import { AumChart } from '@/components/charts/AumChart';
@@ -127,43 +128,58 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                                         <th className="pb-3 font-medium">Type</th>
                                         <th className="pb-3 font-medium">Input</th>
                                         <th className="pb-3 font-medium">Output</th>
+                                        <th className="pb-3 font-medium">WETH Price</th>
                                         <th className="pb-3 font-medium">Tx Hash</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-700/30">
-                                    {displayedSignals.map((signal) => (
-                                        <tr key={signal.id} className="group hover:bg-zinc-700/20 transition-colors">
-                                            <td className="py-3">{formatTimestamp(signal.timestamp)}</td>
-                                            <td className="py-3">
-                                                <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${signal.signalType === 1
-                                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                                    : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                                                    }`}>
-                                                    {signal.signalType === 1 ? 'BUY (USDC → WETH)' : 'SELL (WETH → USDC)'}
-                                                </span>
-                                            </td>
-                                            <td className="py-3 text-white font-medium">
-                                                {signal.signalType === 1
-                                                    ? formatCurrency(Number(signal.amountIn))
-                                                    : formatTokenAmount(Number(signal.amountIn)) + ' WETH'}
-                                            </td>
-                                            <td className="py-3 text-white font-medium">
-                                                {signal.signalType === 1
-                                                    ? formatTokenAmount(Number(signal.amountOut)) + ' WETH'
-                                                    : formatCurrency(Number(signal.amountOut))}
-                                            </td>
-                                            <td className="py-3 font-mono text-xs">
-                                                <a
-                                                    href={`https://sepolia.etherscan.io/tx/${signal.txHash}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="hover:text-blue-400 transition-colors"
-                                                >
-                                                    {formatTxHash(signal.txHash)}
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {displayedSignals.map((signal) => {
+                                        // Calculate Execution Price (USDC / WETH)
+                                        const input = Number(signal.amountIn);
+                                        const output = Number(signal.amountOut);
+                                        // If Buy (1): Input=USDC, Output=WETH => Price = Input/Output
+                                        // If Sell (2): Input=WETH, Output=USDC => Price = Output/Input
+                                        const price = signal.signalType === 1
+                                            ? (output > 0 ? input / output : 0)
+                                            : (input > 0 ? output / input : 0);
+
+                                        return (
+                                            <tr key={signal.id} className="group hover:bg-zinc-700/20 transition-colors">
+                                                <td className="py-3">{formatTimestamp(signal.timestamp)}</td>
+                                                <td className="py-3">
+                                                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${signal.signalType === 1
+                                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                                        : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                                        }`}>
+                                                        {signal.signalType === 1 ? 'BUY (USDC → WETH)' : 'SELL (WETH → USDC)'}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 text-white font-medium">
+                                                    {signal.signalType === 1
+                                                        ? formatCurrency(Number(signal.amountIn))
+                                                        : formatTokenAmount(Number(signal.amountIn)) + ' WETH'}
+                                                </td>
+                                                <td className="py-3 text-white font-medium">
+                                                    {signal.signalType === 1
+                                                        ? formatTokenAmount(Number(signal.amountOut)) + ' WETH'
+                                                        : formatCurrency(Number(signal.amountOut))}
+                                                </td>
+                                                <td className="py-3 text-white font-medium">
+                                                    {formatCurrency(price)}
+                                                </td>
+                                                <td className="py-3 font-mono text-xs">
+                                                    <a
+                                                        href={`https://sepolia.etherscan.io/tx/${signal.txHash}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="hover:text-blue-400 transition-colors"
+                                                    >
+                                                        {formatTxHash(signal.txHash)}
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
                                 </tbody>
                             </table>
                         </div>
@@ -274,8 +290,14 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                 chartData.length > 0 && (
                     <div className="grid gap-6 lg:grid-cols-2">
                         {/* AUM Chart */}
-                        <div className="lg:col-span-2">
+                        {/* AUM Chart */}
+                        <div className="lg:col-span-1">
                             <AumChart data={data?.snapshots ?? []} />
+                        </div>
+
+                        {/* Token Price Chart */}
+                        <div className="lg:col-span-1">
+                            <TokenPriceChart data={data?.snapshots ?? []} />
                         </div>
 
                         {/* Asset Allocation Chart */}
@@ -288,49 +310,7 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                             <PriceChart data={data?.snapshots ?? []} />
                         </div>
 
-                        {/* Old AUM Chart (Deposits - Withdrawals) - Renamed to Net Flows AUM */}
-                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur lg:col-span-2">
-                            <h3 className="text-lg font-bold text-white mb-1">Net Deposits (Legacy AUM)</h3>
-                            <p className="text-xs text-zinc-400 mb-6">CUMULATIVE DEPOSITS MINUS WITHDRAWALS</p>
-                            <div className="h-[300px] w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={chartData}>
-                                        <defs>
-                                            <linearGradient id="colorAum" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#fbbf24" stopOpacity={0.3} />
-                                                <stop offset="95%" stopColor="#fbbf24" stopOpacity={0} />
-                                            </linearGradient>
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" vertical={false} />
-                                        <XAxis
-                                            dataKey="date"
-                                            stroke="#71717a"
-                                            tick={{ fontSize: 12 }}
-                                            tickLine={false}
-                                        />
-                                        <YAxis
-                                            stroke="#71717a"
-                                            tick={{ fontSize: 12 }}
-                                            tickLine={false}
-                                            tickFormatter={(value) => `$${value}`}
-                                        />
-                                        <Tooltip
-                                            contentStyle={{ backgroundColor: '#18181b', borderColor: '#3f3f46', borderRadius: '0.5rem' }}
-                                            itemStyle={{ color: '#e4e4e7' }}
-                                            formatter={(value: number) => [`$${value.toFixed(2)}`, 'AUM']}
-                                        />
-                                        <Area
-                                            type="monotone"
-                                            dataKey="aum"
-                                            stroke="#fbbf24"
-                                            strokeWidth={2}
-                                            fillOpacity={1}
-                                            fill="url(#colorAum)"
-                                        />
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
+
 
                         {/* USD Flow Chart */}
                         <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">

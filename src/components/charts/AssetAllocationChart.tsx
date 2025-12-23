@@ -54,10 +54,7 @@ export const AssetAllocationChart: React.FC<AssetAllocationChartProps> = ({ data
                                 <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3} />
                                 <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
                             </linearGradient>
-                            <linearGradient id="colorWeth" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
-                            </linearGradient>
+
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" vertical={false} />
                         <XAxis dataKey="date" stroke="#71717a" tick={{ fontSize: 12 }} tickLine={false} />
@@ -69,7 +66,6 @@ export const AssetAllocationChart: React.FC<AssetAllocationChartProps> = ({ data
                         />
                         <Legend />
                         <Area type="monotone" dataKey="USDC" stackId="1" stroke="#2563eb" fill="url(#colorUsdc)" />
-                        <Area type="monotone" dataKey="WETH" stackId="1" stroke="#a855f7" fill="url(#colorWeth)" />
                     </AreaChart>
                 </ResponsiveContainer>
             </div>
