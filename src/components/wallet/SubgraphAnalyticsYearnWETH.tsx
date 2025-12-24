@@ -149,28 +149,30 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                     <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
                         <div className="flex items-center justify-between mb-4">
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Recent Signals</p>
-                            {signals.length > 5 && (
+                            <div className="flex items-center space-x-4">
+                                {signals.length > 5 && (
+                                    <button
+                                        onClick={() => setIsExpanded(!isExpanded)}
+                                        className="flex items-center text-xs text-zinc-400 hover:text-white transition-colors"
+                                    >
+                                        {isExpanded ? (
+                                            <>
+                                                Show Less <ChevronUp className="ml-1 h-3 w-3" />
+                                            </>
+                                        ) : (
+                                            <>
+                                                Show All <ChevronDown className="ml-1 h-3 w-3" />
+                                            </>
+                                        )}
+                                    </button>
+                                )}
                                 <button
-                                    onClick={() => setIsExpanded(!isExpanded)}
-                                    className="flex items-center text-xs text-zinc-400 hover:text-white transition-colors mr-4"
+                                    onClick={handleExportCSV}
+                                    className="flex items-center text-xs text-zinc-400 hover:text-white transition-colors"
                                 >
-                                    {isExpanded ? (
-                                        <>
-                                            Show Less <ChevronUp className="ml-1 h-3 w-3" />
-                                        </>
-                                    ) : (
-                                        <>
-                                            Show All <ChevronDown className="ml-1 h-3 w-3" />
-                                        </>
-                                    )}
+                                    Export CSV <Download className="ml-1 h-3 w-3" />
                                 </button>
-                            )}
-                            <button
-                                onClick={handleExportCSV}
-                                className="flex items-center text-xs text-zinc-400 hover:text-white transition-colors"
-                            >
-                                Export CSV <Download className="ml-1 h-3 w-3" />
-                            </button>
+                            </div>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left text-sm text-zinc-400">
