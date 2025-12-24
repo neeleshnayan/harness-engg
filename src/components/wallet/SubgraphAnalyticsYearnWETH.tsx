@@ -71,16 +71,16 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
     const handleExportCSV = () => {
         if (!signals || signals.length === 0) return;
 
-        const headers = ['Time', 'Type', 'Input', 'Output', 'WETH Price', 'Tx Hash'];
+        const headers = ['Time', 'Type', 'Input', 'Output', 'WETH Price', 'Token Price', 'Total AUM', 'Total Deposits', 'Total Withdrawals', 'Tx Hash'];
         const rows = signals.map(signal => {
-            const date = new Date(Number(signal.timestamp) * 1000).toLocaleString().replace(/,/g, ''); // Remove commas to avoid CSV issues
+            const date = new Date(Number(signal.timestamp) * 1000).toLocaleString().replace(/,/g, '');
             const type = signal.signalType === 1 ? 'BUY (USDC -> WETH)' : 'SELL (WETH -> USDC)';
 
             const inputAmount = Number(signal.amountIn);
             const outputAmount = Number(signal.amountOut);
 
             const inputLabel = signal.signalType === 1
-                ? formatCurrency(inputAmount).replace(/,/g, '') // Remove currency commas
+                ? formatCurrency(inputAmount).replace(/,/g, '')
                 : (formatTokenAmount(inputAmount) + ' WETH');
 
             const outputLabel = signal.signalType === 1
@@ -93,12 +93,29 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
 
             const priceLabel = formatCurrency(price).replace(/,/g, '');
 
+            // Find matching snapshot
+            const snapshot = data?.snapshots?.find(s => s.timestamp === signal.timestamp);
+            const aum = Number(snapshot?.totalDeposits ?? 0) - Number(snapshot?.totalWithdrawals ?? 0);
+            const minted = Number(snapshot?.mintedShares ?? 0);
+            const burned = Number(snapshot?.burnedShares ?? 0);
+            const netShares = minted - burned;
+            const tokenPrice = netShares > 0 ? aum / netShares : 0;
+
+            const tokenPriceLabel = formatCurrency(tokenPrice).replace(/,/g, '');
+            const aumLabel = formatCurrency(aum).replace(/,/g, '');
+            const depositsLabel = formatCurrency(Number(snapshot?.totalDeposits ?? 0)).replace(/,/g, '');
+            const withdrawalsLabel = formatCurrency(Number(snapshot?.totalWithdrawals ?? 0)).replace(/,/g, '');
+
             return [
                 date,
                 type,
                 inputLabel,
                 outputLabel,
                 priceLabel,
+                tokenPriceLabel,
+                aumLabel,
+                depositsLabel,
+                withdrawalsLabel,
                 signal.txHash
             ].join(',');
         });
@@ -183,6 +200,10 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                                         <th className="pb-3 font-medium">Input</th>
                                         <th className="pb-3 font-medium">Output</th>
                                         <th className="pb-3 font-medium">WETH Price</th>
+                                        <th className="pb-3 font-medium">Token Price</th>
+                                        <th className="pb-3 font-medium">Total AUM</th>
+                                        <th className="pb-3 font-medium">Total Deposits</th>
+                                        <th className="pb-3 font-medium">Total Withdrawals</th>
                                         <th className="pb-3 font-medium">Tx Hash</th>
                                     </tr>
                                 </thead>
@@ -197,6 +218,14 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                                             ? (output > 0 ? input / output : 0)
                                             : (input > 0 ? output / input : 0);
 
+                                        // Find matching snapshot
+                                        const snapshot = data?.snapshots?.find(s => s.timestamp === signal.timestamp);
+                                        const aum = Number(snapshot?.totalDeposits ?? 0) - Number(snapshot?.totalWithdrawals ?? 0);
+                                        const minted = Number(snapshot?.mintedShares ?? 0);
+                                        const burned = Number(snapshot?.burnedShares ?? 0);
+                                        const netShares = minted - burned;
+                                        const tokenPrice = netShares > 0 ? aum / netShares : 0;
+
                                         return (
                                             <tr key={signal.id} className="group hover:bg-zinc-700/20 transition-colors">
                                                 <td className="py-3">{formatTimestamp(signal.timestamp)}</td>
@@ -205,7 +234,7 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                                                         ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                                                         : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
                                                         }`}>
-                                                        {signal.signalType === 1 ? 'BUY (USDC → WETH)' : 'SELL (WETH → USDC)'}
+                                                        {signal.signalType === 1 ? 'BUY' : 'SELL'}
                                                     </span>
                                                 </td>
                                                 <td className="py-3 text-white font-medium">
@@ -220,6 +249,18 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                                                 </td>
                                                 <td className="py-3 text-white font-medium">
                                                     {formatCurrency(price)}
+                                                </td>
+                                                <td className="py-3 text-zinc-300 font-medium">
+                                                    {formatCurrency(tokenPrice)}
+                                                </td>
+                                                <td className="py-3 text-zinc-300 font-medium">
+                                                    {formatCurrency(aum)}
+                                                </td>
+                                                <td className="py-3 text-emerald-400/80 font-medium">
+                                                    {formatCurrency(Number(snapshot?.totalDeposits ?? 0))}
+                                                </td>
+                                                <td className="py-3 text-rose-400/80 font-medium">
+                                                    {formatCurrency(Number(snapshot?.totalWithdrawals ?? 0))}
                                                 </td>
                                                 <td className="py-3 font-mono text-xs">
                                                     <a
