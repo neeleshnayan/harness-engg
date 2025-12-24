@@ -12,7 +12,7 @@ import {
     Line,
     Legend
 } from 'recharts';
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Download } from "lucide-react";
 import { TokenPriceChart } from '@/components/charts/TokenPriceChart';
 import { AssetAllocationChart } from '@/components/charts/AssetAllocationChart';
 import { PriceChart } from '@/components/charts/PriceChart';
@@ -68,6 +68,52 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
     const [isExpanded, setIsExpanded] = useState(false);
     const displayedSignals = isExpanded ? signals : signals.slice(0, 5);
 
+    const handleExportCSV = () => {
+        if (!signals || signals.length === 0) return;
+
+        const headers = ['Time', 'Type', 'Input', 'Output', 'WETH Price', 'Tx Hash'];
+        const rows = signals.map(signal => {
+            const date = new Date(Number(signal.timestamp) * 1000).toLocaleString().replace(/,/g, ''); // Remove commas to avoid CSV issues
+            const type = signal.signalType === 1 ? 'BUY (USDC -> WETH)' : 'SELL (WETH -> USDC)';
+
+            const inputAmount = Number(signal.amountIn);
+            const outputAmount = Number(signal.amountOut);
+
+            const inputLabel = signal.signalType === 1
+                ? formatCurrency(inputAmount).replace(/,/g, '') // Remove currency commas
+                : (formatTokenAmount(inputAmount) + ' WETH');
+
+            const outputLabel = signal.signalType === 1
+                ? (formatTokenAmount(outputAmount) + ' WETH')
+                : formatCurrency(outputAmount).replace(/,/g, '');
+
+            const price = signal.signalType === 1
+                ? (outputAmount > 0 ? inputAmount / outputAmount : 0)
+                : (inputAmount > 0 ? outputAmount / inputAmount : 0);
+
+            const priceLabel = formatCurrency(price).replace(/,/g, '');
+
+            return [
+                date,
+                type,
+                inputLabel,
+                outputLabel,
+                priceLabel,
+                signal.txHash
+            ].join(',');
+        });
+
+        const csvContent = [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `yearn-weth-signals-${Date.now()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     // Process data for charts using snapshots
     const chartData = useMemo(() => {
         const snapshots = data?.snapshots ?? [];
@@ -106,7 +152,7 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                             {signals.length > 5 && (
                                 <button
                                     onClick={() => setIsExpanded(!isExpanded)}
-                                    className="flex items-center text-xs text-zinc-400 hover:text-white transition-colors"
+                                    className="flex items-center text-xs text-zinc-400 hover:text-white transition-colors mr-4"
                                 >
                                     {isExpanded ? (
                                         <>
@@ -119,6 +165,12 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                                     )}
                                 </button>
                             )}
+                            <button
+                                onClick={handleExportCSV}
+                                className="flex items-center text-xs text-zinc-400 hover:text-white transition-colors"
+                            >
+                                Export CSV <Download className="ml-1 h-3 w-3" />
+                            </button>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left text-sm text-zinc-400">
