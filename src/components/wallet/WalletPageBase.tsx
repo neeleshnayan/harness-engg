@@ -130,35 +130,44 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     }
 
     // Set new timer
+    const timerId = `timer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`⏱️ [${timerId}] Debounce timer started - Delay: ${delay}ms, Address: ${address}`);
+
     balanceDebounceTimerRef.current = setTimeout(() => {
+      console.log(`⏱️ [${timerId}] Debounce timer expired - Checking if fetch should proceed...`);
+
       if (!balanceFetchInProgressRef.current && address && fetchBalanceRef.current) {
+        console.log(`✅ [${timerId}] Conditions met - Proceeding with balance fetch`);
         balanceFetchInProgressRef.current = true;
         fetchBalanceRef.current(address, options)
           .then(() => {
+            console.log(`✅ [${timerId}] Debounced fetch completed successfully`);
             // Ensure refreshing state is cleared after successful fetch
             if (options?.background) {
               setBalanceRefreshing(false);
             }
           })
           .catch((err) => {
+            console.error(`❌ [${timerId}] Debounced fetch failed:`, err);
             // Ensure refreshing state is cleared even on error
             if (options?.background) {
               setBalanceRefreshing(false);
             }
-            console.error('Error fetching balance:', err);
           })
           .finally(() => {
             balanceFetchInProgressRef.current = false;
+            console.log(`🏁 [${timerId}] Debounced fetch finished - InProgress flag cleared`);
           });
       } else {
         // If fetch was skipped (already in progress or missing address/function), clear refreshing state
+        console.log(`⏭️ [${timerId}] Debounced fetch SKIPPED - Conditions:`, {
+          inProgress: balanceFetchInProgressRef.current,
+          hasAddress: !!address,
+          hasFetchFunction: !!fetchBalanceRef.current
+        });
         if (options?.background) {
-          console.log('Balance fetch skipped - clearing refreshing state', {
-            inProgress: balanceFetchInProgressRef.current,
-            hasAddress: !!address,
-            hasFetchFunction: !!fetchBalanceRef.current
-          });
           setBalanceRefreshing(false);
+          console.log(`🏁 [${timerId}] Refreshing state cleared after skip`);
         }
       }
       balanceDebounceTimerRef.current = null;
@@ -419,12 +428,16 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     address: string,
     options?: { background?: boolean }
   ) => {
+    const isBackground = options?.background === true;
+    const fetchId = `fetch-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    console.log(`📊 [${fetchId}] Balance fetch STARTED - Address: ${address}, Background: ${isBackground}`);
+
     // Prevent duplicate concurrent fetches
     if (balanceFetchInProgressRef.current && options?.background) {
+      console.log(`⏭️ [${fetchId}] Balance fetch SKIPPED - Already in progress`);
       return;
     }
-
-    const isBackground = options?.background === true;
 
     // Set fetching flag
     if (isBackground) {
@@ -437,8 +450,37 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       }
       addBreadcrumb('Fetching wallet balance', 'api', { wallet_address: address, background: isBackground });
 
+      console.log(`🔄 [${fetchId}] Calling API: /api/v1/wallet_balance/${address}`);
       const response = await api.get(`/api/v1/wallet_balance/${address}`);
-      setBalance(response.data);
+
+      // Log balance data received
+      const balanceData = response.data;
+      if (balanceData && balanceData.tokenBalances) {
+        const tokenCount = balanceData.tokenBalances.length;
+        console.log(`✅ [${fetchId}] Balance API response received - ${tokenCount} token(s) found`);
+
+        // Log each token balance
+        balanceData.tokenBalances.forEach((tb: any, idx: number) => {
+          const symbol = tb?.token?.symbol || 'UNKNOWN';
+          const amount = tb?.amount || '0';
+          console.log(`  💰 [${fetchId}] Token ${idx + 1}: ${symbol} = ${amount}`);
+        });
+      } else {
+        console.log(`✅ [${fetchId}] Balance API response received - No tokenBalances array found`, balanceData);
+      }
+
+      // Log previous balance for comparison
+      const previousBalance = balance;
+      if (previousBalance && previousBalance.tokenBalances) {
+        console.log(`📊 [${fetchId}] Previous balance had ${previousBalance.tokenBalances.length} token(s)`);
+      } else {
+        console.log(`📊 [${fetchId}] No previous balance data`);
+      }
+
+      // Set the new balance
+      console.log(`💾 [${fetchId}] Setting new balance in state...`);
+      setBalance(balanceData);
+      console.log(`✅ [${fetchId}] Balance state updated successfully`);
 
       addBreadcrumb('Balance fetched successfully', 'api', {
         wallet_address: address,
@@ -447,31 +489,53 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       });
 
     } catch (err) {
+      console.error(`❌ [${fetchId}] Balance fetch FAILED:`, err);
       setError('Failed to fetch balance.');
       captureAPIError(err, `/api/v1/wallet_balance/${address}`, { wallet_address: address, background: isBackground });
     } finally {
       if (isBackground) {
         setBalanceRefreshing(false);
         balanceFetchInProgressRef.current = false;
+        console.log(`🏁 [${fetchId}] Background fetch completed - Refreshing state cleared`);
         // Stop flickering when balance refresh is complete
         if (balanceFlickering) {
           setBalanceFlickering(false);
+          console.log(`🏁 [${fetchId}] Balance flickering stopped`);
         }
       } else {
         setBalanceLoading(false);
         balanceFetchInProgressRef.current = false;
+        console.log(`🏁 [${fetchId}] Foreground fetch completed - Loading state cleared`);
         // Stop flickering when balance loading is complete
         if (balanceFlickering) {
           setBalanceFlickering(false);
+          console.log(`🏁 [${fetchId}] Balance flickering stopped`);
         }
       }
     }
-  }, [balanceFlickering]);
+  }, [balanceFlickering, balance]);
 
   // Update fetchBalance ref when it changes
   useEffect(() => {
     fetchBalanceRef.current = fetchBalance;
   }, [fetchBalance]);
+
+  // Log when balance state changes
+  useEffect(() => {
+    if (balance) {
+      const tokenCount = balance.tokenBalances?.length || 0;
+      console.log(`🔄 Balance state CHANGED - ${tokenCount} token(s) in balance`);
+      if (balance.tokenBalances) {
+        balance.tokenBalances.forEach((tb: any, idx: number) => {
+          const symbol = tb?.token?.symbol || 'UNKNOWN';
+          const amount = tb?.amount || '0';
+          console.log(`  💰 Balance Token ${idx + 1}: ${symbol} = ${amount}`);
+        });
+      }
+    } else {
+      console.log(`🔄 Balance state CHANGED - Balance is now null/undefined`);
+    }
+  }, [balance]);
 
   const handleLogout = async () => {
     try {
