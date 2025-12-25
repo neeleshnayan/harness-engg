@@ -19,7 +19,7 @@ import SendERC20Modal from "@/components/wallet/SendERC20Modal";
 
 // Configuration: Delay before fetching balance after webhook event (in milliseconds)
 // Increase this if Circle API hasn't updated the balance yet when webhook arrives
-const WEBHOOK_BALANCE_REFRESH_DELAY_MS = 6000; // 6 second
+const WEBHOOK_BALANCE_REFRESH_DELAY_MS = 10000; // 10 seconds
 
 import {
   setUserContext,
@@ -255,12 +255,12 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         setTimeout(() => {
           setBalanceRefreshing(prev => {
             if (prev) {
-              console.warn('⚠️ Balance refreshing state was stuck - forcing clear after 10s timeout');
+              console.warn('⚠️ Balance refreshing state was stuck - forcing clear after 20s timeout');
               return false;
             }
             return prev;
           });
-        }, 10000);
+        }, 20000);
 
         // Trigger BalanceCard refresh by toggling the refresh flag
         setBalanceCardRefresh(prev => !prev);
