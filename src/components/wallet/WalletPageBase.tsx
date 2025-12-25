@@ -207,14 +207,19 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       const webhookAddress = message.address?.toLowerCase()?.trim();
       const walletAddress = currentAccountData?.wallet_address?.toLowerCase()?.trim();
 
-      if (walletAddress && webhookAddress && webhookAddress === walletAddress) {
-        console.log(`✅ Processing webhook for matching address: ${walletAddress}, Event ID: ${eventId}, Type: ${message.event_type}`);
+      // For wallet.created and wallet.updated, refresh balance if we have a wallet address
+      // (even if webhook doesn't have address, these events are about the user's own wallet)
+      const shouldRefreshBalance =
+        (walletAddress && webhookAddress && webhookAddress === walletAddress) || // Address matches
+        (walletAddress && (message.event_type === 'wallet.created' || message.event_type === 'wallet.updated')); // Wallet events
 
-        // For OUTBOUND transactions (sending), use shorter debounce or immediate fetch
-        // For INBOUND, use normal debounce to prevent rapid successive calls
-        const debounceDelay = message.event_type === 'OUTBOUND' ? 100 : 300;
+      if (shouldRefreshBalance) {
+        console.log(`✅ Processing webhook for ${message.event_type} - Address: ${walletAddress}, Event ID: ${eventId}`);
 
-        // Clear any existing debounce timer to ensure immediate refresh for OUTBOUND
+        // Use consistent debounce delay for all event types to prevent rapid successive calls
+        const debounceDelay = 300;
+
+        // Clear any existing debounce timer
         if (balanceDebounceTimerRef.current) {
           clearTimeout(balanceDebounceTimerRef.current);
           balanceDebounceTimerRef.current = null;
@@ -223,10 +228,10 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         // Set refreshing state BEFORE calling debounced fetch
         setBalanceRefreshing(true);
 
-        // Use debounced fetch to prevent excessive calls, but shorter delay for OUTBOUND
+        // Use debounced fetch to prevent excessive calls
         debouncedFetchBalance(currentAccountData.wallet_address, { background: true }, debounceDelay);
 
-        // Safety timeout: Clear refreshing state after 10 seconds if it's still stuck
+        // Safety timeout: Clear refreshing state after 5 seconds if it's still stuck
         setTimeout(() => {
           setBalanceRefreshing(prev => {
             if (prev) {
@@ -240,7 +245,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         // Trigger BalanceCard refresh by toggling the refresh flag
         setBalanceCardRefresh(prev => !prev);
       } else {
-        console.log(`❌ Webhook address mismatch - Webhook: ${webhookAddress || 'EMPTY'}, Wallet: ${walletAddress || 'EMPTY'}, Event ID: ${eventId}`);
+        console.log(`❌ Webhook address mismatch - Webhook: ${webhookAddress || 'EMPTY'}, Wallet: ${walletAddress || 'EMPTY'}, Event ID: ${eventId}, Type: ${message.event_type}`);
       }
 
       // Also refresh transaction history if it's open
