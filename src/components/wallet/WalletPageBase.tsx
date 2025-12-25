@@ -135,9 +135,13 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
     // Set new timer
     const timerId = `timer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    console.log(`⏱️ [${timerId}] Debounce timer started - Delay: ${delay}ms, Address: ${address}`);
+    const timerStartTime = Date.now();
+    console.log(`⏱️ [${timerId}] Debounce timer started at ${new Date().toISOString()} - Will wait ${delay}ms before fetching, Address: ${address}`);
+    console.log(`⏱️ [${timerId}] Expected fetch time: ${new Date(Date.now() + delay).toISOString()}`);
 
     balanceDebounceTimerRef.current = setTimeout(() => {
+      const actualDelay = Date.now() - timerStartTime;
+      console.log(`⏱️ [${timerId}] Debounce timer expired at ${new Date().toISOString()} - Actual delay: ${actualDelay}ms (expected: ${delay}ms)`);
       console.log(`⏱️ [${timerId}] Debounce timer expired - Checking if fetch should proceed...`);
 
       if (!balanceFetchInProgressRef.current && address && fetchBalanceRef.current) {
@@ -228,20 +232,23 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
       if (shouldRefreshBalance) {
         console.log(`✅ Processing webhook for ${message.event_type} - Address: ${walletAddress}, Event ID: ${eventId}`);
+        console.log(`⏳ Will wait ${WEBHOOK_BALANCE_REFRESH_DELAY_MS}ms before fetching balance to allow Circle API to update...`);
 
         // Use configurable delay to allow Circle API time to update balance after webhook
         const debounceDelay = WEBHOOK_BALANCE_REFRESH_DELAY_MS;
 
-        // Clear any existing debounce timer
+        // Clear any existing debounce timer (this resets the delay if multiple webhooks arrive quickly)
         if (balanceDebounceTimerRef.current) {
+          console.log(`🔄 Clearing existing debounce timer - will restart with ${debounceDelay}ms delay`);
           clearTimeout(balanceDebounceTimerRef.current);
           balanceDebounceTimerRef.current = null;
         }
 
-        // Set refreshing state BEFORE calling debounced fetch
+        // Set refreshing state to show UI feedback, but actual fetch will happen after delay
         setBalanceRefreshing(true);
+        console.log(`📊 Balance refreshing state set to true - UI will show "Refreshing..." but API call will wait ${debounceDelay}ms`);
 
-        // Use debounced fetch to prevent excessive calls
+        // Use debounced fetch to prevent excessive calls - this will wait the full delay
         debouncedFetchBalance(currentAccountData.wallet_address, { background: true }, debounceDelay);
 
         // Safety timeout: Clear refreshing state after 5 seconds if it's still stuck
