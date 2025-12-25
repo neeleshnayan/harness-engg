@@ -17,6 +17,10 @@ import axios from "axios";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import SendERC20Modal from "@/components/wallet/SendERC20Modal";
 
+// Configuration: Delay before fetching balance after webhook event (in milliseconds)
+// Increase this if Circle API hasn't updated the balance yet when webhook arrives
+const WEBHOOK_BALANCE_REFRESH_DELAY_MS = 1000; // 1 second
+
 import {
   setUserContext,
   clearUserContext,
@@ -225,8 +229,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       if (shouldRefreshBalance) {
         console.log(`✅ Processing webhook for ${message.event_type} - Address: ${walletAddress}, Event ID: ${eventId}`);
 
-        // Use consistent debounce delay for all event types to prevent rapid successive calls
-        const debounceDelay = 300;
+        // Use configurable delay to allow Circle API time to update balance after webhook
+        const debounceDelay = WEBHOOK_BALANCE_REFRESH_DELAY_MS;
 
         // Clear any existing debounce timer
         if (balanceDebounceTimerRef.current) {
