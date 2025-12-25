@@ -59,7 +59,7 @@ export const useWebSocket = (
 
     isConnectingRef.current = true;
     setConnectionStatus('connecting');
-    
+
     try {
       const ws = new WebSocket(url);
       wsRef.current = ws;
@@ -75,12 +75,12 @@ export const useWebSocket = (
       ws.onmessage = (event) => {
         try {
           const message: WebSocketMessage = JSON.parse(event.data);
-          
+
           // Handle connection confirmation
           if (message.type === 'connection_established') {
             console.log('WebSocket connection confirmed by server');
           }
-          
+
           onMessageRef.current?.(message);
         } catch (error) {
           console.error('Failed to parse WebSocket message:', error);
@@ -91,7 +91,7 @@ export const useWebSocket = (
         isConnectingRef.current = false;
         setConnectionStatus('disconnected');
         onCloseRef.current?.();
-        
+
         // Attempt to reconnect if not manually closed
         if (event.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectTimeoutRef.current = setTimeout(() => {
@@ -121,12 +121,12 @@ export const useWebSocket = (
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
-    
+
     if (wsRef.current) {
       wsRef.current.close(1000, 'Manual disconnect');
       wsRef.current = null;
     }
-    
+
     isConnectingRef.current = false;
     reconnectAttemptsRef.current = 0;
     setConnectionStatus('disconnected');
@@ -145,13 +145,46 @@ export const useWebSocket = (
     setTimeout(connect, 1000);
   }, [connect, disconnect]);
 
+  // Store URL in ref to track changes
+  const urlRef = useRef(url);
+  const prevUrlRef = useRef<string | null>(null);
+  const isMountedRef = useRef(true);
+
+  // Only reconnect if URL actually changes, not on every render
   useEffect(() => {
-    connect();
-    
+    isMountedRef.current = true;
+    urlRef.current = url;
+
+    // Only connect if URL changed or not already connected
+    const urlChanged = prevUrlRef.current !== null && prevUrlRef.current !== url;
+    const currentState = wsRef.current?.readyState;
+    const notConnected = currentState !== WebSocket.OPEN && currentState !== WebSocket.CONNECTING;
+
+    if (urlChanged || (notConnected && prevUrlRef.current === null)) {
+      // If already connected to a different URL, disconnect first
+      if (urlChanged && currentState === WebSocket.OPEN) {
+        wsRef.current?.close(1000, 'URL changed');
+      }
+      // Only connect if component is still mounted
+      if (isMountedRef.current) {
+        connect();
+      }
+    }
+
+    prevUrlRef.current = url;
+
     return () => {
-      disconnect();
+      isMountedRef.current = false;
+      // Only disconnect on unmount
+      if (wsRef.current) {
+        const state = wsRef.current.readyState;
+        if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) {
+          wsRef.current.close(1000, 'Component unmounting');
+        }
+      }
     };
-  }, [connect, disconnect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url]); // Only depend on url, not connect/disconnect
 
   return {
     send,

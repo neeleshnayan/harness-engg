@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, ReactNode } from "react";
+import React, { useState, useEffect, ReactNode, useCallback, useRef } from "react";
 import { getAuth, signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { FaArrowUp, FaCheck, FaTimes } from "react-icons/fa";
@@ -31,15 +31,15 @@ import {
 export interface WalletPageConfig {
   // Page type identifier
   pageType: 'customer' | 'business';
-  
+
   // Route configurations
   growRoute: string;
   manageRoute?: string;
-  
+
   // UI customizations
   showKycStatusBadge?: boolean; // Customer shows KYC status, business always shows "Active"
   welcomeMessageMargin?: string; // Customer has -mt-4, business has default
-  
+
   // Component customizations
   renderChatComponent?: (props: {
     userId?: string;
@@ -48,13 +48,13 @@ export interface WalletPageConfig {
     onTransactionRefresh: () => void;
   }) => ReactNode; // Both customer and business use MiniClarkChat
   showChatToggle?: boolean; // Customer has toggle button, business always shows
-  
+
   // Payment modal configuration
   useERC20Modal?: boolean; // Customer uses SendERC20Modal, business uses SendUSDCModal
-  
+
   // Additional action buttons (e.g., "Manage Business")
   renderAdditionalActionButtons?: (push: (path: string) => void) => ReactNode;
-  
+
   // Webhook notification display
   showWebhookNotification?: boolean; // Business shows it, customer doesn't
 }
@@ -104,70 +104,151 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   const [showClarkChat, setShowClarkChat] = useState(false);
   const router = useRouter();
 
-  // WebSocket connection for real-time webhook updates
-  const { isConnected: wsConnected, connectionStatus, reconnect: wsReconnect } = useWebSocket(
-    `${process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace('https://', 'wss://').replace('http://', 'ws://') : 'wss://api.kryptonfund.com'}/api/v1/ws`,
-    {
-      onMessage: (message) => {
-        if (message.type === 'circle_webhook') {
-          // Show notification to user
-          let notificationText = '';
-          if (message.event_type === 'INBOUND') {
-            notificationText = 'New transaction received! Refreshing balance...';
-          } else if (message.event_type === 'wallet.created') {
-            notificationText = 'Wallet created! Refreshing balance...';
-          } else if (message.event_type === 'wallet.updated') {
-            notificationText = 'Wallet updated! Refreshing balance...';
-          }
+  // Refs to prevent excessive balance fetches
+  const balanceFetchInProgressRef = useRef(false);
+  const balanceDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const accountDataRef = useRef(accountData);
+  const showTransactionsRef = useRef(showTransactions);
+  const fetchBalanceRef = useRef<((address: string, options?: { background?: boolean }) => Promise<void>) | null>(null);
 
-          if (notificationText && config.showWebhookNotification) {
-            setWebhookNotification(notificationText);
-            setTimeout(() => setWebhookNotification(null), 5000);
-          }
+  // Update refs when state changes
+  useEffect(() => {
+    accountDataRef.current = accountData;
+  }, [accountData]);
 
-          // Only refresh balance when WebSocket message is received
-          if (accountData?.wallet_address && message.address === accountData.wallet_address) {
-            // Set refreshing state and fetch balance in background (no page loader)
-            setBalanceRefreshing(true);
-            fetchBalance(accountData.wallet_address, { background: true });
+  useEffect(() => {
+    showTransactionsRef.current = showTransactions;
+  }, [showTransactions]);
 
-            // Trigger BalanceCard refresh by toggling the refresh flag
-            setBalanceCardRefresh(prev => !prev);
-          }
+  // Debounced balance fetch function
+  const debouncedFetchBalance = useCallback((address: string, options?: { background?: boolean }, delay: number = 500) => {
+    // Clear existing timer
+    if (balanceDebounceTimerRef.current) {
+      clearTimeout(balanceDebounceTimerRef.current);
+      balanceDebounceTimerRef.current = null;
+    }
 
-          // Also refresh transaction history if it's open
-          if (showTransactions) {
-            setTransactionHistoryRefresh(prev => !prev);
-          }
-        }
-      },
-      onOpen: () => {
-        if (config.showWebhookNotification) {
-          setWebhookNotification('WebSocket connected successfully!');
-          setTimeout(() => setWebhookNotification(null), 3000);
-        }
-        addBreadcrumb('WebSocket connected', 'websocket', { status: 'connected' });
-      },
-      onClose: () => {
-        addBreadcrumb('WebSocket disconnected', 'websocket', { status: 'disconnected' });
-      },
-      onError: (error) => {
-        console.error('WebSocket error:', error);
-        console.error('WebSocket error details:', {
-          error,
-          errorType: error.type,
-          errorTarget: error.target,
-          timestamp: new Date().toISOString()
-        });
-
-        // Capture WebSocket error with Sentry
-        captureWebSocketError(error, {
-          status: connectionStatus,
-          url: `${process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace('https://', 'wss://').replace('http://', 'ws://') : 'wss://api.kryptonfund.com'}/api/v1/ws`
+    // Set new timer
+    balanceDebounceTimerRef.current = setTimeout(() => {
+      if (!balanceFetchInProgressRef.current && address && fetchBalanceRef.current) {
+        balanceFetchInProgressRef.current = true;
+        fetchBalanceRef.current(address, options).finally(() => {
+          balanceFetchInProgressRef.current = false;
         });
       }
+      balanceDebounceTimerRef.current = null;
+    }, delay);
+  }, []);
+
+  // WebSocket message handler - stabilized with useCallback and refs
+  const handleWebSocketMessage = useCallback((message: any) => {
+    if (message.type === 'circle_webhook') {
+      // Show notification to user
+      let notificationText = '';
+      if (message.event_type === 'INBOUND') {
+        notificationText = 'New transaction received! Refreshing balance...';
+      } else if (message.event_type === 'OUTBOUND') {
+        notificationText = 'Transaction sent! Refreshing balance...';
+      } else if (message.event_type === 'wallet.created') {
+        notificationText = 'Wallet created! Refreshing balance...';
+      } else if (message.event_type === 'wallet.updated') {
+        notificationText = 'Wallet updated! Refreshing balance...';
+      }
+
+      if (notificationText && config.showWebhookNotification) {
+        setWebhookNotification(notificationText);
+        setTimeout(() => setWebhookNotification(null), 5000);
+      }
+
+      // Only refresh balance when WebSocket message is received and address matches
+      const currentAccountData = accountDataRef.current;
+      if (currentAccountData?.wallet_address && message.address === currentAccountData.wallet_address) {
+        // Set refreshing state and fetch balance in background (no page loader)
+        setBalanceRefreshing(true);
+
+        // For OUTBOUND transactions (sending), use shorter debounce or immediate fetch
+        // For INBOUND, use normal debounce to prevent rapid successive calls
+        const debounceDelay = message.event_type === 'OUTBOUND' ? 100 : 300;
+
+        // Clear any existing debounce timer to ensure immediate refresh for OUTBOUND
+        if (balanceDebounceTimerRef.current) {
+          clearTimeout(balanceDebounceTimerRef.current);
+          balanceDebounceTimerRef.current = null;
+        }
+
+        // Use debounced fetch to prevent excessive calls, but shorter delay for OUTBOUND
+        debouncedFetchBalance(currentAccountData.wallet_address, { background: true }, debounceDelay);
+
+        // Trigger BalanceCard refresh by toggling the refresh flag
+        setBalanceCardRefresh(prev => !prev);
+      }
+
+      // Also refresh transaction history if it's open
+      if (showTransactionsRef.current) {
+        setTransactionHistoryRefresh(prev => !prev);
+      }
+    }
+  }, [config.showWebhookNotification, debouncedFetchBalance]);
+
+  // WebSocket open handler - stabilized
+  const handleWebSocketOpen = useCallback(() => {
+    if (config.showWebhookNotification) {
+      setWebhookNotification('WebSocket connected successfully!');
+      setTimeout(() => setWebhookNotification(null), 3000);
+    }
+    addBreadcrumb('WebSocket connected', 'websocket', { status: 'connected' });
+  }, [config.showWebhookNotification]);
+
+  // WebSocket close handler - stabilized
+  const handleWebSocketClose = useCallback(() => {
+    addBreadcrumb('WebSocket disconnected', 'websocket', { status: 'disconnected' });
+  }, []);
+
+  // Ref to track connection status for error handler
+  const connectionStatusRef = useRef<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
+
+  // WebSocket error handler - stabilized with ref
+  const handleWebSocketError = useCallback((error: Event) => {
+    console.error('WebSocket error:', error);
+    console.error('WebSocket error details:', {
+      error,
+      errorType: error.type,
+      errorTarget: error.target,
+      timestamp: new Date().toISOString()
+    });
+
+    // Capture WebSocket error with Sentry
+    captureWebSocketError(error, {
+      status: connectionStatusRef.current,
+      url: `${process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace('https://', 'wss://').replace('http://', 'ws://') : 'wss://api.kryptonfund.com'}/api/v1/ws`
+    });
+  }, []);
+
+  // WebSocket connection for real-time webhook updates
+  const wsUrl = `${process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace('https://', 'wss://').replace('http://', 'ws://') : 'wss://api.kryptonfund.com'}/api/v1/ws`;
+  const { isConnected: wsConnected, connectionStatus, reconnect: wsReconnect } = useWebSocket(
+    wsUrl,
+    {
+      onMessage: handleWebSocketMessage,
+      onOpen: handleWebSocketOpen,
+      onClose: handleWebSocketClose,
+      onError: handleWebSocketError
     }
   );
+
+  // Update connection status ref when it changes
+  useEffect(() => {
+    connectionStatusRef.current = connectionStatus;
+  }, [connectionStatus]);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (balanceDebounceTimerRef.current) {
+        clearTimeout(balanceDebounceTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const userData = localStorage.getItem('userData');
@@ -238,7 +319,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       setUserContext(updatedData);
 
       // If we have a wallet address and it's not already being fetched, fetch balance
-      if (updatedData.wallet_address && !balance) {
+      // Only fetch if balance is null (initial load) or if wallet address changed
+      if (updatedData.wallet_address && (!balance || accountDataRef.current?.wallet_address !== updatedData.wallet_address)) {
         fetchBalance(updatedData.wallet_address, { background: true });
       }
 
@@ -266,11 +348,22 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     }
   };
 
-  const fetchBalance = async (
+  const fetchBalance = useCallback(async (
     address: string,
     options?: { background?: boolean }
   ) => {
+    // Prevent duplicate concurrent fetches
+    if (balanceFetchInProgressRef.current && options?.background) {
+      return;
+    }
+
     const isBackground = options?.background === true;
+
+    // Set fetching flag
+    if (isBackground) {
+      balanceFetchInProgressRef.current = true;
+    }
+
     try {
       if (!isBackground) {
         setBalanceLoading(true);
@@ -292,19 +385,26 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     } finally {
       if (isBackground) {
         setBalanceRefreshing(false);
+        balanceFetchInProgressRef.current = false;
         // Stop flickering when balance refresh is complete
         if (balanceFlickering) {
           setBalanceFlickering(false);
         }
       } else {
         setBalanceLoading(false);
+        balanceFetchInProgressRef.current = false;
         // Stop flickering when balance loading is complete
         if (balanceFlickering) {
           setBalanceFlickering(false);
         }
       }
     }
-  };
+  }, [balanceFlickering]);
+
+  // Update fetchBalance ref when it changes
+  useEffect(() => {
+    fetchBalanceRef.current = fetchBalance;
+  }, [fetchBalance]);
 
   const handleLogout = async () => {
     try {
@@ -453,15 +553,13 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       setSendSuccess(`Successfully sent $${amount} USDC to @${receiverUsername.trim()}`);
       setReceiverUsername("");
       setSendAmount("");
-      setBalance(null);
-      setRefreshingBalance(true);
 
       // Trigger balance flickering effect
       setBalanceFlickering(true);
 
-      if (accountData.wallet_address) {
-        fetchBalance(accountData.wallet_address, { background: true });
-      }
+      // Don't immediately fetch balance - wait for WebSocket webhook to trigger refresh
+      // The webhook will arrive when Circle confirms the transaction
+      // This prevents fetching stale balance before transaction is confirmed
       setTransactionHistoryRefresh(prev => !prev);
 
       addBreadcrumb('USDC sent successfully', 'api', {
@@ -879,7 +977,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
                         userId: accountData?.user_id,
                         onBalanceRefresh: () => {
                           if (accountData?.wallet_address) {
-                            fetchBalance(accountData.wallet_address, { background: true });
+                            debouncedFetchBalance(accountData.wallet_address, { background: true }, 500);
                           }
                         },
                         onBalanceFlicker: () => {
@@ -914,7 +1012,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
                     userId: accountData?.user_id,
                     onBalanceRefresh: () => {
                       if (accountData?.wallet_address) {
-                        fetchBalance(accountData.wallet_address, { background: true });
+                        debouncedFetchBalance(accountData.wallet_address, { background: true }, 500);
                       }
                     },
                     onBalanceFlicker: () => {
