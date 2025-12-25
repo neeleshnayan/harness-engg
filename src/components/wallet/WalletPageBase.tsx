@@ -110,6 +110,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   const accountDataRef = useRef(accountData);
   const showTransactionsRef = useRef(showTransactions);
   const fetchBalanceRef = useRef<((address: string, options?: { background?: boolean }) => Promise<void>) | null>(null);
+  const processedWebhookEventsRef = useRef<Set<string>>(new Set()); // Track processed webhook event IDs
 
   // Update refs when state changes
   useEffect(() => {
@@ -143,6 +144,23 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   // WebSocket message handler - stabilized with useCallback and refs
   const handleWebSocketMessage = useCallback((message: any) => {
     if (message.type === 'circle_webhook') {
+      const eventId = message.event_id;
+
+      // Deduplicate: Skip if we've already processed this webhook event
+      if (eventId && processedWebhookEventsRef.current.has(eventId)) {
+        console.log(`Skipping duplicate webhook event: ${eventId}`);
+        return;
+      }
+
+      // Mark this event as processed
+      if (eventId) {
+        processedWebhookEventsRef.current.add(eventId);
+        // Clean up old event IDs after 5 minutes to prevent memory leak
+        setTimeout(() => {
+          processedWebhookEventsRef.current.delete(eventId);
+        }, 5 * 60 * 1000);
+      }
+
       // Show notification to user
       let notificationText = '';
       if (message.event_type === 'INBOUND') {
@@ -162,7 +180,12 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
       // Only refresh balance when WebSocket message is received and address matches
       const currentAccountData = accountDataRef.current;
-      if (currentAccountData?.wallet_address && message.address === currentAccountData.wallet_address) {
+      const webhookAddress = message.address?.toLowerCase()?.trim();
+      const walletAddress = currentAccountData?.wallet_address?.toLowerCase()?.trim();
+
+      if (walletAddress && webhookAddress && webhookAddress === walletAddress) {
+        console.log(`Processing webhook for matching address: ${walletAddress}, Event ID: ${eventId}`);
+
         // Set refreshing state and fetch balance in background (no page loader)
         setBalanceRefreshing(true);
 
@@ -181,6 +204,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
         // Trigger BalanceCard refresh by toggling the refresh flag
         setBalanceCardRefresh(prev => !prev);
+      } else {
+        console.log(`Webhook address mismatch - Webhook: ${webhookAddress}, Wallet: ${walletAddress}, Event ID: ${eventId}`);
       }
 
       // Also refresh transaction history if it's open
@@ -241,12 +266,14 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     connectionStatusRef.current = connectionStatus;
   }, [connectionStatus]);
 
-  // Cleanup debounce timer on unmount
+  // Cleanup debounce timer and reset processed events on unmount
   useEffect(() => {
     return () => {
       if (balanceDebounceTimerRef.current) {
         clearTimeout(balanceDebounceTimerRef.current);
       }
+      // Clear processed events set on unmount
+      processedWebhookEventsRef.current.clear();
     };
   }, []);
 
