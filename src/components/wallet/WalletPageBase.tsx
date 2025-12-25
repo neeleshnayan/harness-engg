@@ -133,9 +133,33 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     balanceDebounceTimerRef.current = setTimeout(() => {
       if (!balanceFetchInProgressRef.current && address && fetchBalanceRef.current) {
         balanceFetchInProgressRef.current = true;
-        fetchBalanceRef.current(address, options).finally(() => {
-          balanceFetchInProgressRef.current = false;
-        });
+        fetchBalanceRef.current(address, options)
+          .then(() => {
+            // Ensure refreshing state is cleared after successful fetch
+            if (options?.background) {
+              setBalanceRefreshing(false);
+            }
+          })
+          .catch((err) => {
+            // Ensure refreshing state is cleared even on error
+            if (options?.background) {
+              setBalanceRefreshing(false);
+            }
+            console.error('Error fetching balance:', err);
+          })
+          .finally(() => {
+            balanceFetchInProgressRef.current = false;
+          });
+      } else {
+        // If fetch was skipped (already in progress or missing address/function), clear refreshing state
+        if (options?.background) {
+          console.log('Balance fetch skipped - clearing refreshing state', {
+            inProgress: balanceFetchInProgressRef.current,
+            hasAddress: !!address,
+            hasFetchFunction: !!fetchBalanceRef.current
+          });
+          setBalanceRefreshing(false);
+        }
       }
       balanceDebounceTimerRef.current = null;
     }, delay);
@@ -184,10 +208,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       const walletAddress = currentAccountData?.wallet_address?.toLowerCase()?.trim();
 
       if (walletAddress && webhookAddress && webhookAddress === walletAddress) {
-        console.log(`Processing webhook for matching address: ${walletAddress}, Event ID: ${eventId}`);
-
-        // Set refreshing state and fetch balance in background (no page loader)
-        setBalanceRefreshing(true);
+        console.log(`✅ Processing webhook for matching address: ${walletAddress}, Event ID: ${eventId}, Type: ${message.event_type}`);
 
         // For OUTBOUND transactions (sending), use shorter debounce or immediate fetch
         // For INBOUND, use normal debounce to prevent rapid successive calls
@@ -199,13 +220,27 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
           balanceDebounceTimerRef.current = null;
         }
 
+        // Set refreshing state BEFORE calling debounced fetch
+        setBalanceRefreshing(true);
+
         // Use debounced fetch to prevent excessive calls, but shorter delay for OUTBOUND
         debouncedFetchBalance(currentAccountData.wallet_address, { background: true }, debounceDelay);
+
+        // Safety timeout: Clear refreshing state after 10 seconds if it's still stuck
+        setTimeout(() => {
+          setBalanceRefreshing(prev => {
+            if (prev) {
+              console.warn('⚠️ Balance refreshing state was stuck - forcing clear after 5s timeout');
+              return false;
+            }
+            return prev;
+          });
+        }, 5000);
 
         // Trigger BalanceCard refresh by toggling the refresh flag
         setBalanceCardRefresh(prev => !prev);
       } else {
-        console.log(`Webhook address mismatch - Webhook: ${webhookAddress}, Wallet: ${walletAddress}, Event ID: ${eventId}`);
+        console.log(`❌ Webhook address mismatch - Webhook: ${webhookAddress || 'EMPTY'}, Wallet: ${walletAddress || 'EMPTY'}, Event ID: ${eventId}`);
       }
 
       // Also refresh transaction history if it's open
