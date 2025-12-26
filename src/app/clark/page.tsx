@@ -87,9 +87,36 @@ export default function BacktestPage() {
       }
       setUserId(defaultUserId)
     }
-    // Generate session ID (new for each browser session)
-    const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    setSessionId(newSessionId)
+    
+    // Check for expanded messages from mini chat components
+    try {
+      const expandedMessages = localStorage.getItem('clark_expanded_messages')
+      const expandedSessionId = localStorage.getItem('clark_expanded_session_id')
+      
+      if (expandedMessages && expandedSessionId) {
+        // Load messages from expansion
+        const parsedMessages = JSON.parse(expandedMessages).map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp) // Convert string back to Date
+        })) as ChatMessage[]
+        setMessages(parsedMessages)
+        setSessionId(expandedSessionId)
+        
+        // Clear the stored data to avoid reloading on refresh
+        localStorage.removeItem('clark_expanded_messages')
+        localStorage.removeItem('clark_expanded_session_id')
+      } else {
+        // Generate new session ID if not expanding from mini chat
+        const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        setSessionId(newSessionId)
+      }
+    } catch (error) {
+      console.error('Error loading expanded messages:', error)
+      // Fallback to generating new session ID if loading fails
+      const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      setSessionId(newSessionId)
+    }
+    
     // Reset session cost for new session
     setSessionCost(0)
   }, [])

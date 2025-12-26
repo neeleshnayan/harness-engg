@@ -183,6 +183,19 @@ export default function MiniClarkChat({
   }
 
   const handleExpand = () => {
+    // Store messages and sessionId before navigating
+    if (messages.length > 0) {
+      try {
+        const messagesToStore = messages.map(msg => ({
+          ...msg,
+          timestamp: msg.timestamp.toISOString() // Convert Date to string for storage
+        }))
+        localStorage.setItem('clark_expanded_messages', JSON.stringify(messagesToStore))
+        localStorage.setItem('clark_expanded_session_id', sessionId)
+      } catch (error) {
+        console.error('Error storing messages for expansion:', error)
+      }
+    }
     router.push('/clark')
   }
 
