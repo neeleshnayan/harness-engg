@@ -19,7 +19,7 @@ import SendERC20Modal from "@/components/wallet/SendERC20Modal";
 
 // Configuration: Delay before fetching balance after webhook event (in milliseconds)
 // Increase this if Circle API hasn't updated the balance yet when webhook arrives
-const WEBHOOK_BALANCE_REFRESH_DELAY_MS = 10000; // 10 seconds
+const WEBHOOK_BALANCE_REFRESH_DELAY_MS = 15000; // 15 seconds
 
 import {
   setUserContext,
@@ -134,29 +134,18 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     }
 
     // Set new timer
-    const timerId = `timer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const timerStartTime = Date.now();
-    console.log(`⏱️ [${timerId}] Debounce timer started at ${new Date().toISOString()} - Will wait ${delay}ms before fetching, Address: ${address}`);
-    console.log(`⏱️ [${timerId}] Expected fetch time: ${new Date(Date.now() + delay).toISOString()}`);
-
     balanceDebounceTimerRef.current = setTimeout(() => {
-      const actualDelay = Date.now() - timerStartTime;
-      console.log(`⏱️ [${timerId}] Debounce timer expired at ${new Date().toISOString()} - Actual delay: ${actualDelay}ms (expected: ${delay}ms)`);
-      console.log(`⏱️ [${timerId}] Debounce timer expired - Checking if fetch should proceed...`);
-
       if (!balanceFetchInProgressRef.current && address && fetchBalanceRef.current) {
-        console.log(`✅ [${timerId}] Conditions met - Proceeding with balance fetch`);
         balanceFetchInProgressRef.current = true;
         fetchBalanceRef.current(address, options)
           .then(() => {
-            console.log(`✅ [${timerId}] Debounced fetch completed successfully`);
             // Ensure refreshing state is cleared after successful fetch
             if (options?.background) {
               setBalanceRefreshing(false);
             }
           })
           .catch((err) => {
-            console.error(`❌ [${timerId}] Debounced fetch failed:`, err);
+            console.error('Error fetching balance:', err);
             // Ensure refreshing state is cleared even on error
             if (options?.background) {
               setBalanceRefreshing(false);
@@ -164,18 +153,11 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
           })
           .finally(() => {
             balanceFetchInProgressRef.current = false;
-            console.log(`🏁 [${timerId}] Debounced fetch finished - InProgress flag cleared`);
           });
       } else {
-        // If fetch was skipped (already in progress or missing address/function), clear refreshing state
-        console.log(`⏭️ [${timerId}] Debounced fetch SKIPPED - Conditions:`, {
-          inProgress: balanceFetchInProgressRef.current,
-          hasAddress: !!address,
-          hasFetchFunction: !!fetchBalanceRef.current
-        });
+        // If fetch was skipped, clear refreshing state
         if (options?.background) {
           setBalanceRefreshing(false);
-          console.log(`🏁 [${timerId}] Refreshing state cleared after skip`);
         }
       }
       balanceDebounceTimerRef.current = null;
@@ -189,7 +171,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
       // Deduplicate: Skip if we've already processed this webhook event
       if (eventId && processedWebhookEventsRef.current.has(eventId)) {
-        console.log(`Skipping duplicate webhook event: ${eventId}`);
         return;
       }
 
@@ -231,31 +212,26 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         (walletAddress && (message.event_type === 'wallet.created' || message.event_type === 'wallet.updated')); // Wallet events
 
       if (shouldRefreshBalance) {
-        console.log(`✅ Processing webhook for ${message.event_type} - Address: ${walletAddress}, Event ID: ${eventId}`);
-        console.log(`⏳ Will wait ${WEBHOOK_BALANCE_REFRESH_DELAY_MS}ms before fetching balance to allow Circle API to update...`);
-
         // Use configurable delay to allow Circle API time to update balance after webhook
         const debounceDelay = WEBHOOK_BALANCE_REFRESH_DELAY_MS;
 
-        // Clear any existing debounce timer (this resets the delay if multiple webhooks arrive quickly)
+        // Clear any existing debounce timer
         if (balanceDebounceTimerRef.current) {
-          console.log(`🔄 Clearing existing debounce timer - will restart with ${debounceDelay}ms delay`);
           clearTimeout(balanceDebounceTimerRef.current);
           balanceDebounceTimerRef.current = null;
         }
 
-        // Set refreshing state to show UI feedback, but actual fetch will happen after delay
+        // Set refreshing state to show UI feedback
         setBalanceRefreshing(true);
-        console.log(`📊 Balance refreshing state set to true - UI will show "Refreshing..." but API call will wait ${debounceDelay}ms`);
 
-        // Use debounced fetch to prevent excessive calls - this will wait the full delay
+        // Use debounced fetch to prevent excessive calls
         debouncedFetchBalance(currentAccountData.wallet_address, { background: true }, debounceDelay);
 
-        // Safety timeout: Clear refreshing state after 10 seconds if it's still stuck
+        // Safety timeout: Clear refreshing state after 20 seconds if it's still stuck
         setTimeout(() => {
           setBalanceRefreshing(prev => {
             if (prev) {
-              console.warn('⚠️ Balance refreshing state was stuck - forcing clear after 20s timeout');
+              console.warn('Balance refreshing state was stuck - forcing clear after 20s timeout');
               return false;
             }
             return prev;
@@ -264,8 +240,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
         // Trigger BalanceCard refresh by toggling the refresh flag
         setBalanceCardRefresh(prev => !prev);
-      } else {
-        console.log(`❌ Webhook address mismatch - Webhook: ${webhookAddress || 'EMPTY'}, Wallet: ${walletAddress || 'EMPTY'}, Event ID: ${eventId}, Type: ${message.event_type}`);
       }
 
       // Also refresh transaction history if it's open
@@ -439,16 +413,12 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     address: string,
     options?: { background?: boolean }
   ) => {
-    const isBackground = options?.background === true;
-    const fetchId = `fetch-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-    console.log(`📊 [${fetchId}] Balance fetch STARTED - Address: ${address}, Background: ${isBackground}`);
-
     // Prevent duplicate concurrent fetches
     if (balanceFetchInProgressRef.current && options?.background) {
-      console.log(`⏭️ [${fetchId}] Balance fetch SKIPPED - Already in progress`);
       return;
     }
+
+    const isBackground = options?.background === true;
 
     // Set fetching flag
     if (isBackground) {
@@ -461,37 +431,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       }
       addBreadcrumb('Fetching wallet balance', 'api', { wallet_address: address, background: isBackground });
 
-      console.log(`🔄 [${fetchId}] Calling API: /api/v1/wallet_balance/${address}`);
       const response = await api.get(`/api/v1/wallet_balance/${address}`);
-
-      // Log balance data received
-      const balanceData = response.data;
-      if (balanceData && balanceData.tokenBalances) {
-        const tokenCount = balanceData.tokenBalances.length;
-        console.log(`✅ [${fetchId}] Balance API response received - ${tokenCount} token(s) found`);
-
-        // Log each token balance
-        balanceData.tokenBalances.forEach((tb: any, idx: number) => {
-          const symbol = tb?.token?.symbol || 'UNKNOWN';
-          const amount = tb?.amount || '0';
-          console.log(`  💰 [${fetchId}] Token ${idx + 1}: ${symbol} = ${amount}`);
-        });
-      } else {
-        console.log(`✅ [${fetchId}] Balance API response received - No tokenBalances array found`, balanceData);
-      }
-
-      // Log previous balance for comparison
-      const previousBalance = balance;
-      if (previousBalance && previousBalance.tokenBalances) {
-        console.log(`📊 [${fetchId}] Previous balance had ${previousBalance.tokenBalances.length} token(s)`);
-      } else {
-        console.log(`📊 [${fetchId}] No previous balance data`);
-      }
-
-      // Set the new balance
-      console.log(`💾 [${fetchId}] Setting new balance in state...`);
-      setBalance(balanceData);
-      console.log(`✅ [${fetchId}] Balance state updated successfully`);
+      setBalance(response.data);
 
       addBreadcrumb('Balance fetched successfully', 'api', {
         wallet_address: address,
@@ -500,53 +441,33 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       });
 
     } catch (err) {
-      console.error(`❌ [${fetchId}] Balance fetch FAILED:`, err);
+      console.error('Failed to fetch balance:', err);
       setError('Failed to fetch balance.');
       captureAPIError(err, `/api/v1/wallet_balance/${address}`, { wallet_address: address, background: isBackground });
     } finally {
       if (isBackground) {
         setBalanceRefreshing(false);
         balanceFetchInProgressRef.current = false;
-        console.log(`🏁 [${fetchId}] Background fetch completed - Refreshing state cleared`);
         // Stop flickering when balance refresh is complete
         if (balanceFlickering) {
           setBalanceFlickering(false);
-          console.log(`🏁 [${fetchId}] Balance flickering stopped`);
         }
       } else {
         setBalanceLoading(false);
         balanceFetchInProgressRef.current = false;
-        console.log(`🏁 [${fetchId}] Foreground fetch completed - Loading state cleared`);
         // Stop flickering when balance loading is complete
         if (balanceFlickering) {
           setBalanceFlickering(false);
-          console.log(`🏁 [${fetchId}] Balance flickering stopped`);
         }
       }
     }
-  }, [balanceFlickering, balance]);
+  }, [balanceFlickering]);
 
   // Update fetchBalance ref when it changes
   useEffect(() => {
     fetchBalanceRef.current = fetchBalance;
   }, [fetchBalance]);
 
-  // Log when balance state changes
-  useEffect(() => {
-    if (balance) {
-      const tokenCount = balance.tokenBalances?.length || 0;
-      console.log(`🔄 Balance state CHANGED - ${tokenCount} token(s) in balance`);
-      if (balance.tokenBalances) {
-        balance.tokenBalances.forEach((tb: any, idx: number) => {
-          const symbol = tb?.token?.symbol || 'UNKNOWN';
-          const amount = tb?.amount || '0';
-          console.log(`  💰 Balance Token ${idx + 1}: ${symbol} = ${amount}`);
-        });
-      }
-    } else {
-      console.log(`🔄 Balance state CHANGED - Balance is now null/undefined`);
-    }
-  }, [balance]);
 
   const handleLogout = async () => {
     try {
