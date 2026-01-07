@@ -115,6 +115,30 @@ export default function MemoriesTab({ userId }: MemoriesTabProps) {
     const metadata = memory.metadata || {}
     const memoryType = metadata.type || 'unknown'
     const sessionId = metadata.session_id
+    
+    // Handle reasoningContent structure (fallback for prod data)
+    let displayMessage: string | undefined = memory.message
+    if (!displayMessage && (memory as any).reasoningContent) {
+      const reasoning = (memory as any).reasoningContent
+      if (reasoning?.reasoningText?.text) {
+        displayMessage = reasoning.reasoningText.text
+        // Try to extract JSON from the text if it's a JSON string
+        if (displayMessage) {
+          try {
+            const parsed = JSON.parse(displayMessage)
+            if (parsed.message) {
+              displayMessage = parsed.message
+              // Merge parsed metadata if available
+              if (parsed.metadata) {
+                Object.assign(metadata, parsed.metadata)
+              }
+            }
+          } catch {
+            // Not JSON, use as-is
+          }
+        }
+      }
+    }
 
     return (
       <motion.div
@@ -219,12 +243,12 @@ export default function MemoriesTab({ userId }: MemoriesTabProps) {
               </div>
             )}
 
-            {(memoryType === 'condensed_persona' || memoryType === 'persona_memory') && memory.message && (
+            {(memoryType === 'condensed_persona' || memoryType === 'persona_memory') && displayMessage && (
               <div className="space-y-3">
                 <div>
                   <div className="text-xs text-white/60 mb-1">Persona Summary:</div>
                   <div className="text-sm text-white/90 bg-white/5 p-3 rounded border border-white/10 leading-relaxed">
-                    {memory.message}
+                    {displayMessage}
                   </div>
                 </div>
                 {metadata.persona_summary && (
@@ -270,9 +294,9 @@ export default function MemoriesTab({ userId }: MemoriesTabProps) {
               </div>
             )}
             
-            {memory.message && memoryType !== 'user_interaction' && memoryType !== 'portfolio_state' && memoryType !== 'condensed_persona' && memoryType !== 'persona_memory' && (
+            {displayMessage && memoryType !== 'user_interaction' && memoryType !== 'portfolio_state' && memoryType !== 'condensed_persona' && memoryType !== 'persona_memory' && (
               <div className="text-sm text-white/80 bg-white/5 p-2 rounded border border-white/10">
-                {memory.message}
+                {displayMessage}
               </div>
             )}
           </CardContent>
