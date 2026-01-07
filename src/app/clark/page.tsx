@@ -57,35 +57,18 @@ export default function BacktestPage() {
         if (actualUserId) {
           setUserId(actualUserId)
         } else {
-          // If no unique identifier found, log warning and use a fallback
-          console.warn('No user_id, uid, or email found in userData. Using fallback ID.')
-          // For authenticated users without identifiers, use a consistent ID from localStorage
-          let fallbackUserId = localStorage.getItem('krypton_user_id')
-          if (!fallbackUserId) {
-            fallbackUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-            localStorage.setItem('krypton_user_id', fallbackUserId)
-          }
-          setUserId(fallbackUserId)
+          // If no unique identifier found, use default fallback
+          console.warn('No user_id, uid, or email found in userData. Using default fallback ID.')
+          setUserId('krypton_user')
         }
       } catch (error) {
         console.error('Error parsing user data:', error)
-        // Fallback to consistent ID from localStorage if parsing fails
-        let fallbackUserId = localStorage.getItem('krypton_user_id')
-        if (!fallbackUserId) {
-          fallbackUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-          localStorage.setItem('krypton_user_id', fallbackUserId)
-        }
-        setUserId(fallbackUserId)
+        // Fallback to default ID if parsing fails
+        setUserId('krypton_user')
       }
     } else {
-      // If no userData exists, use a consistent ID from localStorage for unauthenticated users
-      // This ensures they keep their conversation history across page reloads
-      let defaultUserId = localStorage.getItem('krypton_user_id')
-      if (!defaultUserId) {
-        defaultUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        localStorage.setItem('krypton_user_id', defaultUserId)
-      }
-      setUserId(defaultUserId)
+      // If no userData exists, use default fallback ID
+      setUserId('krypton_user')
     }
     
     // Check for expanded messages from mini chat components
