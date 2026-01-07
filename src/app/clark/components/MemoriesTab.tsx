@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Brain, Clock, MessageSquare, Database, Loader2, RefreshCw } from 'lucide-react'
+import { Brain, Clock, MessageSquare, Database, Loader2, RefreshCw, User } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import agentsApi from '@/lib/agents_api'
 
@@ -27,6 +27,13 @@ interface Memory {
         sharpe_ratio?: number
         max_drawdown?: number
       }
+    }
+    persona_summary?: {
+      interests?: string[]
+      preferences?: string
+      behavior_patterns?: string
+      knowledge_level?: string
+      goals?: string[]
     }
     timestamp?: string
   }
@@ -59,8 +66,16 @@ export default function MemoriesTab({ userId }: MemoriesTabProps) {
       })
 
       if (response.data.success) {
-        setCondensedMemories(response.data.condensed_memories || [])
-        setCurrentSessionMemories(response.data.current_session_memories || [])
+        const condensed = response.data.condensed_memories || []
+        const current = response.data.current_session_memories || []
+        console.log('Fetched memories:', { 
+          condensed_count: condensed.length, 
+          current_count: current.length,
+          condensed: condensed,
+          current: current
+        })
+        setCondensedMemories(condensed)
+        setCurrentSessionMemories(current)
         setCurrentSessionId(response.data.current_session_id || null)
       } else {
         setError(response.data.message || "Failed to fetch memories")
@@ -119,8 +134,11 @@ export default function MemoriesTab({ userId }: MemoriesTabProps) {
                   {memoryType === 'portfolio_state' && (
                     <Database className="h-4 w-4 text-purple-400" />
                   )}
+                  {(memoryType === 'condensed_persona' || memoryType === 'persona_memory') && (
+                    <User className="h-4 w-4 text-teal-400" />
+                  )}
                   <CardTitle className="text-sm text-white capitalize">
-                    {memoryType.replace('_', ' ')}
+                    {memoryType === 'condensed_persona' ? 'Condensed Persona' : memoryType === 'persona_memory' ? 'Persona Memory' : memoryType.replace('_', ' ')}
                   </CardTitle>
                 </div>
                 {sessionId && (
@@ -201,7 +219,58 @@ export default function MemoriesTab({ userId }: MemoriesTabProps) {
               </div>
             )}
 
-            {memory.message && memoryType !== 'user_interaction' && memoryType !== 'portfolio_state' && (
+            {(memoryType === 'condensed_persona' || memoryType === 'persona_memory') && memory.message && (
+              <div className="space-y-3">
+                <div>
+                  <div className="text-xs text-white/60 mb-1">Persona Summary:</div>
+                  <div className="text-sm text-white/90 bg-white/5 p-3 rounded border border-white/10 leading-relaxed">
+                    {memory.message}
+                  </div>
+                </div>
+                {metadata.persona_summary && (
+                  <div className="grid grid-cols-1 gap-2 text-xs">
+                    {metadata.persona_summary.interests && Array.isArray(metadata.persona_summary.interests) && metadata.persona_summary.interests.length > 0 && (
+                      <div className="bg-white/5 p-2 rounded border border-white/10">
+                        <div className="text-white/60 mb-1">Interests:</div>
+                        <div className="text-white/80 flex flex-wrap gap-1">
+                          {metadata.persona_summary.interests.map((interest: string, idx: number) => (
+                            <span key={idx} className="px-2 py-0.5 bg-teal-900/30 text-teal-300 rounded text-xs">
+                              {interest}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {metadata.persona_summary.preferences && (
+                      <div className="bg-white/5 p-2 rounded border border-white/10">
+                        <div className="text-white/60 mb-1">Preferences:</div>
+                        <div className="text-white/80">{metadata.persona_summary.preferences}</div>
+                      </div>
+                    )}
+                    {metadata.persona_summary.knowledge_level && (
+                      <div className="bg-white/5 p-2 rounded border border-white/10">
+                        <div className="text-white/60 mb-1">Knowledge Level:</div>
+                        <div className="text-white/80">{metadata.persona_summary.knowledge_level}</div>
+                      </div>
+                    )}
+                    {metadata.persona_summary.goals && Array.isArray(metadata.persona_summary.goals) && metadata.persona_summary.goals.length > 0 && (
+                      <div className="bg-white/5 p-2 rounded border border-white/10">
+                        <div className="text-white/60 mb-1">Goals:</div>
+                        <div className="text-white/80 flex flex-wrap gap-1">
+                          {metadata.persona_summary.goals.map((goal: string, idx: number) => (
+                            <span key={idx} className="px-2 py-0.5 bg-cyan-900/30 text-cyan-300 rounded text-xs">
+                              {goal}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {memory.message && memoryType !== 'user_interaction' && memoryType !== 'portfolio_state' && memoryType !== 'condensed_persona' && memoryType !== 'persona_memory' && (
               <div className="text-sm text-white/80 bg-white/5 p-2 rounded border border-white/10">
                 {memory.message}
               </div>
