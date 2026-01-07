@@ -10,17 +10,17 @@ interface HamburgerMenuProps {
   onCopyAddress: () => void;
 }
 
-const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ 
-  visible, 
-  onClose, 
-  onLogout, 
-  accountData, 
-  onCopyAddress 
+const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
+  visible,
+  onClose,
+  onLogout,
+  accountData,
+  onCopyAddress
 }) => {
   const router = useRouter();
-  
+
   if (!visible) return null;
-  
+
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       onClose();
@@ -46,14 +46,20 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
     onClose();
     router.push('/clark');
   };
-  
+
+  const handleNavigateToLiquidityPools = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onClose();
+    router.push('/liquidity-pools');
+  };
+
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black/80 backdrop-blur-xl z-50"
       onClick={handleBackdropClick}
     >
       <div className="flex flex-col items-center justify-center min-h-screen p-6">
-        <div 
+        <div
           className="w-full max-w-md bg-black/60 border border-white/10 rounded-3xl shadow-2xl backdrop-blur-xl p-8"
           onClick={handleModalClick}
         >
@@ -62,7 +68,7 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
             <h2 className="text-2xl font-bold text-white mb-2">Menu</h2>
             <div className="w-16 h-1 bg-gradient-to-r from-cyan-400 to-green-400 mx-auto rounded-full"></div>
           </div>
-          
+
           {/* Wallet Address Section */}
           <div className="mb-8">
             <h3 className="text-sm font-medium text-zinc-400 mb-4 text-center">Wallet Address</h3>
@@ -89,6 +95,13 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
             >
               <img src="/clark.svg" alt="Clark" className="h-6 w-6 mr-3" />
               Open Clark AI
+            </button>
+            <button
+              onClick={handleNavigateToLiquidityPools}
+              className="flex items-center justify-center w-full text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 px-6 py-4 rounded-2xl transition-all duration-200 font-medium border border-blue-900/30 hover:border-blue-700/50"
+            >
+              <span className="text-xl mr-3">○</span>
+              Liquidity Pools
             </button>
           </div>
 
@@ -118,4 +131,4 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
   );
 };
 
-export default HamburgerMenu; 
+export default HamburgerMenu;
