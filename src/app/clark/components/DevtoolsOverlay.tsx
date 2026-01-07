@@ -2,20 +2,23 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Clock, Zap, TrendingUp, Activity, BarChart3, Filter } from 'lucide-react'
+import { X, Clock, Zap, TrendingUp, Activity, BarChart3, Filter, Brain } from 'lucide-react'
 import { ChatMessage, AgentFlowGraph, AgentFlowStep } from '../types'
 import AgentFlow from './AgentFlow'
+import MemoriesTab from './MemoriesTab'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 
 interface DevtoolsOverlayProps {
   isOpen: boolean
   onClose: () => void
   messages: ChatMessage[]
+  userId?: string
 }
 
-export default function DevtoolsOverlay({ isOpen, onClose, messages }: DevtoolsOverlayProps) {
+export default function DevtoolsOverlay({ isOpen, onClose, messages, userId }: DevtoolsOverlayProps) {
   const [selectedQueryIndex, setSelectedQueryIndex] = useState<number | null>(null)
   const [filterType, setFilterType] = useState<'all' | 'single' | 'sequential' | 'parallel'>('all')
+  const [activeTab, setActiveTab] = useState<'agent-flow' | 'memories'>('agent-flow')
 
   // Handle ESC key to close overlay
   useEffect(() => {
@@ -149,7 +152,7 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages }: DevtoolsO
           >
             <div className="sticky top-0 bg-gradient-to-b from-[#1c2f2f]/95 to-[#0b1515]/95 backdrop-blur-xl border-b border-white/15 z-10">
               <div className="flex items-center justify-between p-4">
-                <h1 className="text-2xl font-bold text-white">Agent Flow Devtools</h1>
+                <h1 className="text-2xl font-bold text-white">Devtools</h1>
                 <button
                   onClick={onClose}
                   className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white transition-colors"
@@ -158,9 +161,38 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages }: DevtoolsO
                   <X className="h-5 w-5" />
                 </button>
               </div>
+              
+              {/* Tab Navigation */}
+              <div className="flex items-center gap-2 px-4 pb-4">
+                <button
+                  onClick={() => setActiveTab('agent-flow')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-colors border ${
+                    activeTab === 'agent-flow'
+                      ? 'bg-teal-900/40 text-teal-300 border-teal-700/30 hover:bg-teal-800/50'
+                      : 'bg-white/10 text-white/60 border-white/15 hover:bg-white/15'
+                  }`}
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  Agent Flow
+                </button>
+                <button
+                  onClick={() => setActiveTab('memories')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-colors border ${
+                    activeTab === 'memories'
+                      ? 'bg-teal-900/40 text-teal-300 border-teal-700/30 hover:bg-teal-800/50'
+                      : 'bg-white/10 text-white/60 border-white/15 hover:bg-white/15'
+                  }`}
+                >
+                  <Brain className="h-4 w-4" />
+                  Memories
+                </button>
+              </div>
             </div>
 
             <div className="p-4 sm:p-6 lg:p-8">
+              {/* Tab Content */}
+              {activeTab === 'agent-flow' && (
+                <>
               {/* Statistics Cards */}
               {queriesWithFlows.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -356,6 +388,12 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages }: DevtoolsO
                     })}
                   </AnimatePresence>
                 </div>
+              )}
+                </>
+              )}
+              
+              {activeTab === 'memories' && (
+                <MemoriesTab userId={userId} />
               )}
             </div>
           </motion.div>

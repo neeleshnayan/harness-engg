@@ -555,6 +555,7 @@ export default function BacktestPage() {
         isOpen={isDevtoolsOpen}
         onClose={() => setIsDevtoolsOpen(false)}
         messages={messages}
+        userId={userId}
       />
     </div>
   )
