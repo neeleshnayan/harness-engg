@@ -84,6 +84,7 @@ type MetricData = {
   totalUsdcSwapped?: string;
   totalWethSwapped?: string;
   totalPaxgSwapped?: string;
+  currentAum?: string;
 };
 
 type Deposit = {
@@ -92,6 +93,7 @@ type Deposit = {
   assets: string;
   shares: string;
   timestamp: string;
+  txHash: string;
 };
 
 type Withdrawal = {
@@ -101,6 +103,7 @@ type Withdrawal = {
   assets: string;
   shares: string;
   timestamp: string;
+  txHash: string;
 };
 
 type SignalExecuted = {
@@ -168,6 +171,7 @@ const createQuery = (strategyName: StrategyName, withOwner: boolean) => {
           totalSellSignals
           totalUsdcSwapped
           totalWethSwapped
+          currentAum
           lastUpdated
         }
         ${snapshotField}(first: 100, orderBy: timestamp, orderDirection: desc) {
@@ -203,6 +207,7 @@ const createQuery = (strategyName: StrategyName, withOwner: boolean) => {
           orderDirection: desc
         ) {
           id
+          txHash
           owner
           assets
           shares
@@ -214,6 +219,7 @@ const createQuery = (strategyName: StrategyName, withOwner: boolean) => {
           orderDirection: desc
         ) {
           id
+          txHash
           owner
           receiver
           assets
@@ -269,6 +275,7 @@ const createQuery = (strategyName: StrategyName, withOwner: boolean) => {
           orderDirection: desc
         ) {
           id
+          txHash
           owner
           assets
           shares
@@ -280,6 +287,7 @@ const createQuery = (strategyName: StrategyName, withOwner: boolean) => {
           orderDirection: desc
         ) {
           id
+          txHash
           owner
           receiver
           assets
@@ -316,6 +324,7 @@ const createQuery = (strategyName: StrategyName, withOwner: boolean) => {
           orderDirection: desc
         ) {
           id
+          txHash
           owner
           assets
           shares
@@ -328,6 +337,7 @@ const createQuery = (strategyName: StrategyName, withOwner: boolean) => {
           orderDirection: desc
         ) {
           id
+          txHash
           owner
           receiver
           assets
@@ -358,6 +368,7 @@ const createQuery = (strategyName: StrategyName, withOwner: boolean) => {
       }
       deposits(first: 1000, orderBy: timestamp, orderDirection: desc) {
         id
+        txHash
         owner
         assets
         shares
@@ -365,6 +376,7 @@ const createQuery = (strategyName: StrategyName, withOwner: boolean) => {
       }
       withdrawals(first: 1000, orderBy: timestamp, orderDirection: desc) {
         id
+        txHash
         owner
         receiver
         assets

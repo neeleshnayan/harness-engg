@@ -7,12 +7,12 @@ interface AumChartProps {
     data: Snapshot[];
 }
 
-const formatCurrency = (value: number) =>
+const formatTooltipCurrency = (value: number) =>
     new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
-        compactDisplay: 'short',
-        maximumFractionDigits: 0
+        minimumFractionDigits: 4,
+        maximumFractionDigits: 4
     }).format(value);
 
 export const AumChart: React.FC<AumChartProps> = ({ data }) => {
@@ -43,7 +43,7 @@ export const AumChart: React.FC<AumChartProps> = ({ data }) => {
                         <Tooltip
                             contentStyle={{ backgroundColor: '#18181b', borderColor: '#3f3f46', borderRadius: '0.5rem' }}
                             itemStyle={{ color: '#e4e4e7' }}
-                            formatter={(value: number) => [formatCurrency(value), 'AUM']}
+                            formatter={(value: number) => [formatTooltipCurrency(value), 'AUM']}
                         />
                         <Area type="monotone" dataKey="aum" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorRealAum)" />
                     </AreaChart>
