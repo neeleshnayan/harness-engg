@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import api from '@/lib/api';
+import { kryptonWeb3Api } from '@/lib/api';
 
 export function useTransactionStatus(transactionId: string | null) {
   const [status, setStatus] = useState<string>('SUBMITTED');
@@ -11,11 +11,14 @@ export function useTransactionStatus(transactionId: string | null) {
 
     const pollStatus = async () => {
       try {
-        const response = await api.get(`/dev/request/${transactionId}`);
-        setStatus(response.data.status);
+        const response = await kryptonWeb3Api.get(`/circle/transaction/${transactionId}`);
+        // The response structure is: { transaction_id, tracked, data: { status/state, ... } }
+        const transactionData = response.data.data;
+        const transactionStatus = transactionData?.status || transactionData?.state;
+        setStatus(transactionStatus || 'UNKNOWN');
         setError(null);
 
-        if (['COMPLETED', 'FAILED', 'CANCELLED'].includes(response.data.status)) {
+        if (['COMPLETED', 'FAILED', 'CANCELLED'].includes(transactionStatus)) {
           setLoading(false);
         }
       } catch (err: any) {

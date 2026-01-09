@@ -1,4 +1,4 @@
-import api from './api';
+import { kryptonWeb3Api } from '@/lib/api';
 
 // Response types matching backend schemas
 export interface PoolInfo {
@@ -70,19 +70,19 @@ export interface OracleRateResponse {
 export const nettingPoolsApi = {
   // List all pools
   async getPools(): Promise<PoolInfo[]> {
-    const response = await api.get('/netting-pools/pools');
+    const response = await kryptonWeb3Api.get('/netting-pools/pools');
     return response.data;
   },
 
   // Get pool state
   async getPoolState(poolAddress: string): Promise<PoolState> {
-    const response = await api.get(`/netting-pools/pool/${poolAddress}/state`);
+    const response = await kryptonWeb3Api.get(`/netting-pools/pool/${poolAddress}/state`);
     return response.data;
   },
 
   // Get spot price
   async getSpotPrice(poolAddress: string, tokenInAddress: string, tokenOutAddress: string) {
-    const response = await api.get(`/netting-pools/pool/${poolAddress}/spot-price`, {
+    const response = await kryptonWeb3Api.get(`/netting-pools/pool/${poolAddress}/spot-price`, {
       params: { token_in_address: tokenInAddress, token_out_address: tokenOutAddress }
     });
     return response.data;
@@ -95,25 +95,25 @@ export const nettingPoolsApi = {
     token_out_address: string;
     amount_in: number;
   }): Promise<SwapQuote> {
-    const response = await api.post('/netting-pools/quote-swap', params);
+    const response = await kryptonWeb3Api.post('/netting-pools/quote-swap', params);
     return response.data;
   },
 
   // Get price deviation
   async getDeviation(poolAddress: string): Promise<DeviationResponse> {
-    const response = await api.get(`/netting-pools/pool/${poolAddress}/deviation`);
+    const response = await kryptonWeb3Api.get(`/netting-pools/pool/${poolAddress}/deviation`);
     return response.data;
   },
 
   // Get balances
   async getBalances(walletAddress: string): Promise<TokenBalance[]> {
-    const response = await api.get(`/netting-pools/balances/${walletAddress}`);
+    const response = await kryptonWeb3Api.get(`/netting-pools/balances/${walletAddress}`);
     return response.data;
   },
 
   // Get oracle rate
   async getOracleRate(fxPair: string): Promise<OracleRateResponse> {
-    const response = await api.get('/netting-pools/oracle/rate', {
+    const response = await kryptonWeb3Api.get('/netting-pools/oracle/rate', {
       params: { fx_pair: fxPair }
     });
     return response.data;
@@ -126,7 +126,7 @@ export const nettingPoolsApi = {
     token1_amount: number;
     username: string;
   }): Promise<AdminOperationResponse> {
-    const response = await api.post('/netting-pools/pool/initialize', params);
+    const response = await kryptonWeb3Api.post('/netting-pools/pool/initialize', params);
     return response.data;
   },
 
@@ -136,7 +136,7 @@ export const nettingPoolsApi = {
     token1_amount: number;
     username: string;
   }): Promise<AdminOperationResponse> {
-    const response = await api.post('/netting-pools/pool/add-liquidity', params);
+    const response = await kryptonWeb3Api.post('/netting-pools/pool/add-liquidity', params);
     return response.data;
   },
 
@@ -148,7 +148,7 @@ export const nettingPoolsApi = {
     min_amount_out: number;
     username: string;
   }): Promise<AdminOperationResponse> {
-    const response = await api.post('/netting-pools/pool/swap', params);
+    const response = await kryptonWeb3Api.post('/netting-pools/pool/swap', params);
     return response.data;
   },
 
@@ -157,7 +157,7 @@ export const nettingPoolsApi = {
     manual_rate?: number;
     username: string;
   }): Promise<AdminOperationResponse> {
-    const response = await api.post('/netting-pools/oracle/sync-rate', params);
+    const response = await kryptonWeb3Api.post('/netting-pools/oracle/sync-rate', params);
     return response.data;
   },
 
@@ -167,7 +167,7 @@ export const nettingPoolsApi = {
     min_amount_out: number;
     username: string;
   }): Promise<AdminOperationResponse> {
-    const response = await api.post('/netting-pools/pool/multi-hop-swap', params);
+    const response = await kryptonWeb3Api.post('/netting-pools/pool/multi-hop-swap', params);
     return response.data;
   },
 };
