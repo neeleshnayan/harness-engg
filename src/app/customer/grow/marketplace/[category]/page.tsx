@@ -78,26 +78,10 @@ export default function MarketplaceCategoryPage() {
   };
 
   const handleBuyStartup = async (startupId: string, tokenCount: number, sellTarget: number) => {
-    const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-
-    try {
-      const response = await api.post('/api/v1/smarttoken/mint_exchange_usdc', {
-        token_address: selectedStartup?.address,
-        from_owner: selectedStartup?.owners?.at(0),
-        to: userData.wallet_address,
-        amount: tokenCount,
-        buyer_user_id: userData.user_id,
-        token_owner_username: (await getUserInfo(selectedStartup?.owner_id || "")).username,
-        business_id: selectedStartup?.id,
-      });
-
-      // show a success message
-      alert(`Successfully purchased ${tokenCount} tokens for startup ${selectedStartup?.name} with sell target $${sellTarget}`);
-    } catch (error) {
-      console.error('Failed to purchase tokens:', error);
-      alert('Failed to purchase tokens. Please try again.');
-      throw error; // Re-throw to let the modal handle the error
-    }
+    // Token minting via mint_exchange_usdc is temporarily disabled during backend migration
+    // See SMARTTOKEN_MIGRATION.md for details
+    alert('Token minting is coming soon! This feature is currently being upgraded.');
+    throw new Error('Feature coming soon');
   };
 
   if (loading) {
@@ -172,7 +156,7 @@ export default function MarketplaceCategoryPage() {
                 title={getRandomCountryCode()}
               />
               {
-                (fireList.includes(idx) || startup.name.toLowerCase().includes("krypton")) && 
+                (fireList.includes(idx) || startup.name.toLowerCase().includes("krypton")) &&
                 // <span className="flex items-center text-red-400 font-semibold">
                 //   &nbsp;&nbsp;<Flame className="h-4 w-4 mr-1" />
                 // </span>

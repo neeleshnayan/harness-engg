@@ -282,62 +282,11 @@ export default function ManageBusinessPage() {
   }
 
   const fetchSettlements = async (contractAddress: string) => {
-    if (!contractAddress) return;
-
-    setSettlementsLoading(true);
-    try {
-      const response = await api.get(`/api/v1/salary_contract/all_payouts/${contractAddress}`);
-      if (response.data && response.data.all_payouts) {
-        // Resolve usernames for each payout
-        const settlementsWithUsernames = await Promise.allSettled(
-          response.data.all_payouts.map(async (payout: any) => {
-            try {
-              if (payout.employee_wallet) {
-                const usernameResponse = await api.get(`/api/v1/resolve_wallet/${payout.employee_wallet}`);
-                if (usernameResponse.data && usernameResponse.data.username) {
-                  return {
-                    ...payout,
-                    username: usernameResponse.data.username
-                  };
-                }
-              }
-              return {
-                ...payout,
-                username: null
-              };
-            } catch (err) {
-              console.error(`Failed to resolve username for wallet ${payout.employee_wallet}:`, err);
-              return {
-                ...payout,
-                username: null
-              };
-            }
-          })
-        );
-
-        response.data.all_payouts = response.data.all_payouts.sort(
-          (a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-        // Process the results, handling both fulfilled and rejected promises
-        const processedSettlements = settlementsWithUsernames.map(result => {
-          if (result.status === 'fulfilled') {
-            return result.value;
-          } else {
-            console.error('Failed to process settlement:', result.reason);
-            return null;
-          }
-        }).filter(Boolean); // Remove null values
-
-        setSettlementsData(processedSettlements);
-      } else {
-        setSettlementsData([]);
-      }
-    } catch (err) {
-      console.error('Failed to fetch settlements:', err);
-      setSettlementsData([]);
-    } finally {
-      setSettlementsLoading(false);
-    }
+    // Salary contract settlements are temporarily disabled during backend migration
+    // See SMARTTOKEN_MIGRATION.md for details
+    alert('Salary management is coming soon! This feature is currently being upgraded.');
+    setSettlementsData([]);
+    setSettlementsLoading(false);
   }
 
   const handleBusinessDataChange = (field: keyof BusinessData, value: string) => {
@@ -406,117 +355,12 @@ export default function ManageBusinessPage() {
         ...response.data,
       };
 
-      // If this is the first member, deploy the salary contract
-      if (teamData.members.length === 0 && !salaryContractAddress) {
-        setShowAddMemberModal(false);
-        setShowSalaryContractDeploymentModal(true);
-
-        try {
-          const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-          const walletAddress = userData.wallet_address;
-
-          if (!walletAddress) {
-            throw new Error('Wallet address not found. Please ensure you have a connected wallet.');
-          }
-
-          if (!tokenAddress) {
-            throw new Error('Token address not found. Please deploy your smart token first.');
-          }
-
-          // Deploy salary contract
-          const deployRequest = {
-            usdc_token_address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
-            custom_token_address: tokenAddress,
-            min_payout_amount: 1,
-            initial_owners: [walletAddress],
-            company_id: existingBusinessId
-          };
-
-          const deployResponse = await api.post('/api/v1/salary_contract/deploy', deployRequest);
-
-          if (deployResponse.data && deployResponse.data.address) {
-            setSalaryContractAddress(deployResponse.data.address);
-          } else {
-            throw new Error('Failed to get salary contract address from deployment response');
-          }
-
-          setShowSalaryContractDeploymentModal(false);
-          setShowAddingEmployeeModal(true);
-
-          // Now add the employee to the salary contract
-          const scheduleMapping = {
-            'monthly': 0,
-            'bi-weekly': 1,
-            'weekly': 2,
-            'custom': 3
-          };
-
-          const addEmployeeRequest = {
-            contract_address: deployResponse.data.address,
-            from_owner: walletAddress,
-            wallet_address: await getEmployeeWalletAddress(newMember.kryptonId),
-            salary_amount: newMember.usdcPayment,
-            custom_token_amount: Math.floor(newMember.tokenPayment),
-            payout_frequency: scheduleMapping[newMember.schedule as keyof typeof scheduleMapping],
-            day_of_month: 1
-          };
-
-          await api.post('/api/v1/salary_contract/add_employee', addEmployeeRequest);
-
-          setShowAddingEmployeeModal(false);
-          setShowAddMemberModal(true);
-
-        } catch (contractError: any) {
-          console.error('Failed to deploy salary contract or add employee:', contractError);
-          setSaveError(`Failed to set up salary contract: ${contractError.message || contractError.response?.data?.detail || 'Unknown error'}`);
-          setShowSalaryContractDeploymentModal(false);
-          setShowAddingEmployeeModal(false);
-          setShowAddMemberModal(true);
-          return;
-        }
-      } else if (salaryContractAddress) {
-        // Add employee to existing salary contract
-        setShowAddMemberModal(false);
-        setShowAddingEmployeeModal(true);
-
-        try {
-          const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-          const walletAddress = userData.wallet_address;
-
-          if (!walletAddress) {
-            throw new Error('Wallet address not found. Please ensure you have a connected wallet.');
-          }
-
-          const scheduleMapping = {
-            'monthly': 0,
-            'bi-weekly': 1,
-            'weekly': 2,
-            'custom': 3
-          };
-
-          const addEmployeeRequest = {
-            contract_address: salaryContractAddress,
-            from_owner: walletAddress,
-            wallet_address: await getEmployeeWalletAddress(newMember.kryptonId),
-            salary_amount: newMember.usdcPayment,
-            custom_token_amount: Math.floor(newMember.tokenPayment),
-            payout_frequency: scheduleMapping[newMember.schedule as keyof typeof scheduleMapping],
-            day_of_month: 1
-          };
-
-          await api.post('/api/v1/salary_contract/add_employee', addEmployeeRequest);
-
-          setShowAddingEmployeeModal(false);
-          setShowAddMemberModal(true);
-
-        } catch (employeeError: any) {
-          console.error('Failed to add employee to salary contract:', employeeError);
-          setSaveError(`Failed to add employee to salary contract: ${employeeError.message || employeeError.response?.data?.detail || 'Unknown error'}`);
-          setShowAddingEmployeeModal(false);
-          setShowAddMemberModal(true);
-          return;
-        }
-      }
+      // Salary contract operations are temporarily disabled during backend migration
+      // See SMARTTOKEN_MIGRATION.md for details
+      // This includes: deploy, add_employee functionality
+      alert('Salary management is coming soon! This feature is currently being upgraded.');
+      setShowAddMemberModal(true);
+      return;
 
       // Add member to team data
       setTeamData(prev => ({
@@ -627,45 +471,11 @@ export default function ManageBusinessPage() {
       await api.put(`/api/v1/marketplace/business/${existingBusinessId}/fundraising`, fundraisingUpdate);
 
       if (!hasExistingAddress) {
-        // Show token deployment loading modal
+        // Token deployment via deploy_ape is temporarily disabled during backend migration
+        // See SMARTTOKEN_MIGRATION.md for details
         setShowSavingFundraisingModal(false);
-        setShowTokenDeploymentModal(true);
-
-        // Get user wallet address for token deployment
-        const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-        const walletAddress = userData.wallet_address;
-
-        if (!walletAddress) {
-          throw new Error('Wallet address not found. Please ensure you have a connected wallet.');
-        }
-
-        // Prepare token deployment data according to ApeDeployTokenRequest schema
-        const tokenDeploymentData = {
-          contract_name: "SmartToken",
-          name: businessData.name,
-          symbol: fundraisingData.tokenName,
-          initial_value: fundraisingData.price,
-          initial_supply: 100, // Default initial supply
-          owners: [walletAddress], // User's wallet address as owner
-          business_id: existingBusinessId,
-          is_minting_active: fundraisingData.isMintingActive,
-        };
-
-        // Deploy the token and get the response
-        const deploymentResponse = await api.post('/api/v1/smarttoken/deploy_ape', tokenDeploymentData);
-        if (deploymentResponse.data && deploymentResponse.data.address) {
-          setTokenAddress(deploymentResponse.data.address);
-          // Fetch token info for the newly deployed token
-          await fetchTokenInfo(deploymentResponse.data.address);
-        }
-
-        const tokenNameElement = document.getElementById("token-name") as HTMLInputElement;
-        const tokenPriceElement = document.getElementById("token-price") as HTMLInputElement;
-
-        if (tokenNameElement) tokenNameElement.readOnly = true;
-        if (tokenPriceElement) tokenPriceElement.readOnly = true;
-
-        setHasExistingAddress(true);
+        alert('Token deployment is coming soon! This feature is currently being upgraded.');
+        throw new Error('Token deployment coming soon');
       }
 
       setSaveSuccess('Fundraising settings saved successfully!');
@@ -719,38 +529,9 @@ export default function ManageBusinessPage() {
   };
 
   const handleForcePayouts = async () => {
-    if (!salaryContractAddress) {
-      setSaveError('No salary contract found. Please add a team member first.');
-      return;
-    }
-
-    setShowForcePayoutModal(true);
-    setSaveError(null);
-    setSaveSuccess(null);
-
-    try {
-      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-      const walletAddress = userData.wallet_address;
-
-      if (!walletAddress) {
-        throw new Error('Wallet address not found. Please ensure you have a connected wallet.');
-      }
-
-      const forcePayoutRequest = {
-        contract_address: salaryContractAddress,
-        from_owner: walletAddress
-      };
-
-      await api.post('/api/v1/salary_contract/force_payout_all', forcePayoutRequest);
-
-      setSaveSuccess('Force payouts executed successfully!');
-      setTimeout(() => setSaveSuccess(null), 3000);
-    } catch (err: any) {
-      console.error('Failed to execute force payouts:', err);
-      setSaveError(err.response?.data?.detail || 'Failed to execute force payouts. Please try again.');
-    } finally {
-      setShowForcePayoutModal(false);
-    }
+    // Force payout is temporarily disabled during backend migration
+    // See SMARTTOKEN_MIGRATION.md for details
+    alert('Salary management is coming soon! This feature is currently being upgraded.');
   }
 
   const handleSettlementsClick = async () => {

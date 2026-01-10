@@ -48,7 +48,7 @@ export default function BuyTokenModal({ startup, isOpen, onClose, onBuy }: BuyTo
 
     setQuoteLoading(true);
     try {
-      const response = await api.get('/api/v1/smarttoken/price/' + startup.address);
+      const response = await api.get('/api/v1/smarttoken/firebase_price/' + startup.address);
       setTokenQuote("$" + response.data.current_price.toString());
     } catch (err) {
       console.error('Failed to fetch token quote:', err);
