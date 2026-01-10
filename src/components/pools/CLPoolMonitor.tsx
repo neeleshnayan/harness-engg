@@ -38,9 +38,15 @@ export default function CLPoolMonitor({
 
   useEffect(() => {
     fetchPoolState();
-    const interval = setInterval(fetchPoolState, 10000); // Refresh every 10 seconds
-    return () => clearInterval(interval);
   }, [poolAddress]);
+
+  // Clear success message when polling completes
+  useEffect(() => {
+    if (!txLoading && lastTxId) {
+      setSuccess('');
+      setLastTxId(null);
+    }
+  }, [txLoading, lastTxId]);
 
   const fetchPoolState = async () => {
     setLoading(true);

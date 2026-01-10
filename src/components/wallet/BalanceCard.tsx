@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import TransactionHistory, { TransactionHistoryRef } from "@/components/wallet/TransactionHistory";
+import ActiveTransactions from "@/components/wallet/ActiveTransactions";
 import KTTokenBalances from "@/components/wallet/KTTokenBalances";
 import { FaShieldAlt, FaPlus } from "react-icons/fa";
 import { TbArrowsExchange2 } from "react-icons/tb";
@@ -79,6 +80,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [transactionHistoryRefreshKey, setTransactionHistoryRefreshKey] = useState(0);
+  const [activeTransactionsRefreshKey, setActiveTransactionsRefreshKey] = useState(0);
   const transactionHistoryRef = useRef<TransactionHistoryRef | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const poolRatesInitialFetch = useRef(true);
@@ -183,6 +185,17 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
 
   const handleTransactionHistoryRefresh = () => {
     setTransactionHistoryRefreshKey(prev => prev + 1);
+    setActiveTransactionsRefreshKey(prev => prev + 1);
+    if (transactionHistoryRef.current?.refresh) {
+      transactionHistoryRef.current.refresh();
+    }
+  };
+
+  const handleModalClose = (modalSetter: React.Dispatch<React.SetStateAction<boolean>>) => {
+    modalSetter(false);
+    // Refresh both active transactions and transaction history when modal closes
+    setActiveTransactionsRefreshKey(prev => prev + 1);
+    setTransactionHistoryRefreshKey(prev => prev + 1);
     if (transactionHistoryRef.current?.refresh) {
       transactionHistoryRef.current.refresh();
     }
@@ -212,6 +225,13 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
       return () => clearTimeout(timer);
     }
   }, [balanceCardRefresh]);
+
+  // Sync active transactions refresh with transactionHistoryRefresh prop from parent
+  useEffect(() => {
+    if (transactionHistoryRefresh) {
+      setActiveTransactionsRefreshKey(prev => prev + 1);
+    }
+  }, [transactionHistoryRefresh]);
 
   // Handle balance flickering when USDC is sent out
   useEffect(() => {
@@ -380,6 +400,13 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
                   e.stopPropagation();
                 }}
               >
+                {/* Active Transactions - Shows pending Circle transactions */}
+                <ActiveTransactions
+                  username={accountData.username}
+                  className="mb-4"
+                  onAllTransactionsComplete={handleTransactionHistoryRefresh}
+                  refreshKey={activeTransactionsRefreshKey}
+                />
                 <TransactionHistory
                   ref={transactionHistoryRef}
                   username={accountData.username}
@@ -608,8 +635,9 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
       {showSwapModal && (
         <SwapModal
           visible={showSwapModal}
-          onClose={() => setShowSwapModal(false)}
+          onClose={() => handleModalClose(setShowSwapModal)}
           userAddress={accountData?.wallet_address}
+          username={accountData?.username}
           balance={balance}
         />
       )}

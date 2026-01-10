@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState, useRef } from "react";
-import { web3Api } from "@/lib/api";
+import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { kryptonWeb3Api } from "@/lib/api";
 import { K_TOKEN_ADDRESSES_LOWERCASE, K_TOKEN_SYMBOL_LIST } from "@/lib/kTokens";
 import { getPoolRate } from "@/lib/priceCache";
 import { ArrowUpDown } from "lucide-react";
@@ -8,10 +8,14 @@ interface SwapModalProps {
   visible: boolean;
   onClose: () => void;
   userAddress?: string;
+  username?: string; // Added for Krypton_Web3 endpoints
   balance?: any;
 }
 
-const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, balance }) => {
+// Countdown toast timeout in seconds
+const CLOSE_COUNTDOWN_SECONDS = 5;
+
+const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, username, balance }) => {
   const [fromAmount, setFromAmount] = useState<string>("");
   const [fromCurrency, setFromCurrency] = useState<string>("kUSD");
   const [toCurrency, setToCurrency] = useState<string>("kEUR");
@@ -23,9 +27,43 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, ba
   const [exchangeRateLoading, setExchangeRateLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [closeCountdown, setCloseCountdown] = useState<number>(0);
   const isUpdatingFromRef = useRef<boolean>(false);
   const isUpdatingToRef = useRef<boolean>(false);
   const focusedFieldRef = useRef<"from" | "to" | null>(null);
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup countdown on unmount
+  useEffect(() => {
+    return () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Start countdown and auto-close
+  const startCloseCountdown = useCallback(() => {
+    setCloseCountdown(CLOSE_COUNTDOWN_SECONDS);
+
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+    }
+
+    countdownIntervalRef.current = setInterval(() => {
+      setCloseCountdown(prev => {
+        if (prev <= 1) {
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
+          }
+          onClose();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, [onClose]);
 
   const balances = useMemo(() => {
     const result: Record<string, number> = {};
@@ -67,7 +105,13 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, ba
       setSuccess(null);
       setExchangeRate(null);
       setExchangeRateLoading(false);
+      setCloseCountdown(0);
       focusedFieldRef.current = null;
+      // Clear countdown
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
       return;
     }
   }, [visible]);
@@ -255,7 +299,6 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, ba
 
   const amountValue = parseFloat(fromAmount);
   const fromBalance = balances[fromCurrency] || 0;
-  const toBalance = balances[toCurrency] || 0;
   const canSwap =
     !isCalculatingFrom &&
     !isCalculatingTo &&
@@ -294,21 +337,39 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, ba
 
     try {
       setLoading(true);
-      let swapResponse = await web3Api.post("/pools/swap", {
+
+      // Use Krypton_Web3 endpoint (Circle-based transaction)
+      const swapResponse = await kryptonWeb3Api.post("/pools/swap", {
         from_token: fromCurrency,
         to_token: toCurrency,
         amount: amountValue,
-        user_address: userAddress,
+        wallet_address: userAddress,
+        wallet_username: username,
       });
 
-      setSuccess(`Swapped ${amountValue.toFixed(2)} ${fromCurrency.replace(/^k/, "")} to ${swapResponse.data.estimated_output.toFixed(2)} ${toCurrency.replace(/^k/, "")}`);
+      const estimatedOutput = swapResponse.data?.estimated_output || toAmount;
+
+      // Show success with countdown (non-blocking)
+      setSuccess(`Swap submitted: ${amountValue.toFixed(2)} ${fromCurrency.replace(/^k/, "")} → ${parseFloat(estimatedOutput).toFixed(2)} ${toCurrency.replace(/^k/, "")}`);
       setFromAmount("");
       setToAmount("");
+      startCloseCountdown();
     } catch (err: any) {
       console.error("Swap failed:", err);
-      setError(err?.response?.data?.message || err?.message || "Swap failed. Try again.");
+      setError(err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Swap failed. Try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle clicking anywhere to close on success
+  const handleBackdropClick = () => {
+    if (success) {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+      onClose();
     }
   };
 
@@ -319,7 +380,7 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, ba
   return (
     <div
       className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-      onClick={success ? onClose : undefined}
+      onClick={handleBackdropClick}
       style={{ cursor: success ? 'pointer' : 'default' }}
     >
       <div className="bg-zinc-900/95 border border-zinc-800 rounded-2xl w-full max-w-md p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
@@ -330,9 +391,12 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, ba
           </button>
         </div>
 
-        {/* Success Animation */}
+        {/* Success Animation with Countdown */}
         {success && (
-          <div className="flex flex-col items-center justify-center py-8">
+          <div
+            className="flex flex-col items-center justify-center py-8 cursor-pointer"
+            onClick={handleBackdropClick}
+          >
             <div className="mb-4">
               <svg className="animate-checkmark" width="72" height="72" viewBox="0 0 72 72">
                 <circle cx="36" cy="36" r="34" fill="#1a2e22" stroke="#22c55e" strokeWidth="3" />
@@ -347,9 +411,11 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, ba
                 />
               </svg>
             </div>
-            <div className="text-green-400 text-lg font-semibold mb-2">Swap Successful!</div>
+            <div className="text-green-400 text-lg font-semibold mb-2">Swap Submitted!</div>
             <div className="text-zinc-300 text-sm text-center">{success}</div>
-            <div className="mt-6 text-zinc-500 text-xs">Tap anywhere to close</div>
+            <div className="mt-6 text-zinc-500 text-xs">
+              Tap anywhere to close{closeCountdown > 0 && ` (${closeCountdown}s)`}
+            </div>
           </div>
         )}
 
@@ -563,4 +629,3 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, ba
 };
 
 export default SwapModal;
-

@@ -15,16 +15,6 @@ const httpsAgent = new https.Agent({
   keepAlive: true,
 });
 
-export const web3Api = axios.create({
-  baseURL: WEB3_API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  httpAgent: httpAgent,
-  httpsAgent: httpsAgent,
-  timeout: 600000,
-});
-
 export const kryptonWeb3Api = axios.create({
   baseURL: KRYPTON_WEB3_API_BASE_URL,
   headers: {
@@ -114,14 +104,3 @@ export const getTokenInfo = async (tokenAddress: string) => {
 
 
 export default api;
-
-// ERC20/Smart Token Service helpers
-export const listERC20Tokens = async () => {
-  try {
-    const response = await web3Api.get('/erc20/tokens');
-    return response.data;
-  } catch (error) {
-    console.error('Error listing ERC20 tokens:', error);
-    throw error;
-  }
-};

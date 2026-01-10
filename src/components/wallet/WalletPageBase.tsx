@@ -666,6 +666,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     setSendERC20Error(null);
     setSendERC20Success(null);
     setSendERC20Loading(false);
+    // Trigger transaction history and active transactions refresh
+    setTransactionHistoryRefresh(prev => !prev);
   };
 
   const openKycModal = async (userId: string) => {

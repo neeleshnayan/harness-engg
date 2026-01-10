@@ -1,11 +1,10 @@
-import React, { useEffect, useMemo, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { FaArrowUp } from "react-icons/fa";
 import { ArrowRight } from "lucide-react";
-import api, { web3Api } from "@/lib/api";
+import api, { kryptonWeb3Api } from "@/lib/api";
 import { K_TOKEN_SYMBOLS, K_TOKEN_ADDRESSES_LOWERCASE } from "@/lib/kTokens";
 import { getPoolRate } from "@/lib/priceCache";
 
@@ -14,6 +13,7 @@ interface SendERC20ModalProps {
   onClose: () => void;
   userAddress: string;
   userId?: string;
+  username?: string; // Added for Krypton_Web3 endpoints
   balance?: any;
 }
 
@@ -23,7 +23,10 @@ type SupportedToken = {
   decimals?: number;
 };
 
-export default function SendERC20Modal({ visible, onClose, userAddress, userId, balance }: SendERC20ModalProps) {
+// Countdown toast timeout in seconds
+const CLOSE_COUNTDOWN_SECONDS = 5;
+
+export default function SendERC20Modal({ visible, onClose, userAddress, userId, username, balance }: SendERC20ModalProps) {
   const [receiverUsername, setReceiverUsername] = useState<string>("");
   const [selectedCurrency, setSelectedCurrency] = useState<string>("");
   const [fromAmount, setFromAmount] = useState<string>("");
@@ -41,15 +44,55 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
   const [isCalculatingTo, setIsCalculatingTo] = useState<boolean>(false);
   const [exchangeRate, setExchangeRate] = useState<number | null>(null);
   const [exchangeRateLoading, setExchangeRateLoading] = useState<boolean>(false);
+  const [closeCountdown, setCloseCountdown] = useState<number>(0);
   const isTransactionInProgress = useRef<boolean>(false);
   const isUpdatingFromRef = useRef<boolean>(false);
   const isUpdatingToRef = useRef<boolean>(false);
   const focusedFieldRef = useRef<"from" | "to" | null>(null);
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup countdown on unmount
+  useEffect(() => {
+    return () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Start countdown and auto-close
+  const startCloseCountdown = useCallback(() => {
+    setCloseCountdown(CLOSE_COUNTDOWN_SECONDS);
+
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+    }
+
+    countdownIntervalRef.current = setInterval(() => {
+      setCloseCountdown(prev => {
+        if (prev <= 1) {
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
+          }
+          onClose();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, [onClose]);
 
   useEffect(() => {
     if (!visible) {
       // Reset transaction flag when modal closes
       isTransactionInProgress.current = false;
+      // Clear countdown
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+      setCloseCountdown(0);
       return;
     }
 
@@ -72,6 +115,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
     setExchangeRateLoading(false);
     setError(null);
     setSuccess(null);
+    setCloseCountdown(0);
 
     // Load supported currencies and filter by balance
     const loadAvailableTokens = async () => {
@@ -452,10 +496,10 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
     setToAmount(tempAmount);
   };
 
-  const resolveReceiverAddress = async (username: string): Promise<string> => {
+  const resolveReceiverAddress = async (usernameToResolve: string): Promise<string> => {
     // Reuse existing user API to resolve username to address
     try {
-      const resp = await api.get(`/api/v1/resolve_username/${username}`);
+      const resp = await api.get(`/api/v1/resolve_username/${usernameToResolve}`);
       const addr = resp?.data?.wallet_address || resp?.data?.walletAddress;
       if (!addr || typeof addr !== "string") throw new Error("Wallet address not found for username");
       return addr;
@@ -464,7 +508,10 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
     }
   };
 
-  const performSwap = async (fromSymbol: string, toSymbol: string, requiredToAmount: number): Promise<void> => {
+  /**
+   * Perform swap using Krypton_Web3 /pools/swap endpoint (Circle-based)
+   */
+  const performSwap = async (fromSymbol: string, toSymbol: string, requiredToAmount: number): Promise<string | null> => {
     setLoadingMessage(`Checking swap price from ${fromSymbol.replace(/^k/, "")} to ${toSymbol.replace(/^k/, "")}...`);
     const balances = await fetchUserBalances();
 
@@ -485,22 +532,38 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
     }
 
     setLoadingMessage(`Swapping ${requiredFromAmount.toFixed(4)} ${fromSymbol.replace(/^k/, "")} → ${toSymbol.replace(/^k/, "")}...`);
-    await web3Api.post(`/pools/swap`, {
+
+    // Use Krypton_Web3 endpoint with wallet_address (Circle-based transaction)
+    const response = await kryptonWeb3Api.post(`/pools/swap`, {
       from_token: fromSymbol,
       to_token: toSymbol,
       amount: requiredFromAmount,
-      user_address: userAddress,
+      wallet_address: userAddress,
+      wallet_username: username,
     });
+
+    // Return transaction ID for tracking
+    return response?.data?.transaction_id || null;
   };
 
-  const transferTokens = async (targetSymbol: string, toAddress: string, amount: number): Promise<void> => {
+  /**
+   * Transfer tokens using Krypton_Web3 /erc20/owner-transfer endpoint (Circle-based)
+   */
+  const transferTokens = async (targetSymbol: string, toAddress: string, amount: number): Promise<string | null> => {
     setLoadingMessage(`Transferring ${amount.toFixed(2)} ${targetSymbol.replace(/^k/, "")}...`);
-    await web3Api.post(`/erc20/transfer`, {
+
+    // Use Krypton_Web3 owner-transfer endpoint (Circle-based transaction)
+    const response = await kryptonWeb3Api.post(`/erc20/owner-transfer`, {
       token_symbol: targetSymbol,
       from_address: userAddress,
+      from_username: username,
       to_address: toAddress,
+      to_username: receiverUsername.trim(),
       amount,
     });
+
+    // Return transaction ID for tracking
+    return response?.data?.transaction_id || null;
   };
 
   const handleSend = async () => {
@@ -579,10 +642,12 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
         await transferTokens(sendCurrency, toAddress, toAmountNum);
       }
 
-      setSuccess(`Successfully sent ${toAmountNum.toFixed(2)} ${sendCurrencyDisplay} to @${receiverUsername}`);
+      // Show success with countdown (non-blocking)
+      setSuccess(`Transaction submitted: ${toAmountNum.toFixed(2)} ${sendCurrencyDisplay} to @${receiverUsername}`);
+      startCloseCountdown();
     } catch (e: any) {
       console.error(e);
-      setError(e?.message || "Transaction failed. Please try again.");
+      setError(e?.response?.data?.detail || e?.message || "Transaction failed. Please try again.");
     } finally {
       // Clear transaction flag after transaction completes (success or error)
       isTransactionInProgress.current = false;
@@ -591,12 +656,23 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
     }
   };
 
+  // Handle clicking anywhere to close on success
+  const handleBackdropClick = () => {
+    if (success) {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+      onClose();
+    }
+  };
+
   if (!visible) return null;
 
   return (
     <div
       className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-      onClick={success ? onClose : undefined}
+      onClick={handleBackdropClick}
       style={{ cursor: success ? 'pointer' : 'default' }}
     >
       <Card
@@ -621,9 +697,12 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Success Animation */}
+          {/* Success Animation with Countdown */}
           {success && (
-            <div className="flex flex-col items-center justify-center py-8">
+            <div
+              className="flex flex-col items-center justify-center py-8 cursor-pointer"
+              onClick={handleBackdropClick}
+            >
               <div className="mb-4">
                 <svg className="animate-checkmark" width="72" height="72" viewBox="0 0 72 72">
                   <circle cx="36" cy="36" r="34" fill="#1a2e22" stroke="#22c55e" strokeWidth="3" />
@@ -638,9 +717,11 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                   />
                 </svg>
               </div>
-              <div className="text-green-400 text-lg font-semibold mb-2">Transaction Successful!</div>
+              <div className="text-green-400 text-lg font-semibold mb-2">Transaction Submitted!</div>
               <div className="text-zinc-300 text-sm text-center">{success}</div>
-              <div className="mt-6 text-zinc-500 text-xs">Tap anywhere to close</div>
+              <div className="mt-6 text-zinc-500 text-xs">
+                Tap anywhere to close{closeCountdown > 0 && ` (${closeCountdown}s)`}
+              </div>
             </div>
           )}
 
@@ -880,5 +961,3 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
     </div>
   );
 }
-
-
