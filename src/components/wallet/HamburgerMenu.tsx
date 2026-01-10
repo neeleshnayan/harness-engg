@@ -47,12 +47,6 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
     router.push('/clark');
   };
 
-  const handleNavigateToLiquidityPools = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onClose();
-    router.push('/liquidity-pools');
-  };
-
   return (
     <div
       className="fixed inset-0 bg-black/80 backdrop-blur-xl z-50"
@@ -91,17 +85,10 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
           <div className="mb-8">
             <button
               onClick={handleNavigateToClark}
-              className="flex items-center justify-center w-full text-cyan-400 hover:text-cyan-300 hover:bg-cyan-900/20 px-6 py-4 rounded-2xl transition-all duration-200 font-medium border border-cyan-900/30 hover:border-cyan-700/50 mb-4"
+              className="flex items-center justify-center w-full text-cyan-400 hover:text-cyan-300 hover:bg-cyan-900/20 px-6 py-4 rounded-2xl transition-all duration-200 font-medium border border-cyan-900/30 hover:border-cyan-700/50"
             >
               <img src="/clark.svg" alt="Clark" className="h-6 w-6 mr-3" />
               Open Clark AI
-            </button>
-            <button
-              onClick={handleNavigateToLiquidityPools}
-              className="flex items-center justify-center w-full text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 px-6 py-4 rounded-2xl transition-all duration-200 font-medium border border-blue-900/30 hover:border-blue-700/50"
-            >
-              <span className="text-xl mr-3">○</span>
-              Liquidity Pools
             </button>
           </div>
 
