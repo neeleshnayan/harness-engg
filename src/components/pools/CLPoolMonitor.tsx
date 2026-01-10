@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { nettingPoolsApi, PoolState } from '@/lib/nettingPoolsApi';
 import { useNettingPoolsAuth } from '@/hooks/useNettingPoolsAuth';
 import { useTransactionStatus } from '@/hooks/useTransactionStatus';
@@ -39,16 +39,25 @@ export default function CLPoolMonitor({
   const [lastTxId, setLastTxId] = useState<string | null>(null);
   const [chartsRefreshKey, setChartsRefreshKey] = useState(0);
   const { status: txStatus, loading: txLoading } = useTransactionStatus(lastTxId);
+  const pollingStartedRef = useRef(false);
 
   useEffect(() => {
     fetchPoolState();
   }, [poolAddress]);
 
-  // Clear success message when polling completes
+  // Track when polling has started
   useEffect(() => {
-    if (!txLoading && lastTxId) {
+    if (txLoading && lastTxId) {
+      pollingStartedRef.current = true;
+    }
+  }, [txLoading, lastTxId]);
+
+  // Clear success message and transaction ID only after polling has started and then completed
+  useEffect(() => {
+    if (!txLoading && lastTxId && pollingStartedRef.current) {
       setSuccess('');
       setLastTxId(null);
+      pollingStartedRef.current = false;
     }
   }, [txLoading, lastTxId]);
 
