@@ -2,8 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import CLPoolMonitor from './CLPoolMonitor';
+import PriceFeedCard from './PriceFeedCard';
+import MultiHopSwap from './MultiHopSwap';
 import { nettingPoolsApi, PoolInfo, TokenBalance } from '@/lib/nettingPoolsApi';
 import { useNettingPoolsAuth } from '@/hooks/useNettingPoolsAuth';
+
+// FX pairs for price feeds
+const FX_PAIRS = [
+  { fxPair: 'USD/EUR', symbol: 'kEUR' },
+  { fxPair: 'USD/GBP', symbol: 'kGBP' },
+  { fxPair: 'USD/AED', symbol: 'kAED' },
+];
 
 export default function Dashboard() {
   const { username, walletAddress, isAuthenticated, loading: authLoading } = useNettingPoolsAuth();
@@ -13,15 +22,14 @@ export default function Dashboard() {
   const [selectedPool, setSelectedPool] = useState<PoolInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const [defaultSignerAddress, setDefaultSignerAddress] = useState<string | null>(null);
 
   useEffect(() => {
     if (isAuthenticated && !authLoading) {
       fetchPools();
-      if (walletAddress) {
-        fetchBalances();
-      }
+      fetchDefaultSignerAndBalances();
     }
-  }, [isAuthenticated, authLoading, walletAddress]);
+  }, [isAuthenticated, authLoading]);
 
   const fetchPools = async () => {
     setLoading(true);
@@ -40,10 +48,33 @@ export default function Dashboard() {
     }
   };
 
-  const fetchBalances = async () => {
-    if (!walletAddress) return;
+  const fetchDefaultSignerAndBalances = async () => {
     try {
-      const balanceData = await nettingPoolsApi.getBalances(walletAddress);
+      // First, get the default signer address
+      const signerData = await nettingPoolsApi.getDefaultSigner();
+      setDefaultSignerAddress(signerData.address);
+
+      // Then fetch balances for the default signer
+      if (signerData.address) {
+        const balanceData = await nettingPoolsApi.getBalances(signerData.address);
+        const balanceMap: Record<string, string> = {};
+        balanceData.forEach((b: TokenBalance) => {
+          balanceMap[b.symbol] = b.balance;
+        });
+        setBalances(balanceMap);
+      }
+    } catch (err: any) {
+      console.error('Error fetching default signer balances:', err);
+    }
+  };
+
+  const fetchBalances = async () => {
+    if (!defaultSignerAddress) {
+      await fetchDefaultSignerAndBalances();
+      return;
+    }
+    try {
+      const balanceData = await nettingPoolsApi.getBalances(defaultSignerAddress);
       const balanceMap: Record<string, string> = {};
       balanceData.forEach((b: TokenBalance) => {
         balanceMap[b.symbol] = b.balance;
@@ -149,7 +180,12 @@ export default function Dashboard() {
                     Token Balances
                   </h2>
                   <p className="text-gray-500 text-sm font-light">
-                    Your wallet balances
+                    Default signer account balances
+                    {defaultSignerAddress && (
+                      <span className="ml-2 font-mono text-xs text-gray-600">
+                        ({defaultSignerAddress.slice(0, 6)}...{defaultSignerAddress.slice(-4)})
+                      </span>
+                    )}
                   </p>
                 </div>
 
@@ -178,6 +214,36 @@ export default function Dashboard() {
                 >
                   {loading ? 'Refreshing...' : 'Refresh Balances'}
                 </button>
+
+                {/* Oracle Price Feeds Section */}
+                <div className="mt-12">
+                  <div className="mb-6">
+                    <h3 className="text-xl font-light text-white mb-2">Live Oracle Rates</h3>
+                    <p className="text-gray-500 text-sm font-light">
+                      Current FX rates from KryptonFXOracle
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {FX_PAIRS.map((pair) => (
+                      <PriceFeedCard
+                        key={pair.fxPair}
+                        fxPair={pair.fxPair}
+                        symbol={pair.symbol}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Multi-Hop Swap Section */}
+                <div className="mt-12">
+                  <div className="mb-6">
+                    <h3 className="text-xl font-light text-white mb-2">Multi-Hop Swap</h3>
+                    <p className="text-gray-500 text-sm font-light">
+                      Swap between any tokens through kUSD hub
+                    </p>
+                  </div>
+                  <MultiHopSwap onSuccess={fetchBalances} />
+                </div>
               </div>
             ) : (
               <div>

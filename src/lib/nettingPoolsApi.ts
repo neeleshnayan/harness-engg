@@ -66,8 +66,19 @@ export interface OracleRateResponse {
   source: string;
 }
 
+export interface DefaultSignerResponse {
+  address: string;
+  username: string | null;
+}
+
 // Read-only endpoints (all users)
 export const nettingPoolsApi = {
+  // Get default signer address (for displaying admin wallet balances)
+  async getDefaultSigner(): Promise<DefaultSignerResponse> {
+    const response = await kryptonWeb3Api.get('/netting-pools/default-signer');
+    return response.data;
+  },
+
   // List all pools
   async getPools(): Promise<PoolInfo[]> {
     const response = await kryptonWeb3Api.get('/netting-pools/pools');

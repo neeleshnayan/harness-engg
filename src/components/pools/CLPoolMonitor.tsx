@@ -7,6 +7,9 @@ import { useTransactionStatus } from '@/hooks/useTransactionStatus';
 import SwapForm from './SwapForm';
 import InitializePoolForm from './InitializePoolForm';
 import AddLiquidityForm from './AddLiquidityForm';
+import PriceChart from './PriceChart';
+import BalancesChart from './BalancesChart';
+import TransactionHistory from './TransactionHistory';
 
 interface CLPoolMonitorProps {
   poolAddress: string;
@@ -32,8 +35,9 @@ export default function CLPoolMonitor({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [activeTab, setActiveTab] = useState<'info' | 'swap' | 'liquidity' | 'initialize'>('info');
+  const [activeTab, setActiveTab] = useState<'history' | 'swap' | 'liquidity' | 'initialize'>('history');
   const [lastTxId, setLastTxId] = useState<string | null>(null);
+  const [chartsRefreshKey, setChartsRefreshKey] = useState(0);
   const { status: txStatus, loading: txLoading } = useTransactionStatus(lastTxId);
 
   useEffect(() => {
@@ -80,6 +84,10 @@ export default function CLPoolMonitor({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRefreshCharts = () => {
+    setChartsRefreshKey((prev) => prev + 1);
   };
 
   const calculateDeviation = () => {
@@ -207,19 +215,52 @@ export default function CLPoolMonitor({
         )}
       </div>
 
+      {/* Charts Section - Token Balances History */}
+      <div className="relative">
+        <button
+          onClick={handleRefreshCharts}
+          className="absolute top-4 right-4 z-10 px-3 py-1 bg-white/[0.05] hover:bg-white/[0.1] text-gray-400 hover:text-white rounded-lg text-xs transition-all flex items-center gap-1"
+        >
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Refresh
+        </button>
+        <BalancesChart
+          key={`balances-${chartsRefreshKey}`}
+          poolAddress={poolAddress}
+          token0Symbol={token0Symbol}
+          token1Symbol={token1Symbol}
+          height={280}
+          limit={100}
+        />
+      </div>
+
+      {/* Charts Section - Pool Price History with Oracle Rate */}
+      <PriceChart
+        key={`price-${chartsRefreshKey}`}
+        poolAddress={poolAddress}
+        tokenPair={`${token0Symbol}/${token1Symbol}`}
+        height={280}
+        limit={100}
+      />
+
       {/* Operations Tabs */}
       <div className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6">
         <div className="flex gap-2 mb-6 overflow-x-auto">
-          <button onClick={() => setActiveTab('info')} className={tabButtonClasses('info')}>
-            Info
+          <button onClick={() => setActiveTab('history')} className={tabButtonClasses('history')}>
+            Transaction History
           </button>
           {poolState?.is_initialized ? (
             <>
-              <button onClick={() => setActiveTab('swap')} className={tabButtonClasses('swap')}>
-                Swap
+              <button onClick={() => setActiveTab('initialize')} className={tabButtonClasses('initialize')}>
+                Initialize Pool
               </button>
               <button onClick={() => setActiveTab('liquidity')} className={tabButtonClasses('liquidity')}>
                 Add Liquidity
+              </button>
+              <button onClick={() => setActiveTab('swap')} className={tabButtonClasses('swap')}>
+                Swap
               </button>
             </>
           ) : (
@@ -230,24 +271,13 @@ export default function CLPoolMonitor({
         </div>
 
         <div>
-          {activeTab === 'info' && (
-            <div className="space-y-4">
-              <div className="text-gray-400 text-sm">
-                <p className="mb-2"><strong className="text-white">Pool Address:</strong></p>
-                <p className="font-mono text-xs break-all">{poolAddress}</p>
-              </div>
-              <div className="text-gray-400 text-sm">
-                <p className="mb-2"><strong className="text-white">Token Addresses:</strong></p>
-                <p className="font-mono text-xs break-all mb-1">{token0Symbol}: {token0Address}</p>
-                <p className="font-mono text-xs break-all">{token1Symbol}: {token1Address}</p>
-              </div>
-              {rateProviderAddress && (
-                <div className="text-gray-400 text-sm">
-                  <p className="mb-2"><strong className="text-white">Rate Provider:</strong></p>
-                  <p className="font-mono text-xs break-all">{rateProviderAddress}</p>
-                </div>
-              )}
-            </div>
+          {activeTab === 'history' && (
+            <TransactionHistory
+              poolAddress={poolAddress}
+              title=""
+              maxShow={15}
+              showFilters={true}
+            />
           )}
 
           {activeTab === 'swap' && poolState?.is_initialized && (
@@ -260,6 +290,7 @@ export default function CLPoolMonitor({
               onSuccess={() => {
                 fetchPoolState();
                 setSuccess('Swap completed successfully!');
+                handleRefreshCharts();
               }}
             />
           )}
@@ -274,12 +305,13 @@ export default function CLPoolMonitor({
               onSuccess={() => {
                 fetchPoolState();
                 setSuccess('Liquidity added successfully!');
+                handleRefreshCharts();
                 onRefresh?.();
               }}
             />
           )}
 
-          {activeTab === 'initialize' && !poolState?.is_initialized && (
+          {activeTab === 'initialize' && (
             <InitializePoolForm
               poolAddress={poolAddress}
               token0Address={token0Address}
@@ -289,7 +321,7 @@ export default function CLPoolMonitor({
               onSuccess={() => {
                 fetchPoolState();
                 setSuccess('Pool initialized successfully!');
-                setActiveTab('info');
+                handleRefreshCharts();
                 onRefresh?.();
               }}
             />
@@ -299,4 +331,3 @@ export default function CLPoolMonitor({
     </div>
   );
 }
-
