@@ -6,6 +6,7 @@ import {
   getStateCategory,
   getProgressStepIndex,
   getProgressStepLabel,
+  getStateLabel,
   StateCategory,
   isTerminalState,
   isSuccessState,
@@ -55,6 +56,8 @@ interface ActiveTransactionsProps {
   onAllTransactionsComplete?: () => void;
   /** Change this value to trigger a refresh of active transactions */
   refreshKey?: number;
+  /** Whether the component is visible (controls polling - only poll when visible) */
+  isVisible?: boolean;
 }
 
 /**
@@ -128,6 +131,18 @@ function getTransactionDescription(tx: ActiveTransaction): string {
 
 /**
  * Progress Step Component
+ *
+ * Visual Logic:
+ * - Step 0 (Queued):
+ *   - If currentStep=0: yellow spinner (currently queued)
+ *   - If currentStep>0: green checkmark (passed)
+ * - Step 1 (Confirmed):
+ *   - If currentStep<1: gray (not reached)
+ *   - If currentStep=1: green checkmark (confirmed, waiting for completion)
+ *   - If currentStep>1: green checkmark (passed)
+ * - Step 2 (Complete/Failed):
+ *   - If currentStep<2: gray or yellow spinner (if currentStep>=1)
+ *   - If currentStep=2: green checkmark (success) or red X (error)
  */
 function ProgressStep({
   stepIndex,
@@ -135,16 +150,22 @@ function ProgressStep({
   label,
   isSuccess,
   isError,
+  isTerminal,
 }: {
   stepIndex: number;
   currentStep: number;
   label: string;
   isSuccess: boolean;
   isError: boolean;
+  isTerminal: boolean;
 }) {
-  const isCompleted = stepIndex < currentStep;
-  const isCurrent = stepIndex === currentStep;
   const isFinal = stepIndex === 2;
+
+  // Step is completed (green checkmark) if we're PAST it
+  const isPastStep = stepIndex < currentStep;
+
+  // Step is current (the one we're on right now)
+  const isCurrentStep = stepIndex === currentStep;
 
   // Determine the visual state
   let bgColor = 'bg-zinc-700';
@@ -152,31 +173,48 @@ function ProgressStep({
   let textColor = 'text-zinc-500';
   let icon = null;
 
-  if (isCompleted) {
+  if (isFinal && isTerminal) {
+    // Final step when transaction is terminal - show success/error
+    if (isSuccess) {
+      bgColor = 'bg-emerald-500';
+      borderColor = 'border-emerald-400';
+      textColor = 'text-emerald-400';
+      icon = <Check className="w-3 h-3 text-white" />;
+    } else if (isError) {
+      bgColor = 'bg-red-500';
+      borderColor = 'border-red-400';
+      textColor = 'text-red-400';
+      icon = <X className="w-3 h-3 text-white" />;
+    }
+  } else if (isPastStep) {
+    // Steps we've already passed - green checkmark
     bgColor = 'bg-emerald-500';
     borderColor = 'border-emerald-400';
     textColor = 'text-emerald-400';
     icon = <Check className="w-3 h-3 text-white" />;
-  } else if (isCurrent) {
-    if (isFinal) {
-      if (isSuccess) {
-        bgColor = 'bg-emerald-500';
-        borderColor = 'border-emerald-400';
-        textColor = 'text-emerald-400';
-        icon = <Check className="w-3 h-3 text-white" />;
-      } else if (isError) {
-        bgColor = 'bg-red-500';
-        borderColor = 'border-red-400';
-        textColor = 'text-red-400';
-        icon = <X className="w-3 h-3 text-white" />;
-      }
-    } else {
+  } else if (isCurrentStep && !isFinal) {
+    // Current non-final step
+    if (currentStep === 0) {
+      // At "Queued" step - show yellow spinner (waiting to be confirmed)
       bgColor = 'bg-amber-500';
       borderColor = 'border-amber-400';
       textColor = 'text-amber-400';
       icon = <Loader2 className="w-3 h-3 text-white animate-spin" />;
+    } else {
+      // At "Confirmed" step (currentStep=1) - show green (we've reached it)
+      bgColor = 'bg-emerald-500';
+      borderColor = 'border-emerald-400';
+      textColor = 'text-emerald-400';
+      icon = <Check className="w-3 h-3 text-white" />;
     }
+  } else if (isFinal && !isTerminal && currentStep >= 1) {
+    // Final step when not terminal but we've passed confirmed - show yellow spinner
+    bgColor = 'bg-amber-500';
+    borderColor = 'border-amber-400';
+    textColor = 'text-amber-400';
+    icon = <Loader2 className="w-3 h-3 text-white animate-spin" />;
   }
+  // Otherwise: default gray (not reached yet)
 
   return (
     <div className="flex flex-col items-center">
@@ -198,18 +236,72 @@ function ProgressStep({
 
 /**
  * Progress Line Component
+ *
+ * Colors:
+ * - Gray: Not reached yet
+ * - Amber/Yellow: In progress (next step is pending/processing)
+ * - Green: Completed successfully
+ * - Red: Transaction ended in error (for line leading to error state)
  */
-function ProgressLine({ isCompleted }: { isCompleted: boolean }) {
+function ProgressLine({
+  isCompleted,
+  isInProgress = false,
+  isError = false,
+  isLeadingToFinal = false,
+}: {
+  isCompleted: boolean;
+  isInProgress?: boolean;
+  isError?: boolean;
+  isLeadingToFinal?: boolean;
+}) {
+  let bgColor = 'bg-zinc-700';
+
+  if (isCompleted) {
+    // Line is completed - show green or red based on final state
+    if (isLeadingToFinal && isError) {
+      bgColor = 'bg-red-500';
+    } else {
+      bgColor = 'bg-emerald-500';
+    }
+  } else if (isInProgress) {
+    // Line is in progress - show amber/yellow
+    bgColor = 'bg-amber-500';
+  }
+
   return (
     <div className="flex-1 h-0.5 mx-1 mt-3">
       <div
         className={`
           h-full rounded-full transition-all duration-500
-          ${isCompleted ? 'bg-emerald-500' : 'bg-zinc-700'}
+          ${bgColor}
         `}
       />
     </div>
   );
+}
+
+/**
+ * Get the final step label based on actual transaction status
+ * Shows specific error types: Denied, Cancelled, Failed, etc.
+ */
+function getFinalStepLabel(status: string): string {
+  const normalizedStatus = status.toLowerCase();
+
+  // Show specific terminal state labels
+  switch (normalizedStatus) {
+    case CircleTransactionState.SUCCESS:
+    case CircleTransactionState.COMPLETE:
+      return 'Complete';
+    case CircleTransactionState.FAILED:
+      return 'Failed';
+    case CircleTransactionState.DENIED:
+      return 'Denied';
+    case CircleTransactionState.CANCELLED:
+      return 'Cancelled';
+    default:
+      // For ongoing transactions, show what the final step will be
+      return 'Complete';
+  }
 }
 
 /**
@@ -219,12 +311,33 @@ function TransactionProgressTracker({ tx }: { tx: ActiveTransaction }) {
   const currentStep = getProgressStepIndex(tx.status);
   const isSuccess = isSuccessState(tx.status);
   const isError = isErrorState(tx.status);
+  const isTerminal = isTerminalState(tx.status);
+
+  // Use the actual state label for terminal states
+  const finalStepLabel = isTerminal ? getFinalStepLabel(tx.status) : 'Complete';
 
   const steps = [
     { index: 0, label: 'Queued' },
     { index: 1, label: 'Confirmed' },
-    { index: 2, label: isSuccess ? 'Complete' : isError ? 'Failed' : 'Complete' },
+    { index: 2, label: finalStepLabel },
   ];
+
+  // Determine which line is "in progress" (leading to a step with yellow spinner)
+  // Line at index i connects step i to step i+1
+  // A line is "in progress" when the step it leads TO is showing a yellow spinner
+  const getLineInProgress = (lineIndex: number): boolean => {
+    // Line 0 (Queued→Confirmed): Never yellow - Confirmed step never shows spinner
+    // It goes directly from gray (not reached) to green (reached)
+    if (lineIndex === 0) {
+      return false;
+    }
+    // Line 1 (Confirmed→Complete): Yellow when Complete step shows spinner
+    // This happens when we've reached Confirmed (currentStep >= 1) but not terminal yet
+    if (lineIndex === 1) {
+      return currentStep >= 1 && !isTerminal;
+    }
+    return false;
+  };
 
   return (
     <div className="flex items-start justify-between w-full px-2">
@@ -234,16 +347,53 @@ function TransactionProgressTracker({ tx }: { tx: ActiveTransaction }) {
             stepIndex={step.index}
             currentStep={currentStep}
             label={step.label}
-            isSuccess={isSuccess && step.index === 2}
-            isError={isError && step.index === 2}
+            isSuccess={isSuccess}
+            isError={isError}
+            isTerminal={isTerminal}
           />
           {idx < steps.length - 1 && (
-            <ProgressLine isCompleted={currentStep > step.index} />
+            <ProgressLine
+              isCompleted={currentStep >= step.index + 1}
+              isInProgress={getLineInProgress(idx)}
+              isError={isError}
+              isLeadingToFinal={idx === steps.length - 2} // Last line leads to final step
+            />
           )}
         </React.Fragment>
       ))}
     </div>
   );
+}
+
+/**
+ * Get status badge color classes
+ */
+function getStatusBadgeClasses(status: string): { bg: string; text: string } {
+  const normalizedStatus = status.toLowerCase();
+
+  switch (normalizedStatus) {
+    case CircleTransactionState.SUCCESS:
+    case CircleTransactionState.COMPLETE:
+      return { bg: 'bg-emerald-500/20', text: 'text-emerald-400' };
+    case CircleTransactionState.FAILED:
+      return { bg: 'bg-red-500/20', text: 'text-red-400' };
+    case CircleTransactionState.DENIED:
+      return { bg: 'bg-orange-500/20', text: 'text-orange-400' };
+    case CircleTransactionState.CANCELLED:
+      return { bg: 'bg-zinc-500/20', text: 'text-zinc-400' };
+    case CircleTransactionState.QUEUED:
+    case CircleTransactionState.SUBMITTED:
+    case CircleTransactionState.CREATED:
+      return { bg: 'bg-blue-500/20', text: 'text-blue-400' };
+    case CircleTransactionState.CONFIRMED:
+    case CircleTransactionState.SENT:
+    case CircleTransactionState.CLEARED:
+      return { bg: 'bg-amber-500/20', text: 'text-amber-400' };
+    case CircleTransactionState.STUCK:
+      return { bg: 'bg-yellow-500/20', text: 'text-yellow-400' };
+    default:
+      return { bg: 'bg-zinc-500/20', text: 'text-zinc-400' };
+  }
 }
 
 /**
@@ -254,6 +404,8 @@ function TransactionCard({ tx }: { tx: ActiveTransaction }) {
   const isTerminal = isTerminalState(tx.status);
   const isSuccess = isSuccessState(tx.status);
   const isError = isErrorState(tx.status);
+  const stateLabel = getStateLabel(tx.status);
+  const badgeClasses = getStatusBadgeClasses(tx.status);
 
   // Determine card style based on state
   let borderClass = 'border-zinc-700/50';
@@ -277,7 +429,7 @@ function TransactionCard({ tx }: { tx: ActiveTransaction }) {
         transition-all duration-300
       `}
     >
-      {/* Header: Type icon + Description + Time */}
+      {/* Header: Type icon + Description + Status Badge + Time */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className={`
@@ -289,9 +441,15 @@ function TransactionCard({ tx }: { tx: ActiveTransaction }) {
             <TransactionTypeIcon txType={tx.tx_type} className="w-4 h-4" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-medium text-zinc-100">
-              {getTransactionDescription(tx)}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-zinc-100">
+                {getTransactionDescription(tx)}
+              </span>
+              {/* Status Badge - shows specific state */}
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${badgeClasses.bg} ${badgeClasses.text}`}>
+                {stateLabel}
+              </span>
+            </div>
             {tx.tx_type === 'swap' && tx.from_token && tx.to_token && (
               <div className="flex items-center gap-1 mt-0.5">
                 <span className="text-xs px-1.5 py-0.5 rounded bg-zinc-700/50 text-zinc-400">
@@ -338,7 +496,7 @@ function TransactionCard({ tx }: { tx: ActiveTransaction }) {
  * Polls the backend every 10 seconds.
  * Persists transactions to localStorage to survive page refreshes.
  */
-export default function ActiveTransactions({ username, className = '', onAllTransactionsComplete, refreshKey = 0 }: ActiveTransactionsProps) {
+export default function ActiveTransactions({ username, className = '', onAllTransactionsComplete, refreshKey = 0, isVisible = true }: ActiveTransactionsProps) {
   const [transactions, setTransactions] = useState<ActiveTransaction[]>([]);
   const [loading, setLoading] = useState(false);
   const initialFetch = useRef(true);
@@ -435,18 +593,26 @@ export default function ActiveTransactions({ username, className = '', onAllTran
     }
   }, [username]);
 
-  // Initial fetch and polling
+  // Initial fetch and polling - only poll when visible to save API calls
   useEffect(() => {
     if (!username) return;
 
-    fetchActiveTransactions();
+    // Always do initial fetch when component mounts or becomes visible
+    if (isVisible) {
+      fetchActiveTransactions();
+    }
+
+    // Only set up polling interval when visible
+    if (!isVisible) {
+      return;
+    }
 
     const interval = setInterval(fetchActiveTransactions, POLL_INTERVAL_MS);
 
     return () => {
       clearInterval(interval);
     };
-  }, [username, fetchActiveTransactions]);
+  }, [username, fetchActiveTransactions, isVisible]);
 
   // Refresh when refreshKey changes (triggered by parent component)
   useEffect(() => {

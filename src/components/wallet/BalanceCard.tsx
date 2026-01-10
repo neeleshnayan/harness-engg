@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useImperativeHandle, forwardRef, useCallback } from "react";
 import TransactionHistory, { TransactionHistoryRef } from "@/components/wallet/TransactionHistory";
 import ActiveTransactions from "@/components/wallet/ActiveTransactions";
 import KTTokenBalances from "@/components/wallet/KTTokenBalances";
@@ -10,6 +10,11 @@ import { K_TOKEN_ADDRESSES_LOWERCASE, K_TOKEN_SYMBOL_LIST, CURRENCY_SYMBOLS } fr
 import BuyUSDCModal from "@/components/wallet/BuyUSDCModal";
 import SwapModal from "@/components/wallet/SwapModal";
 import { Triangle } from "lucide-react";
+
+export interface BalanceCardRef {
+  /** Switch to Transaction History tab and refresh */
+  showTransactionHistory: () => void;
+}
 
 interface BalanceCardProps {
   balance: any;
@@ -45,7 +50,7 @@ const DEFAULT_FIAT_DATA = [
   { code: "GBP", symbol: "£" },
 ];
 
-const BalanceCard: React.FC<BalanceCardProps> = ({
+const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
   balance,
   error,
   accountData,
@@ -65,7 +70,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
   balanceCardRefresh = false,
   balanceRefreshing = false,
   balanceFlickering = false
-}) => {
+}, ref) => {
   const [localRefreshing, setLocalRefreshing] = useState(false);
   const [isFlickering, setIsFlickering] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState('USD');
@@ -183,23 +188,35 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
     setIsScrolling(false);
   };
 
-  const handleTransactionHistoryRefresh = () => {
+  const handleTransactionHistoryRefresh = useCallback(() => {
     setTransactionHistoryRefreshKey(prev => prev + 1);
     setActiveTransactionsRefreshKey(prev => prev + 1);
     if (transactionHistoryRef.current?.refresh) {
       transactionHistoryRef.current.refresh();
     }
-  };
+  }, []);
 
-  const handleModalClose = (modalSetter: React.Dispatch<React.SetStateAction<boolean>>) => {
+  /**
+   * Switch to Transaction History tab and refresh
+   * Called when modals close after submitting a transaction
+   */
+  const showTransactionHistoryTab = useCallback(() => {
+    setActiveSlide(0); // Switch to Transaction History tab
+    handleTransactionHistoryRefresh();
+  }, [handleTransactionHistoryRefresh]);
+
+  const handleModalClose = useCallback((modalSetter: React.Dispatch<React.SetStateAction<boolean>>, autoClose?: boolean) => {
     modalSetter(false);
-    // Refresh both active transactions and transaction history when modal closes
-    setActiveTransactionsRefreshKey(prev => prev + 1);
-    setTransactionHistoryRefreshKey(prev => prev + 1);
-    if (transactionHistoryRef.current?.refresh) {
-      transactionHistoryRef.current.refresh();
+    // Only switch to Transaction History tab on auto-close (success), not on manual X button close
+    if (autoClose) {
+      showTransactionHistoryTab();
     }
-  };
+  }, [showTransactionHistoryTab]);
+
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    showTransactionHistory: showTransactionHistoryTab,
+  }), [showTransactionHistoryTab]);
 
   const openDepositModal = () => {
     setShowDepositModal(true);
@@ -401,11 +418,13 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
                 }}
               >
                 {/* Active Transactions - Shows pending Circle transactions */}
+                {/* Only poll when Transaction History tab is visible (activeSlide === 0) */}
                 <ActiveTransactions
                   username={accountData.username}
                   className="mb-4"
                   onAllTransactionsComplete={handleTransactionHistoryRefresh}
                   refreshKey={activeTransactionsRefreshKey}
+                  isVisible={activeSlide === 0}
                 />
                 <TransactionHistory
                   ref={transactionHistoryRef}
@@ -635,7 +654,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
       {showSwapModal && (
         <SwapModal
           visible={showSwapModal}
-          onClose={() => handleModalClose(setShowSwapModal)}
+          onClose={(autoClose) => handleModalClose(setShowSwapModal, autoClose)}
           userAddress={accountData?.wallet_address}
           username={accountData?.username}
           balance={balance}
@@ -643,6 +662,8 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
       )}
     </>
   );
-};
+});
+
+BalanceCard.displayName = 'BalanceCard';
 
 export default BalanceCard;

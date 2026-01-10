@@ -10,7 +10,8 @@ import { getPoolRate } from "@/lib/priceCache";
 
 interface SendERC20ModalProps {
   visible: boolean;
-  onClose: () => void;
+  /** Called when modal closes. autoClose=true means countdown auto-closed, false means user manually closed */
+  onClose: (autoClose?: boolean) => void;
   userAddress: string;
   userId?: string;
   username?: string; // Added for Krypton_Web3 endpoints
@@ -75,7 +76,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
             clearInterval(countdownIntervalRef.current);
             countdownIntervalRef.current = null;
           }
-          onClose();
+          onClose(true); // Auto-close: switch to transaction history
           return 0;
         }
         return prev - 1;
@@ -656,14 +657,14 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
     }
   };
 
-  // Handle clicking anywhere to close on success
+  // Handle clicking anywhere to close on success (user tapping to dismiss success screen)
   const handleBackdropClick = () => {
     if (success) {
       if (countdownIntervalRef.current) {
         clearInterval(countdownIntervalRef.current);
         countdownIntervalRef.current = null;
       }
-      onClose();
+      onClose(true); // Transaction was successful, switch to transaction history
     }
   };
 
@@ -685,7 +686,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
               Send Currency
             </CardTitle>
             <button
-              onClick={onClose}
+              onClick={() => onClose(false)}
               className="text-zinc-400 hover:text-white transition-colors"
               disabled={loading}
             >

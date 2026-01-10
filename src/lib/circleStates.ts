@@ -69,6 +69,29 @@ export const ONGOING_STATES = new Set<string>([
   CircleTransactionState.UNKNOWN,
 ]);
 
+export const PROGRESS_STEP_STATES = [
+  [
+    CircleTransactionState.CREATED,
+    CircleTransactionState.INITIATED,
+    CircleTransactionState.QUEUED,
+    CircleTransactionState.SENT,
+    CircleTransactionState.STUCK,
+    CircleTransactionState.SUBMITTED,
+    CircleTransactionState.UNKNOWN,
+  ],
+  [
+    CircleTransactionState.CONFIRMED,
+    CircleTransactionState.CLEARED,
+  ],
+  [
+    CircleTransactionState.COMPLETE,
+    CircleTransactionState.SUCCESS,
+    CircleTransactionState.FAILED,
+    CircleTransactionState.DENIED,
+    CircleTransactionState.CANCELLED,
+  ],
+];
+
 /**
  * State category for UI display purposes
  */
@@ -198,28 +221,23 @@ export type ProgressStep = 'queued' | 'confirmed' | 'complete';
 
 /**
  * Get the progress step index (0-2) for a transaction state
- * 0 = Queued (submitted, created, initiated, queued)
- * 1 = Confirmed (confirmed, sent, cleared)
+ * Uses PROGRESS_STEP_STATES array to determine which step a state belongs to:
+ * 0 = Queued (created, initiated, queued, sent, stuck, submitted, unknown)
+ * 1 = Confirmed (confirmed, cleared)
  * 2 = Complete (complete, success, failed, denied, cancelled)
  */
 export function getProgressStepIndex(state: string): number {
   const normalizedState = state.toLowerCase();
 
-  // Terminal states = step 2 (complete)
-  if (TERMINAL_STATES.has(normalizedState)) {
-    return 2;
+  // Find which step contains this state
+  for (let stepIndex = 0; stepIndex < PROGRESS_STEP_STATES.length; stepIndex++) {
+    const statesInStep = PROGRESS_STEP_STATES[stepIndex];
+    if (statesInStep.includes(normalizedState as CircleTransactionState)) {
+      return stepIndex;
+    }
   }
 
-  // Confirmed/processing states = step 1
-  if (
-    normalizedState === CircleTransactionState.CONFIRMED ||
-    normalizedState === CircleTransactionState.SENT ||
-    normalizedState === CircleTransactionState.CLEARED
-  ) {
-    return 1;
-  }
-
-  // Everything else = step 0 (queued)
+  // Default to step 0 if state not found
   return 0;
 }
 

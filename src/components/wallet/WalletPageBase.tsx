@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { FaArrowUp, FaCheck, FaTimes } from "react-icons/fa";
 import { getFirebaseApp } from "@/lib/firebaseClient";
 import UsernameCard from "@/components/wallet/UsernameCard";
-import BalanceCard from "@/components/wallet/BalanceCard";
+import BalanceCard, { BalanceCardRef } from "@/components/wallet/BalanceCard";
 import SendUSDCModal from "@/components/wallet/SendUSDCModal";
 import HamburgerMenu from "@/components/wallet/HamburgerMenu";
 import api from "@/lib/api";
@@ -115,6 +115,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   const showTransactionsRef = useRef(showTransactions);
   const fetchBalanceRef = useRef<((address: string, options?: { background?: boolean }) => Promise<void>) | null>(null);
   const processedWebhookEventsRef = useRef<Set<string>>(new Set()); // Track processed webhook event IDs
+  const balanceCardRef = useRef<BalanceCardRef | null>(null); // Ref to BalanceCard for switching tabs
 
   // Update refs when state changes
   useEffect(() => {
@@ -658,7 +659,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     setSendLoading(false);
   };
 
-  const handleCancelSendERC20 = () => {
+  const handleCancelSendERC20 = (autoClose?: boolean) => {
     setShowSendERC20Form(false);
     setReceiverUsername("");
     setSendAmount("");
@@ -666,7 +667,10 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     setSendERC20Error(null);
     setSendERC20Success(null);
     setSendERC20Loading(false);
-    // Trigger transaction history and active transactions refresh
+    // Only switch to Transaction History tab on auto-close (success), not on manual X button close
+    if (autoClose) {
+      balanceCardRef.current?.showTransactionHistory();
+    }
     setTransactionHistoryRefresh(prev => !prev);
   };
 
@@ -979,6 +983,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
             </div>
           )}
           <BalanceCard
+            ref={balanceCardRef}
             balance={balance}
             error={error}
             accountData={accountData}
@@ -1112,6 +1117,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
             onClose={handleCancelSendERC20}
             userAddress={accountData?.wallet_address}
             userId={accountData?.user_id}
+            username={accountData?.username}
             balance={balance}
           />
         )}

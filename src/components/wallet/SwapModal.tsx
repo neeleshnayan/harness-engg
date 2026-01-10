@@ -6,7 +6,8 @@ import { ArrowUpDown } from "lucide-react";
 
 interface SwapModalProps {
   visible: boolean;
-  onClose: () => void;
+  /** Called when modal closes. autoClose=true means countdown auto-closed, false means user manually closed */
+  onClose: (autoClose?: boolean) => void;
   userAddress?: string;
   username?: string; // Added for Krypton_Web3 endpoints
   balance?: any;
@@ -57,7 +58,7 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
             clearInterval(countdownIntervalRef.current);
             countdownIntervalRef.current = null;
           }
-          onClose();
+          onClose(true); // Auto-close: switch to transaction history
           return 0;
         }
         return prev - 1;
@@ -362,14 +363,14 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
     }
   };
 
-  // Handle clicking anywhere to close on success
+  // Handle clicking anywhere to close on success (user tapping to dismiss success screen)
   const handleBackdropClick = () => {
     if (success) {
       if (countdownIntervalRef.current) {
         clearInterval(countdownIntervalRef.current);
         countdownIntervalRef.current = null;
       }
-      onClose();
+      onClose(true); // Transaction was successful, switch to transaction history
     }
   };
 
@@ -386,7 +387,7 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
       <div className="bg-zinc-900/95 border border-zinc-800 rounded-2xl w-full max-w-md p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold text-white">Swap Assets</h3>
-          <button className="text-zinc-400 hover:text-white" onClick={onClose} disabled={loading}>
+          <button className="text-zinc-400 hover:text-white" onClick={() => onClose(false)} disabled={loading}>
             ✕
           </button>
         </div>
