@@ -275,19 +275,7 @@ export interface AgentFlowGraph {
   execution_order: string[]
   flow_type: 'single' | 'sequential' | 'parallel'
   steps: AgentFlowStep[]  // Flattened array for backwards compatibility
-}
-
-export interface AgentFlowEdge {
-  from: string
-  to: string
-}
-
-export interface AgentFlowGraph {
-  nodes: AgentFlowStep[]
-  edges: AgentFlowEdge[]
-  execution_order: string[]
-  flow_type: 'single' | 'sequential' | 'parallel'
-  steps: AgentFlowStep[]  // Flattened array for backwards compatibility
+  total_query_time_ms?: number  // Total time taken to process the entire query (from start to finish)
 }
 
 export interface ChatMessage {

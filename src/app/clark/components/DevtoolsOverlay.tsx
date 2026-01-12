@@ -100,10 +100,38 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId }: D
   const calculateTotalLatency = (flow: AgentFlowGraph | AgentFlowStep[] | undefined): number | null => {
     if (!flow) return null
     
+    // If flow is a graph and has total_query_time_ms, use that (most accurate)
+    if (!Array.isArray(flow)) {
+      const graphFlow = flow as AgentFlowGraph
+      const totalTime = graphFlow.total_query_time_ms
+      if (totalTime !== undefined && totalTime !== null) {
+        return totalTime
+      }
+    }
+    
+    // Fallback: calculate from earliest start to latest end timestamp
     const steps: AgentFlowStep[] = Array.isArray(flow) 
       ? flow 
       : (flow as AgentFlowGraph)?.steps || (flow as AgentFlowGraph)?.nodes || []
     
+    // Try to calculate from timestamps (more accurate for parallel execution)
+    const timestamps_start = steps
+      .map(step => step.timestamp_start)
+      .filter((ts): ts is string => ts !== undefined && ts !== null)
+      .map(ts => new Date(ts).getTime())
+    
+    const timestamps_end = steps
+      .map(step => step.timestamp_end)
+      .filter((ts): ts is string => ts !== undefined && ts !== null)
+      .map(ts => new Date(ts).getTime())
+    
+    if (timestamps_start.length > 0 && timestamps_end.length > 0) {
+      const earliest_start = Math.min(...timestamps_start)
+      const latest_end = Math.max(...timestamps_end)
+      return latest_end - earliest_start
+    }
+    
+    // Last resort: sum individual latencies (less accurate for parallel execution)
     const latencies = steps
       .map(step => step.latency_ms)
       .filter((latency): latency is number => latency !== undefined && latency !== null)
@@ -226,10 +254,10 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId }: D
                 <div>
                   <h2 className="text-xl font-bold text-white flex items-center gap-2">
                     <BarChart3 className="h-5 w-5 text-teal-400" />
-                    Agent Flows (Last 10)
+                    Agent Flow
                   </h2>
                   <p className="text-sm text-white/60 mt-1">
-                    View the last 10 agentflows
+                    View the recent agentflows
                   </p>
                 </div>
                 <button
