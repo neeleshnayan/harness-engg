@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Clock, Zap, TrendingUp, Activity, BarChart3, Filter, Brain } from 'lucide-react'
+import { X, Clock, Zap, TrendingUp, Activity, BarChart3, Filter, Brain, Loader2, RefreshCw } from 'lucide-react'
 import { ChatMessage, AgentFlowGraph, AgentFlowStep } from '../types'
 import AgentFlow from './AgentFlow'
 import MemoriesTab from './MemoriesTab'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import agentsApi from '@/lib/agents_api'
 
 interface DevtoolsOverlayProps {
   isOpen: boolean
@@ -15,10 +16,20 @@ interface DevtoolsOverlayProps {
   userId?: string
 }
 
+interface AgentFlowEntry {
+  agentflow: AgentFlowGraph
+  query: string
+  session_id?: string
+  timestamp: string
+  created_at?: any
+}
+
 export default function DevtoolsOverlay({ isOpen, onClose, messages, userId }: DevtoolsOverlayProps) {
   const [selectedQueryIndex, setSelectedQueryIndex] = useState<number | null>(null)
   const [filterType, setFilterType] = useState<'all' | 'single' | 'sequential' | 'parallel'>('all')
   const [activeTab, setActiveTab] = useState<'agent-flow' | 'memories'>('agent-flow')
+  const [firebaseAgentflows, setFirebaseAgentflows] = useState<AgentFlowEntry[]>([])
+  const [isLoadingAgentflows, setIsLoadingAgentflows] = useState(false)
 
   // Handle ESC key to close overlay
   useEffect(() => {
@@ -40,25 +51,42 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId }: D
     }
   }, [isOpen, onClose])
 
-  // Get all queries (user messages) with their corresponding agent flows
-  const queriesWithFlows = messages
-    .map((message, index) => {
-      if (message.type === 'user') {
-        // Find the next assistant message that has an agent flow
-        const nextAssistant = messages.slice(index + 1).find(m => 
-          m.type === 'assistant' && m.agentFlow
-        )
-        return {
-          query: message.content,
-          timestamp: message.timestamp,
-          messageIndex: index,
-          agentFlow: nextAssistant?.agentFlow
+  // Fetch agentflows from Firebase
+  useEffect(() => {
+    const fetchAgentflows = async () => {
+      if (!userId || !isOpen) return
+
+      setIsLoadingAgentflows(true)
+      try {
+        const response = await agentsApi.get('/api/v1/agents/agentflows', {
+          params: { user_id: userId }
+        })
+
+        if (response.data.success) {
+          setFirebaseAgentflows(response.data.agentflows || [])
         }
+      } catch (err: any) {
+        console.error('Error fetching agentflows:', err)
+      } finally {
+        setIsLoadingAgentflows(false)
       }
-      return null
-    })
-    .filter((item): item is NonNullable<typeof item> => item !== null && item.agentFlow !== undefined)
-    .reverse() // Reverse to show latest queries first
+    }
+
+    if (isOpen && userId) {
+      fetchAgentflows()
+    }
+  }, [isOpen, userId])
+
+  // Convert Firebase agentflows to the format expected by the UI
+  const queriesWithFlows = firebaseAgentflows.map((entry) => ({
+    query: entry.query,
+    timestamp: new Date(entry.timestamp),
+    messageIndex: -1, // Firebase entries don't have message index
+    agentFlow: entry.agentflow,
+    session_id: entry.session_id
+  }))
+    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()) // Sort by timestamp (most recent first)
+    .slice(0, 10) // Limit to 10
 
   const hasFlowContent = (flow: AgentFlowGraph | AgentFlowStep[] | undefined) => {
     if (!flow) return false
@@ -193,6 +221,45 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId }: D
               {/* Tab Content */}
               {activeTab === 'agent-flow' && (
                 <>
+              {/* Header with refresh button */}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-teal-400" />
+                    Agent Flows (Last 10)
+                  </h2>
+                  <p className="text-sm text-white/60 mt-1">
+                    View the last 10 agentflows
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    if (userId) {
+                      setIsLoadingAgentflows(true)
+                      agentsApi.get('/api/v1/agents/agentflows', {
+                        params: { user_id: userId }
+                      })
+                      .then(response => {
+                        if (response.data.success) {
+                          setFirebaseAgentflows(response.data.agentflows || [])
+                        }
+                      })
+                      .catch(err => console.error('Error fetching agentflows:', err))
+                      .finally(() => setIsLoadingAgentflows(false))
+                    }
+                  }}
+                  disabled={isLoadingAgentflows}
+                  className="flex items-center gap-2 px-4 py-2 bg-teal-900/40 hover:bg-teal-800/50 backdrop-blur-sm border border-teal-700/30 text-white rounded-xl transition-colors disabled:opacity-50"
+                >
+                  {isLoadingAgentflows ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  Refresh
+                </button>
+              </div>
+
               {/* Statistics Cards */}
               {queriesWithFlows.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">

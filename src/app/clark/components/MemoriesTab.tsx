@@ -46,8 +46,7 @@ interface MemoriesTabProps {
 
 export default function MemoriesTab({ userId }: MemoriesTabProps) {
   const [condensedMemories, setCondensedMemories] = useState<Memory[]>([])
-  const [currentSessionMemories, setCurrentSessionMemories] = useState<Memory[]>([])
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
+  const [recentMemories, setRecentMemories] = useState<Memory[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -67,16 +66,16 @@ export default function MemoriesTab({ userId }: MemoriesTabProps) {
 
       if (response.data.success) {
         const condensed = response.data.condensed_memories || []
-        const current = response.data.current_session_memories || []
+        const recent = response.data.recent_memories || []
+        
         console.log('Fetched memories:', { 
           condensed_count: condensed.length, 
-          current_count: current.length,
+          recent_count: recent.length,
           condensed: condensed,
-          current: current
+          recent: recent
         })
         setCondensedMemories(condensed)
-        setCurrentSessionMemories(current)
-        setCurrentSessionId(response.data.current_session_id || null)
+        setRecentMemories(recent)
       } else {
         setError(response.data.message || "Failed to fetch memories")
       }
@@ -327,7 +326,7 @@ export default function MemoriesTab({ userId }: MemoriesTabProps) {
             Memories
           </h2>
           <p className="text-sm text-white/60 mt-1">
-            View condensed memories across sessions and current session memories
+            Explore memories
           </p>
         </div>
         <button
@@ -363,33 +362,28 @@ export default function MemoriesTab({ userId }: MemoriesTabProps) {
 
       {!isLoading && !error && (
         <>
-          {/* Current Session Memories */}
+          {/* Recent Memories (Last 10) */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <MessageSquare className="h-5 w-5 text-cyan-400" />
+              <Brain className="h-5 w-5 text-teal-400" />
               <h3 className="text-lg font-semibold text-white">
-                Current Session Memories
+                Recent Memories (Last 10)
               </h3>
-              <span className="px-2 py-1 bg-cyan-900/40 text-cyan-300 text-xs rounded-xl border border-cyan-700/30">
-                {currentSessionMemories.length}
+              <span className="px-2 py-1 bg-teal-900/40 text-teal-300 text-xs rounded-xl border border-teal-700/30">
+                {recentMemories.length}
               </span>
             </div>
-            {currentSessionId && (
-              <p className="text-xs text-white/50 mb-4">
-                Session ID: {currentSessionId}
-              </p>
-            )}
-            {currentSessionMemories.length === 0 ? (
+            {recentMemories.length === 0 ? (
               <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl">
                 <CardContent className="p-8 text-center">
                   <p className="text-white/60">
-                    No memories found for the current session.
+                    No recent memories found.
                   </p>
                 </CardContent>
               </Card>
             ) : (
               <div className="space-y-4">
-                {currentSessionMemories.map((memory, index) => renderMemory(memory, index))}
+                {recentMemories.map((memory, index) => renderMemory(memory, index))}
               </div>
             )}
           </div>
