@@ -35,6 +35,25 @@ interface Memory {
       knowledge_level?: string
       goals?: string[]
     }
+    categories?: {
+      personal_profile?: {
+        summary?: string
+        traits?: string[]
+      }
+      financial_preferences?: {
+        summary?: string
+        preferred_assets?: string[]
+        risk_tolerance?: string
+      }
+      agent_experience?: {
+        summary?: string
+        agent_patterns?: string[]
+      }
+      knowledge_base?: {
+        extracted_facts?: string[]
+        significant_results?: string[]
+      }
+    }
     timestamp?: string
   }
   created_at?: string
@@ -67,9 +86,9 @@ export default function MemoriesTab({ userId }: MemoriesTabProps) {
       if (response.data.success) {
         const condensed = response.data.condensed_memories || []
         const recent = response.data.recent_memories || []
-        
-        console.log('Fetched memories:', { 
-          condensed_count: condensed.length, 
+
+        console.log('Fetched memories:', {
+          condensed_count: condensed.length,
           recent_count: recent.length,
           condensed: condensed,
           recent: recent
@@ -114,7 +133,7 @@ export default function MemoriesTab({ userId }: MemoriesTabProps) {
     const metadata = memory.metadata || {}
     const memoryType = metadata.type || 'unknown'
     const sessionId = metadata.session_id
-    
+
     // Handle reasoningContent structure (fallback for prod data)
     let displayMessage: string | undefined = memory.message
     if (!displayMessage && (memory as any).reasoningContent) {
@@ -197,7 +216,7 @@ export default function MemoriesTab({ userId }: MemoriesTabProps) {
                 )}
               </div>
             )}
-            
+
             {memoryType === 'portfolio_state' && metadata.portfolio_data && (
               <div className="space-y-3">
                 {metadata.portfolio_data.query && (
@@ -213,9 +232,8 @@ export default function MemoriesTab({ userId }: MemoriesTabProps) {
                     {metadata.portfolio_data.metrics.total_return !== undefined && (
                       <div className="bg-white/5 p-2 rounded border border-white/10">
                         <div className="text-white/60">Total Return</div>
-                        <div className={`text-sm font-medium ${
-                          metadata.portfolio_data.metrics.total_return >= 0 ? 'text-green-400' : 'text-red-400'
-                        }`}>
+                        <div className={`text-sm font-medium ${metadata.portfolio_data.metrics.total_return >= 0 ? 'text-green-400' : 'text-red-400'
+                          }`}>
                           {metadata.portfolio_data.metrics.total_return >= 0 ? '+' : ''}
                           {metadata.portfolio_data.metrics.total_return.toFixed(2)}%
                         </div>
@@ -250,8 +268,99 @@ export default function MemoriesTab({ userId }: MemoriesTabProps) {
                     {displayMessage}
                   </div>
                 </div>
-                {metadata.persona_summary && (
-                  <div className="grid grid-cols-1 gap-2 text-xs">
+                {metadata.categories && (
+                  <div className="space-y-3 mt-4">
+                    {metadata.categories.personal_profile && (
+                      <div className="bg-white/5 p-3 rounded border border-white/10">
+                        <div className="text-xs text-teal-400 font-semibold mb-1 uppercase tracking-wider">Personal Profile</div>
+                        <div className="text-sm text-white/80 mb-2">{metadata.categories.personal_profile.summary}</div>
+                        {metadata.categories.personal_profile.traits && metadata.categories.personal_profile.traits.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {metadata.categories.personal_profile.traits.map((trait, idx) => (
+                              <span key={idx} className="px-2 py-0.5 bg-teal-900/30 text-teal-300 rounded text-[10px]">
+                                {trait}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {metadata.categories.financial_preferences && (
+                      <div className="bg-white/5 p-3 rounded border border-white/10">
+                        <div className="text-xs text-cyan-400 font-semibold mb-1 uppercase tracking-wider">Financial Preferences</div>
+                        <div className="text-sm text-white/80 mb-2">{metadata.categories.financial_preferences.summary}</div>
+                        <div className="flex flex-wrap gap-2 items-center">
+                          {metadata.categories.financial_preferences.risk_tolerance && (
+                            <span className="text-[10px] text-white/60">
+                              Risk: <span className="text-cyan-300">{metadata.categories.financial_preferences.risk_tolerance}</span>
+                            </span>
+                          )}
+                          {metadata.categories.financial_preferences.preferred_assets && metadata.categories.financial_preferences.preferred_assets.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {metadata.categories.financial_preferences.preferred_assets.map((asset, idx) => (
+                                <span key={idx} className="px-2 py-0.5 bg-cyan-900/30 text-cyan-300 rounded text-[10px]">
+                                  {asset}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {metadata.categories.agent_experience && (
+                      <div className="bg-white/5 p-3 rounded border border-white/10">
+                        <div className="text-xs text-blue-400 font-semibold mb-1 uppercase tracking-wider">Agent Experience</div>
+                        <div className="text-sm text-white/80 mb-2">{metadata.categories.agent_experience.summary}</div>
+                        {metadata.categories.agent_experience.agent_patterns && metadata.categories.agent_experience.agent_patterns.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {metadata.categories.agent_experience.agent_patterns.map((pattern, idx) => (
+                              <span key={idx} className="px-2 py-0.5 bg-blue-900/30 text-blue-300 rounded text-[10px]">
+                                {pattern}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {metadata.categories.knowledge_base && (
+                      <div className="bg-white/5 p-3 rounded border border-white/10">
+                        <div className="text-xs text-amber-400 font-semibold mb-1 uppercase tracking-wider">Knowledge Base (Concrete Data)</div>
+
+                        {metadata.categories.knowledge_base.extracted_facts && metadata.categories.knowledge_base.extracted_facts.length > 0 && (
+                          <div className="mb-3">
+                            <div className="text-[10px] text-white/50 mb-1">Extracted Facts:</div>
+                            <div className="flex flex-wrap gap-1">
+                              {metadata.categories.knowledge_base.extracted_facts.map((fact, idx) => (
+                                <span key={idx} className="px-2 py-0.5 bg-amber-900/30 text-amber-300 rounded text-[10px] border border-amber-700/20">
+                                  {fact}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {metadata.categories.knowledge_base.significant_results && metadata.categories.knowledge_base.significant_results.length > 0 && (
+                          <div>
+                            <div className="text-[10px] text-white/50 mb-1">Significant Results:</div>
+                            <div className="flex flex-wrap gap-1">
+                              {metadata.categories.knowledge_base.significant_results.map((result, idx) => (
+                                <span key={idx} className="px-2 py-0.5 bg-indigo-900/30 text-indigo-300 rounded text-[10px] border border-indigo-700/20">
+                                  {result}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {metadata.persona_summary && !metadata.categories && (
+                  <div className="grid grid-cols-1 gap-2 text-xs mt-2">
                     {metadata.persona_summary.interests && Array.isArray(metadata.persona_summary.interests) && metadata.persona_summary.interests.length > 0 && (
                       <div className="bg-white/5 p-2 rounded border border-white/10">
                         <div className="text-white/60 mb-1">Interests:</div>
@@ -292,7 +401,7 @@ export default function MemoriesTab({ userId }: MemoriesTabProps) {
                 )}
               </div>
             )}
-            
+
             {displayMessage && memoryType !== 'user_interaction' && memoryType !== 'portfolio_state' && memoryType !== 'condensed_persona' && memoryType !== 'persona_memory' && (
               <div className="text-sm text-white/80 bg-white/5 p-2 rounded border border-white/10">
                 {displayMessage}
