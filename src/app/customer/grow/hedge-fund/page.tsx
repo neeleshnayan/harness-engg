@@ -6,7 +6,7 @@ import { getAuth, signOut } from "firebase/auth";
 import { ArrowLeft, CheckCircle, AlertCircle, SlidersHorizontal } from "lucide-react";
 import api from "@/lib/api";
 import StrategyCard from "@/components/wallet/StrategyCard";
-import StrategyCardYearnPAXG from "@/components/wallet/StrategyCardYearnPAXG";
+
 import { CumulativeAUMChartNew } from "@/components/wallet/CumulativeAUMChartNew";
 import { useMAVCConfig, useMAVPConfig, useMAVCYearnConfig, useYearnWETHConfig, useYearnPAXGConfig } from "@/hooks/useStrategyConfig";
 import { SubgraphAnalytics } from "@/components/wallet/SubgraphAnalytics";
@@ -58,7 +58,7 @@ export default function HedgeFundV2Page() {
 
   const tokenBalances = useMemo(() => {
     if (!balance || !Array.isArray(balance.tokenBalances)) {
-      return { mavc: undefined, mavp: undefined, mavcYearn: undefined };
+      return { mavc: undefined, mavp: undefined, mavcYearn: undefined, usdc: undefined };
     }
 
     let balances = balance.tokenBalances.filter((tokenBalance: any) => {
@@ -70,6 +70,8 @@ export default function HedgeFundV2Page() {
     let mavcBalance: number | undefined;
     let mavpBalance: number | undefined;
     let mavcYearnBalance: number | undefined;
+    let yearnWethBalance: number | undefined;
+    let usdcBalance: number | undefined;
 
     balances.forEach((tokenBalance: any) => {
       const symbol = tokenBalance.token.symbol;
@@ -82,9 +84,13 @@ export default function HedgeFundV2Page() {
         mavpBalance = (mavpBalance || 0) + rawAmount / Math.pow(10, 12);
       } else if (symbol === 'ysMAVC' || symbol === 'ysUSDC' || symbol === 'MAVC_YEARN' || symbol === 'MAVC-YEARN') {
         mavcYearnBalance = (mavcYearnBalance || 0) + rawAmount;
+      } else if (symbol === 'ysWETH' || symbol === 'YEARN_WETH') {
+        yearnWethBalance = (yearnWethBalance || 0) + rawAmount;
+      } else if (symbol === 'USDC' || symbol === 'TRNSK') {
+        usdcBalance = (usdcBalance || 0) + rawAmount;
       }
     });
-    return { mavc: mavcBalance, mavp: mavpBalance, mavcYearn: mavcYearnBalance };
+    return { mavc: mavcBalance, mavp: mavpBalance, mavcYearn: mavcYearnBalance, usdc: usdcBalance, yearnWeth: yearnWethBalance };
   }, [balance, mavcConfig]);
 
   useEffect(() => {
@@ -299,6 +305,31 @@ export default function HedgeFundV2Page() {
 
   const renderStrategyDetail = () => {
     switch (selectedView) {
+      case 'yearn-weth':
+        return (
+          <>
+            <div className="mb-6 sm:mb-8 px-4">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-2 drop-shadow-lg">
+                YEARN WETH
+              </h1>
+              <p className="text-zinc-400 text-sm sm:text-base md:text-lg max-w-3xl">
+                Real-time on-chain analytics and trading data for the Yearn USDC/WETH strategy.
+              </p>
+            </div>
+
+            {/* Trading Signals Section */}
+            <div className="px-4 mb-6">
+              <TradingSignals strategyName="YEARN_WETH" />
+            </div>
+
+            {/* Subgraph Analytics */}
+            {yearnWethConfigLoading ? (
+              <div className="text-center text-zinc-400">Loading configuration...</div>
+            ) : (
+              <SubgraphAnalyticsYearnWETH subgraphUrl={yearnWethConfig?.subgraph_url} />
+            )}
+          </>
+        );
       case 'mavc':
         return (
           <>
@@ -353,31 +384,6 @@ export default function HedgeFundV2Page() {
             )}
           </>
         );
-      case 'yearn-weth':
-        return (
-          <>
-            <div className="mb-6 sm:mb-8 px-4">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-2 drop-shadow-lg">
-                YEARN WETH
-              </h1>
-              <p className="text-zinc-400 text-sm sm:text-base md:text-lg max-w-3xl">
-                Real-time on-chain analytics and trading data for the Yearn USDC/WETH strategy.
-              </p>
-            </div>
-
-            {/* Trading Signals Section */}
-            <div className="px-4 mb-6">
-              <TradingSignals strategyName="YEARN_WETH" />
-            </div>
-
-            {/* Subgraph Analytics */}
-            {yearnWethConfigLoading ? (
-              <div className="text-center text-zinc-400">Loading configuration...</div>
-            ) : (
-              <SubgraphAnalyticsYearnWETH subgraphUrl={yearnWethConfig?.subgraph_url} />
-            )}
-          </>
-        );
       case 'yearn-paxg':
         return (
           <>
@@ -414,6 +420,7 @@ export default function HedgeFundV2Page() {
                   mavcCurrentBalance={tokenBalances.mavc}
                   mavpCurrentBalance={tokenBalances.mavp}
                   mavcYearnCurrentBalance={tokenBalances.mavcYearn}
+                  yearnWethCurrentBalance={tokenBalances.yearnWeth}
                 />
               </div>
             )}
@@ -427,28 +434,10 @@ export default function HedgeFundV2Page() {
               <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Available Strategies</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 <StrategyCard
-                  strategyName="MAVC"
-                  onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
-                  onCardClick={() => setSelectedView('mavc')}
-                />
-                <StrategyCard
-                  strategyName="MAVP"
-                  onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
-                  onCardClick={() => setSelectedView('mavp')}
-                />
-                <StrategyCard
-                  strategyName="MAVC_YEARN"
-                  onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
-                  onCardClick={() => setSelectedView('mavc-yearn')}
-                />
-                <StrategyCard
                   strategyName="YEARN_WETH"
                   onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
                   onCardClick={() => setSelectedView('yearn-weth')}
-                />
-                <StrategyCardYearnPAXG
-                  onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
-                  onCardClick={() => setSelectedView('yearn-paxg')}
+                  usdcBalance={tokenBalances.usdc?.toString()}
                 />
               </div>
             </div>

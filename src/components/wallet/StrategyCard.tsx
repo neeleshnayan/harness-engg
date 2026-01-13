@@ -21,6 +21,7 @@ interface StrategyCardProps {
   strategyName: StrategyName;
   onRefresh?: () => void;
   onCardClick?: () => void;
+  usdcBalance?: string;
 }
 
 // Strategy-specific configuration
@@ -62,7 +63,7 @@ const STRATEGY_DETAILS: Record<StrategyName, {
   },
 };
 
-const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, onCardClick }) => {
+const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, onCardClick, usdcBalance }) => {
   const router = useRouter();
   const { toast } = useToast();
   const strategyDetails = STRATEGY_DETAILS[strategyName];
@@ -77,7 +78,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
 
   const [strategyBalance, setStrategyBalance] = useState("0");
   const [balanceLoading, setBalanceLoading] = useState(false);
-  const [usdcBalance, setUsdcBalance] = useState("0");
+  const [usdcBalanceState, setUsdcBalance] = useState("0"); // Renamed to differentiate from prop
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [showModal, setShowModal] = useState(false);
   const [modalAction, setModalAction] = useState<'deposit' | 'withdraw'>('deposit');
@@ -162,30 +163,35 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
         if (parsedData.wallet_address) {
           setWalletAddress(parsedData.wallet_address);
 
-          // Fetch USDC balance (common for all strategies)
-          try {
-            console.log(`[${strategyName}] Fetching wallet balance for:`, parsedData.wallet_address);
-            const walletResponse = await api.get(`/api/v1/wallet_balance/${parsedData.wallet_address}`);
-            console.log(`[${strategyName}] Wallet Response:`, walletResponse.data);
-            const tokenBalances = walletResponse.data.tokenBalances || walletResponse.data.token_balances;
 
-            if (tokenBalances && Array.isArray(tokenBalances)) {
-              const allUSDCTokens = tokenBalances.filter((b: any) =>
-                b.token && (b.token.symbol === 'USDC' || b.token.symbol === 'TRNSK')
-              );
-              console.log("USDC Tokens:", allUSDCTokens);
-              if (allUSDCTokens.length > 0) {
-                const totalUSDC = allUSDCTokens.reduce((sum: number, token: any) => {
-                  return sum + parseFloat(token.amount || "0");
-                }, 0);
-                console.log("Total USDC:", totalUSDC);
-                setUsdcBalance(totalUSDC.toString());
+          // Fetch USDC balance (common for all strategies)
+          if (typeof usdcBalance !== 'undefined') {
+            setUsdcBalance(usdcBalance);
+          } else {
+            try {
+              console.log(`[${strategyName}] Fetching wallet balance for:`, parsedData.wallet_address);
+              const walletResponse = await api.get(`/api/v1/wallet_balance/${parsedData.wallet_address}`);
+              console.log(`[${strategyName}] Wallet Response:`, walletResponse.data);
+              const tokenBalances = walletResponse.data.tokenBalances || walletResponse.data.token_balances;
+
+              if (tokenBalances && Array.isArray(tokenBalances)) {
+                const allUSDCTokens = tokenBalances.filter((b: any) =>
+                  b.token && (b.token.symbol === 'USDC' || b.token.symbol === 'TRNSK')
+                );
+                console.log("USDC Tokens:", allUSDCTokens);
+                if (allUSDCTokens.length > 0) {
+                  const totalUSDC = allUSDCTokens.reduce((sum: number, token: any) => {
+                    return sum + parseFloat(token.amount || "0");
+                  }, 0);
+                  console.log("Total USDC:", totalUSDC);
+                  setUsdcBalance(totalUSDC.toString());
+                }
+              } else {
+                console.warn("No token balances found in response (checked tokenBalances and token_balances)");
               }
-            } else {
-              console.warn("No token balances found in response (checked tokenBalances and token_balances)");
+            } catch (err) {
+              // Silently handle USDC balance fetch error
             }
-          } catch (err) {
-            // Silently handle USDC balance fetch error
           }
 
           // Fetch strategy balance from unified API (backend returns raw wei)
@@ -229,6 +235,13 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
       fetchBalances();
     }
   }, [config]);
+
+  // Update USDC balance if prop changes
+  useEffect(() => {
+    if (typeof usdcBalance !== 'undefined') {
+      setUsdcBalance(usdcBalance);
+    }
+  }, [usdcBalance]);
 
   // Calculate price in USDC (only for MAVC and MAVP, not Yearn)
   const priceInUSDC = useMemo(() => {
@@ -745,7 +758,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
         action={modalAction}
         strategyName={strategyName}
         strategyBalance={strategyBalance}
-        usdcBalance={usdcBalance}
+        usdcBalance={usdcBalanceState}
         onDeposit={strategyName === 'YEARN_PAXG' ? handleBuy : handleDeposit}
         onWithdraw={strategyName === 'YEARN_PAXG' ? handleSell : handleWithdraw}
         loading={transactionLoading}

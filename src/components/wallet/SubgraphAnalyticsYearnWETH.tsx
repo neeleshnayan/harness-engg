@@ -109,37 +109,43 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
 
             if (event.type === 'DEPOSIT') {
                 const assets = Number((event as any).assets);
-                const preDepositAum = aum - assets;
+                const aum = snapshot?.aum ? Number(snapshot.aum) : 0;
 
+                // STRICTLY USE SUBGRAPH SHARES (User Request)
+                // Correction: Subgraph output is 18 decimals normalized, but token is 6 decimals?
+                // 0.000000000065 * 1e12 = 65 approx.
+                const shares = Number((event as any).shares ?? 0) * 1000000000000;
+
+                // Calculate Implied Price (Assets / Shares)
                 let price = 1.0;
-                // Heuristic: If we have supply and pre-deposit value, calculate real price
-                if (currentSupply > 0.001 && preDepositAum > 0.001) {
-                    price = preDepositAum / currentSupply;
+                if (shares > 0) {
+                    price = assets / shares;
+                } else {
+                    // Fallback to previous price if shares are missing (shouldn't happen with fixed subgraph)
+                    price = 1.0;
                 }
 
-                const shares = assets / price;
                 calculatedSharesMap.set(event.id, shares);
                 tokenPriceMap.set(event.id, price);
 
                 currentSupply += shares;
 
             } else if (event.type === 'WITHDRAWAL') {
-                const shares = Number((event as any).shares);
+                const shares = Number((event as any).shares ?? 0);
                 currentSupply -= shares;
                 if (currentSupply < 0) currentSupply = 0;
 
                 const assets = Number((event as any).assets);
-                const preWithdrawalAum = aum + assets;
-                const preWithdrawalSupply = currentSupply + shares;
 
                 let price = 1.0;
-                if (preWithdrawalSupply > 0.001) {
-                    price = preWithdrawalAum / preWithdrawalSupply;
+                if (shares > 0) {
+                    price = assets / shares; // Implied price of exit
                 }
+
                 tokenPriceMap.set(event.id, price);
             } else {
                 let price = 1.0;
-                if (currentSupply > 0.001 && aum > 0) {
+                if (currentSupply > 0.000000000000001 && aum > 0) { // Tiny supply support
                     price = aum / currentSupply;
                 }
                 tokenPriceMap.set(event.id, price);
@@ -210,9 +216,9 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
 
                 // Use calculated shares if available (from Replay Logic), else fallback
                 const calculatedShares = (event as any).calculatedShares;
-                const sharesFromEvent = event.shares ? Number(event.shares) : 0;
+                const sharesFromEvent = event.shares ? Number(event.shares) * 1000000000000 : 0;
 
-                const sharesDisplay = calculatedShares ?? (sharesFromEvent > 0.0001 ? sharesFromEvent : assets);
+                const sharesDisplay = calculatedShares ?? (sharesFromEvent > 0 ? sharesFromEvent : assets);
                 outputLabel = formatNumber(sharesDisplay) + ' Shares';
             } else if (event.type === 'WITHDRAWAL') {
                 type = 'WITHDRAWAL';
@@ -221,7 +227,7 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                 const calculatedShares = (event as any).calculatedShares; // For withdrawals usually matches event
                 const sharesFromEvent = event.shares ? Number(event.shares) : 0;
 
-                const sharesDisplay = calculatedShares ?? (sharesFromEvent > 0.0001 ? sharesFromEvent : assets);
+                const sharesDisplay = calculatedShares ?? (sharesFromEvent > 0 ? sharesFromEvent : assets);
 
                 inputLabel = formatNumber(sharesDisplay) + ' Shares';
                 outputLabel = formatCurrency(assets).replace(/,/g, '');
@@ -487,8 +493,9 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                                             const depositAssets = Number(d.assets) || 0;
                                             inputDisplay = <>{formatCurrency(depositAssets)}</>;
 
-                                            // PRIORITIZE CALCULATED SHARES FROM REPLAY LOGIC
-                                            const depositSharesDisplay = d.calculatedShares ?? ((d.shares && Number(d.shares) > 0) ? Number(d.shares) : depositAssets);
+                                            // PRIORITIZE RAW SHARES IF AVAILABLE (Consistency with CSV)
+                                            const rawShares = Number(d.shares ?? 0) * 1000000000000;
+                                            const depositSharesDisplay = rawShares > 0 ? rawShares : (d.calculatedShares ?? depositAssets);
 
                                             outputDisplay = <>{formatNumber(depositSharesDisplay)} Shares</>;
                                             priceDisplay = '-';
