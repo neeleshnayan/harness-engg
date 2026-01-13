@@ -63,9 +63,17 @@ interface MemoriesTabProps {
   userId?: string
 }
 
+interface KnowledgeBaseEntry {
+  type: 'fact' | 'result'
+  content: string
+  timestamp: string
+}
+
 export default function MemoriesTab({ userId }: MemoriesTabProps) {
   const [condensedMemories, setCondensedMemories] = useState<Memory[]>([])
   const [recentMemories, setRecentMemories] = useState<Memory[]>([])
+  const [transientKB, setTransientKB] = useState<KnowledgeBaseEntry[]>([])
+  const [persistentKB, setPersistentKB] = useState<KnowledgeBaseEntry[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -86,15 +94,19 @@ export default function MemoriesTab({ userId }: MemoriesTabProps) {
       if (response.data.success) {
         const condensed = response.data.condensed_memories || []
         const recent = response.data.recent_memories || []
+        const transient = response.data.transient_knowledge_base || []
+        const persistent = response.data.persistent_knowledge_base || []
 
         console.log('Fetched memories:', {
           condensed_count: condensed.length,
           recent_count: recent.length,
-          condensed: condensed,
-          recent: recent
+          transient_kb_count: transient.length,
+          persistent_kb_count: persistent.length
         })
         setCondensedMemories(condensed)
         setRecentMemories(recent)
+        setTransientKB(transient)
+        setPersistentKB(persistent)
       } else {
         setError(response.data.message || "Failed to fetch memories")
       }
@@ -522,6 +534,109 @@ export default function MemoriesTab({ userId }: MemoriesTabProps) {
               </div>
             )}
           </div>
+
+          {/* Knowledge Base Sections */}
+          {(transientKB.length > 0 || persistentKB.length > 0) && (
+            <>
+              {/* Persistent Knowledge Base */}
+              {persistentKB.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Database className="h-5 w-5 text-indigo-400" />
+                    <h3 className="text-lg font-semibold text-white">
+                      Persistent Knowledge Base (Last 5)
+                    </h3>
+                    <span className="px-2 py-1 bg-indigo-900/40 text-indigo-300 text-xs rounded-xl border border-indigo-700/30">
+                      {persistentKB.length}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {persistentKB.map((entry, index) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                      >
+                        <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl">
+                          <CardContent className="p-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                    entry.type === 'fact' 
+                                      ? 'bg-amber-900/40 text-amber-300 border border-amber-700/30' 
+                                      : 'bg-indigo-900/40 text-indigo-300 border border-indigo-700/30'
+                                  }`}>
+                                    {entry.type === 'fact' ? 'Fact' : 'Result'}
+                                  </span>
+                                  <span className="text-xs text-white/50">
+                                    {formatTimestamp(entry.timestamp)}
+                                  </span>
+                                </div>
+                                <div className="text-sm text-white/90 mt-1">
+                                  {entry.content}
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Transient Knowledge Base */}
+              {transientKB.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Brain className="h-5 w-5 text-amber-400" />
+                    <h3 className="text-lg font-semibold text-white">
+                      Transient Knowledge Base (Last 3)
+                    </h3>
+                    <span className="px-2 py-1 bg-amber-900/40 text-amber-300 text-xs rounded-xl border border-amber-700/30">
+                      {transientKB.length}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {transientKB.map((entry, index) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                      >
+                        <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl">
+                          <CardContent className="p-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                    entry.type === 'fact' 
+                                      ? 'bg-amber-900/40 text-amber-300 border border-amber-700/30' 
+                                      : 'bg-indigo-900/40 text-indigo-300 border border-indigo-700/30'
+                                  }`}>
+                                    {entry.type === 'fact' ? 'Fact' : 'Result'}
+                                  </span>
+                                  <span className="text-xs text-white/50">
+                                    {formatTimestamp(entry.timestamp)}
+                                  </span>
+                                </div>
+                                <div className="text-sm text-white/90 mt-1">
+                                  {entry.content}
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </>
       )}
     </div>
