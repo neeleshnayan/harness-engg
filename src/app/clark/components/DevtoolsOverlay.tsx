@@ -14,6 +14,7 @@ interface DevtoolsOverlayProps {
   onClose: () => void
   messages: ChatMessage[]
   userId?: string
+  sessionId?: string
 }
 
 interface AgentFlowEntry {
@@ -24,7 +25,7 @@ interface AgentFlowEntry {
   created_at?: any
 }
 
-export default function DevtoolsOverlay({ isOpen, onClose, messages, userId }: DevtoolsOverlayProps) {
+export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, sessionId }: DevtoolsOverlayProps) {
   const [selectedQueryIndex, setSelectedQueryIndex] = useState<number | null>(null)
   const [filterType, setFilterType] = useState<'all' | 'single' | 'sequential' | 'parallel'>('all')
   const [activeTab, setActiveTab] = useState<'agent-flow' | 'memories'>('agent-flow')
@@ -488,7 +489,7 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId }: D
               )}
               
               {activeTab === 'memories' && (
-                <MemoriesTab userId={userId} />
+                <MemoriesTab userId={userId} sessionId={sessionId} />
               )}
             </div>
           </motion.div>

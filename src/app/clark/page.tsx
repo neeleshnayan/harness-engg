@@ -539,6 +539,7 @@ export default function BacktestPage() {
         onClose={() => setIsDevtoolsOpen(false)}
         messages={messages}
         userId={userId}
+        sessionId={sessionId}
       />
     </div>
   )

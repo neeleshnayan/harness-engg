@@ -61,6 +61,7 @@ interface Memory {
 
 interface MemoriesTabProps {
   userId?: string
+  sessionId?: string
 }
 
 interface KnowledgeBaseEntry {
@@ -69,7 +70,7 @@ interface KnowledgeBaseEntry {
   timestamp: string
 }
 
-export default function MemoriesTab({ userId }: MemoriesTabProps) {
+export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
   const [condensedMemories, setCondensedMemories] = useState<Memory[]>([])
   const [recentMemories, setRecentMemories] = useState<Memory[]>([])
   const [transientKB, setTransientKB] = useState<KnowledgeBaseEntry[]>([])
@@ -87,8 +88,12 @@ export default function MemoriesTab({ userId }: MemoriesTabProps) {
     setError(null)
 
     try {
+      const params: { user_id: string; session_id?: string } = { user_id: userId }
+      if (sessionId) {
+        params.session_id = sessionId
+      }
       const response = await agentsApi.get('/api/v1/agents/memories', {
-        params: { user_id: userId }
+        params
       })
 
       if (response.data.success) {
