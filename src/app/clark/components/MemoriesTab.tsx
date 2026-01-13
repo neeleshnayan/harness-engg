@@ -93,18 +93,18 @@ export default function MemoriesTab({ userId }: MemoriesTabProps) {
 
       if (response.data.success) {
         const condensed = response.data.condensed_memories || []
-        const recent = response.data.recent_memories || []
+        const currentSession = response.data.current_session_memories || []
         const transient = response.data.transient_knowledge_base || []
         const persistent = response.data.persistent_knowledge_base || []
 
         console.log('Fetched memories:', {
           condensed_count: condensed.length,
-          recent_count: recent.length,
+          current_session_count: currentSession.length,
           transient_kb_count: transient.length,
           persistent_kb_count: persistent.length
         })
         setCondensedMemories(condensed)
-        setRecentMemories(recent)
+        setRecentMemories(currentSession)
         setTransientKB(transient)
         setPersistentKB(persistent)
       } else {
@@ -483,12 +483,12 @@ export default function MemoriesTab({ userId }: MemoriesTabProps) {
 
       {!isLoading && !error && (
         <>
-          {/* Recent Memories (Last 10) */}
+          {/* Current Session Memories */}
           <div>
             <div className="flex items-center gap-2 mb-4">
               <Brain className="h-5 w-5 text-teal-400" />
               <h3 className="text-lg font-semibold text-white">
-                Recent Memories (Last 10)
+                Current Session Memories
               </h3>
               <span className="px-2 py-1 bg-teal-900/40 text-teal-300 text-xs rounded-xl border border-teal-700/30">
                 {recentMemories.length}
@@ -498,7 +498,7 @@ export default function MemoriesTab({ userId }: MemoriesTabProps) {
               <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl">
                 <CardContent className="p-8 text-center">
                   <p className="text-white/60">
-                    No recent memories found.
+                    No current session memories found.
                   </p>
                 </CardContent>
               </Card>
