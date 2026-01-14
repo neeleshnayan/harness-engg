@@ -8,12 +8,8 @@ import api from "@/lib/api";
 import StrategyCard from "@/components/wallet/StrategyCard";
 
 import { CumulativeAUMChartNew } from "@/components/wallet/CumulativeAUMChartNew";
-import { useMAVCConfig, useMAVPConfig, useMAVCYearnConfig, useYearnWETHConfig, useYearnPAXGConfig } from "@/hooks/useStrategyConfig";
-import { SubgraphAnalytics } from "@/components/wallet/SubgraphAnalytics";
-import { SubgraphAnalyticsMAVP } from "@/components/wallet/SubgraphAnalyticsMAVP";
-import { SubgraphAnalyticsMAVCYearn } from "@/components/wallet/SubgraphAnalyticsMAVCYearn";
+import { useYearnWETHConfig } from "@/hooks/useStrategyConfig";
 import { SubgraphAnalyticsYearnWETH } from "@/components/wallet/SubgraphAnalyticsYearnWETH";
-import { SubgraphAnalyticsYearnPAXG } from "@/components/wallet/SubgraphAnalyticsYearnPAXG";
 import { TradingSignals } from "@/components/wallet/TradingSignals";
 import { Toaster } from "@/components/ui/toaster";
 import { HedgeFundForm } from "@/lib/types";
@@ -23,15 +19,11 @@ import WalletHeader from "@/components/wallet/WalletHeader";
 import HamburgerMenu from "@/components/wallet/HamburgerMenu";
 import { getFirebaseApp } from "@/lib/firebaseClient";
 
-type StrategyView = 'overview' | 'mavc' | 'mavp' | 'mavc-yearn' | 'yearn-weth' | 'yearn-paxg';
+type StrategyView = 'overview' | 'yearn-weth';
 
 export default function HedgeFundV2Page() {
   const router = useRouter();
-  const { data: mavcConfig, isLoading: mavcConfigLoading } = useMAVCConfig();
-  const { data: mavpConfig, isLoading: mavpConfigLoading } = useMAVPConfig();
-  const { data: mavcYearnConfig, isLoading: mavcYearnConfigLoading } = useMAVCYearnConfig();
   const { data: yearnWethConfig, isLoading: yearnWethConfigLoading } = useYearnWETHConfig();
-  const { data: yearnPaxgConfig, isLoading: yearnPaxgConfigLoading } = useYearnPAXGConfig();
   const [selectedView, setSelectedView] = useState<StrategyView>('overview');
   const [formData, setFormData] = useState<HedgeFundForm>({
     age: "",
@@ -58,7 +50,7 @@ export default function HedgeFundV2Page() {
 
   const tokenBalances = useMemo(() => {
     if (!balance || !Array.isArray(balance.tokenBalances)) {
-      return { mavc: undefined, mavp: undefined, mavcYearn: undefined, usdc: undefined };
+      return { yearnWeth: undefined, usdc: undefined };
     }
 
     let balances = balance.tokenBalances.filter((tokenBalance: any) => {
@@ -66,10 +58,6 @@ export default function HedgeFundV2Page() {
       return !isNaN(amount) && amount > 0;
     });
 
-    const mavcTokenAddress = mavcConfig?.token_address;
-    let mavcBalance: number | undefined;
-    let mavpBalance: number | undefined;
-    let mavcYearnBalance: number | undefined;
     let yearnWethBalance: number | undefined;
     let usdcBalance: number | undefined;
 
@@ -77,21 +65,14 @@ export default function HedgeFundV2Page() {
       const symbol = tokenBalance.token.symbol;
       const rawAmount = parseFloat(tokenBalance.amount || "0");
 
-      if (symbol === 'MAVC' && mavcTokenAddress &&
-        tokenBalance.token.tokenAddress?.toLowerCase() === mavcTokenAddress.toLowerCase()) {
-        mavcBalance = rawAmount / Math.pow(10, 12);
-      } else if (symbol === 'MAVP') {
-        mavpBalance = (mavpBalance || 0) + rawAmount / Math.pow(10, 12);
-      } else if (symbol === 'ysMAVC' || symbol === 'ysUSDC' || symbol === 'MAVC_YEARN' || symbol === 'MAVC-YEARN') {
-        mavcYearnBalance = (mavcYearnBalance || 0) + rawAmount;
-      } else if (symbol === 'ysWETH' || symbol === 'YEARN_WETH') {
+      if (symbol === 'ysWETH' || symbol === 'YEARN_WETH') {
         yearnWethBalance = (yearnWethBalance || 0) + rawAmount;
       } else if (symbol === 'USDC' || symbol === 'TRNSK') {
         usdcBalance = (usdcBalance || 0) + rawAmount;
       }
     });
-    return { mavc: mavcBalance, mavp: mavpBalance, mavcYearn: mavcYearnBalance, usdc: usdcBalance, yearnWeth: yearnWethBalance };
-  }, [balance, mavcConfig]);
+    return { usdc: usdcBalance, yearnWeth: yearnWethBalance };
+  }, [balance]);
 
   useEffect(() => {
     const storedUserData = localStorage.getItem('userData');
@@ -330,85 +311,7 @@ export default function HedgeFundV2Page() {
             )}
           </>
         );
-      case 'mavc':
-        return (
-          <>
-            <div className="mb-6 sm:mb-8 px-4">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-2 drop-shadow-lg">
-                Multi Asset Vault (MAVC)
-              </h1>
-              <p className="text-zinc-400 text-sm sm:text-base md:text-lg max-w-3xl">
-                Real-time on-chain analytics and subgraph data for the Multi Asset Vault strategy.
-              </p>
-            </div>
-            {mavcConfigLoading ? (
-              <div className="text-center text-zinc-400">Loading configuration...</div>
-            ) : (
-              <SubgraphAnalytics subgraphUrl={mavcConfig?.subgraph_url} />
-            )}
-          </>
-        );
-      case 'mavp':
-        return (
-          <>
-            <div className="mb-6 sm:mb-8 px-4">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-2 drop-shadow-lg">
-                Multi Asset Vault Protocol (MAVP)
-              </h1>
-              <p className="text-zinc-400 text-sm sm:text-base md:text-lg max-w-3xl">
-                Real-time on-chain analytics and subgraph data for the Multi Asset Vault Protocol strategy.
-              </p>
-            </div>
-            {mavpConfigLoading ? (
-              <div className="text-center text-zinc-400">Loading configuration...</div>
-            ) : (
-              <SubgraphAnalyticsMAVP subgraphUrl={mavpConfig?.subgraph_url} />
-            )}
-          </>
-        );
-      case 'mavc-yearn':
-        return (
-          <>
-            <div className="mb-6 sm:mb-8 px-4">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-2 drop-shadow-lg">
-                MAVC Yearn
-              </h1>
-              <p className="text-zinc-400 text-sm sm:text-base md:text-lg max-w-3xl">
-                Real-time on-chain analytics and subgraph data for the MAVC Yearn strategy.
-              </p>
-            </div>
-            {mavcYearnConfigLoading ? (
-              <div className="text-center text-zinc-400">Loading configuration...</div>
-            ) : (
-              <SubgraphAnalyticsMAVCYearn subgraphUrl={mavcYearnConfig?.subgraph_url} />
-            )}
-          </>
-        );
-      case 'yearn-paxg':
-        return (
-          <>
-            <div className="mb-6 sm:mb-8 px-4">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-2 drop-shadow-lg">
-                YEARN PAXG
-              </h1>
-              <p className="text-zinc-400 text-sm sm:text-base md:text-lg max-w-3xl">
-                Real-time on-chain analytics and trading data for the Yearn USDC/PAXG strategy.
-              </p>
-            </div>
 
-            {/* Trading Signals Section */}
-            <div className="px-4 mb-6">
-              <TradingSignals strategyName="YEARN_PAXG" />
-            </div>
-
-            {/* Subgraph Analytics */}
-            {yearnPaxgConfigLoading ? (
-              <div className="text-center text-zinc-400">Loading configuration...</div>
-            ) : (
-              <SubgraphAnalyticsYearnPAXG subgraphUrl={yearnPaxgConfig?.subgraph_url} />
-            )}
-          </>
-        );
       default:
         return (
           <>
@@ -417,9 +320,7 @@ export default function HedgeFundV2Page() {
               <div className="w-full max-w-6xl mx-auto mb-4">
                 <CumulativeAUMChartNew
                   userWalletAddress={accountData.wallet_address}
-                  mavcCurrentBalance={tokenBalances.mavc}
-                  mavpCurrentBalance={tokenBalances.mavp}
-                  mavcYearnCurrentBalance={tokenBalances.mavcYearn}
+
                   yearnWethCurrentBalance={tokenBalances.yearnWeth}
                 />
               </div>

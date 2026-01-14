@@ -4,16 +4,8 @@ import { StrategyName } from './useStrategyConfig';
 
 const getMetricId = (strategyName: StrategyName): string => {
   switch (strategyName) {
-    case 'MAVC':
-      return 'mavc-vault';
-    case 'MAVP':
-      return 'mavp-vault';
-    case 'MAVC_YEARN':
-      return 'mavc-yearn-vault';
     case 'YEARN_WETH':
       return 'yearn-weth-strategy';
-    case 'YEARN_PAXG':
-      return 'yearn-paxg-strategy';
     default:
       return '';
   }
@@ -21,16 +13,8 @@ const getMetricId = (strategyName: StrategyName): string => {
 
 const getMetricFieldName = (strategyName: StrategyName): string => {
   switch (strategyName) {
-    case 'MAVC':
-      return 'mavcvaultMetric';
-    case 'MAVP':
-      return 'mavpvaultMetric';
-    case 'MAVC_YEARN':
-      return 'mavcyearnVaultMetric';
     case 'YEARN_WETH':
       return 'yearnWethStrategyMetric';
-    case 'YEARN_PAXG':
-      return 'yearnPaxgStrategyMetric';
     default:
       return '';
   }
@@ -38,16 +22,8 @@ const getMetricFieldName = (strategyName: StrategyName): string => {
 
 const getFilterPattern = (strategyName: StrategyName): string => {
   switch (strategyName) {
-    case 'MAVC':
-      return '-MAVC-';
-    case 'MAVP':
-      return '-MAVP-';
-    case 'MAVC_YEARN':
-      return 'MAVC-YEARN';
     case 'YEARN_WETH':
       return 'YEARN-WETH';
-    case 'YEARN_PAXG':
-      return 'YEARN-PAXG';
     default:
       return '';
   }
@@ -55,16 +31,8 @@ const getFilterPattern = (strategyName: StrategyName): string => {
 
 const getSnapshotFieldName = (strategyName: StrategyName): string => {
   switch (strategyName) {
-    case 'MAVC':
-      return 'mavcvaultSnapshots';
-    case 'MAVP':
-      return 'mavpvaultSnapshots';
-    case 'MAVC_YEARN':
-      return 'mavcyearnVaultSnapshots';
     case 'YEARN_WETH':
       return 'yearnWethStrategySnapshots';
-    case 'YEARN_PAXG':
-      return 'yearnPaxgStrategySnapshots';
     default:
       return '';
   }
@@ -83,7 +51,6 @@ type MetricData = {
   totalSellSignals?: string;
   totalUsdcSwapped?: string;
   totalWethSwapped?: string;
-  totalPaxgSwapped?: string;
   currentAum?: string;
 };
 
@@ -126,7 +93,6 @@ export type Snapshot = {
   totalSellSignals?: string;
   totalUsdcSwapped?: string;
   totalWethSwapped?: string;
-  totalPaxgSwapped?: string;
   usdcBalance?: string;
   wethBalance?: string;
   wethPrice?: string;
@@ -145,8 +111,6 @@ const getSignalFilterPattern = (strategyName: StrategyName): string => {
   switch (strategyName) {
     case 'YEARN_WETH':
       return '-WETH-';
-    case 'YEARN_PAXG':
-      return '-PAXG-';
     default:
       return '';
   }
@@ -188,74 +152,6 @@ const createQuery = (strategyName: StrategyName, withOwner: boolean) => {
           wethBalance
           wethPrice
           aum
-        }
-        signalExecuteds(
-          first: 1000
-          orderBy: timestamp
-          orderDirection: desc
-        ) {
-          id
-          txHash
-          signalType
-          amountIn
-          amountOut
-          timestamp
-        }
-        deposits(
-          first: 1000
-          orderBy: timestamp
-          orderDirection: desc
-        ) {
-          id
-          txHash
-          owner
-          assets
-          shares
-          timestamp
-        }
-        withdrawals(
-          first: 1000
-          orderBy: timestamp
-          orderDirection: desc
-        ) {
-          id
-          txHash
-          owner
-          receiver
-          assets
-          shares
-          timestamp
-        }
-      }
-    `;
-  }
-
-  if (strategyName === 'YEARN_PAXG') {
-    return gql`
-      query ${strategyName}Analytics {
-        ${metricField}(id: "${metricId}") {
-          totalDeposits
-          totalWithdrawals
-          mintedShares
-          burnedShares
-          uniqueDepositors
-          uniqueWithdrawers
-          totalBuySignals
-          totalSellSignals
-          totalUsdcSwapped
-          totalPaxgSwapped
-          lastUpdated
-        }
-        ${snapshotField}(first: 100, orderBy: timestamp, orderDirection: desc) {
-          timestamp
-          totalDeposits
-          totalWithdrawals
-          mintedShares
-          burnedShares
-          totalBuySignals
-          totalSellSignals
-          totalUsdcSwapped
-          totalPaxgSwapped
         }
         signalExecuteds(
           first: 1000
@@ -394,14 +290,6 @@ const fetchSubgraph = async (subgraphUrl: string, strategyName: StrategyName, wa
     const variables = walletAddress ? { owner: walletAddress.toLowerCase() } : {};
     const data = await client.request<MetricResult>(query, variables);
 
-    // if (strategyName === 'YEARN_WBTC') {
-    //   return {
-    //     ...data,
-    //     deposits: [], 
-    //     withdrawals: []
-    //   };
-    // }
-
     if (!data) {
       console.warn(`[useStrategySubgraphData] No data returned for ${strategyName}`);
       return {
@@ -455,10 +343,5 @@ export const useStrategySubgraphData = (strategyName: StrategyName, subgraphUrl?
   });
 };
 
-// Backward compatibility exports
-export const useSubgraphData = (subgraphUrl?: string, walletAddress?: string) => useStrategySubgraphData('MAVC', subgraphUrl, walletAddress);
-export const useMAVPSubgraphData = (subgraphUrl?: string, walletAddress?: string) => useStrategySubgraphData('MAVP', subgraphUrl, walletAddress);
-export const useMAVCYearnSubgraphData = (subgraphUrl?: string, walletAddress?: string) => useStrategySubgraphData('MAVC_YEARN', subgraphUrl, walletAddress);
 export const useYearnWETHSubgraphData = (subgraphUrl?: string, walletAddress?: string) => useStrategySubgraphData('YEARN_WETH', subgraphUrl, walletAddress);
-export const useYearnPAXGSubgraphData = (subgraphUrl?: string, walletAddress?: string) => useStrategySubgraphData('YEARN_PAXG', subgraphUrl, walletAddress);
 

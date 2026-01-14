@@ -28,37 +28,13 @@ interface StrategyCardProps {
 const STRATEGY_DETAILS: Record<StrategyName, {
   tokenSymbol: string;
   routePath: string;
-  metricField: 'mavcvaultMetric' | 'mavpvaultMetric' | 'mavcyearnVaultMetric' | 'yearnWethVaultMetric' | 'yearnPaxgVaultMetric';
-  useTokenDetection?: boolean; // MAVC needs wallet_balance API for token detection
+  metricField: 'yearnWethVaultMetric';
+  useTokenDetection?: boolean;
 }> = {
-  MAVC: {
-    tokenSymbol: 'MAVC',
-    routePath: '/customer/grow/hedge-fund/mavc',
-    metricField: 'mavcvaultMetric',
-    useTokenDetection: true, // MAVC uses wallet_balance API for token detection
-  },
-  MAVP: {
-    tokenSymbol: 'MAVP',
-    routePath: '/customer/grow/hedge-fund/mavp',
-    metricField: 'mavpvaultMetric',
-    useTokenDetection: false,
-  },
-  MAVC_YEARN: {
-    tokenSymbol: 'ysMAVC',
-    routePath: '/customer/grow/hedge-fund/mavc-yearn',
-    metricField: 'mavcyearnVaultMetric',
-    useTokenDetection: false,
-  },
   YEARN_WETH: {
     tokenSymbol: 'ysWETH',
     routePath: '/customer/grow/hedge-fund-v2/yearn-weth',
     metricField: 'yearnWethVaultMetric',
-    useTokenDetection: false,
-  },
-  YEARN_PAXG: {
-    tokenSymbol: 'ysPAXG',
-    routePath: '/customer/grow/hedge-fund-v2/yearn-paxg',
-    metricField: 'yearnPaxgVaultMetric',
     useTokenDetection: false,
   },
 };
@@ -102,17 +78,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
 
   // Calculate AUM dynamically
   const calculatedAUM = useMemo(() => {
-    // For MAVC_YEARN, use Yearn's totalAssets() function directly
-    if (strategyName === 'MAVC_YEARN' && yearnAUM !== undefined) {
-      const aumInUSD = yearnAUM;
-      if (aumInUSD >= 1_000_000) {
-        return { value: aumInUSD / 1_000_000, unit: 'M' };
-      } else if (aumInUSD >= 1_000) {
-        return { value: aumInUSD / 1_000, unit: 'K' };
-      } else {
-        return { value: aumInUSD, unit: '' };
-      }
-    }
+
 
     if (!priceData?.price || netSupply === 0) {
       return { value: config?.aum ?? 8.9, unit: 'M' };
@@ -133,14 +99,14 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
 
   // Strategy metrics from config
   const strategyMetrics = {
-    name: strategyName === 'MAVC' ? 'MAVC' : strategyName === 'MAVP' ? 'MAVP' : strategyName === 'YEARN_WETH' ? 'Yearn WETH' : strategyName === 'YEARN_PAXG' ? 'Yearn PAXG' : 'MAVC Yearn',
+    name: 'Yearn WETH',
     description: config?.description ?? '',
     netApy: config?.net_apy ?? 135.3,
     aum: calculatedAUM.value,
     aumUnit: calculatedAUM.unit,
     sharpe: config?.sharpe_ratio ?? 0.85,
     maxDrawdown: config?.max_drawdown ?? 65.50,
-    lockInPeriod: config?.lock_in_period ?? (strategyName === 'MAVC_YEARN' ? 'None' : '14d'),
+    lockInPeriod: config?.lock_in_period ?? '14d',
     participants: uniqueDepositors,
     performanceFee: config?.performance_fee ?? 30.0,
     riskGrade: config?.risk_grade ?? 'D'
@@ -205,11 +171,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
               // Frontend display decimals for human-readable format
               // MAVC: divide by 10^12 to show readable numbers (e.g., 18.19 MAVC)
               // MAVP: divide by 10^12 to show readable numbers (e.g., 466.49 MAVP)
-              // MAVC_YEARN: divide by 10^18 (use contract decimals)
               let display_decimals = contract_decimals;
-              if (strategyName === 'MAVC' || strategyName === 'MAVP') {
-                display_decimals = 18; // Display with 12 decimals for readability
-              }
 
               const balanceNum = parseFloat(balance_wei) / Math.pow(10, display_decimals);
               const balance = balanceNum.toString();
@@ -245,9 +207,9 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
 
   // Calculate price in USDC (only for MAVC and MAVP, not Yearn)
   const priceInUSDC = useMemo(() => {
-    if (strategyName === 'MAVC_YEARN' || !priceData?.price) return null;
+    if (!priceData?.price) return null;
     return Number(priceData.price).toFixed(2);
-  }, [priceData, strategyName]);
+  }, [priceData]);
 
   // Handle deposit
   const handleDeposit = async (amount: string) => {
@@ -311,9 +273,6 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
               const contract_decimals = balanceResponse.data.decimals || 18;
 
               let display_decimals = contract_decimals;
-              if (strategyName === 'MAVC' || strategyName === 'MAVP') {
-                display_decimals = 18;
-              }
 
               const currentBalance = parseFloat(balance_wei) / Math.pow(10, display_decimals);
 
@@ -368,14 +327,9 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
 
       // For MAVC_YEARN: send raw decimal string (e.g., "10")
       // For other strategies: convert to wei format
-      let amountToSend: string;
-      if (strategyName === 'MAVC_YEARN') {
-        amountToSend = amount;
-      } else {
-        const amountFloat = parseFloat(amount);
-        const decimals = strategyName === 'YEARN_WETH' ? 6 : 18;
-        amountToSend = Math.floor(amountFloat * Math.pow(10, decimals)).toString();
-      }
+      const amountFloat = parseFloat(amount);
+      const decimals = 6;
+      const amountToSend = Math.floor(amountFloat * Math.pow(10, decimals)).toString();
 
       const response = await api.post(`/api/v1/strategy/${strategyName}/withdraw`, {
         amount: amountToSend,
@@ -401,9 +355,6 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
               const contract_decimals = balanceResponse.data.decimals || 18;
 
               let display_decimals = contract_decimals;
-              if (strategyName === 'MAVC' || strategyName === 'MAVP') {
-                display_decimals = 18;
-              }
 
               const currentBalance = parseFloat(balance_wei) / Math.pow(10, display_decimals);
 
@@ -440,123 +391,9 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
     }
   };
 
-  // Handle buy (YEARN_WETH and YEARN_PAXG)
-  const handleBuy = async (amount: string) => {
-    setShowModal(false);
-    try {
-      setTransactionLoading(true);
-      setTransactionError(null);
-      setTransactionSuccess(null);
-      setTransactionType('deposit'); // Reuse deposit type for buy
-      setTransactionStage('approving');
 
-      const userData = localStorage.getItem('userData');
-      if (!userData) throw new Error('User data not found');
 
-      const parsedData = JSON.parse(userData);
-      if (!parsedData.wallet_address) throw new Error('Wallet address not found');
 
-      // Convert USDC amount to wei (6 decimals, or 18 for YEARN_PAXG mock USDC)
-      const amountFloat = parseFloat(amount);
-      const usdcDecimals = strategyName === 'YEARN_PAXG' ? 18 : 6;
-      const amountWei = Math.floor(amountFloat * Math.pow(10, usdcDecimals)).toString();
-
-      setTransactionStage('confirming');
-
-      // Call buy endpoint
-      const response = await api.post(`/api/v1/strategy/${strategyName}/buy`, {
-        amount: amountWei,
-        wallet_address: parsedData.wallet_address,
-        user_id: parsedData.user_id,
-      });
-
-      if (response.data.status === 'success') {
-        setTransactionStage('success');
-        await fetchBalances();
-        if (onRefresh) onRefresh();
-        toast({
-          title: "✅ Buy Successful",
-          description: `Successfully swapped ${amount} USDC for ${strategyDetails.tokenSymbol}`,
-        });
-      }
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.detail || err.message || `Failed to buy ${strategyDetails.tokenSymbol}`;
-      setTransactionError(errorMsg);
-      setTransactionStage('error');
-      toast({
-        title: "❌ Buy Failed",
-        description: errorMsg,
-      });
-    } finally {
-      setTransactionLoading(false);
-    }
-  };
-
-  // Handle sell (YEARN_WETH and YEARN_PAXG)
-  const handleSell = async (amount: string) => {
-    setShowModal(false);
-    try {
-      setTransactionLoading(true);
-      setTransactionError(null);
-      setTransactionSuccess(null);
-      setTransactionType('withdraw'); // Reuse withdraw type for sell
-      setTransactionStage('confirming');
-
-      const userData = localStorage.getItem('userData');
-      if (!userData) throw new Error('User data not found');
-
-      const parsedData = JSON.parse(userData);
-      if (!parsedData.wallet_address) throw new Error('Wallet address not found');
-
-      // Convert token amount to wei (18 decimals for PAXG, 8 for WBTC)
-      const amountFloat = parseFloat(amount);
-      const decimals = strategyName === 'YEARN_PAXG' ? 18 : 8;
-      const amountWei = Math.floor(amountFloat * Math.pow(10, decimals)).toString();
-
-      // Call sell endpoint
-      const response = await api.post(`/api/v1/strategy/${strategyName}/sell`, {
-        amount: amountWei,
-        wallet_address: parsedData.wallet_address,
-        user_id: parsedData.user_id,
-      });
-
-      if (response.data.status === 'success') {
-        setTransactionStage('success');
-        await fetchBalances();
-        if (onRefresh) onRefresh();
-        toast({
-          title: "✅ Sell Successful",
-          description: `Successfully swapped ${amount} ${strategyDetails.tokenSymbol} for USDC`,
-        });
-      }
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.detail || err.message || `Failed to sell ${strategyDetails.tokenSymbol}`;
-      setTransactionError(errorMsg);
-      setTransactionStage('error');
-      toast({
-        title: "❌ Sell Failed",
-        description: errorMsg,
-      });
-    } finally {
-      setTransactionLoading(false);
-    }
-  };
-
-  const openBuyModal = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setModalAction('deposit'); // Reuse deposit action for buy
-    setShowModal(true);
-    setTransactionError(null);
-    setTransactionSuccess(null);
-  };
-
-  const openSellModal = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setModalAction('withdraw'); // Reuse withdraw action for sell
-    setShowModal(true);
-    setTransactionError(null);
-    setTransactionSuccess(null);
-  };
 
   const openDepositModal = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -697,57 +534,30 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
             )}
           </div>
           <div className="flex gap-2 w-full">
-            {strategyName === 'YEARN_PAXG' ? (
-              <>
-                <Button
-                  size="sm"
-                  className="flex-1 font-bold text-xs sm:text-sm bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
-                  onClick={openBuyModal}
-                >
-                  <ArrowDown className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                  Buy
-                </Button>
-                <Button
-                  size="sm"
-                  className={cn(
-                    "flex-1 font-bold text-xs sm:text-sm",
-                    parseFloat(strategyBalance) === 0
-                      ? "bg-zinc-600/50 text-zinc-400 cursor-not-allowed hover:bg-zinc-600/50"
-                      : "bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700"
-                  )}
-                  onClick={openSellModal}
-                  disabled={parseFloat(strategyBalance) === 0}
-                >
-                  <ArrowUp className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                  Sell
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  size="sm"
-                  className="flex-1 font-bold text-xs sm:text-sm bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
-                  onClick={openDepositModal}
-                >
-                  <ArrowDown className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                  Deposit
-                </Button>
-                <Button
-                  size="sm"
-                  className={cn(
-                    "flex-1 font-bold text-xs sm:text-sm",
-                    parseFloat(strategyBalance) === 0
-                      ? "bg-zinc-600/50 text-zinc-400 cursor-not-allowed hover:bg-zinc-600/50"
-                      : "bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700"
-                  )}
-                  onClick={openWithdrawModal}
-                  disabled={parseFloat(strategyBalance) === 0}
-                >
-                  <ArrowUp className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                  Withdraw
-                </Button>
-              </>
-            )}
+            <>
+              <Button
+                size="sm"
+                className="flex-1 font-bold text-xs sm:text-sm bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                onClick={openDepositModal}
+              >
+                <ArrowDown className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                Deposit
+              </Button>
+              <Button
+                size="sm"
+                className={cn(
+                  "flex-1 font-bold text-xs sm:text-sm",
+                  parseFloat(strategyBalance) === 0
+                    ? "bg-zinc-600/50 text-zinc-400 cursor-not-allowed hover:bg-zinc-600/50"
+                    : "bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700"
+                )}
+                onClick={openWithdrawModal}
+                disabled={parseFloat(strategyBalance) === 0}
+              >
+                <ArrowUp className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                Withdraw
+              </Button>
+            </>
           </div>
         </CardFooter>
       </Card>
@@ -759,16 +569,16 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
         strategyName={strategyName}
         strategyBalance={strategyBalance}
         usdcBalance={usdcBalanceState}
-        onDeposit={strategyName === 'YEARN_PAXG' ? handleBuy : handleDeposit}
-        onWithdraw={strategyName === 'YEARN_PAXG' ? handleSell : handleWithdraw}
+        onDeposit={handleDeposit}
+        onWithdraw={handleWithdraw}
         loading={transactionLoading}
         error={transactionError}
         success={transactionSuccess}
         price={priceInUSDC || undefined}
-        pricePerShare={strategyName === 'MAVC_YEARN' ? vaultPricePerShare : undefined}
+        pricePerShare={undefined}
         walletAddress={walletAddress}
-        tokenAddress={config?.token_address || config?.vault_address || config?.contract_address}
-        vaultAddress={config?.vault_address || config?.contract_address}
+        tokenAddress={config?.token_address || config?.vault_address}
+        vaultAddress={config?.vault_address}
       />
     </>
   );

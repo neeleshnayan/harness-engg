@@ -32,16 +32,8 @@ interface StrategyModalProps {
 
 const getTokenSymbol = (strategyName: StrategyName): string => {
   switch (strategyName) {
-    case 'MAVC':
-      return 'MAVC';
-    case 'MAVP':
-      return 'MAVP';
-    case 'MAVC_YEARN':
-      return 'ysMAVC';
     case 'YEARN_WETH':
       return 'ysWETH';
-    case 'YEARN_PAXG':
-      return 'ysPAXG';
     default:
       return 'TOKEN';
   }
@@ -52,24 +44,7 @@ const formatStrategyBalance = (balance: string, strategyName: StrategyName): str
   const numBalance = parseFloat(balance);
   if (!Number.isFinite(numBalance) || numBalance === 0) return '0.00';
 
-  switch (strategyName) {
-    case 'MAVP':
-      // MAVP needs more precision (shows like MAVC / 10^12, so very small numbers)
-      if (numBalance < 0.00000001) return numBalance.toExponential(4);
-      if (numBalance < 0.0001) return numBalance.toFixed(10);
-      if (numBalance < 0.01) return numBalance.toFixed(8);
-      if (numBalance < 1) return numBalance.toFixed(6);
-      if (numBalance < 100) return numBalance.toFixed(4);
-      return numBalance.toFixed(2);
-    case 'MAVC':
-    case 'MAVC_YEARN':
-    case 'YEARN_WETH':
-    case 'YEARN_PAXG':
-      // Standard formatting for Yearn schemes
-      return numBalance.toFixed(2);
-    default:
-      return numBalance.toFixed(2);
-  }
+  return numBalance.toFixed(2);
 };
 
 const StrategyModal: React.FC<StrategyModalProps> = ({
@@ -117,10 +92,10 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
     }
   }, [visible]);
 
-  // Estimate transaction likelihood when amount changes (for MAVC/MAVP)
+  // Estimate transaction likelihood when amount changes
   useEffect(() => {
     const estimateLikelihood = async () => {
-      if (!amount || parseFloat(amount) <= 0 || strategyName === 'MAVC_YEARN') {
+      if (!amount || parseFloat(amount) <= 0) {
         setLikelihoodResult(null);
         return;
       }
@@ -139,6 +114,7 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
       const statusMessage = result.warnings.length > 0
         ? result.warnings.join('. ')
         : 'Ready to process';
+
       setTransactionStatus({
         stage: result.likelihood === 'very_unlikely' ? 'failed' : 'validating',
         likelihood: result.likelihood,
@@ -147,23 +123,16 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
     };
 
     estimateLikelihood();
-  }, [amount, isDeposit, usdcBalance, strategyBalance, walletAddress, tokenAddress, action, strategyName]);
+  }, [amount, isDeposit, usdcBalance, strategyBalance, walletAddress, tokenAddress, action]);
 
   // For Yearn: Calculate share/asset estimates
   const [estimatedShares, setEstimatedShares] = useState<number>(0);
   const [estimatedAssets, setEstimatedAssets] = useState<number>(0);
 
   useEffect(() => {
-    if (strategyName === 'MAVC_YEARN') {
-      const amountFloat = parseFloat(amount || "0");
-      if (isDeposit) {
-        const shares = amountFloat / pricePerShare;
-        setEstimatedShares(shares);
-      } else {
-        const assets = amountFloat * pricePerShare;
-        setEstimatedAssets(assets);
-      }
-    }
+    // Logic for estimated shares if needed for YEARN_WETH
+    // Currently removed MAVC_YEARN specific logic
+    // If YEARN_WETH needs estimation, we can add it here later
   }, [amount, isDeposit, pricePerShare, strategyName]);
 
   if (!visible) return null;
@@ -285,36 +254,17 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="0.00"
-                    step={strategyName === 'MAVP' ? "0.00000001" : "0.000001"}
+                    step="0.000001"
                     min="0"
                     max={maxAmount}
                     className="w-full px-4 py-3 border border-zinc-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-zinc-800 text-white"
                     disabled={loading}
                   />
 
-                  {/* Show estimates */}
-                  {strategyName === 'MAVC_YEARN' && amount && parseFloat(amount) > 0 && (
-                    <div className="mt-2 p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg">
-                      {isDeposit ? (
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-zinc-300">You will receive approximately:</span>
-                          <span className="text-lg font-semibold text-blue-400">
-                            {estimatedShares.toFixed(6)} {tokenSymbol}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-zinc-300">You will receive approximately:</span>
-                          <span className="text-lg font-semibold text-blue-400">
-                            ${estimatedAssets.toFixed(2)} USDC
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
 
-                  {/* Show approximate USDC for withdrawal (MAVC/MAVP) */}
-                  {!isDeposit && amount && price && parseFloat(amount) > 0 && strategyName !== 'MAVC_YEARN' && (
+
+                  {/* Show approximate USDC for withdrawal */}
+                  {!isDeposit && amount && price && parseFloat(amount) > 0 && (
                     <div className="mt-2 p-3 bg-green-900/20 border border-green-700/30 rounded-lg">
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-zinc-300">You will receive approximately:</span>
@@ -363,7 +313,7 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
               </div>
 
               {/* Transaction Status Indicator - Show during processing or when there's a likelihood estimate */}
-              {(loading || (likelihoodResult && amount && parseFloat(amount) > 0 && strategyName !== 'MAVC_YEARN')) && (
+              {(loading || (likelihoodResult && amount && parseFloat(amount) > 0)) && (
                 <TransactionStatusIndicator
                   likelihoodResult={likelihoodResult || undefined}
                   status={transactionStatus}
@@ -371,14 +321,7 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
                 />
               )}
 
-              {strategyName === 'MAVC_YEARN' && (
-                <Alert className="bg-blue-900/20 border-blue-700/30 text-blue-200">
-                  <Info className="h-4 w-4" />
-                  <AlertDescription>
-                    Yearn vaults use a share-based system. Your deposit will be converted to vault shares based on the current share price.
-                  </AlertDescription>
-                </Alert>
-              )}
+
 
               <div className="flex space-x-3 pt-4">
                 <Button
