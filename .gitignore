@@ -5,6 +5,7 @@
 /KryptonPay_Backend
 # dependencies
 /node_modules
+
 /.pnp
 .pnp.*
 .yarn/*
@@ -13,6 +14,7 @@
 !.yarn/releases
 !.yarn/versions
 
+./node_modules/
 # testing
 /coverage
 

@@ -4,13 +4,13 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { getAuth, signOut } from "firebase/auth";
 import { ArrowLeft, CheckCircle, AlertCircle, SlidersHorizontal } from "lucide-react";
-import api from "@/lib/api";
+import api, { hedgeFundApi } from "@/lib/api";
 import StrategyCard from "@/components/wallet/StrategyCard";
+
 import { CumulativeAUMChartNew } from "@/components/wallet/CumulativeAUMChartNew";
-import { useMAVCConfig, useMAVPConfig, useMAVCYearnConfig } from "@/hooks/useStrategyConfig";
-import { SubgraphAnalytics } from "@/components/wallet/SubgraphAnalytics";
-import { SubgraphAnalyticsMAVP } from "@/components/wallet/SubgraphAnalyticsMAVP";
-import { SubgraphAnalyticsMAVCYearn } from "@/components/wallet/SubgraphAnalyticsMAVCYearn";
+import { useYearnWETHConfig } from "@/hooks/useStrategyConfig";
+import { SubgraphAnalyticsYearnWETH } from "@/components/wallet/SubgraphAnalyticsYearnWETH";
+import { TradingSignals } from "@/components/wallet/TradingSignals";
 import { Toaster } from "@/components/ui/toaster";
 import { HedgeFundForm } from "@/lib/types";
 import HedgeFundQuestionnaire from "@/components/HedgeFundQuestionnaire";
@@ -19,13 +19,11 @@ import WalletHeader from "@/components/wallet/WalletHeader";
 import HamburgerMenu from "@/components/wallet/HamburgerMenu";
 import { getFirebaseApp } from "@/lib/firebaseClient";
 
-type StrategyView = 'overview' | 'mavc' | 'mavp' | 'mavc-yearn';
+type StrategyView = 'overview' | 'yearn-weth';
 
 export default function HedgeFundV2Page() {
   const router = useRouter();
-  const { data: mavcConfig, isLoading: mavcConfigLoading } = useMAVCConfig();
-  const { data: mavpConfig, isLoading: mavpConfigLoading } = useMAVPConfig();
-  const { data: mavcYearnConfig, isLoading: mavcYearnConfigLoading } = useMAVCYearnConfig();
+  const { data: yearnWethConfig, isLoading: yearnWethConfigLoading } = useYearnWETHConfig();
   const [selectedView, setSelectedView] = useState<StrategyView>('overview');
   const [formData, setFormData] = useState<HedgeFundForm>({
     age: "",
@@ -52,7 +50,7 @@ export default function HedgeFundV2Page() {
 
   const tokenBalances = useMemo(() => {
     if (!balance || !Array.isArray(balance.tokenBalances)) {
-      return { mavc: undefined, mavp: undefined, mavcYearn: undefined };
+      return { yearnWeth: undefined, usdc: undefined };
     }
 
     let balances = balance.tokenBalances.filter((tokenBalance: any) => {
@@ -60,26 +58,21 @@ export default function HedgeFundV2Page() {
       return !isNaN(amount) && amount > 0;
     });
 
-    const mavcTokenAddress = mavcConfig?.token_address;
-    let mavcBalance: number | undefined;
-    let mavpBalance: number | undefined;
-    let mavcYearnBalance: number | undefined;
+    let yearnWethBalance: number | undefined;
+    let usdcBalance: number | undefined;
 
     balances.forEach((tokenBalance: any) => {
       const symbol = tokenBalance.token.symbol;
       const rawAmount = parseFloat(tokenBalance.amount || "0");
 
-      if (symbol === 'MAVC' && mavcTokenAddress && 
-          tokenBalance.token.tokenAddress?.toLowerCase() === mavcTokenAddress.toLowerCase()) {
-        mavcBalance = rawAmount / Math.pow(10, 12);
-      } else if (symbol === 'MAVP') {
-        mavpBalance = (mavpBalance || 0) + rawAmount / Math.pow(10, 12);
-      } else if (symbol === 'ysMAVC' || symbol === 'ysUSDC' || symbol === 'MAVC_YEARN' || symbol === 'MAVC-YEARN') {
-        mavcYearnBalance = (mavcYearnBalance || 0) + rawAmount;
+      if (symbol === 'ysWETH' || symbol === 'YEARN_WETH') {
+        yearnWethBalance = (yearnWethBalance || 0) + rawAmount;
+      } else if (symbol === 'USDC' || symbol === 'TRNSK') {
+        usdcBalance = (usdcBalance || 0) + rawAmount;
       }
     });
-    return { mavc: mavcBalance, mavp: mavpBalance, mavcYearn: mavcYearnBalance };
-  }, [balance, mavcConfig]);
+    return { usdc: usdcBalance, yearnWeth: yearnWethBalance };
+  }, [balance]);
 
   useEffect(() => {
     const storedUserData = localStorage.getItem('userData');
@@ -87,12 +80,12 @@ export default function HedgeFundV2Page() {
       const parsedData = JSON.parse(storedUserData);
       setUserData(parsedData);
       setAccountData(parsedData);
-      
+
       // Fetch balance if wallet address exists
       if (parsedData.wallet_address) {
         fetchBalance(parsedData.wallet_address);
       }
-      
+
       // Check if user has already submitted a questionnaire
       if (parsedData?.user_id) {
         // checkExistingSubmission(parsedData.user_id);
@@ -142,13 +135,13 @@ export default function HedgeFundV2Page() {
 
   const checkExistingSubmission = async (userId: string) => {
     try {
-      const response = await api.get(`/api/v1/hedge-fund/${userId}`);
+      const response = await hedgeFundApi.get(`/api/v1/hedge-fund/${userId}`);
       if (response.status === 200 && response.data.status === "success") {
         const submissionData = response.data.data;
         setExistingSubmission(submissionData);
         setIsEditing(true);
         setShowDashboard(true); // Show dashboard if user has completed questionnaire
-        
+
         // Pre-populate form with existing data
         setFormData({
           age: submissionData.age,
@@ -174,11 +167,11 @@ export default function HedgeFundV2Page() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate all fields are filled
     const requiredFields = Object.keys(formData) as (keyof HedgeFundForm)[];
     const emptyFields = requiredFields.filter(field => !formData[field]);
-    
+
     if (emptyFields.length > 0) {
       setError("Please fill in all required fields");
       return;
@@ -189,7 +182,7 @@ export default function HedgeFundV2Page() {
 
     try {
       const endpoint = isEditing ? "/api/v1/hedge-fund/update" : "/api/v1/hedge-fund/submit";
-      const response = await api.post(endpoint, {
+      const response = await hedgeFundApi.post(endpoint, {
         user_id: userData?.user_id,
         submission_id: existingSubmission?.id, // Include submission ID for updates
         ...formData
@@ -217,14 +210,14 @@ export default function HedgeFundV2Page() {
     }
   };
 
-  const RadioGroup = ({ 
-    title, 
-    field, 
-    options 
-  }: { 
-    title: string; 
-    field: keyof HedgeFundForm; 
-    options: { value: string; label: string }[] 
+  const RadioGroup = ({
+    title,
+    field,
+    options
+  }: {
+    title: string;
+    field: keyof HedgeFundForm;
+    options: { value: string; label: string }[]
   }) => (
     <div className="mb-8 p-6 bg-zinc-900/50 rounded-xl border border-zinc-700/50">
       <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
@@ -293,60 +286,32 @@ export default function HedgeFundV2Page() {
 
   const renderStrategyDetail = () => {
     switch (selectedView) {
-      case 'mavc':
+      case 'yearn-weth':
         return (
           <>
             <div className="mb-6 sm:mb-8 px-4">
               <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-2 drop-shadow-lg">
-                Multi Asset Vault (MAVC)
+                YEARN WETH
               </h1>
               <p className="text-zinc-400 text-sm sm:text-base md:text-lg max-w-3xl">
-                Real-time on-chain analytics and subgraph data for the Multi Asset Vault strategy.
+                Real-time on-chain analytics and trading data for the Yearn USDC/WETH strategy.
               </p>
             </div>
-            {mavcConfigLoading ? (
+
+            {/* Trading Signals Section */}
+            <div className="px-4 mb-6">
+              <TradingSignals strategyName="YEARN_WETH" />
+            </div>
+
+            {/* Subgraph Analytics */}
+            {yearnWethConfigLoading ? (
               <div className="text-center text-zinc-400">Loading configuration...</div>
             ) : (
-              <SubgraphAnalytics subgraphUrl={mavcConfig?.subgraph_url} />
+              <SubgraphAnalyticsYearnWETH subgraphUrl={yearnWethConfig?.subgraph_url} />
             )}
           </>
         );
-      case 'mavp':
-        return (
-          <>
-            <div className="mb-6 sm:mb-8 px-4">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-2 drop-shadow-lg">
-                Multi Asset Vault Protocol (MAVP)
-              </h1>
-              <p className="text-zinc-400 text-sm sm:text-base md:text-lg max-w-3xl">
-                Real-time on-chain analytics and subgraph data for the Multi Asset Vault Protocol strategy.
-              </p>
-            </div>
-            {mavpConfigLoading ? (
-              <div className="text-center text-zinc-400">Loading configuration...</div>
-            ) : (
-              <SubgraphAnalyticsMAVP subgraphUrl={mavpConfig?.subgraph_url} />
-            )}
-          </>
-        );
-      case 'mavc-yearn':
-        return (
-          <>
-            <div className="mb-6 sm:mb-8 px-4">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-2 drop-shadow-lg">
-                MAVC Yearn
-              </h1>
-              <p className="text-zinc-400 text-sm sm:text-base md:text-lg max-w-3xl">
-                Real-time on-chain analytics and subgraph data for the MAVC Yearn strategy.
-              </p>
-            </div>
-            {mavcYearnConfigLoading ? (
-              <div className="text-center text-zinc-400">Loading configuration...</div>
-            ) : (
-              <SubgraphAnalyticsMAVCYearn subgraphUrl={mavcYearnConfig?.subgraph_url} />
-            )}
-          </>
-        );
+
       default:
         return (
           <>
@@ -355,9 +320,8 @@ export default function HedgeFundV2Page() {
               <div className="w-full max-w-6xl mx-auto mb-4">
                 <CumulativeAUMChartNew
                   userWalletAddress={accountData.wallet_address}
-                  mavcCurrentBalance={tokenBalances.mavc}
-                  mavpCurrentBalance={tokenBalances.mavp}
-                  mavcYearnCurrentBalance={tokenBalances.mavcYearn}
+
+                  yearnWethCurrentBalance={tokenBalances.yearnWeth}
                 />
               </div>
             )}
@@ -365,25 +329,16 @@ export default function HedgeFundV2Page() {
             <section id="clark-chat" className="w-full max-w-6xl mx-auto mb-4 relative">
               <MiniHedgeFundChat userId={accountData?.user_id} />
             </section>
-            
+
             {/* Strategy Cards */}
             <div className="w-full max-w-6xl mx-auto mb-8 sm:mb-12 px-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Tokenized Strategies</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Available Strategies</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 <StrategyCard
-                  strategyName="MAVC"
+                  strategyName="YEARN_WETH"
                   onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
-                  onCardClick={() => setSelectedView('mavc')}
-                />
-                <StrategyCard
-                  strategyName="MAVP"
-                  onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
-                  onCardClick={() => setSelectedView('mavp')}
-                />
-                <StrategyCard
-                  strategyName="MAVC_YEARN"
-                  onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
-                  onCardClick={() => setSelectedView('mavc-yearn')}
+                  onCardClick={() => setSelectedView('yearn-weth')}
+                  usdcBalance={tokenBalances.usdc?.toString()}
                 />
               </div>
             </div>
@@ -433,47 +388,7 @@ export default function HedgeFundV2Page() {
           {/* Header */}
           {selectedView === 'overview' && (
             <>
-              {/* Mobile: Title and buttons on same row */}
-              {/* <div className="flex items-center justify-between gap-3 mb-4 sm:hidden px-4">
-                <h1 className="text-4xl font-extrabold text-white drop-shadow-lg">
-                  Hedge Fund
-                </h1>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowQuestionnaire(true)}
-                    className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-3 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-xs justify-center flex items-center"
-                  >
-                    <SlidersHorizontal className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => router.push('/customer/grow')}
-                    className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-3 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-xs justify-center flex items-center"
-                  >
-                    ←
-                  </button>
-                </div>
-              </div> */}
-
-              {/* Desktop: Centered header with buttons in separate row */}
-              {/* <div className="hidden sm:block">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
-                  <div className="w-full sm:flex-1" />
-                  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                    <button
-                      onClick={() => setShowQuestionnaire(true)}
-                      className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-4 sm:px-6 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-xs sm:text-sm w-full sm:w-auto justify-center flex items-center"
-                    >
-                      <SlidersHorizontal className="h-4 w-4 mr-2" />
-                    </button>
-                    <button
-                      onClick={() => router.push('/customer/grow')}
-                      className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-4 sm:px-6 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-xs sm:text-sm w-full sm:w-auto justify-center flex items-center"
-                    >
-                      ←
-                    </button>
-                  </div>
-                </div>
-              </div> */}
+              {/* V1 Header retained content would go here if needed, but implementation above handles it via WalletHeader */}
             </>
           )}
 

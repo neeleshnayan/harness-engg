@@ -1,26 +1,22 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { ComposedChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, Line } from "recharts";
 import { TrendingUp, Activity } from "lucide-react";
-import { useMAVCConfig, useMAVPConfig, useMAVCYearnConfig } from "@/hooks/useStrategyConfig";
-import { useMAVCPriceHistory, useMAVPPriceHistory } from "@/hooks/useStrategyPrice";
-import { useSubgraphData, useMAVPSubgraphData, useMAVCYearnSubgraphData } from "@/hooks/useStrategySubgraphData";
+import { useYearnWETHConfig } from "@/hooks/useStrategyConfig";
+import { useYearnWETHSubgraphData } from "@/hooks/useStrategySubgraphData";
+import { hedgeFundApi } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface CumulativeAUMChartNewProps {
   userWalletAddress?: string;
-  mavcCurrentBalance?: number;
-  mavpCurrentBalance?: number;
-  mavcYearnCurrentBalance?: number;
+  yearnWethCurrentBalance?: number;
 }
 
 type DataPoint = {
   timestamp: number;
   date: string;
   totalAUM: number;
-  mavcAUM: number;
-  mavpAUM: number;
-  mavcYearnAUM: number;
+  yearnWethAUM: number;
 };
 
 type TimescaleOption = "15m" | "1h" | "1d" | "30d" | "1mo";
@@ -74,22 +70,10 @@ const CustomTooltip = ({ active, payload }: any) => {
         Total: {formatAUM(data.totalAUM)}
       </p>
       <div className="space-y-1">
-        {data.mavcAUM > 0 && (
+        {data.yearnWethAUM > 0 && (
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-            <span className="text-xs text-zinc-300">MAVC: {formatAUM(data.mavcAUM)}</span>
-          </div>
-        )}
-        {data.mavpAUM > 0 && (
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-            <span className="text-xs text-zinc-300">MAVP: {formatAUM(data.mavpAUM)}</span>
-          </div>
-        )}
-        {data.mavcYearnAUM > 0 && (
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-            <span className="text-xs text-zinc-300">MAVC Yearn: {formatAUM(data.mavcYearnAUM)}</span>
+            <div className="w-3 h-3 rounded-full bg-cyan-500"></div>
+            <span className="text-xs text-zinc-300">Yearn WETH: {formatAUM(data.yearnWethAUM)}</span>
           </div>
         )}
       </div>
@@ -99,55 +83,36 @@ const CustomTooltip = ({ active, payload }: any) => {
 
 export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
   userWalletAddress,
-  mavcCurrentBalance,
-  mavpCurrentBalance,
-  mavcYearnCurrentBalance
+  yearnWethCurrentBalance
 }) => {
   const [selectedTimescale, setSelectedTimescale] = useState<TimescaleOption>("30d");
-  const [actualMavcYearnBalance, setActualMavcYearnBalance] = useState<number | undefined>(undefined);
 
-  const { data: mavcConfig, isLoading: mavcConfigLoading } = useMAVCConfig();
-  const { data: mavpConfig, isLoading: mavpConfigLoading } = useMAVPConfig();
-  const { data: mavcYearnConfig, isLoading: mavcYearnConfigLoading } = useMAVCYearnConfig();
-  const { data: mavcPriceHistory, isLoading: mavcPriceLoading } = useMAVCPriceHistory(mavcConfig?.subgraph_url);
-  const { data: mavpPriceHistory, isLoading: mavpPriceLoading } = useMAVPPriceHistory(mavpConfig?.subgraph_url);
-  const { data: mavcSubgraphData, isLoading: mavcSubgraphLoading } = useSubgraphData(mavcConfig?.subgraph_url, userWalletAddress);
-  const { data: mavpSubgraphData, isLoading: mavpSubgraphLoading } = useMAVPSubgraphData(mavpConfig?.subgraph_url, userWalletAddress);
-  const { data: mavcYearnSubgraphData, isLoading: mavcYearnSubgraphLoading } = useMAVCYearnSubgraphData(mavcYearnConfig?.subgraph_url, userWalletAddress);
+  const { data: yearnWethConfig, isLoading: yearnWethConfigLoading } = useYearnWETHConfig();
 
-  // Fetch MAVC Yearn balance directly from the vault API using config
-  // Uses the same endpoint as StrategyCard: /api/v1/strategy/MAVC_YEARN/balance/{wallet}
+  const { data: yearnWethSubgraphData, isLoading: yearnWethSubgraphLoading } = useYearnWETHSubgraphData(yearnWethConfig?.subgraph_url, userWalletAddress);
+
+  const [actualYearnWethBalance, setActualYearnWethBalance] = useState<number | undefined>(undefined);
+
+  // Fetch Yearn WETH balance directly
   useEffect(() => {
-    const fetchMavcYearnBalance = async () => {
-      if (!userWalletAddress || !mavcYearnConfig?.vault_address) return;
+    const fetchYearnWethBalance = async () => {
+      if (!userWalletAddress || !yearnWethConfig?.vault_address) return;
 
       try {
-        const response = await fetch(`/api/v1/strategy/MAVC_YEARN/balance/${userWalletAddress}`);
-        if (!response.ok) {
-          return;
-        }
-
-        const data = await response.json();
+        const response = await hedgeFundApi.get(`/api/v1/strategy/YEARN_WETH/balance/${userWalletAddress}`);
+        const data = response.data;
         if (data.balance) {
-          const balance_wei = data.balance || "0";
-          const contract_decimals = data.decimals || 6;
-          const balance = Number(balance_wei) / Math.pow(10, contract_decimals);
-          setActualMavcYearnBalance(balance);
+          const balance = Number(data.balance) / Math.pow(10, data.decimals || 6);
+          setActualYearnWethBalance(balance);
         }
-      } catch (error) {
-        // Silently handle error - balance will fallback to transaction-derived value
-      }
+      } catch (error) { }
     };
-
-    fetchMavcYearnBalance();
-    // Refetch every 10 seconds
-    const interval = setInterval(fetchMavcYearnBalance, 10000);
+    fetchYearnWethBalance();
+    const interval = setInterval(fetchYearnWethBalance, 10000);
     return () => clearInterval(interval);
-  }, [userWalletAddress, mavcYearnConfig?.vault_address]);
+  }, [userWalletAddress, yearnWethConfig?.vault_address]);
 
-  const isLoading = mavcConfigLoading || mavpConfigLoading || mavcYearnConfigLoading ||
-                    mavcPriceLoading || mavpPriceLoading || mavcSubgraphLoading ||
-                    mavpSubgraphLoading || mavcYearnSubgraphLoading;
+  const isLoading = yearnWethConfigLoading || yearnWethSubgraphLoading;
 
   // Build timeline data
   const chartData = useMemo(() => {
@@ -157,220 +122,81 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
     const currentTime = Math.floor(Date.now() / 1000);
 
     // Get all user transactions (already filtered by wallet address in GraphQL query)
-    const mavcDeposits = mavcSubgraphData?.deposits || [];
-    const mavcWithdrawals = mavcSubgraphData?.withdrawals || [];
-
-    const mavpDeposits = mavpSubgraphData?.deposits || [];
-    const mavpWithdrawals = mavpSubgraphData?.withdrawals || [];
-
-    const mavcYearnDeposits = mavcYearnSubgraphData?.deposits || [];
-    const mavcYearnWithdrawals = mavcYearnSubgraphData?.withdrawals || [];
-
-    // Create combined price history
-    const combinedPriceHistory: Array<{ timestamp: number; price: number; strategy: string }> = [];
-
-    (mavcPriceHistory || []).forEach((p: any) => {
-      combinedPriceHistory.push({
-        timestamp: Number(p.timestamp),
-        price: Number(p.price),
-        strategy: 'MAVC'
-      });
-    });
-
-    (mavpPriceHistory || []).forEach((p: any) => {
-      combinedPriceHistory.push({
-        timestamp: Number(p.timestamp),
-        price: Number(p.price),
-        strategy: 'MAVP'
-      });
-    });
-
-    combinedPriceHistory.sort((a, b) => a.timestamp - b.timestamp);
-
-    // Get price at specific timestamp
-    const getPriceAt = (timestamp: number, strategy: string): number => {
-      // MAVC_YEARN is always 1:1 with USDC, no price history needed
-      if (strategy === 'MAVC_YEARN') {
-        return 1; // Fixed price
-      }
-      
-      let price = 0;
-      for (const p of combinedPriceHistory) {
-        if (p.timestamp <= timestamp && p.strategy === strategy) {
-          price = p.price;
-        }
-      }
-      // Fallback to latest price if not found
-      if (price === 0) {
-        const latest = combinedPriceHistory.filter(p => p.strategy === strategy).slice(-1)[0];
-        price = latest?.price || 0;
-      }
-      return price;
-    };
+    const yearnWethDeposits = yearnWethSubgraphData?.deposits || [];
+    const yearnWethWithdrawals = yearnWethSubgraphData?.withdrawals || [];
 
     // Collect all transaction timestamps
     const allTimestamps = new Set<number>();
-    mavcDeposits.forEach((d: any) => allTimestamps.add(Number(d.timestamp)));
-    mavcWithdrawals.forEach((w: any) => allTimestamps.add(Number(w.timestamp)));
-    mavpDeposits.forEach((d: any) => allTimestamps.add(Number(d.timestamp)));
-    mavpWithdrawals.forEach((w: any) => allTimestamps.add(Number(w.timestamp)));
-    mavcYearnDeposits.forEach((d: any) => allTimestamps.add(Number(d.timestamp)));
-    mavcYearnWithdrawals.forEach((w: any) => allTimestamps.add(Number(w.timestamp)));
+    yearnWethDeposits.forEach((d: any) => allTimestamps.add(Number(d.timestamp)));
+    yearnWethWithdrawals.forEach((w: any) => allTimestamps.add(Number(w.timestamp)));
 
     const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b);
 
     // Build cumulative balance over time
     const dataPoints: DataPoint[] = [];
-    let mavcShares = 0;
-    let mavpShares = 0;
-    let mavcYearnShares = 0;
+    let yearnWethShares = 0;
 
     for (const timestamp of sortedTimestamps) {
       // Process deposits
-      mavcDeposits.forEach((d: any) => {
-        if (Number(d.timestamp) === timestamp) {
-          mavcShares += Number(d.shares); // Use directly, already normalized!
-        }
-      });
-
-      mavpDeposits.forEach((d: any) => {
-        if (Number(d.timestamp) === timestamp) {
-          mavpShares += Number(d.shares); // Use directly, already normalized!
-        }
-      });
-
-      mavcYearnDeposits.forEach((d: any) => {
-        if (Number(d.timestamp) === timestamp) {
-          // For MAVC Yearn, use assets (USDC amount) instead of shares
-          // Shares represent vault fractions which can be very small decimals
-          // Assets represent the actual USDC amount deposited
-          const assetsAmount = Number(d.assets) || 0;
-          mavcYearnShares += assetsAmount;
-        }
+      yearnWethDeposits.forEach((d: any) => {
+        if (Number(d.timestamp) === timestamp) yearnWethShares += (Number(d.assets) || 0);
       });
 
       // Process withdrawals
-      mavcWithdrawals.forEach((w: any) => {
-        if (Number(w.timestamp) === timestamp) {
-          mavcShares -= Number(w.shares); // Use directly, already normalized!
-        }
+      yearnWethWithdrawals.forEach((w: any) => {
+        if (Number(w.timestamp) === timestamp) yearnWethShares -= (Number(w.assets) || 0);
       });
 
-      mavpWithdrawals.forEach((w: any) => {
-        if (Number(w.timestamp) === timestamp) {
-          mavpShares -= Number(w.shares); // Use directly, already normalized!
-        }
-      });
-
-      mavcYearnWithdrawals.forEach((w: any) => {
-        if (Number(w.timestamp) === timestamp) {
-          // For MAVC Yearn, use assets (USDC amount) instead of shares
-          // Shares represent vault fractions which can be very small decimals
-          // Assets represent the actual USDC amount withdrawn
-          const assetsAmount = Number(w.assets) || 0;
-          mavcYearnShares -= assetsAmount;
-        }
-      });
-
-      // Get prices at this timestamp
-      const mavcPrice = getPriceAt(timestamp, 'MAVC');
-      const mavpPrice = getPriceAt(timestamp, 'MAVP');
-
-      // Calculate AUM
-      const mavcAUM = mavcShares * mavcPrice;
-      const mavpAUM = mavpShares * mavpPrice;
-      const mavcYearnAUM = mavcYearnShares; // 1:1 with USDC
-      const totalAUM = mavcAUM + mavpAUM + mavcYearnAUM;
+      // Calculate AUM (USDC assets as value)
+      const yearnWethAUM = yearnWethShares;
+      const totalAUM = yearnWethAUM;
 
       dataPoints.push({
         timestamp,
         date: formatDate(timestamp, selectedTimescale),
         totalAUM,
-        mavcAUM,
-        mavpAUM,
-        mavcYearnAUM
+        yearnWethAUM
       });
     }
 
-    // Use current balances to ensure we show latest state
-    // This handles cases where the user has a balance but no subgraph transactions yet
-    const latestMavcPrice = getPriceAt(currentTime, 'MAVC');
-    const latestMavpPrice = getPriceAt(currentTime, 'MAVP');
-
     // Use the actual current balances from the API as the source of truth
-    // Important: Only use current balance if it's actually defined and > 0
-    // Otherwise use accumulated shares from transactions
-    const currentMavcShares = (mavcCurrentBalance !== undefined && mavcCurrentBalance > 0) ? mavcCurrentBalance : mavcShares;
-    const currentMavpShares = (mavpCurrentBalance !== undefined && mavpCurrentBalance > 0) ? mavpCurrentBalance : mavpShares;
-    const currentMavcYearnShares = (actualMavcYearnBalance !== undefined && actualMavcYearnBalance > 0) ? actualMavcYearnBalance : mavcYearnShares;
+    const currentYearnWethShares = (actualYearnWethBalance !== undefined && actualYearnWethBalance > 0) ? actualYearnWethBalance : yearnWethShares;
 
-    // Update last data point's MAVC Yearn balance if actual balance exists and is different
-    // This handles cases where transactions haven't been indexed yet or are missing
-    if (dataPoints.length > 0 && actualMavcYearnBalance !== undefined && actualMavcYearnBalance > 0) {
-      const lastPoint = dataPoints[dataPoints.length - 1];
-      if (lastPoint.mavcYearnAUM !== actualMavcYearnBalance) {
-        lastPoint.mavcYearnAUM = actualMavcYearnBalance;
-        lastPoint.totalAUM = lastPoint.mavcAUM + lastPoint.mavpAUM + actualMavcYearnBalance;
-      }
-    }
-
-    // Add current point if needed - only use transaction-derived shares to avoid false jumps
-    // Only add if current balances match transaction-derived shares (within tolerance)
-    // This ensures we don't show a jump that doesn't correspond to any transaction
-    // Exception: MAVC Yearn uses actual balance from API since it's fetched directly
+    // Add current point if needed
     if (dataPoints.length > 0) {
       const lastPoint = dataPoints[dataPoints.length - 1];
       if (currentTime - lastPoint.timestamp > 60) {
-        // Check if current balances match transaction-derived shares (within 0.01% tolerance)
-        const mavcMatches = !mavcCurrentBalance || Math.abs(mavcShares - mavcCurrentBalance) / Math.max(mavcShares, 1) < 0.0001;
-        const mavpMatches = !mavpCurrentBalance || Math.abs(mavpShares - mavpCurrentBalance) / Math.max(mavpShares, 1) < 0.0001;
-        // For MAVC Yearn, allow if actual balance exists (even if no transactions) since it's fetched directly from vault
-        const mavcYearnMatches = !actualMavcYearnBalance || 
-          (mavcYearnShares === 0 && actualMavcYearnBalance > 0) ||
-          Math.abs(mavcYearnShares - actualMavcYearnBalance) / Math.max(mavcYearnShares, 1) < 0.0001;
-        
-        // Use actual MAVC Yearn balance from API if available, otherwise use transaction-derived
-        const finalMavcYearnShares = (actualMavcYearnBalance !== undefined && actualMavcYearnBalance > 0) 
-          ? actualMavcYearnBalance 
-          : mavcYearnShares;
-        
-        // Only add current point if balances match - use transaction-derived shares to show price changes only
-        if (mavcMatches && mavpMatches && mavcYearnMatches) {
-          dataPoints.push({
-            timestamp: currentTime,
-            date: formatDate(currentTime, selectedTimescale),
-            totalAUM: (mavcShares * latestMavcPrice) + (mavpShares * latestMavpPrice) + finalMavcYearnShares,
-            mavcAUM: mavcShares * latestMavcPrice,
-            mavpAUM: mavpShares * latestMavpPrice,
-            mavcYearnAUM: finalMavcYearnShares
-          });
-        }
+        dataPoints.push({
+          timestamp: currentTime,
+          date: formatDate(currentTime, selectedTimescale),
+          totalAUM: yearnWethShares, // Use yearnWethShares (assets)
+          yearnWethAUM: yearnWethShares
+        });
       }
-    } else if (mavcCurrentBalance || mavpCurrentBalance || actualMavcYearnBalance) {
-      // No transactions found in subgraph, but we have current balance - create points from current balance
+    } else if (yearnWethCurrentBalance || actualYearnWethBalance) {
+      const startAUM = 0;
       dataPoints.push({
         timestamp: timescaleStart,
         date: formatDate(timescaleStart, selectedTimescale),
         totalAUM: 0,
-        mavcAUM: 0,
-        mavpAUM: 0,
-        mavcYearnAUM: 0
+        yearnWethAUM: 0
       });
+
+      // For Yearn WETH fallback to current balance (tokens) as value
+      const fallbackYearnWethVal = actualYearnWethBalance || yearnWethCurrentBalance || 0;
 
       dataPoints.push({
         timestamp: currentTime,
         date: formatDate(currentTime, selectedTimescale),
-        totalAUM: (currentMavcShares * latestMavcPrice) + (currentMavpShares * latestMavpPrice) + currentMavcYearnShares,
-        mavcAUM: currentMavcShares * latestMavcPrice,
-        mavpAUM: currentMavpShares * latestMavpPrice,
-        mavcYearnAUM: currentMavcYearnShares
+        totalAUM: fallbackYearnWethVal,
+        yearnWethAUM: fallbackYearnWethVal
       });
     }
 
     // Filter by timescale
     let filteredPoints = dataPoints.filter(p => p.timestamp >= timescaleStart);
 
-    // Add starting point if we have historical data before the timescale
+    // Add starting point
     if (filteredPoints.length > 0) {
       const pointsBeforeStart = dataPoints.filter(p => p.timestamp < timescaleStart);
       if (pointsBeforeStart.length > 0) {
@@ -379,63 +205,18 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
           timestamp: timescaleStart,
           date: formatDate(timescaleStart, selectedTimescale),
           totalAUM: lastBeforeStart.totalAUM,
-          mavcAUM: lastBeforeStart.mavcAUM,
-          mavpAUM: lastBeforeStart.mavpAUM,
-          mavcYearnAUM: lastBeforeStart.mavcYearnAUM
+          yearnWethAUM: lastBeforeStart.yearnWethAUM
         });
-      }
-    }
-
-    // Extrapolation for short time periods (15m, 1h) when no data
-    if (filteredPoints.length === 0 && (selectedTimescale === "15m" || selectedTimescale === "1h")) {
-      const latestMavcPrice = mavcPriceHistory && mavcPriceHistory.length > 0 
-        ? Number(mavcPriceHistory[mavcPriceHistory.length - 1].price) 
-        : 0;
-      const latestMavpPrice = mavpPriceHistory && mavpPriceHistory.length > 0 
-        ? Number(mavpPriceHistory[mavpPriceHistory.length - 1].price) 
-        : 0;
-      
-      const currentMavcShares = mavcCurrentBalance || 0;
-      const currentMavpShares = mavpCurrentBalance || 0;
-      const currentMavcYearnShares = actualMavcYearnBalance || mavcYearnCurrentBalance || 0;
-      
-      const currentAUM = (currentMavcShares * latestMavcPrice) + (currentMavpShares * latestMavpPrice) + currentMavcYearnShares;
-      
-      if (currentAUM > 0 && (latestMavcPrice > 0 || latestMavpPrice > 0 || currentMavcYearnShares > 0)) {
-        filteredPoints = [
-          {
-            timestamp: timescaleStart,
-            date: formatDate(timescaleStart, selectedTimescale),
-            totalAUM: currentAUM,
-            mavcAUM: currentMavcShares * latestMavcPrice,
-            mavpAUM: currentMavpShares * latestMavpPrice,
-            mavcYearnAUM: currentMavcYearnShares
-          },
-          {
-            timestamp: currentTime,
-            date: formatDate(currentTime, selectedTimescale),
-            totalAUM: currentAUM,
-            mavcAUM: currentMavcShares * latestMavcPrice,
-            mavpAUM: currentMavpShares * latestMavpPrice,
-            mavcYearnAUM: currentMavcYearnShares
-          }
-        ];
       }
     }
 
     return filteredPoints;
   }, [
     userWalletAddress,
-    mavcCurrentBalance,
-    mavpCurrentBalance,
-    mavcYearnCurrentBalance,
-    actualMavcYearnBalance,
-    mavcPriceHistory,
-    mavpPriceHistory,
-    mavcSubgraphData,
-    mavpSubgraphData,
-    mavcYearnSubgraphData,
-    mavcYearnConfig,
+    yearnWethCurrentBalance,
+    actualYearnWethBalance,
+    yearnWethSubgraphData,
+    yearnWethConfig,
     selectedTimescale
   ]);
 
@@ -545,8 +326,8 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
           <ComposedChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 20 }}>
             <defs>
               <linearGradient id="totalAUMGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#22c55e" stopOpacity={0.6}/>
-                <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
+                <stop offset="5%" stopColor="#22c55e" stopOpacity={0.6} />
+                <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
               </linearGradient>
             </defs>
             <XAxis
