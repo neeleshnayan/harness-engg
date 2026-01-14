@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { hedgeFundApi } from '@/lib/api';
 
 export type StrategyName = 'YEARN_WETH';
 
@@ -37,12 +38,8 @@ const getConfigEndpoint = (strategyName: StrategyName): string => {
 
 const fetchStrategyConfig = async (strategyName: StrategyName): Promise<StrategyConfig> => {
   const endpoint = getConfigEndpoint(strategyName);
-  const response = await fetch(endpoint);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${strategyName} configuration`);
-  }
-  const data: StrategyConfigResponse = await response.json();
-  return data.config;
+  const response = await hedgeFundApi.get<StrategyConfigResponse>(endpoint);
+  return response.data.config;
 };
 
 export const useStrategyConfig = (strategyName: StrategyName) => {
