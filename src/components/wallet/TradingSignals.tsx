@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import api from "@/lib/api";
+import api, { hedgeFundApi } from "@/lib/api";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
 interface TradingSignalsProps {
@@ -38,7 +38,7 @@ export const TradingSignals: React.FC<TradingSignalsProps> = ({ strategyName }) 
             // Convert USDC amount to wei (6 decimals)
             const amountWei = Math.floor(parseFloat(buyAmount) * Math.pow(10, 6)).toString();
 
-            const response = await api.post(`/api/v1/strategy/${strategyName}/buy`, {
+            const response = await hedgeFundApi.post(`/api/v1/strategy/${strategyName}/buy`, {
                 amount: amountWei,
                 wallet_address: parsedData.wallet_address,
                 user_id: parsedData.user_id,
@@ -83,7 +83,7 @@ export const TradingSignals: React.FC<TradingSignalsProps> = ({ strategyName }) 
             const decimals = 18;
             const amountWei = Math.floor(parseFloat(sellAmount) * Math.pow(10, decimals)).toString();
 
-            const response = await api.post(`/api/v1/strategy/${strategyName}/sell`, {
+            const response = await hedgeFundApi.post(`/api/v1/strategy/${strategyName}/sell`, {
                 amount: amountWei,
                 wallet_address: parsedData.wallet_address,
                 user_id: parsedData.user_id,

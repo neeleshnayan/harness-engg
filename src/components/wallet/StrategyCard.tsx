@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn, formatTokenBalance } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import api from "@/lib/api";
+import api, { hedgeFundApi } from "@/lib/api";
 import { StrategyName, useStrategyConfig } from "@/hooks/useStrategyConfig";
 import { useStrategyPrice } from "@/hooks/useStrategyPrice";
 import { useStrategySubgraphData } from "@/hooks/useStrategySubgraphData";
@@ -162,7 +162,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
 
           // Fetch strategy balance from unified API (backend returns raw wei)
           try {
-            const balanceResponse = await api.get(`/api/v1/strategy/${strategyName}/balance/${parsedData.wallet_address}`);
+            const balanceResponse = await hedgeFundApi.get(`/api/v1/strategy/${strategyName}/balance/${parsedData.wallet_address}`);
 
             if (balanceResponse.data) {
               const balance_wei = balanceResponse.data.balance || "0";
@@ -232,7 +232,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
       const amountWei = Math.floor(amountFloat * Math.pow(10, 6)).toString();
 
       // Step 1: Approve
-      const approveResponse = await api.post(`/api/v1/strategy/${strategyName}/approve`, {
+      const approveResponse = await hedgeFundApi.post(`/api/v1/strategy/${strategyName}/approve`, {
         amount: amountWei,  // Send wei amount
         wallet_address: parsedData.wallet_address,
         user_id: parsedData.user_id,
@@ -248,7 +248,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
       // Step 2: Wait for approval and deposit
       await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds for approval
 
-      const depositResponse = await api.post(`/api/v1/strategy/${strategyName}/deposit`, {
+      const depositResponse = await hedgeFundApi.post(`/api/v1/strategy/${strategyName}/deposit`, {
         amount: amountWei,  // Send wei amount
         wallet_address: parsedData.wallet_address,
         user_id: parsedData.user_id,
@@ -266,7 +266,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
 
           try {
             // Fetch fresh balance directly from blockchain via backend API
-            const balanceResponse = await api.get(`/api/v1/strategy/${strategyName}/balance/${parsedData.wallet_address}`);
+            const balanceResponse = await hedgeFundApi.get(`/api/v1/strategy/${strategyName}/balance/${parsedData.wallet_address}`);
 
             if (balanceResponse.data) {
               const balance_wei = balanceResponse.data.balance || "0";
@@ -331,7 +331,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
       const decimals = 6;
       const amountToSend = Math.floor(amountFloat * Math.pow(10, decimals)).toString();
 
-      const response = await api.post(`/api/v1/strategy/${strategyName}/withdraw`, {
+      const response = await hedgeFundApi.post(`/api/v1/strategy/${strategyName}/withdraw`, {
         amount: amountToSend,
         wallet_address: parsedData.wallet_address,
         user_id: parsedData.user_id,
@@ -348,7 +348,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
 
           try {
             // Fetch fresh balance directly from blockchain via backend API
-            const balanceResponse = await api.get(`/api/v1/strategy/${strategyName}/balance/${parsedData.wallet_address}`);
+            const balanceResponse = await hedgeFundApi.get(`/api/v1/strategy/${strategyName}/balance/${parsedData.wallet_address}`);
 
             if (balanceResponse.data) {
               const balance_wei = balanceResponse.data.balance || "0";

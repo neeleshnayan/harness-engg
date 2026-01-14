@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import api from '@/lib/api';
+import { hedgeFundApi } from '@/lib/api';
 
 interface YearnVaultInfo {
   status: string;
@@ -14,7 +14,7 @@ interface YearnVaultInfo {
 }
 
 const fetchYearnAUM = async (strategyName: string): Promise<number> => {
-  const response = await api.get<YearnVaultInfo>(`/api/v1/strategy/${strategyName}/vault-info`);
+  const response = await hedgeFundApi.get<YearnVaultInfo>(`/api/v1/strategy/${strategyName}/vault-info`);
   return response.data.total_assets_formatted;
 };
 

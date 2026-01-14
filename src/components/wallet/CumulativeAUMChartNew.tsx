@@ -3,6 +3,7 @@ import { ComposedChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, Line }
 import { TrendingUp, Activity } from "lucide-react";
 import { useYearnWETHConfig } from "@/hooks/useStrategyConfig";
 import { useYearnWETHSubgraphData } from "@/hooks/useStrategySubgraphData";
+import { hedgeFundApi } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -96,10 +97,10 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
   useEffect(() => {
     const fetchYearnWethBalance = async () => {
       if (!userWalletAddress || !yearnWethConfig?.vault_address) return;
+
       try {
-        const response = await fetch(`/api/v1/strategy/YEARN_WETH/balance/${userWalletAddress}`);
-        if (!response.ok) return;
-        const data = await response.json();
+        const response = await hedgeFundApi.get(`/api/v1/strategy/YEARN_WETH/balance/${userWalletAddress}`);
+        const data = response.data;
         if (data.balance) {
           const balance = Number(data.balance) / Math.pow(10, data.decimals || 6);
           setActualYearnWethBalance(balance);

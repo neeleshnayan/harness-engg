@@ -34,6 +34,16 @@ export const kryptonPoolsSubgraphApi = axios.create({
   },
 });
 
+// Hedge Fund API Client
+const HEDGE_FUND_API_BASE_URL = process.env.NEXT_PUBLIC_HEDGE_FUND_API_URL || 'http://127.0.0.1:8001';
+
+export const hedgeFundApi = axios.create({
+  baseURL: HEDGE_FUND_API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
 // Create axios instance with base URL
 const api = axios.create({
   baseURL: API_BASE_URL,

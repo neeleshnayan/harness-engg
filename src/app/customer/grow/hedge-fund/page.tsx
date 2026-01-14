@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { getAuth, signOut } from "firebase/auth";
 import { ArrowLeft, CheckCircle, AlertCircle, SlidersHorizontal } from "lucide-react";
-import api from "@/lib/api";
+import api, { hedgeFundApi } from "@/lib/api";
 import StrategyCard from "@/components/wallet/StrategyCard";
 
 import { CumulativeAUMChartNew } from "@/components/wallet/CumulativeAUMChartNew";
@@ -135,7 +135,7 @@ export default function HedgeFundV2Page() {
 
   const checkExistingSubmission = async (userId: string) => {
     try {
-      const response = await api.get(`/api/v1/hedge-fund/${userId}`);
+      const response = await hedgeFundApi.get(`/api/v1/hedge-fund/${userId}`);
       if (response.status === 200 && response.data.status === "success") {
         const submissionData = response.data.data;
         setExistingSubmission(submissionData);
@@ -182,7 +182,7 @@ export default function HedgeFundV2Page() {
 
     try {
       const endpoint = isEditing ? "/api/v1/hedge-fund/update" : "/api/v1/hedge-fund/submit";
-      const response = await api.post(endpoint, {
+      const response = await hedgeFundApi.post(endpoint, {
         user_id: userData?.user_id,
         submission_id: existingSubmission?.id, // Include submission ID for updates
         ...formData

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Shield, Store, TrendingUp } from "lucide-react";
 import TokenBalances from "@/components/wallet/TokenBalances";
-import { useMAVCConfig } from "@/hooks/useStrategyConfig";
+// Removed unused useMAVCConfig import
 import api from "@/lib/api";
 
 interface GrowPageProps {
@@ -14,7 +14,7 @@ interface GrowPageProps {
 
 export default function GrowPage({ userType, backRoute }: GrowPageProps) {
   const router = useRouter();
-  const { data: mavcConfig } = useMAVCConfig();
+  // Removed unused mavcConfig hook
   const [balance, setBalance] = useState<any>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceError, setBalanceError] = useState<string | null>(null);
@@ -143,7 +143,7 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
             error={balanceError}
             className="mb-8"
             onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
-            subgraphUrl={mavcConfig?.subgraph_url}
+            // subgraphUrl={mavcConfig?.subgraph_url} // Removed unused prop
             userWalletAddress={accountData?.wallet_address}
           />
         </div>
