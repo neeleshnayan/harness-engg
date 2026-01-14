@@ -489,7 +489,7 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, ses
               )}
               
               {activeTab === 'memories' && (
-                <MemoriesTab userId={userId} sessionId={sessionId} />
+                <MemoriesTab userId={userId} sessionId={sessionId} messages={messages} />
               )}
             </div>
           </motion.div>

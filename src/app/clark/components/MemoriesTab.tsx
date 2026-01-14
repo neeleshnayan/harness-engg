@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { Brain, Clock, MessageSquare, Database, Loader2, RefreshCw, User } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import agentsApi from '@/lib/agents_api'
+import type { ChatMessage } from '../types'
 
 interface Memory {
   id?: string
@@ -62,6 +63,7 @@ interface Memory {
 interface MemoriesTabProps {
   userId?: string
   sessionId?: string
+  messages?: ChatMessage[]
 }
 
 interface KnowledgeBaseEntry {
@@ -70,7 +72,7 @@ interface KnowledgeBaseEntry {
   timestamp: string
 }
 
-export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
+export default function MemoriesTab({ userId, sessionId, messages = [] }: MemoriesTabProps) {
   const [condensedMemories, setCondensedMemories] = useState<Memory[]>([])
   const [recentMemories, setRecentMemories] = useState<Memory[]>([])
   const [transientKB, setTransientKB] = useState<KnowledgeBaseEntry[]>([])
@@ -98,20 +100,21 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
 
       if (response.data.success) {
         const condensed = response.data.condensed_memories || []
-        const currentSession = response.data.current_session_memories || []
         const transient = response.data.transient_knowledge_base || []
         const persistent = response.data.persistent_knowledge_base || []
 
         console.log('Fetched memories:', {
-          condensed_count: condensed.length,
-          current_session_count: currentSession.length,
-          transient_kb_count: transient.length,
-          persistent_kb_count: persistent.length
+          condensed_count: Array.isArray(condensed) ? condensed.length : 0,
+          transient_kb_count: Array.isArray(transient) ? transient.length : 0,
+          persistent_kb_count: Array.isArray(persistent) ? persistent.length : 0,
+          transient_kb_sample: Array.isArray(transient) ? transient.slice(0, 2) : [],
+          persistent_kb_sample: Array.isArray(persistent) ? persistent.slice(0, 2) : []
         })
-        setCondensedMemories(condensed)
-        setRecentMemories(currentSession)
-        setTransientKB(transient)
-        setPersistentKB(persistent)
+        
+        // Ensure we have arrays (defensive)
+        setCondensedMemories(Array.isArray(condensed) ? condensed : [])
+        setTransientKB(Array.isArray(transient) ? transient : [])
+        setPersistentKB(Array.isArray(persistent) ? persistent : [])
       } else {
         setError(response.data.message || "Failed to fetch memories")
       }
@@ -129,6 +132,48 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId])
+
+  // Build current session memories purely from UI chat messages (not persisted anywhere)
+  useEffect(() => {
+    if (!messages || messages.length === 0) {
+      setRecentMemories([])
+      return
+    }
+
+    const uiMemories: Memory[] = []
+
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i]
+      if (msg.type !== 'user') continue
+
+      const next = messages[i + 1]
+      const assistant = next && next.type === 'assistant' ? next : undefined
+
+      const timestampIso = msg.timestamp instanceof Date ? msg.timestamp.toISOString() : new Date(msg.timestamp).toISOString()
+
+      uiMemories.push({
+        id: msg.id,
+        message: `User: ${msg.content}${assistant ? ` | Assistant: ${assistant.content}` : ''}`,
+        metadata: {
+          type: 'user_interaction',
+          session_id: sessionId,
+          interaction: {
+            user_query: msg.content,
+            final_response: assistant
+              ? {
+                  message: assistant.content,
+                  success: assistant.success,
+                }
+              : undefined,
+          },
+          timestamp: timestampIso,
+        },
+        created_at: timestampIso,
+      })
+    }
+
+    setRecentMemories(uiMemories)
+  }, [messages, sessionId])
 
   const formatTimestamp = (timestamp?: string) => {
     if (!timestamp) return "Unknown date"
@@ -151,27 +196,99 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
     const memoryType = metadata.type || 'unknown'
     const sessionId = metadata.session_id
 
-    // Handle reasoningContent structure (fallback for prod data)
-    let displayMessage: string | undefined = memory.message
+    // Extract display message from memory object
+    // Priority: message field (string) > text field > reasoningContent
+    let displayMessage: string | undefined = undefined
+    
+    // First, try the message field
+    if (memory.message) {
+      if (typeof memory.message === 'string') {
+        // If message is a JSON string, try to parse it
+        if (memory.message.trim().startsWith('{')) {
+          try {
+            const parsed = JSON.parse(memory.message)
+            if (parsed.message && typeof parsed.message === 'string') {
+              displayMessage = parsed.message
+              // Merge parsed metadata if available
+              if (parsed.metadata && typeof parsed.metadata === 'object') {
+                Object.assign(metadata, parsed.metadata)
+              }
+            } else {
+              // If parsed JSON doesn't have a message field, use the original string
+              displayMessage = memory.message
+            }
+          } catch {
+            // Not valid JSON, use as-is
+            displayMessage = memory.message
+          }
+        } else {
+          // Plain string, use directly
+          displayMessage = memory.message
+        }
+      } else {
+        // message is not a string, convert to string safely
+        displayMessage = String(memory.message)
+      }
+    }
+    
+    // Also check for text field (some Firebase structures use this)
+    if (!displayMessage && (memory as any).text) {
+      const textField = (memory as any).text
+      if (typeof textField === 'string') {
+        if (textField.trim().startsWith('{')) {
+          try {
+            const parsed = JSON.parse(textField)
+            if (parsed.message && typeof parsed.message === 'string') {
+              displayMessage = parsed.message
+              if (parsed.metadata && typeof parsed.metadata === 'object') {
+                Object.assign(metadata, parsed.metadata)
+              }
+            } else {
+              displayMessage = textField
+            }
+          } catch {
+            displayMessage = textField
+          }
+        } else {
+          displayMessage = textField
+        }
+      }
+    }
+    
+    // Fallback to reasoningContent structure
     if (!displayMessage && (memory as any).reasoningContent) {
       const reasoning = (memory as any).reasoningContent
       if (reasoning?.reasoningText?.text) {
-        displayMessage = reasoning.reasoningText.text
-        // Try to extract JSON from the text if it's a JSON string
-        if (displayMessage) {
-          try {
-            const parsed = JSON.parse(displayMessage)
-            if (parsed.message) {
-              displayMessage = parsed.message
-              // Merge parsed metadata if available
-              if (parsed.metadata) {
-                Object.assign(metadata, parsed.metadata)
+        const reasoningText = reasoning.reasoningText.text
+        if (typeof reasoningText === 'string') {
+          if (reasoningText.trim().startsWith('{')) {
+            try {
+              const parsed = JSON.parse(reasoningText)
+              if (parsed.message && typeof parsed.message === 'string') {
+                displayMessage = parsed.message
+                if (parsed.metadata && typeof parsed.metadata === 'object') {
+                  Object.assign(metadata, parsed.metadata)
+                }
+              } else {
+                displayMessage = reasoningText
               }
+            } catch {
+              displayMessage = reasoningText
             }
-          } catch {
-            // Not JSON, use as-is
+          } else {
+            displayMessage = reasoningText
           }
         }
+      }
+    }
+    
+    // Final safety: ensure displayMessage is a string, never an object
+    if (displayMessage && typeof displayMessage !== 'string') {
+      console.warn('displayMessage is not a string, converting:', typeof displayMessage)
+      try {
+        displayMessage = JSON.stringify(displayMessage)
+      } catch {
+        displayMessage = String(displayMessage)
       }
     }
 
@@ -277,14 +394,20 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
               </div>
             )}
 
-            {(memoryType === 'condensed_persona' || memoryType === 'persona_memory') && displayMessage && (
+            {(memoryType === 'condensed_persona' || memoryType === 'persona_memory') && (
               <div className="space-y-3">
-                <div>
-                  <div className="text-xs text-white/60 mb-1">Persona Summary:</div>
-                  <div className="text-sm text-white/90 bg-white/5 p-3 rounded border border-white/10 leading-relaxed">
-                    {displayMessage}
+                {displayMessage ? (
+                  <div>
+                    <div className="text-xs text-white/60 mb-1">Persona Summary:</div>
+                    <div className="text-sm text-white/90 bg-white/5 p-3 rounded border border-white/10 leading-relaxed">
+                      {displayMessage}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="text-xs text-white/60 bg-white/5 p-3 rounded border border-white/10">
+                    No persona summary available.
+                  </div>
+                )}
                 {metadata.categories && (
                   <div className="space-y-3 mt-4">
                     {metadata.categories.personal_profile && (
@@ -419,9 +542,17 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
               </div>
             )}
 
+            {/* Fallback for other memory types */}
             {displayMessage && memoryType !== 'user_interaction' && memoryType !== 'portfolio_state' && memoryType !== 'condensed_persona' && memoryType !== 'persona_memory' && (
               <div className="text-sm text-white/80 bg-white/5 p-2 rounded border border-white/10">
                 {displayMessage}
+              </div>
+            )}
+            
+            {/* Safety: Never render raw object as JSON */}
+            {!displayMessage && memoryType !== 'user_interaction' && memoryType !== 'portfolio_state' && memoryType !== 'condensed_persona' && memoryType !== 'persona_memory' && (
+              <div className="text-xs text-white/60 bg-white/5 p-2 rounded border border-white/10">
+                Memory content not available for display.
               </div>
             )}
           </CardContent>
@@ -541,107 +672,121 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
           </div>
 
           {/* Knowledge Base Sections */}
-          {(transientKB.length > 0 || persistentKB.length > 0) && (
-            <>
-              {/* Persistent Knowledge Base */}
-              {persistentKB.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Database className="h-5 w-5 text-indigo-400" />
-                    <h3 className="text-lg font-semibold text-white">
-                      Persistent Knowledge Base (Last 5)
-                    </h3>
-                    <span className="px-2 py-1 bg-indigo-900/40 text-indigo-300 text-xs rounded-xl border border-indigo-700/30">
-                      {persistentKB.length}
-                    </span>
-                  </div>
-                  <div className="space-y-2">
-                    {persistentKB.map((entry, index) => (
-                      <motion.div
-                        key={index}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                      >
-                        <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl">
-                          <CardContent className="p-3">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                    entry.type === 'fact' 
-                                      ? 'bg-amber-900/40 text-amber-300 border border-amber-700/30' 
-                                      : 'bg-indigo-900/40 text-indigo-300 border border-indigo-700/30'
-                                  }`}>
-                                    {entry.type === 'fact' ? 'Fact' : 'Result'}
-                                  </span>
-                                  <span className="text-xs text-white/50">
-                                    {formatTimestamp(entry.timestamp)}
-                                  </span>
-                                </div>
-                                <div className="text-sm text-white/90 mt-1">
-                                  {entry.content}
-                                </div>
+          <>
+            {/* Persistent Knowledge Base */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Database className="h-5 w-5 text-indigo-400" />
+                <h3 className="text-lg font-semibold text-white">
+                  Persistent Knowledge Base (Last 5)
+                </h3>
+                <span className="px-2 py-1 bg-indigo-900/40 text-indigo-300 text-xs rounded-xl border border-indigo-700/30">
+                  {persistentKB.length}
+                </span>
+              </div>
+              {persistentKB.length === 0 ? (
+                <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl">
+                  <CardContent className="p-8 text-center">
+                    <p className="text-white/60">
+                      No persistent knowledge base entries found.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-2">
+                  {persistentKB.map((entry, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl">
+                        <CardContent className="p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                  entry.type === 'fact' 
+                                    ? 'bg-amber-900/40 text-amber-300 border border-amber-700/30' 
+                                    : 'bg-indigo-900/40 text-indigo-300 border border-indigo-700/30'
+                                }`}>
+                                  {entry.type === 'fact' ? 'Fact' : 'Result'}
+                                </span>
+                                <span className="text-xs text-white/50">
+                                  {formatTimestamp(entry.timestamp)}
+                                </span>
+                              </div>
+                              <div className="text-sm text-white/90 mt-1">
+                                {entry.content}
                               </div>
                             </div>
-                          </CardContent>
-                        </Card>
-                      </motion.div>
-                    ))}
-                  </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  ))}
                 </div>
               )}
+            </div>
 
-              {/* Transient Knowledge Base */}
-              {transientKB.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Brain className="h-5 w-5 text-amber-400" />
-                    <h3 className="text-lg font-semibold text-white">
-                      Transient Knowledge Base (Last 3)
-                    </h3>
-                    <span className="px-2 py-1 bg-amber-900/40 text-amber-300 text-xs rounded-xl border border-amber-700/30">
-                      {transientKB.length}
-                    </span>
-                  </div>
-                  <div className="space-y-2">
-                    {transientKB.map((entry, index) => (
-                      <motion.div
-                        key={index}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                      >
-                        <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl">
-                          <CardContent className="p-3">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                    entry.type === 'fact' 
-                                      ? 'bg-amber-900/40 text-amber-300 border border-amber-700/30' 
-                                      : 'bg-indigo-900/40 text-indigo-300 border border-indigo-700/30'
-                                  }`}>
-                                    {entry.type === 'fact' ? 'Fact' : 'Result'}
-                                  </span>
-                                  <span className="text-xs text-white/50">
-                                    {formatTimestamp(entry.timestamp)}
-                                  </span>
-                                </div>
-                                <div className="text-sm text-white/90 mt-1">
-                                  {entry.content}
-                                </div>
+            {/* Transient Knowledge Base */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Brain className="h-5 w-5 text-amber-400" />
+                <h3 className="text-lg font-semibold text-white">
+                  Transient Knowledge Base (Last 3)
+                </h3>
+                <span className="px-2 py-1 bg-amber-900/40 text-amber-300 text-xs rounded-xl border border-amber-700/30">
+                  {transientKB.length}
+                </span>
+              </div>
+              {transientKB.length === 0 ? (
+                <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl">
+                  <CardContent className="p-8 text-center">
+                    <p className="text-white/60">
+                      No transient knowledge base entries found.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-2">
+                  {transientKB.map((entry, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl">
+                        <CardContent className="p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                  entry.type === 'fact' 
+                                    ? 'bg-amber-900/40 text-amber-300 border border-amber-700/30' 
+                                    : 'bg-indigo-900/40 text-indigo-300 border border-indigo-700/30'
+                                }`}>
+                                  {entry.type === 'fact' ? 'Fact' : 'Result'}
+                                </span>
+                                <span className="text-xs text-white/50">
+                                  {formatTimestamp(entry.timestamp)}
+                                </span>
+                              </div>
+                              <div className="text-sm text-white/90 mt-1">
+                                {entry.content}
                               </div>
                             </div>
-                          </CardContent>
-                        </Card>
-                      </motion.div>
-                    ))}
-                  </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  ))}
                 </div>
               )}
-            </>
-          )}
+            </div>
+          </>
         </>
       )}
     </div>
