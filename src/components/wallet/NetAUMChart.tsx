@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, Area, AreaChart } from "recharts";
 import { TrendingUp, Activity } from "lucide-react";
-import { MAVCPriceUpdate } from "@/hooks/useStrategyPrice";
+import { StrategyPriceUpdate } from "@/hooks/useStrategyPrice";
 
 interface Deposit {
   id: string;
@@ -51,7 +51,7 @@ const formatAUM = (aum: number): string => {
 
 const getPriceAtTimestamp = (timestamp: number, priceHistory: MAVCPriceUpdate[]): number => {
   if (priceHistory.length === 0) return 0;
-  
+
   let lastValidPrice = 0;
   for (const priceUpdate of priceHistory) {
     const priceTimestamp = Number(priceUpdate.timestamp);
@@ -61,7 +61,7 @@ const getPriceAtTimestamp = (timestamp: number, priceHistory: MAVCPriceUpdate[])
       break;
     }
   }
-  
+
   return lastValidPrice;
 };
 
@@ -80,7 +80,7 @@ const buildNetAUMTimeline = (
   const fixedPrice = isMAVCYearn ? 1 : 0;
 
   const normalizedAddress = userWalletAddress.toLowerCase();
-  
+
   const userDeposits = deposits
     .filter((d) => d.owner.toLowerCase() === normalizedAddress)
     .map(d => {
@@ -106,14 +106,14 @@ const buildNetAUMTimeline = (
 
   if (userDeposits.length === 0 && userWithdrawals.length === 0) {
     if (!currentBalance || currentBalance === 0) return [];
-    
+
     // Create timeline with start point (30 days ago) and current point
     const currentTimestamp = Math.floor(Date.now() / 1000);
     const startTimestamp = currentTimestamp - (30 * 24 * 60 * 60); // 30 days ago
-    
+
     let startPrice: number;
     let currentPrice: number;
-    
+
     if (isMAVCYearn) {
       startPrice = fixedPrice;
       currentPrice = fixedPrice;
@@ -124,7 +124,7 @@ const buildNetAUMTimeline = (
       currentPrice = Number(latestPriceUpdate.price);
       if (startPrice === 0 || currentPrice === 0) return [];
     }
-    
+
     return [
       {
         date: formatDate(startTimestamp),
@@ -151,7 +151,7 @@ const buildNetAUMTimeline = (
 
   const dataPoints: AUMDataPoint[] = [];
   const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b);
-  
+
   // Add starting point at 0 before first transaction
   if (sortedTimestamps.length > 0) {
     const firstTimestamp = sortedTimestamps[0];
@@ -167,18 +167,18 @@ const buildNetAUMTimeline = (
       });
     }
   }
-  
+
   let cumulativeShares = 0;
 
   for (const timestamp of sortedTimestamps) {
     const depositsAtTime = userDeposits.filter(d => d.timestamp === timestamp);
     const withdrawalsAtTime = userWithdrawals.filter(w => w.timestamp === timestamp);
-    
+
     const sharesBefore = cumulativeShares;
     depositsAtTime.forEach(d => {
       cumulativeShares += d.shares;
     });
-    
+
     withdrawalsAtTime.forEach(w => {
       cumulativeShares -= w.shares;
     });
@@ -193,7 +193,7 @@ const buildNetAUMTimeline = (
     }
 
     const aum = cumulativeShares * price;
-    
+
     dataPoints.push({
       date: formatDate(timestamp),
       timestamp,
@@ -219,7 +219,7 @@ const buildNetAUMTimeline = (
   if (currentBalance !== undefined) {
     const currentTimestamp = Math.floor(Date.now() / 1000);
     let currentPrice: number;
-    
+
     if (isMAVCYearn) {
       currentPrice = fixedPrice;
     } else {
@@ -228,10 +228,10 @@ const buildNetAUMTimeline = (
       currentPrice = Number(latestPriceUpdate.price);
       if (currentPrice === 0) return dataPoints;
     }
-    
+
     const currentAUM = (currentBalance || 0) * currentPrice;
     const existingLatestPoint = dataPoints[dataPoints.length - 1];
-    
+
     if (!existingLatestPoint || existingLatestPoint.timestamp < currentTimestamp - 3600) {
       dataPoints.push({
         date: formatDate(currentTimestamp),
@@ -289,10 +289,10 @@ export const NetAUMChart: React.FC<NetAUMChartProps> = ({
     const latestDataPoint = aumTimeline[aumTimeline.length - 1];
     const firstDataPoint = aumTimeline[0];
     const aumChange = latestDataPoint.aum - firstDataPoint.aum;
-    
+
     const threshold = 0.01;
     let aumChangePercent: string;
-    
+
     if (firstDataPoint.aum < threshold) {
       if (latestDataPoint.aum > threshold) {
         aumChangePercent = Math.round(latestDataPoint.aum).toString();
@@ -342,17 +342,17 @@ export const NetAUMChart: React.FC<NetAUMChartProps> = ({
 
       <div className="h-32">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart 
-            data={aumTimeline} 
+          <AreaChart
+            data={aumTimeline}
             margin={{ top: 5, right: 5, left: 5, bottom: 20 }}
           >
             <defs>
               <linearGradient id="aumGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <XAxis 
+            <XAxis
               dataKey="date"
               tick={{ fill: '#71717a', fontSize: 10 }}
               stroke="#3f3f46"
@@ -360,7 +360,7 @@ export const NetAUMChart: React.FC<NetAUMChartProps> = ({
               textAnchor="end"
               height={50}
             />
-            <YAxis 
+            <YAxis
               tick={{ fill: '#71717a', fontSize: 10 }}
               stroke="#3f3f46"
               tickFormatter={(value) => formatAUM(value)}
