@@ -23,7 +23,7 @@ interface Withdrawal {
 interface NetAUMChartProps {
   deposits: Deposit[];
   withdrawals: Withdrawal[];
-  priceHistory: MAVCPriceUpdate[];
+  priceHistory: StrategyPriceUpdate[];
   userWalletAddress?: string;
   tokenSymbol: string;
   currentBalance?: number;
@@ -49,7 +49,7 @@ const formatAUM = (aum: number): string => {
   return `$${aum.toFixed(2)}`;
 };
 
-const getPriceAtTimestamp = (timestamp: number, priceHistory: MAVCPriceUpdate[]): number => {
+const getPriceAtTimestamp = (timestamp: number, priceHistory: StrategyPriceUpdate[]): number => {
   if (priceHistory.length === 0) return 0;
 
   let lastValidPrice = 0;
@@ -68,7 +68,7 @@ const getPriceAtTimestamp = (timestamp: number, priceHistory: MAVCPriceUpdate[])
 const buildNetAUMTimeline = (
   deposits: Deposit[],
   withdrawals: Withdrawal[],
-  priceHistory: MAVCPriceUpdate[],
+  priceHistory: StrategyPriceUpdate[],
   userWalletAddress?: string,
   currentBalance?: number,
   tokenSymbol?: string
