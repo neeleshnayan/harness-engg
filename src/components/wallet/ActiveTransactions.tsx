@@ -18,9 +18,6 @@ import { ArrowRight, Check, X, Loader2, ArrowLeftRight, Send, RefreshCw } from '
 // Poll interval in milliseconds (10 seconds for better UX)
 const POLL_INTERVAL_MS = 10000;
 
-// LocalStorage key for persisting active transactions
-const STORAGE_KEY = 'krypton_active_transactions';
-
 // How long to keep completed transactions visible (30 seconds)
 const COMPLETED_TX_DISPLAY_TIME = 30000;
 
@@ -503,43 +500,6 @@ export default function ActiveTransactions({ username, className = '', onAllTran
   const hadTransactions = useRef(false);
   const lastRefreshKey = useRef(refreshKey);
 
-  // Load persisted transactions from localStorage on mount
-  useEffect(() => {
-    if (!username) return;
-
-    try {
-      const stored = localStorage.getItem(`${STORAGE_KEY}_${username}`);
-      if (stored) {
-        const parsed = JSON.parse(stored) as ActiveTransaction[];
-        // Filter out transactions that have been completed for too long
-        const now = Date.now();
-        const filtered = parsed.filter(tx => {
-          if (tx.completed_at) {
-            return now - tx.completed_at < COMPLETED_TX_DISPLAY_TIME;
-          }
-          return true;
-        });
-        setTransactions(filtered);
-      }
-    } catch (err) {
-      console.error('Error loading persisted transactions:', err);
-    }
-  }, [username]);
-
-  // Save transactions to localStorage whenever they change
-  useEffect(() => {
-    if (!username || transactions.length === 0) {
-      localStorage.removeItem(`${STORAGE_KEY}_${username}`);
-      return;
-    }
-
-    try {
-      localStorage.setItem(`${STORAGE_KEY}_${username}`, JSON.stringify(transactions));
-    } catch (err) {
-      console.error('Error persisting transactions:', err);
-    }
-  }, [username, transactions]);
-
   const fetchActiveTransactions = useCallback(async () => {
     if (!username) return;
 
@@ -555,11 +515,11 @@ export default function ActiveTransactions({ username, className = '', onAllTran
       const newTransactions = response.data.transactions || [];
       const now = Date.now();
 
-      // Merge with existing transactions to preserve completed ones briefly
+      // Keep completed transactions visible for a short time, then remove them
       setTransactions(prev => {
         const newIds = new Set(newTransactions.map(tx => tx.transaction_id));
 
-        // Keep completed transactions that should still be visible
+        // Keep completed transactions from previous state that should still be visible
         const completedToKeep = prev.filter(tx => {
           if (tx.completed_at && !newIds.has(tx.transaction_id)) {
             return now - tx.completed_at < COMPLETED_TX_DISPLAY_TIME;
@@ -567,7 +527,7 @@ export default function ActiveTransactions({ username, className = '', onAllTran
           return false;
         });
 
-        // Mark transactions as completed if they were ongoing but are now terminal
+        // Mark transactions as completed if they just became terminal
         const updatedNew = newTransactions.map(newTx => {
           const existing = prev.find(p => p.transaction_id === newTx.transaction_id);
           if (isTerminalState(newTx.status) && existing && !existing.completed_at) {
@@ -576,12 +536,7 @@ export default function ActiveTransactions({ username, className = '', onAllTran
           return existing?.completed_at ? { ...newTx, completed_at: existing.completed_at } : newTx;
         });
 
-        // Check for transactions that just became terminal (not in new response)
-        const justCompleted = prev
-          .filter(tx => !newIds.has(tx.transaction_id) && !tx.completed_at)
-          .map(tx => ({ ...tx, status: 'complete', completed_at: now }));
-
-        return [...updatedNew, ...completedToKeep, ...justCompleted];
+        return [...updatedNew, ...completedToKeep];
       });
     } catch (err: any) {
       console.error('Error fetching active transactions:', err);
