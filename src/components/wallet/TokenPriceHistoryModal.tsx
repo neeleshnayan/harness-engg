@@ -191,7 +191,7 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
       hasScrolledToEndRef.current = false; // Reset flag when opening modal
       getHistoricalClosingPoolRates(tokenSymbol, 1000)
         .then((data) => {
-          setHistoricalData(data);
+          setHistoricalData(data.slice(data.length - 30));
           setLoading(false);
         })
         .catch((err) => {
@@ -250,7 +250,7 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
   // Calculate precise width for chart based on data points
   // Each data point needs ~3-4px spacing, margins add padding inside this width
   const baseWidth = chartData.length > 0 ? chartData.length * 3.5 : 600;
-  const chartMinWidth = Math.max(500, baseWidth);
+  const chartMinWidth = Math.max(600, baseWidth);
 
   // Scroll to end (latest dates) only once when modal opens and data loads
   useLayoutEffect(() => {
