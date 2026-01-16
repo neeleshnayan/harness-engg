@@ -14,6 +14,7 @@ interface DevtoolsOverlayProps {
   onClose: () => void
   messages: ChatMessage[]
   userId?: string
+  userName?: string
   sessionId?: string
 }
 
@@ -25,7 +26,7 @@ interface AgentFlowEntry {
   created_at?: any
 }
 
-export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, sessionId }: DevtoolsOverlayProps) {
+export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, userName, sessionId }: DevtoolsOverlayProps) {
   const [selectedQueryIndex, setSelectedQueryIndex] = useState<number | null>(null)
   const [filterType, setFilterType] = useState<'all' | 'single' | 'sequential' | 'parallel'>('all')
   const [activeTab, setActiveTab] = useState<'agent-flow' | 'memories'>('agent-flow')
@@ -209,7 +210,19 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, ses
           >
             <div className="sticky top-0 bg-gradient-to-b from-[#1c2f2f]/95 to-[#0b1515]/95 backdrop-blur-xl border-b border-white/15 z-10">
               <div className="flex items-center justify-between p-4">
-                <h1 className="text-2xl font-bold text-white">Devtools</h1>
+                <div>
+                  <h1 className="text-2xl font-bold text-white">Devtools</h1>
+                  {(userId || userName) && (
+                    <div className="flex items-center gap-3 mt-1 text-xs text-white/60">
+                      {userName && (
+                        <span className="text-teal-300">User: {userName}</span>
+                      )}
+                      {userId && (
+                        <span className="text-white/50">ID: {userId}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={onClose}
                   className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white transition-colors"

@@ -31,6 +31,7 @@ export default function BacktestPage() {
   
   // Session management for mem0 integration
   const [userId, setUserId] = useState<string>('')
+  const [userName, setUserName] = useState<string>('')
   const [sessionId, setSessionId] = useState<string>('')
   const [userData, setUserData] = useState<any>(null)
   
@@ -48,6 +49,10 @@ export default function BacktestPage() {
       try {
         const parsedData = JSON.parse(storedUserData)
         setUserData(parsedData)
+        // Extract username if available
+        if (parsedData.username) {
+          setUserName(parsedData.username)
+        }
         // Use actual user_id from userData, fallback to other unique identifiers
         // Try user_id first, then uid (Firebase), then email
         // These should all be unique per user and consistent across sessions
@@ -539,6 +544,7 @@ export default function BacktestPage() {
         onClose={() => setIsDevtoolsOpen(false)}
         messages={messages}
         userId={userId}
+        userName={userName}
         sessionId={sessionId}
       />
     </div>
