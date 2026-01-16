@@ -36,6 +36,8 @@ export default function LangChainChat({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [sessionId, setSessionId] = useState<string>('');
+  const [userName, setUserName] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -45,6 +47,25 @@ export default function LangChainChat({
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Initialize session ID and username
+  useEffect(() => {
+    const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    setSessionId(newSessionId)
+    
+    // Extract username from localStorage
+    const storedUserData = localStorage.getItem('userData')
+    if (storedUserData) {
+      try {
+        const parsedData = JSON.parse(storedUserData)
+        if (parsedData.username) {
+          setUserName(parsedData.username)
+        }
+      } catch (error) {
+        console.error('Error parsing user data:', error)
+      }
+    }
+  }, []);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
@@ -114,7 +135,9 @@ export default function LangChainChat({
     try {
       const response = await agentsApi.post('/api/v1/agents/query', {
         query: query,
-        user_id: userId
+        user_id: userId,
+        username: userName,
+        session_id: sessionId
       });
       if (response.status >= 400) {
         const errorText = response.data;

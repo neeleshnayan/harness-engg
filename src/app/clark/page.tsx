@@ -287,6 +287,7 @@ export default function BacktestPage() {
       const response = await agentsApi.post('/api/v1/agents/query', {
         query: routedPrompt,
         user_id: userId,
+        username: userName,
         session_id: sessionId
       })
 
@@ -338,6 +339,7 @@ export default function BacktestPage() {
       const response = await agentsApi.post('/api/v1/agents/query', {
         query: inputValue,
         user_id: userId,
+        username: userName,
         session_id: sessionId
       })
 

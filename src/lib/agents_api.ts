@@ -39,11 +39,13 @@ agentsApi.interceptors.response.use(
 );
 
 // Agents API functions
-export const processNaturalLanguageQuery = async (query: string, userId?: string) => {
+export const processNaturalLanguageQuery = async (query: string, userId?: string, username?: string, sessionId?: string) => {
   try {
     const response = await agentsApi.post('/api/v1/agents/query', {
       query,
-      user_id: userId
+      user_id: userId,
+      username: username,
+      session_id: sessionId
     });
     return response.data;
   } catch (error) {

@@ -31,6 +31,7 @@ export default function MiniClarkChat({
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [sessionId, setSessionId] = useState<string>('')
+  const [userName, setUserName] = useState<string>('')
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const feedRef = useRef<HTMLDivElement>(null)
@@ -45,10 +46,23 @@ export default function MiniClarkChat({
   // Determine if we should show only input (when showInputOnly is true and no messages sent yet)
   const shouldShowInputOnly = showInputOnly && !hasSentMessage
 
-  // Initialize session ID
+  // Initialize session ID and username
   useEffect(() => {
     const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     setSessionId(newSessionId)
+    
+    // Extract username from localStorage
+    const storedUserData = localStorage.getItem('userData')
+    if (storedUserData) {
+      try {
+        const parsedData = JSON.parse(storedUserData)
+        if (parsedData.username) {
+          setUserName(parsedData.username)
+        }
+      } catch (error) {
+        console.error('Error parsing user data:', error)
+      }
+    }
   }, [])
 
   // Auto-scroll to bottom when messages change
@@ -142,6 +156,7 @@ export default function MiniClarkChat({
       const response = await agentsApi.post('/api/v1/agents/query', {
         query: inputValue,
         user_id: userId,
+        username: userName,
         session_id: sessionId
       })
 
@@ -232,6 +247,7 @@ export default function MiniClarkChat({
       const response = await agentsApi.post('/api/v1/agents/query', {
         query: routedPrompt,
         user_id: userId,
+        username: userName,
         session_id: sessionId
       })
 
