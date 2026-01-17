@@ -735,7 +735,7 @@ export default function MemoriesTab({ userId, sessionId, messages = [] }: Memori
               <div className="flex items-center gap-2 mb-4">
                 <Brain className="h-5 w-5 text-amber-400" />
                 <h3 className="text-lg font-semibold text-white">
-                  Transient Knowledge Base (Last 3)
+                  Transient Knowledge Base (Last 5)
                 </h3>
                 <span className="px-2 py-1 bg-amber-900/40 text-amber-300 text-xs rounded-xl border border-amber-700/30">
                   {transientKB.length}
