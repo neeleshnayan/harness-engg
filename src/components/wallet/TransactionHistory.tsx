@@ -3,11 +3,13 @@
 import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { ArrowUpRight, ArrowDownLeft, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import api from '@/lib/api';
+import { K_TOKEN_ADDRESSES_LOWERCASE } from '@/lib/kTokens';
 
 interface Transaction {
   id: string;
   amount: string;
   token_name: string;
+  contract_address?: string | null;  // Contract address for k-tokens
   status: string;
   to_address: string | null;
   from_address: string | null;
@@ -180,16 +182,28 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
     }
   };
 
-  const formatAmount = (amount: string, token_name: string, inbound: boolean) => {
-    if (!amount) return inbound ? `+ 0.00 ${token_name}` : `- 0.00 ${token_name}`;
+  const getTokenSymbol = (tx: Transaction): string => {
+    // If contract_address is provided (for k-tokens from CONTRACT_EXECUTION), map it
+    if (tx.contract_address) {
+      const mapped = K_TOKEN_ADDRESSES_LOWERCASE[tx.contract_address.toLowerCase()];
+      if (mapped) return mapped;
+    }
+    // Otherwise use token_name from backend
+    return tx.token_name || 'UNKNOWN';
+  };
+
+  const formatAmount = (amount: string, tx: Transaction, inbound: boolean) => {
+    const token_symbol = getTokenSymbol(tx);
+
+    if (!amount) return inbound ? `0.00 ${token_symbol}` : `0.00 ${token_symbol}`;
     const num = parseFloat(amount);
-    if (token_name === 'USDC') {
+
+    if (token_symbol === 'USDC') {
       return `$${num.toFixed(2)}`;
     }
-    if (token_name === 'TRNSK') {
-      return `$${num.toFixed(2)}`;
-    }
-    return `${num.toFixed(2)} ${token_name.replace(/^k/, "")}`;
+
+    // For k-tokens, remove the 'k' prefix for display
+    return `${num.toFixed(2)} ${token_symbol.replace(/^k/, "")}`;
   };
 
   const formatDate = (dateString: string | null) => {
@@ -234,8 +248,13 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
   };
 
   const isInbound = (transaction: Transaction) => {
+    // For CONTRACT_EXECUTION, rely on transaction_type that's now properly set by backend
+    if (transaction.operation === 'CONTRACT_EXECUTION') {
+      return transaction.transaction_type?.toUpperCase() === 'INBOUND';
+    }
+    // For regular transfers, check transaction_type or compare addresses
     return transaction.transaction_type?.toUpperCase() === 'INBOUND' ||
-           transaction.to_address === userWalletAddress;
+           transaction.to_address?.toLowerCase() === userWalletAddress?.toLowerCase();
   };
 
   if (loading) {
@@ -287,7 +306,7 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
                   </div>
                   <div className="flex flex-col min-w-0 flex-1">
                     <span className="text-white font-semibold text-base tracking-tight whitespace-nowrap">
-                      {formatAmount(amount, tx.token_name, inbound)}
+                      {formatAmount(amount, tx, inbound)}
                     </span>
                     <span className="text-zinc-400 text-xs mt-0.5 whitespace-nowrap">
                       {inbound ? 'From: ' : 'To: '}
@@ -350,7 +369,7 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
               </div>
               <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
                 <span className="text-white font-semibold text-base tracking-tight whitespace-nowrap">
-                  {formatAmount(amount, tx.token_name, inbound)}
+                  {formatAmount(amount, tx, inbound)}
                 </span>
                 <span className="text-zinc-400 text-xs mt-0.5 whitespace-nowrap overflow-visible">
                   {inbound ? 'From: ' : 'To: '}

@@ -142,7 +142,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
 
               if (tokenBalances && Array.isArray(tokenBalances)) {
                 const allUSDCTokens = tokenBalances.filter((b: any) =>
-                  b.token && (b.token.symbol === 'USDC' || b.token.symbol === 'TRNSK')
+                  b.token && b.token.symbol === 'USDC'
                 );
                 console.log("USDC Tokens:", allUSDCTokens);
                 if (allUSDCTokens.length > 0) {

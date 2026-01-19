@@ -314,16 +314,12 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
 
     let totalInUSD = 0;
 
-    // Get USDC and TRNSK balances (both are in USD)
-    const transakToken = balance.tokenBalances.find(
-      (b: any) => b.token && b.token.symbol === 'TRNSK'
-    );
+    // Get USDC balance
     const usdc = balance.tokenBalances.find(
       (b: any) => b.token && b.token.symbol === 'USDC'
     );
-    const transakAmount = parseFloat(transakToken?.amount ?? "0");
     const usdcAmount = parseFloat(usdc?.amount ?? "0");
-    totalInUSD += transakAmount + usdcAmount;
+    totalInUSD += usdcAmount;
 
     // Get kToken balances and convert to USD
     for (const tb of balance.tokenBalances) {

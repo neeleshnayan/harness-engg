@@ -39,7 +39,7 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
         continue;
       }
 
-      if (tokenSymbol === "USDC" || tokenSymbol === "TRNSK") {
+      if (tokenSymbol === "USDC") {
         usdcTotal += rawAmount;
       }
     }

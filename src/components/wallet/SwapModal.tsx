@@ -84,7 +84,7 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
 
       if (kSymbol) {
         result[kSymbol] = (result[kSymbol] || 0) + rawAmount;
-      } else if (tokenSymbol === "USDC" || tokenSymbol === "TRNSK") {
+      } else if (tokenSymbol === "USDC") {
         result["USDC"] = (result["USDC"] || 0) + rawAmount;
       }
     }

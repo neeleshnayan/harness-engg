@@ -73,8 +73,6 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
       // For USDC, show with 2 decimal places
       if (symbol.toUpperCase() === 'USDC') {
         return `${numAmount.toFixed(2)}`;
-      } else if (symbol.toUpperCase() === 'TRNSK') {
-        return `${numAmount.toFixed(2)}`;
       }
 
       // For all other tokens including MAVC, use formatTokenBalance for smart formatting
@@ -101,15 +99,15 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
       const symbol = entry.token.symbol;
       const amount = parseFloat(entry.amount);
 
-      if (symbol === "USDC" || symbol === "TRNSK") {
+      if (symbol === "USDC") {
         if (!usdcMerged) {
-          // Start with the first USDC or TRNSK as base
+          // Start with the first USDC as base
           usdcMerged = JSON.parse(JSON.stringify(entry));
           usdcMerged.amount = amount;
           usdcMerged.token.symbol = "USDC";
           usdcMerged.token.name = "USDC";
         } else {
-          // Add amount from TRNSK or additional USDC
+          // Add amount from additional USDC
           usdcMerged.amount += amount;
         }
       } else {

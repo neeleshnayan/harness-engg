@@ -67,7 +67,7 @@ export default function HedgeFundV2Page() {
 
       if (symbol === 'ysWETH' || symbol === 'YEARN_WETH') {
         yearnWethBalance = (yearnWethBalance || 0) + rawAmount;
-      } else if (symbol === 'USDC' || symbol === 'TRNSK') {
+      } else if (symbol === 'USDC') {
         usdcBalance = (usdcBalance || 0) + rawAmount;
       }
     });

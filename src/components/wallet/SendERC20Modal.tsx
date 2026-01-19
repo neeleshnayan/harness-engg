@@ -211,7 +211,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
         continue;
       }
 
-      if (tokenSymbol === "USDC" || tokenSymbol === "TRNSK") {
+      if (tokenSymbol === "USDC") {
         balances["USDC"] = (balances["USDC"] || 0) + rawAmount;
       }
     }
