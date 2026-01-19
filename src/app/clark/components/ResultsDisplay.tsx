@@ -10,13 +10,15 @@ import PortfolioChart from './charts/PortfolioChart'
 import TechnicalCharts from './charts/TechnicalCharts'
 import AllocationCharts from './charts/AllocationCharts'
 import CandleChart from './charts/CandleChart'
+import TransactionStatus from './TransactionStatus'
 
 interface ResultsDisplayProps {
   messages: ChatMessage[]
   isLoading?: boolean
+  username?: string
 }
 
-export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayProps) {
+export default function ResultsDisplay({ messages, isLoading, username }: ResultsDisplayProps) {
   const [revealedAssistantIds, setRevealedAssistantIds] = useState<Set<string>>(new Set())
   const [expandedTradeTables, setExpandedTradeTables] = useState<Set<string>>(new Set())
   const hasAnyContent = messages.length > 0
@@ -906,6 +908,50 @@ export default function ResultsDisplay({ messages, isLoading }: ResultsDisplayPr
 
               {/* Render only backtest results */}
               {renderBacktest(message)}
+              
+              {/* Show transaction status if this is a krypton_pay transaction */}
+              {(() => {
+                // Check multiple ways to detect krypton_pay transaction
+                const agentIds = message.parsedIntent?.agent_ids || []
+                const hasKryptonPayInIntent = agentIds.includes('krypton_pay')
+                
+                const agentFlowNodes = message.agentFlow && 'nodes' in message.agentFlow 
+                  ? message.agentFlow.nodes 
+                  : Array.isArray(message.agentFlow) 
+                    ? message.agentFlow 
+                    : []
+                
+                const hasKryptonPayInFlow = agentFlowNodes.some((node: any) => 
+                  node.tool_name === 'consult_krypton_pay' || 
+                  node.id === 'krypton_pay' ||
+                  (node.output?.data && (
+                    node.output.data.transaction_id || 
+                    node.output.data.status === 'SUBMITTED' ||
+                    node.output.data.operation
+                  ))
+                )
+                
+                // Also check message content for transaction keywords
+                const messageContent = message.content || ''
+                const hasTransactionKeywords = /(sent|transfer|transaction|successfully)/i.test(messageContent) && 
+                  /(USD|EUR|AED|to @)/i.test(messageContent)
+                
+                const hasKryptonPay = hasKryptonPayInIntent || hasKryptonPayInFlow || hasTransactionKeywords
+                
+                if (hasKryptonPay && username) {
+                  return (
+                    <div className="flex gap-2 justify-start items-start mt-2">
+                      <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                        <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
+                      </div>
+                      <div className="max-w-[85%]">
+                        <TransactionStatus username={username} />
+                      </div>
+                    </div>
+                  )
+                }
+                return null
+              })()}
             </>
           )}
         </div>

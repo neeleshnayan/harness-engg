@@ -49,6 +49,7 @@ export default function BacktestPage() {
     userMessage: ChatMessage
   } | null>(null)
   
+  
 
   // Initialize session and user IDs on component mount
   useEffect(() => {
@@ -329,6 +330,49 @@ export default function BacktestPage() {
         localStorage.setItem('clark_overall_cost', newOverallCost.toString())
       }
       
+      // Check if krypton_pay transaction was made
+      // Check multiple possible locations for krypton_pay indication
+      const agentIds = payload?.parsed_intent?.agent_ids || []
+      const hasKryptonPayInIntent = agentIds.includes('krypton_pay')
+      
+      const agentFlowNodes = payload?.agent_flow?.nodes || []
+      const hasKryptonPayInFlow = agentFlowNodes.some((node: any) => 
+        node.tool_name === 'consult_krypton_pay' || 
+        node.id === 'krypton_pay' ||
+        (node.output?.data && (
+          node.output.data.transaction_id || 
+          node.output.data.status === 'SUBMITTED' ||
+          node.output.data.operation
+        ))
+      )
+      
+      // Also check if response data contains transaction info
+      const hasTransactionData = payload?.data?.transaction_id || 
+        payload?.data?.status === 'SUBMITTED' ||
+        payload?.data?.operation
+      
+      // Fallback: check message content for transaction keywords
+      const message = payload?.message || ''
+      const hasTransactionKeywords = /(sent|transfer|transaction|successfully)/i.test(message) && 
+        /(USD|EUR|AED|to @)/i.test(message)
+      
+      const hasKryptonPay = hasKryptonPayInIntent || hasKryptonPayInFlow || hasTransactionData || hasTransactionKeywords
+      
+      // Transaction status will be shown in ResultsDisplay based on message content
+      if (hasKryptonPay && userName) {
+        console.log('Krypton Pay detected', {
+          hasKryptonPayInIntent,
+          hasKryptonPayInFlow,
+          hasTransactionData,
+          hasTransactionKeywords,
+          userName,
+          message: message.substring(0, 100),
+          parsedIntent: payload?.parsed_intent,
+          agentFlowNodes: agentFlowNodes.length,
+          dataKeys: payload?.data ? Object.keys(payload.data) : []
+        })
+      }
+      
       const assistantMessage = createAssistantMessage(payload)
 
       setMessages(prev => [...prev, assistantMessage])
@@ -414,6 +458,49 @@ export default function BacktestPage() {
         setOverallCost(newOverallCost)
         // Persist overall cost to localStorage (session cost resets on new session)
         localStorage.setItem('clark_overall_cost', newOverallCost.toString())
+      }
+      
+      // Check if krypton_pay transaction was made
+      // Check multiple possible locations for krypton_pay indication
+      const agentIds = payload?.parsed_intent?.agent_ids || []
+      const hasKryptonPayInIntent = agentIds.includes('krypton_pay')
+      
+      const agentFlowNodes = payload?.agent_flow?.nodes || []
+      const hasKryptonPayInFlow = agentFlowNodes.some((node: any) => 
+        node.tool_name === 'consult_krypton_pay' || 
+        node.id === 'krypton_pay' ||
+        (node.output?.data && (
+          node.output.data.transaction_id || 
+          node.output.data.status === 'SUBMITTED' ||
+          node.output.data.operation
+        ))
+      )
+      
+      // Also check if response data contains transaction info
+      const hasTransactionData = payload?.data?.transaction_id || 
+        payload?.data?.status === 'SUBMITTED' ||
+        payload?.data?.operation
+      
+      // Fallback: check message content for transaction keywords
+      const message = payload?.message || ''
+      const hasTransactionKeywords = /(sent|transfer|transaction|successfully)/i.test(message) && 
+        /(USD|EUR|AED|to @)/i.test(message)
+      
+      const hasKryptonPay = hasKryptonPayInIntent || hasKryptonPayInFlow || hasTransactionData || hasTransactionKeywords
+      
+      // Transaction status will be shown in ResultsDisplay based on message content
+      if (hasKryptonPay && userName) {
+        console.log('Krypton Pay detected', {
+          hasKryptonPayInIntent,
+          hasKryptonPayInFlow,
+          hasTransactionData,
+          hasTransactionKeywords,
+          userName,
+          message: message.substring(0, 100),
+          parsedIntent: payload?.parsed_intent,
+          agentFlowNodes: agentFlowNodes.length,
+          dataKeys: payload?.data ? Object.keys(payload.data) : []
+        })
       }
       
       const assistantMessage = createAssistantMessage(payload)
@@ -542,7 +629,7 @@ export default function BacktestPage() {
         <div className="dark">
           <div ref={feedRef} className="max-h-[calc(100vh-6rem-8rem)] overflow-y-auto">
             <div className="pb-40">
-              <ResultsDisplay messages={messages} isLoading={isLoading} />
+              <ResultsDisplay messages={messages} isLoading={isLoading} username={userName} />
             </div>
           </div>
         </div>
