@@ -15,6 +15,7 @@ import CategoryTiles from './components/CategoryTiles'
 import ChatInputBar from './components/ChatInterface'
 import ResultsDisplay from './components/ResultsDisplay'
 import DevtoolsOverlay from './components/DevtoolsOverlay'
+import InterruptModal from './components/InterruptModal'
 
 
 
@@ -39,6 +40,14 @@ export default function BacktestPage() {
   const [sessionCost, setSessionCost] = useState<number>(0)
   const [overallCost, setOverallCost] = useState<number>(0)
   const [isFetchingCosts, setIsFetchingCosts] = useState<boolean>(false)
+  
+  // Interrupt handling
+  const [interrupts, setInterrupts] = useState<any[]>([])
+  const [isInterruptModalOpen, setIsInterruptModalOpen] = useState(false)
+  const [pendingInterruptResponse, setPendingInterruptResponse] = useState<{
+    query: string
+    userMessage: ChatMessage
+  } | null>(null)
   
 
   // Initialize session and user IDs on component mount
@@ -292,6 +301,24 @@ export default function BacktestPage() {
       })
 
       const payload = response.data
+      
+      // Check for interrupts
+      if (payload.stop_reason === 'interrupt' && payload.interrupts && payload.interrupts.length > 0) {
+        setInterrupts(payload.interrupts)
+        setIsInterruptModalOpen(true)
+        setPendingInterruptResponse({
+          query: routedPrompt,
+          userMessage: userMessage
+        })
+        setIsLoading(false)
+        return
+      }
+      
+      // Clear interrupt state if no interrupts
+      setInterrupts([])
+      setIsInterruptModalOpen(false)
+      setPendingInterruptResponse(null)
+      
       // Update costs if available and persist overall cost to localStorage
       if (payload.costs) {
         const newSessionCost = payload.costs.session_cost || 0
@@ -321,29 +348,63 @@ export default function BacktestPage() {
     }
   }
 
-  const handleSendMessage = async () => {
-    if (!inputValue.trim() || isLoading) return
+  const handleSendMessage = async (interruptResponses?: any[]) => {
+    const queryText = interruptResponses ? (pendingInterruptResponse?.query || '') : inputValue
+    
+    if (!queryText.trim() || isLoading) return
 
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      type: 'user',
-      content: inputValue,
-      timestamp: new Date(),
+    const userMessage: ChatMessage = interruptResponses 
+      ? pendingInterruptResponse!.userMessage
+      : {
+          id: Date.now().toString(),
+          type: 'user',
+          content: inputValue,
+          timestamp: new Date(),
+        }
+
+    if (!interruptResponses) {
+      setMessages(prev => [...prev, userMessage])
+      setInputValue('')
     }
-
-    setMessages(prev => [...prev, userMessage])
-    setInputValue('')
+    
     setIsLoading(true)
     
     try {
-      const response = await agentsApi.post('/api/v1/agents/query', {
-        query: inputValue,
+      const requestBody: any = {
         user_id: userId,
         username: userName,
         session_id: sessionId
-      })
+      }
+
+      // If we have interrupt responses, send them as content blocks
+      // Otherwise, send the query
+      if (interruptResponses && interruptResponses.length > 0) {
+        // Strands expects interrupt responses as content blocks
+        requestBody.content = interruptResponses
+      } else {
+        requestBody.query = queryText
+      }
+
+      const response = await agentsApi.post('/api/v1/agents/query', requestBody)
 
       const payload = response.data
+      
+      // Check for interrupts
+      if (payload.stop_reason === 'interrupt' && payload.interrupts && payload.interrupts.length > 0) {
+        setInterrupts(payload.interrupts)
+        setIsInterruptModalOpen(true)
+        setPendingInterruptResponse({
+          query: queryText,
+          userMessage: userMessage
+        })
+        setIsLoading(false)
+        return
+      }
+      
+      // Clear interrupt state if no interrupts
+      setInterrupts([])
+      setIsInterruptModalOpen(false)
+      setPendingInterruptResponse(null)
       
       // Update costs if available and persist overall cost to localStorage
       if (payload.costs) {
@@ -372,6 +433,30 @@ export default function BacktestPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleInterruptApprove = async (interruptId: string) => {
+    const interruptResponses = [{
+      interruptResponse: {
+        interruptId: interruptId,
+        response: "yes"
+      }
+    }]
+    
+    setIsInterruptModalOpen(false)
+    await handleSendMessage(interruptResponses)
+  }
+
+  const handleInterruptReject = async (interruptId: string) => {
+    const interruptResponses = [{
+      interruptResponse: {
+        interruptId: interruptId,
+        response: "no"
+      }
+    }]
+    
+    setIsInterruptModalOpen(false)
+    await handleSendMessage(interruptResponses)
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -548,6 +633,14 @@ export default function BacktestPage() {
         userId={userId}
         userName={userName}
         sessionId={sessionId}
+      />
+
+      {/* Interrupt Modal */}
+      <InterruptModal
+        isOpen={isInterruptModalOpen}
+        interrupts={interrupts}
+        onApprove={handleInterruptApprove}
+        onReject={handleInterruptReject}
       />
     </div>
   )
