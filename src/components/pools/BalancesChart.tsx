@@ -50,8 +50,6 @@ export default function BalancesChart({
       try {
         const response = await subgraphApi.getPoolBalanceHistory(poolAddress, limit, 'desc');
 
-        console.log('Pool balance history response:', response);
-
         if (!response.balances || response.balances.length === 0) {
           setData([]);
           return;

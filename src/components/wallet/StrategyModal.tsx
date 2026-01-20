@@ -65,10 +65,6 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
   tokenAddress,
   vaultAddress,
 }) => {
-  console.log(`[StrategyModal] ${strategyName} ${action} - usdcBalance prop:`, usdcBalance);
-  console.log(`[StrategyModal] Parsed float:`, parseFloat(usdcBalance));
-  console.log(`[StrategyModal] Number.isFinite:`, Number.isFinite(parseFloat(usdcBalance)));
-
   const tokenSymbol = getTokenSymbol(strategyName);
   const isDeposit = action === 'deposit';
   const [amount, setAmount] = useState("");

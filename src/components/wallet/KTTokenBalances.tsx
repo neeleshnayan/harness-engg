@@ -80,8 +80,6 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
             getClosingPoolRate("kUSD", token.symbol == "kUSD" ? "USDC" : token.symbol),
           ]);
 
-          console.log(`Current rate for ${token.symbol}: ${currentRate}, Closing rate: ${closingRate}`);
-
           // Compare prices: green if current > closing, red if current < closing, undefined if same
           if (currentRate > 0 && closingRate > 0) {
             if (currentRate > closingRate) {

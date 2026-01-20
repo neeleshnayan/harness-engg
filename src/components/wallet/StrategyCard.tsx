@@ -135,21 +135,17 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
             setUsdcBalance(usdcBalance);
           } else {
             try {
-              console.log(`[${strategyName}] Fetching wallet balance for:`, parsedData.wallet_address);
               const walletResponse = await api.get(`/api/v1/wallet_balance/${parsedData.wallet_address}`);
-              console.log(`[${strategyName}] Wallet Response:`, walletResponse.data);
               const tokenBalances = walletResponse.data.tokenBalances || walletResponse.data.token_balances;
 
               if (tokenBalances && Array.isArray(tokenBalances)) {
                 const allUSDCTokens = tokenBalances.filter((b: any) =>
                   b.token && b.token.symbol === 'USDC'
                 );
-                console.log("USDC Tokens:", allUSDCTokens);
                 if (allUSDCTokens.length > 0) {
                   const totalUSDC = allUSDCTokens.reduce((sum: number, token: any) => {
                     return sum + parseFloat(token.amount || "0");
                   }, 0);
-                  console.log("Total USDC:", totalUSDC);
                   setUsdcBalance(totalUSDC.toString());
                 }
               } else {

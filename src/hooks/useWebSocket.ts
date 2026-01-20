@@ -65,7 +65,6 @@ export const useWebSocket = (
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('WebSocket connected successfully');
         isConnectingRef.current = false;
         reconnectAttemptsRef.current = 0;
         setConnectionStatus('connected');
@@ -75,11 +74,6 @@ export const useWebSocket = (
       ws.onmessage = (event) => {
         try {
           const message: WebSocketMessage = JSON.parse(event.data);
-
-          // Handle connection confirmation
-          if (message.type === 'connection_established') {
-            console.log('WebSocket connection confirmed by server');
-          }
 
           onMessageRef.current?.(message);
         } catch (error) {

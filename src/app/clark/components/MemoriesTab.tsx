@@ -102,14 +102,6 @@ export default function MemoriesTab({ userId, sessionId, messages = [] }: Memori
         const condensed = response.data.condensed_memories || []
         const transient = response.data.transient_knowledge_base || []
         const persistent = response.data.persistent_knowledge_base || []
-
-        console.log('Fetched memories:', {
-          condensed_count: Array.isArray(condensed) ? condensed.length : 0,
-          transient_kb_count: Array.isArray(transient) ? transient.length : 0,
-          persistent_kb_count: Array.isArray(persistent) ? persistent.length : 0,
-          transient_kb_sample: Array.isArray(transient) ? transient.slice(0, 2) : [],
-          persistent_kb_sample: Array.isArray(persistent) ? persistent.slice(0, 2) : []
-        })
         
         // Ensure we have arrays (defensive)
         setCondensedMemories(Array.isArray(condensed) ? condensed : [])

@@ -319,11 +319,6 @@ export default function TransactionConfirmationCard({ username, onClose }: Trans
       const newTransactions = response.data.transactions || [];
       setTransactions(newTransactions);
       
-      // If no transactions found but we're showing the card, keep it visible for a bit
-      // in case the transaction just completed or is still processing
-      if (newTransactions.length === 0) {
-        console.log('No active transactions found for username:', username);
-      }
     } catch (err: any) {
       console.error('Error fetching active transactions:', err);
       // If 404, transaction might have completed already - keep card visible briefly

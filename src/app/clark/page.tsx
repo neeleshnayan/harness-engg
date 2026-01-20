@@ -358,21 +358,6 @@ export default function BacktestPage() {
       
       const hasKryptonPay = hasKryptonPayInIntent || hasKryptonPayInFlow || hasTransactionData || hasTransactionKeywords
       
-      // Transaction status will be shown in ResultsDisplay based on message content
-      if (hasKryptonPay && userName) {
-        console.log('Krypton Pay detected', {
-          hasKryptonPayInIntent,
-          hasKryptonPayInFlow,
-          hasTransactionData,
-          hasTransactionKeywords,
-          userName,
-          message: message.substring(0, 100),
-          parsedIntent: payload?.parsed_intent,
-          agentFlowNodes: agentFlowNodes.length,
-          dataKeys: payload?.data ? Object.keys(payload.data) : []
-        })
-      }
-      
       const assistantMessage = createAssistantMessage(payload)
 
       setMessages(prev => [...prev, assistantMessage])
@@ -487,21 +472,6 @@ export default function BacktestPage() {
         /(USD|EUR|AED|to @)/i.test(message)
       
       const hasKryptonPay = hasKryptonPayInIntent || hasKryptonPayInFlow || hasTransactionData || hasTransactionKeywords
-      
-      // Transaction status will be shown in ResultsDisplay based on message content
-      if (hasKryptonPay && userName) {
-        console.log('Krypton Pay detected', {
-          hasKryptonPayInIntent,
-          hasKryptonPayInFlow,
-          hasTransactionData,
-          hasTransactionKeywords,
-          userName,
-          message: message.substring(0, 100),
-          parsedIntent: payload?.parsed_intent,
-          agentFlowNodes: agentFlowNodes.length,
-          dataKeys: payload?.data ? Object.keys(payload.data) : []
-        })
-      }
       
       const assistantMessage = createAssistantMessage(payload)
 

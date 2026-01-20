@@ -51,8 +51,6 @@ export default function PriceChart({
         // Fetch pool rate history
         const response = await subgraphApi.getPoolRateHistory(poolAddress, limit, 'desc');
 
-        console.log('Pool rate history response:', response);
-
         if (!response.rates || response.rates.length === 0) {
           setData([]);
           return;
