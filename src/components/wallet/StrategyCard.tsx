@@ -96,7 +96,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
 
 
     if (!priceData?.price || netSupply === 0) {
-      return { value: config?.aum ?? 8.9, unit: 'M' };
+      return { value: config?.aum ?? 8.9, unit: '' };
     }
     const priceInUSD = Number(priceData.price);
     const aumInUSD = netSupply * priceInUSD;

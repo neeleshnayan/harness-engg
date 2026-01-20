@@ -22,7 +22,7 @@ interface AddStrategyModalProps {
 
 // Factory Address (Sepolia) - Replace with actual deployment
 // TODO: Fetch from env or constant
-const FACTORY_ADDRESS = "0xB53183894a5C5bc9cE7b368E3dEA013bCaA38A3b";
+const FACTORY_ADDRESS = "0x69e298E290d5F32e9159C3cf7A67336E8b1CaC26";
 
 export function AddStrategyModal({ isOpen, onClose, onSuccess }: AddStrategyModalProps) {
     const [step, setStep] = useState(1);
