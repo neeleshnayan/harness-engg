@@ -367,6 +367,7 @@ export default function BacktestPage() {
       
       const assistantMessage = createAssistantMessage(payload)
 
+      // Append Clark's response so ResultsDisplay can render results/backtests/etc.
       setMessages(prev => [...prev, assistantMessage])
     } catch (error) {
       console.error('LangChain API error:', error)
@@ -482,6 +483,8 @@ export default function BacktestPage() {
       
       const assistantMessage = createAssistantMessage(payload)
 
+      // Always append Clark's response; ResultsDisplay will decide what to show,
+      // including any transaction status cards for krypton_pay flows.
       setMessages(prev => [...prev, assistantMessage])
     } catch (error) {
       console.error('LangChain API error:', error)
@@ -507,7 +510,7 @@ export default function BacktestPage() {
       }
     }]
 
-    // Optimistic Clark messages in the conversation stream
+    // Optimistic Clark message in the conversation stream
     const confirmedMessage: ChatMessage = {
       id: (Date.now() + Math.random()).toString(),
       type: 'assistant',
@@ -516,15 +519,7 @@ export default function BacktestPage() {
       success: true,
     }
 
-    // const processingMessage: ChatMessage = {
-    //   id: (Date.now() + Math.random()).toString(),
-    //   type: 'assistant',
-    //   content: 'Processing your payment now…',
-    //   timestamp: new Date(),
-    //   success: false,
-    // }
-
-    // setMessages(prev => [...prev, confirmedMessage, processingMessage])
+    setMessages(prev => [...prev, confirmedMessage])
 
     // Hide the inline confirmation bubble by clearing interrupts
     setIsInterruptModalOpen(false)
