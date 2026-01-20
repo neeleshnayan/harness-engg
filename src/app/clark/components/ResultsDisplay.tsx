@@ -10,7 +10,7 @@ import PortfolioChart from './charts/PortfolioChart'
 import TechnicalCharts from './charts/TechnicalCharts'
 import AllocationCharts from './charts/AllocationCharts'
 import CandleChart from './charts/CandleChart'
-import TransactionStatus from './TransactionStatus'
+import TransactionStatus, { InlineTransactionData } from './TransactionStatus'
 
 interface ResultsDisplayProps {
   messages: ChatMessage[]
@@ -880,6 +880,31 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
 
             const isKryptonPay = hasKryptonPayInIntent || hasKryptonPayInFlow || hasTransactionKeywords
 
+            // Try to derive minimal transaction details from the krypton_pay agent node
+            let inlineTxData: InlineTransactionData | undefined
+            if (isKryptonPay && agentFlowNodes.length > 0) {
+              const kryptonNode = agentFlowNodes.find((node: any) =>
+                node.tool_name === 'consult_krypton_pay' ||
+                node.id === 'krypton_pay' ||
+                node.name?.toLowerCase().includes('krypton') ||
+                node.output?.data?.transaction_id
+              )
+              const data = kryptonNode?.output?.data
+              if (data) {
+                inlineTxData = {
+                  transaction_id: data.transaction_id,
+                  status: data.status,
+                  operation: data.operation,
+                  token: data.token,
+                  amount: data.amount,
+                  from_address: data.from_address,
+                  to_address: data.to_address,
+                  tx_hash: data.tx_hash,
+                  created_at: data.created_at,
+                }
+              }
+            }
+
             return (
             <>
               {/* For krypton_pay flows, hide Clark's natural language bubble entirely.
@@ -948,7 +973,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                     <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
                   </div>
                   <div className="max-w-[85%]">
-                    <TransactionStatus username={username} />
+                    <TransactionStatus username={username} initialData={inlineTxData} />
                   </div>
                 </div>
               )}

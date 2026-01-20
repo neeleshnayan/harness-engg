@@ -35,8 +35,24 @@ interface ActiveTransactionsResponse {
   count: number;
 }
 
+// Minimal transaction details we can derive directly from the agent flow
+// when the backend active-transactions API doesn't yet/any longer return it.
+export interface InlineTransactionData {
+  transaction_id?: string;
+  status?: string;
+  operation?: string;
+  token?: string;
+  amount?: number;
+  from_address?: string;
+  to_address?: string;
+  tx_hash?: string | null;
+  created_at?: number | null;
+}
+
 interface TransactionStatusProps {
   username: string;
+  /** Optional initial transaction details from the agent flow */
+  initialData?: InlineTransactionData;
 }
 
 function cleanTokenSymbol(symbol: string | null): string {
@@ -336,8 +352,30 @@ function getStatusIcon(status: string, txHash: string | null) {
   }
 }
 
-export default function TransactionStatus({ username }: TransactionStatusProps) {
-  const [transactions, setTransactions] = useState<ActiveTransaction[]>([]);
+export default function TransactionStatus({ username, initialData }: TransactionStatusProps) {
+  const [transactions, setTransactions] = useState<ActiveTransaction[]>(() => {
+    if (!initialData || !initialData.amount || !initialData.token || !initialData.to_address) {
+      return [];
+    }
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    return [
+      {
+        transaction_id: initialData.transaction_id || 'inline-transaction',
+        status: (initialData.status || CircleTransactionState.COMPLETE) as string,
+        kind: null,
+        tx_type: initialData.operation === 'swap_and_transfer' ? 'swap' : 'transfer',
+        created_at: initialData.created_at ?? nowSeconds,
+        updated_at: initialData.created_at ?? nowSeconds,
+        from_token: initialData.token || null,
+        to_token: null,
+        token_symbol: initialData.token || null,
+        amount: initialData.amount ?? null,
+        to_address: initialData.to_address || null,
+        to_username: null,
+        tx_hash: initialData.tx_hash ?? null,
+      },
+    ];
+  });
   const [loading, setLoading] = useState(false);
 
   const fetchActiveTransactions = useCallback(async () => {
@@ -350,17 +388,24 @@ export default function TransactionStatus({ username }: TransactionStatusProps) 
       );
 
       const newTransactions = response.data.transactions || [];
-      setTransactions(newTransactions);
+      // If the backend returns transactions, prefer those.
+      // Otherwise, keep any inline initial transaction we already have.
+      if (newTransactions.length > 0) {
+        setTransactions(newTransactions);
+      }
     } catch (err: any) {
       console.error('Error fetching active transactions:', err);
       // If 404, no active transactions
       if (err.response?.status === 404) {
-        setTransactions([]);
+        // Only clear if we never had inline data
+        if (!initialData) {
+          setTransactions([]);
+        }
       }
     } finally {
       setLoading(false);
     }
-  }, [username]);
+  }, [username, initialData]);
 
   useEffect(() => {
     if (username) {
