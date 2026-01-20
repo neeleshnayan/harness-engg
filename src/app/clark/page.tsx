@@ -15,7 +15,6 @@ import CategoryTiles from './components/CategoryTiles'
 import ChatInputBar from './components/ChatInterface'
 import ResultsDisplay from './components/ResultsDisplay'
 import DevtoolsOverlay from './components/DevtoolsOverlay'
-import InterruptModal from './components/InterruptModal'
 
 
 
@@ -164,6 +163,14 @@ export default function BacktestPage() {
       feedRef.current.scrollTo({ top: feedRef.current.scrollHeight, behavior: 'smooth' })
     }
   }, [messages])
+
+  // Also scroll when a new interrupt (e.g. payment confirmation) arrives so the
+  // inline confirmation bubble is visible at the bottom of the feed.
+  useEffect(() => {
+    if (feedRef.current && interrupts.length > 0) {
+      feedRef.current.scrollTo({ top: feedRef.current.scrollHeight, behavior: 'smooth' })
+    }
+  }, [interrupts.length])
 
   // Store messages in localStorage for devtools page access
   useEffect(() => {
@@ -499,8 +506,30 @@ export default function BacktestPage() {
         response: "yes"
       }
     }]
-    
+
+    // Optimistic Clark messages in the conversation stream
+    const confirmedMessage: ChatMessage = {
+      id: (Date.now() + Math.random()).toString(),
+      type: 'assistant',
+      content: 'Transaction confirmed.',
+      timestamp: new Date(),
+      success: true,
+    }
+
+    // const processingMessage: ChatMessage = {
+    //   id: (Date.now() + Math.random()).toString(),
+    //   type: 'assistant',
+    //   content: 'Processing your payment now…',
+    //   timestamp: new Date(),
+    //   success: false,
+    // }
+
+    // setMessages(prev => [...prev, confirmedMessage, processingMessage])
+
+    // Hide the inline confirmation bubble by clearing interrupts
     setIsInterruptModalOpen(false)
+    setInterrupts([])
+
     await handleSendMessage(interruptResponses)
   }
 
@@ -511,8 +540,30 @@ export default function BacktestPage() {
         response: "no"
       }
     }]
-    
+
+    // Optimistic Clark messages in the conversation stream
+    const rejectedMessage: ChatMessage = {
+      id: (Date.now() + Math.random()).toString(),
+      type: 'assistant',
+      content: 'Transaction rejected.',
+      timestamp: new Date(),
+      success: true,
+    }
+
+    const processingMessage: ChatMessage = {
+      id: (Date.now() + Math.random()).toString(),
+      type: 'assistant',
+      content: 'Updating your request…',
+      timestamp: new Date(),
+      success: false,
+    }
+
+    setMessages(prev => [...prev, rejectedMessage, processingMessage])
+
+    // Hide the inline confirmation bubble by clearing interrupts
     setIsInterruptModalOpen(false)
+    setInterrupts([])
+
     await handleSendMessage(interruptResponses)
   }
 
@@ -600,6 +651,71 @@ export default function BacktestPage() {
           <div ref={feedRef} className="max-h-[calc(100vh-6rem-8rem)] overflow-y-auto">
             <div className="pb-40">
               <ResultsDisplay messages={messages} isLoading={isLoading} username={userName} />
+              {/* Show payment confirmation inline at the end of the conversation */}
+              {interrupts && interrupts.length > 0 && (() => {
+                const paymentInterrupt = interrupts.find((i) => i.name === 'krypton-pay-approval')
+                if (!paymentInterrupt) return null
+                const { reason } = paymentInterrupt
+                const operation =
+                  reason.operation === 'swap_and_transfer' ? 'Swap & Transfer' : 'Transfer'
+                const fromToken = reason.from_token || reason.to_token
+                const toToken = reason.to_token || ''
+                return (
+                  <div className="mb-4 flex gap-2 justify-start items-start">
+                    <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                      <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
+                    </div>
+                    <div className="max-w-[85%] rounded-2xl p-4 bg-teal-900/40 border border-teal-700/50 text-white backdrop-blur-sm">
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-teal-300/80 mb-2">
+                        Payment confirmation
+                      </div>
+                      <p className="text-sm text-teal-100/90 mb-3">
+                        Please review and confirm the payment details below.
+                      </p>
+                      <div className="bg-teal-900/60 rounded-lg p-3 border border-teal-700/40 space-y-2 text-sm">
+                        {reason.operation === 'swap_and_transfer' && reason.from_token && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-teal-200/80">Swap From:</span>
+                            <span className="text-teal-100 font-medium">
+                              {reason.from_token}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center">
+                          <span className="text-teal-200/80">Send Amount:</span>
+                          <span className="text-teal-100 font-semibold">
+                            {reason.received_amount} {toToken}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-teal-200/80">To:</span>
+                          <span className="text-teal-100 font-medium">
+                            @{reason.receiver_username}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-teal-200/80">Operation:</span>
+                          <span className="text-teal-100 font-medium">{operation}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-3 pt-3 mt-2">
+                        <button
+                          onClick={() => handleInterruptReject(paymentInterrupt.id)}
+                          className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-xl border border-red-700/60 bg-red-900/30 text-red-100 hover:bg-red-900/50 text-sm font-medium transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => handleInterruptApprove(paymentInterrupt.id)}
+                          className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium transition-colors"
+                        >
+                          Confirm
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
           </div>
         </div>
@@ -690,14 +806,6 @@ export default function BacktestPage() {
         userId={userId}
         userName={userName}
         sessionId={sessionId}
-      />
-
-      {/* Interrupt Modal */}
-      <InterruptModal
-        isOpen={isInterruptModalOpen}
-        interrupts={interrupts}
-        onApprove={handleInterruptApprove}
-        onReject={handleInterruptReject}
       />
     </div>
   )
