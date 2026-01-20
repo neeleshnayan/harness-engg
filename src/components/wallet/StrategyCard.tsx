@@ -18,14 +18,15 @@ import { BalanceStatusIndicator, BalanceTransactionStage, BalanceTransactionType
 import StrategyModal from "./StrategyModal";
 
 interface StrategyCardProps {
-  strategyName: StrategyName;
+  strategyName: string; // Changed from StrategyName to string for dynamic support
   onRefresh?: () => void;
   onCardClick?: () => void;
   usdcBalance?: string;
+  strategyData?: any; // Dynamic config
 }
 
-// Strategy-specific configuration
-const STRATEGY_DETAILS: Record<StrategyName, {
+// Strategy-specific configuration (Legacy support)
+const STRATEGY_DETAILS__LEGACY: Record<string, {
   tokenSymbol: string;
   routePath: string;
   metricField: 'yearnWethVaultMetric';
@@ -39,12 +40,26 @@ const STRATEGY_DETAILS: Record<StrategyName, {
   },
 };
 
-const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, onCardClick, usdcBalance }) => {
+const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, onCardClick, usdcBalance, strategyData }) => {
   const router = useRouter();
   const { toast } = useToast();
-  const strategyDetails = STRATEGY_DETAILS[strategyName];
 
-  const { data: config, isLoading: configLoading } = useStrategyConfig(strategyName);
+  const safeStrategyName = strategyName || "";
+
+  // Dynamic Details
+  const strategyDetails = STRATEGY_DETAILS__LEGACY[safeStrategyName] || {
+    tokenSymbol: strategyData?.symbol || 'TOKEN',
+    routePath: `/customer/grow/hedge-fund-v2/${safeStrategyName.toLowerCase()}`,
+    metricField: 'strategyMetric', // Generic metric field
+    useTokenDetection: false,
+  };
+
+  const { data: config_fetched, isLoading: configLoading_fetched } = useStrategyConfig(strategyName as StrategyName);
+
+  // Use passed Data if available, else use fetched config
+  const config = strategyData || config_fetched;
+  const configLoading = strategyData ? false : configLoading_fetched;
+
   const { data: priceData, isLoading: priceLoading, error: priceError } = useStrategyPrice(
     strategyName,
     config?.subgraph_url
@@ -99,17 +114,17 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
 
   // Strategy metrics from config
   const strategyMetrics = {
-    name: 'Yearn WETH',
+    name: config?.name || safeStrategyName || 'Strategy',
     description: config?.description ?? '',
-    netApy: config?.net_apy ?? 135.3,
+    netApy: config?.net_apy ?? 0,
     aum: calculatedAUM.value,
     aumUnit: calculatedAUM.unit,
-    sharpe: config?.sharpe_ratio ?? 0.85,
-    maxDrawdown: config?.max_drawdown ?? 65.50,
-    lockInPeriod: config?.lock_in_period ?? '14d',
+    sharpe: config?.sharpe_ratio ?? 0,
+    maxDrawdown: config?.max_drawdown ?? 0,
+    lockInPeriod: config?.lock_in_period ?? 'None',
     participants: uniqueDepositors,
-    performanceFee: config?.performance_fee ?? 30.0,
-    riskGrade: config?.risk_grade ?? 'D'
+    performanceFee: config?.performance_fee ?? 0,
+    riskGrade: config?.risk_grade ?? 'B'
   };
 
   const gradeStyles = {
