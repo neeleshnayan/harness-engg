@@ -851,9 +851,40 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
             )
           })()}
 
-          {message.type === 'assistant' && (
+          {message.type === 'assistant' && (() => {
+            // Detect krypton_pay-style payment / transfer responses so we can
+            // suppress Clark's natural language bubble and rely purely on the
+            // structured transaction status UI.
+            const agentIds = message.parsedIntent?.agent_ids || []
+            const hasKryptonPayInIntent = agentIds.includes('krypton_pay')
+
+            const agentFlowNodes = message.agentFlow && 'nodes' in message.agentFlow 
+              ? message.agentFlow.nodes 
+              : Array.isArray(message.agentFlow) 
+                ? message.agentFlow 
+                : []
+
+            const hasKryptonPayInFlow = agentFlowNodes.some((node: any) => 
+              node.tool_name === 'consult_krypton_pay' || 
+              node.id === 'krypton_pay' ||
+              (node.output?.data && (
+                node.output.data.transaction_id || 
+                node.output.data.status === 'SUBMITTED' ||
+                node.output.data.operation
+              ))
+            )
+
+            const messageContent = message.content || ''
+            const hasTransactionKeywords = /(sent|transfer|transaction|successfully)/i.test(messageContent) && 
+              /(USD|EUR|AED|to @)/i.test(messageContent)
+
+            const isKryptonPay = hasKryptonPayInIntent || hasKryptonPayInFlow || hasTransactionKeywords
+
+            return (
             <>
-              {message.content && (message.success === false || !hasStructuredResults(message)) && (
+              {/* For krypton_pay flows, hide Clark's natural language bubble entirely.
+                  We'll show only the structured TransactionStatus card below. */}
+              {!isKryptonPay && message.content && (message.success === false || !hasStructuredResults(message)) && (
                 <div className="flex gap-2 justify-start items-start">
                   <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
                     <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
@@ -889,8 +920,9 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                 </div>
               )}
 
-              {/* When success === true, show the last line of Clark's response alongside plots */}
-              {message.success === true && hasStructuredResults(message) && message.content && (() => {
+              {/* When success === true, show the last line of Clark's response alongside plots,
+                  except for krypton_pay flows where we rely solely on TransactionStatus. */}
+              {!isKryptonPay && message.success === true && hasStructuredResults(message) && message.content && (() => {
                 const lines = message.content.split('\n').map(l => l.trim()).filter(Boolean)
                 const lastLine = lines.length > 0 ? lines[lines.length - 1] : ''
                 if (!lastLine) return null
@@ -909,51 +941,20 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
               {/* Render only backtest results */}
               {renderBacktest(message)}
               
-              {/* Show transaction status if this is a krypton_pay transaction */}
-              {(() => {
-                // Check multiple ways to detect krypton_pay transaction
-                const agentIds = message.parsedIntent?.agent_ids || []
-                const hasKryptonPayInIntent = agentIds.includes('krypton_pay')
-                
-                const agentFlowNodes = message.agentFlow && 'nodes' in message.agentFlow 
-                  ? message.agentFlow.nodes 
-                  : Array.isArray(message.agentFlow) 
-                    ? message.agentFlow 
-                    : []
-                
-                const hasKryptonPayInFlow = agentFlowNodes.some((node: any) => 
-                  node.tool_name === 'consult_krypton_pay' || 
-                  node.id === 'krypton_pay' ||
-                  (node.output?.data && (
-                    node.output.data.transaction_id || 
-                    node.output.data.status === 'SUBMITTED' ||
-                    node.output.data.operation
-                  ))
-                )
-                
-                // Also check message content for transaction keywords
-                const messageContent = message.content || ''
-                const hasTransactionKeywords = /(sent|transfer|transaction|successfully)/i.test(messageContent) && 
-                  /(USD|EUR|AED|to @)/i.test(messageContent)
-                
-                const hasKryptonPay = hasKryptonPayInIntent || hasKryptonPayInFlow || hasTransactionKeywords
-                
-                if (hasKryptonPay && username) {
-                  return (
-                    <div className="flex gap-2 justify-start items-start mt-2">
-                      <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                        <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
-                      </div>
-                      <div className="max-w-[85%]">
-                        <TransactionStatus username={username} />
-                      </div>
-                    </div>
-                  )
-                }
-                return null
-              })()}
+              {/* Show transaction status card when we detect a krypton_pay transaction */}
+              {isKryptonPay && username && (
+                <div className="flex gap-2 justify-start items-start mt-2">
+                  <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                    <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
+                  </div>
+                  <div className="max-w-[85%]">
+                    <TransactionStatus username={username} />
+                  </div>
+                </div>
+              )}
             </>
-          )}
+            )
+          })()}
         </div>
       ))}
       {isLoading && (
