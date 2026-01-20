@@ -96,6 +96,13 @@ The root layout (`src/app/layout.tsx`) wires up global styles, `Geist` fonts and
     - `parsed_intent.agent_ids`
     - `agent_flow` nodes and transaction‑like payloads
     - message/markdown content heuristics
+  - For Krypton Pay flows:
+    - `InterruptModal` surfaces a confirmation step (e.g. “Send 1 USD to Foodl3”)
+    - On **Confirm**, Clark executes the payment and returns a payment‑specific assistant message
+    - `ResultsDisplay` suppresses Clark’s natural‑language payment bubble and renders a `TransactionStatus` card instead
+    - `TransactionStatus`:
+      - Is seeded from the agent `agent_flow` (inline transaction data) so it appears even if `/circle/active-transactions/:username` briefly returns no active transfers
+      - Continues polling `/circle/active-transactions/:username` to reflect live Circle states and final completion
   - UI shows:
     - **Cost chips** (session vs total)
     - Streaming‑style feed of messages and structured results
