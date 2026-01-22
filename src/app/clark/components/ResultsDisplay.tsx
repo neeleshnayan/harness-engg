@@ -854,7 +854,9 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
 
           {message.type === 'assistant' && (() => {
             // Check if this is a price history query first (exclude from transaction detection)
-            const isPriceHistoryQuery = message.priceHistoryResult && message.priceHistoryResult.data_points.length > 0
+            const isPriceHistoryQuery = message.priceHistoryResult && 
+              message.priceHistoryResult.data_points && 
+              message.priceHistoryResult.data_points.length > 0
             const parsedIntentOperation = message.parsedIntent?.operation
             const isPriceHistoryOperation = parsedIntentOperation === 'price_history'
             
@@ -1030,18 +1032,19 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
               {/* Render price history chart */}
               {(() => {
                 // Check if we have price history data
-                const hasPriceHistory = message.priceHistoryResult && 
-                  message.priceHistoryResult.data_points && 
-                  Array.isArray(message.priceHistoryResult.data_points) &&
-                  message.priceHistoryResult.data_points.length > 0
+                const priceHistoryResult = message.priceHistoryResult
+                const hasPriceHistory = priceHistoryResult && 
+                  priceHistoryResult.data_points && 
+                  Array.isArray(priceHistoryResult.data_points) &&
+                  priceHistoryResult.data_points.length > 0
                 
-                if (!hasPriceHistory) return null
+                if (!hasPriceHistory || !priceHistoryResult) return null
                 
                 // Debug logging
                 console.log('Rendering price history chart:', {
-                  token: message.priceHistoryResult.token,
-                  dataPointsLength: message.priceHistoryResult.data_points.length,
-                  lookbackDays: message.priceHistoryResult.lookback_days,
+                  token: priceHistoryResult.token,
+                  dataPointsLength: priceHistoryResult.data_points.length,
+                  lookbackDays: priceHistoryResult.lookback_days,
                 })
                 
                 return (
@@ -1051,9 +1054,9 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                     </div>
                     <div className="max-w-[85%] w-full">
                       <PriceHistoryChart
-                        token={message.priceHistoryResult.token}
-                        dataPoints={message.priceHistoryResult.data_points}
-                        lookbackDays={message.priceHistoryResult.lookback_days}
+                        token={priceHistoryResult.token}
+                        dataPoints={priceHistoryResult.data_points}
+                        lookbackDays={priceHistoryResult.lookback_days}
                       />
                     </div>
                   </div>
