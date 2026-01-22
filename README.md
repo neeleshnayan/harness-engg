@@ -1,11 +1,10 @@
-
 ## Krypton Frontend
 
 This is the Krypton web app, built with Next.js (App Router) and TypeScript. It provides:
 
 - **Login & onboarding** for business and customer users
 - **Wallet experience** on top of Circle, with KYC, fiat on‑ramp, and real‑time balance updates
-- **Clark**, an agentic DeFi copilot (full‑screen and embedded “mini” variant)
+- **Clark**, an agentic DeFi copilot (full‑screen and embedded "mini" variant)
 - **Growth experiences** (hedge‑fund / marketplace flows, liquidity pools, analytics)
 
 The root layout (`src/app/layout.tsx`) wires up global styles, `Geist` fonts and the TanStack Query provider.
@@ -80,29 +79,44 @@ The root layout (`src/app/layout.tsx`) wires up global styles, `Geist` fonts and
 - **Route**: `/clark` → `src/app/clark/page.tsx`
 - **Components** (under `src/app/clark/components`):
   - `ChatInterface` (input bar)
-  - `ResultsDisplay` (renders markdown plus structured results such as backtests)
+  - `ResultsDisplay` (renders markdown plus structured results such as backtests, price history charts)
   - `CategoryTiles` (prebuilt prompts by category)
   - `DevtoolsOverlay` (inspecting agent messages, costs, flows)
   - `InterruptModal` (approval / denial for agent interrupts)
-  - `TransactionConfirmationCard`, `TransactionStatus` and charts (allocation, technicals, portfolio, etc.)
+  - `TransactionConfirmationCard`, `TransactionStatus` and charts (allocation, technicals, portfolio, price history, etc.)
+  - **Chart Components** (under `src/app/clark/components/charts`):
+    - `PriceHistoryChart` – Interactive line chart for Krypton Pay token price history
+    - `PortfolioChart` – Portfolio value over time
+    - `TechnicalCharts` – Technical indicators visualization
+    - `AllocationCharts` – Asset allocation pie and bar charts
+    - `CandleChart` – OHLCV candlestick charts
 - **Flow**:
   - Session/user context is restored from `localStorage` (`userData`, previous mini‑Clark messages if expanded).
   - User prompts are sent to `agentsApi.post('/api/v1/agents/query')` with `user_id`, `username`, `session_id`.
   - The response is normalized into a `ChatMessage` with:
-    - `backtestResult`
+    - `backtestResult` (for backtest queries)
+    - `priceHistoryResult` (for price history queries with chart data)
     - optional `agent_flow` graph
     - cost information (`session_cost`, `overall_cost`), persisted to `localStorage`.
   - Clark detects **Krypton Pay** operations using:
-    - `parsed_intent.agent_ids`
+    - `parsed_intent.agent_ids` and `parsed_intent.operation`
     - `agent_flow` nodes and transaction‑like payloads
     - message/markdown content heuristics
-  - For Krypton Pay flows:
-    - An inline Clark confirmation bubble surfaces in the chat (derived from the interrupt payload, e.g. “Send 1 USD to Foodl3”), with **Confirm** / **Cancel** actions
-    - On **Confirm** / **Cancel**, Clark appends a short status message (e.g. “Transaction confirmed.” / “Transaction rejected.”) and immediately resumes the normal agent flow
-    - When the payment is executed, `ResultsDisplay` suppresses the long natural‑language payment bubble and renders a `TransactionStatus` card instead
-    - `TransactionStatus`:
-      - Is seeded from the agent `agent_flow` (inline transaction data) so it appears even if `/circle/active-transactions/:username` briefly returns no active transfers
-      - Continues polling `/circle/active-transactions/:username` to reflect live Circle states and final completion
+    - Price history queries are detected separately to show charts instead of transaction cards
+  - For **Krypton Pay price history** flows:
+    - `ResultsDisplay` detects `priceHistoryResult` in the message
+    - Renders `PriceHistoryChart` component with interactive line chart
+    - Shows current price, price change percentage, and date range
+    - No interrupt or transaction card needed (read-only operation)
+  - For **Krypton Pay swap/transfer** flows:
+    - **Swap-only queries** (e.g., "Swap 2 USD for AED"): Execute immediately, show transaction status card with swap details
+    - **Transfer queries** (e.g., "Send 1 USD to @Foodl3"): 
+      - An inline Clark confirmation bubble surfaces in the chat (derived from the interrupt payload), with **Confirm** / **Cancel** actions
+      - On **Confirm** / **Cancel**, Clark appends a short status message (e.g. "Transaction confirmed." / "Transaction rejected.") and immediately resumes the normal agent flow
+      - When the payment is executed, `ResultsDisplay` suppresses the long natural‑language payment bubble and renders a `TransactionStatus` card instead
+      - `TransactionStatus`:
+        - Is seeded from the agent `agent_flow` (inline transaction data) so it appears immediately even if `/circle/active-transactions/:username` briefly returns no active transfers
+        - Continues polling `/circle/active-transactions/:username` to reflect live Circle states and final completion
   - UI shows:
     - **Cost chips** (session vs total)
     - Streaming‑style feed of messages and structured results
@@ -113,7 +127,7 @@ The root layout (`src/app/layout.tsx`) wires up global styles, `Geist` fonts and
 - **Component**: `src/components/MiniClarkChat.tsx`
 - **Usage**:
   - Passed into `WalletPageBase` via `config.renderChatComponent` from `/business` and `/customer`.
-  - Supports a compact chat window plus an **“expand”** button that deep‑links to `/clark` and hydrates the main Clark view from `localStorage`.
+  - Supports a compact chat window plus an **"expand"** button that deep‑links to `/clark` and hydrates the main Clark view from `localStorage`.
 - **Behaviour**:
   - Uses the same `agentsApi` backend and `ChatMessage` type as full Clark.
   - Can operate in **input‑only mode** (field + send button only) or full mini chat.
@@ -173,8 +187,11 @@ Under `src/app/customer/grow`:
   - `useWebSocket` – shared WS connection logic.
   - `useTransactionStatus`, `useYearnAUM`, `useStrategy*` – DeFi analytics and polling.
   - `use-toast` – toast provider wiring.
+  - `useKryptonPayPriceHistory` – React Query hook for fetching Krypton Pay token price history
 - **Libs**: `src/lib`
-  - `api.ts` – REST API client.
+  - `api.ts` – REST API client, including Krypton Pay API functions:
+    - `getDailyPriceHistory()` – Fetch daily price history for tokens (kEUR, kGBP, kAED, kUSD)
+    - `swap()` – Execute token swaps
   - `agents_api.ts` – Clark agent API client.
   - `firebaseClient.ts` – Firebase initialization.
   - `priceCache.ts`, `subgraphApi.ts`, `kTokens.ts`, `circleStates.ts` – domain utilities for pricing, subgraphs, token metadata, Circle status normalization.
