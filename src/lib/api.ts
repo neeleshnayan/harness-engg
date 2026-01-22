@@ -121,5 +121,108 @@ export const getTokenInfo = async (tokenAddress: string) => {
   }
 };
 
+// Krypton Pay API Types
+export type TokenName = 'kEUR' | 'kGBP' | 'kAED' | 'kUSD';
+
+export interface DailyPriceHistoryParams {
+  lookback_days?: number; // 1-365, default 30
+  debug?: boolean; // Include debug info
+}
+
+export interface DailyPriceHistoryDataPoint {
+  date: string; // YYYY-MM-DD format
+  price: number; // Token price in USD
+}
+
+export interface DailyPriceHistoryResponse {
+  token: TokenName;
+  lookback_days: number;
+  count: number;
+  data: DailyPriceHistoryDataPoint[];
+  debug_info?: {
+    total_records: number;
+    filtered_records: number;
+    target_pair: string;
+  };
+}
+
+export interface SwapRequest {
+  from_token: string; // Source token symbol (EUR, kUSD, etc.)
+  to_token: string; // Destination token symbol
+  amount: number; // Amount of from_token to swap
+  wallet_username: string; // Username of the swapper
+  slippage_tolerance?: number; // Max allowed price impact (default 0.05 = 5%)
+  min_amount_out?: number; // Manual minimum output override
+}
+
+export interface SwapResponse {
+  status: 'submitted' | 'error';
+  route?: string; // e.g., "EUR -> USD"
+  estimated_output?: number;
+  min_amount_out?: number;
+  user_address?: string;
+  transaction_id?: string;
+  data?: {
+    id: string;
+    state: string;
+  };
+  detail?: string; // Error message
+  message?: string; // Error message
+}
+
+/**
+ * Get daily price history for a Krypton Pay token
+ * 
+ * @param tokenName - Token name: kEUR, kGBP, kAED, kUSD
+ * @param params - Optional parameters (lookback_days, debug)
+ * @returns Promise resolving to daily price history response
+ */
+export const getDailyPriceHistory = async (
+  tokenName: TokenName,
+  params?: DailyPriceHistoryParams
+): Promise<DailyPriceHistoryResponse> => {
+  try {
+    const { lookback_days, debug } = params || {};
+    const queryParams = new URLSearchParams();
+    
+    if (lookback_days !== undefined) {
+      queryParams.append('lookback_days', lookback_days.toString());
+    }
+    if (debug !== undefined) {
+      queryParams.append('debug', debug.toString());
+    }
+    
+    const queryString = queryParams.toString();
+    const url = `/subgraph/token/${tokenName}/daily-prices${queryString ? `?${queryString}` : ''}`;
+    
+    const response = await kryptonWeb3Api.get<DailyPriceHistoryResponse>(url);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error getting daily price history:', error);
+    if (error.response?.data?.detail) {
+      throw new Error(error.response.data.detail);
+    }
+    throw error;
+  }
+};
+
+/**
+ * Execute a token swap
+ * 
+ * @param swapRequest - Swap request parameters
+ * @returns Promise resolving to swap response
+ */
+export const swap = async (swapRequest: SwapRequest): Promise<SwapResponse> => {
+  try {
+    const response = await kryptonWeb3Api.post<SwapResponse>('/pools/swap', swapRequest);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error executing swap:', error);
+    if (error.response?.data?.detail) {
+      throw new Error(error.response.data.detail);
+    }
+    throw error;
+  }
+};
 
 export default api;

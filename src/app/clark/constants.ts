@@ -195,7 +195,10 @@ export const categories: Category[] = [
       'Send 10 dollars to @krypton',
       'Swap 50 euros for GBP',
       'Transfer 100 AED to krypton',
-      'Swap 20 USD for EUR and send 10 EUR to @krypton'
+      'Swap 20 USD for EUR and send 10 EUR to @krypton',
+      'Show price history for kEUR',
+      'Display kGBP price chart for the last 90 days',
+      'Show daily price history for kAED'
     ]
   },
 ]

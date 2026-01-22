@@ -278,6 +278,16 @@ export interface AgentFlowGraph {
   total_query_time_ms?: number  // Total time taken to process the entire query (from start to finish)
 }
 
+export interface PriceHistoryResult {
+  token: string
+  lookback_days: number
+  count: number
+  data_points: Array<{
+    date: string
+    price: number
+  }>
+}
+
 export interface ChatMessage {
   id: string
   type: 'user' | 'assistant'
@@ -289,6 +299,7 @@ export interface ChatMessage {
   screenerResult?: ScreenerResult
   economicResult?: EconomicResult
   regulationResult?: RegulationResult
+  priceHistoryResult?: PriceHistoryResult
   source?: string
   capabilitiesSummary?: string
   parameterRequest?: ParameterRequest

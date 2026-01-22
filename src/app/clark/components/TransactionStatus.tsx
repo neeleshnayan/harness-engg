@@ -353,17 +353,16 @@ function getStatusIcon(status: string, txHash: string | null) {
 }
 
 export default function TransactionStatus({ username, initialData }: TransactionStatusProps) {
+  // Initialize with initialData immediately if available
   const [transactions, setTransactions] = useState<ActiveTransaction[]>(() => {
-    if (!initialData || !initialData.amount || !initialData.token || !initialData.to_address) {
-      return [];
-    }
-    const nowSeconds = Math.floor(Date.now() / 1000);
-    return [
-      {
+    if (initialData && (initialData.transaction_id || initialData.amount)) {
+      const nowSeconds = Math.floor(Date.now() / 1000);
+      // For swaps, we might not have to_address, so make it optional
+      const tx: ActiveTransaction = {
         transaction_id: initialData.transaction_id || 'inline-transaction',
-        status: (initialData.status || CircleTransactionState.COMPLETE) as string,
+        status: (initialData.status || 'SUBMITTED') as string,
         kind: null,
-        tx_type: initialData.operation === 'swap_and_transfer' ? 'swap' : 'transfer',
+        tx_type: initialData.operation === 'swap_and_transfer' || initialData.operation === 'swap' ? 'swap' : 'transfer',
         created_at: initialData.created_at ?? nowSeconds,
         updated_at: initialData.created_at ?? nowSeconds,
         from_token: initialData.token || null,
@@ -373,10 +372,13 @@ export default function TransactionStatus({ username, initialData }: Transaction
         to_address: initialData.to_address || null,
         to_username: null,
         tx_hash: initialData.tx_hash ?? null,
-      },
-    ];
+      };
+      return [tx];
+    }
+    return [];
   });
   const [loading, setLoading] = useState(false);
+  const [hasInitialData] = useState(!!initialData);
 
   const fetchActiveTransactions = useCallback(async () => {
     if (!username) return;
@@ -398,23 +400,27 @@ export default function TransactionStatus({ username, initialData }: Transaction
       // If 404, no active transactions
       if (err.response?.status === 404) {
         // Only clear if we never had inline data
-        if (!initialData) {
+        if (!hasInitialData) {
           setTransactions([]);
         }
       }
     } finally {
       setLoading(false);
     }
-  }, [username, initialData]);
+  }, [username, hasInitialData]);
 
   useEffect(() => {
     if (username) {
-      fetchActiveTransactions();
-      // Poll every 10 seconds
+      // Only fetch immediately if we don't have initialData
+      // If we have initialData, show it immediately and fetch in background
+      if (!hasInitialData) {
+        fetchActiveTransactions();
+      }
+      // Poll every 10 seconds to update status
       const interval = setInterval(fetchActiveTransactions, 10000);
       return () => clearInterval(interval);
     }
-  }, [username, fetchActiveTransactions]);
+  }, [username, fetchActiveTransactions, hasInitialData]);
 
   if (!username || transactions.length === 0) {
     return null;

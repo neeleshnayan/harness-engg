@@ -10,6 +10,7 @@ import PortfolioChart from './charts/PortfolioChart'
 import TechnicalCharts from './charts/TechnicalCharts'
 import AllocationCharts from './charts/AllocationCharts'
 import CandleChart from './charts/CandleChart'
+import PriceHistoryChart from './charts/PriceHistoryChart'
 import TransactionStatus, { InlineTransactionData } from './TransactionStatus'
 
 interface ResultsDisplayProps {
@@ -852,9 +853,15 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
           })()}
 
           {message.type === 'assistant' && (() => {
+            // Check if this is a price history query first (exclude from transaction detection)
+            const isPriceHistoryQuery = message.priceHistoryResult && message.priceHistoryResult.data_points.length > 0
+            const parsedIntentOperation = message.parsedIntent?.operation
+            const isPriceHistoryOperation = parsedIntentOperation === 'price_history'
+            
             // Detect krypton_pay-style payment / transfer responses so we can
             // suppress Clark's natural language bubble and rely purely on the
             // structured transaction status UI.
+            // BUT exclude price history queries - they should show charts, not transaction cards
             const agentIds = message.parsedIntent?.agent_ids || []
             const hasKryptonPayInIntent = agentIds.includes('krypton_pay')
 
@@ -875,32 +882,86 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
             )
 
             const messageContent = message.content || ''
-            const hasTransactionKeywords = /(sent|transfer|transaction|successfully)/i.test(messageContent) && 
-              /(USD|EUR|AED|to @)/i.test(messageContent)
+            const hasTransactionKeywords = /(sent|transfer|transaction|successfully|swapped|swap completed)/i.test(messageContent) && 
+              /(USD|EUR|AED|to @|transaction id)/i.test(messageContent)
 
-            const isKryptonPay = hasKryptonPayInIntent || hasKryptonPayInFlow || hasTransactionKeywords
+            // Only treat as krypton_pay transaction if:
+            // 1. Not a price history query
+            // 2. Has transaction indicators (transaction_id, status, operation, estimated_output, or transaction keywords)
+            const hasTransactionData = agentFlowNodes.some((node: any) => 
+              node.output?.data?.transaction_id || 
+              node.output?.data?.status === 'SUBMITTED' ||
+              node.output?.data?.operation ||
+              node.output?.data?.estimated_output || // Swap responses have estimated_output
+              node.output?.data?.route // Swap responses have route
+            )
+            
+            const isKryptonPay = !isPriceHistoryQuery && !isPriceHistoryOperation && 
+              (hasKryptonPayInIntent || hasKryptonPayInFlow) && 
+              (hasTransactionData || hasTransactionKeywords)
 
             // Try to derive minimal transaction details from the krypton_pay agent node
+            // Only extract if this is actually a transaction (not price history)
             let inlineTxData: InlineTransactionData | undefined
-            if (isKryptonPay && agentFlowNodes.length > 0) {
-              const kryptonNode = agentFlowNodes.find((node: any) =>
-                node.tool_name === 'consult_krypton_pay' ||
-                node.id === 'krypton_pay' ||
-                node.name?.toLowerCase().includes('krypton') ||
-                node.output?.data?.transaction_id
-              )
-              const data = kryptonNode?.output?.data
-              if (data) {
-                inlineTxData = {
-                  transaction_id: data.transaction_id,
-                  status: data.status,
-                  operation: data.operation,
-                  token: data.token,
-                  amount: data.amount,
-                  from_address: data.from_address,
-                  to_address: data.to_address,
-                  tx_hash: data.tx_hash,
-                  created_at: data.created_at,
+            if (isKryptonPay) {
+              // First try to extract from agent flow nodes
+              if (agentFlowNodes.length > 0) {
+                const kryptonNode = agentFlowNodes.find((node: any) =>
+                  node.tool_name === 'consult_krypton_pay' ||
+                  node.id === 'krypton_pay' ||
+                  node.name?.toLowerCase().includes('krypton')
+                )
+                const data = kryptonNode?.output?.data
+                
+                // Only create inlineTxData if we have transaction indicators
+                if (data && (data.transaction_id || data.status || data.operation || data.estimated_output)) {
+                  // For swaps, extract from the swap response structure
+                  if (data.estimated_output || data.route) {
+                    // This is a swap response
+                    const parsedIntent = message.parsedIntent
+                    inlineTxData = {
+                      transaction_id: data.transaction_id || data.data?.id,
+                      status: data.status || 'SUBMITTED',
+                      operation: 'swap',
+                      token: parsedIntent?.to_token || data.to_token || data.route?.split('->')[1]?.trim() || 'USD',
+                      amount: data.estimated_output || parsedIntent?.amount,
+                      from_address: data.user_address,
+                      to_address: data.user_address, // Swaps are to same wallet
+                      tx_hash: data.tx_hash,
+                      created_at: data.created_at,
+                    }
+                  } else if (data.transaction_id || data.status) {
+                    // This is a transfer/swap+transfer response
+                    inlineTxData = {
+                      transaction_id: data.transaction_id,
+                      status: data.status,
+                      operation: data.operation,
+                      token: data.token,
+                      amount: data.amount || data.received_amount,
+                      from_address: data.from_address,
+                      to_address: data.to_address,
+                      tx_hash: data.tx_hash,
+                      created_at: data.created_at,
+                    }
+                  }
+                }
+              }
+              
+              // Fallback: if no data from agent flow nodes, try to extract from parsedIntent for swaps
+              if (!inlineTxData && message.parsedIntent?.operation === 'swap') {
+                const parsedIntent = message.parsedIntent
+                if (parsedIntent.to_token && parsedIntent.amount) {
+                  inlineTxData = {
+                    transaction_id: undefined,
+                    status: 'SUBMITTED',
+                    operation: 'swap',
+                    token: parsedIntent.to_token,
+                    amount: parsedIntent.amount,
+                    from_address: undefined,
+                    to_address: undefined,
+                    tx_hash: undefined,
+                    created_at: Math.floor(Date.now() / 1000),
+                  }
                 }
               }
             }
@@ -965,6 +1026,39 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
 
               {/* Render only backtest results */}
               {renderBacktest(message)}
+              
+              {/* Render price history chart */}
+              {(() => {
+                // Check if we have price history data
+                const hasPriceHistory = message.priceHistoryResult && 
+                  message.priceHistoryResult.data_points && 
+                  Array.isArray(message.priceHistoryResult.data_points) &&
+                  message.priceHistoryResult.data_points.length > 0
+                
+                if (!hasPriceHistory) return null
+                
+                // Debug logging
+                console.log('Rendering price history chart:', {
+                  token: message.priceHistoryResult.token,
+                  dataPointsLength: message.priceHistoryResult.data_points.length,
+                  lookbackDays: message.priceHistoryResult.lookback_days,
+                })
+                
+                return (
+                  <div className="flex gap-2 justify-start items-start mt-2">
+                    <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                      <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
+                    </div>
+                    <div className="max-w-[85%] w-full">
+                      <PriceHistoryChart
+                        token={message.priceHistoryResult.token}
+                        dataPoints={message.priceHistoryResult.data_points}
+                        lookbackDays={message.priceHistoryResult.lookback_days}
+                      />
+                    </div>
+                  </div>
+                )
+              })()}
               
               {/* Show transaction status card when we detect a krypton_pay transaction */}
               {isKryptonPay && username && (

@@ -250,6 +250,51 @@ export default function BacktestPage() {
     // Only keep backtest result, remove all other components
     const backtestResult = rawData?.backtest_result ?? rawData?.backtestResult
 
+    // Extract price history result - check multiple possible locations
+    // The agent returns: data: { price_history: {...}, token: "...", data_points: [...] }
+    // Or: data: { price_history: { token, lookback_days, count, data: [...] } }
+    const priceHistoryData = rawData?.price_history ?? rawData?.priceHistory
+    // Try multiple paths to find data_points
+    let dataPoints = rawData?.data_points
+    if (!dataPoints && priceHistoryData) {
+      dataPoints = priceHistoryData?.data_points ?? priceHistoryData?.data
+    }
+    // Also check if priceHistoryData itself is an array (unlikely but possible)
+    if (!dataPoints && Array.isArray(priceHistoryData)) {
+      dataPoints = priceHistoryData
+    }
+    
+    // Debug logging
+    if (payload?.parsed_intent?.operation === 'price_history' || priceHistoryData || dataPoints) {
+      console.log('Price history extraction:', {
+        hasPriceHistoryData: !!priceHistoryData,
+        hasDataPoints: !!dataPoints,
+        dataPointsType: Array.isArray(dataPoints) ? 'array' : typeof dataPoints,
+        dataPointsLength: Array.isArray(dataPoints) ? dataPoints.length : 'N/A',
+        rawDataKeys: rawData ? Object.keys(rawData) : [],
+        priceHistoryDataKeys: priceHistoryData && typeof priceHistoryData === 'object' ? Object.keys(priceHistoryData) : [],
+        parsedIntent: payload?.parsed_intent,
+      })
+    }
+    
+    const priceHistoryResult = (priceHistoryData || dataPoints) && Array.isArray(dataPoints) && dataPoints.length > 0
+      ? {
+          token: rawData?.token || priceHistoryData?.token || payload?.parsed_intent?.token_name || '',
+          lookback_days: priceHistoryData?.lookback_days || payload?.parsed_intent?.lookback_days || 30,
+          count: priceHistoryData?.count || dataPoints.length || 0,
+          data_points: dataPoints,
+        }
+      : undefined
+    
+    if (priceHistoryResult) {
+      console.log('Price history result created:', {
+        token: priceHistoryResult.token,
+        lookback_days: priceHistoryResult.lookback_days,
+        count: priceHistoryResult.count,
+        dataPointsLength: priceHistoryResult.data_points.length,
+      })
+    }
+
     const rawParameterRequest = payload?.parameter_request
     const parameterRequest = rawParameterRequest
       ? {
@@ -271,7 +316,8 @@ export default function BacktestPage() {
       parsedIntent: payload?.parsed_intent,
       success: payload?.success ?? false,
       backtestResult,
-      // Remove all other result types - only keep backtest
+      priceHistoryResult,
+      // Remove all other result types - only keep backtest and price history
       screenerResult: undefined,
       economicResult: undefined,
       regulationResult: undefined,
