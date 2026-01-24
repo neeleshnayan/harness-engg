@@ -548,13 +548,13 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
   };
 
   /**
-   * Transfer tokens using Krypton_Web3 /erc20/owner-transfer endpoint (Circle-based)
+   * Transfer tokens using Krypton_Web3 /erc20/transfer endpoint (Circle-based)
    */
   const transferTokens = async (targetSymbol: string, toAddress: string, amount: number): Promise<string | null> => {
     setLoadingMessage(`Transferring ${amount.toFixed(2)} ${targetSymbol.replace(/^k/, "")}...`);
 
-    // Use Krypton_Web3 owner-transfer endpoint (Circle-based transaction)
-    const response = await kryptonWeb3Api.post(`/erc20/owner-transfer`, {
+    // Use Krypton_Web3 transfer endpoint (Circle-based transaction)
+    const response = await kryptonWeb3Api.post(`/erc20/transfer`, {
       token_symbol: targetSymbol,
       from_address: userAddress,
       from_username: username,
