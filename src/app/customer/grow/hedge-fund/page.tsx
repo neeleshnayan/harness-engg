@@ -368,6 +368,7 @@ export default function HedgeFundV2Page() {
                   userWalletAddress={accountData.wallet_address}
 
                   yearnWethCurrentBalance={tokenBalances.yearnWeth}
+                  strategies={strategies}
                 />
               </div>
             )}
@@ -460,6 +461,7 @@ export default function HedgeFundV2Page() {
                   <CumulativeAUMChartNew
                     userWalletAddress={accountData.wallet_address}
                     yearnWethCurrentBalance={tokenBalances.yearnWeth}
+                    strategies={strategies}
                   />
                 </div>
               )}

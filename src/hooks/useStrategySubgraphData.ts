@@ -165,7 +165,7 @@ const createQuery = (withOwner: boolean) => {
   return gql`${baseQuery}`;
 };
 
-const fetchSubgraph = async (subgraphUrl: string, strategyName: StrategyName, strategyAddress?: string, walletAddress?: string): Promise<MetricResult> => {
+export const fetchSubgraph = async (subgraphUrl: string, strategyName: StrategyName, strategyAddress?: string, walletAddress?: string): Promise<MetricResult> => {
   try {
     const client = new GraphQLClient(subgraphUrl);
     // Use provided strategy address or fallback to known legacy default if needed (though we should avoid hardcoding now)
