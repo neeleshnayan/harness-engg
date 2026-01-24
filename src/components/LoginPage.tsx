@@ -63,7 +63,7 @@ export default function LoginPage() {
       {/* Main Content Area */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center w-full p-6 md:p-12">
         {/* Glass Box */}
-        <div className="relative w-full max-w-[440px] flex flex-col items-center pt-6 pb-8 md:pt-8 md:pb-10 px-10 md:px-14">
+        <div className="relative w-full max-w-[440px] flex flex-col items-center pt-6 pb-8 md:pt-8 md:pb-10 px-10 md:px-14 mt-20 md:mb-20">
           {/* Glass BG SVG */}
           <img
             src="/Glass BG.svg"
