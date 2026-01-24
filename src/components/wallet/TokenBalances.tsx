@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { FaCoins, FaEthereum, FaSync } from "react-icons/fa";
+import { FaCoins, FaEthereum } from "react-icons/fa";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import api from "@/lib/api";
+import api, { kryptonWeb3Api } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface TokenBalance {
@@ -19,6 +19,7 @@ interface TokenBalance {
 interface TokenWithValue extends TokenBalance {
   price: number;
   value: number;
+  category: string; // "k_tokens" | "custom_tokens" | "quant_strategies" | "other"
 }
 
 interface TokenBalancesProps {
@@ -29,6 +30,12 @@ interface TokenBalancesProps {
   onRefresh?: () => void;
   subgraphUrl?: string;
   userWalletAddress?: string;
+}
+
+interface SupportedTokensResponse {
+  k_tokens: string[];
+  custom_tokens: string[];
+  quant_strategies: string[];
 }
 
 const TokenBalances: React.FC<TokenBalancesProps> = ({
@@ -45,6 +52,9 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
   const [priceLoading, setPriceLoading] = useState(false);
   const [totalValue, setTotalValue] = useState<number>(0);
   const [isExpanded, setIsExpanded] = useState(false);
+
+  const [supportedTokens, setSupportedTokens] = useState<SupportedTokensResponse | null>(null);
+  const [supportedTokensLoading, setSupportedTokensLoading] = useState(true);
 
   const getTokenIcon = (symbol: string) => {
     switch (symbol.toUpperCase()) {
@@ -125,10 +135,33 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
     return mergedBalances;
   }
 
-  const calculateTokenValues = async (tokenBalances: TokenBalance[]) => {
+  // Fetch supported tokens
+  useEffect(() => {
+    const fetchSupportedTokens = async () => {
+      try {
+        setSupportedTokensLoading(true);
+        const response = await kryptonWeb3Api.get('/erc20/supported-tokens');
+        setSupportedTokens(response.data);
+      } catch (err) {
+        console.error("Failed to fetch supported tokens", err);
+        // Fallback or handle error - maybe don't filter if fetch fails?
+        // For now, let's just keep supportedTokens null
+      } finally {
+        setSupportedTokensLoading(false);
+      }
+    };
+    fetchSupportedTokens();
+  }, []);
+
+  const calculateTokenValues = async (tokenBalances: TokenBalance[], supportedData: SupportedTokensResponse) => {
     setPriceLoading(true);
     let totalValue = 0;
     const tokensWithValues: TokenWithValue[] = [];
+
+    // Create sets for fast lookup (lowercase)
+    const kTokensSet = new Set(supportedData.k_tokens.map(a => a.toLowerCase()));
+    const customTokensSet = new Set(supportedData.custom_tokens.map(a => a.toLowerCase()));
+    const strategySet = new Set(supportedData.quant_strategies.map(a => a.toLowerCase()));
 
     try {
       for (const tokenBalance of tokenBalances) {
@@ -137,7 +170,21 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
 
         if (tokenAmount <= 0) continue;
 
-        let tokenPrice = 1; // Default price for tokens without address
+        // Determine category and filter
+        const address = token.tokenAddress?.toLowerCase();
+        let category = "other";
+
+        if (address) {
+          if (kTokensSet.has(address)) category = "k_tokens";
+          else if (customTokensSet.has(address)) category = "custom_tokens";
+          else if (strategySet.has(address)) category = "quant_strategies";
+        }
+
+        // Include "other" category tokens as well
+        // logic: if it's not in any of our supported lists, we classify it as "other" but still show it.
+
+
+        let tokenPrice = 0; // Default price for tokens without address
 
         // Special case for USDC - it's always worth 1 USDC
         if (token.symbol === 'USDC') {
@@ -165,7 +212,8 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
         tokensWithValues.push({
           ...tokenBalance,
           price: tokenPrice,
-          value: tokenValue
+          value: tokenValue,
+          category
         });
       }
 
@@ -202,14 +250,14 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
 
   useEffect(() => {
     const tokenBalances = getTokenBalances();
-    if (tokenBalances.length > 0) {
-      calculateTokenValues(tokenBalances);
+    if (tokenBalances.length > 0 && supportedTokens) {
+      calculateTokenValues(tokenBalances, supportedTokens);
     }
-  }, [balance]);
+  }, [balance, supportedTokens]);
 
   const tokenBalances = getTokenBalances();
 
-  if (loading) {
+  if (loading || supportedTokensLoading) {
     return (
       <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 ${className}`}>
         <div className="text-center">
@@ -234,19 +282,36 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
     );
   }
 
-  if (tokenBalances.length === 0) {
+  if (tokenDetails.length === 0) {
+  // If we have balances but they were all filtered out, show no tokens found (or specific message)
     return (
       <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 ${className}`}>
         <div className="text-center">
           <div className="w-16 h-16 bg-zinc-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
             <FaCoins className="text-zinc-400 text-2xl" />
           </div>
-          <h3 className="text-xl font-bold text-white mb-2">No Tokens Found</h3>
-          <p className="text-zinc-400">You don't have any tokens in your wallet yet.</p>
+          <h3 className="text-xl font-bold text-white mb-2">No Supported Tokens</h3>
+          <p className="text-zinc-400">You don't have any supported tokens in your wallet.</p>
         </div>
       </div>
     );
   }
+
+  const getSectionTitle = (key: string) => {
+    switch (key) {
+      case 'k_tokens': return 'Krypton Tokens';
+      case 'custom_tokens': return 'Custom Tokens';
+      case 'quant_strategies': return 'Quant Strategies';
+      default: return 'Other Tokens';
+    }
+  };
+
+  const groupedTokens = {
+    k_tokens: tokenDetails.filter(t => t.category === 'k_tokens'),
+    custom_tokens: tokenDetails.filter(t => t.category === 'custom_tokens'),
+    quant_strategies: tokenDetails.filter(t => t.category === 'quant_strategies'),
+    other: tokenDetails.filter(t => t.category === 'other'),
+  };
 
   return (
     <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 ${className}`}>
@@ -282,46 +347,54 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
 
       {/* Token List - Only show when expanded */}
       {isExpanded && tokenDetails.length > 0 && (
-        <div className="space-y-4 mb-6">
-          {tokenDetails
-            .map((tokenDetail: TokenWithValue, index: number) => {
-              return (
-                <div
-                  key={`${tokenDetail.token.id}-${index}`}
-                  className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl p-6 hover:bg-zinc-700/50 transition-all duration-200"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex-shrink-0">
-                        {getTokenIcon(tokenDetail.token.symbol)}
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="text-lg font-bold text-white">
-                          {tokenDetail.token.name || tokenDetail.token.symbol}
-                        </h4>
-                        <p className="text-zinc-400 text-sm">
-                          {tokenDetail.token.symbol} • {tokenDetail.token.blockchain}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <>
-                        <div className="text-xl font-bold text-white">
-                          {formatTokenAmount(tokenDetail.amount, tokenDetail.token.decimals, tokenDetail.token.symbol)}
-                        </div>
-                        <div className="text-zinc-400 text-sm">
-                          @ ${tokenDetail.price.toFixed(4)}
-                        </div>
-                        <div className="text-green-400 text-sm font-semibold">
-                          {formatValue(tokenDetail.value)}
-                        </div>
-                      </>
-                    </div>
-                  </div>
+        <div className="space-y-6 mb-6">
+          {(Object.keys(groupedTokens) as Array<keyof typeof groupedTokens>).map(sectionKey => {
+            const tokens = groupedTokens[sectionKey];
+            if (tokens.length === 0) return null;
 
+            return (
+              <div key={sectionKey}>
+                <h4 className="text-zinc-500 font-medium text-sm mb-3 uppercase tracking-wider pl-1">{getSectionTitle(sectionKey)}</h4>
+                <div className="space-y-4">
+                  {tokens.map((tokenDetail: TokenWithValue, index: number) => (
+                    <div
+                      key={`${tokenDetail.token.id}-${index}`}
+                      className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl p-6 hover:bg-zinc-700/50 transition-all duration-200"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className="flex-shrink-0">
+                            {getTokenIcon(tokenDetail.token.symbol)}
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="text-lg font-bold text-white">
+                              {tokenDetail.token.name || tokenDetail.token.symbol}
+                            </h4>
+                            <p className="text-zinc-400 text-sm">
+                              {tokenDetail.token.symbol} • {tokenDetail.token.blockchain}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <>
+                            <div className="text-xl font-bold text-white">
+                              {formatTokenAmount(tokenDetail.amount, tokenDetail.token.decimals, tokenDetail.token.symbol)}
+                            </div>
+                            <div className="text-zinc-400 text-sm">
+                              @ ${tokenDetail.price.toFixed(4)}
+                            </div>
+                            <div className="text-green-400 text-sm font-semibold">
+                              {formatValue(tokenDetail.value)}
+                            </div>
+                          </>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              );
-            })}
+              </div>
+            );
+          })}
         </div>
       )}
 
