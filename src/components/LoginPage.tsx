@@ -139,7 +139,7 @@ export default function LoginPage() {
         <div className="flex gap-6 md:gap-10 text-zinc-500 text-sm">
           <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
           <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
-          <a href="#" className="hover:text-white transition-colors">Website</a>
+          <a href="https://www.kryptonfund.com/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Website</a>
         </div>
       </footer>
     </div>
