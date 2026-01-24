@@ -22,6 +22,7 @@ interface StrategyCardProps {
   onRefresh?: () => void;
   onCardClick?: () => void;
   usdcBalance?: string;
+  strategyBalance?: string; // Pre-fetched strategy balance from parent
   strategyData?: any; // Dynamic config
 }
 
@@ -40,7 +41,7 @@ const STRATEGY_DETAILS__LEGACY: Record<string, {
   },
 };
 
-const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, onCardClick, usdcBalance, strategyData }) => {
+const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, onCardClick, usdcBalance, strategyBalance: strategyBalanceProp, strategyData }) => {
   const router = useRouter();
   const { toast } = useToast();
 
@@ -171,28 +172,33 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
             }
           }
 
-          // Fetch strategy balance from unified API (backend returns raw wei)
-          try {
-            const balanceResponse = await hedgeFundApi.get(`/api/v1/strategy/${strategyName}/balance/${parsedData.wallet_address}`);
+          // Use pre-fetched strategy balance if provided, otherwise fetch it
+          if (typeof strategyBalanceProp !== 'undefined') {
+            setStrategyBalance(strategyBalanceProp);
+          } else {
+            // Fetch strategy balance from unified API (backend returns raw wei)
+            try {
+              const balanceResponse = await hedgeFundApi.get(`/api/v1/strategy/${strategyName}/balance/${parsedData.wallet_address}`);
 
-            if (balanceResponse.data) {
-              const balance_wei = balanceResponse.data.balance || "0";
-              const contract_decimals = balanceResponse.data.decimals || 18;
+              if (balanceResponse.data) {
+                const balance_wei = balanceResponse.data.balance || "0";
+                const contract_decimals = balanceResponse.data.decimals || 18;
 
-              // Frontend display decimals for human-readable format
-              // MAVC: divide by 10^12 to show readable numbers (e.g., 18.19 MAVC)
-              // MAVP: divide by 10^12 to show readable numbers (e.g., 466.49 MAVP)
-              let display_decimals = contract_decimals;
+                // Frontend display decimals for human-readable format
+                // MAVC: divide by 10^12 to show readable numbers (e.g., 18.19 MAVC)
+                // MAVP: divide by 10^12 to show readable numbers (e.g., 466.49 MAVP)
+                let display_decimals = contract_decimals;
 
-              const balanceNum = parseFloat(balance_wei) / Math.pow(10, display_decimals);
-              const balance = balanceNum.toString();
+                const balanceNum = parseFloat(balance_wei) / Math.pow(10, display_decimals);
+                const balance = balanceNum.toString();
 
-              setStrategyBalance(balance);
-            } else {
+                setStrategyBalance(balance);
+              } else {
+                setStrategyBalance("0");
+              }
+            } catch (err: any) {
               setStrategyBalance("0");
             }
-          } catch (err: any) {
-            setStrategyBalance("0");
           }
         }
       }
@@ -215,6 +221,13 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
       setUsdcBalance(usdcBalance);
     }
   }, [usdcBalance]);
+
+  // Update strategy balance if prop changes
+  useEffect(() => {
+    if (typeof strategyBalanceProp !== 'undefined') {
+      setStrategyBalance(strategyBalanceProp);
+    }
+  }, [strategyBalanceProp]);
 
   // Calculate price in USDC (only for MAVC and MAVP, not Yearn)
   const priceInUSDC = useMemo(() => {

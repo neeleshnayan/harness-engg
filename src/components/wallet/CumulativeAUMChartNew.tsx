@@ -1,19 +1,40 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import { ComposedChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
-import { TrendingUp, Activity } from "lucide-react";
+import { TrendingUp, Activity, AlertCircle } from "lucide-react";
 import { useQueries } from '@tanstack/react-query';
 import { fetchSubgraph } from "@/hooks/useStrategySubgraphData";
-import { hedgeFundApi } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatTokenBalance } from "@/lib/utils";
 
 const DEFAULT_SUBGRAPH_URL = process.env.NEXT_PUBLIC_SUBGRAPH_URL || '';
 
+interface Strategy {
+  id: string;
+  name?: string;
+  symbol?: string;
+  address?: string;
+  vault_address?: string;
+  contract_address?: string;
+  subgraph_url?: string;
+  asset_decimals?: number;
+  decimals?: number;
+}
+
+interface TokenBalance {
+  amount: string;
+  token: {
+    symbol: string;
+  };
+}
+
+interface BalanceData {
+  tokenBalances?: TokenBalance[];
+}
+
 interface CumulativeAUMChartNewProps {
   userWalletAddress?: string;
-  yearnWethCurrentBalance?: number;
-  strategies?: any[];
+  strategies?: Strategy[];
+  balanceData?: BalanceData;
 }
 
 type DataPoint = {
@@ -57,9 +78,20 @@ const formatDate = (timestamp: number, timescale?: TimescaleOption): string => {
 };
 
 const formatAUM = (aum: number): string => {
-  if (aum >= 1000000) return `$${(aum / 1000000).toFixed(2)}M`;
-  if (aum >= 1000) return `$${(aum / 1000).toFixed(2)}K`;
+  if (!isFinite(aum) || isNaN(aum)) return '$0.00';
+  const absAum = Math.abs(aum);
+  if (absAum >= 1000000) return `$${(aum / 1000000).toFixed(2)}M`;
+  if (absAum >= 1000) return `$${(aum / 1000).toFixed(2)}K`;
   return `$${aum.toFixed(2)}`;
+};
+
+const getStrategyDecimals = (strategy: Strategy): number => {
+  // Prioritize asset_decimals, fallback to decimals, default to 6 for USDC-based strategies
+  return strategy?.asset_decimals ?? strategy?.decimals ?? 6;
+};
+
+const getStrategyAddress = (strategy: Strategy): string | null => {
+  return strategy?.address || strategy?.vault_address || strategy?.contract_address || null;
 };
 
 const CustomTooltip = ({ active, payload, strategies }: any) => {
@@ -95,65 +127,72 @@ const CustomTooltip = ({ active, payload, strategies }: any) => {
 
 export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
   userWalletAddress,
-  strategies = []
+  strategies = [],
+  balanceData
 }) => {
   const [selectedTimescale, setSelectedTimescale] = useState<TimescaleOption>("30d");
-  const [activeStrategyBalances, setActiveStrategyBalances] = useState<Record<string, number>>({});
 
-  // 1. Fetch Subgraph Data for ALL active strategies
+  // Validate strategies have required fields
+  const validStrategies = useMemo(() => {
+    return strategies.filter(strategy => {
+      const hasId = !!strategy.id;
+      const hasAddress = !!getStrategyAddress(strategy);
+      return hasId && hasAddress;
+    });
+  }, [strategies]);
+
+  // 1. Fetch Subgraph Data for ALL valid strategies
   const strategyQueries = useQueries({
-    queries: strategies.map(strategy => {
-      const targetAddress = strategy.address || strategy.vault_address || strategy.contract_address;
+    queries: validStrategies.map(strategy => {
+      const targetAddress = getStrategyAddress(strategy)!;
       const subgraphUrl = strategy.subgraph_url || DEFAULT_SUBGRAPH_URL;
-
-      console.log(`[Chart] Query params for ${strategy.id}: Address=${targetAddress}, URL=${subgraphUrl}`);
 
       return {
         queryKey: ['subgraph', 'analytics', strategy.id, targetAddress, userWalletAddress],
         queryFn: () => fetchSubgraph(subgraphUrl, strategy.id, targetAddress, userWalletAddress),
-        enabled: !!userWalletAddress && !!targetAddress,
-        staleTime: 60000,
+        enabled: !!userWalletAddress && !!targetAddress && !!subgraphUrl,
+        staleTime: 30000, // Reduced to 30s for consistency
+        retry: 2,
       };
     })
   });
 
   const isLoading = strategyQueries.some(q => q.isLoading);
+  const hasErrors = strategyQueries.some(q => q.isError);
 
-  // 2. Fetch Live Balances for ALL active strategies
-  useEffect(() => {
-    const fetchAllBalances = async () => {
-      if (!userWalletAddress || strategies.length === 0) return;
+  // 2. Parse Live Balances from balanceData prop (single source of truth)
+  const activeStrategyBalances = useMemo(() => {
+    if (!balanceData?.tokenBalances || !Array.isArray(balanceData.tokenBalances)) {
+      return {};
+    }
 
-      const balanceMap: Record<string, number> = {};
+    const balanceMap: Record<string, number> = {};
 
-      await Promise.all(strategies.map(async (strategy) => {
-        try {
-          if (!strategy.id) return;
+    validStrategies.forEach(strategy => {
+      const strategySymbol = strategy.symbol?.toUpperCase();
+      const strategyId = strategy.id?.toUpperCase();
 
-          const response = await hedgeFundApi.get(`/api/v1/strategy/${strategy.id}/balance/${userWalletAddress}`);
-          const data = response.data;
-          if (data.balance) {
-            const contractDecimals = data.decimals || 18;
-            const balance = Number(data.balance) / Math.pow(10, contractDecimals);
-            balanceMap[strategy.id] = balance;
-          }
-        } catch (e) {
-          // Ignore errors for individual strategies
+      // Find matching token balance by symbol or ID
+      const tokenBalance = balanceData.tokenBalances!.find(tb => {
+        const symbol = tb.token.symbol?.toUpperCase();
+        return symbol === strategySymbol || symbol === strategyId;
+      });
+
+      if (tokenBalance) {
+        const amount = parseFloat(tokenBalance.amount);
+        if (!isNaN(amount) && amount > 0) {
+          balanceMap[strategy.id] = amount;
         }
-      }));
+      }
+    });
 
-      setActiveStrategyBalances(balanceMap);
-    };
-
-    fetchAllBalances();
-    const interval = setInterval(fetchAllBalances, 15000);
-    return () => clearInterval(interval);
-  }, [userWalletAddress, strategies]);
+    return balanceMap;
+  }, [balanceData, validStrategies]);
 
 
   // 3. Aggregate Data and Build Timeline with Extrapolation
   const chartData = useMemo(() => {
-    if (!userWalletAddress || strategies.length === 0) return [];
+    if (!userWalletAddress || validStrategies.length === 0) return [];
 
     const timescaleStart = getTimescaleSeconds(selectedTimescale);
     const currentTime = Math.floor(Date.now() / 1000);
@@ -161,37 +200,17 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
     // Collect all events from all successful queries
     let allDeposits: any[] = [];
     let allWithdrawals: any[] = [];
-    const strategiesWithHistory = new Set<string>();
 
     strategyQueries.forEach((query, index) => {
       if (query.data) {
-        const strategy = strategies[index];
+        const strategy = validStrategies[index];
         const strategyId = strategy?.id;
 
         const deposits = (query.data.deposits || []).map(d => ({ ...d, strategyId }));
         const withdrawals = (query.data.withdrawals || []).map(w => ({ ...w, strategyId }));
 
-        if (deposits.length > 0 || withdrawals.length > 0) {
-          strategiesWithHistory.add(strategyId);
-        }
-
-        console.log(`[Chart] Data for ${strategyId}: Deposits: ${deposits.length}, Withdrawals: ${withdrawals.length}`);
-
         allDeposits = [...allDeposits, ...deposits];
         allWithdrawals = [...allWithdrawals, ...withdrawals];
-      }
-    });
-
-    // BASELINE: Strategies with live balance but no history (steady state assumption)
-    let baselineAUM = 0;
-    const baselineBalances: Record<string, number> = {};
-
-    strategies.forEach(s => {
-      const liveBal = activeStrategyBalances[s.id] || 0;
-      if (liveBal > 0 && !strategiesWithHistory.has(s.id)) {
-        baselineAUM += liveBal;
-        baselineBalances[s.id] = liveBal;
-        console.log(`[Chart] Strategy ${s.id} has live balance ${liveBal} but no history. Using as baseline.`);
       }
     });
 
@@ -204,7 +223,7 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
 
     // Replay history
     const dataPoints: DataPoint[] = [];
-    const currentBalances: Record<string, number> = { ...baselineBalances };
+    const currentBalances: Record<string, number> = {};
 
     for (const timestamp of sortedTimestamps) {
       // Process deposits at this timestamp
@@ -213,8 +232,10 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
           const stratId = d.strategyId;
           const rawAmount = Number(d.assets) || 0;
 
-          const strategy = strategies.find(s => s.id === stratId);
-          const decimals = strategy?.asset_decimals || strategy?.decimals || 6;
+          const strategy = validStrategies.find(s => s.id === stratId);
+          if (!strategy) return;
+
+          const decimals = getStrategyDecimals(strategy);
           const normalizedVal = rawAmount / Math.pow(10, decimals);
 
           currentBalances[stratId] = (currentBalances[stratId] || 0) + normalizedVal;
@@ -227,24 +248,29 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
           const stratId = w.strategyId;
           const rawAmount = Number(w.assets) || 0;
 
-          const strategy = strategies.find(s => s.id === stratId);
-          const decimals = strategy?.asset_decimals || strategy?.decimals || 6;
+          const strategy = validStrategies.find(s => s.id === stratId);
+          if (!strategy) return;
+
+          const decimals = getStrategyDecimals(strategy);
           const normalizedVal = rawAmount / Math.pow(10, decimals);
 
-          currentBalances[stratId] = (currentBalances[stratId] || 0) - normalizedVal;
+          currentBalances[stratId] = Math.max(0, (currentBalances[stratId] || 0) - normalizedVal);
         }
       });
 
       // Sum all balances
       let total = 0;
-      Object.values(currentBalances).forEach(val => total += val);
-      if (total < 0) total = 0;
+      Object.values(currentBalances).forEach(val => {
+        if (isFinite(val) && !isNaN(val)) {
+          total += val;
+        }
+      });
+      total = Math.max(0, total);
 
       dataPoints.push({
         timestamp,
         date: formatDate(timestamp, selectedTimescale),
         totalAUM: total,
-        yearnWethAUM: 0,
         ...currentBalances,
       });
     }
@@ -253,57 +279,63 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
     let windowedPoints = dataPoints.filter(p => p.timestamp >= timescaleStart);
 
     // EXTRAPOLATION: Inject Start Point if needed
-    if (windowedPoints.length === 0 || windowedPoints[0].timestamp > timescaleStart) {
+    if (windowedPoints.length === 0 || (windowedPoints.length > 0 && windowedPoints[0].timestamp > timescaleStart)) {
       const lastEventBeforeStart = dataPoints.filter(p => p.timestamp < timescaleStart).pop();
 
-      let startBalance = baselineAUM;
-      let startStrategies: any = { ...baselineBalances };
+      let startBalance = 0;
+      let startStrategies: Record<string, number> = {};
 
       if (lastEventBeforeStart) {
         startBalance = lastEventBeforeStart.totalAUM;
         startStrategies = { ...lastEventBeforeStart };
-        delete startStrategies.timestamp;
-        delete startStrategies.date;
-        delete startStrategies.totalAUM;
-        delete startStrategies.yearnWethAUM;
+        delete (startStrategies as any).timestamp;
+        delete (startStrategies as any).date;
+        delete (startStrategies as any).totalAUM;
       }
 
       windowedPoints.unshift({
         timestamp: timescaleStart,
         date: formatDate(timescaleStart, selectedTimescale),
         totalAUM: startBalance,
-        yearnWethAUM: 0,
         ...startStrategies,
       });
     }
 
-    // EXTRAPOLATION: Add Live Point at current time
-    const liveTotal = Object.values(activeStrategyBalances).reduce((a, b) => a + b, 0);
+    // EXTRAPOLATION: Add Live Point at current time if significantly newer than last historical point
+    const liveTotal = Object.values(activeStrategyBalances).reduce((sum, val) => {
+      return isFinite(val) && !isNaN(val) ? sum + val : sum;
+    }, 0);
+
     const lastPoint = windowedPoints[windowedPoints.length - 1];
 
-    if (lastPoint && (currentTime - lastPoint.timestamp > 60)) {
+    if (windowedPoints.length === 0 || !lastPoint) {
+      // No historical data, show flat line with current balance
+      windowedPoints = [
+        {
+          timestamp: timescaleStart,
+          date: formatDate(timescaleStart, selectedTimescale),
+          totalAUM: liveTotal,
+          ...activeStrategyBalances
+        },
+        {
+          timestamp: currentTime,
+          date: formatDate(currentTime, selectedTimescale),
+          totalAUM: liveTotal,
+          ...activeStrategyBalances
+        }
+      ];
+    } else if (currentTime - lastPoint.timestamp > 60) {
+      // Add current point if last historical point is more than 1 minute old
       windowedPoints.push({
         timestamp: currentTime,
         date: formatDate(currentTime, selectedTimescale),
         totalAUM: liveTotal,
-        yearnWethAUM: 0,
-        ...activeStrategyBalances
-      });
-    } else if (windowedPoints.length === 1) {
-      // Only start point exists, add end point for flat line
-      windowedPoints.push({
-        timestamp: currentTime,
-        date: formatDate(currentTime, selectedTimescale),
-        totalAUM: liveTotal,
-        yearnWethAUM: 0,
         ...activeStrategyBalances
       });
     }
 
-    console.log("[Chart] Final Windowed Points:", windowedPoints);
-
     return windowedPoints;
-  }, [strategyQueries, activeStrategyBalances, strategies, selectedTimescale, userWalletAddress]);
+  }, [strategyQueries, activeStrategyBalances, validStrategies, selectedTimescale, userWalletAddress]);
 
 
   const stats = useMemo(() => {
@@ -314,13 +346,16 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
     const changePercent = first.totalAUM > 0 ? (change / first.totalAUM) * 100 : 0;
 
     return {
-      current: latest.totalAUM,
-      start: first.totalAUM,
-      change,
-      changePercent,
+      current: isFinite(latest.totalAUM) ? latest.totalAUM : 0,
+      start: isFinite(first.totalAUM) ? first.totalAUM : 0,
+      change: isFinite(change) ? change : 0,
+      changePercent: isFinite(changePercent) ? changePercent : 0,
       isPositive: change >= 0
     };
   }, [chartData]);
+
+  // Warning state for strategies missing required data
+  const missingStrategiesCount = strategies.length - validStrategies.length;
 
 
   if (isLoading) {
@@ -338,6 +373,12 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
           <Activity className="w-4 h-4 mr-2" />
           <span className="text-xs sm:text-sm">No portfolio data available for selected time period</span>
         </div>
+        {hasErrors && (
+          <div className="flex items-center justify-center mt-4 text-amber-500">
+            <AlertCircle className="w-4 h-4 mr-2" />
+            <span className="text-xs">Some strategies failed to load. Please try again.</span>
+          </div>
+        )}
       </div>
     );
   }
@@ -354,6 +395,18 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
             <div className="text-2xl sm:text-3xl font-bold text-green-400 mb-2">
               {formatAUM(stats.current)}
             </div>
+            {missingStrategiesCount > 0 && (
+              <div className="flex items-center gap-2 text-xs text-amber-500 mt-2">
+                <AlertCircle className="w-3 h-3" />
+                <span>{missingStrategiesCount} {missingStrategiesCount === 1 ? 'strategy is' : 'strategies are'} missing required configuration</span>
+              </div>
+            )}
+            {hasErrors && (
+              <div className="flex items-center gap-2 text-xs text-red-400 mt-2">
+                <AlertCircle className="w-3 h-3" />
+                <span>Some data failed to load</span>
+              </div>
+            )}
           </div>
           <Select value={selectedTimescale} onValueChange={(value) => setSelectedTimescale(value as TimescaleOption)}>
             <SelectTrigger className="w-full sm:w-[160px] bg-zinc-800/50 border-zinc-700 text-white">
@@ -410,7 +463,7 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
               stroke="#3f3f46"
               tickFormatter={(value) => formatAUM(value)}
             />
-            <Tooltip content={<CustomTooltip strategies={strategies} />} />
+            <Tooltip content={<CustomTooltip strategies={validStrategies} />} />
             <Area
               type="stepAfter"
               dataKey="totalAUM"

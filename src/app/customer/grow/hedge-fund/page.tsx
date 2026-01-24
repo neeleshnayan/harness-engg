@@ -76,7 +76,7 @@ export default function HedgeFundV2Page() {
 
   const tokenBalances = useMemo(() => {
     if (!balance || !Array.isArray(balance.tokenBalances)) {
-      return { yearnWeth: undefined, usdc: undefined };
+      return { yearnWeth: undefined, usdc: undefined, strategies: {} };
     }
 
     let balances = balance.tokenBalances.filter((tokenBalance: any) => {
@@ -86,6 +86,7 @@ export default function HedgeFundV2Page() {
 
     let yearnWethBalance: number | undefined;
     let usdcBalance: number | undefined;
+    const strategyBalances: Record<string, string> = {};
 
     balances.forEach((tokenBalance: any) => {
       const symbol = tokenBalance.token.symbol;
@@ -97,8 +98,24 @@ export default function HedgeFundV2Page() {
         usdcBalance = (usdcBalance || 0) + rawAmount;
       }
     });
-    return { usdc: usdcBalance, yearnWeth: yearnWethBalance };
-  }, [balance]);
+
+    // Extract balances for all strategies
+    strategies.forEach((strategy) => {
+      const strategySymbol = strategy.symbol || strategy.id;
+      const tokenBalance = balances.find((tb: any) =>
+        tb.token.symbol === strategySymbol ||
+        tb.token.symbol === strategy.id
+      );
+
+      if (tokenBalance) {
+        strategyBalances[strategy.id || strategy.address] = tokenBalance.amount || "0";
+      } else {
+        strategyBalances[strategy.id || strategy.address] = "0";
+      }
+    });
+
+    return { usdc: usdcBalance, yearnWeth: yearnWethBalance, strategies: strategyBalances };
+  }, [balance, strategies]);
 
   useEffect(() => {
     const storedUserData = localStorage.getItem('userData');
@@ -366,9 +383,8 @@ export default function HedgeFundV2Page() {
               <div className="w-full max-w-6xl mx-auto mb-4">
                 <CumulativeAUMChartNew
                   userWalletAddress={accountData.wallet_address}
-
-                  yearnWethCurrentBalance={tokenBalances.yearnWeth}
                   strategies={strategies}
+                  balanceData={balance}
                 />
               </div>
             )}
@@ -386,6 +402,7 @@ export default function HedgeFundV2Page() {
                   onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
                   onCardClick={() => setSelectedView('yearn-weth')}
                   usdcBalance={tokenBalances.usdc?.toString()}
+                  strategyBalance={tokenBalances.strategies['YEARN_WETH']}
                 />
               </div>
             </div>
@@ -460,8 +477,8 @@ export default function HedgeFundV2Page() {
                 <div className="w-full max-w-6xl mx-auto mb-4">
                   <CumulativeAUMChartNew
                     userWalletAddress={accountData.wallet_address}
-                    yearnWethCurrentBalance={tokenBalances.yearnWeth}
                     strategies={strategies}
+                    balanceData={balance}
                   />
                 </div>
               )}
@@ -498,6 +515,7 @@ export default function HedgeFundV2Page() {
                         window.scrollTo(0, 0);
                       }}
                       usdcBalance={tokenBalances.usdc?.toString()}
+                      strategyBalance={tokenBalances.strategies[strat.id || strat.address]}
                     />
                   ))}
 
