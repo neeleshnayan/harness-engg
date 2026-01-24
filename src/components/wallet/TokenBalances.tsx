@@ -191,18 +191,19 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
           tokenPrice = 1;
         }
         // If token has an address, query the Firebase price endpoint
-        else if (token.tokenAddress) {
-          try {
-            const response = await api.get(`/api/v1/smarttoken/firebase_price/${token.tokenAddress}`);
-            if (response.data && response.data.current_price) {
-              tokenPrice = response.data.current_price;
-            }
-          } catch (err) {
-            // Keep default price of 1 if API call fails
-          }
-        } else if (token.symbol !== 'USDC') {
-          // For tokens without address (except USDC), assume price of 1
-        }
+        // else if (token.tokenAddress) {
+        //   try {
+        //     const response = await api.get(`/api/v1/smarttoken/firebase_price/${token.tokenAddress}`);
+        //     if (response.data && response.data.current_price) {
+        //       tokenPrice = response.data.current_price;
+        //     }
+        //   } catch (err) {
+        //     // Keep default price of 1 if API call fails
+        //   }
+        // } else if (token.symbol !== 'USDC') {
+        //   // For tokens without address (except USDC), assume price of 0
+        //   tokenPrice = 0;
+        // }
 
         // Calculate value for this token
         const tokenValue = tokenAmount * tokenPrice;
