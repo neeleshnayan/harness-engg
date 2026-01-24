@@ -63,7 +63,7 @@ export default function LoginPage() {
       {/* Main Content Area */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center w-full p-6 md:p-12">
         {/* Glass Box */}
-        <div className="relative w-full max-w-[440px] flex flex-col items-center pt-14 pb-16 md:pt-16 md:pb-20 px-10 md:px-14">
+        <div className="relative w-full max-w-[440px] flex flex-col items-center pt-10 pb-12 md:pt-12 md:pb-14 px-10 md:px-14">
           {/* Glass BG SVG */}
           <img
             src="/Glass BG.svg"
@@ -73,24 +73,24 @@ export default function LoginPage() {
 
           {/* Content inside Glass Box */}
           <div className="relative z-10 flex flex-col items-center w-full">
-            <img src="/Krypton logo.svg" alt="Krypton Logo" className="w-10 h-10 mb-6" />
+            <img src="/Krypton logo.svg" alt="Krypton Logo" className="w-10 h-10 mb-4" />
 
-            <h1 className="text-3xl md:text-[42px] font-bold text-white mb-2 text-center leading-tight">
+            <h1 className="text-3xl md:text-[42px] font-bold text-white mb-1 text-center leading-tight whitespace-nowrap">
               Sign in to Krypton
             </h1>
 
-            <p className="text-zinc-200 text-sm md:text-base mb-8 text-center px-4">
+            <p className="text-zinc-200 text-sm md:text-base mb-5 text-center px-4">
               continue via Google
             </p>
 
             {error && (
-              <Alert className="bg-red-900/50 border-red-700/50 text-white mb-6 w-full backdrop-blur-md">
+              <Alert className="bg-red-900/50 border-red-700/50 text-white mb-4 w-full backdrop-blur-md">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
 
-            <div className="flex flex-col gap-5 w-full">
+            <div className="flex flex-col gap-3 w-full">
               {/* Business Button */}
               <button
                 type="button"
