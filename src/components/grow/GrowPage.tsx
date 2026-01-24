@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, Store, TrendingUp } from "lucide-react";
+import { Shield, Store } from "lucide-react";
 import TokenBalances from "@/components/wallet/TokenBalances";
 // Removed unused useMAVCConfig import
 import api from "@/lib/api";
