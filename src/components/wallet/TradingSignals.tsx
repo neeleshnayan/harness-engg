@@ -7,13 +7,30 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import api, { hedgeFundApi } from "@/lib/api";
 import { TrendingUp, TrendingDown } from "lucide-react";
+import { useTokenSymbol } from "@/hooks/useTokenSymbol";
 
 interface TradingSignalsProps {
     strategyName: string;
+    assetSymbol?: string;
+    targetSymbol?: string;
+    assetAddress?: string;
+    targetAddress?: string;
 }
 
-export const TradingSignals: React.FC<TradingSignalsProps> = ({ strategyName }) => {
+export const TradingSignals: React.FC<TradingSignalsProps> = ({
+    strategyName,
+    assetSymbol = "USDC",
+    targetSymbol = "WETH",
+    assetAddress,
+    targetAddress
+}) => {
     const { toast } = useToast();
+    const { symbol: fetchedAssetSymbol } = useTokenSymbol(assetAddress);
+    const { symbol: fetchedTargetSymbol } = useTokenSymbol(targetAddress);
+
+    const displayAsset = fetchedAssetSymbol || assetSymbol;
+    const displayTarget = fetchedTargetSymbol || targetSymbol;
+
     const [buyAmount, setBuyAmount] = useState("");
     const [sellAmount, setSellAmount] = useState("");
     const [loading, setLoading] = useState(false);
@@ -22,7 +39,7 @@ export const TradingSignals: React.FC<TradingSignalsProps> = ({ strategyName }) 
         if (!buyAmount || parseFloat(buyAmount) <= 0) {
             toast({
                 title: "❌ Invalid Amount",
-                description: "Please enter a valid USDC amount",
+                description: `Please enter a valid ${displayAsset} amount`,
             });
             return;
         }
@@ -36,6 +53,7 @@ export const TradingSignals: React.FC<TradingSignalsProps> = ({ strategyName }) 
             if (!parsedData.wallet_address) throw new Error('Wallet address not found');
 
             // Convert USDC amount to wei (6 decimals)
+            // TODO: Use dynamic decimals if asset is not USDC (6)
             const amountWei = Math.floor(parseFloat(buyAmount) * Math.pow(10, 6)).toString();
 
             const response = await hedgeFundApi.post(`/api/v1/strategy/${strategyName}/buy`, {
@@ -47,7 +65,7 @@ export const TradingSignals: React.FC<TradingSignalsProps> = ({ strategyName }) 
             if (response.data.status === 'success') {
                 toast({
                     title: "✅ Buy Signal Executed",
-                    description: `Successfully swapped ${buyAmount} USDC for ${strategyName === 'YEARN_PAXG' ? 'PAXG' : 'WETH'}`,
+                    description: `Successfully swapped ${buyAmount} ${displayAsset} for ${displayTarget}`,
                 });
                 setBuyAmount("");
             }
@@ -66,7 +84,7 @@ export const TradingSignals: React.FC<TradingSignalsProps> = ({ strategyName }) 
         if (!sellAmount || parseFloat(sellAmount) <= 0) {
             toast({
                 title: "❌ Invalid Amount",
-                description: "Please enter a valid WETH amount",
+                description: `Please enter a valid ${displayTarget} amount`,
             });
             return;
         }
@@ -80,6 +98,7 @@ export const TradingSignals: React.FC<TradingSignalsProps> = ({ strategyName }) 
             if (!parsedData.wallet_address) throw new Error('Wallet address not found');
 
             // Convert token amount to wei (18 decimals for PAXG and WETH)
+            // TODO: Use dynamic decimals
             const decimals = 18;
             const amountWei = Math.floor(parseFloat(sellAmount) * Math.pow(10, decimals)).toString();
 
@@ -92,7 +111,7 @@ export const TradingSignals: React.FC<TradingSignalsProps> = ({ strategyName }) 
             if (response.data.status === 'success') {
                 toast({
                     title: "✅ Sell Signal Executed",
-                    description: `Successfully swapped ${sellAmount} ${strategyName === 'YEARN_PAXG' ? 'PAXG' : 'WETH'} for USDC`,
+                    description: `Successfully swapped ${sellAmount} ${displayTarget} for ${displayAsset}`,
                 });
                 setSellAmount("");
             }
@@ -112,7 +131,7 @@ export const TradingSignals: React.FC<TradingSignalsProps> = ({ strategyName }) 
             <CardHeader>
                 <CardTitle className="text-white">Trading Signals</CardTitle>
                 <CardDescription className="text-zinc-400">
-                    Execute buy/sell signals to trade USDC/WETH using executeSignal()
+                    Execute buy/sell signals to trade {displayAsset}/{displayTarget} using executeSignal()
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -121,11 +140,11 @@ export const TradingSignals: React.FC<TradingSignalsProps> = ({ strategyName }) 
                     <div className="space-y-3">
                         <div className="flex items-center gap-2 mb-2">
                             <TrendingUp className="w-5 h-5 text-green-400" />
-                            <h3 className="text-white font-semibold">Buy Signal (USDC → {strategyName === 'YEARN_PAXG' ? 'PAXG' : 'WETH'})</h3>
+                            <h3 className="text-white font-semibold">Buy Signal ({displayAsset} → {displayTarget})</h3>
                         </div>
                         <Input
                             type="number"
-                            placeholder="Enter USDC amount"
+                            placeholder={`Enter ${displayAsset} amount`}
                             value={buyAmount}
                             onChange={(e) => setBuyAmount(e.target.value)}
                             className="bg-zinc-700/50 border-zinc-600 text-white"
@@ -144,11 +163,11 @@ export const TradingSignals: React.FC<TradingSignalsProps> = ({ strategyName }) 
                     <div className="space-y-3">
                         <div className="flex items-center gap-2 mb-2">
                             <TrendingDown className="w-5 h-5 text-red-400" />
-                            <h3 className="text-white font-semibold">Sell Signal ({strategyName === 'YEARN_PAXG' ? 'PAXG' : 'WETH'} → USDC)</h3>
+                            <h3 className="text-white font-semibold">Sell Signal ({displayTarget} → {displayAsset})</h3>
                         </div>
                         <Input
                             type="number"
-                            placeholder={`Enter ${strategyName === 'YEARN_PAXG' ? 'PAXG' : 'WETH'} amount`}
+                            placeholder={`Enter ${displayTarget} amount`}
                             value={sellAmount}
                             onChange={(e) => setSellAmount(e.target.value)}
                             className="bg-zinc-700/50 border-zinc-600 text-white"

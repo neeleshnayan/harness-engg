@@ -238,9 +238,10 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
       const parsedData = JSON.parse(userData);
       if (!parsedData.wallet_address) throw new Error('Wallet address not found');
 
-      // Convert human-readable amount to wei (USDC has 6 decimals)
+      // Convert human-readable amount to wei
       const amountFloat = parseFloat(amount);
-      const amountWei = Math.floor(amountFloat * Math.pow(10, 6)).toString();
+      const decimals = config?.asset_decimals || 6;
+      const amountWei = Math.floor(amountFloat * Math.pow(10, decimals)).toString();
 
       // Step 1: Approve
       const approveResponse = await hedgeFundApi.post(`/api/v1/strategy/${strategyName}/approve`, {
@@ -339,7 +340,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
       // For MAVC_YEARN: send raw decimal string (e.g., "10")
       // For other strategies: convert to wei format
       const amountFloat = parseFloat(amount);
-      const decimals = 6;
+      const decimals = config?.share_decimals || 18;
       const amountToSend = Math.floor(amountFloat * Math.pow(10, decimals)).toString();
 
       const response = await hedgeFundApi.post(`/api/v1/strategy/${strategyName}/withdraw`, {

@@ -17,6 +17,9 @@ interface StrategyConfig {
   participants?: number;
   performance_fee?: number;
   risk_grade?: string;
+  // Token properties
+  asset_decimals?: number;
+  share_decimals?: number;
   // Strategy description
   name?: string;
   description?: string;

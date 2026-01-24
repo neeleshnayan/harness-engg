@@ -10,6 +10,7 @@ import StrategyCard from "@/components/wallet/StrategyCard";
 import { CumulativeAUMChartNew } from "@/components/wallet/CumulativeAUMChartNew";
 import { useYearnWETHConfig } from "@/hooks/useStrategyConfig";
 import { SubgraphAnalyticsYearnWETH } from "@/components/wallet/SubgraphAnalyticsYearnWETH";
+import { SubgraphAnalyticsGeneric } from "@/components/wallet/SubgraphAnalyticsGeneric";
 import { TradingSignals } from "@/components/wallet/TradingSignals";
 import { Toaster } from "@/components/ui/toaster";
 import { HedgeFundForm } from "@/lib/types";
@@ -315,7 +316,7 @@ export default function HedgeFundV2Page() {
       case 'detail':
         const currentStrategy = selectedStrategy || (selectedView === 'yearn-weth' ? strategies.find(s => s.id === 'YEARN_WETH') : null);
         const displayName = currentStrategy?.name || "Strategy Details";
-        const subgraphUrl = currentStrategy?.subgraph_url || yearnWethConfig?.subgraph_url;
+        const subgraphUrl = currentStrategy?.subgraph_url || yearnWethConfig?.subgraph_url || process.env.NEXT_PUBLIC_SUBGRAPH_URL;
         const stratNameKey = currentStrategy?.id || "YEARN_WETH";
 
         return (
@@ -331,7 +332,13 @@ export default function HedgeFundV2Page() {
 
             {/* Trading Signals Section */}
             <div className="px-4 mb-6">
-              <TradingSignals strategyName={stratNameKey} />
+              <TradingSignals
+                strategyName={stratNameKey}
+                assetSymbol="USDC"
+                targetSymbol={currentStrategy?.symbol || "WETH"}
+                assetAddress={currentStrategy?.asset_address}
+                targetAddress={currentStrategy?.target_address}
+              />
             </div>
 
             {/* Subgraph Analytics */}
@@ -340,7 +347,13 @@ export default function HedgeFundV2Page() {
             ) : (
               // Reuse SubgraphAnalyticsYearnWETH as generic analytics component if possible, 
               // or rename it later. Pass dynamic subgraph URL.
-              <SubgraphAnalyticsYearnWETH subgraphUrl={subgraphUrl} />
+              <SubgraphAnalyticsGeneric
+                subgraphUrl={subgraphUrl}
+                strategyAddress={currentStrategy?.address}
+                strategyName={displayName}
+                assetSymbol="USDC" // Defaulting to USDC as base for now
+                targetSymbol={currentStrategy?.symbol || "WETH"} // Use strategy symbol if available
+              />
             )}
           </>
         );

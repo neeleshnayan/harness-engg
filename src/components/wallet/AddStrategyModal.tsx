@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,15 +20,12 @@ interface AddStrategyModalProps {
     onSuccess: () => void;
 }
 
-// Factory Address (Sepolia) - Replace with actual deployment
-// TODO: Fetch from env or constant
-const FACTORY_ADDRESS = "0x69e298E290d5F32e9159C3cf7A67336E8b1CaC26";
-
 export function AddStrategyModal({ isOpen, onClose, onSuccess }: AddStrategyModalProps) {
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [txHash, setTxHash] = useState<string | null>(null);
+    const [factoryAddress, setFactoryAddress] = useState<string | null>(null);
 
     const [formData, setFormData] = useState({
         name: "",
@@ -36,10 +33,34 @@ export function AddStrategyModal({ isOpen, onClose, onSuccess }: AddStrategyModa
         assetAddress: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", // USDC Sepolia
         targetAddress: "", // Token B
         vaultAddress: "", // Underlying Yearn Vault - Not used in UI but kept for type compatibility if needed
-        fee: "3000",
+        poolAddress: "", // Specific Uniswap V3 Pool
     });
 
     const { toast } = useToast();
+
+    // Fetch Factory Address on mount
+    useEffect(() => {
+        const fetchConfig = async () => {
+            if (!isOpen) return;
+            try {
+                // Import api dynamically or use fetch
+                // Using fetch for simplicity here, or use logic similar to other components
+                // Assuming backend runs on same host or proxied
+                const { hedgeFundApi } = await import("@/lib/api");
+                const res = await hedgeFundApi.get("/api/v1/config/contracts");
+                if (res.data && res.data.data && res.data.data.yearn_factory_address) {
+                    setFactoryAddress(res.data.data.yearn_factory_address);
+                } else {
+                    console.error("Config missing factory address", res.data);
+                    setError("Failed to load system configuration.");
+                }
+            } catch (err) {
+                console.error("Failed to fetch config:", err);
+                setError("Could not connect to backend server.");
+            }
+        };
+        fetchConfig();
+    }, [isOpen]);
 
     const checkAndSwitchNetwork = async () => {
         if (!window.ethereum) return;
@@ -94,11 +115,15 @@ export function AddStrategyModal({ isOpen, onClose, onSuccess }: AddStrategyModa
             setLoading(true);
             setError(null);
 
+            if (!factoryAddress) {
+                throw new Error("Factory Address not loaded. Please refresh.");
+            }
+
             // 0. Ensure Network
             await checkAndSwitchNetwork();
 
             // 1. Validate
-            if (!formData.name || !formData.symbol || !formData.assetAddress || !formData.targetAddress) {
+            if (!formData.name || !formData.symbol || !formData.assetAddress || !formData.targetAddress || !formData.poolAddress) {
                 throw new Error("Please fill all required fields");
             }
 
@@ -117,10 +142,10 @@ export function AddStrategyModal({ isOpen, onClose, onSuccess }: AddStrategyModa
             const signer = await provider.getSigner();
 
             const factoryAbi = [
-                "function deployStrategy(address _asset, string memory _name, string memory _symbol, address _targetToken, address _vault, address _admin, uint24 _fee) external returns (address)"
+                "function deployStrategy(address _asset, string memory _name, string memory _symbol, address _targetToken, address _vault, address _admin, address _pool) external returns (address)"
             ];
 
-            const factory = new ethers.Contract(FACTORY_ADDRESS, factoryAbi, signer);
+            const factory = new ethers.Contract(factoryAddress, factoryAbi, signer);
 
             // BASE STRATEGY IMPLEMENTATION (Sepolia)
             // This is required for delegateCall in the strategy initialize.
@@ -133,7 +158,7 @@ export function AddStrategyModal({ isOpen, onClose, onSuccess }: AddStrategyModa
                 formData.targetAddress,
                 TOKENIZED_STRATEGY_IMPL, // Pass implementation, not vault
                 await signer.getAddress(), // Admin is user
-                parseInt(formData.fee)
+                formData.poolAddress // Pass Pool Address instead of Fee
             );
 
 
@@ -182,9 +207,9 @@ export function AddStrategyModal({ isOpen, onClose, onSuccess }: AddStrategyModa
                 address: strategyAddress,
                 asset_address: formData.assetAddress,
                 target_address: formData.targetAddress,
+                pool_address: formData.poolAddress, // Send Pool Address
                 user_id: "user_from_context", // TODO: Get actual user ID
-                tx_hash: tx.hash,
-                fee: parseInt(formData.fee)
+                tx_hash: tx.hash
             });
 
             toast({
@@ -257,12 +282,12 @@ export function AddStrategyModal({ isOpen, onClose, onSuccess }: AddStrategyModa
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="fee">Pool Fee (e.g. 3000 for 0.3%)</Label>
+                        <Label htmlFor="pool">A/B Pool Address</Label>
                         <Input
-                            id="fee"
-                            value={formData.fee}
-                            onChange={(e) => setFormData({ ...formData, fee: e.target.value })}
-                            placeholder="3000"
+                            id="pool"
+                            value={formData.poolAddress}
+                            onChange={(e) => setFormData({ ...formData, poolAddress: e.target.value })}
+                            placeholder="0x... (e.g. USDC/WETH Pool)"
                             className="bg-zinc-800 border-zinc-700"
                         />
                     </div>

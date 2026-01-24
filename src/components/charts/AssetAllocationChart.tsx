@@ -5,6 +5,8 @@ import { Snapshot } from '@/hooks/useStrategySubgraphData';
 
 interface AssetAllocationChartProps {
     data: Snapshot[];
+    assetSymbol?: string;
+    targetSymbol?: string;
 }
 
 const formatCurrency = (value: number) =>
@@ -15,7 +17,11 @@ const formatCurrency = (value: number) =>
         maximumFractionDigits: 0
     }).format(value);
 
-export const AssetAllocationChart: React.FC<AssetAllocationChartProps> = ({ data }) => {
+export const AssetAllocationChart: React.FC<AssetAllocationChartProps> = ({
+    data,
+    assetSymbol = "USDC",
+    targetSymbol = "WETH"
+}) => {
     const chartData = data.map(s => {
         // Both balances are already in their respective decimals? 
         // Wait, the subgraph stores BigDecimal. But the hook types are strings. 
@@ -37,8 +43,8 @@ export const AssetAllocationChart: React.FC<AssetAllocationChartProps> = ({ data
         return {
             timestamp: Number(s.timestamp),
             date: new Date(Number(s.timestamp) * 1000).toLocaleDateString(),
-            'USDC': usdcValue,
-            'WETH': wethValue
+            [assetSymbol]: usdcValue,
+            [targetSymbol]: wethValue
         };
     }).sort((a, b) => a.timestamp - b.timestamp);
 
@@ -65,7 +71,8 @@ export const AssetAllocationChart: React.FC<AssetAllocationChartProps> = ({ data
                             formatter={(value: number) => [formatCurrency(value), '']}
                         />
                         <Legend />
-                        <Area type="monotone" dataKey="USDC" stackId="1" stroke="#2563eb" fill="url(#colorUsdc)" />
+                        <Area type="monotone" dataKey={assetSymbol} stackId="1" stroke="#2563eb" fill="url(#colorUsdc)" />
+                        <Area type="monotone" dataKey={targetSymbol} stackId="1" stroke="#a855f7" fill="#a855f7" fillOpacity={0.3} />
                     </AreaChart>
                 </ResponsiveContainer>
             </div>
