@@ -70,6 +70,10 @@ export const ONGOING_STATES = new Set<string>([
 ]);
 
 export const PROGRESS_STEP_STATES = [
+  // Step 0: Queued (in our local pending queue)
+  ['local_queued'],
+
+  // Step 1: Submitted (sent to Circle but pending confirmation)
   [
     CircleTransactionState.CREATED,
     CircleTransactionState.INITIATED,
@@ -79,11 +83,11 @@ export const PROGRESS_STEP_STATES = [
     CircleTransactionState.SUBMITTED,
     CircleTransactionState.UNKNOWN,
   ],
+
+  // Step 2: Confirmed, Complete, or Failed (Final visible state)
   [
     CircleTransactionState.CONFIRMED,
     CircleTransactionState.CLEARED,
-  ],
-  [
     CircleTransactionState.COMPLETE,
     CircleTransactionState.SUCCESS,
     CircleTransactionState.FAILED,
@@ -115,7 +119,7 @@ export function getStateCategory(state: string): StateCategory {
     return 'error';
   }
 
-  if (ONGOING_STATES.has(normalizedState)) {
+  if (ONGOING_STATES.has(normalizedState) || normalizedState === 'local_queued') {
     return 'ongoing';
   }
 
@@ -197,8 +201,10 @@ export function getStateLabel(state: string): string {
       return 'Initiated';
     case CircleTransactionState.CLEARED:
       return 'Cleared';
-    case CircleTransactionState.QUEUED:
+    case 'local_queued':
       return 'Queued';
+    case CircleTransactionState.QUEUED:
+      return 'Submitted'; // Circle's queued state = Submitted to Circle
     case CircleTransactionState.SENT:
       return 'Sent';
     case CircleTransactionState.STUCK:
@@ -249,9 +255,9 @@ export function getProgressStepLabel(step: number): string {
     case 0:
       return 'Queued';
     case 1:
-      return 'Confirmed';
+      return 'Submitted';
     case 2:
-      return 'Complete';
+      return 'Confirmed';
     default:
       return '';
   }

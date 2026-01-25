@@ -18,8 +18,8 @@ import { ArrowRight, Check, X, Loader2, ArrowLeftRight, Send, RefreshCw } from '
 // Poll interval in milliseconds (10 seconds for better UX)
 const POLL_INTERVAL_MS = 10000;
 
-// How long to keep completed transactions visible (30 seconds)
-const COMPLETED_TX_DISPLAY_TIME = 30000;
+// How long to keep completed transactions visible (5 seconds)
+const COMPLETED_TX_DISPLAY_TIME = 5000;
 
 interface ActiveTransaction {
   transaction_id: string;
@@ -288,7 +288,8 @@ function getFinalStepLabel(status: string): string {
   switch (normalizedStatus) {
     case CircleTransactionState.SUCCESS:
     case CircleTransactionState.COMPLETE:
-      return 'Complete';
+    case CircleTransactionState.CONFIRMED:
+      return 'Confirmed';
     case CircleTransactionState.FAILED:
       return 'Failed';
     case CircleTransactionState.DENIED:
@@ -297,7 +298,7 @@ function getFinalStepLabel(status: string): string {
       return 'Cancelled';
     default:
       // For ongoing transactions, show what the final step will be
-      return 'Complete';
+      return 'Confirmed';
   }
 }
 
@@ -306,16 +307,18 @@ function getFinalStepLabel(status: string): string {
  */
 function TransactionProgressTracker({ tx }: { tx: ActiveTransaction }) {
   const currentStep = getProgressStepIndex(tx.status);
-  const isSuccess = isSuccessState(tx.status);
+  // Treat CONFIRMED as success/terminal for UI purposes so we get a green checkmark immediately
+  const isConfirmed = tx.status.toLowerCase() === CircleTransactionState.CONFIRMED;
+  const isSuccess = isSuccessState(tx.status) || isConfirmed;
   const isError = isErrorState(tx.status);
-  const isTerminal = isTerminalState(tx.status);
+  const isTerminal = isTerminalState(tx.status) || isConfirmed;
 
   // Use the actual state label for terminal states
-  const finalStepLabel = isTerminal ? getFinalStepLabel(tx.status) : 'Complete';
+  const finalStepLabel = isTerminal ? getFinalStepLabel(tx.status) : 'Confirmed';
 
   const steps = [
     { index: 0, label: 'Queued' },
-    { index: 1, label: 'Confirmed' },
+    { index: 1, label: 'Submitted' },
     { index: 2, label: finalStepLabel },
   ];
 
@@ -517,7 +520,18 @@ export default function ActiveTransactions({ username, className = '', onAllTran
 
       // Keep completed transactions visible for a short time, then remove them
       setTransactions(prev => {
-        const newIds = new Set(newTransactions.map(tx => tx.transaction_id));
+        // Filter out incoming transactions that are already finished (Confirmed or Terminal)
+        // AND are not currently tracked in our state. This implements "filter out on refresh".
+        const filteredNewTransactions = newTransactions.filter(newTx => {
+          const isFinished = isTerminalState(newTx.status) || newTx.status.toLowerCase() === CircleTransactionState.CONFIRMED;
+          const isTracked = prev.some(p => p.transaction_id === newTx.transaction_id);
+
+          // If finished and not tracked, skip it
+          if (isFinished && !isTracked) return false;
+          return true;
+        });
+
+        const newIds = new Set(filteredNewTransactions.map(tx => tx.transaction_id));
 
         // Keep completed transactions from previous state that should still be visible
         const completedToKeep = prev.filter(tx => {
@@ -527,10 +541,12 @@ export default function ActiveTransactions({ username, className = '', onAllTran
           return false;
         });
 
-        // Mark transactions as completed if they just became terminal
-        const updatedNew = newTransactions.map(newTx => {
+        // Mark transactions as completed if they just became terminal (or confirmed)
+        const updatedNew = filteredNewTransactions.map(newTx => {
           const existing = prev.find(p => p.transaction_id === newTx.transaction_id);
-          if (isTerminalState(newTx.status) && existing && !existing.completed_at) {
+          const isFinished = isTerminalState(newTx.status) || newTx.status.toLowerCase() === CircleTransactionState.CONFIRMED;
+
+          if (isFinished && existing && !existing.completed_at) {
             return { ...newTx, completed_at: now };
           }
           return existing?.completed_at ? { ...newTx, completed_at: existing.completed_at } : newTx;
