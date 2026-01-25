@@ -631,6 +631,10 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
 
         if (fromCurrency !== sendCurrency) {
           await performSwap(fromCurrency, sendCurrency, toAmountNum);
+
+          // Small delay to allow backend to propagate swap status and UI to update
+          // This improves UX (user sees "Swap Submitted") and helps avoid race conditions
+          await new Promise(resolve => setTimeout(resolve, 1000));
         } else {
           const fromBalance = balances[fromCurrency] || 0;
           const fromAmountNum = parseFloat(fromAmount);
@@ -640,6 +644,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
           }
         }
 
+        setLoadingMessage(`Transferring ${toAmountNum.toFixed(2)} ${sendCurrencyDisplay} to @${receiverUsername}...`);
         await transferTokens(sendCurrency, toAddress, toAmountNum);
       }
 
