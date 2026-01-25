@@ -532,7 +532,7 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
             <XAxis
               dataKey="timestamp"
               type="number"
-              domain={[getTimescaleSeconds(selectedTimescale), Math.floor(Date.now() / 1000)]}
+              domain={['dataMin', 'dataMax']}
               tick={{ fill: '#71717a', fontSize: 10 }}
               stroke="#3f3f46"
               tickFormatter={(value) => formatDate(value, selectedTimescale)}
@@ -545,10 +545,11 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
               tick={{ fill: '#71717a', fontSize: 10 }}
               stroke="#3f3f46"
               tickFormatter={(value) => formatAUM(value)}
+              domain={[0, 'auto']}
             />
             <Tooltip content={<CustomTooltip strategies={validStrategies} />} />
             <Area
-              type="stepAfter"
+              type="monotone"
               dataKey="totalAUM"
               fill="url(#totalAUMGradient)"
               stroke="#22c55e"
