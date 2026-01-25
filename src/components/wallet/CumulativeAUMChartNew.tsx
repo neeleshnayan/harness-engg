@@ -8,6 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 const DEFAULT_SUBGRAPH_URL = process.env.NEXT_PUBLIC_SUBGRAPH_URL || '';
 
+// ============================================================================
+// Types
+// ============================================================================
+
 interface Strategy {
   id: string;
   name?: string;
@@ -37,14 +41,30 @@ interface CumulativeAUMChartNewProps {
   balanceData?: BalanceData;
 }
 
-type DataPoint = {
+type TimescaleOption = "15m" | "1h" | "1d" | "30d" | "1y";
+
+interface ChartDataPoint {
   timestamp: number;
   date: string;
   totalAUM: number;
-  [key: string]: any;
-};
+  [strategyId: string]: number | string;
+}
 
-type TimescaleOption = "15m" | "1h" | "1d" | "30d" | "1y";
+interface DepositEvent {
+  timestamp: string;
+  assets: string;
+  strategyId: string;
+}
+
+interface WithdrawalEvent {
+  timestamp: string;
+  assets: string;
+  strategyId: string;
+}
+
+// ============================================================================
+// Constants
+// ============================================================================
 
 const TIMESCALE_OPTIONS: { value: TimescaleOption; label: string }[] = [
   { value: "15m", label: "Past 15 mins" },
@@ -54,49 +74,81 @@ const TIMESCALE_OPTIONS: { value: TimescaleOption; label: string }[] = [
   { value: "1y", label: "Past 1 year" },
 ];
 
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
 const getTimescaleSeconds = (timescale: TimescaleOption): number => {
   const now = Math.floor(Date.now() / 1000);
-  switch (timescale) {
-    case "15m": return now - 15 * 60;
-    case "1h": return now - 60 * 60;
-    case "1d": return now - 24 * 60 * 60;
-    case "30d": return now - 30 * 24 * 60 * 60;
-    case "1y": return now - 365 * 24 * 60 * 60;
-    default: return 0;
-  }
+  const intervals = {
+    "15m": 15 * 60,
+    "1h": 60 * 60,
+    "1d": 24 * 60 * 60,
+    "30d": 30 * 24 * 60 * 60,
+    "1y": 365 * 24 * 60 * 60,
+  };
+  return now - intervals[timescale];
 };
 
 const formatDate = (timestamp: number, timescale?: TimescaleOption): string => {
   const date = new Date(timestamp * 1000);
+
   if (timescale === "15m" || timescale === "1h") {
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
   }
+
   if (timescale === "1d") {
-    return date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
   }
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric'
+  });
 };
 
-const formatAUM = (aum: number): string => {
-  if (!isFinite(aum) || isNaN(aum)) return '$0.00';
-  const absAum = Math.abs(aum);
-  if (absAum >= 1000000) return `$${(aum / 1000000).toFixed(2)}M`;
-  if (absAum >= 1000) return `$${(aum / 1000).toFixed(2)}K`;
-  return `$${aum.toFixed(2)}`;
-};
+const formatAUM = (value: number): string => {
+  if (!isFinite(value) || isNaN(value)) return '$0.00';
 
-const getStrategyDecimals = (strategy: Strategy): number => {
-  // Prioritize asset_decimals, fallback to decimals, default to 6 for USDC-based strategies
-  return strategy?.asset_decimals ?? strategy?.decimals ?? 6;
+  const absValue = Math.abs(value);
+
+  if (absValue >= 1_000_000) {
+    return `$${(value / 1_000_000).toFixed(2)}M`;
+  }
+
+  if (absValue >= 1_000) {
+    return `$${(value / 1_000).toFixed(2)}K`;
+  }
+
+  return `$${value.toFixed(2)}`;
 };
 
 const getStrategyAddress = (strategy: Strategy): string | null => {
-  return strategy?.address || strategy?.vault_address || strategy?.contract_address || null;
+  return strategy.address || strategy.vault_address || strategy.contract_address || null;
 };
+
+const getStrategyDecimals = (strategy: Strategy): number => {
+  return strategy.asset_decimals ?? strategy.decimals ?? 6;
+};
+
+// ============================================================================
+// Custom Tooltip Component
+// ============================================================================
 
 const CustomTooltip = ({ active, payload, strategies }: any) => {
   if (!active || !payload || !payload.length) return null;
-  const data = payload[0]?.payload as DataPoint;
+
+  const data = payload[0]?.payload as ChartDataPoint;
   if (!data) return null;
 
   return (
@@ -106,9 +158,9 @@ const CustomTooltip = ({ active, payload, strategies }: any) => {
         Total: {formatAUM(data.totalAUM)}
       </p>
       <div className="space-y-1 pt-2 border-t border-zinc-700/50">
-        {strategies?.map((strategy: any) => {
+        {strategies?.map((strategy: Strategy) => {
           const balance = data[strategy.id];
-          if (!balance || balance <= 0) return null;
+          if (typeof balance !== 'number' || balance <= 0) return null;
 
           return (
             <div key={strategy.id} className="flex items-center justify-between gap-4 text-xs">
@@ -125,6 +177,10 @@ const CustomTooltip = ({ active, payload, strategies }: any) => {
   );
 };
 
+// ============================================================================
+// Main Component
+// ============================================================================
+
 export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
   userWalletAddress,
   strategies = [],
@@ -132,26 +188,27 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
 }) => {
   const [selectedTimescale, setSelectedTimescale] = useState<TimescaleOption>("30d");
 
-  // Validate strategies have required fields
+  // Filter out invalid strategies
   const validStrategies = useMemo(() => {
     return strategies.filter(strategy => {
       const hasId = !!strategy.id;
       const hasAddress = !!getStrategyAddress(strategy);
-      return hasId && hasAddress;
+      const hasSubgraph = !!strategy.subgraph_url || !!DEFAULT_SUBGRAPH_URL;
+      return hasId && hasAddress && hasSubgraph;
     });
   }, [strategies]);
 
-  // 1. Fetch Subgraph Data for ALL valid strategies
+  // Fetch subgraph data for all valid strategies
   const strategyQueries = useQueries({
     queries: validStrategies.map(strategy => {
-      const targetAddress = getStrategyAddress(strategy)!;
+      const address = getStrategyAddress(strategy)!;
       const subgraphUrl = strategy.subgraph_url || DEFAULT_SUBGRAPH_URL;
 
       return {
-        queryKey: ['subgraph', 'analytics', strategy.id, targetAddress, userWalletAddress],
-        queryFn: () => fetchSubgraph(subgraphUrl, strategy.id, targetAddress, userWalletAddress),
-        enabled: !!userWalletAddress && !!targetAddress && !!subgraphUrl,
-        staleTime: 30000, // Reduced to 30s for consistency
+        queryKey: ['strategy-aum', strategy.id, address, userWalletAddress],
+        queryFn: () => fetchSubgraph(subgraphUrl, strategy.id, address, userWalletAddress),
+        enabled: !!userWalletAddress && !!address && !!subgraphUrl,
+        staleTime: 30_000,
         retry: 2,
       };
     })
@@ -160,186 +217,187 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
   const isLoading = strategyQueries.some(q => q.isLoading);
   const hasErrors = strategyQueries.some(q => q.isError);
 
-  // 2. Parse Live Balances from balanceData prop (single source of truth)
-  const activeStrategyBalances = useMemo(() => {
-    if (!balanceData?.tokenBalances || !Array.isArray(balanceData.tokenBalances)) {
-      return {};
-    }
+  // Extract live balances from parent's balance data
+  const liveBalances = useMemo(() => {
+    if (!balanceData?.tokenBalances) return {};
 
-    const balanceMap: Record<string, number> = {};
+    const balances: Record<string, number> = {};
 
     validStrategies.forEach(strategy => {
-      const strategySymbol = strategy.symbol?.toUpperCase();
-      const strategyId = strategy.id?.toUpperCase();
-
-      // Find matching token balance by symbol or ID
       const tokenBalance = balanceData.tokenBalances!.find(tb => {
         const symbol = tb.token.symbol?.toUpperCase();
+        const strategySymbol = strategy.symbol?.toUpperCase();
+        const strategyId = strategy.id?.toUpperCase();
         return symbol === strategySymbol || symbol === strategyId;
       });
 
       if (tokenBalance) {
         const amount = parseFloat(tokenBalance.amount);
-        if (!isNaN(amount) && amount > 0) {
-          balanceMap[strategy.id] = amount;
+        if (!isNaN(amount) && isFinite(amount)) {
+          balances[strategy.id] = Math.max(0, amount);
         }
       }
     });
 
-    return balanceMap;
+    return balances;
   }, [balanceData, validStrategies]);
 
-
-  // 3. Aggregate Data and Build Timeline with Extrapolation
+  // Build chart data from historical events + live balances
   const chartData = useMemo(() => {
     if (!userWalletAddress || validStrategies.length === 0) return [];
 
     const timescaleStart = getTimescaleSeconds(selectedTimescale);
     const currentTime = Math.floor(Date.now() / 1000);
 
-    // Collect all events from all successful queries
-    let allDeposits: any[] = [];
-    let allWithdrawals: any[] = [];
+    // Collect all deposit and withdrawal events
+    const deposits: DepositEvent[] = [];
+    const withdrawals: WithdrawalEvent[] = [];
 
     strategyQueries.forEach((query, index) => {
-      if (query.data) {
-        const strategy = validStrategies[index];
-        const strategyId = strategy?.id;
+      if (!query.data) return;
 
-        const deposits = (query.data.deposits || []).map(d => ({ ...d, strategyId }));
-        const withdrawals = (query.data.withdrawals || []).map(w => ({ ...w, strategyId }));
+      const strategy = validStrategies[index];
 
-        allDeposits = [...allDeposits, ...deposits];
-        allWithdrawals = [...allWithdrawals, ...withdrawals];
-      }
+      (query.data.deposits || []).forEach((d: any) => {
+        deposits.push({
+          timestamp: d.timestamp,
+          assets: d.assets,
+          strategyId: strategy.id
+        });
+      });
+
+      (query.data.withdrawals || []).forEach((w: any) => {
+        withdrawals.push({
+          timestamp: w.timestamp,
+          assets: w.assets,
+          strategyId: strategy.id
+        });
+      });
     });
 
-    // Collect all unique timestamps
-    const allTimestamps = new Set<number>();
-    allDeposits.forEach(d => allTimestamps.add(Number(d.timestamp)));
-    allWithdrawals.forEach(w => allTimestamps.add(Number(w.timestamp)));
+    // Get all unique timestamps and sort them
+    const timestamps = new Set<number>();
+    deposits.forEach(d => timestamps.add(Number(d.timestamp)));
+    withdrawals.forEach(w => timestamps.add(Number(w.timestamp)));
+    const sortedTimestamps = Array.from(timestamps).sort((a, b) => a - b);
 
-    const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b);
+    // Replay history to build balance at each timestamp
+    const historicalData: ChartDataPoint[] = [];
+    const balanceTracker: Record<string, number> = {};
 
-    // Replay history
-    const dataPoints: DataPoint[] = [];
-    const currentBalances: Record<string, number> = {};
-
-    for (const timestamp of sortedTimestamps) {
-      // Process deposits at this timestamp
-      allDeposits.forEach(d => {
-        if (Number(d.timestamp) === timestamp) {
-          const stratId = d.strategyId;
-          const rawAmount = Number(d.assets) || 0;
-
-          const strategy = validStrategies.find(s => s.id === stratId);
+    sortedTimestamps.forEach(timestamp => {
+      // Process deposits
+      deposits.forEach(deposit => {
+        if (Number(deposit.timestamp) === timestamp) {
+          const strategy = validStrategies.find(s => s.id === deposit.strategyId);
           if (!strategy) return;
 
           const decimals = getStrategyDecimals(strategy);
-          const normalizedVal = rawAmount / Math.pow(10, decimals);
+          const amount = Number(deposit.assets) / Math.pow(10, decimals);
 
-          currentBalances[stratId] = (currentBalances[stratId] || 0) + normalizedVal;
+          if (isFinite(amount) && !isNaN(amount)) {
+            balanceTracker[deposit.strategyId] = (balanceTracker[deposit.strategyId] || 0) + amount;
+          }
         }
       });
 
-      // Process withdrawals at this timestamp
-      allWithdrawals.forEach(w => {
-        if (Number(w.timestamp) === timestamp) {
-          const stratId = w.strategyId;
-          const rawAmount = Number(w.assets) || 0;
-
-          const strategy = validStrategies.find(s => s.id === stratId);
+      // Process withdrawals
+      withdrawals.forEach(withdrawal => {
+        if (Number(withdrawal.timestamp) === timestamp) {
+          const strategy = validStrategies.find(s => s.id === withdrawal.strategyId);
           if (!strategy) return;
 
           const decimals = getStrategyDecimals(strategy);
-          const normalizedVal = rawAmount / Math.pow(10, decimals);
+          const amount = Number(withdrawal.assets) / Math.pow(10, decimals);
 
-          currentBalances[stratId] = Math.max(0, (currentBalances[stratId] || 0) - normalizedVal);
+          if (isFinite(amount) && !isNaN(amount)) {
+            balanceTracker[withdrawal.strategyId] = Math.max(
+              0,
+              (balanceTracker[withdrawal.strategyId] || 0) - amount
+            );
+          }
         }
       });
 
-      // Sum all balances
-      let total = 0;
-      Object.values(currentBalances).forEach(val => {
-        if (isFinite(val) && !isNaN(val)) {
-          total += val;
-        }
-      });
-      total = Math.max(0, total);
+      // Calculate total AUM
+      const totalAUM = Object.values(balanceTracker).reduce((sum, val) => {
+        return isFinite(val) && !isNaN(val) ? sum + val : sum;
+      }, 0);
 
-      dataPoints.push({
+      historicalData.push({
         timestamp,
         date: formatDate(timestamp, selectedTimescale),
-        totalAUM: total,
-        ...currentBalances,
+        totalAUM: Math.max(0, totalAUM),
+        ...balanceTracker
       });
-    }
+    });
 
-    // Filter to range
-    let windowedPoints = dataPoints.filter(p => p.timestamp >= timescaleStart);
+    // Filter to selected timescale
+    let windowedData = historicalData.filter(d => d.timestamp >= timescaleStart);
 
-    // EXTRAPOLATION: Inject Start Point if needed
-    if (windowedPoints.length === 0 || (windowedPoints.length > 0 && windowedPoints[0].timestamp > timescaleStart)) {
-      const lastEventBeforeStart = dataPoints.filter(p => p.timestamp < timescaleStart).pop();
+    // Add start point if needed
+    if (windowedData.length === 0 || windowedData[0].timestamp > timescaleStart) {
+      const lastBeforeWindow = historicalData
+        .filter(d => d.timestamp < timescaleStart)
+        .pop();
 
-      let startBalance = 0;
-      let startStrategies: Record<string, number> = {};
-
-      if (lastEventBeforeStart) {
-        startBalance = lastEventBeforeStart.totalAUM;
-        startStrategies = { ...lastEventBeforeStart };
-        delete (startStrategies as any).timestamp;
-        delete (startStrategies as any).date;
-        delete (startStrategies as any).totalAUM;
-      }
-
-      windowedPoints.unshift({
+      const startPoint: ChartDataPoint = {
         timestamp: timescaleStart,
         date: formatDate(timescaleStart, selectedTimescale),
-        totalAUM: startBalance,
-        ...startStrategies,
-      });
+        totalAUM: lastBeforeWindow?.totalAUM || 0,
+      };
+
+      if (lastBeforeWindow) {
+        Object.keys(lastBeforeWindow).forEach(key => {
+          if (key !== 'timestamp' && key !== 'date' && key !== 'totalAUM') {
+            startPoint[key] = lastBeforeWindow[key];
+          }
+        });
+      }
+
+      windowedData.unshift(startPoint);
     }
 
-    // EXTRAPOLATION: Add Live Point at current time if significantly newer than last historical point
-    const liveTotal = Object.values(activeStrategyBalances).reduce((sum, val) => {
+    // Add current point with live balances
+    const liveTotalAUM = Object.values(liveBalances).reduce((sum, val) => {
       return isFinite(val) && !isNaN(val) ? sum + val : sum;
     }, 0);
 
-    const lastPoint = windowedPoints[windowedPoints.length - 1];
+    const lastPoint = windowedData[windowedData.length - 1];
+    const shouldAddLivePoint = !lastPoint || (currentTime - lastPoint.timestamp > 60);
 
-    if (windowedPoints.length === 0 || !lastPoint) {
-      // No historical data, show flat line with current balance
-      windowedPoints = [
+    if (windowedData.length === 0) {
+      // No historical data - show flat line at current balance
+      windowedData = [
         {
           timestamp: timescaleStart,
           date: formatDate(timescaleStart, selectedTimescale),
-          totalAUM: liveTotal,
-          ...activeStrategyBalances
+          totalAUM: liveTotalAUM,
+          ...liveBalances
         },
         {
           timestamp: currentTime,
           date: formatDate(currentTime, selectedTimescale),
-          totalAUM: liveTotal,
-          ...activeStrategyBalances
+          totalAUM: liveTotalAUM,
+          ...liveBalances
         }
       ];
-    } else if (currentTime - lastPoint.timestamp > 60) {
-      // Add current point if last historical point is more than 1 minute old
-      windowedPoints.push({
+    } else if (shouldAddLivePoint) {
+      windowedData.push({
         timestamp: currentTime,
         date: formatDate(currentTime, selectedTimescale),
-        totalAUM: liveTotal,
-        ...activeStrategyBalances
+        totalAUM: liveTotalAUM,
+        ...liveBalances
       });
     }
 
-    return windowedPoints;
-  }, [strategyQueries, activeStrategyBalances, validStrategies, selectedTimescale, userWalletAddress]);
+    return windowedData;
+  }, [strategyQueries, liveBalances, validStrategies, selectedTimescale, userWalletAddress]);
 
-
+  // Calculate stats
   const stats = useMemo(() => {
     if (chartData.length === 0) return null;
+
     const latest = chartData[chartData.length - 1];
     const first = chartData[0];
     const change = latest.totalAUM - first.totalAUM;
@@ -354,9 +412,11 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
     };
   }, [chartData]);
 
-  // Warning state for strategies missing required data
-  const missingStrategiesCount = strategies.length - validStrategies.length;
+  const invalidStrategiesCount = strategies.length - validStrategies.length;
 
+  // ============================================================================
+  // Render States
+  // ============================================================================
 
   if (isLoading) {
     return (
@@ -366,49 +426,68 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
     );
   }
 
-  if (chartData.length === 0) {
+  if (chartData.length === 0 || !stats) {
     return (
       <div className="bg-zinc-900/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-2xl border border-zinc-800">
-        <div className="flex items-center justify-center py-6 text-zinc-500">
-          <Activity className="w-4 h-4 mr-2" />
-          <span className="text-xs sm:text-sm">No portfolio data available for selected time period</span>
+        <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
+          <Activity className="w-8 h-8 mb-3 text-zinc-600" />
+          <span className="text-sm font-medium">No portfolio data available</span>
+          <span className="text-xs text-zinc-600 mt-1">
+            {validStrategies.length === 0 ? 'No valid strategies configured' : 'Try selecting a different time period'}
+          </span>
         </div>
         {hasErrors && (
           <div className="flex items-center justify-center mt-4 text-amber-500">
             <AlertCircle className="w-4 h-4 mr-2" />
-            <span className="text-xs">Some strategies failed to load. Please try again.</span>
+            <span className="text-xs">Some data failed to load. Please try again.</span>
           </div>
         )}
       </div>
     );
   }
 
-  if (!stats) return null;
+  // ============================================================================
+  // Main Render
+  // ============================================================================
 
   return (
     <div className="bg-zinc-900/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-2xl border border-zinc-800">
+      {/* Header */}
       <div className="mb-4 sm:mb-6">
         <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4 mb-4">
           <div className="flex-1 w-full">
-            <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Portfolio Performance</h3>
-            <p className="text-zinc-400 text-xs sm:text-sm mb-3 sm:mb-4">Total Assets Under Management Across All Strategies</p>
+            <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">
+              Portfolio Performance
+            </h3>
+            <p className="text-zinc-400 text-xs sm:text-sm mb-3 sm:mb-4">
+              Total Assets Under Management Across All Strategies
+            </p>
             <div className="text-2xl sm:text-3xl font-bold text-green-400 mb-2">
               {formatAUM(stats.current)}
             </div>
-            {missingStrategiesCount > 0 && (
+
+            {/* Warnings */}
+            {invalidStrategiesCount > 0 && (
               <div className="flex items-center gap-2 text-xs text-amber-500 mt-2">
-                <AlertCircle className="w-3 h-3" />
-                <span>{missingStrategiesCount} {missingStrategiesCount === 1 ? 'strategy is' : 'strategies are'} missing required configuration</span>
+                <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                <span>
+                  {invalidStrategiesCount} {invalidStrategiesCount === 1 ? 'strategy is' : 'strategies are'} missing configuration
+                </span>
               </div>
             )}
             {hasErrors && (
               <div className="flex items-center gap-2 text-xs text-red-400 mt-2">
-                <AlertCircle className="w-3 h-3" />
+                <AlertCircle className="w-3 h-3 flex-shrink-0" />
                 <span>Some data failed to load</span>
               </div>
             )}
           </div>
-          <Select value={selectedTimescale} onValueChange={(value) => setSelectedTimescale(value as TimescaleOption)}>
+
+          {/* Timescale Selector */}
+          <Select
+            value={selectedTimescale}
+            onValueChange={(value) => setSelectedTimescale(value as TimescaleOption)}
+          >
             <SelectTrigger className="w-full sm:w-[160px] bg-zinc-800/50 border-zinc-700 text-white">
               <SelectValue />
             </SelectTrigger>
@@ -427,8 +506,11 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
         </div>
       </div>
 
+      {/* Performance Label and Change */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
-        <span className="text-xs text-zinc-400 whitespace-nowrap">PORTFOLIO PERFORMANCE OVER TIME</span>
+        <span className="text-xs text-zinc-400 whitespace-nowrap">
+          PORTFOLIO PERFORMANCE OVER TIME
+        </span>
         <div className="flex items-center gap-2 text-xs">
           <TrendingUp className={`w-3 h-3 ${stats.isPositive ? 'text-green-400' : 'text-red-400'}`} />
           <span className={stats.isPositive ? 'text-green-400' : 'text-red-400'}>
@@ -437,6 +519,7 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
         </div>
       </div>
 
+      {/* Chart */}
       <div className="h-48 sm:h-56 md:h-64">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 20 }}>

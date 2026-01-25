@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { getAuth, signOut } from "firebase/auth";
 import { ArrowLeft, CheckCircle, AlertCircle, SlidersHorizontal } from "lucide-react";
-import api, { hedgeFundApi } from "@/lib/api";
+import { hedgeFundApi } from "@/lib/api";
 import StrategyCard from "@/components/wallet/StrategyCard";
 
 import { CumulativeAUMChartNew } from "@/components/wallet/CumulativeAUMChartNew";
@@ -99,23 +99,20 @@ export default function HedgeFundV2Page() {
       }
     });
 
-    // Extract balances for all strategies
-    strategies.forEach((strategy) => {
-      const strategySymbol = strategy.symbol || strategy.id;
-      const tokenBalance = balances.find((tb: any) =>
-        tb.token.symbol === strategySymbol ||
-        tb.token.symbol === strategy.id
-      );
+    // Extract strategy balances - now coming directly from batch API
+    // Token symbol IS the strategy ID (YSNVDA, YSGS, KFGOLD, YSXAG)
+    balances.forEach((tokenBalance: any) => {
+      const symbol = tokenBalance.token.symbol;
 
-      if (tokenBalance) {
-        strategyBalances[strategy.id || strategy.address] = tokenBalance.amount || "0";
-      } else {
-        strategyBalances[strategy.id || strategy.address] = "0";
+      // Skip USDC and yearnWeth (already processed above)
+      if (symbol !== 'USDC' && symbol !== 'TRNSK' && symbol !== 'ysWETH' && symbol !== 'YEARN_WETH') {
+        strategyBalances[symbol] = tokenBalance.amount || "0";
+        console.log(`✅ [OPTIMIZED] ${symbol}: ${tokenBalance.amount}`);
       }
     });
 
     return { usdc: usdcBalance, yearnWeth: yearnWethBalance, strategies: strategyBalances };
-  }, [balance, strategies]);
+  }, [balance]);
 
   useEffect(() => {
     const storedUserData = localStorage.getItem('userData');
@@ -140,9 +137,46 @@ export default function HedgeFundV2Page() {
     try {
       setBalanceLoading(true);
       setBalanceError(null);
-      const response = await api.get(`/api/v1/wallet_balance/${address}`);
-      setBalance(response.data);
+
+      // OPTIMIZED: Single batch API call to hedge fund backend
+      // Fetches all strategy balances + USDC in ONE request using subgraph
+      const response = await hedgeFundApi.get(`/api/v1/strategies/balances/${address}`);
+
+      // Transform batch response to match existing balance structure
+      const batchData = response.data;
+
+      // Create tokenBalances array from strategy_balances
+      const tokenBalances: any[] = [];
+
+      // Add USDC balance
+      if (batchData.usdc_balance && parseFloat(batchData.usdc_balance) > 0) {
+        tokenBalances.push({
+          amount: batchData.usdc_balance,
+          token: {
+            symbol: "USDC",
+            address: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" // USDC address
+          }
+        });
+      }
+
+      // Add strategy balances
+      if (batchData.strategy_balances) {
+        Object.entries(batchData.strategy_balances).forEach(([strategyId, data]: [string, any]) => {
+          tokenBalances.push({
+            amount: data.balance,
+            token: {
+              symbol: strategyId,
+              address: data.address
+            }
+          });
+        });
+      }
+
+      setBalance({ tokenBalances });
+      console.log("✅ [OPTIMIZED] Fetched all balances in 1 API call:", batchData);
+
     } catch (err) {
+      console.error("❌ Batch balance fetch failed:", err);
       setBalanceError('Failed to fetch token balances');
     } finally {
       setBalanceLoading(false);

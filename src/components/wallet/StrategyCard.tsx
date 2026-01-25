@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn, formatTokenBalance } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import api, { hedgeFundApi } from "@/lib/api";
+import { hedgeFundApi } from "@/lib/api";
 import { StrategyName, useStrategyConfig } from "@/hooks/useStrategyConfig";
 import { useStrategyPrice } from "@/hooks/useStrategyPrice";
 import { useStrategySubgraphData } from "@/hooks/useStrategySubgraphData";
@@ -135,7 +135,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
     D: 'bg-red-500/20 text-red-400 border-red-500/20 hover:bg-red-500/30',
   };
 
-  // Fetch balances - handles different strategies appropriately
+  // OPTIMIZED: Initialize wallet address only - balances come from props
   const fetchBalances = async () => {
     setBalanceLoading(true);
     try {
@@ -145,65 +145,20 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
         if (parsedData.wallet_address) {
           setWalletAddress(parsedData.wallet_address);
 
-
-          // Fetch USDC balance (common for all strategies)
+          // Use pre-fetched balances from parent component (batch API call)
           if (typeof usdcBalance !== 'undefined') {
             setUsdcBalance(usdcBalance);
-          } else {
-            try {
-              const walletResponse = await api.get(`/api/v1/wallet_balance/${parsedData.wallet_address}`);
-              const tokenBalances = walletResponse.data.tokenBalances || walletResponse.data.token_balances;
-
-              if (tokenBalances && Array.isArray(tokenBalances)) {
-                const allUSDCTokens = tokenBalances.filter((b: any) =>
-                  b.token && b.token.symbol === 'USDC'
-                );
-                if (allUSDCTokens.length > 0) {
-                  const totalUSDC = allUSDCTokens.reduce((sum: number, token: any) => {
-                    return sum + parseFloat(token.amount || "0");
-                  }, 0);
-                  setUsdcBalance(totalUSDC.toString());
-                }
-              } else {
-                console.warn("No token balances found in response (checked tokenBalances and token_balances)");
-              }
-            } catch (err) {
-              // Silently handle USDC balance fetch error
-            }
           }
 
-          // Use pre-fetched strategy balance if provided, otherwise fetch it
           if (typeof strategyBalanceProp !== 'undefined') {
             setStrategyBalance(strategyBalanceProp);
-          } else {
-            // Fetch strategy balance from unified API (backend returns raw wei)
-            try {
-              const balanceResponse = await hedgeFundApi.get(`/api/v1/strategy/${strategyName}/balance/${parsedData.wallet_address}`);
-
-              if (balanceResponse.data) {
-                const balance_wei = balanceResponse.data.balance || "0";
-                const contract_decimals = balanceResponse.data.decimals || 18;
-
-                // Frontend display decimals for human-readable format
-                // MAVC: divide by 10^12 to show readable numbers (e.g., 18.19 MAVC)
-                // MAVP: divide by 10^12 to show readable numbers (e.g., 466.49 MAVP)
-                let display_decimals = contract_decimals;
-
-                const balanceNum = parseFloat(balance_wei) / Math.pow(10, display_decimals);
-                const balance = balanceNum.toString();
-
-                setStrategyBalance(balance);
-              } else {
-                setStrategyBalance("0");
-              }
-            } catch (err: any) {
-              setStrategyBalance("0");
-            }
           }
+
+          console.log(`✅ [OPTIMIZED] ${strategyName} - Using pre-fetched balance: ${strategyBalanceProp}`);
         }
       }
     } catch (err: any) {
-      // Silently handle balance fetch error
+      console.error(`❌ Error initializing ${strategyName}:`, err);
     } finally {
       setBalanceLoading(false);
     }
