@@ -19,7 +19,7 @@ import { ArrowRight, Check, X, Loader2, ArrowLeftRight, Send, RefreshCw } from '
 const POLL_INTERVAL_MS = 10000;
 
 // How long to keep completed transactions visible (5 seconds)
-const COMPLETED_TX_DISPLAY_TIME = 5000;
+const COMPLETED_TX_DISPLAY_TIME = 3000;
 
 interface ActiveTransaction {
   transaction_id: string;
