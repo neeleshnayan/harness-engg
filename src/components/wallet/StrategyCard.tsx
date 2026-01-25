@@ -30,13 +30,13 @@ interface StrategyCardProps {
 const STRATEGY_DETAILS__LEGACY: Record<string, {
   tokenSymbol: string;
   routePath: string;
-  metricField: 'yearnWethVaultMetric';
+  metricField: 'strategyMetric';
   useTokenDetection?: boolean;
 }> = {
   YEARN_WETH: {
     tokenSymbol: 'ysWETH',
     routePath: '/customer/grow/hedge-fund-v2/yearn-weth',
-    metricField: 'yearnWethVaultMetric',
+    metricField: 'strategyMetric',
     useTokenDetection: false,
   },
 };
@@ -85,12 +85,12 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
 
   // Calculate net supply from subgraph
   const netSupply = useMemo(() => {
-    const metric = subgraphData?.[strategyDetails.metricField];
+    const metric = subgraphData?.strategyMetric;
     if (!metric) return 0;
     const minted = Number(metric.mintedShares ?? '0');
     const burned = Number(metric.burnedShares ?? '0');
     return minted - burned;
-  }, [subgraphData, strategyDetails.metricField]);
+  }, [subgraphData]);
 
   // Calculate AUM dynamically
   const calculatedAUM = useMemo(() => {
@@ -111,7 +111,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
     }
   }, [strategyName, yearnAUM, netSupply, priceData, config?.aum]);
 
-  const uniqueDepositors = subgraphData?.[strategyDetails.metricField]?.uniqueDepositors ?? config?.participants ?? 121;
+  const uniqueDepositors = subgraphData?.strategyMetric?.uniqueDepositors ?? config?.participants ?? 121;
 
   // Strategy metrics from config
   const strategyMetrics = {
