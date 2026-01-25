@@ -447,16 +447,9 @@ export default function HedgeFundV2Page() {
 
   // FETCH STRATEGIES (Moved to top)
 
-  const { AddStrategyModal } = require("@/components/wallet/AddStrategyModal"); // Dynamic require to avoid cycle if needed, or better use top imports? Using top import is safer but modifying file is hard.
-  // Actually, I should request import at top. But for now I will rely on standard imports.
-  // Wait, I cannot use require inside component body in standard React/Next without issues usually.
-  // I will add import at top in a separate step or just assume I add it.
-
   return (
     <>
       <Toaster />
-      {/* Add Strategy Modal (Need to import at top!) */}
-      {/* Implemented below in return structure */}
       <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 dark overflow-x-hidden">
         <WalletHeader
           accountData={accountData}
