@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { useYearnWETHSubgraphData, Snapshot } from "@/hooks/useStrategySubgraphData";
+import { useStrategySubgraphData, Snapshot } from "@/hooks/useStrategySubgraphData";
 import {
     AreaChart,
     Area,
@@ -63,15 +63,28 @@ const formatTxHash = (hash?: string) => {
     return `${hash.slice(0, 6)}...${hash.slice(-4)}`;
 };
 
-interface SubgraphAnalyticsYearnWETHProps {
+interface SubgraphAnalyticsGenericProps {
     subgraphUrl?: string;
     strategyAddress?: string;
+    strategyName?: string; // e.g. "Yearn XAG11"
+    assetSymbol?: string; // e.g. "USDC"
+    targetSymbol?: string; // e.g. "WETH" or "XAG"
+    decimals?: number;
 }
-export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProps> = ({ subgraphUrl, strategyAddress }) => {
-    const { data, isLoading, isError, error, refetch, isFetching } = useYearnWETHSubgraphData(subgraphUrl, undefined, strategyAddress);
 
-    // Update to use correct field name from hook
-    const metrics = data?.yearnWethStrategyMetric;
+export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> = ({
+    subgraphUrl,
+    strategyAddress,
+    strategyName = "Strategy",
+    assetSymbol = "USDC",
+    targetSymbol = "Token",
+    decimals = 4
+}) => {
+    // Determine which strategy hook to use or use generic one. 
+    // We reuse useStrategySubgraphData directly but we need a "StrategyName" type placeholder
+    const { data, isLoading, isError, error, refetch, isFetching } = useStrategySubgraphData('GENERIC' as any, subgraphUrl, strategyAddress);
+
+    const metrics = data?.strategyMetric;
     const signals = data?.signalExecuteds ?? [];
     const deposits = data?.deposits ?? [];
     const withdrawals = data?.withdrawals ?? [];
@@ -94,7 +107,7 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
         withdrawals: true
     });
 
-    // 4. Augment events with Replay Logic (Centralized Source of Truth)
+    // Augment events with Replay Logic
     const augmentedEvents = useMemo(() => {
         // Sort chronologically for replay
         const sortedEvents = [...allEvents].sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
@@ -105,16 +118,16 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
 
         sortedEvents.forEach(event => {
             const evtTimestamp = String(event.timestamp);
-            const snapshot = data?.snapshots?.find(s => String(s.timestamp) === evtTimestamp);
+            const snapshot = data?.strategySnapshots?.find(s => String(s.timestamp) === evtTimestamp);
             const aum = snapshot?.aum ? Number(snapshot.aum) : 0;
 
             if (event.type === 'DEPOSIT') {
                 const assets = Number((event as any).assets);
-                const aum = snapshot?.aum ? Number(snapshot.aum) : 0;
 
                 // STRICTLY USE SUBGRAPH SHARES (User Request)
-                // Correction: Subgraph output is 18 decimals normalized, but token is 6 decimals?
-                // 0.000000000065 * 1e12 = 65 approx.
+                // Adjustment: logic for 1e12 normalization if needed, but generic might be 1:1 or different?
+                // Assuming standard 18 decimals from subgraph for now, matching YearnWETH logic.
+                // If target token is different decimals, might need adjustment prop.
                 const shares = Number((event as any).shares ?? 0) * 1000000000000;
 
                 // Calculate Implied Price (Assets / Shares)
@@ -122,7 +135,6 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                 if (shares > 0) {
                     price = assets / shares;
                 } else {
-                    // Fallback to previous price if shares are missing (shouldn't happen with fixed subgraph)
                     price = 1.0;
                 }
 
@@ -140,26 +152,25 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
 
                 let price = 1.0;
                 if (shares > 0) {
-                    price = assets / shares; // Implied price of exit
+                    price = assets / shares;
                 }
 
                 tokenPriceMap.set(event.id, price);
             } else {
                 let price = 1.0;
-                if (currentSupply > 0.000000000000001 && aum > 0) { // Tiny supply support
+                if (currentSupply > 0.000000000000001 && aum > 0) {
                     price = aum / currentSupply;
                 }
                 tokenPriceMap.set(event.id, price);
             }
         });
 
-        // Return events with calculated data attached
         return allEvents.map(e => ({
             ...e,
             calculatedShares: calculatedSharesMap.get(e.id),
             calculatedPrice: tokenPriceMap.get(e.id)
         })).sort((a, b) => Number(b.timestamp) - Number(a.timestamp));
-    }, [allEvents, data?.snapshots]);
+    }, [allEvents, data?.strategySnapshots]);
 
     const filteredEvents = useMemo(() => {
         return augmentedEvents.filter(event => {
@@ -174,7 +185,6 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
         });
     }, [augmentedEvents, filters]);
 
-    // Display logic uses the already augmented filteredEvents
     const displayedEvents = isExpanded ? filteredEvents : filteredEvents.slice(0, 5);
 
     const toggleFilter = (key: keyof typeof filters) => {
@@ -184,7 +194,7 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
     const handleExportCSV = () => {
         if (!filteredEvents || filteredEvents.length === 0) return;
 
-        const headers = ['Time', 'Type', 'Input', 'Output', 'WETH Price', 'Token Price', 'Total AUM', 'Total Deposits', 'Total Withdrawals', 'Tx Hash'];
+        const headers = ['Time', 'Type', 'Input', 'Output', `${targetSymbol} Price`, 'Token Price', 'Total AUM', 'Total Deposits', 'Total Withdrawals', 'Tx Hash'];
         const rows = filteredEvents.map(event => {
             const date = new Date(Number(event.timestamp) * 1000).toLocaleString().replace(/,/g, '');
             let type = '';
@@ -193,21 +203,45 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
             let priceLabel = '0';
 
             if (event.type === 'SIGNAL') {
-                type = event.signalType === 1 ? 'BUY (USDC -> WETH)' : 'SELL (WETH -> USDC)';
-                const inputAmount = Number(event.amountIn);
-                const outputAmount = Number(event.amountOut);
+                type = event.signalType === 1 ? `BUY (${assetSymbol} -> ${targetSymbol})` : `SELL (${targetSymbol} -> ${assetSymbol})`;
+
+                // Scale amounts by decimals
+                // Buy: In = USDC (6), Out = Token (18)
+                // Sell: In = Token (18), Out = USDC (6)
+
+                // Use props or defaults if not provided (USDC=6, Token=18)
+                const assetDesc = decimals === 4 ? 6 : (decimals || 6); // Assume asset is USDC-like (6) unless specified? 
+                // Actually 'decimals' prop is generic formatting decimals.
+                // Let's rely on standard convention or add new props later.
+                // For now, assume Asset=6 (USDC), Target=18 (Standard).
+                const ASSET_DECIMALS = 6;
+                const TARGET_DECIMALS = 18;
+
+                const rawIn = Number(event.amountIn);
+                const rawOut = Number(event.amountOut);
+
+                let inputVal = 0;
+                let outputVal = 0;
+
+                if (event.signalType === 1) { // BUY (Asset -> Target)
+                    inputVal = rawIn / Math.pow(10, ASSET_DECIMALS);
+                    outputVal = rawOut / Math.pow(10, TARGET_DECIMALS);
+                } else { // SELL (Target -> Asset)
+                    inputVal = rawIn / Math.pow(10, TARGET_DECIMALS);
+                    outputVal = rawOut / Math.pow(10, ASSET_DECIMALS);
+                }
 
                 inputLabel = event.signalType === 1
-                    ? formatCurrency(inputAmount).replace(/,/g, '')
-                    : (formatTokenAmount(inputAmount) + ' WETH');
+                    ? formatCurrency(inputVal).replace(/,/g, '')
+                    : (formatTokenAmount(inputVal, decimals) + ' ' + targetSymbol);
 
                 outputLabel = event.signalType === 1
-                    ? (formatTokenAmount(outputAmount) + ' WETH')
-                    : formatCurrency(outputAmount).replace(/,/g, '');
+                    ? (formatTokenAmount(outputVal, decimals) + ' ' + targetSymbol)
+                    : formatCurrency(outputVal).replace(/,/g, '');
 
                 const price = event.signalType === 1
-                    ? (outputAmount > 0 ? inputAmount / outputAmount : 0)
-                    : (inputAmount > 0 ? outputAmount / inputAmount : 0);
+                    ? (outputVal > 0 ? inputVal / outputVal : 0)
+                    : (inputVal > 0 ? outputVal / inputVal : 0);
                 priceLabel = formatCurrency(price).replace(/,/g, '');
 
             } else if (event.type === 'DEPOSIT') {
@@ -215,30 +249,25 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                 const assets = Number(event.assets) || 0;
                 inputLabel = formatCurrency(assets).replace(/,/g, '');
 
-                // Use calculated shares if available (from Replay Logic), else fallback
                 const calculatedShares = (event as any).calculatedShares;
-                const sharesFromEvent = event.shares ? Number(event.shares) * 1000000000000 : 0;
+                const sharesFromEvent = event.shares ? Number(event.shares) * 1000000000000 : 0; // consistent norm
 
                 const sharesDisplay = calculatedShares ?? (sharesFromEvent > 0 ? sharesFromEvent : assets);
                 outputLabel = formatNumber(sharesDisplay) + ' Shares';
             } else if (event.type === 'WITHDRAWAL') {
                 type = 'WITHDRAWAL';
                 const assets = Number(event.assets) || 0;
-                // Use calculated shares if available
-                const calculatedShares = (event as any).calculatedShares; // For withdrawals usually matches event
-                const sharesFromEvent = event.shares ? Number(event.shares) : 0;
 
+                const calculatedShares = (event as any).calculatedShares;
+                const sharesFromEvent = event.shares ? Number(event.shares) : 0;
                 const sharesDisplay = calculatedShares ?? (sharesFromEvent > 0 ? sharesFromEvent : assets);
 
                 inputLabel = formatNumber(sharesDisplay) + ' Shares';
                 outputLabel = formatCurrency(assets).replace(/,/g, '');
             }
 
-            // Find matching snapshot
-            const snapshot = data?.snapshots?.find(s => s.timestamp === event.timestamp);
+            const snapshot = data?.strategySnapshots?.find(s => s.timestamp === event.timestamp);
             const aum = snapshot?.aum ? Number(snapshot.aum) : (Number(snapshot?.totalDeposits ?? 0) - Number(snapshot?.totalWithdrawals ?? 0));
-
-            // Use calculated price from replay logic
             const tokenPrice = (event as any).calculatedPrice ?? 1.0;
 
             const tokenPriceLabel = formatTokenPrice(tokenPrice).replace(/,/g, '');
@@ -246,13 +275,6 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
             const depositsLabel = formatCurrency(Number(snapshot?.totalDeposits ?? 0)).replace(/,/g, '');
             const withdrawalsLabel = formatCurrency(Number(snapshot?.totalWithdrawals ?? 0)).replace(/,/g, '');
 
-            // Use txHash if available (Signals have txHash, Deposits/Withdrawals don't in current Schema access? Need to check Schema)
-            // Checking schema.graphql: Deposit and Withdrawal entities DO have txHash!
-            // Checking useStrategySubgraphData.ts: The query DOES include id, owner, assets, shares... BUT converting to check...
-            // The query in useStrategySubgraphData.ts for deposits/withdrawals is:
-            // deposits(first: 1000 ...) { id, owner, assets, shares, timestamp } - MISSING txHash!
-            // I need to update the query in useStrategySubgraphData.ts to fetch txHash for deposits/withdrawals first.
-            // For now I will use empty string or ID if it looks like a hash? ID is often txHash-logIndex.
             const txHash = (event as any).txHash || (event.id.split('-')[0]) || '';
 
             return [
@@ -274,40 +296,27 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.setAttribute('href', url);
-        link.setAttribute('download', `yearn-weth-events-${Date.now()}.csv`);
+        link.setAttribute('download', `${strategyName.replace(/\s+/g, '-').toLowerCase()}-events-${Date.now()}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
     };
 
-    // Process data for charts using snapshots
-    // Process data for charts using Augmented Replay Logic
     const chartData = useMemo(() => {
-        // We need chronological order for building cumulative state
-        // augmentedEvents is currently reverse-chronological (Newest First)
         const chronologicalEvents = [...augmentedEvents].sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
-
-        // We need to maintain a running total of MINTED shares because the snapshot data is corrupted
         let runningMintedShares = 0;
 
         return chronologicalEvents.map(event => {
-            const snapshot = data?.snapshots?.find(s => String(s.timestamp) === String(event.timestamp));
+            const snapshot = data?.strategySnapshots?.find(s => String(s.timestamp) === String(event.timestamp));
 
-            // Update running totals based on the event
             if (event.type === 'DEPOSIT') {
                 const calculatedShares = (event as any).calculatedShares;
-                // If we have a calculated share amount, add it.
-                // If not (fallback), we use the logic: shares > 0 ? shares : assets
-                // But the calculatedShares field should be populated by the replay logic.
                 const fallbackShares = (event.shares && Number(event.shares) > 0) ? Number(event.shares) : (Number((event as any).assets) || 0);
                 runningMintedShares += (calculatedShares ?? fallbackShares);
             }
-            // For withdrawals, we trust the snapshot/event burned amount
-            // But we don't need to track it manually if snapshot.burnedShares is correct.
-            // Let's assume snapshot.burnedShares IS correct (as observed).
+
             const burnedShares = Number(snapshot?.burnedShares ?? 0);
             const netShares = runningMintedShares - burnedShares;
-
             const aum = snapshot?.aum ? Number(snapshot.aum) : (Number(snapshot?.totalDeposits ?? 0) - Number(snapshot?.totalWithdrawals ?? 0));
 
             return {
@@ -316,18 +325,18 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                 aum: aum,
                 totalDeposits: Number(snapshot?.totalDeposits ?? 0),
                 totalWithdrawals: Number(snapshot?.totalWithdrawals ?? 0),
-                mintedShares: runningMintedShares, // Use our corrected running total
+                mintedShares: runningMintedShares,
                 burnedShares: burnedShares,
-                netShares: netShares, // Corrected Net Shares
-                // Fields required for Asset Allocation and Price Charts
-                usdcBalance: Number(snapshot?.usdcBalance ?? 0),
-                wethBalance: Number(snapshot?.wethBalance ?? 0),
-                wethPrice: Number(snapshot?.wethPrice ?? 0)
+                netShares: netShares,
+                // Adapt fields for Generic:
+                // Map asset/target balance to usdc/weth props for existing charts or generic charts
+                usdcBalance: Number(snapshot?.assetBalance ?? 0),
+                wethBalance: Number(snapshot?.targetBalance ?? 0),
+                wethPrice: Number(snapshot?.targetPrice ?? 0)
             };
         });
-    }, [augmentedEvents, data?.snapshots]);
+    }, [augmentedEvents, data?.strategySnapshots]);
 
-    // Derive current metrics from the latest chart data point
     const latestData = chartData.length > 0 ? chartData[chartData.length - 1] : null;
 
     if (!subgraphUrl) {
@@ -335,7 +344,7 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
             <div className="mt-8 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-6 py-5 text-amber-100">
                 <p className="font-semibold">Subgraph not configured.</p>
                 <p className="mt-2 text-sm text-amber-50/80">
-                    Configure the SUBGRAPH_URL field in Firestore (quant_strategies/YEARN_WETH) to enable analytics.
+                    Configure the SUBGRAPH_URL to enable analytics.
                 </p>
             </div>
         );
@@ -343,7 +352,6 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
 
     return (
         <div className="space-y-6">
-            {/* Recent Signals Section - Moved to top */}
             {
                 allEvents.length > 0 && (
                     <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
@@ -356,13 +364,9 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                                         className="flex items-center text-xs text-zinc-400 hover:text-white transition-colors"
                                     >
                                         {isExpanded ? (
-                                            <>
-                                                Show Less <ChevronUp className="ml-1 h-3 w-3" />
-                                            </>
+                                            <>Show Less <ChevronUp className="ml-1 h-3 w-3" /></>
                                         ) : (
-                                            <>
-                                                Show All <ChevronDown className="ml-1 h-3 w-3" />
-                                            </>
+                                            <>Show All <ChevronDown className="ml-1 h-3 w-3" /></>
                                         )}
                                     </button>
                                 )}
@@ -385,44 +389,20 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                                     {showFilter && (
                                         <div className="absolute right-0 mt-2 w-48 rounded-xl border border-zinc-700 bg-zinc-800 shadow-xl z-10 overflow-hidden">
                                             <div className="p-2 space-y-1">
-                                                <button
-                                                    onClick={() => toggleFilter('deposits')}
-                                                    className="w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg hover:bg-zinc-700/50 transition-colors text-zinc-300"
-                                                >
-                                                    <span className="flex items-center">
-                                                        <span className="w-2 h-2 rounded-full bg-blue-400 mr-2"></span>
-                                                        Deposits
-                                                    </span>
+                                                <button onClick={() => toggleFilter('deposits')} className="w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg hover:bg-zinc-700/50 transition-colors text-zinc-300">
+                                                    <span className="flex items-center"><span className="w-2 h-2 rounded-full bg-blue-400 mr-2"></span>Deposits</span>
                                                     {filters.deposits && <Check className="h-3 w-3 text-blue-400" />}
                                                 </button>
-                                                <button
-                                                    onClick={() => toggleFilter('withdrawals')}
-                                                    className="w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg hover:bg-zinc-700/50 transition-colors text-zinc-300"
-                                                >
-                                                    <span className="flex items-center">
-                                                        <span className="w-2 h-2 rounded-full bg-purple-400 mr-2"></span>
-                                                        Withdrawals
-                                                    </span>
+                                                <button onClick={() => toggleFilter('withdrawals')} className="w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg hover:bg-zinc-700/50 transition-colors text-zinc-300">
+                                                    <span className="flex items-center"><span className="w-2 h-2 rounded-full bg-purple-400 mr-2"></span>Withdrawals</span>
                                                     {filters.withdrawals && <Check className="h-3 w-3 text-purple-400" />}
                                                 </button>
-                                                <button
-                                                    onClick={() => toggleFilter('buy')}
-                                                    className="w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg hover:bg-zinc-700/50 transition-colors text-zinc-300"
-                                                >
-                                                    <span className="flex items-center">
-                                                        <span className="w-2 h-2 rounded-full bg-emerald-400 mr-2"></span>
-                                                        Buy Signals
-                                                    </span>
+                                                <button onClick={() => toggleFilter('buy')} className="w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg hover:bg-zinc-700/50 transition-colors text-zinc-300">
+                                                    <span className="flex items-center"><span className="w-2 h-2 rounded-full bg-emerald-400 mr-2"></span>Buy Signals</span>
                                                     {filters.buy && <Check className="h-3 w-3 text-emerald-400" />}
                                                 </button>
-                                                <button
-                                                    onClick={() => toggleFilter('sell')}
-                                                    className="w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg hover:bg-zinc-700/50 transition-colors text-zinc-300"
-                                                >
-                                                    <span className="flex items-center">
-                                                        <span className="w-2 h-2 rounded-full bg-rose-400 mr-2"></span>
-                                                        Sell Signals
-                                                    </span>
+                                                <button onClick={() => toggleFilter('sell')} className="w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg hover:bg-zinc-700/50 transition-colors text-zinc-300">
+                                                    <span className="flex items-center"><span className="w-2 h-2 rounded-full bg-rose-400 mr-2"></span>Sell Signals</span>
                                                     {filters.sell && <Check className="h-3 w-3 text-rose-400" />}
                                                 </button>
                                             </div>
@@ -439,7 +419,7 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                                         <th className="pb-3 font-medium">Type</th>
                                         <th className="pb-3 font-medium">Input</th>
                                         <th className="pb-3 font-medium">Output</th>
-                                        <th className="pb-3 font-medium">WETH Price</th>
+                                        <th className="pb-3 font-medium">{targetSymbol} Price</th>
                                         <th className="pb-3 font-medium">Token Price</th>
                                         <th className="pb-3 font-medium">Total AUM</th>
                                         <th className="pb-3 font-medium">Total Deposits</th>
@@ -449,14 +429,10 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                                 </thead>
                                 <tbody className="divide-y divide-zinc-700/30">
                                     {displayedEvents.map((event) => {
-                                        // Common calculations
-                                        const snapshot = data?.snapshots?.find(s => s.timestamp === event.timestamp);
+                                        const snapshot = data?.strategySnapshots?.find(s => s.timestamp === event.timestamp);
                                         const aum = snapshot?.aum ? Number(snapshot.aum) : (Number(snapshot?.totalDeposits ?? 0) - Number(snapshot?.totalWithdrawals ?? 0));
-
-                                        // Use calculated price from replay logic if available
                                         const tokenPrice = (event as any).calculatedPrice ?? 1.0;
 
-                                        // Type specific rendering
                                         let typeLabel = <></>;
                                         let inputDisplay = <></>;
                                         let outputDisplay = <></>;
@@ -466,50 +442,48 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                                             const s = event as any;
                                             const isBuy = s.signalType === 1;
                                             typeLabel = (
-                                                <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${isBuy
-                                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                                    : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                                                    }`}>
+                                                <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${isBuy ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
                                                     {isBuy ? 'BUY' : 'SELL'}
                                                 </span>
                                             );
-                                            inputDisplay = <>{isBuy ? formatCurrency(Number(s.amountIn)) : formatTokenAmount(Number(s.amountIn)) + ' WETH'}</>;
-                                            outputDisplay = <>{isBuy ? formatTokenAmount(Number(s.amountOut)) + ' WETH' : formatCurrency(Number(s.amountOut))}</>;
 
-                                            // Calculate Price for signal
-                                            const input = Number(s.amountIn);
-                                            const output = Number(s.amountOut);
-                                            const price = isBuy
-                                                ? (output > 0 ? input / output : 0)
-                                                : (input > 0 ? output / input : 0);
+                                            const ASSET_DECIMALS = 6;
+                                            const TARGET_DECIMALS = 18;
+                                            const rawIn = Number(s.amountIn);
+                                            const rawOut = Number(s.amountOut);
+
+                                            let inputVal = 0;
+                                            let outputVal = 0;
+
+                                            if (isBuy) {
+                                                inputVal = rawIn / Math.pow(10, ASSET_DECIMALS);
+                                                outputVal = rawOut / Math.pow(10, TARGET_DECIMALS);
+                                            } else {
+                                                inputVal = rawIn / Math.pow(10, TARGET_DECIMALS);
+                                                outputVal = rawOut / Math.pow(10, ASSET_DECIMALS);
+                                            }
+
+                                            inputDisplay = <>{isBuy ? formatCurrency(inputVal) : formatTokenAmount(inputVal, decimals) + ' ' + targetSymbol}</>;
+                                            outputDisplay = <>{isBuy ? formatTokenAmount(outputVal, decimals) + ' ' + targetSymbol : formatCurrency(outputVal)}</>;
+
+                                            const price = isBuy ? (outputVal > 0 ? inputVal / outputVal : 0) : (inputVal > 0 ? outputVal / inputVal : 0);
                                             priceDisplay = formatCurrency(price);
+
 
                                         } else if (event.type === 'DEPOSIT') {
                                             const d = event as any;
-                                            typeLabel = (
-                                                <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                                                    DEPOSIT
-                                                </span>
-                                            );
+                                            typeLabel = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">DEPOSIT</span>;
                                             const depositAssets = Number(d.assets) || 0;
                                             inputDisplay = <>{formatCurrency(depositAssets)}</>;
 
-                                            // PRIORITIZE RAW SHARES IF AVAILABLE (Consistency with CSV)
                                             const rawShares = Number(d.shares ?? 0) * 1000000000000;
                                             const depositSharesDisplay = rawShares > 0 ? rawShares : (d.calculatedShares ?? depositAssets);
-
                                             outputDisplay = <>{formatNumber(depositSharesDisplay)} Shares</>;
                                             priceDisplay = '-';
                                         } else if (event.type === 'WITHDRAWAL') {
                                             const w = event as any;
-                                            typeLabel = (
-                                                <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                                                    WITHDRAWAL
-                                                </span>
-                                            );
+                                            typeLabel = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">WITHDRAWAL</span>;
                                             const withdrawAssets = Number(w.assets) || 0;
-
-                                            // Withdrawal shares are usually accurate from event
                                             const withdrawSharesFromEvent = w.shares ? Number(w.shares) : 0;
                                             const withdrawSharesDisplay = withdrawSharesFromEvent > 0 ? withdrawSharesFromEvent : withdrawAssets;
 
@@ -527,25 +501,12 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                                                 <td className="py-3 text-white font-medium">{inputDisplay}</td>
                                                 <td className="py-3 text-white font-medium">{outputDisplay}</td>
                                                 <td className="py-3 text-white font-medium">{priceDisplay}</td>
-                                                <td className="py-3 text-zinc-300 font-medium">
-                                                    {formatTokenPrice(tokenPrice)}
-                                                </td>
-                                                <td className="py-3 text-zinc-300 font-medium">
-                                                    {formatCurrency(aum)}
-                                                </td>
-                                                <td className="py-3 text-emerald-400/80 font-medium">
-                                                    {formatCurrency(Number(snapshot?.totalDeposits ?? 0))}
-                                                </td>
-                                                <td className="py-3 text-rose-400/80 font-medium">
-                                                    {formatCurrency(Number(snapshot?.totalWithdrawals ?? 0))}
-                                                </td>
+                                                <td className="py-3 text-zinc-300 font-medium">{formatTokenPrice(tokenPrice)}</td>
+                                                <td className="py-3 text-zinc-300 font-medium">{formatCurrency(aum)}</td>
+                                                <td className="py-3 text-emerald-400/80 font-medium">{formatCurrency(Number(snapshot?.totalDeposits ?? 0))}</td>
+                                                <td className="py-3 text-rose-400/80 font-medium">{formatCurrency(Number(snapshot?.totalWithdrawals ?? 0))}</td>
                                                 <td className="py-3 font-mono text-xs">
-                                                    <a
-                                                        href={`https://sepolia.etherscan.io/tx/${txHash}`}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="hover:text-blue-400 transition-colors"
-                                                    >
+                                                    <a href={`https://sepolia.etherscan.io/tx/${txHash}`} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors">
                                                         {formatTxHash(txHash)}
                                                     </a>
                                                 </td>
@@ -560,7 +521,7 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
             }
 
             <header className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-white">Yearn WETH Strategy Analytics</h2>
+                <h2 className="text-2xl font-bold text-white">{strategyName} Analytics</h2>
                 {data && (
                     <button
                         type="button"
@@ -576,12 +537,8 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
             {isError && (
                 <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-6 py-5 text-red-100">
                     <p className="font-semibold">Error querying subgraph</p>
-                    <p className="mt-2 text-sm text-red-50/80">
-                        {error instanceof Error ? error.message : 'Failed to query subgraph.'}
-                    </p>
-                    <p className="mt-2 text-xs text-red-50/60">
-                        Endpoint: {subgraphUrl}
-                    </p>
+                    <p className="mt-2 text-sm text-red-50/80">{error instanceof Error ? error.message : 'Failed.'}</p>
+                    <p className="mt-2 text-xs text-red-50/60">Endpoint: {subgraphUrl}</p>
                 </div>
             )}
 
@@ -589,26 +546,12 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                 !metrics && !isLoading && !isError && (
                     <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-6 py-5 text-amber-100">
                         <p className="font-semibold">No subgraph data detected.</p>
-                        <p className="mt-2 text-sm text-amber-50/80">
-                            The query succeeded but no metric data was found. This may indicate:
-                        </p>
-                        <ul className="mt-2 text-xs text-amber-50/60 list-disc list-inside space-y-1">
-                            <li>The subgraph hasn't indexed any events yet</li>
-                            <li>The metric entity hasn't been created (id: "yearn-weth-strategy")</li>
-                            <li>No signals have been executed yet</li>
-                        </ul>
-                        <p className="mt-3 text-xs text-amber-50/60 break-all">
-                            Endpoint: {subgraphUrl}
-                        </p>
+                        <p className="mt-2 text-sm text-amber-50/80">The query succeeded but no metric data was found. ({strategyAddress})</p>
                     </div>
                 )
             }
 
-            {
-                isLoading && (
-                    <p className="text-sm text-zinc-400">Loading analytics...</p>
-                )
-            }
+            {isLoading && <p className="text-sm text-zinc-400">Loading analytics...</p>}
 
             {
                 (metrics || latestData) && (
@@ -616,19 +559,13 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                         <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total AUM</p>
                             <p className="mt-3 text-3xl font-bold text-white">
-                                {formatCurrency(
-                                    latestData?.aum ?? (metrics?.currentAum
-                                        ? Number(metrics.currentAum)
-                                        : (Number(metrics?.totalDeposits ?? '0') - Number(metrics?.totalWithdrawals ?? '0')))
-                                )}
+                                {formatCurrency(latestData?.aum ?? (Number(metrics?.currentAum || 0)))}
                             </p>
                         </div>
                         <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Net Share Supply</p>
                             <p className="mt-3 text-3xl font-bold text-white">
-                                {formatTokenAmount(
-                                    latestData?.netShares ?? (Number(metrics?.mintedShares ?? '0') - Number(metrics?.burnedShares ?? '0'))
-                                )}
+                                {formatTokenAmount(latestData?.netShares ?? (Number(metrics?.mintedShares || 0) - Number(metrics?.burnedShares || 0)))}
                             </p>
                         </div>
                         <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
@@ -648,12 +585,12 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
                             <p className="mt-3 text-3xl font-bold text-rose-400">{metrics?.totalSellSignals ?? '0'}</p>
                         </div>
                         <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
-                            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total USDC Swapped</p>
-                            <p className="mt-3 text-3xl font-bold text-white">{formatCurrency(Number(metrics?.totalUsdcSwapped ?? '0'))}</p>
+                            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total {assetSymbol} Swapped</p>
+                            <p className="mt-3 text-3xl font-bold text-white">{formatCurrency(Number(metrics?.totalAssetSwapped ?? '0'))}</p>
                         </div>
                         <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
-                            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total WETH Swapped</p>
-                            <p className="mt-3 text-3xl font-bold text-white">{formatTokenAmount(Number(metrics?.totalWethSwapped ?? '0'))}</p>
+                            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total {targetSymbol} Swapped</p>
+                            <p className="mt-3 text-3xl font-bold text-white">{formatTokenAmount(Number(metrics?.totalTargetSwapped ?? '0'), decimals)}</p>
                         </div>
                     </div>
                 )
@@ -663,7 +600,6 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
             {
                 chartData.length > 0 && (
                     <div className="grid gap-6 lg:grid-cols-2">
-                        {/* AUM Chart */}
                         {/* AUM Chart */}
                         <div className="lg:col-span-1">
                             <AumChart data={chartData as any} />
@@ -676,15 +612,22 @@ export const SubgraphAnalyticsYearnWETH: React.FC<SubgraphAnalyticsYearnWETHProp
 
                         {/* Asset Allocation Chart */}
                         <div className="lg:col-span-1">
-                            <AssetAllocationChart data={chartData as any} />
+                            {/* We cast data to any because AssetAllocationChart might expect wethBalance but we pass wethBalance/usdcBalance. */}
+                            {/* It should just work if the data has {wethBalance, usdcBalance} structure. */}
+                            <AssetAllocationChart
+                                data={chartData as any}
+                                assetSymbol={assetSymbol}
+                                targetSymbol={targetSymbol}
+                            />
                         </div>
 
                         {/* Price Chart */}
                         <div className="lg:col-span-1">
-                            <PriceChart data={chartData as any} />
+                            <PriceChart
+                                data={chartData as any}
+                                symbol={targetSymbol}
+                            />
                         </div>
-
-
 
                         {/* USD Flow Chart */}
                         <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">

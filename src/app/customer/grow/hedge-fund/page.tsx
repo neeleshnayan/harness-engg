@@ -4,12 +4,13 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { getAuth, signOut } from "firebase/auth";
 import { ArrowLeft, CheckCircle, AlertCircle, SlidersHorizontal } from "lucide-react";
-import api, { hedgeFundApi } from "@/lib/api";
+import { hedgeFundApi } from "@/lib/api";
 import StrategyCard from "@/components/wallet/StrategyCard";
 
 import { CumulativeAUMChartNew } from "@/components/wallet/CumulativeAUMChartNew";
 import { useYearnWETHConfig } from "@/hooks/useStrategyConfig";
 import { SubgraphAnalyticsYearnWETH } from "@/components/wallet/SubgraphAnalyticsYearnWETH";
+import { SubgraphAnalyticsGeneric } from "@/components/wallet/SubgraphAnalyticsGeneric";
 import { TradingSignals } from "@/components/wallet/TradingSignals";
 import { Toaster } from "@/components/ui/toaster";
 import { HedgeFundForm } from "@/lib/types";
@@ -18,13 +19,15 @@ import MiniHedgeFundChat from '@/components/MiniHedgeFundChat';
 import WalletHeader from "@/components/wallet/WalletHeader";
 import HamburgerMenu from "@/components/wallet/HamburgerMenu";
 import { getFirebaseApp } from "@/lib/firebaseClient";
+import { AddStrategyModal } from "@/components/wallet/AddStrategyModal";
 
 type StrategyView = 'overview' | 'yearn-weth';
 
 export default function HedgeFundV2Page() {
   const router = useRouter();
   const { data: yearnWethConfig, isLoading: yearnWethConfigLoading } = useYearnWETHConfig();
-  const [selectedView, setSelectedView] = useState<StrategyView>('overview');
+  const [selectedView, setSelectedView] = useState<StrategyView | 'detail'>('overview');
+  const [selectedStrategy, setSelectedStrategy] = useState<any>(null);
   const [formData, setFormData] = useState<HedgeFundForm>({
     age: "",
     annualIncome: "",
@@ -48,9 +51,32 @@ export default function HedgeFundV2Page() {
   const [showQuestionnaire, setShowQuestionnaire] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
+  // FETCH STRATEGIES
+  const [strategies, setStrategies] = useState<any[]>([]);
+  const [strategiesLoading, setStrategiesLoading] = useState(true);
+  const [showAddStrategyModal, setShowAddStrategyModal] = useState(false);
+
+  const fetchStrategies = async () => {
+    try {
+      setStrategiesLoading(true);
+      const res = await hedgeFundApi.get('/api/v1/strategies');
+      if (res.data && res.data.data) {
+        setStrategies(res.data.data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch strategies", e);
+    } finally {
+      setStrategiesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStrategies();
+  }, []);
+
   const tokenBalances = useMemo(() => {
     if (!balance || !Array.isArray(balance.tokenBalances)) {
-      return { yearnWeth: undefined, usdc: undefined };
+      return { yearnWeth: undefined, usdc: undefined, strategies: {} };
     }
 
     let balances = balance.tokenBalances.filter((tokenBalance: any) => {
@@ -60,6 +86,7 @@ export default function HedgeFundV2Page() {
 
     let yearnWethBalance: number | undefined;
     let usdcBalance: number | undefined;
+    const strategyBalances: Record<string, string> = {};
 
     balances.forEach((tokenBalance: any) => {
       const symbol = tokenBalance.token.symbol;
@@ -71,7 +98,20 @@ export default function HedgeFundV2Page() {
         usdcBalance = (usdcBalance || 0) + rawAmount;
       }
     });
-    return { usdc: usdcBalance, yearnWeth: yearnWethBalance };
+
+    // Extract strategy balances - now coming directly from batch API
+    // Token symbol IS the strategy ID (YSNVDA, YSGS, KFGOLD, YSXAG)
+    balances.forEach((tokenBalance: any) => {
+      const symbol = tokenBalance.token.symbol;
+
+      // Skip USDC and yearnWeth (already processed above)
+      if (symbol !== 'USDC' && symbol !== 'TRNSK' && symbol !== 'ysWETH' && symbol !== 'YEARN_WETH') {
+        strategyBalances[symbol] = tokenBalance.amount || "0";
+        console.log(`✅ [OPTIMIZED] ${symbol}: ${tokenBalance.amount}`);
+      }
+    });
+
+    return { usdc: usdcBalance, yearnWeth: yearnWethBalance, strategies: strategyBalances };
   }, [balance]);
 
   useEffect(() => {
@@ -97,9 +137,46 @@ export default function HedgeFundV2Page() {
     try {
       setBalanceLoading(true);
       setBalanceError(null);
-      const response = await api.get(`/api/v1/wallet_balance/${address}`);
-      setBalance(response.data);
+
+      // OPTIMIZED: Single batch API call to hedge fund backend
+      // Fetches all strategy balances + USDC in ONE request using subgraph
+      const response = await hedgeFundApi.get(`/api/v1/strategies/balances/${address}`);
+
+      // Transform batch response to match existing balance structure
+      const batchData = response.data;
+
+      // Create tokenBalances array from strategy_balances
+      const tokenBalances: any[] = [];
+
+      // Add USDC balance
+      if (batchData.usdc_balance && parseFloat(batchData.usdc_balance) > 0) {
+        tokenBalances.push({
+          amount: batchData.usdc_balance,
+          token: {
+            symbol: "USDC",
+            address: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" // USDC address
+          }
+        });
+      }
+
+      // Add strategy balances
+      if (batchData.strategy_balances) {
+        Object.entries(batchData.strategy_balances).forEach(([strategyId, data]: [string, any]) => {
+          tokenBalances.push({
+            amount: data.balance,
+            token: {
+              symbol: strategyId,
+              address: data.address
+            }
+          });
+        });
+      }
+
+      setBalance({ tokenBalances });
+      console.log("✅ [OPTIMIZED] Fetched all balances in 1 API call:", batchData);
+
     } catch (err) {
+      console.error("❌ Batch balance fetch failed:", err);
       setBalanceError('Failed to fetch token balances');
     } finally {
       setBalanceLoading(false);
@@ -287,27 +364,47 @@ export default function HedgeFundV2Page() {
   const renderStrategyDetail = () => {
     switch (selectedView) {
       case 'yearn-weth':
+      case 'detail':
+        const currentStrategy = selectedStrategy || (selectedView === 'yearn-weth' ? strategies.find(s => s.id === 'YEARN_WETH') : null);
+        const displayName = currentStrategy?.name || "Strategy Details";
+        const subgraphUrl = currentStrategy?.subgraph_url || yearnWethConfig?.subgraph_url || process.env.NEXT_PUBLIC_SUBGRAPH_URL;
+        const stratNameKey = currentStrategy?.id || "YEARN_WETH";
+
         return (
           <>
             <div className="mb-6 sm:mb-8 px-4">
               <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-2 drop-shadow-lg">
-                YEARN WETH
+                {displayName}
               </h1>
               <p className="text-zinc-400 text-sm sm:text-base md:text-lg max-w-3xl">
-                Real-time on-chain analytics and trading data for the Yearn USDC/WETH strategy.
+                {currentStrategy?.description || "Real-time on-chain analytics and trading data."}
               </p>
             </div>
 
             {/* Trading Signals Section */}
             <div className="px-4 mb-6">
-              <TradingSignals strategyName="YEARN_WETH" />
+              <TradingSignals
+                strategyName={stratNameKey}
+                assetSymbol="USDC"
+                targetSymbol={currentStrategy?.symbol || "WETH"}
+                assetAddress={currentStrategy?.asset_address}
+                targetAddress={currentStrategy?.target_address}
+              />
             </div>
 
             {/* Subgraph Analytics */}
-            {yearnWethConfigLoading ? (
+            {yearnWethConfigLoading && selectedView === 'yearn-weth' ? (
               <div className="text-center text-zinc-400">Loading configuration...</div>
             ) : (
-              <SubgraphAnalyticsYearnWETH subgraphUrl={yearnWethConfig?.subgraph_url} />
+              // Reuse SubgraphAnalyticsYearnWETH as generic analytics component if possible, 
+              // or rename it later. Pass dynamic subgraph URL.
+              <SubgraphAnalyticsGeneric
+                subgraphUrl={subgraphUrl}
+                strategyAddress={currentStrategy?.address}
+                strategyName={displayName}
+                assetSymbol="USDC" // Defaulting to USDC as base for now
+                targetSymbol={currentStrategy?.symbol || "WETH"} // Use strategy symbol if available
+              />
             )}
           </>
         );
@@ -320,8 +417,8 @@ export default function HedgeFundV2Page() {
               <div className="w-full max-w-6xl mx-auto mb-4">
                 <CumulativeAUMChartNew
                   userWalletAddress={accountData.wallet_address}
-
-                  yearnWethCurrentBalance={tokenBalances.yearnWeth}
+                  strategies={strategies}
+                  balanceData={balance}
                 />
               </div>
             )}
@@ -339,6 +436,7 @@ export default function HedgeFundV2Page() {
                   onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
                   onCardClick={() => setSelectedView('yearn-weth')}
                   usdcBalance={tokenBalances.usdc?.toString()}
+                  strategyBalance={tokenBalances.strategies['YEARN_WETH']}
                 />
               </div>
             </div>
@@ -346,6 +444,8 @@ export default function HedgeFundV2Page() {
         );
     }
   };
+
+  // FETCH STRATEGIES (Moved to top)
 
   return (
     <>
@@ -393,7 +493,86 @@ export default function HedgeFundV2Page() {
           )}
 
           {/* Content */}
-          {renderStrategyDetail()}
+          {/* Render Detail View */}
+          {(selectedView === 'yearn-weth' || selectedView === 'detail') && renderStrategyDetail()}
+
+          {/* Render Overview (Grid) */}
+          {selectedView === 'overview' && (
+            <>
+              {/* Portfolio Performance Chart */}
+              {accountData?.wallet_address && (
+                <div className="w-full max-w-6xl mx-auto mb-4">
+                  <CumulativeAUMChartNew
+                    userWalletAddress={accountData.wallet_address}
+                    strategies={strategies}
+                    balanceData={balance}
+                  />
+                </div>
+              )}
+
+              <section id="clark-chat" className="w-full max-w-6xl mx-auto mb-4 relative">
+                <MiniHedgeFundChat userId={accountData?.user_id} />
+              </section>
+
+              {/* Strategy Cards */}
+              <div className="w-full max-w-6xl mx-auto mb-8 sm:mb-12 px-4">
+                <div className="flex justify-between items-center mb-4 sm:mb-6">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white">Available Strategies</h2>
+                  {/* OPTIONAL: Add Strategy Button Here too? */}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+
+                  {/* 1. LEGACY YEARN WETH CARD (Keep if not in DB, else remove) */}
+                  {/* We can mix them or rely on DB. Let's keep specific one if needed, but DB is better. */}
+                  {/* Assuming DB has YEARN_WETH, we loop dynamic strategies */}
+
+                  {strategies.map((strat) => (
+                    <StrategyCard
+                      key={strat.id || strat.address}
+                      strategyName={strat.address || strat.id || "Unknown"} // Use Address or ID as Name
+                      strategyData={strat}
+                      onRefresh={() => {
+                        accountData?.wallet_address && fetchBalance(accountData.wallet_address);
+                        fetchStrategies(); // Refresh list/data
+                      }}
+                      onCardClick={() => {
+                        setSelectedStrategy(strat);
+                        setSelectedView('detail');
+                        window.scrollTo(0, 0);
+                      }}
+                      usdcBalance={tokenBalances.usdc?.toString()}
+                      strategyBalance={tokenBalances.strategies[strat.id || strat.address]}
+                    />
+                  ))}
+
+                  {/* ADD STRATEGY BUTTON */}
+                  <div
+                    onClick={() => setShowAddStrategyModal(true)}
+                    className="flex flex-col items-center justify-center h-full min-h-[300px] border-2 border-dashed border-zinc-700 hover:border-blue-500 rounded-xl bg-zinc-900/30 hover:bg-zinc-900/50 cursor-pointer transition-all group"
+                  >
+                    <div className="w-16 h-16 rounded-full bg-zinc-800 group-hover:bg-blue-500/20 flex items-center justify-center mb-4 transition-all">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-400 group-hover:text-blue-500"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
+                    </div>
+                    <h3 className="text-lg font-semibold text-zinc-300 group-hover:text-white">Add New Strategy</h3>
+                    <p className="text-sm text-zinc-500 mt-2 text-center px-4">Deploy a new Yearn Strategy to the platform</p>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Modal */}
+              {/* We must assume AddStrategyModal is imported at top. I will use a separate Tool call to add import if I can't do it here easily (I can't reliably replace top of file in same chunk easily without context). */}
+              <AddStrategyModal
+                isOpen={showAddStrategyModal}
+                onClose={() => setShowAddStrategyModal(false)}
+                onSuccess={() => {
+                  fetchStrategies();
+                }}
+              />
+            </>
+          )}
+
         </div>
       </div>
     </>

@@ -5,9 +5,10 @@ import { Snapshot } from '@/hooks/useStrategySubgraphData';
 
 interface PriceChartProps {
     data: Snapshot[];
+    symbol?: string;
 }
 
-export const PriceChart: React.FC<PriceChartProps> = ({ data }) => {
+export const PriceChart: React.FC<PriceChartProps> = ({ data, symbol = "WETH" }) => {
     const chartData = data.map(s => ({
         timestamp: Number(s.timestamp),
         date: new Date(Number(s.timestamp) * 1000).toLocaleDateString(),
@@ -17,8 +18,8 @@ export const PriceChart: React.FC<PriceChartProps> = ({ data }) => {
 
     return (
         <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
-            <h3 className="text-lg font-bold text-white mb-1">Asset Allocation (WETH in USD)</h3>
-            <p className="text-xs text-zinc-400 mb-6">HISTORICAL WETH VALUE</p>
+            <h3 className="text-lg font-bold text-white mb-1">Asset Allocation ({symbol} in USD)</h3>
+            <p className="text-xs text-zinc-400 mb-6">HISTORICAL {symbol} VALUE</p>
             <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData}>
