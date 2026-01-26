@@ -118,7 +118,7 @@ export default function DevtoolsPage() {
   })
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 overflow-x-hidden">
+    <div className="min-h-screen w-full bg-[#001C1B] overflow-x-hidden">
       {/* Navbar */}
       <header className="fixed top-0 left-0 right-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -86,7 +86,7 @@ export default function MarketplaceCategoryPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-8">
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#001C1B] p-8">
         <Loader2 className="h-12 w-12 text-cyan-400 animate-spin mb-4" />
         <p className="text-zinc-400 text-lg">Loading {title} startups...</p>
       </div>
@@ -95,7 +95,7 @@ export default function MarketplaceCategoryPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-8">
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#001C1B] p-8">
         <p className="text-red-400 text-lg mb-4">{error}</p>
         <button
           onClick={() => window.location.reload()}
@@ -108,7 +108,7 @@ export default function MarketplaceCategoryPage() {
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-8">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#001C1B] p-8">
       <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4 text-center drop-shadow-lg">
         {title} Startups
       </h1>

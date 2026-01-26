@@ -588,7 +588,7 @@ export default function ManageBusinessPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-8">
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#001C1B] p-8">
         <Loader2 className="h-12 w-12 text-cyan-400 animate-spin mb-4" />
         <p className="text-zinc-400 text-lg">Loading business management...</p>
       </div>
@@ -596,7 +596,7 @@ export default function ManageBusinessPage() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900">
+    <div className="min-h-screen w-full bg-[#001C1B]">
       {/* Header */}
       <div className="border-b border-zinc-800">
         <div className="container mx-auto px-4 py-6">

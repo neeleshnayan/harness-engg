@@ -873,7 +873,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
   if (loading || userDataLoading || balanceLoading) {
     return (
-      <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 dark overflow-x-hidden flex items-center justify-center">
+      <div className="min-h-screen w-full bg-[#001C1B] dark overflow-x-hidden flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
           <p className="text-zinc-400 font-medium">
@@ -886,7 +886,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
   if (error) {
     return (
-      <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 dark overflow-x-hidden flex items-center justify-center p-4">
+      <div className="min-h-screen w-full bg-[#001C1B] dark overflow-x-hidden flex items-center justify-center p-4">
         <div className="text-center max-w-md mx-auto">
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl p-8 shadow-2xl">
             <div className="mb-6">
@@ -918,7 +918,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         onClose={handleKycModalClose}
         applicantEmail={accountData?.email}
       />
-      <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 dark overflow-x-hidden">
+      <div className="min-h-screen w-full bg-[#001C1B] dark overflow-x-hidden">
         <WalletHeader
           accountData={accountData}
           onLogout={handleLogout}

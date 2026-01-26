@@ -2,7 +2,7 @@ import LangChainChat from '@/components/LangChainChat';
 
 export default function LangChainDemoPage() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#05070A] text-white">
+    <div className="relative min-h-screen overflow-hidden bg-[#001C1B] text-white">
       <div className="absolute inset-0">
         <div className="absolute -left-24 top-16 h-64 w-64 rounded-full bg-emerald-500/20 blur-[140px]" />
         <div className="absolute right-[-20%] top-40 h-96 w-96 rounded-full bg-indigo-500/10 blur-[160px]" />

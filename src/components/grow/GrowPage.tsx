@@ -75,7 +75,7 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-8">
+    <div className="min-h-screen w-full flex flex-col bg-[#001C1B] p-8">
       <div className="container mx-auto max-w-6xl">
         {/* Header with Back to Wallet Button */}
         <div className="flex justify-between items-start mb-12">

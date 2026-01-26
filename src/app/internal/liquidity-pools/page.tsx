@@ -17,7 +17,7 @@ export default function LiquidityPoolsPage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-[#001C1B]">
       <Dashboard />
     </div>
   );
