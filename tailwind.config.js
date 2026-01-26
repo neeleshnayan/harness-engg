@@ -8,6 +8,10 @@ module.exports = {
     ],
   theme: {
   	extend: {
+  		fontFamily: {
+  			sans: ['var(--font-instrument-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+  			mono: ['var(--font-instrument-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+  		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',

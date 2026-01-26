@@ -345,7 +345,6 @@ export const TransactionStatusIndicator: React.FC<TransactionStatusIndicatorProp
         .tx-hash-link {
           color: #60A5FA;
           text-decoration: none;
-          font-family: monospace;
         }
 
         .tx-hash-link:hover {
