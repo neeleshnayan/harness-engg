@@ -1,33 +1,97 @@
-## Krypton Frontend
+# Krypton Frontend
 
-This is the Krypton web app, built with Next.js (App Router) and TypeScript. It provides:
+This is the Krypton web app, built with Next.js 15 (App Router) and TypeScript. It provides:
 
 - **Login & onboarding** for business and customer users
 - **Wallet experience** on top of Circle, with KYC, fiat on‑ramp, and real‑time balance updates
 - **Clark**, an agentic DeFi copilot (full‑screen and embedded "mini" variant)
 - **Growth experiences** (hedge‑fund / marketplace flows, liquidity pools, analytics)
 
-The root layout (`src/app/layout.tsx`) wires up global styles, `Geist` fonts and the TanStack Query provider.
+The root layout (`src/app/layout.tsx`) wires up global styles, `Instrument Sans` fonts and the TanStack Query provider.
 
 ---
 
-## Tech stack
+## Tech Stack
 
-- **Framework**: Next.js (App Router, `src/app`)
-- **Language**: TypeScript / React
+### Core Framework
+- **Framework**: Next.js 15.5.9 (App Router, `src/app`)
+- **Language**: TypeScript 5 / React 19.2.0
 - **Styling**: TailwindCSS (`globals.css`, `tailwind.config.js`)
-- **UI kit**: Shadcn‑style components under `src/components/ui`
-- **Data / state**:
-  - React Query via `QueryProvider`
-  - Custom hooks in `src/hooks` (websocket, subgraphs, strategy data, toasts, etc.)
-- **Auth**: Firebase Auth (Google SSO) + backend `/api/v1/login`
-- **Observability**: Sentry (`instrumentation*.ts`, `src/lib/sentry.ts`)
+- **UI Components**: Shadcn‑style components under `src/components/ui`
+- **Icons**: Lucide React, React Icons, FontAwesome
+
+### State Management & Data
+- **React Query** (`@tanstack/react-query` v5.90.2) via `QueryProvider`
+  - Optimized caching (60s stale time, 5min GC time)
+  - Disabled unnecessary refetching for better performance
+- **Custom hooks** in `src/hooks`:
+  - `useWebSocket` – WebSocket connection management
+  - `useTransactionStatus`, `useYearnAUM`, `useStrategy*` – DeFi analytics and polling
+  - `useTokenSymbol` – ERC-20 token symbol fetching
+  - `use-toast` – Toast notifications
+
+### Authentication & Payments
+- **Auth**: Firebase Auth v11.10.0 (Google SSO) + backend `/api/v1/login`
+- **Payments**: Circle integration via backend API
+- **KYC**: Sumsub WebSDK (`@sumsub/websdk-react` v2.3.19)
+- **Fiat On-ramp**: Transak integration
+
+### Blockchain & DeFi
+- **Ethereum**: Ethers.js v6.16.0
+- **Alchemy SDK**: v3.6.3 for blockchain data
+- **Coinbase OnchainKit**: v0.38.19 for wallet connections
+- **GraphQL**: `graphql-request` v7.2.0 for subgraph queries
+
+### Charts & Visualization
+- **Recharts**: v2.15.4 (dynamically imported for code splitting)
+- **Framer Motion**: v12.23.24 (dynamically imported for animations)
+
+### Observability
+- **Sentry**: `@sentry/nextjs` v10.5.0
+  - Optimized source map uploads (reduced build time by ~70%)
+  - Error tracking and performance monitoring
+
+### Forms & Validation
+- **React Hook Form**: v7.62.0
+- **Zod**: v4.0.15 for schema validation
+- **Hookform Resolvers**: v5.2.1
 
 ---
 
-## High‑level flows
+## Performance Optimizations
 
-### 1. Authentication & entry
+### Build Performance
+- ✅ **Standalone Output**: Enabled for smaller Docker images and faster deployments
+- ✅ **Sentry Optimization**: Disabled `widenClientFileUpload` (reduced build time from ~10min to ~2-3min)
+- ✅ **Package Import Optimization**: Tree-shaking for heavy libraries (recharts, framer-motion, lucide-react)
+- ✅ **Image Optimization**: AVIF/WebP formats with caching
+
+### Code Splitting
+- ✅ **Dynamic Imports**: Heavy components loaded on-demand:
+  - Modals: `SendUSDCModal`, `BuyUSDCModal`, `SumsubKYCModal`, `SendERC20Modal`
+  - Charts: `PortfolioChart`, `TechnicalCharts`, `AllocationCharts`, `CandleChart`, `PriceHistoryChart`
+  - Heavy components: `ResultsDisplay`, `DevtoolsOverlay`
+- ✅ **Impact**: ~40-50% smaller initial bundle size
+
+### Runtime Optimizations
+- ✅ **React.memo**: Applied to frequently re-rendered components (`WalletHeader`, `UsernameCard`)
+- ✅ **React Query**: Optimized caching and refetch strategies
+- ✅ **Memory Management**: Proper cleanup in useEffect hooks, WebSocket cleanup
+
+### Performance Metrics
+- **Build Time**: ~2-3 minutes (down from ~10 minutes)
+- **Initial Bundle**: ~221 kB shared JS (optimized)
+- **First Load**: Most routes under 50 kB
+
+For detailed optimization documentation, see:
+- `OPTIMIZATION_SUMMARY.md` – Summary and future scope
+- `PERFORMANCE_OPTIMIZATIONS.md` – Technical details
+
+---
+
+## High‑level Flows
+
+### 1. Authentication & Entry
 
 - **Route**: `/` → `src/app/page.tsx` → `LoginPage` (`src/components/LoginPage.tsx`)
 - **Flow**:
@@ -39,7 +103,7 @@ The root layout (`src/app/layout.tsx`) wires up global styles, `Geist` fonts and
     - **Business**: `/business`
     - **Customer**: `/customer`
 
-### 2. Wallet (business & customer)
+### 2. Wallet (Business & Customer)
 
 - **Routes**:
   - Business wallet: `/business` → `src/app/business/page.tsx`
@@ -52,39 +116,43 @@ The root layout (`src/app/layout.tsx`) wires up global styles, `Geist` fonts and
     - Poll KYC status and persist to `localStorage`.
   - Fetch **wallet balance** from `/api/v1/wallet_balance/:address`.
   - Handle **payments**:
-    - `SendUSDCModal` for simple USDC transfers.
-    - `SendERC20Modal` for ERC‑20 flows (configurable per page).
+    - `SendUSDCModal` for simple USDC transfers (business).
+    - `SendERC20Modal` for ERC‑20 flows (customer, supports swaps).
   - Render `BalanceCard`, `TransactionHistory`, and action buttons:
     - **Pay** (open send modal)
     - **Grow** (navigate to `grow` routes)
     - Optional extra buttons (e.g. **Manage Business**).
   - Integrate **Transak** via `BuyUSDCModal` for fiat on‑ramp.
+  - Embed **Mini Clark** chat component for quick DeFi interactions.
 
-### 3. Real‑time wallet updates
+### 3. Real‑time Wallet Updates
 
 - **WebSocket**: `useWebSocket` (`src/hooks/useWebSocket.ts`) connects to the backend WS endpoint (`/api/v1/ws`).
 - **Events**:
   - `circle_webhook` messages (inbound/outbound transfers, wallet create/update).
   - On relevant events, `WalletPageBase`:
-    - Debounces a **background balance refresh** (configurable delay for Circle finality).
+    - Debounces a **background balance refresh** (15s delay for Circle finality).
     - Optionally reloads transaction history.
     - Shows a transient **webhook notification** (business pages can surface this).
+    - Prevents duplicate processing with event ID tracking.
 
 ---
 
-## Clark – DeFi copilot
+## Clark – DeFi Copilot
 
-### Full Clark experience
+### Full Clark Experience
 
 - **Route**: `/clark` → `src/app/clark/page.tsx`
+- **Devtools Route**: `/clark/devtools` → `src/app/clark/devtools/page.tsx`
 - **Components** (under `src/app/clark/components`):
   - `ChatInterface` (input bar)
-  - `ResultsDisplay` (renders markdown plus structured results such as backtests, price history charts)
+  - `ResultsDisplay` (renders markdown plus structured results such as backtests, price history charts) – **dynamically imported**
   - `CategoryTiles` (prebuilt prompts by category)
-  - `DevtoolsOverlay` (inspecting agent messages, costs, flows)
+  - `DevtoolsOverlay` (inspecting agent messages, costs, flows) – **dynamically imported**
   - `InterruptModal` (approval / denial for agent interrupts)
-  - `TransactionConfirmationCard`, `TransactionStatus` and charts (allocation, technicals, portfolio, price history, etc.)
-  - **Chart Components** (under `src/app/clark/components/charts`):
+  - `MemoriesTab` (user memory management)
+  - `TransactionConfirmationCard`, `TransactionStatus` and charts
+  - **Chart Components** (under `src/app/clark/components/charts`) – **all dynamically imported**:
     - `PriceHistoryChart` – Interactive line chart for Krypton Pay token price history
     - `PortfolioChart` – Portfolio value over time
     - `TechnicalCharts` – Technical indicators visualization
@@ -96,13 +164,14 @@ The root layout (`src/app/layout.tsx`) wires up global styles, `Geist` fonts and
   - The response is normalized into a `ChatMessage` with:
     - `backtestResult` (for backtest queries)
     - `priceHistoryResult` (for price history queries with chart data)
+    - `economicResult` (for economic data queries)
+    - `screenerResult` (for token screening queries)
     - optional `agent_flow` graph
     - cost information (`session_cost`, `overall_cost`), persisted to `localStorage`.
   - Clark detects **Krypton Pay** operations using:
     - `parsed_intent.agent_ids` and `parsed_intent.operation`
     - `agent_flow` nodes and transaction‑like payloads
     - message/markdown content heuristics
-    - Price history queries are detected separately to show charts instead of transaction cards
   - For **Krypton Pay price history** flows:
     - `ResultsDisplay` detects `priceHistoryResult` in the message
     - Renders `PriceHistoryChart` component with interactive line chart
@@ -112,17 +181,17 @@ The root layout (`src/app/layout.tsx`) wires up global styles, `Geist` fonts and
     - **Swap-only queries** (e.g., "Swap 2 USD for AED"): Execute immediately, show transaction status card with swap details
     - **Transfer queries** (e.g., "Send 1 USD to @Foodl3"): 
       - An inline Clark confirmation bubble surfaces in the chat (derived from the interrupt payload), with **Confirm** / **Cancel** actions
-      - On **Confirm** / **Cancel**, Clark appends a short status message (e.g. "Transaction confirmed." / "Transaction rejected.") and immediately resumes the normal agent flow
+      - On **Confirm** / **Cancel**, Clark appends a short status message and immediately resumes the normal agent flow
       - When the payment is executed, `ResultsDisplay` suppresses the long natural‑language payment bubble and renders a `TransactionStatus` card instead
       - `TransactionStatus`:
-        - Is seeded from the agent `agent_flow` (inline transaction data) so it appears immediately even if `/circle/active-transactions/:username` briefly returns no active transfers
+        - Is seeded from the agent `agent_flow` (inline transaction data) so it appears immediately
         - Continues polling `/circle/active-transactions/:username` to reflect live Circle states and final completion
   - UI shows:
     - **Cost chips** (session vs total)
     - Streaming‑style feed of messages and structured results
-    - Modal prompts and devtools.
+    - Modal prompts and devtools overlay.
 
-### Mini Clark (embedded in wallet)
+### Mini Clark (Embedded in Wallet)
 
 - **Component**: `src/components/MiniClarkChat.tsx`
 - **Usage**:
@@ -138,29 +207,35 @@ The root layout (`src/app/layout.tsx`) wires up global styles, `Geist` fonts and
 
 ---
 
-## Grow, marketplace, and internal tools
+## Grow, Marketplace, and Internal Tools
 
-### Grow pages
+### Grow Pages
 
 - **Routes**:
   - `/customer/grow` → `CustomerGrowPage` → `GrowPage userType="customer"`
   - `/business/grow` → `BusinessGrowPage` → `GrowPage userType="business"`
 - **Component**: `GrowPage` (`src/components/grow/GrowPage.tsx`)
-  - Orchestrates investment / growth experiences, likely delegating to subflows:
+  - Orchestrates investment / growth experiences, delegating to subflows:
     - Hedge fund strategies
     - Marketplace placements
     - Tokenized yield products and analytics.
 
-### Customer growth subroutes
+### Customer Growth Subroutes
 
 Under `src/app/customer/grow`:
 
-- `/customer/grow/hedge-fund` – hedge‑fund specific UI.
-- `/customer/grow/marketplace` – marketplace hub:
+- `/customer/grow/hedge-fund` – Hedge‑fund specific UI with strategy management.
+- `/customer/grow/marketplace` – Marketplace hub:
   - Dynamic category route: `/customer/grow/marketplace/[category]`.
   - Uses marketplace helpers in `src/lib/marketplace.ts` and UI in `src/components/marketplace/*`.
+  - Features startup detail modals and token purchase flows.
 
-### Internal / liquidity pools
+### Business Management
+
+- **Route**: `/business/manage` → `src/app/business/manage/page.tsx`
+- Features business profile management, fundraising data, and analytics charts.
+
+### Internal / Liquidity Pools
 
 - **Route**: `/internal/liquidity-pools`
 - **Page**: `src/app/internal/liquidity-pools/page.tsx`
@@ -170,53 +245,222 @@ Under `src/app/customer/grow`:
   - `CLPoolMonitor`, `BalancesChart`, `PriceChart`, `PriceFeedCard`
 - This suite powers internal netting / liquidity pool management and analytics, backed by:
   - `src/lib/nettingPoolsApi.ts`
-  - subgraph / strategy hooks under `src/hooks`.
+  - Subgraph / strategy hooks under `src/hooks`.
 
 ---
 
-## Shared components & utilities (tour)
+## Shared Components & Utilities
 
-- **UI primitives**: `src/components/ui`
-  - `button`, `input`, `dialog`, `card`, `form`, `toast`, etc.
-- **Wallet**: `src/components/wallet`
-  - `WalletHeader`, `BalanceCard`, `TransactionHistory`, `ActiveTransactions`
-  - `StrategyCard`, `StrategyModal`, analytics charts and price history views
-- **Charts**: `src/components/charts`
-  - `TokenPriceChart`, `AssetAllocationChart`, `AumChart`, etc.
-- **Hooks**: `src/hooks`
-  - `useWebSocket` – shared WS connection logic.
-  - `useTransactionStatus`, `useYearnAUM`, `useStrategy*` – DeFi analytics and polling.
-  - `use-toast` – toast provider wiring.
-  - `useKryptonPayPriceHistory` – React Query hook for fetching Krypton Pay token price history
-- **Libs**: `src/lib`
+### UI Primitives
+- **Location**: `src/components/ui`
+- **Components**: `button`, `input`, `dialog`, `card`, `form`, `toast`, `select`, `switch`, `separator`, `label`, `alert`, `badge`, `skeleton`, `chart`
+- Built on Radix UI primitives with TailwindCSS styling.
+
+### Wallet Components
+- **Location**: `src/components/wallet`
+- **Key Components**:
+  - `WalletHeader` – Navigation and menu (memoized)
+  - `BalanceCard` – Balance display with transaction history tabs
+  - `TransactionHistory` – Historical transaction list
+  - `ActiveTransactions` – Real-time transaction status
+  - `SendUSDCModal`, `SendERC20Modal` – Payment modals (dynamically imported)
+  - `BuyUSDCModal`, `SwapModal` – Fiat on-ramp and swap modals (dynamically imported)
+  - `SumsubKYCModal` – KYC verification modal (dynamically imported)
+  - `StrategyCard`, `StrategyModal` – Strategy management
+  - `SubgraphAnalyticsGeneric`, `SubgraphAnalyticsYearnWETH` – Analytics views
+  - `TokenBalances`, `KTTokenBalances` – Token balance displays
+  - `TradingSignals` – Trading signal indicators
+  - `CumulativeAUMChartNew` – AUM visualization
+  - `TransactionStatusIndicator` – Transaction status UI
+
+### Charts
+- **Location**: `src/components/charts`
+- **Components**: `TokenPriceChart`, `AssetAllocationChart`, `AumChart`, `PriceChart`
+- Built with Recharts (dynamically imported where used).
+
+### Hooks
+- **Location**: `src/hooks`
+- **Key Hooks**:
+  - `useWebSocket` – Shared WebSocket connection logic
+  - `useTransactionStatus` – Transaction status polling
+  - `useYearnAUM` – Yearn strategy AUM data
+  - `useStrategy*` – Strategy data and configuration hooks
+  - `useTokenSymbol` – ERC-20 token symbol fetching
+  - `useNettingPoolsAuth` – Netting pools authentication
+  - `use-toast` – Toast notification provider
+
+### Libraries
+- **Location**: `src/lib`
+- **Key Modules**:
   - `api.ts` – REST API client, including Krypton Pay API functions:
     - `getDailyPriceHistory()` – Fetch daily price history for tokens (kEUR, kGBP, kAED, kUSD)
     - `swap()` – Execute token swaps
-  - `agents_api.ts` – Clark agent API client.
-  - `firebaseClient.ts` – Firebase initialization.
-  - `priceCache.ts`, `subgraphApi.ts`, `kTokens.ts`, `circleStates.ts` – domain utilities for pricing, subgraphs, token metadata, Circle status normalization.
+    - `getUserInfo()`, `getTokenInfo()` – User and token data
+  - `agents_api.ts` – Clark agent API client
+  - `firebaseClient.ts` – Firebase initialization
+  - `sentry.ts` – Sentry error tracking and context management
+  - `priceCache.ts` – Price caching utilities
+  - `subgraphApi.ts` – Subgraph query helpers
+  - `kTokens.ts` – Krypton token metadata and addresses
+  - `circleStates.ts` – Circle status normalization
+  - `marketplace.ts` – Marketplace API client
+  - `nettingPoolsApi.ts` – Netting pools API client
+  - `utils.ts` – Shared utility functions
 
 ---
 
-## Local development
+## Local Development
 
-- **Install dependencies**:
+### Prerequisites
+- Node.js >= 20.18.0 (currently using v20.9.0)
+- npm >= 10.1.0
 
+### Setup
+
+1. **Install dependencies**:
 ```bash
 npm install
 ```
 
-- **Run dev server**:
+2. **Environment Variables**:
+   - Create `.env.local` with required variables:
+     - `NEXT_PUBLIC_API_URL` – Backend API URL
+     - `NEXT_PUBLIC_RPC_URL` – Ethereum RPC URL (optional)
+     - Sentry configuration (see `sentry.*.config.ts`)
 
+3. **Run dev server**:
 ```bash
 npm run dev
 ```
 
 Then visit `http://localhost:3000`.
 
+### Development Workflow
+
 You can start from the login page (`/`), sign in as **Business** or **Customer**, and then:
 
 - Explore wallet + mini‑Clark at `/business` or `/customer`
 - Explore Grow flows at `/business/grow` and `/customer/grow`
 - Explore the full Clark experience at `/clark`
-- (If permitted) open internal tools at `/internal/liquidity-pools`.
+- Access Clark devtools at `/clark/devtools`
+- (If permitted) open internal tools at `/internal/liquidity-pools`
+
+### Available Scripts
+
+- `npm run dev` – Start development server
+- `npm run build` – Build for production
+- `npm run start` – Start production server
+- `npm run lint` – Run ESLint
+- `npm run analyze` – Analyze bundle size (requires `ANALYZE=true`)
+
+---
+
+## Build & Deployment
+
+### Build Configuration
+
+- **Output**: Standalone mode for Docker deployments
+- **Compression**: Enabled (gzip)
+- **Image Optimization**: AVIF/WebP formats
+- **Source Maps**: Optimized Sentry uploads (only changed files)
+
+### Build Performance
+
+- **Build Time**: ~2-3 minutes (optimized from ~10 minutes)
+- **Bundle Size**: ~221 kB shared JS, routes typically < 50 kB first load
+- **Code Splitting**: Heavy components loaded dynamically
+
+### Deployment
+
+The app is configured for Railway deployment with:
+- Standalone output for smaller Docker images
+- Health check endpoint at `/`
+- Automatic restarts on failure
+
+See `railway.toml` for deployment configuration.
+
+---
+
+## Performance Monitoring
+
+### Metrics to Track
+
+- **Build Time**: Should stay under 3 minutes
+- **Bundle Size**: Monitor with `npm run analyze`
+- **Memory Usage**: Monitor in production for leaks
+- **Core Web Vitals**: Track Lighthouse scores
+
+### Optimization Resources
+
+- `OPTIMIZATION_SUMMARY.md` – Summary of optimizations and future scope
+- `PERFORMANCE_OPTIMIZATIONS.md` – Detailed technical documentation
+
+---
+
+## Project Structure
+
+```
+frontend/
+├── src/
+│   ├── app/                    # Next.js App Router pages
+│   │   ├── business/          # Business routes
+│   │   ├── customer/          # Customer routes
+│   │   ├── clark/             # Clark DeFi copilot
+│   │   ├── internal/          # Internal tools
+│   │   └── layout.tsx         # Root layout
+│   ├── components/            # React components
+│   │   ├── ui/               # Shadcn UI primitives
+│   │   ├── wallet/           # Wallet components
+│   │   ├── charts/           # Chart components
+│   │   ├── grow/             # Growth experience components
+│   │   ├── marketplace/      # Marketplace components
+│   │   └── pools/            # Liquidity pool components
+│   ├── hooks/                # Custom React hooks
+│   ├── lib/                  # Utility libraries
+│   └── providers/           # React context providers
+├── public/                   # Static assets
+├── next.config.ts           # Next.js configuration
+├── tailwind.config.js       # TailwindCSS configuration
+├── tsconfig.json            # TypeScript configuration
+└── package.json             # Dependencies and scripts
+```
+
+---
+
+## Troubleshooting
+
+### Build Issues
+
+- **Module not found**: Run `npm install` to ensure all dependencies are installed
+- **TypeScript errors**: Check `tsconfig.json` and ensure types are installed
+- **Sentry errors**: Verify Sentry configuration in `next.config.ts`
+
+### Runtime Issues
+
+- **WebSocket connection**: Check backend WebSocket endpoint availability
+- **Firebase auth**: Verify Firebase configuration in `src/lib/firebaseClient.ts`
+- **API errors**: Check `NEXT_PUBLIC_API_URL` environment variable
+
+### Performance Issues
+
+- Run `npm run analyze` to identify large dependencies
+- Check `OPTIMIZATION_SUMMARY.md` for optimization opportunities
+- Monitor memory usage in production
+
+---
+
+## Contributing
+
+When adding new features:
+
+1. **Code Splitting**: Use dynamic imports for heavy components (>500 lines or heavy dependencies)
+2. **Performance**: Add `React.memo` for frequently re-rendered components
+3. **Caching**: Leverage React Query for API calls
+4. **Bundle Size**: Monitor with `npm run analyze` before merging
+
+---
+
+**Last Updated**: January 27, 2026  
+**Next.js Version**: 15.5.9  
+**React Version**: 19.2.0  
+**Build Status**: ✅ Optimized
