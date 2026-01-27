@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -18,7 +18,7 @@ interface UsernameCardProps {
   handleCancelUsername: () => void;
 }
 
-const UsernameCard: React.FC<UsernameCardProps> = ({
+const UsernameCard: React.FC<UsernameCardProps> = memo(({
   accountData,
   showUsernameForm,
   username,
@@ -148,6 +148,8 @@ const UsernameCard: React.FC<UsernameCardProps> = ({
       )}
     </>
   );
-};
+});
+
+UsernameCard.displayName = 'UsernameCard';
 
 export default UsernameCard; 

@@ -2,6 +2,30 @@ import { withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Enable standalone output for smaller Docker images and faster deployments
+  output: 'standalone',
+  
+  // Compress output
+  compress: true,
+  
+  // Optimize images
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 60,
+  },
+  
+  // Experimental optimizations
+  experimental: {
+    optimizePackageImports: [
+      'lucide-react',
+      'recharts',
+      'framer-motion',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-select',
+      'react-icons',
+    ],
+  },
+  
   async rewrites() {
     return [
       {
@@ -11,11 +35,32 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  webpack: (config) => {
+  
+  webpack: (config, { isServer }) => {
     config.resolve.alias = {
       ...config.resolve.alias,
       '@react-native-async-storage/async-storage': false,
     };
+    
+    // Optimize bundle size - only exclude Node.js modules on client side
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        crypto: false,
+        stream: false,
+        url: false,
+        zlib: false,
+        http: false,
+        https: false,
+        assert: false,
+        os: false,
+        path: false,
+      };
+    }
+    
     return config;
   },
 };
@@ -34,8 +79,9 @@ export default withSentryConfig(nextConfig, {
   // For all available options, see:
   // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
 
-  // Upload a larger set of source maps for prettier stack traces (increases build time)
-  widenClientFileUpload: true,
+  // Disable widenClientFileUpload to reduce build time significantly
+  // This was causing ~10 min builds - only upload source maps for files that actually changed
+  widenClientFileUpload: false,
 
   // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
   // This can increase your server load as well as your hosting bill.

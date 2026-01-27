@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import { FaBars } from "react-icons/fa";
 import { SlidersHorizontal } from "lucide-react";
 
@@ -9,7 +9,7 @@ interface WalletHeaderProps {
   onOpenQuestionnaire?: () => void;
 }
 
-const WalletHeader: React.FC<WalletHeaderProps> = ({
+const WalletHeader: React.FC<WalletHeaderProps> = memo(({
   accountData,
   onLogout,
   onMenuToggle,
@@ -54,6 +54,8 @@ const WalletHeader: React.FC<WalletHeaderProps> = ({
       </div>
     </header>
   );
-};
+});
+
+WalletHeader.displayName = 'WalletHeader';
 
 export default WalletHeader; 

@@ -1,21 +1,39 @@
 "use client";
 
 import React, { useState, useEffect, ReactNode, useCallback, useRef } from "react";
+import dynamic from "next/dynamic";
 import { getAuth, signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { FaArrowUp, FaCheck, FaTimes } from "react-icons/fa";
 import { getFirebaseApp } from "@/lib/firebaseClient";
 import UsernameCard from "@/components/wallet/UsernameCard";
 import BalanceCard, { BalanceCardRef } from "@/components/wallet/BalanceCard";
-import SendUSDCModal from "@/components/wallet/SendUSDCModal";
 import HamburgerMenu from "@/components/wallet/HamburgerMenu";
 import api from "@/lib/api";
-import BuyUSDCModal from "@/components/wallet/BuyUSDCModal";
 import WalletHeader from "@/components/wallet/WalletHeader";
-import SumsubKYCModal from "@/components/wallet/SumsubKYCModal";
 import axios from "axios";
 import { useWebSocket } from "@/hooks/useWebSocket";
-import SendERC20Modal from "@/components/wallet/SendERC20Modal";
+
+// Dynamically import heavy modals to reduce initial bundle size
+const SendUSDCModal = dynamic(() => import("@/components/wallet/SendUSDCModal"), {
+  loading: () => null,
+  ssr: false,
+});
+
+const BuyUSDCModal = dynamic(() => import("@/components/wallet/BuyUSDCModal"), {
+  loading: () => null,
+  ssr: false,
+});
+
+const SumsubKYCModal = dynamic(() => import("@/components/wallet/SumsubKYCModal"), {
+  loading: () => null,
+  ssr: false,
+});
+
+const SendERC20Modal = dynamic(() => import("@/components/wallet/SendERC20Modal"), {
+  loading: () => null,
+  ssr: false,
+});
 
 // Configuration: Delay before fetching balance after webhook event (in milliseconds)
 // Increase this if Circle API hasn't updated the balance yet when webhook arrives

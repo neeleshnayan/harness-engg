@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useImperativeHandle, forwardRef, useCallback } from "react";
+import dynamic from "next/dynamic";
 import TransactionHistory, { TransactionHistoryRef } from "@/components/wallet/TransactionHistory";
 import ActiveTransactions from "@/components/wallet/ActiveTransactions";
 import KTTokenBalances from "@/components/wallet/KTTokenBalances";
@@ -6,9 +7,18 @@ import { FaShieldAlt } from "react-icons/fa";
 import { FiRefreshCw } from "react-icons/fi";
 import { getAllPoolRates, haveRatesAppreciated, PriceChangeDirection, PriceChangeInfo } from "@/lib/priceCache";
 import { K_TOKEN_ADDRESSES_LOWERCASE, K_TOKEN_SYMBOL_LIST, CURRENCY_SYMBOLS } from "@/lib/kTokens";
-import BuyUSDCModal from "@/components/wallet/BuyUSDCModal";
-import SwapModal from "@/components/wallet/SwapModal";
 import { Triangle } from "lucide-react";
+
+// Dynamically import modals to reduce initial bundle size
+const BuyUSDCModal = dynamic(() => import("@/components/wallet/BuyUSDCModal"), {
+  loading: () => null,
+  ssr: false,
+});
+
+const SwapModal = dynamic(() => import("@/components/wallet/SwapModal"), {
+  loading: () => null,
+  ssr: false,
+});
 
 export interface BalanceCardRef {
   /** Switch to Transaction History tab and refresh */

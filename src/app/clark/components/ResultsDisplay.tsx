@@ -1,17 +1,39 @@
 "use client"
 
 import React, { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { DollarSign, TrendingUp, BarChart3, TrendingDown, ChevronDown, ChevronUp } from 'lucide-react'
 import { Loader2, Info, User } from 'lucide-react'
 import { ChatMessage, BacktestResult, ScreenerResult, EconomicResult, NewsData, CalendarData, EconomicData, RegulationResult, AgentFlowGraph, AgentFlowStep } from '../types'
 import { formatCurrency, formatPercentage, formatDate, formatNumber, formatTimestamp } from '../utils'
-import PortfolioChart from './charts/PortfolioChart'
-import TechnicalCharts from './charts/TechnicalCharts'
-import AllocationCharts from './charts/AllocationCharts'
-import CandleChart from './charts/CandleChart'
-import PriceHistoryChart from './charts/PriceHistoryChart'
 import TransactionStatus, { InlineTransactionData } from './TransactionStatus'
+
+// Dynamically import heavy chart components to reduce initial bundle size
+const PortfolioChart = dynamic(() => import('./charts/PortfolioChart'), {
+  loading: () => <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>,
+  ssr: false,
+});
+
+const TechnicalCharts = dynamic(() => import('./charts/TechnicalCharts'), {
+  loading: () => <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>,
+  ssr: false,
+});
+
+const AllocationCharts = dynamic(() => import('./charts/AllocationCharts'), {
+  loading: () => <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>,
+  ssr: false,
+});
+
+const CandleChart = dynamic(() => import('./charts/CandleChart'), {
+  loading: () => <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>,
+  ssr: false,
+});
+
+const PriceHistoryChart = dynamic(() => import('./charts/PriceHistoryChart'), {
+  loading: () => <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>,
+  ssr: false,
+});
 
 interface ResultsDisplayProps {
   messages: ChatMessage[]

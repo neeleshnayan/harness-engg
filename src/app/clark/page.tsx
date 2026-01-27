@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useRef } from 'react'
+import dynamic from 'next/dynamic'
 import { Menu } from 'lucide-react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import agentsApi from '@/lib/agents_api'
@@ -13,8 +14,17 @@ import { ChatMessage } from './types'
 import { categories } from './constants'
 import CategoryTiles from './components/CategoryTiles'
 import ChatInputBar from './components/ChatInterface'
-import ResultsDisplay from './components/ResultsDisplay'
-import DevtoolsOverlay from './components/DevtoolsOverlay'
+
+// Dynamically import heavy components to reduce initial bundle size
+const ResultsDisplay = dynamic(() => import('./components/ResultsDisplay'), {
+  loading: () => <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div></div>,
+  ssr: false,
+});
+
+const DevtoolsOverlay = dynamic(() => import('./components/DevtoolsOverlay'), {
+  loading: () => null,
+  ssr: false,
+});
 
 
 
