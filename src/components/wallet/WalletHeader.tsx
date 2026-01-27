@@ -22,9 +22,9 @@ const WalletHeader: React.FC<WalletHeaderProps> = ({
         <div className="flex justify-between items-center py-0 min-h-[6rem]">
           <div className="flex items-center">
             <img
-              src="/krypton_logo.svg"
+              src="/Krypton logo.svg"
               alt="Krypton Logo"
-              className="h-24 w-auto drop-shadow-[0_2px_8px_rgba(16,255,180,0.18)]"
+              className="h-10 w-auto drop-shadow-[0_2px_8px_rgba(16,255,180,0.18)]"
             />
           </div>
           <div className="flex items-center space-x-3">
@@ -39,10 +39,14 @@ const WalletHeader: React.FC<WalletHeaderProps> = ({
             <div className="relative hamburger-menu">
               <button
                 onClick={onMenuToggle}
-                className="flex items-center bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-xl transition-colors font-medium"
+                className="flex items-center text-white px-4 py-2 rounded-xl transition-colors font-medium"
                 aria-label="Open menu"
               >
-                <FaBars />
+                <img
+                  src="/Burger.svg"
+                  alt="Burger"
+                  className="h-6 w-auto drop-shadow-[0_2px_8px_rgba(16,255,180,0.18)]"
+                />
               </button>
             </div>
           </div>

@@ -2,8 +2,7 @@ import React, { useEffect, useState, useRef, useImperativeHandle, forwardRef, us
 import TransactionHistory, { TransactionHistoryRef } from "@/components/wallet/TransactionHistory";
 import ActiveTransactions from "@/components/wallet/ActiveTransactions";
 import KTTokenBalances from "@/components/wallet/KTTokenBalances";
-import { FaShieldAlt, FaPlus } from "react-icons/fa";
-import { TbArrowsExchange2 } from "react-icons/tb";
+import { FaShieldAlt } from "react-icons/fa";
 import { FiRefreshCw } from "react-icons/fi";
 import { getAllPoolRates, haveRatesAppreciated, PriceChangeDirection, PriceChangeInfo } from "@/lib/priceCache";
 import { K_TOKEN_ADDRESSES_LOWERCASE, K_TOKEN_SYMBOL_LIST, CURRENCY_SYMBOLS } from "@/lib/kTokens";
@@ -612,20 +611,30 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
             <div className="text-white">
               <h3 className="text-2xl font-bold mb-2">Quick Actions</h3>
               <p className="text-zinc-400 mb-6">Add funds or swap between currencies instantly.</p>
-              <div className="flex flex-row gap-3 md:gap-6 justify-center items-center md:px-8">
+              <div className="flex flex-row gap-3 md:gap-6 w-full justify-stretch items-center md:px-8">
                 <button
+                  type="button"
                   onClick={openDepositModal}
-                  className="w-[calc(50%-0.375rem)] md:w-[calc(50%-0.75rem)] max-w-xs h-40 flex flex-col justify-center items-center gap-3 bg-gradient-to-r from-blue-500/30 to-purple-500/30 border border-blue-400/30 rounded-2xl px-4 md:px-6 py-4 md:py-5 hover:from-blue-500/40 hover:to-purple-500/40 transition-all duration-200 overflow-hidden"
+                  className="flex-1 min-w-0 p-0 border-0 bg-transparent cursor-pointer flex items-center justify-center focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity"
+                  aria-label="Deposit"
                 >
-                  <FaPlus className="text-3xl md:text-4xl text-white flex-shrink-0" />
-                  <p className="text-2xl md:text-xl font-bold text-white text-center">Deposit</p>
+                  <img
+                    src="/Deposit.svg"
+                    alt="Deposit"
+                    className="w-full h-auto object-contain"
+                  />
                 </button>
                 <button
+                  type="button"
                   onClick={openSwapModal}
-                  className="w-[calc(50%-0.375rem)] md:w-[calc(50%-0.75rem)] max-w-xs h-40 flex flex-col justify-center items-center gap-3 bg-gradient-to-r from-emerald-500/30 to-cyan-500/30 border border-emerald-400/30 rounded-2xl px-4 md:px-6 py-4 md:py-5 hover:from-emerald-500/40 hover:to-cyan-500/40 transition-all duration-200 overflow-hidden"
+                  className="flex-1 min-w-0 p-0 border-0 bg-transparent cursor-pointer flex items-center justify-center focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity"
+                  aria-label="Swap"
                 >
-                  <TbArrowsExchange2 className="text-3xl md:text-4xl text-white flex-shrink-0" />
-                  <p className="text-2xl md:text-xl font-bold text-white text-center">Swap</p>
+                  <img
+                    src="/Swap.svg"
+                    alt="Swap"
+                    className="w-full h-auto object-contain"
+                  />
                 </button>
               </div>
             </div>

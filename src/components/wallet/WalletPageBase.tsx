@@ -1014,7 +1014,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
                   <img
                     src="/Pay.svg"
                     alt="Pay"
-                    className="h-12 w-auto max-w-[10rem] md:w-11/12 md:h-auto md:max-w-none md:object-contain"
+                    className="h-12 w-auto max-w-[10rem] md:w-3/4 md:h-auto md:max-w-none md:object-contain"
                   />
                 </button>
                 <button
@@ -1026,7 +1026,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
                   <img
                     src="/Grow.svg"
                     alt="Grow"
-                    className="h-12 w-auto max-w-[10rem] md:w-11/12 md:h-auto md:max-w-none md:object-contain"
+                    className="h-12 w-auto max-w-[10rem] md:w-3/4 md:h-auto md:max-w-none md:object-contain"
                   />
                 </button>
               </div>
