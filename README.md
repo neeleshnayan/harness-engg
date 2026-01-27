@@ -46,11 +46,6 @@ The root layout (`src/app/layout.tsx`) wires up global styles, `Instrument Sans`
 - **Recharts**: v2.15.4 (dynamically imported for code splitting)
 - **Framer Motion**: v12.23.24 (dynamically imported for animations)
 
-### Observability
-- **Sentry**: `@sentry/nextjs` v10.5.0
-  - Optimized source map uploads (reduced build time by ~70%)
-  - Error tracking and performance monitoring
-
 ### Forms & Validation
 - **React Hook Form**: v7.62.0
 - **Zod**: v4.0.15 for schema validation
@@ -62,7 +57,6 @@ The root layout (`src/app/layout.tsx`) wires up global styles, `Instrument Sans`
 
 ### Build Performance
 - ✅ **Standalone Output**: Enabled for smaller Docker images and faster deployments
-- ✅ **Sentry Optimization**: Disabled `widenClientFileUpload` (reduced build time from ~10min to ~2-3min)
 - ✅ **Package Import Optimization**: Tree-shaking for heavy libraries (recharts, framer-motion, lucide-react)
 - ✅ **Image Optimization**: AVIF/WebP formats with caching
 
@@ -298,7 +292,6 @@ Under `src/app/customer/grow`:
     - `getUserInfo()`, `getTokenInfo()` – User and token data
   - `agents_api.ts` – Clark agent API client
   - `firebaseClient.ts` – Firebase initialization
-  - `sentry.ts` – Sentry error tracking and context management
   - `priceCache.ts` – Price caching utilities
   - `subgraphApi.ts` – Subgraph query helpers
   - `kTokens.ts` – Krypton token metadata and addresses
@@ -326,7 +319,6 @@ npm install
    - Create `.env.local` with required variables:
      - `NEXT_PUBLIC_API_URL` – Backend API URL
      - `NEXT_PUBLIC_RPC_URL` – Ethereum RPC URL (optional)
-     - Sentry configuration (see `sentry.*.config.ts`)
 
 3. **Run dev server**:
 ```bash
@@ -362,8 +354,6 @@ You can start from the login page (`/`), sign in as **Business** or **Customer**
 - **Output**: Standalone mode for Docker deployments
 - **Compression**: Enabled (gzip)
 - **Image Optimization**: AVIF/WebP formats
-- **Source Maps**: Optimized Sentry uploads (only changed files)
-
 ### Build Performance
 
 - **Build Time**: ~2-3 minutes (optimized from ~10 minutes)
@@ -433,8 +423,6 @@ frontend/
 
 - **Module not found**: Run `npm install` to ensure all dependencies are installed
 - **TypeScript errors**: Check `tsconfig.json` and ensure types are installed
-- **Sentry errors**: Verify Sentry configuration in `next.config.ts`
-
 ### Runtime Issues
 
 - **WebSocket connection**: Check backend WebSocket endpoint availability

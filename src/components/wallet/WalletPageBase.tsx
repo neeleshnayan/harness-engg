@@ -39,17 +39,6 @@ const SendERC20Modal = dynamic(() => import("@/components/wallet/SendERC20Modal"
 // Increase this if Circle API hasn't updated the balance yet when webhook arrives
 const WEBHOOK_BALANCE_REFRESH_DELAY_MS = 15000; // 15 seconds
 
-import {
-  setUserContext,
-  clearUserContext,
-  captureError,
-  captureAPIError,
-  captureWebSocketError,
-  captureWalletError,
-  captureKYCError,
-  addBreadcrumb,
-} from "@/lib/sentry";
-
 export interface WalletPageConfig {
   // Page type identifier
   pageType: 'customer' | 'business';
@@ -274,13 +263,10 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       setWebhookNotification('WebSocket connected successfully!');
       setTimeout(() => setWebhookNotification(null), 3000);
     }
-    addBreadcrumb('WebSocket connected', 'websocket', { status: 'connected' });
   }, [config.showWebhookNotification]);
 
   // WebSocket close handler - stabilized
-  const handleWebSocketClose = useCallback(() => {
-    addBreadcrumb('WebSocket disconnected', 'websocket', { status: 'disconnected' });
-  }, []);
+  const handleWebSocketClose = useCallback(() => {}, []);
 
   // Ref to track connection status for error handler
   const connectionStatusRef = useRef<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
@@ -293,12 +279,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       errorType: error.type,
       errorTarget: error.target,
       timestamp: new Date().toISOString()
-    });
-
-    // Capture WebSocket error with Sentry
-    captureWebSocketError(error, {
-      status: connectionStatusRef.current,
-      url: `${process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace('https://', 'wss://').replace('http://', 'ws://') : 'wss://api.kryptonfund.com'}/api/v1/ws`
     });
   }, []);
 
@@ -340,9 +320,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       const data = JSON.parse(userData);
       setAccountData(data);
 
-      // Set user context in Sentry
-      setUserContext(data);
-
       // Fetch fresh KYC status from backend instead of relying on localStorage
       if (data.user_id) {
         fetchUserData(data.user_id);
@@ -352,9 +329,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       }
       // Don't show error if wallet address is missing - it will be fetched by fetchUserData
     } catch (err) {
-      const error = err as Error;
       setError('Invalid user data.');
-      captureError(error, { context: 'parsing_user_data', userData });
     } finally {
       setLoading(false);
     }
@@ -363,7 +338,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   const fetchUserData = async (userId: string) => {
     try {
       setUserDataLoading(true);
-      addBreadcrumb('Fetching user data', 'api', { user_id: userId });
 
       const response = await api.get(`/api/v1/user/${userId}`);
       const userData = response.data;
@@ -395,9 +369,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       setAccountData(updatedData);
       localStorage.setItem('userData', JSON.stringify(updatedData));
 
-      // Update Sentry user context with fresh data
-      setUserContext(updatedData);
-
       // If we have a wallet address and it's not already being fetched, fetch balance
       // Only fetch if balance is null (initial load) or if wallet address changed
       if (updatedData.wallet_address && (!balance || accountDataRef.current?.wallet_address !== updatedData.wallet_address)) {
@@ -411,15 +382,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         }, 1000);
       }
 
-      addBreadcrumb('User data fetched successfully', 'api', {
-        user_id: userId,
-        kyc_status: userData.kyc_status,
-        has_wallet: !!updatedData.wallet_address
-      });
-
     } catch (err) {
       console.error('Failed to fetch user data:', err);
-      captureAPIError(err, `/api/v1/user/${userId}`, { user_id: userId });
       // Fallback to localStorage data
       const data = JSON.parse(localStorage.getItem('userData') || '{}');
       setKycStatus(data.kyc_status || 'pending');
@@ -448,21 +412,13 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       if (!isBackground) {
         setBalanceLoading(true);
       }
-      addBreadcrumb('Fetching wallet balance', 'api', { wallet_address: address, background: isBackground });
 
       const response = await api.get(`/api/v1/wallet_balance/${address}`);
       setBalance(response.data);
 
-      addBreadcrumb('Balance fetched successfully', 'api', {
-        wallet_address: address,
-        background: isBackground,
-        balance: response.data
-      });
-
     } catch (err) {
       console.error('Failed to fetch balance:', err);
       setError('Failed to fetch balance.');
-      captureAPIError(err, `/api/v1/wallet_balance/${address}`, { wallet_address: address, background: isBackground });
     } finally {
       if (isBackground) {
         setBalanceRefreshing(false);
@@ -497,22 +453,15 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       }
       localStorage.removeItem('userData');
 
-      // Clear Sentry user context on logout
-      clearUserContext();
-
-      addBreadcrumb('User logged out', 'auth', { user_id: accountData?.user_id });
-
       router.push('/');
     } catch (err) {
-      const error = err as Error;
-      captureError(error, { context: 'logout', user_id: accountData?.user_id });
+      console.error('Logout error:', err);
     }
   };
 
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      addBreadcrumb('Address copied to clipboard', 'wallet', { address: text });
     } catch (err) {
       const textArea = document.createElement('textarea');
       textArea.value = text;
@@ -520,7 +469,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
-      addBreadcrumb('Address copied to clipboard (fallback)', 'wallet', { address: text });
     }
   };
 
@@ -547,11 +495,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     setUsernameSuccess(null);
 
     try {
-      addBreadcrumb('Setting username', 'api', {
-        user_id: accountData.user_id,
-        username: cleanUsername.trim()
-      });
-
       const response = await api.post("/api/v1/set_username", {
         user_id: accountData.user_id,
         username: cleanUsername.trim()
@@ -566,14 +509,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       setAccountData(updatedAccountData);
       localStorage.setItem('userData', JSON.stringify(updatedAccountData));
 
-      // Update Sentry user context
-      setUserContext(updatedAccountData);
-
-      addBreadcrumb('Username set successfully', 'api', {
-        user_id: accountData.user_id,
-        username: cleanUsername.trim()
-      });
-
     } catch (err: any) {
       let errorMsg = err.response?.data?.detail || "Failed to set username";
       if (typeof errorMsg === 'object' && errorMsg !== null) {
@@ -585,11 +520,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         }
       }
       setUsernameError(errorMsg);
-
-      captureAPIError(err, '/api/v1/set_username', {
-        user_id: accountData.user_id,
-        username: cleanUsername.trim()
-      });
     } finally {
       setUsernameLoading(false);
     }
@@ -621,12 +551,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     setSendSuccess(null);
 
     try {
-      addBreadcrumb('Sending USDC', 'api', {
-        sender_id: accountData.user_id,
-        receiver: receiverUsername.trim(),
-        amount: amount
-      });
-
       const response = await api.post("/api/v1/send_usdc", {
         sender_user_id: accountData.user_id,
         receiver_username: receiverUsername.trim(),
@@ -644,12 +568,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       // This prevents fetching stale balance before transaction is confirmed
       setTransactionHistoryRefresh(prev => !prev);
 
-      addBreadcrumb('USDC sent successfully', 'api', {
-        sender_id: accountData.user_id,
-        receiver: receiverUsername.trim(),
-        amount: amount
-      });
-
     } catch (err: any) {
       let errorMsg = err.response?.data?.detail || "Failed to send USDC";
       if (typeof errorMsg === 'object' && errorMsg !== null) {
@@ -661,8 +579,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         }
       }
       setSendError(errorMsg);
-
-      captureWalletError(err, 'send_usdc', amount.toString(), receiverUsername.trim());
     } finally {
       setSendLoading(false);
     }
@@ -694,8 +610,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
   const openKycModal = async (userId: string) => {
     try {
-      addBreadcrumb('Opening KYC modal', 'kyc', { user_id: userId });
-
       // 1. Create applicant if needed
       await api.post('/api/v1/kyc/applicant', { user_id: userId });
 
@@ -704,10 +618,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       setKycAccessToken(tokenRes.data.token || tokenRes.data.accessToken || tokenRes.data.access_token);
       setKycModalVisible(true);
 
-      addBreadcrumb('KYC modal opened successfully', 'kyc', { user_id: userId });
-
     } catch (err) {
-      captureKYCError(err, 'open_modal', userId);
+      console.error('Failed to open KYC modal:', err);
     }
   };
 
@@ -716,8 +628,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     setKycMessage(null);
 
     try {
-      addBreadcrumb('Checking KYC status', 'kyc', { user_id: userId });
-
       const response = await api.post(`/api/v1/kyc/check-status/${userId}`);
 
       if (response.data.status === 'success') {
@@ -726,9 +636,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         const updatedData = { ...accountData, kyc_status: newStatus };
         setAccountData(updatedData);
         localStorage.setItem('userData', JSON.stringify(updatedData));
-
-        // Update Sentry user context
-        setUserContext(updatedData);
 
         if (newStatus === 'approved') {
           setKycMessage('KYC verification completed successfully!');
@@ -741,11 +648,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
           setTimeout(() => setKycMessage(null), 3000);
         }
 
-        addBreadcrumb('KYC status checked', 'kyc', {
-          user_id: userId,
-          status: newStatus
-        });
-
       } else {
         setKycMessage(response.data.message || 'Failed to check KYC status');
         setTimeout(() => setKycMessage(null), 5000);
@@ -754,8 +656,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       console.error('Failed to check KYC status:', err);
       setKycMessage(err.response?.data?.detail || 'Failed to check KYC status');
       setTimeout(() => setKycMessage(null), 5000);
-
-      captureKYCError(err, 'check_status', userId);
     } finally {
       setKycChecking(false);
     }
@@ -763,8 +663,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
   const skipKyc = async (userId: string) => {
     try {
-      addBreadcrumb('Skipping KYC', 'kyc', { user_id: userId });
-
       // Use accountData.id as fallback if userId is not provided
       const actualUserId = userId || accountData?.id;
 
@@ -783,19 +681,12 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         setAccountData(updatedData);
         localStorage.setItem('userData', JSON.stringify(updatedData));
         setKycMessage('KYC skipped successfully');
-
-        // Update Sentry user context
-        setUserContext(updatedData);
-
-        addBreadcrumb('KYC skipped successfully', 'kyc', { user_id: actualUserId });
       } else {
         setKycMessage(response.data.message || 'Failed to skip KYC');
       }
     } catch (err: any) {
       console.error('Failed to skip KYC:', err);
       setKycMessage(err.response?.data?.detail || 'Failed to skip KYC');
-
-      captureKYCError(err, 'skip_kyc', userId);
     } finally {
       // Clear message after 5 seconds
       setTimeout(() => setKycMessage(null), 5000);
@@ -803,8 +694,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   };
 
   const pollKycStatus = async (userId: string) => {
-    addBreadcrumb('Starting KYC status polling', 'kyc', { user_id: userId });
-
     // Poll user data for KYC status
     for (let i = 0; i < 15; i++) { // Increased attempts
       try {
@@ -817,9 +706,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
           setAccountData(updated);
           localStorage.setItem('userData', JSON.stringify(updated));
           setKycMessage('KYC verification completed successfully!');
-
-          // Update Sentry user context
-          setUserContext(updated);
 
           // Clear success message after 3 seconds
           setTimeout(() => setKycMessage(null), 3000);
@@ -854,9 +740,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         setAccountData(updated);
         localStorage.setItem('userData', JSON.stringify(updated));
 
-        // Update Sentry user context
-        setUserContext(updated);
-
         if (finalStatus === 'approved') {
           setKycMessage('KYC verification completed successfully!');
           setTimeout(() => setKycMessage(null), 3000);
@@ -864,13 +747,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       }
     } catch (err) {
       console.error('Error in final KYC status check:', err);
-      captureKYCError(err, 'final_status_check', userId);
     }
-
-    addBreadcrumb('KYC status polling completed', 'kyc', {
-      user_id: userId,
-      final_status: accountData?.kyc_status
-    });
   };
 
   const handleKycModalClose = () => {

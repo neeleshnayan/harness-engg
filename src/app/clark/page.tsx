@@ -9,7 +9,6 @@ import { useRouter } from 'next/navigation'
 import { getAuth, signOut } from 'firebase/auth'
 import { getFirebaseApp } from '@/lib/firebaseClient'
 import HamburgerMenu from '@/components/wallet/HamburgerMenu'
-import { clearUserContext, addBreadcrumb } from '@/lib/sentry'
 import { ChatMessage } from './types'
 import { categories } from './constants'
 import CategoryTiles from './components/CategoryTiles'
@@ -206,12 +205,7 @@ export default function BacktestPage() {
       }
       localStorage.removeItem('userData')
       setUserData(null)
-      
-      // Clear Sentry user context on logout
-      clearUserContext()
-      
-      addBreadcrumb('User logged out', 'auth', { user_id: userData?.user_id })
-      
+
       router.push('/')
     } catch (err) {
       console.error('Error during logout:', err)
@@ -222,7 +216,6 @@ export default function BacktestPage() {
     if (userData?.wallet_address) {
       try {
         await navigator.clipboard.writeText(userData.wallet_address)
-        addBreadcrumb('Address copied to clipboard', 'wallet', { address: userData.wallet_address })
       } catch (err) {
         // Fallback for older browsers
         const textArea = document.createElement('textarea')
@@ -231,7 +224,6 @@ export default function BacktestPage() {
         textArea.select()
         document.execCommand('copy')
         document.body.removeChild(textArea)
-        addBreadcrumb('Address copied to clipboard (fallback)', 'wallet', { address: userData.wallet_address })
       }
     }
   }
