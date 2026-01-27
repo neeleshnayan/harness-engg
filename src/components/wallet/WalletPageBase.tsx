@@ -998,7 +998,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
           />
           {accountData?.username && kycStatus === 'approved' && (
             <>
-              <div className="flex flex-row gap-4 mb-8 w-full justify-center mt-8 items-center">
+              <div className="flex flex-row gap-4 mb-8 w-full justify-center md:justify-stretch mt-8 items-center">
                 <button
                   type="button"
                   onClick={() => {
@@ -1008,25 +1008,25 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
                       setShowSendForm(true);
                     }
                   }}
-                  className="p-0 border-0 bg-transparent cursor-pointer inline-flex focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity"
+                  className="p-0 border-0 bg-transparent cursor-pointer inline-flex md:flex-1 md:min-w-0 md:flex md:items-center md:justify-center focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity"
                   aria-label="Pay"
                 >
                   <img
                     src="/Pay.svg"
                     alt="Pay"
-                    className="h-12 w-auto max-w-[10rem]"
+                    className="h-12 w-auto max-w-[10rem] md:w-11/12 md:h-auto md:max-w-none md:object-contain"
                   />
                 </button>
                 <button
                   type="button"
                   onClick={() => router.push(config.growRoute)}
-                  className="p-0 border-0 bg-transparent cursor-pointer inline-flex focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity"
+                  className="p-0 border-0 bg-transparent cursor-pointer inline-flex md:flex-1 md:min-w-0 md:flex md:items-center md:justify-center focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity"
                   aria-label="Grow"
                 >
                   <img
                     src="/Grow.svg"
                     alt="Grow"
-                    className="h-12 w-auto max-w-[10rem]"
+                    className="h-12 w-auto max-w-[10rem] md:w-11/12 md:h-auto md:max-w-none md:object-contain"
                   />
                 </button>
               </div>
@@ -1071,7 +1071,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
                         <img
                           src="/Ask Clark.svg"
                           alt="Ask Clark"
-                          className="h-12 w-auto max-w-[8rem]"
+                          className="h-12 w-auto max-w-[8rem] md:w-11/12 md:h-auto md:max-w-none md:object-contain"
                         />
                       </button>
                     </div>

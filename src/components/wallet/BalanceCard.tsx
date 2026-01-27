@@ -39,7 +39,7 @@ interface BalanceCardProps {
 }
 
 const WALLET_ICON = (
-  <div className="rounded-full p-1 flex items-center justify-center" style={{ backgroundColor: '#2775CA', width: '36px', height: '36px' }}>
+  <div className="rounded-full p-1 flex items-center justify-center" style={{ width: '36px', height: '36px' }}>
     <img src="/wallet.svg" alt="Wallet" width="24" height="24" style={{ filter: 'brightness(0) invert(1)' }} />
   </div>
 );
