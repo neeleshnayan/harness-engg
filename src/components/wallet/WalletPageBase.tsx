@@ -955,7 +955,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
           {accountData?.username && (
             <div className={`text-center mb-8 ${welcomeMargin}`}>
                 <span className="text-white text-3xl">Hello </span>
-                <span className="text-cyan-400 text-3xl">@{accountData.username}</span>
+                <span className="text-[#90E7EE] text-3xl">@{accountData.username}</span>
               <div className="flex items-center justify-center gap-1.5 text-base">
                 {config.showKycStatusBadge ? (
                   kycStatus === 'approved' ? (
@@ -998,7 +998,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
           />
           {accountData?.username && kycStatus === 'approved' && (
             <>
-              <div className="flex flex-row gap-4 mb-8 w-full justify-center mt-8">
+              <div className="flex flex-row gap-4 mb-8 w-full justify-center mt-8 items-center">
                 <button
                   type="button"
                   onClick={() => {
@@ -1008,18 +1008,26 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
                       setShowSendForm(true);
                     }
                   }}
-                  className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-5 px-10 rounded-full font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-xl"
+                  className="p-0 border-0 bg-transparent cursor-pointer inline-flex focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity"
+                  aria-label="Pay"
                 >
-                  <FaArrowUp className="mr-3 text-lg" />
-                  Pay
+                  <img
+                    src="/Pay.svg"
+                    alt="Pay"
+                    className="h-12 w-auto max-w-[10rem]"
+                  />
                 </button>
                 <button
                   type="button"
                   onClick={() => router.push(config.growRoute)}
-                  className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white py-5 px-10 rounded-full font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center text-xl"
+                  className="p-0 border-0 bg-transparent cursor-pointer inline-flex focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity"
+                  aria-label="Grow"
                 >
-                  <FaArrowUp className="mr-3 text-lg transform rotate-45 text-green-400" />
-                  Grow
+                  <img
+                    src="/Grow.svg"
+                    alt="Grow"
+                    className="h-12 w-auto max-w-[10rem]"
+                  />
                 </button>
               </div>
               {config.renderAdditionalActionButtons && (
@@ -1057,14 +1065,14 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
                       <button
                         type="button"
                         onClick={() => setShowClarkChat(true)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-full bg-zinc-800/60 hover:bg-zinc-700/80 border border-zinc-700/50 hover:border-purple-500/50 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+                        className="p-0 border-0 bg-transparent cursor-pointer inline-flex focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity"
                         aria-label="Open Clark Chat"
                       >
-                        <img src="/clark plain.svg" alt="Clark" className="h-7 w-7 flex-shrink-0" />
-                        <div className="flex flex-col items-start leading-tight">
-                          <span className="text-white font-medium text-xs">Ask</span>
-                          <span className="text-white font-medium text-xs">Clark</span>
-                        </div>
+                        <img
+                          src="/Ask Clark.svg"
+                          alt="Ask Clark"
+                          className="h-12 w-auto max-w-[8rem]"
+                        />
                       </button>
                     </div>
                   )}
