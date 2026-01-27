@@ -96,7 +96,7 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
           {accountData?.username && (
             <div className="mb-4">
               <p className="text-zinc-400 text-lg">
-                Welcome back, <span className="text-purple-400 font-semibold">@{accountData.username}</span>
+                Hello, <span className="text-purple-400 font-semibold">@{accountData.username}</span>
               </p>
             </div>
           )}

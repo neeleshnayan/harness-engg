@@ -954,29 +954,25 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
           )}
           {accountData?.username && (
             <div className={`text-center mb-8 ${welcomeMargin}`}>
-              <h2 className="text-3xl font-bold text-white mb-2">Hello @{accountData.username}</h2>
-              <div className="flex items-center justify-center mb-3 gap-2">
+                <span className="text-white text-3xl">Hello </span>
+                <span className="text-cyan-400 text-3xl">@{accountData.username}</span>
+              <div className="flex items-center justify-center gap-1.5 text-base">
                 {config.showKycStatusBadge ? (
                   kycStatus === 'approved' ? (
-                    <span className="flex items-center gap-1 bg-green-900/30 text-green-400 text-xs font-semibold px-3 py-1.5 rounded-full">
-                      <FaCheck className="text-green-400 text-base" /> Active
-                    </span>
+                    <>
+                      <span className="text-zinc-400">Active</span>
+                      <FaCheck className="text-green-500 shrink-0" />
+                    </>
                   ) : (
-                    <span className="flex items-center gap-1 bg-yellow-900/30 text-yellow-400 text-xs font-semibold px-3 py-1.5 rounded-full">
-                      KYC needed
-                    </span>
+                    <span className="text-zinc-400">KYC needed</span>
                   )
                 ) : (
-                  <span className="flex items-center gap-1 bg-green-900/30 text-green-400 text-xs font-semibold px-2 py-1 rounded-full">
-                    <FaCheck className="text-green-400 text-base" /> Active
-                  </span>
+                  <>
+                    <span className="text-zinc-400">Active</span>
+                    <FaCheck className="text-green-500 shrink-0" />
+                  </>
                 )}
               </div>
-              {!config.showKycStatusBadge && (
-                <p className="text-zinc-400">
-                  {kycStatus === 'approved' ? 'Your secure digital wallet is ready' : 'Complete KYC to unlock full wallet functionality'}
-                </p>
-              )}
             </div>
           )}
           <BalanceCard
