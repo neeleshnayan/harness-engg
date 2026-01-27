@@ -378,7 +378,11 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
   return (
     <>
       <div
-        className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-0 shadow-2xl border border-zinc-800 mb-8 transition-all duration-300 overflow-hidden ${localRefreshing ? 'ring-2 ring-green-500/30 ring-opacity-50' : ''} ${className || ''}`}
+        className={`backdrop-blur-xl rounded-3xl p-0 shadow-2xl border border-zinc-800 mb-8 transition-all duration-300 overflow-hidden ${localRefreshing ? 'ring-2 ring-green-500/30 ring-opacity-50' : ''} ${className || ''}`}
+        style={{
+          background:
+            "radial-gradient(50% 50% at 50% 50%, rgba(255, 255, 255, 0.12) 0%, rgba(161, 207, 211, 0.08) 100%), #0d1315",
+        }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -627,7 +631,7 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
             </div>
           </div>
         </div>
-        <div className="flex justify-center gap-2 py-4 bg-zinc-900/70">
+        <div className="flex justify-center gap-2 py-4 bg-transparent">
           {[0, 1, 2].map((index) => (
             <button
               key={index}
