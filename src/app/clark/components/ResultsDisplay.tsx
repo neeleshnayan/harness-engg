@@ -815,46 +815,56 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
         <div key={message.id} className="space-y-3">
           {message.type === 'user' && (
             <div className="flex justify-end items-start gap-2">
-              <div className="max-w-[85%] rounded-2xl p-3 sm:p-4 bg-gradient-to-r from-teal-600 to-cyan-600 text-white">
-                <div className="text-sm leading-relaxed">
-                  <span className="whitespace-pre-wrap align-middle">{message.content}</span>
-                  <div className="text-xs text-white/70 mt-1.5">
-                    {formatTimestamp(message.timestamp)}
+              <div className="flex flex-col items-end justify-start flex-shrink-0 mt-1 space-y-1">
+                <span className="text-xs font-medium text-white/70">
+                  You
+                </span>
+                <div
+                  className="max-w-[85%] rounded-2xl p-3 sm:p-4 text-white"
+                  style={{
+                    background:
+                      'linear-gradient(180deg, rgba(255, 255, 255, 0.36) 0%, rgba(161, 207, 211, 0.06) 100%)',
+                  }}
+                >
+                  <div className="text-sm leading-relaxed">
+                    <span className="whitespace-pre-wrap align-middle">{message.content}</span>
+                    <div className="text-xs text-white/70 mt-1.5">
+                      {formatTimestamp(message.timestamp)}
+                    </div>
+                    {(() => {
+                      const nextAssistant = messages.slice(index + 1).find(m => m.type === 'assistant')
+                      const shouldShowInfo =
+                        nextAssistant &&
+                        nextAssistant.success === true &&
+                        hasStructuredResults(nextAssistant)
+                      if (!shouldShowInfo) return null
+                      const revealed = revealedAssistantIds.has(nextAssistant!.id)
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRevealedAssistantIds(prev => {
+                              const next = new Set(prev)
+                              if (revealed) {
+                                next.delete(nextAssistant!.id)
+                              } else {
+                                next.add(nextAssistant!.id)
+                              }
+                              return next
+                            })
+                          }}
+                          className={`align-middle inline-flex ml-2 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors h-5 w-5 sm:h-6 sm:w-6 ${
+                            revealed ? 'opacity-60' : ''
+                          }`}
+                          title={revealed ? "Hide Clark's response" : "Show Clark's response"}
+                          aria-label={revealed ? "Hide Clark's response" : "Show Clark's response"}
+                        >
+                          <Info className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-white" />
+                        </button>
+                      )
+                    })()}
                   </div>
-                  {(() => {
-                    const nextAssistant = messages.slice(index + 1).find(m => m.type === 'assistant')
-                    const shouldShowInfo =
-                      nextAssistant &&
-                      nextAssistant.success === true &&
-                      hasStructuredResults(nextAssistant)
-                    if (!shouldShowInfo) return null
-                    const revealed = revealedAssistantIds.has(nextAssistant!.id)
-                    return (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRevealedAssistantIds(prev => {
-                            const next = new Set(prev)
-                            if (revealed) {
-                              next.delete(nextAssistant!.id)
-                            } else {
-                              next.add(nextAssistant!.id)
-                            }
-                            return next
-                          })
-                        }}
-                        className={`align-middle inline-flex ml-2 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors h-5 w-5 sm:h-6 sm:w-6 ${revealed ? 'opacity-60' : ''}`}
-                        title={revealed ? "Hide Clark's response" : "Show Clark's response"}
-                        aria-label={revealed ? "Hide Clark's response" : "Show Clark's response"}
-                      >
-                        <Info className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-white" />
-                      </button>
-                    )
-                  })()}
                 </div>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-teal-500/20 flex items-center justify-center flex-shrink-0 mt-1">
-                <User className="h-4 w-4 text-cyan-400" />
               </div>
             </div>
           )}
