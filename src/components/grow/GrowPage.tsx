@@ -42,10 +42,40 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
     try {
       setBalanceLoading(true);
       setBalanceError(null);
-      const response = await api.get(`/api/v1/wallet_balance/${address}`);
-      setBalance(response.data);
+
+      // Use the new subgraph API endpoint
+      const kryptonWeb3ApiUrl = process.env.NEXT_PUBLIC_KRYPTON_WEB3_API_URL || 'http://localhost:8001';
+      const response = await fetch(`${kryptonWeb3ApiUrl}/subgraph/user/${address}/balances`);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch balance: ${response.statusText}`);
+      }
+
+      const subgraphResponse = await response.json();
+
+      // Transform subgraph response to frontend format
+      const transformedBalance = {
+        tokenBalances: subgraphResponse.balances.map((balance: any) => ({
+          amount: balance.balance.toString(),
+          token: {
+            name: balance.symbol === "USDC"
+              ? "USD Coin"
+              : balance.symbol.startsWith("k")
+              ? `Krypton ${balance.symbol.substring(1).toUpperCase()}`
+              : balance.symbol,
+            blockchain: "ETH-SEPOLIA",
+            decimals: balance.decimals,
+            isNative: balance.symbol === "ETH" || balance.symbol === "ETH-SEPOLIA",
+            symbol: balance.symbol,
+            tokenAddress: balance.address,
+            standard: (balance.symbol === "ETH" || balance.symbol === "ETH-SEPOLIA") ? undefined : "ERC20",
+          },
+        })),
+      };
+
+      setBalance(transformedBalance);
     } catch (err) {
-      console.error('Failed to fetch balance:', err);
+      console.error('Failed to fetch balance from subgraph:', err);
       setBalanceError('Failed to fetch token balances');
     } finally {
       setBalanceLoading(false);
