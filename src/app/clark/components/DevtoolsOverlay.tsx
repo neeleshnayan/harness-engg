@@ -16,6 +16,8 @@ interface DevtoolsOverlayProps {
   userId?: string
   userName?: string
   sessionId?: string
+  sessionCost?: number
+  overallCost?: number
 }
 
 interface AgentFlowEntry {
@@ -26,7 +28,7 @@ interface AgentFlowEntry {
   created_at?: any
 }
 
-export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, userName, sessionId }: DevtoolsOverlayProps) {
+export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, userName, sessionId, sessionCost = 0, overallCost = 0 }: DevtoolsOverlayProps) {
   const [selectedQueryIndex, setSelectedQueryIndex] = useState<number | null>(null)
   const [filterType, setFilterType] = useState<'all' | 'single' | 'sequential' | 'parallel'>('all')
   const [activeTab, setActiveTab] = useState<'agent-flow' | 'memories'>('agent-flow')
@@ -223,13 +225,25 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, use
                     </div>
                   )}
                 </div>
-                <button
-                  onClick={onClose}
-                  className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white transition-colors"
-                  aria-label="Close devtools"
-                >
-                  <X className="h-5 w-5" />
-                </button>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 text-xs text-teal-200/80">
+                    <div className="px-2 py-1 bg-teal-900/40 backdrop-blur-sm border border-teal-700/30 rounded-lg">
+                      <span className="text-teal-100/90">Session: </span>
+                      <span className="text-teal-300">${sessionCost.toFixed(6)}</span>
+                    </div>
+                    <div className="px-2 py-1 bg-teal-900/40 backdrop-blur-sm border border-teal-700/30 rounded-lg">
+                      <span className="text-teal-100/90">Total: </span>
+                      <span className="text-cyan-300">${overallCost.toFixed(6)}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={onClose}
+                    className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white transition-colors"
+                    aria-label="Close devtools"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
               
               {/* Tab Navigation */}

@@ -625,26 +625,15 @@ export default function BacktestPage() {
           <div className="flex justify-between items-center py-2 min-h-[4rem]">
             <div className="flex items-center">
               <img
-                src="/krypton_logo.svg"
+                src="/Krypton Clark.svg"
                 alt="Krypton Logo"
-                className="h-20 w-auto drop-shadow-[0_2px_8px_rgba(16,255,180,0.18)]"
+                className="h-15 w-auto drop-shadow-[0_2px_8px_rgba(16,255,180,0.18)]"
               />
             </div>
             <div className="flex items-center space-x-3">
-              {/* Cost Display - Always show */}
-              <div className="flex items-center space-x-2 text-xs text-teal-200/80">
-                <div className="px-2 py-1 bg-teal-900/40 backdrop-blur-sm border border-teal-700/30 rounded-lg">
-                  <span className="text-teal-100/90">Session: </span>
-                  <span className="text-teal-300">${sessionCost.toFixed(6)}</span>
-                </div>
-                <div className="px-2 py-1 bg-teal-900/40 backdrop-blur-sm border border-teal-700/30 rounded-lg">
-                  <span className="text-teal-100/90">Total: </span>
-                  <span className="text-cyan-300">${overallCost.toFixed(6)}</span>
-                </div>
-              </div>
               <button
                 onClick={() => setIsDevtoolsOpen(true)}
-                className="flex items-center bg-teal-900/40 hover:bg-teal-800/50 backdrop-blur-sm border border-teal-700/30 text-white px-4 py-2 rounded-xl transition-colors font-medium"
+                className="flex items-center text-white px-4 py-2 rounded-xl transition-colors font-medium"
                 aria-label="Open devtools"
               >
                 <img
@@ -656,10 +645,14 @@ export default function BacktestPage() {
               <div className="relative">
                 <button
                   onClick={() => setShowMenu(!showMenu)}
-                  className="flex items-center bg-teal-900/40 hover:bg-teal-800/50 backdrop-blur-sm border border-teal-700/30 text-white px-4 py-2 rounded-xl transition-colors font-medium"
+                  className="flex items-center text-white px-4 py-2 rounded-xl transition-colors font-medium"
                   aria-label="Open menu"
                 >
-                  <Menu className="h-4 w-4" />
+                  <img
+                    src="/Burger.svg"
+                    alt="Burger"
+                    className="h-6 w-auto drop-shadow-[0_2px_8px_rgba(16,255,180,0.18)]"
+                  />
                 </button>
               </div>
             </div>
@@ -670,13 +663,8 @@ export default function BacktestPage() {
       <div className="h-24" />
 
       {/* Main Content Area - continuous feed */}
-      <div className={`container mx-auto px-4 py-2 max-w-6xl relative z-0`}>
-        {/* Clark Logo - Show only when no user messages or results */}
-        {!messages.some(m => m.type === 'user') && !messages.some(m => m.backtestResult) && (
-          <div className="flex items-center justify-center mb-2 mt-20 sm:mt-0">
-            <img src="/clark.svg" alt="Clark" className="h-[7.28rem] w-[7.28rem] sm:h-[9.1rem] sm:w-[9.1rem] drop-shadow-[0_4px_16px_rgba(20,184,166,0.3)]" />
-          </div>
-        )}
+      <div className={`container mx-auto px-4 py-10 max-w-6xl relative z-0`}>
+        
 
         {/* Category Tiles - Show only when no user messages or results */}
         {!messages.some(m => m.type === 'user') && !messages.some(m => m.backtestResult) && (
@@ -849,6 +837,8 @@ export default function BacktestPage() {
         userId={userId}
         userName={userName}
         sessionId={sessionId}
+        sessionCost={sessionCost}
+        overallCost={overallCost}
       />
     </div>
   )
