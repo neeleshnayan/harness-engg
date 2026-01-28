@@ -1005,17 +1005,16 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
               {/* For krypton_pay flows, hide Clark's natural language bubble entirely.
                   We'll show only the structured TransactionStatus card below. */}
               {!isKryptonPay && message.content && (message.success === false || !hasStructuredResults(message)) && (
-                <div className="flex gap-2 justify-start items-start">
-                  <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                    <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
+                <>
+                  <div className="flex gap-2 justify-start items-center">
+                    <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                      <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
+                    </div>
+                    <span className="text-xs font-medium" style={{ color: '#90E7EE' }}>
+                      Clark
+                    </span>
                   </div>
-                  <div
-                    className={`max-w-[85%] rounded-2xl p-4 border backdrop-blur-sm ${
-                      message.success === false
-                        ? 'bg-teal-800/40 border-teal-700/30 text-white'
-                        : 'bg-teal-800/30 border-teal-700/30 text-white'
-                    }`}
-                  >
+                  <div className="mt-1 ml-10 max-w-[85%] text-sm leading-relaxed text-white">
                     {/* Render optional source label, but hide noisy internal tags */}
                     {(() => {
                       const sourceLabel = formatSourceLabel(message.source)
@@ -1028,7 +1027,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                     })()}
                     {/* Render assistant message content as markdown-formatted HTML */}
                     <div
-                      className="text-sm leading-relaxed prose prose-invert max-w-none"
+                      className="prose prose-invert max-w-none"
                       dangerouslySetInnerHTML={{ __html: markdownToHtml(message.content) }}
                     />
                     {message.capabilitiesSummary && (
@@ -1037,7 +1036,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                       </div>
                     )}
                   </div>
-                </div>
+                </>
               )}
 
               {/* When success === true, show the last line of Clark's response alongside plots,
@@ -1047,14 +1046,19 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                 const lastLine = lines.length > 0 ? lines[lines.length - 1] : ''
                 if (!lastLine) return null
                 return (
-                  <div className="flex gap-2 justify-start items-start">
-                    <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                      <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
+                  <>
+                    <div className="flex gap-2 justify-start items-center">
+                      <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                        <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
+                      </div>
+                      <span className="text-xs font-medium" style={{ color: '#90E7EE' }}>
+                        Clark
+                      </span>
                     </div>
-                    <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-zinc-800/40 border border-teal-700/30/40 text-white backdrop-blur-sm">
-                      <div className="text-sm leading-relaxed">{lastLine}</div>
+                    <div className="mt-1 ml-10 max-w-[85%] text-sm leading-relaxed text-white">
+                      {lastLine}
                     </div>
-                  </div>
+                  </>
                 )
               })()}
 
