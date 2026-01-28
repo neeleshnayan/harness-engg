@@ -250,7 +250,24 @@ export default function BacktestPage() {
     const rawData = payload?.data
 
     // Only keep backtest result, remove all other components
-    const backtestResult = rawData?.backtest_result ?? rawData?.backtestResult
+    // Check multiple possible locations for backtest_result (may be nested under agent IDs)
+    let backtestResult = rawData?.backtest_result ?? rawData?.backtestResult
+    
+    // If not found at top level, check if nested under agent keys (common in multi-agent results)
+    if (!backtestResult && rawData) {
+      // Check under "technical" agent key (for technical analysis queries)
+      if (rawData.technical?.backtest_result) {
+        backtestResult = rawData.technical.backtest_result
+      }
+      // Check under "backtest" agent key (for backtest queries)
+      else if (rawData.backtest?.backtest_result) {
+        backtestResult = rawData.backtest.backtest_result
+      }
+      // Check under "data_fetcher" agent key combined with backtest
+      else if (rawData.data_fetcher && (rawData.backtest_result || rawData.backtest?.backtest_result)) {
+        backtestResult = rawData.backtest_result || rawData.backtest?.backtest_result
+      }
+    }
 
     // Extract price history result - check multiple possible locations
     // The agent returns: data: { price_history: {...}, token: "...", data_points: [...] }
