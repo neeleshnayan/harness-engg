@@ -640,7 +640,7 @@ export default function BacktestPage() {
               <img
                 src="/Krypton Clark.svg"
                 alt="Krypton Logo"
-                className="h-15 w-auto drop-shadow-[0_2px_8px_rgba(16,255,180,0.18)]"
+                className="h-12 sm:h-16 md:h-20 w-auto drop-shadow-[0_2px_8px_rgba(16,255,180,0.18)]"
               />
             </div>
             <div className="flex justify-end flex-1">
