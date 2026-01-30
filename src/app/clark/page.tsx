@@ -649,7 +649,7 @@ export default function BacktestPage() {
                 <img
                   src="/devtools.svg"
                   alt="Devtools"
-                  className="h-4 w-4"
+                  className="h-6 w-6"
                 />
               </button>
             </div>

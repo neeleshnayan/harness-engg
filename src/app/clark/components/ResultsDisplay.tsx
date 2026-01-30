@@ -814,20 +814,25 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
       {messages.map((message, index) => (
         <div key={message.id} className="space-y-3">
           {message.type === 'user' && (
-            <div className="flex justify-end items-start gap-2">
-              <div className="flex flex-col items-end justify-start flex-shrink-0 mt-1 space-y-1">
-                <span className="text-xs font-medium text-white/70">
-                  You
-                </span>
+            <div className="flex justify-end w-full">
+              <div className="w-full max-w-[85%] flex flex-col items-end">
+                <div className="flex gap-2 justify-end items-center">
+                  <span className="text-xs font-medium text-white/70">
+                    You
+                  </span>
+                  <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                    <User className="h-5 w-5 text-white/70" />
+                  </div>
+                </div>
                 <div
-                  className="max-w-[85%] rounded-2xl p-3 sm:p-4 text-white"
+                  className="mt-1 w-fit max-w-full rounded-2xl p-3 sm:p-4 text-white"
                   style={{
                     background:
                       'linear-gradient(180deg, rgba(255, 255, 255, 0.36) 0%, rgba(161, 207, 211, 0.06) 100%)',
                   }}
                 >
                   <div className="text-sm leading-relaxed">
-                    <span className="whitespace-pre-wrap align-middle">{message.content}</span>
+                    <span className="whitespace-pre-wrap">{message.content}</span>
                     <div className="text-xs text-white/70 mt-1.5">
                       {formatTimestamp(message.timestamp)}
                     </div>
