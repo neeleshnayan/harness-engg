@@ -314,6 +314,21 @@ export default function BacktestPage() {
       })
     }
 
+    // Extract balance result (current, daily, or intraday) from krypton_pay
+    const balanceOp = rawData?.operation ?? payload?.parsed_intent?.operation
+    const hasBalances = Array.isArray(rawData?.balances) && rawData.balances.length > 0
+    const hasDailyBalances = Array.isArray(rawData?.dailyBalances) && rawData.dailyBalances.length > 0
+    const hasIntradayBalances = Array.isArray(rawData?.intradayBalances) && rawData.intradayBalances.length > 0
+    const balanceResult = (hasBalances || hasDailyBalances || hasIntradayBalances) && (balanceOp === 'balances' || balanceOp === 'balances_daily' || balanceOp === 'balances_intraday')
+      ? {
+          username_or_address: rawData?.username_or_address ?? payload?.parsed_intent?.username_or_address ?? '',
+          operation: balanceOp as 'balances' | 'balances_daily' | 'balances_intraday',
+          ...(hasBalances && { balances: rawData.balances }),
+          ...(hasDailyBalances && { dailyBalances: rawData.dailyBalances }),
+          ...(hasIntradayBalances && { intradayBalances: rawData.intradayBalances }),
+        }
+      : undefined
+
     const rawParameterRequest = payload?.parameter_request
     const parameterRequest = rawParameterRequest
       ? {
@@ -336,7 +351,7 @@ export default function BacktestPage() {
       success: payload?.success ?? false,
       backtestResult,
       priceHistoryResult,
-      // Remove all other result types - only keep backtest and price history
+      balanceResult,
       screenerResult: undefined,
       economicResult: undefined,
       regulationResult: undefined,

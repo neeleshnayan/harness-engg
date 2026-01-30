@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { DollarSign, TrendingUp, BarChart3, TrendingDown, ChevronDown, ChevronUp } from 'lucide-react'
 import { Loader2, Info, User } from 'lucide-react'
-import { ChatMessage, BacktestResult, ScreenerResult, EconomicResult, NewsData, CalendarData, EconomicData, RegulationResult, AgentFlowGraph, AgentFlowStep } from '../types'
+import { ChatMessage, BacktestResult, ScreenerResult, EconomicResult, NewsData, CalendarData, EconomicData, RegulationResult, AgentFlowGraph, AgentFlowStep, BalanceResult, BalanceEntry, DailyBalanceEntry, IntradayBalanceEntry } from '../types'
 import { formatCurrency, formatPercentage, formatDate, formatNumber, formatTimestamp } from '../utils'
 import TransactionStatus, { InlineTransactionData } from './TransactionStatus'
 
@@ -1099,6 +1099,98 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                         dataPoints={priceHistoryResult.data_points}
                         lookbackDays={priceHistoryResult.lookback_days}
                       />
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* Render balance result (current, daily, or intraday) */}
+              {(() => {
+                const balanceResult = message.balanceResult
+                if (!balanceResult) return null
+                const { username_or_address, operation, balances, dailyBalances, intradayBalances } = balanceResult
+                const hasCurrent = Array.isArray(balances) && balances.length > 0
+                const hasDaily = Array.isArray(dailyBalances) && dailyBalances.length > 0
+                const hasIntraday = Array.isArray(intradayBalances) && intradayBalances.length > 0
+                if (!hasCurrent && !hasDaily && !hasIntraday) return null
+
+                const title = operation === 'balances_daily'
+                  ? `Daily balance history · ${username_or_address || 'User'}`
+                  : operation === 'balances_intraday'
+                    ? `Intraday balance history · ${username_or_address || 'User'}`
+                    : `Balances · ${username_or_address || 'User'}`
+
+                return (
+                  <div className="flex gap-2 justify-start items-start mt-2">
+                    <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                      <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
+                    </div>
+                    <div className="max-w-[85%] w-full rounded-2xl p-4 bg-teal-900/40 border border-teal-700/50 backdrop-blur-sm">
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-teal-300/80 mb-3">{title}</div>
+                      {hasCurrent && (
+                        <div className="space-y-2">
+                          {(balances as BalanceEntry[]).map((entry, idx) => (
+                            <div key={`${entry.token}-${idx}`} className="flex justify-between items-center py-2 px-3 rounded-lg bg-teal-800/30 border border-teal-700/30">
+                              <span className="text-white font-medium">{entry.token}</span>
+                              <span className="text-teal-100 tabular-nums">{entry.balance}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {hasDaily && (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-teal-700/40">
+                                <th className="text-left py-2 px-2 text-teal-200/80">Date</th>
+                                <th className="text-left py-2 px-2 text-teal-200/80">Balances</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(dailyBalances as DailyBalanceEntry[]).slice(0, 30).map((row, idx) => (
+                                <tr key={idx} className="border-b border-teal-800/30">
+                                  <td className="py-2 px-2 text-white/90">{row.date}</td>
+                                  <td className="py-2 px-2 text-teal-100">
+                                    {typeof row.balances === 'object' && row.balances !== null
+                                      ? Object.entries(row.balances).map(([t, b]) => `${t}: ${b}`).join(', ')
+                                      : '—'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          {(dailyBalances as DailyBalanceEntry[]).length > 30 && (
+                            <p className="text-xs text-teal-300/70 mt-2">Showing first 30 days</p>
+                          )}
+                        </div>
+                      )}
+                      {hasIntraday && (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-teal-700/40">
+                                <th className="text-left py-2 px-2 text-teal-200/80">Time</th>
+                                <th className="text-left py-2 px-2 text-teal-200/80">Balances</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(intradayBalances as IntradayBalanceEntry[]).slice(0, 20).map((row, idx) => (
+                                <tr key={idx} className="border-b border-teal-800/30">
+                                  <td className="py-2 px-2 text-white/90">{formatTimestamp(new Date(row.timestamp))}</td>
+                                  <td className="py-2 px-2 text-teal-100">
+                                    {typeof row.balances === 'object' && row.balances !== null
+                                      ? Object.entries(row.balances).map(([t, b]) => `${t}: ${b}`).join(', ')
+                                      : '—'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          {(intradayBalances as IntradayBalanceEntry[]).length > 20 && (
+                            <p className="text-xs text-teal-300/70 mt-2">Showing first 20 snapshots</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )

@@ -288,6 +288,32 @@ export interface PriceHistoryResult {
   }>
 }
 
+/** Current token balance entry from GET /subgraph/user/{id}/balances */
+export interface BalanceEntry {
+  token: string
+  balance: string
+}
+
+/** Daily balance snapshot from GET /subgraph/user/{id}/balances/daily */
+export interface DailyBalanceEntry {
+  date: string
+  balances: Record<string, string>
+}
+
+/** Intraday balance snapshot from GET /subgraph/user/{id}/balances/intraday */
+export interface IntradayBalanceEntry {
+  timestamp: string
+  balances: Record<string, string>
+}
+
+export interface BalanceResult {
+  username_or_address: string
+  operation: 'balances' | 'balances_daily' | 'balances_intraday'
+  balances?: BalanceEntry[]
+  dailyBalances?: DailyBalanceEntry[]
+  intradayBalances?: IntradayBalanceEntry[]
+}
+
 export interface ChatMessage {
   id: string
   type: 'user' | 'assistant'
@@ -300,6 +326,7 @@ export interface ChatMessage {
   economicResult?: EconomicResult
   regulationResult?: RegulationResult
   priceHistoryResult?: PriceHistoryResult
+  balanceResult?: BalanceResult
   source?: string
   capabilitiesSummary?: string
   parameterRequest?: ParameterRequest
