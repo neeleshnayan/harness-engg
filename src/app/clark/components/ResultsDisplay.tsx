@@ -924,18 +924,18 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
             const hasTransactionKeywords = /(sent|transfer|transaction|successfully|swapped|swap completed)/i.test(messageContent) && 
               /(USD|EUR|AED|to @|transaction id)/i.test(messageContent)
 
-            // Only treat as krypton_pay transaction if:
-            // 1. Not a price history query
-            // 2. Has transaction indicators (transaction_id, status, operation, estimated_output, or transaction keywords)
-            const hasTransactionData = agentFlowNodes.some((node: any) => 
-              node.output?.data?.transaction_id || 
-              node.output?.data?.status === 'SUBMITTED' ||
-              node.output?.data?.operation ||
-              node.output?.data?.estimated_output || // Swap responses have estimated_output
-              node.output?.data?.route // Swap responses have route
-            )
+            // Only treat as krypton_pay transaction if we have actual payment/swap (not balance-only read).
+            // Exclude balance queries: operation "balances" | "balances_daily" | "balances_intraday" = read-only, no transaction UI.
+            const hasTransactionData = agentFlowNodes.some((node: any) => {
+              const data = node.output?.data
+              if (!data) return false
+              const op = data.operation
+              if (op === 'balances' || op === 'balances_daily' || op === 'balances_intraday') return false
+              return !!(data.transaction_id || data.status === 'SUBMITTED' || data.estimated_output || data.route)
+            })
             
-            const isKryptonPay = !isPriceHistoryQuery && !isPriceHistoryOperation && 
+            const isBalanceOnlyQuery = message.balanceResult && ['balances', 'balances_daily', 'balances_intraday'].includes(message.balanceResult.operation)
+            const isKryptonPay = !isPriceHistoryQuery && !isPriceHistoryOperation && !isBalanceOnlyQuery &&
               (hasKryptonPayInIntent || hasKryptonPayInFlow) && 
               (hasTransactionData || hasTransactionKeywords)
 
@@ -1122,9 +1122,6 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
 
                 return (
                   <div className="flex gap-2 justify-start items-start mt-2">
-                    <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                      <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
-                    </div>
                     <div className="max-w-[85%] w-full rounded-2xl p-4 bg-teal-900/40 border border-teal-700/50 backdrop-blur-sm">
                       <div className="text-[10px] uppercase tracking-[0.2em] text-teal-300/80 mb-3">{title}</div>
                       {!hasAnyData && (
@@ -1132,12 +1129,17 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                       )}
                       {hasCurrent && (
                         <div className="space-y-2">
-                          {(balances as BalanceEntry[]).map((entry, idx) => (
-                            <div key={`${entry.token}-${idx}`} className="flex justify-between items-center py-2 px-3 rounded-lg bg-teal-800/30 border border-teal-700/30">
-                              <span className="text-white font-medium">{entry.token}</span>
-                              <span className="text-teal-100 tabular-nums">{typeof entry.balance === 'string' ? entry.balance : String(entry.balance)}</span>
-                            </div>
-                          ))}
+                          {(balances as BalanceEntry[]).map((entry, idx) => {
+                            const e = entry as Record<string, unknown>
+                            const tokenLabel = e.token ?? e.symbol ?? e.tokenSymbol ?? e.token_name ?? e.name ?? '—'
+                            const balanceVal = entry.balance != null ? (typeof entry.balance === 'string' ? entry.balance : String(entry.balance)) : '—'
+                            return (
+                              <div key={`${String(tokenLabel)}-${idx}`} className="flex justify-between items-center py-2 px-3 rounded-lg bg-teal-800/30 border border-teal-700/30">
+                                <span className="text-white font-medium">{String(tokenLabel)}</span>
+                                <span className="text-teal-100 tabular-nums">{balanceVal}</span>
+                              </div>
+                            )
+                          })}
                         </div>
                       )}
                       {hasDaily && (
