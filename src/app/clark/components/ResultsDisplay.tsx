@@ -1130,7 +1130,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                       {hasCurrent && (
                         <div className="space-y-2">
                           {(balances as BalanceEntry[]).map((entry, idx) => {
-                            const e = entry as Record<string, unknown>
+                            const e = entry as unknown as Record<string, unknown>
                             const tokenLabel = e.token ?? e.symbol ?? e.tokenSymbol ?? e.token_name ?? e.name ?? '—'
                             const balanceVal = entry.balance != null ? (typeof entry.balance === 'string' ? entry.balance : String(entry.balance)) : '—'
                             return (
