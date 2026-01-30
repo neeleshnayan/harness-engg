@@ -1112,7 +1112,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                 const hasCurrent = Array.isArray(balances) && balances.length > 0
                 const hasDaily = Array.isArray(dailyBalances) && dailyBalances.length > 0
                 const hasIntraday = Array.isArray(intradayBalances) && intradayBalances.length > 0
-                if (!hasCurrent && !hasDaily && !hasIntraday) return null
+                const hasAnyData = hasCurrent || hasDaily || hasIntraday
 
                 const title = operation === 'balances_daily'
                   ? `Daily balance history · ${username_or_address || 'User'}`
@@ -1127,12 +1127,15 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                     </div>
                     <div className="max-w-[85%] w-full rounded-2xl p-4 bg-teal-900/40 border border-teal-700/50 backdrop-blur-sm">
                       <div className="text-[10px] uppercase tracking-[0.2em] text-teal-300/80 mb-3">{title}</div>
+                      {!hasAnyData && (
+                        <p className="text-sm text-teal-200/80">No balance data recorded yet for this period.</p>
+                      )}
                       {hasCurrent && (
                         <div className="space-y-2">
                           {(balances as BalanceEntry[]).map((entry, idx) => (
                             <div key={`${entry.token}-${idx}`} className="flex justify-between items-center py-2 px-3 rounded-lg bg-teal-800/30 border border-teal-700/30">
                               <span className="text-white font-medium">{entry.token}</span>
-                              <span className="text-teal-100 tabular-nums">{entry.balance}</span>
+                              <span className="text-teal-100 tabular-nums">{typeof entry.balance === 'string' ? entry.balance : String(entry.balance)}</span>
                             </div>
                           ))}
                         </div>

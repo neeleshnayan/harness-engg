@@ -315,17 +315,27 @@ export default function BacktestPage() {
     }
 
     // Extract balance result (current, daily, or intraday) from krypton_pay
-    const balanceOp = rawData?.operation ?? payload?.parsed_intent?.operation
-    const hasBalances = Array.isArray(rawData?.balances) && rawData.balances.length > 0
-    const hasDailyBalances = Array.isArray(rawData?.dailyBalances) && rawData.dailyBalances.length > 0
-    const hasIntradayBalances = Array.isArray(rawData?.intradayBalances) && rawData.intradayBalances.length > 0
-    const balanceResult = (hasBalances || hasDailyBalances || hasIntradayBalances) && (balanceOp === 'balances' || balanceOp === 'balances_daily' || balanceOp === 'balances_intraday')
+    // Read from top-level payload.data and from payload.data.krypton_pay (nested single-agent merge)
+    const balanceSource = rawData?.balances != null || rawData?.dailyBalances != null || rawData?.intradayBalances != null
+      ? rawData
+      : (rawData?.krypton_pay && typeof rawData.krypton_pay === 'object' ? rawData.krypton_pay : null)
+    const balanceOp = balanceSource?.operation ?? rawData?.operation ?? payload?.parsed_intent?.operation
+    const balancesArr = balanceSource?.balances ?? rawData?.balances
+    const dailyArr = balanceSource?.dailyBalances ?? balanceSource?.daily_balances ?? rawData?.dailyBalances ?? rawData?.daily_balances
+    const intradayArr = balanceSource?.intradayBalances ?? balanceSource?.intraday_balances ?? rawData?.intradayBalances ?? rawData?.intraday_balances
+    const hasBalances = Array.isArray(balancesArr) && balancesArr.length > 0
+    const hasDailyBalances = Array.isArray(dailyArr) && dailyArr.length > 0
+    const hasIntradayBalances = Array.isArray(intradayArr) && intradayArr.length > 0
+    const isBalanceOp = balanceOp === 'balances' || balanceOp === 'balances_daily' || balanceOp === 'balances_intraday'
+    const hasBalanceKeys = rawData && (rawData.balances !== undefined || rawData.dailyBalances !== undefined || rawData.intradayBalances !== undefined || rawData.krypton_pay != null)
+    const hasKryptonPayBalance = (payload?.parsed_intent?.agent_ids as string[] | undefined)?.includes?.('krypton_pay') && isBalanceOp
+    const balanceResult = isBalanceOp && (hasBalances || hasDailyBalances || hasIntradayBalances || hasKryptonPayBalance || (hasBalanceKeys && (balanceOp != null)))
       ? {
-          username_or_address: rawData?.username_or_address ?? payload?.parsed_intent?.username_or_address ?? '',
-          operation: balanceOp as 'balances' | 'balances_daily' | 'balances_intraday',
-          ...(hasBalances && { balances: rawData.balances }),
-          ...(hasDailyBalances && { dailyBalances: rawData.dailyBalances }),
-          ...(hasIntradayBalances && { intradayBalances: rawData.intradayBalances }),
+          username_or_address: balanceSource?.username_or_address ?? rawData?.username_or_address ?? payload?.parsed_intent?.username_or_address ?? '',
+          operation: (balanceOp as 'balances' | 'balances_daily' | 'balances_intraday') || 'balances',
+          ...(Array.isArray(balancesArr) && { balances: balancesArr }),
+          ...(Array.isArray(dailyArr) && { dailyBalances: dailyArr }),
+          ...(Array.isArray(intradayArr) && { intradayBalances: intradayArr }),
         }
       : undefined
 
