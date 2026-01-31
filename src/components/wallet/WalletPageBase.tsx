@@ -174,6 +174,72 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
   // WebSocket message handler - stabilized with useCallback and refs
   const handleWebSocketMessage = useCallback((message: any) => {
+    // Handle new Krypton_Web3 event format (from webhook.py)
+    if (message.type === 'transaction_confirmed' || message.type === 'transaction_update') {
+      const transactionId = message.transaction_id;
+
+      // Deduplicate: Skip if we've already processed this transaction event
+      if (transactionId && processedWebhookEventsRef.current.has(transactionId)) {
+        return;
+      }
+
+      // Mark this event as processed
+      if (transactionId) {
+        processedWebhookEventsRef.current.add(transactionId);
+        // Clean up old event IDs after 5 minutes to prevent memory leak
+        setTimeout(() => {
+          processedWebhookEventsRef.current.delete(transactionId);
+        }, 5 * 60 * 1000);
+      }
+
+      // Show notification to user
+      if (message.type === 'transaction_confirmed' && config.showWebhookNotification) {
+        setWebhookNotification('Transaction confirmed! Refreshing balance...');
+        setTimeout(() => setWebhookNotification(null), 5000);
+      }
+
+      // Refresh balance - no need to check address since we're receiving user-specific events
+      const currentAccountData = accountDataRef.current;
+      if (currentAccountData?.wallet_address) {
+        // Use configurable delay to allow Circle API time to update balance
+        const debounceDelay = WEBHOOK_BALANCE_REFRESH_DELAY_MS;
+
+        // Clear any existing debounce timer
+        if (balanceDebounceTimerRef.current) {
+          clearTimeout(balanceDebounceTimerRef.current);
+          balanceDebounceTimerRef.current = null;
+        }
+
+        // Set refreshing state to show UI feedback
+        setBalanceRefreshing(true);
+
+        // Use debounced fetch
+        debouncedFetchBalance(currentAccountData.wallet_address, { background: true }, debounceDelay);
+
+        // Trigger BalanceCard refresh
+        setBalanceCardRefresh(prev => !prev);
+
+        // Safety timeout: Clear refreshing state after 20 seconds if stuck
+        setTimeout(() => {
+          setBalanceRefreshing(prev => {
+            if (prev) {
+              console.warn('Balance refreshing state was stuck - forcing clear after 20s timeout');
+              return false;
+            }
+            return prev;
+          });
+        }, 20000);
+      }
+
+      // Also refresh transaction history if it's open
+      if (showTransactionsRef.current) {
+        setTransactionHistoryRefresh(prev => !prev);
+      }
+
+      return;
+    }
+
+    // Handle legacy circle_webhook format (from KryptonPay_Backend) for backward compatibility
     if (message.type === 'circle_webhook') {
       const eventId = message.event_id;
 
@@ -282,10 +348,20 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     });
   }, []);
 
-  // WebSocket connection for real-time webhook updates
-  const wsUrl = `${process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace('https://', 'wss://').replace('http://', 'ws://') : 'wss://api.kryptonfund.com'}/api/v1/ws`;
+  // WebSocket connection for real-time transaction updates from Krypton_Web3
+  // Uses user-specific events - only receives events for the connected wallet
+  const wsUrl = React.useMemo(() => {
+    const walletAddress = accountData?.wallet_address;
+    if (!walletAddress) return null;
+    const baseUrl = process.env.NEXT_PUBLIC_KRYPTON_WEB3_WS_URL ||
+      (process.env.NEXT_PUBLIC_KRYPTON_WEB3_API_URL ?
+        process.env.NEXT_PUBLIC_KRYPTON_WEB3_API_URL.replace('https://', 'wss://').replace('http://', 'ws://') :
+        'wss://web3.kryptonfund.com');
+    return `${baseUrl}/ws?wallet_address=${encodeURIComponent(walletAddress)}`;
+  }, [accountData?.wallet_address]);
+
   const { isConnected: wsConnected, connectionStatus, reconnect: wsReconnect } = useWebSocket(
-    wsUrl,
+    wsUrl || '',
     {
       onMessage: handleWebSocketMessage,
       onOpen: handleWebSocketOpen,

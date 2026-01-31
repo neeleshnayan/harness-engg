@@ -53,6 +53,10 @@ export const useWebSocket = (
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
 
   const connect = useCallback(() => {
+    // Skip connection if URL is empty (waiting for wallet address)
+    if (!url) {
+      return;
+    }
     if (isConnectingRef.current || wsRef.current?.readyState === WebSocket.OPEN) {
       return;
     }
