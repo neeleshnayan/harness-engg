@@ -67,9 +67,11 @@ export default function BacktestPage() {
       try {
         const parsedData = JSON.parse(storedUserData)
         setUserData(parsedData)
-        // Extract username if available
+        // Extract username if available; use "krypton" for balance/history queries when not set
         if (parsedData.username) {
           setUserName(parsedData.username)
+        } else {
+          setUserName('krypton')
         }
         // Use actual user_id from userData, fallback to other unique identifiers
         // Try user_id first, then uid (Firebase), then email
@@ -90,8 +92,9 @@ export default function BacktestPage() {
         setUserId('krypton_user')
       }
     } else {
-      // If no userData exists, use default fallback ID
+      // If no userData exists, use default fallback ID and username for balance queries
       setUserId('krypton_user')
+      setUserName('krypton')
     }
     
     // Check for expanded messages from mini chat components
@@ -394,7 +397,7 @@ export default function BacktestPage() {
       const response = await agentsApi.post('/api/v1/agents/query', {
         query: routedPrompt,
         user_id: userId,
-        username: userName,
+        username: userName || 'krypton',
         session_id: sessionId
       })
 
@@ -499,7 +502,7 @@ export default function BacktestPage() {
     try {
       const requestBody: any = {
         user_id: userId,
-        username: userName,
+        username: userName || 'krypton',
         session_id: sessionId
       }
 
