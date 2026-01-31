@@ -70,6 +70,7 @@ interface SubgraphAnalyticsGenericProps {
     assetSymbol?: string; // e.g. "USDC"
     targetSymbol?: string; // e.g. "WETH" or "XAG"
     decimals?: number;
+    targetTokenDecimals?: number;
 }
 
 export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> = ({
@@ -78,7 +79,8 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
     strategyName = "Strategy",
     assetSymbol = "USDC",
     targetSymbol = "Token",
-    decimals = 4
+    decimals = 4,
+    targetTokenDecimals = 18
 }) => {
     // Determine which strategy hook to use or use generic one. 
     // We reuse useStrategySubgraphData directly but we need a "StrategyName" type placeholder
@@ -215,7 +217,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                 // Let's rely on standard convention or add new props later.
                 // For now, assume Asset=6 (USDC), Target=18 (Standard).
                 const ASSET_DECIMALS = 6;
-                const TARGET_DECIMALS = 18;
+                const TARGET_DECIMALS = targetTokenDecimals;
 
                 const rawIn = Number(event.amountIn);
                 const rawOut = Number(event.amountOut);
@@ -448,7 +450,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                             );
 
                                             const ASSET_DECIMALS = 6;
-                                            const TARGET_DECIMALS = 18;
+                                            const TARGET_DECIMALS = targetTokenDecimals;
                                             const rawIn = Number(s.amountIn);
                                             const rawOut = Number(s.amountOut);
 

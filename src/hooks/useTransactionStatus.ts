@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { kryptonWeb3Api } from '@/lib/api';
+import { hedgeFundApi } from '@/lib/api';
 import {
   TERMINAL_STATES,
   isTerminalState,
@@ -29,7 +29,7 @@ export function useTransactionStatus(transactionId: string | null): TransactionS
 
     const pollStatus = async () => {
       try {
-        const response = await kryptonWeb3Api.get(`/circle/transaction/${transactionId}`);
+        const response = await hedgeFundApi.get(`/api/v1/circle/transaction/${transactionId}`);
         // The response structure is: { transaction_id, tracked, data: { status/state, ... } }
         const transactionData = response.data.data;
         const transactionStatus = transactionData?.status || transactionData?.state;

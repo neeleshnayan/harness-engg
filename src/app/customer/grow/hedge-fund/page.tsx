@@ -404,6 +404,7 @@ export default function HedgeFundV2Page() {
                 strategyName={displayName}
                 assetSymbol="USDC" // Defaulting to USDC as base for now
                 targetSymbol={currentStrategy?.symbol || "WETH"} // Use strategy symbol if available
+                targetTokenDecimals={currentStrategy?.symbol === 'WETH' ? 18 : 6}
               />
             )}
           </>
