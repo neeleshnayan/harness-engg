@@ -519,6 +519,12 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         })),
       };
 
+      console.log('Balance fetch complete:', {
+        address,
+        balanceCount: transformedBalance.tokenBalances.length,
+        balances: transformedBalance.tokenBalances.map((b: any) => `${b.token.symbol}: ${b.amount}`)
+      });
+
       setBalance(transformedBalance);
 
     } catch (err) {
@@ -558,14 +564,24 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       // Start blinking immediately
       setBalanceRefreshing(true);
 
-      // Refresh balance after short delay
-      const delay = 2000; // 2 seconds - give Circle/subgraph time to update
-
+      // Clear any existing timer
       if (balanceDebounceTimerRef.current) {
         clearTimeout(balanceDebounceTimerRef.current);
       }
 
-      debouncedFetchBalance(currentAccountData.wallet_address, { background: true }, delay);
+      // First refresh after 5 seconds (give subgraph time to index)
+      const firstDelay = WEBHOOK_BALANCE_REFRESH_DELAY_MS; // 5 seconds
+      debouncedFetchBalance(currentAccountData.wallet_address, { background: true }, firstDelay);
+
+      // Second refresh after 10 seconds (for slow subgraph indexing)
+      setTimeout(() => {
+        const accountData = accountDataRef.current;
+        if (accountData?.wallet_address) {
+          console.log('Transaction complete: Second balance refresh attempt');
+          setBalanceRefreshing(true);
+          debouncedFetchBalance(accountData.wallet_address, { background: true }, 0);
+        }
+      }, 10000);
 
       // Toggle balance card refresh
       setBalanceCardRefresh(prev => !prev);
