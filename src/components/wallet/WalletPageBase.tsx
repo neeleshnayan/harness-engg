@@ -37,7 +37,7 @@ const SendERC20Modal = dynamic(() => import("@/components/wallet/SendERC20Modal"
 
 // Configuration: Delay before fetching balance after webhook event (in milliseconds)
 // Increase this if Circle API hasn't updated the balance yet when webhook arrives
-const WEBHOOK_BALANCE_REFRESH_DELAY_MS = 15000; // 15 seconds
+const WEBHOOK_BALANCE_REFRESH_DELAY_MS = 5000; // 5 seconds - wait for Circle/subgraph to update
 
 export interface WalletPageConfig {
   // Page type identifier
@@ -548,6 +548,29 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     fetchBalanceRef.current = fetchBalance;
   }, [fetchBalance]);
 
+  /**
+   * Called when all active transactions complete (from BalanceCard/ActiveTransactions).
+   * Triggers balance refresh with blinking effect.
+   */
+  const handleTransactionsComplete = useCallback(() => {
+    const currentAccountData = accountDataRef.current;
+    if (currentAccountData?.wallet_address) {
+      // Start blinking immediately
+      setBalanceRefreshing(true);
+
+      // Refresh balance after short delay
+      const delay = 2000; // 2 seconds - give Circle/subgraph time to update
+
+      if (balanceDebounceTimerRef.current) {
+        clearTimeout(balanceDebounceTimerRef.current);
+      }
+
+      debouncedFetchBalance(currentAccountData.wallet_address, { background: true }, delay);
+
+      // Toggle balance card refresh
+      setBalanceCardRefresh(prev => !prev);
+    }
+  }, [debouncedFetchBalance]);
 
   const handleLogout = async () => {
     try {
@@ -995,6 +1018,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
             balanceCardRefresh={balanceCardRefresh}
             balanceRefreshing={balanceRefreshing}
             balanceFlickering={balanceFlickering}
+            onTransactionsComplete={handleTransactionsComplete}
           />
           {accountData?.username && kycStatus === 'approved' && (
             <>

@@ -45,6 +45,7 @@ interface BalanceCardProps {
   balanceCardRefresh?: boolean;
   balanceRefreshing?: boolean;
   balanceFlickering?: boolean;
+  onTransactionsComplete?: () => void; // Called when all active transactions complete
 }
 
 const WALLET_ICON = (
@@ -78,7 +79,8 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
   balanceLoading = false,
   balanceCardRefresh = false,
   balanceRefreshing = false,
-  balanceFlickering = false
+  balanceFlickering = false,
+  onTransactionsComplete,
 }, ref) => {
   const [localRefreshing, setLocalRefreshing] = useState(false);
   const [isFlickering, setIsFlickering] = useState(false);
@@ -204,6 +206,21 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
       transactionHistoryRef.current.refresh();
     }
   }, []);
+
+  /**
+   * Called when all active transactions complete.
+   * Switches to balance tab (slide 1) and notifies parent to refresh balance.
+   */
+  const handleAllTransactionsComplete = useCallback(() => {
+    // Switch to balance tab (middle slide)
+    setActiveSlide(1);
+    // Notify parent to refresh balance with blinking effect
+    if (onTransactionsComplete) {
+      onTransactionsComplete();
+    }
+    // Also refresh transaction history
+    handleTransactionHistoryRefresh();
+  }, [onTransactionsComplete, handleTransactionHistoryRefresh]);
 
   /**
    * Switch to Transaction History tab and refresh
@@ -427,7 +444,7 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
                 <ActiveTransactions
                   username={accountData.username}
                   className="mb-4"
-                  onAllTransactionsComplete={handleTransactionHistoryRefresh}
+                  onAllTransactionsComplete={handleAllTransactionsComplete}
                   refreshKey={activeTransactionsRefreshKey}
                   isVisible={activeSlide === 0}
                 />
@@ -544,14 +561,12 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
           <div className={`flex items-center justify-center mb-4 ${!isKycApproved ? 'blur-sm' : ''}`}>
             <div className="flex items-center gap-3">
               <div className={`text-6xl font-bold text-white relative transition-all duration-200 ${
-                isFlickering ? 'balance-flicker' : ''
+                isFlickering || balanceRefreshing || localRefreshing ? 'balance-flicker' : ''
               }`}>
-                {balanceLoading || balanceRefreshing || localRefreshing || poolRatesLoading ? (
+                {balanceLoading || poolRatesLoading ? (
                   <div className="flex items-center justify-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mr-3"></div>
-                    <span className="text-2xl">
-                      {localRefreshing ? 'Updating...' : balanceRefreshing ? 'Refreshing...' : 'Loading...'}
-                    </span>
+                    <span className="text-2xl">Loading...</span>
                   </div>
                 ) : error ? (
                   <span className="text-red-400 text-2xl font-semibold">{error}</span>
@@ -563,7 +578,7 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
                   return '-';
                 })()}
                 {/* Subtle refresh indicator */}
-                {localRefreshing && (
+                {(localRefreshing || balanceRefreshing) && (
                   <div className="absolute -top-2 -right-2 w-4 h-4 bg-green-500 rounded-full animate-pulse"></div>
                 )}
               </div>
