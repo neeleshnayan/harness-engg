@@ -35,6 +35,11 @@ const PriceHistoryChart = dynamic(() => import('./charts/PriceHistoryChart'), {
   ssr: false,
 });
 
+const BalanceHistoryChartLazy = dynamic(() => import('./charts/BalanceHistoryChart'), {
+  loading: () => <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>,
+  ssr: false,
+});
+
 interface ResultsDisplayProps {
   messages: ChatMessage[]
   isLoading?: boolean
@@ -1164,54 +1169,20 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                         </div>
                       )}
                       {hasDaily && (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="border-b border-teal-700/40">
-                                <th className="text-left py-2 px-2 text-teal-200/80">Date</th>
-                                <th className="text-left py-2 px-2 text-teal-200/80">Balances</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {(dailyBalances as DailyBalanceEntry[]).slice(0, 30).map((row, idx) => (
-                                <tr key={idx} className="border-b border-teal-800/30">
-                                  <td className="py-2 px-2 text-white/90">{row.date}</td>
-                                  <td className="py-2 px-2 text-teal-100">
-                                    {formatBalancesCell(row.balances)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                          {(dailyBalances as DailyBalanceEntry[]).length > 30 && (
-                            <p className="text-xs text-teal-300/70 mt-2">Showing first 30 days</p>
-                          )}
-                        </div>
+                        <BalanceHistoryChartLazy
+                          title={title}
+                          mode="daily"
+                          dailyBalances={dailyBalances as DailyBalanceEntry[]}
+                          username_or_address={username_or_address}
+                        />
                       )}
                       {hasIntraday && (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="border-b border-teal-700/40">
-                                <th className="text-left py-2 px-2 text-teal-200/80">Time</th>
-                                <th className="text-left py-2 px-2 text-teal-200/80">Balances</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {(intradayBalances as IntradayBalanceEntry[]).slice(0, 20).map((row, idx) => (
-                                <tr key={idx} className="border-b border-teal-800/30">
-                                  <td className="py-2 px-2 text-white/90">{formatTimestamp(new Date(row.timestamp))}</td>
-                                  <td className="py-2 px-2 text-teal-100">
-                                    {formatBalancesCell(row.balances)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                          {(intradayBalances as IntradayBalanceEntry[]).length > 20 && (
-                            <p className="text-xs text-teal-300/70 mt-2">Showing first 20 snapshots</p>
-                          )}
-                        </div>
+                        <BalanceHistoryChartLazy
+                          title={title}
+                          mode="intraday"
+                          intradayBalances={intradayBalances as IntradayBalanceEntry[]}
+                          username_or_address={username_or_address}
+                        />
                       )}
                     </div>
                   </div>
