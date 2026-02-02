@@ -297,13 +297,15 @@ export interface BalanceEntry {
 /** Daily balance snapshot from GET /subgraph/user/{id}/balances/daily */
 export interface DailyBalanceEntry {
   date: string
-  balances: Record<string, string>
+  /** Backend may send array [{ token, balance }] or object { token: balance } */
+  balances: BalanceEntry[] | Record<string, string>
 }
 
 /** Intraday balance snapshot from GET /subgraph/user/{id}/balances/intraday */
 export interface IntradayBalanceEntry {
   timestamp: string
-  balances: Record<string, string>
+  /** Backend may send array [{ token, balance }] or object { token: balance } */
+  balances: BalanceEntry[] | Record<string, string>
 }
 
 export interface BalanceResult {

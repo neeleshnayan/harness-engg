@@ -60,6 +60,27 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
     return source.replace(/_/g, ' ')
   }
 
+  /** Format balances for display: backend may send array [{ token, balance }] or object { token: balance } */
+  const formatBalancesCell = (balances: unknown): string => {
+    if (balances == null) return '—'
+    if (Array.isArray(balances)) {
+      return balances
+        .map((e: { token?: string; balance?: unknown }) => {
+          const t = e?.token ?? ''
+          const b = e?.balance != null ? String(e.balance) : ''
+          return t ? `${t}: ${b}` : ''
+        })
+        .filter(Boolean)
+        .join(', ') || '—'
+    }
+    if (typeof balances === 'object' && !Array.isArray(balances)) {
+      return Object.entries(balances as Record<string, unknown>)
+        .map(([t, b]) => `${t}: ${b != null ? String(b) : ''}`)
+        .join(', ') || '—'
+    }
+    return '—'
+  }
+
   const renderEconomic = (message: ChatMessage) => {
     if (!message.economicResult) return null
     const economicResult = message.economicResult
@@ -1156,9 +1177,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                                 <tr key={idx} className="border-b border-teal-800/30">
                                   <td className="py-2 px-2 text-white/90">{row.date}</td>
                                   <td className="py-2 px-2 text-teal-100">
-                                    {typeof row.balances === 'object' && row.balances !== null
-                                      ? Object.entries(row.balances).map(([t, b]) => `${t}: ${b}`).join(', ')
-                                      : '—'}
+                                    {formatBalancesCell(row.balances)}
                                   </td>
                                 </tr>
                               ))}
@@ -1183,9 +1202,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                                 <tr key={idx} className="border-b border-teal-800/30">
                                   <td className="py-2 px-2 text-white/90">{formatTimestamp(new Date(row.timestamp))}</td>
                                   <td className="py-2 px-2 text-teal-100">
-                                    {typeof row.balances === 'object' && row.balances !== null
-                                      ? Object.entries(row.balances).map(([t, b]) => `${t}: ${b}`).join(', ')
-                                      : '—'}
+                                    {formatBalancesCell(row.balances)}
                                   </td>
                                 </tr>
                               ))}
