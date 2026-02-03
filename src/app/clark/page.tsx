@@ -666,9 +666,9 @@ export default function BacktestPage() {
     <div className="min-h-screen w-full bg-[#001C1B] overflow-x-hidden">
       {/* Navbar */}
       <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-[#001C1B]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-2 min-h-[4rem]">
-            <div className="flex justify-start flex-1">
+            <div className="flex justify-start">
               <button
                 onClick={() => setIsDevtoolsOpen(true)}
                 className="flex items-center text-white px-4 py-2 rounded-xl transition-colors font-medium"
@@ -688,7 +688,7 @@ export default function BacktestPage() {
                 className="h-12 sm:h-16 md:h-20 w-auto drop-shadow-[0_2px_8px_rgba(16,255,180,0.18)]"
               />
             </div>
-            <div className="flex justify-end flex-1">
+            <div className="flex justify-end">
               <button
                 onClick={() => setShowMenu(!showMenu)}
                 className="flex items-center text-white px-4 py-2 rounded-xl transition-colors font-medium"

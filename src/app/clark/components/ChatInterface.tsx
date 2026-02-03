@@ -19,7 +19,7 @@ export default function ChatInputBar({
 }: ChatInputBarProps) {
   return (
     <div className="fixed bottom-6 left-0 right-0 z-40">
-      <div className="mx-auto max-w-5xl px-4">
+      <div className="mx-auto max-w-6xl px-4">
         {/* Outer glass container */}
         <div className="
           rounded-3xl 
