@@ -238,12 +238,24 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
   }, [open, tokenSymbol, tokens]);
 
   const chartData = useMemo(() => {
-    return historicalData.map((point) => ({
+    const data = historicalData.map((point) => ({
       date: point.date,
       dateLabel: formatDateShort(point.date),
       price: parseFloat(point.price.toFixed(6)),
     }));
-  }, [historicalData]);
+
+    // Add current price point if available from context
+    const tokenInfo = tokens[tokenSymbol];
+    if (tokenInfo?.current_rate) {
+      data.push({
+        date: new Date().toISOString(),
+        dateLabel: 'Now',
+        price: parseFloat(tokenInfo.current_rate.toFixed(6)),
+      });
+    }
+
+    return data;
+  }, [historicalData, tokenSymbol, tokens]);
 
   const yAxisDomain = useMemo(() => {
     if (chartData.length === 0) return undefined;
@@ -264,18 +276,36 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
   }, [chartData]);
 
   const currentPrice = useMemo(() => {
+    // Prefer live current rate from context
+    if (tokenSymbol && tokens[tokenSymbol]?.current_rate) {
+      return tokens[tokenSymbol].current_rate;
+    }
+    // Fallback to latest historical point
     if (historicalData.length === 0) return null;
     return historicalData[historicalData.length - 1].price;
-  }, [historicalData]);
+  }, [historicalData, tokenSymbol, tokens]);
 
   const priceChange = useMemo(() => {
+    // Prefer daily change from API context
+    if (tokenSymbol && tokens[tokenSymbol]) {
+      const tokenInfo = tokens[tokenSymbol];
+      // API returns percentage_change
+      if (typeof tokenInfo.percentage_change === 'number') {
+        return {
+          change: 0, // We might not have exact absolute change value easily available or it represents daily change
+          percentChange: tokenInfo.percentage_change
+        };
+      }
+    }
+
+    // Fallback to calculated change over the historical period (e.g. 30 days)
     if (historicalData.length < 2) return null;
     const first = historicalData[0].price;
     const last = historicalData[historicalData.length - 1].price;
     const change = last - first;
     const percentChange = ((change / first) * 100);
     return { change, percentChange };
-  }, [historicalData]);
+  }, [historicalData, tokenSymbol, tokens]);
 
   const displaySymbol = tokenSymbol.replace(/^k/, '');
 
@@ -317,7 +347,7 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
                   <p className="text-xl font-semibold text-white">
                     ${currentPrice.toFixed(6)}
                   </p>
-                  {priceChange && (
+                  {priceChange && Math.abs(priceChange.percentChange) >= 0.01 && (
                     <p className={`text-sm font-medium ${
                       priceChange.percentChange >= 0 ? 'text-emerald-400' : 'text-red-400'
                     }`}>
@@ -454,11 +484,12 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
                                 // Get the actual date from the payload data (dateLabel is the formatted short version)
                                 const payloadData = payload[0]?.payload;
                                 const actualDate = payloadData?.date || label;
+                                const isNow = payloadData?.dateLabel === 'Now';
 
                                 return (
                                   <div className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-800/50 rounded-xl p-4 shadow-2xl min-w-[12rem]">
                                     <div className="text-xs text-zinc-400 mb-2 font-light">
-                                      {formatDate(actualDate)}
+                                      {isNow ? 'Current Price (Now)' : formatDate(actualDate)}
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>

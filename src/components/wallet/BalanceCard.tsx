@@ -511,7 +511,7 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
                 )}
               </div>
               {/* Price change indicator */}
-              {isKycApproved && !balanceLoading && !balanceRefreshing && !localRefreshing && !ratesLoading && priceChangeInfo && priceChangeInfo.direction !== 'same' && (
+              {isKycApproved && !balanceLoading && !balanceRefreshing && !localRefreshing && !ratesLoading && priceChangeInfo && priceChangeInfo.direction !== 'same' && Math.abs(priceChangeInfo.percentageChange) >= 0.01 && (
                 <div className={`flex flex-col items-center gap-0.5 ${
                   priceChangeInfo.direction === 'up'
                     ? 'text-green-400'
