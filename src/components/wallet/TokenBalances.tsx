@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { FaCoins, FaEthereum } from "react-icons/fa";
-import { ChevronDown, ChevronUp } from "lucide-react";
 import api, { kryptonWeb3Api } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -19,7 +18,7 @@ interface TokenBalance {
 interface TokenWithValue extends TokenBalance {
   price: number;
   value: number;
-  category: string; // "k_tokens" | "custom_tokens" | "quant_strategies" | "other"
+  category: string; // "k_tokens" | "quant_strategies" | "other"
 }
 
 interface TokenBalancesProps {
@@ -33,10 +32,12 @@ interface TokenBalancesProps {
 }
 
 interface SupportedTokensResponse {
-  k_tokens: string[];
-  custom_tokens: string[];
+  k_tokens: Record<string, { address: string } | any> | string[];
+  custom_tokens: Record<string, { address: string } | any> | string[];
   quant_strategies: string[];
 }
+
+type TabKey = "k_tokens" | "quant_strategies" | "other";
 
 const TokenBalances: React.FC<TokenBalancesProps> = ({
   balance,
@@ -51,7 +52,7 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
   const [tokenDetails, setTokenDetails] = useState<TokenWithValue[]>([]);
   const [priceLoading, setPriceLoading] = useState(false);
   const [totalValue, setTotalValue] = useState<number>(0);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabKey>("k_tokens");
 
   const [supportedTokens, setSupportedTokens] = useState<SupportedTokensResponse | null>(null);
   const [supportedTokensLoading, setSupportedTokensLoading] = useState(true);
@@ -158,10 +159,27 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
     let totalValue = 0;
     const tokensWithValues: TokenWithValue[] = [];
 
-    // Create sets for fast lookup (lowercase)
-    const kTokensSet = new Set(supportedData.k_tokens.map(a => a.toLowerCase()));
-    const customTokensSet = new Set(supportedData.custom_tokens.map(a => a.toLowerCase()));
-    const strategySet = new Set(supportedData.quant_strategies.map(a => a.toLowerCase()));
+    // Helper to extract addresses from either array of strings or object values
+    const getAddresses = (data: any): string[] => {
+      if (Array.isArray(data)) {
+        return data.filter(item => typeof item === 'string');
+      }
+      if (typeof data === 'object' && data !== null) {
+        return Object.values(data)
+          .map((item: any) => item?.address)
+          .filter((addr): addr is string => typeof addr === 'string');
+      }
+      return [];
+    };
+
+    // Extract addresses using helper
+    const kTokensArr = getAddresses(supportedData.k_tokens);
+    const customTokensArr = getAddresses(supportedData.custom_tokens);
+    const strategyArr = getAddresses(supportedData.quant_strategies);
+
+    const kTokensSet = new Set(kTokensArr.map(a => a.toLowerCase()));
+    const customTokensSet = new Set(customTokensArr.map(a => a.toLowerCase()));
+    const strategySet = new Set(strategyArr.map(a => a.toLowerCase()));
 
     try {
       for (const tokenBalance of tokenBalances) {
@@ -251,10 +269,14 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
 
   useEffect(() => {
     const tokenBalances = getTokenBalances();
-    if (tokenBalances.length > 0 && supportedTokens) {
+    if (tokenBalances.length > 0 && supportedTokens && !supportedTokensLoading) {
       calculateTokenValues(tokenBalances, supportedTokens);
+    } else if (!supportedTokensLoading && supportedTokens) {
+      // If no balances but we have supported tokens data, clear details
+      setTokenDetails([]);
+      setTotalValue(0);
     }
-  }, [balance, supportedTokens]);
+  }, [balance, supportedTokens, supportedTokensLoading]);
 
   const tokenBalances = getTokenBalances();
 
@@ -283,8 +305,8 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
     );
   }
 
-  if (tokenDetails.length === 0) {
-  // If we have balances but they were all filtered out, show no tokens found (or specific message)
+  // Only show "No Supported Tokens" if tokens have been loaded and there are none
+  if (tokenDetails.length === 0 && !priceLoading) {
     return (
       <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 ${className}`}>
         <div className="text-center">
@@ -298,21 +320,26 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
     );
   }
 
-  const getSectionTitle = (key: string) => {
+  const getTabLabel = (key: TabKey): string => {
     switch (key) {
       case 'k_tokens': return 'Krypton Tokens';
-      case 'custom_tokens': return 'Custom Tokens';
-      case 'quant_strategies': return 'Quant Strategies';
-      default: return 'Other Tokens';
+      case 'quant_strategies': return 'Tokenized Strategies';
+      case 'other': return 'Other';
     }
   };
 
-  const groupedTokens = {
-    k_tokens: tokenDetails.filter(t => t.category === 'k_tokens'),
-    custom_tokens: tokenDetails.filter(t => t.category === 'custom_tokens'),
+  const groupedTokens: Record<TabKey, TokenWithValue[]> = {
+    k_tokens: tokenDetails.filter(t => t.category === 'k_tokens' || t.category === 'custom_tokens'),
     quant_strategies: tokenDetails.filter(t => t.category === 'quant_strategies'),
     other: tokenDetails.filter(t => t.category === 'other'),
   };
+
+  const tabs: TabKey[] = ['k_tokens', 'quant_strategies', 'other'];
+  const availableTabs = tabs.filter(tab => groupedTokens[tab].length > 0);
+
+  // Ensure activeTab is valid; if not, pick first available
+  const currentTab = availableTabs.includes(activeTab) ? activeTab : (availableTabs[0] || 'k_tokens');
+  const currentTokens = groupedTokens[currentTab] || [];
 
   return (
     <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 ${className}`}>
@@ -329,73 +356,65 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
           )}
         </div>
         <p className="text-zinc-400 text-sm mb-4">Total Estimated Value</p>
-
-        {/* Expandable/Collapsible Toggle */}
-        {tokenDetails.length > 0 && (
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center justify-center space-x-2 text-zinc-400 hover:text-zinc-300 transition-colors text-sm w-full"
-          >
-            <span>{isExpanded ? 'Hide Token Details' : 'View Token Details'}</span>
-            {isExpanded ? (
-              <ChevronUp className="w-4 h-4" />
-            ) : (
-              <ChevronDown className="w-4 h-4" />
-            )}
-          </button>
-        )}
       </div>
 
-      {/* Token List - Only show when expanded */}
-      {isExpanded && tokenDetails.length > 0 && (
-        <div className="space-y-6 mb-6">
-          {(Object.keys(groupedTokens) as Array<keyof typeof groupedTokens>).map(sectionKey => {
-            const tokens = groupedTokens[sectionKey];
-            if (tokens.length === 0) return null;
+      {/* Horizontal Tabs */}
+      {availableTabs.length > 0 && (
+        <div className="flex justify-center space-x-2 mb-6">
+          {availableTabs.map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                currentTab === tab
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300'
+              }`}
+            >
+              {getTabLabel(tab)}
+            </button>
+          ))}
+        </div>
+      )}
 
-            return (
-              <div key={sectionKey}>
-                <h4 className="text-zinc-500 font-medium text-sm mb-3 uppercase tracking-wider pl-1">{getSectionTitle(sectionKey)}</h4>
-                <div className="space-y-4">
-                  {tokens.map((tokenDetail: TokenWithValue, index: number) => (
-                    <div
-                      key={`${tokenDetail.token.id}-${index}`}
-                      className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl p-6 hover:bg-zinc-700/50 transition-all duration-200"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex-shrink-0">
-                            {getTokenIcon(tokenDetail.token.symbol)}
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="text-lg font-bold text-white">
-                              {tokenDetail.token.name || tokenDetail.token.symbol}
-                            </h4>
-                            <p className="text-zinc-400 text-sm">
-                              {tokenDetail.token.symbol} • {tokenDetail.token.blockchain}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <>
-                            <div className="text-xl font-bold text-white">
-                              {formatTokenAmount(tokenDetail.amount, tokenDetail.token.decimals, tokenDetail.token.symbol)}
-                            </div>
-                            <div className="text-zinc-400 text-sm">
-                              @ ${tokenDetail.price.toFixed(4)}
-                            </div>
-                            <div className="text-green-400 text-sm font-semibold">
-                              {formatValue(tokenDetail.value)}
-                            </div>
-                          </>
-                        </div>
-                      </div>
+      {/* Token List for Active Tab */}
+      {currentTokens.length > 0 && (
+        <div className="space-y-4 mb-6">
+          {currentTokens.map((tokenDetail: TokenWithValue, index: number) => (
+            <div
+              key={`${tokenDetail.token.id}-${index}`}
+              className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl p-6 hover:bg-zinc-700/50 transition-all duration-200"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="flex-shrink-0">
+                    {getTokenIcon(tokenDetail.token.symbol)}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-bold text-white">
+                      {tokenDetail.token.name || tokenDetail.token.symbol}
+                    </h4>
+                    <p className="text-zinc-400 text-sm">
+                      {tokenDetail.token.symbol} • {tokenDetail.token.blockchain}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <>
+                    <div className="text-xl font-bold text-white">
+                      {formatTokenAmount(tokenDetail.amount, tokenDetail.token.decimals, tokenDetail.token.symbol)}
                     </div>
-                  ))}
+                    <div className="text-zinc-400 text-sm">
+                      @ ${tokenDetail.price.toFixed(4)}
+                    </div>
+                    <div className="text-green-400 text-sm font-semibold">
+                      {formatValue(tokenDetail.value)}
+                    </div>
+                  </>
                 </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       )}
 
