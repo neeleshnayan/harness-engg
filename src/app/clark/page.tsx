@@ -796,18 +796,34 @@ export default function BacktestPage() {
           </div>
         </div>
         
-        {/* Prompts modal opened by left icon */}
-        <Dialog open={isPromptModalOpen} onOpenChange={setIsPromptModalOpen}>
-          <DialogContent className="sm:max-w-2xl bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 backdrop-blur-xl border border-white/15 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.6)]">
-            <div className="max-h-[70vh] overflow-y-auto px-2">
+      {/* Prompts modal opened by left icon */}
+      <Dialog open={isPromptModalOpen} onOpenChange={setIsPromptModalOpen}>
+        <DialogContent
+          className="
+            w-full max-w-md sm:max-w-2xl
+            bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80
+            backdrop-blur-xl
+            rounded-2xl
+            shadow-[0_20px_60px_rgba(0,0,0,0.6)]
+            border-none
+          "
+        >
+          <div className="max-h-[70vh] overflow-y-auto px-2">
               {(!selectedCategory) && (
                 <div className="w-full flex flex-col items-center">
                   <div className="w-full max-w-md space-y-3">
                     {categories.map((category) => (
                       <button
                         key={category.id}
-                        onClick={() => setSelectedCategory(category.id)}
-                        className="w-full text-left p-4 rounded-xl bg-white/10 hover:bg-white/15 backdrop-blur-sm border border-white/15 hover:border-white/20 transition-all duration-200"
+                        onClick={() => {
+                          setSelectedCategory(category.id)
+                          setIsPromptModalOpen(false)
+                        }}
+                        className="w-full text-left p-4 rounded-xl backdrop-blur-sm transition-all duration-200"
+                        style={{
+                          background:
+                            'linear-gradient(180deg, rgba(255, 255, 255, 0.36) 0%, rgba(161, 207, 211, 0.06) 100%)',
+                        }}
                       >
                         <div className="flex items-center gap-3">
                           {category.icon.startsWith('/') ? (
@@ -822,30 +838,6 @@ export default function BacktestPage() {
                         </div>
                       </button>
                     ))}
-                  </div>
-                </div>
-              )}
-              {selectedCategory && (
-                <div className="w-full flex flex-col items-center space-y-4">
-                  <div className="w-full max-w-md">
-                    <button
-                      onClick={() => setSelectedCategory(null)}
-                      className="mb-3 text-xs text-white/70 hover:text-white transition-colors"
-                    >
-                      ← Back
-                    </button>
-                    <div className="space-y-3">
-                      {categories.find(c => c.id === selectedCategory)?.prompts.map((prompt, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => handlePromptClick(prompt)}
-                          disabled={isLoading}
-                          className="w-full text-left p-4 rounded-xl bg-white/10 hover:bg-white/15 active:bg-white/20 backdrop-blur-sm border border-white/15 hover:border-white/20 transition-all duration-200 text-white disabled:opacity-50"
-                        >
-                          {prompt}
-                        </button>
-                      ))}
-                    </div>
                   </div>
                 </div>
               )}

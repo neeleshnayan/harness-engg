@@ -1,14 +1,13 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <defs>
-    <style>
-      .cls-1 {
-        fill: none;
-        stroke: #fff;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-      }
-    </style>
-  </defs>
-  <path class="cls-1" d="M29.1,2.9L2.9,13.69l10.79,4.62M29.1,2.9l-10.79,26.2-4.62-10.79M29.1,2.9l-15.41,15.41"/>
+<svg width="36" height="38" viewBox="0 0 36 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect x="0.333334" y="0.333334" width="35.3334" height="37.3334" rx="4.66667" fill="white" fill-opacity="0.2" style="mix-blend-mode:luminosity"/>
+<rect x="0.333334" y="0.333334" width="35.3334" height="37.3334" rx="4.66667" stroke="url(#paint0_linear_271_1477)" stroke-width="0.666668"/>
+<path d="M25.792 18.4583L18.5003 11.1666M18.5003 11.1666L11.2087 18.4583M18.5003 11.1666L18.5003 26.7916" stroke="white" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="round"/>
+<defs>
+<linearGradient id="paint0_linear_271_1477" x1="2.52198" y1="-8.67051e-06" x2="23.5395" y2="39.3683" gradientUnits="userSpaceOnUse">
+<stop stop-color="white" stop-opacity="0.4"/>
+<stop offset="0.405687" stop-color="white" stop-opacity="0.01"/>
+<stop offset="0.574372" stop-color="white" stop-opacity="0.01"/>
+<stop offset="1" stop-color="white" stop-opacity="0.1"/>
+</linearGradient>
+</defs>
 </svg>

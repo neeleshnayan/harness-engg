@@ -40,22 +40,30 @@ export default function CategoryTiles({
                   {colTiles.map((category) => (
                     <Card
                       key={category.id}
-                      className="cursor-pointer hover:bg-white/15 active:bg-white/20 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg border-white/15 bg-white/10 backdrop-blur-xl min-h-[80px] w-[calc(50vw-1.5rem)] touch-manipulation rounded-xl"
+                      className="cursor-pointer bg-transparent border-none shadow-none p-0 w-[calc(50vw-1.5rem)] touch-manipulation"
                       onClick={() => onCategorySelect(category.id)}
                     >
-                      <CardHeader className="pb-3 pt-3 px-3 h-full flex flex-col justify-center">
-                        <CardTitle className="text-xs text-white flex items-center gap-2 mb-1">
-                          {category.icon.startsWith('/') ? (
-                            <img src={category.icon} alt={category.title} className="h-4 w-4 flex-shrink-0" />
-                          ) : (
-                            <span className="text-base flex-shrink-0">{category.icon}</span>
-                          )}
-                          <span className="truncate">{category.title}</span>
-                        </CardTitle>
-                        <CardDescription className="text-xs text-white/60 leading-tight line-clamp-2">
-                          {category.description}
-                        </CardDescription>
-                      </CardHeader>
+                      <div
+                        className="rounded-xl backdrop-blur-xl min-h-[80px] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg"
+                        style={{
+                          background:
+                            'linear-gradient(180deg, rgba(255, 255, 255, 0.36) 0%, rgba(161, 207, 211, 0.06) 100%)',
+                        }}
+                      >
+                        <CardHeader className="pb-3 pt-3 px-3 h-full flex flex-col justify-center">
+                          <CardTitle className="text-xs text-white flex items-center gap-2 mb-1">
+                            {category.icon.startsWith('/') ? (
+                              <img src={category.icon} alt={category.title} className="h-4 w-4 flex-shrink-0" />
+                            ) : (
+                              <span className="text-base flex-shrink-0">{category.icon}</span>
+                            )}
+                            <span className="truncate">{category.title}</span>
+                          </CardTitle>
+                          <CardDescription className="text-xs text-white/60 leading-tight line-clamp-2">
+                            {category.description}
+                          </CardDescription>
+                        </CardHeader>
+                      </div>
                     </Card>
                   ))}
                 </div>
@@ -84,32 +92,44 @@ export default function CategoryTiles({
         {categories.map((category) => (
           <Card
             key={category.id}
-            className="cursor-pointer hover:bg-white/15 active:bg-white/20 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg border-white/15 bg-white/10 backdrop-blur-xl min-h-[90px] touch-manipulation rounded-xl"
+            className="cursor-pointer bg-transparent border-none shadow-none p-0 touch-manipulation"
             onClick={() => onCategorySelect(category.id)}
           >
-            <CardHeader className="pb-3 pt-3 px-3 h-full flex flex-col justify-center">
-              <CardTitle className="text-sm text-white flex items-center gap-2 mb-1">
-                {category.icon.startsWith('/') ? (
-                  <img src={category.icon} alt={category.title} className="h-5 w-5 flex-shrink-0" />
-                ) : (
-                  <span className="text-lg flex-shrink-0">{category.icon}</span>
-                )}
-                <span className="truncate">{category.title}</span>
-              </CardTitle>
-              <CardDescription className="text-xs text-white/60 leading-tight line-clamp-2">
-                {category.description}
-              </CardDescription>
-            </CardHeader>
+            <div
+              className="rounded-xl backdrop-blur-xl min-h-[90px] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg"
+              style={{
+                background:
+                  'linear-gradient(180deg, rgba(255, 255, 255, 0.36) 0%, rgba(161, 207, 211, 0.06) 100%)',
+              }}
+            >
+              <CardHeader className="pb-3 pt-3 px-3 h-full flex flex-col justify-center">
+                <CardTitle className="text-sm text-white flex items-center gap-2 mb-1">
+                  {category.icon.startsWith('/') ? (
+                    <img src={category.icon} alt={category.title} className="h-5 w-5 flex-shrink-0" />
+                  ) : (
+                    <span className="text-lg flex-shrink-0">{category.icon}</span>
+                  )}
+                  <span className="truncate">{category.title}</span>
+                </CardTitle>
+                <CardDescription className="text-xs text-white/60 leading-tight line-clamp-2">
+                  {category.description}
+                </CardDescription>
+              </CardHeader>
+            </div>
           </Card>
         ))}
       </div>
 
       {/* Prompts Modal */}
       {selectedCategory && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-             onClick={() => onCategorySelect('')}>
-          <Card className="w-full h-[85vh] sm:h-auto sm:max-h-[80vh] sm:max-w-2xl bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 shadow-[0_20px_60px_rgba(0,0,0,0.6)] backdrop-blur-xl rounded-t-2xl sm:rounded-2xl"
-                onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 bg-transparent backdrop-blur-sm z-50 flex items-end sm:items-center justify-center px-4 pb-6 sm:p-4"
+          onClick={() => onCategorySelect('')}
+        >
+          <Card
+            className="w-full max-w-md sm:max-w-2xl h-[80vh] sm:h-auto sm:max-h-[80vh] bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 shadow-[0_20px_60px_rgba(0,0,0,0.6)] backdrop-blur-xl rounded-2xl border-0"
+            onClick={(e) => e.stopPropagation()}
+          >
             <CardHeader className="border-b border-white/15 p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
@@ -135,7 +155,7 @@ export default function CategoryTiles({
                   onClick={() => onCategorySelect('')}
                   className="text-white/70 hover:text-white h-8 w-8 p-0 ml-2 flex-shrink-0 touch-manipulation"
                 >
-                  ✕
+                  <img src="/cross.svg" alt="cross" className="h-6 w-6" />
                 </Button>
               </div>
             </CardHeader>
@@ -146,7 +166,11 @@ export default function CategoryTiles({
                     key={index}
                     onClick={() => onPromptClick(prompt, selectedCategory as string)}
                     disabled={isLoading}
-                    className="w-full text-left p-4 rounded-xl bg-white/10 hover:bg-white/15 active:bg-white/20 border border-white/15 hover:border-white/20 transition-all duration-200 text-white disabled:opacity-50 disabled:cursor-not-allowed group touch-manipulation min-h-[60px] flex items-center"
+                    className="w-full text-left p-4 rounded-xl transition-all duration-200 text-white disabled:opacity-50 disabled:cursor-not-allowed group touch-manipulation min-h-[60px] flex items-center"
+                    style={{
+                      background:
+                        'linear-gradient(180deg, rgba(255, 255, 255, 0.36) 0%, rgba(161, 207, 211, 0.06) 100%)',
+                    }}
                   >
                     <div className="flex items-start gap-3 w-full">
                       <span className="text-white/80 font-bold text-sm mt-1 flex-shrink-0">•</span>
