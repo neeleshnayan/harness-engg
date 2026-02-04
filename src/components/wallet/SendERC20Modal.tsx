@@ -5,8 +5,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { ArrowRight } from "lucide-react";
 import api, { kryptonWeb3Api } from "@/lib/api";
-import { K_TOKEN_SYMBOLS, K_TOKEN_ADDRESSES_LOWERCASE } from "@/lib/kTokens";
-import { getPoolRate } from "@/lib/priceCache";
+import { useRates } from "@/providers/RatesProvider";
+import { getPoolRate } from "@/lib/ratesApi";
 
 interface SendERC20ModalProps {
   visible: boolean;
@@ -32,7 +32,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
   const [selectedCurrency, setSelectedCurrency] = useState<string>("");
   const [fromAmount, setFromAmount] = useState<string>("");
   const [toAmount, setToAmount] = useState<string>("");
-  const [tokens, setTokens] = useState<SupportedToken[]>([]);
+  const [supportedTokensList, setSupportedTokensList] = useState<SupportedToken[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [loadingMessage, setLoadingMessage] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +51,21 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
   const isUpdatingToRef = useRef<boolean>(false);
   const focusedFieldRef = useRef<"from" | "to" | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Get token data from context 🚀
+  const { tokens: ratesTokens, getTokenAddressToSymbol } = useRates();
+  const tokenAddressMap = useMemo(() => getTokenAddressToSymbol(), [getTokenAddressToSymbol]);
+
+  // Build K_TOKEN_SYMBOLS equivalent from context
+  const K_TOKEN_SYMBOLS = useMemo(() => {
+    const result: Record<string, string> = {};
+    for (const [symbol, token] of Object.entries(ratesTokens)) {
+      if (symbol.startsWith('k') && token.address) {
+        result[symbol] = token.address;
+      }
+    }
+    return result;
+  }, [ratesTokens]);
 
   // Cleanup countdown on unmount
   useEffect(() => {
@@ -147,7 +162,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
           return tokenBalance > 0;
         });
 
-        setTokens(allTokens); // All tokens for "to" dropdown
+        setSupportedTokensList(allTokens); // All tokens for "to" dropdown
         setAvailableTokens(availableList); // Only available tokens for "from" dropdown
 
         // Default selections based on available balances
@@ -198,7 +213,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
 
     for (const tb of balance.tokenBalances) {
       const tokenAddress = tb?.token?.tokenAddress?.toLowerCase();
-      const kSymbol = tokenAddress ? K_TOKEN_ADDRESSES_LOWERCASE[tokenAddress] : undefined;
+      const kSymbol = tokenAddress ? tokenAddressMap[tokenAddress] : undefined;
       const tokenSymbol = tb?.token?.symbol;
 
       const rawAmount = parseFloat(tb?.amount ?? "0");
@@ -909,7 +924,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                         className="appearance-none bg-zinc-700 hover:bg-zinc-600 border-2 border-zinc-600 rounded-xl px-4 py-2 text-white font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 pr-8 shadow-lg"
                         disabled={loading}
                       >
-                        {tokens.map((t) => (
+                        {supportedTokensList.map((t: SupportedToken) => (
                           <option key={t.symbol} value={t.symbol.replace(/^k/, "")}>
                             {t.symbol.replace(/^k/, "")}
                           </option>

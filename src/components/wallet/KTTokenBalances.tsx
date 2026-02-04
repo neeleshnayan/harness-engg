@@ -1,10 +1,11 @@
+'use client';
+
 import React, { useMemo, useRef, useEffect, useState } from "react";
 import { FaCoins } from "react-icons/fa";
-import { K_TOKEN_ADDRESSES_LOWERCASE } from "@/lib/kTokens";
-import { getPoolRate, getClosingPoolRate } from "@/lib/priceCache";
+import { useRates, CURRENCY_SYMBOLS } from "@/providers/RatesProvider";
 import TokenPriceHistoryModal from "./TokenPriceHistoryModal";
 
-interface KTTokenBalance {
+interface TokenBalance {
   symbol: string;
   balance: string;
 }
@@ -14,9 +15,19 @@ interface KTTokenBalancesProps {
   className?: string;
 }
 
+/**
+ * Displays token balances with color-coded price indicators 🎨
+ *
+ * Uses RatesContext for all rate data - no direct API calls here!
+ */
 const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = "" }) => {
-  // Extract k-token balances from the balance data
-  const kTokenBalances = useMemo(() => {
+  const { tokens, getTokenAddressToSymbol, getTokenDirection, isLoading } = useRates();
+
+  // Get address -> symbol map
+  const tokenAddressMap = useMemo(() => getTokenAddressToSymbol(), [getTokenAddressToSymbol]);
+
+  // Extract token balances from the balance data
+  const tokenBalances = useMemo(() => {
     if (!balance || !balance.tokenBalances || !Array.isArray(balance.tokenBalances)) {
       return [];
     }
@@ -26,25 +37,23 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
 
     for (const tb of balance.tokenBalances) {
       const rawAmount = parseFloat(tb?.amount ?? "0");
-      if (isNaN(rawAmount) || rawAmount <= 0) {
-        continue;
-      }
+      if (isNaN(rawAmount) || rawAmount <= 0) continue;
 
       const tokenAddress = tb?.token?.tokenAddress?.toLowerCase();
-      const kTokenSymbol = tokenAddress ? K_TOKEN_ADDRESSES_LOWERCASE[tokenAddress] : undefined;
-      const tokenSymbol = tb?.token?.symbol;
+      const tokenSymbol = tokenAddress ? tokenAddressMap[tokenAddress] : undefined;
+      const symbolFromBalance = tb?.token?.symbol;
 
-      if (kTokenSymbol) {
-        aggregatedBalances[kTokenSymbol] = (aggregatedBalances[kTokenSymbol] || 0) + rawAmount;
+      if (tokenSymbol) {
+        aggregatedBalances[tokenSymbol] = (aggregatedBalances[tokenSymbol] || 0) + rawAmount;
         continue;
       }
 
-      if (tokenSymbol === "USDC") {
+      if (symbolFromBalance === "USDC") {
         usdcTotal += rawAmount;
       }
     }
 
-    const balances: KTTokenBalance[] = Object.entries(aggregatedBalances).map(([symbol, amount]) => ({
+    const balances: TokenBalance[] = Object.entries(aggregatedBalances).map(([symbol, amount]) => ({
       symbol,
       balance: amount.toString(),
     }));
@@ -54,85 +63,40 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
     }
 
     return balances;
-  }, [balance]);
+  }, [balance, tokenAddressMap]);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const [itemsPerRow, setItemsPerRow] = useState<number>(Math.ceil(kTokenBalances.length / 2));
-  // Track price comparisons: "up" if current > closing (green), "down" if current < closing (red), undefined if same or no data
-  const [priceComparisons, setPriceComparisons] = useState<Record<string, "up" | "down" | undefined>>({});
+  const [itemsPerRow, setItemsPerRow] = useState<number>(Math.ceil(tokenBalances.length / 2));
   const [selectedTokenForModal, setSelectedTokenForModal] = useState<string | null>(null);
-
-  // Fetch and compare closing vs current pool prices for each token
-  useEffect(() => {
-    const fetchPriceComparisons = async () => {
-      const comparisons: Record<string, "up" | "down" | undefined> = {};
-
-      for (const token of kTokenBalances) {
-        // Skip USDC and kUSD as they're always 1:1 with USD
-        if (token.symbol === "USDC" || token.symbol === "kUSD") {
-          continue;
-        }
-
-        try {
-          // Get rates for kUSD/token pair
-          const [currentRate, closingRate] = await Promise.all([
-            getPoolRate("kUSD", token.symbol == "kUSD" ? "USDC" : token.symbol),
-            getClosingPoolRate("kUSD", token.symbol == "kUSD" ? "USDC" : token.symbol),
-          ]);
-
-          // Compare prices: green if current > closing, red if current < closing, undefined if same
-          if (currentRate > 0 && closingRate > 0) {
-            if (currentRate > closingRate) {
-              comparisons[token.symbol] = "up"; // Green - price went up
-            } else if (currentRate < closingRate) {
-              comparisons[token.symbol] = "down"; // Red - price went down
-            }
-            // If prices are equal, leave undefined (will show normal/uncolored)
-          }
-        } catch (error) {
-          console.error(`Failed to fetch prices for ${token.symbol}:`, error);
-        }
-      }
-
-      setPriceComparisons(comparisons);
-    };
-
-    if (kTokenBalances.length > 0) {
-      fetchPriceComparisons();
-    }
-  }, [kTokenBalances]);
 
   // Measure and calculate how many items fit per row
   useEffect(() => {
-    if (!containerRef.current || kTokenBalances.length === 0) return;
+    if (!containerRef.current || tokenBalances.length === 0) return;
 
     const measureItems = () => {
       const container = containerRef.current;
       if (!container) return;
 
       const containerWidth = container.offsetWidth;
-      // Approximate item width (adjust based on your actual item width + gap)
-      const estimatedItemWidth = 130; // rough estimate including gap
+      const estimatedItemWidth = 130;
       const itemsPerRow = Math.max(1, Math.floor(containerWidth / estimatedItemWidth));
-
       setItemsPerRow(itemsPerRow);
     };
 
     measureItems();
     window.addEventListener('resize', measureItems);
     return () => window.removeEventListener('resize', measureItems);
-  }, [kTokenBalances.length]);
+  }, [tokenBalances.length]);
 
-  if (kTokenBalances.length === 0) {
-    return null; // Don't show anything if user has no k-tokens
+  if (tokenBalances.length === 0) {
+    return null;
   }
 
   // Split based on calculated items per row
-  const firstRow = kTokenBalances.slice(0, itemsPerRow);
-  const secondRow = kTokenBalances.slice(itemsPerRow, itemsPerRow * 2);
-  const remainingItems = kTokenBalances.slice(itemsPerRow * 2);
+  const firstRow = tokenBalances.slice(0, itemsPerRow);
+  const secondRow = tokenBalances.slice(itemsPerRow, itemsPerRow * 2);
+  const remainingItems = tokenBalances.slice(itemsPerRow * 2);
 
-  // Distribute remaining items between first and second row
   const finalFirstRow = [...firstRow];
   const finalSecondRow = [...secondRow];
 
@@ -145,7 +109,6 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
   });
 
   const handleTokenClick = (tokenSymbol: string) => {
-    // Only allow clicking on tokens that aren't USDC or kUSD
     if (tokenSymbol !== "USDC" && tokenSymbol !== "kUSD") {
       setSelectedTokenForModal(tokenSymbol);
     }
@@ -153,6 +116,49 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
 
   const isClickable = (tokenSymbol: string) => {
     return tokenSymbol !== "USDC" && tokenSymbol !== "kUSD";
+  };
+
+  const formatDisplaySymbol = (symbol: string) => {
+    if (symbol.startsWith('k')) {
+      return symbol.replace(/^k/, '');
+    }
+    return symbol;
+  };
+
+  // Get background color based on price direction 🎨
+  const getBgColor = (symbol: string) => {
+    if (symbol === "USDC" || symbol === "kUSD") {
+      return "bg-zinc-800/60 border-zinc-700/50";
+    }
+
+    const direction = getTokenDirection(symbol);
+    switch (direction) {
+      case "up":
+        return "bg-green-950/40 border-green-800/50";
+      case "down":
+        return "bg-red-950/40 border-red-800/50";
+      default:
+        return "bg-zinc-800/60 border-zinc-700/50";
+    }
+  };
+
+  const renderToken = (token: TokenBalance, idx: number, rowSuffix: string = "") => {
+    const bgColor = getBgColor(token.symbol);
+    const clickable = isClickable(token.symbol);
+
+    return (
+      <div
+        key={`${token.symbol}-${rowSuffix}${idx}`}
+        onClick={() => handleTokenClick(token.symbol)}
+        className={`${bgColor} border rounded-lg px-3 py-2 flex items-center flex-shrink-0 ${
+          clickable ? "cursor-pointer hover:opacity-80 transition-opacity" : ""
+        }`}
+      >
+        <span className="text-white font-medium text-sm whitespace-nowrap">
+          {parseFloat(token.balance).toFixed(2)} {formatDisplaySymbol(token.symbol)}
+        </span>
+      </div>
+    );
   };
 
   return (
@@ -178,59 +184,11 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
         >
           <div className="inline-block">
             <div className="flex gap-2 mb-2">
-              {finalFirstRow.map((token, idx) => {
-                const priceComparison = priceComparisons[token.symbol];
-                const bgColor = token.symbol !== "USDC" && token.symbol !== "kUSD" && priceComparison
-                  ? priceComparison === "up"
-                    ? "bg-green-950/40 border-green-800/50"
-                    : "bg-red-950/40 border-red-800/50"
-                  : "bg-zinc-800/60 border-zinc-700/50";
-                const clickable = isClickable(token.symbol);
-
-                return (
-                  <div
-                    key={`${token.symbol}-${idx}`}
-                    onClick={() => handleTokenClick(token.symbol)}
-                    className={`${bgColor} border rounded-lg px-3 py-2 flex items-center flex-shrink-0 ${
-                      clickable
-                        ? "cursor-pointer hover:opacity-80 transition-opacity"
-                        : ""
-                    }`}
-                  >
-                    <span className="text-white font-medium text-sm whitespace-nowrap">
-                      {parseFloat(token.balance).toFixed(2)} {token.symbol.replace(/^k/, '')}
-                    </span>
-                  </div>
-                );
-              })}
+              {finalFirstRow.map((token, idx) => renderToken(token, idx, "row1-"))}
             </div>
             {finalSecondRow.length > 0 && (
               <div className="flex gap-2">
-                {finalSecondRow.map((token, idx) => {
-                  const priceComparison = priceComparisons[token.symbol];
-                  const bgColor = token.symbol !== "USDC" && token.symbol !== "kUSD" && priceComparison
-                    ? priceComparison === "up"
-                      ? "bg-green-950/40 border-green-800/50"
-                      : "bg-red-950/40 border-red-800/50"
-                    : "bg-zinc-800/60 border-zinc-700/50";
-                  const clickable = isClickable(token.symbol);
-
-                  return (
-                    <div
-                      key={`${token.symbol}-row2-${idx}`}
-                      onClick={() => handleTokenClick(token.symbol)}
-                      className={`${bgColor} border rounded-lg px-3 py-2 flex items-center flex-shrink-0 ${
-                        clickable
-                          ? "cursor-pointer hover:opacity-80 transition-opacity"
-                          : ""
-                      }`}
-                    >
-                      <span className="text-white font-medium text-sm whitespace-nowrap">
-                        {parseFloat(token.balance).toFixed(2)} {token.symbol.replace(/^k/, '')}
-                      </span>
-                    </div>
-                  );
-                })}
+                {finalSecondRow.map((token, idx) => renderToken(token, idx, "row2-"))}
               </div>
             )}
           </div>
@@ -249,4 +207,3 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
 };
 
 export default KTTokenBalances;
-

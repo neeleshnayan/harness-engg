@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Instrument_Sans } from "next/font/google";
 import { QueryProvider } from "@/providers/QueryProvider";
+import { RatesProvider } from "@/providers/RatesProvider";
 
 const instrumentSans = Instrument_Sans({
   variable: "--font-instrument-sans",
@@ -26,7 +27,9 @@ export default function RootLayout({
       </head>
       <body className={`${instrumentSans.variable} ${instrumentSans.className}`}>
         <QueryProvider>
-          {children}
+          <RatesProvider>
+            {children}
+          </RatesProvider>
         </QueryProvider>
       </body>
     </html>

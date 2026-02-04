@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { kryptonWeb3Api } from "@/lib/api";
-import { K_TOKEN_ADDRESSES_LOWERCASE, K_TOKEN_SYMBOL_LIST } from "@/lib/kTokens";
-import { getPoolRate } from "@/lib/priceCache";
+import { useRates } from "@/providers/RatesProvider";
+import { getPoolRate } from "@/lib/ratesApi";
 import { ArrowUpDown } from "lucide-react";
 
 interface SwapModalProps {
@@ -33,6 +33,11 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
   const isUpdatingToRef = useRef<boolean>(false);
   const focusedFieldRef = useRef<"from" | "to" | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Get token data from context 🚀
+  const { tokens, getTokenAddressToSymbol } = useRates();
+  const tokenAddressMap = useMemo(() => getTokenAddressToSymbol(), [getTokenAddressToSymbol]);
+  const kTokenSymbolList = useMemo(() => Object.keys(tokens).filter(s => s.startsWith('k')), [tokens]);
 
   // Cleanup countdown on unmount
   useEffect(() => {
@@ -80,7 +85,7 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
 
       const tokenAddress = tb?.token?.tokenAddress?.toLowerCase();
       const tokenSymbol = tb?.token?.symbol;
-      const kSymbol = tokenAddress ? K_TOKEN_ADDRESSES_LOWERCASE[tokenAddress] : undefined;
+      const kSymbol = tokenAddress ? tokenAddressMap[tokenAddress] : undefined;
 
       if (kSymbol) {
         result[kSymbol] = (result[kSymbol] || 0) + rawAmount;
@@ -90,13 +95,13 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
     }
 
     return result;
-  }, [balance]);
+  }, [balance, tokenAddressMap]);
 
   const supportedTokens = useMemo(() => {
-    const tokens = new Set<string>(["kUSD"]);
-    K_TOKEN_SYMBOL_LIST.forEach((token) => tokens.add(token));
-    return Array.from(tokens);
-  }, []);
+    const tokenSet = new Set<string>(["kUSD"]);
+    kTokenSymbolList.forEach((token) => tokenSet.add(token));
+    return Array.from(tokenSet);
+  }, [kTokenSymbolList]);
 
   useEffect(() => {
     if (!visible) {

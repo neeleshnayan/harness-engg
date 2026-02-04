@@ -5,8 +5,7 @@ import ActiveTransactions from "@/components/wallet/ActiveTransactions";
 import KTTokenBalances from "@/components/wallet/KTTokenBalances";
 import { FaShieldAlt } from "react-icons/fa";
 import { FiRefreshCw } from "react-icons/fi";
-import { getAllPoolRates, haveRatesAppreciated, PriceChangeDirection, PriceChangeInfo } from "@/lib/priceCache";
-import { K_TOKEN_ADDRESSES_LOWERCASE, K_TOKEN_SYMBOL_LIST, CURRENCY_SYMBOLS } from "@/lib/kTokens";
+import { useRates, CURRENCY_SYMBOLS, PriceDirection } from "@/providers/RatesProvider";
 import { Triangle } from "lucide-react";
 
 // Dynamically import modals to reduce initial bundle size
@@ -85,9 +84,6 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
   const [localRefreshing, setLocalRefreshing] = useState(false);
   const [isFlickering, setIsFlickering] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState('USD');
-  const [poolRates, setPoolRates] = useState<{ [key: string]: number }>({});
-  const [poolRatesLoading, setPoolRatesLoading] = useState(true);
-  const [priceChangeInfo, setPriceChangeInfo] = useState<PriceChangeInfo | null>(null);
   const [activeSlide, setActiveSlide] = useState(1); // Start at balance (middle slide)
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [touchEndX, setTouchEndX] = useState<number | null>(null);
@@ -99,7 +95,15 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
   const [activeTransactionsRefreshKey, setActiveTransactionsRefreshKey] = useState(0);
   const transactionHistoryRef = useRef<TransactionHistoryRef | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-  const poolRatesInitialFetch = useRef(true);
+
+  // 🚀 THE MAGIC - All rates from context!
+  const {
+    tokens,
+    isLoading: ratesLoading,
+    calculateBalanceInUSD,
+    getOverallPriceChange,
+    getTokenAddressToSymbol
+  } = useRates();
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
@@ -285,95 +289,16 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
     }
   }, [balanceFlickering]);
 
-  // Fetch pool rates and convert to map
-  useEffect(() => {
-    const fetchRates = async () => {
-      try {
-        if (poolRatesInitialFetch.current) {
-          setPoolRatesLoading(true);
-        }
-        const rates = await getAllPoolRates();
-        // Convert array to map for easier lookup: { "USD/EUR": 1.16251899, ... }
-        const ratesMap: { [key: string]: number } = {};
-        rates.forEach((rate) => {
-          ratesMap[rate.pair] = rate.rate;
-        });
-        setPoolRates(ratesMap);
-      } catch (error) {
-        console.error('Failed to fetch pool rates:', error);
-      } finally {
-        if (poolRatesInitialFetch.current) {
-          setPoolRatesLoading(false);
-          poolRatesInitialFetch.current = false;
-        }
-      }
-    };
-    fetchRates();
-    const interval = setInterval(fetchRates, 3600000); // Refresh every hour
-    return () => clearInterval(interval);
-  }, []);
+  // Get price change info from context - SO CLEAN! ✨
+  const priceChangeInfo = balance ? getOverallPriceChange(balance.tokenBalances || []) : null;
 
-  // Check if rates have appreciated when balance or pool rates change
-  useEffect(() => {
-    const checkRatesAppreciation = async () => {
-      if (!balance || poolRatesLoading || !poolRates || Object.keys(poolRates).length === 0) {
-        return;
-      }
-
-      try {
-        const info = await haveRatesAppreciated(balance);
-        setPriceChangeInfo(info);
-      } catch (error) {
-        console.error('Failed to check rates appreciation:', error);
-        setPriceChangeInfo(null);
-      }
-    };
-
-    checkRatesAppreciation();
-  }, [balance, poolRates, poolRatesLoading]);
-
-  // Calculate total balance in selected currency
+  // Calculate total balance - now uses context! 🎯
   const calculateTotalBalance = (): number => {
     if (!balance || !Array.isArray(balance.tokenBalances) || balance.tokenBalances.length === 0) {
       return 0;
     }
 
-    let totalInUSD = 0;
-
-    // Get USDC balance
-    const usdc = balance.tokenBalances.find(
-      (b: any) => b.token && b.token.symbol === 'USDC'
-    );
-    const usdcAmount = parseFloat(usdc?.amount ?? "0");
-    totalInUSD += usdcAmount;
-
-    // Get kToken balances and convert to USD
-    for (const tb of balance.tokenBalances) {
-      const tokenAddress = tb?.token?.tokenAddress?.toLowerCase();
-      const kTokenSymbol = tokenAddress ? K_TOKEN_ADDRESSES_LOWERCASE[tokenAddress] : undefined;
-
-      if (kTokenSymbol && parseFloat(tb.amount) > 0) {
-        const kTokenAmount = parseFloat(tb.amount || "0");
-        let usdValue = 0;
-
-        if (kTokenSymbol === 'kUSD') {
-          // kUSD is 1:1 with USD
-          usdValue = kTokenAmount;
-        } else {
-          // Get the rate pair for this kToken
-          const ratePair = `kUSD/${kTokenSymbol}`;
-          const rate = poolRates[ratePair];
-
-          if (rate && rate > 0) {
-            // Rate is already in format: USD/EUR = 1.16251899 means 1 EUR = 1.16251899 USD
-            // So to convert kToken to USD: multiply by rate
-            usdValue = kTokenAmount * rate;
-          }
-        }
-
-        totalInUSD += usdValue;
-      }
-    }
+    const totalInUSD = calculateBalanceInUSD(balance.tokenBalances);
 
     // Convert from USD to selected currency if needed
     if (selectedCurrency === 'USD') {
@@ -381,8 +306,9 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
     }
 
     // Get conversion rate from USD to selected currency
-    const ratePair = `kUSD/k${selectedCurrency}`;
-    const rate = poolRates[ratePair];
+    const kTokenSymbol = `k${selectedCurrency}`;
+    const tokenInfo = tokens[kTokenSymbol];
+    const rate = tokenInfo?.current_rate;
 
     if (rate && rate > 0) {
       // Rate is USD/Currency, so to convert USD to Currency: divide by rate
@@ -393,11 +319,11 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
     return totalInUSD;
   };
 
-
-  // Get available currencies for dropdown (USD + kToken currencies, excluding kUSD since it's USD)
+  // Get available currencies for dropdown - from context tokens! 🎉
+  const kTokenSymbols = Object.keys(tokens).filter(s => s.startsWith('k'));
   const availableCurrencies = [
     'USD',
-    ...K_TOKEN_SYMBOL_LIST.filter(s => s !== 'kUSD').map(s => s.replace(/^k/, ''))
+    ...kTokenSymbols.filter(s => s !== 'kUSD').map(s => s.replace(/^k/, ''))
   ];
   const currencySymbol = CURRENCY_SYMBOLS[selectedCurrency] || '$';
 
@@ -563,7 +489,7 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
               <div className={`text-6xl font-bold text-white relative transition-all duration-200 ${
                 isFlickering || balanceRefreshing || localRefreshing ? 'balance-flicker' : ''
               }`}>
-                {balanceLoading || poolRatesLoading ? (
+                {balanceLoading || ratesLoading ? (
                   <div className="flex items-center justify-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mr-3"></div>
                     <span className="text-2xl">Loading...</span>
@@ -583,13 +509,13 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
                 )}
               </div>
               {/* Price change indicator */}
-              {isKycApproved && !balanceLoading && !balanceRefreshing && !localRefreshing && !poolRatesLoading && priceChangeInfo && priceChangeInfo.direction !== PriceChangeDirection.SAME && (
+              {isKycApproved && !balanceLoading && !balanceRefreshing && !localRefreshing && !ratesLoading && priceChangeInfo && priceChangeInfo.direction !== 'same' && (
                 <div className={`flex flex-col items-center gap-0.5 ${
-                  priceChangeInfo.direction === PriceChangeDirection.UP
+                  priceChangeInfo.direction === 'up'
                     ? 'text-green-400'
                     : 'text-red-400'
                 }`}>
-                  {priceChangeInfo.direction === PriceChangeDirection.UP ? (
+                  {priceChangeInfo.direction === 'up' ? (
                     <Triangle className="h-3 w-3 fill-emerald-400" />
                   ) : (
                     <Triangle className="h-3 w-3 rotate-180 fill-red-400" />

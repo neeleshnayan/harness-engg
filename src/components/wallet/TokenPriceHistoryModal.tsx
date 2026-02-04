@@ -12,8 +12,15 @@ import {
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine } from "recharts";
-import { getHistoricalClosingPoolRates, HistoricalPricePoint } from "@/lib/priceCache";
+import { subgraphApi } from "@/lib/subgraphApi";
+import { useRates } from "@/providers/RatesProvider";
 import { X, Triangle } from "lucide-react";
+
+interface HistoricalPricePoint {
+  date: string;
+  timestamp: number;
+  price: number;
+}
 
 interface TokenPriceHistoryModalProps {
   open: boolean;
@@ -184,26 +191,51 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const hasScrolledToEndRef = useRef(false);
 
+  // Get token info from context
+  const { tokens } = useRates();
+
   useEffect(() => {
-    if (open && tokenSymbol) {
+    const fetchHistoricalData = async () => {
+      if (!open || !tokenSymbol) {
+        setHistoricalData([]);
+        hasScrolledToEndRef.current = false;
+        return;
+      }
+
+      const tokenInfo = tokens[tokenSymbol];
+      if (!tokenInfo?.pool_address) {
+        setError("Pool not found for this token");
+        return;
+      }
+
       setLoading(true);
       setError(null);
-      hasScrolledToEndRef.current = false; // Reset flag when opening modal
-      getHistoricalClosingPoolRates(tokenSymbol, 1000)
-        .then((data) => {
-          setHistoricalData(data.slice(data.length - 30));
-          setLoading(false);
-        })
-        .catch((err) => {
-          console.error("Failed to fetch historical data:", err);
-          setError("Failed to load price history");
-          setLoading(false);
-        });
-    } else {
-      setHistoricalData([]);
-      hasScrolledToEndRef.current = false; // Reset flag when closing modal
-    }
-  }, [open, tokenSymbol]);
+      hasScrolledToEndRef.current = false;
+
+      try {
+        const response = await subgraphApi.getClosingPoolRates(tokenInfo.pool_address, 30);
+
+        // Convert to HistoricalPricePoint format
+        const data: HistoricalPricePoint[] = response.rates
+          .filter((r) => r.poolRate && r.poolRate > 0)
+          .map((r) => ({
+            date: r.blockTimestamp,
+            timestamp: new Date(r.blockTimestamp + 'T00:00:00Z').getTime(),
+            price: r.poolRate!,
+          }))
+          .sort((a, b) => a.timestamp - b.timestamp); // Sort oldest first
+
+        setHistoricalData(data);
+      } catch (err: unknown) {
+        console.error("Failed to fetch historical data:", err);
+        setError("Failed to load price history");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHistoricalData();
+  }, [open, tokenSymbol, tokens]);
 
   const chartData = useMemo(() => {
     return historicalData.map((point) => ({
