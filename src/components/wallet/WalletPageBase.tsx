@@ -238,89 +238,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
       return;
     }
-
-    // Handle legacy circle_webhook format (from KryptonPay_Backend) for backward compatibility
-    if (message.type === 'circle_webhook') {
-      const eventId = message.event_id;
-
-      // Deduplicate: Skip if we've already processed this webhook event
-      if (eventId && processedWebhookEventsRef.current.has(eventId)) {
-        return;
-      }
-
-      // Mark this event as processed
-      if (eventId) {
-        processedWebhookEventsRef.current.add(eventId);
-        // Clean up old event IDs after 5 minutes to prevent memory leak
-        setTimeout(() => {
-          processedWebhookEventsRef.current.delete(eventId);
-        }, 5 * 60 * 1000);
-      }
-
-      // Show notification to user
-      let notificationText = '';
-      if (message.event_type === 'INBOUND') {
-        notificationText = 'New transaction received! Refreshing balance...';
-      } else if (message.event_type === 'OUTBOUND') {
-        notificationText = 'Transaction sent! Refreshing balance...';
-      } else if (message.event_type === 'wallet.created') {
-        notificationText = 'Wallet created! Refreshing balance...';
-      } else if (message.event_type === 'wallet.updated') {
-        notificationText = 'Wallet updated! Refreshing balance...';
-      }
-
-      if (notificationText && config.showWebhookNotification) {
-        setWebhookNotification(notificationText);
-        setTimeout(() => setWebhookNotification(null), 5000);
-      }
-
-      // Only refresh balance when WebSocket message is received and address matches
-      const currentAccountData = accountDataRef.current;
-      const webhookAddress = message.address?.toLowerCase()?.trim();
-      const walletAddress = currentAccountData?.wallet_address?.toLowerCase()?.trim();
-
-      // For wallet.created and wallet.updated, refresh balance if we have a wallet address
-      // (even if webhook doesn't have address, these events are about the user's own wallet)
-      const shouldRefreshBalance =
-        (walletAddress && webhookAddress && webhookAddress === walletAddress) || // Address matches
-        (walletAddress && (message.event_type === 'wallet.created' || message.event_type === 'wallet.updated')); // Wallet events
-
-      if (shouldRefreshBalance) {
-        // Use configurable delay to allow Circle API time to update balance after webhook
-        const debounceDelay = WEBHOOK_BALANCE_REFRESH_DELAY_MS;
-
-        // Clear any existing debounce timer
-        if (balanceDebounceTimerRef.current) {
-          clearTimeout(balanceDebounceTimerRef.current);
-          balanceDebounceTimerRef.current = null;
-        }
-
-        // Set refreshing state to show UI feedback
-        setBalanceRefreshing(true);
-
-        // Use debounced fetch to prevent excessive calls
-        debouncedFetchBalance(currentAccountData.wallet_address, { background: true }, debounceDelay);
-
-        // Safety timeout: Clear refreshing state after 20 seconds if it's still stuck
-        setTimeout(() => {
-          setBalanceRefreshing(prev => {
-            if (prev) {
-              console.warn('Balance refreshing state was stuck - forcing clear after 20s timeout');
-              return false;
-            }
-            return prev;
-          });
-        }, 20000);
-
-        // Trigger BalanceCard refresh by toggling the refresh flag
-        setBalanceCardRefresh(prev => !prev);
-      }
-
-      // Also refresh transaction history if it's open
-      if (showTransactionsRef.current) {
-        setTransactionHistoryRefresh(prev => !prev);
-      }
-    }
   }, [config.showWebhookNotification, debouncedFetchBalance]);
 
   // WebSocket open handler - stabilized
@@ -489,9 +406,16 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         setBalanceLoading(true);
       }
 
-      // Use the new subgraph API endpoint
+      // Use the new subgraph API endpoint with cache-busting timestamp
       const kryptonWeb3ApiUrl = process.env.NEXT_PUBLIC_KRYPTON_WEB3_API_URL || 'http://localhost:8001';
-      const response = await fetch(`${kryptonWeb3ApiUrl}/subgraph/user/${address}/balances`);
+      const cacheBuster = Date.now();
+      const response = await fetch(`${kryptonWeb3ApiUrl}/subgraph/user/${address}/balances?_t=${cacheBuster}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      });
 
       if (!response.ok) {
         throw new Error(`Failed to fetch balance: ${response.statusText}`);

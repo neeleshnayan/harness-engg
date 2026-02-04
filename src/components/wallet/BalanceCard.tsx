@@ -213,11 +213,9 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
 
   /**
    * Called when all active transactions complete.
-   * Switches to balance tab (slide 1) and notifies parent to refresh balance.
+   * Notifies parent to refresh balance with green box effect.
    */
   const handleAllTransactionsComplete = useCallback(() => {
-    // Switch to balance tab (middle slide)
-    setActiveSlide(1);
     // Notify parent to refresh balance with blinking effect
     if (onTransactionsComplete) {
       onTransactionsComplete();
@@ -330,7 +328,11 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
   return (
     <>
       <div
-        className={`bg-white/10 backdrop-blur-xl rounded-3xl p-0 shadow-2xl border border-white/15 mb-8 transition-all duration-300 overflow-hidden ${localRefreshing ? 'ring-2 ring-green-500/30 ring-opacity-50' : ''} ${className || ''}`}
+        className={`bg-white/10 backdrop-blur-xl rounded-3xl p-0 shadow-2xl border mb-8 transition-all duration-300 overflow-hidden ${
+          (balanceRefreshing || localRefreshing)
+            ? 'ring-2 ring-green-500 ring-opacity-70 border-green-500/50 shadow-green-500/20'
+            : 'border-white/15'
+        } ${className || ''}`}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
