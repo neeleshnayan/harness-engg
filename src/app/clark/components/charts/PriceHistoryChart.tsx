@@ -39,13 +39,28 @@ const formatDateShort = (dateStr: string) => {
   }
 }
 
+/** Extract numeric value for chart - supports price, close, portfolio_value (from different data sources) */
+function getChartValue(point: Record<string, unknown>): number | null {
+  const val = point.price ?? point.close ?? point.portfolio_value
+  if (val == null || typeof val !== 'number') return null
+  if (Number.isNaN(val)) return null
+  return val
+}
+
 export default function PriceHistoryChart({ token, dataPoints, lookbackDays }: PriceHistoryChartProps) {
   const chartData = useMemo(() => {
-    return dataPoints.map(point => ({
-      date: point.date,
-      dateLabel: formatDateShort(point.date),
-      price: parseFloat(point.price.toFixed(6)),
-    }))
+    return (dataPoints || [])
+      .map(point => {
+        const p = point as Record<string, unknown>
+        const value = getChartValue(p)
+        if (value === null) return null
+        return {
+          date: p.date ?? '',
+          dateLabel: formatDateShort(String(p.date ?? '')),
+          price: parseFloat(Number(value).toFixed(6)),
+        }
+      })
+      .filter((d): d is NonNullable<typeof d> => d != null)
   }, [dataPoints])
 
   const { domainMin, domainMax } = useMemo(() => {

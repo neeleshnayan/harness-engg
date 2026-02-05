@@ -272,34 +272,19 @@ export default function BacktestPage() {
       }
     }
 
-    // Extract price history result - check multiple possible locations
-    // The agent returns: data: { price_history: {...}, token: "...", data_points: [...] }
-    // Or: data: { price_history: { token, lookback_days, count, data: [...] } }
+    // Extract price history result - ONLY from krypton_pay price_history.
+    // Do NOT use rawData.data_points here - those may be from backtest (portfolio_value) or
+    // data_fetcher (different structure). PriceHistoryChart expects { date, price } points.
     const priceHistoryData = rawData?.price_history ?? rawData?.priceHistory
-    // Try multiple paths to find data_points
-    let dataPoints = rawData?.data_points
-    if (!dataPoints && priceHistoryData) {
-      dataPoints = priceHistoryData?.data_points ?? priceHistoryData?.data
-    }
-    // Also check if priceHistoryData itself is an array (unlikely but possible)
+    let dataPoints = priceHistoryData?.data_points ?? priceHistoryData?.data
     if (!dataPoints && Array.isArray(priceHistoryData)) {
       dataPoints = priceHistoryData
     }
+    // Validate: only use if points have price (not portfolio_value from backtest)
+    const hasValidPricePoints = Array.isArray(dataPoints) && dataPoints.length > 0 &&
+      dataPoints.some((p: { price?: number }) => typeof p?.price === 'number')
     
-    // Debug logging
-    if (payload?.parsed_intent?.operation === 'price_history' || priceHistoryData || dataPoints) {
-      console.log('Price history extraction:', {
-        hasPriceHistoryData: !!priceHistoryData,
-        hasDataPoints: !!dataPoints,
-        dataPointsType: Array.isArray(dataPoints) ? 'array' : typeof dataPoints,
-        dataPointsLength: Array.isArray(dataPoints) ? dataPoints.length : 'N/A',
-        rawDataKeys: rawData ? Object.keys(rawData) : [],
-        priceHistoryDataKeys: priceHistoryData && typeof priceHistoryData === 'object' ? Object.keys(priceHistoryData) : [],
-        parsedIntent: payload?.parsed_intent,
-      })
-    }
-    
-    const priceHistoryResult = (priceHistoryData || dataPoints) && Array.isArray(dataPoints) && dataPoints.length > 0
+    const priceHistoryResult = priceHistoryData && hasValidPricePoints && Array.isArray(dataPoints)
       ? {
           token: rawData?.token || priceHistoryData?.token || payload?.parsed_intent?.token_name || '',
           lookback_days: priceHistoryData?.lookback_days || payload?.parsed_intent?.lookback_days || 30,
