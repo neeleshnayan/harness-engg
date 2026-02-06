@@ -51,7 +51,7 @@ export default function PriceHistoryChart({ token, dataPoints, lookbackDays }: P
   const chartData = useMemo(() => {
     return (dataPoints || [])
       .map(point => {
-        const p = point as Record<string, unknown>
+        const p = point as unknown as Record<string, unknown>
         const value = getChartValue(p)
         if (value === null) return null
         return {
