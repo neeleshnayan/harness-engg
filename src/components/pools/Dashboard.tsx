@@ -14,6 +14,7 @@ export default function Dashboard() {
   const [pools, setPools] = useState<PoolInfo[]>([]);
   const [selectedPool, setSelectedPool] = useState<PoolInfo | null>(null);
   const [loading, setLoading] = useState(false);
+  const [balancesLoading, setBalancesLoading] = useState(true); // Track balances loading separately
   const [error, setError] = useState<string>('');
   const [defaultSignerAddress, setDefaultSignerAddress] = useState<string | null>(null);
 
@@ -72,6 +73,7 @@ export default function Dashboard() {
   };
 
   const fetchDefaultSignerAndBalances = async () => {
+    setBalancesLoading(true);
     try {
       // First, get the default signer address
       const signerData = await nettingPoolsApi.getDefaultSigner();
@@ -88,6 +90,8 @@ export default function Dashboard() {
       }
     } catch (err: any) {
       console.error('Error fetching default signer balances:', err);
+    } finally {
+      setBalancesLoading(false);
     }
   };
 
@@ -96,6 +100,7 @@ export default function Dashboard() {
       await fetchDefaultSignerAndBalances();
       return;
     }
+    setBalancesLoading(true);
     try {
       const balanceData = await nettingPoolsApi.getBalances(defaultSignerAddress);
       const balanceMap: Record<string, string> = {};
@@ -105,6 +110,8 @@ export default function Dashboard() {
       setBalances(balanceMap);
     } catch (err: any) {
       console.error('Error fetching balances:', err);
+    } finally {
+      setBalancesLoading(false);
     }
   };
 
@@ -212,10 +219,19 @@ export default function Dashboard() {
                   </p>
                 </div>
 
-                {loading ? (
-                  <div className="text-gray-400 text-center py-12">Loading balances...</div>
-                ) : tokenSymbols.length === 0 ? (
-                  <div className="text-gray-400 text-center py-12">Loading token configuration...</div>
+                {tokenSymbols.length === 0 ? (
+                  /* Skeleton grid while loading token config */
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div
+                        key={i}
+                        className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6 animate-pulse"
+                      >
+                        <div className="h-4 bg-white/[0.08] rounded w-12 mb-4" />
+                        <div className="h-8 bg-white/[0.08] rounded w-20" />
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
                     {tokenSymbols.map((symbol) => (
@@ -224,9 +240,13 @@ export default function Dashboard() {
                         className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6 hover:bg-white/[0.04] transition-all duration-300"
                       >
                         <div className="text-gray-400 text-xs mb-2">{symbol}</div>
-                        <div className="text-2xl font-light text-white">
-                          {parseFloat(balances[symbol] || '0').toFixed(2)}
-                        </div>
+                        {balancesLoading ? (
+                          <div className="h-8 bg-white/[0.08] rounded w-20 animate-pulse" />
+                        ) : (
+                          <div className="text-2xl font-light text-white">
+                            {parseFloat(balances[symbol] || '0').toFixed(2)}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -234,10 +254,10 @@ export default function Dashboard() {
 
                 <button
                   onClick={fetchBalances}
-                  disabled={loading}
+                  disabled={balancesLoading}
                   className="mt-6 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-xl transition-all"
                 >
-                  {loading ? 'Refreshing...' : 'Refresh Balances'}
+                  {balancesLoading ? 'Refreshing...' : 'Refresh Balances'}
                 </button>
 
                 {/* Oracle Price Feeds Section */}

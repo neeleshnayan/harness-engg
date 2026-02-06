@@ -16,6 +16,36 @@ export interface PoolInfo {
   } | null;
 }
 
+export interface PoolParameters {
+  pool_type: string;
+  range_lower: number | null;
+  range_upper: number | null;
+  swap_fee: number;
+  total_supply: string | null;
+}
+
+export interface ReserveBalance {
+  symbol: string;
+  balance: string;
+  decimals: number;
+}
+
+export interface RebalanceStatus {
+  threshold_lower: number;
+  threshold_upper: number;
+  token0_percent: number;
+  token1_percent: number;
+  is_balanced: boolean;
+  strategy: string;
+}
+
+export interface OracleInfo {
+  rate: string;
+  live_rate: string | null;
+  timestamp: number | null;
+  deviation_percent: number | null;
+}
+
 export interface PoolState {
   pool_address: string;
   token0_symbol: string;
@@ -23,9 +53,16 @@ export interface PoolState {
   token0_address: string;
   token1_address: string;
   reserves: string[];
+  total_value: string | null;
   spot_price: string;
   oracle_rate: string | null;
+  oracle_info: OracleInfo | null;
   is_initialized: boolean;
+  pool_parameters: PoolParameters | null;
+  reserve_balances: ReserveBalance[] | null;
+  reserve_wallet: string | null;
+  rebalance_status: RebalanceStatus | null;
+  rate_synced: boolean;
 }
 
 export interface TokenBalance {
@@ -100,15 +137,7 @@ export const nettingPoolsApi = {
   },
 
   // Quote swap
-  async quoteSwap(params: {
-    pool_address: string;
-    token_in_address: string;
-    token_out_address: string;
-    amount_in: number;
-  }): Promise<SwapQuote> {
-    const response = await kryptonWeb3Api.post('/netting-pools/quote-swap', params);
-    return response.data;
-  },
+
 
   // Get price deviation
   async getDeviation(poolAddress: string): Promise<DeviationResponse> {
@@ -165,18 +194,6 @@ export const nettingPoolsApi = {
     return response.data;
   },
 
-  async executeSwap(params: {
-    pool_address: string;
-    token_in_address: string;
-    token_out_address: string;
-    amount_in: number;
-    min_amount_out: number;
-    username: string;
-  }): Promise<AdminOperationResponse> {
-    const response = await kryptonWeb3Api.post('/netting-pools/pool/swap', params);
-    return response.data;
-  },
-
   async syncRate(params: {
     token_symbol: string;
     manual_rate?: number;
@@ -186,13 +203,55 @@ export const nettingPoolsApi = {
     return response.data;
   },
 
-  async multiHopSwap(params: {
-    token_path: string[];
-    amount_in: number;
+  // STANDARD POOLS API - For k-token to k-token swaps (Balancer V3)
+  // Uses main Krypton Web3 backend pools.py endpoints
+
+  async estimateSwap(params: {
+    from_token: string;
+    to_token: string;
+    amount: number;
+    slippage_tolerance?: number;
+  }): Promise<{
+    estimated_output: number;
     min_amount_out: number;
-    username: string;
-  }): Promise<AdminOperationResponse> {
-    const response = await kryptonWeb3Api.post('/netting-pools/pool/multi-hop-swap', params);
+    price_impact?: number;
+    from_token: string;
+    to_token: string;
+  }> {
+    const response = await kryptonWeb3Api.post('/pools/estimate', params);
+    return response.data;
+  },
+
+  async executeSwap(params: {
+    from_token: string;
+    to_token: string;
+    amount: number;
+    wallet_username: string;
+    slippage_tolerance?: number;
+  }): Promise<{
+    status: string;
+    transaction_id?: string;
+    estimated_output: number;
+    message?: string;
+  }> {
+    const response = await kryptonWeb3Api.post('/pools/swap', params);
+    return response.data;
+  },
+
+
+
+  // Legacy methods kept for compatibility but should be replaced
+  async quoteSwap(params: any) {
+    return this.quoteSwapLegacy(params);
+  },
+
+  async quoteSwapLegacy(params: {
+    pool_address: string;
+    token_in_address: string;
+    token_out_address: string;
+    amount_in: number;
+  }): Promise<SwapQuote> {
+    const response = await kryptonWeb3Api.post('/netting-pools/quote-swap', params);
     return response.data;
   },
 };

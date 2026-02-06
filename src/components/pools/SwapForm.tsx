@@ -44,13 +44,13 @@ export default function SwapForm({
 
   const estimateSwap = async () => {
     try {
-      const quote = await nettingPoolsApi.quoteSwap({
-        pool_address: poolAddress,
-        token_in_address: fromTokenAddr,
-        token_out_address: toTokenAddr,
-        amount_in: parseFloat(amount),
+      const result = await nettingPoolsApi.estimateSwap({
+        from_token: fromSymbol,
+        to_token: toSymbol,
+        amount: parseFloat(amount),
+        slippage_tolerance: 0.05
       });
-      setEstimatedOutput(quote.estimated_output);
+      setEstimatedOutput(result.estimated_output.toString());
     } catch (err: any) {
       console.error('Error estimating swap:', err);
       setEstimatedOutput('');
@@ -73,14 +73,12 @@ export default function SwapForm({
     setSuccess('');
 
     try {
-      const minAmountOut = parseFloat(estimatedOutput) * 0.95; // 5% slippage
       const result = await nettingPoolsApi.executeSwap({
-        pool_address: poolAddress,
-        token_in_address: fromTokenAddr,
-        token_out_address: toTokenAddr,
-        amount_in: parseFloat(amount),
-        min_amount_out: minAmountOut,
-        username: username,
+        from_token: fromSymbol,
+        to_token: toSymbol,
+        amount: parseFloat(amount),
+        wallet_username: username,
+        slippage_tolerance: 0.05
       });
 
       setSuccess(`Swap submitted! Transaction ID: ${result.transaction_id}`);

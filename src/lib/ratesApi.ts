@@ -53,37 +53,42 @@ export async function getPoolRate(fromToken: string, toToken: string): Promise<n
   const baseToken = isKToken(fromToken) && isKToken(toToken) ? 'kUSD' : 'USDC';
 
   try {
+    // We want: how much toToken do we get for 1 fromToken?
+    // Subgraph stores kEUR/kUSD = 0.849 (meaning 1 kUSD = 0.849 kEUR, or how much kEUR per kUSD)
+    // So to get "how much kUSD per 1 kEUR" we need to ask for kUSD/kEUR which returns 1.18
+
     // Case 1: One of the tokens IS the base token - direct rate
     if (fromToken === baseToken) {
-      // fromToken is kUSD, toToken is kEUR => need kEUR/kUSD rate (how much kUSD per 1 kEUR)
-      // But we want how much kEUR per 1 kUSD = 1 / (kEUR/kUSD)
+      // fromToken is kUSD, toToken is kEUR
+      // We want: how much kEUR per 1 kUSD = ask for kEUR/kUSD (how much kEUR per kUSD)
       const tokenPair = `${toToken}/${baseToken}`;
       const result = await subgraphApi.getPoolPrice(tokenPair);
-      return result.price > 0 ? 1 / result.price : 0;
+      return result.price > 0 ? result.price : 0;
     }
 
     if (toToken === baseToken) {
-      // fromToken is kEUR, toToken is kUSD => need kEUR/kUSD rate
-      const tokenPair = `${fromToken}/${baseToken}`;
+      // fromToken is kEUR, toToken is kUSD
+      // We want: how much kUSD per 1 kEUR = ask for kUSD/kEUR
+      const tokenPair = `${baseToken}/${fromToken}`;
       const result = await subgraphApi.getPoolPrice(tokenPair);
       return result.price;
     }
 
     // Case 2: Neither token is base - calculate cross-rate
     // For kEUR -> kGBP:
-    //   kEUR/kUSD = how much kUSD per 1 kEUR
-    //   kGBP/kUSD = how much kUSD per 1 kGBP
-    //   kEUR/kGBP = kEUR/kUSD / kGBP/kUSD = how much kGBP per 1 kEUR
+    //   Ask kUSD/kEUR = 1.18 (how much kUSD per 1 kEUR)
+    //   Ask kUSD/kGBP = 1.27 (how much kUSD per 1 kGBP)
+    //   kEUR/kGBP = (kUSD/kEUR) / (kUSD/kGBP) = 1.18 / 1.27 = 0.93 kGBP per kEUR
     const [fromResult, toResult] = await Promise.all([
-      subgraphApi.getPoolPrice(`${fromToken}/${baseToken}`),
-      subgraphApi.getPoolPrice(`${toToken}/${baseToken}`),
+      subgraphApi.getPoolPrice(`${baseToken}/${fromToken}`),
+      subgraphApi.getPoolPrice(`${baseToken}/${toToken}`),
     ]);
 
-    const fromRate = fromResult.price; // e.g., kEUR/kUSD
-    const toRate = toResult.price;     // e.g., kGBP/kUSD
+    const fromRate = fromResult.price; // kUSD per 1 fromToken
+    const toRate = toResult.price;     // kUSD per 1 toToken
 
     if (fromRate > 0 && toRate > 0) {
-      // Cross-rate: kEUR -> kGBP = (kEUR/kUSD) / (kGBP/kUSD)
+      // Cross-rate: kEUR -> kGBP = (kUSD/kEUR) / (kUSD/kGBP) = how much kGBP per 1 kEUR
       return fromRate / toRate;
     }
 

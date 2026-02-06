@@ -1,13 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { nettingPoolsApi, PoolInfo, TokenBalance } from '@/lib/nettingPoolsApi';
+import { nettingPoolsApi, TokenBalance } from '@/lib/nettingPoolsApi';
 import { useNettingPoolsAuth } from '@/hooks/useNettingPoolsAuth';
-
-interface SwapRoute {
-  path: string[];
-  description: string;
-}
 
 interface MultiHopSwapProps {
   onSuccess?: () => void;
@@ -21,8 +16,13 @@ export default function MultiHopSwap({ onSuccess }: MultiHopSwapProps) {
   const [fromToken, setFromToken] = useState<string>('');
   const [toToken, setToToken] = useState<string>('');
   const [amount, setAmount] = useState('');
+
+  // Estimation state
   const [estimatedOutput, setEstimatedOutput] = useState('');
-  const [route, setRoute] = useState<SwapRoute | null>(null);
+  const [minAmountOut, setMinAmountOut] = useState('');
+  const [routePath, setRoutePath] = useState<string>('');
+  const [isCrossEcosystem, setIsCrossEcosystem] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [estimating, setEstimating] = useState(false);
   const [error, setError] = useState('');
@@ -34,17 +34,18 @@ export default function MultiHopSwap({ onSuccess }: MultiHopSwapProps) {
     const fetchTokens = async () => {
       try {
         const data = await nettingPoolsApi.getSupportedTokens();
+        // Support all tokens (k-tokens and others if they exist in config)
+        // Combine k_tokens and any other future categories
         const kTokens = data.k_tokens || {};
 
-        // Filter out placeholder addresses and build token list
+        // Filter out placeholder addresses
         const tokenList = Object.keys(kTokens).filter(
           symbol => kTokens[symbol]?.address && kTokens[symbol].address !== '0x0000000000000000000000000000000000000000'
         );
         setTokens(tokenList);
 
-        // Set default selections if not already set
+        // Set default selections
         if (tokenList.length >= 2 && !fromToken && !toToken) {
-          // Default to kEUR -> kGBP if available, otherwise first two tokens
           const defaultFrom = tokenList.includes('kEUR') ? 'kEUR' : tokenList[0];
           const defaultTo = tokenList.includes('kGBP') ? 'kGBP' : (tokenList[1] || tokenList[0]);
           setFromToken(defaultFrom);
@@ -78,102 +79,47 @@ export default function MultiHopSwap({ onSuccess }: MultiHopSwapProps) {
     fetchBalances();
   }, [walletAddress]);
 
-  // Find the route when tokens change
+  // Estimate swap output
   useEffect(() => {
-    if (fromToken === toToken) {
-      setRoute(null);
-      return;
-    }
-
-    // All tokens route through kUSD hub
-    if (fromToken === 'kUSD' || toToken === 'kUSD') {
-      // Direct swap
-      setRoute({
-        path: [fromToken, toToken],
-        description: `Direct: ${fromToken} → ${toToken}`,
-      });
-    } else {
-      // Multi-hop through kUSD
-      setRoute({
-        path: [fromToken, 'kUSD', toToken],
-        description: `Multi-hop: ${fromToken} → kUSD → ${toToken}`,
-      });
-    }
-  }, [fromToken, toToken]);
-
-  // Estimate output when amount changes
-  useEffect(() => {
-    if (!amount || parseFloat(amount) <= 0 || !route) {
+    if (!amount || parseFloat(amount) <= 0 || fromToken === toToken) {
       setEstimatedOutput('');
+      setRoutePath('');
       return;
     }
 
-    const estimateOutput = async () => {
+    const estimate = async () => {
       setEstimating(true);
+      setError('');
       try {
-        // For multi-hop, we need to estimate each leg
-        // This is a simplified estimation - actual output may vary
-        let currentAmount = parseFloat(amount);
+        // Use Standard Estimator from backend
+        const result = await nettingPoolsApi.estimateSwap({
+          from_token: fromToken,
+          to_token: toToken,
+          amount: parseFloat(amount),
+          slippage_tolerance: 0.05 // 5% default
+        });
 
-        for (let i = 0; i < route.path.length - 1; i++) {
-          const pools = await nettingPoolsApi.getPools();
-          const currentToken = route.path[i];
-          const nextToken = route.path[i + 1];
-
-          // Find pool for this leg
-          const pool = pools.find(
-            (p: PoolInfo) =>
-              (p.token0_symbol === currentToken && p.token1_symbol === nextToken) ||
-              (p.token0_symbol === nextToken && p.token1_symbol === currentToken)
-          );
-
-          if (!pool) {
-            setEstimatedOutput('No route found');
-            return;
-          }
-
-          // Get quote for this leg
-          const tokenInAddr =
-            pool.token0_symbol === currentToken ? pool.token0_address : pool.token1_address;
-          const tokenOutAddr =
-            pool.token0_symbol === nextToken ? pool.token0_address : pool.token1_address;
-
-          const quote = await nettingPoolsApi.quoteSwap({
-            pool_address: pool.pool_address,
-            token_in_address: tokenInAddr,
-            token_out_address: tokenOutAddr,
-            amount_in: currentAmount,
-          });
-
-          currentAmount = parseFloat(quote.estimated_output);
-        }
-
-        setEstimatedOutput(currentAmount.toFixed(6));
-      } catch (err) {
+        setEstimatedOutput(result.estimated_output.toFixed(6));
+        setMinAmountOut(result.min_amount_out.toFixed(6));
+        // Standard Pools API doesn't return route details
+        setRoutePath('');
+        setIsCrossEcosystem(false);
+      } catch (err: any) {
         console.error('Error estimating output:', err);
         setEstimatedOutput('Error');
+        setRoutePath('');
       } finally {
         setEstimating(false);
       }
     };
 
-    const debounce = setTimeout(estimateOutput, 500);
+    const debounce = setTimeout(estimate, 500);
     return () => clearTimeout(debounce);
-  }, [amount, route]);
+  }, [amount, fromToken, toToken]);
 
   const handleSwap = async () => {
-    if (!route || route.path.length < 2) {
-      setError('Invalid route');
-      return;
-    }
-
     if (!amount || parseFloat(amount) <= 0) {
       setError('Please enter a valid amount');
-      return;
-    }
-
-    if (!estimatedOutput || estimatedOutput === 'Error' || estimatedOutput === 'No route found') {
-      setError('Unable to estimate output');
       return;
     }
 
@@ -182,19 +128,21 @@ export default function MultiHopSwap({ onSuccess }: MultiHopSwapProps) {
     setSuccess('');
 
     try {
-      const minAmountOut = parseFloat(estimatedOutput) * 0.95; // 5% slippage
-
-      const result = await nettingPoolsApi.multiHopSwap({
-        token_path: route.path,
-        amount_in: parseFloat(amount),
-        min_amount_out: minAmountOut,
-        username: username,
+      // Execute using Standard Pools API
+      const result = await nettingPoolsApi.executeSwap({
+        from_token: fromToken,
+        to_token: toToken,
+        amount: parseFloat(amount),
+        wallet_username: username || '',
+        slippage_tolerance: 0.05
       });
 
-      setSuccess(`Swap submitted! Transaction ID: ${result.transaction_id}`);
+      setSuccess(`Swap confirmed! Transaction ID: ${result.transaction_id}`);
       setAmount('');
       setEstimatedOutput('');
+      setRoutePath('');
 
+      // Refresh balances
       setTimeout(() => {
         onSuccess?.();
       }, 2000);
@@ -212,13 +160,18 @@ export default function MultiHopSwap({ onSuccess }: MultiHopSwapProps) {
     setEstimatedOutput('');
   };
 
+  // Helper to parse route string "A -> B -> C" into array
+  const parseRoute = (routeStr: string) => {
+    return routeStr.split(' -> ');
+  };
+
   return (
     <div className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm">
           🔄
         </div>
-        <h3 className="text-xl font-light text-white">Multi-Hop Swap</h3>
+        <h3 className="text-xl font-light text-white">Universal Swap</h3>
       </div>
 
       {error && (
@@ -274,12 +227,7 @@ export default function MultiHopSwap({ onSuccess }: MultiHopSwapProps) {
           title="Switch tokens"
         >
           <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
           </svg>
         </button>
       </div>
@@ -316,15 +264,23 @@ export default function MultiHopSwap({ onSuccess }: MultiHopSwapProps) {
       </div>
 
       {/* Route Information */}
-      {route && (
+      {routePath && (
         <div className="mb-4 p-3 bg-white/[0.02] border border-white/[0.05] rounded-xl">
-          <p className="text-xs text-gray-400 mb-2">Route</p>
-          <p className="text-sm text-gray-300">{route.description}</p>
-          <div className="mt-2 flex items-center gap-2">
-            {route.path.map((token, index) => (
+          <div className="flex justify-between items-center mb-2">
+            <p className="text-xs text-gray-400">Route</p>
+            {isCrossEcosystem && (
+              <span className="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full border border-purple-500/30">
+                Cross-Ecosystem
+              </span>
+            )}
+          </div>
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
+            {parseRoute(routePath).map((token, index) => (
               <div key={index} className="flex items-center gap-2">
-                <span className="text-sm font-medium text-blue-400">{token}</span>
-                {index < route.path.length - 1 && <span className="text-gray-500">→</span>}
+                <span className={`text-sm font-medium ${index === 0 || index === parseRoute(routePath).length - 1 ? 'text-white' : 'text-blue-400'}`}>
+                  {token}
+                </span>
+                {index < parseRoute(routePath).length - 1 && <span className="text-gray-500">→</span>}
               </div>
             ))}
           </div>
@@ -332,10 +288,9 @@ export default function MultiHopSwap({ onSuccess }: MultiHopSwapProps) {
       )}
 
       {/* Slippage Info */}
-      {estimatedOutput && estimatedOutput !== 'Error' && estimatedOutput !== 'No route found' && (
+      {estimatedOutput && estimatedOutput !== 'Error' && minAmountOut && (
         <div className="text-gray-400 text-xs text-center mb-4">
-          Max slippage: 5% • Minimum received: {(parseFloat(estimatedOutput) * 0.95).toFixed(6)}{' '}
-          {toToken}
+          Max slippage: 5% • Minimum received: {minAmountOut} {toToken}
         </div>
       )}
 
@@ -344,22 +299,16 @@ export default function MultiHopSwap({ onSuccess }: MultiHopSwapProps) {
         onClick={handleSwap}
         disabled={
           loading ||
-          !route ||
           !amount ||
           parseFloat(amount) <= 0 ||
           !estimatedOutput ||
           estimatedOutput === 'Error' ||
-          estimatedOutput === 'No route found' ||
           fromToken === toToken
         }
         className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-600 text-white rounded-xl font-medium transition-all"
       >
-        {loading ? '⏳ Swapping...' : '🔄 Execute Multi-Hop Swap'}
+        {loading ? '⏳ Swapping...' : '🔄 Execute Swap'}
       </button>
-
-      <p className="text-xs text-gray-500 mt-3 text-center">
-        Note: Multi-hop swaps route through kUSD and require admin permissions
-      </p>
     </div>
   );
 }

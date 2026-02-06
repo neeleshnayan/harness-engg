@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { nettingPoolsApi, PoolState } from '@/lib/nettingPoolsApi';
+import { kryptonWeb3Api } from '@/lib/api';
 import { useNettingPoolsAuth } from '@/hooks/useNettingPoolsAuth';
-import { useTransactionStatus } from '@/hooks/useTransactionStatus';
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { isTerminalState, CircleTransactionState } from '@/lib/circleStates';
 import SwapForm from './SwapForm';
 import InitializePoolForm from './InitializePoolForm';
 import AddLiquidityForm from './AddLiquidityForm';
@@ -21,9 +23,13 @@ interface CLPoolMonitorProps {
   onRefresh?: () => void;
 }
 
-// Cache for pool states to avoid refetching when switching pools
-const poolStateCache: Map<string, { state: PoolState; timestamp: number }> = new Map();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes cache
+// Pending transaction tracking
+interface PendingTransaction {
+  id: string;
+  type: 'syncRate' | 'swap' | 'liquidity';
+  status: string;
+  timestamp: number;
+}
 
 export default function CLPoolMonitor({
   poolAddress,
@@ -34,76 +40,160 @@ export default function CLPoolMonitor({
   rateProviderAddress,
   onRefresh,
 }: CLPoolMonitorProps) {
-  const { username } = useNettingPoolsAuth();
+  const { username, walletAddress } = useNettingPoolsAuth();
   const [poolState, setPoolState] = useState<PoolState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [activeTab, setActiveTab] = useState<'history' | 'swap' | 'liquidity' | 'initialize'>('history');
-  const [lastTxId, setLastTxId] = useState<string | null>(null);
   const [chartsRefreshKey, setChartsRefreshKey] = useState(0);
-  const { status: txStatus, loading: txLoading } = useTransactionStatus(lastTxId);
-  const pollingStartedRef = useRef(false);
 
+  // Pending transactions - event-based, no polling
+  const [pendingTransactions, setPendingTransactions] = useState<Map<string, PendingTransaction>>(new Map());
+  const processedEventsRef = useRef<Set<string>>(new Set());
+
+  // Track the current pool address to prevent stale data
+  const currentPoolRef = useRef(poolAddress);
+
+  // WebSocket URL for receiving transaction events
+  const wsUrl = walletAddress
+    ? `${process.env.NEXT_PUBLIC_KRYPTON_WEB3_WS_URL || 'ws://localhost:8001'}/ws/${walletAddress}`
+    : '';
+
+  // Handle WebSocket messages for transaction status updates
+  const handleWebSocketMessage = useCallback((message: any) => {
+    // Handle transaction events
+    if (message.type === 'transaction_confirmed' || message.type === 'transaction_failed') {
+      const transactionId = message.data?.transaction_id || message.transaction_id;
+
+      if (!transactionId) return;
+
+      // Prevent duplicate processing
+      const eventKey = `${transactionId}-${message.type}`;
+      if (processedEventsRef.current.has(eventKey)) return;
+      processedEventsRef.current.add(eventKey);
+
+      // Clear after 60 seconds to prevent memory leak
+      setTimeout(() => {
+        processedEventsRef.current.delete(eventKey);
+      }, 60000);
+
+      // Update pending transaction status
+      setPendingTransactions(prev => {
+        const updated = new Map(prev);
+        const existing = updated.get(transactionId);
+        if (existing) {
+          if (message.type === 'transaction_confirmed') {
+            updated.delete(transactionId); // Remove from pending
+            setSuccess(`Transaction confirmed: ${existing.type}`);
+            // Refresh pool state after confirmation
+            setTimeout(() => fetchPoolState(true), 2000);
+          } else if (message.type === 'transaction_failed') {
+            updated.delete(transactionId);
+            setError(`Transaction failed: ${existing.type}`);
+          }
+        }
+        return updated;
+      });
+    }
+  }, []);
+
+  // Use WebSocket for transaction events
+  const { connectionStatus } = useWebSocket(wsUrl, {
+    onMessage: handleWebSocketMessage,
+    onOpen: () => console.log('Pool Monitor WebSocket connected'),
+    onClose: () => console.log('Pool Monitor WebSocket disconnected'),
+  });
+
+  // Reset state when pool changes to prevent stale data
   useEffect(() => {
-    // Check cache first before fetching
-    const cached = poolStateCache.get(poolAddress);
-    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL_MS) {
-      // Use cached data immediately
-      setPoolState(cached.state);
-      setLoading(false);
-      setError('');
-    } else {
-      // Clear previous pool state before fetching new data
+    if (currentPoolRef.current !== poolAddress) {
+      // Pool changed - clear state immediately
       setPoolState(null);
       setError('');
-      // Fetch fresh data
-      fetchPoolState();
+      setSuccess('');
+      setPendingTransactions(new Map());
+      currentPoolRef.current = poolAddress;
     }
+    fetchPoolState();
   }, [poolAddress]);
 
-  // Track when polling has started
-  useEffect(() => {
-    if (txLoading && lastTxId) {
-      pollingStartedRef.current = true;
-    }
-  }, [txLoading, lastTxId]);
-
-  // Clear success message and transaction ID only after polling has started and then completed
-  useEffect(() => {
-    if (!txLoading && lastTxId && pollingStartedRef.current) {
-      setSuccess('');
-      setLastTxId(null);
-      pollingStartedRef.current = false;
-    }
-  }, [txLoading, lastTxId]);
-
   const fetchPoolState = async (forceRefresh = false) => {
-    // Check cache first (unless force refresh)
-    if (!forceRefresh) {
-      const cached = poolStateCache.get(poolAddress);
-      if (cached && (Date.now() - cached.timestamp) < CACHE_TTL_MS) {
-        setPoolState(cached.state);
-        return;
-      }
-    }
+    // Capture the poolAddress at call time to check for stale responses
+    const requestedPool = poolAddress;
+    // Identify the non-base token (assuming kUSD/USDC is base)
+    const quoteToken = [token0Symbol, token1Symbol].find(s => s !== 'kUSD' && s !== 'USDC') || token1Symbol;
+    // We want price in kUSD (e.g. 1 kEUR = 1.18 kUSD), so we ask for kUSD/[QuoteToken]
+    const tokenPair = `kUSD/${quoteToken}`;
 
     setLoading(true);
     setError('');
     try {
-      const state = await nettingPoolsApi.getPoolState(poolAddress);
-      setPoolState(state);
-      // Update cache
-      poolStateCache.set(poolAddress, { state, timestamp: Date.now() });
+      // FAST PATH: Get basic data from subgraph first (instant)
+      // This includes pool balances and rate from indexed data
+      const [balancesLatest, poolPrice] = await Promise.all([
+        kryptonWeb3Api.get<{ balances: number[] }>(`/subgraph/pool/${requestedPool}/balances-latest`).then(r => r.data).catch(() => null),
+        kryptonWeb3Api.get<{ price: number }>(`/subgraph/pool-price/${encodeURIComponent(tokenPair)}`).then(r => r.data).catch(() => null),
+      ]);
+
+      // Build initial state from subgraph data
+      if (currentPoolRef.current === requestedPool && balancesLatest) {
+        const fastState: PoolState = {
+          pool_address: requestedPool,
+          token0_symbol: token0Symbol,
+          token1_symbol: token1Symbol,
+          token0_address: token0Address,
+          token1_address: token1Address,
+          spot_price: poolPrice?.price?.toString() || '0',
+          oracle_rate: '0', // Will be filled by RPC
+          reserves: (balancesLatest.balances || [0, 0]).map(String),
+          total_value: String((balancesLatest.balances?.[0] || 0) + (balancesLatest.balances?.[1] || 0)),
+          is_initialized: true,
+          pool_parameters: null,
+          reserve_balances: null,
+          reserve_wallet: null,
+          rebalance_status: null,
+          oracle_info: null,
+          rate_synced: false,
+        };
+        setPoolState(fastState);
+        setLoading(false);
+      }
+
+      // SLOW PATH: Get extended data from RPC (reserve wallet, oracle, params)
+      // This runs in background and updates the UI when ready
+      const fullState = await nettingPoolsApi.getPoolState(requestedPool);
+
+      // Only update state if we're still viewing the same pool
+      if (currentPoolRef.current === requestedPool) {
+        setPoolState(fullState);
+      }
     } catch (err: any) {
-      setError('Failed to fetch pool state: ' + (err.message || 'Unknown error'));
-      console.error('Error fetching pool state:', err);
+      if (currentPoolRef.current === requestedPool) {
+        // If subgraph failed, try RPC-only approach
+        try {
+          const state = await nettingPoolsApi.getPoolState(requestedPool);
+          if (currentPoolRef.current === requestedPool) {
+            setPoolState(state);
+          }
+        } catch (rpcErr: any) {
+          setError('Failed to fetch pool state: ' + (err.message || 'Unknown error'));
+          console.error('Error fetching pool state:', err);
+        }
+      }
     } finally {
-      setLoading(false);
+      if (currentPoolRef.current === requestedPool) {
+        setLoading(false);
+      }
     }
   };
 
   const handleSyncRate = async (manualRate?: number) => {
+    if (!username) {
+      setError('Please log in to sync rate');
+      return;
+    }
+
     setError('');
     setSuccess('');
     setLoading(true);
@@ -113,9 +203,21 @@ export default function CLPoolMonitor({
         manual_rate: manualRate,
         username: username,
       });
-      setSuccess(`Rate sync submitted! Transaction ID: ${result.transaction_id}`);
-      setLastTxId(result.transaction_id);
-      setTimeout(fetchPoolState, 5000); // Refresh after 5 seconds
+
+      // Add to pending transactions - WebSocket events will handle completion
+      const txId = result.transaction_id;
+      setPendingTransactions(prev => {
+        const updated = new Map(prev);
+        updated.set(txId, {
+          id: txId,
+          type: 'syncRate',
+          status: CircleTransactionState.SUBMITTED,
+          timestamp: Date.now(),
+        });
+        return updated;
+      });
+
+      setSuccess(`Rate sync submitted! Waiting for confirmation...`);
     } catch (err: any) {
       setError('Failed to sync rate: ' + (err.message || 'Unknown error'));
     } finally {
@@ -127,12 +229,17 @@ export default function CLPoolMonitor({
     setChartsRefreshKey((prev) => prev + 1);
   };
 
-  const calculateDeviation = () => {
-    if (!poolState || !poolState.oracle_rate) return null;
-    const poolPrice = parseFloat(poolState.spot_price);
-    const oracleRate = parseFloat(poolState.oracle_rate);
-    const deviation = ((poolPrice / oracleRate) - 1) * 100;
-    return deviation.toFixed(2);
+  const formatNumber = (value: string | number | null | undefined, decimals = 2) => {
+    if (value === null || value === undefined) return '0';
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(num)) return '0';
+    return num.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  };
+
+  const formatTime = (timestamp: number | null | undefined) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   };
 
   const tabButtonClasses = (tab: string) => {
@@ -143,14 +250,30 @@ export default function CLPoolMonitor({
     return `${baseClasses} bg-white/[0.05] text-gray-400 hover:text-white hover:bg-white/[0.1]`;
   };
 
+  // Check if any pending transactions exist
+  const hasPendingTxs = pendingTransactions.size > 0;
+
   return (
     <div className="space-y-6">
-      {/* Pool Info Card */}
+      {/* Pool Header Card */}
       <div className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-2xl font-light text-white">
-            {token0Symbol}/{token1Symbol} Pool
-          </h3>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <h3 className="text-xl font-semibold text-white">
+              {token0Symbol}/{token1Symbol}
+            </h3>
+            {poolState?.pool_parameters && (
+              <span className="px-2 py-0.5 text-xs bg-blue-500/20 text-blue-400 rounded-full">
+                {poolState.pool_parameters.pool_type === 'Gyro2CLP' ? 'Auto' : 'Stable'}
+              </span>
+            )}
+            {connectionStatus === 'connected' && (
+              <span className="px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded-full flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+                Live
+              </span>
+            )}
+          </div>
           <button
             onClick={() => fetchPoolState(true)}
             disabled={loading}
@@ -162,95 +285,278 @@ export default function CLPoolMonitor({
           </button>
         </div>
 
+        <p className="text-gray-500 text-sm">
+          {poolState?.pool_parameters?.pool_type || 'Gyro2CLP'} Pool
+        </p>
+
         {error && (
-          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+          <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-sm">
+          <div className="mt-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-sm">
             {success}
           </div>
         )}
 
-        {txLoading && lastTxId && (
-          <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg text-blue-400 text-sm">
-            Transaction Status: {txStatus} (Polling...)
-          </div>
-        )}
-
-        {poolState ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Pool Status */}
-            <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-4">
-              <div className="text-gray-400 text-xs mb-2">Status</div>
-              <div className={`text-lg font-medium ${poolState.is_initialized ? 'text-green-400' : 'text-yellow-400'}`}>
-                {poolState.is_initialized ? '✓ Initialized' : '○ Not Initialized'}
-              </div>
-            </div>
-
-            {/* Reserves */}
-            <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-4">
-              <div className="text-gray-400 text-xs mb-2">Reserves</div>
-              <div className="space-y-1">
-                <div className="text-sm text-white">
-                  {token0Symbol}: {parseFloat(poolState.reserves[0] || '0').toFixed(2)}
-                </div>
-                <div className="text-sm text-white">
-                  {token1Symbol}: {parseFloat(poolState.reserves[1] || '0').toFixed(2)}
-                </div>
-              </div>
-            </div>
-
-            {/* Prices */}
-            <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-4">
-              <div className="text-gray-400 text-xs mb-2">Prices</div>
-              <div className="space-y-1">
-                <div className="text-sm text-white">
-                  Spot: {parseFloat(poolState.spot_price).toFixed(6)}
-                </div>
-                {poolState.oracle_rate && (
-                  <>
-                    <div className="text-sm text-white">
-                      Oracle: {parseFloat(poolState.oracle_rate).toFixed(6)}
-                    </div>
-                    <div className={`text-sm ${parseFloat(calculateDeviation() || '0') > 1 ? 'text-yellow-400' : 'text-green-400'}`}>
-                      Deviation: {calculateDeviation()}%
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="text-gray-400 text-center py-8">
-            {loading ? 'Loading pool state...' : 'No pool data available'}
-          </div>
-        )}
-
-        {/* Quick Actions */}
-        {poolState && (
-          <div className="mt-6 pt-6 border-t border-white/[0.05]">
-            <div className="flex gap-3 flex-wrap">
-              <button
-                onClick={() => handleSyncRate()}
-                disabled={loading}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-lg text-sm transition-all"
-              >
-                Sync Oracle Rate
-              </button>
-              <button
-                onClick={() => fetchPoolState(true)}
-                disabled={loading}
-                className="px-4 py-2 bg-white/[0.05] hover:bg-white/[0.1] text-gray-300 rounded-lg text-sm transition-all"
-              >
-                Refresh Data
-              </button>
+        {hasPendingTxs && (
+          <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg text-blue-400 text-sm">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              {pendingTransactions.size} transaction(s) pending confirmation...
             </div>
           </div>
         )}
       </div>
+
+      {/* Main Stats Grid */}
+      {poolState ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Pool Liquidity Card */}
+          <div className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-xl p-4">
+            <div className="text-gray-400 text-xs mb-3 font-medium">Pool Liquidity</div>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400 text-sm">{token0Symbol}</span>
+                <span className="text-blue-400 font-mono text-lg">
+                  {/* If not base token (kUSD/USDC), calculate tokens from value (reserve / price) assuming reserve is USD value */}
+                  {formatNumber(
+                    (token0Symbol !== 'kUSD' && token0Symbol !== 'USDC')
+                      ? (parseFloat(poolState.reserves[0]) / (parseFloat(poolState.spot_price) || 1))
+                      : poolState.reserves[0],
+                    0
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400 text-sm">{token1Symbol}</span>
+                <span className="text-green-400 font-mono text-lg">
+                  {/* If not base token (kUSD/USDC), calculate tokens from value (reserve / price) */}
+                  {formatNumber(
+                    (token1Symbol !== 'kUSD' && token1Symbol !== 'USDC')
+                      ? (parseFloat(poolState.reserves[1]) / (parseFloat(poolState.spot_price) || 1))
+                      : poolState.reserves[1],
+                    0
+                  )}
+                </span>
+              </div>
+              <div className="pt-2 border-t border-white/[0.05]">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500 text-xs">Value (scaled)</span>
+                  <span className="text-white font-mono">{formatNumber(poolState.total_value, 0)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Reserve (Wallet) Card */}
+          <div className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-xl p-4">
+            <div className="text-gray-400 text-xs mb-3 font-medium">Reserve (Wallet)</div>
+            <div className="space-y-2">
+              {poolState.reserve_balances ? (
+                <>
+                  {poolState.reserve_balances.map((balance, idx) => (
+                    <div key={idx} className="flex justify-between items-center">
+                      <span className="text-gray-400 text-sm">{balance.symbol}</span>
+                      <span className="text-white font-mono text-lg">{formatNumber(balance.balance, 0)}</span>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 text-sm">{token0Symbol}</span>
+                    <span className="text-white font-mono text-lg">-</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 text-sm">{token1Symbol}</span>
+                    <span className="text-white font-mono text-lg">-</span>
+                  </div>
+                </>
+              )}
+              <div className="pt-2 border-t border-white/[0.05]">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500 text-xs">For Rebalancing</span>
+                  <span className="text-gray-500 text-xs">{poolState.rebalance_status?.strategy || '50/50'} strategy</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Pool Rebalance Card */}
+          <div className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-xl p-4">
+            <div className="text-gray-400 text-xs mb-3 font-medium">Pool Rebalance</div>
+            {poolState.rebalance_status ? (
+              <div className="space-y-2">
+                <div className="text-xs text-gray-500">
+                  {token0Symbol} Thresholds: ≤{(poolState.rebalance_status.threshold_lower * 100).toFixed(0)}% or ≥{(poolState.rebalance_status.threshold_upper * 100).toFixed(0)}%
+                </div>
+                <div className="text-xs text-gray-500">
+                  {token1Symbol} Thresholds: ≤{(poolState.rebalance_status.threshold_lower * 100).toFixed(0)}% or ≥{(poolState.rebalance_status.threshold_upper * 100).toFixed(0)}%
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400 text-sm">{token0Symbol}</span>
+                  <span className={`font-mono ${poolState.rebalance_status.token0_percent >= 80 && poolState.rebalance_status.token0_percent <= 120 ? 'text-green-400' : 'text-yellow-400'}`}>
+                    {poolState.rebalance_status.token0_percent.toFixed(1)}%
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400 text-sm">{token1Symbol}</span>
+                  <span className={`font-mono ${poolState.rebalance_status.token1_percent >= 80 && poolState.rebalance_status.token1_percent <= 120 ? 'text-green-400' : 'text-yellow-400'}`}>
+                    {poolState.rebalance_status.token1_percent.toFixed(1)}%
+                  </span>
+                </div>
+                <button className={`w-full mt-2 py-2 rounded-lg text-sm font-medium ${poolState.rebalance_status.is_balanced ? 'bg-white/[0.05] text-gray-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                  {poolState.rebalance_status.is_balanced ? '✓ Pool Balanced' : '⚠ Needs Rebalance'}
+                </button>
+              </div>
+            ) : (
+              <div className="text-gray-500 text-sm">No rebalance data</div>
+            )}
+          </div>
+
+          {/* Pool Parameters Card */}
+          <div className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-xl p-4">
+            <div className="text-gray-400 text-xs mb-3 font-medium">Pool Parameters</div>
+            {poolState.pool_parameters ? (
+              <div className="space-y-3">
+                {poolState.pool_parameters.range_lower && poolState.pool_parameters.range_upper && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 text-sm">Range</span>
+                    <span className="text-white font-mono">
+                      {poolState.pool_parameters.range_lower.toFixed(4)} - {poolState.pool_parameters.range_upper.toFixed(4)}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400 text-sm">Swap Fee</span>
+                  <span className="text-white font-mono">{(poolState.pool_parameters.swap_fee * 100).toFixed(1)}%</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400 text-sm">Deviation</span>
+                  <span className={`font-mono ${poolState.oracle_info?.deviation_percent && Math.abs(poolState.oracle_info.deviation_percent) > 1 ? 'text-yellow-400' : 'text-green-400'}`}>
+                    {poolState.oracle_info?.deviation_percent?.toFixed(2) || '0.00'}%
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="text-gray-500 text-sm">No parameters data</div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Skeleton Cards */}
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-xl p-4 animate-pulse">
+              <div className="h-4 bg-white/[0.08] rounded w-24 mb-4" />
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <div className="h-4 bg-white/[0.05] rounded w-16" />
+                  <div className="h-6 bg-white/[0.08] rounded w-24" />
+                </div>
+                <div className="flex justify-between items-center">
+                  <div className="h-4 bg-white/[0.05] rounded w-16" />
+                  <div className="h-6 bg-white/[0.08] rounded w-24" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Price Tracking Section */}
+      {poolState && (
+        <div className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h4 className="text-lg font-medium text-white">Price Tracking</h4>
+            <div className="flex gap-2">
+              <button className="px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg text-sm font-medium transition-all">
+                ⚙ Fix Bounds
+              </button>
+              <button
+                onClick={() => handleSyncRate()}
+                disabled={loading || !username}
+                className="px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+              >
+                🔄 Sync Oracle
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Oracle Rate */}
+            <div>
+              <div className="text-gray-400 text-xs mb-1">Oracle Rate (Cached)</div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-mono text-green-400">
+                  ${formatNumber(poolState.oracle_rate, 6)}
+                </span>
+                <span className="text-gray-500 text-xs">
+                  {formatTime(poolState.oracle_info?.timestamp)}
+                </span>
+              </div>
+              {poolState.oracle_info?.live_rate && (
+                <div className="mt-2">
+                  <span className="text-gray-500 text-xs">Live KryptonFXOracle ({poolState.token0_symbol}/{token1Symbol.replace('k', '')})</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-400 font-mono">${formatNumber(poolState.oracle_info.live_rate, 6)}</span>
+                    {poolState.oracle_info.deviation_percent !== null && poolState.oracle_info.deviation_percent !== undefined && (
+                      <span className={`text-xs ${poolState.oracle_info.deviation_percent > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {poolState.oracle_info.deviation_percent > 0 ? '▲' : '▼'} {Math.abs(poolState.oracle_info.deviation_percent).toFixed(2)}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Pool Price */}
+            <div>
+              <div className="text-gray-400 text-xs mb-1">Pool Price</div>
+              <div className="text-2xl font-mono text-blue-400">
+                ${formatNumber(poolState.spot_price, 6)}
+              </div>
+              {poolState.oracle_info?.deviation_percent !== null && poolState.oracle_info?.deviation_percent !== undefined && (
+                <div className="mt-2">
+                  <span className={`text-sm ${Math.abs(poolState.oracle_info?.deviation_percent ?? 0) < 0.5 ? 'text-green-400' : 'text-yellow-400'}`}>
+                    {(poolState.oracle_info?.deviation_percent ?? 0) > 0 ? '+' : ''}{(poolState.oracle_info?.deviation_percent ?? 0).toFixed(2)}%
+                  </span>
+                  <span className="text-gray-500 text-xs ml-2">vs Oracle</span>
+                </div>
+              )}
+            </div>
+
+            {/* Pool Health */}
+            <div>
+              <div className="text-gray-400 text-xs mb-1">Pool Health</div>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-400 text-sm">Status</span>
+                  <span className={`font-medium ${poolState.is_initialized ? 'text-green-400' : 'text-yellow-400'}`}>
+                    {poolState.is_initialized ? 'In Range' : 'Not Initialized'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400 text-sm">Fee APR</span>
+                  <span className="text-white font-mono">
+                    {((poolState.pool_parameters?.swap_fee || 0.001) * 100).toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+              <button
+                className={`w-full mt-3 py-2 rounded-lg text-sm font-medium ${poolState.rate_synced ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}
+              >
+                {poolState.rate_synced ? '✓ Rate Synced' : '⚠ Rate Out of Sync'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Charts Section - Token Balances History */}
       <div className="relative">
@@ -325,7 +631,7 @@ export default function CLPoolMonitor({
               token0Symbol={token0Symbol}
               token1Symbol={token1Symbol}
               onSuccess={() => {
-                fetchPoolState();
+                fetchPoolState(true);
                 setSuccess('Swap completed successfully!');
                 handleRefreshCharts();
               }}
@@ -340,7 +646,7 @@ export default function CLPoolMonitor({
               token0Symbol={token0Symbol}
               token1Symbol={token1Symbol}
               onSuccess={() => {
-                fetchPoolState();
+                fetchPoolState(true);
                 setSuccess('Liquidity added successfully!');
                 handleRefreshCharts();
                 onRefresh?.();
@@ -356,7 +662,7 @@ export default function CLPoolMonitor({
               token0Symbol={token0Symbol}
               token1Symbol={token1Symbol}
               onSuccess={() => {
-                fetchPoolState();
+                fetchPoolState(true);
                 setSuccess('Pool initialized successfully!');
                 handleRefreshCharts();
                 onRefresh?.();
