@@ -130,6 +130,20 @@ export const nettingPoolsApi = {
     return response.data;
   },
 
+  // Get supported tokens configuration (dynamic from k_tokens.yaml)
+  async getSupportedTokens(): Promise<{
+    k_tokens: Record<string, {
+      address: string;
+      decimals: number;
+      pool_address?: string;
+      rate_provider?: string;
+      fx_pair?: string;
+    }>;
+  }> {
+    const response = await kryptonWeb3Api.get('/erc20/supported-tokens');
+    return response.data;
+  },
+
   // Admin operations (require authentication + manual whitelist)
   async initializePool(params: {
     token_symbol: string;

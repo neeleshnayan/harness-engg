@@ -29,6 +29,10 @@ interface BalancesChartProps {
   limit?: number;
 }
 
+// Cache for chart data to avoid refetching when switching pools
+const balanceChartCache: Map<string, { data: ChartDataPoint[]; timestamp: number }> = new Map();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes cache
+
 export default function BalancesChart({
   poolAddress,
   token0Symbol,
@@ -43,6 +47,18 @@ export default function BalancesChart({
   useEffect(() => {
     if (!poolAddress) return;
 
+    // Check cache first
+    const cacheKey = `${poolAddress}-${limit}`;
+    const cached = balanceChartCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL_MS) {
+      setData(cached.data);
+      setLoading(false);
+      return;
+    }
+
+    // Clear previous data before fetching new pool data
+    setData([]);
+
     const fetchChartData = async () => {
       setLoading(true);
       setError('');
@@ -52,6 +68,7 @@ export default function BalancesChart({
 
         if (!response.balances || response.balances.length === 0) {
           setData([]);
+          balanceChartCache.set(cacheKey, { data: [], timestamp: Date.now() });
           return;
         }
 
@@ -79,6 +96,8 @@ export default function BalancesChart({
           .reverse(); // Show oldest first for chart (chronological order)
 
         setData(chartData);
+        // Update cache
+        balanceChartCache.set(cacheKey, { data: chartData, timestamp: Date.now() });
       } catch (err: any) {
         console.error('Error fetching balance chart data:', err);
         setError('Failed to load balance chart data');

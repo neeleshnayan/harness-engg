@@ -29,6 +29,10 @@ interface PriceChartProps {
   limit?: number;
 }
 
+// Cache for chart data to avoid refetching when switching pools
+const priceChartCache: Map<string, { data: ChartDataPoint[]; oracleRate: number | null; timestamp: number }> = new Map();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes cache
+
 export default function PriceChart({
   poolAddress,
   tokenPair,
@@ -43,6 +47,20 @@ export default function PriceChart({
   useEffect(() => {
     if (!poolAddress) return;
 
+    // Check cache first
+    const cacheKey = `${poolAddress}-${tokenPair}-${limit}`;
+    const cached = priceChartCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL_MS) {
+      setData(cached.data);
+      setCurrentOracleRate(cached.oracleRate);
+      setLoading(false);
+      return;
+    }
+
+    // Clear previous data before fetching new pool data
+    setData([]);
+    setCurrentOracleRate(null);
+
     const fetchChartData = async () => {
       setLoading(true);
       setError('');
@@ -53,6 +71,7 @@ export default function PriceChart({
 
         if (!response.rates || response.rates.length === 0) {
           setData([]);
+          priceChartCache.set(cacheKey, { data: [], oracleRate: null, timestamp: Date.now() });
           return;
         }
 
@@ -93,6 +112,8 @@ export default function PriceChart({
           .reverse(); // Show oldest first for chart (chronological order)
 
         setData(chartData);
+        // Update cache
+        priceChartCache.set(cacheKey, { data: chartData, oracleRate: oracleRateValue, timestamp: Date.now() });
       } catch (err: any) {
         console.error('Error fetching chart data:', err);
         setError('Failed to load chart data');

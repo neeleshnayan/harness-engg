@@ -21,6 +21,10 @@ interface CLPoolMonitorProps {
   onRefresh?: () => void;
 }
 
+// Cache for pool states to avoid refetching when switching pools
+const poolStateCache: Map<string, { state: PoolState; timestamp: number }> = new Map();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes cache
+
 export default function CLPoolMonitor({
   poolAddress,
   token0Symbol,
@@ -42,7 +46,20 @@ export default function CLPoolMonitor({
   const pollingStartedRef = useRef(false);
 
   useEffect(() => {
-    fetchPoolState();
+    // Check cache first before fetching
+    const cached = poolStateCache.get(poolAddress);
+    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL_MS) {
+      // Use cached data immediately
+      setPoolState(cached.state);
+      setLoading(false);
+      setError('');
+    } else {
+      // Clear previous pool state before fetching new data
+      setPoolState(null);
+      setError('');
+      // Fetch fresh data
+      fetchPoolState();
+    }
   }, [poolAddress]);
 
   // Track when polling has started
@@ -61,12 +78,23 @@ export default function CLPoolMonitor({
     }
   }, [txLoading, lastTxId]);
 
-  const fetchPoolState = async () => {
+  const fetchPoolState = async (forceRefresh = false) => {
+    // Check cache first (unless force refresh)
+    if (!forceRefresh) {
+      const cached = poolStateCache.get(poolAddress);
+      if (cached && (Date.now() - cached.timestamp) < CACHE_TTL_MS) {
+        setPoolState(cached.state);
+        return;
+      }
+    }
+
     setLoading(true);
     setError('');
     try {
       const state = await nettingPoolsApi.getPoolState(poolAddress);
       setPoolState(state);
+      // Update cache
+      poolStateCache.set(poolAddress, { state, timestamp: Date.now() });
     } catch (err: any) {
       setError('Failed to fetch pool state: ' + (err.message || 'Unknown error'));
       console.error('Error fetching pool state:', err);
@@ -124,7 +152,7 @@ export default function CLPoolMonitor({
             {token0Symbol}/{token1Symbol} Pool
           </h3>
           <button
-            onClick={fetchPoolState}
+            onClick={() => fetchPoolState(true)}
             disabled={loading}
             className="p-2 hover:bg-white/[0.05] rounded-lg transition-all disabled:opacity-50"
           >
@@ -213,7 +241,7 @@ export default function CLPoolMonitor({
                 Sync Oracle Rate
               </button>
               <button
-                onClick={fetchPoolState}
+                onClick={() => fetchPoolState(true)}
                 disabled={loading}
                 className="px-4 py-2 bg-white/[0.05] hover:bg-white/[0.1] text-gray-300 rounded-lg text-sm transition-all"
               >
@@ -236,7 +264,7 @@ export default function CLPoolMonitor({
           Refresh
         </button>
         <BalancesChart
-          key={`balances-${chartsRefreshKey}`}
+          key={`balances-${poolAddress}-${chartsRefreshKey}`}
           poolAddress={poolAddress}
           token0Symbol={token0Symbol}
           token1Symbol={token1Symbol}
@@ -247,7 +275,7 @@ export default function CLPoolMonitor({
 
       {/* Charts Section - Pool Price History with Oracle Rate */}
       <PriceChart
-        key={`price-${chartsRefreshKey}`}
+        key={`price-${poolAddress}-${chartsRefreshKey}`}
         poolAddress={poolAddress}
         tokenPair={`${token0Symbol}/${token1Symbol}`}
         height={280}

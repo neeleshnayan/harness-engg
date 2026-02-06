@@ -7,16 +7,9 @@ import MultiHopSwap from './MultiHopSwap';
 import { nettingPoolsApi, PoolInfo, TokenBalance } from '@/lib/nettingPoolsApi';
 import { useNettingPoolsAuth } from '@/hooks/useNettingPoolsAuth';
 
-// FX pairs for price feeds
-const FX_PAIRS = [
-  { fxPair: 'USD/EUR', symbol: 'kEUR' },
-  { fxPair: 'USD/GBP', symbol: 'kGBP' },
-  { fxPair: 'USD/AED', symbol: 'kAED' },
-];
-
 export default function Dashboard() {
   const { username, walletAddress, isAuthenticated, loading: authLoading } = useNettingPoolsAuth();
-  const [mainTab, setMainTab] = useState<'tokens' | 'pools'>('pools');
+  const [mainTab, setMainTab] = useState<'tokens' | 'pools'>('tokens'); // Default to tokens tab
   const [balances, setBalances] = useState<Record<string, string>>({});
   const [pools, setPools] = useState<PoolInfo[]>([]);
   const [selectedPool, setSelectedPool] = useState<PoolInfo | null>(null);
@@ -24,12 +17,42 @@ export default function Dashboard() {
   const [error, setError] = useState<string>('');
   const [defaultSignerAddress, setDefaultSignerAddress] = useState<string | null>(null);
 
+  // Dynamic token configuration from API
+  const [tokenSymbols, setTokenSymbols] = useState<string[]>([]);
+  const [fxPairs, setFxPairs] = useState<{ fxPair: string; symbol: string }[]>([]);
+
   useEffect(() => {
     if (isAuthenticated && !authLoading) {
+      fetchTokenConfigs();
       fetchPools();
       fetchDefaultSignerAndBalances();
     }
   }, [isAuthenticated, authLoading]);
+
+  const fetchTokenConfigs = async () => {
+    try {
+      const data = await nettingPoolsApi.getSupportedTokens();
+      const kTokens = data.k_tokens || {};
+
+      // Build token symbols list (filter out placeholder addresses)
+      const symbols = Object.keys(kTokens).filter(
+        symbol => kTokens[symbol]?.address && kTokens[symbol].address !== '0x0000000000000000000000000000000000000000'
+      );
+      setTokenSymbols(symbols);
+
+      // Build FX pairs list from tokens that have fx_pair configured
+      const pairs: { fxPair: string; symbol: string }[] = [];
+      for (const symbol of symbols) {
+        const config = kTokens[symbol];
+        if (config?.fx_pair) {
+          pairs.push({ fxPair: config.fx_pair, symbol });
+        }
+      }
+      setFxPairs(pairs);
+    } catch (err: any) {
+      console.error('Error fetching token configs:', err);
+    }
+  };
 
   const fetchPools = async () => {
     setLoading(true);
@@ -191,9 +214,11 @@ export default function Dashboard() {
 
                 {loading ? (
                   <div className="text-gray-400 text-center py-12">Loading balances...</div>
+                ) : tokenSymbols.length === 0 ? (
+                  <div className="text-gray-400 text-center py-12">Loading token configuration...</div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-                    {['kUSD', 'kEUR', 'kGBP', 'kAED', 'USDC'].map((symbol) => (
+                    {tokenSymbols.map((symbol) => (
                       <div
                         key={symbol}
                         className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6 hover:bg-white/[0.04] transition-all duration-300"
@@ -223,15 +248,19 @@ export default function Dashboard() {
                       Current FX rates from KryptonFXOracle
                     </p>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {FX_PAIRS.map((pair) => (
-                      <PriceFeedCard
-                        key={pair.fxPair}
-                        fxPair={pair.fxPair}
-                        symbol={pair.symbol}
-                      />
-                    ))}
-                  </div>
+                  {fxPairs.length === 0 ? (
+                    <div className="text-gray-400 text-center py-6">Loading FX pairs...</div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                      {fxPairs.map((pair) => (
+                        <PriceFeedCard
+                          key={pair.fxPair}
+                          fxPair={pair.fxPair}
+                          symbol={pair.symbol}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Multi-Hop Swap Section */}

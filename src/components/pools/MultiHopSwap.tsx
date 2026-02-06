@@ -4,10 +4,6 @@ import { useState, useEffect } from 'react';
 import { nettingPoolsApi, PoolInfo, TokenBalance } from '@/lib/nettingPoolsApi';
 import { useNettingPoolsAuth } from '@/hooks/useNettingPoolsAuth';
 
-// Available tokens for multi-hop swaps
-const TOKENS = ['kUSD', 'kEUR', 'kGBP', 'kAED', 'USDC'] as const;
-type TokenSymbol = (typeof TOKENS)[number];
-
 interface SwapRoute {
   path: string[];
   description: string;
@@ -19,8 +15,11 @@ interface MultiHopSwapProps {
 
 export default function MultiHopSwap({ onSuccess }: MultiHopSwapProps) {
   const { username, walletAddress } = useNettingPoolsAuth();
-  const [fromToken, setFromToken] = useState<TokenSymbol>('kEUR');
-  const [toToken, setToToken] = useState<TokenSymbol>('kGBP');
+
+  // Dynamic token list from API
+  const [tokens, setTokens] = useState<string[]>([]);
+  const [fromToken, setFromToken] = useState<string>('');
+  const [toToken, setToToken] = useState<string>('');
   const [amount, setAmount] = useState('');
   const [estimatedOutput, setEstimatedOutput] = useState('');
   const [route, setRoute] = useState<SwapRoute | null>(null);
@@ -29,6 +28,35 @@ export default function MultiHopSwap({ onSuccess }: MultiHopSwapProps) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [balances, setBalances] = useState<Record<string, string>>({});
+
+  // Fetch token configs on mount
+  useEffect(() => {
+    const fetchTokens = async () => {
+      try {
+        const data = await nettingPoolsApi.getSupportedTokens();
+        const kTokens = data.k_tokens || {};
+
+        // Filter out placeholder addresses and build token list
+        const tokenList = Object.keys(kTokens).filter(
+          symbol => kTokens[symbol]?.address && kTokens[symbol].address !== '0x0000000000000000000000000000000000000000'
+        );
+        setTokens(tokenList);
+
+        // Set default selections if not already set
+        if (tokenList.length >= 2 && !fromToken && !toToken) {
+          // Default to kEUR -> kGBP if available, otherwise first two tokens
+          const defaultFrom = tokenList.includes('kEUR') ? 'kEUR' : tokenList[0];
+          const defaultTo = tokenList.includes('kGBP') ? 'kGBP' : (tokenList[1] || tokenList[0]);
+          setFromToken(defaultFrom);
+          setToToken(defaultTo);
+        }
+      } catch (err) {
+        console.error('Error fetching token configs:', err);
+      }
+    };
+
+    fetchTokens();
+  }, []);
 
   // Fetch user balances
   useEffect(() => {
@@ -211,11 +239,11 @@ export default function MultiHopSwap({ onSuccess }: MultiHopSwapProps) {
         <div className="flex gap-3">
           <select
             value={fromToken}
-            onChange={(e) => setFromToken(e.target.value as TokenSymbol)}
+            onChange={(e) => setFromToken(e.target.value)}
             className="flex-1 px-4 py-3 bg-white/[0.02] border border-white/[0.05] text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-            disabled={loading}
+            disabled={loading || tokens.length === 0}
           >
-            {TOKENS.map((symbol) => (
+            {tokens.map((symbol) => (
               <option key={symbol} value={symbol} className="bg-slate-900">
                 {symbol}
               </option>
@@ -262,11 +290,11 @@ export default function MultiHopSwap({ onSuccess }: MultiHopSwapProps) {
         <div className="flex gap-3">
           <select
             value={toToken}
-            onChange={(e) => setToToken(e.target.value as TokenSymbol)}
+            onChange={(e) => setToToken(e.target.value)}
             className="flex-1 px-4 py-3 bg-white/[0.02] border border-white/[0.05] text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-            disabled={loading}
+            disabled={loading || tokens.length === 0}
           >
-            {TOKENS.map((symbol) => (
+            {tokens.map((symbol) => (
               <option key={symbol} value={symbol} className="bg-slate-900">
                 {symbol}
               </option>
