@@ -14,19 +14,28 @@ interface TechnicalChartsProps {
   targetAssets: string[]
 }
 
+// Explicit stroke colors so SMA lines always render (SVG can fail to resolve CSS vars in some contexts)
+const SMA_LINE_COLORS = {
+  sma_30: '#fbbf24',
+  sma_100: '#a855f7',
+  sma_200: '#10b981',
+} as const
+
 export default function TechnicalCharts({ 
   dataPoints, 
   technicalIndicatorsRequested, 
   targetAssets 
 }: TechnicalChartsProps) {
-  const filteredData = dataPoints.filter(dp => 
-    dp.technical_indicators?.sma_30 !== null && dp.technical_indicators?.sma_30 !== undefined
-  ).map(dp => ({
-    ...dp,
-    sma_30: dp.technical_indicators?.sma_30,
-    sma_100: dp.technical_indicators?.sma_100,
-    sma_200: dp.technical_indicators?.sma_200
-  }))
+  // Include all points that have technical_indicators so we get full date range; SMA values can be null (e.g. warmup)
+  const filteredData = dataPoints
+    .filter(dp => dp.technical_indicators != null)
+    .map(dp => ({
+      ...dp,
+      sma_30: dp.technical_indicators?.sma_30,
+      sma_100: dp.technical_indicators?.sma_100,
+      sma_200: dp.technical_indicators?.sma_200
+    }))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
   const rsiData = dataPoints.filter(dp => 
     dp.technical_indicators?.rsi !== null && dp.technical_indicators?.rsi !== undefined
@@ -127,30 +136,33 @@ export default function TechnicalCharts({
                   <Line
                     type="monotone"
                     dataKey="sma_30"
-                    stroke="var(--color-sma_30)"
+                    stroke={SMA_LINE_COLORS.sma_30}
                     strokeWidth={2}
                     dot={false}
                     name="30-day SMA"
+                    connectNulls
                   />
                 )}
                 {(technicalIndicatorsRequested.includes('dma_100') || technicalIndicatorsRequested.includes('sma_100')) && (
                   <Line
                     type="monotone"
                     dataKey="sma_100"
-                    stroke="var(--color-sma_100)"
+                    stroke={SMA_LINE_COLORS.sma_100}
                     strokeWidth={2}
                     dot={false}
                     name="100-day SMA"
+                    connectNulls
                   />
                 )}
                 {(technicalIndicatorsRequested.includes('dma_200') || technicalIndicatorsRequested.includes('sma_200')) && (
                   <Line
                     type="monotone"
                     dataKey="sma_200"
-                    stroke="var(--color-sma_200)"
+                    stroke={SMA_LINE_COLORS.sma_200}
                     strokeWidth={2}
                     dot={false}
                     name="200-day SMA"
+                    connectNulls
                   />
                 )}
               </LineChart>
