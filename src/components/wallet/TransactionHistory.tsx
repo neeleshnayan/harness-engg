@@ -44,7 +44,7 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
     const [error, setError] = useState<string | null>(null);
     const [offset, setOffset] = useState(0);
     const [loadingMore, setLoadingMore] = useState(false);
-    const LIMIT = 20;
+    const LIMIT = 40;
 
     const fetchTransactions = async () => {
       try {
