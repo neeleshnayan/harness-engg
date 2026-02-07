@@ -68,9 +68,11 @@ interface SubgraphAnalyticsGenericProps {
     strategyAddress?: string;
     strategyName?: string; // e.g. "Yearn XAG11"
     assetSymbol?: string; // e.g. "USDC"
-    targetSymbol?: string; // e.g. "WETH" or "XAG"
+    targetSymbol?: string; // e.g. "YSETH" - the strategy token symbol
+    underlyingSymbol?: string; // e.g. "ETH" - the original underlying asset symbol for BUY signals
     decimals?: number;
     targetTokenDecimals?: number;
+    aumDecimals?: number; // Decimals to scale AUM from subgraph (e.g., 8 for silver Chainlink oracles, 0 for no scaling)
 }
 
 export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> = ({
@@ -79,9 +81,20 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
     strategyName = "Strategy",
     assetSymbol = "USDC",
     targetSymbol = "Token",
+    underlyingSymbol,
     decimals = 4,
-    targetTokenDecimals = 18
+    targetTokenDecimals = 18,
+    aumDecimals = 0
 }) => {
+    // Use underlyingSymbol for BUY signals, fall back to targetSymbol if not provided
+    const buyOutputSymbol = underlyingSymbol || targetSymbol;
+    
+    // Share normalization factor - subgraph returns shares in 1e6 format, we multiply by 1e12 to normalize
+    const shareNormalizationFactor = 1000000000000;
+    
+    // AUM scaling factor - for strategies like KPSILVER that store AUM with extra decimals (e.g., 8 for Chainlink oracle)
+    const aumScalingFactor = aumDecimals > 0 ? Math.pow(10, aumDecimals) : 1;
+    
     // Determine which strategy hook to use or use generic one. 
     // We reuse useStrategySubgraphData directly but we need a "StrategyName" type placeholder
     const { data, isLoading, isError, error, refetch, isFetching } = useStrategySubgraphData('GENERIC' as any, subgraphUrl, strategyAddress);
@@ -121,16 +134,14 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
         sortedEvents.forEach(event => {
             const evtTimestamp = String(event.timestamp);
             const snapshot = data?.strategySnapshots?.find(s => String(s.timestamp) === evtTimestamp);
-            const aum = snapshot?.aum ? Number(snapshot.aum) : 0;
+            const rawAum = snapshot?.aum ? Number(snapshot.aum) : 0;
+            const aum = rawAum / aumScalingFactor; // Scale AUM based on strategy decimals
 
             if (event.type === 'DEPOSIT') {
                 const assets = Number((event as any).assets);
 
-                // STRICTLY USE SUBGRAPH SHARES (User Request)
-                // Adjustment: logic for 1e12 normalization if needed, but generic might be 1:1 or different?
-                // Assuming standard 18 decimals from subgraph for now, matching YearnWETH logic.
-                // If target token is different decimals, might need adjustment prop.
-                const shares = Number((event as any).shares ?? 0) * 1000000000000;
+                // Use configurable normalization factor based on target token decimals
+                const shares = Number((event as any).shares ?? 0) * shareNormalizationFactor;
 
                 // Calculate Implied Price (Assets / Shares)
                 let price = 1.0;
@@ -205,45 +216,24 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
             let priceLabel = '0';
 
             if (event.type === 'SIGNAL') {
-                type = event.signalType === 1 ? `BUY (${assetSymbol} -> ${targetSymbol})` : `SELL (${targetSymbol} -> ${assetSymbol})`;
+                type = event.signalType === 1 ? `BUY (${assetSymbol} -> ${buyOutputSymbol})` : `SELL (${buyOutputSymbol} -> ${assetSymbol})`;
 
-                // Scale amounts by decimals
-                // Buy: In = USDC (6), Out = Token (18)
-                // Sell: In = Token (18), Out = USDC (6)
-
-                // Use props or defaults if not provided (USDC=6, Token=18)
-                const assetDesc = decimals === 4 ? 6 : (decimals || 6); // Assume asset is USDC-like (6) unless specified? 
-                // Actually 'decimals' prop is generic formatting decimals.
-                // Let's rely on standard convention or add new props later.
-                // For now, assume Asset=6 (USDC), Target=18 (Standard).
-                const ASSET_DECIMALS = 6;
-                const TARGET_DECIMALS = targetTokenDecimals;
-
-                const rawIn = Number(event.amountIn);
-                const rawOut = Number(event.amountOut);
-
-                let inputVal = 0;
-                let outputVal = 0;
-
-                if (event.signalType === 1) { // BUY (Asset -> Target)
-                    inputVal = rawIn / Math.pow(10, ASSET_DECIMALS);
-                    outputVal = rawOut / Math.pow(10, TARGET_DECIMALS);
-                } else { // SELL (Target -> Asset)
-                    inputVal = rawIn / Math.pow(10, TARGET_DECIMALS);
-                    outputVal = rawOut / Math.pow(10, ASSET_DECIMALS);
-                }
+                // Subgraph returns already-normalized values (like YearnWETH)
+                // No additional decimal scaling needed
+                const inputAmount = Number(event.amountIn);
+                const outputAmount = Number(event.amountOut);
 
                 inputLabel = event.signalType === 1
-                    ? formatCurrency(inputVal).replace(/,/g, '')
-                    : (formatTokenAmount(inputVal, decimals) + ' ' + targetSymbol);
+                    ? formatCurrency(inputAmount).replace(/,/g, '')
+                    : (formatTokenAmount(inputAmount, decimals) + ' ' + buyOutputSymbol);
 
                 outputLabel = event.signalType === 1
-                    ? (formatTokenAmount(outputVal, decimals) + ' ' + targetSymbol)
-                    : formatCurrency(outputVal).replace(/,/g, '');
+                    ? (formatTokenAmount(outputAmount, decimals) + ' ' + buyOutputSymbol)
+                    : formatCurrency(outputAmount).replace(/,/g, '');
 
                 const price = event.signalType === 1
-                    ? (outputVal > 0 ? inputVal / outputVal : 0)
-                    : (inputVal > 0 ? outputVal / inputVal : 0);
+                    ? (outputAmount > 0 ? inputAmount / outputAmount : 0)
+                    : (inputAmount > 0 ? outputAmount / inputAmount : 0);
                 priceLabel = formatCurrency(price).replace(/,/g, '');
 
             } else if (event.type === 'DEPOSIT') {
@@ -252,10 +242,10 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                 inputLabel = formatCurrency(assets).replace(/,/g, '');
 
                 const calculatedShares = (event as any).calculatedShares;
-                const sharesFromEvent = event.shares ? Number(event.shares) * 1000000000000 : 0; // consistent norm
+                const sharesFromEvent = event.shares ? Number(event.shares) * shareNormalizationFactor : 0;
 
                 const sharesDisplay = calculatedShares ?? (sharesFromEvent > 0 ? sharesFromEvent : assets);
-                outputLabel = formatNumber(sharesDisplay) + ' Shares';
+                outputLabel = formatNumber(sharesDisplay) + ' ' + targetSymbol;
             } else if (event.type === 'WITHDRAWAL') {
                 type = 'WITHDRAWAL';
                 const assets = Number(event.assets) || 0;
@@ -264,12 +254,13 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                 const sharesFromEvent = event.shares ? Number(event.shares) : 0;
                 const sharesDisplay = calculatedShares ?? (sharesFromEvent > 0 ? sharesFromEvent : assets);
 
-                inputLabel = formatNumber(sharesDisplay) + ' Shares';
+                inputLabel = formatNumber(sharesDisplay) + ' ' + targetSymbol;
                 outputLabel = formatCurrency(assets).replace(/,/g, '');
             }
 
             const snapshot = data?.strategySnapshots?.find(s => s.timestamp === event.timestamp);
-            const aum = snapshot?.aum ? Number(snapshot.aum) : (Number(snapshot?.totalDeposits ?? 0) - Number(snapshot?.totalWithdrawals ?? 0));
+            const rawAum = snapshot?.aum ? Number(snapshot.aum) : (Number(snapshot?.totalDeposits ?? 0) - Number(snapshot?.totalWithdrawals ?? 0));
+            const aum = rawAum / aumScalingFactor; // Scale AUM based on strategy decimals
             const tokenPrice = (event as any).calculatedPrice ?? 1.0;
 
             const tokenPriceLabel = formatTokenPrice(tokenPrice).replace(/,/g, '');
@@ -432,7 +423,8 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                 <tbody className="divide-y divide-zinc-700/30">
                                     {displayedEvents.map((event) => {
                                         const snapshot = data?.strategySnapshots?.find(s => s.timestamp === event.timestamp);
-                                        const aum = snapshot?.aum ? Number(snapshot.aum) : (Number(snapshot?.totalDeposits ?? 0) - Number(snapshot?.totalWithdrawals ?? 0));
+                                        const rawAum = snapshot?.aum ? Number(snapshot.aum) : (Number(snapshot?.totalDeposits ?? 0) - Number(snapshot?.totalWithdrawals ?? 0));
+                                        const aum = rawAum / aumScalingFactor; // Scale AUM based on strategy decimals
                                         const tokenPrice = (event as any).calculatedPrice ?? 1.0;
 
                                         let typeLabel = <></>;
@@ -449,26 +441,17 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                                 </span>
                                             );
 
-                                            const ASSET_DECIMALS = 6;
-                                            const TARGET_DECIMALS = targetTokenDecimals;
-                                            const rawIn = Number(s.amountIn);
-                                            const rawOut = Number(s.amountOut);
+                                            // Subgraph returns already-normalized values
+                                            const inputAmount = Number(s.amountIn);
+                                            const outputAmount = Number(s.amountOut);
 
-                                            let inputVal = 0;
-                                            let outputVal = 0;
+                                            inputDisplay = <>{isBuy ? formatCurrency(inputAmount) : formatTokenAmount(inputAmount, decimals) + ' ' + buyOutputSymbol}</>;
+                                            outputDisplay = <>{isBuy ? formatTokenAmount(outputAmount, decimals) + ' ' + buyOutputSymbol : formatCurrency(outputAmount)}</>;
 
-                                            if (isBuy) {
-                                                inputVal = rawIn / Math.pow(10, ASSET_DECIMALS);
-                                                outputVal = rawOut / Math.pow(10, TARGET_DECIMALS);
-                                            } else {
-                                                inputVal = rawIn / Math.pow(10, TARGET_DECIMALS);
-                                                outputVal = rawOut / Math.pow(10, ASSET_DECIMALS);
-                                            }
-
-                                            inputDisplay = <>{isBuy ? formatCurrency(inputVal) : formatTokenAmount(inputVal, decimals) + ' ' + targetSymbol}</>;
-                                            outputDisplay = <>{isBuy ? formatTokenAmount(outputVal, decimals) + ' ' + targetSymbol : formatCurrency(outputVal)}</>;
-
-                                            const price = isBuy ? (outputVal > 0 ? inputVal / outputVal : 0) : (inputVal > 0 ? outputVal / inputVal : 0);
+                                            // Calculate Price for signal
+                                            const price = isBuy
+                                                ? (outputAmount > 0 ? inputAmount / outputAmount : 0)
+                                                : (inputAmount > 0 ? outputAmount / inputAmount : 0);
                                             priceDisplay = formatCurrency(price);
 
 
@@ -478,9 +461,9 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                             const depositAssets = Number(d.assets) || 0;
                                             inputDisplay = <>{formatCurrency(depositAssets)}</>;
 
-                                            const rawShares = Number(d.shares ?? 0) * 1000000000000;
+                                            const rawShares = Number(d.shares ?? 0) * shareNormalizationFactor;
                                             const depositSharesDisplay = rawShares > 0 ? rawShares : (d.calculatedShares ?? depositAssets);
-                                            outputDisplay = <>{formatNumber(depositSharesDisplay)} Shares</>;
+                                            outputDisplay = <>{formatNumber(depositSharesDisplay)} {targetSymbol}</>;
                                             priceDisplay = '-';
                                         } else if (event.type === 'WITHDRAWAL') {
                                             const w = event as any;
@@ -489,7 +472,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                             const withdrawSharesFromEvent = w.shares ? Number(w.shares) : 0;
                                             const withdrawSharesDisplay = withdrawSharesFromEvent > 0 ? withdrawSharesFromEvent : withdrawAssets;
 
-                                            inputDisplay = <>{formatNumber(withdrawSharesDisplay)} Shares</>;
+                                            inputDisplay = <>{formatNumber(withdrawSharesDisplay)} {targetSymbol}</>;
                                             outputDisplay = <>{formatCurrency(withdrawAssets)}</>;
                                             priceDisplay = '-';
                                         }

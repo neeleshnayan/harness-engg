@@ -32,10 +32,9 @@ interface StrategyModalProps {
 
 const getTokenSymbol = (strategyName: StrategyName): string => {
   switch (strategyName) {
-    case 'YEARN_WETH':
-      return 'ysWETH';
     default:
-      return 'TOKEN';
+      // For dynamic strategies like KPETH, KPGOLD, etc., use the strategyName as the symbol
+      return strategyName;
   }
 };
 
