@@ -210,31 +210,43 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
           balanceDebounceTimerRef.current = null;
         }
 
-        // Set refreshing state to show UI feedback
-        setBalanceRefreshing(true);
+        // DELAYED UI UPDATE:
+        // We do NOT set refreshing=true immediately. We wait until the delay passes.
+        // This prevents the "blinking" effect before the data is actually ready.
 
-        // Use debounced fetch
-        debouncedFetchBalance(currentAccountData.wallet_address, { background: true }, debounceDelay);
+        balanceDebounceTimerRef.current = setTimeout(() => {
+          // Now we start the refresh UI
+          setBalanceRefreshing(true);
 
-        // Trigger BalanceCard refresh
-        setBalanceCardRefresh(prev => !prev);
+          if (!balanceFetchInProgressRef.current && fetchBalanceRef.current) {
+             balanceFetchInProgressRef.current = true;
+             fetchBalanceRef.current(currentAccountData.wallet_address, { background: true })
+              .then(() => {
+                 setBalanceRefreshing(false);
+              })
+              .catch((err) => {
+                 console.error('Error fetching balance:', err);
+                 setBalanceRefreshing(false);
+              })
+              .finally(() => {
+                 balanceFetchInProgressRef.current = false;
+              });
+          }
 
-        // Safety timeout: Clear refreshing state after 20 seconds if stuck
-        setTimeout(() => {
-          setBalanceRefreshing(prev => {
-            if (prev) {
-              console.warn('Balance refreshing state was stuck - forcing clear after 20s timeout');
-              return false;
-            }
-            return prev;
-          });
-        }, 20000);
+          // Trigger BalanceCard refresh
+          setBalanceCardRefresh(prev => !prev);
+
+          // Also refresh transaction history if it's open
+          if (showTransactionsRef.current) {
+            setTransactionHistoryRefresh(prev => !prev);
+          }
+        }, debounceDelay);
+
+        // Safety timeout: Clear refreshing state if it somehow gets stuck later
+        // (This is less critical now since we only set it true inside the timeout)
       }
 
-      // Also refresh transaction history if it's open
-      if (showTransactionsRef.current) {
-        setTransactionHistoryRefresh(prev => !prev);
-      }
+      return;
 
       return;
     }
