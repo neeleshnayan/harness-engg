@@ -95,13 +95,13 @@ export const categories: Category[] = [
     icon: '/backtesting.svg',
     description: 'Test portfolio strategies',
     prompts: [
+      'Backtest a 100-day SMA filter on ETH; stay in cash when below SMA; from 2024-01-01 to 2024-09-30 with $12,000',
       'Backtest Gold from 01/01/2025 to 09/09/2025 with 1000 USD',
       'Backtest Bitcoin & Ethereum with 50% each from 01/01/2025 to 09/09/2025 with 1000 USD',
       'Backtest a 50/200 EMA crossover on BTC from 2024-01-01 to 2024-06-30 with $5,000',
       'Backtest RSI strategy on Bitcoin from 2024-01-01 to 2024-06-30 with $10,000',
       'Backtest portfolio with 60% Bitcoin, 30% Ethereum, 10% Solana using 10000 USD from 2024-01-01 to 2024-12-31',
       'Backtest monthly momentum on BTC, ETH, SOL (hold top 2 each rebalance) from 2023-01-01 to 2024-01-01 with $15,000',
-      'Backtest a 100-day SMA filter on ETH; stay in cash when below SMA; from 2024-01-01 to 2024-09-30 with $12,000'
       // 'Backtest Bollinger Bands (20,2) mean reversion on BTC from 2024-03-01 to 2024-07-31 with $7,500',
       // 'Backtest MACD (12,26,9) on ETH from 2024-02-01 to 2024-08-01 with $8,000',
       // 'Backtest Stochastic RSI (14,3,3,3) on SOL from 2024-01-15 to 2024-06-30 with $6,000',
