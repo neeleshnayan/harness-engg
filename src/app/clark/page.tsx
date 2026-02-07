@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { Menu } from 'lucide-react'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import agentsApi from '@/lib/agents_api'
 import { useRouter } from 'next/navigation'
 import { getAuth, signOut } from 'firebase/auth'
@@ -465,10 +465,15 @@ export default function BacktestPage() {
 
   const handleSendMessage = async (interruptResponses?: any[]) => {
     const queryText = interruptResponses ? (pendingInterruptResponse?.query || '') : inputValue
-    
-    if (!queryText.trim() || isLoading) return
 
-    const userMessage: ChatMessage = interruptResponses 
+    // For normal send: need non-empty query and not loading. For HITL: only need not loading and pending context.
+    if (interruptResponses?.length) {
+      if (isLoading || !pendingInterruptResponse) return
+    } else {
+      if (!queryText.trim() || isLoading) return
+    }
+
+    const userMessage: ChatMessage = interruptResponses
       ? pendingInterruptResponse!.userMessage
       : {
           id: Date.now().toString(),
@@ -761,12 +766,14 @@ export default function BacktestPage() {
                       </div>
                       <div className="flex gap-3 pt-3 mt-2">
                         <button
+                          type="button"
                           onClick={() => handleInterruptReject(paymentInterrupt.id)}
                           className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-xl border border-red-700/60 bg-red-900/30 text-red-100 hover:bg-red-900/50 text-sm font-medium transition-colors"
                         >
                           Cancel
                         </button>
                         <button
+                          type="button"
                           onClick={() => handleInterruptApprove(paymentInterrupt.id)}
                           className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium transition-colors"
                         >
@@ -792,18 +799,19 @@ export default function BacktestPage() {
             shadow-[0_20px_60px_rgba(0,0,0,0.6)]
             border-none
           "
+          aria-describedby={undefined}
         >
+          <DialogTitle className="sr-only">Choose a prompt</DialogTitle>
+          <DialogDescription className="sr-only">Browse categories and prompt suggestions for Clark.</DialogDescription>
           <div className="max-h-[70vh] overflow-y-auto px-2">
-              {(!selectedCategory) && (
+              {!selectedCategory ? (
                 <div className="w-full flex flex-col items-center">
                   <div className="w-full max-w-md space-y-3">
                     {categories.map((category) => (
                       <button
                         key={category.id}
-                        onClick={() => {
-                          setSelectedCategory(category.id)
-                          setIsPromptModalOpen(false)
-                        }}
+                        type="button"
+                        onClick={() => setSelectedCategory(category.id)}
                         className="w-full text-left p-4 rounded-xl backdrop-blur-sm transition-all duration-200"
                         style={{
                           background:
@@ -825,6 +833,43 @@ export default function BacktestPage() {
                     ))}
                   </div>
                 </div>
+              ) : (
+                (() => {
+                  const category = categories.find((c) => c.id === selectedCategory)
+                  if (!category) return null
+                  return (
+                    <div className="w-full flex flex-col">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCategory(null)}
+                        className="self-start flex items-center gap-2 text-white/80 hover:text-white text-sm mb-4"
+                      >
+                        <span aria-hidden>←</span> Back to categories
+                      </button>
+                      <div className="text-white font-medium mb-2">{category.title}</div>
+                      <div className="w-full max-w-md space-y-2">
+                        {category.prompts.map((prompt) => (
+                          <button
+                            key={prompt}
+                            type="button"
+                            onClick={() => {
+                              handlePromptClick(prompt, category.id)
+                              setIsPromptModalOpen(false)
+                            }}
+                            disabled={isLoading}
+                            className="w-full text-left p-3 rounded-xl backdrop-blur-sm transition-all duration-200 text-sm text-white/90 hover:text-white disabled:opacity-50"
+                            style={{
+                              background:
+                                'linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(161, 207, 211, 0.06) 100%)',
+                            }}
+                          >
+                            {prompt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()
               )}
             </div>
           </DialogContent>
@@ -839,7 +884,10 @@ export default function BacktestPage() {
         isLoading={isLoading}
         onSendMessage={handleSendMessage}
         onKeyPress={handleKeyPress}
-        onOpenPromptModal={() => setIsPromptModalOpen(true)}
+        onOpenPromptModal={() => {
+          setSelectedCategory(null)
+          setIsPromptModalOpen(true)
+        }}
       />
 
       {/* Hamburger Menu */}

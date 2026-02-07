@@ -1,5 +1,3 @@
-import { Send } from "lucide-react";
-
 interface ChatInputBarProps {
   inputValue: string
   setInputValue: (value: string) => void
@@ -37,7 +35,7 @@ export default function ChatInputBar({
           }}
         >
           <div className="flex items-center gap-2 sm:gap-4">
-            {/* Clark icon */}
+            {/* Clark icon - type="button" so it never submits a form */}
             <button
               type="button"
               onClick={onOpenPromptModal}
@@ -77,13 +75,14 @@ export default function ChatInputBar({
               "
             />
 
-            {/* Send button */}
+            {/* Send button - type="button" so it never submits a form; image has pointer-events-none so click hits the button */}
             <button
-              onClick={onSendMessage}
+              type="button"
+              onClick={() => onSendMessage()}
               disabled={!inputValue.trim() || isLoading}
               className="flex items-center justify-center h-10 w-10 sm:h-12 sm:w-12"
             >
-              <img src="/send button.svg" alt="Clark" className="h-7 w-7 sm:h-10 sm:w-10" />
+              <img src="/send button.svg" alt="Send" className="h-7 w-7 sm:h-10 sm:w-10 pointer-events-none" />
             </button>
           </div>
         </div>
