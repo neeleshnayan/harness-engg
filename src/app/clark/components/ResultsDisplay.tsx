@@ -65,6 +65,15 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
     return source.replace(/_/g, ' ')
   }
 
+  /** Display token: EUR, GBP, etc. - strip k prefix for user-facing labels */
+  const displayTokenLabel = (t: string): string => {
+    const s = (t || '').trim()
+    if (s.toUpperCase().startsWith('K') && ['KEUR', 'KGBP', 'KAED', 'KUSD'].includes(s.toUpperCase())) {
+      return s.slice(1)
+    }
+    return s
+  }
+
   /** Format balances for display: backend may send array [{ token, balance }] or object { token: balance } */
   const formatBalancesCell = (balances: unknown): string => {
     if (balances == null) return '—'
@@ -73,14 +82,14 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
         .map((e: { token?: string; balance?: unknown }) => {
           const t = e?.token ?? ''
           const b = e?.balance != null ? String(e.balance) : ''
-          return t ? `${t}: ${b}` : ''
+          return t ? `${displayTokenLabel(t)}: ${b}` : ''
         })
         .filter(Boolean)
         .join(', ') || '—'
     }
     if (typeof balances === 'object' && !Array.isArray(balances)) {
       return Object.entries(balances as Record<string, unknown>)
-        .map(([t, b]) => `${t}: ${b != null ? String(b) : ''}`)
+        .map(([t, b]) => `${displayTokenLabel(t)}: ${b != null ? String(b) : ''}`)
         .join(', ') || '—'
     }
     return '—'
@@ -1162,7 +1171,8 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                         <div className="space-y-2">
                           {(balances as BalanceEntry[]).map((entry, idx) => {
                             const e = entry as unknown as Record<string, unknown>
-                            const tokenLabel = e.token ?? e.symbol ?? e.tokenSymbol ?? e.token_name ?? e.name ?? '—'
+                            const rawLabel = e.token ?? e.symbol ?? e.tokenSymbol ?? e.token_name ?? e.name ?? '—'
+                            const tokenLabel = displayTokenLabel(String(rawLabel))
                             const balanceVal = entry.balance != null ? (typeof entry.balance === 'string' ? entry.balance : String(entry.balance)) : '—'
                             return (
                               <div key={`${String(tokenLabel)}-${idx}`} className="flex justify-between items-center py-2 px-3 rounded-lg bg-teal-800/30 border border-teal-700/30">

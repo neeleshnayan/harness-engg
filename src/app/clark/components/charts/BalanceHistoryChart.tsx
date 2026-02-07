@@ -7,7 +7,34 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
 import type { DailyBalanceEntry, IntradayBalanceEntry } from '../../types'
 import { allocationColors } from '../../constants'
 
-/** Normalize balances to a map token -> numeric balance. Handles array or object. */
+const KNOWN_K_TOKENS = ['kUSD', 'kEUR', 'kGBP', 'kAED'] as const
+
+/** Canonical token key: merge kAED/KAED/AED/kaed into kAED for consistent plotting */
+function canonicalTokenKey(t: string): string {
+  const s = (t || '').trim()
+  if (!s) return s
+  const upper = s.toUpperCase()
+  // k-prefixed: kEUR, KAED -> kEUR, kAED
+  if (upper.startsWith('K') && ['KEUR', 'KGBP', 'KAED', 'KUSD'].includes(upper)) {
+    return 'k' + upper.slice(1)
+  }
+  // No k prefix: EUR, AED -> kEUR, kAED (merge display format with API format)
+  if (['EUR', 'GBP', 'AED', 'USD'].includes(upper)) {
+    return 'k' + upper
+  }
+  return s
+}
+
+/** Display token: EUR, GBP, etc. - strip k prefix for user-facing labels */
+function displayToken(t: string): string {
+  const s = (t || '').trim()
+  if (s.toUpperCase().startsWith('K') && ['KEUR', 'KGBP', 'KAED', 'KUSD'].includes(s.toUpperCase())) {
+    return s.slice(1)  // kEUR -> EUR
+  }
+  return s
+}
+
+/** Normalize balances to a map token -> numeric balance. Handles array or object. Uses canonical keys for consistency. */
 function balancesToMap(balances: unknown): Record<string, number> {
   const out: Record<string, number> = {}
   if (balances == null) return out
@@ -16,16 +43,22 @@ function balancesToMap(balances: unknown): Record<string, number> {
       const t = e?.token ?? ''
       if (!t) continue
       const b = e?.balance
-      const num = typeof b === 'number' ? b : typeof b === 'string' ? parseFloat(b) : NaN
-      if (!Number.isNaN(num)) out[t] = num
+      const num = typeof b === 'number' ? b : typeof b === 'string' ? parseFloat(String(b)) : NaN
+      if (!Number.isNaN(num)) {
+        const key = canonicalTokenKey(t)
+        out[key] = num
+      }
     }
     return out
   }
   if (typeof balances === 'object' && !Array.isArray(balances)) {
     for (const [t, b] of Object.entries(balances as Record<string, unknown>)) {
       if (!t) continue
-      const num = typeof b === 'number' ? b : typeof b === 'string' ? parseFloat(b) : NaN
-      if (!Number.isNaN(num)) out[t] = num
+      const num = typeof b === 'number' ? b : typeof b === 'string' ? parseFloat(String(b)) : NaN
+      if (!Number.isNaN(num)) {
+        const key = canonicalTokenKey(t)
+        out[key] = num
+      }
     }
     return out
   }
@@ -78,7 +111,7 @@ export default function BalanceHistoryChart({
   const rows = isDaily ? dailyBalances : intradayBalances
 
   const { chartData, tokens, chartConfig } = useMemo(() => {
-    const tokensSet = new Set<string>()
+    const tokensSet = new Set<string>(KNOWN_K_TOKENS)
     for (const row of rows) {
       const m = balancesToMap(row.balances)
       Object.keys(m).forEach(t => tokensSet.add(t))
@@ -110,7 +143,7 @@ export default function BalanceHistoryChart({
     const config: Record<string, { label: string; color: string }> = {}
     tokenList.forEach((t, i) => {
       config[t] = {
-        label: t,
+        label: displayToken(t),
         color: allocationColors[i % allocationColors.length],
       }
     })
@@ -136,10 +169,11 @@ export default function BalanceHistoryChart({
   }
 
   const allValues = chartData.flatMap(d => tokens.map(t => Number(d[t])))
-  const minVal = Math.min(0, ...allValues)
+  const rawMin = allValues.length ? Math.min(...allValues) : 0
+  const minVal = Math.max(0, rawMin)  // Balance charts: do not extend below zero
   const maxVal = Math.max(...allValues, 0.01)
   const padding = (maxVal - minVal) * 0.05 || 0.01
-  const domainMin = minVal - padding
+  const domainMin = Math.max(0, minVal - padding)  // Clamp: never show negative on axis
   const domainMax = maxVal + padding
 
   return (
@@ -195,7 +229,7 @@ export default function BalanceHistoryChart({
                     <div className="space-y-1">
                       {tokens.map(t => (
                         <div key={t} className="flex justify-between items-center gap-4">
-                          <span className="text-teal-200/90">{t}</span>
+                          <span className="text-teal-200/90">{displayToken(t)}</span>
                           <span className="text-white font-medium tabular-nums">
                             {formatAxisValue(Number(data[t] ?? 0))}
                           </span>
@@ -215,7 +249,7 @@ export default function BalanceHistoryChart({
                 key={token}
                 type="monotone"
                 dataKey={token}
-                name={token}
+                name={displayToken(token)}
                 stroke={chartConfig[token]?.color ?? allocationColors[i % allocationColors.length]}
                 strokeWidth={2}
                 dot={false}

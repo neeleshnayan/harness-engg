@@ -95,7 +95,7 @@ export const categories: Category[] = [
     icon: '/backtesting.svg',
     description: 'Test portfolio strategies',
     prompts: [
-      'Backtest a 100-day SMA filter on ETH; stay in cash when below SMA; from 2024-01-01 to 2024-09-30 with $12,000',
+      'Backtest a 100-day SMA filter on Gold; stay in cash when below SMA; from 2024-01-01 to 2024-09-30 with $12,000',
       'Backtest Gold from 01/01/2025 to 09/09/2025 with 1000 USD',
       'Backtest Bitcoin & Ethereum with 50% each from 01/01/2025 to 09/09/2025 with 1000 USD',
       'Backtest a 50/200 EMA crossover on BTC from 2024-01-01 to 2024-06-30 with $5,000',
