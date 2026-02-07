@@ -157,7 +157,8 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
     const calculateToAmount = async () => {
       setIsCalculatingTo(true);
       try {
-        const price = await getPoolRate(toCurrency, fromCurrency);
+        // Get rate: rate(from -> to) so we can multiply
+        const price = await getPoolRate(fromCurrency, toCurrency);
         if (cancelled) return;
         if (price > 0) {
           isUpdatingToRef.current = true;
@@ -221,11 +222,12 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
     const calculateFromAmount = async () => {
       setIsCalculatingFrom(true);
       try {
+        // Get rate: rate(to -> from) so we can multiply
         const price = await getPoolRate(toCurrency, fromCurrency);
         if (cancelled) return;
         if (price > 0) {
           isUpdatingFromRef.current = true;
-          const calculatedFrom = amountNum / price;
+          const calculatedFrom = amountNum * price;
           setFromAmount(calculatedFrom.toFixed(2));
           setTimeout(() => {
             isUpdatingFromRef.current = false;
@@ -269,7 +271,8 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
     const fetchExchangeRate = async () => {
       setExchangeRateLoading(true);
       try {
-        const price = await getPoolRate(fromCurrency, toCurrency);
+        // Get rate: rate(to -> from) for display "1 To = X From"
+        const price = await getPoolRate(toCurrency, fromCurrency);
         if (cancelled) return;
         if (price > 0) {
           setExchangeRate(price);

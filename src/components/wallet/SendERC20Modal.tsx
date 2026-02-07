@@ -299,8 +299,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
     const calculateToAmount = async () => {
       setIsCalculatingTo(true);
       try {
-        // Get rate: how much toCurrency per 1 fromCurrency
-        const price = await getPoolRate(toTokenSymbol, fromTokenSymbol);
+        // Get rate: rate(from -> to) so we can multiply
+        const price = await getPoolRate(fromTokenSymbol, toTokenSymbol);
 
         if (cancelled) return;
 
@@ -379,15 +379,15 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
     const calculateFromAmount = async () => {
       setIsCalculatingFrom(true);
       try {
-        // Get rate: how much toCurrency per 1 fromCurrency
+        // Get rate: rate(to -> from) so we can multiply to get from amount
         const price = await getPoolRate(toTokenSymbol, fromTokenSymbol);
 
         if (cancelled) return;
 
         if (price > 0) {
           isUpdatingFromRef.current = true;
-          // To get FROM amount: TO amount / price
-          const calculatedFrom = amountNum / price;
+          // To get FROM amount: TO amount * price (since price is Rate(to->from))
+          const calculatedFrom = amountNum * price;
           // Format to 2 decimals for display
           setFromAmount(calculatedFrom.toFixed(2));
           setTimeout(() => {
@@ -443,8 +443,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
     const fetchExchangeRate = async () => {
       setExchangeRateLoading(true);
       try {
-        // Get rate: how much toCurrency per 1 fromCurrency
-        const price = await getPoolRate(fromTokenSymbol, toTokenSymbol);
+        // Get rate: how much fromCurrency per 1 toCurrency (for display "1 To = X From")
+        const price = await getPoolRate(toTokenSymbol, fromTokenSymbol);
 
         if (cancelled) return;
 
@@ -531,8 +531,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
     setLoadingMessage(`Checking swap price from ${fromSymbol.replace(/^k/, "")} to ${toSymbol.replace(/^k/, "")}...`);
     const balances = await fetchUserBalances();
 
-    // Get rate: how much toCurrency per 1 fromCurrency
-    const price = await getPoolRate(toSymbol, fromSymbol); // toCurrency per 1 fromCurrency
+    // Get rate: rate(to -> from) to calculate input needed for exact output
+    const price = await getPoolRate(toSymbol, fromSymbol);
 
     if (price <= 0) {
       throw new Error(`Cannot get price for swap ${fromSymbol.replace(/^k/, "")} → ${toSymbol.replace(/^k/, "")}`);
@@ -540,7 +540,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
 
     // Calculate how much fromCurrency we need to swap to get requiredToAmount of toCurrency
     const safety = 1.02; // +2% buffer for slippage/fees
-    const requiredFromAmount = (requiredToAmount / price) * safety;
+    // requiredFrom = requiredTo * Rate(to->from)
+    const requiredFromAmount = (requiredToAmount * price) * safety;
 
     const fromBalance = balances[fromSymbol] || 0;
     if (fromBalance < requiredFromAmount) {
