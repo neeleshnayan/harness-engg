@@ -40,16 +40,13 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
       if (isNaN(rawAmount) || rawAmount <= 0) continue;
 
       const tokenAddress = tb?.token?.tokenAddress?.toLowerCase();
-      const tokenSymbol = tokenAddress ? tokenAddressMap[tokenAddress] : undefined;
       const symbolFromBalance = tb?.token?.symbol;
+      const tokenSymbol = (tokenAddress ? tokenAddressMap[tokenAddress] : undefined) || symbolFromBalance;
 
-      if (tokenSymbol) {
-        aggregatedBalances[tokenSymbol] = (aggregatedBalances[tokenSymbol] || 0) + rawAmount;
-        continue;
-      }
-
-      if (symbolFromBalance === "USDC") {
+      if (tokenSymbol === "USDC") {
         usdcTotal += rawAmount;
+      } else if (tokenSymbol) {
+        aggregatedBalances[tokenSymbol] = (aggregatedBalances[tokenSymbol] || 0) + rawAmount;
       }
     }
 
