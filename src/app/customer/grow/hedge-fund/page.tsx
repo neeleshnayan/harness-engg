@@ -76,7 +76,7 @@ export default function HedgeFundV2Page() {
 
   const tokenBalances = useMemo(() => {
     if (!balance || !Array.isArray(balance.tokenBalances)) {
-      return { yearnWeth: undefined, usdc: undefined, strategies: {} };
+      return { yearnWeth: undefined, usdc: undefined, strategies: {} as Record<string, string>, strategiesWei: {} as Record<string, string> };
     }
 
     let balances = balance.tokenBalances.filter((tokenBalance: any) => {
@@ -87,6 +87,7 @@ export default function HedgeFundV2Page() {
     let yearnWethBalance: number | undefined;
     let usdcBalance: number | undefined;
     const strategyBalances: Record<string, string> = {};
+    const strategyBalancesWei: Record<string, string> = {};
 
     balances.forEach((tokenBalance: any) => {
       const symbol = tokenBalance.token.symbol;
@@ -107,11 +108,12 @@ export default function HedgeFundV2Page() {
       // Skip USDC and yearnWeth (already processed above)
       if (symbol !== 'USDC' && symbol !== 'TRNSK' && symbol !== 'ysWETH' && symbol !== 'YEARN_WETH') {
         strategyBalances[symbol] = tokenBalance.amount || "0";
+        strategyBalancesWei[symbol] = tokenBalance.balanceWei || "0";
         console.log(`✅ [OPTIMIZED] ${symbol}: ${tokenBalance.amount}`);
       }
     });
 
-    return { usdc: usdcBalance, yearnWeth: yearnWethBalance, strategies: strategyBalances };
+    return { usdc: usdcBalance, yearnWeth: yearnWethBalance, strategies: strategyBalances, strategiesWei: strategyBalancesWei };
   }, [balance]);
 
   useEffect(() => {
@@ -164,6 +166,7 @@ export default function HedgeFundV2Page() {
         Object.entries(batchData.strategy_balances).forEach(([strategyId, data]: [string, any]) => {
           tokenBalances.push({
             amount: data.balance,
+            balanceWei: data.balance_wei, // Capture raw wei balance
             token: {
               symbol: strategyId,
               address: data.address
@@ -403,8 +406,10 @@ export default function HedgeFundV2Page() {
                 strategyAddress={currentStrategy?.address}
                 strategyName={displayName}
                 assetSymbol="USDC" // Defaulting to USDC as base for now
-                targetSymbol={currentStrategy?.symbol || "WETH"} // Use strategy symbol if available
-                targetTokenDecimals={currentStrategy?.symbol === 'WETH' ? 18 : 6}
+                targetSymbol={currentStrategy?.symbol} 
+                underlyingSymbol={currentStrategy?.underlying_symbol || currentStrategy?.symbol?.replace(/^(YS|KP|KF)/, '')} // e.g., "ETH" from "YSETH" or "KPETH"
+                targetTokenDecimals={currentStrategy?.target_decimals ?? 6}
+                aumDecimals={currentStrategy?.aum_decimals ?? (currentStrategy?.symbol?.includes('SILVER') || currentStrategy?.symbol?.includes('GOLD') ? 8 : 0)} // Precious metals use 8 decimals for Chainlink oracle
               />
             )}
           </>
@@ -531,7 +536,7 @@ export default function HedgeFundV2Page() {
                   {strategies.map((strat) => (
                     <StrategyCard
                       key={strat.id || strat.address}
-                      strategyName={strat.address || strat.id || "Unknown"} // Use Address or ID as Name
+                      strategyName={strat.symbol || strat.id || "Unknown"} // Use symbol for display
                       strategyData={strat}
                       onRefresh={() => {
                         accountData?.wallet_address && fetchBalance(accountData.wallet_address);
@@ -544,6 +549,7 @@ export default function HedgeFundV2Page() {
                       }}
                       usdcBalance={tokenBalances.usdc?.toString()}
                       strategyBalance={tokenBalances.strategies[strat.id || strat.address]}
+                      strategyBalanceWei={tokenBalances.strategiesWei?.[strat.id || strat.address]}
                     />
                   ))}
 

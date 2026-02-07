@@ -23,6 +23,7 @@ interface StrategyCardProps {
   onCardClick?: () => void;
   usdcBalance?: string;
   strategyBalance?: string; // Pre-fetched strategy balance from parent
+  strategyBalanceWei?: string; // Pre-fetched raw wei balance from parent
   strategyData?: any; // Dynamic config
 }
 
@@ -41,7 +42,7 @@ const STRATEGY_DETAILS__LEGACY: Record<string, {
   },
 };
 
-const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, onCardClick, usdcBalance, strategyBalance: strategyBalanceProp, strategyData }) => {
+const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, onCardClick, usdcBalance, strategyBalance: strategyBalanceProp, strategyBalanceWei: strategyBalanceWeiProp, strategyData }) => {
   const router = useRouter();
   const { toast } = useToast();
 
@@ -69,6 +70,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
   const { data: yearnAUM } = useYearnAUM(strategyName);
 
   const [strategyBalance, setStrategyBalance] = useState("0");
+  const [strategyBalanceWei, setStrategyBalanceWei] = useState("0");
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [usdcBalanceState, setUsdcBalance] = useState("0"); // Renamed to differentiate from prop
   const [walletAddress, setWalletAddress] = useState<string>("");
@@ -150,11 +152,16 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
             setUsdcBalance(usdcBalance);
           }
 
+
           if (typeof strategyBalanceProp !== 'undefined') {
             setStrategyBalance(strategyBalanceProp);
           }
 
-          console.log(`✅ [OPTIMIZED] ${strategyName} - Using pre-fetched balance: ${strategyBalanceProp}`);
+          if (typeof strategyBalanceWeiProp !== 'undefined') {
+            setStrategyBalanceWei(strategyBalanceWeiProp);
+          }
+
+          console.log(`✅ [OPTIMIZED] ${strategyName} - Using pre-fetched balance: ${strategyBalanceProp} (${strategyBalanceWeiProp} wei)`);
         }
       }
     } catch (err: any) {
@@ -182,7 +189,10 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
     if (typeof strategyBalanceProp !== 'undefined') {
       setStrategyBalance(strategyBalanceProp);
     }
-  }, [strategyBalanceProp]);
+    if (typeof strategyBalanceWeiProp !== 'undefined') {
+      setStrategyBalanceWei(strategyBalanceWeiProp);
+    }
+  }, [strategyBalanceProp, strategyBalanceWeiProp]);
 
   // Calculate price in USDC (only for MAVC and MAVP, not Yearn)
   const priceInUSDC = useMemo(() => {
@@ -260,6 +270,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
               if (currentBalance > initialBalance || attempts >= maxAttempts) {
                 // Balance updated or timeout reached
                 setStrategyBalance(currentBalance.toString());
+                setStrategyBalanceWei(balance_wei); // Update wei balance too
                 setTransactionStage('success');
                 if (onRefresh) onRefresh();
                 return;
@@ -307,9 +318,70 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
 
       // For MAVC_YEARN: send raw decimal string (e.g., "10")
       // For other strategies: convert to wei format
-      const amountFloat = parseFloat(amount);
-      const decimals = config?.share_decimals || 18;
-      const amountToSend = Math.floor(amountFloat * Math.pow(10, decimals)).toString();
+      
+      // LOGIC FIX: Check if we are withdrawing MAX (amount matches display balance)
+      // If so, use the exact wei balance to avoid precision errors
+      let amountToSend = "0";
+
+      // If user input matches the displayed balance string exactly OR matches the formatted wei balance
+      if (amount === strategyBalance && strategyBalanceWei && strategyBalanceWei !== "0") {
+          console.log(`✅ [PRECISION] Using exact wei balance for withdrawal: ${strategyBalanceWei}`);
+          amountToSend = strategyBalanceWei;
+      } else {
+          // Fallback to calculation
+          const amountFloat = parseFloat(amount);
+          
+          // CRITICAL FIX: If asset_decimals is 6 (USDC), share_decimals MUST be 6.
+          // Existing configs might have erroneously saved share_decimals=18 in the DB, so we must override it.
+          let decimals = 18;
+          if (config?.asset_decimals === 6) {
+              decimals = 6;
+          } else {
+              decimals = config?.share_decimals || config?.asset_decimals || 18;
+          }
+          
+          console.log(`[DECIMALS] Strategy: ${strategyName}, AssetDecimals: ${config?.asset_decimals}, ShareDecimals: ${config?.share_decimals}, USED: ${decimals}`);
+          
+          // Check if calculate wei > strategyBalanceWei (if available)
+          // Use BigInt for precision check if possible, or just be careful. 
+          // Since we don't have BigInt easy access here without potentially messing up older browsers/types (though typical modern React is fine), 
+          // we'll stick to string logic or use the float calc but cap it if it's close.
+          
+          const calculatedWeiCtx = Math.floor(amountFloat * Math.pow(10, decimals)).toString();
+          
+          // If we have wei balance, and calculated is > wei balance, CAP IT.
+          if (strategyBalanceWei && strategyBalanceWei !== "0") {
+             // Simple string comparison for large numbers is tricky, convert to BigInt
+             try {
+                 const calcBI = BigInt(calculatedWeiCtx);
+                 const balanceBI = BigInt(strategyBalanceWei);
+                 
+                 if (calcBI >= balanceBI) {
+                      // SANITY CHECK: Only cap if the input amount is actually close to the Max Balance.
+                      // This prevents decimal mismatches (e.g. 18 dec vs 6 dec) from triggering a full withdrawal
+                      // when the user only wanted a small amount.
+                      const maxBalFloat = parseFloat(strategyBalance);
+                      
+                      // If user is requesting less than 95% of balance, but Wei calc is >= Balance Wei,
+                      // it's a configuration error (decimals), NOT a precision error.
+                      // Do NOT cap. Let it fail on-chain (or send huge amount) rather than force-withdrawing everything.
+                      if (amountFloat < maxBalFloat * 0.95) {
+                          console.warn(`⚠️ [DECIMAL MISMATCH] Input ${amountFloat} << Balance ${maxBalFloat} but Wei ${calcBI} >= ${balanceBI}. Using calculated.`);
+                          amountToSend = calculatedWeiCtx;
+                      } else {
+                          console.log(`⚠️ [PRECISION] Capping withdrawal at max balance: ${strategyBalanceWei}`);
+                          amountToSend = strategyBalanceWei;
+                      }
+                 } else {
+                      amountToSend = calculatedWeiCtx;
+                 }
+             } catch (e) {
+                 amountToSend = calculatedWeiCtx;
+             }
+          } else {
+             amountToSend = calculatedWeiCtx;
+          }
+      }
 
       const response = await hedgeFundApi.post(`/api/v1/strategy/${strategyName}/withdraw`, {
         amount: amountToSend,
@@ -340,11 +412,11 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
 
               // Check if balance decreased (withdraw should decrease balance)
               if (currentBalance < initialBalance || attempts >= maxAttempts) {
-                // Balance updated or timeout reached
-                setStrategyBalance(currentBalance.toString());
-                setTransactionStage('success');
-                if (onRefresh) onRefresh();
-                return;
+                  setStrategyBalance(currentBalance.toString());
+                  setStrategyBalanceWei(balance_wei); // Update Wei balance
+                  setTransactionStage('success');
+                  if (onRefresh) onRefresh();
+                  return;
               }
             }
           } catch (error) {
