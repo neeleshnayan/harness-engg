@@ -284,9 +284,12 @@ export default function BacktestPage() {
     const hasValidPricePoints = Array.isArray(dataPoints) && dataPoints.length > 0 &&
       dataPoints.some((p: { price?: number }) => typeof p?.price === 'number')
     
+    // Use EUR/GBP display format (strip k prefix if present)
+    const rawToken = rawData?.token || priceHistoryData?.token || payload?.parsed_intent?.token_name || ''
+    const displayTokenForHistory = (rawToken || '').replace(/^k/i, '') || rawToken
     const priceHistoryResult = priceHistoryData && hasValidPricePoints && Array.isArray(dataPoints)
       ? {
-          token: rawData?.token || priceHistoryData?.token || payload?.parsed_intent?.token_name || '',
+          token: displayTokenForHistory,
           lookback_days: priceHistoryData?.lookback_days || payload?.parsed_intent?.lookback_days || 30,
           count: priceHistoryData?.count || dataPoints.length || 0,
           data_points: dataPoints,

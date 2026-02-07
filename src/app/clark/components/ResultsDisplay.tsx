@@ -1116,6 +1116,9 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                   lookbackDays: priceHistoryResult.lookback_days,
                 })
                 
+                // Display EUR/GBP (strip k prefix if present for consistency)
+                const displayToken = (priceHistoryResult.token || '').replace(/^k/i, '') || priceHistoryResult.token
+
                 return (
                   <div className="flex gap-2 justify-start items-start mt-2">
                     <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
@@ -1123,7 +1126,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                     </div>
                     <div className="max-w-[85%] w-full">
                       <PriceHistoryChart
-                        token={priceHistoryResult.token}
+                        token={displayToken}
                         dataPoints={priceHistoryResult.data_points}
                         lookbackDays={priceHistoryResult.lookback_days}
                       />

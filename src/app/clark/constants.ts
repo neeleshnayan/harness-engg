@@ -195,8 +195,8 @@ export const categories: Category[] = [
       'Send 10 dollars to @krypton',
       'Swap 50 euros for GBP',
       'Swap 20 USD for EUR and send 10 EUR to @krypton',
-      'Show price history for kEUR',
-      'Display kGBP price chart for the last 90 days',
+      'Show price history for EUR',
+      'Display GBP price chart for the last 90 days',
       'What are my balances?',
       'Show my daily balance history',
       'Show my intraday balance history'
