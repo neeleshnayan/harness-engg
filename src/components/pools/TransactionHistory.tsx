@@ -1,23 +1,11 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { subgraphApi, PoolRateHistoryEntry, PoolBalanceHistoryEntry } from '@/lib/subgraphApi';
-
-export interface PoolTransaction {
-  id: string;
-  type: 'rate_update' | 'balance_change';
-  timestamp: number;
-  blockNumber: string;
-  details: {
-    tokenPair?: string;
-    rate?: number | null;
-    balances?: number[];
-    tokens?: string[];
-  };
-}
+import { useState, useEffect, useCallback } from 'react';
+import { subgraphApi, PoolSwapEntry } from '@/lib/subgraphApi';
+import { ArrowUpDown, AlertCircle, RefreshCw } from 'lucide-react';
 
 interface TransactionHistoryProps {
   poolAddress: string;
+  token0Address?: string; // Optional for now to maintain compatibility if not passed immediately
+  token1Address?: string;
   title?: string;
   maxShow?: number;
   showFilters?: boolean;
@@ -25,97 +13,85 @@ interface TransactionHistoryProps {
 
 export default function TransactionHistory({
   poolAddress,
-  title = 'Pool Activity',
+  token0Address,
+  token1Address,
+  title = 'Recent Swaps',
   maxShow = 20,
-  showFilters = true,
 }: TransactionHistoryProps) {
-  const [transactions, setTransactions] = useState<PoolTransaction[]>([]);
+  const [swaps, setSwaps] = useState<PoolSwapEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filter, setFilter] = useState<'all' | 'rate_update' | 'balance_change'>('all');
   const [showAll, setShowAll] = useState(false);
 
-  useEffect(() => {
+  const fetchSwaps = useCallback(async () => {
     if (!poolAddress) return;
 
-    const fetchTransactions = async () => {
-      setLoading(true);
-      setError('');
+    setLoading(true);
+    setError('');
 
-      try {
-        // Fetch both rate history and balance history
-        const [rateResponse, balanceResponse] = await Promise.all([
-          subgraphApi.getPoolRateHistory(poolAddress, maxShow * 2, 'desc'),
-          subgraphApi.getPoolBalanceHistory(poolAddress, maxShow * 2, 'desc'),
-        ]);
+    try {
+      console.log(`[TransactionHistory] Fetching swaps for pool: ${poolAddress} tokens: ${token0Address}/${token1Address}`);
+      // Fetch up to 50 swaps
+      const response = await subgraphApi.getPoolSwaps(poolAddress, 50, 0, token0Address, token1Address);
 
-        // Convert rate history to transactions
-        const rateTransactions: PoolTransaction[] = rateResponse.rates.map(
-          (entry: PoolRateHistoryEntry) => ({
-            id: entry.id,
-            type: 'rate_update' as const,
-            timestamp: parseInt(entry.blockTimestamp) * 1000,
-            blockNumber: entry.blockNumber,
-            details: {
-              tokenPair: entry.tokenPair,
-              rate: entry.rate,
-            },
-          })
-        );
+      console.log(`[TransactionHistory] Raw response for ${poolAddress}:`, response);
 
-        // Convert balance history to transactions
-        const balanceTransactions: PoolTransaction[] = balanceResponse.balances.map(
-          (entry: PoolBalanceHistoryEntry) => ({
-            id: entry.id,
-            type: 'balance_change' as const,
-            timestamp: parseInt(entry.blockTimestamp) * 1000,
-            blockNumber: entry.blockNumber,
-            details: {
-              balances: entry.balances,
-              tokens: entry.tokens,
-            },
-          })
-        );
+      let fetchedSwaps = response.swaps || [];
+      console.log(`[TransactionHistory] Fetched ${fetchedSwaps.length} swaps`, fetchedSwaps);
 
-        // Merge and sort by timestamp
-        const allTransactions = [...rateTransactions, ...balanceTransactions].sort(
-          (a, b) => b.timestamp - a.timestamp
-        );
+      // Sort just in case API didn't
+      fetchedSwaps.sort((a, b) => b.timestamp - a.timestamp);
 
-        setTransactions(allTransactions);
-      } catch (err: any) {
-        console.error('Error fetching transaction history:', err);
-        setError('Failed to load transaction history');
-      } finally {
-        setLoading(false);
-      }
-    };
+      setSwaps(fetchedSwaps);
+    } catch (err: any) {
+      console.error('Error fetching pool swaps:', err);
+      setError('Failed to load swaps');
+    } finally {
+      setLoading(false);
+    }
+  }, [poolAddress, token0Address, token1Address]);
 
-    fetchTransactions();
-  }, [poolAddress, maxShow]);
+  useEffect(() => {
+    fetchSwaps();
+  }, [fetchSwaps]);
 
-  const filteredTransactions = transactions.filter(
-    (tx) => filter === 'all' || tx.type === filter
-  );
+  const displayedSwaps = showAll ? swaps : swaps.slice(0, maxShow);
 
-  const displayedTransactions = showAll
-    ? filteredTransactions
-    : filteredTransactions.slice(0, maxShow);
+  const formatUsername = (swap: PoolSwapEntry) => {
+      // Assuming 'username' field is added to PoolSwapEntry via backend enrichment
+      if ((swap as any).username) return `@${(swap as any).username}`;
+      if (swap.user) return `${swap.user.substring(0, 6)}...${swap.user.substring(swap.user.length - 4)}`;
+      return 'Unknown';
+  };
 
-  if (loading) {
+  if (loading && swaps.length === 0) {
     return (
       <div className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6">
         <h4 className="text-lg font-medium text-white mb-4">{title}</h4>
-        <div className="text-gray-400 text-sm text-center py-8">Loading transactions...</div>
+        <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-400"></div>
+        </div>
       </div>
     );
   }
 
-  if (error) {
+  if (error && swaps.length === 0) {
     return (
       <div className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6">
-        <h4 className="text-lg font-medium text-white mb-4">{title}</h4>
-        <div className="text-red-400 text-sm text-center py-8">{error}</div>
+        <div className="flex items-center justify-between mb-4">
+            <h4 className="text-lg font-medium text-white">{title}</h4>
+            <button
+                onClick={fetchSwaps}
+                className="p-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-gray-400 hover:text-white transition-colors"
+                title="Refresh"
+            >
+                <RefreshCw className="h-4 w-4" />
+            </button>
+        </div>
+        <div className="text-red-400 text-sm text-center py-8 flex items-center justify-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            {error}
+        </div>
       </div>
     );
   }
@@ -124,93 +100,86 @@ export default function TransactionHistory({
     <div className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6">
       <div className="flex items-center justify-between mb-4">
         <h4 className="text-lg font-medium text-white">{title}</h4>
-        <span className="text-xs bg-white/[0.05] text-gray-400 px-2 py-1 rounded-lg">
-          {filteredTransactions.length} event{filteredTransactions.length !== 1 ? 's' : ''}
-        </span>
+        <div className="flex items-center gap-2">
+            <span className="text-[10px] bg-white/[0.05] text-gray-500 px-2 py-1 rounded font-mono truncate max-w-[100px]" title={poolAddress}>
+                {poolAddress.substring(0,6)}...
+            </span>
+            <span className="text-xs bg-white/[0.05] text-gray-400 px-2 py-1 rounded-lg">
+                {swaps.length} swap{swaps.length !== 1 ? 's' : ''}
+            </span>
+            <button
+                onClick={fetchSwaps}
+                className={`p-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-gray-400 hover:text-white transition-colors ${loading ? 'animate-spin' : ''}`}
+                title="Refresh"
+                disabled={loading}
+            >
+                <RefreshCw className="h-3.5 w-3.5" />
+            </button>
+        </div>
       </div>
 
-      {showFilters && (
-        <div className="flex gap-2 mb-4">
-          {['all', 'rate_update', 'balance_change'].map((filterType) => (
-            <button
-              key={filterType}
-              onClick={() => setFilter(filterType as typeof filter)}
-              className={`px-3 py-1.5 text-xs rounded-lg transition-all ${
-                filter === filterType
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white/[0.05] text-gray-400 hover:bg-white/[0.1]'
-              }`}
-            >
-              {filterType === 'all' ? 'All' : filterType === 'rate_update' ? 'Rate Updates' : 'Balance Changes'}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {displayedTransactions.length === 0 ? (
+      {displayedSwaps.length === 0 ? (
         <div className="text-center py-8 text-gray-400">
-          <p className="text-sm">No transactions found</p>
-          <p className="text-xs mt-2">Pool activity will appear here</p>
+          <p className="text-sm">No recent swaps</p>
+          <p className="text-xs mt-2">Trades will appear here</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {displayedTransactions.map((tx) => (
+        <div className="space-y-0">
+          {displayedSwaps.map((tx, idx) => (
             <div
-              key={tx.id}
-              className="flex items-center justify-between p-3 bg-white/[0.02] border border-white/[0.03] rounded-xl hover:bg-white/[0.04] transition-all"
+              key={`${tx.hash}-${idx}`}
+              className={`flex items-center justify-between p-3 hover:bg-white/[0.04] transition-all border-b border-white/[0.03] last:border-0`}
             >
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span
-                    className={`text-xs font-medium px-2 py-0.5 rounded ${
-                      tx.type === 'rate_update'
-                        ? 'bg-purple-500/20 text-purple-300'
-                        : 'bg-green-500/20 text-green-300'
-                    }`}
-                  >
-                    {tx.type === 'rate_update' ? '📊 Rate' : '💧 Balance'}
-                  </span>
-                  {tx.details.tokenPair && (
-                    <span className="text-sm text-gray-300">{tx.details.tokenPair}</span>
-                  )}
-                  {tx.details.rate !== null && tx.details.rate !== undefined && (
-                    <span className="text-sm text-blue-400">
-                      {tx.details.rate.toFixed(6)}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-3 text-xs text-gray-500">
-                  <span>Block #{tx.blockNumber}</span>
-                  <span>{new Date(tx.timestamp).toLocaleString()}</span>
-                </div>
+              {/* Left Column: Icon + Primary Info */}
+              <div className="flex items-center gap-3 flex-1 overflow-hidden">
+                 <div className="w-8 h-8 rounded-full bg-white/[0.03] flex items-center justify-center flex-shrink-0">
+                    <ArrowUpDown className="h-4 w-4 text-cyan-400 rotate-90" />
+                 </div>
+
+                 <div className="flex flex-col overflow-hidden">
+                    <div className="flex items-center text-sm font-medium text-white gap-1.5 flex-wrap">
+                        <span className="whitespace-nowrap">{tx.amount_in.toLocaleString(undefined, { maximumFractionDigits: 4 })} <span className="text-gray-400 text-xs">{tx.token_in}</span></span>
+                        <span className="text-gray-500">→</span>
+                        <span className="whitespace-nowrap">{tx.amount_out.toLocaleString(undefined, { maximumFractionDigits: 4 })} <span className="text-gray-400 text-xs">{tx.token_out}</span></span>
+                    </div>
+                    <div className="text-xs text-blue-400/80 mt-0.5 truncate flex items-center gap-1">
+                        By <span className="font-medium text-blue-300">{formatUsername(tx)}</span>
+                    </div>
+                 </div>
               </div>
-              {tx.details.balances && (
-                <div className="text-right">
-                  <div className="text-xs text-gray-400">
-                    {tx.details.balances.map((b, i) => (
-                      <div key={i}>{b.toFixed(2)}</div>
-                    ))}
-                  </div>
-                </div>
-              )}
+
+              {/* Right Column: Time + Link */}
+              <div className="flex flex-col items-end gap-1 ml-4 min-w-[80px]">
+                 <span className="text-xs text-gray-500 font-mono text-right">
+                    {new Date(tx.timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                 </span>
+                 <a
+                    href={`https://sepolia.etherscan.io/tx/${tx.hash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-[10px] text-blue-500 hover:text-blue-300 font-mono bg-blue-500/10 px-1.5 py-0.5 rounded"
+                 >
+                    {tx.hash.substring(0,6)}...
+                 </a>
+                 <span className="text-[10px] text-gray-600">
+                    {new Date(tx.timestamp * 1000).toLocaleDateString([], {month:'short', day:'numeric'})}
+                 </span>
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      {filteredTransactions.length > maxShow && (
-        <div className="mt-4 text-center">
-          <button
-            onClick={() => setShowAll(!showAll)}
-            className="text-sm text-blue-400 hover:text-blue-300 font-medium transition-colors"
-          >
-            {showAll
-              ? 'Show Less'
-              : `Show All (${filteredTransactions.length - maxShow} more)`}
-          </button>
-        </div>
+      {swaps.length > maxShow && (
+         <div className="text-center mt-3 pt-2 border-t border-white/[0.05]">
+            <button
+                onClick={() => setShowAll(!showAll)}
+                className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+            >
+                {showAll ? 'Show Less' : `Show All (${swaps.length - maxShow} more)`}
+            </button>
+         </div>
       )}
     </div>
   );
 }
-

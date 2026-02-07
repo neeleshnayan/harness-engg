@@ -617,6 +617,8 @@ export default function CLPoolMonitor({
           {activeTab === 'history' && (
             <TransactionHistory
               poolAddress={poolAddress}
+              token0Address={token0Address}
+              token1Address={token1Address}
               title=""
               maxShow={15}
               showFilters={true}

@@ -138,5 +138,42 @@ export const subgraphApi = {
     const response = await kryptonWeb3Api.get(`/subgraph/pool-price/${encodeURIComponent(tokenPair)}`);
     return response.data;
   },
+
+  /**
+   * Fetch recent swaps for a pool
+   */
+  async getPoolSwaps(
+    poolAddress: string,
+    limit: number = 20,
+    skip: number = 0,
+    token0?: string,
+    token1?: string
+  ): Promise<PoolSwapResponse> {
+    const params: any = { limit, skip };
+    if (token0) params.token0 = token0;
+    if (token1) params.token1 = token1;
+
+    const response = await kryptonWeb3Api.get(`/subgraph/pool/${poolAddress}/swaps`, {
+      params,
+    });
+    return response.data;
+  },
 };
 
+export interface PoolSwapEntry {
+  id: string;
+  hash: string;
+  timestamp: number;
+  token_in: string;
+  token_out: string;
+  amount_in: number;
+  amount_out: number;
+  user: string;
+  username?: string; // Enhanced by backend
+}
+
+export interface PoolSwapResponse {
+  pool_address: string;
+  count: number;
+  swaps: PoolSwapEntry[];
+}
