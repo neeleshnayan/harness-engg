@@ -5,9 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
 import type { DailyBalanceEntry, IntradayBalanceEntry } from '../../types'
-import { allocationColors } from '../../constants'
 
 const KNOWN_K_TOKENS = ['kUSD', 'kEUR', 'kGBP', 'kAED'] as const
+
+/** Explicit hex colors - avoid CSS vars that may not resolve for legend/line */
+const BALANCE_CHART_COLORS = ['#10b981', '#60a5fa', '#f59e0b', '#ec4899']
 
 /** Canonical token key: merge kAED/KAED/AED/kaed into kAED for consistent plotting */
 function canonicalTokenKey(t: string): string {
@@ -144,7 +146,7 @@ export default function BalanceHistoryChart({
     tokenList.forEach((t, i) => {
       config[t] = {
         label: displayToken(t),
-        color: allocationColors[i % allocationColors.length],
+        color: BALANCE_CHART_COLORS[i % BALANCE_CHART_COLORS.length],
       }
     })
 
@@ -244,18 +246,21 @@ export default function BalanceHistoryChart({
               wrapperStyle={{ paddingTop: 8 }}
               formatter={(value) => <span className="text-teal-200/90 text-xs">{value}</span>}
             />
-            {tokens.map((token, i) => (
-              <Line
-                key={token}
-                type="monotone"
-                dataKey={token}
-                name={displayToken(token)}
-                stroke={chartConfig[token]?.color ?? allocationColors[i % allocationColors.length]}
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4, fill: chartConfig[token]?.color, strokeWidth: 2 }}
-              />
-            ))}
+            {tokens.map((token, i) => {
+              const color = chartConfig[token]?.color ?? BALANCE_CHART_COLORS[i % BALANCE_CHART_COLORS.length]
+              return (
+                <Line
+                  key={token}
+                  type="monotone"
+                  dataKey={token}
+                  name={displayToken(token)}
+                  stroke={color}
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 4, fill: color, stroke: color, strokeWidth: 2 }}
+                />
+              )
+            })}
           </LineChart>
         </ChartContainer>
       </CardContent>

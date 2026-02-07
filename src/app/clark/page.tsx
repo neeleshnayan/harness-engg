@@ -841,34 +841,36 @@ export default function BacktestPage() {
                   const category = categories.find((c) => c.id === selectedCategory)
                   if (!category) return null
                   return (
-                    <div className="w-full flex flex-col">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedCategory(null)}
-                        className="self-start flex items-center gap-2 text-white/80 hover:text-white text-sm mb-4"
-                      >
-                        <span aria-hidden>←</span> Back to categories
-                      </button>
-                      <div className="text-white font-medium mb-2">{category.title}</div>
-                      <div className="w-full max-w-md space-y-2">
-                        {category.prompts.map((prompt) => (
-                          <button
-                            key={prompt}
-                            type="button"
-                            onClick={() => {
-                              handlePromptClick(prompt, category.id)
-                              setIsPromptModalOpen(false)
-                            }}
-                            disabled={isLoading}
-                            className="w-full text-left p-3 rounded-xl backdrop-blur-sm transition-all duration-200 text-sm text-white/90 hover:text-white disabled:opacity-50"
-                            style={{
-                              background:
-                                'linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(161, 207, 211, 0.06) 100%)',
-                            }}
-                          >
-                            {prompt}
-                          </button>
-                        ))}
+                    <div className="w-full flex flex-col items-center">
+                      <div className="w-full max-w-md">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedCategory(null)}
+                          className="flex items-center gap-2 text-white/80 hover:text-white text-sm mb-4"
+                        >
+                          <span aria-hidden>←</span> Back to categories
+                        </button>
+                        <div className="text-white font-medium mb-2">{category.title}</div>
+                        <div className="w-full space-y-2">
+                          {category.prompts.map((prompt) => (
+                            <button
+                              key={prompt}
+                              type="button"
+                              onClick={() => {
+                                handlePromptClick(prompt, category.id)
+                                setIsPromptModalOpen(false)
+                              }}
+                              disabled={isLoading}
+                              className="w-full text-left p-3 rounded-xl backdrop-blur-sm transition-all duration-200 text-sm text-white/90 hover:text-white disabled:opacity-50"
+                              style={{
+                                background:
+                                  'linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(161, 207, 211, 0.06) 100%)',
+                              }}
+                            >
+                              {prompt}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )
