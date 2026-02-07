@@ -859,41 +859,43 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                 >
                   <div className="text-sm leading-relaxed">
                     <span className="whitespace-pre-wrap">{message.content}</span>
-                    <div className="text-xs text-white/70 mt-1.5">
-                      {formatTimestamp(message.timestamp)}
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className="text-xs text-white/70">
+                        {formatTimestamp(message.timestamp)}
+                      </span>
+                      {(() => {
+                        const nextAssistant = messages.slice(index + 1).find(m => m.type === 'assistant')
+                        const shouldShowInfo =
+                          nextAssistant &&
+                          nextAssistant.success === true &&
+                          hasStructuredResults(nextAssistant)
+                        if (!shouldShowInfo) return null
+                        const revealed = revealedAssistantIds.has(nextAssistant!.id)
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRevealedAssistantIds(prev => {
+                                const next = new Set(prev)
+                                if (revealed) {
+                                  next.delete(nextAssistant!.id)
+                                } else {
+                                  next.add(nextAssistant!.id)
+                                }
+                                return next
+                              })
+                            }}
+                            className={`inline-flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0 ${
+                              revealed ? 'opacity-60' : ''
+                            }`}
+                            title={revealed ? "Hide Clark's response" : "Show Clark's response"}
+                            aria-label={revealed ? "Hide Clark's response" : "Show Clark's response"}
+                          >
+                            <Info className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-white" />
+                          </button>
+                        )
+                      })()}
                     </div>
-                    {(() => {
-                      const nextAssistant = messages.slice(index + 1).find(m => m.type === 'assistant')
-                      const shouldShowInfo =
-                        nextAssistant &&
-                        nextAssistant.success === true &&
-                        hasStructuredResults(nextAssistant)
-                      if (!shouldShowInfo) return null
-                      const revealed = revealedAssistantIds.has(nextAssistant!.id)
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setRevealedAssistantIds(prev => {
-                              const next = new Set(prev)
-                              if (revealed) {
-                                next.delete(nextAssistant!.id)
-                              } else {
-                                next.add(nextAssistant!.id)
-                              }
-                              return next
-                            })
-                          }}
-                          className={`align-middle inline-flex ml-2 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors h-5 w-5 sm:h-6 sm:w-6 ${
-                            revealed ? 'opacity-60' : ''
-                          }`}
-                          title={revealed ? "Hide Clark's response" : "Show Clark's response"}
-                          aria-label={revealed ? "Hide Clark's response" : "Show Clark's response"}
-                        >
-                          <Info className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-white" />
-                        </button>
-                      )
-                    })()}
                   </div>
                 </div>
               </div>
