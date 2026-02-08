@@ -287,7 +287,9 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
   }, [balanceFlickering]);
 
   // Get price change info from context - SO CLEAN! ✨
-  const priceChangeInfo = balance ? getOverallPriceChange(balance.tokenBalances || []) : null;
+  const priceChangeInfo = useMemo(() => {
+    return balance ? getOverallPriceChange(balance.tokenBalances || []) : null;
+  }, [balance, getOverallPriceChange, (balance as any)?._fetchedAt]);
 
   // Calculate total balance - now uses context! 🎯
   // useMemo ensures this recalculates when balance or selectedCurrency changes
@@ -315,7 +317,7 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
 
     // If rate not available, return USD value
     return totalInUSD;
-  }, [balance, selectedCurrency, tokens, calculateBalanceInUSD]);
+  }, [balance, selectedCurrency, tokens, calculateBalanceInUSD, (balance as any)?._fetchedAt]);
 
   // Get available currencies for dropdown - from context tokens! 🎉
   const kTokenSymbols = Object.keys(tokens).filter(s => s.startsWith('k'));
@@ -488,7 +490,7 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
                        <div className="flex items-baseline justify-center">
                            <div className="flex items-center mr-2">
                                <ChevronDown className="w-6 h-6 text-zinc-500 mr-0.5 group-hover:text-white transition-colors" />
-                               <span className="text-4xl font-medium text-zinc-500 tracking-normal leading-none">{currencySymbol}</span>
+                               <span className="text-4xl font-medium text-white tracking-normal leading-none">{currencySymbol}</span>
                            </div>
                            <span className="text-6xl font-bold text-white tracking-tight leading-none mr-2">
                              {(() => {

@@ -60,7 +60,7 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
     }
 
     return balances;
-  }, [balance, tokenAddressMap]);
+  }, [balance, tokenAddressMap, (balance as any)?._fetchedAt]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [itemsPerRow, setItemsPerRow] = useState<number>(Math.ceil(tokenBalances.length / 2));
