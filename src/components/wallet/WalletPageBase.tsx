@@ -453,13 +453,9 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
             standard: (balance.symbol === "ETH" || balance.symbol === "ETH-SEPOLIA") ? undefined : "ERC20",
           },
         })),
+        // Add timestamp to force React to recognize this as a new object
+        _fetchedAt: Date.now(),
       };
-
-      console.log('Balance fetch complete:', {
-        address,
-        balanceCount: transformedBalance.tokenBalances.length,
-        balances: transformedBalance.tokenBalances.map((b: any) => `${b.token.symbol}: ${b.amount}`)
-      });
 
       setBalance(transformedBalance);
 
@@ -974,7 +970,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
           />
           {accountData?.username && kycStatus === 'approved' && (
             <>
-              <div className="flex flex-row gap-4 mb-8 w-full justify-center md:justify-stretch mt-8 items-center">
+              <div className="flex flex-row gap-3 mb-8 w-full mt-8">
                 <button
                   type="button"
                   onClick={() => {
@@ -984,25 +980,25 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
                       setShowSendForm(true);
                     }
                   }}
-                  className="p-0 border-0 bg-transparent cursor-pointer inline-flex md:flex-1 md:min-w-0 md:flex md:items-center md:justify-center focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity"
+                  className="flex-1 p-0 border-0 bg-transparent cursor-pointer flex items-center justify-center focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity"
                   aria-label="Pay"
                 >
                   <img
                     src="/Pay.svg"
                     alt="Pay"
-                    className="h-12 w-auto max-w-[10rem] md:w-3/4 md:h-auto md:max-w-none md:object-contain"
+                    className="h-14 w-full object-contain"
                   />
                 </button>
                 <button
                   type="button"
                   onClick={() => router.push(config.growRoute)}
-                  className="p-0 border-0 bg-transparent cursor-pointer inline-flex md:flex-1 md:min-w-0 md:flex md:items-center md:justify-center focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity"
+                  className="flex-1 p-0 border-0 bg-transparent cursor-pointer flex items-center justify-center focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity"
                   aria-label="Grow"
                 >
                   <img
                     src="/Grow.svg"
                     alt="Grow"
-                    className="h-12 w-auto max-w-[10rem] md:w-3/4 md:h-auto md:max-w-none md:object-contain"
+                    className="h-14 w-full object-contain"
                   />
                 </button>
               </div>

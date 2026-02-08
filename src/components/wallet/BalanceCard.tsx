@@ -1,10 +1,9 @@
-import React, { useEffect, useState, useRef, useImperativeHandle, forwardRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useImperativeHandle, forwardRef, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import TransactionHistory, { TransactionHistoryRef } from "@/components/wallet/TransactionHistory";
 import ActiveTransactions from "@/components/wallet/ActiveTransactions";
 import KTTokenBalances from "@/components/wallet/KTTokenBalances";
 import { FaShieldAlt } from "react-icons/fa";
-import { FiRefreshCw } from "react-icons/fi";
 import { useRates, CURRENCY_SYMBOLS, PriceDirection } from "@/providers/RatesProvider";
 import { Triangle, ChevronDown, Wallet } from "lucide-react";
 
@@ -291,7 +290,8 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
   const priceChangeInfo = balance ? getOverallPriceChange(balance.tokenBalances || []) : null;
 
   // Calculate total balance - now uses context! 🎯
-  const calculateTotalBalance = (): number => {
+  // useMemo ensures this recalculates when balance or selectedCurrency changes
+  const totalBalance = useMemo(() => {
     if (!balance || !Array.isArray(balance.tokenBalances) || balance.tokenBalances.length === 0) {
       return 0;
     }
@@ -315,7 +315,7 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
 
     // If rate not available, return USD value
     return totalInUSD;
-  };
+  }, [balance, selectedCurrency, tokens, calculateBalanceInUSD]);
 
   // Get available currencies for dropdown - from context tokens! 🎉
   const kTokenSymbols = Object.keys(tokens).filter(s => s.startsWith('k'));
@@ -348,10 +348,10 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
               <h3 className="text-2xl font-bold text-white">Transactions</h3>
               <button
                 onClick={handleTransactionHistoryRefresh}
-                className="p-2 text-zinc-400 hover:text-white transition-colors duration-200 focus:outline-none"
+                className="p-2 hover:opacity-70 transition-opacity duration-200 focus:outline-none"
                 title="Refresh transaction history"
               >
-                <FiRefreshCw className="text-lg group-hover:rotate-180 transition-transform duration-500" />
+                <img src="/refresh.svg" alt="Refresh" className="w-5 h-5" />
               </button>
             </div>
             {showBalanceSection && isKycApproved ? (
@@ -468,9 +468,7 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
                   </div>
                 ) : error ? (
                   <span className="text-red-400 text-xl font-semibold">{error}</span>
-                ) : (() => {
-                  const totalBalance = calculateTotalBalance();
-                  return (
+                ) : (
                     <div className="relative group cursor-pointer flex items-baseline justify-center">
                        {/* Hidden Select Overlay */}
                        <select
@@ -488,11 +486,11 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
 
                        {/* Visual Display: Chevron -> Symbol -> Amount */}
                        <div className="flex items-baseline justify-center">
-                           <div className="flex items-center mr-3">
+                           <div className="flex items-center mr-2">
                                <ChevronDown className="w-6 h-6 text-zinc-500 mr-0.5 group-hover:text-white transition-colors" />
                                <span className="text-4xl font-medium text-zinc-500 tracking-normal leading-none">{currencySymbol}</span>
                            </div>
-                           <span className="text-6xl font-bold text-white tracking-tight leading-none">
+                           <span className="text-6xl font-bold text-white tracking-tight leading-none mr-2">
                              {(() => {
                                 const val = totalBalance > 0 ? totalBalance.toFixed(2) : '0.00';
                                 const [int, dec] = val.split('.');
@@ -505,8 +503,7 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
                            </span>
                        </div>
                     </div>
-                  );
-                })()}
+                  )}
 
                 {/* Subtle refresh indicator */}
                 {(localRefreshing || balanceRefreshing) && (
