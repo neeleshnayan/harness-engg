@@ -74,17 +74,12 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
     switch (symbol.toUpperCase()) {
       case 'USDC':
         return (
-          <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="16" cy="16" r="16" fill="#2775CA" />
-            <path d="M16 23.5C19.866 23.5 23 20.366 23 16.5C23 12.634 19.866 9.5 16 9.5C12.134 9.5 9 12.634 9 16.5C9 20.366 12.134 23.5 16 23.5Z" fill="white" />
-            <path d="M16 21.5C18.4853 21.5 20.5 19.4853 20.5 17C20.5 14.5147 18.4853 12.5 16 12.5C13.5147 12.5 11.5 14.5147 11.5 17C11.5 19.4853 13.5147 21.5 16 21.5Z" fill="#2775CA" />
-            <text x="10" y="22" fill="white" fontSize="10" fontWeight="bold">$</text>
-          </svg>
+          <img src="/hedge_fund/USDC icon.svg" alt="USDC" className="w-6 h-6" />
         );
       case 'ETH':
         return <FaEthereum className="w-6 h-6 text-blue-400" />;
       default:
-        return <FaCoins className="w-6 h-6 text-yellow-400" />;
+        return <img src="/hedge_fund/Coin-Stack_24px_icon.svg" alt="Token" className="w-6 h-6" />;
     }
   };
 
@@ -332,13 +327,14 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
 
   if (error) {
     return (
-      <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 ${className}`}>
-        <div className="text-center">
-          <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <FaCoins className="text-red-400 text-2xl" />
+      <div className={`relative rounded-3xl p-8 shadow-2xl overflow-hidden ${className}`}>
+        <img src="/hedge_fund/Big glass BG .svg" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+        <div className="relative text-center">
+          <div className="w-16 h-16 flex items-center justify-center mx-auto mb-4">
+            <img src="/hedge_fund/Coin-Stack_24px_icon.svg" alt="Error" className="w-16 h-16" />
           </div>
           <h3 className="text-xl font-bold text-white mb-2">Error Loading Tokens</h3>
-          <p className="text-red-400">{error}</p>
+          <p style={{ color: '#FF0004' }}>{error}</p>
         </div>
       </div>
     );
@@ -385,7 +381,7 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
       {/* Total Value Header */}
       <div className="text-center mb-6">
         <h3 className="text-2xl font-bold text-white mb-2">Token Portfolio</h3>
-        <div className="text-3xl font-bold text-green-400 mb-2">
+        <div className="text-3xl font-bold mb-2" style={{ color: '#90E7EE' }}>
           {priceLoading || loading ? (
             <div className="flex items-center justify-center">
               <Skeleton className="h-8 w-32 bg-zinc-700/50" />
@@ -404,13 +400,16 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+              className={`relative overflow-hidden px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
                 currentTab === tab
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300'
-              }`}
+                  ? 'text-white'
+                  : 'text-zinc-400 hover:text-zinc-300'
+              } ${tab !== 'k_tokens' ? (currentTab === tab ? 'bg-blue-600' : 'bg-zinc-800 hover:bg-zinc-700') : ''}`}
             >
-              {getTabLabel(tab)}
+              {tab === 'k_tokens' && (
+                <img src="/hedge_fund/Tokens transparent box.svg" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+              )}
+              <span className="relative">{getTabLabel(tab)}</span>
             </button>
           ))}
         </div>
@@ -422,10 +421,11 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
           {currentTokens.map((tokenDetail: TokenWithValue, index: number) => (
             <div
               key={`${tokenDetail.token.id}-${index}`}
-              className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl p-6 hover:bg-zinc-700/50 transition-all duration-200"
+              className="relative rounded-2xl p-6 overflow-hidden hover:opacity-90 transition-all duration-200"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
+              <img src="/hedge_fund/Big glass BG .svg" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+              <div className="relative flex items-center justify-between">
+                <div className="flex items-center space-x-4">
                   <div className="flex-shrink-0">
                     {getTokenIcon(tokenDetail.token.symbol)}
                   </div>
