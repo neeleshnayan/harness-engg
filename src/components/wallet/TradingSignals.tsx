@@ -150,13 +150,17 @@ export const TradingSignals: React.FC<TradingSignalsProps> = ({
                             className="bg-zinc-700/50 border-zinc-600 text-white"
                             disabled={loading}
                         />
-                        <Button
+                        <button
                             onClick={handleBuySignal}
                             disabled={loading || !buyAmount}
-                            className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                            className={`w-full transition-opacity duration-200 ${loading || !buyAmount ? 'opacity-40 cursor-not-allowed' : 'hover:opacity-80'}`}
                         >
-                            {loading ? "Executing..." : "Execute Buy"}
-                        </Button>
+                            {loading ? (
+                                <div className="py-2 text-center text-sm font-semibold text-white">Executing...</div>
+                            ) : (
+                                <img src="/hedge_fund/Execute Buy.svg" alt="Execute Buy" className="w-full h-auto" />
+                            )}
+                        </button>
                     </div>
 
                     {/* Sell Signal */}
@@ -173,13 +177,17 @@ export const TradingSignals: React.FC<TradingSignalsProps> = ({
                             className="bg-zinc-700/50 border-zinc-600 text-white"
                             disabled={loading}
                         />
-                        <Button
+                        <button
                             onClick={handleSellSignal}
                             disabled={loading || !sellAmount}
-                            className="w-full bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700"
+                            className={`w-full transition-opacity duration-200 ${loading || !sellAmount ? 'opacity-40 cursor-not-allowed' : 'hover:opacity-80'}`}
                         >
-                            {loading ? "Executing..." : "Execute Sell"}
-                        </Button>
+                            {loading ? (
+                                <div className="py-2 text-center text-sm font-semibold text-white">Executing...</div>
+                            ) : (
+                                <img src="/hedge_fund/Execute Sell.svg" alt="Execute Sell" className="w-full h-auto" />
+                            )}
+                        </button>
                     </div>
                 </div>
             </CardContent>
