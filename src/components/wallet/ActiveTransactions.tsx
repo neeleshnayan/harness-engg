@@ -60,6 +60,8 @@ interface ActiveTransactionsProps {
   initialTransactions?: ActiveTransaction[];
   /** When false, hide the "Active Transactions" header (e.g. when embedded in Clark chat) */
   showHeader?: boolean;
+  /** When true, keep completed transactions visible (e.g. in Clark feed). When false, remove after COMPLETED_TX_DISPLAY_TIME */
+  persistCompleted?: boolean;
 }
 
 /**
@@ -501,7 +503,7 @@ function TransactionCard({ tx }: { tx: ActiveTransaction }) {
  * Polls the backend every 10 seconds.
  * Persists transactions to localStorage to survive page refreshes.
  */
-export default function ActiveTransactions({ username, className = '', onAllTransactionsComplete, refreshKey = 0, isVisible = true, initialTransactions, showHeader = true }: ActiveTransactionsProps) {
+export default function ActiveTransactions({ username, className = '', onAllTransactionsComplete, refreshKey = 0, isVisible = true, initialTransactions, showHeader = true, persistCompleted = false }: ActiveTransactionsProps) {
   const [transactions, setTransactions] = useState<ActiveTransaction[]>(() => initialTransactions ?? []);
   const [loading, setLoading] = useState(false);
   const initialFetch = useRef(true);
@@ -543,10 +545,11 @@ export default function ActiveTransactions({ username, className = '', onAllTran
 
         const newIds = new Set(filteredNewTransactions.map(tx => tx.transaction_id));
 
-        // Keep completed transactions from previous state that should still be visible
+        // Keep completed transactions from previous state that should still be visible.
+        // When persistCompleted (e.g. Clark), keep them indefinitely; otherwise only COMPLETED_TX_DISPLAY_TIME.
         const completedToKeep = prev.filter(tx => {
           if (tx.completed_at && !newIds.has(tx.transaction_id)) {
-            return now - tx.completed_at < COMPLETED_TX_DISPLAY_TIME;
+            return persistCompleted || now - tx.completed_at < COMPLETED_TX_DISPLAY_TIME;
           }
           return false;
         });
@@ -609,8 +612,10 @@ export default function ActiveTransactions({ username, className = '', onAllTran
     }
   }, [refreshKey, fetchActiveTransactions]);
 
-  // Clean up old completed transactions periodically
+  // Clean up old completed transactions periodically (skip when persistCompleted, e.g. Clark feed)
   useEffect(() => {
+    if (persistCompleted) return;
+
     const cleanup = setInterval(() => {
       const now = Date.now();
       setTransactions(prev =>
@@ -624,7 +629,7 @@ export default function ActiveTransactions({ username, className = '', onAllTran
     }, 5000);
 
     return () => clearInterval(cleanup);
-  }, []);
+  }, [persistCompleted]);
 
   // Track when all transactions complete and call the callback
   useEffect(() => {

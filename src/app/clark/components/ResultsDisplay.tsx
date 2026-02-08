@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import dynamic from 'next/dynamic'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { DollarSign, TrendingUp, BarChart3, TrendingDown, ChevronDown, ChevronUp } from 'lucide-react'
-import { Loader2, Info, User } from 'lucide-react'
+import { Loader2, Info, User, ArrowUpRight, ArrowUpDown, CheckCircle } from 'lucide-react'
 import { ChatMessage, BacktestResult, ScreenerResult, EconomicResult, NewsData, CalendarData, EconomicData, RegulationResult, AgentFlowGraph, AgentFlowStep, BalanceResult, BalanceEntry, DailyBalanceEntry, IntradayBalanceEntry } from '../types'
 import { formatCurrency, formatPercentage, formatDate, formatNumber, formatTimestamp } from '../utils'
 import TransactionStatus, { InlineTransactionData } from './TransactionStatus'
@@ -1206,13 +1206,63 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
               
               {/* Show transaction status card when we detect a krypton_pay transaction */}
               {isKryptonPay && username && (
-                <div className="flex gap-2 justify-start items-start mt-2">
-                  <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                    <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
+                <div className="flex flex-col gap-2 justify-start items-start mt-2">
+                  <div className="flex gap-2 justify-start items-start w-full">
+                    <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                      <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
+                    </div>
+                    <div className="max-w-[85%]">
+                      <TransactionStatus username={username} initialData={inlineTxData} />
+                    </div>
                   </div>
-                  <div className="max-w-[85%]">
-                    <TransactionStatus username={username} initialData={inlineTxData} />
-                  </div>
+                  {/* Persistent transaction row (TransactionHistory-style) so the tx stays visible in the feed */}
+                  {inlineTxData && (inlineTxData.amount != null || inlineTxData.transaction_id) && (
+                    <div className="w-full max-w-[85%] ml-10 rounded-b-xl border border-t-0 border-white/10 bg-black/30 px-3 py-2 flex items-center justify-between min-w-0">
+                      <div className="flex items-center min-w-0 flex-1 overflow-hidden">
+                        <div className="flex items-center justify-center w-8 h-8 mr-2 flex-shrink-0">
+                          {(inlineTxData.operation === 'swap' || inlineTxData.operation === 'swap_and_transfer')
+                            ? <ArrowUpDown className="h-4 w-4 text-cyan-400" style={{ transform: 'rotate(90deg)' }} />
+                            : <ArrowUpRight className="h-5 w-5 text-red-600" />
+                          }
+                        </div>
+                        <div className="flex flex-col min-w-0 flex-1 overflow-hidden justify-center">
+                          <span className="text-white font-semibold text-sm tracking-tight whitespace-nowrap truncate" title={inlineTxData.to_address || undefined}>
+                            {inlineTxData.amount != null && inlineTxData.token
+                              ? `${Number(inlineTxData.amount).toFixed(2)} ${(inlineTxData.token || '').replace(/^k/i, '')}`
+                              : 'Transaction'
+                            }
+                            {(inlineTxData.operation === 'swap' || inlineTxData.operation === 'swap_and_transfer') && ' · Swap'}
+                            {inlineTxData.operation === 'direct_transfer' && inlineTxData.to_address && ` · To ${inlineTxData.to_address.slice(0, 6)}...`}
+                          </span>
+                          <span className="text-zinc-400 text-xs mt-0.5">
+                            {inlineTxData.status === 'SUCCESS' || inlineTxData.status === 'COMPLETE' || inlineTxData.status === 'CONFIRMED'
+                              ? 'Completed'
+                              : inlineTxData.status || 'Processing...'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                        {inlineTxData.created_at != null && (
+                          <span className="text-zinc-500 text-[10px] md:text-xs text-right whitespace-nowrap">
+                            {new Date((typeof inlineTxData.created_at === 'number' ? inlineTxData.created_at : parseInt(String(inlineTxData.created_at), 10)) * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            {' '}
+                            {new Date((typeof inlineTxData.created_at === 'number' ? inlineTxData.created_at : parseInt(String(inlineTxData.created_at), 10)) * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
+                        {inlineTxData.tx_hash && (
+                          <a
+                            href={`https://sepolia.etherscan.io/tx/${inlineTxData.tx_hash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-cyan-400 cursor-pointer transition-all duration-200 hover:scale-110 group"
+                            title="View on Etherscan"
+                          >
+                            <CheckCircle className="h-5 w-5 text-green-500 group-hover:drop-shadow-sm" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </>
