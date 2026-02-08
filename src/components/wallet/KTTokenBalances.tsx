@@ -131,9 +131,9 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
     const direction = getTokenDirection(symbol);
     switch (direction) {
       case "up":
-        return "bg-green-950/40 border-green-800/50";
+        return "bg-[#6AFF90]/20 border-[#00FF40]/60";
       case "down":
-        return "bg-red-950/40 border-red-800/50";
+        return "bg-[#FF3434]/20 border-[#FF0004]/60";
       default:
         return "bg-zinc-800/60 border-zinc-700/50";
     }
@@ -160,12 +160,13 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
 
   return (
     <>
-      <div className={`mt-4 pt-4 border-t border-zinc-700/50 ${className}`}>
-        <div className="mb-2">
-          <div className="flex items-center text-zinc-400 text-sm">
-            <FaCoins className="mr-2" />
-            All Currencies
-          </div>
+      <div className={`mt-4 ${className}`}>
+        <div className="flex items-center gap-3 mb-4">
+           <div className="flex items-center text-zinc-400 text-sm font-medium whitespace-nowrap">
+             <img src="/coin-stack.svg" alt="" className="mr-2 w-4 h-4 opacity-80" />
+             All Currencies
+           </div>
+           <div className="h-[1.5px] bg-zinc-600/80 flex-1 rounded-full"></div>
         </div>
         <div
           ref={containerRef}

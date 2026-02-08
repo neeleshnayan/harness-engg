@@ -6,7 +6,7 @@ import KTTokenBalances from "@/components/wallet/KTTokenBalances";
 import { FaShieldAlt } from "react-icons/fa";
 import { FiRefreshCw } from "react-icons/fi";
 import { useRates, CURRENCY_SYMBOLS, PriceDirection } from "@/providers/RatesProvider";
-import { Triangle } from "lucide-react";
+import { Triangle, ChevronDown, Wallet } from "lucide-react";
 
 // Dynamically import modals to reduce initial bundle size
 const BuyUSDCModal = dynamic(() => import("@/components/wallet/BuyUSDCModal"), {
@@ -328,11 +328,12 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
   return (
     <>
       <div
-        className={`bg-white/10 backdrop-blur-xl rounded-3xl p-0 shadow-2xl border mb-8 transition-all duration-300 overflow-hidden ${
+        className={`bg-no-repeat bg-cover bg-center backdrop-blur-3xl rounded-3xl p-0 shadow-2xl border mb-8 transition-all duration-300 overflow-hidden ${
           (balanceRefreshing || localRefreshing)
             ? 'ring-2 ring-green-500 ring-opacity-70 border-green-500/50 shadow-green-500/20'
-            : 'border-white/15'
+            : 'border-white/10'
         } ${className || ''}`}
+        style={{ backgroundImage: "url('/wallet-bg.svg')" }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -342,12 +343,12 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
           style={{ transform: `translateX(-${activeSlide * 100}%)` }}
         >
           {/* Transaction History Tab */}
-          <div className="w-full flex-shrink-0 p-8">
+          <div className="w-full flex-shrink-0 pt-8 px-6 pb-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-2xl font-bold text-white">Transaction History</h3>
+              <h3 className="text-2xl font-bold text-white">Transactions</h3>
               <button
                 onClick={handleTransactionHistoryRefresh}
-                className="p-2 bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 group"
+                className="p-2 text-zinc-400 hover:text-white transition-colors duration-200 focus:outline-none"
                 title="Refresh transaction history"
               >
                 <FiRefreshCw className="text-lg group-hover:rotate-180 transition-transform duration-500" />
@@ -357,12 +358,12 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
               <div
                 ref={scrollContainerRef}
                 style={{
-                  overflowY: 'scroll',
-                  paddingRight: '8px',
+                  overflowY: 'auto',
+                  paddingRight: '4px',
                   WebkitOverflowScrolling: 'touch',
                   overscrollBehavior: 'contain'
                 }}
-                className="max-h-[250px] md:max-h-[200px] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-zinc-600"
+                className="max-h-[260px] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/40 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/60"
                 onWheel={(e) => {
                   e.stopPropagation();
                 }}
@@ -391,43 +392,12 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
           </div>
           {/* Balance Tab */}
           <div className="w-full flex-shrink-0 p-8">
-            <div className="text-center">
-        <div className="flex items-center justify-center mb-4 gap-2">
-          {WALLET_ICON}
-          <h3 className="text-2xl font-bold text-white">
-            Your Balance{' '}
-            <span className="text-lg font-normal text-zinc-400">
-              (in{' '}
-              {showBalanceSection && isKycApproved ? (
-                <span className="inline-flex items-center relative group cursor-pointer">
-                  <select
-                    value={selectedCurrency}
-                    onChange={(e) => setSelectedCurrency(e.target.value)}
-                    className="appearance-none bg-transparent text-cyan-400 hover:text-cyan-300 font-normal cursor-pointer focus:outline-none text-lg pr-4"
-                  >
-                    {availableCurrencies.map((currency) => (
-                      <option key={currency} value={currency} className="bg-zinc-800">
-                        {currency}
-                      </option>
-                    ))}
-                  </select>
-                  <svg
-                    className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-cyan-400 group-hover:text-cyan-300 transition-colors"
-                    width="12"
-                    height="12"
-                    viewBox="0 0 12 12"
-                    fill="none"
-                  >
-                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </span>
-              ) : (
-                <span>USD</span>
-              )}
-              )
-            </span>
-          </h3>
-        </div>
+            <div className="text-center mb-6">
+              <div className="flex items-center justify-center gap-3">
+                 <Wallet className="w-8 h-8 text-zinc-400" />
+                 <h3 className="text-xl font-bold text-zinc-400 tracking-wide">Your Balance</h3>
+              </div>
+            </div>
 
         {/* <div className={`mt-4 pt-4 border-t border-zinc-700/50 ${className || ''}`}></div> */}
 
@@ -486,48 +456,81 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
 
         {/* Show balance always if username exists, but blur if KYC not approved */}
         {showBalanceSection && (
-          <div className={`flex items-center justify-center mb-4 ${!isKycApproved ? 'blur-sm' : ''}`}>
-            <div className="flex items-center gap-3">
-              <div className={`text-6xl font-bold text-white relative transition-all duration-200 ${
+          <div className="flex flex-col items-center justify-center mb-6 relative z-10">
+             {/* Balance Display */}
+            <div className={`relative transition-all duration-200 ${!isKycApproved ? 'blur-sm' : ''} ${
                 isFlickering || balanceRefreshing || localRefreshing ? 'balance-flicker' : ''
               }`}>
                 {balanceLoading || ratesLoading ? (
-                  <div className="flex items-center justify-center">
+                  <div className="flex items-center justify-center h-16">
                     <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mr-3"></div>
-                    <span className="text-2xl">Loading...</span>
+                    <span className="text-xl text-zinc-400">Loading...</span>
                   </div>
                 ) : error ? (
-                  <span className="text-red-400 text-2xl font-semibold">{error}</span>
+                  <span className="text-red-400 text-xl font-semibold">{error}</span>
                 ) : (() => {
                   const totalBalance = calculateTotalBalance();
-                  if (totalBalance > 0) {
-                    return `${currencySymbol}${totalBalance.toFixed(2)}`;
-                  }
-                  return '-';
+                  return (
+                    <div className="relative group cursor-pointer flex items-baseline justify-center">
+                       {/* Hidden Select Overlay */}
+                       <select
+                           value={selectedCurrency}
+                           onChange={(e) => setSelectedCurrency(e.target.value)}
+                           className="absolute inset-0 w-full h-full opacity-0 z-20 cursor-pointer"
+                           aria-label="Select Currency"
+                       >
+                           {availableCurrencies.map((currency) => (
+                             <option key={currency} value={currency} className="bg-zinc-800 text-white">
+                               {currency} ({CURRENCY_SYMBOLS[currency]})
+                             </option>
+                           ))}
+                       </select>
+
+                       {/* Visual Display: Chevron -> Symbol -> Amount */}
+                       <div className="flex items-baseline justify-center">
+                           <div className="flex items-center mr-3">
+                               <ChevronDown className="w-6 h-6 text-zinc-500 mr-0.5 group-hover:text-white transition-colors" />
+                               <span className="text-4xl font-medium text-zinc-500 tracking-normal leading-none">{currencySymbol}</span>
+                           </div>
+                           <span className="text-6xl font-bold text-white tracking-tight leading-none">
+                             {(() => {
+                                const val = totalBalance > 0 ? totalBalance.toFixed(2) : '0.00';
+                                const [int, dec] = val.split('.');
+                                return (
+                                  <>
+                                    {int}<span className="text-4xl font-medium text-zinc-400 tracking-normal leading-none">.{dec}</span>
+                                  </>
+                                );
+                             })()}
+                           </span>
+                       </div>
+                    </div>
+                  );
                 })()}
+
                 {/* Subtle refresh indicator */}
                 {(localRefreshing || balanceRefreshing) && (
-                  <div className="absolute -top-2 -right-2 w-4 h-4 bg-green-500 rounded-full animate-pulse"></div>
+                  <div className="absolute -top-1 -right-4 w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_#22c55e]"></div>
                 )}
-              </div>
-              {/* Price change indicator */}
-              {isKycApproved && !balanceLoading && !balanceRefreshing && !localRefreshing && !ratesLoading && priceChangeInfo && priceChangeInfo.direction !== 'same' && Math.abs(priceChangeInfo.percentageChange) >= 0.01 && (
-                <div className={`flex flex-col items-center gap-0.5 ${
+            </div>
+
+            {/* Price change indicator - MOVED BELOW */}
+            {isKycApproved && !balanceLoading && !balanceRefreshing && !localRefreshing && !ratesLoading && priceChangeInfo && priceChangeInfo.direction !== 'same' && Math.abs(priceChangeInfo.percentageChange) >= 0.01 && (
+                <div className={`flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full ${
                   priceChangeInfo.direction === 'up'
-                    ? 'text-green-400'
-                    : 'text-red-400'
+                    ? 'bg-emerald-500/10 text-emerald-400'
+                    : 'bg-red-500/10 text-red-400'
                 }`}>
                   {priceChangeInfo.direction === 'up' ? (
                     <Triangle className="h-3 w-3 fill-emerald-400" />
                   ) : (
                     <Triangle className="h-3 w-3 rotate-180 fill-red-400" />
                   )}
-                  <span className="text-sm font-semibold">
+                  <span className="text-sm font-bold">
                     {Math.abs(priceChangeInfo.percentageChange).toFixed(2)}%
                   </span>
                 </div>
               )}
-            </div>
           </div>
         )}
 
@@ -538,51 +541,54 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
           </div>
         )}
 
-        <p className="text-zinc-400 font-medium">
-          {showBalanceSection
-            ? (isKycApproved
-                ? 'Available for transactions'
-                : 'Complete KYC to unlock full functionality')
-            : 'Wallet functionality will be unlocked after verification'
-          }
-        </p>
+        {!isKycApproved && (
+           <p className="text-zinc-400 font-medium my-4">
+             {showBalanceSection
+               ? 'Complete KYC to unlock full functionality'
+               : 'Wallet functionality will be unlocked after verification'
+             }
+           </p>
+        )}
 
         {/* K-Token Balances - Show at the bottom if KYC is approved */}
         {showBalanceSection && isKycApproved && balance && (
           <div className="text-left">
             <KTTokenBalances balance={balance} />
-          </div>
+        </div>
         )}
 
-            </div>
           </div>
           <div className="w-full flex-shrink-0 p-8">
-            <div className="text-white">
-              <h3 className="text-2xl font-bold mb-2">Quick Actions</h3>
-              <p className="text-zinc-400 mb-6">Add funds or swap between currencies instantly.</p>
-              <div className="flex flex-row gap-3 md:gap-6 w-full justify-stretch items-center md:px-8">
+            <div className="text-white h-full flex flex-col justify-center">
+              <div className="flex flex-col items-start w-full mb-8">
+                <h3 className="text-2xl font-bold mb-2">Quick Actions</h3>
+                <p className="text-zinc-400 text-lg leading-snug">
+                  Add funds or swap between<br />currencies instantly
+                </p>
+              </div>
+              <div className="flex flex-row gap-6 w-full justify-center items-center">
                 <button
                   type="button"
                   onClick={openDepositModal}
-                  className="flex-1 min-w-0 p-0 border-0 bg-transparent cursor-pointer flex items-center justify-center focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity"
+                  className="group hover:scale-105 transition-transform duration-200 focus:outline-none"
                   aria-label="Deposit"
                 >
                   <img
-                    src="/Deposit.svg"
+                    src="/deposit-icon.svg"
                     alt="Deposit"
-                    className="w-full h-auto object-contain"
+                    className="w-36 h-36 drop-shadow-lg"
                   />
                 </button>
                 <button
                   type="button"
                   onClick={openSwapModal}
-                  className="flex-1 min-w-0 p-0 border-0 bg-transparent cursor-pointer flex items-center justify-center focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity"
+                  className="group hover:scale-105 transition-transform duration-200 focus:outline-none"
                   aria-label="Swap"
                 >
                   <img
-                    src="/Swap.svg"
+                    src="/swap-icon.svg"
                     alt="Swap"
-                    className="w-full h-auto object-contain"
+                    className="w-36 h-36 drop-shadow-lg"
                   />
                 </button>
               </div>

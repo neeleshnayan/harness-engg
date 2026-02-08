@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import { kryptonWeb3Api } from "@/lib/api";
 import { useRates } from "@/providers/RatesProvider";
 import { getPoolRate } from "@/lib/ratesApi";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowRight, ChevronDown } from "lucide-react";
 
 interface SwapModalProps {
   visible: boolean;
@@ -271,8 +271,8 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
     const fetchExchangeRate = async () => {
       setExchangeRateLoading(true);
       try {
-        // Get rate: rate(to -> from) for display "1 To = X From"
-        const price = await getPoolRate(toCurrency, fromCurrency);
+        // Get rate: how much toCurrency per 1 fromCurrency (for display "1 From = X To")
+        const price = await getPoolRate(fromCurrency, toCurrency);
         if (cancelled) return;
         if (price > 0) {
           setExchangeRate(price);
@@ -379,6 +379,8 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
         countdownIntervalRef.current = null;
       }
       onClose(true); // Transaction was successful, switch to transaction history
+    } else {
+      onClose(false); // User cancelled
     }
   };
 
@@ -388,253 +390,198 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
 
   return (
     <div
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#001C1B]/60 backdrop-blur-md p-4 animate-in fade-in duration-200"
       onClick={handleBackdropClick}
-      style={{ cursor: success ? 'pointer' : 'default' }}
     >
-      <div className="bg-zinc-900/95 border border-zinc-800 rounded-2xl w-full max-w-md p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-semibold text-white">Swap Assets</h3>
-          <button className="text-zinc-400 hover:text-white" onClick={() => onClose(false)} disabled={loading}>
-            ✕
-          </button>
+      <div
+        className="w-full max-w-[440px] bg-[#001C1B] bg-cover bg-center shadow-2xl relative overflow-visible rounded-[32px] p-8 animate-in zoom-in-95 duration-200 border border-white/5"
+        style={{ backgroundImage: "url('/wallet-bg.svg')" }}
+        onClick={(e) => !success && e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-8">
+           <h2 className="text-2xl font-bold text-white tracking-tight">Swap Assets</h2>
+           <button
+             onClick={() => onClose(false)}
+             className="text-teal-200/60 hover:text-white transition-colors"
+           >
+             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+           </button>
         </div>
 
-        {/* Success Animation with Countdown */}
+        {/* Success Animation */}
         {success && (
           <div
             className="flex flex-col items-center justify-center py-8 cursor-pointer"
             onClick={handleBackdropClick}
           >
-            <div className="mb-4">
-              <svg className="animate-checkmark" width="72" height="72" viewBox="0 0 72 72">
-                <circle cx="36" cy="36" r="34" fill="#1a2e22" stroke="#22c55e" strokeWidth="3" />
-                <path
-                  d="M22 38l10 10 18-18"
-                  fill="none"
-                  stroke="#22c55e"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="checkmark-path"
-                />
-              </svg>
+            <div className="mb-6 relative">
+                 <div className="absolute inset-0 bg-green-500/20 blur-xl rounded-full"></div>
+                 <img src="/tx-success.svg" alt="Success" width="100" height="100" className="relative animate-pulse drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]" />
             </div>
-            <div className="text-green-400 text-lg font-semibold mb-2">Swap Submitted!</div>
-            <div className="text-zinc-300 text-sm text-center">{success}</div>
-            <div className="mt-6 text-zinc-500 text-xs">
+            <div className="text-green-400 text-lg font-bold mb-2 tracking-wide">Swap Submitted!</div>
+            <div className="text-teal-200/80 text-sm text-center max-w-[80%] leading-relaxed">{success}</div>
+            <div className="mt-8 text-teal-200/60 text-xs font-medium">
               Tap anywhere to close{closeCountdown > 0 && ` (${closeCountdown}s)`}
             </div>
           </div>
         )}
 
-        {/* Form (hide if success) */}
+        {/* Form */}
         {!success && (
-          <>
-            {error && <div className="mb-3 rounded-xl border border-red-500/40 bg-red-500/10 text-red-200 px-4 py-2 text-sm">{error}</div>}
-
-            {/* From and To Boxes Row */}
-            <div className="relative flex items-center gap-2">
-              {/* From Box */}
-              <div className="flex-1 relative">
-                <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50 pb-12">
-                  <div className="text-xs font-medium text-zinc-400 mb-2">From</div>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={fromAmount}
-                    onChange={(e) => {
-                      // Set focus immediately to prevent auto-updates while typing
-                      focusedFieldRef.current = "from";
-                      // Only allow numbers and decimal point
-                      const value = e.target.value.replace(/[^0-9.]/g, '');
-                      // Prevent multiple decimal points
-                      const parts = value.split('.');
-                      const filteredValue = parts.length > 2
-                        ? parts[0] + '.' + parts.slice(1).join('')
-                        : value;
-                      isUpdatingToRef.current = false;
-                      setFromAmount(filteredValue);
-                    }}
-                    onFocus={() => {
-                      focusedFieldRef.current = "from";
-                    }}
-                    onBlur={() => {
-                      // Delay clearing focus to allow any pending calculations to complete
-                      setTimeout(() => {
-                        focusedFieldRef.current = null;
-                      }, 200);
-                    }}
-                    placeholder="0.00"
-                    className="w-full text-2xl font-bold bg-transparent text-white placeholder-zinc-500 focus:outline-none"
-                    disabled={loading}
-                  />
-                  <div className="text-xs text-zinc-400 mt-2">
-                    Balance: <span className="text-zinc-300">{fromBalance.toFixed(2)}</span>
-                  </div>
+          <div className="space-y-6">
+            {error && (
+                <div className="bg-red-500/10 border border-red-500/20 text-red-200 text-sm p-3 rounded-2xl flex items-center gap-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <span>{error}</span>
                 </div>
-                {/* Currency Dropdown Overlay - Bottom Center */}
-                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 z-10">
-                  <div className="relative">
-                    <select
-                      value={fromCurrency}
+            )}
+
+            {/* Swap Area */}
+            <div className="flex gap-3 relative mb-4">
+               {/* From Box */}
+               <div
+                  className="flex-1 rounded-2xl h-[150px] relative flex flex-col items-start justify-center p-4 border border-white/5 transition-colors group"
+                  style={{ backgroundImage: "url('/glass-box.svg')", backgroundSize: 'cover', backgroundPosition: 'center' }}
+                >
+                   <span className="text-zinc-400 text-xs font-medium mb-1">From</span>
+                   <input
+                      type="text"
+                      inputMode="decimal"
+                      value={fromAmount}
                       onChange={(e) => {
-                        const newValue = e.target.value;
-                        setFromCurrency(newValue);
-                        setFromAmount("");
-                        setToAmount("");
-                        if (newValue === toCurrency) {
-                          const alternative = supportedTokens.find((token) => token !== newValue);
-                          if (alternative) {
-                            setToCurrency(alternative);
-                          }
-                        }
+                        focusedFieldRef.current = "from";
+                        const val = e.target.value.replace(/[^0-9.]/g, '');
+                        isUpdatingToRef.current = false;
+                        setFromAmount(val);
                       }}
-                      className="appearance-none bg-zinc-700 hover:bg-zinc-600 border-2 border-zinc-600 rounded-xl px-4 py-2 text-white font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 pr-8 shadow-lg"
+                      onFocus={() => { focusedFieldRef.current = "from"; }}
+                      placeholder="0"
+                      className="bg-transparent text-2xl font-bold text-white text-left w-full focus:outline-none placeholder-white/50"
                       disabled={loading}
-                    >
-                      {supportedTokens.map((token) => (
-                        <option key={token} value={token}>
-                          {token.replace(/^k/, "")}
-                        </option>
-                      ))}
-                    </select>
-                    <svg
-                      className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400"
-                      width="12"
-                      height="12"
-                      viewBox="0 0 12 12"
-                      fill="none"
-                    >
-                      <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                </div>
-                {isCalculatingTo && (
-                  <div className="absolute top-2 right-2">
-                    <svg className="animate-spin h-4 w-4 text-zinc-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  </div>
-                )}
-              </div>
+                   />
+                   <div className="text-[10px] text-zinc-400 mt-1 font-medium">
+                       Balance: <span className="text-white">{fromBalance.toFixed(2)}</span>
+                   </div>
 
-              {/* Swap Button - Overlay */}
-              <button
-                onClick={handleSwapCurrencies}
-                disabled={loading || !fromCurrency || !toCurrency}
-                className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-zinc-700 hover:bg-zinc-600 border-2 border-zinc-600 flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed z-30 shadow-lg"
-              >
-                <ArrowUpDown className="w-5 h-5 text-white rotate-90" />
-              </button>
+                   {/* Selector */}
+                   <div className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 z-20">
+                       <div className="relative shadow-xl">
+                           <select
+                               value={fromCurrency}
+                               onChange={(e) => {
+                                   const val = e.target.value;
+                                   setFromCurrency(val);
+                                   if (val === toCurrency) {
+                                     const alt = supportedTokens.find(t => t !== val);
+                                     if (alt) setToCurrency(alt);
+                                   }
+                               }}
+                               className="appearance-none bg-[#115E59] hover:bg-[#134E4A] text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded-lg cursor-pointer focus:outline-none transition-colors border border-white/10"
+                               disabled={loading}
+                           >
+                               {supportedTokens.map((token) => (
+                                 <option key={token} value={token}>{token.replace(/^k/, "")}</option>
+                               ))}
+                           </select>
+                           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-teal-200/70">
+                               <ChevronDown size={10} />
+                           </div>
+                       </div>
+                   </div>
+               </div>
 
-              {/* To Box */}
-              <div className="flex-1 relative">
-                <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50 pb-12">
-                  <div className="text-xs font-medium text-zinc-400 mb-2">To</div>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={toAmount}
-                    onChange={(e) => {
-                      // Set focus immediately to prevent auto-updates while typing
-                      focusedFieldRef.current = "to";
-                      // Only allow numbers and decimal point
-                      const value = e.target.value.replace(/[^0-9.]/g, '');
-                      // Prevent multiple decimal points
-                      const parts = value.split('.');
-                      const filteredValue = parts.length > 2
-                        ? parts[0] + '.' + parts.slice(1).join('')
-                        : value;
-                      isUpdatingFromRef.current = false;
-                      setToAmount(filteredValue);
-                    }}
-                    onFocus={() => {
-                      focusedFieldRef.current = "to";
-                    }}
-                    onBlur={() => {
-                      // Delay clearing focus to allow any pending calculations to complete
-                      setTimeout(() => {
-                        focusedFieldRef.current = null;
-                      }, 200);
-                    }}
-                    placeholder="0.00"
-                    className="w-full text-2xl font-bold bg-transparent text-white placeholder-zinc-500 focus:outline-none"
-                    disabled={loading}
-                  />
-                  <div className="text-xs text-zinc-400 mt-2">
-                    {exchangeRateLoading ? (
-                      <span className="text-zinc-500">Loading rate...</span>
-                    ) : exchangeRate !== null ? (
-                      <>
-                        1 {toCurrency.replace(/^k/, "")} = <span className="text-zinc-300">{exchangeRate.toFixed(2)}</span> {fromCurrency.replace(/^k/, "")}
-                      </>
-                    ) : fromCurrency && toCurrency ? (
-                      <span className="text-zinc-500">Rate unavailable</span>
-                    ) : null}
-                  </div>
-                </div>
-                {/* Currency Dropdown Overlay - Bottom Center */}
-                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 z-10">
-                  <div className="relative">
-                    <select
-                      value={toCurrency}
+               {/* Swap Button */}
+               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+                   <button
+                     onClick={handleSwapCurrencies}
+                     disabled={loading}
+                     className="w-8 h-8 rounded-full bg-[#557C82] border-2 border-[#001C1B] flex items-center justify-center shadow-lg hover:scale-110 transition-transform cursor-pointer"
+                   >
+                     <ArrowRight className="w-4 h-4 text-white" />
+                   </button>
+               </div>
+
+               {/* To Box */}
+               <div
+                  className="flex-1 rounded-2xl h-[150px] relative flex flex-col items-start justify-center p-4 border border-white/5 transition-colors group"
+                  style={{ backgroundImage: "url('/glass-box.svg')", backgroundSize: 'cover', backgroundPosition: 'center' }}
+                >
+                   <span className="text-zinc-400 text-xs font-medium mb-1">To</span>
+                   <input
+                      type="text"
+                      inputMode="decimal"
+                      value={toAmount}
                       onChange={(e) => {
-                        const newValue = e.target.value;
-                        setToCurrency(newValue);
-                        setFromAmount("");
-                        setToAmount("");
-                        if (newValue === fromCurrency) {
-                          const alternative = supportedTokens.find((token) => token !== newValue);
-                          if (alternative) {
-                            setFromCurrency(alternative);
-                          }
-                        }
+                          focusedFieldRef.current = "to";
+                          const val = e.target.value.replace(/[^0-9.]/g, '');
+                          isUpdatingFromRef.current = false;
+                          setToAmount(val);
                       }}
-                      className="appearance-none bg-zinc-700 hover:bg-zinc-600 border-2 border-zinc-600 rounded-xl px-4 py-2 text-white font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 pr-8 shadow-lg"
+                      onFocus={() => { focusedFieldRef.current = "to"; }}
+                      placeholder="0"
+                      className="bg-transparent text-2xl font-bold text-white text-left w-full focus:outline-none placeholder-white/50"
                       disabled={loading}
-                    >
-                      {supportedTokens.map((token) => (
-                        <option key={token} value={token}>
-                          {token.replace(/^k/, "")}
-                        </option>
-                      ))}
-                    </select>
-                    <svg
-                      className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400"
-                      width="12"
-                      height="12"
-                      viewBox="0 0 12 12"
-                      fill="none"
-                    >
-                      <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
+                   />
+                   <div className={`text-[10px] mt-1 font-medium truncate max-w-[90px] h-[15px] flex items-center ${(isCalculatingFrom || isCalculatingTo || exchangeRateLoading) ? 'animate-pulse text-white/50' : 'text-white font-bold'}`}>
+                     {exchangeRate ? `1 ${fromCurrency.replace(/^k/, '')} = ${exchangeRate.toFixed(2)} ${toCurrency.replace(/^k/, '')}` : ((isCalculatingFrom || isCalculatingTo || exchangeRateLoading) ? 'Updating...' : '')}
+                   </div>
+
+                   {/* Selector */}
+                   <div className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 z-20">
+                       <div className="relative shadow-xl">
+                           <select
+                               value={toCurrency}
+                               onChange={(e) => {
+                                   const val = e.target.value;
+                                   setToCurrency(val);
+                                   if (val === fromCurrency) {
+                                     const alt = supportedTokens.find(t => t !== val);
+                                     if (alt) setFromCurrency(alt);
+                                   }
+                               }}
+                               className="appearance-none bg-[#115E59] hover:bg-[#134E4A] text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded-lg cursor-pointer focus:outline-none transition-colors border border-white/10"
+                               disabled={loading}
+                           >
+                               {supportedTokens.map((token) => (
+                                 <option key={token} value={token}>{token.replace(/^k/, "")}</option>
+                               ))}
+                           </select>
+                           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-teal-200/70">
+                               <ChevronDown size={10} />
+                           </div>
+                       </div>
+                   </div>
+
+                   {(isCalculatingFrom || isCalculatingTo) && (
+                      <div className="absolute top-3 right-3">
+                         <svg className="animate-spin h-3 w-3 text-teal-500/50" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                         </svg>
+                      </div>
+                   )}
                 </div>
-                {isCalculatingFrom && (
-                  <div className="absolute top-2 right-2">
-                    <svg className="animate-spin h-4 w-4 text-zinc-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  </div>
-                )}
-              </div>
             </div>
 
             <button
-              onClick={handleSwap}
-              disabled={!canSwap}
-              className="mt-10 w-full bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white font-semibold py-3 rounded-2xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+               onClick={handleSwap}
+               disabled={!canSwap}
+               className="w-full h-14 bg-gradient-to-b from-[#557C82] to-[#3C5F63] hover:from-[#4A7A7E] hover:to-[#33565A] text-white text-lg font-bold rounded-2xl shadow-lg border border-white/10 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4 relative z-10"
             >
-              {loading ? "Swapping..." : "Swap"}
+              {loading ? (
+                   <>
+                     <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                     </svg>
+                     <span>Swapping...</span>
+                   </>
+               ) : "Swap"}
             </button>
-          </>
+          </div>
         )}
       </div>
     </div>
   );
 };
-
 export default SwapModal;

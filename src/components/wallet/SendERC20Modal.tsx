@@ -2,8 +2,7 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
-import { ArrowRight } from "lucide-react";
+import { AlertCircle, ArrowRight, Loader2, X, ArrowUp, ChevronDown, ArrowLeftRight } from "lucide-react";
 import api, { kryptonWeb3Api } from "@/lib/api";
 import { useRates } from "@/providers/RatesProvider";
 import { getPoolRate } from "@/lib/ratesApi";
@@ -22,6 +21,7 @@ type SupportedToken = {
   symbol: string; // e.g., kUSD
   address: string;
   decimals?: number;
+  isSeparator?: boolean;
 };
 
 // Countdown toast timeout in seconds
@@ -143,7 +143,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
         const balances = await fetchUserBalances();
 
         // All supported tokens (for "to" dropdown)
-        const allTokens: SupportedToken[] = [
+        let allTokens: SupportedToken[] = [
           ...Object.entries(K_TOKEN_SYMBOLS).map(([symbol, address]) => ({
             symbol,
             address,
@@ -156,8 +156,39 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
           },
         ];
 
+        // Fetch RWA tokens
+        try {
+           const rwaRes = await kryptonWeb3Api.get("/erc20/supported-tokens");
+           const rwaTokensData = rwaRes.data?.rwa_tokens || {};
+           const rwaList: SupportedToken[] = Object.entries(rwaTokensData).map(([symbol, conf]: [string, any]) => ({
+               symbol,
+               address: conf.address,
+               decimals: conf.decimals || 18,
+           }));
+
+           if (rwaList.length > 0) {
+               allTokens.push({
+                   symbol: "--- Other Assets ---",
+                   address: "SEPARATOR",
+                   decimals: 0,
+                   isSeparator: true
+               });
+               allTokens = [...allTokens, ...rwaList];
+           }
+        } catch (err) {
+            console.error("Failed to fetch RWA tokens", err);
+        }
+
         // Filter tokens to only include those with non-zero balances (for "from" dropdown)
+        // Filter tokens to only include those with non-zero balances (for "from" dropdown)
+        // Ensure we don't include separators or RWA tokens in the "From" list for now (unless user has balance, but simpler to restrict to K-tokens/USDC as per "as are currently")
         const availableList: SupportedToken[] = allTokens.filter((token) => {
+          if (token.isSeparator) return false;
+          // Verify it's a K-token or USDC (existing logic implies K_TOKEN_SYMBOLS check or USDC)
+          // Actually, let's just use balance check. If they have RWA balance, maybe they should be able to send it?
+          // User said "not actually going to use these other tokens for swaps/payments... but let's just show them in dropdown".
+          // This likely applies to "To" dropdown. "From" dropdown is usually what you hold.
+          // Let's filter out separators for sure.
           const tokenBalance = balances[token.symbol] || 0;
           return tokenBalance > 0;
         });
@@ -443,8 +474,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
     const fetchExchangeRate = async () => {
       setExchangeRateLoading(true);
       try {
-        // Get rate: how much fromCurrency per 1 toCurrency (for display "1 To = X From")
-        const price = await getPoolRate(toTokenSymbol, fromTokenSymbol);
+        // Get rate: how much toCurrency per 1 fromCurrency (for display "1 From = X To")
+        const price = await getPoolRate(fromTokenSymbol, toTokenSymbol);
 
         if (cancelled) return;
 
@@ -504,12 +535,10 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
 
   // Handle swap currencies
   const handleSwapCurrencies = () => {
-    const tempCurrency = selectedCurrency;
-    setSelectedCurrency(toCurrency);
-    setToCurrency(tempCurrency);
-    const tempAmount = fromAmount;
-    setFromAmount(toAmount);
-    setToAmount(tempAmount);
+    const prevFrom = selectedCurrency;
+    const prevTo = toCurrency;
+    setSelectedCurrency(prevTo);
+    setToCurrency(prevFrom);
   };
 
   const resolveReceiverAddress = async (usernameToResolve: string): Promise<string> => {
@@ -562,6 +591,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
     // Return transaction ID for tracking
     return response?.data?.transaction_id || null;
   };
+
+
 
   /**
    * Transfer tokens using Krypton_Web3 /erc20/transfer endpoint (Circle-based)
@@ -686,6 +717,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
         countdownIntervalRef.current = null;
       }
       onClose(true); // Transaction was successful, switch to transaction history
+    } else {
+      onClose(false); // User cancelled
     }
   };
 
@@ -693,293 +726,200 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
 
   return (
     <div
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#001C1B]/60 backdrop-blur-md p-4 animate-in fade-in duration-200"
       onClick={handleBackdropClick}
-      style={{ cursor: success ? 'pointer' : 'default' }}
     >
-      <Card
-        className="w-full max-w-lg bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 shadow-2xl relative overflow-hidden rounded-3xl"
-        onClick={e => e.stopPropagation()}
+      <div
+        className="w-full max-w-[440px] bg-[#001C1B] bg-cover bg-center shadow-2xl relative overflow-visible rounded-[32px] p-8 animate-in zoom-in-95 duration-200 border border-white/5"
+        style={{ backgroundImage: "url('/wallet-bg.svg')" }}
+        onClick={(e) => !success && e.stopPropagation()}
       >
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-xl font-bold text-white">
-              Send Currency
-            </CardTitle>
-            <button
-              onClick={() => onClose(false)}
-              className="text-zinc-400 hover:text-white transition-colors"
-              disabled={loading}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Success Animation with Countdown */}
+        <div className="flex items-center justify-between mb-8">
+           <h2 className="text-2xl font-bold text-white tracking-tight">Send Currency</h2>
+           <button
+             onClick={() => onClose(false)}
+             className="text-teal-200/60 hover:text-white transition-colors"
+           >
+             <X size={24} />
+           </button>
+        </div>
+
+          {/* Success Animation */}
           {success && (
             <div
               className="flex flex-col items-center justify-center py-8 cursor-pointer"
-              onClick={handleBackdropClick}
             >
-              <div className="mb-4">
-                <svg className="animate-checkmark" width="72" height="72" viewBox="0 0 72 72">
-                  <circle cx="36" cy="36" r="34" fill="#1a2e22" stroke="#22c55e" strokeWidth="3" />
-                  <path
-                    d="M22 38l10 10 18-18"
-                    fill="none"
-                    stroke="#22c55e"
-                    strokeWidth="4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="checkmark-path"
-                  />
-                </svg>
+              <div className="mb-6 relative">
+                <div className="absolute inset-0 bg-green-500/20 blur-xl rounded-full"></div>
+                <img src="/tx-success.svg" alt="Success" width="100" height="100" className="relative animate-pulse drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]" />
               </div>
-              <div className="text-green-400 text-lg font-semibold mb-2">Transaction Submitted!</div>
-              <div className="text-zinc-300 text-sm text-center">{success}</div>
-              <div className="mt-6 text-zinc-500 text-xs">
+              <div className="text-green-400 text-lg font-bold mb-2 tracking-wide">Transaction Submitted!</div>
+              <div className="text-teal-200/80 text-sm text-center max-w-[80%] leading-relaxed">{success}</div>
+              <div className="mt-8 text-teal-200/60 text-xs font-medium">
                 Tap anywhere to close{closeCountdown > 0 && ` (${closeCountdown}s)`}
               </div>
             </div>
           )}
 
-          {/* Form (hide if success) */}
+          {/* Form */}
           {!success && (
-            <>
+            <div className="space-y-6">
               {error && (
-                <Alert variant="destructive" className="bg-red-900/80 border-red-700 text-red-200 rounded-xl">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
+                <div className="bg-red-500/10 border border-red-500/20 text-red-200 text-sm p-3 rounded-2xl flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
               )}
 
-              {/* Receiver Username - At Top */}
+              {/* Receiver Input */}
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">Receiver</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-zinc-500 text-lg">@</span>
+                <label className="block text-teal-200/70 text-sm font-medium mb-2 ml-1">Receiver</label>
+                <div className="relative group">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-lg group-focus-within:text-white transition-colors z-10 pointer-events-none">@</span>
                   <input
                     type="text"
                     value={receiverUsername}
                     onChange={(e) => setReceiverUsername(e.target.value)}
                     placeholder="username"
-                    className="w-full pl-8 pr-4 py-3.5 border border-zinc-700 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 bg-zinc-800/50 text-white placeholder-zinc-500"
+                    className="w-full pl-10 pr-4 py-4 bg-[#2F4F4F]/30 backdrop-blur-sm rounded-2xl focus:outline-none focus:bg-[#2F4F4F]/40 text-white placeholder-white/50 transition-all font-medium text-lg border border-white/5 focus:border-white/10"
                     disabled={loading}
+                    autoFocus
                   />
                 </div>
               </div>
 
-              {/* From and To Boxes Row */}
-              <div className="relative flex items-center gap-2">
-                {/* From Box */}
-                <div className="flex-1 relative">
-                  <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50 pb-12">
-                    <div className="text-xs font-medium text-zinc-400 mb-2">From</div>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={fromAmount}
-                      onChange={(e) => {
-                        // Set focus immediately to prevent auto-updates while typing
-                        focusedFieldRef.current = "from";
-                        // Only allow numbers and decimal point
-                        const value = e.target.value.replace(/[^0-9.]/g, '');
-                        // Prevent multiple decimal points
-                        const parts = value.split('.');
-                        const filteredValue = parts.length > 2
-                          ? parts[0] + '.' + parts.slice(1).join('')
-                          : value;
-                        isUpdatingToRef.current = false;
-                        setFromAmount(filteredValue);
-                      }}
-                      onFocus={() => {
-                        focusedFieldRef.current = "from";
-                      }}
-                      onBlur={() => {
-                        // Delay clearing focus to allow any pending calculations to complete
-                        setTimeout(() => {
-                          focusedFieldRef.current = null;
-                        }, 200);
-                      }}
-                      placeholder="0.00"
-                      className="w-full text-2xl font-bold bg-transparent text-white placeholder-zinc-500 focus:outline-none"
-                      disabled={loading}
-                    />
-                    <div className="text-xs text-zinc-400 mt-2">
-                      Balance: <span className="text-zinc-300">{fromBalanceValue.toFixed(2)}</span>
-                    </div>
-                  </div>
-                  {/* Currency Dropdown Overlay - Bottom Center */}
-                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 z-10">
-                    <div className="relative">
-                      <select
-                        value={selectedCurrency}
+               {/* From/To Section */}
+               <div className="flex gap-3 relative mb-4">
+                  {/* From Box */}
+                  <div
+                    className="flex-1 rounded-2xl h-[150px] relative flex flex-col items-start justify-center p-4 border border-white/5 transition-colors group"
+                    style={{ backgroundImage: "url('/glass-box.svg')", backgroundSize: 'cover', backgroundPosition: 'center' }}
+                  >
+                     <span className="text-zinc-400 text-xs font-medium mb-1">From</span>
+                     <input
+                        type="text"
+                        inputMode="decimal"
+                        value={fromAmount}
                         onChange={(e) => {
-                          setSelectedCurrency(e.target.value);
-                          setFromAmount("");
-                          setToAmount("");
+                            focusedFieldRef.current = "from";
+                            const val = e.target.value.replace(/[^0-9.]/g, '');
+                            isUpdatingToRef.current = false;
+                            setFromAmount(val);
                         }}
-                        className="appearance-none bg-zinc-700 hover:bg-zinc-600 border-2 border-zinc-600 rounded-xl px-4 py-2 text-white font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 pr-8 shadow-lg"
+                        onFocus={() => { focusedFieldRef.current = "from"; }}
+                        placeholder="0"
+                        className="bg-transparent text-2xl font-bold text-white text-left w-full focus:outline-none placeholder-white/50"
                         disabled={loading}
-                      >
-                        {availableTokens.length === 0 ? (
-                          <option value="">No balances</option>
-                        ) : (
-                          availableTokens.map((t) => (
-                            <option key={t.symbol} value={t.symbol.replace(/^k/, "")}>
-                              {t.symbol.replace(/^k/, "")}
-                            </option>
-                          ))
-                        )}
-                      </select>
-                      <svg
-                        className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400"
-                        width="12"
-                        height="12"
-                        viewBox="0 0 12 12"
-                        fill="none"
-                      >
-                        <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </div>
-                  </div>
-                  {isCalculatingTo && (
-                    <div className="absolute top-2 right-2">
-                      <svg className="animate-spin h-4 w-4 text-zinc-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                    </div>
-                  )}
-                </div>
+                     />
+                     <div className="text-[10px] text-zinc-400 mt-1 font-medium">
+                        Balance: <span className="text-white">{fromBalanceValue.toFixed(2)}</span>
+                     </div>
 
-                {/* Swap Button - Overlay */}
-                <button
-                  onClick={handleSwapCurrencies}
-                  disabled={loading || !fromTokenSymbol || !toTokenSymbol}
-                  className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-zinc-700 hover:bg-zinc-600 border-2 border-zinc-600 flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed z-30 shadow-lg"
-                >
-                  <ArrowRight className="w-5 h-5 text-white" />
-                </button>
-
-                {/* To Box */}
-                <div className="flex-1 relative">
-                  <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50 pb-12">
-                    <div className="text-xs font-medium text-zinc-400 mb-2">To</div>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={toAmount}
-                      onChange={(e) => {
-                        // Set focus immediately to prevent auto-updates while typing
-                        focusedFieldRef.current = "to";
-                        // Only allow numbers and decimal point
-                        const value = e.target.value.replace(/[^0-9.]/g, '');
-                        // Prevent multiple decimal points
-                        const parts = value.split('.');
-                        const filteredValue = parts.length > 2
-                          ? parts[0] + '.' + parts.slice(1).join('')
-                          : value;
-                        isUpdatingFromRef.current = false;
-                        setToAmount(filteredValue);
-                      }}
-                      onFocus={() => {
-                        focusedFieldRef.current = "to";
-                      }}
-                      onBlur={() => {
-                        // Delay clearing focus to allow any pending calculations to complete
-                        setTimeout(() => {
-                          focusedFieldRef.current = null;
-                        }, 200);
-                      }}
-                      placeholder="0.00"
-                      className="w-full text-2xl font-bold bg-transparent text-white placeholder-zinc-500 focus:outline-none"
-                      disabled={loading}
-                    />
-                    <div className="text-xs text-zinc-400 mt-2">
-                      {exchangeRateLoading ? (
-                        <span className="text-zinc-500">Loading rate...</span>
-                      ) : exchangeRate !== null ? (
-                        <>
-                          1 {toTokenSymbol.replace(/^k/, "")} = <span className="text-zinc-300">{exchangeRate.toFixed(2)}</span> {fromTokenSymbol.replace(/^k/, "")}
-                        </>
-                      ) : fromTokenSymbol && toTokenSymbol ? (
-                        <span className="text-zinc-500">Rate unavailable</span>
-                      ) : null}
-                    </div>
+                     {/* Currency Selector Pill */}
+                     <div className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 z-20">
+                        <div className="relative shadow-xl">
+                            <select
+                                value={selectedCurrency}
+                                onChange={(e) => setSelectedCurrency(e.target.value)}
+                                className="appearance-none bg-[#115E59] hover:bg-[#134E4A] text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded-lg cursor-pointer focus:outline-none transition-colors border border-white/10 w-[90px]"
+                                disabled={loading}
+                            >
+                                {availableTokens.map((token) => (
+                                <option key={token.symbol} value={token.symbol.replace(/^k/, "")}>
+                                    {token.symbol.replace(/^k/, "")}
+                                </option>
+                                ))}
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-teal-200/70">
+                                <ChevronDown size={10} />
+                            </div>
+                        </div>
+                     </div>
                   </div>
-                  {/* Currency Dropdown Overlay - Bottom Center */}
-                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 z-10">
-                    <div className="relative">
-                      <select
-                        value={toCurrency}
-                        onChange={(e) => {
-                          setToCurrency(e.target.value);
-                          setFromAmount("");
-                          setToAmount("");
+
+                  {/* Swap Button */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+                     <button
+                        onClick={handleSwapCurrencies}
+                        className="w-8 h-8 rounded-full bg-[#557C82] border-2 border-[#001C1B] flex items-center justify-center shadow-lg hover:bg-[#4A7A7E] hover:scale-110 transition-all cursor-pointer"
+                        disabled={loading}
+                     >
+                        <ArrowLeftRight className="w-4 h-4 text-white" />
+                     </button>
+                  </div>
+
+                  {/* To Box */}
+                  <div
+                    className="flex-1 rounded-2xl h-[150px] relative flex flex-col items-start justify-center p-4 border border-white/5 transition-colors group"
+                    style={{ backgroundImage: "url('/glass-box.svg')", backgroundSize: 'cover', backgroundPosition: 'center' }}
+                  >
+                     <span className="text-zinc-400 text-xs font-medium mb-1">To</span>
+                     <input
+                        type="text"
+                        inputMode="decimal"
+                        value={toAmount}
+                         onChange={(e) => {
+                            focusedFieldRef.current = "to";
+                            const val = e.target.value.replace(/[^0-9.]/g, '');
+                            isUpdatingFromRef.current = false;
+                            setToAmount(val);
                         }}
-                        className="appearance-none bg-zinc-700 hover:bg-zinc-600 border-2 border-zinc-600 rounded-xl px-4 py-2 text-white font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 pr-8 shadow-lg"
+                        onFocus={() => { focusedFieldRef.current = "to"; }}
+                        placeholder="0"
+                        className="bg-transparent text-2xl font-bold text-white text-left w-full focus:outline-none placeholder-white/50"
                         disabled={loading}
-                      >
-                        {supportedTokensList.map((t: SupportedToken) => (
-                          <option key={t.symbol} value={t.symbol.replace(/^k/, "")}>
-                            {t.symbol.replace(/^k/, "")}
-                          </option>
-                        ))}
-                      </select>
-                      <svg
-                        className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400"
-                        width="12"
-                        height="12"
-                        viewBox="0 0 12 12"
-                        fill="none"
-                      >
-                        <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </div>
+                     />
+                     <div className={`text-[10px] mt-1 font-medium truncate max-w-[90px] h-[15px] flex items-center ${(isCalculatingFrom || isCalculatingTo || exchangeRateLoading) ? 'animate-pulse text-white/50' : 'text-white font-bold'}`}>
+                        {exchangeRate && !exchangeRateLoading ? `1 ${selectedCurrency && selectedCurrency.replace(/^k/, '')} = ${exchangeRate.toFixed(2)} ${toCurrency && toCurrency.replace(/^k/, '')}` : ((isCalculatingFrom || isCalculatingTo || exchangeRateLoading) ? 'Updating...' : '')}
+                     </div>
+
+                     {/* Currency Selector Pill */}
+                     <div className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 z-20">
+                        <div className="relative shadow-xl">
+                            <select
+                                value={toCurrency}
+                                onChange={(e) => setToCurrency(e.target.value)}
+                                className="appearance-none bg-[#115E59] hover:bg-[#134E4A] text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded-lg cursor-pointer focus:outline-none transition-colors border border-white/10 w-[90px]"
+                                disabled={loading}
+                            >
+                                {supportedTokensList.map((token) => (
+                                <option key={token.symbol} value={token.isSeparator ? "" : token.symbol.replace(/^k/, "")} disabled={token.isSeparator}>
+                                    {token.symbol.replace(/^k/, "")}
+                                </option>
+                                ))}
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-teal-200/70">
+                                <ChevronDown size={10} />
+                            </div>
+                        </div>
+                     </div>
                   </div>
-                  {isCalculatingFrom && (
-                    <div className="absolute top-2 right-2">
-                      <svg className="animate-spin h-4 w-4 text-zinc-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
+               </div>
+
+               <Button
+                 onClick={handleSend}
+                 disabled={loading || !isValidCurrencyCombination || isCalculatingFrom || isCalculatingTo || !hasSufficientBalance}
+                 className="w-full h-14 bg-gradient-to-b from-[#557C82] to-[#3C5F63] hover:from-[#4A7A7E] hover:to-[#33565A] text-white text-base font-bold rounded-2xl shadow-lg shadow-teal-900/10 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed mt-4 border border-white/10 relative z-10"
+               >
+                 {loading ? (
+                   <div className="flex items-center gap-2">
+                       <Loader2 className="h-5 w-5 animate-spin" />
+                       <span>Processing...</span>
+                   </div>
+                 ) : (
+                    <div className="flex items-center gap-2">
+                        <ArrowUp className="w-5 h-5" />
+                        <span>Send</span>
                     </div>
-                  )}
-                </div>
-              </div>
+                 )}
+               </Button>
 
-              {/* Action Button */}
-              <div className="pt-8">
-                <Button
-                  onClick={handleSend}
-                  disabled={loading || !receiverUsername.trim() || !fromAmount.trim() || !toAmount.trim() || !selectedCurrency || !toCurrency || !hasSufficientBalance || !isValidCurrencyCombination}
-                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-4 rounded-2xl text-lg font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-                >
-                  {loading && (
-                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  )}
-                  Send
-                </Button>
-              </div>
-
-              {/* Loading Message Display at Bottom */}
-              {loading && loadingMessage && (
-                <div className="pt-4 text-center">
-                  <p className="text-zinc-300 text-sm">{loadingMessage}</p>
-                </div>
-              )}
-            </>
+               {loading && loadingMessage && (
+                  <p className="text-teal-200/60 text-xs text-center animate-pulse">{loadingMessage}</p>
+               )}
+            </div>
           )}
-        </CardContent>
-      </Card>
+      </div>
     </div>
   );
 }

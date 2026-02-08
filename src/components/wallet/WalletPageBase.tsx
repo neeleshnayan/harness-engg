@@ -684,8 +684,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     // Only switch to Transaction History tab on auto-close (success), not on manual X button close
     if (autoClose) {
       balanceCardRef.current?.showTransactionHistory();
+      setTransactionHistoryRefresh(prev => !prev);
     }
-    setTransactionHistoryRefresh(prev => !prev);
   };
 
   const openKycModal = async (userId: string) => {

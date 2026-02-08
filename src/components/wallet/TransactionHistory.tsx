@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
-import { ArrowUpRight, ArrowDownLeft, Clock, CheckCircle, XCircle, AlertCircle, ArrowUpDown } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, Clock, CheckCircle, XCircle, AlertCircle, ArrowUpDown, ArrowRightLeft } from 'lucide-react';
 import { kryptonWeb3Api } from '@/lib/api';
 
 interface Transaction {
@@ -99,28 +99,39 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
     };
 
     const getStatusIcon = (tx: Transaction) => {
+      // Default to success as backend filters confirmed txs usually, but handle failure if status present
+      const isFailed = tx.status === 'failed';
+      const iconSrc = isFailed ? "/check-circle-failed.svg" : "/check-circle-succeeded.svg";
+
       return (
         <a
           href={`https://sepolia.etherscan.io/tx/${tx.hash}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="hover:text-cyan-400 cursor-pointer transition-all duration-200 hover:scale-110 group"
+          className="cursor-pointer transition-all duration-200 hover:scale-110 group"
           title="View on Etherscan"
         >
-          <CheckCircle className="h-5 w-5 text-green-500 group-hover:drop-shadow-sm" />
+          <img src={iconSrc} alt={isFailed ? "Failed" : "Succeeded"} className="w-6 h-6" />
         </a>
       );
     };
 
     const getTransactionTypeIcon = (type: string, large = false) => {
       if (type === 'swap') {
-        return (
-          <ArrowUpDown className={large ? 'h-5 w-5 text-cyan-400' : 'h-4 w-4 text-cyan-400'} style={{ transform: 'rotate(90deg)' }} />
-        );
+         // Swap icon needs a container because the SVG is just arrows
+         const containerSize = large ? 'w-16 h-16' : 'w-10 h-10';
+         const iconSize = large ? 'w-8 h-8' : 'w-5 h-5';
+         return (
+           <div className={`flex items-center justify-center ${containerSize} bg-white/10 rounded-md`}>
+             <ArrowRightLeft className={`${iconSize} text-white`} />
+           </div>
+         );
       }
+      // Transfer icons have built-in background
+      const size = large ? 'w-16 h-16' : 'w-10 h-10';
       return type === 'transfer_in' ?
-        <ArrowDownLeft className={large ? 'h-6 w-6 text-green-600' : 'h-5 w-5 text-green-600'} /> :
-        <ArrowUpRight className={large ? 'h-6 w-6 text-red-600' : 'h-5 w-5 text-red-600'} />;
+        <img src="/receive-icon.svg" alt="Received" className={size} /> :
+        <img src="/sent-icon.svg" alt="Sent" className={size} />;
     };
 
     const shortenAddress = (address?: string) => {
@@ -195,7 +206,7 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
 
     return (
       <div className="flex flex-col">
-        <div className="rounded-t-none rounded-b-xl border border-white/10 bg-black/30">
+        <div className="flex flex-col">
           {transactions.map((tx, idx) => {
             let titleText = '';
             let subText = '';
@@ -205,7 +216,7 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
               const inToken = formatToken(tx.token_in);
               const outToken = formatToken(tx.token_out);
               titleText = `Swap ${inToken} to ${outToken}`;
-              amountDisplay = `${formatAmount(tx.amount_in)} ${inToken} -> ${formatAmount(tx.amount_out)} ${outToken}`;
+              amountDisplay = `${formatAmount(tx.amount_in)} ${inToken} → ${formatAmount(tx.amount_out)} ${outToken}`;
               subText = 'Pool Swap';
             } else {
               const token = formatToken(tx.token);
@@ -226,11 +237,11 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
             return (
               <div
                 key={`${tx.hash}-${idx}`}
-                className={`px-3 py-2 flex items-start justify-between min-w-0 ${idx !== transactions.length - 1 ? 'border-b border-white/10' : ''}`}
+                className="py-2.5 flex items-center justify-between min-w-0"
               >
                 {/* First column: Icon, Amount/Title, From/To */}
-                <div className="flex items-start min-w-0 flex-1 overflow-hidden">
-                  <div className="flex items-center justify-center w-8 h-8 mr-2 flex-shrink-0">
+                <div className="flex items-center min-w-0 flex-1 overflow-hidden">
+                  <div className="mr-3 flex-shrink-0">
                     {getTransactionTypeIcon(tx.type, false)}
                   </div>
                   <div className="flex flex-col min-w-0 flex-1 overflow-hidden justify-center">
@@ -262,9 +273,9 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
                   </div>
                 </div>
                 {/* Second column: Timestamp */}
-                <div className="flex flex-col text-zinc-500 text-[10px] md:text-xs text-right flex-shrink-0 ml-2 md:ml-4 justify-center" style={{ minWidth: '60px' }}>
-                  <span className="whitespace-nowrap">{formatDateOnly(tx.timestamp)}</span>
-                  <span className="whitespace-nowrap">{formatTimeOnly(tx.timestamp)}</span>
+                <div className="flex flex-col text-right flex-shrink-0 ml-2 md:ml-4 justify-center" style={{ minWidth: '60px' }}>
+                  <span className="whitespace-nowrap text-zinc-200 text-xs font-semibold">{formatDateOnly(tx.timestamp)}</span>
+                  <span className="whitespace-nowrap text-zinc-500 text-[10px] font-medium">{formatTimeOnly(tx.timestamp)}</span>
                 </div>
                 {/* Status icon */}
                 <div className="flex items-center justify-center w-5 h-5 ml-2 flex-shrink-0 self-center">

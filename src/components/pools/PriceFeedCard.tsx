@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { nettingPoolsApi, OracleRateResponse } from '@/lib/nettingPoolsApi';
+import { CURRENCY_SYMBOLS } from '@/lib/ratesApi';
 
 interface PriceFeedCardProps {
   fxPair: string;
@@ -9,13 +10,6 @@ interface PriceFeedCardProps {
   currencySymbol?: string;
   refreshInterval?: number;
 }
-
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  EUR: '€',
-  GBP: '£',
-  AED: 'د.إ',
-  USD: '$',
-};
 
 const GRADIENT_COLORS: Record<string, { from: string; to: string; textColor: string }> = {
   EUR: { from: 'from-indigo-500', to: 'to-purple-500', textColor: 'text-purple-400' },

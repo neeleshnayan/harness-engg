@@ -107,6 +107,7 @@ export const CURRENCY_SYMBOLS: Record<string, string> = {
   'EUR': '€',
   'GBP': '£',
   'AED': 'د.إ',
+  'INR': '₹',
   'GC': '',
   'XAG': '',
   'NVDA': '',
@@ -115,5 +116,6 @@ export const CURRENCY_SYMBOLS: Record<string, string> = {
   'kEUR': '€',
   'kGBP': '£',
   'kAED': 'د.إ',
+  'kINR': '₹',
   'USDC': '$',
 };

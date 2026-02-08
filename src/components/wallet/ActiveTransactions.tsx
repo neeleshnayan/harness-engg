@@ -13,7 +13,7 @@ import {
   isErrorState,
   CircleTransactionState,
 } from '@/lib/circleStates';
-import { ArrowRight, Check, X, Loader2, ArrowLeftRight, Send, RefreshCw } from 'lucide-react';
+import { ArrowRight, Check, X, Loader2, ArrowLeftRight, Send, RefreshCw, ArrowUp } from 'lucide-react';
 
 // Poll interval in milliseconds (10 seconds for better UX)
 const POLL_INTERVAL_MS = 10000;
@@ -101,11 +101,11 @@ function formatRelativeTime(timestamp: number | null): string {
 function TransactionTypeIcon({ txType, className }: { txType: string; className?: string }) {
   switch (txType) {
     case 'swap':
-      return <ArrowLeftRight className={className} />;
+      return <img src="/swap-icon-small.svg" className={className} alt="Swap" />;
     case 'transfer':
-      return <Send className={className} />;
+      return <img src="/sent-icon.svg" className={className} alt="Transfer" />;
     default:
-      return <RefreshCw className={className} />;
+      return <img src="/swap-icon-small.svg" className={className} alt="Transaction" />;
   }
 }
 
@@ -313,61 +313,64 @@ function getFinalStepLabel(status: string): string {
  * Transaction Progress Tracker
  */
 function TransactionProgressTracker({ tx }: { tx: ActiveTransaction }) {
-  const currentStep = getProgressStepIndex(tx.status);
-  // Treat CONFIRMED as success/terminal for UI purposes so we get a green checkmark immediately
-  const isConfirmed = tx.status.toLowerCase() === CircleTransactionState.CONFIRMED;
-  const isSuccess = isSuccessState(tx.status) || isConfirmed;
+  // Map status to step index (0: Queued, 1: Submitted, 2: Confirmed)
+  let currentStep = 0;
+  const status = tx.status.toLowerCase();
+
+  if (status === 'queued' || status === 'created') currentStep = 0;
+  else if (status === 'submitted' || status === 'pending' || status === 'sent') currentStep = 1;
+  else if (status === 'confirmed' || status === 'complete' || status === 'success' || status === 'cleared') currentStep = 2;
+
+  // Handle failure
   const isError = isErrorState(tx.status);
-  const isTerminal = isTerminalState(tx.status) || isConfirmed;
-
-  // Use the actual state label for terminal states
-  const finalStepLabel = isTerminal ? getFinalStepLabel(tx.status) : 'Confirmed';
-
-  const steps = [
-    { index: 0, label: 'Queued' },
-    { index: 1, label: 'Submitted' },
-    { index: 2, label: finalStepLabel },
-  ];
-
-  // Determine which line is "in progress" (leading to a step with yellow spinner)
-  // Line at index i connects step i to step i+1
-  // A line is "in progress" when the step it leads TO is showing a yellow spinner
-  const getLineInProgress = (lineIndex: number): boolean => {
-    // Line 0 (Queued→Confirmed): Never yellow - Confirmed step never shows spinner
-    // It goes directly from gray (not reached) to green (reached)
-    if (lineIndex === 0) {
-      return false;
-    }
-    // Line 1 (Confirmed→Complete): Yellow when Complete step shows spinner
-    // This happens when we've reached Confirmed (currentStep >= 1) but not terminal yet
-    if (lineIndex === 1) {
-      return currentStep >= 1 && !isTerminal;
-    }
-    return false;
-  };
 
   return (
-    <div className="flex items-start justify-between w-full px-2">
-      {steps.map((step, idx) => (
-        <React.Fragment key={step.index}>
-          <ProgressStep
-            stepIndex={step.index}
-            currentStep={currentStep}
-            label={step.label}
-            isSuccess={isSuccess}
-            isError={isError}
-            isTerminal={isTerminal}
+    <div className="w-full px-6 mt-6 mb-8 relative">
+       {/* Connecting Lines */}
+       <div className="absolute top-[22px] left-[15%] right-[15%] h-[2px] bg-zinc-700/50 -z-0">
+          <div
+            className="h-full bg-emerald-500 transition-all duration-500 ease-out"
+            style={{ width: currentStep === 0 ? '0%' : currentStep === 1 ? '50%' : '100%' }}
           />
-          {idx < steps.length - 1 && (
-            <ProgressLine
-              isCompleted={currentStep >= step.index + 1}
-              isInProgress={getLineInProgress(idx)}
-              isError={isError}
-              isLeadingToFinal={idx === steps.length - 2} // Last line leads to final step
-            />
-          )}
-        </React.Fragment>
-      ))}
+       </div>
+
+       <div className="flex justify-between relative z-10 text-center">
+          {/* Step 1: Queued */}
+          <div className="flex flex-col items-center gap-3 w-1/3">
+             <div className={`w-12 h-12 rounded-full flex items-center justify-center border-[3px] transition-all duration-300 ${
+                 currentStep >= 0
+                 ? 'bg-emerald-500 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]'
+                 : 'bg-zinc-800 border-zinc-700 text-zinc-500'
+             }`}>
+                {currentStep >= 0 ? <Check className="w-6 h-6 stroke-[3]" /> : <Loader2 className="w-5 h-5 animate-spin" />}
+             </div>
+             <span className={`text-xs font-semibold ${currentStep >= 0 ? 'text-white' : 'text-zinc-500'}`}>Queued</span>
+          </div>
+
+          {/* Step 2: Submitted */}
+          <div className="flex flex-col items-center gap-3 w-1/3">
+             <div className={`w-12 h-12 rounded-full flex items-center justify-center border-[3px] transition-all duration-300 ${
+                 currentStep >= 1
+                 ? 'bg-emerald-500 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]'
+                 : 'bg-zinc-800 border-zinc-700 text-zinc-500'
+             }`}>
+                {currentStep >= 1 ? <Check className="w-6 h-6 stroke-[3]" /> : currentStep === 0 && !isError ? <Loader2 className="w-5 h-5 animate-spin text-emerald-500" /> : <div className="w-2 h-2 rounded-full bg-zinc-600" />}
+             </div>
+             <span className={`text-xs font-semibold ${currentStep >= 1 ? 'text-white' : 'text-zinc-500'}`}>Submitted</span>
+          </div>
+
+          {/* Step 3: Confirmed */}
+          <div className="flex flex-col items-center gap-3 w-1/3">
+             <div className={`w-12 h-12 rounded-full flex items-center justify-center border-[3px] transition-all duration-300 ${
+                 currentStep >= 2
+                 ? (isError ? 'bg-red-500 border-red-500 text-white' : 'bg-emerald-500 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]')
+                 : 'bg-zinc-800 border-zinc-700 text-zinc-500'
+             }`}>
+                {currentStep >= 2 ? (isError ? <X className="w-6 h-6 stroke-[3]" /> : <Check className="w-6 h-6 stroke-[3]" />) : currentStep === 1 && !isError ? <Loader2 className="w-5 h-5 animate-spin text-emerald-500" /> : <div className="w-2 h-2 rounded-full bg-zinc-600" />}
+             </div>
+             <span className={`text-xs font-semibold ${currentStep >= 2 ? (isError ? 'text-red-500' : 'text-white') : 'text-zinc-500'}`}>Confirmed</span>
+          </div>
+       </div>
     </div>
   );
 }
@@ -407,91 +410,45 @@ function getStatusBadgeClasses(status: string): { bg: string; text: string } {
  * Single Transaction Card
  */
 function TransactionCard({ tx }: { tx: ActiveTransaction }) {
-  const category = getStateCategory(tx.status);
-  const isTerminal = isTerminalState(tx.status);
-  const isSuccess = isSuccessState(tx.status);
   const isError = isErrorState(tx.status);
-  const stateLabel = getStateLabel(tx.status);
-  const badgeClasses = getStatusBadgeClasses(tx.status);
 
-  // Determine card style based on state
-  let borderClass = 'border-zinc-700/50';
-  let bgClass = 'bg-zinc-800/30';
-
-  if (isSuccess) {
-    borderClass = 'border-emerald-500/30';
-    bgClass = 'bg-emerald-500/5';
-  } else if (isError) {
-    borderClass = 'border-red-500/30';
-    bgClass = 'bg-red-500/5';
-  } else {
-    borderClass = 'border-amber-500/20';
-    bgClass = 'bg-amber-500/5';
-  }
+  const description = getTransactionDescription(tx);
 
   return (
-    <div
-      className={`
-        rounded-xl border p-4 ${borderClass} ${bgClass}
-        transition-all duration-300
-      `}
-    >
-      {/* Header: Type icon + Description + Status Badge + Time */}
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className={`
-            w-8 h-8 rounded-lg flex items-center justify-center
-            ${isSuccess ? 'bg-emerald-500/20 text-emerald-400' :
-              isError ? 'bg-red-500/20 text-red-400' :
-              'bg-amber-500/20 text-amber-400'}
-          `}>
-            <TransactionTypeIcon txType={tx.tx_type} className="w-4 h-4" />
+    <div className="w-full bg-zinc-800/40 backdrop-blur-md rounded-[24px] border border-white/5 p-5 mb-4 shadow-xl">
+       {/* Header */}
+       <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-3">
+             <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                {tx.tx_type === 'swap' ? <ArrowLeftRight className="w-5 h-5 text-white" /> : <ArrowUp className="w-5 h-5 text-white" />}
+             </div>
+             <div className="flex flex-col">
+                <span className="text-lg font-bold text-white tracking-tight">{description}</span>
+             </div>
           </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-zinc-100">
-                {getTransactionDescription(tx)}
-              </span>
-              {/* Status Badge - shows specific state */}
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${badgeClasses.bg} ${badgeClasses.text}`}>
-                {stateLabel}
-              </span>
-            </div>
-            {tx.tx_type === 'swap' && tx.from_token && tx.to_token && (
-              <div className="flex items-center gap-1 mt-0.5">
-                <span className="text-xs px-1.5 py-0.5 rounded bg-zinc-700/50 text-zinc-400">
-                  {cleanTokenSymbol(tx.from_token)}
-                </span>
-                <ArrowRight className="w-3 h-3 text-zinc-500" />
-                <span className="text-xs px-1.5 py-0.5 rounded bg-zinc-700/50 text-zinc-400">
-                  {cleanTokenSymbol(tx.to_token)}
-                </span>
-              </div>
-            )}
+          {/* Refresh/Status Icon - Top Right */}
+          <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-zinc-400">
+             {tx.status === 'confirmed' ? <Check className="w-5 h-5 text-emerald-500" /> : <RefreshCw className="w-4 h-4 animate-spin" />}
           </div>
-        </div>
-        {/* <span className="text-xs text-zinc-500">
-          {formatRelativeTime(tx.created_at)}
-        </span> */}
-      </div>
+       </div>
 
-      {/* Progress Tracker */}
-      <TransactionProgressTracker tx={tx} />
+       {/* Progress Tracker */}
+       <TransactionProgressTracker tx={tx} />
 
-      {/* Transaction Hash Link (if available) */}
-      {tx.tx_hash && (
-        <div className="mt-3 pt-3 border-t border-white/5">
-          <a
-            href={`https://sepolia.etherscan.io/tx/${tx.tx_hash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-zinc-500 hover:text-cyan-400 transition-colors font-mono flex items-center gap-1"
-          >
-            <span>{tx.tx_hash.slice(0, 8)}...{tx.tx_hash.slice(-6)}</span>
-            <ArrowRight className="w-3 h-3" />
-          </a>
-        </div>
-      )}
+       {/* Hash */}
+       {tx.tx_hash && (
+         <div className="pt-4 border-t border-white/5 flex items-center gap-2">
+           <a
+             href={`https://sepolia.etherscan.io/tx/${tx.tx_hash}`}
+             target="_blank"
+             rel="noreferrer"
+             className="text-xs text-zinc-500 font-mono hover:text-white transition-colors flex items-center gap-1 group"
+           >
+             {tx.tx_hash.slice(0, 10)}...{tx.tx_hash.slice(-8)}
+             <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+           </a>
+         </div>
+       )}
     </div>
   );
 }
