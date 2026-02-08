@@ -64,6 +64,8 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
   const [activeTab, setActiveTab] = useState<TabKey>("k_tokens");
   const [tokenPrices, setTokenPrices] = useState<Record<string, number>>({});
   const [portfolioHistory, setPortfolioHistory] = useState<Record<string, PortfolioDataPoint[]>>({});
+  const [pricesLoading, setPricesLoading] = useState(true);
+  const [portfolioLoading, setPortfolioLoading] = useState(true);
 
   const [supportedTokens, setSupportedTokens] = useState<SupportedTokensResponse | null>(null);
   const [supportedTokensLoading, setSupportedTokensLoading] = useState(true);
@@ -169,11 +171,14 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
   useEffect(() => {
     const fetchTokenPrices = async () => {
       try {
+        setPricesLoading(true);
         const response = await kryptonWeb3Api.get('/subgraph/token-prices');
         const prices = response.data?.prices || {};
         setTokenPrices(prices);
       } catch (err) {
         console.error("Failed to fetch token prices", err);
+      } finally {
+        setPricesLoading(false);
       }
     };
     fetchTokenPrices();
@@ -182,9 +187,13 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
   // Fetch portfolio history
   useEffect(() => {
     const fetchPortfolioHistory = async () => {
-      if (!userWalletAddress) return;
+      if (!userWalletAddress) {
+        setPortfolioLoading(false);
+        return;
+      }
 
       try {
+        setPortfolioLoading(true);
         const response = await kryptonWeb3Api.get(`/subgraph/user/${userWalletAddress}/portfolio-history`, {
           params: { days: 30 }
         });
@@ -192,6 +201,8 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
         setPortfolioHistory(history);
       } catch (err) {
         console.error("Failed to fetch portfolio history", err);
+      } finally {
+        setPortfolioLoading(false);
       }
     };
     fetchPortfolioHistory();
@@ -305,7 +316,10 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
 
   const tokenBalances = getTokenBalances();
 
-  if (loading || supportedTokensLoading) {
+  // Check if all data is still loading
+  const isFullyLoaded = !loading && !supportedTokensLoading && !pricesLoading && !portfolioLoading && !priceLoading;
+
+  if (loading || supportedTokensLoading || pricesLoading || portfolioLoading) {
     return (
       <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 ${className}`}>
         <div className="text-center">
@@ -330,8 +344,8 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
     );
   }
 
-  // Only show "No Supported Tokens" if tokens have been loaded and there are none
-  if (tokenDetails.length === 0 && !priceLoading) {
+  // Only show "No Supported Tokens" if everything is fully loaded and there are still no tokens
+  if (tokenDetails.length === 0 && isFullyLoaded) {
     return (
       <div className={`bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 ${className}`}>
         <div className="text-center">
