@@ -21,7 +21,8 @@ const POLL_INTERVAL_MS = 10000;
 // How long to keep completed transactions visible (5 seconds)
 const COMPLETED_TX_DISPLAY_TIME = 3000;
 
-interface ActiveTransaction {
+/** Exported for use by TransactionStatus (Clark) when seeding from agent flow */
+export interface ActiveTransaction {
   transaction_id: string;
   status: string;
   kind: string | null;
@@ -55,6 +56,10 @@ interface ActiveTransactionsProps {
   refreshKey?: number;
   /** Whether the component is visible (controls polling - only poll when visible) */
   isVisible?: boolean;
+  /** Optional initial transactions (e.g. from Clark agent flow) to show before first API response */
+  initialTransactions?: ActiveTransaction[];
+  /** When false, hide the "Active Transactions" header (e.g. when embedded in Clark chat) */
+  showHeader?: boolean;
 }
 
 /**
@@ -463,9 +468,9 @@ function TransactionCard({ tx }: { tx: ActiveTransaction }) {
             )}
           </div>
         </div>
-        <span className="text-xs text-zinc-500">
+        {/* <span className="text-xs text-zinc-500">
           {formatRelativeTime(tx.created_at)}
-        </span>
+        </span> */}
       </div>
 
       {/* Progress Tracker */}
@@ -496,12 +501,13 @@ function TransactionCard({ tx }: { tx: ActiveTransaction }) {
  * Polls the backend every 10 seconds.
  * Persists transactions to localStorage to survive page refreshes.
  */
-export default function ActiveTransactions({ username, className = '', onAllTransactionsComplete, refreshKey = 0, isVisible = true }: ActiveTransactionsProps) {
-  const [transactions, setTransactions] = useState<ActiveTransaction[]>([]);
+export default function ActiveTransactions({ username, className = '', onAllTransactionsComplete, refreshKey = 0, isVisible = true, initialTransactions, showHeader = true }: ActiveTransactionsProps) {
+  const [transactions, setTransactions] = useState<ActiveTransaction[]>(() => initialTransactions ?? []);
   const [loading, setLoading] = useState(false);
   const initialFetch = useRef(true);
   const hadTransactions = useRef(false);
   const lastRefreshKey = useRef(refreshKey);
+  const hadInitialTransactions = useRef(!!(initialTransactions?.length));
 
   const fetchActiveTransactions = useCallback(async () => {
     if (!username) return;
@@ -520,6 +526,10 @@ export default function ActiveTransactions({ username, className = '', onAllTran
 
       // Keep completed transactions visible for a short time, then remove them
       setTransactions(prev => {
+        // When API returns empty and we had initial data (e.g. Clark agent flow), keep showing it
+        if (newTransactions.length === 0 && hadInitialTransactions.current) {
+          return prev;
+        }
         // Filter out incoming transactions that are already finished (Confirmed or Terminal)
         // AND are not currently tracked in our state. This implements "filter out on refresh".
         const filteredNewTransactions = newTransactions.filter(newTx => {
@@ -556,6 +566,12 @@ export default function ActiveTransactions({ username, className = '', onAllTran
       });
     } catch (err: any) {
       console.error('Error fetching active transactions:', err);
+      // On 404 or error, only clear if we never had initial data (e.g. Clark inline tx)
+      if (err?.response?.status === 404 && hadInitialTransactions.current) {
+        setTransactions(prev => prev);
+      } else if (err?.response?.status === 404 && !hadInitialTransactions.current) {
+        setTransactions([]);
+      }
     } finally {
       if (initialFetch.current) {
         setLoading(false);
@@ -630,15 +646,16 @@ export default function ActiveTransactions({ username, className = '', onAllTran
 
   return (
     <div className={`${className}`}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-zinc-400 tracking-wide uppercase">
-          Active Transactions
-        </h3>
-        {loading && (
-          <Loader2 className="w-3 h-3 text-zinc-500 animate-spin" />
-        )}
-      </div>
+      {showHeader && (
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-medium text-zinc-400 tracking-wide uppercase">
+            Active Transactions
+          </h3>
+          {loading && (
+            <Loader2 className="w-3 h-3 text-zinc-500 animate-spin" />
+          )}
+        </div>
+      )}
 
       {/* Transaction List */}
       <div className="space-y-3">
