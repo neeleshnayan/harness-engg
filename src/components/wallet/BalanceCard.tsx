@@ -300,6 +300,13 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
 
     const totalInUSD = calculateBalanceInUSD(balance.tokenBalances);
 
+    console.log('💰 BalanceCard: Calculating totalBalance', {
+      totalInUSD,
+      selectedCurrency,
+      tokenCount: balance.tokenBalances.length,
+      _fetchedAt: (balance as any)?._fetchedAt
+    });
+
     // Convert from USD to selected currency if needed
     if (selectedCurrency === 'USD') {
       return totalInUSD;

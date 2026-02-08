@@ -435,6 +435,13 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
       const subgraphResponse = await response.json();
 
+      console.log('🔄 Balance API response:', {
+        address,
+        balanceCount: subgraphResponse.balances?.length || 0,
+        balances: subgraphResponse.balances?.map((b: any) => `${b.symbol}: ${b.balance}`) || [],
+        timestamp: new Date().toISOString()
+      });
+
       // Transform subgraph response to frontend format
       const transformedBalance = {
         tokenBalances: subgraphResponse.balances.map((balance: any) => ({
@@ -456,6 +463,11 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         // Add timestamp to force React to recognize this as a new object
         _fetchedAt: Date.now(),
       };
+
+      console.log('✅ Setting new balance state:', {
+        tokenCount: transformedBalance.tokenBalances.length,
+        _fetchedAt: transformedBalance._fetchedAt
+      });
 
       setBalance(transformedBalance);
 
@@ -947,6 +959,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
             </div>
           )}
           <BalanceCard
+            key={`balance-${(balance as any)?._fetchedAt || 'initial'}`}
             ref={balanceCardRef}
             balance={balance}
             error={error}
