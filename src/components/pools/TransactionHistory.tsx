@@ -30,21 +30,23 @@ export default function TransactionHistory({
     setError('');
 
     try {
-      console.log(`[TransactionHistory] Fetching swaps for pool: ${poolAddress} tokens: ${token0Address}/${token1Address}`);
+      console.log(`[TransactionHistory] Fetching swaps for pool: ${poolAddress}`);
+      console.log(`[TransactionHistory] Token addresses: ${token0Address} / ${token1Address}`);
+
       // Fetch up to 50 swaps
       const response = await subgraphApi.getPoolSwaps(poolAddress, 50, 0, token0Address, token1Address);
 
-      console.log(`[TransactionHistory] Raw response for ${poolAddress}:`, response);
+      console.log(`[TransactionHistory] Raw response:`, response);
 
       let fetchedSwaps = response.swaps || [];
-      console.log(`[TransactionHistory] Fetched ${fetchedSwaps.length} swaps`, fetchedSwaps);
+      console.log(`[TransactionHistory] Fetched ${fetchedSwaps.length} swaps`);
 
       // Sort just in case API didn't
       fetchedSwaps.sort((a, b) => b.timestamp - a.timestamp);
 
       setSwaps(fetchedSwaps);
     } catch (err: any) {
-      console.error('Error fetching pool swaps:', err);
+      console.error('[TransactionHistory] Error fetching pool swaps:', err);
       setError('Failed to load swaps');
     } finally {
       setLoading(false);
@@ -121,7 +123,12 @@ export default function TransactionHistory({
       {displayedSwaps.length === 0 ? (
         <div className="text-center py-8 text-gray-400">
           <p className="text-sm">No recent swaps</p>
-          <p className="text-xs mt-2">Trades will appear here</p>
+          <p className="text-xs mt-2">Pool swaps will appear here</p>
+          {token0Address && token1Address && (
+            <p className="text-[10px] mt-1 text-gray-600 font-mono">
+              Querying: {token0Address.substring(0,6)}...{token0Address.substring(38)} ↔ {token1Address.substring(0,6)}...{token1Address.substring(38)}
+            </p>
+          )}
         </div>
       ) : (
         <div className="space-y-0">
