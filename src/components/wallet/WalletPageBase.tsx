@@ -976,7 +976,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
             </div>
           )}
           <BalanceCard
-            key={`balance-${(balance as any)?._fetchedAt || 'initial'}`}
             ref={balanceCardRef}
             balance={balance}
             error={error}
