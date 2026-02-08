@@ -174,12 +174,21 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
   // WebSocket message handler - stabilized with useCallback and refs
   const handleWebSocketMessage = useCallback((message: any) => {
+    console.log('📨 WebSocket message received:', message);
+
     // Handle new Krypton_Web3 event format (from webhook.py)
     if (message.type === 'transaction_confirmed' || message.type === 'transaction_update') {
       const transactionId = message.transaction_id;
 
+      console.log('🎯 Processing transaction event:', {
+        type: message.type,
+        transactionId,
+        alreadyProcessed: processedWebhookEventsRef.current.has(transactionId)
+      });
+
       // Deduplicate: Skip if we've already processed this transaction event
       if (transactionId && processedWebhookEventsRef.current.has(transactionId)) {
+        console.log('⏭️ Skipping duplicate transaction event');
         return;
       }
 
@@ -201,6 +210,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       // Refresh balance - no need to check address since we're receiving user-specific events
       const currentAccountData = accountDataRef.current;
       if (currentAccountData?.wallet_address) {
+        console.log('🔄 Triggering balance refresh after webhook, delay:', WEBHOOK_BALANCE_REFRESH_DELAY_MS);
+
         // Use configurable delay to allow Circle API time to update balance
         const debounceDelay = WEBHOOK_BALANCE_REFRESH_DELAY_MS;
 
@@ -215,6 +226,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         // This prevents the "blinking" effect before the data is actually ready.
 
         balanceDebounceTimerRef.current = setTimeout(() => {
+          console.log('⏰ Webhook delay expired, fetching balance now');
           // Now we start the refresh UI
           setBalanceRefreshing(true);
 
@@ -231,6 +243,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
               .finally(() => {
                  balanceFetchInProgressRef.current = false;
               });
+          } else {
+            console.log('⚠️ Balance fetch skipped - already in progress or ref not set');
           }
 
           // Trigger BalanceCard refresh
@@ -244,13 +258,17 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
         // Safety timeout: Clear refreshing state if it somehow gets stuck later
         // (This is less critical now since we only set it true inside the timeout)
+      } else {
+        console.log('⚠️ No wallet address found, skipping balance refresh');
       }
 
       return;
 
       return;
     }
-  }, [config.showWebhookNotification, debouncedFetchBalance]);
+
+    console.log('ℹ️ Unhandled WebSocket message type:', message.type);
+  }, [config.showWebhookNotification]);
 
   // WebSocket open handler - stabilized
   const handleWebSocketOpen = useCallback(() => {
