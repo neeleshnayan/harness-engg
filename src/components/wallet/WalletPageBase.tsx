@@ -230,21 +230,20 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
           // Now we start the refresh UI
           setBalanceRefreshing(true);
 
-          if (!balanceFetchInProgressRef.current && fetchBalanceRef.current) {
-             balanceFetchInProgressRef.current = true;
-             fetchBalanceRef.current(currentAccountData.wallet_address, { background: true })
+          if (fetchBalanceRef.current) {
+            console.log('📞 Calling fetchBalance...');
+            fetchBalanceRef.current(currentAccountData.wallet_address, { background: true })
               .then(() => {
-                 setBalanceRefreshing(false);
+                console.log('✅ Balance fetch completed');
+                setBalanceRefreshing(false);
               })
               .catch((err) => {
-                 console.error('Error fetching balance:', err);
-                 setBalanceRefreshing(false);
-              })
-              .finally(() => {
-                 balanceFetchInProgressRef.current = false;
+                console.error('❌ Error fetching balance:', err);
+                setBalanceRefreshing(false);
               });
           } else {
-            console.log('⚠️ Balance fetch skipped - already in progress or ref not set');
+            console.log('⚠️ fetchBalanceRef.current is null/undefined!');
+            setBalanceRefreshing(false);
           }
 
           // Trigger BalanceCard refresh
