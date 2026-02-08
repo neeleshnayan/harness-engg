@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { FaCoins, FaEthereum } from "react-icons/fa";
 import api, { kryptonWeb3Api } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
+import TokenPortfolioChart from "./TokenPortfolioChart";
 
 interface TokenBalance {
   token: {
@@ -15,10 +16,18 @@ interface TokenBalance {
   amount: string;
 }
 
+interface PortfolioDataPoint {
+  date: string;
+  value: number;
+  balance: number;
+  price: number;
+}
+
 interface TokenWithValue extends TokenBalance {
   price: number;
   value: number;
   category: string; // "k_tokens" | "quant_strategies" | "other"
+  portfolioHistory?: PortfolioDataPoint[];
 }
 
 interface TokenBalancesProps {
@@ -53,6 +62,8 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
   const [priceLoading, setPriceLoading] = useState(false);
   const [totalValue, setTotalValue] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<TabKey>("k_tokens");
+  const [tokenPrices, setTokenPrices] = useState<Record<string, number>>({});
+  const [portfolioHistory, setPortfolioHistory] = useState<Record<string, PortfolioDataPoint[]>>({});
 
   const [supportedTokens, setSupportedTokens] = useState<SupportedTokensResponse | null>(null);
   const [supportedTokensLoading, setSupportedTokensLoading] = useState(true);
@@ -154,6 +165,38 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
     fetchSupportedTokens();
   }, []);
 
+  // Fetch token prices
+  useEffect(() => {
+    const fetchTokenPrices = async () => {
+      try {
+        const response = await kryptonWeb3Api.get('/subgraph/token-prices');
+        const prices = response.data?.prices || {};
+        setTokenPrices(prices);
+      } catch (err) {
+        console.error("Failed to fetch token prices", err);
+      }
+    };
+    fetchTokenPrices();
+  }, []);
+
+  // Fetch portfolio history
+  useEffect(() => {
+    const fetchPortfolioHistory = async () => {
+      if (!userWalletAddress) return;
+
+      try {
+        const response = await kryptonWeb3Api.get(`/subgraph/user/${userWalletAddress}/portfolio-history`, {
+          params: { days: 30 }
+        });
+        const history = response.data?.token_history || {};
+        setPortfolioHistory(history);
+      } catch (err) {
+        console.error("Failed to fetch portfolio history", err);
+      }
+    };
+    fetchPortfolioHistory();
+  }, [userWalletAddress]);
+
   const calculateTokenValues = async (tokenBalances: TokenBalance[], supportedData: SupportedTokensResponse) => {
     setPriceLoading(true);
     let totalValue = 0;
@@ -198,41 +241,23 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
           else if (strategySet.has(address)) category = "quant_strategies";
         }
 
-        // Include "other" category tokens as well
-        // logic: if it's not in any of our supported lists, we classify it as "other" but still show it.
-
-
-        let tokenPrice = 0; // Default price for tokens without address
-
-        // Special case for USDC - it's always worth 1 USDC
-        if (token.symbol === 'USDC') {
-          tokenPrice = 1;
-        }
-        // If token has an address, query the Firebase price endpoint
-        // else if (token.tokenAddress) {
-        //   try {
-        //     const response = await api.get(`/api/v1/smarttoken/firebase_price/${token.tokenAddress}`);
-        //     if (response.data && response.data.current_price) {
-        //       tokenPrice = response.data.current_price;
-        //     }
-        //   } catch (err) {
-        //     // Keep default price of 1 if API call fails
-        //   }
-        // } else if (token.symbol !== 'USDC') {
-        //   // For tokens without address (except USDC), assume price of 0
-        //   tokenPrice = 0;
-        // }
+        // Get price from fetched prices or default to 0
+        const tokenPrice = tokenPrices[token.symbol] || 0;
 
         // Calculate value for this token
         const tokenValue = tokenAmount * tokenPrice;
         totalValue += tokenValue;
+
+        // Get portfolio history for this token
+        const history = portfolioHistory[token.symbol] || [];
 
         // Add to tokens with values array
         tokensWithValues.push({
           ...tokenBalance,
           price: tokenPrice,
           value: tokenValue,
-          category
+          category,
+          portfolioHistory: history
         });
       }
 
@@ -269,14 +294,14 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
 
   useEffect(() => {
     const tokenBalances = getTokenBalances();
-    if (tokenBalances.length > 0 && supportedTokens && !supportedTokensLoading) {
+    if (tokenBalances.length > 0 && supportedTokens && !supportedTokensLoading && Object.keys(tokenPrices).length > 0) {
       calculateTokenValues(tokenBalances, supportedTokens);
     } else if (!supportedTokensLoading && supportedTokens) {
       // If no balances but we have supported tokens data, clear details
       setTokenDetails([]);
       setTotalValue(0);
     }
-  }, [balance, supportedTokens, supportedTokensLoading]);
+  }, [balance, supportedTokens, supportedTokensLoading, tokenPrices, portfolioHistory]);
 
   const tokenBalances = getTokenBalances();
 
@@ -386,33 +411,42 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
               className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl p-6 hover:bg-zinc-700/50 transition-all duration-200"
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-3">
                   <div className="flex-shrink-0">
                     {getTokenIcon(tokenDetail.token.symbol)}
                   </div>
                   <div className="flex-1">
-                    <h4 className="text-lg font-bold text-white">
+                    <h4 className="text-sm font-semibold text-white">
                       {tokenDetail.token.name || tokenDetail.token.symbol}
                     </h4>
-                    <p className="text-zinc-400 text-sm">
-                      {tokenDetail.token.symbol} • {tokenDetail.token.blockchain}
+                    <p className="text-zinc-400 text-xs">
+                      {tokenDetail.token.symbol}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
                   <>
-                    <div className="text-xl font-bold text-white">
+                    <div className="text-base font-semibold text-white">
                       {formatTokenAmount(tokenDetail.amount, tokenDetail.token.decimals, tokenDetail.token.symbol)}
                     </div>
-                    <div className="text-zinc-400 text-sm">
+                    <div className="text-zinc-400 text-xs">
                       @ ${tokenDetail.price.toFixed(4)}
                     </div>
-                    <div className="text-green-400 text-sm font-semibold">
+                    <div className="text-green-400 text-xs font-medium">
                       {formatValue(tokenDetail.value)}
                     </div>
                   </>
                 </div>
               </div>
+
+              {/* Portfolio Chart */}
+              {tokenDetail.portfolioHistory && tokenDetail.portfolioHistory.length > 0 && (
+                <div className="mt-4 flex justify-center">
+                  <div className="w-full max-w-md">
+                    <TokenPortfolioChart data={tokenDetail.portfolioHistory} />
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

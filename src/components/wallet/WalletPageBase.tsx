@@ -1001,35 +1001,41 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
           />
           {accountData?.username && kycStatus === 'approved' && (
             <>
-              <div className="flex flex-row gap-3 mb-8 w-full mt-8">
+              <div className="flex flex-row gap-3 mb-8 w-full mt-8 items-center justify-center">
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     if (config.useERC20Modal) {
                       setShowSendERC20Form(true);
                     } else {
                       setShowSendForm(true);
                     }
                   }}
-                  className="flex-1 p-0 border-0 bg-transparent cursor-pointer flex items-center justify-center focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity"
+                  className="p-0 border-0 bg-transparent cursor-pointer focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity"
                   aria-label="Pay"
                 >
                   <img
                     src="/Pay.svg"
                     alt="Pay"
-                    className="h-14 w-full object-contain"
+                    className="h-14 w-auto pointer-events-none"
                   />
                 </button>
                 <button
                   type="button"
-                  onClick={() => router.push(config.growRoute)}
-                  className="flex-1 p-0 border-0 bg-transparent cursor-pointer flex items-center justify-center focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    router.push(config.growRoute);
+                  }}
+                  className="p-0 border-0 bg-transparent cursor-pointer focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity"
                   aria-label="Grow"
                 >
                   <img
                     src="/Grow.svg"
                     alt="Grow"
-                    className="h-14 w-full object-contain"
+                    className="h-14 w-auto pointer-events-none"
                   />
                 </button>
               </div>
