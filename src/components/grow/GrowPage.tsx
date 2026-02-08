@@ -112,9 +112,14 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
           <div className="flex-1"></div>
           <button
             onClick={() => router.push(backRoute)}
-            className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-6 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-sm"
+            className="hover:opacity-70 transition-opacity duration-200"
+            aria-label="Back to Wallet"
           >
-            ← Back to Wallet
+            <img
+              src="/hedge_fund/Back icon.svg"
+              alt="Back"
+              className="h-8 w-8"
+            />
           </button>
         </div>
 
@@ -126,7 +131,7 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
           {accountData?.username && (
             <div className="mb-4">
               <p className="text-zinc-400 text-lg">
-                Hello, <span className="text-purple-400 font-semibold">@{accountData.username}</span>
+                Hello, <span className="font-semibold" style={{ color: '#90E7EE' }}>@{accountData.username}</span>
               </p>
             </div>
           )}
@@ -138,28 +143,46 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
         {/* Investment Options Section */}
         <div className="flex flex-col lg:flex-row gap-8 w-full max-w-6xl mx-auto justify-center">
           <button
-            className="flex-1 bg-white/10 border border-white/20 rounded-3xl p-8 flex flex-col items-center justify-center shadow-xl hover:bg-emerald-400/10 hover:border-emerald-400/40 transition-all duration-200 backdrop-blur-xl group focus:outline-none focus:ring-2 focus:ring-emerald-400"
-            style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}
+            className="relative flex-1 rounded-[44px] p-8 flex flex-col items-center justify-center overflow-hidden hover:opacity-90 transition-all duration-200 group focus:outline-none"
             onClick={() => router.push('/customer/grow/hedge-fund')}
           >
-            <div className="w-16 h-16 rounded-full bg-emerald-400/20 flex items-center justify-center mb-6 group-hover:bg-emerald-400/30 transition-all">
-              <Shield className="h-10 w-10 text-emerald-300 group-hover:text-emerald-400 transition-all" />
+            <img
+              src="/hedge_fund/Big glass BG .svg"
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+            />
+            <div className="relative w-20 h-20 flex items-center justify-center mb-6">
+              <img
+                src="/hedge_fund/BG circle icon for Sharktank and Hedge fund.svg"
+                alt=""
+                className="absolute inset-0 w-full h-full"
+              />
+              <Shield className="relative h-10 w-10 text-white" />
             </div>
-            <span className="text-2xl font-bold text-white mb-2">Hedge Fund</span>
-            <span className="text-zinc-400 text-base text-center">
+            <span className="relative text-2xl font-bold text-white mb-2">Hedge Fund</span>
+            <span className="relative text-base text-center" style={{ color: '#9A9797' }}>
               {getHedgeFundDescription()}
             </span>
           </button>
           <button
-            className="flex-1 bg-white/10 border border-white/20 rounded-3xl p-8 flex flex-col items-center justify-center shadow-xl hover:bg-fuchsia-400/10 hover:border-fuchsia-400/40 transition-all duration-200 backdrop-blur-xl group focus:outline-none focus:ring-2 focus:ring-fuchsia-400"
-            style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}
+            className="relative flex-1 rounded-[44px] p-8 flex flex-col items-center justify-center overflow-hidden hover:opacity-90 transition-all duration-200 group focus:outline-none"
             onClick={() => router.push('/customer/grow/marketplace')}
           >
-            <div className="w-16 h-16 rounded-full bg-fuchsia-400/20 flex items-center justify-center mb-6 group-hover:bg-fuchsia-400/30 transition-all">
-              <Store className="h-10 w-10 text-fuchsia-300 group-hover:text-fuchsia-400 transition-all" />
+            <img
+              src="/hedge_fund/Big glass BG .svg"
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+            />
+            <div className="relative w-20 h-20 flex items-center justify-center mb-6">
+              <img
+                src="/hedge_fund/BG circle icon for Sharktank and Hedge fund.svg"
+                alt=""
+                className="absolute inset-0 w-full h-full"
+              />
+              <Store className="relative h-10 w-10 text-white" />
             </div>
-            <span className="text-2xl font-bold text-white mb-2">Sharktank 3.0</span>
-            <span className="text-zinc-400 text-base text-center">
+            <span className="relative text-2xl font-bold text-white mb-2">Sharktank 3.0</span>
+            <span className="relative text-base text-center" style={{ color: '#9A9797' }}>
               Discover exclusive deals and private market assets not available to the public.
             </span>
           </button>

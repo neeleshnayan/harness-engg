@@ -3,15 +3,11 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { getAuth, signOut } from "firebase/auth";
-import { ArrowLeft, CheckCircle, AlertCircle, SlidersHorizontal } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 import { hedgeFundApi } from "@/lib/api";
 import StrategyCard from "@/components/wallet/StrategyCard";
 
 import { CumulativeAUMChartNew } from "@/components/wallet/CumulativeAUMChartNew";
-import { useYearnWETHConfig } from "@/hooks/useStrategyConfig";
-import { SubgraphAnalyticsYearnWETH } from "@/components/wallet/SubgraphAnalyticsYearnWETH";
-import { SubgraphAnalyticsGeneric } from "@/components/wallet/SubgraphAnalyticsGeneric";
-import { TradingSignals } from "@/components/wallet/TradingSignals";
 import { Toaster } from "@/components/ui/toaster";
 import { HedgeFundForm } from "@/lib/types";
 import HedgeFundQuestionnaire from "@/components/HedgeFundQuestionnaire";
@@ -21,13 +17,8 @@ import HamburgerMenu from "@/components/wallet/HamburgerMenu";
 import { getFirebaseApp } from "@/lib/firebaseClient";
 import { AddStrategyModal } from "@/components/wallet/AddStrategyModal";
 
-type StrategyView = 'overview' | 'yearn-weth';
-
 export default function HedgeFundV2Page() {
   const router = useRouter();
-  const { data: yearnWethConfig, isLoading: yearnWethConfigLoading } = useYearnWETHConfig();
-  const [selectedView, setSelectedView] = useState<StrategyView | 'detail'>('overview');
-  const [selectedStrategy, setSelectedStrategy] = useState<any>(null);
   const [formData, setFormData] = useState<HedgeFundForm>({
     age: "",
     annualIncome: "",
@@ -55,6 +46,11 @@ export default function HedgeFundV2Page() {
   const [strategies, setStrategies] = useState<any[]>([]);
   const [strategiesLoading, setStrategiesLoading] = useState(true);
   const [showAddStrategyModal, setShowAddStrategyModal] = useState(false);
+
+  // Filter out archived/hidden strategies if needed
+  const activeStrategies = useMemo(() => {
+     return strategies; // Add filtering logic here if needed
+  }, [strategies]);
 
   const fetchStrategies = async () => {
     try {
@@ -127,11 +123,6 @@ export default function HedgeFundV2Page() {
       if (parsedData.wallet_address) {
         fetchBalance(parsedData.wallet_address);
       }
-
-      // Check if user has already submitted a questionnaire
-      if (parsedData?.user_id) {
-        // checkExistingSubmission(parsedData.user_id);
-      }
     }
   }, []);
 
@@ -141,13 +132,8 @@ export default function HedgeFundV2Page() {
       setBalanceError(null);
 
       // OPTIMIZED: Single batch API call to hedge fund backend
-      // Fetches all strategy balances + USDC in ONE request using subgraph
       const response = await hedgeFundApi.get(`/api/v1/strategies/balances/${address}`);
-
-      // Transform batch response to match existing balance structure
       const batchData = response.data;
-
-      // Create tokenBalances array from strategy_balances
       const tokenBalances: any[] = [];
 
       // Add USDC balance
@@ -176,8 +162,6 @@ export default function HedgeFundV2Page() {
       }
 
       setBalance({ tokenBalances });
-      console.log("✅ [OPTIMIZED] Fetched all balances in 1 API call:", batchData);
-
     } catch (err) {
       console.error("❌ Batch balance fetch failed:", err);
       setBalanceError('Failed to fetch token balances');
@@ -220,17 +204,15 @@ export default function HedgeFundV2Page() {
         const submissionData = response.data.data;
         setExistingSubmission(submissionData);
         setIsEditing(true);
-        setShowDashboard(true); // Show dashboard if user has completed questionnaire
-
-        // Pre-populate form with existing data
+        setShowDashboard(true);
         setFormData({
-          age: submissionData.age,
-          annualIncome: submissionData.annualIncome,
-          emergencyFund: submissionData.emergencyFund,
-          investmentDropReaction: submissionData.investmentDropReaction,
-          investmentStyle: submissionData.investmentStyle,
-          marketLossExperience: submissionData.marketLossExperience,
-          portfolioComfort: submissionData.portfolioComfort
+            age: submissionData.age,
+            annualIncome: submissionData.annualIncome,
+            emergencyFund: submissionData.emergencyFund,
+            investmentDropReaction: submissionData.investmentDropReaction,
+            investmentStyle: submissionData.investmentStyle,
+            marketLossExperience: submissionData.marketLossExperience,
+            portfolioComfort: submissionData.portfolioComfort
         });
       }
     } catch (err: any) {
@@ -247,8 +229,6 @@ export default function HedgeFundV2Page() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Validate all fields are filled
     const requiredFields = Object.keys(formData) as (keyof HedgeFundForm)[];
     const emptyFields = requiredFields.filter(field => !formData[field]);
 
@@ -264,70 +244,26 @@ export default function HedgeFundV2Page() {
       const endpoint = isEditing ? "/api/v1/hedge-fund/update" : "/api/v1/hedge-fund/submit";
       const response = await hedgeFundApi.post(endpoint, {
         user_id: userData?.user_id,
-        submission_id: existingSubmission?.id, // Include submission ID for updates
+        submission_id: existingSubmission?.id,
         ...formData
       });
 
       if (response.status === 200 || response.status === 201) {
-        // Check if user has already submitted
         if (response.data.status === "already_submitted") {
-          setError("You have already submitted a hedge fund questionnaire. Please contact support if you need to update your responses.");
-          setTimeout(() => {
-            router.push('/customer/grow');
-          }, 5000);
+          setError("You have already submitted a hedge fund questionnaire.");
+          setTimeout(() => router.push('/customer/grow'), 5000);
         } else {
           setSuccess(true);
-          setShowDashboard(true); // Show dashboard after successful submission
-          setTimeout(() => {
-            setSuccess(false);
-          }, 3000);
+          setShowDashboard(true);
+          setTimeout(() => setSuccess(false), 3000);
         }
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to submit questionnaire. Please try again.");
+      setError(err.response?.data?.detail || "Failed to submit questionnaire.");
     } finally {
       setLoading(false);
     }
   };
-
-  const RadioGroup = ({
-    title,
-    field,
-    options
-  }: {
-    title: string;
-    field: keyof HedgeFundForm;
-    options: { value: string; label: string }[]
-  }) => (
-    <div className="mb-8 p-6 bg-zinc-900/50 rounded-xl border border-zinc-700/50">
-      <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {options.map((option) => (
-          <label key={option.value} className="flex items-center p-4 rounded-lg bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700/50 cursor-pointer transition-all duration-200">
-            <input
-              type="radio"
-              name={field}
-              value={option.value}
-              checked={formData[field] === option.value}
-              onChange={(e) => handleInputChange(field, e.target.value)}
-              className="w-5 h-5 text-blue-500 bg-zinc-700 border-zinc-600 focus:ring-blue-500 focus:ring-2 focus:ring-offset-2 focus:ring-offset-zinc-900"
-            />
-            <span className="ml-4 text-zinc-300 group-hover:text-white transition-colors">
-              {option.label}
-            </span>
-          </label>
-        ))}
-      </div>
-    </div>
-  );
-
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    const totalFields = Object.keys(formData).length;
-    const filledFields = Object.values(formData).filter(value => value !== "").length;
-    setProgress((filledFields / totalFields) * 100);
-  }, [formData]);
 
   if (success) {
     return (
@@ -342,7 +278,7 @@ export default function HedgeFundV2Page() {
           </p>
           <button
             onClick={() => setShowDashboard(true)}
-            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-200"
           >
             Go to Dashboard
           </button>
@@ -356,102 +292,11 @@ export default function HedgeFundV2Page() {
       <div className="min-h-screen w-full bg-[#001C1B] dark overflow-x-hidden flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-zinc-400 font-medium">
-            Loading balance...
-          </p>
+          <p className="text-zinc-400 font-medium">Loading balance...</p>
         </div>
       </div>
     );
   }
-
-  const renderStrategyDetail = () => {
-    switch (selectedView) {
-      case 'yearn-weth':
-      case 'detail':
-        const currentStrategy = selectedStrategy || (selectedView === 'yearn-weth' ? strategies.find(s => s.id === 'YEARN_WETH') : null);
-        const displayName = currentStrategy?.name || "Strategy Details";
-        const subgraphUrl = currentStrategy?.subgraph_url || yearnWethConfig?.subgraph_url || process.env.NEXT_PUBLIC_SUBGRAPH_URL;
-        const stratNameKey = currentStrategy?.id || "YEARN_WETH";
-
-        return (
-          <>
-            <div className="mb-6 sm:mb-8 px-4">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-2 drop-shadow-lg">
-                {displayName}
-              </h1>
-              <p className="text-zinc-400 text-sm sm:text-base md:text-lg max-w-3xl">
-                {currentStrategy?.description || "Real-time on-chain analytics and trading data."}
-              </p>
-            </div>
-
-            {/* Trading Signals Section */}
-            <div className="px-4 mb-6">
-              <TradingSignals
-                strategyName={stratNameKey}
-                assetSymbol="USDC"
-                targetSymbol={currentStrategy?.symbol || "WETH"}
-                assetAddress={currentStrategy?.asset_address}
-                targetAddress={currentStrategy?.target_address}
-              />
-            </div>
-
-            {/* Subgraph Analytics */}
-            {yearnWethConfigLoading && selectedView === 'yearn-weth' ? (
-              <div className="text-center text-zinc-400">Loading configuration...</div>
-            ) : (
-              // Reuse SubgraphAnalyticsYearnWETH as generic analytics component if possible, 
-              // or rename it later. Pass dynamic subgraph URL.
-              <SubgraphAnalyticsGeneric
-                subgraphUrl={subgraphUrl}
-                strategyAddress={currentStrategy?.address}
-                strategyName={displayName}
-                assetSymbol="USDC" // Defaulting to USDC as base for now
-                targetSymbol={currentStrategy?.symbol} 
-                underlyingSymbol={currentStrategy?.underlying_symbol || currentStrategy?.symbol?.replace(/^(YS|KP|KF)/, '')} // e.g., "ETH" from "YSETH" or "KPETH"
-                targetTokenDecimals={currentStrategy?.target_decimals ?? 6}
-                aumDecimals={currentStrategy?.aum_decimals ?? (currentStrategy?.symbol?.includes('SILVER') || currentStrategy?.symbol?.includes('GOLD') ? 8 : 0)} // Precious metals use 8 decimals for Chainlink oracle
-              />
-            )}
-          </>
-        );
-
-      default:
-        return (
-          <>
-            {/* Portfolio Performance Chart */}
-            {accountData?.wallet_address && (
-              <div className="w-full max-w-6xl mx-auto mb-4">
-                <CumulativeAUMChartNew
-                  userWalletAddress={accountData.wallet_address}
-                  strategies={strategies}
-                  balanceData={balance}
-                />
-              </div>
-            )}
-
-            <section id="clark-chat" className="w-full max-w-6xl mx-auto mb-4 relative">
-              <MiniHedgeFundChat userId={accountData?.user_id} />
-            </section>
-
-            {/* Strategy Cards */}
-            <div className="w-full max-w-6xl mx-auto mb-8 sm:mb-12 px-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Available Strategies</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                <StrategyCard
-                  strategyName="YEARN_WETH"
-                  onRefresh={() => accountData?.wallet_address && fetchBalance(accountData.wallet_address)}
-                  onCardClick={() => setSelectedView('yearn-weth')}
-                  usdcBalance={tokenBalances.usdc?.toString()}
-                  strategyBalance={tokenBalances.strategies['YEARN_WETH']}
-                />
-              </div>
-            </div>
-          </>
-        );
-    }
-  };
-
-  // FETCH STRATEGIES (Moved to top)
 
   return (
     <>
@@ -478,107 +323,70 @@ export default function HedgeFundV2Page() {
           />
         )}
         <div className="container mx-auto px-4 py-8 max-w-7xl">
-          {/* Header with Back Button */}
-          {selectedView !== 'overview' && (
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
-              <button
-                onClick={() => setSelectedView('overview')}
-                className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-4 sm:px-6 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-xs sm:text-sm flex items-center justify-center w-full sm:w-auto"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Strategies
-              </button>
+          {/* Portfolio Performance Chart */}
+          {accountData?.wallet_address && (
+            <div className="w-full max-w-6xl mx-auto mb-4">
+              <CumulativeAUMChartNew
+                userWalletAddress={accountData.wallet_address}
+                strategies={strategies}
+                balanceData={balance}
+              />
             </div>
           )}
 
-          {/* Header */}
-          {selectedView === 'overview' && (
-            <>
-              {/* V1 Header retained content would go here if needed, but implementation above handles it via WalletHeader */}
-            </>
-          )}
+          <section id="clark-chat" className="w-full max-w-6xl mx-auto mb-4 relative">
+            <MiniHedgeFundChat userId={accountData?.user_id} />
+          </section>
 
-          {/* Content */}
-          {/* Render Detail View */}
-          {(selectedView === 'yearn-weth' || selectedView === 'detail') && renderStrategyDetail()}
+          {/* Strategy Cards */}
+          <div className="w-full max-w-6xl mx-auto mb-8 sm:mb-12 px-4">
+            <div className="flex justify-between items-center mb-4 sm:mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-white">Available Strategies</h2>
+            </div>
 
-          {/* Render Overview (Grid) */}
-          {selectedView === 'overview' && (
-            <>
-              {/* Portfolio Performance Chart */}
-              {accountData?.wallet_address && (
-                <div className="w-full max-w-6xl mx-auto mb-4">
-                  <CumulativeAUMChartNew
-                    userWalletAddress={accountData.wallet_address}
-                    strategies={strategies}
-                    balanceData={balance}
-                  />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+
+              {activeStrategies.map((strat) => (
+                <StrategyCard
+                  key={strat.id || strat.address}
+                  strategyName={strat.symbol || strat.id || "Unknown"}
+                  strategyData={strat}
+                  onRefresh={() => {
+                    accountData?.wallet_address && fetchBalance(accountData.wallet_address);
+                    fetchStrategies();
+                  }}
+                  onCardClick={() => {
+                    // Navigate to separate details page
+                    router.push(`/customer/grow/hedge-fund/${strat.id || 'YEARN_WETH'}`);
+                  }}
+                  usdcBalance={tokenBalances.usdc?.toString()}
+                  strategyBalance={tokenBalances.strategies[strat.id || strat.address]}
+                  strategyBalanceWei={tokenBalances.strategiesWei?.[strat.id || strat.address]}
+                />
+              ))}
+
+              {/* ADD STRATEGY BUTTON */}
+              <div
+                onClick={() => setShowAddStrategyModal(true)}
+                className="flex flex-col items-center justify-center h-full min-h-[300px] border-2 border-dashed border-zinc-700 hover:border-blue-500 rounded-xl bg-zinc-900/30 hover:bg-zinc-900/50 cursor-pointer transition-all group"
+              >
+                <div className="w-16 h-16 rounded-full bg-zinc-800 group-hover:bg-blue-500/20 flex items-center justify-center mb-4 transition-all">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-400 group-hover:text-blue-500"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
                 </div>
-              )}
-
-              <section id="clark-chat" className="w-full max-w-6xl mx-auto mb-4 relative">
-                <MiniHedgeFundChat userId={accountData?.user_id} />
-              </section>
-
-              {/* Strategy Cards */}
-              <div className="w-full max-w-6xl mx-auto mb-8 sm:mb-12 px-4">
-                <div className="flex justify-between items-center mb-4 sm:mb-6">
-                  <h2 className="text-xl sm:text-2xl font-bold text-white">Available Strategies</h2>
-                  {/* OPTIONAL: Add Strategy Button Here too? */}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-
-                  {/* 1. LEGACY YEARN WETH CARD (Keep if not in DB, else remove) */}
-                  {/* We can mix them or rely on DB. Let's keep specific one if needed, but DB is better. */}
-                  {/* Assuming DB has YEARN_WETH, we loop dynamic strategies */}
-
-                  {strategies.map((strat) => (
-                    <StrategyCard
-                      key={strat.id || strat.address}
-                      strategyName={strat.symbol || strat.id || "Unknown"} // Use symbol for display
-                      strategyData={strat}
-                      onRefresh={() => {
-                        accountData?.wallet_address && fetchBalance(accountData.wallet_address);
-                        fetchStrategies(); // Refresh list/data
-                      }}
-                      onCardClick={() => {
-                        setSelectedStrategy(strat);
-                        setSelectedView('detail');
-                        window.scrollTo(0, 0);
-                      }}
-                      usdcBalance={tokenBalances.usdc?.toString()}
-                      strategyBalance={tokenBalances.strategies[strat.id || strat.address]}
-                      strategyBalanceWei={tokenBalances.strategiesWei?.[strat.id || strat.address]}
-                    />
-                  ))}
-
-                  {/* ADD STRATEGY BUTTON */}
-                  <div
-                    onClick={() => setShowAddStrategyModal(true)}
-                    className="flex flex-col items-center justify-center h-full min-h-[300px] border-2 border-dashed border-zinc-700 hover:border-blue-500 rounded-xl bg-zinc-900/30 hover:bg-zinc-900/50 cursor-pointer transition-all group"
-                  >
-                    <div className="w-16 h-16 rounded-full bg-zinc-800 group-hover:bg-blue-500/20 flex items-center justify-center mb-4 transition-all">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-400 group-hover:text-blue-500"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
-                    </div>
-                    <h3 className="text-lg font-semibold text-zinc-300 group-hover:text-white">Add New Strategy</h3>
-                    <p className="text-sm text-zinc-500 mt-2 text-center px-4">Deploy a new Yearn Strategy to the platform</p>
-                  </div>
-
-                </div>
+                <h3 className="text-lg font-semibold text-zinc-300 group-hover:text-white">Add New Strategy</h3>
+                <p className="text-sm text-zinc-500 mt-2 text-center px-4">Deploy a new Yearn Strategy to the platform</p>
               </div>
 
-              {/* Modal */}
-              {/* We must assume AddStrategyModal is imported at top. I will use a separate Tool call to add import if I can't do it here easily (I can't reliably replace top of file in same chunk easily without context). */}
-              <AddStrategyModal
-                isOpen={showAddStrategyModal}
-                onClose={() => setShowAddStrategyModal(false)}
-                onSuccess={() => {
-                  fetchStrategies();
-                }}
-              />
-            </>
-          )}
+            </div>
+          </div>
+
+          <AddStrategyModal
+            isOpen={showAddStrategyModal}
+            onClose={() => setShowAddStrategyModal(false)}
+            onSuccess={() => {
+              fetchStrategies();
+            }}
+          />
 
         </div>
       </div>

@@ -158,8 +158,9 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4">
-      <Card className="w-full max-w-md bg-zinc-900 border-zinc-700 shadow-2xl max-h-[95vh] overflow-y-auto">
-        <CardHeader className="border-b border-zinc-700 p-4 sm:p-6">
+      <Card className="relative w-full max-w-md border-zinc-700 shadow-2xl max-h-[95vh] overflow-y-auto overflow-hidden">
+        <img src="/hedge_fund/Glass Bg for Deposit and Withdraw KPETH.svg" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+        <CardHeader className="relative border-b border-zinc-700 p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg sm:text-xl font-bold text-white">
               {isDeposit ? `Deposit ${tokenSymbol}` : `Withdraw ${tokenSymbol}`}
@@ -176,7 +177,7 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
           </div>
         </CardHeader>
 
-        <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <CardContent className="relative p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Success Screen */}
           {success && (
             <div className="flex flex-col items-center justify-center py-8">
@@ -319,24 +320,28 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
 
 
               <div className="flex space-x-3 pt-4">
-                <Button
+                <button
                   onClick={handleSubmit}
                   disabled={isButtonDisabled}
-                  className={`flex-1 py-3 rounded-lg text-lg font-semibold shadow-md ${isDeposit
-                    ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white'
-                    : 'bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white'
-                    }`}
+                  className={`flex-1 transition-opacity duration-200 ${isButtonDisabled ? 'opacity-40 cursor-not-allowed' : 'hover:opacity-80'}`}
                 >
-                  {loading ? "Processing..." : `${isDeposit ? 'Deposit' : 'Withdraw'} ${tokenSymbol}`}
-                </Button>
-                <Button
+                  {loading ? (
+                    <div className="py-3 text-center text-lg font-semibold text-white">Processing...</div>
+                  ) : (
+                    <img
+                      src={isDeposit ? "/hedge_fund/Deposit.svg" : "/hedge_fund/Withdraw.svg"}
+                      alt={isDeposit ? "Deposit" : "Withdraw"}
+                      className="w-full h-auto"
+                    />
+                  )}
+                </button>
+                <button
                   onClick={onClose}
-                  variant="outline"
-                  className="flex-1 py-3 rounded-lg text-lg font-semibold"
                   disabled={loading}
+                  className={`flex-1 transition-opacity duration-200 ${loading ? 'opacity-40 cursor-not-allowed' : 'hover:opacity-80'}`}
                 >
-                  Cancel
-                </Button>
+                  <img src="/hedge_fund/Cancel button.svg" alt="Cancel" className="w-full h-auto" />
+                </button>
               </div>
             </>
           )}
