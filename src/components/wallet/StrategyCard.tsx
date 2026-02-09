@@ -486,13 +486,19 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
         onClick={handleCardClick}
       >
         <CardHeader className="relative pb-3 sm:pb-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
             <div className="flex items-center gap-2">
               <CardTitle className="text-lg sm:text-xl text-white">{strategyMetrics.name}</CardTitle>
             </div>
-            
+            {strategyMetrics.riskGrade && ['A', 'B', 'C'].includes(strategyMetrics.riskGrade) && (
+              <img
+                src={`/hedge_fund/Risk ${strategyMetrics.riskGrade}.svg`}
+                alt={`Risk: ${strategyMetrics.riskGrade}`}
+                className="h-6 sm:h-7 w-auto"
+              />
+            )}
           </div>
-            <div className="flex flex-col items-start gap-1 w-full sm:w-auto">
+          <div className="flex flex-col items-start gap-1 w-full sm:w-auto">
             {balanceLoading || configLoading ? (
               <div className="flex items-center gap-2 px-3 py-1 rounded-lg border bg-zinc-700/20 border-zinc-700/30">
                 <div className="animate-spin rounded-full h-3 w-3 border-2 border-zinc-400 border-t-transparent"></div>
@@ -526,7 +532,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
         <CardContent className="relative flex-grow space-y-4 sm:space-y-5">
           <div className="space-y-3 sm:space-y-4">
             <h4 className="text-xs sm:text-sm text-zinc-400 font-semibold tracking-wide">Key Metrics</h4>
-            <div className="space-y-3 sm:space-y-4 text-sm">
+            <div className="space-y-3 sm:space-y-4 text-xs">
               {/* First Row: Net APY, AUM, Investors */}
               <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 <div className="flex items-center gap-1.5 sm:gap-2">
@@ -589,16 +595,6 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
         </CardContent>
 
         <CardFooter className="relative p-3 sm:p-4 flex flex-col gap-2 sm:gap-3 mt-auto">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-2 text-xs sm:text-sm text-zinc-400">
-            
-            {strategyMetrics.riskGrade && ['A', 'B', 'C'].includes(strategyMetrics.riskGrade) && (
-              <img
-                src={`/hedge_fund/Risk ${strategyMetrics.riskGrade}.svg`}
-                alt={`Risk: ${strategyMetrics.riskGrade}`}
-                className="h-6 sm:h-7 w-auto"
-              />
-            )}
-          </div>
           <div className="flex gap-2 w-full">
             <button
               className="flex-1 hover:opacity-80 transition-opacity duration-200"
