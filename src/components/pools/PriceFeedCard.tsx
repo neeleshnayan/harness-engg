@@ -92,7 +92,7 @@ export default function PriceFeedCard({
                 {parseFloat(rateData?.rate || '0').toFixed(6)}
               </p>
               <p className="text-gray-500 text-xs mt-1">
-                1 USD = {parseFloat(rateData?.rate || '0').toFixed(4)} {targetCurrency}
+                1 USD = {(1 / (parseFloat(rateData?.rate || '1'))).toFixed(4)} {targetCurrency}
               </p>
             </div>
 
