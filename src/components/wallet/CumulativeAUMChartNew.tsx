@@ -552,12 +552,6 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
         <span className="text-xs text-zinc-400 whitespace-nowrap">
           PORTFOLIO PERFORMANCE OVER TIME
         </span>
-        <div className="flex items-center gap-2 text-xs">
-          <TrendingUp className={`w-3 h-3 ${stats.isPositive ? 'text-green-400' : 'text-red-400'}`} />
-          <span className={stats.isPositive ? 'text-green-400' : 'text-red-400'}>
-            {stats.isPositive ? '+' : ''}{stats.changePercent.toFixed(2)}%
-          </span>
-        </div>
       </div>
 
       {/* Chart */}
