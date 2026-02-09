@@ -453,7 +453,7 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
 
   if (isLoading) {
     return (
-      <div className="bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800">
+      <div className="bg-transparent bg-no-repeat bg-cover bg-center backdrop-blur-3xl rounded-3xl p-8 shadow-2xl border border-white/10" style={{ backgroundImage: "url('/wallet-bg.svg')" }}>
         <Skeleton className="h-64 w-full bg-zinc-700/50 rounded-lg" />
       </div>
     );
@@ -461,7 +461,7 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
 
   if (chartData.length === 0 || !stats) {
     return (
-      <div className="bg-zinc-900/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-2xl border border-zinc-800">
+      <div className="bg-transparent bg-no-repeat bg-cover bg-center backdrop-blur-3xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-2xl border border-white/10" style={{ backgroundImage: "url('/wallet-bg.svg')" }}>
         <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
           <Activity className="w-8 h-8 mb-3 text-zinc-600" />
           <span className="text-sm font-medium">No portfolio data available</span>
@@ -484,7 +484,7 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
   // ============================================================================
 
   return (
-    <div className="bg-zinc-900/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-2xl border border-zinc-800">
+    <div className="bg-transparent bg-no-repeat bg-cover bg-center backdrop-blur-3xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-2xl border border-white/10" style={{ backgroundImage: "url('/wallet-bg.svg')" }}>
       {/* Header */}
       <div className="mb-4 sm:mb-6">
         <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4 mb-4">
