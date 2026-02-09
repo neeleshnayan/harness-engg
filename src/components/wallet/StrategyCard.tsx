@@ -530,23 +530,23 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
         </CardHeader>
 
         <CardContent className="relative flex-grow space-y-4 sm:space-y-5">
-          <div className="space-y-3 sm:space-y-4">
-            <h4 className="text-xs sm:text-sm text-zinc-400 font-semibold tracking-wide">Key Metrics</h4>
-            <div className="space-y-3 sm:space-y-4 text-xs">
+          <div className="space-y-2.5 sm:space-y-3">
+            <h4 className="text-[11px] sm:text-xs text-zinc-400 font-semibold tracking-wide">Key Metrics</h4>
+            <div className="space-y-2.5 sm:space-y-3 text-[11px] sm:text-xs">
               {/* First Row: Net APY, AUM, Investors */}
               <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <img src="/hedge_fund/upward trend.svg" alt="Net APY" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                   <div className="flex flex-col">
-                    <p className="text-[10px] sm:text-xs text-zinc-500">Net APY</p>
-                    <span className="font-semibold text-sm sm:text-base text-white">{strategyMetrics.netApy.toFixed(1)}%</span>
+                    <p className="text-[9px] sm:text-[11px] text-zinc-500">Net APY</p>
+                    <span className="font-semibold text-xs sm:text-sm text-white">{strategyMetrics.netApy.toFixed(1)}%</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <img src="/hedge_fund/Wallet.svg" alt="AUM" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                   <div className="flex flex-col">
-                    <p className="text-[10px] sm:text-xs text-zinc-500">AUM</p>
-                    <span className="font-semibold text-sm sm:text-base text-white">
+                    <p className="text-[9px] sm:text-[11px] text-zinc-500">AUM</p>
+                    <span className="font-semibold text-xs sm:text-sm text-white">
                       ${strategyMetrics.aum.toFixed(2)}{strategyMetrics.aumUnit}
                     </span>
                   </div>
@@ -554,8 +554,8 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <img src="/hedge_fund/Investors.svg" alt="Investors" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                   <div className="flex flex-col">
-                    <p className="text-[10px] sm:text-xs text-zinc-500">Investors</p>
-                    <span className="font-semibold text-sm sm:text-base text-white">
+                    <p className="text-[9px] sm:text-[11px] text-zinc-500">Investors</p>
+                    <span className="font-semibold text-xs sm:text-sm text-white">
                       {strategyMetrics.participants >= 1000 
                         ? `${(strategyMetrics.participants / 1000).toFixed(1)}k` 
                         : strategyMetrics.participants.toLocaleString()}
@@ -571,22 +571,22 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <img src="/hedge_fund/Sharpe ratio.svg" alt="Sharpe" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                   <div className="flex flex-col">
-                    <p className="text-[10px] sm:text-xs text-zinc-500">Sharpe</p>
-                    <span className="font-semibold text-sm sm:text-base text-white">{strategyMetrics.sharpe.toFixed(3)}</span>
+                    <p className="text-[9px] sm:text-[11px] text-zinc-500">Sharpe</p>
+                    <span className="font-semibold text-xs sm:text-sm text-white">{strategyMetrics.sharpe.toFixed(3)}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <img src="/hedge_fund/downward trend.svg" alt="Max Drawdown" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                   <div className="flex flex-col">
-                    <p className="text-[10px] sm:text-xs text-zinc-500">Max Drawdown</p>
-                    <span className="font-semibold text-sm sm:text-base text-white">{strategyMetrics.maxDrawdown.toFixed(0)}%</span>
+                    <p className="text-[9px] sm:text-[11px] text-zinc-500">Max Drawdown</p>
+                    <span className="font-semibold text-xs sm:text-sm text-white">{strategyMetrics.maxDrawdown.toFixed(0)}%</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <img src="/hedge_fund/Lock in period.svg" alt="Lock-in" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                   <div className="flex flex-col">
-                    <p className="text-[10px] sm:text-xs text-zinc-500">Lock-in</p>
-                    <span className="font-semibold text-sm sm:text-base text-white">{strategyMetrics.lockInPeriod}</span>
+                    <p className="text-[9px] sm:text-[11px] text-zinc-500">Lock-in</p>
+                    <span className="font-semibold text-xs sm:text-sm text-white">{strategyMetrics.lockInPeriod}</span>
                   </div>
                 </div>
               </div>
