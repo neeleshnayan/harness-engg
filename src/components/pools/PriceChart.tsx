@@ -98,9 +98,9 @@ export default function PriceChart({
             const timestamp = parseInt(entry.blockTimestamp) * 1000;
             // Invert rates: show counter-token per USD instead of USD per counter-token
             // e.g., for USD/INR, show INR per USD (87.5) instead of USD per INR (0.0114)
-            const invertedPoolRate = entry.rate !== 0 ? 1 / entry.rate : null;
-            const invertedOracleRate = oracleRateValue && oracleRateValue !== 0 ? 1 / oracleRateValue : null;
-            
+            const invertedPoolRate = (entry.rate !== 0 && entry.rate !== null) ? 1 / entry.rate : null;
+            const invertedOracleRate = (oracleRateValue !== 0 && oracleRateValue !== null) ? 1 / oracleRateValue : null;
+
             return {
               timestamp,
               formattedTime: new Date(timestamp).toLocaleString('en-US', {
@@ -183,8 +183,8 @@ export default function PriceChart({
 
   // Invert tokenPair label for display (e.g., "kUSD/kINR" becomes "kINR/kUSD")
   // This reflects that we're showing counter-token per USD (e.g., INR per USD)
-  const invertedTokenPair = tokenPair.includes('/') 
-    ? tokenPair.split('/').reverse().join('/') 
+  const invertedTokenPair = tokenPair.includes('/')
+    ? tokenPair.split('/').reverse().join('/')
     : tokenPair;
 
   return (
