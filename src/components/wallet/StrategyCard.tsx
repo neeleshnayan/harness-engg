@@ -524,7 +524,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
 
         <CardContent className="relative flex-grow space-y-4 sm:space-y-5">
           <div className="space-y-3 sm:space-y-4">
-            <img src="/hedge_fund/Key Metrices.svg" alt="Key Metrics" className="h-4 sm:h-5 w-auto" />
+            <h4 className="text-xs sm:text-sm text-zinc-400 font-semibold tracking-wide">Key Metrics</h4>
             <div className="space-y-3 sm:space-y-4 text-sm">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2 sm:gap-3">
