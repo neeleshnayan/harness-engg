@@ -78,7 +78,7 @@ export default function BalancesChart({
 
         // Check if we need to swap balances to match display order
         // The first entry's tokens array tells us the pool's native order
-        const firstEntry = response.balances.find((e: PoolBalanceHistoryEntry) => 
+        const firstEntry = response.balances.find((e: PoolBalanceHistoryEntry) =>
           e.tokens && e.tokens.length >= 2
         );
         let needsSwap = false;
@@ -99,7 +99,7 @@ export default function BalancesChart({
             // Swap balances if needed to match display order (kUSD first)
             const displayBalance0 = needsSwap ? entry.balances[1] : entry.balances[0];
             const displayBalance1 = needsSwap ? entry.balances[0] : entry.balances[1];
-            
+
             return {
               timestamp,
               formattedTime: new Date(timestamp).toLocaleString('en-US', {
@@ -168,18 +168,25 @@ export default function BalancesChart({
     );
   }
 
-  // Calculate Y-axis domain with padding
-  const allBalances = data.flatMap((d) => [d.balance0, d.balance1]);
-  const minBalance = Math.min(...allBalances);
-  const maxBalance = Math.max(...allBalances);
-  const range = maxBalance - minBalance;
-  const padding = range > 0 ? range * 0.1 : 1000;
+  // Calculate Y-axis domains for each token separately with tight ranges
+  const balance0Values = data.map((d) => d.balance0);
+  const balance1Values = data.map((d) => d.balance1);
+
+  const minBalance0 = Math.min(...balance0Values);
+  const maxBalance0 = Math.max(...balance0Values);
+  const minBalance1 = Math.min(...balance1Values);
+  const maxBalance1 = Math.max(...balance1Values);
+
+  // Tight y-axis range with 5k padding for sensitivity to small changes
+  const padding = 5000;
+  const domain0 = [Math.max(0, minBalance0 - padding), maxBalance0 + padding];
+  const domain1 = [Math.max(0, minBalance1 - padding), maxBalance1 + padding];
 
   // Format large numbers
   const formatBalance = (value: number) => {
     if (value >= 1000000) return `${(value / 1000000).toFixed(2)}M`;
     if (value >= 1000) return `${(value / 1000).toFixed(2)}K`;
-    return value.toFixed(2);
+    return value.toFixed(0);
   };
 
   return (
@@ -188,62 +195,96 @@ export default function BalancesChart({
         <h4 className="text-lg font-medium text-white">Token Balances History</h4>
         <span className="text-xs text-gray-500">{data.length} data points</span>
       </div>
-      <div className="w-full" style={{ height }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-            <XAxis
-              dataKey="formattedTime"
-              stroke="#94a3b8"
-              fontSize={10}
-              tickMargin={8}
-              interval="preserveStartEnd"
-            />
-            <YAxis
-              stroke="#94a3b8"
-              fontSize={10}
-              tickMargin={8}
-              domain={[minBalance - padding, maxBalance + padding]}
-              tickFormatter={formatBalance}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: '#1e293b',
-                border: '1px solid #475569',
-                borderRadius: '8px',
-                color: '#e2e8f0',
-                fontSize: '12px',
-              }}
-              formatter={(value: number, name: string) => [
-                formatBalance(value),
-                name === 'balance0' ? `${token0Symbol} Balance` : `${token1Symbol} Balance`,
-              ]}
-              labelFormatter={(label) => `${label}`}
-            />
-            <Legend
-              wrapperStyle={{ color: '#e2e8f0', fontSize: '12px' }}
-              formatter={(value) => (value === 'balance0' ? `${token0Symbol} Balance` : `${token1Symbol} Balance`)}
-            />
-            <Line
-              type="monotone"
-              dataKey="balance0"
-              stroke="#60a5fa"
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4, fill: '#3b82f6' }}
-              name="balance0"
-            />
-            <Line
-              type="monotone"
-              dataKey="balance1"
-              stroke="#34d399"
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4, fill: '#10b981' }}
-              name="balance1"
-            />
-          </LineChart>
-        </ResponsiveContainer>
+      <div className="grid grid-cols-2 gap-4">
+        {/* Token 0 Chart */}
+        <div className="w-full" style={{ height }}>
+          <div className="text-center mb-2">
+            <span className="text-sm font-medium text-blue-400">{token0Symbol} Balance</span>
+          </div>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+              <XAxis
+                dataKey="formattedTime"
+                stroke="#94a3b8"
+                fontSize={10}
+                tickMargin={8}
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                stroke="#94a3b8"
+                fontSize={10}
+                tickMargin={8}
+                domain={domain0}
+                tickFormatter={formatBalance}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#1e293b',
+                  border: '1px solid #475569',
+                  borderRadius: '8px',
+                  color: '#e2e8f0',
+                  fontSize: '12px',
+                }}
+                formatter={(value: number) => [formatBalance(value), `${token0Symbol} Balance`]}
+                labelFormatter={(label) => `${label}`}
+              />
+              <Line
+                type="monotone"
+                dataKey="balance0"
+                stroke="#60a5fa"
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4, fill: '#3b82f6' }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Token 1 Chart */}
+        <div className="w-full" style={{ height }}>
+          <div className="text-center mb-2">
+            <span className="text-sm font-medium text-green-400">{token1Symbol} Balance</span>
+          </div>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+              <XAxis
+                dataKey="formattedTime"
+                stroke="#94a3b8"
+                fontSize={10}
+                tickMargin={8}
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                stroke="#94a3b8"
+                fontSize={10}
+                tickMargin={8}
+                domain={domain1}
+                tickFormatter={formatBalance}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#1e293b',
+                  border: '1px solid #475569',
+                  borderRadius: '8px',
+                  color: '#e2e8f0',
+                  fontSize: '12px',
+                }}
+                formatter={(value: number) => [formatBalance(value), `${token1Symbol} Balance`]}
+                labelFormatter={(label) => `${label}`}
+              />
+              <Line
+                type="monotone"
+                dataKey="balance1"
+                stroke="#34d399"
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4, fill: '#10b981' }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   );
