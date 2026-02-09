@@ -186,7 +186,7 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
   strategies = [],
   balanceData
 }) => {
-  const [selectedTimescale, setSelectedTimescale] = useState<TimescaleOption>("30d");
+  const [selectedTimescale, setSelectedTimescale] = useState<TimescaleOption>("1d");
 
   // Filter out invalid strategies
   const validStrategies = useMemo(() => {
@@ -242,14 +242,21 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
     return balances;
   }, [balanceData, validStrategies]);
 
-  // Build chart data from historical events + live balances
+  // Build chart data using price updates × user balances for true portfolio value
   const chartData = useMemo(() => {
     if (!userWalletAddress || validStrategies.length === 0) return [];
 
     const timescaleStart = getTimescaleSeconds(selectedTimescale);
     const currentTime = Math.floor(Date.now() / 1000);
 
-    // Collect all deposit and withdrawal events
+    // Collect all price updates, deposits, and withdrawals
+    interface PriceUpdateEvent {
+      timestamp: number;
+      price: number;
+      strategyId: string;
+    }
+
+    const priceUpdates: PriceUpdateEvent[] = [];
     const deposits: DepositEvent[] = [];
     const withdrawals: WithdrawalEvent[] = [];
 
@@ -258,140 +265,166 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
 
       const strategy = validStrategies[index];
 
+      // Collect price updates
+      (query.data.priceUpdates || []).forEach((p: any) => {
+        const timestamp = Number(p.timestamp);
+        const price = parseFloat(p.price);
+        if (isFinite(timestamp) && isFinite(price) && timestamp >= timescaleStart) {
+          priceUpdates.push({
+            timestamp,
+            price,
+            strategyId: strategy.id
+          });
+        }
+      });
+
+      // Collect deposits (track shares, not assets)
       (query.data.deposits || []).forEach((d: any) => {
         deposits.push({
           timestamp: d.timestamp,
-          assets: d.assets,
+          assets: d.shares, // Use shares field (already BigDecimal from subgraph)
           strategyId: strategy.id
         });
       });
 
+      // Collect withdrawals (track shares, not assets)
       (query.data.withdrawals || []).forEach((w: any) => {
         withdrawals.push({
           timestamp: w.timestamp,
-          assets: w.assets,
+          assets: w.shares, // Use shares field (already BigDecimal from subgraph)
           strategyId: strategy.id
         });
       });
     });
 
-    // Get all unique timestamps and sort them
-    const timestamps = new Set<number>();
-    deposits.forEach(d => timestamps.add(Number(d.timestamp)));
-    withdrawals.forEach(w => timestamps.add(Number(w.timestamp)));
-    const sortedTimestamps = Array.from(timestamps).sort((a, b) => a - b);
+    // Get all unique price update timestamps and sort them
+    const priceTimestamps = new Set<number>();
+    priceUpdates.forEach(p => priceTimestamps.add(p.timestamp));
+    const sortedPriceTimestamps = Array.from(priceTimestamps).sort((a, b) => a - b);
 
-    // Replay history to build balance at each timestamp
-    const historicalData: ChartDataPoint[] = [];
-    const balanceTracker: Record<string, number> = {};
-
-    sortedTimestamps.forEach(timestamp => {
-      // Process deposits
-      deposits.forEach(deposit => {
-        if (Number(deposit.timestamp) === timestamp) {
-          const strategy = validStrategies.find(s => s.id === deposit.strategyId);
-          if (!strategy) return;
-
-          const decimals = getStrategyDecimals(strategy);
-          const amount = Number(deposit.assets) / Math.pow(10, decimals);
-
-          if (isFinite(amount) && !isNaN(amount)) {
-            balanceTracker[deposit.strategyId] = (balanceTracker[deposit.strategyId] || 0) + amount;
-          }
-        }
-      });
-
-      // Process withdrawals
-      withdrawals.forEach(withdrawal => {
-        if (Number(withdrawal.timestamp) === timestamp) {
-          const strategy = validStrategies.find(s => s.id === withdrawal.strategyId);
-          if (!strategy) return;
-
-          const decimals = getStrategyDecimals(strategy);
-          const amount = Number(withdrawal.assets) / Math.pow(10, decimals);
-
-          if (isFinite(amount) && !isNaN(amount)) {
-            balanceTracker[withdrawal.strategyId] = Math.max(
-              0,
-              (balanceTracker[withdrawal.strategyId] || 0) - amount
-            );
-          }
-        }
-      });
-
-      // Calculate total AUM
-      const totalAUM = Object.values(balanceTracker).reduce((sum, val) => {
+    if (sortedPriceTimestamps.length === 0) {
+      // No price updates yet - use current balances as flat line
+      const liveTotalValue = Object.values(liveBalances).reduce((sum, val) => {
         return isFinite(val) && !isNaN(val) ? sum + val : sum;
       }, 0);
 
-      historicalData.push({
-        timestamp,
-        date: formatDate(timestamp, selectedTimescale),
-        totalAUM: Math.max(0, totalAUM),
-        ...balanceTracker
-      });
-    });
-
-    // Filter to selected timescale
-    let windowedData = historicalData.filter(d => d.timestamp >= timescaleStart);
-
-    // Add start point if needed
-    if (windowedData.length === 0 || windowedData[0].timestamp > timescaleStart) {
-      const lastBeforeWindow = historicalData
-        .filter(d => d.timestamp < timescaleStart)
-        .pop();
-
-      const startPoint: ChartDataPoint = {
-        timestamp: timescaleStart,
-        date: formatDate(timescaleStart, selectedTimescale),
-        totalAUM: lastBeforeWindow?.totalAUM || 0,
-      };
-
-      if (lastBeforeWindow) {
-        Object.keys(lastBeforeWindow).forEach(key => {
-          if (key !== 'timestamp' && key !== 'date' && key !== 'totalAUM') {
-            startPoint[key] = lastBeforeWindow[key];
-          }
-        });
-      }
-
-      windowedData.unshift(startPoint);
-    }
-
-    // Add current point with live balances
-    const liveTotalAUM = Object.values(liveBalances).reduce((sum, val) => {
-      return isFinite(val) && !isNaN(val) ? sum + val : sum;
-    }, 0);
-
-    const lastPoint = windowedData[windowedData.length - 1];
-    const shouldAddLivePoint = !lastPoint || (currentTime - lastPoint.timestamp > 60);
-
-    if (windowedData.length === 0) {
-      // No historical data - show flat line at current balance
-      windowedData = [
+      return [
         {
           timestamp: timescaleStart,
           date: formatDate(timescaleStart, selectedTimescale),
-          totalAUM: liveTotalAUM,
+          totalAUM: liveTotalValue,
           ...liveBalances
         },
         {
           timestamp: currentTime,
           date: formatDate(currentTime, selectedTimescale),
-          totalAUM: liveTotalAUM,
+          totalAUM: liveTotalValue,
           ...liveBalances
         }
       ];
-    } else if (shouldAddLivePoint) {
-      windowedData.push({
+    }
+
+    // Build portfolio value history
+    const historicalData: ChartDataPoint[] = [];
+
+    // For each price update timestamp, calculate portfolio value
+    sortedPriceTimestamps.forEach(timestamp => {
+      // Calculate user's share balance at this timestamp
+      const shareBalances: Record<string, number> = {};
+
+      validStrategies.forEach(strategy => {
+        let balance = 0;
+
+        // Replay all deposits/withdrawals up to this timestamp
+        // Note: subgraph returns BigDecimal (already scaled), no division needed
+        deposits
+          .filter(d => d.strategyId === strategy.id && Number(d.timestamp) <= timestamp)
+          .forEach(d => {
+            const amount = parseFloat(d.assets); // Already BigDecimal from subgraph
+            if (isFinite(amount) && !isNaN(amount)) {
+              balance += amount;
+            }
+          });
+
+        withdrawals
+          .filter(w => w.strategyId === strategy.id && Number(w.timestamp) <= timestamp)
+          .forEach(w => {
+            const amount = parseFloat(w.assets); // Already BigDecimal from subgraph
+            if (isFinite(amount) && !isNaN(amount)) {
+              balance = Math.max(0, balance - amount);
+            }
+          });
+
+        shareBalances[strategy.id] = balance;
+      });
+
+      // Calculate portfolio value at this timestamp
+      const strategyValues: Record<string, number> = {};
+      let totalPortfolioValue = 0;
+
+      validStrategies.forEach((strategy, index) => {
+        const userShares = shareBalances[strategy.id] || 0;
+        if (userShares <= 0) return;
+
+        const queryData = strategyQueries[index]?.data;
+        if (!queryData) return;
+
+        // Find the most recent snapshot at or before this timestamp
+        const snapshots = (queryData.strategySnapshots || [])
+          .filter((s: any) => Number(s.timestamp) <= timestamp)
+          .sort((a: any, b: any) => Number(b.timestamp) - Number(a.timestamp));
+
+        const snapshot = snapshots[0];
+
+        if (snapshot) {
+          // Calculate share price: sharePrice = AUM / totalShares
+          const aum = parseFloat(snapshot.aum || '0');
+          const mintedShares = parseFloat(snapshot.mintedShares || '0');
+          const burnedShares = parseFloat(snapshot.burnedShares || '0');
+          const totalShares = mintedShares - burnedShares;
+
+          if (totalShares > 0 && isFinite(aum)) {
+            const sharePrice = aum / totalShares;
+            const value = userShares * sharePrice;
+
+            if (isFinite(value) && !isNaN(value)) {
+              strategyValues[strategy.id] = value;
+              totalPortfolioValue += value;
+            }
+          }
+        } else {
+          // No snapshot available, use shares at face value (1:1 with USDC)
+          strategyValues[strategy.id] = userShares;
+          totalPortfolioValue += userShares;
+        }
+      });
+
+      historicalData.push({
+        timestamp,
+        date: formatDate(timestamp, selectedTimescale),
+        totalAUM: Math.max(0, totalPortfolioValue),
+        ...strategyValues
+      });
+    });
+
+    // Add current point with live balances
+    const liveTotalValue = Object.values(liveBalances).reduce((sum, val) => {
+      return isFinite(val) && !isNaN(val) ? sum + val : sum;
+    }, 0);
+
+    const lastPoint = historicalData[historicalData.length - 1];
+    const shouldAddLivePoint = !lastPoint || (currentTime - lastPoint.timestamp > 60);
+
+    if (shouldAddLivePoint) {
+      historicalData.push({
         timestamp: currentTime,
         date: formatDate(currentTime, selectedTimescale),
-        totalAUM: liveTotalAUM,
+        totalAUM: liveTotalValue,
         ...liveBalances
       });
     }
 
-    return windowedData;
+    return historicalData;
   }, [strategyQueries, liveBalances, validStrategies, selectedTimescale, userWalletAddress]);
 
   // Calculate stats

@@ -72,7 +72,7 @@ interface SubgraphAnalyticsGenericProps {
     underlyingSymbol?: string; // e.g. "ETH" - the original underlying asset symbol for BUY signals
     decimals?: number;
     targetTokenDecimals?: number;
-    aumDecimals?: number; // Decimals to scale AUM from subgraph (e.g., 8 for silver Chainlink oracles, 0 for no scaling)
+    aumDecimals?: number; // DEPRECATED: Subgraph returns BigDecimal (already scaled), no division needed
 }
 
 export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> = ({
@@ -90,11 +90,11 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
     const buyOutputSymbol = underlyingSymbol || targetSymbol;
     
     // Share normalization factor - subgraph returns shares in 1e6 format, we multiply by 1e12 to normalize
-    const shareNormalizationFactor = 1000000000000;
+    // Share normalization factor removed - we use dynamic scaling below
+
     
-    // AUM scaling factor - for strategies like KPSILVER that store AUM with extra decimals (e.g., 8 for Chainlink oracle)
-    const aumScalingFactor = aumDecimals > 0 ? Math.pow(10, aumDecimals) : 1;
-    
+    // Note: Subgraph returns all values as BigDecimal (already scaled), no further division needed
+
     // Determine which strategy hook to use or use generic one. 
     // We reuse useStrategySubgraphData directly but we need a "StrategyName" type placeholder
     const { data, isLoading, isError, error, refetch, isFetching } = useStrategySubgraphData('GENERIC' as any, subgraphUrl, strategyAddress);
@@ -135,18 +135,19 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
             const evtTimestamp = String(event.timestamp);
             const snapshot = data?.strategySnapshots?.find(s => String(s.timestamp) === evtTimestamp);
             const rawAum = snapshot?.aum ? Number(snapshot.aum) : 0;
-            const aum = rawAum / aumScalingFactor; // Scale AUM based on strategy decimals
+            const aum = rawAum; // Subgraph returns BigDecimal (already scaled)
 
             if (event.type === 'DEPOSIT') {
                 const assets = Number((event as any).assets);
 
-                // Use configurable normalization factor based on target token decimals
-                const shares = Number((event as any).shares ?? 0) * shareNormalizationFactor;
+                // Shares from subgraph are already scaled (BigDecimal), not in wei
+                const shares = Number((event as any).shares ?? 0);
 
                 // Calculate Implied Price (Assets / Shares)
+                // Both assets and shares are already in human-readable format
                 let price = 1.0;
                 if (shares > 0) {
-                    price = assets / shares;
+                     price = assets / shares;
                 } else {
                     price = 1.0;
                 }
@@ -163,6 +164,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
 
                 const assets = Number((event as any).assets);
 
+                // Both assets and shares are already in human-readable format
                 let price = 1.0;
                 if (shares > 0) {
                     price = assets / shares;
@@ -171,8 +173,10 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                 tokenPriceMap.set(event.id, price);
             } else {
                 let price = 1.0;
-                if (currentSupply > 0.000000000000001 && aum > 0) {
-                    price = aum / currentSupply;
+                if (currentSupply > 0 && aum > 0) {
+                     // Both AUM and currentSupply are in human-readable format
+                     // Price per share = AUM / Supply
+                     price = aum / currentSupply;
                 }
                 tokenPriceMap.set(event.id, price);
             }
@@ -183,7 +187,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
             calculatedShares: calculatedSharesMap.get(e.id),
             calculatedPrice: tokenPriceMap.get(e.id)
         })).sort((a, b) => Number(b.timestamp) - Number(a.timestamp));
-    }, [allEvents, data?.strategySnapshots]);
+    }, [allEvents, data?.strategySnapshots, decimals, targetTokenDecimals]);
 
     const filteredEvents = useMemo(() => {
         return augmentedEvents.filter(event => {
@@ -242,25 +246,27 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                 inputLabel = formatCurrency(assets).replace(/,/g, '');
 
                 const calculatedShares = (event as any).calculatedShares;
-                const sharesFromEvent = event.shares ? Number(event.shares) * shareNormalizationFactor : 0;
-
+                // Shares from subgraph are already scaled (BigDecimal)
+                const sharesFromEvent = event.shares ? Number(event.shares) : 0;
                 const sharesDisplay = calculatedShares ?? (sharesFromEvent > 0 ? sharesFromEvent : assets);
-                outputLabel = formatNumber(sharesDisplay) + ' ' + targetSymbol;
+
+                outputLabel = formatNumber(sharesDisplay, { maximumFractionDigits: 4 }) + ' ' + targetSymbol;
             } else if (event.type === 'WITHDRAWAL') {
                 type = 'WITHDRAWAL';
                 const assets = Number(event.assets) || 0;
 
                 const calculatedShares = (event as any).calculatedShares;
+                // Shares from subgraph are already scaled (BigDecimal)
                 const sharesFromEvent = event.shares ? Number(event.shares) : 0;
                 const sharesDisplay = calculatedShares ?? (sharesFromEvent > 0 ? sharesFromEvent : assets);
 
-                inputLabel = formatNumber(sharesDisplay) + ' ' + targetSymbol;
+                inputLabel = formatNumber(sharesDisplay, { maximumFractionDigits: 4 }) + ' ' + targetSymbol;
                 outputLabel = formatCurrency(assets).replace(/,/g, '');
             }
 
             const snapshot = data?.strategySnapshots?.find(s => s.timestamp === event.timestamp);
             const rawAum = snapshot?.aum ? Number(snapshot.aum) : (Number(snapshot?.totalDeposits ?? 0) - Number(snapshot?.totalWithdrawals ?? 0));
-            const aum = rawAum / aumScalingFactor; // Scale AUM based on strategy decimals
+            const aum = rawAum; // Subgraph returns BigDecimal (already scaled)
             const tokenPrice = (event as any).calculatedPrice ?? 1.0;
 
             const tokenPriceLabel = formatTokenPrice(tokenPrice).replace(/,/g, '');
@@ -304,13 +310,19 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
 
             if (event.type === 'DEPOSIT') {
                 const calculatedShares = (event as any).calculatedShares;
-                const fallbackShares = (event.shares && Number(event.shares) > 0) ? Number(event.shares) : (Number((event as any).assets) || 0);
+                const fallbackShares = (event.shares && Number(event.shares) > 0) ? Number(event.shares) : 0;
+                // Shares from subgraph are already scaled down (BigDecimal), not in wei
                 runningMintedShares += (calculatedShares ?? fallbackShares);
             }
 
             const burnedShares = Number(snapshot?.burnedShares ?? 0);
+            // Shares are already in human-readable format from subgraph
             const netShares = runningMintedShares - burnedShares;
-            const aum = snapshot?.aum ? Number(snapshot.aum) : (Number(snapshot?.totalDeposits ?? 0) - Number(snapshot?.totalWithdrawals ?? 0));
+
+            const snapshotAum = Number(snapshot?.aum ?? 0);
+            const calculatedAum = (Number(snapshot?.totalDeposits ?? 0) - Number(snapshot?.totalWithdrawals ?? 0));
+            const rawAum = snapshotAum > 0 ? snapshotAum : calculatedAum;
+            const aum = rawAum; // Subgraph returns BigDecimal (already scaled)
 
             return {
                 timestamp: Number(event.timestamp),
@@ -328,7 +340,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                 wethPrice: Number(snapshot?.targetPrice ?? 0)
             };
         });
-    }, [augmentedEvents, data?.strategySnapshots]);
+    }, [augmentedEvents, data?.strategySnapshots, targetTokenDecimals]);
 
     const latestData = chartData.length > 0 ? chartData[chartData.length - 1] : null;
 
@@ -424,7 +436,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                     {displayedEvents.map((event) => {
                                         const snapshot = data?.strategySnapshots?.find(s => s.timestamp === event.timestamp);
                                         const rawAum = snapshot?.aum ? Number(snapshot.aum) : (Number(snapshot?.totalDeposits ?? 0) - Number(snapshot?.totalWithdrawals ?? 0));
-                                        const aum = rawAum / aumScalingFactor; // Scale AUM based on strategy decimals
+                                        const aum = rawAum; // Subgraph returns BigDecimal (already scaled)
                                         const tokenPrice = (event as any).calculatedPrice ?? 1.0;
 
                                         let typeLabel = <></>;
@@ -461,18 +473,21 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                             const depositAssets = Number(d.assets) || 0;
                                             inputDisplay = <>{formatCurrency(depositAssets)}</>;
 
-                                            const rawShares = Number(d.shares ?? 0) * shareNormalizationFactor;
+                                            // Shares from subgraph are already scaled (BigDecimal)
+                                            const rawShares = Number(d.shares ?? 0);
                                             const depositSharesDisplay = rawShares > 0 ? rawShares : (d.calculatedShares ?? depositAssets);
-                                            outputDisplay = <>{formatNumber(depositSharesDisplay)} {targetSymbol}</>;
+
+                                            outputDisplay = <>{formatNumber(depositSharesDisplay, { maximumFractionDigits: 4 })} {targetSymbol}</>;
                                             priceDisplay = '-';
                                         } else if (event.type === 'WITHDRAWAL') {
                                             const w = event as any;
                                             typeLabel = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">WITHDRAWAL</span>;
                                             const withdrawAssets = Number(w.assets) || 0;
+                                            // Shares from subgraph are already scaled (BigDecimal)
                                             const withdrawSharesFromEvent = w.shares ? Number(w.shares) : 0;
-                                            const withdrawSharesDisplay = withdrawSharesFromEvent > 0 ? withdrawSharesFromEvent : withdrawAssets;
+                                            const withdrawSharesDisplay = withdrawSharesFromEvent > 0 ? withdrawSharesFromEvent : (w.calculatedShares ?? withdrawAssets);
 
-                                            inputDisplay = <>{formatNumber(withdrawSharesDisplay)} {targetSymbol}</>;
+                                            inputDisplay = <>{formatNumber(withdrawSharesDisplay, { maximumFractionDigits: 4 })} {targetSymbol}</>;
                                             outputDisplay = <>{formatCurrency(withdrawAssets)}</>;
                                             priceDisplay = '-';
                                         }
