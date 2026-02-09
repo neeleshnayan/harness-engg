@@ -53,7 +53,13 @@ export const TokenPriceChart: React.FC<TokenPriceChartProps> = ({ data }) => {
                             tick={{ fontSize: 12 }}
                             tickLine={false}
                             domain={['auto', 'auto']}
-                            tickFormatter={(val) => `$${val.toFixed(2)}`}
+                            tickFormatter={(val) => {
+                                const num = Number(val);
+                                if (num >= 1000000) return `$${(num / 1000000).toFixed(2)}M`;
+                                if (num >= 1000) return `$${(num / 1000).toFixed(2)}K`;
+                                if (num >= 1) return `$${num.toFixed(2)}`;
+                                return `$${num.toFixed(4)}`;
+                            }}
                         />
                         <Tooltip
                             contentStyle={{ backgroundColor: '#18181b', borderColor: '#3f3f46', borderRadius: '0.5rem' }}
