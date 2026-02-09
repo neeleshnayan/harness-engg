@@ -490,34 +490,35 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
             <div className="flex items-center gap-2">
               <CardTitle className="text-lg sm:text-xl text-white">{strategyMetrics.name}</CardTitle>
             </div>
-            <div className="flex flex-col items-start sm:items-end gap-1 w-full sm:w-auto">
-              {balanceLoading || configLoading ? (
-                <div className="flex items-center gap-2 px-3 py-1 rounded-lg border bg-zinc-700/20 border-zinc-700/30">
-                  <div className="animate-spin rounded-full h-3 w-3 border-2 border-zinc-400 border-t-transparent"></div>
-                  <span className="text-sm font-semibold text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-white to-purple-300 animate-shimmer whitespace-nowrap">
-                    ••• {strategyDetails.tokenSymbol}
-                  </span>
-                </div>
-              ) : (
-                <BalanceStatusIndicator
-                  stage={transactionStage}
-                  type={transactionType}
-                  balance={formatTokenBalance(strategyBalance)}
-                  showShimmer={transactionStage === 'confirming'}
-                  error={transactionError}
-                  tokenSymbol={strategyDetails.tokenSymbol}
-                />
-              )}
-              {priceLoading || configLoading ? (
-                <span className="text-xs text-zinc-500 animate-pulse">Loading price...</span>
-              ) : priceError ? (
-                <span className="text-xs text-red-400">Price unavailable</span>
-              ) : priceInUSDC ? (
-                <span className="text-xs text-green-400 font-medium whitespace-nowrap">
-                  1 {strategyDetails.tokenSymbol} = ${priceInUSDC}
+            
+          </div>
+            <div className="flex flex-col items-start gap-1 w-full sm:w-auto">
+            {balanceLoading || configLoading ? (
+              <div className="flex items-center gap-2 px-3 py-1 rounded-lg border bg-zinc-700/20 border-zinc-700/30">
+                <div className="animate-spin rounded-full h-3 w-3 border-2 border-zinc-400 border-t-transparent"></div>
+                <span className="text-sm font-semibold text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-white to-purple-300 animate-shimmer whitespace-nowrap">
+                  ••• {strategyDetails.tokenSymbol}
                 </span>
-              ) : null}
-            </div>
+              </div>
+            ) : (
+              <BalanceStatusIndicator
+                stage={transactionStage}
+                type={transactionType}
+                balance={formatTokenBalance(strategyBalance)}
+                showShimmer={transactionStage === 'confirming'}
+                error={transactionError}
+                tokenSymbol={strategyDetails.tokenSymbol}
+              />
+            )}
+            {priceLoading || configLoading ? (
+              <span className="text-xs text-zinc-500 animate-pulse">Loading price...</span>
+            ) : priceError ? (
+              <span className="text-xs text-red-400">Price unavailable</span>
+            ) : priceInUSDC ? (
+              <span className="text-xs text-green-400 font-medium whitespace-nowrap">
+                1 {strategyDetails.tokenSymbol} = ${priceInUSDC}
+              </span>
+            ) : null}
           </div>
           <CardDescription className="pt-2 text-xs sm:text-sm text-zinc-400 line-clamp-2">{strategyMetrics.description}</CardDescription>
         </CardHeader>
