@@ -41,10 +41,25 @@ export default function TransactionHistory({
       let fetchedSwaps = response.swaps || [];
       console.log(`[TransactionHistory] Fetched ${fetchedSwaps.length} swaps`);
 
-      // Sort just in case API didn't
-      fetchedSwaps.sort((a, b) => b.timestamp - a.timestamp);
+      // Deduplicate by transaction hash + amounts (safety check)
+      // This handles edge cases where backend filtering might miss duplicates
+      const seenKeys = new Set<string>();
+      const uniqueSwaps = fetchedSwaps.filter(swap => {
+        const key = `${swap.hash}-${swap.amount_in}-${swap.amount_out}`;
+        if (seenKeys.has(key)) {
+          console.log(`[TransactionHistory] Filtered duplicate swap: ${key}`);
+          return false;
+        }
+        seenKeys.add(key);
+        return true;
+      });
 
-      setSwaps(fetchedSwaps);
+      console.log(`[TransactionHistory] After dedup: ${uniqueSwaps.length} swaps`);
+
+      // Sort just in case API didn't
+      uniqueSwaps.sort((a, b) => b.timestamp - a.timestamp);
+
+      setSwaps(uniqueSwaps);
     } catch (err: any) {
       console.error('[TransactionHistory] Error fetching pool swaps:', err);
       setError('Failed to load swaps');
