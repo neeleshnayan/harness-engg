@@ -481,10 +481,10 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
   return (
     <>
       <Card
-        className="relative flex flex-col h-full overflow-hidden transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1 border-zinc-700/50 cursor-pointer"
+        className="bg-transparent bg-no-repeat bg-cover bg-center backdrop-blur-3xl rounded-3xl p-0 shadow-2xl border border-white/10 mb-8 transition-all duration-300 overflow-hidden"
+        style={{ backgroundImage: "url('/wallet-bg.svg')" }}
         onClick={handleCardClick}
       >
-        <img src="/hedge_fund/Strategy card BG.svg" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
         <CardHeader className="relative pb-3 sm:pb-4">
           <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-4">
             <div className="flex items-center gap-2">
