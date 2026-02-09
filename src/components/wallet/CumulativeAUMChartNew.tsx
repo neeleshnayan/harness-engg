@@ -492,11 +492,19 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
             <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">
               Portfolio Performance
             </h3>
-            <p className="text-zinc-400 text-xs sm:text-sm mb-3 sm:mb-4">
+            <p className="text-white text-xs sm:text-sm mb-3 sm:mb-4">
               Total Assets Under Management Across All Strategies
             </p>
-            <div className="text-2xl sm:text-3xl font-bold text-green-400 mb-2">
-              {formatAUM(stats.current)}
+            <div className="flex items-center gap-3 mb-2">
+              <div className="text-2xl sm:text-3xl font-bold text-green-400">
+                {formatAUM(stats.current)}
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                <TrendingUp className={`w-3 h-3 ${stats.isPositive ? 'text-green-400' : 'text-red-400'}`} />
+                <span className={stats.isPositive ? 'text-green-400' : 'text-red-400'}>
+                  {stats.isPositive ? '+' : ''}{stats.changePercent.toFixed(2)}%
+                </span>
+              </div>
             </div>
 
             {/* Warnings */}
@@ -508,12 +516,12 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
                 </span>
               </div>
             )}
-            {hasErrors && (
+            {/* {hasErrors && (
               <div className="flex items-center gap-2 text-xs text-red-400 mt-2">
                 <AlertCircle className="w-3 h-3 flex-shrink-0" />
                 <span>Some data failed to load</span>
               </div>
-            )}
+            )} */}
           </div>
 
           {/* Timescale Selector */}
@@ -558,8 +566,8 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
           <ComposedChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 20 }}>
             <defs>
               <linearGradient id="totalAUMGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#22c55e" stopOpacity={0.6} />
-                <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                <stop offset="5%" stopColor="#90E7EE" stopOpacity={0.6} />
+                <stop offset="95%" stopColor="#90E7EE" stopOpacity={0} />
               </linearGradient>
             </defs>
             <XAxis
@@ -585,7 +593,7 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
               type="monotone"
               dataKey="totalAUM"
               fill="url(#totalAUMGradient)"
-              stroke="#22c55e"
+              stroke="#90E7EE"
               strokeWidth={2}
             />
           </ComposedChart>
