@@ -235,7 +235,7 @@ export default function MiniHedgeFundChat({
         onClick={handleExpand}
         variant="ghost"
         size="sm"
-        className="absolute top-2 right-2 z-10 h-8 w-8 p-0 text-white/80 hover:text-white hover:bg-white/10 bg-white/5 backdrop-blur-sm rounded-full"
+        className="absolute top-2 right-2 z-10 h-8 w-8 p-0 text-white/80 hover:text-white"
         aria-label="Expand to full Clark view"
       >
         <img src="/maximize.svg" alt="Maximize" className="h-4 w-4" />
@@ -254,7 +254,7 @@ export default function MiniHedgeFundChat({
             {/* Clark Logo */}
             <div className="flex items-center justify-center mb-4 mt-2">
               <img 
-                src="/clark.svg" 
+                src="/Krypton Clark.svg"
                 alt="Clark" 
                 className="h-16 w-16 sm:h-20 sm:w-20 drop-shadow-[0_4px_16px_rgba(162,89,247,0.3)]" 
               />
