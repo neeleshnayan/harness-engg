@@ -229,7 +229,10 @@ export default function MiniHedgeFundChat({
   }
 
   return (
-    <div className="relative w-full rounded-2xl border-none bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 backdrop-blur-xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.6)]">
+    <div
+      className="relative w-full rounded-2xl sm:rounded-3xl bg-transparent bg-no-repeat bg-cover bg-center backdrop-blur-3xl overflow-hidden shadow-2xl border border-white/10"
+      style={{ backgroundImage: "url('/wallet-bg.svg')" }}
+    >
       {/* Expand button overlay - fixed at top-right corner, doesn't scroll */}
       <Button
         onClick={handleExpand}
