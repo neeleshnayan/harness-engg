@@ -526,7 +526,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
               </span>
             ) : null}
           </div>
-          <CardDescription className="pt-2 text-xs sm:text-sm text-white line-clamp-2">{strategyMetrics.description}</CardDescription>
+          <CardDescription className="pt-2 text-xs sm:text-sm text-white line-clamp-3">{strategyMetrics.description}</CardDescription>
         </CardHeader>
 
         <CardContent className="relative flex-grow space-y-4 sm:space-y-5">
