@@ -161,7 +161,7 @@ export default function StrategyDetailsPage() {
             assetSymbol="USDC"
             targetSymbol={currentStrategy?.symbol}
             underlyingSymbol={currentStrategy?.underlying_symbol || currentStrategy?.symbol?.replace(/^(YS|KP|KF)/, '')}
-            targetTokenDecimals={currentStrategy?.target_decimals ?? 6}
+            targetTokenDecimals={currentStrategy?.share_decimals ?? 6}
             aumDecimals={currentStrategy?.aum_decimals ?? (currentStrategy?.symbol?.includes('SILVER') || currentStrategy?.symbol?.includes('GOLD') ? 8 : 0)}
           />
         </div>

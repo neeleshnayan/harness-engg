@@ -142,23 +142,18 @@ export function AddStrategyModal({ isOpen, onClose, onSuccess }: AddStrategyModa
             const signer = await provider.getSigner();
 
             const factoryAbi = [
-                "function deployStrategy(address _asset, string memory _name, string memory _symbol, address _targetToken, address _vault, address _admin, address _pool) external returns (address)"
+                "function deployStrategy(address _asset, string memory _name, string memory _symbol, address _targetToken, address _pool) external returns (address)"
             ];
 
             const factory = new ethers.Contract(factoryAddress, factoryAbi, signer);
 
-            // BASE STRATEGY IMPLEMENTATION (Sepolia)
-            // This is required for delegateCall in the strategy initialize.
-            const TOKENIZED_STRATEGY_IMPL = "0xAe6a5aC4035b5fD9438164D0768Bd366CaCAb6FF";
-
+            // New GenericStrategyFactory takes 5 params - factory manages ownership internally
             const tx = await factory.deployStrategy(
                 formData.assetAddress,
                 formData.name,
                 formData.symbol.toUpperCase(), // Pass validated symbol
                 formData.targetAddress,
-                TOKENIZED_STRATEGY_IMPL, // Pass implementation, not vault
-                await signer.getAddress(), // Admin is user
-                formData.poolAddress // Pass Pool Address instead of Fee
+                formData.poolAddress // Pass Pool Address
             );
 
 
@@ -172,7 +167,7 @@ export function AddStrategyModal({ isOpen, onClose, onSuccess }: AddStrategyModa
             // Topic 0 is hash of signature.
 
             const iface = new ethers.Interface(factoryAbi.concat([
-                "event StrategyDeployed(address indexed strategy, string name, address indexed asset, address indexed targetToken, address vault)"
+                "event StrategyDeployed(address indexed strategy, string name, string symbol, address indexed asset, address indexed targetToken, address pool)"
             ]));
 
             let strategyAddress = null;

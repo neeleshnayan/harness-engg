@@ -50,6 +50,15 @@ type SignalExecuted = {
   timestamp: string;
 };
 
+type PriceUpdate = {
+  id: string;
+  strategy: string;
+  pool: string;
+  targetToken: string;
+  price: string;
+  timestamp: string;
+};
+
 export type Snapshot = {
   timestamp: string;
   totalDeposits: string;
@@ -79,6 +88,7 @@ type MetricResult = {
   deposits: Deposit[];
   withdrawals: Withdrawal[];
   signalExecuteds?: SignalExecuted[];
+  priceUpdates?: PriceUpdate[];
   // Legacy aliases for UI compatibility
   yearnWethStrategyMetric?: MetricData | null;
   yearnWethStrategySnapshots?: Snapshot[];
@@ -160,6 +170,19 @@ const createQuery = (withOwner: boolean) => {
         shares
         timestamp
       }
+      priceUpdates(
+        first: 1000
+        orderBy: timestamp
+        orderDirection: desc
+        where: { strategy: $strategyAddress }
+      ) {
+        id
+        strategy
+        pool
+        targetToken
+        price
+        timestamp
+      }
     }
   `;
   return gql`${baseQuery}`;
@@ -195,6 +218,7 @@ export const fetchSubgraph = async (subgraphUrl: string, strategyName: StrategyN
         deposits: [],
         withdrawals: [],
         signalExecuteds: [],
+        priceUpdates: [],
         strategySnapshots: [],
         strategyMetric: null,
         snapshots: []
@@ -228,7 +252,8 @@ export const fetchSubgraph = async (subgraphUrl: string, strategyName: StrategyN
       // Deposits/etc are already generic
       deposits: data.deposits || [],
       withdrawals: data.withdrawals || [],
-      signalExecuteds: data.signalExecuteds || []
+      signalExecuteds: data.signalExecuteds || [],
+      priceUpdates: data.priceUpdates || []
     };
   } catch (error: any) {
     const errorMessage = error?.response?.errors?.[0]?.message || error?.message || 'Unknown error';
