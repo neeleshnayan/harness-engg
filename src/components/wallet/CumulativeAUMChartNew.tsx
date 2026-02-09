@@ -529,15 +529,25 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
             value={selectedTimescale}
             onValueChange={(value) => setSelectedTimescale(value as TimescaleOption)}
           >
-            <SelectTrigger className="w-full sm:w-[160px] bg-zinc-800/50 border-zinc-700 text-white">
+            <SelectTrigger
+              className="w-full sm:w-[160px] rounded-xl backdrop-blur-sm border border-white/10 text-white transition-all duration-200"
+              style={{
+                background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(161, 207, 211, 0.06) 100%)',
+              }}
+            >
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-zinc-800 border-zinc-700">
+            <SelectContent
+              className="rounded-xl backdrop-blur-sm border border-white/10"
+              style={{
+                background: 'linear-gradient(180deg, rgba(28, 47, 47, 0.95) 0%, rgba(11, 21, 21, 0.98) 100%)',
+              }}
+            >
               {TIMESCALE_OPTIONS.map((option) => (
                 <SelectItem
                   key={option.value}
                   value={option.value}
-                  className="text-white focus:bg-zinc-700 focus:text-white"
+                  className="text-white focus:text-white focus:bg-white/10 rounded-lg"
                 >
                   {option.label}
                 </SelectItem>
