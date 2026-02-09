@@ -221,7 +221,7 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
           .map((r) => ({
             date: r.blockTimestamp,
             timestamp: new Date(r.blockTimestamp + 'T00:00:00Z').getTime(),
-            price: r.poolRate!,
+            price: 1 / r.poolRate!, // Invert to show USD per token instead of token per USD
           }))
           .sort((a, b) => a.timestamp - b.timestamp); // Sort oldest first
 
@@ -250,7 +250,7 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
       data.push({
         date: new Date().toISOString(),
         dateLabel: 'Now',
-        price: parseFloat(tokenInfo.current_rate.toFixed(6)),
+        price: parseFloat((1 / tokenInfo.current_rate).toFixed(6)), // Invert current rate
       });
     }
 
@@ -278,9 +278,9 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
   const currentPrice = useMemo(() => {
     // Prefer live current rate from context
     if (tokenSymbol && tokens[tokenSymbol]?.current_rate) {
-      return tokens[tokenSymbol].current_rate;
+      return 1 / tokens[tokenSymbol].current_rate; // Invert current rate
     }
-    // Fallback to latest historical point
+    // Fallback to latest historical point (already inverted)
     if (historicalData.length === 0) return null;
     return historicalData[historicalData.length - 1].price;
   }, [historicalData, tokenSymbol, tokens]);
@@ -289,16 +289,17 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
     // Prefer daily change from API context
     if (tokenSymbol && tokens[tokenSymbol]) {
       const tokenInfo = tokens[tokenSymbol];
-      // API returns percentage_change
+      // API returns percentage_change (based on non-inverted rate, so we negate it)
       if (typeof tokenInfo.percentage_change === 'number') {
         return {
           change: 0, // We might not have exact absolute change value easily available or it represents daily change
-          percentChange: tokenInfo.percentage_change
+          percentChange: -tokenInfo.percentage_change // Negate because we're showing inverted prices
         };
       }
     }
 
     // Fallback to calculated change over the historical period (e.g. 30 days)
+    // Historical data is already inverted, so calculation is correct as-is
     if (historicalData.length < 2) return null;
     const first = historicalData[0].price;
     const last = historicalData[historicalData.length - 1].price;
@@ -345,7 +346,7 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
               {currentPrice && (
                 <div className="mt-2 flex items-center gap-3">
                   <p className="text-xl font-semibold text-white">
-                    ${currentPrice.toFixed(6)}
+                    {currentPrice.toFixed(6)} {displaySymbol}/USD
                   </p>
                   {priceChange && Math.abs(priceChange.percentChange) >= 0.01 && (
                     <p className={`text-sm font-medium ${
@@ -413,7 +414,7 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
                           tickLine={false}
                           axisLine={false}
                           tick={{ fill: '#a1a1aa', fontSize: 9, fontWeight: 300, dy: 0 }}
-                          tickFormatter={(value) => `$${value.toFixed(4)}`}
+                          tickFormatter={(value) => `${value.toFixed(4)}`}
                           width={55}
                           orientation="left"
                           allowDataOverflow={false}
@@ -495,7 +496,7 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
                                       <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
                                       <span className="text-zinc-300 text-xs font-light">Price</span>
                                       <span className="text-white font-mono font-semibold ml-auto text-sm">
-                                        ${numValue.toFixed(6)}
+                                        {numValue.toFixed(6)} {displaySymbol}/USD
                                       </span>
                                     </div>
                                   </div>
