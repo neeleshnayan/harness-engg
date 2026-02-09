@@ -249,10 +249,9 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
           // Trigger BalanceCard refresh
           setBalanceCardRefresh(prev => !prev);
 
-          // Also refresh transaction history if it's open
-          if (showTransactionsRef.current) {
-            setTransactionHistoryRefresh(prev => !prev);
-          }
+          // NOTE: Do NOT refresh transaction history here!
+          // Transaction history will be refreshed by handleAllTransactionsComplete
+          // when the last active transaction card is removed from UI
         }, debounceDelay);
 
         // Safety timeout: Clear refreshing state if it somehow gets stuck later
