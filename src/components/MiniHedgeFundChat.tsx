@@ -229,13 +229,13 @@ export default function MiniHedgeFundChat({
   }
 
   return (
-    <div className="relative w-full rounded-2xl border border-zinc-700/50 bg-zinc-900/60 backdrop-blur-sm overflow-hidden shadow-lg">
+    <div className="relative w-full rounded-2xl border-none bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 backdrop-blur-xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.6)]">
       {/* Expand button overlay - fixed at top-right corner, doesn't scroll */}
       <Button
         onClick={handleExpand}
         variant="ghost"
         size="sm"
-        className="absolute top-2 right-2 z-10 h-8 w-8 p-0 text-zinc-400 hover:text-white hover:bg-zinc-700/50 bg-zinc-900/80 backdrop-blur-sm rounded-full"
+        className="absolute top-2 right-2 z-10 h-8 w-8 p-0 text-white/80 hover:text-white hover:bg-white/10 bg-white/5 backdrop-blur-sm rounded-full"
         aria-label="Expand to full Clark view"
       >
         <img src="/maximize.svg" alt="Maximize" className="h-4 w-4" />
@@ -244,7 +244,7 @@ export default function MiniHedgeFundChat({
       {/* Messages area - grows naturally with content, scrollable when exceeding max height */}
       <div
         ref={feedRef}
-        className="overflow-y-auto px-4 py-3 scrollbar-thin scrollbar-thumb-zinc-600 scrollbar-track-transparent"
+        className="overflow-y-auto px-4 py-3 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent"
         style={{
           maxHeight: `${MAX_HEIGHT}px`,
         }}
@@ -275,7 +275,7 @@ export default function MiniHedgeFundChat({
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-center h-full text-zinc-400">
+          <div className="flex items-center justify-center h-full text-white/60">
             <div className="text-center">
               <img src="/clark.svg" alt="Clark" className="h-14 w-14 mx-auto mb-2" />
             </div>
@@ -284,19 +284,25 @@ export default function MiniHedgeFundChat({
       </div>
 
       {/* Input area */}
-      <div className="px-4 py-3 border-t border-zinc-700/50 bg-zinc-800/30">
+      <div className="px-4 py-3 border-t border-white/10 bg-white/5 backdrop-blur-sm">
         <div className="flex items-center gap-2">
           <button
             type="button"
             aria-label="Open prompt library"
             onClick={() => setIsPromptModalOpen(true)}
-            className="h-10 w-10 flex items-center justify-center rounded-xl bg-zinc-900/80 border border-zinc-700/60 shadow hover:bg-zinc-800/80 flex-shrink-0"
+            className="h-10 w-10 flex items-center justify-center rounded-xl backdrop-blur-sm transition-all duration-200 flex-shrink-0"
+            style={{
+              background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(161, 207, 211, 0.06) 100%)',
+            }}
           >
             <img src="/clark process.svg" alt="Prompts" className="h-5 w-5" />
           </button>
           <Button
             onClick={() => router.push('/clark')}
-            className="flex-1 px-4 py-2 bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-4 sm:px-6 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-xs sm:text-sm w-full sm:w-auto justify-center flex items-center gap-2 h-10 text-sm"
+            className="flex-1 px-4 py-2 backdrop-blur-sm text-white/90 hover:text-white px-4 sm:px-6 py-2 rounded-xl border-none transition-all duration-200 text-xs sm:text-sm w-full sm:w-auto justify-center flex items-center gap-2 h-10 text-sm"
+            style={{
+              background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.36) 0%, rgba(161, 207, 211, 0.06) 100%)',
+            }}
           >
             <span>Ask Clark</span>
             <span>→</span>
@@ -306,7 +312,7 @@ export default function MiniHedgeFundChat({
 
       {/* Prompts modal */}
       <Dialog open={isPromptModalOpen} onOpenChange={setIsPromptModalOpen}>
-        <DialogContent className="sm:max-w-2xl bg-zinc-900/95 border border-zinc-700/60 rounded-2xl">
+        <DialogContent className="sm:max-w-2xl bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 backdrop-blur-xl rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] border-none">
           <div className="max-h-[70vh] overflow-y-auto px-2">
             {(!selectedCategory) && (
               <div className="w-full flex flex-col items-center">
@@ -315,7 +321,10 @@ export default function MiniHedgeFundChat({
                     <button
                       key={category.id}
                       onClick={() => setSelectedCategory(category.id)}
-                      className="w-full text-left p-4 rounded-xl bg-zinc-800/40 hover:bg-zinc-700/60 border border-zinc-700/50 hover:border-purple-500/50 transition-colors"
+                      className="w-full text-left p-4 rounded-xl backdrop-blur-sm transition-all duration-200"
+                      style={{
+                        background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.36) 0%, rgba(161, 207, 211, 0.06) 100%)',
+                      }}
                     >
                       <div className="flex items-center gap-3">
                         {category.icon.startsWith('/') ? (
@@ -325,7 +334,7 @@ export default function MiniHedgeFundChat({
                         )}
                         <div className="min-w-0">
                           <div className="text-white font-medium truncate">{category.title}</div>
-                          <div className="text-xs text-zinc-400 truncate">{category.description}</div>
+                          <div className="text-xs text-white/60 truncate">{category.description}</div>
                         </div>
                       </div>
                     </button>
@@ -338,17 +347,21 @@ export default function MiniHedgeFundChat({
                 <div className="w-full max-w-md">
                   <button
                     onClick={() => setSelectedCategory(null)}
-                    className="mb-3 text-xs text-zinc-400 hover:text-white"
+                    className="flex items-center gap-2 text-white/80 hover:text-white text-sm mb-4"
                   >
-                    ← Back
+                    <span aria-hidden>←</span> Back to categories
                   </button>
-                  <div className="space-y-3">
+                  <div className="text-white font-medium mb-2">{categories.find(c => c.id === selectedCategory)?.title}</div>
+                  <div className="space-y-2">
                     {categories.find(c => c.id === selectedCategory)?.prompts.map((prompt, idx) => (
                       <button
                         key={idx}
                         onClick={() => handlePromptClick(prompt, selectedCategory)}
                         disabled={isLoading}
-                        className="w-full text-left p-4 rounded-xl bg-zinc-800/40 hover:bg-zinc-700/60 border border-zinc-700/50 hover:border-purple-500/50 transition-colors text-white disabled:opacity-50"
+                        className="w-full text-left p-3 rounded-xl backdrop-blur-sm transition-all duration-200 text-sm text-white/90 hover:text-white disabled:opacity-50"
+                        style={{
+                          background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(161, 207, 211, 0.06) 100%)',
+                        }}
                       >
                         {prompt}
                       </button>
