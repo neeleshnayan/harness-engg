@@ -26,6 +26,8 @@ export default function TransactionHistory({
   const fetchSwaps = useCallback(async () => {
     if (!poolAddress) return;
 
+    // Clear old swaps immediately when fetching new pool data
+    setSwaps([]);
     setLoading(true);
     setError('');
 

@@ -25,6 +25,8 @@ interface BalancesChartProps {
   poolAddress: string;
   token0Symbol: string;
   token1Symbol: string;
+  token0Address: string;  // Display order token0 address
+  token1Address: string;  // Display order token1 address
   height?: number;
   limit?: number;
 }
@@ -37,6 +39,8 @@ export default function BalancesChart({
   poolAddress,
   token0Symbol,
   token1Symbol,
+  token0Address,
+  token1Address,
   height = 280,
   limit = 100,
 }: BalancesChartProps) {
@@ -72,14 +76,30 @@ export default function BalancesChart({
           return;
         }
 
+        // Check if we need to swap balances to match display order
+        // The first entry's tokens array tells us the pool's native order
+        const firstEntry = response.balances.find((e: PoolBalanceHistoryEntry) => 
+          e.tokens && e.tokens.length >= 2
+        );
+        let needsSwap = false;
+        if (firstEntry && firstEntry.tokens) {
+          // Subgraph stores tokens in pool's native order
+          // Check if native token0 matches display token0
+          const nativeToken0 = firstEntry.tokens[0].toLowerCase();
+          const displayToken0 = token0Address.toLowerCase();
+          needsSwap = (nativeToken0 !== displayToken0);
+        }
+
         const chartData: ChartDataPoint[] = response.balances
           .filter((entry: PoolBalanceHistoryEntry) =>
             entry.balances && entry.balances.length >= 2
           )
           .map((entry: PoolBalanceHistoryEntry) => {
             const timestamp = parseInt(entry.blockTimestamp) * 1000;
-            // Balances are in token order: balances[0] = first token, balances[1] = second token
-            // The order matches the tokens array from the subgraph
+            // Swap balances if needed to match display order (kUSD first)
+            const displayBalance0 = needsSwap ? entry.balances[1] : entry.balances[0];
+            const displayBalance1 = needsSwap ? entry.balances[0] : entry.balances[1];
+            
             return {
               timestamp,
               formattedTime: new Date(timestamp).toLocaleString('en-US', {
@@ -88,8 +108,8 @@ export default function BalancesChart({
                 hour: '2-digit',
                 minute: '2-digit',
               }),
-              balance0: entry.balances[0], // First token (token0)
-              balance1: entry.balances[1], // Second token (token1)
+              balance0: displayBalance0, // Display order token0 (kUSD)
+              balance1: displayBalance1, // Display order token1 (other)
               blockNumber: entry.blockNumber,
             };
           })

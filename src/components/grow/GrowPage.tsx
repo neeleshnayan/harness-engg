@@ -159,7 +159,7 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
               />
               <Shield className="relative h-10 w-10 text-white" />
             </div>
-            <span className="relative text-2xl font-bold text-white mb-2">Hedge Fund</span>
+            <span className="relative text-2xl font-bold text-white mb-2">Krypton Fund</span>
             <span className="relative text-base text-center" style={{ color: '#9A9797' }}>
               {getHedgeFundDescription()}
             </span>

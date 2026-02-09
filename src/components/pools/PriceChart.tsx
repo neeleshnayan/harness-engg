@@ -93,9 +93,14 @@ export default function PriceChart({
         }
 
         const chartData: ChartDataPoint[] = response.rates
-          .filter((entry: PoolRateHistoryEntry) => entry.rate !== null && entry.rate !== undefined)
+          .filter((entry: PoolRateHistoryEntry) => entry.rate !== null && entry.rate !== undefined && entry.rate !== 0)
           .map((entry: PoolRateHistoryEntry) => {
             const timestamp = parseInt(entry.blockTimestamp) * 1000;
+            // Invert rates: show counter-token per USD instead of USD per counter-token
+            // e.g., for USD/INR, show INR per USD (87.5) instead of USD per INR (0.0114)
+            const invertedPoolRate = entry.rate !== 0 ? 1 / entry.rate : null;
+            const invertedOracleRate = oracleRateValue && oracleRateValue !== 0 ? 1 / oracleRateValue : null;
+            
             return {
               timestamp,
               formattedTime: new Date(timestamp).toLocaleString('en-US', {
@@ -104,8 +109,8 @@ export default function PriceChart({
                 hour: '2-digit',
                 minute: '2-digit',
               }),
-              poolRate: entry.rate,
-              oracleRate: oracleRateValue, // Use constant oracle rate line
+              poolRate: invertedPoolRate,
+              oracleRate: invertedOracleRate,
               blockNumber: entry.blockNumber,
             };
           })
@@ -176,12 +181,18 @@ export default function PriceChart({
   const range = maxRate - minRate;
   const padding = range > 0 ? range * 0.1 : 0.01;
 
+  // Invert tokenPair label for display (e.g., "kUSD/kINR" becomes "kINR/kUSD")
+  // This reflects that we're showing counter-token per USD (e.g., INR per USD)
+  const invertedTokenPair = tokenPair.includes('/') 
+    ? tokenPair.split('/').reverse().join('/') 
+    : tokenPair;
+
   return (
     <div className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6">
       <div className="flex items-center justify-between mb-4">
         <h4 className="text-lg font-medium text-white">Pool Price History</h4>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-gray-500">{tokenPair}</span>
+          <span className="text-xs text-gray-500">{invertedTokenPair}</span>
           <span className="text-xs text-gray-600">{data.length} data points</span>
         </div>
       </div>
@@ -213,13 +224,13 @@ export default function PriceChart({
               }}
               formatter={(value: number, name: string) => [
                 value?.toFixed(6) || 'N/A',
-                name === 'poolRate' ? `${tokenPair} Rate` : 'Oracle Rate',
+                name === 'poolRate' ? `${invertedTokenPair} Rate` : 'Oracle Rate',
               ]}
               labelFormatter={(label) => `${label}`}
             />
             <Legend
               wrapperStyle={{ color: '#e2e8f0', fontSize: '12px' }}
-              formatter={(value) => (value === 'poolRate' ? `${tokenPair} Rate` : 'Oracle Rate')}
+              formatter={(value) => (value === 'poolRate' ? `${invertedTokenPair} Rate` : 'Oracle Rate')}
             />
             <Line
               type="monotone"

@@ -121,47 +121,19 @@ export default function CLPoolMonitor({
   const fetchPoolState = async (forceRefresh = false) => {
     // Capture the poolAddress at call time to check for stale responses
     const requestedPool = poolAddress;
-    // Identify the non-base token (assuming kUSD/USDC is base)
-    const quoteToken = [token0Symbol, token1Symbol].find(s => s !== 'kUSD' && s !== 'USDC') || token1Symbol;
-    // We want price in kUSD (e.g. 1 kEUR = 1.18 kUSD), so we ask for kUSD/[QuoteToken]
-    const tokenPair = `kUSD/${quoteToken}`;
 
     setLoading(true);
     setError('');
+
+    // Don't show partial/incorrect data while loading
+    // Keep previous state or null until full data is ready
+    if (!poolState) {
+      setPoolState(null);
+    }
+
     try {
-      // FAST PATH: Get basic data from subgraph first (instant)
-      // This includes pool balances and rate from indexed data
-      const [balancesLatest, poolPrice] = await Promise.all([
-        kryptonWeb3Api.get<{ balances: number[] }>(`/subgraph/pool/${requestedPool}/balances-latest`).then(r => r.data).catch(() => null),
-        kryptonWeb3Api.get<{ price: number }>(`/subgraph/pool-price/${encodeURIComponent(tokenPair)}`).then(r => r.data).catch(() => null),
-      ]);
-
-      // Build initial state from subgraph data
-      if (currentPoolRef.current === requestedPool && balancesLatest) {
-        const fastState: PoolState = {
-          pool_address: requestedPool,
-          token0_symbol: token0Symbol,
-          token1_symbol: token1Symbol,
-          token0_address: token0Address,
-          token1_address: token1Address,
-          spot_price: poolPrice?.price?.toString() || '0',
-          oracle_rate: '0', // Will be filled by RPC
-          reserves: (balancesLatest.balances || [0, 0]).map(String),
-          total_value: String((balancesLatest.balances?.[0] || 0) + (balancesLatest.balances?.[1] || 0)),
-          is_initialized: true,
-          pool_parameters: null,
-          reserve_balances: null,
-          reserve_wallet: null,
-          rebalance_status: null,
-          oracle_info: null,
-          rate_synced: false,
-        };
-        setPoolState(fastState);
-        setLoading(false);
-      }
-
-      // SLOW PATH: Get extended data from RPC (reserve wallet, oracle, params)
-      // This runs in background and updates the UI when ready
+      // Fetch complete pool state from RPC
+      // This ensures we always have accurate, complete data
       const fullState = await nettingPoolsApi.getPoolState(requestedPool);
 
       // Only update state if we're still viewing the same pool
@@ -170,16 +142,9 @@ export default function CLPoolMonitor({
       }
     } catch (err: any) {
       if (currentPoolRef.current === requestedPool) {
-        // If subgraph failed, try RPC-only approach
-        try {
-          const state = await nettingPoolsApi.getPoolState(requestedPool);
-          if (currentPoolRef.current === requestedPool) {
-            setPoolState(state);
-          }
-        } catch (rpcErr: any) {
-          setError('Failed to fetch pool state: ' + (err.message || 'Unknown error'));
-          console.error('Error fetching pool state:', err);
-        }
+        setError('Failed to fetch pool state: ' + (err.message || 'Unknown error'));
+        console.error('Error fetching pool state:', err);
+        setPoolState(null);
       }
     } finally {
       if (currentPoolRef.current === requestedPool) {
@@ -307,14 +272,33 @@ export default function CLPoolMonitor({
               <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              {pendingTransactions.size} transaction(s) pending confirmation...
+              <span className="inline-flex items-center gap-1">
+                {pendingTransactions.size} transaction(s) pending
+                <span className="inline-flex">
+                  <span className="animate-[pulse_1.5s_ease-in-out_infinite]">.</span>
+                  <span className="animate-[pulse_1.5s_ease-in-out_0.2s_infinite]">.</span>
+                  <span className="animate-[pulse_1.5s_ease-in-out_0.4s_infinite]">.</span>
+                </span>
+              </span>
             </div>
           </div>
         )}
       </div>
 
       {/* Main Stats Grid */}
-      {poolState ? (
+      {loading && !poolState ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-xl p-4 animate-pulse">
+              <div className="h-4 bg-white/[0.05] rounded w-1/2 mb-3"></div>
+              <div className="space-y-2">
+                <div className="h-6 bg-white/[0.05] rounded"></div>
+                <div className="h-6 bg-white/[0.05] rounded"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : poolState ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Pool Liquidity Card */}
           <div className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-xl p-4">
@@ -323,25 +307,15 @@ export default function CLPoolMonitor({
               <div className="flex justify-between items-center">
                 <span className="text-gray-400 text-sm">{token0Symbol}</span>
                 <span className="text-blue-400 font-mono text-lg">
-                  {/* If not base token (kUSD/USDC), calculate tokens from value (reserve / price) assuming reserve is USD value */}
-                  {formatNumber(
-                    (token0Symbol !== 'kUSD' && token0Symbol !== 'USDC')
-                      ? (parseFloat(poolState.reserves[0]) / (parseFloat(poolState.spot_price) || 1))
-                      : poolState.reserves[0],
-                    0
-                  )}
+                  {/* Reserves are already in token amounts, no conversion needed */}
+                  {formatNumber(poolState.reserves[0], 0)}
                 </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-400 text-sm">{token1Symbol}</span>
                 <span className="text-green-400 font-mono text-lg">
-                  {/* If not base token (kUSD/USDC), calculate tokens from value (reserve / price) */}
-                  {formatNumber(
-                    (token1Symbol !== 'kUSD' && token1Symbol !== 'USDC')
-                      ? (parseFloat(poolState.reserves[1]) / (parseFloat(poolState.spot_price) || 1))
-                      : poolState.reserves[1],
-                    0
-                  )}
+                  {/* Reserves are already in token amounts, no conversion needed */}
+                  {formatNumber(poolState.reserves[1], 0)}
                 </span>
               </div>
               <div className="pt-2 border-t border-white/[0.05]">
@@ -492,14 +466,18 @@ export default function CLPoolMonitor({
             {/* Oracle Rate */}
             <div>
               <div className="text-gray-400 text-xs mb-1">Oracle Rate (Cached)</div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-mono text-green-400">
-                  ${formatNumber(poolState.oracle_rate, 6)}
-                </span>
-                <span className="text-gray-500 text-xs">
-                  {formatTime(poolState.oracle_info?.timestamp)}
-                </span>
-              </div>
+              {poolState.oracle_rate && parseFloat(poolState.oracle_rate) > 0 ? (
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-mono text-green-400">
+                    ${formatNumber(poolState.oracle_rate, 6)}
+                  </span>
+                  <span className="text-gray-500 text-xs">
+                    {formatTime(poolState.oracle_info?.timestamp)}
+                  </span>
+                </div>
+              ) : (
+                <div className="text-gray-500 text-sm">Loading...</div>
+              )}
               {poolState.oracle_info?.live_rate && (
                 <div className="mt-2">
                   <span className="text-gray-500 text-xs">Live KryptonFXOracle ({poolState.token0_symbol}/{token1Symbol.replace('k', '')})</span>
@@ -548,11 +526,11 @@ export default function CLPoolMonitor({
                   </span>
                 </div>
               </div>
-              <button
-                className={`w-full mt-3 py-2 rounded-lg text-sm font-medium ${poolState.rate_synced ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}
+              <div
+                className={`w-full mt-3 py-2 rounded-lg text-sm font-medium text-center ${poolState.rate_synced ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}
               >
                 {poolState.rate_synced ? '✓ Rate Synced' : '⚠ Rate Out of Sync'}
-              </button>
+              </div>
             </div>
           </div>
         </div>
@@ -574,6 +552,8 @@ export default function CLPoolMonitor({
           poolAddress={poolAddress}
           token0Symbol={token0Symbol}
           token1Symbol={token1Symbol}
+          token0Address={token0Address}
+          token1Address={token1Address}
           height={280}
           limit={100}
         />
