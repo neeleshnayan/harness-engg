@@ -557,7 +557,7 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
         </div>
       </div>
 
-      {/* Performance Label and Change */}
+      {/* Performance Label */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
         <span className="text-xs text-zinc-400 whitespace-nowrap">
           PORTFOLIO PERFORMANCE OVER TIME
