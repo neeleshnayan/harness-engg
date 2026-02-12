@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { gql, GraphQLClient } from 'graphql-request';
 import { StrategyName } from './useStrategyConfig';
 
-// Specific types for the new generic schema
+// Types matching V2 subgraph schema (Strategy entity)
 type MetricData = {
   totalDeposits: string;
   totalWithdrawals: string;
@@ -11,15 +11,17 @@ type MetricData = {
   uniqueDepositors: number;
   uniqueWithdrawers: number;
   lastUpdated: string;
-  // Yearn/Generic specific mappings
   totalBuySignals?: string;
   totalSellSignals?: string;
-  totalAssetSwapped?: string; // Mapped to totalUsdcSwapped
-  totalTargetSwapped?: string; // Mapped to totalWethSwapped
-  // Legacy mappings
+  totalAssetSwapped?: string;
+  totalTargetSwapped?: string;
+  // Legacy mappings for UI compatibility
   totalUsdcSwapped?: string;
   totalWethSwapped?: string;
   currentAum?: string;
+  currentSupply?: string;
+  lastSharePrice?: string;
+  lastTargetPrice?: string;
 };
 
 type Deposit = {
@@ -47,15 +49,7 @@ type SignalExecuted = {
   signalType: number;
   amountIn: string;
   amountOut: string;
-  timestamp: string;
-};
-
-type PriceUpdate = {
-  id: string;
-  strategy: string;
-  pool: string;
-  targetToken: string;
-  price: string;
+  targetPrice: string;
   timestamp: string;
 };
 
@@ -88,7 +82,6 @@ type MetricResult = {
   deposits: Deposit[];
   withdrawals: Withdrawal[];
   signalExecuteds?: SignalExecuted[];
-  priceUpdates?: PriceUpdate[];
   // Legacy aliases for UI compatibility
   yearnWethStrategyMetric?: MetricData | null;
   yearnWethStrategySnapshots?: Snapshot[];
@@ -96,41 +89,29 @@ type MetricResult = {
 };
 
 const createQuery = (withOwner: boolean) => {
-  // We now use generic entity names 'strategyMetric' and 'strategySnapshots'
-  // ID is passed as variable $id (strategy address)
+  // V2 subgraph: Strategy (not StrategyMetric), Signal (not SignalExecuted), no Snapshots/PriceUpdates
+  // IDs are Bytes! (strategy address)
 
   const baseQuery = `
-    query StrategyAnalytics($id: ID!, $strategyAddress: Bytes!${withOwner ? ', $owner: Bytes!' : ''}) {
-      strategyMetric(id: $id) {
-        totalDeposits
-        totalWithdrawals
-        mintedShares
-        burnedShares
-        uniqueDepositors
-        uniqueWithdrawers
-        totalBuySignals
-        totalSellSignals
+    query StrategyAnalytics($id: Bytes!, $strategyAddress: Bytes!${withOwner ? ', $owner: Bytes!' : ''}) {
+      strategy(id: $id) {
+        totalDeposited
+        totalWithdrawn
+        sharesMinted
+        sharesBurned
+        depositCount
+        withdrawCount
+        buySignalCount
+        sellSignalCount
         totalAssetSwapped
         totalTargetSwapped
         currentAum
+        currentSupply
+        lastSharePrice
+        lastTargetPrice
         lastUpdated
       }
-      strategySnapshots(first: 100, orderBy: timestamp, orderDirection: desc, where: { strategy: $id }) {
-        timestamp
-        totalDeposits
-        totalWithdrawals
-        mintedShares
-        burnedShares
-        totalBuySignals
-        totalSellSignals
-        totalAssetSwapped
-        totalTargetSwapped
-        assetBalance
-        targetBalance
-        targetPrice
-        aum
-      }
-      signalExecuteds(
+      signals(
         first: 1000
         orderBy: timestamp
         orderDirection: desc
@@ -141,6 +122,7 @@ const createQuery = (withOwner: boolean) => {
         signalType
         amountIn
         amountOut
+        targetPrice
         timestamp
       }
       deposits(
@@ -154,6 +136,7 @@ const createQuery = (withOwner: boolean) => {
         owner
         assets
         shares
+        sharePrice
         timestamp
       }
       withdrawals(
@@ -168,19 +151,7 @@ const createQuery = (withOwner: boolean) => {
         receiver
         assets
         shares
-        timestamp
-      }
-      priceUpdates(
-        first: 1000
-        orderBy: timestamp
-        orderDirection: desc
-        where: { strategy: $strategyAddress }
-      ) {
-        id
-        strategy
-        pool
-        targetToken
-        price
+        sharePrice
         timestamp
       }
     }
@@ -210,7 +181,7 @@ export const fetchSubgraph = async (subgraphUrl: string, strategyName: StrategyN
       ...(walletAddress ? { owner: walletAddress.toLowerCase() } : {})
     };
 
-    const data = await client.request<MetricResult>(query, variables);
+    const data = await client.request<any>(query, variables);
 
     if (!data) {
       console.warn(`[useStrategySubgraphData] No data returned for ${strategyName}`);
@@ -218,42 +189,49 @@ export const fetchSubgraph = async (subgraphUrl: string, strategyName: StrategyN
         deposits: [],
         withdrawals: [],
         signalExecuteds: [],
-        priceUpdates: [],
         strategySnapshots: [],
         strategyMetric: null,
         snapshots: []
       } as unknown as MetricResult;
     }
 
-    // Map generic fields to specific names expected by UI (YearnWETH)
-    // strategyMetric -> yearnWethStrategyMetric
-    const mappedMetric = data.strategyMetric ? {
-      ...data.strategyMetric,
-      totalUsdcSwapped: data.strategyMetric.totalAssetSwapped,
-      totalWethSwapped: data.strategyMetric.totalTargetSwapped
+    // Map V2 "strategy" entity fields to the UI-expected MetricData shape
+    const rawStrategy = data.strategy;
+    const mappedMetric: MetricData | null = rawStrategy ? {
+      totalDeposits: rawStrategy.totalDeposited,
+      totalWithdrawals: rawStrategy.totalWithdrawn,
+      mintedShares: rawStrategy.sharesMinted,
+      burnedShares: rawStrategy.sharesBurned,
+      uniqueDepositors: rawStrategy.depositCount,
+      uniqueWithdrawers: rawStrategy.withdrawCount,
+      totalBuySignals: String(rawStrategy.buySignalCount),
+      totalSellSignals: String(rawStrategy.sellSignalCount),
+      totalAssetSwapped: rawStrategy.totalAssetSwapped,
+      totalTargetSwapped: rawStrategy.totalTargetSwapped,
+      totalUsdcSwapped: rawStrategy.totalAssetSwapped,
+      totalWethSwapped: rawStrategy.totalTargetSwapped,
+      currentAum: rawStrategy.currentAum,
+      currentSupply: rawStrategy.currentSupply,
+      lastSharePrice: rawStrategy.lastSharePrice,
+      lastTargetPrice: rawStrategy.lastTargetPrice,
+      lastUpdated: rawStrategy.lastUpdated,
     } : null;
 
-    const mappedSnapshots = (data.strategySnapshots || []).map(s => ({
+    // Map V2 "signals" to the UI-expected "signalExecuteds" shape
+    const mappedSignals = (data.signals || []).map((s: any) => ({
       ...s,
-      usdcBalance: s.assetBalance,
-      wethBalance: s.targetBalance,
-      wethPrice: s.targetPrice,
-      totalUsdcSwapped: s.totalAssetSwapped,
-      totalWethSwapped: s.totalTargetSwapped
+      signalType: s.signalType,
     }));
 
     return {
-      ...data,
-      yearnWethStrategyMetric: mappedMetric, // Legacy alias
-      yearnWethStrategySnapshots: mappedSnapshots, // Legacy alias
       strategyMetric: mappedMetric,
-      strategySnapshots: mappedSnapshots,
-      snapshots: mappedSnapshots, // Restored for component compatibility
-      // Deposits/etc are already generic
+      yearnWethStrategyMetric: mappedMetric,
+      strategySnapshots: [],
+      yearnWethStrategySnapshots: [],
+      snapshots: [],
       deposits: data.deposits || [],
       withdrawals: data.withdrawals || [],
-      signalExecuteds: data.signalExecuteds || [],
-      priceUpdates: data.priceUpdates || []
+      signalExecuteds: mappedSignals,
     };
   } catch (error: any) {
     const errorMessage = error?.response?.errors?.[0]?.message || error?.message || 'Unknown error';

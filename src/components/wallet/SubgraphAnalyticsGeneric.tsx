@@ -122,72 +122,65 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
         withdrawals: true
     });
 
-    // Augment events with Replay Logic
+    // Augment events with Replay Logic (V2: uses sharePrice from events, no snapshots)
     const augmentedEvents = useMemo(() => {
-        // Sort chronologically for replay
         const sortedEvents = [...allEvents].sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
 
         let currentSupply = 0;
+        let runningDeposits = 0;
+        let runningWithdrawals = 0;
+        let lastKnownPrice = 1.0;
         const calculatedSharesMap = new Map<string, number>();
         const tokenPriceMap = new Map<string, number>();
+        const aumMap = new Map<string, number>();
+        const totalDepositsMap = new Map<string, number>();
+        const totalWithdrawalsMap = new Map<string, number>();
 
         sortedEvents.forEach(event => {
-            const evtTimestamp = String(event.timestamp);
-            const snapshot = data?.strategySnapshots?.find(s => String(s.timestamp) === evtTimestamp);
-            const rawAum = snapshot?.aum ? Number(snapshot.aum) : 0;
-            const aum = rawAum; // Subgraph returns BigDecimal (already scaled)
-
             if (event.type === 'DEPOSIT') {
                 const assets = Number((event as any).assets);
-
-                // Shares from subgraph are already scaled (BigDecimal), not in wei
                 const shares = Number((event as any).shares ?? 0);
-
-                // Calculate Implied Price (Assets / Shares)
-                // Both assets and shares are already in human-readable format
-                let price = 1.0;
-                if (shares > 0) {
-                     price = assets / shares;
-                } else {
-                    price = 1.0;
-                }
+                // V2 deposits have sharePrice computed in subgraph
+                const sharePrice = Number((event as any).sharePrice ?? 0);
+                const price = sharePrice > 0 ? sharePrice : (shares > 0 ? assets / shares : 1.0);
 
                 calculatedSharesMap.set(event.id, shares);
                 tokenPriceMap.set(event.id, price);
-
+                lastKnownPrice = price;
                 currentSupply += shares;
-
+                runningDeposits += assets;
             } else if (event.type === 'WITHDRAWAL') {
                 const shares = Number((event as any).shares ?? 0);
+                const assets = Number((event as any).assets);
+                const sharePrice = Number((event as any).sharePrice ?? 0);
+                const price = sharePrice > 0 ? sharePrice : (shares > 0 ? assets / shares : 1.0);
+
                 currentSupply -= shares;
                 if (currentSupply < 0) currentSupply = 0;
-
-                const assets = Number((event as any).assets);
-
-                // Both assets and shares are already in human-readable format
-                let price = 1.0;
-                if (shares > 0) {
-                    price = assets / shares;
-                }
-
                 tokenPriceMap.set(event.id, price);
+                lastKnownPrice = price;
+                runningWithdrawals += assets;
             } else {
-                let price = 1.0;
-                if (currentSupply > 0 && aum > 0) {
-                     // Both AUM and currentSupply are in human-readable format
-                     // Price per share = AUM / Supply
-                     price = aum / currentSupply;
-                }
-                tokenPriceMap.set(event.id, price);
+                // SIGNAL: use last known share price
+                tokenPriceMap.set(event.id, lastKnownPrice);
             }
+
+            // Track running AUM estimate: supply * lastPrice
+            const estimatedAum = currentSupply * lastKnownPrice;
+            aumMap.set(event.id, estimatedAum);
+            totalDepositsMap.set(event.id, runningDeposits);
+            totalWithdrawalsMap.set(event.id, runningWithdrawals);
         });
 
         return allEvents.map(e => ({
             ...e,
             calculatedShares: calculatedSharesMap.get(e.id),
-            calculatedPrice: tokenPriceMap.get(e.id)
+            calculatedPrice: tokenPriceMap.get(e.id),
+            _aum: aumMap.get(e.id) ?? 0,
+            _totalDeposits: totalDepositsMap.get(e.id) ?? 0,
+            _totalWithdrawals: totalWithdrawalsMap.get(e.id) ?? 0,
         })).sort((a, b) => Number(b.timestamp) - Number(a.timestamp));
-    }, [allEvents, data?.strategySnapshots, decimals, targetTokenDecimals]);
+    }, [allEvents, decimals, targetTokenDecimals]);
 
     const filteredEvents = useMemo(() => {
         return augmentedEvents.filter(event => {
@@ -264,15 +257,13 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                 outputLabel = formatCurrency(assets).replace(/,/g, '');
             }
 
-            const snapshot = data?.strategySnapshots?.find(s => s.timestamp === event.timestamp);
-            const rawAum = snapshot?.aum ? Number(snapshot.aum) : (Number(snapshot?.totalDeposits ?? 0) - Number(snapshot?.totalWithdrawals ?? 0));
-            const aum = rawAum; // Subgraph returns BigDecimal (already scaled)
+            const aum = (event as any)._aum ?? 0;
             const tokenPrice = (event as any).calculatedPrice ?? 1.0;
 
             const tokenPriceLabel = formatTokenPrice(tokenPrice).replace(/,/g, '');
             const aumLabel = formatCurrency(aum).replace(/,/g, '');
-            const depositsLabel = formatCurrency(Number(snapshot?.totalDeposits ?? 0)).replace(/,/g, '');
-            const withdrawalsLabel = formatCurrency(Number(snapshot?.totalWithdrawals ?? 0)).replace(/,/g, '');
+            const depositsLabel = formatCurrency((event as any)._totalDeposits ?? 0).replace(/,/g, '');
+            const withdrawalsLabel = formatCurrency((event as any)._totalWithdrawals ?? 0).replace(/,/g, '');
 
             const txHash = (event as any).txHash || (event.id.split('-')[0]) || '';
 
@@ -304,43 +295,36 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
     const chartData = useMemo(() => {
         const chronologicalEvents = [...augmentedEvents].sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
         let runningMintedShares = 0;
+        let runningBurnedShares = 0;
 
         return chronologicalEvents.map(event => {
-            const snapshot = data?.strategySnapshots?.find(s => String(s.timestamp) === String(event.timestamp));
-
             if (event.type === 'DEPOSIT') {
-                const calculatedShares = (event as any).calculatedShares;
-                const fallbackShares = (event.shares && Number(event.shares) > 0) ? Number(event.shares) : 0;
-                // Shares from subgraph are already scaled down (BigDecimal), not in wei
-                runningMintedShares += (calculatedShares ?? fallbackShares);
+                const shares = (event as any).calculatedShares ?? (Number((event as any).shares) || 0);
+                runningMintedShares += shares;
+            } else if (event.type === 'WITHDRAWAL') {
+                const shares = Number((event as any).shares) || 0;
+                runningBurnedShares += shares;
             }
 
-            const burnedShares = Number(snapshot?.burnedShares ?? 0);
-            // Shares are already in human-readable format from subgraph
-            const netShares = runningMintedShares - burnedShares;
-
-            const snapshotAum = Number(snapshot?.aum ?? 0);
-            const calculatedAum = (Number(snapshot?.totalDeposits ?? 0) - Number(snapshot?.totalWithdrawals ?? 0));
-            const rawAum = snapshotAum > 0 ? snapshotAum : calculatedAum;
-            const aum = rawAum; // Subgraph returns BigDecimal (already scaled)
+            const netShares = runningMintedShares - runningBurnedShares;
+            const aum = (event as any)._aum ?? 0;
+            const tokenPrice = (event as any).calculatedPrice ?? 1.0;
 
             return {
                 timestamp: Number(event.timestamp),
                 date: new Date(Number(event.timestamp) * 1000).toLocaleDateString(),
                 aum: aum,
-                totalDeposits: Number(snapshot?.totalDeposits ?? 0),
-                totalWithdrawals: Number(snapshot?.totalWithdrawals ?? 0),
+                totalDeposits: (event as any)._totalDeposits ?? 0,
+                totalWithdrawals: (event as any)._totalWithdrawals ?? 0,
                 mintedShares: runningMintedShares,
-                burnedShares: burnedShares,
+                burnedShares: runningBurnedShares,
                 netShares: netShares,
-                // Adapt fields for Generic:
-                // Map asset/target balance to usdc/weth props for existing charts or generic charts
-                usdcBalance: Number(snapshot?.assetBalance ?? 0),
-                wethBalance: Number(snapshot?.targetBalance ?? 0),
-                wethPrice: Number(snapshot?.targetPrice ?? 0)
+                usdcBalance: aum,
+                wethBalance: 0,
+                wethPrice: tokenPrice
             };
         });
-    }, [augmentedEvents, data?.strategySnapshots, targetTokenDecimals]);
+    }, [augmentedEvents]);
 
     const latestData = chartData.length > 0 ? chartData[chartData.length - 1] : null;
 
@@ -434,9 +418,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                 </thead>
                                 <tbody className="divide-y divide-zinc-700/30">
                                     {displayedEvents.map((event) => {
-                                        const snapshot = data?.strategySnapshots?.find(s => s.timestamp === event.timestamp);
-                                        const rawAum = snapshot?.aum ? Number(snapshot.aum) : (Number(snapshot?.totalDeposits ?? 0) - Number(snapshot?.totalWithdrawals ?? 0));
-                                        const aum = rawAum; // Subgraph returns BigDecimal (already scaled)
+                                        const aum = (event as any)._aum ?? 0;
                                         const tokenPrice = (event as any).calculatedPrice ?? 1.0;
 
                                         let typeLabel = <></>;
@@ -503,8 +485,8 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                                 <td className="py-3 text-white font-medium">{priceDisplay}</td>
                                                 <td className="py-3 text-zinc-300 font-medium">{formatTokenPrice(tokenPrice)}</td>
                                                 <td className="py-3 text-zinc-300 font-medium">{formatCurrency(aum)}</td>
-                                                <td className="py-3 text-emerald-400/80 font-medium">{formatCurrency(Number(snapshot?.totalDeposits ?? 0))}</td>
-                                                <td className="py-3 text-rose-400/80 font-medium">{formatCurrency(Number(snapshot?.totalWithdrawals ?? 0))}</td>
+                                                <td className="py-3 text-emerald-400/80 font-medium">{formatCurrency((event as any)._totalDeposits ?? 0)}</td>
+                                                <td className="py-3 text-rose-400/80 font-medium">{formatCurrency((event as any)._totalWithdrawals ?? 0)}</td>
                                                 <td className="py-3 font-mono text-xs">
                                                     <a href={`https://sepolia.etherscan.io/tx/${txHash}`} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors">
                                                         {formatTxHash(txHash)}
@@ -559,22 +541,22 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                         <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total AUM</p>
                             <p className="mt-3 text-3xl font-bold text-white">
-                                {formatCurrency(latestData?.aum ?? (Number(metrics?.currentAum || 0)))}
+                                {formatCurrency(Number(metrics?.currentAum || 0) || latestData?.aum || 0)}
                             </p>
                         </div>
                         <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Net Share Supply</p>
                             <p className="mt-3 text-3xl font-bold text-white">
-                                {formatTokenAmount(latestData?.netShares ?? (Number(metrics?.mintedShares || 0) - Number(metrics?.burnedShares || 0)))}
+                                {formatTokenAmount(Number(metrics?.mintedShares || 0) - Number(metrics?.burnedShares || 0) || latestData?.netShares || 0)}
                             </p>
                         </div>
                         <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total Deposits</p>
-                            <p className="mt-3 text-3xl font-bold text-emerald-400">{formatCurrency(latestData?.totalDeposits ?? Number(metrics?.totalDeposits ?? '0'))}</p>
+                            <p className="mt-3 text-3xl font-bold text-emerald-400">{formatCurrency(Number(metrics?.totalDeposits || 0) || latestData?.totalDeposits || 0)}</p>
                         </div>
                         <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total Withdrawals</p>
-                            <p className="mt-3 text-3xl font-bold text-rose-400">{formatCurrency(latestData?.totalWithdrawals ?? Number(metrics?.totalWithdrawals ?? '0'))}</p>
+                            <p className="mt-3 text-3xl font-bold text-rose-400">{formatCurrency(Number(metrics?.totalWithdrawals || 0) || latestData?.totalWithdrawals || 0)}</p>
                         </div>
                         <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total Buy Signals</p>
