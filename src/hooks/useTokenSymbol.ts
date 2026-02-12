@@ -16,6 +16,37 @@ const ERC20_ABI = [
     "function symbol() view returns (string)"
 ];
 
+// Singleton provider instance to reuse connection
+let providerInstance: JsonRpcProvider | null = null;
+const getProvider = () => {
+    if (!providerInstance) {
+        providerInstance = new JsonRpcProvider(RPC_URL);
+    }
+    return providerInstance;
+};
+
+// Rate limiting: Max concurrent requests and request queue
+let activeRequests = 0;
+const MAX_CONCURRENT_REQUESTS = 3;
+const requestQueue: Array<() => void> = [];
+
+const executeWithRateLimit = async <T>(fn: () => Promise<T>): Promise<T> => {
+    // If we're at the limit, queue this request
+    if (activeRequests >= MAX_CONCURRENT_REQUESTS) {
+        await new Promise<void>(resolve => requestQueue.push(resolve));
+    }
+
+    activeRequests++;
+    try {
+        return await fn();
+    } finally {
+        activeRequests--;
+        // Process next queued request
+        const next = requestQueue.shift();
+        if (next) next();
+    }
+};
+
 export const useTokenSymbol = (tokenAddress?: string) => {
     const [symbol, setSymbol] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(false);
@@ -37,16 +68,18 @@ export const useTokenSymbol = (tokenAddress?: string) => {
         const fetchSymbol = async () => {
             setLoading(true);
             try {
-                // We use a simple provider here. 
-                // For a production app, we might use a Singleton provider instance.
-                const provider = new JsonRpcProvider(RPC_URL);
-                const contract = new Contract(tokenAddress, ERC20_ABI, provider);
-                const fetchedSymbol = await contract.symbol();
+                // Use rate limiting to prevent overwhelming the RPC endpoint
+                await executeWithRateLimit(async () => {
+                    // Use singleton provider instance to reuse connection
+                    const provider = getProvider();
+                    const contract = new Contract(tokenAddress, ERC20_ABI, provider);
+                    const fetchedSymbol = await contract.symbol();
 
-                if (mounted) {
-                    symbolCache[tokenAddress] = fetchedSymbol;
-                    setSymbol(fetchedSymbol);
-                }
+                    if (mounted) {
+                        symbolCache[tokenAddress] = fetchedSymbol;
+                        setSymbol(fetchedSymbol);
+                    }
+                });
             } catch (error) {
                 console.warn(`Failed to fetch symbol for ${tokenAddress}`, error);
                 // Fallback: Use abbreviated address if fetch fails? Or just empty string.
