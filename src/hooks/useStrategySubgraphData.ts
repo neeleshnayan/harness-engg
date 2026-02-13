@@ -82,6 +82,7 @@ type MetricResult = {
   deposits: Deposit[];
   withdrawals: Withdrawal[];
   signalExecuteds?: SignalExecuted[];
+  priceUpdates?: { timestamp: string; price: string }[];
   // Legacy aliases for UI compatibility
   yearnWethStrategyMetric?: MetricData | null;
   yearnWethStrategySnapshots?: Snapshot[];
