@@ -127,7 +127,15 @@ function computePerformanceMetrics(
   let netApy = 0;
   if (daysElapsed > 0 && first.price > 0) {
     const totalReturn = last.price / first.price;
-    netApy = (Math.pow(totalReturn, 365 / daysElapsed) - 1) * 100;
+    if (daysElapsed >= 7) {
+      // Enough history to annualize meaningfully
+      netApy = (Math.pow(totalReturn, 365 / daysElapsed) - 1) * 100;
+    } else {
+      // Too little history — show simple (non-annualized) return to avoid absurd numbers
+      netApy = (totalReturn - 1) * 100;
+    }
+    // Cap at ±999% to prevent display issues
+    netApy = Math.max(-999, Math.min(999, netApy));
   }
 
   // --- Max Drawdown ---
