@@ -25,7 +25,8 @@ const DevtoolsOverlay = dynamic(() => import('./components/DevtoolsOverlay'), {
   ssr: false,
 });
 
-
+/** Shape of an interrupt from the agents/query API (id may be empty) */
+type InterruptFromApi = { id?: string; name?: string; reason?: Record<string, unknown> }
 
 export default function BacktestPage() {
   const router = useRouter()
@@ -411,7 +412,7 @@ export default function BacktestPage() {
       // Check for interrupts (dedupe by id so same HITL never shows twice)
       if (payload.stop_reason === 'interrupt' && payload.interrupts && payload.interrupts.length > 0) {
         const seen = shownInterruptIdsRef.current
-        const newInterrupts = payload.interrupts.filter((i: any) => {
+        const newInterrupts = (payload.interrupts as InterruptFromApi[]).filter((i) => {
           const id = i?.id != null ? String(i.id) : ''
           if (id && seen.has(id)) return false
           if (id) seen.add(id)
@@ -561,7 +562,7 @@ export default function BacktestPage() {
       // Check for interrupts (dedupe by id so same HITL never shows twice)
       if (payload.stop_reason === 'interrupt' && payload.interrupts && payload.interrupts.length > 0) {
         const seen = shownInterruptIdsRef.current
-        const newInterrupts = payload.interrupts.filter((i: any) => {
+        const newInterrupts = (payload.interrupts as InterruptFromApi[]).filter((i) => {
           const id = i?.id != null ? String(i.id) : ''
           if (id && seen.has(id)) return false
           if (id) seen.add(id)
