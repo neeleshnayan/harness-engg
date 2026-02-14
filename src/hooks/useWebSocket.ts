@@ -76,9 +76,12 @@ export const useWebSocket = (
       };
 
       ws.onmessage = (event) => {
+        // Skip plain-text keepalive messages (e.g. "ping")
+        if (typeof event.data === 'string' && !event.data.startsWith('{')) {
+          return;
+        }
         try {
           const message: WebSocketMessage = JSON.parse(event.data);
-
           onMessageRef.current?.(message);
         } catch (error) {
           console.error('Failed to parse WebSocket message:', error);

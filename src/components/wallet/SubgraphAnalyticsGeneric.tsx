@@ -1,5 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { useStrategySubgraphData, Snapshot } from "@/hooks/useStrategySubgraphData";
+import { useTokenSymbol } from "@/hooks/useTokenSymbol";
+import { useLatestTokenPrice } from "@/hooks/useLatestTokenPrice";
+import { usePoolClosingRates, useRatesSummary, RateSummaryToken } from "@/hooks/usePoolRates";
 import {
     AreaChart,
     Area,
@@ -8,14 +11,11 @@ import {
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
-    LineChart,
-    Line,
     Legend
 } from 'recharts';
 import { ChevronDown, ChevronUp, Download, Filter, Check } from "lucide-react";
 import { TokenPriceChart } from '@/components/charts/TokenPriceChart';
 import { AssetAllocationChart } from '@/components/charts/AssetAllocationChart';
-import { PriceChart } from '@/components/charts/PriceChart';
 import { AumChart } from '@/components/charts/AumChart';
 
 const formatNumber = (value?: string | number, options?: Intl.NumberFormatOptions) => {
@@ -66,6 +66,7 @@ const formatTxHash = (hash?: string) => {
 interface SubgraphAnalyticsGenericProps {
     subgraphUrl?: string;
     strategyAddress?: string;
+    poolAddress?: string; // Uniswap V3 pool address for fetching closing rates
     strategyName?: string; // e.g. "Yearn XAG11"
     assetSymbol?: string; // e.g. "USDC"
     targetSymbol?: string; // e.g. "YSETH" - the strategy token symbol
@@ -78,6 +79,7 @@ interface SubgraphAnalyticsGenericProps {
 export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> = ({
     subgraphUrl,
     strategyAddress,
+    poolAddress,
     strategyName = "Strategy",
     assetSymbol = "USDC",
     targetSymbol = "Token",
@@ -86,20 +88,40 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
     targetTokenDecimals = 18,
     aumDecimals = 0
 }) => {
-    // Use underlyingSymbol for BUY signals, fall back to targetSymbol if not provided
-    const buyOutputSymbol = underlyingSymbol || targetSymbol;
-    
     // Share normalization factor - subgraph returns shares in 1e6 format, we multiply by 1e12 to normalize
     // Share normalization factor removed - we use dynamic scaling below
 
-    
+
     // Note: Subgraph returns all values as BigDecimal (already scaled), no further division needed
 
-    // Determine which strategy hook to use or use generic one. 
+    // Determine which strategy hook to use or use generic one.
     // We reuse useStrategySubgraphData directly but we need a "StrategyName" type placeholder
     const { data, isLoading, isError, error, refetch, isFetching } = useStrategySubgraphData('GENERIC' as any, subgraphUrl, strategyAddress);
 
     const metrics = data?.strategyMetric;
+
+    // Resolve actual token symbols from on-chain data via Strategy entity addresses
+    const { symbol: resolvedAssetSymbol } = useTokenSymbol(metrics?.assetAddress);
+    const { symbol: resolvedTargetSymbol } = useTokenSymbol(metrics?.targetTokenAddress);
+
+    // Live token price from on-chain totalAssets/totalSupply
+    const { price: livePrice, isLoading: livePriceLoading, error: livePriceError, dataUpdatedAt, isFetching: livePriceFetching, enabled: livePriceEnabled } = useLatestTokenPrice(strategyAddress);
+
+    // Pool closing rates for daily price history + rates summary for target asset info
+    const { data: closingRates } = usePoolClosingRates(poolAddress, 60);
+    const { data: ratesSummary } = useRatesSummary();
+
+    // Find the target token info from rates summary by matching pool address
+    const targetTokenInfo = useMemo<RateSummaryToken | null>(() => {
+        if (!ratesSummary?.tokens || !poolAddress) return null;
+        return Object.values(ratesSummary.tokens).find(
+            t => t.pool_address.toLowerCase() === poolAddress.toLowerCase()
+        ) || null;
+    }, [ratesSummary, poolAddress]);
+
+    // Use resolved on-chain symbols, falling back to props
+    const displayAssetSymbol = resolvedAssetSymbol || assetSymbol;
+    const displayTargetSymbol = resolvedTargetSymbol || underlyingSymbol || targetSymbol;
     const signals = data?.signalExecuteds ?? [];
     const deposits = data?.deposits ?? [];
     const withdrawals = data?.withdrawals ?? [];
@@ -161,8 +183,11 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                 lastKnownPrice = price;
                 runningWithdrawals += assets;
             } else {
-                // SIGNAL: use last known share price
-                tokenPriceMap.set(event.id, lastKnownPrice);
+                // SIGNAL: use sharePrice from subgraph if available, else carry forward
+                const signalSharePrice = Number((event as any).sharePrice ?? 0);
+                const price = signalSharePrice > 0 ? signalSharePrice : lastKnownPrice;
+                tokenPriceMap.set(event.id, price);
+                lastKnownPrice = price;
             }
 
             // Track running AUM estimate: supply * lastPrice
@@ -181,6 +206,66 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
             _totalWithdrawals: totalWithdrawalsMap.get(e.id) ?? 0,
         })).sort((a, b) => Number(b.timestamp) - Number(a.timestamp));
     }, [allEvents, decimals, targetTokenDecimals]);
+
+    // Vault state snapshots: replay events to track cash/target/supply at each point
+    const vaultSnapshots = useMemo(() => {
+        const sorted = [...allEvents].sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
+        let cash = 0;
+        let targetBal = 0;
+        let supply = 0;
+        const snapshots: { timestamp: number; cash: number; target: number; supply: number }[] = [];
+
+        sorted.forEach(event => {
+            if (event.type === 'DEPOSIT') {
+                cash += Number((event as any).assets || 0);
+                supply += Number((event as any).shares || 0);
+            } else if (event.type === 'WITHDRAWAL') {
+                cash -= Number((event as any).assets || 0);
+                supply -= Number((event as any).shares || 0);
+                if (supply < 0) supply = 0;
+            } else if (event.type === 'SIGNAL') {
+                const sig = event as any;
+                if (sig.signalType === 1) { // BUY: spend asset, receive target
+                    cash -= Number(sig.amountIn || 0);
+                    targetBal += Number(sig.amountOut || 0);
+                } else { // SELL: spend target, receive asset
+                    targetBal -= Number(sig.amountIn || 0);
+                    cash += Number(sig.amountOut || 0);
+                }
+            }
+            snapshots.push({ timestamp: Number(event.timestamp), cash, target: targetBal, supply });
+        });
+
+        return snapshots;
+    }, [allEvents]);
+
+    // Compute daily share prices from pool closing rates + vault state
+    const dailySharePrices = useMemo(() => {
+        if (!closingRates?.length || !vaultSnapshots.length) return [];
+
+        return closingRates.map(rate => {
+            // Parse "2026-02-12" to a timestamp (noon UTC to avoid timezone edge cases)
+            const dayTimestamp = new Date(rate.blockTimestamp + 'T12:00:00Z').getTime() / 1000;
+
+            // Find the vault state active at this day (latest snapshot before/at this day)
+            let state = vaultSnapshots[0];
+            for (const s of vaultSnapshots) {
+                if (s.timestamp <= dayTimestamp) state = s;
+                else break;
+            }
+
+            if (state.supply <= 0) return null;
+
+            const totalAssets = state.cash + state.target * rate.poolRate;
+            const sharePrice = totalAssets / state.supply;
+
+            return {
+                timestamp: dayTimestamp,
+                date: new Date(rate.blockTimestamp + 'T12:00:00Z').toLocaleDateString(),
+                price: sharePrice,
+            };
+        }).filter((p): p is { timestamp: number; date: string; price: number } => p !== null && p.price > 0);
+    }, [closingRates, vaultSnapshots]);
 
     const filteredEvents = useMemo(() => {
         return augmentedEvents.filter(event => {
@@ -213,7 +298,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
             let priceLabel = '0';
 
             if (event.type === 'SIGNAL') {
-                type = event.signalType === 1 ? `BUY (${assetSymbol} -> ${buyOutputSymbol})` : `SELL (${buyOutputSymbol} -> ${assetSymbol})`;
+                type = event.signalType === 1 ? `BUY (${displayAssetSymbol} -> ${displayTargetSymbol})` : `SELL (${displayTargetSymbol} -> ${displayAssetSymbol})`;
 
                 // Subgraph returns already-normalized values (like YearnWETH)
                 // No additional decimal scaling needed
@@ -221,12 +306,12 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                 const outputAmount = Number(event.amountOut);
 
                 inputLabel = event.signalType === 1
-                    ? formatCurrency(inputAmount).replace(/,/g, '')
-                    : (formatTokenAmount(inputAmount, decimals) + ' ' + buyOutputSymbol);
+                    ? formatTokenAmount(inputAmount, 2) + ' ' + displayAssetSymbol
+                    : (formatTokenAmount(inputAmount, decimals) + ' ' + displayTargetSymbol);
 
                 outputLabel = event.signalType === 1
-                    ? (formatTokenAmount(outputAmount, decimals) + ' ' + buyOutputSymbol)
-                    : formatCurrency(outputAmount).replace(/,/g, '');
+                    ? (formatTokenAmount(outputAmount, decimals) + ' ' + displayTargetSymbol)
+                    : formatTokenAmount(outputAmount, 2) + ' ' + displayAssetSymbol;
 
                 const price = event.signalType === 1
                     ? (outputAmount > 0 ? inputAmount / outputAmount : 0)
@@ -236,7 +321,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
             } else if (event.type === 'DEPOSIT') {
                 type = 'DEPOSIT';
                 const assets = Number(event.assets) || 0;
-                inputLabel = formatCurrency(assets).replace(/,/g, '');
+                inputLabel = formatTokenAmount(assets, 2) + ' ' + displayAssetSymbol;
 
                 const calculatedShares = (event as any).calculatedShares;
                 // Shares from subgraph are already scaled (BigDecimal)
@@ -254,7 +339,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                 const sharesDisplay = calculatedShares ?? (sharesFromEvent > 0 ? sharesFromEvent : assets);
 
                 inputLabel = formatNumber(sharesDisplay, { maximumFractionDigits: 4 }) + ' ' + targetSymbol;
-                outputLabel = formatCurrency(assets).replace(/,/g, '');
+                outputLabel = formatTokenAmount(assets, 2) + ' ' + displayAssetSymbol;
             }
 
             const aum = (event as any)._aum ?? 0;
@@ -296,14 +381,34 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
         const chronologicalEvents = [...augmentedEvents].sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
         let runningMintedShares = 0;
         let runningBurnedShares = 0;
+        let cash = 0;
+        let targetBal = 0;
+        let lastTargetPrice = 0;
 
         return chronologicalEvents.map(event => {
             if (event.type === 'DEPOSIT') {
                 const shares = (event as any).calculatedShares ?? (Number((event as any).shares) || 0);
                 runningMintedShares += shares;
+                cash += Number((event as any).assets || 0);
             } else if (event.type === 'WITHDRAWAL') {
                 const shares = Number((event as any).shares) || 0;
                 runningBurnedShares += shares;
+                cash -= Number((event as any).assets || 0);
+            } else if (event.type === 'SIGNAL') {
+                const sig = event as any;
+                if (sig.signalType === 1) { // BUY: spend USDC, receive target
+                    const amountIn = Number(sig.amountIn || 0);
+                    const amountOut = Number(sig.amountOut || 0);
+                    cash -= amountIn;
+                    targetBal += amountOut;
+                    if (amountOut > 0) lastTargetPrice = amountIn / amountOut;
+                } else { // SELL: spend target, receive USDC
+                    const amountIn = Number(sig.amountIn || 0);
+                    const amountOut = Number(sig.amountOut || 0);
+                    targetBal -= amountIn;
+                    cash += amountOut;
+                    if (amountIn > 0) lastTargetPrice = amountOut / amountIn;
+                }
             }
 
             const netShares = runningMintedShares - runningBurnedShares;
@@ -319,9 +424,10 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                 mintedShares: runningMintedShares,
                 burnedShares: runningBurnedShares,
                 netShares: netShares,
-                usdcBalance: aum,
-                wethBalance: 0,
-                wethPrice: tokenPrice
+                usdcBalance: Math.max(0, cash),
+                wethBalance: Math.max(0, targetBal),
+                wethPrice: tokenPrice,
+                targetPrice: lastTargetPrice
             };
         });
     }, [augmentedEvents]);
@@ -439,8 +545,8 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                             const inputAmount = Number(s.amountIn);
                                             const outputAmount = Number(s.amountOut);
 
-                                            inputDisplay = <>{isBuy ? formatCurrency(inputAmount) : formatTokenAmount(inputAmount, decimals) + ' ' + buyOutputSymbol}</>;
-                                            outputDisplay = <>{isBuy ? formatTokenAmount(outputAmount, decimals) + ' ' + buyOutputSymbol : formatCurrency(outputAmount)}</>;
+                                            inputDisplay = <>{isBuy ? formatTokenAmount(inputAmount, 2) + ' ' + displayAssetSymbol : formatTokenAmount(inputAmount, decimals) + ' ' + displayTargetSymbol}</>;
+                                            outputDisplay = <>{isBuy ? formatTokenAmount(outputAmount, decimals) + ' ' + displayTargetSymbol : formatTokenAmount(outputAmount, 2) + ' ' + displayAssetSymbol}</>;
 
                                             // Calculate Price for signal
                                             const price = isBuy
@@ -453,7 +559,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                             const d = event as any;
                                             typeLabel = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">DEPOSIT</span>;
                                             const depositAssets = Number(d.assets) || 0;
-                                            inputDisplay = <>{formatCurrency(depositAssets)}</>;
+                                            inputDisplay = <>{formatTokenAmount(depositAssets, 2)} {displayAssetSymbol}</>;
 
                                             // Shares from subgraph are already scaled (BigDecimal)
                                             const rawShares = Number(d.shares ?? 0);
@@ -470,7 +576,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                             const withdrawSharesDisplay = withdrawSharesFromEvent > 0 ? withdrawSharesFromEvent : (w.calculatedShares ?? withdrawAssets);
 
                                             inputDisplay = <>{formatNumber(withdrawSharesDisplay, { maximumFractionDigits: 4 })} {targetSymbol}</>;
-                                            outputDisplay = <>{formatCurrency(withdrawAssets)}</>;
+                                            outputDisplay = <>{formatTokenAmount(withdrawAssets, 2)} {displayAssetSymbol}</>;
                                             priceDisplay = '-';
                                         }
 
@@ -539,6 +645,39 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                 (metrics || latestData) && (
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                         <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
+                            <div className="flex items-center justify-between">
+                                <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Live Token Price</p>
+                                {livePriceFetching && (
+                                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" title="Fetching..." />
+                                )}
+                            </div>
+                            <p className="mt-3 text-3xl font-bold text-white">
+                                {livePriceLoading ? '...' : formatTokenPrice(livePrice ?? Number(metrics?.lastSharePrice || 1))}
+                            </p>
+                            {livePriceError ? (
+                                <p className="mt-1 text-xs text-rose-400">RPC error: {livePriceError.message?.slice(0, 60)}</p>
+                            ) : !livePriceEnabled ? (
+                                <p className="mt-1 text-xs text-amber-400">No valid strategy address</p>
+                            ) : dataUpdatedAt > 0 ? (
+                                <p className="mt-1 text-xs text-zinc-500">
+                                    Last fetched: {new Date(dataUpdatedAt).toLocaleTimeString()} (every 15s)
+                                </p>
+                            ) : (
+                                <p className="mt-1 text-xs text-zinc-500">Waiting for first fetch...</p>
+                            )}
+                        </div>
+                        {targetTokenInfo && (
+                            <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
+                                <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">{targetTokenInfo.symbol} Price</p>
+                                <p className="mt-3 text-3xl font-bold text-white">
+                                    {formatCurrency(targetTokenInfo.current_rate)}
+                                </p>
+                                <p className={`mt-1 text-xs ${targetTokenInfo.direction === 'up' ? 'text-emerald-400' : targetTokenInfo.direction === 'down' ? 'text-rose-400' : 'text-zinc-500'}`}>
+                                    {targetTokenInfo.direction === 'up' ? '+' : ''}{targetTokenInfo.percentage_change.toFixed(2)}% from close
+                                </p>
+                            </div>
+                        )}
+                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total AUM</p>
                             <p className="mt-3 text-3xl font-bold text-white">
                                 {formatCurrency(Number(metrics?.currentAum || 0) || latestData?.aum || 0)}
@@ -589,7 +728,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
 
                         {/* Token Price Chart */}
                         <div className="lg:col-span-1">
-                            <TokenPriceChart data={chartData as any} />
+                            <TokenPriceChart data={chartData as any} livePrice={livePrice} dailyPrices={dailySharePrices} />
                         </div>
 
                         {/* Asset Allocation Chart */}
@@ -601,36 +740,6 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                 assetSymbol={assetSymbol}
                                 targetSymbol={targetSymbol}
                             />
-                        </div>
-
-                        {/* Price Chart */}
-                        <div className="lg:col-span-1">
-                            <PriceChart
-                                data={chartData as any}
-                                symbol={targetSymbol}
-                            />
-                        </div>
-
-                        {/* USD Flow Chart */}
-                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
-                            <h3 className="text-lg font-bold text-white mb-1">USD Flow</h3>
-                            <p className="text-xs text-zinc-400 mb-6">CUMULATIVE DEPOSITS VS WITHDRAWALS</p>
-                            <div className="h-[250px] w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={chartData}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" vertical={false} />
-                                        <XAxis dataKey="date" stroke="#71717a" tick={{ fontSize: 12 }} tickLine={false} />
-                                        <YAxis stroke="#71717a" tick={{ fontSize: 12 }} tickLine={false} tickFormatter={(val) => `$${val}`} />
-                                        <Tooltip
-                                            contentStyle={{ backgroundColor: '#18181b', borderColor: '#3f3f46', borderRadius: '0.5rem' }}
-                                            formatter={(value: number) => [formatCurrency(value), undefined]}
-                                        />
-                                        <Legend />
-                                        <Line type="monotone" dataKey="totalDeposits" name="Deposits" stroke="#a78bfa" strokeWidth={2} dot={false} />
-                                        <Line type="monotone" dataKey="totalWithdrawals" name="Withdrawals" stroke="#f43f5e" strokeWidth={2} dot={false} />
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            </div>
                         </div>
 
                         {/* Share Mint vs Burn Chart */}
@@ -657,8 +766,9 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                             contentStyle={{ backgroundColor: '#18181b', borderColor: '#3f3f46', borderRadius: '0.5rem' }}
                                             formatter={(value: number) => [formatNumber(value) + ' Shares', undefined]}
                                         />
-                                        <Area type="monotone" dataKey="mintedShares" name="Minted" stroke="#3b82f6" fill="url(#colorMint)" />
-                                        <Area type="monotone" dataKey="burnedShares" name="Burned" stroke="#f97316" fill="url(#colorBurn)" />
+                                        <Legend />
+                                        <Area type="monotone" dataKey="mintedShares" name="Minted" stroke="#3b82f6" fill="url(#colorMint)" strokeWidth={2} />
+                                        <Area type="monotone" dataKey="burnedShares" name="Burned" stroke="#f97316" fill="url(#colorBurn)" strokeWidth={2} />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             </div>

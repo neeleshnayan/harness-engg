@@ -22,6 +22,9 @@ type MetricData = {
   currentSupply?: string;
   lastSharePrice?: string;
   lastTargetPrice?: string;
+  // Token addresses from subgraph Strategy entity
+  assetAddress?: string;
+  targetTokenAddress?: string;
 };
 
 type Deposit = {
@@ -111,6 +114,8 @@ const createQuery = (withOwner: boolean) => {
         lastSharePrice
         lastTargetPrice
         lastUpdated
+        asset
+        targetToken
       }
       signals(
         first: 1000
@@ -124,6 +129,7 @@ const createQuery = (withOwner: boolean) => {
         amountIn
         amountOut
         targetPrice
+        sharePrice
         timestamp
       }
       deposits(
@@ -216,6 +222,8 @@ export const fetchSubgraph = async (subgraphUrl: string, strategyName: StrategyN
       lastSharePrice: rawStrategy.lastSharePrice,
       lastTargetPrice: rawStrategy.lastTargetPrice,
       lastUpdated: rawStrategy.lastUpdated,
+      assetAddress: rawStrategy.asset,
+      targetTokenAddress: rawStrategy.targetToken,
     } : null;
 
     // Map V2 "signals" to the UI-expected "signalExecuteds" shape

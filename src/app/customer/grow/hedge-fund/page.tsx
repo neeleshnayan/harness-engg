@@ -16,6 +16,7 @@ import WalletHeader from "@/components/wallet/WalletHeader";
 import HamburgerMenu from "@/components/wallet/HamburgerMenu";
 import { getFirebaseApp } from "@/lib/firebaseClient";
 import { AddStrategyModal } from "@/components/wallet/AddStrategyModal";
+import { TransactionWebhookProvider } from "@/contexts/TransactionWebhookContext";
 
 export default function HedgeFundV2Page() {
   const router = useRouter();
@@ -299,7 +300,7 @@ export default function HedgeFundV2Page() {
   }
 
   return (
-    <>
+    <TransactionWebhookProvider walletAddress={accountData?.wallet_address}>
       <Toaster />
       <div className="min-h-screen w-full bg-[#001C1B] dark overflow-x-hidden">
         <WalletHeader
@@ -390,6 +391,6 @@ export default function HedgeFundV2Page() {
 
         </div>
       </div>
-    </>
+    </TransactionWebhookProvider>
   );
 }

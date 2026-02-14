@@ -12,6 +12,7 @@ import HamburgerMenu from "@/components/wallet/HamburgerMenu";
 import { getAuth, signOut } from "firebase/auth";
 import { getFirebaseApp } from "@/lib/firebaseClient";
 import { Toaster } from "@/components/ui/toaster";
+import { TransactionWebhookProvider } from "@/contexts/TransactionWebhookContext";
 
 export default function StrategyDetailsPage() {
   const params = useParams();
@@ -107,7 +108,7 @@ export default function StrategyDetailsPage() {
   const stratNameKey = currentStrategy?.id || "YEARN_WETH";
 
   return (
-    <>
+    <TransactionWebhookProvider walletAddress={accountData?.wallet_address}>
       <Toaster />
       <div className="min-h-screen w-full bg-[#001C1B] dark overflow-x-hidden">
         <WalletHeader
@@ -157,6 +158,7 @@ export default function StrategyDetailsPage() {
           <SubgraphAnalyticsGeneric
             subgraphUrl={subgraphUrl}
             strategyAddress={currentStrategy?.address}
+            poolAddress={currentStrategy?.pool_address}
             strategyName={displayName}
             assetSymbol="USDC"
             targetSymbol={currentStrategy?.symbol}
@@ -166,6 +168,6 @@ export default function StrategyDetailsPage() {
           />
         </div>
       </div>
-    </>
+    </TransactionWebhookProvider>
   );
 }

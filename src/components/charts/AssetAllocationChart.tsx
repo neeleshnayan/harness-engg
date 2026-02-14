@@ -1,6 +1,15 @@
 
-import React from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import React, { useMemo } from 'react';
+import {
+    AreaChart,
+    Area,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    Legend,
+} from 'recharts';
 import { Snapshot } from '@/hooks/useStrategySubgraphData';
 
 interface AssetAllocationChartProps {
@@ -10,9 +19,8 @@ interface AssetAllocationChartProps {
 }
 
 const COLORS = {
-    USDC: '#2563eb',
-    WETH: '#a855f7',
-    default: ['#2563eb', '#a855f7', '#22c55e', '#f59e0b']
+    asset: '#2563eb',
+    target: '#a855f7',
 };
 
 const formatCurrency = (value: number) =>
@@ -20,18 +28,39 @@ const formatCurrency = (value: number) =>
         style: 'currency',
         currency: 'USD',
         compactDisplay: 'short',
-        maximumFractionDigits: 2
+        maximumFractionDigits: 2,
     }).format(value);
 
 export const AssetAllocationChart: React.FC<AssetAllocationChartProps> = ({
     data,
-    assetSymbol = "USDC",
-    targetSymbol = "WETH"
+    assetSymbol = 'USDC',
+    targetSymbol = 'WETH',
 }) => {
-    // Get the latest snapshot for current allocation
-    const latestSnapshot = data.length > 0 ? data[data.length - 1] : null;
+    const timeSeriesData = useMemo(() => {
+        if (!data || data.length === 0) return [];
 
-    if (!latestSnapshot) {
+        return data.map((snapshot: any) => {
+            const assetBal = Number(snapshot.usdcBalance ?? snapshot.assetBalance ?? 0);
+            const targetBal = Number(snapshot.wethBalance ?? snapshot.targetBalance ?? 0);
+            const targetPrice = Number(snapshot.targetPrice ?? snapshot.wethPrice ?? 0);
+
+            const assetValue =
+                isFinite(assetBal) && !isNaN(assetBal) ? assetBal : 0;
+            const targetValue =
+                isFinite(targetBal) && isFinite(targetPrice) && !isNaN(targetBal) && !isNaN(targetPrice)
+                    ? targetBal * targetPrice
+                    : 0;
+
+            return {
+                date: snapshot.date ?? new Date(Number(snapshot.timestamp) * 1000).toLocaleDateString(),
+                [assetSymbol]: assetValue,
+                [targetSymbol]: targetValue,
+                total: assetValue + targetValue,
+            };
+        });
+    }, [data, assetSymbol, targetSymbol]);
+
+    if (timeSeriesData.length === 0) {
         return (
             <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
                 <h3 className="text-lg font-bold text-white mb-1">Asset Allocation</h3>
@@ -40,87 +69,80 @@ export const AssetAllocationChart: React.FC<AssetAllocationChartProps> = ({
         );
     }
 
-    // Calculate current allocation values
-    const assetBal = Number((latestSnapshot as any).usdcBalance ?? (latestSnapshot as any).assetBalance ?? 0);
-    const targetBal = Number((latestSnapshot as any).wethBalance ?? (latestSnapshot as any).targetBalance ?? 0);
-    const targetPrice = Number((latestSnapshot as any).wethPrice ?? (latestSnapshot as any).targetPrice ?? 0);
-
-    const assetValue = isFinite(assetBal) && !isNaN(assetBal) ? assetBal : 0;
-    const targetValue = isFinite(targetBal) && isFinite(targetPrice) && !isNaN(targetBal) && !isNaN(targetPrice)
-        ? targetBal * targetPrice
-        : 0;
-
-    const total = assetValue + targetValue;
-
-    // Prepare pie chart data
-    const pieData = [
-        {
-            name: assetSymbol,
-            value: assetValue,
-            percentage: total > 0 ? (assetValue / total) * 100 : 0
-        },
-        {
-            name: targetSymbol,
-            value: targetValue,
-            percentage: total > 0 ? (targetValue / total) * 100 : 0
-        }
-    ].filter(item => item.value > 0); // Only show non-zero allocations
-
-    const getColor = (name: string, index: number) => {
-        if (name in COLORS) return (COLORS as any)[name];
-        return COLORS.default[index % COLORS.default.length];
-    };
+    const latest = timeSeriesData[timeSeriesData.length - 1];
 
     return (
         <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
             <h3 className="text-lg font-bold text-white mb-1">Asset Allocation</h3>
-            <p className="text-xs text-zinc-400 mb-4">CURRENT COMPOSITION OF STRATEGY ASSETS</p>
+            <p className="text-xs text-zinc-400 mb-4">COMPOSITION OF STRATEGY ASSETS OVER TIME</p>
 
-            {/* Total Value Display */}
-            <div className="mb-6">
-                <div className="text-2xl font-bold text-white">
-                    {formatCurrency(total)}
+            {/* Current allocation */}
+            <div className="mb-6 flex items-baseline gap-4">
+                <div>
+                    <div className="text-2xl font-bold text-white">
+                        {formatCurrency(latest.total)}
+                    </div>
+                    <div className="text-xs text-zinc-400 mt-1">Current Total Value</div>
                 </div>
-                <div className="text-xs text-zinc-400 mt-1">Total Value</div>
+                <div className="flex gap-4 text-xs text-zinc-400">
+                    <span className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: COLORS.asset }} />
+                        {assetSymbol}: {formatCurrency(latest[assetSymbol] as number)}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: COLORS.target }} />
+                        {targetSymbol}: {formatCurrency(latest[targetSymbol] as number)}
+                    </span>
+                </div>
             </div>
 
-            <div className="h-[280px] w-full">
+            <div className="h-[250px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                        <Pie
-                            data={pieData}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={({ name, percentage }) => `${name}: ${percentage.toFixed(1)}%`}
-                            outerRadius={80}
-                            fill="#8884d8"
-                            dataKey="value"
-                        >
-                            {pieData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={getColor(entry.name, index)} />
-                            ))}
-                        </Pie>
+                    <AreaChart data={timeSeriesData} stackOffset="none">
+                        <defs>
+                            <linearGradient id="colorAssetAlloc" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor={COLORS.asset} stopOpacity={0.6} />
+                                <stop offset="95%" stopColor={COLORS.asset} stopOpacity={0.1} />
+                            </linearGradient>
+                            <linearGradient id="colorTargetAlloc" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor={COLORS.target} stopOpacity={0.6} />
+                                <stop offset="95%" stopColor={COLORS.target} stopOpacity={0.1} />
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" vertical={false} />
+                        <XAxis dataKey="date" stroke="#71717a" tick={{ fontSize: 12 }} tickLine={false} />
+                        <YAxis
+                            stroke="#71717a"
+                            tick={{ fontSize: 12 }}
+                            tickLine={false}
+                            tickFormatter={(val) => `$${val}`}
+                        />
                         <Tooltip
                             contentStyle={{
                                 backgroundColor: '#18181b',
                                 borderColor: '#3f3f46',
-                                borderRadius: '0.5rem'
+                                borderRadius: '0.5rem',
                             }}
-                            formatter={(value: number, name: string, props: any) => {
-                                const percent = props.payload.percentage.toFixed(2);
-                                return [`${formatCurrency(value)} (${percent}%)`, name];
-                            }}
+                            formatter={(value: number, name: string) => [formatCurrency(value), name]}
                         />
-                        <Legend
-                            verticalAlign="bottom"
-                            height={36}
-                            formatter={(value, entry: any) => {
-                                const item = pieData.find(d => d.name === value);
-                                return `${value}: ${formatCurrency(item?.value || 0)}`;
-                            }}
+                        <Legend />
+                        <Area
+                            type="monotone"
+                            dataKey={assetSymbol}
+                            stackId="1"
+                            stroke={COLORS.asset}
+                            fill="url(#colorAssetAlloc)"
+                            strokeWidth={2}
                         />
-                    </PieChart>
+                        <Area
+                            type="monotone"
+                            dataKey={targetSymbol}
+                            stackId="1"
+                            stroke={COLORS.target}
+                            fill="url(#colorTargetAlloc)"
+                            strokeWidth={2}
+                        />
+                    </AreaChart>
                 </ResponsiveContainer>
             </div>
         </div>

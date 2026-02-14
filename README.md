@@ -123,7 +123,7 @@ For detailed optimization documentation, see:
 
 - **WebSocket**: `useWebSocket` (`src/hooks/useWebSocket.ts`) connects to the backend WS endpoint (`/api/v1/ws`).
 - **Events**:
-  - `circle_webhook` messages (inbound/outbound transfers, wallet create/update).
+  - `transaction_confirmed` and `transaction_update` messages (inbound/outbound transfers, wallet create/update).
   - On relevant events, `WalletPageBase`:
     - Debounces a **background balance refresh** (15s delay for Circle finality).
     - Optionally reloads transaction history.

@@ -132,7 +132,8 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
 
   if (!visible) return null;
 
-  const handleSubmit = () => {
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!amount || parseFloat(amount) <= 0) {
       return;
     }
@@ -143,7 +144,8 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
     }
   };
 
-  const handleMaxClick = () => {
+  const handleMaxClick = (e: React.MouseEvent) => {
+    e.preventDefault();
     if (isDeposit) {
       setAmount(usdcBalance);
     } else {
@@ -200,6 +202,7 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
               <div className="text-green-400 text-lg font-semibold mb-2">Transaction Successful!</div>
               <div className="text-zinc-300 text-sm text-center max-w-sm">{success}</div>
               <Button
+                type="button"
                 onClick={onClose}
                 className="mt-6 px-8 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white"
               >
@@ -210,7 +213,7 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
 
           {/* Form (hide if success) */}
           {!success && (
-            <>
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               {error && (
                 <Alert variant="destructive" className="bg-red-900/80 border-red-700 text-red-200">
                   <AlertCircle className="h-4 w-4" />
@@ -245,19 +248,27 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
                   <label className="block text-sm font-medium text-zinc-200 mb-2">
                     Amount ({isDeposit ? 'USDC to deposit' : `${tokenSymbol} to withdraw`})
                   </label>
-                  <input
-                    type="number"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="0.00"
-                    step="0.000001"
-                    min="0"
-                    max={maxAmount}
-                    className="w-full px-4 py-3 border border-zinc-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-zinc-800 text-white"
-                    disabled={loading}
-                  />
-
-
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      placeholder="0.00"
+                      step="0.000001"
+                      min="0"
+                      max={maxAmount}
+                      className="w-full px-4 py-3 border border-zinc-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-zinc-800 text-white"
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleMaxClick}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-blue-400 hover:text-blue-300 px-2 py-1 rounded bg-blue-500/10 border border-blue-500/20"
+                      disabled={loading}
+                    >
+                      MAX
+                    </button>
+                  </div>
 
                   {/* Show approximate USDC for withdrawal */}
                   {!isDeposit && amount && price && parseFloat(amount) > 0 && (
@@ -278,6 +289,7 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
                     ['100', '500', '1000', '5000'].map((value) => (
                       <Button
                         key={value}
+                        type="button"
                         variant="outline"
                         size="sm"
                         onClick={() => setAmount(value)}
@@ -291,6 +303,7 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
                     ['25%', '50%', '75%', '100%'].map((percent) => (
                       <Button
                         key={percent}
+                        type="button"
                         variant="outline"
                         size="sm"
                         onClick={() => {
@@ -317,11 +330,9 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
                 />
               )}
 
-
-
               <div className="flex space-x-3 pt-4">
                 <button
-                  onClick={handleSubmit}
+                  type="submit"
                   disabled={isButtonDisabled}
                   className={`flex-1 transition-opacity duration-200 ${isButtonDisabled ? 'opacity-40 cursor-not-allowed' : 'hover:opacity-80'}`}
                 >
@@ -336,6 +347,7 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
                   )}
                 </button>
                 <button
+                  type="button"
                   onClick={onClose}
                   disabled={loading}
                   className={`flex-1 transition-opacity duration-200 ${loading ? 'opacity-40 cursor-not-allowed' : 'hover:opacity-80'}`}
@@ -343,7 +355,7 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
                   <img src="/hedge_fund/Cancel button.svg" alt="Cancel" className="w-full h-auto" />
                 </button>
               </div>
-            </>
+            </form>
           )}
         </CardContent>
       </Card>

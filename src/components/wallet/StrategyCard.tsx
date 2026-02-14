@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn, formatTokenBalance } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { hedgeFundApi } from "@/lib/api";
+import { useTransactionWebhook } from "@/contexts/TransactionWebhookContext";
 import { StrategyName, useStrategyConfig } from "@/hooks/useStrategyConfig";
 import { useStrategyPrice } from "@/hooks/useStrategyPrice";
 import { useStrategySubgraphData } from "@/hooks/useStrategySubgraphData";
@@ -45,6 +46,7 @@ const STRATEGY_DETAILS__LEGACY: Record<string, {
 const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, onCardClick, usdcBalance, strategyBalance: strategyBalanceProp, strategyBalanceWei: strategyBalanceWeiProp, strategyData }) => {
   const router = useRouter();
   const { toast } = useToast();
+  const { waitForTransaction } = useTransactionWebhook();
 
   const safeStrategyName = strategyName || "";
 
@@ -256,134 +258,52 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
           throw new Error('Deposit transaction ID not returned');
         }
 
-        // Step 1: Poll Circle transaction status
-        let circleAttempts = 0;
-        const maxCircleAttempts = 15; // Only poll Circle for 30 seconds
-        let pollingComplete = false;
+        // Step 1: Wait for webhook confirmation instead of polling Circle API
+        try {
+          console.log(`🔔 Waiting for webhook confirmation of deposit tx ${depositTxId}...`);
+          await waitForTransaction(depositTxId);
+          console.log(`✅ Webhook confirmed deposit tx ${depositTxId}, polling balance...`);
+        } catch (webhookErr) {
+          console.warn(`⚠️ Webhook wait failed for ${depositTxId}, falling back to balance polling:`, webhookErr);
+        }
 
-        const startBalancePolling = () => {
-          pollingComplete = true;
+        // Step 2: Poll blockchain balance (reduced attempts since tx is likely confirmed)
+        let balanceAttempts = 0;
+        const maxBalanceAttempts = 15;
 
-          // Step 2: Now poll blockchain balance (use captured initialBalance)
-          let balanceAttempts = 0;
-          const maxBalanceAttempts = 30;
-          let balancePollingComplete = false;
-
-          const pollBalance = async () => {
-            if (balancePollingComplete) return;
-
-            balanceAttempts++;
-
-            try {
-              const balanceResponse = await hedgeFundApi.get(
-                `/api/v1/strategy/${strategyName}/balance/${parsedData.wallet_address}`
-              );
-
-              if (balanceResponse.data) {
-                const balance_wei = balanceResponse.data.balance || "0";
-                const contract_decimals = balanceResponse.data.decimals || 18;
-                const currentBalance = parseFloat(balance_wei) / Math.pow(10, contract_decimals);
-
-                console.log(`💰 Balance check ${balanceAttempts}: initial=${initialBalance}, current=${currentBalance}, diff=${currentBalance - initialBalance}`);
-
-                // Success if balance increased OR we've polled enough times
-                if (currentBalance > initialBalance + 0.0001 || balanceAttempts >= maxBalanceAttempts) {
-                  balancePollingComplete = true;
-                  setStrategyBalance(currentBalance.toString());
-                  setStrategyBalanceWei(balance_wei);
-                  setTransactionStage('success');
-                  if (onRefresh) onRefresh();
-                  return;
-                }
-              }
-            } catch (error) {
-              console.error('❌ Balance poll error:', error);
-            }
-
-            if (!balancePollingComplete) {
-              setTimeout(pollBalance, 2000);
-            }
-          };
-
-          // Start balance polling
-          pollBalance();
-        };
-
-        const pollCircleStatus = async () => {
-          if (pollingComplete) return;
-
-          circleAttempts++;
-
+        const pollBalance = async (): Promise<void> => {
+          balanceAttempts++;
           try {
-            const statusResponse = await hedgeFundApi.get(
-              `/api/v1/strategy/${strategyName}/transaction/${depositTxId}`
+            const balanceResponse = await hedgeFundApi.get(
+              `/api/v1/strategy/${strategyName}/balance/${parsedData.wallet_address}`
             );
 
-            console.log('📡 Full Circle response:', JSON.stringify(statusResponse.data, null, 2));
+            if (balanceResponse.data) {
+              const balance_wei = balanceResponse.data.balance || "0";
+              const contract_decimals = balanceResponse.data.decimals || 18;
+              const currentBalance = parseFloat(balance_wei) / Math.pow(10, contract_decimals);
 
-            if (statusResponse.data) {
-              const txData = statusResponse.data.transaction || statusResponse.data;
-              const state = (txData.state || txData.status || '').toUpperCase();
+              console.log(`💰 Balance check ${balanceAttempts}: initial=${initialBalance}, current=${currentBalance}, diff=${currentBalance - initialBalance}`);
 
-              // Log Circle transaction state with description
-              const stateDescriptions: Record<string, string> = {
-                'INITIATED': 'Transaction initiated',
-                'QUEUED': 'In processing queue',
-                'CLEARED': 'Passed risk screening',
-                'SENT': 'In mempool',
-                'STUCK': 'Waiting for block inclusion',
-                'CONFIRMED': 'On mined block, balance updated ✓',
-                'COMPLETE': 'Transaction completed ✓',
-                'PENDING_REGISTRATION': 'Not yet in Circle system'
-              };
-              const stateDesc = stateDescriptions[state] || state;
-              console.log(`📡 Circle transaction ${depositTxId}: ${state} (${stateDesc}) [${circleAttempts}/${maxCircleAttempts}]`);
-
-              // Check if transaction is complete or confirmed (Circle states from docs)
-              // CONFIRMED: transaction on mined block, wallet balance updated
-              // COMPLETE: final terminal state
-              if (state === 'COMPLETE' || state === 'CONFIRMED') {
-                console.log(`✅ Circle transaction ${state}, polling balance...`);
-                startBalancePolling();
-                return;
-              }
-
-              // Check if transaction failed (Circle terminal states)
-              if (state === 'FAILED' || state === 'DENIED' || state === 'CANCELLED') {
-                pollingComplete = true;
-                const errorMsg = txData.errorReason || txData.errorDetails || 'Unknown error';
-                throw new Error(`Transaction ${state.toLowerCase()}: ${errorMsg}`);
-              }
-
-              // FALLBACK: If Circle stays in PENDING_REGISTRATION for too long, skip to balance polling
-              if (state === 'PENDING_REGISTRATION' && circleAttempts >= maxCircleAttempts) {
-                console.log('⚠️ Circle transaction stuck in PENDING_REGISTRATION, skipping to balance polling...');
-                startBalancePolling();
-                return;
-              }
-
-              // Transaction still pending, keep polling
-              if (circleAttempts >= maxCircleAttempts) {
-                console.log('⚠️ Circle polling timeout, falling back to balance polling...');
-                startBalancePolling();
+              if (currentBalance > initialBalance + 0.0001 || balanceAttempts >= maxBalanceAttempts) {
+                setStrategyBalance(currentBalance.toString());
+                setStrategyBalanceWei(balance_wei);
+                setTransactionStage('success');
+                if (onRefresh) onRefresh();
                 return;
               }
             }
-          } catch (error: any) {
-            if (error.message && (error.message.includes('failed') || error.message.includes('denied'))) {
-              pollingComplete = true;
-              throw error;
-            }
-            console.error('❌ Circle status poll error:', error);
+          } catch (error) {
+            console.error('❌ Balance poll error:', error);
           }
 
-          if (!pollingComplete) {
-            setTimeout(pollCircleStatus, 2000);
+          if (balanceAttempts < maxBalanceAttempts) {
+            await new Promise(r => setTimeout(r, 2000));
+            return pollBalance();
           }
         };
 
-        // Start polling Circle status immediately
-        pollCircleStatus();
+        await pollBalance();
       }
     } catch (err: any) {
       const errorMsg = err.response?.data?.detail || err.message || `Failed to deposit to ${strategyName}`;
@@ -498,121 +418,52 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
           throw new Error('Withdraw transaction ID not returned');
         }
 
-        // Step 1: Poll Circle transaction status
-        let circleAttempts = 0;
-        const maxCircleAttempts = 15; // Only poll Circle for 30 seconds
-        let pollingComplete = false;
+        // Step 1: Wait for webhook confirmation instead of polling Circle API
+        try {
+          console.log(`🔔 Waiting for webhook confirmation of withdraw tx ${withdrawTxId}...`);
+          await waitForTransaction(withdrawTxId);
+          console.log(`✅ Webhook confirmed withdraw tx ${withdrawTxId}, polling balance...`);
+        } catch (webhookErr) {
+          console.warn(`⚠️ Webhook wait failed for ${withdrawTxId}, falling back to balance polling:`, webhookErr);
+        }
 
-        const startBalancePolling = () => {
-          pollingComplete = true;
+        // Step 2: Poll blockchain balance (reduced attempts since tx is likely confirmed)
+        let balanceAttempts = 0;
+        const maxBalanceAttempts = 15;
 
-          // Step 2: Poll blockchain balance (use captured initialBalance)
-          let balanceAttempts = 0;
-          const maxBalanceAttempts = 30;
-          let balancePollingComplete = false;
-
-          const pollBalance = async () => {
-            if (balancePollingComplete) return;
-
-            balanceAttempts++;
-
-            try {
-              const balanceResponse = await hedgeFundApi.get(
-                `/api/v1/strategy/${strategyName}/balance/${parsedData.wallet_address}`
-              );
-
-              if (balanceResponse.data) {
-                const balance_wei = balanceResponse.data.balance || "0";
-                const contract_decimals = balanceResponse.data.decimals || 18;
-                const currentBalance = parseFloat(balance_wei) / Math.pow(10, contract_decimals);
-
-                console.log(`💰 Balance check ${balanceAttempts}: initial=${initialBalance}, current=${currentBalance}, diff=${initialBalance - currentBalance}`);
-
-                // Success if balance decreased OR we've polled enough times
-                if (currentBalance < initialBalance - 0.0001 || balanceAttempts >= maxBalanceAttempts) {
-                  balancePollingComplete = true;
-                  setStrategyBalance(currentBalance.toString());
-                  setStrategyBalanceWei(balance_wei);
-                  setTransactionStage('success');
-                  if (onRefresh) onRefresh();
-                  return;
-                }
-              }
-            } catch (error) {
-              console.error('❌ Balance poll error:', error);
-            }
-
-            if (!balancePollingComplete) {
-              setTimeout(pollBalance, 2000);
-            }
-          };
-
-          // Start balance polling
-          pollBalance();
-        };
-
-        const pollCircleStatus = async () => {
-          if (pollingComplete) return;
-
-          circleAttempts++;
-
+        const pollBalance = async (): Promise<void> => {
+          balanceAttempts++;
           try {
-            const statusResponse = await hedgeFundApi.get(
-              `/api/v1/strategy/${strategyName}/transaction/${withdrawTxId}`
+            const balanceResponse = await hedgeFundApi.get(
+              `/api/v1/strategy/${strategyName}/balance/${parsedData.wallet_address}`
             );
 
-            console.log('📡 Full Circle response:', JSON.stringify(statusResponse.data, null, 2));
+            if (balanceResponse.data) {
+              const balance_wei = balanceResponse.data.balance || "0";
+              const contract_decimals = balanceResponse.data.decimals || 18;
+              const currentBalance = parseFloat(balance_wei) / Math.pow(10, contract_decimals);
 
-            if (statusResponse.data) {
-              const txData = statusResponse.data.transaction || statusResponse.data;
-              const state = (txData.state || txData.status || '').toUpperCase();
+              console.log(`💰 Balance check ${balanceAttempts}: initial=${initialBalance}, current=${currentBalance}, diff=${initialBalance - currentBalance}`);
 
-              console.log(`📡 Circle transaction ${withdrawTxId} state: ${state} (attempt ${circleAttempts}/${maxCircleAttempts})`);
-
-              // Check if transaction is complete or confirmed (Circle states from docs)
-              // CONFIRMED: transaction on mined block, wallet balance updated
-              // COMPLETE: final terminal state
-              if (state === 'COMPLETE' || state === 'CONFIRMED') {
-                console.log(`✅ Circle transaction ${state}, polling balance...`);
-                startBalancePolling();
-                return;
-              }
-
-              // Check if transaction failed
-              if (state === 'FAILED' || state === 'DENIED' || state === 'CANCELLED') {
-                pollingComplete = true;
-                throw new Error(`Transaction ${state.toLowerCase()}: ${txData.errorReason || 'Unknown error'}`);
-              }
-
-              // FALLBACK: If Circle stays in PENDING_REGISTRATION for too long, skip to balance polling
-              if (state === 'PENDING_REGISTRATION' && circleAttempts >= maxCircleAttempts) {
-                console.log('⚠️ Circle transaction stuck in PENDING_REGISTRATION, skipping to balance polling...');
-                startBalancePolling();
-                return;
-              }
-
-              // Transaction still pending, keep polling
-              if (circleAttempts >= maxCircleAttempts) {
-                console.log('⚠️ Circle polling timeout, falling back to balance polling...');
-                startBalancePolling();
+              if (currentBalance < initialBalance - 0.0001 || balanceAttempts >= maxBalanceAttempts) {
+                setStrategyBalance(currentBalance.toString());
+                setStrategyBalanceWei(balance_wei);
+                setTransactionStage('success');
+                if (onRefresh) onRefresh();
                 return;
               }
             }
-          } catch (error: any) {
-            if (error.message && (error.message.includes('failed') || error.message.includes('denied'))) {
-              pollingComplete = true;
-              throw error;
-            }
-            console.error('❌ Circle status poll error:', error);
+          } catch (error) {
+            console.error('❌ Balance poll error:', error);
           }
 
-          if (!pollingComplete) {
-            setTimeout(pollCircleStatus, 2000);
+          if (balanceAttempts < maxBalanceAttempts) {
+            await new Promise(r => setTimeout(r, 2000));
+            return pollBalance();
           }
         };
 
-        // Start polling Circle status immediately
-        pollCircleStatus();
+        await pollBalance();
       }
     } catch (err: any) {
       const errorMsg = err.response?.data?.detail || err.message || `Failed to withdraw from ${strategyName}`;
