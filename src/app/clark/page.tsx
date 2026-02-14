@@ -56,6 +56,8 @@ export default function BacktestPage() {
     query: string
     userMessage: ChatMessage
   } | null>(null)
+  const submittingInterruptRef = useRef(false)
+  const shownInterruptIdsRef = useRef<Set<string>>(new Set())
   
   
 
@@ -255,6 +257,11 @@ export default function BacktestPage() {
     // Only keep backtest result, remove all other components
     // Check multiple possible locations for backtest_result (may be nested under agent IDs)
     let backtestResult = rawData?.backtest_result ?? rawData?.backtestResult
+    if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development' && !backtestResult && rawData?.backtest_result === undefined && rawData?.backtestResult === undefined) {
+      // Log when we might have missed a different shape (e.g. snake_case from API)
+      const anyBt = (rawData && typeof rawData === 'object' && (rawData as Record<string, unknown>)['backtest_result']) ?? (rawData as Record<string, unknown>)?.['backtestResult']
+      if (anyBt) console.log('[Clark] createAssistantMessage: backtest_result found under alternate key', { keys: rawData ? Object.keys(rawData) : [] })
+    }
     
     // If not found at top level, check if nested under agent keys (common in multi-agent results)
     if (!backtestResult && rawData) {
@@ -334,6 +341,14 @@ export default function BacktestPage() {
         }
       : undefined
 
+    if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development' && (rawData?.backtest_result !== undefined || rawData?.backtestResult !== undefined || rawData?.technical || rawData?.backtest)) {
+      console.log('[Clark] createAssistantMessage extracted backtestResult:', {
+        hasBacktestResult: Boolean(backtestResult),
+        dataPointsLen: backtestResult && Array.isArray(backtestResult.data_points) ? backtestResult.data_points.length : null,
+        includeTechnicalAnalysis: backtestResult?.include_technical_analysis,
+      })
+    }
+
     return {
       id: messageId,
       type: 'assistant',
@@ -381,20 +396,41 @@ export default function BacktestPage() {
       })
 
       const payload = response.data
-      
-      // Check for interrupts
-      if (payload.stop_reason === 'interrupt' && payload.interrupts && payload.interrupts.length > 0) {
-        setInterrupts(payload.interrupts)
-        setIsInterruptModalOpen(true)
-        setPendingInterruptResponse({
-          query: routedPrompt,
-          userMessage: userMessage
+
+      // Debug: log API response shape (dev only)
+      if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
+        const rd = payload?.data
+        const bt = rd?.backtest_result ?? rd?.backtestResult ?? rd?.technical?.backtest_result ?? rd?.backtest?.backtest_result
+        console.log('[Clark] agents/query response (prompt click):', {
+          hasData: Boolean(rd),
+          dataKeys: rd && typeof rd === 'object' ? Object.keys(rd) : [],
+          hasBacktestResult: Boolean(bt),
         })
+      }
+
+      // Check for interrupts (dedupe by id so same HITL never shows twice)
+      if (payload.stop_reason === 'interrupt' && payload.interrupts && payload.interrupts.length > 0) {
+        const seen = shownInterruptIdsRef.current
+        const newInterrupts = payload.interrupts.filter((i: any) => {
+          const id = i?.id != null ? String(i.id) : ''
+          if (id && seen.has(id)) return false
+          if (id) seen.add(id)
+          return true
+        })
+        if (newInterrupts.length > 0) {
+          setInterrupts(newInterrupts)
+          setIsInterruptModalOpen(true)
+          setPendingInterruptResponse({
+            query: routedPrompt,
+            userMessage: userMessage
+          })
+        }
         setIsLoading(false)
         return
       }
       
       // Clear interrupt state if no interrupts
+      shownInterruptIdsRef.current.clear()
       setInterrupts([])
       setIsInterruptModalOpen(false)
       setPendingInterruptResponse(null)
@@ -463,6 +499,8 @@ export default function BacktestPage() {
     // For normal send: need non-empty query and not loading. For HITL: only need not loading and pending context.
     if (interruptResponses?.length) {
       if (isLoading || !pendingInterruptResponse) return
+      if (submittingInterruptRef.current) return
+      submittingInterruptRef.current = true
     } else {
       if (!queryText.trim() || isLoading) return
     }
@@ -502,20 +540,47 @@ export default function BacktestPage() {
       const response = await agentsApi.post('/api/v1/agents/query', requestBody)
 
       const payload = response.data
-      
-      // Check for interrupts
-      if (payload.stop_reason === 'interrupt' && payload.interrupts && payload.interrupts.length > 0) {
-        setInterrupts(payload.interrupts)
-        setIsInterruptModalOpen(true)
-        setPendingInterruptResponse({
-          query: queryText,
-          userMessage: userMessage
+
+      // Debug: log API response shape for backtest/technical (dev only)
+      if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
+        const rd = payload?.data
+        const bt = rd?.backtest_result ?? rd?.backtestResult ?? rd?.technical?.backtest_result ?? rd?.backtest?.backtest_result
+        console.log('[Clark] agents/query response:', {
+          hasData: Boolean(rd),
+          dataKeys: rd && typeof rd === 'object' ? Object.keys(rd) : [],
+          hasBacktestResult: Boolean(bt),
+          backtestShape: bt ? {
+            data_points_len: Array.isArray(bt.data_points) ? bt.data_points.length : 'not-array',
+            include_technical_analysis: bt.include_technical_analysis,
+            technical_indicators_requested: bt.technical_indicators_requested,
+            first_dp_indicators: Array.isArray(bt.data_points) && bt.data_points[0] ? Boolean((bt.data_points[0] as any).technical_indicators) : null,
+          } : null,
         })
+      }
+
+      // Check for interrupts (dedupe by id so same HITL never shows twice)
+      if (payload.stop_reason === 'interrupt' && payload.interrupts && payload.interrupts.length > 0) {
+        const seen = shownInterruptIdsRef.current
+        const newInterrupts = payload.interrupts.filter((i: any) => {
+          const id = i?.id != null ? String(i.id) : ''
+          if (id && seen.has(id)) return false
+          if (id) seen.add(id)
+          return true
+        })
+        if (newInterrupts.length > 0) {
+          setInterrupts(newInterrupts)
+          setIsInterruptModalOpen(true)
+          setPendingInterruptResponse({
+            query: queryText,
+            userMessage: userMessage
+          })
+        }
         setIsLoading(false)
         return
       }
       
       // Clear interrupt state if no interrupts
+      shownInterruptIdsRef.current.clear()
       setInterrupts([])
       setIsInterruptModalOpen(false)
       setPendingInterruptResponse(null)
@@ -575,6 +640,7 @@ export default function BacktestPage() {
 
       setMessages(prev => [...prev, errorMessage])
     } finally {
+      if (interruptResponses?.length) submittingInterruptRef.current = false
       setIsLoading(false)
     }
   }
@@ -599,6 +665,7 @@ export default function BacktestPage() {
     setMessages(prev => [...prev, confirmedMessage])
 
     // Hide the inline confirmation bubble by clearing interrupts
+    shownInterruptIdsRef.current.clear()
     setIsInterruptModalOpen(false)
     setInterrupts([])
 
@@ -633,6 +700,7 @@ export default function BacktestPage() {
     setMessages(prev => [...prev, rejectedMessage, processingMessage])
 
     // Hide the inline confirmation bubble by clearing interrupts
+    shownInterruptIdsRef.current.clear()
     setIsInterruptModalOpen(false)
     setInterrupts([])
 
