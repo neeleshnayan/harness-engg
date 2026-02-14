@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { Menu } from 'lucide-react'
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import PromptGuideModal from './components/PromptGuideModal'
 import agentsApi from '@/lib/agents_api'
 import { useRouter } from 'next/navigation'
 import { getAuth, signOut } from 'firebase/auth'
@@ -296,15 +296,6 @@ export default function BacktestPage() {
         }
       : undefined
     
-    if (priceHistoryResult) {
-      console.log('Price history result created:', {
-        token: priceHistoryResult.token,
-        lookback_days: priceHistoryResult.lookback_days,
-        count: priceHistoryResult.count,
-        dataPointsLength: priceHistoryResult.data_points.length,
-      })
-    }
-
     // Extract balance result (current, daily, or intraday) from krypton_pay
     // Read from top-level payload.data and from payload.data.krypton_pay (nested single-agent merge)
     const balanceSource = rawData?.balances != null || rawData?.dailyBalances != null || rawData?.intradayBalances != null
@@ -791,94 +782,16 @@ export default function BacktestPage() {
           </div>
         </div>
         
-      {/* Prompts modal opened by left icon */}
-      <Dialog open={isPromptModalOpen} onOpenChange={setIsPromptModalOpen}>
-        <DialogContent
-          className="
-            w-full max-w-md sm:max-w-2xl
-            bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80
-            backdrop-blur-xl
-            rounded-2xl
-            shadow-[0_20px_60px_rgba(0,0,0,0.6)]
-            border-none
-          "
-          aria-describedby={undefined}
-        >
-          <DialogTitle className="sr-only">Choose a prompt</DialogTitle>
-          <DialogDescription className="sr-only">Browse categories and prompt suggestions for Clark.</DialogDescription>
-          <div className="max-h-[70vh] overflow-y-auto px-2">
-              {!selectedCategory ? (
-                <div className="w-full flex flex-col items-center">
-                  <div className="w-full max-w-md space-y-3">
-                    {categories.map((category) => (
-                      <button
-                        key={category.id}
-                        type="button"
-                        onClick={() => setSelectedCategory(category.id)}
-                        className="w-full text-left p-4 rounded-xl backdrop-blur-sm transition-all duration-200"
-                        style={{
-                          background:
-                            'linear-gradient(180deg, rgba(255, 255, 255, 0.36) 0%, rgba(161, 207, 211, 0.06) 100%)',
-                        }}
-                      >
-                        <div className="flex items-center gap-3">
-                          {category.icon.startsWith('/') ? (
-                            <img src={category.icon} alt={category.title} className="h-5 w-5" />
-                          ) : (
-                            <span className="text-lg">{category.icon}</span>
-                          )}
-                          <div className="min-w-0">
-                            <div className="text-white font-medium truncate">{category.title}</div>
-                            <div className="text-xs text-white/60 truncate">{category.description}</div>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                (() => {
-                  const category = categories.find((c) => c.id === selectedCategory)
-                  if (!category) return null
-                  return (
-                    <div className="w-full flex flex-col items-center">
-                      <div className="w-full max-w-md">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedCategory(null)}
-                          className="flex items-center gap-2 text-white/80 hover:text-white text-sm mb-4"
-                        >
-                          <span aria-hidden>←</span> Back to categories
-                        </button>
-                        <div className="text-white font-medium mb-2">{category.title}</div>
-                        <div className="w-full space-y-2">
-                          {category.prompts.map((prompt) => (
-                            <button
-                              key={prompt}
-                              type="button"
-                              onClick={() => {
-                                handlePromptClick(prompt, category.id)
-                                setIsPromptModalOpen(false)
-                              }}
-                              disabled={isLoading}
-                              className="w-full text-left p-3 rounded-xl backdrop-blur-sm transition-all duration-200 text-sm text-white/90 hover:text-white disabled:opacity-50"
-                              style={{
-                                background:
-                                  'linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(161, 207, 211, 0.06) 100%)',
-                              }}
-                            >
-                              {prompt}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })()
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
+      {/* Prompts modal opened by left icon - shared with MiniClark */}
+      <PromptGuideModal
+        open={isPromptModalOpen}
+        onOpenChange={setIsPromptModalOpen}
+        categories={categories}
+        selectedCategory={selectedCategory}
+        onSelectCategory={setSelectedCategory}
+        onPromptClick={handlePromptClick}
+        isLoading={isLoading}
+      />
 
       </div>
 
