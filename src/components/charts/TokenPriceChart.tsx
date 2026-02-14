@@ -185,9 +185,8 @@ export const TokenPriceChart: React.FC<TokenPriceChartProps> = ({ data, livePric
                             domain={['auto', 'auto']}
                             tickFormatter={(val) => {
                                 const num = Number(val);
-                                if (num >= 1000000) return `$${(num / 1000000).toFixed(2)}M`;
-                                if (num >= 1000) return `$${(num / 1000).toFixed(2)}K`;
-                                if (num >= 1) return `$${num.toFixed(2)}`;
+                                if (num >= 1000000) return `$${(num / 1000000).toFixed(4)}M`;
+                                if (num >= 1000) return `$${(num / 1000).toFixed(4)}K`;
                                 return `$${num.toFixed(4)}`;
                             }}
                         />

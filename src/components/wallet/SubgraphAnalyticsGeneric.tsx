@@ -289,7 +289,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
     const handleExportCSV = () => {
         if (!filteredEvents || filteredEvents.length === 0) return;
 
-        const headers = ['Time', 'Type', 'Input', 'Output', `${targetSymbol} Price`, 'Token Price', 'Total AUM', 'Total Deposits', 'Total Withdrawals', 'Tx Hash'];
+        const headers = ['Time', 'Type', 'Input', 'Output', `${displayTargetSymbol} Price`, 'Token Price', 'Total AUM', 'Total Deposits', 'Total Withdrawals', 'Tx Hash'];
         const rows = filteredEvents.map(event => {
             const date = new Date(Number(event.timestamp) * 1000).toLocaleString().replace(/,/g, '');
             let type = '';
@@ -514,7 +514,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                         <th className="pb-3 font-medium">Type</th>
                                         <th className="pb-3 font-medium">Input</th>
                                         <th className="pb-3 font-medium">Output</th>
-                                        <th className="pb-3 font-medium">{targetSymbol} Price</th>
+                                        <th className="pb-3 font-medium">{displayTargetSymbol} Price</th>
                                         <th className="pb-3 font-medium">Token Price</th>
                                         <th className="pb-3 font-medium">Total AUM</th>
                                         <th className="pb-3 font-medium">Total Deposits</th>
@@ -738,7 +738,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                             <AssetAllocationChart
                                 data={chartData as any}
                                 assetSymbol={assetSymbol}
-                                targetSymbol={targetSymbol}
+                                targetSymbol={displayTargetSymbol}
                             />
                         </div>
 
