@@ -24,13 +24,14 @@ const nextConfig: NextConfig = {
       'react-icons',
     ],
   },
-  
+
+  // Proxy Clark (agents) so the browser hits same origin – avoids Network Error to 127.0.0.1:8000
   async rewrites() {
+    const agentsUrl = process.env.NEXT_PUBLIC_AGENTS_API_URL || 'http://127.0.0.1:8000';
     return [
       {
-        source: '/api/v1/:path*',
-        // destination: `${process.env.NEXT_PUBLIC_API_URL || 'https://api.kryptonfund.com'}/api/v1/:path*`,
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/v1/:path*`,
+        source: '/api/v1/agents/:path*',
+        destination: `${agentsUrl}/api/v1/agents/:path*`,
       },
     ];
   },

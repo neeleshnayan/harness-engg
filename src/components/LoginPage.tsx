@@ -37,7 +37,16 @@ export default function LoginPage() {
         }
       })
       .catch((err) => {
-        setError(err?.message || "Login failed");
+        // Firebase/auth errors (popup closed, blocked, etc.)
+        if (err?.code?.startsWith?.('auth/')) {
+          setError(err.message || 'Google sign-in failed. Try again or check that this app is allowed in Firebase.');
+          return;
+        }
+        // API error (CORS, 4xx/5xx) – show backend message when available
+        const status = err?.response?.status;
+        const detail = err?.response?.data?.detail ?? err?.response?.data?.message;
+        const msg = typeof detail === 'string' ? detail : err?.message || 'Login failed';
+        setError(status ? `Login error (${status}): ${msg}` : msg);
       })
       .finally(() => {
         setLoading(false);

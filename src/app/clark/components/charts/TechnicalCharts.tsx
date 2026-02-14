@@ -325,6 +325,11 @@ export default function TechnicalCharts({
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {bollingerData.length === 0 ? (
+              <div className="h-[400px] w-full flex items-center justify-center rounded-md border border-dashed border-teal-600/40 bg-teal-900/10 text-teal-200/70">
+                <p>No Bollinger Bands data available for this period.</p>
+              </div>
+            ) : (
             <ChartContainer config={chartConfig} className="h-[400px] w-full">
               <LineChart data={bollingerData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
@@ -384,6 +389,7 @@ export default function TechnicalCharts({
                 />
               </LineChart>
             </ChartContainer>
+            )}
           </CardContent>
         </Card>
       )}

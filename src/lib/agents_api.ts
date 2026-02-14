@@ -1,8 +1,9 @@
 import axios from 'axios';
 
-// Set the base URL for Agents API requests
-const AGENTS_API_BASE_URL = process.env.NEXT_PUBLIC_AGENTS_API_URL || 'http://127.0.0.1:8001';
-// const AGENTS_API_BASE_URL = 'https://agent.kryptonfund.com/';
+// Clark (agents) only. In the browser always use '' so Next.js rewrites proxy to Clark (avoids ERR_CONNECTION_REFUSED).
+// Rewrite destination in next.config is NEXT_PUBLIC_AGENTS_API_URL || http://127.0.0.1:8000.
+const AGENTS_API_BASE_URL =
+  typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_AGENTS_API_URL || 'http://127.0.0.1:8000');
 
 // Create axios instance for Agents API
 const agentsApi = axios.create({

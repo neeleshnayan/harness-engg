@@ -112,19 +112,21 @@ export default function PortfolioChart({ dataPoints, startDate, endDate, trades 
 
   const renderTradeDot = (props: TradeDotProps) => {
     const { cx, cy, payload } = props
+    const fallbackKey = `${cx ?? 0}-${cy ?? 0}`
     if (typeof cx !== 'number' || typeof cy !== 'number' || !payload?.date) {
-      return <g />
+      return <g key={fallbackKey} />
     }
     const bucket = tradesByDate.get(normalizeDate(payload.date))
-    if (!bucket) return <g />
+    if (!bucket) return <g key={fallbackKey} />
 
     const hasBuy = bucket.buys.length > 0
     const hasSell = bucket.sells.length > 0
     const circleY = hasSell ? cy + 6 : cy
     const triangleY = cy - 8
+    const key = `${payload.date}-${cx}-${cy}`
 
     return (
-      <g>
+      <g key={key}>
         {hasBuy && (
           <circle
             cx={cx}
