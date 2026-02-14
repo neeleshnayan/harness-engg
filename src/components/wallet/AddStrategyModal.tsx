@@ -295,7 +295,7 @@ export function AddStrategyModal({ isOpen, onClose, onSuccess }: AddStrategyModa
                 </div>
 
                 <DialogFooter>
-                    <Button variant="outline" onClick={onClose} className="bg-transparent border-zinc-700 text-zinc-300">
+                    <Button type="button" variant="outline" onClick={onClose} className="bg-transparent border-zinc-700 text-zinc-300">
                         Cancel
                     </Button>
                     <Button onClick={handleDeploy} disabled={loading} className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
