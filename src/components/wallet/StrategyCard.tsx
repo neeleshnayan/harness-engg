@@ -64,11 +64,15 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
   const config = strategyData || config_fetched;
   const configLoading = strategyData ? false : configLoading_fetched;
 
+  // Subgraph URL: strategy config → env fallback (register_strategy doesn't store subgraph_url)
+  const subgraphUrl = config?.subgraph_url || config?.SUBGRAPH_URL || process.env.NEXT_PUBLIC_SUBGRAPH_URL;
+  const strategyAddress = config?.address || config?.vault_address || config?.VAULT_ADDRESS;
+
   const { data: priceData, isLoading: priceLoading, error: priceError } = useStrategyPrice(
     strategyName,
-    config?.subgraph_url
+    subgraphUrl
   );
-  const { data: subgraphData, isLoading: subgraphLoading } = useStrategySubgraphData(strategyName, config?.subgraph_url);
+  const { data: subgraphData, isLoading: subgraphLoading } = useStrategySubgraphData(strategyName, subgraphUrl, strategyAddress);
   const { data: yearnAUM } = useYearnAUM(strategyName);
 
   const [strategyBalance, setStrategyBalance] = useState("0");
@@ -96,15 +100,27 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
     return minted - burned;
   }, [subgraphData]);
 
-  // Calculate AUM dynamically
+  // AUM and depositors — fetched exclusively from the subgraph (not Firestore)
   const calculatedAUM = useMemo(() => {
-
-
-    if (!priceData?.price || netSupply === 0) {
-      return { value: config?.aum ?? 8.9, unit: '' };
+    const metric = subgraphData?.strategyMetric;
+    // 1. Prefer currentAum (from on-chain totalAssets, already scaled by subgraph)
+    let aumInUSD = Number(metric?.currentAum || 0);
+    // 2. Fallback: currentSupply × lastSharePrice (both BigDecimal, already scaled)
+    if (aumInUSD === 0 && metric) {
+      const supply = Number(metric.currentSupply || 0);
+      const sharePrice = Number(metric.lastSharePrice || 0);
+      if (supply > 0 && sharePrice > 0) {
+        aumInUSD = supply * sharePrice;
+      }
     }
-    const priceInUSD = Number(priceData.price);
-    const aumInUSD = netSupply * priceInUSD;
+    // 3. Fallback: net deposits (totalDeposited - totalWithdrawn)
+    if (aumInUSD === 0 && metric) {
+      const deposited = Number(metric.totalDeposits || 0);
+      const withdrawn = Number(metric.totalWithdrawals || 0);
+      if (deposited > 0) {
+        aumInUSD = deposited - withdrawn;
+      }
+    }
 
     if (aumInUSD >= 1_000_000) {
       return { value: aumInUSD / 1_000_000, unit: 'M' };
@@ -113,19 +129,22 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
     } else {
       return { value: aumInUSD, unit: '' };
     }
-  }, [strategyName, yearnAUM, netSupply, priceData, config?.aum]);
+  }, [subgraphData]);
 
-  const uniqueDepositors = subgraphData?.strategyMetric?.uniqueDepositors ?? config?.participants ?? 121;
+  const uniqueDepositors = subgraphData?.strategyMetric?.uniqueDepositors ?? 0;
 
-  // Strategy metrics from config
+  // Computed metrics from subgraph share price history (APY, Max Drawdown, Sharpe)
+  const computed = subgraphData?.computedMetrics;
+
+  // Strategy metrics — APY, Sharpe, Max Drawdown from subgraph; rest from config
   const strategyMetrics = {
     name: config?.name || safeStrategyName || 'Strategy',
     description: config?.description ?? '',
-    netApy: config?.net_apy ?? 0,
+    netApy: computed?.netApy ?? config?.net_apy ?? 0,
     aum: calculatedAUM.value,
     aumUnit: calculatedAUM.unit,
-    sharpe: config?.sharpe_ratio ?? 0,
-    maxDrawdown: config?.max_drawdown ?? 0,
+    sharpe: computed?.sharpeRatio ?? config?.sharpe_ratio ?? 0,
+    maxDrawdown: computed?.maxDrawdown ?? config?.max_drawdown ?? 0,
     lockInPeriod: config?.lock_in_period ?? 'None',
     participants: uniqueDepositors,
     performanceFee: config?.performance_fee ?? 0,
@@ -571,7 +590,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
               {/* First Row: Net APY, AUM, Investors */}
               <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 <div className="flex items-center gap-1.5 sm:gap-2">
-                  <img src="/hedge_fund/upward trend.svg" alt="Net APY" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                  <img src={strategyMetrics.netApy >= 0 ? "/hedge_fund/upward trend.svg" : "/hedge_fund/downward trend.svg"} alt="Net APY" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                   <div className="flex flex-col">
                     <p className="text-[9px] sm:text-[11px] text-zinc-500">Net APY</p>
                     <span className="font-semibold text-xs sm:text-sm text-white">{strategyMetrics.netApy.toFixed(1)}%</span>
@@ -607,14 +626,14 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
                   <img src="/hedge_fund/Sharpe ratio.svg" alt="Sharpe" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                   <div className="flex flex-col">
                     <p className="text-[9px] sm:text-[11px] text-zinc-500">Sharpe</p>
-                    <span className="font-semibold text-xs sm:text-sm text-white">{strategyMetrics.sharpe.toFixed(3)}</span>
+                    <span className="font-semibold text-xs sm:text-sm text-white">{strategyMetrics.sharpe.toFixed(2)}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 sm:gap-2">
-                  <img src="/hedge_fund/downward trend.svg" alt="Max Drawdown" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                  <img src={strategyMetrics.maxDrawdown >= 0 ? "/hedge_fund/upward trend.svg" : "/hedge_fund/downward trend.svg"} alt="Max Drawdown" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                   <div className="flex flex-col">
                     <p className="text-[9px] sm:text-[11px] text-zinc-500">Max Drawdown</p>
-                    <span className="font-semibold text-xs sm:text-sm text-white">{strategyMetrics.maxDrawdown.toFixed(0)}%</span>
+                    <span className="font-semibold text-xs sm:text-sm text-white">{strategyMetrics.maxDrawdown.toFixed(1)}%</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 sm:gap-2">
