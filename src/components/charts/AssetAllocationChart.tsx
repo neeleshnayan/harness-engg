@@ -40,16 +40,13 @@ export const AssetAllocationChart: React.FC<AssetAllocationChartProps> = ({
         if (!data || data.length === 0) return [];
 
         return data.map((snapshot: any) => {
-            const assetBal = Number(snapshot.usdcBalance ?? snapshot.assetBalance ?? 0);
-            const targetBal = Number(snapshot.wethBalance ?? snapshot.targetBalance ?? 0);
-            const targetPrice = Number(snapshot.targetPrice ?? snapshot.wethPrice ?? 0);
+            const aum = Number(snapshot.aum ?? 0);
+            const cash = Number(snapshot.usdcBalance ?? snapshot.assetBalance ?? 0);
 
-            const assetValue =
-                isFinite(assetBal) && !isNaN(assetBal) ? assetBal : 0;
-            const targetValue =
-                isFinite(targetBal) && isFinite(targetPrice) && !isNaN(targetBal) && !isNaN(targetPrice)
-                    ? targetBal * targetPrice
-                    : 0;
+            // Asset (USDC) value = cash on hand
+            const assetValue = isFinite(cash) && !isNaN(cash) ? Math.max(0, cash) : 0;
+            // Target value = total AUM minus cash (reflects current market price, not cost basis)
+            const targetValue = isFinite(aum) && aum > assetValue ? aum - assetValue : 0;
 
             return {
                 date: snapshot.date ?? new Date(Number(snapshot.timestamp) * 1000).toLocaleDateString(),
