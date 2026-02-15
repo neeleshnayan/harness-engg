@@ -64,7 +64,7 @@ export default function ChatInputBar({
       }
     >
       <div
-        className={embedded ? 'w-full px-3 py-3 border-0' : 'mx-auto max-w-6xl px-3 sm:px-6 lg:px-8 py-3 sm:py-4'}
+        className={embedded ? 'w-full px-4 py-3 border-0' : 'mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-3 sm:py-4'}
         style={embedded ? { border: 'none', boxShadow: 'none' } : undefined}
       >
         <div className="flex flex-col gap-2">

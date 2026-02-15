@@ -208,7 +208,7 @@ export function AddStrategyModal({ isOpen, onClose, onSuccess }: AddStrategyModa
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="bg-zinc-900 border-zinc-800 text-white sm:max-w-[425px]">
+            <DialogContent className="bg-zinc-900 border-zinc-800 text-white w-[calc(100%-2rem)] max-w-[425px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Create New Strategy</DialogTitle>
                 </DialogHeader>

@@ -621,7 +621,7 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
   // ============================================================================
 
   return (
-    <div className="relative">
+    <div className="relative min-w-0 overflow-hidden">
       {/* Header + filters — matches Available Strategies section styling */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
         <div className="flex-1 min-w-0">
@@ -666,7 +666,7 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
           {validStrategies.length > 1 && (
             <Select value={selectedStrategyFilter} onValueChange={setSelectedStrategyFilter}>
               <SelectTrigger
-                className="h-9 w-full sm:w-[180px] rounded-lg border border-white/10 bg-white/5 text-white text-sm hover:bg-white/10 hover:border-white/20 transition-colors"
+                className="h-9 flex-1 min-w-0 sm:flex-initial sm:w-[180px] rounded-lg border border-white/10 bg-white/5 text-white text-sm hover:bg-white/10 hover:border-white/20 transition-colors"
               >
                 <Filter className="w-3.5 h-3.5 mr-2 opacity-70 flex-shrink-0" />
                 <SelectValue placeholder="All strategies" />
@@ -691,7 +691,7 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
           )}
           <Select value={selectedTimescale} onValueChange={(value) => setSelectedTimescale(value as TimescaleOption)}>
             <SelectTrigger
-              className="h-9 w-full sm:w-[130px] rounded-lg border border-white/10 bg-white/5 text-white text-sm hover:bg-white/10 hover:border-white/20 transition-colors"
+              className="h-9 flex-1 min-w-0 sm:flex-initial sm:w-[130px] rounded-lg border border-white/10 bg-white/5 text-white text-sm hover:bg-white/10 hover:border-white/20 transition-colors"
             >
               <SelectValue />
             </SelectTrigger>
@@ -713,9 +713,9 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
       </div>
 
       {/* Chart — no bounded box */}
-      <div className="h-44 sm:h-52 md:h-60">
+      <div className="h-56 min-w-0">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chartDataToRender} margin={{ top: 8, right: 8, left: 0, bottom: 24 }}>
+          <ComposedChart data={chartDataToRender} margin={{ top: 8, right: 8, left: 8, bottom: 28 }}>
             <defs>
               <linearGradient id="totalAUMGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#90E7EE" stopOpacity={0.4} />
@@ -726,14 +726,14 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
               dataKey="timestamp"
               type="number"
               domain={['dataMin', 'dataMax']}
-              tick={{ fill: '#94a3b8', fontSize: 11 }}
+              tick={{ fill: '#94a3b8', fontSize: 10 }}
               axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
               tickLine={{ stroke: 'rgba(255,255,255,0.05)' }}
               tickFormatter={(value) => formatDate(value, selectedTimescale)}
-              angle={-45}
+              angle={-35}
               textAnchor="end"
-              height={50}
-              minTickGap={30}
+              height={44}
+              minTickGap={24}
             />
             <YAxis
               tick={{ fill: '#94a3b8', fontSize: 11 }}
@@ -741,7 +741,7 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
               tickLine={{ stroke: 'rgba(255,255,255,0.05)' }}
               tickFormatter={(value) => formatAUM(value)}
               domain={[0, 'auto']}
-              width={48}
+              width={58}
             />
             <Tooltip content={<CustomTooltip strategies={filteredStrategies} />} />
             <Area

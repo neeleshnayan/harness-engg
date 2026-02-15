@@ -97,8 +97,8 @@ export const BalanceStatusIndicator: React.FC<BalanceStatusIndicatorProps> = ({
 
   if (stage === 'idle' || !display) {
     return (
-      <div className="flex items-center gap-2 bg-purple-500/20 text-purple-300 px-3 py-1 rounded-lg border border-purple-500/30">
-        <span className="text-sm font-semibold whitespace-nowrap">{balance} {tokenSymbol}</span>
+      <div className="inline-flex items-center px-2.5 py-1 rounded-lg border border-teal-500/25 bg-teal-500/5">
+        <span className="text-xs sm:text-sm font-medium tracking-tight whitespace-nowrap text-teal-200">{balance} {tokenSymbol}</span>
       </div>
     );
   }
