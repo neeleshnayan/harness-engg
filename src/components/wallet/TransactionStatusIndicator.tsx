@@ -176,7 +176,7 @@ export const TransactionStatusIndicator: React.FC<TransactionStatusIndicatorProp
               />
               <RiskFactorItem
                 label="Network Congestion"
-                value={likelihoodResult.riskFactors.networkCongestion}
+                value={likelihoodResult.riskFactors.networkCongestion.charAt(0).toUpperCase() + likelihoodResult.riskFactors.networkCongestion.slice(1)}
                 status={
                   likelihoodResult.riskFactors.networkCongestion === 'low'
                     ? 'good'
@@ -229,17 +229,20 @@ export const TransactionStatusIndicator: React.FC<TransactionStatusIndicatorProp
 
         .status-message-container {
           display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 12px;
+          align-items: flex-start;
+          gap: 0;
+          margin-bottom: 16px;
         }
 
         .status-icon-wrapper {
           font-size: 24px;
-          min-width: 24px;
+          min-width: 0;
+          width: 0;
           display: flex;
           align-items: center;
           justify-content: center;
+          flex-shrink: 0;
+          visibility: hidden;
         }
 
         .spinner {
@@ -267,13 +270,13 @@ export const TransactionStatusIndicator: React.FC<TransactionStatusIndicatorProp
           font-size: 14px;
           font-weight: 500;
           color: #fff;
-          margin: 0 0 6px 0;
+          margin: 0 0 8px 0;
         }
 
         .likelihood-badge {
           display: inline-flex;
           align-items: center;
-          gap: 6px;
+          gap: 4px;
           padding: 4px 10px;
           border: 1px solid;
           border-radius: 12px;
@@ -297,29 +300,35 @@ export const TransactionStatusIndicator: React.FC<TransactionStatusIndicatorProp
         .confidence-score {
           opacity: 0.8;
           font-size: 11px;
+          margin-left: 2px;
         }
 
         .warnings-container {
           margin-top: 12px;
-          padding-top: 12px;
-          border-top: 1px solid rgba(255, 255, 255, 0.1);
+          padding-top: 0;
+          border-top: none;
         }
 
         .warning-item {
           display: flex;
           align-items: flex-start;
-          gap: 8px;
-          padding: 6px 8px;
+          gap: 12px;
+          padding: 12px;
           background: rgba(245, 158, 11, 0.1);
           border-left: 2px solid #F59E0B;
           border-radius: 4px;
-          margin-bottom: 6px;
-          font-size: 12px;
+          margin-bottom: 10px;
+          font-size: 13px;
+          line-height: 1.4;
         }
 
         .warning-icon {
           color: #F59E0B;
-          font-size: 14px;
+          font-size: 16px;
+          line-height: 1.4;
+          flex-shrink: 0;
+          min-width: 16px;
+          margin-right: 4px;
         }
 
         .warning-text {
@@ -352,21 +361,32 @@ export const TransactionStatusIndicator: React.FC<TransactionStatusIndicatorProp
         }
 
         .risk-factors-container {
-          margin-top: 12px;
+          margin-top: 28px;
         }
 
         .risk-factors-details {
           background: rgba(0, 0, 0, 0.2);
           border-radius: 6px;
-          padding: 8px;
+          padding: 12px;
         }
 
         .risk-factors-details summary {
           cursor: pointer;
-          font-size: 12px;
+          font-size: 13px;
           color: #9CA3AF;
           user-select: none;
-          padding: 4px;
+          padding: 0;
+          margin: 0 0 12px 0;
+          list-style-position: inside;
+        }
+
+        .risk-factors-details summary::marker {
+          content: '▼ ';
+          font-size: 10px;
+        }
+
+        .risk-factors-details[open] summary::marker {
+          content: '▲ ';
         }
 
         .risk-factors-details summary:hover {

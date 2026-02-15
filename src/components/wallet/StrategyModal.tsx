@@ -1,7 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, ArrowUp, ArrowDown, Info } from "lucide-react";
 import TransactionStatusIndicator from "./TransactionStatusIndicator";
 import {
@@ -159,27 +156,27 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
   const isButtonDisabled = loading || amountFloat <= 0 || isInsufficientBalance;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4">
-      <Card className="relative w-full max-w-md border-zinc-700 shadow-2xl max-h-[95vh] overflow-y-auto overflow-hidden">
-        <img src="/hedge_fund/Glass Bg for Deposit and Withdraw KPETH.svg" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
-        <CardHeader className="relative border-b border-zinc-700 p-4 sm:p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#001C1B]/60 backdrop-blur-md p-3 sm:p-4 animate-in fade-in duration-200">
+      <div
+        className="relative w-full max-w-md bg-[#001C1B] bg-cover bg-center shadow-2xl rounded-xl border border-white/5 max-h-[95vh] overflow-y-auto animate-in zoom-in-95 duration-200"
+        style={{ backgroundImage: "url('/wallet-bg.svg')" }}
+      >
+        <div className="relative border-b border-white/5 p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg sm:text-xl font-bold text-white">
+            <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
               {isDeposit ? `Deposit ${tokenSymbol}` : `Withdraw ${tokenSymbol}`}
-            </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
+            </h2>
+            <button
               onClick={onClose}
-              className="text-zinc-400 hover:text-white"
+              className="text-teal-200/60 hover:text-white transition-colors"
               disabled={loading}
             >
-              <ArrowUp className="w-4 h-4 rotate-45" />
-            </Button>
+              <ArrowUp className="w-5 h-5 rotate-45" />
+            </button>
           </div>
-        </CardHeader>
+        </div>
 
-        <CardContent className="relative p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="relative p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Success Screen */}
           {success && (
             <div className="flex flex-col items-center justify-center py-8">
@@ -201,13 +198,17 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
               </svg>
               <div className="text-green-400 text-lg font-semibold mb-2">Transaction Successful!</div>
               <div className="text-zinc-300 text-sm text-center max-w-sm">{success}</div>
-              <Button
+              <button
                 type="button"
                 onClick={onClose}
-                className="mt-6 px-8 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white"
+                className="mt-6 px-8 py-2 rounded-md shadow-lg transition-all duration-300 text-white"
+                style={{
+                  background: 'rgba(85, 124, 130, 0.9)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)'
+                }}
               >
                 Done
-              </Button>
+              </button>
             </div>
           )}
 
@@ -215,27 +216,31 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
           {!success && (
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               {error && (
-                <Alert variant="destructive" className="bg-red-900/80 border-red-700 text-red-200">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
+                <div className="bg-red-500/10 border border-red-500/20 text-red-200 text-sm p-3 rounded-lg flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
               )}
 
               {/* Balance Display */}
-              <div className="bg-zinc-800/50 border border-zinc-700 rounded-lg p-3 sm:p-4">
-                <div className="text-xs sm:text-sm text-zinc-400 mb-1">
+              <div className="rounded-md p-3 sm:p-4" style={{
+                background: 'linear-gradient(180deg, rgba(58, 96, 97, 0.6) 0%, rgba(125, 160, 161, 0.6) 100%)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255, 255, 255, 0.1)'
+              }}>
+                <div className="text-xs sm:text-sm mb-1" style={{ color: 'rgba(161, 207, 211, 0.8)' }}>
                   {isDeposit ? 'Available USDC' : `${tokenSymbol} Balance`}
                 </div>
                 <div className="text-xl sm:text-2xl font-bold text-white">
                   {isDeposit
                     ? (Number.isFinite(parseFloat(usdcBalance)) ? parseFloat(usdcBalance).toFixed(2) : '0.00')
                     : formatStrategyBalance(strategyBalance, strategyName)}
-                  <span className="text-zinc-400 text-base sm:text-lg ml-1">
+                  <span className="text-base sm:text-lg ml-1" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>
                     {isDeposit ? 'USDC' : tokenSymbol}
                   </span>
                 </div>
                 {!isDeposit && price && (
-                  <div className="text-xs sm:text-sm text-zinc-400 mt-2">
+                  <div className="text-xs sm:text-sm mt-2" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>
                     ≈ ${(Number.isFinite(parseFloat(strategyBalance)) && Number.isFinite(parseFloat(price))
                       ? (parseFloat(strategyBalance) * parseFloat(price)).toFixed(2)
                       : '0.00')} USDC
@@ -245,7 +250,7 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-zinc-200 mb-2">
+                  <label className="block text-sm font-medium mb-2 ml-1 text-white tracking-tight">
                     Amount ({isDeposit ? 'USDC to deposit' : `${tokenSymbol} to withdraw`})
                   </label>
                   <div className="relative">
@@ -257,13 +262,22 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
                       step="0.000001"
                       min="0"
                       max={maxAmount}
-                      className="w-full px-4 py-3 border border-zinc-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-zinc-800 text-white"
+                      className="w-full px-4 py-3 rounded-md focus:outline-none transition-all duration-200 text-white font-medium"
+                      style={{
+                        background: 'rgba(58, 96, 97, 0.5)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)'
+                      }}
                       disabled={loading}
                     />
                     <button
                       type="button"
                       onClick={handleMaxClick}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-blue-400 hover:text-blue-300 px-2 py-1 rounded bg-blue-500/10 border border-blue-500/20"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold px-3 py-1.5 rounded transition-colors"
+                      style={{
+                        background: '#115E59',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        color: 'white'
+                      }}
                       disabled={loading}
                     >
                       MAX
@@ -272,9 +286,12 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
 
                   {/* Show approximate USDC for withdrawal */}
                   {!isDeposit && amount && price && parseFloat(amount) > 0 && (
-                    <div className="mt-2 p-3 bg-green-900/20 border border-green-700/30 rounded-lg">
+                    <div className="mt-2 p-3 rounded-md" style={{
+                      background: 'rgba(34, 197, 94, 0.1)',
+                      border: '1px solid rgba(34, 197, 94, 0.2)'
+                    }}>
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-zinc-300">You will receive approximately:</span>
+                        <span className="text-sm" style={{ color: 'rgba(161, 207, 211, 0.9)' }}>You will receive approximately:</span>
                         <span className="text-lg font-semibold text-green-400">
                           ${(parseFloat(amount) * parseFloat(price)).toFixed(2)} USDC
                         </span>
@@ -285,49 +302,39 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
 
                 {/* Quick Amount Buttons */}
                 <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
-                  {isDeposit ? (
-                    ['100', '500', '1000', '5000'].map((value) => (
-                      <Button
-                        key={value}
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setAmount(value)}
-                        className="text-xs px-2 py-1.5 h-auto"
-                        disabled={loading}
-                      >
-                        ${value}
-                      </Button>
-                    ))
-                  ) : (
-                    ['25%', '50%', '75%', '100%'].map((percent) => (
-                      <Button
-                        key={percent}
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const percentage = parseFloat(percent) / 100;
-                          const balanceNum = parseFloat(strategyBalance);
-                          setAmount(formatStrategyBalance((balanceNum * percentage).toString(), strategyName));
-                        }}
-                        className="text-xs px-2 py-1.5 h-auto"
-                        disabled={loading}
-                      >
-                        {percent}
-                      </Button>
-                    ))
-                  )}
+                  {['10%', '25%', '50%', '75%'].map((percent) => (
+                    <button
+                      key={percent}
+                      type="button"
+                      onClick={() => {
+                        const percentage = parseFloat(percent) / 100;
+                        const maxBalance = isDeposit ? parseFloat(usdcBalance) : parseFloat(strategyBalance);
+                        const calculatedAmount = maxBalance * percentage;
+                        setAmount(isDeposit ? calculatedAmount.toFixed(2) : formatStrategyBalance(calculatedAmount.toString(), strategyName));
+                      }}
+                      className="text-xs px-2 py-2 h-auto rounded font-bold transition-opacity hover:opacity-80"
+                      style={{
+                        background: 'rgba(17, 94, 89, 0.8)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        color: 'white'
+                      }}
+                      disabled={loading}
+                    >
+                      {percent}
+                    </button>
+                  ))}
                 </div>
               </div>
 
               {/* Transaction Status Indicator - Show during processing or when there's a likelihood estimate */}
               {(loading || (likelihoodResult && amount && parseFloat(amount) > 0)) && (
-                <TransactionStatusIndicator
-                  likelihoodResult={likelihoodResult || undefined}
-                  status={transactionStatus}
-                  showDetails={!loading}
-                />
+                <div className="mt-2">
+                  <TransactionStatusIndicator
+                    likelihoodResult={likelihoodResult || undefined}
+                    status={transactionStatus}
+                    showDetails={!loading}
+                  />
+                </div>
               )}
 
               <div className="flex space-x-3 pt-4">
@@ -357,8 +364,8 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
               </div>
             </form>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };
