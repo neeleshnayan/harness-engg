@@ -6,8 +6,12 @@ const AGENTS_API_BASE_URL =
   typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_AGENTS_API_URL || 'http://127.0.0.1:8000');
 
 // Create axios instance for Agents API
+// Long timeout: Clark queries (backtest, multi-agent, etc.) can take 1–2+ minutes
+const AGENTS_REQUEST_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
 const agentsApi = axios.create({
   baseURL: AGENTS_API_BASE_URL,
+  timeout: AGENTS_REQUEST_TIMEOUT_MS,
   headers: {
     'Content-Type': 'application/json',
   },
