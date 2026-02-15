@@ -81,6 +81,14 @@ async function proxy(
         { status: 504 }
       );
     }
-    throw e;
+    return NextResponse.json(
+      {
+        success: false,
+        message: 'Clark is temporarily unavailable. Please try again in a moment.',
+        agent_flow: { nodes: [], edges: [], execution_order: [] },
+        costs: { query_cost: 0, session_cost: 0, overall_cost: 0 },
+      },
+      { status: 502 }
+    );
   }
 }

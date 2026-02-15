@@ -124,18 +124,25 @@ export default function HedgeFundQuestionnaire({
     field: keyof HedgeFundForm;
     options: { value: string; label: string }[]
   }) => (
-    <div className="mb-8 p-6 bg-zinc-900/50 rounded-xl border border-zinc-700/50">
+    <div className="mb-8 p-6 bg-white/5 rounded-xl border border-white/10">
       <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {options.map((option) => (
-          <label key={option.value} className="flex items-center p-4 rounded-lg bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700/50 cursor-pointer transition-all duration-200">
+          <label
+            key={option.value}
+            className={`flex items-center p-4 rounded-lg border cursor-pointer transition-all duration-200 ${
+              formData[field] === option.value
+                ? "bg-teal-500/10 border-teal-500/30"
+                : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
+            }`}
+          >
             <input
               type="radio"
               name={field}
               value={option.value}
               checked={formData[field] === option.value}
               onChange={(e) => handleInputChange(field, e.target.value)}
-              className="w-5 h-5 text-blue-500 bg-zinc-700 border-zinc-600 focus:ring-blue-500 focus:ring-2 focus:ring-offset-2 focus:ring-offset-zinc-900"
+              className="w-5 h-5 text-teal-500 bg-transparent border-white/30 focus:ring-teal-500 focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0a2525]"
             />
             <span className="ml-4 text-zinc-300 group-hover:text-white transition-colors">
               {option.label}
@@ -148,10 +155,10 @@ export default function HedgeFundQuestionnaire({
 
   if (success) {
     return (
-      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-8">
-        <div className="text-center max-w-md bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl p-8 shadow-2xl">
-          <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="h-10 w-10 text-green-400" />
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#001C1B] p-8">
+        <div className="text-center max-w-md bg-[#0a2525]/90 backdrop-blur-sm border border-white/10 rounded-2xl p-8 shadow-xl">
+          <div className="w-20 h-20 bg-teal-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle className="h-10 w-10 text-teal-400" />
           </div>
           <h2 className="text-3xl font-bold text-white mb-4">All Set!</h2>
           <p className="text-zinc-400 mb-8">
@@ -159,7 +166,7 @@ export default function HedgeFundQuestionnaire({
           </p>
           <button
             onClick={onComplete}
-            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+            className="w-full bg-teal-600 hover:bg-teal-500 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-200 border border-teal-500/30"
           >
             Go to Dashboard
           </button>
@@ -172,25 +179,21 @@ export default function HedgeFundQuestionnaire({
     <>
       {
         loading ? (
-          <>
-            <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 dark overflow-x-hidden flex items-center justify-center">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
-                <p className="text-zinc-400 font-medium">
-                  Submitting...
-                </p>
-              </div>
+          <div className="min-h-screen w-full bg-[#001C1B] dark overflow-x-hidden flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-teal-500 border-t-transparent mx-auto mb-4"></div>
+              <p className="text-zinc-400 font-medium">Submitting...</p>
             </div>
-          </>
-        ) :
-          <div className="min-h-screen w-full bg-gradient-to-br from-black via-zinc-900 to-neutral-900 p-4 z-50 fixed top-0 left-0 flex items-center justify-center">
+          </div>
+        ) : (
+          <div className="min-h-screen w-full bg-[#001C1B] p-4 z-50 fixed top-0 left-0 flex items-center justify-center overflow-y-auto scrollbar-minimal scroll-smooth">
             <div className="max-w-2xl mx-auto w-full relative">
               {/* Header */}
               <div className="flex items-center mb-4">
                 {showBackButton && (
                   <button
                     onClick={onClose}
-                    className="flex items-center space-x-2 text-zinc-400 hover:text-white transition-colors"
+                    className="flex items-center space-x-2 text-zinc-400 hover:text-teal-400 transition-colors"
                   >
                     <ArrowLeft className="h-5 w-5" />
                     <span>Back</span>
@@ -199,15 +202,15 @@ export default function HedgeFundQuestionnaire({
               </div>
 
               {/* Scrollable Card */}
-              <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl p-8 shadow-2xl max-h-[80vh] overflow-y-auto">
+              <div className="bg-[#0a2525]/90 backdrop-blur-sm border border-white/10 rounded-2xl p-8 shadow-xl max-h-[80vh] overflow-y-auto scrollbar-minimal scroll-smooth">
                 <div className="text-center mb-8">
                   <h1 className="text-3xl font-bold text-white mb-4">Hedge Fund Questionnaire</h1>
                   <p className="text-zinc-400">
                     Help us understand your investment profile to provide personalized hedge fund recommendations.
                   </p>
                   {isEditing && (
-                    <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                      <p className="text-blue-400 font-medium">
+                    <div className="mt-4 p-4 bg-teal-500/10 border border-teal-500/20 rounded-lg">
+                      <p className="text-teal-400 font-medium">
                         You've already submitted the questionnaire. You can still edit your response.
                       </p>
                     </div>
@@ -218,18 +221,18 @@ export default function HedgeFundQuestionnaire({
                   <div className="relative pt-1">
                     <div className="flex mb-2 items-center justify-between">
                       <div>
-                        <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
+                        <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-teal-300 bg-teal-500/20">
                           Progress
                         </span>
                       </div>
                       <div className="text-right">
-                        <span className="text-xs font-semibold inline-block text-blue-600">
+                        <span className="text-xs font-semibold text-teal-300">
                           {Math.round(progress)}%
                         </span>
                       </div>
                     </div>
-                    <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-blue-200">
-                      <div style={{ width: `${progress}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500"></div>
+                    <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-white/10">
+                      <div style={{ width: `${progress}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-teal-500 rounded"></div>
                     </div>
                   </div>
                 </div>
@@ -313,7 +316,7 @@ export default function HedgeFundQuestionnaire({
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-zinc-600 disabled:to-zinc-700 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:transform-none"
+                      className="w-full bg-teal-600 hover:bg-teal-500 disabled:bg-zinc-700 disabled:text-zinc-400 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-200 border border-teal-500/30"
                     >
                       {loading ? (isEditing ? "Updating..." : "Submitting...") : (isEditing ? "Update Questionnaire" : "Submit Questionnaire")}
                     </button>
@@ -322,6 +325,7 @@ export default function HedgeFundQuestionnaire({
               </div>
             </div>
           </div>
+        )
       }
     </>
   );

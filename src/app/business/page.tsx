@@ -3,7 +3,7 @@
 import React from "react";
 import { FaBuilding } from "react-icons/fa";
 import WalletPageBase, { WalletPageConfig } from "@/components/wallet/WalletPageBase";
-import MiniClarkChat from '@/components/MiniClarkChat';
+import MiniHedgeFundChat from '@/components/MiniHedgeFundChat';
 
 export default function BusinessPage() {
   const config: WalletPageConfig = {
@@ -14,12 +14,11 @@ export default function BusinessPage() {
     useERC20Modal: true,
     showChatToggle: true,
     renderChatComponent: ({ userId, onBalanceRefresh, onBalanceFlicker, onTransactionRefresh }) => (
-      <MiniClarkChat
+      <MiniHedgeFundChat
         userId={userId}
         onBalanceRefresh={onBalanceRefresh}
         onBalanceFlicker={onBalanceFlicker}
         onTransactionRefresh={onTransactionRefresh}
-        showInputOnly={true}
       />
     ),
     renderAdditionalActionButtons: (push) => (

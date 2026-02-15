@@ -32,7 +32,6 @@ export const BalanceStatusIndicator: React.FC<BalanceStatusIndicatorProps> = ({
 }) => {
   const isDeposit = type === 'deposit';
 
-  // Get stage-specific icon and message
   const getStageDisplay = () => {
     switch (stage) {
       case 'approving':
@@ -96,7 +95,6 @@ export const BalanceStatusIndicator: React.FC<BalanceStatusIndicatorProps> = ({
 
   const display = getStageDisplay();
 
-  // Don't show anything if idle
   if (stage === 'idle' || !display) {
     return (
       <div className="flex items-center gap-2 bg-purple-500/20 text-purple-300 px-3 py-1 rounded-lg border border-purple-500/30">
@@ -110,7 +108,6 @@ export const BalanceStatusIndicator: React.FC<BalanceStatusIndicatorProps> = ({
 
   return (
     <div className="flex flex-col items-end gap-1">
-      {/* Main Balance Badge with Status */}
       <motion.div
         initial={{ scale: 1 }}
         animate={
@@ -129,7 +126,6 @@ export const BalanceStatusIndicator: React.FC<BalanceStatusIndicatorProps> = ({
         }
         className={`flex items-center gap-2 px-3 py-1 rounded-lg border ${display.bgColor} ${display.borderColor}`}
       >
-        {/* Spinning icon for loading states */}
         {isLoading ? (
           <motion.div
             animate={{ rotate: 360 }}
@@ -147,7 +143,6 @@ export const BalanceStatusIndicator: React.FC<BalanceStatusIndicatorProps> = ({
           </motion.div>
         )}
 
-        {/* Balance with shimmer effect */}
         {showShimmer && isLoading ? (
           <div className="relative">
             <span className="text-sm font-semibold text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-white to-purple-300 animate-shimmer whitespace-nowrap">
@@ -161,7 +156,6 @@ export const BalanceStatusIndicator: React.FC<BalanceStatusIndicatorProps> = ({
         )}
       </motion.div>
 
-      {/* Status Message */}
       <motion.div
         initial={{ opacity: 0, y: -5 }}
         animate={{ opacity: 1, y: 0 }}
@@ -181,7 +175,6 @@ export const BalanceStatusIndicator: React.FC<BalanceStatusIndicatorProps> = ({
         </span>
       </motion.div>
 
-      {/* Progress Bar */}
       {display.progress > 0 && (
         <div className="w-full h-1 bg-zinc-800/50 rounded-full overflow-hidden">
           <motion.div

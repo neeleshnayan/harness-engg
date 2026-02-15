@@ -3,20 +3,28 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
 import agentsApi from '@/lib/agents_api'
 import { parseErrorMessage } from '@/lib/parseError'
 import { ChatMessage } from '@/app/clark/types'
 import { categories } from '@/app/clark/constants'
 import ResultsDisplay from '@/app/clark/components/ResultsDisplay'
+import PromptGuideModal from '@/app/clark/components/PromptGuideModal'
+import ChatInputBar from '@/app/clark/components/ChatInterface'
 import CategoryTiles from '@/app/clark/components/CategoryTiles'
+import { createAssistantMessage } from '@/app/clark/utils/createAssistantMessage'
 
 interface MiniHedgeFundChatProps {
   userId?: string
+  onBalanceRefresh?: () => void
+  onBalanceFlicker?: () => void
+  onTransactionRefresh?: () => void
 }
 
 export default function MiniHedgeFundChat({
   userId = '',
+  onBalanceRefresh,
+  onBalanceFlicker,
+  onTransactionRefresh,
 }: MiniHedgeFundChatProps) {
   const router = useRouter()
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -27,16 +35,14 @@ export default function MiniHedgeFundChat({
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const feedRef = useRef<HTMLDivElement>(null)
-  
-  // Max height for scrolling when content is too long
-  const MAX_HEIGHT = 600 // Max height before scrolling kicks in
+  // Check if we should show tiles (no user messages or results)
+  const shouldShowTiles = !messages.some(m => m.type === 'user') &&
+    !messages.some(m => m.backtestResult || m.screenerResult || m.economicResult)
 
-  // Initialize session ID and username
   useEffect(() => {
     const newSessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
     setSessionId(newSessionId)
-    
-    // Extract username from localStorage
+
     const storedUserData = localStorage.getItem('userData')
     if (storedUserData) {
       try {
@@ -45,162 +51,69 @@ export default function MiniHedgeFundChat({
           setUserName(parsedData.username)
         }
       } catch (error) {
-        console.error('Error parsing user data:', error)
+        console.error('Error parsing user data', error)
       }
     }
   }, [])
 
-  // Auto-scroll to bottom when messages change
   useEffect(() => {
     if (feedRef.current) {
       feedRef.current.scrollTo({ top: feedRef.current.scrollHeight, behavior: 'smooth' })
     }
   }, [messages])
 
-  // Check if we should show tiles (no user messages or results)
-  const shouldShowTiles = !messages.some(m => m.type === 'user') && 
-    !messages.some(m => m.backtestResult || m.screenerResult || m.economicResult)
+  const buildQueryForCategory = (prompt: string, categoryId?: string | null) => {
+    if (!categoryId) return prompt
+    if (categoryId === 'technical') return `Technical analysis request: ${prompt}`
+    if (categoryId === 'strategy') return `Backtest request: ${prompt}`
+    return prompt
+  }
 
-  const createAssistantMessage = (payload: any): ChatMessage => {
-    const messageId = (Date.now() + Math.random()).toString()
-    let responseMessage: string =
-      payload?.message ?? "Sorry, I'm unable to process your request at the moment."
-    const rawData = payload?.data
-
-    const backtestResult = rawData?.backtest_result ?? rawData?.backtestResult
-    const screenerResult =
-      rawData && rawData?.screener_type && rawData.screener_type !== 'economic'
-        ? rawData
-        : undefined
-    const economicResult =
-      rawData && rawData?.screener_type === 'economic' ? rawData : undefined
-    const regulationResult = rawData?.regulation_result ?? rawData?.regulationResult
-    if (regulationResult) {
-      responseMessage = ''
-    }
-
-    const rawParameterRequest = payload?.parameter_request
-    const parameterRequest = rawParameterRequest
-      ? {
-          service: rawParameterRequest.service,
-          actionType: rawParameterRequest.action_type,
-          prompt: rawParameterRequest.prompt,
-          missingParameters: rawParameterRequest.missing_parameters ?? {},
-          receivedParameters: rawParameterRequest.received_parameters ?? {},
-          requiredParameters: rawParameterRequest.required_parameters ?? {},
-          context: rawParameterRequest.context ?? {},
-        }
-      : undefined
-
-    return {
-      id: messageId,
-      type: 'assistant',
-      content: responseMessage,
-      timestamp: new Date(),
-      parsedIntent: payload?.parsed_intent,
-      success: payload?.success ?? false,
-      backtestResult,
-      screenerResult,
-      economicResult,
-      regulationResult,
-      source: payload?.source ?? rawData?.source,
-      capabilitiesSummary: payload?.capabilities_summary ?? rawData?.capabilities_summary,
-      parameterRequest,
+  const runQuery = async (query: string, userMessage?: ChatMessage) => {
+    setIsLoading(true)
+    try {
+      const response = await agentsApi.post('/api/v1/agents/query', {
+        query,
+        user_id: userId,
+        username: userName || 'krypton',
+        session_id: sessionId,
+      })
+      const payload = response.data
+      if (payload?.success && payload?.parsed_intent?.action === 'send_usdc' && (payload.parsed_intent.confidence ?? 0) > 0.7) {
+        onBalanceFlicker?.()
+        onBalanceRefresh?.()
+        onTransactionRefresh?.()
+      }
+      const assistantMessage = createAssistantMessage(payload)
+      setMessages(prev => [...prev, assistantMessage])
+    } catch (error) {
+      console.error('Hedge Fund Chat API error:', error)
+      const content = parseErrorMessage(error, 'Sorry, I encountered an error processing your request. Please try again.')
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant',
+        content,
+        timestamp: new Date(),
+        success: false,
+      }])
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const handleSendMessage = async () => {
-    if (!inputValue.trim() || isLoading) return
+    const query = inputValue.trim()
+    if (!query || isLoading) return
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       type: 'user',
-      content: inputValue,
+      content: query,
       timestamp: new Date(),
     }
-
     setMessages(prev => [...prev, userMessage])
     setInputValue('')
-    setIsLoading(true)
-    
-    try {
-      const response = await agentsApi.post('/api/v1/agents/query', {
-        query: inputValue,
-        user_id: userId,
-        username: userName,
-        session_id: sessionId
-      })
-
-      const payload = response.data
-      const assistantMessage = createAssistantMessage(payload)
-      setMessages(prev => [...prev, assistantMessage])
-    } catch (error) {
-      console.error('Hedge Fund Chat API error:', error)
-      const content = parseErrorMessage(error, 'Sorry, I encountered an error processing your request. Please try again.')
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        type: 'assistant',
-        content,
-        timestamp: new Date(),
-        success: false,
-      }])
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const buildQueryForCategory = (prompt: string, categoryId?: string | null) => {
-    if (!categoryId) return prompt
-    if (categoryId === 'technical') {
-      return `Technical analysis request: ${prompt}`
-    }
-    if (categoryId === 'strategy') {
-      return `Backtest request: ${prompt}`
-    }
-    return prompt
-  }
-
-  const handlePromptClick = async (prompt: string, categoryId?: string | null) => {
-    const routedPrompt = buildQueryForCategory(prompt, categoryId ?? null)
-
-    setSelectedCategory(null)
-    setIsPromptModalOpen(false)
-    setInputValue('')
-    
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      type: 'user',
-      content: prompt,
-      timestamp: new Date(),
-    }
-
-    setMessages(prev => [...prev, userMessage])
-    setIsLoading(true)
-    
-    try {
-      const response = await agentsApi.post('/api/v1/agents/query', {
-        query: routedPrompt,
-        user_id: userId,
-        username: userName,
-        session_id: sessionId
-      })
-
-      const payload = response.data
-      const assistantMessage = createAssistantMessage(payload)
-      setMessages(prev => [...prev, assistantMessage])
-    } catch (error) {
-      console.error('Hedge Fund Chat API error:', error)
-      const content = parseErrorMessage(error, 'Sorry, I encountered an error processing your request. Please try again.')
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        type: 'assistant',
-        content,
-        timestamp: new Date(),
-        success: false,
-      }])
-    } finally {
-      setIsLoading(false)
-    }
+    await runQuery(query, userMessage)
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -210,13 +123,28 @@ export default function MiniHedgeFundChat({
     }
   }
 
+  const handlePromptClick = async (prompt: string, categoryId?: string | null) => {
+    const routedPrompt = buildQueryForCategory(prompt, categoryId ?? null)
+    setSelectedCategory(null)
+    setIsPromptModalOpen(false)
+    setInputValue('')
+
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      type: 'user',
+      content: prompt,
+      timestamp: new Date(),
+    }
+    setMessages(prev => [...prev, userMessage])
+    await runQuery(routedPrompt, userMessage)
+  }
+
   const handleExpand = () => {
-    // Store messages and sessionId before navigating
     if (messages.length > 0) {
       try {
         const messagesToStore = messages.map(msg => ({
           ...msg,
-          timestamp: msg.timestamp.toISOString() // Convert Date to string for storage
+          timestamp: msg.timestamp.toISOString(),
         }))
         localStorage.setItem('clark_expanded_messages', JSON.stringify(messagesToStore))
         localStorage.setItem('clark_expanded_session_id', sessionId)
@@ -227,155 +155,81 @@ export default function MiniHedgeFundChat({
     router.push('/clark')
   }
 
+  const promptsModal = (
+    <PromptGuideModal
+      open={isPromptModalOpen}
+      onOpenChange={setIsPromptModalOpen}
+      categories={categories}
+      selectedCategory={selectedCategory}
+      onSelectCategory={setSelectedCategory}
+      onPromptClick={(prompt, categoryId) => handlePromptClick(prompt, categoryId)}
+      isLoading={isLoading}
+    />
+  )
+
   return (
-    <div
-      className="relative w-full rounded-2xl sm:rounded-3xl bg-transparent bg-no-repeat bg-cover bg-center backdrop-blur-3xl overflow-hidden shadow-2xl border border-white/10"
-      style={{ backgroundImage: "url('/wallet-bg.svg')" }}
-    >
-      {/* Expand button overlay - fixed at top-right corner, doesn't scroll */}
-      <Button
-        onClick={handleExpand}
-        variant="ghost"
-        size="sm"
-        className="absolute top-2 right-2 z-10 h-8 w-8 p-0 text-white/80 hover:text-white"
-        aria-label="Expand to full Clark view"
-      >
-        <img src="/maximize.svg" alt="Maximize" className="h-4 w-4" />
-      </Button>
-      
-      {/* Messages area - grows naturally with content, scrollable when exceeding max height */}
-      <div
-        ref={feedRef}
-        className="overflow-y-auto px-4 py-3 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent"
-        style={{
-          maxHeight: `${MAX_HEIGHT}px`,
-        }}
-      >
-        {shouldShowTiles ? (
-          <div className="dark">
-            {/* Clark Logo */}
-            <div className="flex items-center justify-center mb-4 mt-2">
-              <img 
-                src="/Krypton Clark.svg"
-                alt="Clark" 
-                className="h-16 w-16 sm:h-20 sm:w-20 drop-shadow-[0_4px_16px_rgba(162,89,247,0.3)]" 
-              />
-            </div>
-            {/* Category Tiles */}
-            <CategoryTiles
-              categories={categories}
-              selectedCategory={selectedCategory}
-              onCategorySelect={(categoryId) => setSelectedCategory(categoryId || null)}
-              onPromptClick={handlePromptClick}
-              isLoading={isLoading}
-            />
-          </div>
-        ) : messages.length > 0 ? (
-          <div className="dark">
-            <div className="space-y-3">
-              <ResultsDisplay messages={messages} isLoading={isLoading} />
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center justify-center h-full text-white/60">
-            <div className="text-center">
-              <img src="/clark.svg" alt="Clark" className="h-14 w-14 mx-auto mb-2" />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Input area */}
-      <div className="px-4 py-3 border-t border-white/10 bg-white/5 backdrop-blur-sm">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            aria-label="Open prompt library"
-            onClick={() => setIsPromptModalOpen(true)}
-            className="h-10 w-10 flex items-center justify-center rounded-xl backdrop-blur-sm transition-all duration-200 flex-shrink-0"
-            style={{
-              background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(161, 207, 211, 0.06) 100%)',
-            }}
-          >
-            <img src="/clark process.svg" alt="Prompts" className="h-5 w-5" />
-          </button>
-          <Button
-            onClick={() => router.push('/clark')}
-            className="flex-1 px-4 py-2 backdrop-blur-sm text-white/90 hover:text-white px-4 sm:px-6 py-2 rounded-xl border-none transition-all duration-200 text-xs sm:text-sm w-full sm:w-auto justify-center flex items-center gap-2 h-10 text-sm"
-            style={{
-              background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.36) 0%, rgba(161, 207, 211, 0.06) 100%)',
-            }}
-          >
-            <span>Ask Clark</span>
-            <span>→</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Prompts modal */}
-      <Dialog open={isPromptModalOpen} onOpenChange={setIsPromptModalOpen}>
-        <DialogContent className="sm:max-w-2xl bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 backdrop-blur-xl rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] border-none">
-          <div className="max-h-[70vh] overflow-y-auto px-2">
-            {(!selectedCategory) && (
-              <div className="w-full flex flex-col items-center">
-                <div className="w-full max-w-md space-y-3">
-                  {categories.map((category) => (
-                    <button
-                      key={category.id}
-                      onClick={() => setSelectedCategory(category.id)}
-                      className="w-full text-left p-4 rounded-xl backdrop-blur-sm transition-all duration-200"
-                      style={{
-                        background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.36) 0%, rgba(161, 207, 211, 0.06) 100%)',
-                      }}
-                    >
-                      <div className="flex items-center gap-3">
-                        {category.icon.startsWith('/') ? (
-                          <img src={category.icon} alt={category.title} className="h-5 w-5" />
-                        ) : (
-                          <span className="text-lg">{category.icon}</span>
-                        )}
-                        <div className="min-w-0">
-                          <div className="text-white font-medium truncate">{category.title}</div>
-                          <div className="text-xs text-white/60 truncate">{category.description}</div>
+    <>
+      <div className="relative w-full flex flex-col rounded-2xl bg-[#001C1B] overflow-hidden shadow-xl max-h-[70vh]">
+        <Button
+          onClick={handleExpand}
+          variant="ghost"
+          size="sm"
+          className="absolute top-2 right-2 z-10 h-8 w-8 p-0 text-teal-200/80 hover:text-white hover:bg-teal-700/40 rounded-full border border-teal-600/50 transition-colors"
+          aria-label="Expand to full Clark view"
+        >
+          <img src="/maximize.svg" alt="Maximize" className="h-4 w-4" />
+        </Button>
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <div className="dark flex-1 min-h-0 overflow-hidden">
+            <div ref={feedRef} className="scrollbar-minimal h-full max-h-[50vh] overflow-y-auto scroll-smooth px-3 py-3">
+              <div className="pb-6">
+                {shouldShowTiles ? (
+                  <>
+                    <div className="flex items-center justify-center mb-4 mt-2">
+                      <img
+                        src="/Krypton Clark.svg"
+                        alt="Clark"
+                        className="h-14 w-14 sm:h-16 sm:w-16 drop-shadow-[0_4px_16px_rgba(162,89,247,0.3)]"
+                      />
+                    </div>
+                    <CategoryTiles
+                      categories={categories}
+                      selectedCategory={selectedCategory}
+                      onCategorySelect={(categoryId) => setSelectedCategory(categoryId || null)}
+                      onPromptClick={handlePromptClick}
+                      isLoading={isLoading}
+                    />
+                  </>
+                ) : (
+                  <>
+                    {isLoading && messages.length === 0 && (
+                      <div className="flex gap-2 justify-start items-center py-4">
+                        <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                          <img src="/clark process.svg" alt="Clark" className="h-8 w-8 animate-pulse" />
+                        </div>
+                        <div className="rounded-2xl px-4 py-3 bg-teal-900/30 border border-teal-700/40 text-white/80 text-sm">
+                          Thinking…
                         </div>
                       </div>
-                    </button>
-                  ))}
-                </div>
+                    )}
+                    <ResultsDisplay messages={messages} isLoading={isLoading} username={userName} />
+                  </>
+                )}
               </div>
-            )}
-            {selectedCategory && (
-              <div className="w-full flex flex-col items-center space-y-4">
-                <div className="w-full max-w-md">
-                  <button
-                    onClick={() => setSelectedCategory(null)}
-                    className="flex items-center gap-2 text-white/80 hover:text-white text-sm mb-4"
-                  >
-                    <span aria-hidden>←</span> Back to categories
-                  </button>
-                  <div className="text-white font-medium mb-2">{categories.find(c => c.id === selectedCategory)?.title}</div>
-                  <div className="space-y-2">
-                    {categories.find(c => c.id === selectedCategory)?.prompts.map((prompt, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handlePromptClick(prompt, selectedCategory)}
-                        disabled={isLoading}
-                        className="w-full text-left p-3 rounded-xl backdrop-blur-sm transition-all duration-200 text-sm text-white/90 hover:text-white disabled:opacity-50"
-                        style={{
-                          background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(161, 207, 211, 0.06) 100%)',
-                        }}
-                      >
-                        {prompt}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+          <ChatInputBar
+            inputValue={inputValue}
+            setInputValue={setInputValue}
+            isLoading={isLoading}
+            onSendMessage={handleSendMessage}
+            onKeyPress={handleKeyPress}
+            onOpenPromptModal={() => { setSelectedCategory(null); setIsPromptModalOpen(true) }}
+            embedded
+          />
+        </div>
+      </div>
+      {promptsModal}
+    </>
   )
 }
-

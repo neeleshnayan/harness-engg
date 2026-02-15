@@ -126,6 +126,11 @@ export function createAssistantMessage(payload: unknown): ChatMessage {
       }
     : undefined
 
+  const screenerResult = rawData && rawData?.screener_type && rawData.screener_type !== 'economic'
+    ? rawData
+    : undefined
+  const economicResult = rawData && rawData?.screener_type === 'economic' ? rawData : undefined
+
   const rawParameterRequest = p?.parameter_request as Record<string, unknown> | undefined
   const parameterRequest = rawParameterRequest
     ? {
@@ -149,8 +154,8 @@ export function createAssistantMessage(payload: unknown): ChatMessage {
     backtestResult: backtestResult as ChatMessage['backtestResult'],
     priceHistoryResult: priceHistoryResult as ChatMessage['priceHistoryResult'],
     balanceResult: balanceResult as ChatMessage['balanceResult'],
-    screenerResult: undefined,
-    economicResult: undefined,
+    screenerResult: screenerResult as ChatMessage['screenerResult'],
+    economicResult: economicResult as ChatMessage['economicResult'],
     regulationResult: regulationResult as ChatMessage['regulationResult'],
     source: (p?.source ?? rawData?.source) as string | undefined,
     capabilitiesSummary: (p?.capabilities_summary ?? rawData?.capabilities_summary) as string | undefined,

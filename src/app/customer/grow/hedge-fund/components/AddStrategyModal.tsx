@@ -43,9 +43,6 @@ export function AddStrategyModal({ isOpen, onClose, onSuccess }: AddStrategyModa
         const fetchConfig = async () => {
             if (!isOpen) return;
             try {
-                // Import api dynamically or use fetch
-                // Using fetch for simplicity here, or use logic similar to other components
-                // Assuming backend runs on same host or proxied
                 const { hedgeFundApi } = await import("@/lib/api");
                 const res = await hedgeFundApi.get("/api/v1/config/contracts");
                 if (res.data && res.data.data && res.data.data.yearn_factory_address) {
@@ -75,7 +72,6 @@ export function AddStrategyModal({ isOpen, onClose, onSuccess }: AddStrategyModa
                         params: [{ chainId: SEPOLIA_CHAIN_ID }],
                     });
                 } catch (switchError: any) {
-                    // This error code 4902 means the chain has not been added to MetaMask.
                     if (switchError.code === 4902) {
                         await window.ethereum.request({
                             method: 'wallet_addEthereumChain',
@@ -88,7 +84,7 @@ export function AddStrategyModal({ isOpen, onClose, onSuccess }: AddStrategyModa
                                         symbol: 'SEP',
                                         decimals: 18,
                                     },
-                                    rpcUrls: ['https://sepolia.infura.io/v3/'], // Public or User provided
+                                    rpcUrls: ['https://sepolia.infura.io/v3/'],
                                     blockExplorerUrls: ['https://sepolia.etherscan.io'],
                                 },
                             ],
@@ -104,7 +100,6 @@ export function AddStrategyModal({ isOpen, onClose, onSuccess }: AddStrategyModa
         }
     };
 
-    // Symbol validation helper
     const validateSymbol = (symbol: string): boolean => {
         const regex = /^[A-Z0-9]{3,8}$/;
         return regex.test(symbol);
@@ -119,22 +114,15 @@ export function AddStrategyModal({ isOpen, onClose, onSuccess }: AddStrategyModa
                 throw new Error("Factory Address not loaded. Please refresh.");
             }
 
-            // 0. Ensure Network
             await checkAndSwitchNetwork();
 
-            // 1. Validate
             if (!formData.name || !formData.symbol || !formData.assetAddress || !formData.targetAddress || !formData.poolAddress) {
                 throw new Error("Please fill all required fields");
             }
 
-            // 1b. Validate Symbol Format
             if (!validateSymbol(formData.symbol)) {
                 throw new Error("Symbol must be 3-8 uppercase letters/numbers, no spaces");
             }
-
-            // 2. Interact with Contract (Mock for now or use wagmi/ethers)
-            // Since we don't have wagmi context here yet, we assume the user connects their wallet
-            // We need to implement writeContract here. Use existing hooks if available or generic window.ethereum
 
             if (!window.ethereum) throw new Error("No wallet found");
 
@@ -147,24 +135,17 @@ export function AddStrategyModal({ isOpen, onClose, onSuccess }: AddStrategyModa
 
             const factory = new ethers.Contract(factoryAddress, factoryAbi, signer);
 
-            // New GenericStrategyFactory takes 5 params - factory manages ownership internally
             const tx = await factory.deployStrategy(
                 formData.assetAddress,
                 formData.name,
-                formData.symbol.toUpperCase(), // Pass validated symbol
+                formData.symbol.toUpperCase(),
                 formData.targetAddress,
-                formData.poolAddress // Pass Pool Address
+                formData.poolAddress
             );
-
 
             setTxHash(tx.hash);
 
-            // Wait for receipt
             const receipt = await tx.wait();
-
-            // Parse Event to get Strategy Address
-            // Event: StrategyDeployed(address indexed strategy, string name, address indexed asset, address indexed targetToken, address vault)
-            // Topic 0 is hash of signature.
 
             const iface = new ethers.Interface(factoryAbi.concat([
                 "event StrategyDeployed(address indexed strategy, string name, string symbol, address indexed asset, address indexed targetToken, address pool)"
@@ -183,27 +164,29 @@ export function AddStrategyModal({ isOpen, onClose, onSuccess }: AddStrategyModa
                 }
             }
 
-            // If we can't find it (e.g. log missing), we might assume success or fallback?
-            // For now, let's try to proceed.
             if (!strategyAddress) {
-                console.warn("Could not parse Strategy Address from logs. Using mock or failing.");
-                // throw new Error("Could not parse Strategy Address from logs");
-                // Only for robustness in this messy refactor state:
                 strategyAddress = "0x0000000000000000000000000000000000000000";
             }
 
-            // 3. Register Backend
-            // Import api from lib
             const { hedgeFundApi } = await import("@/lib/api");
+
+            let userId = "user_from_context";
+            try {
+                const stored = localStorage.getItem("userData");
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    if (parsed?.user_id) userId = parsed.user_id;
+                }
+            } catch { /* ignore */ }
 
             await hedgeFundApi.post("/api/v1/strategies", {
                 name: formData.name,
-                symbol: formData.symbol.toUpperCase(), // User-provided, already validated
+                symbol: formData.symbol.toUpperCase(),
                 address: strategyAddress,
                 asset_address: formData.assetAddress,
                 target_address: formData.targetAddress,
-                pool_address: formData.poolAddress, // Send Pool Address
-                user_id: "user_from_context", // TODO: Get actual user ID
+                pool_address: formData.poolAddress,
+                user_id: userId,
                 tx_hash: tx.hash
             });
 

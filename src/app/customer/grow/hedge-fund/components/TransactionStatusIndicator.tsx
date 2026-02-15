@@ -6,7 +6,7 @@ import {
   getLikelihoodDisplay,
   TransactionStatusUpdate,
   getTransactionStageMessage,
-} from '../../services/transactionLikelihood';
+} from '@/services/transactionLikelihood';
 
 interface TransactionStatusIndicatorProps {
   likelihoodResult?: TransactionLikelihoodResult;
@@ -22,12 +22,11 @@ export const TransactionStatusIndicator: React.FC<TransactionStatusIndicatorProp
   const display = likelihoodResult ? getLikelihoodDisplay(likelihoodResult.likelihood) : null;
   const stageMessage = getTransactionStageMessage(status.stage);
 
-  // Color coding based on stage and likelihood
   const getStageColor = () => {
-    if (status.stage === 'failed') return '#EF4444'; // red
-    if (status.stage === 'confirmed') return '#10B981'; // green
+    if (status.stage === 'failed') return '#EF4444';
+    if (status.stage === 'confirmed') return '#10B981';
     if (display) return display.color;
-    return '#3B82F6'; // blue (default)
+    return '#3B82F6';
   };
 
   const progressPercentage = {
@@ -41,7 +40,6 @@ export const TransactionStatusIndicator: React.FC<TransactionStatusIndicatorProp
 
   return (
     <div className="transaction-status-indicator">
-      {/* Progress Bar */}
       <div className="progress-container">
         <div className="progress-bar-bg">
           <motion.div
@@ -56,7 +54,6 @@ export const TransactionStatusIndicator: React.FC<TransactionStatusIndicatorProp
         </div>
       </div>
 
-      {/* Status Message */}
       <div className="status-message-container">
         <div className="status-icon-wrapper">
           {status.stage === 'confirming' || status.stage === 'broadcasting' ? (
@@ -90,7 +87,6 @@ export const TransactionStatusIndicator: React.FC<TransactionStatusIndicatorProp
         <div className="status-text">
           <p className="stage-message">{stageMessage}</p>
 
-          {/* Likelihood Indicator */}
           {likelihoodResult && status.stage !== 'confirmed' && status.stage !== 'failed' && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
@@ -109,7 +105,6 @@ export const TransactionStatusIndicator: React.FC<TransactionStatusIndicatorProp
         </div>
       </div>
 
-      {/* Warning Messages */}
       <AnimatePresence>
         {showDetails && likelihoodResult && likelihoodResult.warnings.length > 0 && (
           <motion.div
@@ -134,7 +129,6 @@ export const TransactionStatusIndicator: React.FC<TransactionStatusIndicatorProp
         )}
       </AnimatePresence>
 
-      {/* Transaction Hash (if available) */}
       {status.txHash && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -153,7 +147,6 @@ export const TransactionStatusIndicator: React.FC<TransactionStatusIndicatorProp
         </motion.div>
       )}
 
-      {/* Risk Factors Details (collapsible) */}
       {showDetails && likelihoodResult && status.stage === 'validating' && (
         <motion.div
           initial={{ opacity: 0 }}

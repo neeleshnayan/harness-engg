@@ -179,7 +179,7 @@ export default function CategoryTiles({
       {/* Prompts Modal */}
       {selectedCategory && (
         <div
-          className="fixed inset-0 bg-transparent backdrop-blur-sm z-50 flex items-end sm:items-center justify-center px-4 pb-28 sm:pb-8 sm:px-4 sm:pt-4"
+          className="fixed inset-0 bg-[#001C1B]/85 backdrop-blur-md z-50 flex items-end sm:items-center justify-center px-4 pb-28 sm:pb-8 sm:px-4 sm:pt-4"
           onClick={() => onCategorySelect('')}
         >
           <Card
