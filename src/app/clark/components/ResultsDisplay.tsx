@@ -291,7 +291,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
         <CardContent className="space-y-4">
           {summary && (
             <div
-              className="bg-zinc-900/40 border border-teal-700/30/40 rounded-xl p-4 text-sm text-white leading-relaxed"
+              className="bg-zinc-900/40 border border-teal-700/40 rounded-xl p-4 text-sm text-white leading-relaxed"
               dangerouslySetInnerHTML={{ __html: summaryHtml }}
             />
           )}
@@ -918,9 +918,9 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
             if (!revealedAssistantIds.has(nextAssistant.id)) return null
             return (
               <div className="flex justify-end">
-                <div className="max-w-[85%] rounded-xl px-4 py-3 bg-zinc-800/60 border border-teal-700/30/50 text-white">
+                <div className="max-w-[85%]">
                   <div className="text-xs uppercase tracking-wide text-teal-200/70 mb-1">Clark’s response</div>
-                  <div className="text-sm whitespace-pre-wrap leading-relaxed">{nextAssistant.content}</div>
+                  <div className="text-sm whitespace-pre-wrap leading-relaxed text-white/95">{nextAssistant.content}</div>
                 </div>
               </div>
             )
@@ -1056,8 +1056,8 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                       Clark
                     </span>
                   </div>
-                  <div className="mt-1 ml-10 max-w-[85%] text-sm leading-relaxed text-white">
-                    {/* Render optional source label, but hide noisy internal tags */}
+                  <div className="mt-1 ml-10 max-w-[85%]">
+                    {/* No bubble: Clark's output is plain text on the feed background */}
                     {(() => {
                       const sourceLabel = formatSourceLabel(message.source)
                       if (!sourceLabel) return null
@@ -1067,16 +1067,19 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                         </div>
                       )
                     })()}
-                    {/* Render assistant message content as markdown-formatted HTML */}
                     <div
-                      className="prose prose-invert max-w-none"
-                      dangerouslySetInnerHTML={{ __html: markdownToHtml(message.content) }}
-                    />
-                    {message.capabilitiesSummary && (
-                      <div className="mt-3 text-xs text-white/90 whitespace-pre-wrap leading-relaxed">
-                        {message.capabilitiesSummary}
-                      </div>
-                    )}
+                      className="text-sm leading-relaxed text-white/95"
+                    >
+                      <div
+                        className="prose prose-invert max-w-none prose-p:mb-1.5 prose-ul:my-2 prose-li:my-0.5"
+                        dangerouslySetInnerHTML={{ __html: markdownToHtml(message.content) }}
+                      />
+                      {message.capabilitiesSummary && (
+                        <div className="mt-3 text-xs text-white/80 whitespace-pre-wrap leading-relaxed">
+                          {message.capabilitiesSummary}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </>
               )}
@@ -1097,7 +1100,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                         Clark
                       </span>
                     </div>
-                    <div className="mt-1 ml-10 max-w-[85%] text-sm leading-relaxed text-white">
+                    <div className="mt-1 ml-10 max-w-[85%] text-sm leading-relaxed text-white/95">
                       {lastLine}
                     </div>
                   </>
@@ -1117,14 +1120,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                   priceHistoryResult.data_points.length > 0
                 
                 if (!hasPriceHistory || !priceHistoryResult) return null
-                
-                // Debug logging
-                console.log('Rendering price history chart:', {
-                  token: priceHistoryResult.token,
-                  dataPointsLength: priceHistoryResult.data_points.length,
-                  lookbackDays: priceHistoryResult.lookback_days,
-                })
-                
+
                 // Display EUR/GBP (strip k prefix if present for consistency)
                 const displayToken = (priceHistoryResult.token || '').replace(/^k/i, '') || priceHistoryResult.token
 
@@ -1270,15 +1266,17 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
           })()}
         </div>
       ))}
+      {/* Shown when loading and conversation has started; no bubble, same as Clark's text output */}
       {isLoading && (
-        <div className="flex gap-3 justify-start">
-          <div className="bg-zinc-800/60 border border-teal-700/30/50 rounded-2xl p-4 backdrop-blur-sm">
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin text-teal-400" />
-              <span className="text-sm text-white">Processing your request...</span>
+        <>
+          <div className="flex gap-2 justify-start items-center">
+            <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+              <img src="/clark process.svg" alt="Clark" className="h-8 w-8 animate-pulse" />
             </div>
+            <span className="text-xs font-medium" style={{ color: '#90E7EE' }}>Clark</span>
           </div>
-        </div>
+          <div className="mt-1 ml-10 text-sm text-teal-300/90">Processing…</div>
+        </>
       )}
     </div>
   )
@@ -1304,18 +1302,85 @@ const markdownToHtml = (markdown: string): string => {
       .replace(/_(.+?)_/g, '<em>$1</em>')
   }
 
-  const lines = markdown.split(/\n+/)
+  const lines = markdown.split(/\n/)
   const htmlParts: string[] = []
   let inList = false
+  let inTable = false
+  let tableHeadDone = false
 
-  lines.forEach((line) => {
+  const closeTable = () => {
+    if (inTable) {
+      if (tableHeadDone) {
+        htmlParts.push('</tbody>')
+      } else {
+        htmlParts.push('</thead>')
+      }
+      htmlParts.push('</table>')
+      inTable = false
+      tableHeadDone = false
+    }
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
     const trimmed = line.trim()
+
     if (!trimmed) {
       if (inList) {
         htmlParts.push('</ul>')
         inList = false
       }
-      return
+      closeTable()
+      continue
+    }
+
+    // Headers (## or ###)
+    const h2Match = trimmed.match(/^## (.+)$/)
+    const h3Match = trimmed.match(/^### (.+)$/)
+    if (h2Match) {
+      if (inList) { htmlParts.push('</ul>'); inList = false }
+      closeTable()
+      htmlParts.push(`<h2 class="text-lg font-semibold text-white mt-4 mb-2">${applyInline(h2Match[1])}</h2>`)
+      continue
+    }
+    if (h3Match) {
+      if (inList) { htmlParts.push('</ul>'); inList = false }
+      closeTable()
+      htmlParts.push(`<h3 class="text-base font-semibold text-white mt-3 mb-1">${applyInline(h3Match[1])}</h3>`)
+      continue
+    }
+
+    // Table: | a | b | (optional separator row |---|---|)
+    if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+      if (inList) { htmlParts.push('</ul>'); inList = false }
+      const rawCells = trimmed.slice(1, -1).split('|').map((c) => c.trim())
+      const isSeparator = rawCells.every((c) => /^[-:]+$/.test(c))
+      if (isSeparator) {
+        if (inTable && !tableHeadDone) {
+          htmlParts.push('</thead><tbody>')
+          tableHeadDone = true
+        }
+        continue
+      }
+      const cells = rawCells.map((c) => applyInline(c))
+      if (!inTable) {
+        htmlParts.push('<table class="w-full border-collapse border border-teal-700/40 my-2 text-sm"><thead><tr class="border-b border-teal-600/50 bg-teal-900/30">')
+        inTable = true
+      }
+      const useTh = !tableHeadDone
+      if (useTh) {
+        htmlParts.push(`<tr class="border-b border-teal-800/30">${cells.map((c) => `<th class="text-left py-2 px-3 font-semibold text-teal-200">${c}</th>`).join('')}</tr>`)
+        tableHeadDone = true
+        htmlParts.push('</thead><tbody>')
+      } else {
+        const cellClass = 'text-left py-2 px-3 border-t border-teal-800/40 text-white/90'
+        htmlParts.push(`<tr class="border-b border-teal-800/30">${cells.map((c) => `<td class="${cellClass}">${c}</td>`).join('')}</tr>`)
+      }
+      continue
+    }
+
+    if (inTable) {
+      closeTable()
     }
 
     if (trimmed.startsWith('- ')) {
@@ -1329,13 +1394,12 @@ const markdownToHtml = (markdown: string): string => {
         htmlParts.push('</ul>')
         inList = false
       }
-      htmlParts.push(`<p>${applyInline(trimmed)}</p>`)
+      htmlParts.push(`<p class="mb-1">${applyInline(trimmed)}</p>`)
     }
-  })
-
-  if (inList) {
-    htmlParts.push('</ul>')
   }
+
+  if (inList) htmlParts.push('</ul>')
+  closeTable()
 
   return htmlParts.join('')
 }

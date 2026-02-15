@@ -1,9 +1,65 @@
 "use client"
 
-import React from 'react'
+import React, { useState } from 'react'
+import { Copy } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Category } from '../types'
+
+const promptRowGradient =
+  'linear-gradient(180deg, rgba(255, 255, 255, 0.36) 0%, rgba(161, 207, 211, 0.06) 100%)'
+
+function PromptRowWithCopy({
+  prompt,
+  isLoading,
+  onUse,
+}: {
+  prompt: string
+  isLoading: boolean
+  onUse: () => void
+}) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(prompt).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+  return (
+    <div
+      className="flex items-center gap-2 rounded-xl min-h-[60px] overflow-hidden group touch-manipulation"
+      style={{ background: promptRowGradient }}
+    >
+      <button
+        type="button"
+        onClick={onUse}
+        disabled={isLoading}
+        className="flex-1 w-full text-left p-4 rounded-xl transition-all duration-200 text-white disabled:opacity-50 disabled:cursor-not-allowed min-h-[60px] flex items-center"
+      >
+        <div className="flex items-start gap-3 w-full">
+          <span className="text-white/80 font-bold text-sm mt-1 flex-shrink-0">•</span>
+          <span className="flex-1 text-sm sm:text-base group-hover:text-white transition-colors leading-relaxed">
+            {prompt}
+          </span>
+        </div>
+      </button>
+      <button
+        type="button"
+        onClick={handleCopy}
+        aria-label={copied ? 'Copied' : 'Copy prompt'}
+        aria-live="polite"
+        className="flex-shrink-0 p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors mr-1"
+      >
+        {copied ? (
+          <span className="text-xs text-teal-300 font-medium">Copied!</span>
+        ) : (
+          <Copy className="h-4 w-4" />
+        )}
+      </button>
+    </div>
+  )
+}
 
 interface CategoryTilesProps {
   categories: Category[]
@@ -162,23 +218,12 @@ export default function CategoryTiles({
             <CardContent className="pt-4 p-4 sm:p-6 max-h-[calc(85vh-120px)] sm:max-h-[60vh] overflow-y-auto">
               <div className="space-y-3">
                     {categories.find(c => c.id === selectedCategory)?.prompts.map((prompt, index) => (
-                  <button
-                    key={index}
-                    onClick={() => onPromptClick(prompt, selectedCategory as string)}
-                    disabled={isLoading}
-                    className="w-full text-left p-4 rounded-xl transition-all duration-200 text-white disabled:opacity-50 disabled:cursor-not-allowed group touch-manipulation min-h-[60px] flex items-center"
-                    style={{
-                      background:
-                        'linear-gradient(180deg, rgba(255, 255, 255, 0.36) 0%, rgba(161, 207, 211, 0.06) 100%)',
-                    }}
-                  >
-                    <div className="flex items-start gap-3 w-full">
-                      <span className="text-white/80 font-bold text-sm mt-1 flex-shrink-0">•</span>
-                      <span className="flex-1 text-sm sm:text-base group-hover:text-white transition-colors leading-relaxed">
-                        {prompt}
-                      </span>
-                    </div>
-                  </button>
+                      <PromptRowWithCopy
+                        key={index}
+                        prompt={prompt}
+                        isLoading={isLoading}
+                        onUse={() => onPromptClick(prompt, selectedCategory as string)}
+                      />
                 ))}
               </div>
             </CardContent>

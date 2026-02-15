@@ -6,7 +6,6 @@ import { X, Clock, Zap, TrendingUp, Activity, BarChart3, Filter, Brain, Loader2,
 import { ChatMessage, AgentFlowGraph, AgentFlowStep } from '../types'
 import AgentFlow from './AgentFlow'
 import MemoriesTab from './MemoriesTab'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import agentsApi from '@/lib/agents_api'
 
 interface DevtoolsOverlayProps {
@@ -196,64 +195,61 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, use
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-md z-50"
             onClick={onClose}
           />
           
-          {/* Overlay Panel */}
+          {/* Overlay Panel - Apple-inspired: clean surfaces, generous spacing, soft shadows */}
           <motion.div
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed top-0 right-0 h-full w-3/4 bg-gradient-to-b from-[#1c2f2f]/95 to-[#0b1515]/95 backdrop-blur-xl border-l border-white/15 z-50 shadow-[0_20px_60px_rgba(0,0,0,0.6)] overflow-y-auto"
+            transition={{ type: 'spring', damping: 32, stiffness: 320 }}
+            className="fixed top-0 right-0 h-full w-full max-w-2xl bg-[#0d0d0d]/95 backdrop-blur-2xl z-50 overflow-y-auto"
+            style={{ boxShadow: '-4px 0 24px rgba(0,0,0,0.25)' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 bg-gradient-to-b from-[#1c2f2f]/95 to-[#0b1515]/95 backdrop-blur-xl border-b border-white/15 z-10">
-              <div className="flex items-center justify-between p-4">
-                <div>
-                  <h1 className="text-2xl font-bold text-white">Devtools</h1>
+            {/* Header */}
+            <div className="sticky top-0 z-10 bg-[#0d0d0d]/90 backdrop-blur-xl border-b border-white/[0.06]">
+              <div className="flex items-start justify-between gap-4 px-6 pt-6 pb-4">
+                <div className="min-w-0">
+                  <h1 className="text-[22px] font-semibold text-white tracking-tight">Devtools</h1>
                   {(userId || userName) && (
-                    <div className="flex items-center gap-3 mt-1 text-xs text-white/60">
-                      {userName && (
-                        <span className="text-teal-300">User: {userName}</span>
-                      )}
-                      {userId && (
-                        <span className="text-white/50">ID: {userId}</span>
-                      )}
-                    </div>
+                    <p className="mt-1.5 text-[13px] text-white/50 truncate">
+                      {userName && <span>{userName}</span>}
+                      {userId && userName && <span className="text-white/40"> · </span>}
+                      {userId && <span className="text-white/40 font-mono">{userId.slice(0, 12)}…</span>}
+                    </p>
                   )}
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 text-xs text-teal-200/80">
-                    <div className="px-2 py-1 bg-teal-900/40 backdrop-blur-sm border border-teal-700/30 rounded-lg">
-                      <span className="text-teal-100/90">Session: </span>
-                      <span className="text-teal-300">${sessionCost.toFixed(6)}</span>
-                    </div>
-                    <div className="px-2 py-1 bg-teal-900/40 backdrop-blur-sm border border-teal-700/30 rounded-lg">
-                      <span className="text-teal-100/90">Total: </span>
-                      <span className="text-cyan-300">${overallCost.toFixed(6)}</span>
-                    </div>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-white/[0.06] px-3 py-1.5 text-[13px] text-white/70">
+                      Session <span className="font-medium text-white/90">${sessionCost.toFixed(4)}</span>
+                    </span>
+                    <span className="rounded-full bg-white/[0.06] px-3 py-1.5 text-[13px] text-white/70">
+                      Total <span className="font-medium text-white/90">${overallCost.toFixed(4)}</span>
+                    </span>
                   </div>
                   <button
                     onClick={onClose}
-                    className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white transition-colors"
+                    className="flex items-center justify-center w-9 h-9 rounded-full bg-white/[0.08] hover:bg-white/[0.12] text-white/80 hover:text-white transition-colors"
                     aria-label="Close devtools"
                   >
-                    <X className="h-5 w-5" />
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
               </div>
               
-              {/* Tab Navigation */}
-              <div className="flex items-center gap-2 px-4 pb-4">
+              {/* Tab Navigation - segmented control style */}
+              <div className="flex mx-4 mb-0.5 p-1 rounded-xl bg-white/[0.06] w-fit">
                 <button
                   onClick={() => setActiveTab('agent-flow')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-colors border ${
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${
                     activeTab === 'agent-flow'
-                      ? 'bg-teal-900/40 text-teal-300 border-teal-700/30 hover:bg-teal-800/50'
-                      : 'bg-white/10 text-white/60 border-white/15 hover:bg-white/15'
+                      ? 'bg-white/10 text-white shadow-sm'
+                      : 'text-white/50 hover:text-white/70'
                   }`}
                 >
                   <BarChart3 className="h-4 w-4" />
@@ -261,10 +257,10 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, use
                 </button>
                 <button
                   onClick={() => setActiveTab('memories')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-colors border ${
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${
                     activeTab === 'memories'
-                      ? 'bg-teal-900/40 text-teal-300 border-teal-700/30 hover:bg-teal-800/50'
-                      : 'bg-white/10 text-white/60 border-white/15 hover:bg-white/15'
+                      ? 'bg-white/10 text-white shadow-sm'
+                      : 'text-white/50 hover:text-white/70'
                   }`}
                 >
                   <Brain className="h-4 w-4" />
@@ -273,143 +269,65 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, use
               </div>
             </div>
 
-            <div className="p-4 sm:p-6 lg:p-8">
-              {/* Tab Content */}
+            <div className="px-5 py-6">
               {activeTab === 'agent-flow' && (
                 <>
-              {/* Header with refresh button */}
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5 text-teal-400" />
-                    Agent Flow
-                  </h2>
-                  <p className="text-sm text-white/60 mt-1">
-                    View the recent agentflows
-                  </p>
-                </div>
+              <div className="flex items-center justify-between gap-4 mb-6">
+                <p className="text-[13px] text-white/50">Recent agent flows from Firebase</p>
                 <button
                   onClick={() => {
                     if (userId) {
                       setIsLoadingAgentflows(true)
-                      agentsApi.get('/api/v1/agents/agentflows', {
-                        params: { user_id: userId }
-                      })
-                      .then(response => {
-                        if (response.data.success) {
-                          setFirebaseAgentflows(response.data.agentflows || [])
-                        }
-                      })
-                      .catch(err => console.error('Error fetching agentflows:', err))
-                      .finally(() => setIsLoadingAgentflows(false))
+                      agentsApi.get('/api/v1/agents/agentflows', { params: { user_id: userId } })
+                        .then(response => {
+                          if (response.data.success) setFirebaseAgentflows(response.data.agentflows || [])
+                        })
+                        .catch(err => console.error('Error fetching agentflows:', err))
+                        .finally(() => setIsLoadingAgentflows(false))
                     }
                   }}
                   disabled={isLoadingAgentflows}
-                  className="flex items-center gap-2 px-4 py-2 bg-teal-900/40 hover:bg-teal-800/50 backdrop-blur-sm border border-teal-700/30 text-white rounded-xl transition-colors disabled:opacity-50"
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-[13px] font-medium text-white/80 transition-colors disabled:opacity-50"
                 >
-                  {isLoadingAgentflows ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4" />
-                  )}
+                  {isLoadingAgentflows ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                   Refresh
                 </button>
               </div>
 
-              {/* Statistics Cards */}
+              {/* Stats - compact pills */}
               {queriesWithFlows.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                  >
-                    <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-xs text-white/60 mb-1">Total Queries</p>
-                            <p className="text-2xl font-bold text-white">{stats.totalQueries}</p>
-                          </div>
-                          <Activity className="h-8 w-8 text-teal-400" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                  
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                  >
-                    <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-xs text-white/60 mb-1">Avg Latency</p>
-                            <p className="text-2xl font-bold text-white">
-                              {stats.avgLatency < 1000 
-                                ? `${stats.avgLatency.toFixed(0)}ms` 
-                                : `${(stats.avgLatency / 1000).toFixed(2)}s`}
-                            </p>
-                          </div>
-                          <Zap className="h-8 w-8 text-cyan-400" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                  
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                  >
-                    <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-xs text-white/60 mb-1">Parallel Flows</p>
-                            <p className="text-2xl font-bold text-white">{stats.flowTypeCounts.parallel}</p>
-                          </div>
-                          <BarChart3 className="h-8 w-8 text-teal-300" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                  
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                  >
-                    <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-xs text-white/60 mb-1">Sequential Flows</p>
-                            <p className="text-2xl font-bold text-white">{stats.flowTypeCounts.sequential}</p>
-                          </div>
-                          <TrendingUp className="h-8 w-8 text-cyan-300" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                  {[
+                    { label: 'Queries', value: stats.totalQueries, icon: Activity, color: 'text-emerald-400/90' },
+                    { label: 'Avg latency', value: stats.avgLatency < 1000 ? `${stats.avgLatency.toFixed(0)}ms` : `${(stats.avgLatency / 1000).toFixed(2)}s`, icon: Zap, color: 'text-amber-400/90' },
+                    { label: 'Parallel', value: stats.flowTypeCounts.parallel, icon: BarChart3, color: 'text-sky-400/90' },
+                    { label: 'Sequential', value: stats.flowTypeCounts.sequential, icon: TrendingUp, color: 'text-violet-400/90' },
+                  ].map((item, i) => (
+                    <motion.div
+                      key={item.label}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.04 }}
+                      className="rounded-2xl bg-white/[0.04] p-4 border border-white/[0.06]"
+                    >
+                      <p className="text-[11px] font-medium uppercase tracking-wider text-white/40 mb-1">{item.label}</p>
+                      <p className="text-lg font-semibold text-white tracking-tight">{item.value}</p>
+                      <item.icon className={`h-5 w-5 mt-2 ${item.color}`} />
+                    </motion.div>
+                  ))}
                 </div>
               )}
 
-              {/* Filter Buttons */}
+              {/* Filter - pill group */}
               {queriesWithFlows.length > 0 && (
-                <div className="flex items-center gap-2 mb-6">
-                  <Filter className="h-4 w-4 text-white/60" />
-                  <span className="text-sm text-white/60">Filter:</span>
+                <div className="flex items-center gap-1.5 mb-5 p-1 rounded-xl bg-white/[0.04] w-fit">
+                  <Filter className="h-3.5 w-3.5 text-white/40 ml-1" />
                   {(['all', 'single', 'sequential', 'parallel'] as const).map((type) => (
                     <button
                       key={type}
                       onClick={() => setFilterType(type)}
-                      className={`px-3 py-1 rounded-xl text-sm transition-colors border ${
-                        filterType === type
-                          ? 'bg-teal-900/40 text-teal-300 border-teal-700/30 hover:bg-teal-800/50'
-                          : 'bg-white/10 text-white/60 border-white/15 hover:bg-white/15'
+                      className={`px-3.5 py-2 rounded-lg text-[13px] font-medium transition-all ${
+                        filterType === type ? 'bg-white/10 text-white' : 'text-white/45 hover:text-white/65'
                       }`}
                     >
                       {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -419,23 +337,17 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, use
               )}
 
               {queriesWithFlows.length === 0 ? (
-                <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
-                  <CardContent className="p-8 text-center">
-                    <p className="text-white/60">
-                      No agent flow data available. Send some queries in the main Clark interface to see flow graphs here.
-                    </p>
-                  </CardContent>
-                </Card>
+                <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-12 text-center">
+                  <p className="text-[15px] text-white/50 leading-relaxed">
+                    No agent flow data yet. Send queries in Clark to see flow graphs here.
+                  </p>
+                </div>
               ) : filteredQueries.length === 0 ? (
-                <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
-                  <CardContent className="p-8 text-center">
-                    <p className="text-white/60">
-                      No queries match the selected filter.
-                    </p>
-                  </CardContent>
-                </Card>
+                <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-12 text-center">
+                  <p className="text-[15px] text-white/50">No queries match the selected filter.</p>
+                </div>
               ) : (
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <AnimatePresence>
                     {filteredQueries.map((queryData, index) => {
                       const originalIndex = queriesWithFlows.indexOf(queryData)
@@ -443,69 +355,50 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, use
                       const totalLatency = calculateTotalLatency(queryData.agentFlow)
                       const agentCount = getAgentCount(queryData.agentFlow)
                       const flowType = (queryData.agentFlow as AgentFlowGraph)?.flow_type || 'single'
-                      
                       return (
                         <motion.div
                           key={originalIndex}
-                          initial={{ opacity: 0, y: 20 }}
+                          initial={{ opacity: 0, y: 12 }}
                           animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -20 }}
-                          transition={{ duration: 0.3, delay: index * 0.05 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.2, delay: index * 0.03 }}
+                          className="rounded-2xl bg-white/[0.04] border border-white/[0.06] overflow-hidden hover:border-white/[0.08] transition-colors"
                         >
-                          <Card 
-                            className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.4)] hover:border-white/25 transition-colors"
-                          >
-                            <CardHeader>
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-3 mb-2">
-                                    <CardTitle className="text-lg text-white">
-                                      Query #{originalIndex + 1}
-                                    </CardTitle>
-                                    {flowType !== 'single' && (
-                                      <span className="px-2 py-1 bg-teal-900/40 text-teal-300 text-xs rounded-xl border border-teal-700/30">
-                                        {flowType === 'parallel' ? 'Parallel' : 'Sequential'}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <CardDescription className="text-white/70 mb-3">
-                                    {queryData.query}
-                                  </CardDescription>
-                                  <div className="flex items-center gap-4 flex-wrap">
-                                    <div className="text-xs text-white/50 flex items-center gap-1">
-                                      <Clock className="h-3 w-3" />
-                                      {queryData.timestamp.toLocaleString()}
-                                    </div>
-                                    {agentCount > 0 && (
-                                      <div className="text-xs text-white/60 flex items-center gap-1">
-                                        <TrendingUp className="h-3 w-3" />
-                                        {agentCount} agent{agentCount !== 1 ? 's' : ''}
-                                      </div>
-                                    )}
-                                    {totalLatency !== null && (
-                                      <div className="text-xs text-cyan-300 flex items-center gap-1">
-                                        <Zap className="h-3 w-3" />
-                                        Total: {totalLatency < 1000 
-                                          ? `${totalLatency.toFixed(0)}ms` 
-                                          : `${(totalLatency / 1000).toFixed(2)}s`}
-                                      </div>
-                                    )}
-                                  </div>
+                          <div className="p-5">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                                  <span className="text-[13px] font-semibold text-white/90">Query {originalIndex + 1}</span>
+                                  {flowType !== 'single' && (
+                                    <span className="rounded-md bg-white/[0.08] px-2 py-0.5 text-[11px] font-medium text-white/60">
+                                      {flowType === 'parallel' ? 'Parallel' : 'Sequential'}
+                                    </span>
+                                  )}
                                 </div>
-                                <button
-                                  onClick={() => setSelectedQueryIndex(isExpanded ? null : originalIndex)}
-                                  className="ml-4 px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/20 text-white rounded-xl transition-colors text-sm"
-                                >
-                                  {isExpanded ? 'Hide Flow' : 'Show Flow'}
-                                </button>
+                                <p className="text-[14px] text-white/70 leading-snug mb-3 line-clamp-2">{queryData.query}</p>
+                                <div className="flex items-center gap-4 text-[12px] text-white/45">
+                                  <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{queryData.timestamp.toLocaleString()}</span>
+                                  {agentCount > 0 && <span>{agentCount} agent{agentCount !== 1 ? 's' : ''}</span>}
+                                  {totalLatency !== null && (
+                                    <span className="text-white/55">
+                                      {totalLatency < 1000 ? `${totalLatency.toFixed(0)}ms` : `${(totalLatency / 1000).toFixed(2)}s`}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                            </CardHeader>
-                            {isExpanded && queryData.agentFlow && hasFlowContent(queryData.agentFlow) && (
-                              <CardContent className="pt-4">
-                                <AgentFlow flow={queryData.agentFlow} />
-                              </CardContent>
-                            )}
-                          </Card>
+                              <button
+                                onClick={() => setSelectedQueryIndex(isExpanded ? null : originalIndex)}
+                                className="flex-shrink-0 px-4 py-2 rounded-lg bg-white/[0.08] hover:bg-white/[0.12] text-[13px] font-medium text-white/90 transition-colors"
+                              >
+                                {isExpanded ? 'Hide' : 'Show flow'}
+                              </button>
+                            </div>
+                          </div>
+                          {isExpanded && queryData.agentFlow && hasFlowContent(queryData.agentFlow) && (
+                            <div className="border-t border-white/[0.06] p-4 bg-black/20">
+                              <AgentFlow flow={queryData.agentFlow} />
+                            </div>
+                          )}
                         </motion.div>
                       )
                     })}

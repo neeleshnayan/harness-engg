@@ -59,8 +59,10 @@ export default function BacktestPage() {
   } | null>(null)
   const submittingInterruptRef = useRef(false)
   const shownInterruptIdsRef = useRef<Set<string>>(new Set())
-  
-  
+  const queryQueueRef = useRef<Array<{ query: string }>>([])
+  const [queueLength, setQueueLength] = useState(0)
+  const [queueQueries, setQueueQueries] = useState<string[]>([])
+
 
   // Initialize session and user IDs on component mount
   useEffect(() => {
@@ -245,14 +247,54 @@ export default function BacktestPage() {
     return prompt
   }
 
+  /** Recursively find first non-empty string at key 'message' or 'markdown' (max depth 4) to avoid missing API shapes */
+  const deepMessageFrom = (obj: unknown, depth = 0): string | undefined => {
+    if (depth > 4 || obj == null) return undefined
+    if (typeof obj === 'string' && obj.trim().length > 0) return obj.trim()
+    if (typeof obj !== 'object') return undefined
+    const o = obj as Record<string, unknown>
+    for (const k of ['message', 'markdown', 'text', 'content', 'output']) {
+      const v = o[k]
+      if (typeof v === 'string' && v.trim().length > 0) return v.trim()
+      const nested = deepMessageFrom(v, depth + 1)
+      if (nested) return nested
+    }
+    for (const v of Object.values(o)) {
+      const nested = deepMessageFrom(v, depth + 1)
+      if (nested) return nested
+    }
+    return undefined
+  }
+
   const createAssistantMessage = (payload: any): ChatMessage => {
     const messageId = (Date.now() + Math.random()).toString()
-    // Build response message: prefer LLM combiner's message (includes all data), 
-    // fallback to economic markdown, then default message
+    // Build response message: prefer rich markdown (economic/combined) when present; then top-level message; then data.message or any agent key; then deep search.
+    const dataMarkdown = (payload?.data?.markdown as string | undefined)
+      ?? (payload?.data?.economic as { markdown?: string } | undefined)?.markdown
+    const dataMessage = typeof payload?.data?.message === 'string' ? payload.data.message : undefined
+    const messageFromDataObject = (d: Record<string, unknown>): string | undefined => {
+      if (!d || typeof d !== 'object') return undefined
+      for (const v of Object.values(d)) {
+        if (v && typeof v === 'object' && typeof (v as { message?: string }).message === 'string') {
+          const msg = (v as { message: string }).message
+          if (msg.trim()) return msg
+        }
+      }
+      return undefined
+    }
+    const agentMessage = payload?.data && typeof payload.data === 'object' ? messageFromDataObject(payload.data as Record<string, unknown>) : undefined
+    const deepFallback = payload && payload.success !== false ? deepMessageFrom(payload) : undefined
+    const fallbackText = "Sorry, I'm unable to process your request at the moment."
     let responseMessage: string =
-      payload?.message ??  // LLM combiner's combined message (preferred - includes both screener and economic)
-      (payload?.data?.markdown as string | undefined) ??  // Economic markdown if no combined message
-      "Sorry, I'm unable to process your request at the moment."
+      dataMarkdown ??
+      payload?.message ??
+      dataMessage ??
+      agentMessage ??
+      deepFallback ??
+      fallbackText
+    if (responseMessage === fallbackText && typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
+      console.warn('[Clark] No message in payload. Top keys:', payload ? Object.keys(payload) : [], 'data keys:', payload?.data && typeof payload.data === 'object' ? Object.keys(payload.data) : [])
+    }
     const rawData = payload?.data
 
     // Only keep backtest result, remove all other components
@@ -478,31 +520,46 @@ export default function BacktestPage() {
 
       // Append Clark's response so ResultsDisplay can render results/backtests/etc.
       setMessages(prev => [...prev, assistantMessage])
-    } catch (error) {
-      console.error('LangChain API error:', error)
-      const errorMessage: ChatMessage = {
+    } catch (error: any) {
+      console.error('Clark API error:', error)
+      let content = "Sorry, I'm unable to process your request at the moment."
+      const data = error?.response?.data
+      if (data && typeof data === 'object') {
+        const msg = (data as { message?: string }).message
+        if (typeof msg === 'string' && msg.trim()) content = msg.trim()
+      } else if (typeof data === 'string' && data.trim()) {
+        content = data.trim()
+      }
+      setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: 'Sorry, I\'m unable to process your request at the moment.',
+        content,
         timestamp: new Date(),
         success: false,
-      }
-
-      setMessages(prev => [...prev, errorMessage])
+      }])
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleSendMessage = async (interruptResponses?: any[]) => {
-    const queryText = interruptResponses ? (pendingInterruptResponse?.query || '') : inputValue
+  const handleSendMessage = async (interruptResponses?: any[], overrideQuery?: string) => {
+    const queryText = overrideQuery ?? (interruptResponses ? (pendingInterruptResponse?.query || '') : inputValue)
 
-    // For normal send: need non-empty query and not loading. For HITL: only need not loading and pending context.
+    // For normal send: queue if already loading; otherwise need non-empty query. For HITL: only need not loading and pending context.
     if (interruptResponses?.length) {
       if (isLoading || !pendingInterruptResponse) return
       if (submittingInterruptRef.current) return
       submittingInterruptRef.current = true
     } else {
+      // Normal send without override: if loading and user typed something, queue it and return
+      if (!overrideQuery && isLoading && inputValue.trim()) {
+        const q = inputValue.trim()
+        queryQueueRef.current.push({ query: q })
+        setQueueLength(prev => prev + 1)
+        setQueueQueries(prev => [...prev, q])
+        setInputValue('')
+        return
+      }
       if (!queryText.trim() || isLoading) return
     }
 
@@ -511,13 +568,13 @@ export default function BacktestPage() {
       : {
           id: Date.now().toString(),
           type: 'user',
-          content: inputValue,
+          content: queryText,
           timestamp: new Date(),
         }
 
     if (!interruptResponses) {
       setMessages(prev => [...prev, userMessage])
-      setInputValue('')
+      if (!overrideQuery) setInputValue('')
     }
     
     setIsLoading(true)
@@ -629,21 +686,65 @@ export default function BacktestPage() {
       // Always append Clark's response; ResultsDisplay will decide what to show,
       // including any transaction status cards for krypton_pay flows.
       setMessages(prev => [...prev, assistantMessage])
-    } catch (error) {
-      console.error('LangChain API error:', error)
-      const errorMessage: ChatMessage = {
+    } catch (error: any) {
+      console.error('Clark API error:', error)
+      let content = "Sorry, I'm unable to process your request at the moment."
+      const data = error?.response?.data
+      if (data && typeof data === 'object') {
+        const msg = (data as { message?: string }).message
+        if (typeof msg === 'string' && msg.trim()) content = msg.trim()
+      } else if (typeof data === 'string' && data.trim()) {
+        content = data.trim()
+      }
+      setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: 'Sorry, I\'m unable to process your request at the moment.',
+        content,
         timestamp: new Date(),
         success: false,
-      }
-
-      setMessages(prev => [...prev, errorMessage])
+      }])
     } finally {
       if (interruptResponses?.length) submittingInterruptRef.current = false
       setIsLoading(false)
+      // Process next from queue after state settles
+      if (queryQueueRef.current.length > 0) {
+        const next = queryQueueRef.current.shift()!
+        setQueueLength(prev => Math.max(0, prev - 1))
+        setQueueQueries(prev => prev.slice(1))
+        setTimeout(() => handleSendMessage(undefined, next.query), 0)
+      }
     }
+  }
+
+  const removeQueueItem = (index: number) => {
+    if (index < 0 || index >= queryQueueRef.current.length) return
+    queryQueueRef.current = queryQueueRef.current.filter((_, i) => i !== index)
+    setQueueQueries(prev => prev.filter((_, i) => i !== index))
+    setQueueLength(prev => Math.max(0, prev - 1))
+  }
+
+  const editQueueItem = (index: number, newQuery: string) => {
+    const trimmed = newQuery.trim()
+    if (index < 0 || index >= queryQueueRef.current.length || !trimmed) return
+    queryQueueRef.current = queryQueueRef.current.map((item, i) =>
+      i === index ? { query: trimmed } : item
+    )
+    setQueueQueries(prev => prev.map((q, i) => (i === index ? trimmed : q)))
+  }
+
+  const moveQueueItem = (index: number, direction: 'up' | 'down') => {
+    const len = queryQueueRef.current.length
+    if (len < 2 || index < 0 || index >= len) return
+    const next = direction === 'up' ? index - 1 : index + 1
+    if (next < 0 || next >= len) return
+    const arr = [...queryQueueRef.current]
+    ;[arr[index], arr[next]] = [arr[next], arr[index]]
+    queryQueueRef.current = arr
+    setQueueQueries(prev => {
+      const copy = [...prev]
+      ;[copy[index], copy[next]] = [copy[next], copy[index]]
+      return copy
+    })
   }
 
   const handleInterruptApprove = async (interruptId: string) => {
@@ -777,9 +878,21 @@ export default function BacktestPage() {
 
         {/* Continuous Feed: scrollable area bounded by navbar (top) and chat input (bottom) */}
         <div className="dark">
-          <div ref={feedRef} className="max-h-[calc(100vh-6rem-8rem)] overflow-y-auto">
+          <div ref={feedRef} className="scrollbar-minimal min-h-[200px] max-h-[calc(100vh-6rem-8rem)] overflow-y-auto scroll-smooth">
             <div className="pb-40">
+              {/* Loading with no messages yet: show "Thinking…"; once messages exist, ResultsDisplay shows "Processing your request..." */}
+              {isLoading && messages.length === 0 && (
+                <div className="flex gap-2 justify-start items-center py-4">
+                  <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                    <img src="/clark process.svg" alt="Clark" className="h-8 w-8 animate-pulse" />
+                  </div>
+                  <div className="rounded-2xl px-4 py-3 bg-teal-900/30 border border-teal-700/40 text-teal-200/80 text-sm">
+                    Thinking…
+                  </div>
+                </div>
+              )}
               <ResultsDisplay messages={messages} isLoading={isLoading} username={userName} />
+              {/* When messages exist, loading state is shown inside ResultsDisplay as "Processing your request..." */}
               {/* Show payment confirmation inline at the end of the conversation */}
               {interrupts && interrupts.length > 0 && (() => {
                 const paymentInterrupt = interrupts.find((i) => i.name === 'krypton-pay-approval')
@@ -869,12 +982,17 @@ export default function BacktestPage() {
         inputValue={inputValue}
         setInputValue={setInputValue}
         isLoading={isLoading}
-        onSendMessage={handleSendMessage}
+        onSendMessage={() => handleSendMessage()}
         onKeyPress={handleKeyPress}
         onOpenPromptModal={() => {
           setSelectedCategory(null)
           setIsPromptModalOpen(true)
         }}
+        queueLength={queueLength}
+        queueQueries={queueQueries}
+        onRemoveQueueItem={removeQueueItem}
+        onEditQueueItem={editQueueItem}
+        onMoveQueueItem={moveQueueItem}
       />
 
       {/* Hamburger Menu */}
