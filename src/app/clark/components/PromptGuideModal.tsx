@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from 'react'
-import { Copy } from 'lucide-react'
+import { Copy, ChevronRight } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Category } from '../types'
 
@@ -37,6 +37,11 @@ function PromptRow({
       setTimeout(() => setCopied(false), 2000)
     })
   }
+  const handleUse = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    onUse()
+  }
   return (
     <div
       className="group relative flex items-center gap-2 rounded-xl backdrop-blur-sm min-h-[2.75rem] sm:min-h-0 p-0 overflow-hidden"
@@ -44,7 +49,7 @@ function PromptRow({
     >
       <button
         type="button"
-        onClick={onUse}
+        onClick={handleUse}
         disabled={isLoading}
         className="flex-1 text-left p-3.5 rounded-xl text-sm text-white/90 hover:text-white disabled:opacity-50 transition-all duration-200 active:scale-[0.98] sm:p-3"
       >
@@ -82,7 +87,7 @@ export default function PromptGuideModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
       <DialogContent
         className="
           w-full max-w-md sm:max-w-2xl
@@ -106,6 +111,7 @@ export default function PromptGuideModal({
           sm:pt-10 sm:pr-14
         "
         aria-describedby={undefined}
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
         {/* Mobile: drag handle (Apple-style sheet indicator) */}
         <div className="max-sm:flex max-sm:justify-center max-sm:flex-shrink-0 max-sm:pb-2">
@@ -113,6 +119,10 @@ export default function PromptGuideModal({
             className="hidden max-sm:block w-10 h-1 rounded-full bg-white/25"
             aria-hidden
           />
+        </div>
+        {/* Header: "Prompt Guide" top-left (X is top-right via DialogContent) */}
+        <div className="flex items-center flex-shrink-0 pt-1 pb-3 sm:pb-4 px-4 sm:px-6">
+          <h2 className="text-lg font-semibold text-white">Prompt Guide</h2>
         </div>
         <DialogTitle className="sr-only">Choose a prompt</DialogTitle>
         <DialogDescription className="sr-only">
@@ -122,7 +132,7 @@ export default function PromptGuideModal({
           className="
             overflow-y-auto overflow-x-hidden
             max-h-[60dvh] sm:max-h-[70vh]
-            px-1 sm:px-2
+            px-4 sm:px-6
             min-h-0
             flex-1
           "
@@ -136,20 +146,19 @@ export default function PromptGuideModal({
                     key={category.id}
                     type="button"
                     onClick={() => onSelectCategory(category.id)}
-                    className="w-full text-left p-4 rounded-xl backdrop-blur-sm transition-all duration-200 min-h-[2.75rem] active:scale-[0.98] sm:min-h-0"
+                    className="w-full text-left p-4 rounded-xl backdrop-blur-sm transition-all duration-200 min-h-[2.75rem] active:scale-[0.98] sm:min-h-0 flex items-center gap-3"
                     style={{ background: cardGradient }}
                   >
-                    <div className="flex items-center gap-3">
-                      {category.icon.startsWith('/') ? (
-                        <img src={category.icon} alt={category.title} className="h-5 w-5 flex-shrink-0" />
-                      ) : (
-                        <span className="text-lg flex-shrink-0">{category.icon}</span>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <div className="text-white font-medium truncate">{category.title}</div>
-                        <div className="text-xs text-white/60 truncate">{category.description}</div>
-                      </div>
+                    {category.icon.startsWith('/') ? (
+                      <img src={category.icon} alt={category.title} className="h-5 w-5 flex-shrink-0" />
+                    ) : (
+                      <span className="text-lg flex-shrink-0">{category.icon}</span>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-white font-medium truncate">{category.title}</div>
+                      <div className="text-xs text-white/60 truncate">{category.description}</div>
                     </div>
+                    <ChevronRight className="h-5 w-5 flex-shrink-0 text-white/70" aria-hidden />
                   </button>
                 ))}
               </div>

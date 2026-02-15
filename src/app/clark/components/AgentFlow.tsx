@@ -4,7 +4,17 @@ import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AgentFlowStep, AgentFlowGraph, AgentFlowEdge, ScreenerResult, BacktestResult, EconomicResult, RegulationResult } from '../types'
+import { stripReasoningFromMessage } from '../utils/createAssistantMessage'
 import { ArrowRight, ArrowDown, CheckCircle2, Loader2, XCircle, GitBranch, GitMerge, ChevronDown, ChevronUp, Code, MessageSquare, Clock, Zap, Database, Sparkles, TrendingUp, TrendingDown, DollarSign, BarChart3, FileText, Globe } from 'lucide-react'
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
 
 interface AgentFlowProps {
   flow: AgentFlowGraph | AgentFlowStep[]
@@ -351,13 +361,14 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
       const economicData = data.economic || data
       
       if (economicData.markdown) {
+        const safe = escapeHtml(stripReasoningFromMessage(economicData.markdown)).replace(/\n/g, '<br />')
         return (
           <div className="w-full max-w-full overflow-hidden">
             <div className="max-h-96 overflow-y-auto overflow-x-auto">
               <div 
-                className="text-xs text-zinc-300 whitespace-pre-wrap break-words bg-zinc-900/50 p-3 rounded border border-zinc-700/30 min-w-0"
+                className="text-xs text-zinc-300 break-words bg-zinc-900/50 p-3 rounded border border-zinc-700/30 min-w-0"
                 style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                dangerouslySetInnerHTML={{ __html: economicData.markdown.replace(/\n/g, '<br />') }}
+                dangerouslySetInnerHTML={{ __html: safe }}
               />
             </div>
           </div>

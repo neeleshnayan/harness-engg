@@ -48,6 +48,12 @@ const ensureProtocol = (url: string) => {
 // Hedge Fund API Client
 const HEDGE_FUND_API_BASE_URL = ensureProtocol(process.env.NEXT_PUBLIC_HEDGE_FUND_API_URL || 'http://127.0.0.1:8001');
 
+/** Hedge fund / Grow page subgraph (strategy metrics, deposits, signals). Use NEXT_PUBLIC_HEDGE_FUND_SUBGRAPH_API_URL or NEXT_PUBLIC_SUBGRAPH_URL to override. */
+export const HEDGE_FUND_SUBGRAPH_URL =
+  process.env.NEXT_PUBLIC_HEDGE_FUND_SUBGRAPH_API_URL ||
+  process.env.NEXT_PUBLIC_SUBGRAPH_URL ||
+  'https://api.studio.thegraph.com/query/121450/hedge-fund-v-2/version/latest';
+
 export const hedgeFundApi = axios.create({
   baseURL: HEDGE_FUND_API_BASE_URL,
   headers: {

@@ -7,6 +7,7 @@ import { DollarSign, TrendingUp, BarChart3, TrendingDown, ChevronDown, ChevronUp
 import { Loader2, Info, User, ArrowUpRight, ArrowUpDown, CheckCircle } from 'lucide-react'
 import { ChatMessage, BacktestResult, ScreenerResult, EconomicResult, NewsData, CalendarData, EconomicData, RegulationResult, AgentFlowGraph, AgentFlowStep, BalanceResult, BalanceEntry, DailyBalanceEntry, IntradayBalanceEntry } from '../types'
 import { formatCurrency, formatPercentage, formatDate, formatNumber, formatTimestamp } from '../utils'
+import { stripReasoningFromMessage } from '../utils/createAssistantMessage'
 import TransactionStatus, { InlineTransactionData } from './TransactionStatus'
 
 // Dynamically import heavy chart components to reduce initial bundle size
@@ -109,7 +110,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
           <CardContent>
             <div
               className="text-sm leading-relaxed prose prose-invert max-w-none"
-              dangerouslySetInnerHTML={{ __html: markdownToHtml(economicResult.markdown) }}
+              dangerouslySetInnerHTML={{ __html: markdownToHtml(stripReasoningFromMessage(economicResult.markdown)) }}
             />
           </CardContent>
         </Card>
@@ -260,7 +261,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                 {economicResult.markdown ? (
                   <div
                     className="text-sm leading-relaxed prose prose-invert max-w-none"
-                    dangerouslySetInnerHTML={{ __html: markdownToHtml(economicResult.markdown) }}
+                    dangerouslySetInnerHTML={{ __html: markdownToHtml(stripReasoningFromMessage(economicResult.markdown)) }}
                   />
                 ) : (
                   'No economic data available'
@@ -277,7 +278,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
     if (!message.regulationResult) return null
     const regulationResult = message.regulationResult as RegulationResult
     const summary = regulationResult.summary || message.content
-    const summaryHtml = summary ? markdownToHtml(summary) : ''
+    const summaryHtml = summary ? markdownToHtml(stripReasoningFromMessage(summary)) : ''
     return (
       <Card key={`reg-${message.id}`} className="w-full bg-zinc-800/20 border-zinc-700/30 backdrop-blur-sm">
         <CardHeader className="pb-4">
@@ -1070,7 +1071,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                     <div className="text-sm leading-relaxed text-white/95">
                       <div
                         className="clark-prose prose prose-invert max-w-none"
-                        dangerouslySetInnerHTML={{ __html: markdownToHtml(message.content) }}
+                        dangerouslySetInnerHTML={{ __html: markdownToHtml(stripReasoningFromMessage(message.content)) }}
                       />
                       {message.capabilitiesSummary && (
                         <div className="mt-3 text-xs text-white/80 whitespace-pre-wrap leading-relaxed">
@@ -1085,7 +1086,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
               {/* When success === true, show full Clark response (formatted) alongside structured results,
                   except for krypton_pay flows where we rely solely on TransactionStatus. */}
               {!isKryptonPay && message.success === true && hasStructuredResults(message) && message.content && (() => {
-                const content = message.content.trim()
+                const content = stripReasoningFromMessage(message.content).trim()
                 if (!content) return null
                 return (
                   <>
@@ -1346,6 +1347,8 @@ const markdownToHtml = (markdown: string): string => {
         inList = false
       }
       closeTable()
+      // Preserve paragraph spacing: empty line => small vertical gap
+      htmlParts.push('<p class="h-2" aria-hidden="true"></p>')
       continue
     }
 

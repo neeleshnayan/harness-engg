@@ -8,6 +8,7 @@ import { Input } from './ui/input';
 import { Loader2, Send, User, CheckCircle, XCircle, X } from 'lucide-react';
 import agentsApi from '@/lib/agents_api';
 import { parseErrorMessage } from '@/lib/parseError';
+import { stripReasoningFromMessage } from '@/app/clark/utils/createAssistantMessage';
 
 interface ChatMessage {
   id: string;
@@ -291,7 +292,7 @@ export default function LangChainChat({
                     )
                   )}
                 </div>
-                <p>{message.content}</p>
+                <p className="whitespace-pre-wrap">{stripReasoningFromMessage(message.content || '')}</p>
                 {message.parsedIntent && renderIntentBadge(message.parsedIntent)}
               </div>
             </div>
