@@ -19,10 +19,10 @@ export function StrategyFilters({
   onApyChange,
 }: StrategyFiltersProps) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2 w-full sm:w-auto">
       <Select value={riskFilter} onValueChange={onRiskChange}>
         <SelectTrigger
-          className="h-9 w-full sm:w-[120px] rounded-lg border border-white/10 bg-white/5 text-white text-sm hover:bg-white/10 hover:border-white/20 transition-colors"
+          className="h-9 flex-1 min-w-0 sm:flex-initial sm:w-[120px] rounded-lg border border-white/10 bg-white/5 text-white text-sm hover:bg-white/10 hover:border-white/20 transition-colors"
         >
           <Shield className="w-3.5 h-3.5 mr-2 opacity-70 flex-shrink-0" />
           <SelectValue placeholder="Risk" />
@@ -41,7 +41,7 @@ export function StrategyFilters({
       </Select>
       <Select value={apyFilter} onValueChange={onApyChange}>
         <SelectTrigger
-          className="h-9 w-full sm:w-[130px] rounded-lg border border-white/10 bg-white/5 text-white text-sm hover:bg-white/10 hover:border-white/20 transition-colors"
+          className="h-9 flex-1 min-w-0 sm:flex-initial sm:w-[130px] rounded-lg border border-white/10 bg-white/5 text-white text-sm hover:bg-white/10 hover:border-white/20 transition-colors"
         >
           <Percent className="w-3.5 h-3.5 mr-2 opacity-70 flex-shrink-0" />
           <SelectValue placeholder="APY" />

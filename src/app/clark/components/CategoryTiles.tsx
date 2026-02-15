@@ -85,18 +85,19 @@ export default function CategoryTiles({
     <div className="pb-1 mb-1">
       {/* Category Tiles */}
       {/* Mobile: center 4 tiles on first page; 5th appears on swipe */}
-      <div className="block sm:hidden scrollbar-minimal overflow-x-auto pb-2 -mx-2 snap-x snap-mandatory">
-        <div className="flex w-[100vw]">
+      <div className="block sm:hidden scrollbar-minimal overflow-x-auto pb-2 snap-x snap-mandatory overscroll-x-contain w-full">
+        <div className="flex" style={{ width: `${Math.max(2, Math.ceil(totalRows / 2)) * 100}%` }}>
           {(() => {
+            const pageCount = Math.max(2, Math.ceil(totalRows / 2));
             const columns = Array.from({ length: totalRows }).map((_, colIndex) => {
               const startIndex = colIndex * tilesPerRow
               const colTiles = categories.slice(startIndex, startIndex + tilesPerRow)
               return (
-                <div key={`col-${colIndex}`} className="flex flex-col gap-3">
+                <div key={`col-${colIndex}`} className="flex flex-col gap-3 flex-1 min-w-0">
                   {colTiles.map((category) => (
                     <Card
                       key={category.id}
-                      className="cursor-pointer bg-transparent border-none shadow-none p-0 w-[calc(50vw-1.5rem)] touch-manipulation"
+                      className="cursor-pointer bg-transparent border-none shadow-none p-0 w-full touch-manipulation"
                       onClick={() => onCategorySelect(category.id)}
                     >
                       <div
@@ -107,7 +108,7 @@ export default function CategoryTiles({
                         }}
                       >
                         <CardHeader className="pb-3 pt-3 px-3 h-full flex flex-col justify-center">
-                          <CardTitle className="text-xs text-white flex items-center gap-2 mb-1">
+                          <CardTitle className="text-xs font-medium text-zinc-100 flex items-center gap-2 mb-1">
                             {category.icon.startsWith('/') ? (
                               <img src={category.icon} alt={category.title} className="h-4 w-4 flex-shrink-0" />
                             ) : (
@@ -115,7 +116,7 @@ export default function CategoryTiles({
                             )}
                             <span className="truncate">{category.title}</span>
                           </CardTitle>
-                          <CardDescription className="text-xs text-white/60 leading-tight line-clamp-2">
+                          <CardDescription className="text-xs text-zinc-400 leading-tight line-clamp-2">
                             {category.description}
                           </CardDescription>
                         </CardHeader>
@@ -130,7 +131,7 @@ export default function CategoryTiles({
             for (let i = 0; i < columns.length; i += 2) {
               const hasSecondColumn = Boolean(columns[i + 1])
               pages.push(
-                <div key={`page-${i/2}`} className="min-w-full snap-start px-2">
+                <div key={`page-${i/2}`} className="snap-start px-4 flex-shrink-0" style={{ flexBasis: `${100 / pageCount}%`, minWidth: `${100 / pageCount}%` }}>
                   <div className={`flex ${hasSecondColumn ? 'justify-center' : 'justify-start'} gap-3`}>
                     {columns[i]}
                     {columns[i + 1]}
@@ -144,7 +145,7 @@ export default function CategoryTiles({
       </div>
       
       {/* Desktop: Responsive grid */}
-      <div className="hidden sm:grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 w-full max-w-6xl mx-auto px-0">
+      <div className="hidden sm:grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 w-full max-w-6xl mx-auto">
         {categories.map((category) => (
           <Card
             key={category.id}
@@ -159,7 +160,7 @@ export default function CategoryTiles({
               }}
             >
               <CardHeader className="pb-3 pt-3 px-3 h-full flex flex-col justify-center">
-                <CardTitle className="text-sm text-white flex items-center gap-2 mb-1">
+                <CardTitle className="text-sm font-medium text-zinc-100 flex items-center gap-2 mb-1">
                   {category.icon.startsWith('/') ? (
                     <img src={category.icon} alt={category.title} className="h-5 w-5 flex-shrink-0" />
                   ) : (

@@ -278,7 +278,7 @@ export default function HedgeFundV2Page() {
 
   if (success) {
     return (
-      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#001C1B] p-8">
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#001C1B] p-4 sm:p-8">
         <div className="text-center max-w-md bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl p-8 shadow-2xl">
           <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="h-10 w-10 text-green-400" />
@@ -312,7 +312,7 @@ export default function HedgeFundV2Page() {
   return (
     <TransactionWebhookProvider walletAddress={accountData?.wallet_address}>
       <Toaster />
-      <div className="min-h-screen w-full bg-[#001C1B] dark overflow-x-hidden">
+      <div className="min-h-screen w-full min-w-0 bg-[#001C1B] dark overflow-x-hidden">
         <WalletHeader
           accountData={accountData}
           onLogout={handleLogout}
@@ -325,6 +325,7 @@ export default function HedgeFundV2Page() {
           onLogout={handleLogout}
           accountData={accountData}
           onCopyAddress={() => copyToClipboard(accountData?.wallet_address || '')}
+          onOpenQuestionnaire={() => setShowQuestionnaire(true)}
         />
         {showQuestionnaire && (
           <HedgeFundQuestionnaire
@@ -333,10 +334,10 @@ export default function HedgeFundV2Page() {
             showBackButton={true}
           />
         )}
-        <div className="container mx-auto px-4 sm:px-6 py-8 max-w-6xl">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 max-w-6xl min-w-0">
           {/* Portfolio Performance Chart */}
           {accountData?.wallet_address && (
-            <section className="w-full mb-8">
+            <section className="w-full mb-6 sm:mb-8">
               <CumulativeAUMChartNew
                 userWalletAddress={accountData.wallet_address}
                 strategies={strategies}

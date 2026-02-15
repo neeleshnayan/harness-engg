@@ -12,6 +12,7 @@ import { StrategyName, useStrategyConfig } from "@/hooks/useStrategyConfig";
 import { useStrategyPrice } from "@/hooks/useStrategyPrice";
 import { useStrategySubgraphData } from "@/hooks/useStrategySubgraphData";
 import { useYearnAUM } from "@/hooks/useYearnAUM";
+import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { BalanceStatusIndicator, BalanceTransactionStage, BalanceTransactionType } from "./BalanceStatusIndicator";
 import StrategyModal from "./StrategyModal";
 
@@ -465,19 +466,17 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
   return (
     <>
       <Card
-        className="min-w-0 flex flex-col bg-transparent bg-no-repeat bg-cover bg-center backdrop-blur-3xl rounded-2xl sm:rounded-3xl p-0 shadow-xl border border-white/10 transition-all duration-300 overflow-hidden hover:border-white/20"
+        className="min-w-0 flex flex-col bg-transparent bg-no-repeat bg-cover bg-center backdrop-blur-3xl rounded-2xl sm:rounded-3xl p-0 shadow-xl border border-white/[0.08] transition-all duration-300 overflow-hidden hover:border-white/[0.12]"
         style={{ backgroundImage: "url('/wallet-bg.svg')" }}
         onClick={handleCardClick}
       >
-        <CardHeader className="relative p-3 sm:p-4 pb-2 sm:pb-3">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
-            <div className="flex items-center gap-2 min-w-0 flex-1 min-h-[2.75rem] sm:min-h-[3rem]">
-              <CardTitle className="text-base sm:text-lg lg:text-xl text-white line-clamp-2 break-words">{strategyMetrics.name}</CardTitle>
-            </div>
+        <CardHeader className="relative p-4 sm:p-5 pb-2 sm:pb-3 min-h-[11rem] sm:min-h-[12rem] flex flex-col">
+          <div className="flex flex-row justify-between items-start gap-3">
+            <CardTitle className="text-base sm:text-lg lg:text-xl text-white line-clamp-2 break-words flex-1 min-w-0 pr-2">{strategyMetrics.name}</CardTitle>
             {strategyMetrics.riskGrade && (
               <span
                 className={cn(
-                  "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border",
+                  "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium flex-shrink-0 border",
                   gradeStyles[strategyMetrics.riskGrade] ?? "bg-zinc-500/20 text-zinc-400 border-zinc-500/20"
                 )}
               >
@@ -485,11 +484,11 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
               </span>
             )}
           </div>
-          <div className="flex flex-col items-start gap-1 w-full sm:w-auto">
+          <div className="mt-2 flex flex-col items-start gap-1 w-full">
             {balanceLoading || configLoading ? (
-              <div className="flex items-center gap-2 px-3 py-1 rounded-lg border bg-zinc-700/20 border-zinc-700/30">
+              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg border bg-zinc-700/20 border-zinc-700/30">
                 <div className="animate-spin rounded-full h-3 w-3 border-2 border-zinc-400 border-t-transparent"></div>
-                <span className="text-sm font-semibold text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-white to-purple-300 animate-shimmer whitespace-nowrap">
+                <span className="text-xs sm:text-sm font-medium text-zinc-400 whitespace-nowrap">
                   ••• {strategyDetails.tokenSymbol}
                 </span>
               </div>
@@ -506,42 +505,42 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
             {priceLoading || configLoading ? (
               <span className="text-xs text-zinc-500 animate-pulse">Loading price...</span>
             ) : priceError ? (
-              <span className="text-xs text-red-400">Price unavailable</span>
+              <span className="text-xs text-zinc-500">Price unavailable</span>
             ) : priceInUSDC ? (
-              <span className="text-xs text-green-400 font-medium whitespace-nowrap">
+              <span className="text-xs text-zinc-400 font-medium whitespace-nowrap">
                 1 {strategyDetails.tokenSymbol} = ${priceInUSDC}
               </span>
             ) : null}
           </div>
-          <CardDescription className="pt-2 text-xs sm:text-sm text-zinc-300 line-clamp-3 leading-relaxed min-h-[3.6rem] sm:min-h-[4rem] break-words">{strategyMetrics.description}</CardDescription>
+          <CardDescription className="pt-1.5 text-xs sm:text-sm text-zinc-300 line-clamp-3 leading-relaxed break-words">{strategyMetrics.description}</CardDescription>
         </CardHeader>
 
-        <CardContent className="relative flex-grow p-3 sm:p-4 pt-0 space-y-3 sm:space-y-4">
-          <div className="space-y-2 sm:space-y-3">
-            <h4 className="text-xs text-zinc-400 font-semibold tracking-wide">Key Metrics</h4>
-            <div className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
-              <div className="grid grid-cols-3 gap-2 sm:gap-3 min-w-0">
-                <div className="flex items-center gap-2 min-w-0">
-                  <img src={strategyMetrics.netApy >= 0 ? "/hedge_fund/upward trend.svg" : "/hedge_fund/downward trend.svg"} alt="Net APY" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+        <CardContent className="relative flex-grow px-4 pb-4 pt-2 sm:px-5 sm:pb-5 sm:pt-3">
+          <div className="space-y-1.5 sm:space-y-2">
+            <h4 className="text-xs text-zinc-500 font-medium uppercase tracking-wider">Key Metrics</h4>
+            <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-3 min-w-0">
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  <img src={strategyMetrics.netApy >= 0 ? "/hedge_fund/upward trend.svg" : "/hedge_fund/downward trend.svg"} alt="Net APY" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 opacity-70" />
                   <div className="flex flex-col min-w-0">
                     <p className="text-[10px] sm:text-xs text-zinc-500">Net APY</p>
-                    <span className="font-semibold text-xs sm:text-sm text-white truncate">{strategyMetrics.netApy.toFixed(1)}%</span>
+                    <span className="font-medium text-xs sm:text-sm text-zinc-100 truncate">{strategyMetrics.netApy.toFixed(1)}%</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 min-w-0">
-                  <img src="/hedge_fund/Wallet.svg" alt="AUM" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  <img src="/hedge_fund/Wallet.svg" alt="AUM" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 opacity-70" />
                   <div className="flex flex-col min-w-0">
                     <p className="text-[10px] sm:text-xs text-zinc-500">AUM</p>
-                    <span className="font-semibold text-xs sm:text-sm text-white truncate">
+                    <span className="font-medium text-xs sm:text-sm text-zinc-100 truncate">
                       ${strategyMetrics.aum.toFixed(2)}{strategyMetrics.aumUnit}
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 min-w-0">
-                  <img src="/hedge_fund/Investors.svg" alt="Investors" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  <img src="/hedge_fund/Investors.svg" alt="Investors" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 opacity-70" />
                   <div className="flex flex-col min-w-0">
                     <p className="text-[10px] sm:text-xs text-zinc-500">Investors</p>
-                    <span className="font-semibold text-xs sm:text-sm text-white truncate">
+                    <span className="font-medium text-xs sm:text-sm text-zinc-100 truncate">
                       {strategyMetrics.participants >= 1000 
                         ? `${(strategyMetrics.participants / 1000).toFixed(1)}k` 
                         : strategyMetrics.participants.toLocaleString()}
@@ -550,28 +549,28 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
                 </div>
               </div>
 
-              <Separator className="bg-zinc-700/80" />
+              <Separator className="bg-white/[0.06]" />
 
-              <div className="grid grid-cols-3 gap-2 sm:gap-3 min-w-0">
-                <div className="flex items-center gap-2 min-w-0">
-                  <img src="/hedge_fund/Sharpe ratio.svg" alt="Sharpe" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-3 min-w-0">
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  <img src="/hedge_fund/Sharpe ratio.svg" alt="Sharpe" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 opacity-70" />
                   <div className="flex flex-col min-w-0 overflow-hidden">
                     <p className="text-[10px] sm:text-xs text-zinc-500">Sharpe</p>
-                    <span className="font-semibold text-xs sm:text-sm text-white truncate">{strategyMetrics.sharpe.toFixed(2)}</span>
+                    <span className="font-medium text-xs sm:text-sm text-zinc-100 truncate">{strategyMetrics.sharpe.toFixed(2)}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 min-w-0">
-                  <img src={strategyMetrics.maxDrawdown >= 0 ? "/hedge_fund/upward trend.svg" : "/hedge_fund/downward trend.svg"} alt="Max Drawdown" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  <img src={strategyMetrics.maxDrawdown >= 0 ? "/hedge_fund/upward trend.svg" : "/hedge_fund/downward trend.svg"} alt="Max Drawdown" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 opacity-70" />
                   <div className="flex flex-col min-w-0 overflow-hidden">
-                    <p className="text-[10px] sm:text-xs text-zinc-500">Max Drawdown</p>
-                    <span className="font-semibold text-xs sm:text-sm text-white truncate">{strategyMetrics.maxDrawdown.toFixed(1)}%</span>
+                    <p className="text-[10px] sm:text-xs text-zinc-500" title="Max Drawdown">Max DD</p>
+                    <span className="font-medium text-xs sm:text-sm text-zinc-100 truncate">{strategyMetrics.maxDrawdown.toFixed(1)}%</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 min-w-0">
-                  <img src="/hedge_fund/Lock in period.svg" alt="Lock-in" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  <img src="/hedge_fund/Lock in period.svg" alt="Lock-in" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 opacity-70" />
                   <div className="flex flex-col min-w-0 overflow-hidden">
                     <p className="text-[10px] sm:text-xs text-zinc-500">Lock-in</p>
-                    <span className="font-semibold text-xs sm:text-sm text-white truncate">{strategyMetrics.lockInPeriod}</span>
+                    <span className="font-medium text-xs sm:text-sm text-zinc-100 truncate">{strategyMetrics.lockInPeriod}</span>
                   </div>
                 </div>
               </div>
@@ -579,25 +578,27 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
           </div>
         </CardContent>
 
-        <CardFooter className="relative p-3 sm:p-4 pt-2 flex flex-col gap-2 mt-auto border-t border-white/5">
+        <CardFooter className="relative px-4 pb-4 pt-3 sm:px-5 sm:pb-5 flex flex-col gap-2 mt-auto border-t border-white/5">
           <div className="flex gap-2 w-full">
             <button
-              className="flex-1 hover:opacity-80 transition-opacity duration-200"
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full bg-gradient-to-r from-teal-800/90 to-teal-700/70 hover:from-teal-700/90 hover:to-teal-600/70 text-teal-100 text-sm font-semibold transition-all duration-200 border border-teal-600/30"
               onClick={openDepositModal}
             >
-              <img src="/hedge_fund/Deposit.svg" alt="Deposit USDC" className="w-full h-auto" />
+              <ArrowDownToLine className="w-4 h-4 flex-shrink-0 text-teal-300" />
+              Deposit
             </button>
             <button
               className={cn(
-                "flex-1 transition-opacity duration-200",
+                "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full bg-transparent hover:bg-white/5 text-zinc-300 hover:text-zinc-100 text-sm font-semibold transition-all duration-200 border border-white/20 hover:border-white/30",
                 parseFloat(strategyBalance) === 0
                   ? "opacity-40 cursor-not-allowed"
-                  : "hover:opacity-80"
+                  : ""
               )}
               onClick={openWithdrawModal}
               disabled={parseFloat(strategyBalance) === 0}
             >
-              <img src="/hedge_fund/Withdraw.svg" alt="Withdraw" className="w-full h-auto" />
+              <ArrowUpFromLine className="w-4 h-4 flex-shrink-0" />
+              Withdraw
             </button>
           </div>
         </CardFooter>

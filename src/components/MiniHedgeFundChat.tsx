@@ -169,7 +169,7 @@ export default function MiniHedgeFundChat({
 
   return (
     <>
-      <div className="relative w-full flex flex-col rounded-2xl bg-[#001C1B] overflow-hidden shadow-xl max-h-[70vh]">
+      <div className="relative w-full min-w-0 flex flex-col rounded-2xl bg-[#001C1B] overflow-hidden shadow-xl max-h-[70vh]">
         <Button
           onClick={handleExpand}
           variant="ghost"
@@ -181,7 +181,7 @@ export default function MiniHedgeFundChat({
         </Button>
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
           <div className="dark flex-1 min-h-0 overflow-hidden">
-            <div ref={feedRef} className="scrollbar-minimal h-full max-h-[50vh] overflow-y-auto scroll-smooth px-3 py-3">
+            <div ref={feedRef} className="scrollbar-minimal h-full max-h-[50vh] overflow-x-hidden overflow-y-auto scroll-smooth px-4 py-3">
               <div className="pb-6">
                 {shouldShowTiles ? (
                   <>

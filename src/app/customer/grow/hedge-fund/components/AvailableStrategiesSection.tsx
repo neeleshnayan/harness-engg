@@ -37,8 +37,8 @@ export function AvailableStrategiesSection({
   const router = useRouter();
 
   return (
-    <section className="w-full mb-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+    <section className="w-full min-w-0 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
         <h2 className="text-lg sm:text-xl font-semibold text-white tracking-tight">
           Available Strategies
         </h2>
@@ -50,7 +50,7 @@ export function AvailableStrategiesSection({
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
         {activeStrategies.length === 0 && strategies.length > 0 && (
           <div className="col-span-full py-8 text-center text-zinc-400 text-sm">
             No strategies match your filters. Try &quot;All risk&quot; or &quot;All APY&quot;.
@@ -76,7 +76,7 @@ export function AvailableStrategiesSection({
 
         <div
           onClick={onAddStrategy}
-          className="flex flex-col items-center justify-center h-full min-h-[300px] border-2 border-dashed border-zinc-700 hover:border-blue-500 rounded-xl bg-zinc-900/30 hover:bg-zinc-900/50 cursor-pointer transition-all group"
+          className="flex flex-col items-center justify-center h-full min-h-[220px] sm:min-h-[300px] border-2 border-dashed border-zinc-700 hover:border-blue-500 rounded-xl bg-zinc-900/30 hover:bg-zinc-900/50 cursor-pointer transition-all group py-6"
         >
           <div className="w-16 h-16 rounded-full bg-zinc-800 group-hover:bg-blue-500/20 flex items-center justify-center mb-4 transition-all">
             <svg

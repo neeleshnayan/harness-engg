@@ -8,6 +8,7 @@ interface HamburgerMenuProps {
   onLogout: () => void;
   accountData: any;
   onCopyAddress: () => void;
+  onOpenQuestionnaire?: () => void;
 }
 
 const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
@@ -15,7 +16,8 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
   onClose,
   onLogout,
   accountData,
-  onCopyAddress
+  onCopyAddress,
+  onOpenQuestionnaire
 }) => {
   const router = useRouter();
 
@@ -45,6 +47,12 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
     e.stopPropagation();
     onClose();
     router.push('/clark');
+  };
+
+  const handleOpenQuestionnaire = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onClose();
+    onOpenQuestionnaire?.();
   };
 
   return (
@@ -82,7 +90,20 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
           </div>
 
           {/* Navigation Section */}
-          <div className="mb-8">
+          <div className="mb-8 space-y-3">
+            {onOpenQuestionnaire && (
+              <button
+                onClick={handleOpenQuestionnaire}
+                className="flex items-center justify-center w-full text-cyan-400 hover:text-cyan-300 hover:bg-cyan-900/20 px-6 py-4 rounded-2xl transition-all duration-200 font-medium border border-cyan-900/30 hover:border-cyan-700/50"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-3 flex-shrink-0">
+                  <line x1="4" y1="6" x2="20" y2="6" />
+                  <line x1="4" y1="12" x2="20" y2="12" />
+                  <line x1="4" y1="18" x2="20" y2="18" />
+                </svg>
+                Hedge Fund Questionnaire
+              </button>
+            )}
             <button
               onClick={handleNavigateToClark}
               className="flex items-center justify-center w-full text-cyan-400 hover:text-cyan-300 hover:bg-cyan-900/20 px-6 py-4 rounded-2xl transition-all duration-200 font-medium border border-cyan-900/30 hover:border-cyan-700/50"
