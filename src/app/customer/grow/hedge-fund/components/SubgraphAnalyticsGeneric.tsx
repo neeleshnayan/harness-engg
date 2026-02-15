@@ -17,6 +17,7 @@ import { ChevronDown, ChevronUp, Download, Filter, Check } from "lucide-react";
 import { TokenPriceChart } from '@/components/charts/TokenPriceChart';
 import { AssetAllocationChart } from '@/components/charts/AssetAllocationChart';
 import { AumChart } from '@/components/charts/AumChart';
+import { StrategyChartTooltip } from '@/components/charts/StrategyChartTooltip';
 
 const formatNumber = (value?: string | number, options?: Intl.NumberFormatOptions) => {
     if (value === undefined || value === null) return '0';
@@ -449,10 +450,10 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
         <div className="space-y-6">
             {
                 allEvents.length > 0 && (
-                    <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
-                        <div className="flex items-center justify-between mb-4">
+                    <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-4 sm:p-6 backdrop-blur">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Recent Activity</p>
-                            <div className="flex items-center space-x-4 relative">
+                            <div className="flex flex-wrap items-center gap-2 sm:gap-4 relative">
                                 {filteredEvents.length > 5 && (
                                     <button
                                         onClick={() => setIsExpanded(!isExpanded)}
@@ -506,19 +507,76 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                 </div>
                             </div>
                         </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left text-sm text-zinc-400">
+                        {/* Mobile: card layout */}
+                        <div className="block md:hidden space-y-3 max-h-[400px] overflow-y-auto scrollbar-minimal pr-1">
+                            {displayedEvents.map((event) => {
+                                let typeLabel = <></>;
+                                let summary = '';
+
+                                if (event.type === 'SIGNAL') {
+                                    const s = event as any;
+                                    const isBuy = s.signalType === 1;
+                                    const inputAmount = Number(s.amountIn);
+                                    const outputAmount = Number(s.amountOut);
+                                    typeLabel = (
+                                        <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${isBuy ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
+                                            {isBuy ? 'BUY' : 'SELL'}
+                                        </span>
+                                    );
+                                    summary = isBuy
+                                        ? `${formatTokenAmount(inputAmount, 2)} ${displayAssetSymbol} → ${formatTokenAmount(outputAmount, decimals)} ${displayTargetSymbol}`
+                                        : `${formatTokenAmount(inputAmount, decimals)} ${displayTargetSymbol} → ${formatTokenAmount(outputAmount, 2)} ${displayAssetSymbol}`;
+                                } else if (event.type === 'DEPOSIT') {
+                                    const d = event as any;
+                                    const depositAssets = Number(d.assets) || 0;
+                                    const rawShares = Number(d.shares ?? 0);
+                                    const depositSharesDisplay = rawShares > 0 ? rawShares : (d.calculatedShares ?? depositAssets);
+                                    typeLabel = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">DEPOSIT</span>;
+                                    summary = `${formatTokenAmount(depositAssets, 2)} ${displayAssetSymbol} → ${formatNumber(depositSharesDisplay, { maximumFractionDigits: 4 })} ${targetSymbol}`;
+                                } else if (event.type === 'WITHDRAWAL') {
+                                    const w = event as any;
+                                    const withdrawAssets = Number(w.assets) || 0;
+                                    const withdrawSharesFromEvent = w.shares ? Number(w.shares) : 0;
+                                    const withdrawSharesDisplay = withdrawSharesFromEvent > 0 ? withdrawSharesFromEvent : (w.calculatedShares ?? withdrawAssets);
+                                    typeLabel = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">WITHDRAWAL</span>;
+                                    summary = `${formatNumber(withdrawSharesDisplay, { maximumFractionDigits: 4 })} ${targetSymbol} → ${formatTokenAmount(withdrawAssets, 2)} ${displayAssetSymbol}`;
+                                }
+
+                                const txHash = (event as any).txHash || (event.id.split('-')[0]) || '';
+
+                                return (
+                                    <div key={event.id} className="rounded-xl border border-zinc-700/50 bg-zinc-800/30 p-3">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-2 mb-1">{typeLabel}</div>
+                                                <p className="text-sm text-white font-medium break-words">{summary}</p>
+                                                <p className="text-xs text-zinc-500 mt-0.5">{formatTimestamp(event.timestamp)}</p>
+                                            </div>
+                                            {txHash && (
+                                                <a href={`https://sepolia.etherscan.io/tx/${txHash}`} target="_blank" rel="noopener noreferrer" className="text-xs text-zinc-500 hover:text-blue-400 shrink-0">
+                                                    View
+                                                </a>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Desktop: full table */}
+                        <div className="hidden md:block max-h-[400px] overflow-auto scrollbar-minimal pr-1">
+                            <table className="w-full text-left text-sm text-zinc-400 min-w-[640px]">
                                 <thead className="text-xs uppercase text-zinc-500 border-b border-zinc-700/50">
                                     <tr>
-                                        <th className="pb-3 font-medium">Time</th>
-                                        <th className="pb-3 font-medium">Type</th>
-                                        <th className="pb-3 font-medium">Input</th>
-                                        <th className="pb-3 font-medium">Output</th>
-                                        <th className="pb-3 font-medium">{displayTargetSymbol} Price</th>
-                                        <th className="pb-3 font-medium">Token Price</th>
-                                        <th className="pb-3 font-medium">Total AUM</th>
-                                        <th className="pb-3 font-medium">Total Deposits</th>
-                                        <th className="pb-3 font-medium">Total Withdrawals</th>
+                                        <th className="pb-3 pr-4 font-medium">Time</th>
+                                        <th className="pb-3 pr-4 font-medium">Type</th>
+                                        <th className="pb-3 pr-4 font-medium">Input</th>
+                                        <th className="pb-3 pr-4 font-medium">Output</th>
+                                        <th className="pb-3 pr-4 font-medium">{displayTargetSymbol} Price</th>
+                                        <th className="pb-3 pr-4 font-medium">Token Price</th>
+                                        <th className="pb-3 pr-4 font-medium">Total AUM</th>
+                                        <th className="pb-3 pr-4 font-medium">Total Deposits</th>
+                                        <th className="pb-3 pr-4 font-medium">Total Withdrawals</th>
                                         <th className="pb-3 font-medium">Tx Hash</th>
                                     </tr>
                                 </thead>
@@ -584,15 +642,15 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
 
                                         return (
                                             <tr key={event.id} className="group hover:bg-zinc-700/20 transition-colors">
-                                                <td className="py-3">{formatTimestamp(event.timestamp)}</td>
-                                                <td className="py-3">{typeLabel}</td>
-                                                <td className="py-3 text-white font-medium">{inputDisplay}</td>
-                                                <td className="py-3 text-white font-medium">{outputDisplay}</td>
-                                                <td className="py-3 text-white font-medium">{priceDisplay}</td>
-                                                <td className="py-3 text-zinc-300 font-medium">{formatTokenPrice(tokenPrice)}</td>
-                                                <td className="py-3 text-zinc-300 font-medium">{formatCurrency(aum)}</td>
-                                                <td className="py-3 text-emerald-400/80 font-medium">{formatCurrency((event as any)._totalDeposits ?? 0)}</td>
-                                                <td className="py-3 text-rose-400/80 font-medium">{formatCurrency((event as any)._totalWithdrawals ?? 0)}</td>
+                                                <td className="py-3 pr-4">{formatTimestamp(event.timestamp)}</td>
+                                                <td className="py-3 pr-4">{typeLabel}</td>
+                                                <td className="py-3 pr-4 text-white font-medium">{inputDisplay}</td>
+                                                <td className="py-3 pr-4 text-white font-medium">{outputDisplay}</td>
+                                                <td className="py-3 pr-4 text-white font-medium">{priceDisplay}</td>
+                                                <td className="py-3 pr-4 text-zinc-300 font-medium">{formatTokenPrice(tokenPrice)}</td>
+                                                <td className="py-3 pr-4 text-zinc-300 font-medium">{formatCurrency(aum)}</td>
+                                                <td className="py-3 pr-4 text-emerald-400/80 font-medium">{formatCurrency((event as any)._totalDeposits ?? 0)}</td>
+                                                <td className="py-3 pr-4 text-rose-400/80 font-medium">{formatCurrency((event as any)._totalWithdrawals ?? 0)}</td>
                                                 <td className="py-3 font-mono text-xs">
                                                     <a href={`https://sepolia.etherscan.io/tx/${txHash}`} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors">
                                                         {formatTxHash(txHash)}
@@ -643,75 +701,93 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
 
             {
                 (metrics || latestData) && (
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
+                    <div className="overflow-x-auto overflow-y-hidden pb-2 -mx-4 px-4 md:overflow-visible md:mx-0 md:px-0 scrollbar-minimal">
+                        <div className="grid grid-rows-2 grid-flow-col auto-cols-[minmax(160px,1fr)] gap-3 w-max min-w-full md:w-auto">
+                        {/* Card layout: 2 rows, fills column-by-column */}
+                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 pt-4 px-4 pb-2 backdrop-blur flex flex-col">
                             <div className="flex items-center justify-between">
                                 <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Live Token Price</p>
                                 {livePriceFetching && (
                                     <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" title="Fetching..." />
                                 )}
                             </div>
-                            <p className="mt-3 text-3xl font-bold text-white">
+                            <p className="mt-2 text-2xl sm:text-3xl font-bold text-white">
                                 {livePriceLoading ? '...' : formatTokenPrice(livePrice ?? Number(metrics?.lastSharePrice || 1))}
                             </p>
-                            {livePriceError ? (
-                                <p className="mt-1 text-xs text-rose-400">RPC error: {livePriceError.message?.slice(0, 60)}</p>
-                            ) : !livePriceEnabled ? (
-                                <p className="mt-1 text-xs text-amber-400">No valid strategy address</p>
-                            ) : dataUpdatedAt > 0 ? (
-                                <p className="mt-1 text-xs text-zinc-500">
-                                    Last fetched: {new Date(dataUpdatedAt).toLocaleTimeString()} (every 15s)
-                                </p>
-                            ) : (
-                                <p className="mt-1 text-xs text-zinc-500">Waiting for first fetch...</p>
-                            )}
-                        </div>
-                        {targetTokenInfo && (
-                            <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
-                                <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">{targetTokenInfo.symbol} Price</p>
-                                <p className="mt-3 text-3xl font-bold text-white">
-                                    {formatCurrency(targetTokenInfo.current_rate)}
-                                </p>
-                                <p className={`mt-1 text-xs ${targetTokenInfo.direction === 'up' ? 'text-emerald-400' : targetTokenInfo.direction === 'down' ? 'text-rose-400' : 'text-zinc-500'}`}>
-                                    {targetTokenInfo.direction === 'up' ? '+' : ''}{targetTokenInfo.percentage_change.toFixed(2)}% from close
-                                </p>
+                            <div className="mt-1 text-xs">
+                                {livePriceError ? (
+                                    <p className="text-rose-400">RPC error: {livePriceError.message?.slice(0, 60)}</p>
+                                ) : !livePriceEnabled ? (
+                                    <p className="text-amber-400">No valid strategy address</p>
+                                ) : dataUpdatedAt > 0 ? (
+                                    <p className="text-zinc-500">
+                                        Last fetched: {new Date(dataUpdatedAt).toLocaleTimeString()} (every 15s)
+                                    </p>
+                                ) : (
+                                    <p className="text-zinc-500">Waiting for first fetch...</p>
+                                )}
                             </div>
-                        )}
-                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
+                        </div>
+                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 pt-4 px-4 pb-2 backdrop-blur flex flex-col">
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total AUM</p>
-                            <p className="mt-3 text-3xl font-bold text-white">
+                            <p className="mt-2 text-2xl sm:text-3xl font-bold text-white">
                                 {formatCurrency(Number(metrics?.currentAum || 0) || latestData?.aum || 0)}
                             </p>
                         </div>
-                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
+                        {targetTokenInfo && (
+                            <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 pt-4 px-4 pb-2 backdrop-blur flex flex-col">
+                                <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">{targetTokenInfo.symbol} Price</p>
+                                <p className="mt-2 text-2xl sm:text-3xl font-bold text-white">
+                                    {formatCurrency(targetTokenInfo.current_rate)}
+                                </p>
+                                <div className="mt-1 text-xs">
+                                    <p className={targetTokenInfo.direction === 'up' ? 'text-emerald-400' : targetTokenInfo.direction === 'down' ? 'text-rose-400' : 'text-zinc-500'}>
+                                        {targetTokenInfo.direction === 'up' ? '+' : ''}{targetTokenInfo.percentage_change.toFixed(2)}% from close
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 pt-4 px-4 pb-2 backdrop-blur flex flex-col">
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Net Share Supply</p>
-                            <p className="mt-3 text-3xl font-bold text-white">
+                            <p className="mt-2 text-2xl sm:text-3xl font-bold text-white">
                                 {formatTokenAmount(Number(metrics?.mintedShares || 0) - Number(metrics?.burnedShares || 0) || latestData?.netShares || 0)}
                             </p>
                         </div>
-                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
+                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 pt-4 px-4 pb-2 backdrop-blur flex flex-col">
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total Deposits</p>
-                            <p className="mt-3 text-3xl font-bold text-emerald-400">{formatCurrency(Number(metrics?.totalDeposits || 0) || latestData?.totalDeposits || 0)}</p>
+                            <p className="mt-2 text-2xl sm:text-3xl font-bold text-emerald-400">{formatCurrency(Number(metrics?.totalDeposits || 0) || latestData?.totalDeposits || 0)}</p>
                         </div>
-                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
+                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 pt-4 px-4 pb-2 backdrop-blur flex flex-col">
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total Withdrawals</p>
-                            <p className="mt-3 text-3xl font-bold text-rose-400">{formatCurrency(Number(metrics?.totalWithdrawals || 0) || latestData?.totalWithdrawals || 0)}</p>
+                            <p className="mt-2 text-2xl sm:text-3xl font-bold text-rose-400">{formatCurrency(Number(metrics?.totalWithdrawals || 0) || latestData?.totalWithdrawals || 0)}</p>
                         </div>
-                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
-                            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total Buy Signals</p>
-                            <p className="mt-3 text-3xl font-bold text-emerald-400">{metrics?.totalBuySignals ?? '0'}</p>
+                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 pt-4 px-4 pb-2 backdrop-blur flex flex-col">
+                            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total Signals</p>
+                            <div className="mt-2 space-y-2">
+                                <div className="flex justify-between items-baseline gap-3">
+                                    <span className="text-sm text-zinc-400">Buy</span>
+                                    <span className="text-2xl sm:text-3xl font-bold text-emerald-400 tabular-nums">{metrics?.totalBuySignals ?? '0'}</span>
+                                </div>
+                                <div className="flex justify-between items-baseline gap-3">
+                                    <span className="text-sm text-zinc-400">Sell</span>
+                                    <span className="text-2xl sm:text-3xl font-bold text-rose-400 tabular-nums">{metrics?.totalSellSignals ?? '0'}</span>
+                                </div>
+                            </div>
                         </div>
-                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
-                            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total Sell Signals</p>
-                            <p className="mt-3 text-3xl font-bold text-rose-400">{metrics?.totalSellSignals ?? '0'}</p>
+                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 pt-4 px-4 pb-2 backdrop-blur flex flex-col">
+                            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total Swapped</p>
+                            <div className="mt-2 flex items-center justify-center gap-3">
+                                <div className="flex flex-col items-center min-w-0">
+                                    <span className="text-2xl sm:text-3xl font-bold text-white tabular-nums">{formatCurrency(Number(metrics?.totalAssetSwapped ?? '0'))}</span>
+                                    <span className="mt-1 text-xs text-zinc-400">{assetSymbol}</span>
+                                </div>
+                                <span className="flex shrink-0 items-center justify-center text-2xl font-bold text-zinc-400" aria-hidden>↔</span>
+                                <div className="flex flex-col items-center min-w-0">
+                                    <span className="text-2xl sm:text-3xl font-bold text-white tabular-nums">{formatTokenAmount(Number(metrics?.totalTargetSwapped ?? '0'), decimals)}</span>
+                                    <span className="mt-1 text-xs text-zinc-400">{targetSymbol}</span>
+                                </div>
+                            </div>
                         </div>
-                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
-                            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total {assetSymbol} Swapped</p>
-                            <p className="mt-3 text-3xl font-bold text-white">{formatCurrency(Number(metrics?.totalAssetSwapped ?? '0'))}</p>
-                        </div>
-                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
-                            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total {targetSymbol} Swapped</p>
-                            <p className="mt-3 text-3xl font-bold text-white">{formatTokenAmount(Number(metrics?.totalTargetSwapped ?? '0'), decimals)}</p>
                         </div>
                     </div>
                 )
@@ -720,19 +796,19 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
             {/* Charts Section */}
             {
                 chartData.length > 0 && (
-                    <div className="grid gap-6 lg:grid-cols-2">
+                    <div className="grid gap-6 lg:grid-cols-2 items-stretch">
                         {/* AUM Chart */}
-                        <div className="lg:col-span-1">
+                        <div className="lg:col-span-1 min-h-0">
                             <AumChart data={chartData as any} />
                         </div>
 
                         {/* Token Price Chart */}
-                        <div className="lg:col-span-1">
+                        <div className="lg:col-span-1 min-h-0">
                             <TokenPriceChart data={chartData as any} livePrice={livePrice} dailyPrices={dailySharePrices} />
                         </div>
 
                         {/* Asset Allocation Chart */}
-                        <div className="lg:col-span-1">
+                        <div className="lg:col-span-1 min-h-0">
                             {/* We cast data to any because AssetAllocationChart might expect wethBalance but we pass wethBalance/usdcBalance. */}
                             {/* It should just work if the data has {wethBalance, usdcBalance} structure. */}
                             <AssetAllocationChart
@@ -743,11 +819,14 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                         </div>
 
                         {/* Share Mint vs Burn Chart */}
-                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
-                            <h3 className="text-lg font-bold text-white mb-1">Share Mint vs Burn</h3>
-                            <p className="text-xs text-zinc-400 mb-6">CUMULATIVE SHARES MINTED AND BURNED</p>
-                            <div className="h-[250px] w-full">
-                                <ResponsiveContainer width="100%" height="100%">
+                        <div className="lg:col-span-1 min-h-0">
+                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur flex flex-col h-full">
+                            <div className="min-h-[7rem] mb-4">
+                                <h3 className="text-lg font-bold text-white mb-1">Share Mint vs Burn</h3>
+                                <p className="text-xs text-zinc-400">CUMULATIVE SHARES MINTED AND BURNED</p>
+                            </div>
+                            <div className="h-[280px] w-full shrink-0">
+                                <ResponsiveContainer width="100%" height={280}>
                                     <AreaChart data={chartData}>
                                         <defs>
                                             <linearGradient id="colorMint" x1="0" y1="0" x2="0" y2="1">
@@ -763,15 +842,32 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                         <XAxis dataKey="date" stroke="#71717a" tick={{ fontSize: 12 }} tickLine={false} />
                                         <YAxis stroke="#71717a" tick={{ fontSize: 12 }} tickLine={false} tickFormatter={(val) => formatNumber(val)} />
                                         <Tooltip
-                                            contentStyle={{ backgroundColor: '#18181b', borderColor: '#3f3f46', borderRadius: '0.5rem' }}
-                                            formatter={(value: number) => [formatNumber(value) + ' Shares', undefined]}
+                                            content={(props) => {
+                                                if (!props.active || !props.payload?.length) return null;
+                                                const rows = props.payload
+                                                    .filter((p) => p.value !== undefined)
+                                                    .map((p) => ({
+                                                        label: String(p.name ?? p.dataKey ?? ''),
+                                                        value: formatNumber(Number(p.value)) + ' Shares',
+                                                        color: p.color,
+                                                    }));
+                                                return (
+                                                    <StrategyChartTooltip
+                                                        active={props.active}
+                                                        payload={props.payload}
+                                                        label={props.label}
+                                                        rows={rows}
+                                                    />
+                                                );
+                                            }}
                                         />
-                                        <Legend />
+                                        <Legend layout="horizontal" align="center" wrapperStyle={{ paddingTop: 8 }} />
                                         <Area type="monotone" dataKey="mintedShares" name="Minted" stroke="#3b82f6" fill="url(#colorMint)" strokeWidth={2} />
                                         <Area type="monotone" dataKey="burnedShares" name="Burned" stroke="#f97316" fill="url(#colorBurn)" strokeWidth={2} />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             </div>
+                        </div>
                         </div>
                     </div>
                 )

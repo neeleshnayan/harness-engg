@@ -713,7 +713,7 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
       </div>
 
       {/* Chart — no bounded box */}
-      <div className="h-56 min-w-0">
+      <div className="h-72 sm:h-80 min-w-0">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartDataToRender} margin={{ top: 8, right: 8, left: 8, bottom: 28 }}>
             <defs>
