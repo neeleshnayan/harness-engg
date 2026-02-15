@@ -4,8 +4,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { hedgeFundApi } from "@/lib/api";
-import { SubgraphAnalyticsGeneric } from "@/components/wallet/SubgraphAnalyticsGeneric";
-import { TradingSignals } from "@/components/wallet/TradingSignals";
+import { SubgraphAnalyticsGeneric } from "../components/SubgraphAnalyticsGeneric";
+import { TradingSignals } from "../components/TradingSignals";
 import { useYearnWETHConfig } from "@/hooks/useStrategyConfig";
 import WalletHeader from "@/components/wallet/WalletHeader";
 import HamburgerMenu from "@/components/wallet/HamburgerMenu";
@@ -43,7 +43,9 @@ export default function StrategyDetailsPage() {
 
     const storedUserData = localStorage.getItem('userData');
     if (storedUserData) {
-      setAccountData(JSON.parse(storedUserData));
+      try {
+        setAccountData(JSON.parse(storedUserData));
+      } catch { /* corrupted userData */ }
     }
   }, []);
 

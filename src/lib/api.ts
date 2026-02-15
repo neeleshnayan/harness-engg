@@ -4,8 +4,8 @@ import https from 'https';
 import { parseErrorMessage } from './parseError';
 
 // Main backend: login, auth, user, wallet. Always api.kryptonfund.com.
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.kryptonfund.com';
-const KRYPTON_WEB3_API_BASE_URL = process.env.NEXT_PUBLIC_KRYPTON_WEB3_API_URL || 'http://127.0.0.1:8001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+const KRYPTON_WEB3_API_BASE_URL = process.env.NEXT_PUBLIC_KRYPTON_WEB3_API_URL || 'http://127.0.0.1:8000';
 
 const httpAgent = new http.Agent({
   keepAlive: true,
@@ -45,10 +45,12 @@ const ensureProtocol = (url: string) => {
   return url;
 };
 
-// Hedge Fund API Client
-const HEDGE_FUND_API_BASE_URL = ensureProtocol(process.env.NEXT_PUBLIC_HEDGE_FUND_API_URL || 'http://127.0.0.1:8001');
+// Hedge Fund API: localhost for local dev; set NEXT_PUBLIC_HEDGE_FUND_API_URL to Railway URL in production
+const HEDGE_FUND_API_BASE_URL = ensureProtocol(
+  process.env.NEXT_PUBLIC_HEDGE_FUND_API_URL || 'http://127.0.0.1:8000'
+);
 
-/** Hedge fund / Grow page subgraph (strategy metrics, deposits, signals). Use NEXT_PUBLIC_HEDGE_FUND_SUBGRAPH_API_URL or NEXT_PUBLIC_SUBGRAPH_URL to override. */
+/** Hedge fund subgraph (strategy metrics, deposits, signals). Override with NEXT_PUBLIC_HEDGE_FUND_SUBGRAPH_API_URL or NEXT_PUBLIC_SUBGRAPH_URL. */
 export const HEDGE_FUND_SUBGRAPH_URL =
   process.env.NEXT_PUBLIC_HEDGE_FUND_SUBGRAPH_API_URL ||
   process.env.NEXT_PUBLIC_SUBGRAPH_URL ||

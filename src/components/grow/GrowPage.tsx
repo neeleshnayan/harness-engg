@@ -44,7 +44,7 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
       setBalanceError(null);
 
       // Use the new subgraph API endpoint
-      const kryptonWeb3ApiUrl = process.env.NEXT_PUBLIC_KRYPTON_WEB3_API_URL || 'http://localhost:8001';
+      const kryptonWeb3ApiUrl = process.env.NEXT_PUBLIC_KRYPTON_WEB3_API_URL || 'https://kryptonweb3-production.up.railway.app';
       const response = await fetch(`${kryptonWeb3ApiUrl}/subgraph/user/${address}/balances`);
 
       if (!response.ok) {

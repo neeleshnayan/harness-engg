@@ -57,7 +57,7 @@ export default function CLPoolMonitor({
 
   // WebSocket URL for receiving transaction events
   const wsUrl = walletAddress
-    ? `${process.env.NEXT_PUBLIC_KRYPTON_WEB3_WS_URL || 'ws://localhost:8001'}/ws/${walletAddress}`
+    ? `${process.env.NEXT_PUBLIC_KRYPTON_WEB3_WS_URL || 'wss://kryptonweb3-production.up.railway.app'}/ws/${walletAddress}`
     : '';
 
   // Handle WebSocket messages for transaction status updates

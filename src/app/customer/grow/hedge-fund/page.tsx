@@ -5,18 +5,20 @@ import { useRouter } from "next/navigation";
 import { getAuth, signOut } from "firebase/auth";
 import { CheckCircle } from "lucide-react";
 import { hedgeFundApi } from "@/lib/api";
-import StrategyCard from "@/components/wallet/StrategyCard";
 
-import { CumulativeAUMChartNew } from "@/components/wallet/CumulativeAUMChartNew";
+import { CumulativeAUMChartNew } from "./components/CumulativeAUMChartNew";
 import { Toaster } from "@/components/ui/toaster";
 import { HedgeFundForm } from "@/lib/types";
-import HedgeFundQuestionnaire from "@/components/HedgeFundQuestionnaire";
+import HedgeFundQuestionnaire from "./components/HedgeFundQuestionnaire";
 import MiniHedgeFundChat from '@/components/MiniHedgeFundChat';
 import WalletHeader from "@/components/wallet/WalletHeader";
 import HamburgerMenu from "@/components/wallet/HamburgerMenu";
 import { getFirebaseApp } from "@/lib/firebaseClient";
-import { AddStrategyModal } from "@/components/wallet/AddStrategyModal";
+import { AddStrategyModal } from "./components/AddStrategyModal";
 import { TransactionWebhookProvider } from "@/contexts/TransactionWebhookContext";
+import { filterStrategies } from "./utils/strategyFilters";
+import { AvailableStrategiesSection } from "./components/AvailableStrategiesSection";
+import { useStrategiesWithMetrics } from "./hooks/useStrategiesWithMetrics";
 
 export default function HedgeFundV2Page() {
   const router = useRouter();
@@ -48,10 +50,16 @@ export default function HedgeFundV2Page() {
   const [strategiesLoading, setStrategiesLoading] = useState(true);
   const [showAddStrategyModal, setShowAddStrategyModal] = useState(false);
 
-  // Filter out archived/hidden strategies if needed
-  const activeStrategies = useMemo(() => {
-     return strategies; // Add filtering logic here if needed
-  }, [strategies]);
+  // Strategy list filters (risk + APY)
+  const [riskFilter, setRiskFilter] = useState<string>("all");
+  const [apyFilter, setApyFilter] = useState<string>("all");
+
+  const { strategiesWithMetrics } = useStrategiesWithMetrics(strategies);
+
+  const activeStrategies = useMemo(
+    () => filterStrategies(strategiesWithMetrics, riskFilter, apyFilter),
+    [strategiesWithMetrics, riskFilter, apyFilter]
+  );
 
   const fetchStrategies = async () => {
     try {
@@ -106,7 +114,6 @@ export default function HedgeFundV2Page() {
       if (symbol !== 'USDC' && symbol !== 'TRNSK' && symbol !== 'ysWETH' && symbol !== 'YEARN_WETH') {
         strategyBalances[symbol] = tokenBalance.amount || "0";
         strategyBalancesWei[symbol] = tokenBalance.balanceWei || "0";
-        console.log(`✅ [OPTIMIZED] ${symbol}: ${tokenBalance.amount}`);
       }
     });
 
@@ -115,15 +122,18 @@ export default function HedgeFundV2Page() {
 
   useEffect(() => {
     const storedUserData = localStorage.getItem('userData');
-    if (storedUserData) {
+    if (!storedUserData) return;
+    try {
       const parsedData = JSON.parse(storedUserData);
       setUserData(parsedData);
       setAccountData(parsedData);
 
       // Fetch balance if wallet address exists
-      if (parsedData.wallet_address) {
+      if (parsedData?.wallet_address) {
         fetchBalance(parsedData.wallet_address);
       }
+    } catch {
+      // Corrupted userData - ignore
     }
   }, []);
 
@@ -323,63 +333,41 @@ export default function HedgeFundV2Page() {
             showBackButton={true}
           />
         )}
-        <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <div className="container mx-auto px-4 sm:px-6 py-8 max-w-6xl">
           {/* Portfolio Performance Chart */}
           {accountData?.wallet_address && (
-            <div className="w-full max-w-6xl mx-auto mb-4">
+            <section className="w-full mb-8">
               <CumulativeAUMChartNew
                 userWalletAddress={accountData.wallet_address}
                 strategies={strategies}
                 balanceData={balance}
               />
-            </div>
+            </section>
           )}
 
-          <section id="clark-chat" className="w-full max-w-6xl mx-auto mb-4 relative">
+          <AvailableStrategiesSection
+            strategies={strategies}
+            activeStrategies={activeStrategies}
+            riskFilter={riskFilter}
+            apyFilter={apyFilter}
+            onRiskChange={setRiskFilter}
+            onApyChange={setApyFilter}
+            onAddStrategy={() => setShowAddStrategyModal(true)}
+            onRefresh={() => {
+              accountData?.wallet_address && fetchBalance(accountData.wallet_address);
+              fetchStrategies();
+            }}
+            tokenBalances={{
+              usdc: tokenBalances.usdc,
+              strategies: tokenBalances.strategies,
+              strategiesWei: tokenBalances.strategiesWei,
+            }}
+            walletAddress={accountData?.wallet_address}
+          />
+
+          <section id="clark-chat" className="w-full pb-8">
             <MiniHedgeFundChat userId={accountData?.user_id} />
           </section>
-
-          {/* Strategy Cards */}
-          <div className="w-full max-w-6xl mx-auto mb-8 sm:mb-12 px-4">
-            <div className="flex justify-between items-center mb-4 sm:mb-6">
-              <h2 className="text-xl sm:text-2xl font-bold text-white">Available Strategies</h2>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-
-              {activeStrategies.map((strat) => (
-                <StrategyCard
-                  key={strat.id || strat.address}
-                  strategyName={strat.symbol || strat.id || "Unknown"}
-                  strategyData={strat}
-                  onRefresh={() => {
-                    accountData?.wallet_address && fetchBalance(accountData.wallet_address);
-                    fetchStrategies();
-                  }}
-                  onCardClick={() => {
-                    // Navigate to separate details page
-                    router.push(`/customer/grow/hedge-fund/${strat.id || 'YEARN_WETH'}`);
-                  }}
-                  usdcBalance={tokenBalances.usdc?.toString()}
-                  strategyBalance={tokenBalances.strategies[strat.id || strat.address]}
-                  strategyBalanceWei={tokenBalances.strategiesWei?.[strat.id || strat.address]}
-                />
-              ))}
-
-              {/* ADD STRATEGY BUTTON */}
-              <div
-                onClick={() => setShowAddStrategyModal(true)}
-                className="flex flex-col items-center justify-center h-full min-h-[300px] border-2 border-dashed border-zinc-700 hover:border-blue-500 rounded-xl bg-zinc-900/30 hover:bg-zinc-900/50 cursor-pointer transition-all group"
-              >
-                <div className="w-16 h-16 rounded-full bg-zinc-800 group-hover:bg-blue-500/20 flex items-center justify-center mb-4 transition-all">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-400 group-hover:text-blue-500"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
-                </div>
-                <h3 className="text-lg font-semibold text-zinc-300 group-hover:text-white">Add New Strategy</h3>
-                <p className="text-sm text-zinc-500 mt-2 text-center px-4">Deploy a new Yearn Strategy to the platform</p>
-              </div>
-
-            </div>
-          </div>
 
           <AddStrategyModal
             isOpen={showAddStrategyModal}

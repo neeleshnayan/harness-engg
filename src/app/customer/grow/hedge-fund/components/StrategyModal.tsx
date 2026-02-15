@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { AlertCircle, ArrowUp, ArrowDown, Info } from "lucide-react";
+import { AlertCircle, ArrowDown, Info, X } from "lucide-react";
 import TransactionStatusIndicator from "./TransactionStatusIndicator";
 import {
   estimateTransactionLikelihood,
   TransactionLikelihoodResult,
   TransactionStatusUpdate,
-} from "../../services/transactionLikelihood";
+} from "@/services/transactionLikelihood";
 import { StrategyName } from "@/hooks/useStrategyConfig";
 
 interface StrategyModalProps {
@@ -20,8 +20,8 @@ interface StrategyModalProps {
   loading: boolean;
   error: string | null;
   success: string | null;
-  price?: string; // For MAVC/MAVP price in USDC
-  pricePerShare?: number; // For MAVC_YEARN vault price per share
+  price?: string;
+  pricePerShare?: number;
   walletAddress?: string;
   tokenAddress?: string;
   vaultAddress?: string;
@@ -30,12 +30,10 @@ interface StrategyModalProps {
 const getTokenSymbol = (strategyName: StrategyName): string => {
   switch (strategyName) {
     default:
-      // For dynamic strategies like KPETH, KPGOLD, etc., use the strategyName as the symbol
       return strategyName;
   }
 };
 
-// Format balance based on strategy (preserves decimal conversion)
 const formatStrategyBalance = (balance: string, strategyName: StrategyName): string => {
   const numBalance = parseFloat(balance);
   if (!Number.isFinite(numBalance) || numBalance === 0) return '0.00';
@@ -71,7 +69,6 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
     message: 'Ready to process',
   });
 
-  // Reset state when modal closes
   useEffect(() => {
     if (!visible) {
       setAmount("");
@@ -84,7 +81,6 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
     }
   }, [visible]);
 
-  // Estimate transaction likelihood when amount changes
   useEffect(() => {
     const estimateLikelihood = async () => {
       if (!amount || parseFloat(amount) <= 0) {
@@ -116,16 +112,6 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
 
     estimateLikelihood();
   }, [amount, isDeposit, usdcBalance, strategyBalance, walletAddress, tokenAddress, action]);
-
-  // For Yearn: Calculate share/asset estimates
-  const [estimatedShares, setEstimatedShares] = useState<number>(0);
-  const [estimatedAssets, setEstimatedAssets] = useState<number>(0);
-
-  useEffect(() => {
-    // Logic for estimated shares if needed for YEARN_WETH
-    // Currently removed MAVC_YEARN specific logic
-    // If YEARN_WETH needs estimation, we can add it here later
-  }, [amount, isDeposit, pricePerShare, strategyName]);
 
   if (!visible) return null;
 
@@ -164,20 +150,19 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
         <div className="relative border-b border-white/5 p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-              {isDeposit ? `Deposit ${tokenSymbol}` : `Withdraw ${tokenSymbol}`}
+              {isDeposit ? 'Deposit USDC' : `Withdraw ${tokenSymbol}`}
             </h2>
             <button
               onClick={onClose}
               className="text-teal-200/60 hover:text-white transition-colors"
               disabled={loading}
             >
-              <ArrowUp className="w-5 h-5 rotate-45" />
+              <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
         <div className="relative p-4 sm:p-6 space-y-4 sm:space-y-6">
-          {/* Success Screen */}
           {success && (
             <div className="flex flex-col items-center justify-center py-8">
               <svg
@@ -212,7 +197,6 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
             </div>
           )}
 
-          {/* Form (hide if success) */}
           {!success && (
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               {error && (
@@ -222,7 +206,6 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
                 </div>
               )}
 
-              {/* Balance Display */}
               <div className="rounded-md p-3 sm:p-4" style={{
                 background: 'linear-gradient(180deg, rgba(58, 96, 97, 0.6) 0%, rgba(125, 160, 161, 0.6) 100%)',
                 backdropFilter: 'blur(10px)',
@@ -284,7 +267,6 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
                     </button>
                   </div>
 
-                  {/* Show approximate USDC for withdrawal */}
                   {!isDeposit && amount && price && parseFloat(amount) > 0 && (
                     <div className="mt-2 p-3 rounded-md" style={{
                       background: 'rgba(34, 197, 94, 0.1)',
@@ -300,7 +282,6 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
                   )}
                 </div>
 
-                {/* Quick Amount Buttons */}
                 <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
                   {['10%', '25%', '50%', '75%'].map((percent) => (
                     <button
@@ -326,7 +307,6 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
                 </div>
               </div>
 
-              {/* Transaction Status Indicator - Show during processing or when there's a likelihood estimate */}
               {(loading || (likelihoodResult && amount && parseFloat(amount) > 0)) && (
                 <div className="mt-2">
                   <TransactionStatusIndicator
@@ -348,7 +328,7 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
                   ) : (
                     <img
                       src={isDeposit ? "/hedge_fund/Deposit.svg" : "/hedge_fund/Withdraw.svg"}
-                      alt={isDeposit ? "Deposit" : "Withdraw"}
+                      alt={isDeposit ? "Deposit USDC" : "Withdraw"}
                       className="w-full h-auto"
                     />
                   )}
@@ -371,4 +351,3 @@ const StrategyModal: React.FC<StrategyModalProps> = ({
 };
 
 export default StrategyModal;
-

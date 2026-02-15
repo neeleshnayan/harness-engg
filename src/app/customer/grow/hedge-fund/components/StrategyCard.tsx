@@ -2,10 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { TrendingUp, TrendingDown, ArrowUp, ArrowDown, Wallet, Users, Percent, BarChart, Clock, Shield } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn, formatTokenBalance } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -19,16 +16,25 @@ import { BalanceStatusIndicator, BalanceTransactionStage, BalanceTransactionType
 import StrategyModal from "./StrategyModal";
 
 interface StrategyCardProps {
-  strategyName: string; // Changed from StrategyName to string for dynamic support
+  strategyName: string;
   onRefresh?: () => void;
   onCardClick?: () => void;
   usdcBalance?: string;
-  strategyBalance?: string; // Pre-fetched strategy balance from parent
-  strategyBalanceWei?: string; // Pre-fetched raw wei balance from parent
-  strategyData?: any; // Dynamic config
+  strategyBalance?: string;
+  strategyBalanceWei?: string;
+  strategyData?: any;
 }
 
-// Strategy-specific configuration (Legacy support)
+export function calculateRiskGrade(sharpeRatio: number, maxDrawdownPercent: number): string {
+  const dd = Math.abs(maxDrawdownPercent);
+  if (sharpeRatio >= 2.0 && dd <= 10) return "A";
+  if (sharpeRatio >= 1.5 && dd <= 15) return "A-";
+  if (sharpeRatio >= 1.0 && dd <= 20) return "B+";
+  if (sharpeRatio >= 0.5 && dd <= 30) return "B";
+  if (sharpeRatio >= 0.0 && dd <= 40) return "C";
+  return "D";
+}
+
 const STRATEGY_DETAILS__LEGACY: Record<string, {
   tokenSymbol: string;
   routePath: string;
@@ -50,21 +56,18 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
 
   const safeStrategyName = strategyName || "";
 
-  // Dynamic Details
   const strategyDetails = STRATEGY_DETAILS__LEGACY[safeStrategyName] || {
     tokenSymbol: strategyData?.symbol || 'TOKEN',
     routePath: `/customer/grow/hedge-fund-v2/${safeStrategyName.toLowerCase()}`,
-    metricField: 'strategyMetric', // Generic metric field
+    metricField: 'strategyMetric',
     useTokenDetection: false,
   };
 
   const { data: config_fetched, isLoading: configLoading_fetched } = useStrategyConfig(strategyName as StrategyName);
 
-  // Use passed Data if available, else use fetched config
   const config = strategyData || config_fetched;
   const configLoading = strategyData ? false : configLoading_fetched;
 
-  // Subgraph URL: strategy config → env fallback (register_strategy doesn't store subgraph_url)
   const subgraphUrl = config?.subgraph_url || config?.SUBGRAPH_URL || process.env.NEXT_PUBLIC_SUBGRAPH_URL;
   const strategyAddress = config?.address || config?.vault_address || config?.VAULT_ADDRESS;
 
@@ -72,13 +75,13 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
     strategyName,
     subgraphUrl
   );
-  const { data: subgraphData, isLoading: subgraphLoading } = useStrategySubgraphData(strategyName, subgraphUrl, strategyAddress);
+  const { data: subgraphData } = useStrategySubgraphData(strategyName, subgraphUrl, strategyAddress);
   const { data: yearnAUM } = useYearnAUM(strategyName);
 
   const [strategyBalance, setStrategyBalance] = useState("0");
   const [strategyBalanceWei, setStrategyBalanceWei] = useState("0");
   const [balanceLoading, setBalanceLoading] = useState(false);
-  const [usdcBalanceState, setUsdcBalance] = useState("0"); // Renamed to differentiate from prop
+  const [usdcBalanceState, setUsdcBalance] = useState("0");
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [showModal, setShowModal] = useState(false);
   const [modalAction, setModalAction] = useState<'deposit' | 'withdraw'>('deposit');
@@ -88,24 +91,9 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
   const [transactionStage, setTransactionStage] = useState<BalanceTransactionStage>('idle');
   const [transactionType, setTransactionType] = useState<BalanceTransactionType>('deposit');
 
-  // Yearn-specific state
-  const [vaultPricePerShare, setVaultPricePerShare] = useState(1.0);
-
-  // Calculate net supply from subgraph
-  const netSupply = useMemo(() => {
-    const metric = subgraphData?.strategyMetric;
-    if (!metric) return 0;
-    const minted = Number(metric.mintedShares ?? '0');
-    const burned = Number(metric.burnedShares ?? '0');
-    return minted - burned;
-  }, [subgraphData]);
-
-  // AUM and depositors — fetched exclusively from the subgraph (not Firestore)
   const calculatedAUM = useMemo(() => {
     const metric = subgraphData?.strategyMetric;
-    // 1. Prefer currentAum (from on-chain totalAssets, already scaled by subgraph)
     let aumInUSD = Number(metric?.currentAum || 0);
-    // 2. Fallback: currentSupply × lastSharePrice (both BigDecimal, already scaled)
     if (aumInUSD === 0 && metric) {
       const supply = Number(metric.currentSupply || 0);
       const sharePrice = Number(metric.lastSharePrice || 0);
@@ -113,7 +101,6 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
         aumInUSD = supply * sharePrice;
       }
     }
-    // 3. Fallback: net deposits (totalDeposited - totalWithdrawn)
     if (aumInUSD === 0 && metric) {
       const deposited = Number(metric.totalDeposits || 0);
       const withdrawn = Number(metric.totalWithdrawals || 0);
@@ -133,32 +120,38 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
 
   const uniqueDepositors = subgraphData?.strategyMetric?.uniqueDepositors ?? 0;
 
-  // Computed metrics from subgraph share price history (APY, Max Drawdown, Sharpe)
   const computed = subgraphData?.computedMetrics;
 
-  // Strategy metrics — APY, Sharpe, Max Drawdown from subgraph; rest from config
+  const sharpe = computed?.sharpeRatio ?? config?.sharpe_ratio ?? 0;
+  const maxDrawdown = computed?.maxDrawdown ?? config?.max_drawdown ?? 0;
+  const riskGrade =
+    typeof sharpe === "number" && typeof maxDrawdown === "number" && isFinite(sharpe) && isFinite(maxDrawdown)
+      ? calculateRiskGrade(sharpe, Math.abs(maxDrawdown))
+      : (config?.risk_grade ?? "B");
+
   const strategyMetrics = {
-    name: config?.name || safeStrategyName || 'Strategy',
-    description: config?.description ?? '',
+    name: config?.name || safeStrategyName || "Strategy",
+    description: config?.description ?? "",
     netApy: computed?.netApy ?? config?.net_apy ?? 0,
     aum: calculatedAUM.value,
     aumUnit: calculatedAUM.unit,
-    sharpe: computed?.sharpeRatio ?? config?.sharpe_ratio ?? 0,
-    maxDrawdown: computed?.maxDrawdown ?? config?.max_drawdown ?? 0,
-    lockInPeriod: config?.lock_in_period ?? 'None',
+    sharpe,
+    maxDrawdown,
+    lockInPeriod: config?.lock_in_period ?? "None",
     participants: uniqueDepositors,
     performanceFee: config?.performance_fee ?? 0,
-    riskGrade: config?.risk_grade ?? 'B'
+    riskGrade,
   };
 
-  const gradeStyles = {
-    A: 'bg-green-500/20 text-green-400 border-green-500/20 hover:bg-green-500/30',
-    B: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/30',
-    C: 'bg-orange-500/20 text-orange-400 border-orange-500/20 hover:bg-orange-500/30',
-    D: 'bg-red-500/20 text-red-400 border-red-500/20 hover:bg-red-500/30',
+  const gradeStyles: Record<string, string> = {
+    A: "bg-green-500/20 text-green-400 border-green-500/20 hover:bg-green-500/30",
+    "A-": "bg-green-500/15 text-green-400/90 border-green-500/20",
+    "B+": "bg-emerald-500/15 text-emerald-400/90 border-emerald-500/20",
+    B: "bg-yellow-500/20 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/30",
+    C: "bg-orange-500/20 text-orange-400 border-orange-500/20 hover:bg-orange-500/30",
+    D: "bg-red-500/20 text-red-400 border-red-500/20 hover:bg-red-500/30",
   };
 
-  // OPTIMIZED: Initialize wallet address only - balances come from props
   const fetchBalances = async () => {
     setBalanceLoading(true);
     try {
@@ -168,25 +161,19 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
         if (parsedData.wallet_address) {
           setWalletAddress(parsedData.wallet_address);
 
-          // Use pre-fetched balances from parent component (batch API call)
           if (typeof usdcBalance !== 'undefined') {
             setUsdcBalance(usdcBalance);
           }
-
-
           if (typeof strategyBalanceProp !== 'undefined') {
             setStrategyBalance(strategyBalanceProp);
           }
-
           if (typeof strategyBalanceWeiProp !== 'undefined') {
             setStrategyBalanceWei(strategyBalanceWeiProp);
           }
-
-          console.log(`✅ [OPTIMIZED] ${strategyName} - Using pre-fetched balance: ${strategyBalanceProp} (${strategyBalanceWeiProp} wei)`);
         }
       }
     } catch (err: any) {
-      console.error(`❌ Error initializing ${strategyName}:`, err);
+      console.error(`Error initializing ${strategyName}:`, err);
     } finally {
       setBalanceLoading(false);
     }
@@ -198,14 +185,12 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
     }
   }, [config]);
 
-  // Update USDC balance if prop changes
   useEffect(() => {
     if (typeof usdcBalance !== 'undefined') {
       setUsdcBalance(usdcBalance);
     }
   }, [usdcBalance]);
 
-  // Update strategy balance if prop changes
   useEffect(() => {
     if (typeof strategyBalanceProp !== 'undefined') {
       setStrategyBalance(strategyBalanceProp);
@@ -215,13 +200,11 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
     }
   }, [strategyBalanceProp, strategyBalanceWeiProp]);
 
-  // Calculate price in USDC (only for MAVC and MAVP, not Yearn)
   const priceInUSDC = useMemo(() => {
     if (!priceData?.price) return null;
     return Number(priceData.price).toFixed(2);
   }, [priceData]);
 
-  // Handle deposit
   const handleDeposit = async (amount: string) => {
     setShowModal(false);
     try {
@@ -237,18 +220,14 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
       const parsedData = JSON.parse(userData);
       if (!parsedData.wallet_address) throw new Error('Wallet address not found');
 
-      // CRITICAL: Capture initial balance BEFORE transaction
       const initialBalance = parseFloat(strategyBalance);
-      console.log(`💰 Initial balance captured: ${initialBalance}`);
 
-      // Convert human-readable amount to wei
       const amountFloat = parseFloat(amount);
       const decimals = config?.asset_decimals || 6;
       const amountWei = Math.floor(amountFloat * Math.pow(10, decimals)).toString();
 
-      // Step 1: Approve
       const approveResponse = await hedgeFundApi.post(`/api/v1/strategy/${strategyName}/approve`, {
-        amount: amountWei,  // Send wei amount
+        amount: amountWei,
         wallet_address: parsedData.wallet_address,
         user_id: parsedData.user_id,
       });
@@ -260,11 +239,10 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
       const approveTxId = approveResponse.data.transaction_id || approveResponse.data.approve_tx;
       setTransactionStage('confirming');
 
-      // Step 2: Wait for approval and deposit
-      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds for approval
+      await new Promise(resolve => setTimeout(resolve, 5000));
 
       const depositResponse = await hedgeFundApi.post(`/api/v1/strategy/${strategyName}/deposit`, {
-        amount: amountWei,  // Send wei amount
+        amount: amountWei,
         wallet_address: parsedData.wallet_address,
         user_id: parsedData.user_id,
         approve_tx_id: approveTxId,
@@ -277,16 +255,12 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
           throw new Error('Deposit transaction ID not returned');
         }
 
-        // Step 1: Wait for webhook confirmation instead of polling Circle API
         try {
-          console.log(`🔔 Waiting for webhook confirmation of deposit tx ${depositTxId}...`);
           await waitForTransaction(depositTxId);
-          console.log(`✅ Webhook confirmed deposit tx ${depositTxId}, polling balance...`);
         } catch (webhookErr) {
-          console.warn(`⚠️ Webhook wait failed for ${depositTxId}, falling back to balance polling:`, webhookErr);
+          console.warn(`Webhook wait failed for ${depositTxId}:`, webhookErr);
         }
 
-        // Step 2: Poll blockchain balance (reduced attempts since tx is likely confirmed)
         let balanceAttempts = 0;
         const maxBalanceAttempts = 15;
 
@@ -302,8 +276,6 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
               const contract_decimals = balanceResponse.data.decimals || 18;
               const currentBalance = parseFloat(balance_wei) / Math.pow(10, contract_decimals);
 
-              console.log(`💰 Balance check ${balanceAttempts}: initial=${initialBalance}, current=${currentBalance}, diff=${currentBalance - initialBalance}`);
-
               if (currentBalance > initialBalance + 0.0001 || balanceAttempts >= maxBalanceAttempts) {
                 setStrategyBalance(currentBalance.toString());
                 setStrategyBalanceWei(balance_wei);
@@ -313,7 +285,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
               }
             }
           } catch (error) {
-            console.error('❌ Balance poll error:', error);
+            console.error('Balance poll error:', error);
           }
 
           if (balanceAttempts < maxBalanceAttempts) {
@@ -329,7 +301,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
       setTransactionError(errorMsg);
       setTransactionStage('error');
       toast({
-        title: "❌ Deposit Failed",
+        title: "Deposit Failed",
         description: errorMsg,
       });
     } finally {
@@ -337,7 +309,6 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
     }
   };
 
-  // Handle withdraw
   const handleWithdraw = async (amount: string) => {
     setShowModal(false);
     try {
@@ -353,27 +324,14 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
       const parsedData = JSON.parse(userData);
       if (!parsedData.wallet_address) throw new Error('Wallet address not found');
 
-      // CRITICAL: Capture initial balance BEFORE transaction
       const initialBalance = parseFloat(strategyBalance);
-      console.log(`💰 Initial balance captured: ${initialBalance}`);
 
-      // For MAVC_YEARN: send raw decimal string (e.g., "10")
-      // For other strategies: convert to wei format
-      
-      // LOGIC FIX: Check if we are withdrawing MAX (amount matches display balance)
-      // If so, use the exact wei balance to avoid precision errors
       let amountToSend = "0";
 
-      // If user input matches the displayed balance string exactly OR matches the formatted wei balance
       if (amount === strategyBalance && strategyBalanceWei && strategyBalanceWei !== "0") {
-          console.log(`✅ [PRECISION] Using exact wei balance for withdrawal: ${strategyBalanceWei}`);
           amountToSend = strategyBalanceWei;
       } else {
-          // Fallback to calculation
           const amountFloat = parseFloat(amount);
-          
-          // CRITICAL FIX: If asset_decimals is 6 (USDC), share_decimals MUST be 6.
-          // Existing configs might have erroneously saved share_decimals=18 in the DB, so we must override it.
           let decimals = 18;
           if (config?.asset_decimals === 6) {
               decimals = 6;
@@ -381,36 +339,18 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
               decimals = config?.share_decimals || config?.asset_decimals || 18;
           }
           
-          console.log(`[DECIMALS] Strategy: ${strategyName}, AssetDecimals: ${config?.asset_decimals}, ShareDecimals: ${config?.share_decimals}, USED: ${decimals}`);
-          
-          // Check if calculate wei > strategyBalanceWei (if available)
-          // Use BigInt for precision check if possible, or just be careful. 
-          // Since we don't have BigInt easy access here without potentially messing up older browsers/types (though typical modern React is fine), 
-          // we'll stick to string logic or use the float calc but cap it if it's close.
-          
           const calculatedWeiCtx = Math.floor(amountFloat * Math.pow(10, decimals)).toString();
           
-          // If we have wei balance, and calculated is > wei balance, CAP IT.
           if (strategyBalanceWei && strategyBalanceWei !== "0") {
-             // Simple string comparison for large numbers is tricky, convert to BigInt
              try {
                  const calcBI = BigInt(calculatedWeiCtx);
                  const balanceBI = BigInt(strategyBalanceWei);
                  
                  if (calcBI >= balanceBI) {
-                      // SANITY CHECK: Only cap if the input amount is actually close to the Max Balance.
-                      // This prevents decimal mismatches (e.g. 18 dec vs 6 dec) from triggering a full withdrawal
-                      // when the user only wanted a small amount.
                       const maxBalFloat = parseFloat(strategyBalance);
-                      
-                      // If user is requesting less than 95% of balance, but Wei calc is >= Balance Wei,
-                      // it's a configuration error (decimals), NOT a precision error.
-                      // Do NOT cap. Let it fail on-chain (or send huge amount) rather than force-withdrawing everything.
                       if (amountFloat < maxBalFloat * 0.95) {
-                          console.warn(`⚠️ [DECIMAL MISMATCH] Input ${amountFloat} << Balance ${maxBalFloat} but Wei ${calcBI} >= ${balanceBI}. Using calculated.`);
                           amountToSend = calculatedWeiCtx;
                       } else {
-                          console.log(`⚠️ [PRECISION] Capping withdrawal at max balance: ${strategyBalanceWei}`);
                           amountToSend = strategyBalanceWei;
                       }
                  } else {
@@ -437,16 +377,12 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
           throw new Error('Withdraw transaction ID not returned');
         }
 
-        // Step 1: Wait for webhook confirmation instead of polling Circle API
         try {
-          console.log(`🔔 Waiting for webhook confirmation of withdraw tx ${withdrawTxId}...`);
           await waitForTransaction(withdrawTxId);
-          console.log(`✅ Webhook confirmed withdraw tx ${withdrawTxId}, polling balance...`);
         } catch (webhookErr) {
-          console.warn(`⚠️ Webhook wait failed for ${withdrawTxId}, falling back to balance polling:`, webhookErr);
+          console.warn(`Webhook wait failed for ${withdrawTxId}:`, webhookErr);
         }
 
-        // Step 2: Poll blockchain balance (reduced attempts since tx is likely confirmed)
         let balanceAttempts = 0;
         const maxBalanceAttempts = 15;
 
@@ -462,8 +398,6 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
               const contract_decimals = balanceResponse.data.decimals || 18;
               const currentBalance = parseFloat(balance_wei) / Math.pow(10, contract_decimals);
 
-              console.log(`💰 Balance check ${balanceAttempts}: initial=${initialBalance}, current=${currentBalance}, diff=${initialBalance - currentBalance}`);
-
               if (currentBalance < initialBalance - 0.0001 || balanceAttempts >= maxBalanceAttempts) {
                 setStrategyBalance(currentBalance.toString());
                 setStrategyBalanceWei(balance_wei);
@@ -473,7 +407,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
               }
             }
           } catch (error) {
-            console.error('❌ Balance poll error:', error);
+            console.error('Balance poll error:', error);
           }
 
           if (balanceAttempts < maxBalanceAttempts) {
@@ -489,17 +423,13 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
       setTransactionError(errorMsg);
       setTransactionStage('error');
       toast({
-        title: "❌ Withdrawal Failed",
+        title: "Withdrawal Failed",
         description: errorMsg,
       });
     } finally {
       setTransactionLoading(false);
     }
   };
-
-
-
-
 
   const openDepositModal = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -535,21 +465,24 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
   return (
     <>
       <Card
-        className="bg-transparent bg-no-repeat bg-cover bg-center backdrop-blur-3xl rounded-3xl p-0 shadow-2xl border border-white/10 mb-8 transition-all duration-300 overflow-hidden"
+        className="min-w-0 flex flex-col bg-transparent bg-no-repeat bg-cover bg-center backdrop-blur-3xl rounded-2xl sm:rounded-3xl p-0 shadow-xl border border-white/10 transition-all duration-300 overflow-hidden hover:border-white/20"
         style={{ backgroundImage: "url('/wallet-bg.svg')" }}
         onClick={handleCardClick}
       >
-        <CardHeader className="relative pb-3 sm:pb-4">
+        <CardHeader className="relative p-3 sm:p-4 pb-2 sm:pb-3">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-lg sm:text-xl text-white">{strategyMetrics.name}</CardTitle>
+            <div className="flex items-center gap-2 min-w-0 flex-1 min-h-[2.75rem] sm:min-h-[3rem]">
+              <CardTitle className="text-base sm:text-lg lg:text-xl text-white line-clamp-2 break-words">{strategyMetrics.name}</CardTitle>
             </div>
-            {strategyMetrics.riskGrade && ['A', 'B', 'C'].includes(strategyMetrics.riskGrade) && (
-              <img
-                src={`/hedge_fund/Risk ${strategyMetrics.riskGrade}.svg`}
-                alt={`Risk: ${strategyMetrics.riskGrade}`}
-                className="h-6 sm:h-7 w-auto"
-              />
+            {strategyMetrics.riskGrade && (
+              <span
+                className={cn(
+                  "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border",
+                  gradeStyles[strategyMetrics.riskGrade] ?? "bg-zinc-500/20 text-zinc-400 border-zinc-500/20"
+                )}
+              >
+                Risk: {strategyMetrics.riskGrade}
+              </span>
             )}
           </div>
           <div className="flex flex-col items-start gap-1 w-full sm:w-auto">
@@ -580,36 +513,35 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
               </span>
             ) : null}
           </div>
-          <CardDescription className="pt-2 text-xs sm:text-sm text-white line-clamp-3">{strategyMetrics.description}</CardDescription>
+          <CardDescription className="pt-2 text-xs sm:text-sm text-zinc-300 line-clamp-3 leading-relaxed min-h-[3.6rem] sm:min-h-[4rem] break-words">{strategyMetrics.description}</CardDescription>
         </CardHeader>
 
-        <CardContent className="relative flex-grow space-y-4 sm:space-y-5">
-          <div className="space-y-2.5 sm:space-y-3">
-            <h4 className="text-[11px] sm:text-xs text-zinc-400 font-semibold tracking-wide">Key Metrics</h4>
-            <div className="space-y-2.5 sm:space-y-3 text-[11px] sm:text-xs">
-              {/* First Row: Net APY, AUM, Investors */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                <div className="flex items-center gap-1.5 sm:gap-2">
+        <CardContent className="relative flex-grow p-3 sm:p-4 pt-0 space-y-3 sm:space-y-4">
+          <div className="space-y-2 sm:space-y-3">
+            <h4 className="text-xs text-zinc-400 font-semibold tracking-wide">Key Metrics</h4>
+            <div className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
                   <img src={strategyMetrics.netApy >= 0 ? "/hedge_fund/upward trend.svg" : "/hedge_fund/downward trend.svg"} alt="Net APY" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                  <div className="flex flex-col">
-                    <p className="text-[9px] sm:text-[11px] text-zinc-500">Net APY</p>
-                    <span className="font-semibold text-xs sm:text-sm text-white">{strategyMetrics.netApy.toFixed(1)}%</span>
+                  <div className="flex flex-col min-w-0">
+                    <p className="text-[10px] sm:text-xs text-zinc-500">Net APY</p>
+                    <span className="font-semibold text-xs sm:text-sm text-white truncate">{strategyMetrics.netApy.toFixed(1)}%</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <img src="/hedge_fund/Wallet.svg" alt="AUM" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                  <div className="flex flex-col">
-                    <p className="text-[9px] sm:text-[11px] text-zinc-500">AUM</p>
-                    <span className="font-semibold text-xs sm:text-sm text-white">
+                  <div className="flex flex-col min-w-0">
+                    <p className="text-[10px] sm:text-xs text-zinc-500">AUM</p>
+                    <span className="font-semibold text-xs sm:text-sm text-white truncate">
                       ${strategyMetrics.aum.toFixed(2)}{strategyMetrics.aumUnit}
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <img src="/hedge_fund/Investors.svg" alt="Investors" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                  <div className="flex flex-col">
-                    <p className="text-[9px] sm:text-[11px] text-zinc-500">Investors</p>
-                    <span className="font-semibold text-xs sm:text-sm text-white">
+                  <div className="flex flex-col min-w-0">
+                    <p className="text-[10px] sm:text-xs text-zinc-500">Investors</p>
+                    <span className="font-semibold text-xs sm:text-sm text-white truncate">
                       {strategyMetrics.participants >= 1000 
                         ? `${(strategyMetrics.participants / 1000).toFixed(1)}k` 
                         : strategyMetrics.participants.toLocaleString()}
@@ -618,29 +550,28 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
                 </div>
               </div>
 
-              <Separator className="bg-zinc-700" />
+              <Separator className="bg-zinc-700/80" />
 
-              {/* Second Row: Sharpe, Max Drawdown, Lock-in */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
                   <img src="/hedge_fund/Sharpe ratio.svg" alt="Sharpe" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                  <div className="flex flex-col">
-                    <p className="text-[9px] sm:text-[11px] text-zinc-500">Sharpe</p>
-                    <span className="font-semibold text-xs sm:text-sm text-white">{strategyMetrics.sharpe.toFixed(2)}</span>
+                  <div className="flex flex-col min-w-0 overflow-hidden">
+                    <p className="text-[10px] sm:text-xs text-zinc-500">Sharpe</p>
+                    <span className="font-semibold text-xs sm:text-sm text-white truncate">{strategyMetrics.sharpe.toFixed(2)}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <img src={strategyMetrics.maxDrawdown >= 0 ? "/hedge_fund/upward trend.svg" : "/hedge_fund/downward trend.svg"} alt="Max Drawdown" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                  <div className="flex flex-col">
-                    <p className="text-[9px] sm:text-[11px] text-zinc-500">Max Drawdown</p>
-                    <span className="font-semibold text-xs sm:text-sm text-white">{strategyMetrics.maxDrawdown.toFixed(1)}%</span>
+                  <div className="flex flex-col min-w-0 overflow-hidden">
+                    <p className="text-[10px] sm:text-xs text-zinc-500">Max Drawdown</p>
+                    <span className="font-semibold text-xs sm:text-sm text-white truncate">{strategyMetrics.maxDrawdown.toFixed(1)}%</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <img src="/hedge_fund/Lock in period.svg" alt="Lock-in" className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                  <div className="flex flex-col">
-                    <p className="text-[9px] sm:text-[11px] text-zinc-500">Lock-in</p>
-                    <span className="font-semibold text-xs sm:text-sm text-white">{strategyMetrics.lockInPeriod}</span>
+                  <div className="flex flex-col min-w-0 overflow-hidden">
+                    <p className="text-[10px] sm:text-xs text-zinc-500">Lock-in</p>
+                    <span className="font-semibold text-xs sm:text-sm text-white truncate">{strategyMetrics.lockInPeriod}</span>
                   </div>
                 </div>
               </div>
@@ -648,13 +579,13 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
           </div>
         </CardContent>
 
-        <CardFooter className="relative p-3 sm:p-4 flex flex-col gap-2 sm:gap-3 mt-auto">
+        <CardFooter className="relative p-3 sm:p-4 pt-2 flex flex-col gap-2 mt-auto border-t border-white/5">
           <div className="flex gap-2 w-full">
             <button
               className="flex-1 hover:opacity-80 transition-opacity duration-200"
               onClick={openDepositModal}
             >
-              <img src="/hedge_fund/Deposit.svg" alt="Deposit" className="w-full h-auto" />
+              <img src="/hedge_fund/Deposit.svg" alt="Deposit USDC" className="w-full h-auto" />
             </button>
             <button
               className={cn(
@@ -695,4 +626,3 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
 };
 
 export default StrategyCard;
-
