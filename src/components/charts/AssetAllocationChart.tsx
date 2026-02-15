@@ -1,5 +1,5 @@
-
 import React, { useMemo } from 'react';
+import { StrategyChartTooltip } from './StrategyChartTooltip';
 import {
     AreaChart,
     Area,
@@ -59,9 +59,12 @@ export const AssetAllocationChart: React.FC<AssetAllocationChartProps> = ({
 
     if (timeSeriesData.length === 0) {
         return (
-            <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
-                <h3 className="text-lg font-bold text-white mb-1">Asset Allocation</h3>
-                <p className="text-xs text-zinc-400 mb-6">NO DATA AVAILABLE</p>
+            <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur flex flex-col h-full">
+                <div className="min-h-[7rem] mb-4">
+                    <h3 className="text-lg font-bold text-white mb-1">Asset Allocation</h3>
+                    <p className="text-xs text-zinc-400">NO DATA AVAILABLE</p>
+                </div>
+                <div className="h-[280px] w-full flex-1 min-h-0 flex items-center justify-center text-zinc-500 text-sm">No data to display</div>
             </div>
         );
     }
@@ -69,32 +72,29 @@ export const AssetAllocationChart: React.FC<AssetAllocationChartProps> = ({
     const latest = timeSeriesData[timeSeriesData.length - 1];
 
     return (
-        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
-            <h3 className="text-lg font-bold text-white mb-1">Asset Allocation</h3>
-            <p className="text-xs text-zinc-400 mb-4">COMPOSITION OF STRATEGY ASSETS OVER TIME</p>
-
-            {/* Current allocation */}
-            <div className="mb-6 flex items-baseline gap-4">
-                <div>
-                    <div className="text-2xl font-bold text-white">
-                        {formatCurrency(latest.total)}
+        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur flex flex-col h-full">
+            <div className="min-h-[7rem] mb-4">
+                <h3 className="text-lg font-bold text-white mb-1">Asset Allocation</h3>
+                <p className="text-xs text-zinc-400 mb-2">COMPOSITION OF STRATEGY ASSETS OVER TIME</p>
+                <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                    <div>
+                        <span className="text-2xl font-bold text-white">{formatCurrency(latest.total)}</span>
+                        <span className="text-xs text-zinc-400 ml-2">Current Total Value</span>
                     </div>
-                    <div className="text-xs text-zinc-400 mt-1">Current Total Value</div>
-                </div>
-                <div className="flex gap-4 text-xs text-zinc-400">
-                    <span className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: COLORS.asset }} />
-                        {assetSymbol}: {formatCurrency(latest[assetSymbol] as number)}
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: COLORS.target }} />
-                        {targetSymbol}: {formatCurrency(latest[targetSymbol] as number)}
-                    </span>
+                    <div className="flex gap-4 text-xs text-zinc-400">
+                        <span className="flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: COLORS.asset }} />
+                            {assetSymbol}: {formatCurrency(latest[assetSymbol] as number)}
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: COLORS.target }} />
+                            {targetSymbol}: {formatCurrency(latest[targetSymbol] as number)}
+                        </span>
+                    </div>
                 </div>
             </div>
-
-            <div className="h-[250px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
+            <div className="h-[280px] w-full shrink-0">
+                <ResponsiveContainer width="100%" height={280}>
                     <AreaChart data={timeSeriesData} stackOffset="none">
                         <defs>
                             <linearGradient id="colorAssetAlloc" x1="0" y1="0" x2="0" y2="1">
@@ -115,14 +115,26 @@ export const AssetAllocationChart: React.FC<AssetAllocationChartProps> = ({
                             tickFormatter={(val) => `$${val}`}
                         />
                         <Tooltip
-                            contentStyle={{
-                                backgroundColor: '#18181b',
-                                borderColor: '#3f3f46',
-                                borderRadius: '0.5rem',
+                            content={(props) => {
+                                if (!props.active || !props.payload?.length) return null;
+                                const rows = props.payload
+                                    .filter((p) => p.value !== undefined)
+                                    .map((p) => ({
+                                        label: String(p.name ?? p.dataKey ?? ''),
+                                        value: formatCurrency(Number(p.value)),
+                                        color: p.color,
+                                    }));
+                                return (
+                                    <StrategyChartTooltip
+                                        active={props.active}
+                                        payload={props.payload}
+                                        label={props.label}
+                                        rows={rows}
+                                    />
+                                );
                             }}
-                            formatter={(value: number, name: string) => [formatCurrency(value), name]}
                         />
-                        <Legend />
+                        <Legend layout="horizontal" align="center" wrapperStyle={{ paddingTop: 8 }} />
                         <Area
                             type="monotone"
                             dataKey={assetSymbol}

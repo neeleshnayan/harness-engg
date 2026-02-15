@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { hedgeFundApi } from "@/lib/api";
 import { SubgraphAnalyticsGeneric } from "../components/SubgraphAnalyticsGeneric";
 import { TradingSignals } from "../components/TradingSignals";
@@ -95,10 +94,10 @@ export default function StrategyDetailsPage() {
           <div className="min-h-screen w-full bg-[#001C1B] dark flex flex-col items-center justify-center p-4">
               <h1 className="text-2xl text-white mb-4">Strategy Not Found</h1>
               <button
-                  onClick={() => router.push('/customer/grow/hedge-fund')}
+                  onClick={() => router.back()}
                   className="bg-zinc-800 text-white px-6 py-2 rounded-xl"
               >
-                  Back to Strategies
+                  Go back
               </button>
           </div>
       );
@@ -128,16 +127,6 @@ export default function StrategyDetailsPage() {
         />
 
         <div className="container mx-auto px-4 py-8 max-w-7xl">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
-            <button
-              onClick={() => router.push('/customer/grow/hedge-fund')}
-              className="bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-4 sm:px-6 py-2 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 text-xs sm:text-sm flex items-center justify-center w-full sm:w-auto"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Strategies
-            </button>
-          </div>
-
           <div className="mb-6 sm:mb-8 px-4">
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-2 drop-shadow-lg">
               {displayName}
@@ -147,7 +136,7 @@ export default function StrategyDetailsPage() {
             </p>
           </div>
 
-          <div className="px-4 mb-6">
+          <div className="mb-6">
             <TradingSignals
               strategyName={stratNameKey}
               assetSymbol="USDC"

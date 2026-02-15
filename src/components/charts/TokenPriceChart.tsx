@@ -1,6 +1,6 @@
-
 import React, { useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { StrategyChartTooltip } from './StrategyChartTooltip';
 import { Snapshot } from '@/hooks/useStrategySubgraphData';
 
 type TimeRange = '15m' | '1h' | '1d' | '1M' | '1y' | 'all';
@@ -131,38 +131,35 @@ export const TokenPriceChart: React.FC<TokenPriceChartProps> = ({ data, livePric
     }, [chartData]);
 
     return (
-        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-1">
-                <div>
+        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur flex flex-col h-full">
+            <div className="min-h-[7rem] mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
                     <h3 className="text-lg font-bold text-white">Token Price</h3>
-                    <p className="text-xs text-zinc-400">ON-CHAIN SHARE PRICE (TOTAL ASSETS / TOTAL SUPPLY)</p>
+                    {priceChange && (
+                        <p className={`text-sm font-medium ${priceChange.change >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            {priceChange.change >= 0 ? '+' : ''}{formatCurrency(priceChange.change)} ({priceChange.pct >= 0 ? '+' : ''}{priceChange.pct.toFixed(2)}%)
+                        </p>
+                    )}
                 </div>
-                {priceChange && (
-                    <p className={`text-sm font-medium ${priceChange.change >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {priceChange.change >= 0 ? '+' : ''}{formatCurrency(priceChange.change)} ({priceChange.pct >= 0 ? '+' : ''}{priceChange.pct.toFixed(2)}%)
-                    </p>
-                )}
+                <p className="text-xs text-zinc-400 mb-2">ON-CHAIN SHARE PRICE (TOTAL ASSETS / TOTAL SUPPLY)</p>
+                <div className="flex items-center gap-1 flex-wrap">
+                    {TIME_RANGES.map(({ key, label }) => (
+                        <button
+                            key={key}
+                            onClick={() => setSelectedRange(key)}
+                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150 ${
+                                selectedRange === key
+                                    ? 'bg-violet-500/20 text-violet-300 border border-violet-500/40'
+                                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700/40 border border-transparent'
+                            }`}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
             </div>
-
-            {/* Time range selector */}
-            <div className="flex items-center gap-1 mb-6 mt-3">
-                {TIME_RANGES.map(({ key, label }) => (
-                    <button
-                        key={key}
-                        onClick={() => setSelectedRange(key)}
-                        className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150 ${
-                            selectedRange === key
-                                ? 'bg-violet-500/20 text-violet-300 border border-violet-500/40'
-                                : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700/40 border border-transparent'
-                        }`}
-                    >
-                        {label}
-                    </button>
-                ))}
-            </div>
-
-            <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
+            <div className="h-[280px] w-full shrink-0">
+                <ResponsiveContainer width="100%" height={280}>
                     <AreaChart data={chartData}>
                         <defs>
                             <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
@@ -191,15 +188,23 @@ export const TokenPriceChart: React.FC<TokenPriceChartProps> = ({ data, livePric
                             }}
                         />
                         <Tooltip
-                            contentStyle={{ backgroundColor: '#18181b', borderColor: '#3f3f46', borderRadius: '0.5rem' }}
-                            itemStyle={{ color: '#e4e4e7' }}
-                            labelFormatter={(val) => {
-                                if (val === 'Now') return 'Now';
-                                const ts = Number(val);
-                                if (!Number.isFinite(ts)) return String(val);
-                                return new Date(ts * 1000).toLocaleString();
+                            content={(props) => {
+                                const labelFormatted =
+                                    props.label === 'Now'
+                                        ? 'Now'
+                                        : typeof props.label === 'number' && Number.isFinite(props.label)
+                                            ? new Date(props.label * 1000).toLocaleString()
+                                            : String(props.label ?? '');
+                                return (
+                                    <StrategyChartTooltip
+                                        active={props.active}
+                                        payload={props.payload}
+                                        label={props.label}
+                                        labelFormatted={labelFormatted}
+                                        valueFormatter={formatCurrency}
+                                    />
+                                );
                             }}
-                            formatter={(value: number) => [formatCurrency(value), 'Price']}
                         />
                         <Area type="monotone" dataKey="price" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorPrice)" />
                     </AreaChart>
