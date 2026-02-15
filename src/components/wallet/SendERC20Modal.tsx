@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, ArrowRight, Loader2, X, ArrowUp, ChevronDown, ArrowLeftRight } from "lucide-react";
+import { AlertCircle, ArrowRight, Loader2, X, ArrowUp, ChevronDown } from "lucide-react";
 import api, { kryptonWeb3Api } from "@/lib/api";
 import { useRates } from "@/providers/RatesProvider";
 import { getPoolRate } from "@/lib/ratesApi";
@@ -730,7 +730,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
       onClick={handleBackdropClick}
     >
       <div
-        className="w-full max-w-[440px] bg-[#001C1B] bg-cover bg-center shadow-2xl relative overflow-visible rounded-[32px] p-8 animate-in zoom-in-95 duration-200 border border-white/5"
+        className="w-full max-w-[440px] bg-[#001C1B] bg-cover bg-center shadow-2xl relative overflow-visible rounded-xl p-6 animate-in zoom-in-95 duration-200 border border-white/5"
         style={{ backgroundImage: "url('/wallet-bg.svg')" }}
         onClick={(e) => !success && e.stopPropagation()}
       >
@@ -765,7 +765,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
           {!success && (
             <div className="space-y-6">
               {error && (
-                <div className="bg-red-500/10 border border-red-500/20 text-red-200 text-sm p-3 rounded-2xl flex items-center gap-2">
+                <div className="bg-red-500/10 border border-red-500/20 text-red-200 text-sm p-3 rounded-lg flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0" />
                   <span>{error}</span>
                 </div>
@@ -773,15 +773,19 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
 
               {/* Receiver Input */}
               <div>
-                <label className="block text-teal-200/70 text-sm font-medium mb-2 ml-1">Receiver</label>
+                <label className="block text-sm font-bold mb-2 ml-1 text-white tracking-tight">Receiver</label>
                 <div className="relative group">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-lg group-focus-within:text-white transition-colors z-10 pointer-events-none">@</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base group-focus-within:text-white transition-colors z-10 pointer-events-none" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>@</span>
                   <input
                     type="text"
                     value={receiverUsername}
                     onChange={(e) => setReceiverUsername(e.target.value)}
                     placeholder="username"
-                    className="w-full pl-10 pr-4 py-4 bg-[#2F4F4F]/30 backdrop-blur-sm rounded-2xl focus:outline-none focus:bg-[#2F4F4F]/40 text-white placeholder-white/50 transition-all font-medium text-lg border border-white/5 focus:border-white/10"
+                    className="w-full pl-8 pr-3 py-3 backdrop-blur-sm rounded-md focus:outline-none text-white transition-all font-medium text-base"
+                    style={{
+                      background: 'rgba(58, 96, 97, 0.5)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)'
+                    }}
                     disabled={loading}
                     autoFocus
                   />
@@ -789,13 +793,17 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
               </div>
 
                {/* From/To Section */}
-               <div className="flex gap-3 relative mb-4">
+               <div className="flex justify-between relative mb-4">
                   {/* From Box */}
                   <div
-                    className="flex-1 rounded-2xl h-[150px] relative flex flex-col items-start justify-center p-4 border border-white/5 transition-colors group"
-                    style={{ backgroundImage: "url('/glass-box.svg')", backgroundSize: 'cover', backgroundPosition: 'center' }}
+                    className="w-[130px] md:w-[160px] rounded-md h-[130px] md:h-[160px] relative flex flex-col items-start justify-center p-4 transition-colors group"
+                    style={{
+                      background: 'linear-gradient(180deg, rgba(58, 96, 97, 0.6) 0%, rgba(125, 160, 161, 0.6) 100%)',
+                      backdropFilter: 'blur(10px)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)'
+                    }}
                   >
-                     <span className="text-zinc-400 text-xs font-medium mb-1">From</span>
+                     <span className="text-[10px] font-medium mb-1.5" style={{ color: 'rgba(161, 207, 211, 0.8)' }}>From</span>
                      <input
                         type="text"
                         inputMode="decimal"
@@ -808,20 +816,24 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                         }}
                         onFocus={() => { focusedFieldRef.current = "from"; }}
                         placeholder="0"
-                        className="bg-transparent text-2xl font-bold text-white text-left w-full focus:outline-none placeholder-white/50"
+                        className="bg-transparent text-2xl font-bold text-white text-left w-full focus:outline-none placeholder-white/30"
                         disabled={loading}
                      />
-                     <div className="text-[10px] text-zinc-400 mt-1 font-medium">
+                     <div className="text-[10px] mt-1 font-medium truncate w-full" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>
                         Balance: <span className="text-white">{fromBalanceValue.toFixed(2)}</span>
                      </div>
 
                      {/* Currency Selector Pill */}
-                     <div className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 z-20">
+                     <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-20">
                         <div className="relative shadow-xl">
                             <select
                                 value={selectedCurrency}
                                 onChange={(e) => setSelectedCurrency(e.target.value)}
-                                className="appearance-none bg-[#115E59] hover:bg-[#134E4A] text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded-lg cursor-pointer focus:outline-none transition-colors border border-white/10 w-[90px]"
+                                className="appearance-none text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded cursor-pointer focus:outline-none transition-colors w-[85px]"
+                                style={{
+                                  background: '#115E59',
+                                  border: '1px solid rgba(255, 255, 255, 0.15)'
+                                }}
                                 disabled={loading}
                             >
                                 {availableTokens.map((token) => (
@@ -830,30 +842,37 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                                 </option>
                                 ))}
                             </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-teal-200/70">
-                                <ChevronDown size={10} />
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>
+                                <ChevronDown size={12} />
                             </div>
                         </div>
                      </div>
                   </div>
 
-                  {/* Swap Button */}
+                  {/* Arrow Button */}
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
                      <button
                         onClick={handleSwapCurrencies}
-                        className="w-8 h-8 rounded-full bg-[#557C82] border-2 border-[#001C1B] flex items-center justify-center shadow-lg hover:bg-[#4A7A7E] hover:scale-110 transition-all cursor-pointer"
+                        className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all cursor-pointer"
+                        style={{
+                          background: 'rgba(85, 124, 130, 1)'
+                        }}
                         disabled={loading}
                      >
-                        <ArrowLeftRight className="w-4 h-4 text-white" />
+                        <ArrowRight className="w-4 h-4 md:w-5 md:h-5 text-white" strokeWidth={2.5} />
                      </button>
                   </div>
 
                   {/* To Box */}
                   <div
-                    className="flex-1 rounded-2xl h-[150px] relative flex flex-col items-start justify-center p-4 border border-white/5 transition-colors group"
-                    style={{ backgroundImage: "url('/glass-box.svg')", backgroundSize: 'cover', backgroundPosition: 'center' }}
+                    className="w-[130px] md:w-[160px] rounded-md h-[130px] md:h-[160px] relative flex flex-col items-start justify-center p-4 transition-colors group"
+                    style={{
+                      background: 'linear-gradient(180deg, rgba(58, 96, 97, 0.6) 0%, rgba(125, 160, 161, 0.6) 100%)',
+                      backdropFilter: 'blur(10px)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)'
+                    }}
                   >
-                     <span className="text-zinc-400 text-xs font-medium mb-1">To</span>
+                     <span className="text-[10px] font-medium mb-1.5" style={{ color: 'rgba(161, 207, 211, 0.8)' }}>To</span>
                      <input
                         type="text"
                         inputMode="decimal"
@@ -866,20 +885,29 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                         }}
                         onFocus={() => { focusedFieldRef.current = "to"; }}
                         placeholder="0"
-                        className="bg-transparent text-2xl font-bold text-white text-left w-full focus:outline-none placeholder-white/50"
+                        className="bg-transparent text-2xl font-bold text-white text-left w-full focus:outline-none placeholder-white/30"
                         disabled={loading}
                      />
-                     <div className={`text-[10px] mt-1 font-medium truncate max-w-[90px] h-[15px] flex items-center ${(isCalculatingFrom || isCalculatingTo || exchangeRateLoading) ? 'animate-pulse text-white/50' : 'text-white font-bold'}`}>
-                        {exchangeRate && !exchangeRateLoading ? `1 ${selectedCurrency && selectedCurrency.replace(/^k/, '')} = ${exchangeRate.toFixed(2)} ${toCurrency && toCurrency.replace(/^k/, '')}` : ((isCalculatingFrom || isCalculatingTo || exchangeRateLoading) ? 'Updating...' : '')}
+                     <div className={`text-[10px] mt-1 font-medium h-[15px] flex items-center truncate w-full ${(isCalculatingFrom || isCalculatingTo || exchangeRateLoading) ? 'animate-pulse text-white/50' : ''}`}>
+                        {exchangeRate && !exchangeRateLoading ? (
+                          <>
+                            <span style={{ color: 'rgba(161, 207, 211, 0.7)' }}>1 {selectedCurrency && selectedCurrency.replace(/^k/, '')} =&nbsp;</span>
+                            <span className="text-white">{exchangeRate.toFixed(2)} {toCurrency && toCurrency.replace(/^k/, '')}</span>
+                          </>
+                        ) : ((isCalculatingFrom || isCalculatingTo || exchangeRateLoading) ? 'Updating...' : '')}
                      </div>
 
                      {/* Currency Selector Pill */}
-                     <div className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 z-20">
+                     <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-20">
                         <div className="relative shadow-xl">
                             <select
                                 value={toCurrency}
                                 onChange={(e) => setToCurrency(e.target.value)}
-                                className="appearance-none bg-[#115E59] hover:bg-[#134E4A] text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded-lg cursor-pointer focus:outline-none transition-colors border border-white/10 w-[90px]"
+                                className="appearance-none text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded cursor-pointer focus:outline-none transition-colors w-[85px]"
+                                style={{
+                                  background: '#115E59',
+                                  border: '1px solid rgba(255, 255, 255, 0.15)'
+                                }}
                                 disabled={loading}
                             >
                                 {supportedTokensList.map((token) => (
@@ -888,8 +916,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                                 </option>
                                 ))}
                             </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-teal-200/70">
-                                <ChevronDown size={10} />
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>
+                                <ChevronDown size={12} />
                             </div>
                         </div>
                      </div>
@@ -899,7 +927,11 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                <Button
                  onClick={handleSend}
                  disabled={loading || !isValidCurrencyCombination || isCalculatingFrom || isCalculatingTo || !hasSufficientBalance}
-                 className="w-full h-14 bg-gradient-to-b from-[#557C82] to-[#3C5F63] hover:from-[#4A7A7E] hover:to-[#33565A] text-white text-base font-bold rounded-2xl shadow-lg shadow-teal-900/10 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed mt-4 border border-white/10 relative z-10"
+                 className="w-full h-11 text-white text-sm font-bold rounded-md shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed mt-5 relative z-10"
+                 style={{
+                   background: 'rgba(85, 124, 130, 0.9)',
+                   border: '1px solid rgba(255, 255, 255, 0.15)'
+                 }}
                >
                  {loading ? (
                    <div className="flex items-center gap-2">

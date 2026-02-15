@@ -394,7 +394,7 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
       onClick={handleBackdropClick}
     >
       <div
-        className="w-full max-w-[440px] bg-[#001C1B] bg-cover bg-center shadow-2xl relative overflow-visible rounded-[32px] p-8 animate-in zoom-in-95 duration-200 border border-white/5"
+        className="w-full max-w-[440px] bg-[#001C1B] bg-cover bg-center shadow-2xl relative overflow-visible rounded-xl p-6 animate-in zoom-in-95 duration-200 border border-white/5"
         style={{ backgroundImage: "url('/wallet-bg.svg')" }}
         onClick={(e) => !success && e.stopPropagation()}
       >
@@ -430,20 +430,24 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
         {!success && (
           <div className="space-y-6">
             {error && (
-                <div className="bg-red-500/10 border border-red-500/20 text-red-200 text-sm p-3 rounded-2xl flex items-center gap-2">
+                <div className="bg-red-500/10 border border-red-500/20 text-red-200 text-sm p-3 rounded-lg flex items-center gap-2">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                   <span>{error}</span>
                 </div>
             )}
 
             {/* Swap Area */}
-            <div className="flex gap-3 relative mb-4">
+            <div className="flex justify-between relative mb-4">
                {/* From Box */}
                <div
-                  className="flex-1 rounded-2xl h-[150px] relative flex flex-col items-start justify-center p-4 border border-white/5 transition-colors group"
-                  style={{ backgroundImage: "url('/glass-box.svg')", backgroundSize: 'cover', backgroundPosition: 'center' }}
+                  className="w-[130px] md:w-[160px] rounded-md h-[130px] md:h-[160px] relative flex flex-col items-start justify-center p-4 transition-colors group"
+                  style={{
+                    background: 'linear-gradient(180deg, rgba(58, 96, 97, 0.6) 0%, rgba(125, 160, 161, 0.6) 100%)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                  }}
                 >
-                   <span className="text-zinc-400 text-xs font-medium mb-1">From</span>
+                   <span className="text-[10px] font-medium mb-1.5" style={{ color: 'rgba(161, 207, 211, 0.8)' }}>From</span>
                    <input
                       type="text"
                       inputMode="decimal"
@@ -456,15 +460,15 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
                       }}
                       onFocus={() => { focusedFieldRef.current = "from"; }}
                       placeholder="0"
-                      className="bg-transparent text-2xl font-bold text-white text-left w-full focus:outline-none placeholder-white/50"
+                      className="bg-transparent text-2xl font-bold text-white text-left w-full focus:outline-none placeholder-white/30"
                       disabled={loading}
                    />
-                   <div className="text-[10px] text-zinc-400 mt-1 font-medium">
+                   <div className="text-[10px] mt-1 font-medium truncate w-full" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>
                        Balance: <span className="text-white">{fromBalance.toFixed(2)}</span>
                    </div>
 
                    {/* Selector */}
-                   <div className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 z-20">
+                   <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-20">
                        <div className="relative shadow-xl">
                            <select
                                value={fromCurrency}
@@ -476,15 +480,19 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
                                      if (alt) setToCurrency(alt);
                                    }
                                }}
-                               className="appearance-none bg-[#115E59] hover:bg-[#134E4A] text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded-lg cursor-pointer focus:outline-none transition-colors border border-white/10"
+                               className="appearance-none text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded cursor-pointer focus:outline-none transition-colors w-[85px]"
+                               style={{
+                                 background: '#115E59',
+                                 border: '1px solid rgba(255, 255, 255, 0.15)'
+                               }}
                                disabled={loading}
                            >
                                {supportedTokens.map((token) => (
                                  <option key={token} value={token}>{token.replace(/^k/, "")}</option>
                                ))}
                            </select>
-                           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-teal-200/70">
-                               <ChevronDown size={10} />
+                           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>
+                               <ChevronDown size={12} />
                            </div>
                        </div>
                    </div>
@@ -495,18 +503,25 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
                    <button
                      onClick={handleSwapCurrencies}
                      disabled={loading}
-                     className="w-8 h-8 rounded-full bg-[#557C82] border-2 border-[#001C1B] flex items-center justify-center shadow-lg hover:scale-110 transition-transform cursor-pointer"
+                     className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all cursor-pointer"
+                     style={{
+                       background: 'rgba(85, 124, 130, 1)'
+                     }}
                    >
-                     <ArrowRight className="w-4 h-4 text-white" />
+                     <ArrowRight className="w-4 h-4 md:w-5 md:h-5 text-white" strokeWidth={2.5} />
                    </button>
                </div>
 
                {/* To Box */}
                <div
-                  className="flex-1 rounded-2xl h-[150px] relative flex flex-col items-start justify-center p-4 border border-white/5 transition-colors group"
-                  style={{ backgroundImage: "url('/glass-box.svg')", backgroundSize: 'cover', backgroundPosition: 'center' }}
+                  className="w-[130px] md:w-[160px] rounded-md h-[130px] md:h-[160px] relative flex flex-col items-start justify-center p-4 transition-colors group"
+                  style={{
+                    background: 'linear-gradient(180deg, rgba(58, 96, 97, 0.6) 0%, rgba(125, 160, 161, 0.6) 100%)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                  }}
                 >
-                   <span className="text-zinc-400 text-xs font-medium mb-1">To</span>
+                   <span className="text-[10px] font-medium mb-1.5" style={{ color: 'rgba(161, 207, 211, 0.8)' }}>To</span>
                    <input
                       type="text"
                       inputMode="decimal"
@@ -519,15 +534,20 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
                       }}
                       onFocus={() => { focusedFieldRef.current = "to"; }}
                       placeholder="0"
-                      className="bg-transparent text-2xl font-bold text-white text-left w-full focus:outline-none placeholder-white/50"
+                      className="bg-transparent text-2xl font-bold text-white text-left w-full focus:outline-none placeholder-white/30"
                       disabled={loading}
                    />
-                   <div className={`text-[10px] mt-1 font-medium truncate max-w-[90px] h-[15px] flex items-center ${(isCalculatingFrom || isCalculatingTo || exchangeRateLoading) ? 'animate-pulse text-white/50' : 'text-white font-bold'}`}>
-                     {exchangeRate ? `1 ${fromCurrency.replace(/^k/, '')} = ${exchangeRate.toFixed(2)} ${toCurrency.replace(/^k/, '')}` : ((isCalculatingFrom || isCalculatingTo || exchangeRateLoading) ? 'Updating...' : '')}
+                   <div className={`text-[10px] mt-1 font-medium h-[15px] flex items-center truncate w-full ${(isCalculatingFrom || isCalculatingTo || exchangeRateLoading) ? 'animate-pulse text-white/50' : ''}`}>
+                     {exchangeRate ? (
+                       <>
+                         <span style={{ color: 'rgba(161, 207, 211, 0.7)' }}>1 {fromCurrency.replace(/^k/, '')} =&nbsp;</span>
+                         <span className="text-white">{exchangeRate.toFixed(2)} {toCurrency.replace(/^k/, '')}</span>
+                       </>
+                     ) : ((isCalculatingFrom || isCalculatingTo || exchangeRateLoading) ? 'Updating...' : '')}
                    </div>
 
                    {/* Selector */}
-                   <div className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 z-20">
+                   <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-20">
                        <div className="relative shadow-xl">
                            <select
                                value={toCurrency}
@@ -539,15 +559,19 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
                                      if (alt) setFromCurrency(alt);
                                    }
                                }}
-                               className="appearance-none bg-[#115E59] hover:bg-[#134E4A] text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded-lg cursor-pointer focus:outline-none transition-colors border border-white/10"
+                               className="appearance-none text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded cursor-pointer focus:outline-none transition-colors w-[85px]"
+                               style={{
+                                 background: '#115E59',
+                                 border: '1px solid rgba(255, 255, 255, 0.15)'
+                               }}
                                disabled={loading}
                            >
                                {supportedTokens.map((token) => (
                                  <option key={token} value={token}>{token.replace(/^k/, "")}</option>
                                ))}
                            </select>
-                           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-teal-200/70">
-                               <ChevronDown size={10} />
+                           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>
+                               <ChevronDown size={12} />
                            </div>
                        </div>
                    </div>
@@ -566,7 +590,11 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
             <button
                onClick={handleSwap}
                disabled={!canSwap}
-               className="w-full h-14 bg-gradient-to-b from-[#557C82] to-[#3C5F63] hover:from-[#4A7A7E] hover:to-[#33565A] text-white text-lg font-bold rounded-2xl shadow-lg border border-white/10 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4 relative z-10"
+               className="w-full h-11 text-white text-sm font-bold rounded-md shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-5 relative z-10"
+               style={{
+                 background: 'rgba(85, 124, 130, 0.9)',
+                 border: '1px solid rgba(255, 255, 255, 0.15)'
+               }}
             >
               {loading ? (
                    <>
