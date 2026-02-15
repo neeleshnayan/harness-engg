@@ -1,6 +1,7 @@
 "use client"
 
-import React from 'react'
+import React, { useState } from 'react'
+import { Copy } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Category } from '../types'
 
@@ -18,6 +19,53 @@ const cardGradient =
   'linear-gradient(180deg, rgba(255, 255, 255, 0.36) 0%, rgba(161, 207, 211, 0.06) 100%)'
 const promptGradient =
   'linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(161, 207, 211, 0.06) 100%)'
+
+function PromptRow({
+  prompt,
+  isLoading,
+  onUse,
+}: {
+  prompt: string
+  isLoading: boolean
+  onUse: () => void
+}) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(prompt).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+  return (
+    <div
+      className="group relative flex items-center gap-2 rounded-xl backdrop-blur-sm min-h-[2.75rem] sm:min-h-0 p-0 overflow-hidden"
+      style={{ background: promptGradient }}
+    >
+      <button
+        type="button"
+        onClick={onUse}
+        disabled={isLoading}
+        className="flex-1 text-left p-3.5 rounded-xl text-sm text-white/90 hover:text-white disabled:opacity-50 transition-all duration-200 active:scale-[0.98] sm:p-3"
+      >
+        {prompt}
+      </button>
+      <button
+        type="button"
+        onClick={handleCopy}
+        aria-label={copied ? 'Copied' : 'Copy prompt'}
+        aria-live="polite"
+        className="flex-shrink-0 p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors mr-1"
+      >
+        {copied ? (
+          <span className="text-xs text-teal-300 font-medium">Copied!</span>
+        ) : (
+          <Copy className="h-4 w-4" />
+        )}
+      </button>
+    </div>
+  )
+}
 
 export default function PromptGuideModal({
   open,
@@ -123,16 +171,12 @@ export default function PromptGuideModal({
                     <div className="text-white font-medium mb-2">{category.title}</div>
                     <div className="w-full space-y-2">
                       {category.prompts.map((prompt) => (
-                        <button
+                        <PromptRow
                           key={prompt}
-                          type="button"
-                          onClick={() => handlePromptClick(prompt, category.id)}
-                          disabled={isLoading}
-                          className="w-full text-left p-3.5 rounded-xl backdrop-blur-sm transition-all duration-200 text-sm text-white/90 hover:text-white disabled:opacity-50 min-h-[2.75rem] active:scale-[0.98] sm:min-h-0 sm:p-3"
-                          style={{ background: promptGradient }}
-                        >
-                          {prompt}
-                        </button>
+                          prompt={prompt}
+                          isLoading={isLoading}
+                          onUse={() => handlePromptClick(prompt, category.id)}
+                        />
                       ))}
                     </div>
                   </div>

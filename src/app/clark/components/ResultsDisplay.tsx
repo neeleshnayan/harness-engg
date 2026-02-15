@@ -102,7 +102,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
     // If we only have markdown (from economic agent), render it as markdown
     if (economicResult.markdown && !economicResult.results) {
       return (
-        <Card key={`econ-${message.id}`} className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+        <Card key={`econ-${message.id}`} className="w-full bg-zinc-800/20 border-zinc-700/30 backdrop-blur-sm">
           <CardHeader className="pb-4">
             <CardTitle className="text-lg text-white">Economic Data</CardTitle>
           </CardHeader>
@@ -120,10 +120,10 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
     const isNews = economicResult.indicator === 'news'
     const isCalendar = economicResult.indicator === 'calendar'
     return (
-      <Card key={`econ-${message.id}`} className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+      <Card key={`econ-${message.id}`} className="w-full bg-zinc-800/20 border-zinc-700/30 backdrop-blur-sm">
         <CardHeader className="pb-4">
           <CardTitle className="text-lg text-white">{economicResult.indicator_name || 'Economic Data'}</CardTitle>
-          <CardDescription className="text-teal-200/70">
+          <CardDescription className="text-white/70">
             {isNews ? `${economicResult.total_found || 0} latest news articles` :
              isCalendar ? `${economicResult.total_found || 0} upcoming economic events` :
              `Economic indicators for ${economicResult.total_found || 0} countries`}
@@ -134,14 +134,14 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
             {isNews ? (
               <div className="space-y-4">
                 {(economicResult.results as NewsData[]).map((news, index) => (
-                  <div key={news.id || index} className="border-b border-teal-800/30 pb-4 hover:bg-teal-900/30 transition-colors p-4 rounded-lg">
+                  <div key={news.id || index} className="border-b border-zinc-800/30 pb-4 hover:bg-zinc-900/30 transition-colors p-4 rounded-lg">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <h3 className="text-lg font-semibold text-white mb-2">{news.title}</h3>
                         {news.description && (
-                          <p className="text-sm text-teal-200/70 mb-2">{news.description}</p>
+                          <p className="text-sm text-white/70 mb-2">{news.description}</p>
                         )}
-                        <div className="flex items-center gap-4 text-xs text-teal-300/60">
+                        <div className="flex items-center gap-4 text-xs text-white/60">
                           <span>{new Date(news.date).toLocaleDateString()}</span>
                           {news.country && <span>• {news.country}</span>}
                           {news.category && <span>• {news.category}</span>}
@@ -152,7 +152,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                           href={news.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="ml-4 text-cyan-400 hover:text-cyan-300 text-sm"
+                          className="ml-4 text-white/80 hover:text-white text-sm"
                         >
                           Read more →
                         </a>
@@ -164,18 +164,18 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
             ) : isCalendar ? (
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-teal-700/30">
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Date</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Country</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Event</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Actual</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Forecast</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Previous</th>
+                  <tr className="border-b border-zinc-700/30">
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-white/70">Date</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-white/70">Country</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-white/70">Event</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-white/70">Actual</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-white/70">Forecast</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-white/70">Previous</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(economicResult.results as CalendarData[]).map((event, index) => (
-                    <tr key={event.event_id || index} className="border-b border-teal-800/30 hover:bg-teal-900/30 transition-colors">
+                    <tr key={event.event_id || index} className="border-b border-zinc-800/30 hover:bg-zinc-900/30 transition-colors">
                       <td className="py-3 px-4 text-sm text-white/90">
                         {new Date(event.date).toLocaleDateString()}
                       </td>
@@ -183,7 +183,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                       <td className="py-3 px-4 text-sm text-white/90">
                         <div>
                           <div className="font-medium text-white">{event.event}</div>
-                          {event.category && <div className="text-xs text-teal-300/60">{event.category}</div>}
+                          {event.category && <div className="text-xs text-white/60">{event.category}</div>}
                         </div>
                       </td>
                       <td className="py-3 px-4 text-sm text-right text-white font-medium">
@@ -202,14 +202,14 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
             ) : economicResult.results && Array.isArray(economicResult.results) && economicResult.results.length > 0 ? (
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-teal-700/30">
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Rank</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Country</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Current Value</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Previous Value</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Change</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Unit</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Last Updated</th>
+                  <tr className="border-b border-zinc-700/30">
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-white/70">Rank</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-white/70">Country</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-white/70">Current Value</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-white/70">Previous Value</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-white/70">Change</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-white/70">Unit</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-white/70">Last Updated</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -223,7 +223,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                       ? (((data.value as number) - (data.previous_value as number)) / (data.previous_value as number)) * 100
                       : null
                     return (
-                      <tr key={data.country || index} className="border-b border-teal-800/30 hover:bg-teal-900/30 transition-colors">
+                      <tr key={data.country || index} className="border-b border-zinc-800/30 hover:bg-zinc-900/30 transition-colors">
                         <td className="py-3 px-4 text-sm text-white/90">{index + 1}</td>
                         <td className="py-3 px-4 text-sm font-medium text-white">{data.country || 'N/A'}</td>
                         <td className="py-3 px-4 text-sm text-right text-white font-medium">
@@ -256,7 +256,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
               </table>
             ) : (
               // Fallback: show markdown if available, or a message
-              <div className="text-sm text-teal-200/70">
+              <div className="text-sm text-white/70">
                 {economicResult.markdown ? (
                   <div
                     className="text-sm leading-relaxed prose prose-invert max-w-none"
@@ -279,10 +279,10 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
     const summary = regulationResult.summary || message.content
     const summaryHtml = summary ? markdownToHtml(summary) : ''
     return (
-      <Card key={`reg-${message.id}`} className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+      <Card key={`reg-${message.id}`} className="w-full bg-zinc-800/20 border-zinc-700/30 backdrop-blur-sm">
         <CardHeader className="pb-4">
           <CardTitle className="text-lg text-white">Regulation Guidance</CardTitle>
-          {/* <CardDescription className="text-teal-200/70">
+          {/* <CardDescription className="text-white/70">
             {regulationResult.jurisdiction
               ? `Focus: ${regulationResult.jurisdiction}`
               : 'Jurisdiction not specified'}
@@ -291,17 +291,17 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
         <CardContent className="space-y-4">
           {summary && (
             <div
-              className="bg-zinc-900/40 border border-teal-700/30/40 rounded-xl p-4 text-sm text-white leading-relaxed"
+              className="bg-zinc-900/40 border border-zinc-700/40 rounded-xl p-4 text-sm text-white leading-relaxed"
               dangerouslySetInnerHTML={{ __html: summaryHtml }}
             />
           )}
           <div className="space-y-3">
             {regulationResult.matches.map((match, index) => (
-              <div key={`${match.title}-${index}`} className="rounded-lg border border-teal-800/30 bg-teal-900/20 p-4 hover:border-teal-400/50 transition-colors">
+              <div key={`${match.title}-${index}`} className="rounded-lg border border-zinc-800/30 bg-zinc-900/20 p-4 hover:border-white/30 transition-colors">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                   <div>
                     <h3 className="text-sm font-semibold text-white">{match.title}</h3>
-                    <div className="text-xs text-teal-200/70">
+                    <div className="text-xs text-white/70">
                       {match.jurisdiction && <span>{match.jurisdiction}</span>}
                       {match.source_title && (
                         <span className={match.jurisdiction ? 'ml-2' : ''}>{match.source_title}</span>
@@ -313,19 +313,19 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                       href={match.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-cyan-400 hover:text-cyan-300"
+                      className="text-xs text-white/80 hover:text-white"
                     >
                       View source →
                     </a>
                   )}
                 </div>
                 {match.description && (
-                  <p className="mt-2 text-xs text-teal-200/70">{match.description}</p>
+                  <p className="mt-2 text-xs text-white/70">{match.description}</p>
                 )}
                 <p className="mt-2 text-sm text-white/90 whitespace-pre-wrap leading-relaxed">
                   {match.snippet}
                 </p>
-                <div className="mt-2 text-xs text-teal-300/60">Relevance score: {match.score.toFixed(2)}</div>
+                <div className="mt-2 text-xs text-white/60">Relevance score: {match.score.toFixed(2)}</div>
               </div>
             ))}
           </div>
@@ -349,24 +349,24 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
       // Single stock display
       if (!screenerResult.results || screenerResult.results.length === 0) {
         return (
-          <Card key={`stock-${message.id}`} className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+          <Card key={`stock-${message.id}`} className="w-full bg-zinc-800/20 border-zinc-700/30 backdrop-blur-sm">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg text-white">No Data Available</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-teal-200/70">No stock data found for this query.</p>
+              <p className="text-white/70">No stock data found for this query.</p>
             </CardContent>
           </Card>
         )
       }
       const stock = screenerResult.results[0]
       return (
-        <Card key={`stock-${message.id}`} className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+        <Card key={`stock-${message.id}`} className="w-full bg-zinc-800/20 border-zinc-700/30 backdrop-blur-sm">
           <CardHeader className="pb-4">
             <CardTitle className="text-lg text-white">
               {isStockProfile ? 'Company Profile' : 'Stock Quote'} - {stock.name || stock.symbol}
             </CardTitle>
-            <CardDescription className="text-teal-200/70">
+            <CardDescription className="text-white/70">
               {stock.symbol} {stock.exchange && `• ${stock.exchange}`}
             </CardDescription>
           </CardHeader>
@@ -374,12 +374,12 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
             <div className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <div className="text-xs text-teal-200/70 mb-1">Price</div>
+                  <div className="text-xs text-white/70 mb-1">Price</div>
                   <div className="text-xl font-bold text-white">{formatCurrency(stock.price)}</div>
                 </div>
                 {stock.daily_change_percent !== undefined && (
                   <div>
-                    <div className="text-xs text-teal-200/70 mb-1">24h Change</div>
+                    <div className="text-xs text-white/70 mb-1">24h Change</div>
                     <div className={`text-xl font-bold ${stock.daily_change_percent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                       {stock.daily_change_percent >= 0 ? '+' : ''}{stock.daily_change_percent.toFixed(2)}%
                     </div>
@@ -387,76 +387,76 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                 )}
                 {stock.market_cap && (
                   <div>
-                    <div className="text-xs text-teal-200/70 mb-1">Market Cap</div>
+                    <div className="text-xs text-white/70 mb-1">Market Cap</div>
                     <div className="text-xl font-bold text-white">{formatNumber(stock.market_cap)}</div>
                   </div>
                 )}
                 {stock.volume_24h && (
                   <div>
-                    <div className="text-xs text-teal-200/70 mb-1">Volume</div>
+                    <div className="text-xs text-white/70 mb-1">Volume</div>
                     <div className="text-xl font-bold text-white">{formatNumber(stock.volume_24h)}</div>
                   </div>
                 )}
               </div>
               {isStockProfile && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-teal-700/30">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-white/[0.08]">
                   {stock.sector && (
                     <div>
-                      <div className="text-xs text-teal-200/70 mb-1">Sector</div>
+                      <div className="text-xs text-white/70 mb-1">Sector</div>
                       <div className="text-sm text-white">{stock.sector}</div>
                     </div>
                   )}
                   {stock.industry && (
                     <div>
-                      <div className="text-xs text-teal-200/70 mb-1">Industry</div>
+                      <div className="text-xs text-white/70 mb-1">Industry</div>
                       <div className="text-sm text-white">{stock.industry}</div>
                     </div>
                   )}
                   {stock.ceo && (
                     <div>
-                      <div className="text-xs text-teal-200/70 mb-1">CEO</div>
+                      <div className="text-xs text-white/70 mb-1">CEO</div>
                       <div className="text-sm text-white">{stock.ceo}</div>
                     </div>
                   )}
                   {stock.website && (
                     <div>
-                      <div className="text-xs text-teal-200/70 mb-1">Website</div>
-                      <a href={stock.website} target="_blank" rel="noopener noreferrer" className="text-sm text-cyan-400 hover:text-cyan-300">
+                      <div className="text-xs text-white/70 mb-1">Website</div>
+                      <a href={stock.website} target="_blank" rel="noopener noreferrer" className="text-sm text-white/80 hover:text-white">
                         {stock.website}
                       </a>
                     </div>
                   )}
                   {stock.description && (
                     <div className="md:col-span-2">
-                      <div className="text-xs text-teal-200/70 mb-1">Description</div>
+                      <div className="text-xs text-white/70 mb-1">Description</div>
                       <div className="text-sm text-white/90">{stock.description}</div>
                     </div>
                   )}
                 </div>
               )}
               {(stock.day_low || stock.day_high || stock.year_low || stock.year_high) && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-teal-700/30">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-white/[0.08]">
                   {stock.day_low && (
                     <div>
-                      <div className="text-xs text-teal-200/70 mb-1">Day Low</div>
+                      <div className="text-xs text-white/70 mb-1">Day Low</div>
                       <div className="text-sm text-white">{formatCurrency(stock.day_low)}</div>
                     </div>
                   )}
                   {stock.day_high && (
                     <div>
-                      <div className="text-xs text-teal-200/70 mb-1">Day High</div>
+                      <div className="text-xs text-white/70 mb-1">Day High</div>
                       <div className="text-sm text-white">{formatCurrency(stock.day_high)}</div>
                     </div>
                   )}
                   {stock.year_low && (
                     <div>
-                      <div className="text-xs text-teal-200/70 mb-1">52W Low</div>
+                      <div className="text-xs text-white/70 mb-1">52W Low</div>
                       <div className="text-sm text-white">{formatCurrency(stock.year_low)}</div>
                     </div>
                   )}
                   {stock.year_high && (
                     <div>
-                      <div className="text-xs text-teal-200/70 mb-1">52W High</div>
+                      <div className="text-xs text-white/70 mb-1">52W High</div>
                       <div className="text-sm text-white">{formatCurrency(stock.year_high)}</div>
                     </div>
                   )}
@@ -469,7 +469,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
     }
     
     return (
-      <Card key={`scr-${message.id}`} className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+      <Card key={`scr-${message.id}`} className="w-full bg-zinc-800/20 border-zinc-700/30 backdrop-blur-sm">
         <CardHeader className="pb-4">
           <CardTitle className="text-lg text-white">
             {screenerResult.screener_type === 'price' && 'Price Screener Results'}
@@ -480,7 +480,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
             {isCryptoQuote && 'Cryptocurrency Quotes'}
             {isForexQuote && 'Forex Quotes'}
           </CardTitle>
-          <CardDescription className="text-teal-200/70">
+          <CardDescription className="text-white/70">
             {screenerResult.range_description} • {screenerResult.total_found} {isStockScreener ? 'stocks' : isCryptoQuote ? 'cryptocurrencies' : isForexQuote ? 'forex pairs' : 'cryptos'} found
           </CardDescription>
         </CardHeader>
@@ -488,47 +488,47 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-teal-700/30">
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Rank</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Name</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Symbol</th>
-                  <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Price</th>
-                  <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">24h Change</th>
+                <tr className="border-b border-zinc-700/30">
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-white/70">Rank</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-white/70">Name</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-white/70">Symbol</th>
+                  <th className="text-right py-3 px-4 text-sm font-semibold text-white/70">Price</th>
+                  <th className="text-right py-3 px-4 text-sm font-semibold text-white/70">24h Change</th>
                   {screenerResult.screener_type === '52w_high_low' && (
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">From High/Low</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-white/70">From High/Low</th>
                   )}
                   {screenerResult.screener_type === 'rsi' && (
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">RSI</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-white/70">RSI</th>
                   )}
                   {screenerResult.screener_type === 'technical_pattern' && (
                     <>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">50 SMA</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">200 SMA</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-white/70">50 SMA</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-white/70">200 SMA</th>
                     </>
                   )}
                   {screenerResult.screener_type === 'ema' && (
                     <>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">5 EMA</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">10 EMA</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-white/70">5 EMA</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-white/70">10 EMA</th>
                     </>
                   )}
                   {isStockScreener && (
                     <>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Sector</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Exchange</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-white/70">Sector</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-white/70">Exchange</th>
                     </>
                   )}
                   {!isForexQuote && (
                     <>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Market Cap</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Volume (24h)</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-white/70">Market Cap</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-white/70">Volume (24h)</th>
                     </>
                   )}
                 </tr>
               </thead>
               <tbody>
                 {screenerResult.results.map((item: any, index) => (
-                  <tr key={item.symbol || index} className="border-b border-teal-800/30 hover:bg-teal-900/30 transition-colors">
+                  <tr key={item.symbol || index} className="border-b border-zinc-800/30 hover:bg-zinc-900/30 transition-colors">
                     <td className="py-3 px-4 text-sm text-white/90">{item.rank || index + 1}</td>
                     <td className="py-3 px-4 text-sm font-medium text-white">{item.name || item.symbol}</td>
                     <td className="py-3 px-4 text-sm text-white/90">{item.symbol}</td>
@@ -605,24 +605,24 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
       <div key={`bt-${message.id}`} className="space-y-4">
         {backtestResult.show_performance_stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
-            <Card className="bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+            <Card className="bg-zinc-800/20 border-zinc-700/30 backdrop-blur-sm">
               <CardContent className="p-4">
                 <div className="flex items-center space-x-3">
                   <DollarSign className="h-5 w-5 text-green-400" />
                   <div>
-                    <p className="text-xs font-medium text-teal-200/70">Final Value</p>
+                    <p className="text-xs font-medium text-white/70">Final Value</p>
                     <p className="text-xl font-bold text-white">{formatCurrency(backtestResult.final_capital)}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+            <Card className="bg-zinc-800/20 border-zinc-700/30 backdrop-blur-sm">
               <CardContent className="p-4">
                 <div className="flex items-center space-x-3">
                   <TrendingUp className="h-5 w-5 text-cyan-400" />
                   <div>
-                    <p className="text-xs font-medium text-teal-200/70">Total Return</p>
+                    <p className="text-xs font-medium text-white/70">Total Return</p>
                     <p className={`text-xl font-bold ${
                       backtestResult.metrics.total_return >= 0 ? 'text-green-400' : 'text-red-400'
                     }`}>
@@ -633,24 +633,24 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
               </CardContent>
             </Card>
 
-            <Card className="bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+            <Card className="bg-zinc-800/20 border-zinc-700/30 backdrop-blur-sm">
               <CardContent className="p-4">
                 <div className="flex items-center space-x-3">
                   <BarChart3 className="h-5 w-5 text-teal-400" />
                   <div>
-                    <p className="text-xs font-medium text-teal-200/70">Sharpe Ratio</p>
+                    <p className="text-xs font-medium text-white/70">Sharpe Ratio</p>
                     <p className="text-xl font-bold text-white">{backtestResult.metrics.sharpe_ratio.toFixed(2)}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+            <Card className="bg-zinc-800/20 border-zinc-700/30 backdrop-blur-sm">
               <CardContent className="p-4">
                 <div className="flex items-center space-x-3">
                   <TrendingDown className="h-5 w-5 text-red-400" />
                   <div>
-                    <p className="text-xs font-medium text-teal-200/70">Max Drawdown</p>
+                    <p className="text-xs font-medium text-white/70">Max Drawdown</p>
                     <p className="text-xl font-bold text-red-400">
                       {formatPercentage(Math.abs(backtestResult.metrics.max_drawdown))}
                     </p>
@@ -666,12 +666,12 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
           const tableId = `trades-${message.id}`
           const isExpanded = expandedTradeTables.has(tableId)
           return (
-            <Card className="bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+            <Card className="bg-zinc-800/20 border-zinc-700/30 backdrop-blur-sm">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-lg text-white">Trade History</CardTitle>
-                    <CardDescription className="text-teal-200/70">
+                    <CardDescription className="text-white/70">
                       {backtestResult.trades.length} {backtestResult.trades.length === 1 ? 'trade' : 'trades'} executed during backtest
                     </CardDescription>
                   </div>
@@ -687,7 +687,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                         return next
                       })
                     }}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-teal-200/70 hover:text-white transition-colors rounded-lg hover:bg-teal-700/30"
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white transition-colors rounded-lg hover:bg-teal-700/30"
                     aria-label={isExpanded ? 'Collapse trades table' : 'Expand trades table'}
                   >
                     <span>{isExpanded ? 'Hide' : 'Show'} Details</span>
@@ -708,7 +708,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                           <div className="flex items-center space-x-3">
                             <BarChart3 className="h-5 w-5 text-cyan-400" />
                             <div>
-                              <p className="text-xs font-medium text-teal-200/70">Total Trades</p>
+                              <p className="text-xs font-medium text-white/70">Total Trades</p>
                               <p className="text-xl font-bold text-white">{backtestResult.metrics.total_trades}</p>
                             </div>
                           </div>
@@ -720,7 +720,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                           <div className="flex items-center space-x-3">
                             <TrendingUp className="h-5 w-5 text-green-400" />
                             <div>
-                              <p className="text-xs font-medium text-teal-200/70">Winning Trades</p>
+                              <p className="text-xs font-medium text-white/70">Winning Trades</p>
                               <p className="text-xl font-bold text-green-400">
                                 {backtestResult.metrics.winning_trades ?? 0}
                               </p>
@@ -734,7 +734,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                           <div className="flex items-center space-x-3">
                             <TrendingDown className="h-5 w-5 text-red-400" />
                             <div>
-                              <p className="text-xs font-medium text-teal-200/70">Losing Trades</p>
+                              <p className="text-xs font-medium text-white/70">Losing Trades</p>
                               <p className="text-xl font-bold text-red-400">
                                 {backtestResult.metrics.losing_trades ?? 0}
                               </p>
@@ -748,7 +748,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                           <div className="flex items-center space-x-3">
                             <DollarSign className="h-5 w-5 text-teal-400" />
                             <div>
-                              <p className="text-xs font-medium text-teal-200/70">Avg Trade Return</p>
+                              <p className="text-xs font-medium text-white/70">Avg Trade Return</p>
                               <p className={`text-xl font-bold ${
                                 (backtestResult.metrics.avg_trade_return ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'
                               }`}>
@@ -765,21 +765,21 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
-                        <tr className="border-b border-teal-700/30">
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">#</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Entry Date</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-teal-200/70">Exit Date</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Entry Price</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Exit Price</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Size</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">P&L</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Return %</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-teal-200/70">Duration</th>
+                        <tr className="border-b border-zinc-700/30">
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-white/70">#</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-white/70">Entry Date</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-white/70">Exit Date</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-white/70">Entry Price</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-white/70">Exit Price</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-white/70">Size</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-white/70">P&L</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-white/70">Return %</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-white/70">Duration</th>
                         </tr>
                       </thead>
                       <tbody>
                         {backtestResult.trades.map((trade) => (
-                          <tr key={trade.trade_number} className="border-b border-teal-800/30 hover:bg-teal-900/30 transition-colors">
+                          <tr key={trade.trade_number} className="border-b border-zinc-800/30 hover:bg-zinc-900/30 transition-colors">
                             <td className="py-3 px-4 text-sm text-white/90">{trade.trade_number}</td>
                             <td className="py-3 px-4 text-sm text-white/90">{formatDate(trade.entry_date)}</td>
                             <td className="py-3 px-4 text-sm text-white/90">{formatDate(trade.exit_date)}</td>
@@ -918,9 +918,9 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
             if (!revealedAssistantIds.has(nextAssistant.id)) return null
             return (
               <div className="flex justify-end">
-                <div className="max-w-[85%] rounded-xl px-4 py-3 bg-zinc-800/60 border border-teal-700/30/50 text-white">
-                  <div className="text-xs uppercase tracking-wide text-teal-200/70 mb-1">Clark’s response</div>
-                  <div className="text-sm whitespace-pre-wrap leading-relaxed">{nextAssistant.content}</div>
+                <div className="max-w-[85%]">
+                  <div className="text-xs uppercase tracking-wide text-white/70 mb-1">Clark’s response</div>
+                  <div className="text-sm whitespace-pre-wrap leading-relaxed text-white/95">{nextAssistant.content}</div>
                 </div>
               </div>
             )
@@ -1050,33 +1050,36 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                 <>
                   <div className="flex gap-2 justify-start items-center">
                     <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                      <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
+                      <img src="/clark process.svg" alt="Clark" className="h-8 w-8 opacity-90"  />
                     </div>
-                    <span className="text-xs font-medium" style={{ color: '#90E7EE' }}>
+                    <span className="text-xs font-medium text-white/90">
                       Clark
                     </span>
                   </div>
-                  <div className="mt-1 ml-10 max-w-[85%] text-sm leading-relaxed text-white">
-                    {/* Render optional source label, but hide noisy internal tags */}
+                  <div className="mt-1 ml-10 max-w-[85%]">
+                    {/* No bubble: Clark's output is plain text on the feed background */}
                     {(() => {
                       const sourceLabel = formatSourceLabel(message.source)
                       if (!sourceLabel) return null
                       return (
-                        <div className="text-[10px] uppercase tracking-[0.2em] text-teal-300/80 mb-2">
+                        <div className="text-[10px] uppercase tracking-[0.2em] text-white/80 mb-2">
                           {sourceLabel}
                         </div>
                       )
                     })()}
-                    {/* Render assistant message content as markdown-formatted HTML */}
                     <div
-                      className="prose prose-invert max-w-none"
-                      dangerouslySetInnerHTML={{ __html: markdownToHtml(message.content) }}
-                    />
-                    {message.capabilitiesSummary && (
-                      <div className="mt-3 text-xs text-white/90 whitespace-pre-wrap leading-relaxed">
-                        {message.capabilitiesSummary}
-                      </div>
-                    )}
+                      className="text-sm leading-relaxed text-white/95"
+                    >
+                      <div
+                        className="prose prose-invert max-w-none prose-p:mb-1.5 prose-ul:my-2 prose-li:my-0.5"
+                        dangerouslySetInnerHTML={{ __html: markdownToHtml(message.content) }}
+                      />
+                      {message.capabilitiesSummary && (
+                        <div className="mt-3 text-xs text-white/80 whitespace-pre-wrap leading-relaxed">
+                          {message.capabilitiesSummary}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </>
               )}
@@ -1091,13 +1094,13 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                   <>
                     <div className="flex gap-2 justify-start items-center">
                       <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                        <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
+                        <img src="/clark process.svg" alt="Clark" className="h-8 w-8 opacity-90"  />
                       </div>
-                      <span className="text-xs font-medium" style={{ color: '#90E7EE' }}>
+                      <span className="text-xs font-medium text-white/90">
                         Clark
                       </span>
                     </div>
-                    <div className="mt-1 ml-10 max-w-[85%] text-sm leading-relaxed text-white">
+                    <div className="mt-1 ml-10 max-w-[85%] text-sm leading-relaxed text-white/95">
                       {lastLine}
                     </div>
                   </>
@@ -1117,21 +1120,14 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                   priceHistoryResult.data_points.length > 0
                 
                 if (!hasPriceHistory || !priceHistoryResult) return null
-                
-                // Debug logging
-                console.log('Rendering price history chart:', {
-                  token: priceHistoryResult.token,
-                  dataPointsLength: priceHistoryResult.data_points.length,
-                  lookbackDays: priceHistoryResult.lookback_days,
-                })
-                
+
                 // Display EUR/GBP (strip k prefix if present for consistency)
                 const displayToken = (priceHistoryResult.token || '').replace(/^k/i, '') || priceHistoryResult.token
 
                 return (
                   <div className="flex gap-2 justify-start items-start mt-2">
                     <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                      <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
+                      <img src="/clark process.svg" alt="Clark" className="h-8 w-8 opacity-90"  />
                     </div>
                     <div className="max-w-[85%] w-full">
                       <PriceHistoryChart
@@ -1163,7 +1159,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                 return (
                   <div className="flex gap-2 justify-start items-start mt-2">
                     <div className="max-w-[85%] w-full rounded-2xl p-4 bg-teal-900/40 border border-teal-700/50 backdrop-blur-sm">
-                      <div className="text-[10px] uppercase tracking-[0.2em] text-teal-300/80 mb-3">{title}</div>
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-white/80 mb-3">{title}</div>
                       {!hasAnyData && (
                         <p className="text-sm text-teal-200/80">No balance data recorded yet for this period.</p>
                       )}
@@ -1209,7 +1205,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                 <div className="flex flex-col gap-2 justify-start items-start mt-2">
                   <div className="flex gap-2 justify-start items-start w-full">
                     <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                      <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
+                      <img src="/clark process.svg" alt="Clark" className="h-8 w-8 opacity-90"  />
                     </div>
                     <div className="max-w-[85%]">
                       <TransactionStatus username={username} initialData={inlineTxData} />
@@ -1270,15 +1266,17 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
           })()}
         </div>
       ))}
+      {/* Shown when loading and conversation has started; no bubble, same as Clark's text output */}
       {isLoading && (
-        <div className="flex gap-3 justify-start">
-          <div className="bg-zinc-800/60 border border-teal-700/30/50 rounded-2xl p-4 backdrop-blur-sm">
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin text-teal-400" />
-              <span className="text-sm text-white">Processing your request...</span>
+        <>
+          <div className="flex gap-2 justify-start items-center">
+            <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+              <img src="/clark process.svg" alt="Clark" className="h-8 w-8 animate-pulse opacity-90"  />
             </div>
+            <span className="text-xs font-medium text-white/90">Clark</span>
           </div>
-        </div>
+          <div className="mt-1 ml-10 text-sm text-white/90">Processing…</div>
+        </>
       )}
     </div>
   )
@@ -1304,18 +1302,85 @@ const markdownToHtml = (markdown: string): string => {
       .replace(/_(.+?)_/g, '<em>$1</em>')
   }
 
-  const lines = markdown.split(/\n+/)
+  const lines = markdown.split(/\n/)
   const htmlParts: string[] = []
   let inList = false
+  let inTable = false
+  let tableHeadDone = false
 
-  lines.forEach((line) => {
+  const closeTable = () => {
+    if (inTable) {
+      if (tableHeadDone) {
+        htmlParts.push('</tbody>')
+      } else {
+        htmlParts.push('</thead>')
+      }
+      htmlParts.push('</table>')
+      inTable = false
+      tableHeadDone = false
+    }
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
     const trimmed = line.trim()
+
     if (!trimmed) {
       if (inList) {
         htmlParts.push('</ul>')
         inList = false
       }
-      return
+      closeTable()
+      continue
+    }
+
+    // Headers (## or ###)
+    const h2Match = trimmed.match(/^## (.+)$/)
+    const h3Match = trimmed.match(/^### (.+)$/)
+    if (h2Match) {
+      if (inList) { htmlParts.push('</ul>'); inList = false }
+      closeTable()
+      htmlParts.push(`<h2 class="text-lg font-semibold text-white mt-4 mb-2">${applyInline(h2Match[1])}</h2>`)
+      continue
+    }
+    if (h3Match) {
+      if (inList) { htmlParts.push('</ul>'); inList = false }
+      closeTable()
+      htmlParts.push(`<h3 class="text-base font-semibold text-white mt-3 mb-1">${applyInline(h3Match[1])}</h3>`)
+      continue
+    }
+
+    // Table: | a | b | (optional separator row |---|---|)
+    if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+      if (inList) { htmlParts.push('</ul>'); inList = false }
+      const rawCells = trimmed.slice(1, -1).split('|').map((c) => c.trim())
+      const isSeparator = rawCells.every((c) => /^[-:]+$/.test(c))
+      if (isSeparator) {
+        if (inTable && !tableHeadDone) {
+          htmlParts.push('</thead><tbody>')
+          tableHeadDone = true
+        }
+        continue
+      }
+      const cells = rawCells.map((c) => applyInline(c))
+      if (!inTable) {
+        htmlParts.push('<table class="w-full border-collapse border border-zinc-700/40 my-2 text-sm"><thead><tr class="border-b border-teal-600/50 bg-teal-900/30">')
+        inTable = true
+      }
+      const useTh = !tableHeadDone
+      if (useTh) {
+        htmlParts.push(`<tr class="border-b border-teal-800/30">${cells.map((c) => `<th class="text-left py-2 px-3 font-semibold text-teal-200">${c}</th>`).join('')}</tr>`)
+        tableHeadDone = true
+        htmlParts.push('</thead><tbody>')
+      } else {
+        const cellClass = 'text-left py-2 px-3 border-t border-teal-800/40 text-white/90'
+        htmlParts.push(`<tr class="border-b border-teal-800/30">${cells.map((c) => `<td class="${cellClass}">${c}</td>`).join('')}</tr>`)
+      }
+      continue
+    }
+
+    if (inTable) {
+      closeTable()
     }
 
     if (trimmed.startsWith('- ')) {
@@ -1329,13 +1394,12 @@ const markdownToHtml = (markdown: string): string => {
         htmlParts.push('</ul>')
         inList = false
       }
-      htmlParts.push(`<p>${applyInline(trimmed)}</p>`)
+      htmlParts.push(`<p class="mb-1">${applyInline(trimmed)}</p>`)
     }
-  })
-
-  if (inList) {
-    htmlParts.push('</ul>')
   }
+
+  if (inList) htmlParts.push('</ul>')
+  closeTable()
 
   return htmlParts.join('')
 }
