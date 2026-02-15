@@ -285,9 +285,12 @@ export default function BacktestPage() {
     const agentMessage = payload?.data && typeof payload.data === 'object' ? messageFromDataObject(payload.data as Record<string, unknown>) : undefined
     const deepFallback = payload && payload.success !== false ? deepMessageFrom(payload) : undefined
     const fallbackText = "Sorry, I'm unable to process your request at the moment."
+    // Prefer top-level message (synthesized/combined answer) over data.markdown. The backend puts the
+    // correct answer in message; data.markdown can be a single sub-agent's output (e.g. Treasury-only
+    // when user asked for Nvidia vs bonds comparison) and must not override the combined response.
     let responseMessage: string =
+      (typeof payload?.message === 'string' && payload.message.trim() ? payload.message : undefined) ??
       dataMarkdown ??
-      payload?.message ??
       dataMessage ??
       agentMessage ??
       deepFallback ??
@@ -586,11 +589,11 @@ export default function BacktestPage() {
         session_id: sessionId
       }
 
-      // If we have interrupt responses, send them as content blocks
+      // If we have interrupt responses, send them as content blocks (and still send query for agent flow display)
       // Otherwise, send the query
       if (interruptResponses && interruptResponses.length > 0) {
-        // Strands expects interrupt responses as content blocks
         requestBody.content = interruptResponses
+        if (queryText.trim()) requestBody.query = queryText
       } else {
         requestBody.query = queryText
       }
@@ -886,7 +889,7 @@ export default function BacktestPage() {
                   <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
                     <img src="/clark process.svg" alt="Clark" className="h-8 w-8 animate-pulse" />
                   </div>
-                  <div className="rounded-2xl px-4 py-3 bg-teal-900/30 border border-teal-700/40 text-teal-200/80 text-sm">
+                  <div className="rounded-2xl px-4 py-3 bg-zinc-900/30 border border-zinc-700/40 text-white/80 text-sm">
                     Thinking…
                   </div>
                 </div>
@@ -907,37 +910,37 @@ export default function BacktestPage() {
                     <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
                       <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
                     </div>
-                    <div className="max-w-[85%] rounded-2xl p-4 bg-teal-900/40 border border-teal-700/50 text-white backdrop-blur-sm">
-                      <div className="text-[10px] uppercase tracking-[0.2em] text-teal-300/80 mb-2">
+                    <div className="max-w-[85%] rounded-2xl p-4 bg-zinc-900/40 border border-zinc-700/50 text-white backdrop-blur-sm">
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-white/80 mb-2">
                         Payment confirmation
                       </div>
-                      <p className="text-sm text-teal-100/90 mb-3">
+                      <p className="text-sm text-white/90 mb-3">
                         Please review and confirm the payment details below.
                       </p>
-                      <div className="bg-teal-900/60 rounded-lg p-3 border border-teal-700/40 space-y-2 text-sm">
+                      <div className="bg-zinc-900/60 rounded-lg p-3 border border-zinc-700/40 space-y-2 text-sm">
                         {reason.operation === 'swap_and_transfer' && reason.from_token && (
                           <div className="flex justify-between items-center">
-                            <span className="text-teal-200/80">Swap From:</span>
-                            <span className="text-teal-100 font-medium">
+                            <span className="text-white/80">Swap From:</span>
+                            <span className="text-white font-medium">
                               {reason.from_token}
                             </span>
                           </div>
                         )}
                         <div className="flex justify-between items-center">
-                          <span className="text-teal-200/80">Send Amount:</span>
-                          <span className="text-teal-100 font-semibold">
+                          <span className="text-white/80">Send Amount:</span>
+                          <span className="text-white font-semibold">
                             {reason.received_amount} {toToken}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
-                          <span className="text-teal-200/80">To:</span>
-                          <span className="text-teal-100 font-medium">
+                          <span className="text-white/80">To:</span>
+                          <span className="text-white font-medium">
                             @{reason.receiver_username}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
-                          <span className="text-teal-200/80">Operation:</span>
-                          <span className="text-teal-100 font-medium">{operation}</span>
+                          <span className="text-white/80">Operation:</span>
+                          <span className="text-white font-medium">{operation}</span>
                         </div>
                       </div>
                       <div className="flex gap-3 pt-3 mt-2">
@@ -951,7 +954,7 @@ export default function BacktestPage() {
                         <button
                           type="button"
                           onClick={() => handleInterruptApprove(paymentInterrupt.id)}
-                          className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium transition-colors"
+                          className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-sm font-medium transition-colors border border-white/20"
                         >
                           Confirm
                         </button>

@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from 'react'
-import { Pencil, ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
+import { Pencil, ChevronUp, ChevronDown, Trash2, ArrowUp } from 'lucide-react'
 
 interface ChatInputBarProps {
   inputValue: string
@@ -96,7 +96,7 @@ export default function ChatInputBar({
                               if (e.key === 'Escape') cancelEdit()
                             }}
                             onBlur={saveEdit}
-                            className="flex-1 min-w-0 px-1.5 py-0.5 rounded bg-white/10 border border-teal-500/50 text-white placeholder:text-white/40 text-xs focus:outline-none focus:ring-1 focus:ring-teal-400/50"
+                            className="flex-1 min-w-0 px-1.5 py-0.5 rounded bg-white/10 border border-white/20 text-white placeholder:text-white/40 text-xs focus:outline-none focus:ring-1 focus:ring-white/30"
                             placeholder="Edit query…"
                             autoFocus
                           />
@@ -113,7 +113,7 @@ export default function ChatInputBar({
                               <button
                                 type="button"
                                 onClick={() => startEdit(i, query)}
-                                className="p-1 rounded-md hover:bg-white/10 hover:text-teal-300 transition-colors"
+                                className="p-1 rounded-md hover:bg-white/10 hover:text-white/90 transition-colors"
                                 aria-label="Edit query"
                                 title="Edit"
                               >
@@ -126,7 +126,7 @@ export default function ChatInputBar({
                                   type="button"
                                   onClick={() => onMoveQueueItem(i, 'up')}
                                   disabled={i === 0}
-                                  className="p-1 rounded-md hover:bg-white/10 hover:text-teal-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                  className="p-1 rounded-md hover:bg-white/10 hover:text-white/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                                   aria-label="Move up"
                                   title="Move up"
                                 >
@@ -136,7 +136,7 @@ export default function ChatInputBar({
                                   type="button"
                                   onClick={() => onMoveQueueItem(i, 'down')}
                                   disabled={i === queueQueries.length - 1}
-                                  className="p-1 rounded-md hover:bg-white/10 hover:text-teal-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                  className="p-1 rounded-md hover:bg-white/10 hover:text-white/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                                   aria-label="Move down"
                                   title="Move down"
                                 >
@@ -164,34 +164,35 @@ export default function ChatInputBar({
               )}
             </div>
           )}
-          {/* Single pill-shaped bar: lighter translucent frosted look (earlier preferred style) */}
+          {/* Single clean bar: one border, no inner rings or double edges */}
           <div
             className="
-              flex items-center overflow-hidden
-              rounded-2xl
-              bg-white/10 border border-white/15
-              shadow-[0_1px_0_0_rgba(255,255,255,0.09)_inset,0_-1px_0_0_rgba(0,0,0,0.04)_inset]
-              backdrop-blur-sm
+              flex items-center
+              rounded-2xl overflow-hidden
+              bg-white/[0.07]
+              border border-white/[0.08]
+              shadow-none
             "
           >
-            {/* Clark icon - light teal/blue circle per reference */}
+            {/* Clark icon - no separate border, no focus ring bleed */}
             <button
               type="button"
               onClick={onOpenPromptModal}
               aria-label="Open prompt suggestions"
               className="
                 h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0
-                rounded-full
-                bg-teal-400/25 border border-teal-400/35
+                rounded-full m-1
+                bg-transparent
                 flex items-center justify-center
-                hover:bg-teal-400/35
-                transition focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent
+                hover:bg-white/[0.08] active:bg-white/[0.06]
+                transition-colors
+                outline-none focus-visible:bg-white/[0.08]
               "
             >
-              <img src="/clark process.svg" alt="" className="h-5 w-5 sm:h-6 sm:w-6" />
+              <img src="/clark process.svg" alt="" className="h-5 w-5 sm:h-6 sm:w-6 opacity-90" />
             </button>
 
-            {/* Input - no border, blends into bar */}
+            {/* Input - borderless, flush with bar */}
             <input
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
@@ -207,13 +208,13 @@ export default function ChatInputBar({
                 border-0
                 text-sm sm:text-base
                 text-white
-                placeholder:text-white/60
-                focus:outline-none focus:ring-0
+                placeholder:text-white/50
+                focus:outline-none
                 disabled:opacity-60 disabled:cursor-not-allowed
               "
             />
 
-            {/* Send - same slate as bar, slightly darker / more pronounced, distinct but harmonious */}
+            {/* Send - single surface, larger icon */}
             <button
               type="button"
               onClick={() => onSendMessage()}
@@ -223,12 +224,13 @@ export default function ChatInputBar({
                 flex items-center justify-center
                 h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0
                 rounded-r-2xl
-                bg-white/15 border-l border-white/10
-                transition hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-400/50 focus-visible:ring-inset
+                bg-teal-500/25 hover:bg-teal-500/35 active:bg-teal-500/30
+                transition-colors
+                outline-none focus-visible:ring-2 focus-visible:ring-teal-400/40 focus-visible:ring-inset
+                disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-white/[0.06]
               "
             >
-              <img src="/send button.svg" alt="" className="h-7 w-7 sm:h-10 sm:w-10 pointer-events-none" />
+              <ArrowUp className="h-5 w-5 sm:h-6 sm:w-6 text-white" strokeWidth={2.5} />
             </button>
           </div>
         </div>
