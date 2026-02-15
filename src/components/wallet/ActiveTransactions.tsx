@@ -501,6 +501,12 @@ export default function ActiveTransactions({ username, className = '', onAllTran
               completed_at: isFinished && !tx.completed_at ? now : tx.completed_at,
             };
           });
+          // Sort by created_at descending (newest first)
+          updated.sort((a, b) => {
+            const aTime = a.created_at || 0;
+            const bTime = b.created_at || 0;
+            return bTime - aTime;
+          });
           return updated.length ? updated : prev;
         }
         // When API returns empty and we had initial data (e.g. Clark agent flow), keep showing it
@@ -540,7 +546,14 @@ export default function ActiveTransactions({ username, className = '', onAllTran
           return existing?.completed_at ? { ...newTx, completed_at: existing.completed_at } : newTx;
         });
 
-        return [...updatedNew, ...completedToKeep];
+        // Combine and sort by created_at descending (newest first)
+        const combined = [...updatedNew, ...completedToKeep];
+        combined.sort((a, b) => {
+          const aTime = a.created_at || 0;
+          const bTime = b.created_at || 0;
+          return bTime - aTime; // Descending order (newest first)
+        });
+        return combined;
       });
     } catch (err: any) {
       console.error('Error fetching active transactions:', err);
