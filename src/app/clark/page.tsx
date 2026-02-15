@@ -631,6 +631,11 @@ export default function BacktestPage() {
     }
   }
 
+  const showCategoryTiles =
+    !messages.some((m) => m.type === 'user') &&
+    !messages.some((m) => m.backtestResult) &&
+    !isPromptModalOpen
+
   return (
     <div className="min-h-screen w-full bg-[#001C1B] overflow-x-hidden">
       {/* Navbar */}
@@ -677,11 +682,9 @@ export default function BacktestPage() {
       <div className="h-24" />
 
       {/* Main Content Area - continuous feed */}
-      <div className={`container mx-auto px-4 py-10 max-w-6xl relative z-0`}>
-        
-
-        {/* Category Tiles - Show only when no user messages or results */}
-        {!messages.some(m => m.type === 'user') && !messages.some(m => m.backtestResult) && (
+      <div className="container mx-auto px-4 py-10 max-w-6xl relative z-0">
+        {/* Category Tiles - hidden when prompt modal is open so a single card click doesn't fire both modal and tiles */}
+        {showCategoryTiles && (
           <CategoryTiles
             categories={categories}
             selectedCategory={selectedCategory}
@@ -789,7 +792,6 @@ export default function BacktestPage() {
         onPromptClick={handlePromptClick}
         isLoading={isLoading}
       />
-
       </div>
 
       {/* Chat Input Bar - fixed at bottom */}

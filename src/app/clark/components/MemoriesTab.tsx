@@ -6,6 +6,7 @@ import { Brain, Clock, MessageSquare, Database, Loader2, RefreshCw, User } from 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import agentsApi from '@/lib/agents_api'
 import type { ChatMessage } from '../types'
+import { stripReasoningFromMessage } from '../utils/createAssistantMessage'
 
 interface Memory {
   id?: string
@@ -247,29 +248,31 @@ export default function MemoriesTab({ userId, sessionId, messages = [] }: Memori
       }
     }
     
-    // Fallback to reasoningContent structure
+    // Fallback to reasoningContent structure (strip any nested reasoning before showing)
     if (!displayMessage && (memory as any).reasoningContent) {
       const reasoning = (memory as any).reasoningContent
       if (reasoning?.reasoningText?.text) {
         const reasoningText = reasoning.reasoningText.text
         if (typeof reasoningText === 'string') {
+          let raw = ''
           if (reasoningText.trim().startsWith('{')) {
             try {
               const parsed = JSON.parse(reasoningText)
               if (parsed.message && typeof parsed.message === 'string') {
-                displayMessage = parsed.message
+                raw = parsed.message
                 if (parsed.metadata && typeof parsed.metadata === 'object') {
                   Object.assign(metadata, parsed.metadata)
                 }
               } else {
-                displayMessage = reasoningText
+                raw = reasoningText
               }
             } catch {
-              displayMessage = reasoningText
+              raw = reasoningText
             }
           } else {
-            displayMessage = reasoningText
+            raw = reasoningText
           }
+          displayMessage = stripReasoningFromMessage(raw)
         }
       }
     }

@@ -1,5 +1,23 @@
 import type { ChatMessage } from '../types'
 
+/**
+ * Strip any leading reasoning block (e.g. leaked {'reasoningContent': ...}) from
+ * message text so only user-facing content is shown. Safe to call on any string.
+ */
+export function stripReasoningFromMessage(text: string): string {
+  if (!text || typeof text !== 'string') return text
+  if (!text.includes('reasoningContent') && !text.includes('reasoningText')) return text
+  const lines = text.split('\n')
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    if (trimmed.includes('reasoningContent') || trimmed.includes('reasoningText')) continue
+    return lines.slice(i).join('\n').trim()
+  }
+  return text
+}
+
 /** Recursively find first non-empty string at key 'message' or 'markdown' (max depth 4). */
 function deepMessageFrom(obj: unknown, depth = 0): string | undefined {
   if (depth > 4 || obj == null) return undefined
@@ -50,6 +68,8 @@ export function createAssistantMessage(payload: unknown): ChatMessage {
     agentMessage ??
     deepFallback ??
     fallbackText
+
+  responseMessage = stripReasoningFromMessage(responseMessage)
 
   const rawData = p?.data as Record<string, unknown> | undefined
 
