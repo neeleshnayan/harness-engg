@@ -13,6 +13,8 @@ import { ChatMessage } from './types'
 import { categories } from './constants'
 import CategoryTiles from './components/CategoryTiles'
 import ChatInputBar from './components/ChatInterface'
+import { createAssistantMessage } from './utils/createAssistantMessage'
+import { parseErrorMessage } from '@/lib/parseError'
 
 // Dynamically import heavy components to reduce initial bundle size
 const ResultsDisplay = dynamic(() => import('./components/ResultsDisplay'), {
@@ -121,13 +123,13 @@ export default function BacktestPage() {
         localStorage.removeItem('clark_expanded_session_id')
       } else {
         // Generate new session ID if not expanding from mini chat
-        const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        const newSessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
         setSessionId(newSessionId)
       }
     } catch (error) {
       console.error('Error loading expanded messages:', error)
       // Fallback to generating new session ID if loading fails
-      const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      const newSessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
       setSessionId(newSessionId)
     }
     
@@ -247,175 +249,6 @@ export default function BacktestPage() {
     return prompt
   }
 
-  /** Recursively find first non-empty string at key 'message' or 'markdown' (max depth 4) to avoid missing API shapes */
-  const deepMessageFrom = (obj: unknown, depth = 0): string | undefined => {
-    if (depth > 4 || obj == null) return undefined
-    if (typeof obj === 'string' && obj.trim().length > 0) return obj.trim()
-    if (typeof obj !== 'object') return undefined
-    const o = obj as Record<string, unknown>
-    for (const k of ['message', 'markdown', 'text', 'content', 'output']) {
-      const v = o[k]
-      if (typeof v === 'string' && v.trim().length > 0) return v.trim()
-      const nested = deepMessageFrom(v, depth + 1)
-      if (nested) return nested
-    }
-    for (const v of Object.values(o)) {
-      const nested = deepMessageFrom(v, depth + 1)
-      if (nested) return nested
-    }
-    return undefined
-  }
-
-  const createAssistantMessage = (payload: any): ChatMessage => {
-    const messageId = (Date.now() + Math.random()).toString()
-    // Build response message: prefer rich markdown (economic/combined) when present; then top-level message; then data.message or any agent key; then deep search.
-    const dataMarkdown = (payload?.data?.markdown as string | undefined)
-      ?? (payload?.data?.economic as { markdown?: string } | undefined)?.markdown
-    const dataMessage = typeof payload?.data?.message === 'string' ? payload.data.message : undefined
-    const messageFromDataObject = (d: Record<string, unknown>): string | undefined => {
-      if (!d || typeof d !== 'object') return undefined
-      for (const v of Object.values(d)) {
-        if (v && typeof v === 'object' && typeof (v as { message?: string }).message === 'string') {
-          const msg = (v as { message: string }).message
-          if (msg.trim()) return msg
-        }
-      }
-      return undefined
-    }
-    const agentMessage = payload?.data && typeof payload.data === 'object' ? messageFromDataObject(payload.data as Record<string, unknown>) : undefined
-    const deepFallback = payload && payload.success !== false ? deepMessageFrom(payload) : undefined
-    const fallbackText = "Sorry, I'm unable to process your request at the moment."
-    // Prefer top-level message (synthesized/combined answer) over data.markdown. The backend puts the
-    // correct answer in message; data.markdown can be a single sub-agent's output (e.g. Treasury-only
-    // when user asked for Nvidia vs bonds comparison) and must not override the combined response.
-    let responseMessage: string =
-      (typeof payload?.message === 'string' && payload.message.trim() ? payload.message : undefined) ??
-      dataMarkdown ??
-      dataMessage ??
-      agentMessage ??
-      deepFallback ??
-      fallbackText
-    if (responseMessage === fallbackText && typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
-      console.warn('[Clark] No message in payload. Top keys:', payload ? Object.keys(payload) : [], 'data keys:', payload?.data && typeof payload.data === 'object' ? Object.keys(payload.data) : [])
-    }
-    const rawData = payload?.data
-
-    // Only keep backtest result, remove all other components
-    // Check multiple possible locations for backtest_result (may be nested under agent IDs)
-    let backtestResult = rawData?.backtest_result ?? rawData?.backtestResult
-    if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development' && !backtestResult && rawData?.backtest_result === undefined && rawData?.backtestResult === undefined) {
-      // Log when we might have missed a different shape (e.g. snake_case from API)
-      const anyBt = (rawData && typeof rawData === 'object' && (rawData as Record<string, unknown>)['backtest_result']) ?? (rawData as Record<string, unknown>)?.['backtestResult']
-      if (anyBt) console.log('[Clark] createAssistantMessage: backtest_result found under alternate key', { keys: rawData ? Object.keys(rawData) : [] })
-    }
-    
-    // If not found at top level, check if nested under agent keys (common in multi-agent results)
-    if (!backtestResult && rawData) {
-      // Check under "technical" agent key (for technical analysis queries)
-      if (rawData.technical?.backtest_result) {
-        backtestResult = rawData.technical.backtest_result
-      }
-      // Check under "backtest" agent key (for backtest queries)
-      else if (rawData.backtest?.backtest_result) {
-        backtestResult = rawData.backtest.backtest_result
-      }
-      // Check under "data_fetcher" agent key combined with backtest
-      else if (rawData.data_fetcher && (rawData.backtest_result || rawData.backtest?.backtest_result)) {
-        backtestResult = rawData.backtest_result || rawData.backtest?.backtest_result
-      }
-    }
-
-    // Extract price history result - ONLY from krypton_pay price_history.
-    // Do NOT use rawData.data_points here - those may be from backtest (portfolio_value) or
-    // data_fetcher (different structure). PriceHistoryChart expects { date, price } points.
-    const priceHistoryData = rawData?.price_history ?? rawData?.priceHistory
-    let dataPoints = priceHistoryData?.data_points ?? priceHistoryData?.data
-    if (!dataPoints && Array.isArray(priceHistoryData)) {
-      dataPoints = priceHistoryData
-    }
-    // Validate: only use if points have price (not portfolio_value from backtest)
-    const hasValidPricePoints = Array.isArray(dataPoints) && dataPoints.length > 0 &&
-      dataPoints.some((p: { price?: number }) => typeof p?.price === 'number')
-    
-    // Use EUR/GBP display format (strip k prefix if present)
-    const rawToken = rawData?.token || priceHistoryData?.token || payload?.parsed_intent?.token_name || ''
-    const displayTokenForHistory = (rawToken || '').replace(/^k/i, '') || rawToken
-    const priceHistoryResult = priceHistoryData && hasValidPricePoints && Array.isArray(dataPoints)
-      ? {
-          token: displayTokenForHistory,
-          lookback_days: priceHistoryData?.lookback_days || payload?.parsed_intent?.lookback_days || 30,
-          count: priceHistoryData?.count || dataPoints.length || 0,
-          data_points: dataPoints,
-        }
-      : undefined
-    
-    // Extract balance result (current, daily, or intraday) from krypton_pay
-    // Read from top-level payload.data and from payload.data.krypton_pay (nested single-agent merge)
-    const balanceSource = rawData?.balances != null || rawData?.dailyBalances != null || rawData?.intradayBalances != null
-      ? rawData
-      : (rawData?.krypton_pay && typeof rawData.krypton_pay === 'object' ? rawData.krypton_pay : null)
-    const balanceOp = balanceSource?.operation ?? rawData?.operation ?? payload?.parsed_intent?.operation
-    const balancesArr = balanceSource?.balances ?? rawData?.balances
-    const dailyArr = balanceSource?.dailyBalances ?? balanceSource?.daily_balances ?? rawData?.dailyBalances ?? rawData?.daily_balances
-    const intradayArr = balanceSource?.intradayBalances ?? balanceSource?.intraday_balances ?? rawData?.intradayBalances ?? rawData?.intraday_balances
-    const hasBalances = Array.isArray(balancesArr) && balancesArr.length > 0
-    const hasDailyBalances = Array.isArray(dailyArr) && dailyArr.length > 0
-    const hasIntradayBalances = Array.isArray(intradayArr) && intradayArr.length > 0
-    const isBalanceOp = balanceOp === 'balances' || balanceOp === 'balances_daily' || balanceOp === 'balances_intraday'
-    const hasBalanceKeys = rawData && (rawData.balances !== undefined || rawData.dailyBalances !== undefined || rawData.intradayBalances !== undefined || rawData.krypton_pay != null)
-    const hasKryptonPayBalance = (payload?.parsed_intent?.agent_ids as string[] | undefined)?.includes?.('krypton_pay') && isBalanceOp
-    const balanceResult = isBalanceOp && (hasBalances || hasDailyBalances || hasIntradayBalances || hasKryptonPayBalance || (hasBalanceKeys && (balanceOp != null)))
-      ? {
-          username_or_address: balanceSource?.username_or_address ?? rawData?.username_or_address ?? payload?.parsed_intent?.username_or_address ?? '',
-          operation: (balanceOp as 'balances' | 'balances_daily' | 'balances_intraday') || 'balances',
-          ...(Array.isArray(balancesArr) && { balances: balancesArr }),
-          ...(Array.isArray(dailyArr) && { dailyBalances: dailyArr }),
-          ...(Array.isArray(intradayArr) && { intradayBalances: intradayArr }),
-        }
-      : undefined
-
-    const rawParameterRequest = payload?.parameter_request
-    const parameterRequest = rawParameterRequest
-      ? {
-          service: rawParameterRequest.service,
-          actionType: rawParameterRequest.action_type,
-          prompt: rawParameterRequest.prompt,
-          missingParameters: rawParameterRequest.missing_parameters ?? {},
-          receivedParameters: rawParameterRequest.received_parameters ?? {},
-          requiredParameters: rawParameterRequest.required_parameters ?? {},
-          context: rawParameterRequest.context ?? {},
-        }
-      : undefined
-
-    if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development' && (rawData?.backtest_result !== undefined || rawData?.backtestResult !== undefined || rawData?.technical || rawData?.backtest)) {
-      console.log('[Clark] createAssistantMessage extracted backtestResult:', {
-        hasBacktestResult: Boolean(backtestResult),
-        dataPointsLen: backtestResult && Array.isArray(backtestResult.data_points) ? backtestResult.data_points.length : null,
-        includeTechnicalAnalysis: backtestResult?.include_technical_analysis,
-      })
-    }
-
-    return {
-      id: messageId,
-      type: 'assistant',
-      content: responseMessage,
-      timestamp: new Date(),
-      parsedIntent: payload?.parsed_intent,
-      success: payload?.success ?? false,
-      backtestResult,
-      priceHistoryResult,
-      balanceResult,
-      screenerResult: undefined,
-      economicResult: undefined,
-      regulationResult: undefined,
-      source: payload?.source ?? rawData?.source,
-      capabilitiesSummary: payload?.capabilities_summary ?? rawData?.capabilities_summary,
-      parameterRequest,
-      agentFlow: payload?.agent_flow, // Keep agent flow graph
-    }
-    
-  }
-
   const handlePromptClick = async (prompt: string, categoryId?: string | null) => {
     const routedPrompt = buildQueryForCategory(prompt, categoryId ?? null)
 
@@ -523,16 +356,9 @@ export default function BacktestPage() {
 
       // Append Clark's response so ResultsDisplay can render results/backtests/etc.
       setMessages(prev => [...prev, assistantMessage])
-    } catch (error: any) {
+    } catch (error) {
       console.error('Clark API error:', error)
-      let content = "Sorry, I'm unable to process your request at the moment."
-      const data = error?.response?.data
-      if (data && typeof data === 'object') {
-        const msg = (data as { message?: string }).message
-        if (typeof msg === 'string' && msg.trim()) content = msg.trim()
-      } else if (typeof data === 'string' && data.trim()) {
-        content = data.trim()
-      }
+      const content = parseErrorMessage(error, "Sorry, I'm unable to process your request at the moment.")
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
@@ -566,8 +392,8 @@ export default function BacktestPage() {
       if (!queryText.trim() || isLoading) return
     }
 
-    const userMessage: ChatMessage = interruptResponses
-      ? pendingInterruptResponse!.userMessage
+    const userMessage: ChatMessage = interruptResponses && pendingInterruptResponse
+      ? pendingInterruptResponse.userMessage
       : {
           id: Date.now().toString(),
           type: 'user',
@@ -689,16 +515,9 @@ export default function BacktestPage() {
       // Always append Clark's response; ResultsDisplay will decide what to show,
       // including any transaction status cards for krypton_pay flows.
       setMessages(prev => [...prev, assistantMessage])
-    } catch (error: any) {
+    } catch (error) {
       console.error('Clark API error:', error)
-      let content = "Sorry, I'm unable to process your request at the moment."
-      const data = error?.response?.data
-      if (data && typeof data === 'object') {
-        const msg = (data as { message?: string }).message
-        if (typeof msg === 'string' && msg.trim()) content = msg.trim()
-      } else if (typeof data === 'string' && data.trim()) {
-        content = data.trim()
-      }
+      const content = parseErrorMessage(error, "Sorry, I'm unable to process your request at the moment.")
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
@@ -758,16 +577,9 @@ export default function BacktestPage() {
       }
     }]
 
-    // Optimistic Clark message in the conversation stream
-    const confirmedMessage: ChatMessage = {
-      id: (Date.now() + Math.random()).toString(),
-      type: 'assistant',
-      content: 'Transaction confirmed.',
-      timestamp: new Date(),
-      success: true,
-    }
-
-    setMessages(prev => [...prev, confirmedMessage])
+    // Don't add optimistic "Transaction confirmed." here — the API response will add a single
+    // assistant message with the real transaction card. Adding one here caused double render
+    // and could show another user's transaction when the poll merged in other users' tx.
 
     // Hide the inline confirmation bubble by clearing interrupts
     shownInterruptIdsRef.current.clear()

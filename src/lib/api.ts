@@ -1,6 +1,7 @@
 import axios from 'axios';
 import http from 'http';
 import https from 'https';
+import { parseErrorMessage } from './parseError';
 
 // Main backend: login, auth, user, wallet. Always api.kryptonfund.com.
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.kryptonfund.com';
@@ -197,12 +198,9 @@ export const getDailyPriceHistory = async (
     
     const response = await kryptonWeb3Api.get<DailyPriceHistoryResponse>(url);
     return response.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error getting daily price history:', error);
-    if (error.response?.data?.detail) {
-      throw new Error(error.response.data.detail);
-    }
-    throw error;
+    throw new Error(parseErrorMessage(error, 'Failed to get daily price history'));
   }
 };
 
@@ -216,12 +214,9 @@ export const swap = async (swapRequest: SwapRequest): Promise<SwapResponse> => {
   try {
     const response = await kryptonWeb3Api.post<SwapResponse>('/pools/swap', swapRequest);
     return response.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error executing swap:', error);
-    if (error.response?.data?.detail) {
-      throw new Error(error.response.data.detail);
-    }
-    throw error;
+    throw new Error(parseErrorMessage(error, 'Failed to execute swap'));
   }
 };
 

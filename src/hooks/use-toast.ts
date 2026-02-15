@@ -11,7 +11,7 @@ export function useToast() {
   const [toasts, setToasts] = useState<Toast[]>([])
 
   const toast = useCallback(({ title, description, action }: Omit<Toast, 'id'>) => {
-    const id = Math.random().toString(36).substr(2, 9)
+    const id = Math.random().toString(36).slice(2, 11)
     const newToast = { id, title, description, action }
     
     setToasts(prev => [...prev, newToast])

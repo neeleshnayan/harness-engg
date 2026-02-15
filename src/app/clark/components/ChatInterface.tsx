@@ -15,6 +15,8 @@ interface ChatInputBarProps {
   onRemoveQueueItem?: (index: number) => void
   onEditQueueItem?: (index: number, newQuery: string) => void
   onMoveQueueItem?: (index: number, direction: 'up' | 'down') => void
+  /** When true, bar is not fixed to viewport (e.g. inside a dialog) */
+  embedded?: boolean
 }
 
 const MAX_QUERY_PREVIEW = 52
@@ -30,7 +32,8 @@ export default function ChatInputBar({
   queueQueries = [],
   onRemoveQueueItem,
   onEditQueueItem,
-  onMoveQueueItem
+  onMoveQueueItem,
+  embedded = false,
 }: ChatInputBarProps) {
   const [queueCollapsed, setQueueCollapsed] = useState(false)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
@@ -54,13 +57,16 @@ export default function ChatInputBar({
 
   return (
     <div
-      className="
-        fixed bottom-0 left-0 right-0 z-40
-        border-t border-white/5
-        bg-[#0a0f14]/90 backdrop-blur-sm
-      "
+      className={
+        embedded
+          ? 'relative z-40 w-full outline-none ring-0'
+          : 'fixed bottom-0 left-0 right-0 z-40'
+      }
     >
-      <div className="mx-auto max-w-6xl px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
+      <div
+        className={embedded ? 'w-full px-3 py-3 border-0' : 'mx-auto max-w-6xl px-3 sm:px-6 lg:px-8 py-3 sm:py-4'}
+        style={embedded ? { border: 'none', boxShadow: 'none' } : undefined}
+      >
         <div className="flex flex-col gap-2">
           {queueLength > 0 && (
             <div className="mb-1.5 px-1" aria-live="polite">
@@ -164,14 +170,13 @@ export default function ChatInputBar({
               )}
             </div>
           )}
-          {/* Single clean bar: one border, no inner rings or double edges */}
+          {/* Single clean bar: no border/outline/ring so no black box in mini-clark */}
           <div
             className="
               flex items-center
               rounded-2xl overflow-hidden
               bg-white/[0.07]
-              border border-white/[0.08]
-              shadow-none
+              shadow-none outline-none ring-0 border-0
             "
           >
             {/* Clark icon - no separate border, no focus ring bleed */}
@@ -192,24 +197,26 @@ export default function ChatInputBar({
               <img src="/clark process.svg" alt="" className="h-5 w-5 sm:h-6 sm:w-6 opacity-90" />
             </button>
 
-            {/* Input - borderless, flush with bar */}
-            <input
+            {/* Textarea - Enter sends, Shift+Enter newline */}
+            <textarea
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={onKeyPress}
               placeholder="Ask Clark"
               disabled={false}
               aria-label="Message Clark"
+              rows={1}
               className="
                 flex-1 min-w-0
-                h-10 sm:h-12
-                px-3 sm:px-4
+                min-h-[2.5rem] sm:min-h-[3rem]
+                max-h-32 overflow-y-auto resize-none
+                py-2.5 sm:py-3 px-3 sm:px-4
                 bg-transparent
                 border-0
                 text-sm sm:text-base
                 text-white
                 placeholder:text-white/50
-                focus:outline-none
+                focus:outline-none focus:ring-0 focus:ring-offset-0
                 disabled:opacity-60 disabled:cursor-not-allowed
               "
             />

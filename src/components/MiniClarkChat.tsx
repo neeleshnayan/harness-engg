@@ -2,14 +2,18 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import agentsApi from '@/lib/agents_api'
+import { parseErrorMessage } from '@/lib/parseError'
 import { ChatMessage } from '@/app/clark/types'
 import ResultsDisplay from '@/app/clark/components/ResultsDisplay'
 import PromptGuideModal from '@/app/clark/components/PromptGuideModal'
+import ChatInputBar from '@/app/clark/components/ChatInterface'
+import CategoryTiles from '@/app/clark/components/CategoryTiles'
 import { categories } from '@/app/clark/constants'
+import { createAssistantMessage } from '@/app/clark/utils/createAssistantMessage'
+
+type InterruptFromApi = { id?: string; name?: string; reason?: Record<string, unknown> }
 
 interface MiniClarkChatProps {
   userId?: string
@@ -36,19 +40,15 @@ export default function MiniClarkChat({
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const feedRef = useRef<HTMLDivElement>(null)
   const [hasSentMessage, setHasSentMessage] = useState(false)
-  
-  // Dynamic height management
-  const [containerHeight, setContainerHeight] = useState<number>(350) // Initial height
-  const MIN_HEIGHT = 100
-  const MAX_HEIGHT = 300 // Fixed max height - becomes scrollable after this
-  const HEIGHT_PER_MESSAGE = 100 // Approximate height per message (accounts for structured results)
-  
-  // Determine if we should show only input (when showInputOnly is true and no messages sent yet)
+  const [interrupts, setInterrupts] = useState<InterruptFromApi[]>([])
+  const [pendingInterruptResponse, setPendingInterruptResponse] = useState<{ query: string; userMessage: ChatMessage } | null>(null)
+  const shownInterruptIdsRef = useRef<Set<string>>(new Set())
+
   const shouldShowInputOnly = showInputOnly && !hasSentMessage
 
   // Initialize session ID and username
   useEffect(() => {
-    const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const newSessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
     setSessionId(newSessionId)
     
     // Extract username from localStorage
@@ -65,134 +65,64 @@ export default function MiniClarkChat({
     }
   }, [])
 
-  // Auto-scroll to bottom when messages change
   useEffect(() => {
     if (feedRef.current) {
       feedRef.current.scrollTo({ top: feedRef.current.scrollHeight, behavior: 'smooth' })
     }
   }, [messages])
 
-  // Calculate dynamic height based on message count
-  // Height grows with messages but caps at MAX_HEIGHT, then becomes scrollable
   useEffect(() => {
-    const messageCount = messages.length
-    if (messageCount === 0) {
-      setContainerHeight(MIN_HEIGHT)
-    } else {
-      // Calculate height based on message count, but cap at MAX_HEIGHT
-      // After MAX_HEIGHT, the container becomes fixed and scrollable
-      const calculatedHeight = Math.min(
-        MIN_HEIGHT + (messageCount * HEIGHT_PER_MESSAGE),
-        MAX_HEIGHT
-      )
-      setContainerHeight(calculatedHeight)
+    if (feedRef.current && interrupts.length > 0) {
+      feedRef.current.scrollTo({ top: feedRef.current.scrollHeight, behavior: 'smooth' })
     }
-  }, [messages.length])
-
-  // Match /clark page: same payload parsing so ResultsDisplay shows backtest, price history, balance, etc.
-  const createAssistantMessage = (payload: any): ChatMessage => {
-    const messageId = (Date.now() + Math.random()).toString()
-    let responseMessage: string =
-      payload?.message ??
-      (payload?.data?.markdown as string | undefined) ??
-      "Sorry, I'm unable to process your request at the moment."
-    const rawData = payload?.data
-
-    let backtestResult = rawData?.backtest_result ?? rawData?.backtestResult
-    if (!backtestResult && rawData) {
-      if (rawData.technical?.backtest_result) backtestResult = rawData.technical.backtest_result
-      else if (rawData.backtest?.backtest_result) backtestResult = rawData.backtest.backtest_result
-      else if (rawData.data_fetcher && (rawData.backtest_result || rawData.backtest?.backtest_result)) {
-        backtestResult = rawData.backtest_result || rawData.backtest?.backtest_result
-      }
-    }
-
-    const priceHistoryData = rawData?.price_history ?? rawData?.priceHistory
-    let dataPoints = priceHistoryData?.data_points ?? priceHistoryData?.data
-    if (!dataPoints && Array.isArray(priceHistoryData)) dataPoints = priceHistoryData
-    const hasValidPricePoints = Array.isArray(dataPoints) && dataPoints.length > 0 &&
-      dataPoints.some((p: { price?: number }) => typeof p?.price === 'number')
-    const rawToken = rawData?.token || priceHistoryData?.token || payload?.parsed_intent?.token_name || ''
-    const displayTokenForHistory = (rawToken || '').replace(/^k/i, '') || rawToken
-    const priceHistoryResult = priceHistoryData && hasValidPricePoints && Array.isArray(dataPoints)
-      ? {
-          token: displayTokenForHistory,
-          lookback_days: priceHistoryData?.lookback_days || payload?.parsed_intent?.lookback_days || 30,
-          count: priceHistoryData?.count || dataPoints.length || 0,
-          data_points: dataPoints,
-        }
-      : undefined
-
-    const balanceSource = rawData?.balances != null || rawData?.dailyBalances != null || rawData?.intradayBalances != null
-      ? rawData
-      : (rawData?.krypton_pay && typeof rawData.krypton_pay === 'object' ? rawData.krypton_pay : null)
-    const balanceOp = balanceSource?.operation ?? rawData?.operation ?? payload?.parsed_intent?.operation
-    const balancesArr = balanceSource?.balances ?? rawData?.balances
-    const dailyArr = balanceSource?.dailyBalances ?? balanceSource?.daily_balances ?? rawData?.dailyBalances ?? rawData?.daily_balances
-    const intradayArr = balanceSource?.intradayBalances ?? balanceSource?.intraday_balances ?? rawData?.intradayBalances ?? rawData?.intraday_balances
-    const hasBalances = Array.isArray(balancesArr) && balancesArr.length > 0
-    const hasDailyBalances = Array.isArray(dailyArr) && dailyArr.length > 0
-    const hasIntradayBalances = Array.isArray(intradayArr) && intradayArr.length > 0
-    const isBalanceOp = balanceOp === 'balances' || balanceOp === 'balances_daily' || balanceOp === 'balances_intraday'
-    const hasBalanceKeys = rawData && (rawData.balances !== undefined || rawData.dailyBalances !== undefined || rawData.intradayBalances !== undefined || rawData.krypton_pay != null)
-    const hasKryptonPayBalance = (payload?.parsed_intent?.agent_ids as string[] | undefined)?.includes?.('krypton_pay') && isBalanceOp
-    const balanceResult = isBalanceOp && (hasBalances || hasDailyBalances || hasIntradayBalances || hasKryptonPayBalance || (hasBalanceKeys && balanceOp != null))
-      ? {
-          username_or_address: balanceSource?.username_or_address ?? rawData?.username_or_address ?? payload?.parsed_intent?.username_or_address ?? '',
-          operation: (balanceOp as 'balances' | 'balances_daily' | 'balances_intraday') || 'balances',
-          ...(Array.isArray(balancesArr) && { balances: balancesArr }),
-          ...(Array.isArray(dailyArr) && { dailyBalances: dailyArr }),
-          ...(Array.isArray(intradayArr) && { intradayBalances: intradayArr }),
-        }
-      : undefined
-
-    const regulationResult = rawData?.regulation_result ?? rawData?.regulationResult
-    if (regulationResult) responseMessage = ''
-
-    const rawParameterRequest = payload?.parameter_request
-    const parameterRequest = rawParameterRequest
-      ? {
-          service: rawParameterRequest.service,
-          actionType: rawParameterRequest.action_type,
-          prompt: rawParameterRequest.prompt,
-          missingParameters: rawParameterRequest.missing_parameters ?? {},
-          receivedParameters: rawParameterRequest.received_parameters ?? {},
-          requiredParameters: rawParameterRequest.required_parameters ?? {},
-          context: rawParameterRequest.context ?? {},
-        }
-      : undefined
-
-    return {
-      id: messageId,
-      type: 'assistant',
-      content: responseMessage,
-      timestamp: new Date(),
-      parsedIntent: payload?.parsed_intent,
-      success: payload?.success ?? false,
-      backtestResult,
-      priceHistoryResult,
-      balanceResult,
-      screenerResult: undefined,
-      economicResult: undefined,
-      regulationResult,
-      source: payload?.source ?? rawData?.source,
-      capabilitiesSummary: payload?.capabilities_summary ?? rawData?.capabilities_summary,
-      parameterRequest,
-      agentFlow: payload?.agent_flow,
-    }
-  }
+  }, [interrupts.length])
 
   /** Single path for API call, callbacks, and response handling. */
-  const runQuery = async (query: string, userMessage?: ChatMessage) => {
+  const runQuery = async (query: string, userMessage?: ChatMessage, interruptResponses?: unknown[]) => {
     setIsLoading(true)
     try {
-      const response = await agentsApi.post('/api/v1/agents/query', {
-        query,
+      const body: Record<string, unknown> = {
         user_id: userId,
-        username: userName,
+        username: userName || 'krypton',
         session_id: sessionId,
-      })
+      }
+      if (interruptResponses?.length) {
+        body.content = interruptResponses
+        if (query.trim()) body.query = query
+      } else {
+        body.query = query
+      }
+      const response = await agentsApi.post('/api/v1/agents/query', body)
       const payload = response.data
+
+      // Payment / interrupt: show confirmation dialog instead of appending a message
+      if (payload?.stop_reason === 'interrupt' && payload?.interrupts?.length) {
+        const newInterrupts = (payload.interrupts as InterruptFromApi[]).filter((i) => {
+          const id = i?.id != null ? String(i.id) : ''
+          if (id && shownInterruptIdsRef.current.has(id)) return false
+          if (id) shownInterruptIdsRef.current.add(id)
+          return true
+        })
+        if (newInterrupts.length > 0) {
+          setInterrupts(newInterrupts)
+          setPendingInterruptResponse({
+            query,
+            userMessage: userMessage ?? {
+              id: Date.now().toString(),
+              type: 'user',
+              content: query,
+              timestamp: new Date(),
+            },
+          })
+        }
+        setIsLoading(false)
+        return
+      }
+
+      setInterrupts([])
+      setPendingInterruptResponse(null)
+      shownInterruptIdsRef.current.clear()
+
       if (payload?.success && payload?.parsed_intent?.action === 'send_usdc' && payload.parsed_intent.confidence > 0.7) {
         onBalanceFlicker?.()
         onBalanceRefresh?.()
@@ -207,7 +137,7 @@ export default function MiniClarkChat({
         {
           id: (Date.now() + 1).toString(),
           type: 'assistant' as const,
-          content: "Sorry, I'm unable to process your request at the moment.",
+          content: parseErrorMessage(error, "Sorry, I'm unable to process your request at the moment."),
           timestamp: new Date(),
           success: false,
         },
@@ -215,6 +145,33 @@ export default function MiniClarkChat({
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleInterruptApprove = async (interruptId: string) => {
+    const pending = pendingInterruptResponse
+    if (!pending) return
+    setInterrupts([])
+    setPendingInterruptResponse(null)
+    const interruptResponses = [{ interruptResponse: { interruptId, response: 'yes' } }]
+    await runQuery(pending.query, pending.userMessage, interruptResponses)
+    onBalanceRefresh?.()
+    onTransactionRefresh?.()
+  }
+
+  const handleInterruptReject = async (interruptId: string) => {
+    const pending = pendingInterruptResponse
+    if (!pending) return
+    setInterrupts([])
+    setPendingInterruptResponse(null)
+    setMessages(prev => [...prev, {
+      id: (Date.now() + 1).toString(),
+      type: 'assistant',
+      content: 'Transaction rejected.',
+      timestamp: new Date(),
+      success: true,
+    }])
+    const interruptResponses = [{ interruptResponse: { interruptId, response: 'no' } }]
+    await runQuery(pending.query, pending.userMessage, interruptResponses)
   }
 
   const handleSendMessage = async () => {
@@ -283,50 +240,6 @@ export default function MiniClarkChat({
     await runQuery(routedPrompt, userMessage)
   }
 
-  // Clark UI: single set of class names and one input bar definition
-  const inputBarClasses = "flex items-center gap-2"
-  const promptBtnClasses = "h-10 w-10 flex items-center justify-center rounded-xl bg-teal-900/60 border border-teal-700/50 shadow-sm hover:bg-teal-800/60 flex-shrink-0 transition-colors"
-  const inputClasses = "flex-1 bg-teal-900/40 border border-teal-700/50 text-white placeholder:text-teal-200/60 focus:border-teal-400 focus:ring-1 focus:ring-teal-400/30 rounded-xl h-10 text-sm transition-colors"
-  // Match /clark ChatInputBar: minimal send button (no gradient), blends with bar, icon only
-  const sendBtnClasses =
-    "flex items-center justify-center h-10 w-10 min-w-10 min-h-10 flex-shrink-0 rounded-xl " +
-    "bg-transparent hover:bg-teal-800/50 border-0 transition-colors " +
-    "disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-400/50"
-
-  const inputBar = (
-    <div className={inputBarClasses}>
-      <button
-        type="button"
-        aria-label="Open prompt library"
-        onClick={() => setIsPromptModalOpen(true)}
-        className={promptBtnClasses}
-      >
-        <img src="/clark process.svg" alt="Prompts" className="h-5 w-5 drop-shadow-[0_0_8px_rgba(94,234,212,0.3)]" />
-      </button>
-      <Input
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyPress={handleKeyPress}
-        placeholder="Ask Clark..."
-        disabled={isLoading}
-        className={inputClasses}
-      />
-      <button
-        type="button"
-        onClick={handleSendMessage}
-        disabled={!inputValue.trim() || isLoading}
-        className={sendBtnClasses}
-        aria-label="Send message"
-      >
-        {isLoading ? (
-          <Loader2 className="h-4 w-4 animate-spin text-teal-200 shrink-0" />
-        ) : (
-          <img src="/send button.svg" alt="" className="h-7 w-7 sm:h-10 sm:w-10 pointer-events-none shrink-0" />
-        )}
-      </button>
-    </div>
-  )
-
   const promptsModal = (
     <PromptGuideModal
       open={isPromptModalOpen}
@@ -339,10 +252,24 @@ export default function MiniClarkChat({
     />
   )
 
+  // Same inline payment confirmation as /clark
+  const paymentInterrupt = interrupts.find((i) => i.name === 'krypton-pay-approval')
+  const reason = paymentInterrupt?.reason as { operation?: string; from_token?: string; to_token?: string; received_amount?: number; receiver_username?: string } | undefined
+
   if (shouldShowInputOnly) {
     return (
       <>
-        {inputBar}
+        <div className="miniclark-bar w-full outline-none ring-0 border-0 [&_*]:outline-none [&_*]:border-0">
+          <ChatInputBar
+            inputValue={inputValue}
+            setInputValue={setInputValue}
+            isLoading={isLoading}
+            onSendMessage={handleSendMessage}
+            onKeyPress={handleKeyPress}
+            onOpenPromptModal={() => { setSelectedCategory(null); setIsPromptModalOpen(true) }}
+            embedded
+          />
+        </div>
         {promptsModal}
       </>
     )
@@ -350,37 +277,108 @@ export default function MiniClarkChat({
 
   return (
     <>
-      <div className="relative w-full rounded-2xl border border-teal-700/40 bg-[#001C1B]/95 backdrop-blur-sm overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+      <div className="relative w-full flex flex-col rounded-2xl bg-[#001C1B] overflow-hidden shadow-xl max-h-[70vh]">
         <Button
           onClick={handleExpand}
           variant="ghost"
           size="sm"
-          className="absolute top-2 right-2 z-10 h-8 w-8 p-0 text-teal-200/80 hover:text-white hover:bg-teal-700/30 bg-teal-900/60 backdrop-blur-sm rounded-full border border-teal-700/40 transition-colors"
+          className="absolute top-2 right-2 z-10 h-8 w-8 p-0 text-teal-200/80 hover:text-white hover:bg-teal-700/40 rounded-full border border-teal-600/50 transition-colors"
           aria-label="Expand to full Clark view"
         >
           <img src="/maximize.svg" alt="Maximize" className="h-4 w-4" />
         </Button>
-        <div
-          ref={feedRef}
-          className="overflow-y-auto px-4 py-3 scrollbar-thin scrollbar-thumb-teal-600/50 scrollbar-track-transparent"
-          style={{ height: `${containerHeight}px`, transition: 'height 0.3s ease-in-out', maxHeight: `${MAX_HEIGHT}px` }}
-        >
-          {messages.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-teal-200/70">
-              <div className="text-center">
-                <img src="/clark.svg" alt="Clark" className="h-14 w-14 mx-auto mb-2 opacity-90" />
-              </div>
-            </div>
-          ) : (
-            <div className="dark">
-              <div className="space-y-3">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          {/* Feed: same structure as /clark */}
+          <div className="dark flex-1 min-h-0 overflow-hidden">
+            <div ref={feedRef} className="scrollbar-minimal h-full max-h-[50vh] overflow-y-auto scroll-smooth px-3 py-3">
+              <div className="pb-6">
+                {!messages.some((m) => m.type === 'user') && (
+                  <CategoryTiles
+                    categories={categories}
+                    selectedCategory={selectedCategory}
+                    onCategorySelect={(categoryId) => setSelectedCategory(categoryId || null)}
+                    onPromptClick={handlePromptClick}
+                    isLoading={isLoading}
+                  />
+                )}
+                {isLoading && messages.length === 0 && (
+                  <div className="flex gap-2 justify-start items-center py-4">
+                    <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                      <img src="/clark process.svg" alt="Clark" className="h-8 w-8 animate-pulse" />
+                    </div>
+                    <div className="rounded-2xl px-4 py-3 bg-teal-900/30 border border-teal-700/40 text-white/80 text-sm">
+                      Thinking…
+                    </div>
+                  </div>
+                )}
                 <ResultsDisplay messages={messages} isLoading={isLoading} username={userName} />
+                {interrupts.length > 0 && paymentInterrupt && reason && (
+                  <div className="mb-4 flex gap-2 justify-start items-start">
+                    <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                      <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
+                    </div>
+                    <div className="max-w-[85%] rounded-2xl p-4 bg-teal-900/40 border border-teal-700/50 text-white backdrop-blur-sm">
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-teal-200/90 mb-2">
+                        Payment confirmation
+                      </div>
+                      <p className="text-sm text-white/90 mb-3">
+                        Please review and confirm the payment details below.
+                      </p>
+                      <div className="bg-teal-900/60 rounded-lg p-3 border border-teal-700/40 space-y-2 text-sm">
+                        {reason.operation === 'swap_and_transfer' && reason.from_token && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-white/80">Swap From:</span>
+                            <span className="text-white font-medium">{reason.from_token}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center">
+                          <span className="text-white/80">Send Amount:</span>
+                          <span className="text-white font-semibold">
+                            {reason.received_amount} {reason.to_token ?? ''}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-white/80">To:</span>
+                          <span className="text-white font-medium">@{reason.receiver_username}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-white/80">Operation:</span>
+                          <span className="text-white font-medium">
+                            {reason.operation === 'swap_and_transfer' ? 'Swap & Transfer' : 'Transfer'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex gap-3 pt-3 mt-2">
+                        <button
+                          type="button"
+                          onClick={() => handleInterruptReject(String(paymentInterrupt.id ?? ''))}
+                          className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-xl border border-red-700/60 bg-red-900/30 text-red-100 hover:bg-red-900/50 text-sm font-medium transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleInterruptApprove(String(paymentInterrupt.id ?? ''))}
+                          className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-sm font-medium border border-white/20"
+                        >
+                          Confirm
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          )}
-        </div>
-        <div className="px-4 py-3 border-t border-teal-700/50 bg-gradient-to-b from-teal-900/40 to-[#0b1515]/80">
-          {inputBar}
+          </div>
+          <ChatInputBar
+            inputValue={inputValue}
+            setInputValue={setInputValue}
+            isLoading={isLoading}
+            onSendMessage={handleSendMessage}
+            onKeyPress={handleKeyPress}
+            onOpenPromptModal={() => { setSelectedCategory(null); setIsPromptModalOpen(true) }}
+            embedded
+          />
         </div>
       </div>
       {promptsModal}

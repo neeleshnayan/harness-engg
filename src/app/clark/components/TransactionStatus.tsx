@@ -63,6 +63,7 @@ export default function TransactionStatus({ username, initialData }: Transaction
       initialTransactions={initialTransactions}
       showHeader={false}
       persistCompleted={true}
+      onlyShowInitial={true}
     />
   );
 }
