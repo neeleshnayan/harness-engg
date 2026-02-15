@@ -85,7 +85,7 @@ export default function CategoryTiles({
     <div className="pb-1 mb-1">
       {/* Category Tiles */}
       {/* Mobile: center 4 tiles on first page; 5th appears on swipe */}
-      <div className="block sm:hidden overflow-x-auto pb-2 -mx-2 snap-x snap-mandatory">
+      <div className="block sm:hidden scrollbar-minimal overflow-x-auto pb-2 -mx-2 snap-x snap-mandatory">
         <div className="flex w-[100vw]">
           {(() => {
             const columns = Array.from({ length: totalRows }).map((_, colIndex) => {

@@ -62,6 +62,8 @@ interface ActiveTransactionsProps {
   showHeader?: boolean;
   /** When true, keep completed transactions visible (e.g. in Clark feed). When false, remove after COMPLETED_TX_DISPLAY_TIME */
   persistCompleted?: boolean;
+  /** When true (e.g. Clark inline card), only show initialTransactions and only update their status from API; never add other users' or other requests' transactions */
+  onlyShowInitial?: boolean;
 }
 
 /**
@@ -460,13 +462,14 @@ function TransactionCard({ tx }: { tx: ActiveTransaction }) {
  * Polls the backend every 10 seconds.
  * Persists transactions to localStorage to survive page refreshes.
  */
-export default function ActiveTransactions({ username, className = '', onAllTransactionsComplete, refreshKey = 0, isVisible = true, initialTransactions, showHeader = true, persistCompleted = false }: ActiveTransactionsProps) {
+export default function ActiveTransactions({ username, className = '', onAllTransactionsComplete, refreshKey = 0, isVisible = true, initialTransactions, showHeader = true, persistCompleted = false, onlyShowInitial = false }: ActiveTransactionsProps) {
   const [transactions, setTransactions] = useState<ActiveTransaction[]>(() => initialTransactions ?? []);
   const [loading, setLoading] = useState(false);
   const initialFetch = useRef(true);
   const hadTransactions = useRef(false);
   const lastRefreshKey = useRef(refreshKey);
   const hadInitialTransactions = useRef(!!(initialTransactions?.length));
+  const initialIds = useRef(new Set((initialTransactions ?? []).map(t => t.transaction_id)));
 
   const fetchActiveTransactions = useCallback(async () => {
     if (!username) return;
@@ -485,6 +488,21 @@ export default function ActiveTransactions({ username, className = '', onAllTran
 
       // Keep completed transactions visible for a short time, then remove them
       setTransactions(prev => {
+        // onlyShowInitial: only show initial set and only update their status from API; never add other users' transactions
+        if (onlyShowInitial && initialIds.current.size > 0) {
+          const fromApi = newTransactions.filter(t => initialIds.current.has(t.transaction_id));
+          if (fromApi.length === 0) return prev;
+          const updated = prev.map(tx => {
+            const fromApiMatch = fromApi.find(a => a.transaction_id === tx.transaction_id);
+            if (!fromApiMatch) return tx;
+            const isFinished = isTerminalState(fromApiMatch.status) || fromApiMatch.status.toLowerCase() === CircleTransactionState.CONFIRMED;
+            return {
+              ...fromApiMatch,
+              completed_at: isFinished && !tx.completed_at ? now : tx.completed_at,
+            };
+          });
+          return updated.length ? updated : prev;
+        }
         // When API returns empty and we had initial data (e.g. Clark agent flow), keep showing it
         if (newTransactions.length === 0 && hadInitialTransactions.current) {
           return prev;
@@ -538,7 +556,7 @@ export default function ActiveTransactions({ username, className = '', onAllTran
         initialFetch.current = false;
       }
     }
-  }, [username]);
+  }, [username, onlyShowInitial]);
 
   // Initial fetch and polling - only poll when visible to save API calls
   useEffect(() => {

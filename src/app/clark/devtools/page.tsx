@@ -118,7 +118,7 @@ export default function DevtoolsPage() {
   })
 
   return (
-    <div className="min-h-screen w-full bg-[#0d0d0d] overflow-x-hidden">
+    <div className="min-h-screen w-full bg-[#0c1210] overflow-x-hidden">
       {/* Navbar */}
       <header className="fixed top-0 left-0 right-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -152,7 +152,7 @@ export default function DevtoolsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
               >
-                <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+                <Card className="bg-teal-950/20 border-teal-900/30 backdrop-blur-sm">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
@@ -170,7 +170,7 @@ export default function DevtoolsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
               >
-                <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+                <Card className="bg-teal-950/20 border-teal-900/30 backdrop-blur-sm">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
@@ -192,7 +192,7 @@ export default function DevtoolsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
               >
-                <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+                <Card className="bg-teal-950/20 border-teal-900/30 backdrop-blur-sm">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
@@ -210,7 +210,7 @@ export default function DevtoolsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
               >
-                <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+                <Card className="bg-teal-950/20 border-teal-900/30 backdrop-blur-sm">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
@@ -236,8 +236,8 @@ export default function DevtoolsPage() {
                   onClick={() => setFilterType(type)}
                   className={`px-3 py-1 rounded-lg text-sm transition-colors ${
                     filterType === type
-                      ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-                      : 'bg-zinc-700/50 text-zinc-400 hover:bg-zinc-700/70'
+                      ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30'
+                      : 'bg-teal-900/30 text-teal-200/70 hover:bg-teal-900/40'
                   }`}
                 >
                   {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -248,7 +248,7 @@ export default function DevtoolsPage() {
         </div>
 
         {queriesWithFlows.length === 0 ? (
-          <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+          <Card className="bg-teal-950/20 border-teal-900/30 backdrop-blur-sm">
             <CardContent className="p-8 text-center">
               <p className="text-zinc-400">
                 No agent flow data available. Send some queries in the main Clark interface to see flow graphs here.
@@ -256,7 +256,7 @@ export default function DevtoolsPage() {
             </CardContent>
           </Card>
         ) : filteredQueries.length === 0 ? (
-          <Card className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+          <Card className="bg-teal-950/20 border-teal-900/30 backdrop-blur-sm">
             <CardContent className="p-8 text-center">
               <p className="text-zinc-400">
                 No queries match the selected filter.
@@ -282,7 +282,7 @@ export default function DevtoolsPage() {
                   transition={{ duration: 0.3, delay: index * 0.05 }}
                 >
                   <Card 
-                    className="bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm hover:border-zinc-600/50 transition-colors"
+                    className="bg-teal-950/20 border-teal-900/30 backdrop-blur-sm hover:border-teal-800/40 transition-colors"
                   >
                   <CardHeader>
                     <div className="flex items-start justify-between">
@@ -323,7 +323,7 @@ export default function DevtoolsPage() {
                       </div>
                       <button
                         onClick={() => setSelectedQueryIndex(isExpanded ? null : originalIndex)}
-                        className="ml-4 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors text-sm"
+                        className="ml-4 px-4 py-2 bg-teal-900/40 hover:bg-teal-800/50 text-white rounded-lg transition-colors text-sm"
                       >
                         {isExpanded ? 'Hide Flow' : 'Show Flow'}
                       </button>

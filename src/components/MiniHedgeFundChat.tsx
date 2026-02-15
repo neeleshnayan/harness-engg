@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import agentsApi from '@/lib/agents_api'
+import { parseErrorMessage } from '@/lib/parseError'
 import { ChatMessage } from '@/app/clark/types'
 import { categories } from '@/app/clark/constants'
 import ResultsDisplay from '@/app/clark/components/ResultsDisplay'
@@ -32,7 +33,7 @@ export default function MiniHedgeFundChat({
 
   // Initialize session ID and username
   useEffect(() => {
-    const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const newSessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
     setSessionId(newSessionId)
     
     // Extract username from localStorage
@@ -135,15 +136,14 @@ export default function MiniHedgeFundChat({
       setMessages(prev => [...prev, assistantMessage])
     } catch (error) {
       console.error('Hedge Fund Chat API error:', error)
-      const errorMessage: ChatMessage = {
+      const content = parseErrorMessage(error, 'Sorry, I encountered an error processing your request. Please try again.')
+      setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: 'Sorry, I encountered an error processing your request. Please try again.',
+        content,
         timestamp: new Date(),
         success: false,
-      }
-
-      setMessages(prev => [...prev, errorMessage])
+      }])
     } finally {
       setIsLoading(false)
     }
@@ -190,15 +190,14 @@ export default function MiniHedgeFundChat({
       setMessages(prev => [...prev, assistantMessage])
     } catch (error) {
       console.error('Hedge Fund Chat API error:', error)
-      const errorMessage: ChatMessage = {
+      const content = parseErrorMessage(error, 'Sorry, I encountered an error processing your request. Please try again.')
+      setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: 'Sorry, I encountered an error processing your request. Please try again.',
+        content,
         timestamp: new Date(),
         success: false,
-      }
-
-      setMessages(prev => [...prev, errorMessage])
+      }])
     } finally {
       setIsLoading(false)
     }

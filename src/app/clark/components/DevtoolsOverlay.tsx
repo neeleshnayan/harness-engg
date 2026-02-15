@@ -206,12 +206,12 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, use
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 32, stiffness: 320 }}
-            className="fixed top-0 right-0 h-full w-full max-w-2xl bg-[#0d0d0d]/95 backdrop-blur-2xl z-50 overflow-y-auto"
+            className="fixed top-0 right-0 h-full w-full max-w-2xl bg-[#0c1210]/95 backdrop-blur-2xl z-50 overflow-y-auto scrollbar-minimal"
             style={{ boxShadow: '-4px 0 24px rgba(0,0,0,0.25)' }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="sticky top-0 z-10 bg-[#0d0d0d]/90 backdrop-blur-xl border-b border-white/[0.06]">
+            <div className="sticky top-0 z-10 bg-[#0c1210]/90 backdrop-blur-xl border-b border-teal-900/20">
               <div className="flex items-start justify-between gap-4 px-6 pt-6 pb-4">
                 <div className="min-w-0">
                   <h1 className="text-[22px] font-semibold text-white tracking-tight">Devtools</h1>
@@ -243,13 +243,13 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, use
               </div>
               
               {/* Tab Navigation - segmented control style */}
-              <div className="flex mx-4 mb-0.5 p-1 rounded-xl bg-white/[0.06] w-fit">
+              <div className="flex mx-4 mb-0.5 p-1 rounded-xl bg-teal-950/30 w-fit">
                 <button
                   onClick={() => setActiveTab('agent-flow')}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${
                     activeTab === 'agent-flow'
-                      ? 'bg-white/10 text-white shadow-sm'
-                      : 'text-white/50 hover:text-white/70'
+                      ? 'bg-teal-900/40 text-teal-100 shadow-sm'
+                      : 'text-teal-200/60 hover:text-teal-100/80'
                   }`}
                 >
                   <BarChart3 className="h-4 w-4" />
@@ -259,8 +259,8 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, use
                   onClick={() => setActiveTab('memories')}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${
                     activeTab === 'memories'
-                      ? 'bg-white/10 text-white shadow-sm'
-                      : 'text-white/50 hover:text-white/70'
+                      ? 'bg-teal-900/40 text-teal-100 shadow-sm'
+                      : 'text-teal-200/60 hover:text-teal-100/80'
                   }`}
                 >
                   <Brain className="h-4 w-4" />
@@ -308,7 +308,7 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, use
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.04 }}
-                      className="rounded-2xl bg-white/[0.04] p-4 border border-white/[0.06]"
+                      className="rounded-2xl bg-teal-950/15 p-4 border border-teal-900/20"
                     >
                       <p className="text-[11px] font-medium uppercase tracking-wider text-white/40 mb-1">{item.label}</p>
                       <p className="text-lg font-semibold text-white tracking-tight">{item.value}</p>
@@ -320,14 +320,14 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, use
 
               {/* Filter - pill group */}
               {queriesWithFlows.length > 0 && (
-                <div className="flex items-center gap-1.5 mb-5 p-1 rounded-xl bg-white/[0.04] w-fit">
+                <div className="flex items-center gap-1.5 mb-5 p-1 rounded-xl bg-teal-950/30 w-fit">
                   <Filter className="h-3.5 w-3.5 text-white/40 ml-1" />
                   {(['all', 'single', 'sequential', 'parallel'] as const).map((type) => (
                     <button
                       key={type}
                       onClick={() => setFilterType(type)}
                       className={`px-3.5 py-2 rounded-lg text-[13px] font-medium transition-all ${
-                        filterType === type ? 'bg-white/10 text-white' : 'text-white/45 hover:text-white/65'
+                        filterType === type ? 'bg-teal-900/40 text-teal-100' : 'text-teal-200/55 hover:text-teal-100/75'
                       }`}
                     >
                       {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -337,13 +337,13 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, use
               )}
 
               {queriesWithFlows.length === 0 ? (
-                <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-12 text-center">
+                <div className="rounded-2xl bg-teal-950/15 border border-teal-900/20 p-12 text-center">
                   <p className="text-[15px] text-white/50 leading-relaxed">
                     No agent flow data yet. Send queries in Clark to see flow graphs here.
                   </p>
                 </div>
               ) : filteredQueries.length === 0 ? (
-                <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-12 text-center">
+                <div className="rounded-2xl bg-teal-950/15 border border-teal-900/20 p-12 text-center">
                   <p className="text-[15px] text-white/50">No queries match the selected filter.</p>
                 </div>
               ) : (
@@ -362,7 +362,7 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, use
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0 }}
                           transition={{ duration: 0.2, delay: index * 0.03 }}
-                          className="rounded-2xl bg-white/[0.04] border border-white/[0.06] overflow-hidden hover:border-white/[0.08] transition-colors"
+                          className="rounded-2xl bg-teal-950/15 border border-teal-900/20 overflow-hidden hover:border-teal-800/30 transition-colors"
                         >
                           <div className="p-5">
                             <div className="flex items-start justify-between gap-4">
@@ -395,7 +395,7 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, use
                             </div>
                           </div>
                           {isExpanded && queryData.agentFlow && hasFlowContent(queryData.agentFlow) && (
-                            <div className="border-t border-white/[0.06] p-4 bg-black/20">
+                            <div className="border-t border-teal-900/20 p-4 bg-teal-950/20">
                               <AgentFlow flow={queryData.agentFlow} />
                             </div>
                           )}

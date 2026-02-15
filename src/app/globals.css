@@ -123,6 +123,7 @@
 
 
 @layer base {
+  /* Default border color for form controls and cards. Components that need no border (e.g. .miniclark-bar) override with border-0 or .miniclark-bar rule below. */
   * {
     @apply border-border;
   }
@@ -297,20 +298,69 @@
   }
 }
 
-/* Minimal vertical scrollbar for chat feed and similar dark UI */
+/* Remove global border from MiniClark bar (base layer applies border to *) */
+.miniclark-bar,
+.miniclark-bar * {
+  border-color: transparent !important;
+  border-width: 0 !important;
+}
+
+/* Clark chat message prose: spacing, hierarchy, and number styling */
+.clark-prose p {
+  margin-bottom: 0.625rem;
+  line-height: 1.6;
+}
+.clark-prose p:last-child {
+  margin-bottom: 0;
+}
+.clark-prose ul {
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding-left: 1.25rem;
+}
+.clark-prose li {
+  margin-bottom: 0.25rem;
+}
+.clark-prose li:last-child {
+  margin-bottom: 0;
+}
+.clark-prose h2 {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+.clark-prose h3 {
+  margin-top: 0.75rem;
+  margin-bottom: 0.375rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.clark-prose strong {
+  font-weight: 600;
+  color: rgb(255 255 255);
+}
+.clark-prose .clark-num {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: rgb(255 255 255 / 0.98);
+}
+
+/* Minimal scrollbar for chat feed, category tiles, and similar dark UI */
 .scrollbar-minimal {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 .scrollbar-minimal::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
+  height: 6px;
 }
 .scrollbar-minimal::-webkit-scrollbar-track {
   background: transparent;
 }
 .scrollbar-minimal::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.18);
-  border-radius: 4px;
+  border-radius: 3px;
 }
 .scrollbar-minimal::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.28);

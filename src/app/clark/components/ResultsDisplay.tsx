@@ -1067,11 +1067,9 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                         </div>
                       )
                     })()}
-                    <div
-                      className="text-sm leading-relaxed text-white/95"
-                    >
+                    <div className="text-sm leading-relaxed text-white/95">
                       <div
-                        className="prose prose-invert max-w-none prose-p:mb-1.5 prose-ul:my-2 prose-li:my-0.5"
+                        className="clark-prose prose prose-invert max-w-none"
                         dangerouslySetInnerHTML={{ __html: markdownToHtml(message.content) }}
                       />
                       {message.capabilitiesSummary && (
@@ -1084,12 +1082,11 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                 </>
               )}
 
-              {/* When success === true, show the last line of Clark's response alongside plots,
+              {/* When success === true, show full Clark response (formatted) alongside structured results,
                   except for krypton_pay flows where we rely solely on TransactionStatus. */}
               {!isKryptonPay && message.success === true && hasStructuredResults(message) && message.content && (() => {
-                const lines = message.content.split('\n').map(l => l.trim()).filter(Boolean)
-                const lastLine = lines.length > 0 ? lines[lines.length - 1] : ''
-                if (!lastLine) return null
+                const content = message.content.trim()
+                if (!content) return null
                 return (
                   <>
                     <div className="flex gap-2 justify-start items-center">
@@ -1100,8 +1097,11 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                         Clark
                       </span>
                     </div>
-                    <div className="mt-1 ml-10 max-w-[85%] text-sm leading-relaxed text-white/95">
-                      {lastLine}
+                    <div className="mt-1 ml-10 max-w-[85%]">
+                      <div
+                        className="clark-prose text-sm text-white/95 leading-relaxed"
+                        dangerouslySetInnerHTML={{ __html: markdownToHtml(content) }}
+                      />
                     </div>
                   </>
                 )
@@ -1302,6 +1302,21 @@ const markdownToHtml = (markdown: string): string => {
       .replace(/_(.+?)_/g, '<em>$1</em>')
   }
 
+  /** Wrap numbers and percentages in paragraphs for .clark-num styling */
+  const applyInlineWithNumWrap = (text: string) => {
+    const numbers: string[] = []
+    const pl = '\u0002'
+    const replaced = text.replace(/(-?\d+\.\d+\s*%?|-?\d+\.?\d*\s*%)/g, (m) => {
+      numbers.push(m)
+      return `${pl}${numbers.length - 1}${pl}`
+    })
+    let out = applyInline(replaced)
+    numbers.forEach((n, i) => {
+      out = out.replace(`${pl}${i}${pl}`, `<span class="clark-num">${escapeHtml(n)}</span>`)
+    })
+    return out
+  }
+
   const lines = markdown.split(/\n/)
   const htmlParts: string[] = []
   let inList = false
@@ -1388,13 +1403,13 @@ const markdownToHtml = (markdown: string): string => {
         htmlParts.push('<ul class="list-disc pl-5 space-y-1">')
         inList = true
       }
-      htmlParts.push(`<li>${applyInline(trimmed.slice(2).trim())}</li>`)
+      htmlParts.push(`<li>${applyInlineWithNumWrap(trimmed.slice(2).trim())}</li>`)
     } else {
       if (inList) {
         htmlParts.push('</ul>')
         inList = false
       }
-      htmlParts.push(`<p class="mb-1">${applyInline(trimmed)}</p>`)
+      htmlParts.push(`<p class="mb-1">${applyInlineWithNumWrap(trimmed)}</p>`)
     }
   }
 

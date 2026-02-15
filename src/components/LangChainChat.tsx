@@ -7,6 +7,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Loader2, Send, User, CheckCircle, XCircle, X } from 'lucide-react';
 import agentsApi from '@/lib/agents_api';
+import { parseErrorMessage } from '@/lib/parseError';
 
 interface ChatMessage {
   id: string;
@@ -50,7 +51,7 @@ export default function LangChainChat({
 
   // Initialize session ID and username
   useEffect(() => {
-    const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const newSessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
     setSessionId(newSessionId)
     
     // Extract username from localStorage
@@ -117,15 +118,14 @@ export default function LangChainChat({
       }
     } catch (error) {
       console.error('LangChain API error:', error);
-      const errorMessage: ChatMessage = {
+      const content = parseErrorMessage(error, 'Sorry, I encountered an error processing your request. Please try again.');
+      setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: 'Sorry, I encountered an error processing your request. Please try again.',
+        content,
         timestamp: new Date(),
         success: false,
-      };
-
-      setMessages(prev => [...prev, errorMessage]);
+      }]);
     } finally {
       setIsLoading(false);
     }
@@ -145,8 +145,7 @@ export default function LangChainChat({
         throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
 
-      const data = await response.data
-      return data;
+      return response.data;
     } catch (error) {
       console.error('Error calling LangChain API:', error);
       throw error;

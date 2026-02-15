@@ -10,6 +10,7 @@ import UsernameCard from "@/components/wallet/UsernameCard";
 import BalanceCard, { BalanceCardRef } from "@/components/wallet/BalanceCard";
 import HamburgerMenu from "@/components/wallet/HamburgerMenu";
 import api from "@/lib/api";
+import { parseErrorMessage } from "@/lib/parseError";
 import WalletHeader from "@/components/wallet/WalletHeader";
 import axios from "axios";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -261,8 +262,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       }
 
       return;
-
-      return;
     }
 
     console.log('ℹ️ Unhandled WebSocket message type:', message.type);
@@ -364,8 +363,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       const userData = response.data;
       setKycStatus(userData.kyc_status || 'pending');
 
-      var res = await axios.get('https://api-stg.transak.com/fiat/public/v1/currencies/fiat-currencies?apiKey=f4c10825-55fd-4ccc-bd3f-40fc021468e5');
-      var fiatDataMap = []
+      const res = await axios.get('https://api-stg.transak.com/fiat/public/v1/currencies/fiat-currencies?apiKey=f4c10825-55fd-4ccc-bd3f-40fc021468e5');
+      const fiatDataMap: { name: string; code: string; symbol: string }[] = []
       for (const currency of res.data.response) {
         fiatDataMap.push({
           name: currency.name,
@@ -458,9 +457,10 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         timestamp: new Date().toISOString()
       });
 
-      // Transform subgraph response to frontend format
+      // Transform subgraph response to frontend format (guard against missing balances)
+      const balances = Array.isArray(subgraphResponse?.balances) ? subgraphResponse.balances : [];
       const transformedBalance = {
-        tokenBalances: subgraphResponse.balances.map((balance: any) => ({
+        tokenBalances: balances.map((balance: any) => ({
           amount: balance.balance.toString(),
           token: {
             name: balance.symbol === "USDC"
@@ -613,17 +613,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       setAccountData(updatedAccountData);
       localStorage.setItem('userData', JSON.stringify(updatedAccountData));
 
-    } catch (err: any) {
-      let errorMsg = err.response?.data?.detail || "Failed to set username";
-      if (typeof errorMsg === 'object' && errorMsg !== null) {
-        if (Array.isArray(errorMsg)) {
-          errorMsg = errorMsg.map(e => e.msg || JSON.stringify(e)).join('; ');
-        } else if (errorMsg.msg) {
-        } else {
-          errorMsg = JSON.stringify(errorMsg);
-        }
-      }
-      setUsernameError(errorMsg);
+    } catch (err) {
+      setUsernameError(parseErrorMessage(err, "Failed to set username"));
     } finally {
       setUsernameLoading(false);
     }
@@ -672,17 +663,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       // This prevents fetching stale balance before transaction is confirmed
       setTransactionHistoryRefresh(prev => !prev);
 
-    } catch (err: any) {
-      let errorMsg = err.response?.data?.detail || "Failed to send USDC";
-      if (typeof errorMsg === 'object' && errorMsg !== null) {
-        if (Array.isArray(errorMsg)) {
-          errorMsg = errorMsg.map(e => e.msg || JSON.stringify(e)).join('; ');
-        } else if (errorMsg.msg) {
-        } else {
-          errorMsg = JSON.stringify(errorMsg);
-        }
-      }
-      setSendError(errorMsg);
+    } catch (err) {
+      setSendError(parseErrorMessage(err, "Failed to send USDC"));
     } finally {
       setSendLoading(false);
     }
@@ -756,9 +738,9 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         setKycMessage(response.data.message || 'Failed to check KYC status');
         setTimeout(() => setKycMessage(null), 5000);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to check KYC status:', err);
-      setKycMessage(err.response?.data?.detail || 'Failed to check KYC status');
+      setKycMessage(parseErrorMessage(err, 'Failed to check KYC status'));
       setTimeout(() => setKycMessage(null), 5000);
     } finally {
       setKycChecking(false);
@@ -788,9 +770,9 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       } else {
         setKycMessage(response.data.message || 'Failed to skip KYC');
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to skip KYC:', err);
-      setKycMessage(err.response?.data?.detail || 'Failed to skip KYC');
+      setKycMessage(parseErrorMessage(err, 'Failed to skip KYC'));
     } finally {
       // Clear message after 5 seconds
       setTimeout(() => setKycMessage(null), 5000);
