@@ -318,7 +318,6 @@ export default function HedgeFundV2Page() {
           onLogout={handleLogout}
           onMenuToggle={() => setShowMenu(!showMenu)}
           onOpenQuestionnaire={() => setShowQuestionnaire(true)}
-          backRoute="/customer/grow"
         />
         <HamburgerMenu
           visible={showMenu}

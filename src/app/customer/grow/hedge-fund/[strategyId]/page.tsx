@@ -126,17 +126,17 @@ export default function StrategyDetailsPage() {
           onCopyAddress={() => copyToClipboard(accountData?.wallet_address || '')}
         />
 
-        <div className="container mx-auto px-4 py-8 max-w-7xl">
-          <div className="mb-6 sm:mb-8 px-4">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-2 drop-shadow-lg">
+        <div className="container mx-auto px-4 py-5 sm:py-6 max-w-7xl">
+          <div className="mb-4 sm:mb-5 px-4">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-1 drop-shadow-lg leading-tight">
               {displayName}
             </h1>
-            <p className="text-zinc-400 text-sm sm:text-base md:text-lg max-w-3xl">
+            <p className="text-zinc-400 text-sm sm:text-base md:text-lg max-w-3xl leading-snug">
               {currentStrategy?.description || "Real-time on-chain analytics and trading data."}
             </p>
           </div>
 
-          <div className="mb-6">
+          <div className="mb-4">
             <TradingSignals
               strategyName={stratNameKey}
               assetSymbol="USDC"

@@ -12,9 +12,10 @@ interface TooltipRow {
   color?: string;
 }
 
-interface StrategyChartTooltipProps {
+export interface StrategyChartTooltipProps {
   active?: boolean;
-  payload?: Array<{ name?: unknown; value?: unknown; color?: string; dataKey?: string }>;
+  /** Compatible with recharts Tooltip payload (dataKey can be string | number) */
+  payload?: Array<{ name?: unknown; value?: unknown; color?: string; dataKey?: string | number | undefined }>;
   label?: string;
   /** Override label display (e.g. formatted date) */
   labelFormatted?: string;
