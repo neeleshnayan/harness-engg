@@ -17,7 +17,7 @@ import { ChevronDown, ChevronUp, Download, Filter, Check } from "lucide-react";
 import { TokenPriceChart } from '@/components/charts/TokenPriceChart';
 import { AssetAllocationChart } from '@/components/charts/AssetAllocationChart';
 import { AumChart } from '@/components/charts/AumChart';
-import { StrategyChartTooltip } from '@/components/charts/StrategyChartTooltip';
+import { StrategyChartTooltip, type StrategyChartTooltipProps } from '@/components/charts/StrategyChartTooltip';
 
 const formatNumber = (value?: string | number, options?: Intl.NumberFormatOptions) => {
     if (value === undefined || value === null) return '0';
@@ -854,7 +854,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                                 return (
                                                     <StrategyChartTooltip
                                                         active={props.active}
-                                                        payload={props.payload}
+                                                        payload={props.payload as StrategyChartTooltipProps['payload']}
                                                         label={props.label}
                                                         rows={rows}
                                                     />
