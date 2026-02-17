@@ -110,12 +110,37 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
       }
     }
     if (!kTokens.includes('kUSD')) kTokens.unshift('kUSD');
-    return [...kTokens, 'USDC', ...rwaTokens];
+    const result = [...kTokens, 'USDC'];
+    if (rwaTokens.length > 0) {
+      result.push('--- RWA Tokens ---');
+      result.push(...rwaTokens);
+    }
+    return result;
   }, [allTokenSymbols]);
 
   // From dropdown: only tokens the user has balance for (like SendERC20Modal)
   const fromTokens = useMemo(() => {
-    return supportedTokens.filter((symbol) => (balances[symbol] || 0) > 0);
+    const kTokensWithBalance: string[] = [];
+    const rwaTokensWithBalance: string[] = [];
+
+    for (const symbol of supportedTokens) {
+      if (symbol === '--- RWA Tokens ---') continue; // Skip separator
+      const balance = balances[symbol] || 0;
+      if (balance > 0) {
+        if (symbol.startsWith('k') || symbol === 'USDC') {
+          kTokensWithBalance.push(symbol);
+        } else {
+          rwaTokensWithBalance.push(symbol);
+        }
+      }
+    }
+
+    const result = [...kTokensWithBalance];
+    if (rwaTokensWithBalance.length > 0) {
+      result.push('--- RWA Tokens ---');
+      result.push(...rwaTokensWithBalance);
+    }
+    return result;
   }, [supportedTokens, balances]);
 
   useEffect(() => {
@@ -140,13 +165,18 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
   // When modal opens or balances change, ensure from/to are valid (from must have balance)
   useEffect(() => {
     if (!visible || fromTokens.length === 0) return;
-    const fromValid = fromTokens.includes(fromCurrency);
+    const validFromTokens = fromTokens.filter(t => t !== '--- RWA Tokens ---');
+    const validSupportedTokens = supportedTokens.filter(t => t !== '--- RWA Tokens ---');
+    const fromValid = validFromTokens.includes(fromCurrency);
     if (!fromValid) {
-      setFromCurrency(fromTokens[0]);
-      const other = supportedTokens.find((t) => t !== fromTokens[0]);
-      if (other) setToCurrency(other);
+      const firstValid = validFromTokens[0];
+      if (firstValid) {
+        setFromCurrency(firstValid);
+        const other = validSupportedTokens.find((t) => t !== firstValid);
+        if (other) setToCurrency(other);
+      }
     } else if (toCurrency === fromCurrency) {
-      const alt = supportedTokens.find((t) => t !== fromCurrency);
+      const alt = validSupportedTokens.find((t) => t !== fromCurrency);
       if (alt) setToCurrency(alt);
     }
   }, [visible, fromTokens, supportedTokens, fromCurrency, toCurrency]);
@@ -508,10 +538,12 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
                                value={fromCurrency}
                                onChange={(e) => {
                                    const val = e.target.value;
-                                   setFromCurrency(val);
-                                   if (val === toCurrency) {
-                                     const alt = supportedTokens.find(t => t !== val);
-                                     if (alt) setToCurrency(alt);
+                                   if (val !== '--- RWA Tokens ---') {
+                                     setFromCurrency(val);
+                                     if (val === toCurrency) {
+                                       const alt = supportedTokens.find(t => t !== val && t !== '--- RWA Tokens ---');
+                                       if (alt) setToCurrency(alt);
+                                     }
                                    }
                                }}
                                className="appearance-none text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded cursor-pointer focus:outline-none transition-colors w-[85px]"
@@ -522,7 +554,14 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
                                disabled={loading}
                            >
                                {fromTokens.map((token) => (
-                                 <option key={token} value={token}>{token.replace(/^k/, "")}</option>
+                                 <option
+                                   key={token}
+                                   value={token}
+                                   disabled={token === '--- RWA Tokens ---'}
+                                   style={token === '--- RWA Tokens ---' ? { opacity: 0.6, fontStyle: 'italic' } : {}}
+                                 >
+                                   {token.replace(/^k/, "")}
+                                 </option>
                                ))}
                            </select>
                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>
@@ -587,10 +626,12 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
                                value={toCurrency}
                                onChange={(e) => {
                                    const val = e.target.value;
-                                   setToCurrency(val);
-                                   if (val === fromCurrency) {
-                                     const alt = supportedTokens.find(t => t !== val);
-                                     if (alt) setFromCurrency(alt);
+                                   if (val !== '--- RWA Tokens ---') {
+                                     setToCurrency(val);
+                                     if (val === fromCurrency) {
+                                       const alt = supportedTokens.find(t => t !== val && t !== '--- RWA Tokens ---');
+                                       if (alt) setFromCurrency(alt);
+                                     }
                                    }
                                }}
                                className="appearance-none text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded cursor-pointer focus:outline-none transition-colors w-[85px]"
@@ -601,7 +642,14 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
                                disabled={loading}
                            >
                                {supportedTokens.map((token) => (
-                                 <option key={token} value={token}>{token.replace(/^k/, "")}</option>
+                                 <option
+                                   key={token}
+                                   value={token}
+                                   disabled={token === '--- RWA Tokens ---'}
+                                   style={token === '--- RWA Tokens ---' ? { opacity: 0.6, fontStyle: 'italic' } : {}}
+                                 >
+                                   {token.replace(/^k/, "")}
+                                 </option>
                                ))}
                            </select>
                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>

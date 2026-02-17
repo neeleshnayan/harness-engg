@@ -168,7 +168,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
 
            if (rwaList.length > 0) {
                allTokens.push({
-                   symbol: "--- Other Assets ---",
+                   symbol: "--- RWA Tokens ---",
                    address: "SEPARATOR",
                    decimals: 0,
                    isSeparator: true
@@ -180,18 +180,36 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
         }
 
         // Filter tokens to only include those with non-zero balances (for "from" dropdown)
-        // Filter tokens to only include those with non-zero balances (for "from" dropdown)
-        // Ensure we don't include separators or RWA tokens in the "From" list for now (unless user has balance, but simpler to restrict to K-tokens/USDC as per "as are currently")
-        const availableList: SupportedToken[] = allTokens.filter((token) => {
-          if (token.isSeparator) return false;
-          // Verify it's a K-token or USDC (existing logic implies K_TOKEN_SYMBOLS check or USDC)
-          // Actually, let's just use balance check. If they have RWA balance, maybe they should be able to send it?
-          // User said "not actually going to use these other tokens for swaps/payments... but let's just show them in dropdown".
-          // This likely applies to "To" dropdown. "From" dropdown is usually what you hold.
-          // Let's filter out separators for sure.
+        // Build from list with separator before RWA tokens if any RWA tokens have balance
+        const kTokensWithBalance: SupportedToken[] = [];
+        const rwaTokensWithBalance: SupportedToken[] = [];
+
+        for (const token of allTokens) {
+          if (token.isSeparator) continue;
           const tokenBalance = balances[token.symbol] || 0;
-          return tokenBalance > 0;
-        });
+          if (tokenBalance > 0) {
+            // Check if it's an RWA token (not a k-token and not USDC from K_TOKEN_SYMBOLS)
+            const isRWA = !token.symbol.startsWith('k') && token.symbol !== 'USDC' &&
+                          !Object.keys(K_TOKEN_SYMBOLS).includes(token.symbol);
+            if (isRWA) {
+              rwaTokensWithBalance.push(token);
+            } else {
+              kTokensWithBalance.push(token);
+            }
+          }
+        }
+
+        // Build availableList with separator if RWA tokens exist
+        const availableList: SupportedToken[] = [...kTokensWithBalance];
+        if (rwaTokensWithBalance.length > 0) {
+          availableList.push({
+            symbol: "--- RWA Tokens ---",
+            address: "SEPARATOR",
+            decimals: 0,
+            isSeparator: true
+          });
+          availableList.push(...rwaTokensWithBalance);
+        }
 
         setSupportedTokensList(allTokens); // All tokens for "to" dropdown
         setAvailableTokens(availableList); // Only available tokens for "from" dropdown
@@ -832,7 +850,11 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                         <div className="relative shadow-xl">
                             <select
                                 value={selectedCurrency}
-                                onChange={(e) => setSelectedCurrency(e.target.value)}
+                                onChange={(e) => {
+                                  if (e.target.value !== "") {
+                                    setSelectedCurrency(e.target.value);
+                                  }
+                                }}
                                 className="appearance-none text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded cursor-pointer focus:outline-none transition-colors w-[85px]"
                                 style={{
                                   background: '#115E59',
@@ -841,7 +863,12 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                                 disabled={loading}
                             >
                                 {availableTokens.map((token) => (
-                                <option key={token.symbol} value={token.symbol.replace(/^k/, "")}>
+                                <option
+                                  key={token.symbol}
+                                  value={token.isSeparator ? "" : token.symbol.replace(/^k/, "")}
+                                  disabled={token.isSeparator}
+                                  style={token.isSeparator ? { opacity: 0.6, fontStyle: 'italic' } : {}}
+                                >
                                     {token.symbol.replace(/^k/, "")}
                                 </option>
                                 ))}
@@ -906,7 +933,11 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                         <div className="relative shadow-xl">
                             <select
                                 value={toCurrency}
-                                onChange={(e) => setToCurrency(e.target.value)}
+                                onChange={(e) => {
+                                  if (e.target.value !== "") {
+                                    setToCurrency(e.target.value);
+                                  }
+                                }}
                                 className="appearance-none text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded cursor-pointer focus:outline-none transition-colors w-[85px]"
                                 style={{
                                   background: '#115E59',
@@ -915,7 +946,12 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                                 disabled={loading}
                             >
                                 {supportedTokensList.map((token) => (
-                                <option key={token.symbol} value={token.isSeparator ? "" : token.symbol.replace(/^k/, "")} disabled={token.isSeparator}>
+                                <option
+                                  key={token.symbol}
+                                  value={token.isSeparator ? "" : token.symbol.replace(/^k/, "")}
+                                  disabled={token.isSeparator}
+                                  style={token.isSeparator ? { opacity: 0.6, fontStyle: 'italic' } : {}}
+                                >
                                     {token.symbol.replace(/^k/, "")}
                                 </option>
                                 ))}
