@@ -16,10 +16,10 @@ interface SupportedAssetsBalancesProps {
 }
 
 /**
- * Displays all supported token balances with color-coded price indicators.
+ * Displays currency token balances with color-coded price indicators.
  *
- * Covers k-tokens (kUSD, kEUR, kGBP, kAED, kINR),
- * RWA tokens (GC, XAG, NVDA, ETH), and USDC.
+ * Shows only currencies: k-tokens (kUSD, kEUR, kGBP, kAED, kINR) and USDC.
+ * RWA tokens (GC, XAG, NVDA, ETH, etc.) are excluded.
  *
  * Uses RatesContext for all rate data - no direct API calls here!
  */
@@ -29,7 +29,7 @@ const SupportedAssetsBalances: React.FC<SupportedAssetsBalancesProps> = ({ balan
   // Get address -> symbol map
   const tokenAddressMap = useMemo(() => getTokenAddressToSymbol(), [getTokenAddressToSymbol]);
 
-  // Extract token balances from the balance data
+  // Extract token balances from the balance data - only currencies (k-tokens and USDC), exclude RWA tokens
   const tokenBalances = useMemo(() => {
     if (!balance || !balance.tokenBalances || !Array.isArray(balance.tokenBalances)) {
       return [];
@@ -46,11 +46,15 @@ const SupportedAssetsBalances: React.FC<SupportedAssetsBalancesProps> = ({ balan
       const symbolFromBalance = tb?.token?.symbol;
       const tokenSymbol = (tokenAddress ? tokenAddressMap[tokenAddress] : undefined) || symbolFromBalance;
 
+      // Only include currencies: k-tokens (start with 'k') and USDC
+      // Exclude RWA tokens (GC, XAG, NVDA, ETH, etc. - tokens that don't start with 'k')
       if (tokenSymbol === "USDC") {
         usdcTotal += rawAmount;
-      } else if (tokenSymbol) {
+      } else if (tokenSymbol && tokenSymbol.startsWith('k')) {
+        // Only include k-tokens (currencies)
         aggregatedBalances[tokenSymbol] = (aggregatedBalances[tokenSymbol] || 0) + rawAmount;
       }
+      // RWA tokens (non-k tokens) are excluded
     }
 
     const balances: TokenBalance[] = Object.entries(aggregatedBalances).map(([symbol, amount]) => ({
@@ -167,7 +171,7 @@ const SupportedAssetsBalances: React.FC<SupportedAssetsBalancesProps> = ({ balan
         <div className="flex items-center gap-3 mb-4">
            <div className="flex items-center text-zinc-400 text-sm font-medium whitespace-nowrap">
              <img src="/coin-stack.svg" alt="" className="mr-2 w-4 h-4 opacity-80" />
-             All Assets
+             All Currencies
            </div>
            <div className="h-[1.5px] bg-zinc-600/80 flex-1 rounded-full"></div>
         </div>

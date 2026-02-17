@@ -141,7 +141,7 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
         </div>
 
         {/* Investment Options Section */}
-        <div className="flex flex-col lg:flex-row gap-8 w-full max-w-6xl mx-auto justify-center">
+        <div className="flex flex-col lg:flex-row gap-8 w-full max-w-6xl mx-auto justify-center mb-12">
           <button
             className="relative flex-1 rounded-[44px] p-8 flex flex-col items-center justify-center overflow-hidden hover:opacity-90 transition-all duration-200 group focus:outline-none"
             onClick={() => router.push('/customer/grow/hedge-fund')}
@@ -188,8 +188,8 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
           </button>
         </div>
 
-        {/* Token Portfolio Section - Aligned with Investment Options */}
-        <div className="w-full max-w-4xl mx-auto mt-12">
+        {/* Token Portfolio Section */}
+        <div className="w-full max-w-6xl mx-auto">
           <TokenBalances
             balance={balance}
             loading={balanceLoading}
