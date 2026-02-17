@@ -25,7 +25,7 @@ const WalletHeader: React.FC<WalletHeaderProps> = memo(({
     // <header className="bg-gradient-to-br from-black via-zinc-900 to-neutral-900/90 backdrop-blur-xl sticky top-0 z-5">
     <header>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center py-0 min-h-[6rem]">
+        <div className="flex justify-between items-center py-0 min-h-[4rem]">
           <div className="flex items-center gap-3">
             {handleBack && (
               <button

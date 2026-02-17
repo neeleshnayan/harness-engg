@@ -466,8 +466,10 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
   return (
     <>
       <Card
-        className="min-w-0 flex flex-col bg-transparent bg-no-repeat bg-cover bg-center backdrop-blur-3xl rounded-2xl sm:rounded-3xl p-0 shadow-xl border border-white/[0.08] transition-all duration-300 overflow-hidden hover:border-white/[0.12]"
-        style={{ backgroundImage: "url('/wallet-bg.svg')" }}
+        className="group relative min-w-0 flex flex-col bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/10 transition-all duration-300 overflow-hidden hover:bg-white/[0.08] hover:border-white/20  rounded-2xl sm:rounded-3xl p-0"
+        style={{
+          boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+        }}
         onClick={handleCardClick}
       >
         <CardHeader className="relative p-4 sm:p-5 pb-2 sm:pb-3 min-h-[11rem] sm:min-h-[12rem] flex flex-col">
@@ -486,7 +488,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
           </div>
           <div className="mt-2 flex flex-col items-start gap-1 w-full">
             {balanceLoading || configLoading ? (
-              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg border bg-zinc-700/20 border-zinc-700/30">
+              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg border bg-white/5 border-white/10 backdrop-blur-sm">
                 <div className="animate-spin rounded-full h-3 w-3 border-2 border-zinc-400 border-t-transparent"></div>
                 <span className="text-xs sm:text-sm font-medium text-zinc-400 whitespace-nowrap">
                   ••• {strategyDetails.tokenSymbol}

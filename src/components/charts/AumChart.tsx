@@ -25,7 +25,12 @@ export const AumChart: React.FC<AumChartProps> = ({ data }) => {
     })).sort((a, b) => a.timestamp - b.timestamp);
 
     return (
-        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur flex flex-col h-full">
+        <div 
+            className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/10 transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20  p-6 flex flex-col h-full"
+            style={{
+                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+            }}
+        >
             <div className="min-h-[7rem] mb-4">
                 <h3 className="text-lg font-bold text-white mb-1">Assets Under Management</h3>
                 <p className="text-xs text-zinc-400">CALCULATED FROM LIVE BALANCES & PRICES</p>
@@ -35,13 +40,13 @@ export const AumChart: React.FC<AumChartProps> = ({ data }) => {
                     <AreaChart data={chartData}>
                         <defs>
                             <linearGradient id="colorRealAum" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                                <stop offset="5%" stopColor="#90E7EE" stopOpacity={0.4} />
+                                <stop offset="95%" stopColor="#90E7EE" stopOpacity={0} />
                             </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" vertical={false} />
-                        <XAxis dataKey="date" stroke="#71717a" tick={{ fontSize: 12 }} tickLine={false} />
-                        <YAxis stroke="#71717a" tick={{ fontSize: 12 }} tickLine={false} tickFormatter={(val) => `$${val}`} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.05)" vertical={false} />
+                        <XAxis dataKey="date" stroke="rgba(255, 255, 255, 0.3)" tick={{ fontSize: 12 }} tickLine={false} />
+                        <YAxis stroke="rgba(255, 255, 255, 0.3)" tick={{ fontSize: 12 }} tickLine={false} tickFormatter={(val) => `$${val}`} />
                         <Tooltip
                             content={(props) => (
                                 <StrategyChartTooltip
@@ -52,7 +57,7 @@ export const AumChart: React.FC<AumChartProps> = ({ data }) => {
                                 />
                             )}
                         />
-                        <Area type="monotone" dataKey="aum" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorRealAum)" />
+                        <Area type="monotone" dataKey="aum" stroke="#90E7EE" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRealAum)" />
                     </AreaChart>
                 </ResponsiveContainer>
             </div>

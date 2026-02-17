@@ -450,7 +450,12 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
         <div className="space-y-6">
             {
                 allEvents.length > 0 && (
-                    <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-4 sm:p-6 backdrop-blur">
+                    <div 
+                        className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/10 transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20  p-4 sm:p-6"
+                        style={{
+                            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                        }}
+                    >
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Recent Activity</p>
                             <div className="flex flex-wrap items-center gap-2 sm:gap-4 relative">
@@ -519,7 +524,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                     const inputAmount = Number(s.amountIn);
                                     const outputAmount = Number(s.amountOut);
                                     typeLabel = (
-                                        <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${isBuy ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
+                                        <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${isBuy ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`} style={{ boxShadow: 'none' }}>
                                             {isBuy ? 'BUY' : 'SELL'}
                                         </span>
                                     );
@@ -531,21 +536,25 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                     const depositAssets = Number(d.assets) || 0;
                                     const rawShares = Number(d.shares ?? 0);
                                     const depositSharesDisplay = rawShares > 0 ? rawShares : (d.calculatedShares ?? depositAssets);
-                                    typeLabel = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">DEPOSIT</span>;
+                                    typeLabel = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20" style={{ boxShadow: 'none' }}>DEPOSIT</span>;
                                     summary = `${formatTokenAmount(depositAssets, 2)} ${displayAssetSymbol} → ${formatNumber(depositSharesDisplay, { maximumFractionDigits: 4 })} ${targetSymbol}`;
                                 } else if (event.type === 'WITHDRAWAL') {
                                     const w = event as any;
                                     const withdrawAssets = Number(w.assets) || 0;
                                     const withdrawSharesFromEvent = w.shares ? Number(w.shares) : 0;
                                     const withdrawSharesDisplay = withdrawSharesFromEvent > 0 ? withdrawSharesFromEvent : (w.calculatedShares ?? withdrawAssets);
-                                    typeLabel = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">WITHDRAWAL</span>;
+                                    typeLabel = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20" style={{ boxShadow: 'none' }}>WITHDRAWAL</span>;
                                     summary = `${formatNumber(withdrawSharesDisplay, { maximumFractionDigits: 4 })} ${targetSymbol} → ${formatTokenAmount(withdrawAssets, 2)} ${displayAssetSymbol}`;
                                 }
 
                                 const txHash = (event as any).txHash || (event.id.split('-')[0]) || '';
 
                                 return (
-                                    <div key={event.id} className="rounded-xl border border-zinc-700/50 bg-zinc-800/30 p-3">
+                                    <div
+                                        key={event.id}
+                                        className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/10 transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20 p-3"
+                                        style={{ boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)' }}
+                                    >
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex items-center gap-2 mb-1">{typeLabel}</div>
@@ -594,7 +603,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                             const s = event as any;
                                             const isBuy = s.signalType === 1;
                                             typeLabel = (
-                                                <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${isBuy ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
+                                                <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${isBuy ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`} style={{ boxShadow: 'none' }}>
                                                     {isBuy ? 'BUY' : 'SELL'}
                                                 </span>
                                             );
@@ -615,7 +624,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
 
                                         } else if (event.type === 'DEPOSIT') {
                                             const d = event as any;
-                                            typeLabel = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">DEPOSIT</span>;
+                                            typeLabel = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20" style={{ boxShadow: 'none' }}>DEPOSIT</span>;
                                             const depositAssets = Number(d.assets) || 0;
                                             inputDisplay = <>{formatTokenAmount(depositAssets, 2)} {displayAssetSymbol}</>;
 
@@ -627,7 +636,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                             priceDisplay = '-';
                                         } else if (event.type === 'WITHDRAWAL') {
                                             const w = event as any;
-                                            typeLabel = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">WITHDRAWAL</span>;
+                                            typeLabel = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20" style={{ boxShadow: 'none' }}>WITHDRAWAL</span>;
                                             const withdrawAssets = Number(w.assets) || 0;
                                             // Shares from subgraph are already scaled (BigDecimal)
                                             const withdrawSharesFromEvent = w.shares ? Number(w.shares) : 0;
@@ -641,7 +650,7 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                         const txHash = (event as any).txHash || (event.id.split('-')[0]) || '';
 
                                         return (
-                                            <tr key={event.id} className="group hover:bg-zinc-700/20 transition-colors">
+                                            <tr key={event.id} className="group transition-colors">
                                                 <td className="py-3 pr-4">{formatTimestamp(event.timestamp)}</td>
                                                 <td className="py-3 pr-4">{typeLabel}</td>
                                                 <td className="py-3 pr-4 text-white font-medium">{inputDisplay}</td>
@@ -704,7 +713,12 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                     <div className="overflow-x-auto overflow-y-hidden pb-2 -mx-4 px-4 md:overflow-visible md:mx-0 md:px-0 scrollbar-minimal">
                         <div className="grid grid-rows-2 grid-flow-col auto-cols-[minmax(160px,1fr)] gap-3 w-max min-w-full md:w-auto">
                         {/* Card layout: 2 rows, fills column-by-column */}
-                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 pt-4 px-4 pb-2 backdrop-blur flex flex-col">
+                        <div 
+                            className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/10 transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20  pt-4 px-4 pb-2 flex flex-col"
+                            style={{
+                                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                            }}
+                        >
                             <div className="flex items-center justify-between">
                                 <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Live Token Price</p>
                                 {livePriceFetching && (
@@ -728,14 +742,24 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                 )}
                             </div>
                         </div>
-                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 pt-4 px-4 pb-2 backdrop-blur flex flex-col">
+                        <div 
+                            className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/10 transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20  pt-4 px-4 pb-2 flex flex-col"
+                            style={{
+                                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                            }}
+                        >
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total AUM</p>
                             <p className="mt-2 text-2xl sm:text-3xl font-bold text-white">
                                 {formatCurrency(Number(metrics?.currentAum || 0) || latestData?.aum || 0)}
                             </p>
                         </div>
                         {targetTokenInfo && (
-                            <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 pt-4 px-4 pb-2 backdrop-blur flex flex-col">
+                            <div 
+                                className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/10 transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20  pt-4 px-4 pb-2 flex flex-col"
+                                style={{
+                                    boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                                }}
+                            >
                                 <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">{targetTokenInfo.symbol} Price</p>
                                 <p className="mt-2 text-2xl sm:text-3xl font-bold text-white">
                                     {formatCurrency(targetTokenInfo.current_rate)}
@@ -747,21 +771,41 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                 </div>
                             </div>
                         )}
-                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 pt-4 px-4 pb-2 backdrop-blur flex flex-col">
+                        <div 
+                            className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/10 transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20  pt-4 px-4 pb-2 flex flex-col"
+                            style={{
+                                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                            }}
+                        >
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Net Share Supply</p>
                             <p className="mt-2 text-2xl sm:text-3xl font-bold text-white">
                                 {formatTokenAmount(Number(metrics?.mintedShares || 0) - Number(metrics?.burnedShares || 0) || latestData?.netShares || 0)}
                             </p>
                         </div>
-                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 pt-4 px-4 pb-2 backdrop-blur flex flex-col">
+                        <div 
+                            className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/10 transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20  pt-4 px-4 pb-2 flex flex-col"
+                            style={{
+                                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                            }}
+                        >
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total Deposits</p>
                             <p className="mt-2 text-2xl sm:text-3xl font-bold text-emerald-400">{formatCurrency(Number(metrics?.totalDeposits || 0) || latestData?.totalDeposits || 0)}</p>
                         </div>
-                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 pt-4 px-4 pb-2 backdrop-blur flex flex-col">
+                        <div 
+                            className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/10 transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20  pt-4 px-4 pb-2 flex flex-col"
+                            style={{
+                                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                            }}
+                        >
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total Withdrawals</p>
                             <p className="mt-2 text-2xl sm:text-3xl font-bold text-rose-400">{formatCurrency(Number(metrics?.totalWithdrawals || 0) || latestData?.totalWithdrawals || 0)}</p>
                         </div>
-                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 pt-4 px-4 pb-2 backdrop-blur flex flex-col">
+                        <div 
+                            className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/10 transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20  pt-4 px-4 pb-2 flex flex-col"
+                            style={{
+                                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                            }}
+                        >
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total Signals</p>
                             <div className="mt-2 space-y-2">
                                 <div className="flex justify-between items-baseline gap-3">
@@ -774,7 +818,12 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                 </div>
                             </div>
                         </div>
-                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 pt-4 px-4 pb-2 backdrop-blur flex flex-col">
+                        <div 
+                            className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/10 transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20  pt-4 px-4 pb-2 flex flex-col"
+                            style={{
+                                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                            }}
+                        >
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Total Swapped</p>
                             <div className="mt-2 flex items-center justify-center gap-3">
                                 <div className="flex flex-col items-center min-w-0">
@@ -820,7 +869,12 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
 
                         {/* Share Mint vs Burn Chart */}
                         <div className="lg:col-span-1 min-h-0">
-                        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur flex flex-col h-full">
+                        <div 
+                            className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/10 transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20  p-6 flex flex-col h-full"
+                            style={{
+                                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                            }}
+                        >
                             <div className="min-h-[7rem] mb-4">
                                 <h3 className="text-lg font-bold text-white mb-1">Share Mint vs Burn</h3>
                                 <p className="text-xs text-zinc-400">CUMULATIVE SHARES MINTED AND BURNED</p>
@@ -830,17 +884,17 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                     <AreaChart data={chartData}>
                                         <defs>
                                             <linearGradient id="colorMint" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                                <stop offset="5%" stopColor="#90E7EE" stopOpacity={0.4} />
+                                                <stop offset="95%" stopColor="#90E7EE" stopOpacity={0} />
                                             </linearGradient>
                                             <linearGradient id="colorBurn" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#f97316" stopOpacity={0.3} />
-                                                <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
+                                                <stop offset="5%" stopColor="#f87171" stopOpacity={0.3} />
+                                                <stop offset="95%" stopColor="#f87171" stopOpacity={0} />
                                             </linearGradient>
                                         </defs>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" vertical={false} />
-                                        <XAxis dataKey="date" stroke="#71717a" tick={{ fontSize: 12 }} tickLine={false} />
-                                        <YAxis stroke="#71717a" tick={{ fontSize: 12 }} tickLine={false} tickFormatter={(val) => formatNumber(val)} />
+                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.05)" vertical={false} />
+                                        <XAxis dataKey="date" stroke="rgba(255, 255, 255, 0.3)" tick={{ fontSize: 12 }} tickLine={false} />
+                                        <YAxis stroke="rgba(255, 255, 255, 0.3)" tick={{ fontSize: 12 }} tickLine={false} tickFormatter={(val) => formatNumber(val)} />
                                         <Tooltip
                                             content={(props) => {
                                                 if (!props.active || !props.payload?.length) return null;
@@ -862,8 +916,8 @@ export const SubgraphAnalyticsGeneric: React.FC<SubgraphAnalyticsGenericProps> =
                                             }}
                                         />
                                         <Legend layout="horizontal" align="center" wrapperStyle={{ paddingTop: 8 }} />
-                                        <Area type="monotone" dataKey="mintedShares" name="Minted" stroke="#3b82f6" fill="url(#colorMint)" strokeWidth={2} />
-                                        <Area type="monotone" dataKey="burnedShares" name="Burned" stroke="#f97316" fill="url(#colorBurn)" strokeWidth={2} />
+                                        <Area type="monotone" dataKey="mintedShares" name="Minted" stroke="#90E7EE" fill="url(#colorMint)" strokeWidth={2.5} />
+                                        <Area type="monotone" dataKey="burnedShares" name="Burned" stroke="#f87171" fill="url(#colorBurn)" strokeWidth={2.5} />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             </div>

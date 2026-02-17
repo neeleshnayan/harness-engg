@@ -131,7 +131,12 @@ export const TokenPriceChart: React.FC<TokenPriceChartProps> = ({ data, livePric
     }, [chartData]);
 
     return (
-        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur flex flex-col h-full">
+        <div 
+            className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/10 transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20  p-6 flex flex-col h-full"
+            style={{
+                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+            }}
+        >
             <div className="min-h-[7rem] mb-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
                     <h3 className="text-lg font-bold text-white">Token Price</h3>
@@ -163,20 +168,20 @@ export const TokenPriceChart: React.FC<TokenPriceChartProps> = ({ data, livePric
                     <AreaChart data={chartData}>
                         <defs>
                             <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                                <stop offset="5%" stopColor="#90E7EE" stopOpacity={0.35} />
+                                <stop offset="95%" stopColor="#90E7EE" stopOpacity={0} />
                             </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" vertical={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.05)" vertical={false} />
                         <XAxis
                             dataKey="timestamp"
-                            stroke="#71717a"
+                            stroke="rgba(255, 255, 255, 0.3)"
                             tick={{ fontSize: 12 }}
                             tickLine={false}
                             tickFormatter={(val) => formatXTick(selectedRange, val)}
                         />
                         <YAxis
-                            stroke="#71717a"
+                            stroke="rgba(255, 255, 255, 0.3)"
                             tick={{ fontSize: 12 }}
                             tickLine={false}
                             domain={['auto', 'auto']}
@@ -206,7 +211,7 @@ export const TokenPriceChart: React.FC<TokenPriceChartProps> = ({ data, livePric
                                 );
                             }}
                         />
-                        <Area type="monotone" dataKey="price" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorPrice)" />
+                        <Area type="monotone" dataKey="price" stroke="#90E7EE" strokeWidth={2.5} fillOpacity={1} fill="url(#colorPrice)" />
                     </AreaChart>
                 </ResponsiveContainer>
             </div>

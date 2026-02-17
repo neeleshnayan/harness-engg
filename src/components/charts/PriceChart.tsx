@@ -17,21 +17,26 @@ export const PriceChart: React.FC<PriceChartProps> = ({ data, symbol = "WETH" })
     })).sort((a, b) => a.timestamp - b.timestamp);
 
     return (
-        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur">
+        <div 
+            className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/10 transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20  p-6"
+            style={{
+                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+            }}
+        >
             <h3 className="text-lg font-bold text-white mb-1">Asset Allocation ({symbol} in USD)</h3>
             <p className="text-xs text-zinc-400 mb-6">HISTORICAL {symbol} VALUE</p>
             <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" vertical={false} />
-                        <XAxis dataKey="date" stroke="#71717a" tick={{ fontSize: 12 }} tickLine={false} />
-                        <YAxis stroke="#71717a" tick={{ fontSize: 12 }} tickLine={false} domain={['auto', 'auto']} tickFormatter={(val) => `$${Number(val).toLocaleString(undefined, { maximumFractionDigits: 2 })}`} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.05)" vertical={false} />
+                        <XAxis dataKey="date" stroke="rgba(255, 255, 255, 0.3)" tick={{ fontSize: 12 }} tickLine={false} />
+                        <YAxis stroke="rgba(255, 255, 255, 0.3)" tick={{ fontSize: 12 }} tickLine={false} domain={['auto', 'auto']} tickFormatter={(val) => `$${Number(val).toLocaleString(undefined, { maximumFractionDigits: 2 })}`} />
                         <Tooltip
                             contentStyle={{ backgroundColor: '#18181b', borderColor: '#3f3f46', borderRadius: '0.5rem' }}
                             itemStyle={{ color: '#e4e4e7' }}
                             formatter={(value: number) => [`$${value.toFixed(2)}`, 'Value']}
                         />
-                        <Line type="monotone" dataKey="value" stroke="#ec4899" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="value" stroke="#90E7EE" strokeWidth={2.5} dot={false} />
                     </LineChart>
                 </ResponsiveContainer>
             </div>

@@ -334,7 +334,7 @@ export default function HedgeFundV2Page() {
             showBackButton={true}
           />
         )}
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 max-w-6xl min-w-0">
+        <div className="container mx-auto px-5 sm:px-8 lg:px-10 pt-1 pb-5 sm:pt-4 sm:pb-8 max-w-6xl min-w-0">
           {/* Portfolio Performance Chart */}
           {accountData?.wallet_address && (
             <section className="w-full mb-6 sm:mb-8">

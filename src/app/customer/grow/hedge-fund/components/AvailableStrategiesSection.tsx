@@ -76,9 +76,12 @@ export function AvailableStrategiesSection({
 
         <div
           onClick={onAddStrategy}
-          className="flex flex-col items-center justify-center h-full min-h-[220px] sm:min-h-[300px] border-2 border-dashed border-zinc-700 hover:border-blue-500 rounded-xl bg-zinc-900/30 hover:bg-zinc-900/50 cursor-pointer transition-all group py-6"
+          className="group relative flex flex-col items-center justify-center h-full min-h-[220px] sm:min-h-[300px] border-2 border-dashed border-white/20 hover:border-white/40 rounded-xl bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl hover:bg-white/[0.08] cursor-pointer transition-all duration-300 py-6"
+          style={{
+            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+          }}
         >
-          <div className="w-16 h-16 rounded-full bg-zinc-800 group-hover:bg-blue-500/20 flex items-center justify-center mb-4 transition-all">
+          <div className="w-16 h-16 rounded-full bg-white/5 group-hover:bg-white/10 backdrop-blur-sm border border-white/10 group-hover:border-white/20 flex items-center justify-center mb-4 transition-all">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="32"

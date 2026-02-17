@@ -19,8 +19,8 @@ interface AssetAllocationChartProps {
 }
 
 const COLORS = {
-    asset: '#2563eb',
-    target: '#a855f7',
+    asset: '#60A5FA', // Softer blue for USDC
+    target: '#90E7EE', // Cyan for ETH/target assets
 };
 
 const formatCurrency = (value: number) =>
@@ -59,7 +59,12 @@ export const AssetAllocationChart: React.FC<AssetAllocationChartProps> = ({
 
     if (timeSeriesData.length === 0) {
         return (
-            <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur flex flex-col h-full">
+            <div 
+                className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/10 transition-all duration-300 p-6 flex flex-col h-full"
+                style={{
+                    boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                }}
+            >
                 <div className="min-h-[7rem] mb-4">
                     <h3 className="text-lg font-bold text-white mb-1">Asset Allocation</h3>
                     <p className="text-xs text-zinc-400">NO DATA AVAILABLE</p>
@@ -72,7 +77,12 @@ export const AssetAllocationChart: React.FC<AssetAllocationChartProps> = ({
     const latest = timeSeriesData[timeSeriesData.length - 1];
 
     return (
-        <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur flex flex-col h-full">
+        <div 
+            className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/10 transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20  p-6 flex flex-col h-full"
+            style={{
+                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+            }}
+        >
             <div className="min-h-[7rem] mb-4">
                 <h3 className="text-lg font-bold text-white mb-1">Asset Allocation</h3>
                 <p className="text-xs text-zinc-400 mb-2">COMPOSITION OF STRATEGY ASSETS OVER TIME</p>
@@ -106,10 +116,10 @@ export const AssetAllocationChart: React.FC<AssetAllocationChartProps> = ({
                                 <stop offset="95%" stopColor={COLORS.target} stopOpacity={0.1} />
                             </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" vertical={false} />
-                        <XAxis dataKey="date" stroke="#71717a" tick={{ fontSize: 12 }} tickLine={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.05)" vertical={false} />
+                        <XAxis dataKey="date" stroke="rgba(255, 255, 255, 0.3)" tick={{ fontSize: 12 }} tickLine={false} />
                         <YAxis
-                            stroke="#71717a"
+                            stroke="rgba(255, 255, 255, 0.3)"
                             tick={{ fontSize: 12 }}
                             tickLine={false}
                             tickFormatter={(val) => `$${val}`}
@@ -141,7 +151,7 @@ export const AssetAllocationChart: React.FC<AssetAllocationChartProps> = ({
                             stackId="1"
                             stroke={COLORS.asset}
                             fill="url(#colorAssetAlloc)"
-                            strokeWidth={2}
+                            strokeWidth={2.5}
                         />
                         <Area
                             type="monotone"
@@ -149,7 +159,7 @@ export const AssetAllocationChart: React.FC<AssetAllocationChartProps> = ({
                             stackId="1"
                             stroke={COLORS.target}
                             fill="url(#colorTargetAlloc)"
-                            strokeWidth={2}
+                            strokeWidth={2.5}
                         />
                     </AreaChart>
                 </ResponsiveContainer>

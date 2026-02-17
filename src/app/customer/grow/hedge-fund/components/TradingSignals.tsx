@@ -127,7 +127,12 @@ export const TradingSignals: React.FC<TradingSignalsProps> = ({
     };
 
     return (
-        <Card className="bg-zinc-800/50 backdrop-blur-sm border-zinc-700/50 mb-6">
+        <Card 
+            className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/10 transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20  mb-6"
+            style={{
+                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+            }}
+        >
             <CardHeader>
                 <CardTitle className="text-white text-xl">Trading Signals</CardTitle>
                 <CardDescription className="text-zinc-400 text-sm">

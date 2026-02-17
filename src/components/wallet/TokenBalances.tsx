@@ -649,9 +649,9 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
             {currentTokens.map((tokenDetail: TokenWithValue, index: number) => (
               <div
                 key={`${tokenDetail.token.id}-${index}`}
-                className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/10 transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20 hover:shadow-2xl"
+                className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/10 transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20 "
                 style={{
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
                 }}
               >
                 <div className="relative p-4 sm:p-5 lg:p-7 xl:p-8">

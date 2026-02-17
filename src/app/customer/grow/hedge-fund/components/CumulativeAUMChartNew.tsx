@@ -621,7 +621,9 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
   // ============================================================================
 
   return (
-    <div className="relative min-w-0 overflow-hidden">
+    <div 
+      className="relative rounded-2xl overflow-hidden bg-transparent border border-transparent py-6 min-w-0 w-full"
+    >
       {/* Header + filters — matches Available Strategies section styling */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
         <div className="flex-1 min-w-0">
@@ -749,7 +751,7 @@ export const CumulativeAUMChartNew: React.FC<CumulativeAUMChartNewProps> = ({
               dataKey="totalAUM"
               fill="url(#totalAUMGradient)"
               stroke="#90E7EE"
-              strokeWidth={2}
+              strokeWidth={2.5}
               strokeLinecap="round"
               strokeLinejoin="round"
             />
