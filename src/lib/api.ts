@@ -5,7 +5,7 @@ import { parseErrorMessage } from './parseError';
 
 // Main backend: login, auth, user, wallet. Always api.kryptonfund.com.
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
-const KRYPTON_WEB3_API_BASE_URL = process.env.NEXT_PUBLIC_KRYPTON_WEB3_API_URL || 'http://127.0.0.1:8000';
+const KRYPTON_WEB3_API_BASE_URL = process.env.NEXT_PUBLIC_KRYPTON_WEB3_API_URL || 'http://127.0.0.1:8001';
 
 const httpAgent = new http.Agent({
   keepAlive: true,

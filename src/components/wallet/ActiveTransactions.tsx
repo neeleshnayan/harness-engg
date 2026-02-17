@@ -361,7 +361,7 @@ function TransactionProgressTracker({ tx }: { tx: ActiveTransaction }) {
              <span className={`text-xs font-semibold ${currentStep >= 1 ? 'text-white' : 'text-zinc-500'}`}>Submitted</span>
           </div>
 
-          {/* Step 3: Confirmed */}
+          {/* Step 3: Confirmed or Failed */}
           <div className="flex flex-col items-center gap-3 w-1/3">
              <div className={`w-12 h-12 rounded-full flex items-center justify-center border-[3px] transition-all duration-300 ${
                  currentStep >= 2
@@ -370,7 +370,9 @@ function TransactionProgressTracker({ tx }: { tx: ActiveTransaction }) {
              }`}>
                 {currentStep >= 2 ? (isError ? <X className="w-6 h-6 stroke-[3]" /> : <Check className="w-6 h-6 stroke-[3]" />) : currentStep === 1 && !isError ? <Loader2 className="w-5 h-5 animate-spin text-emerald-500" /> : <div className="w-2 h-2 rounded-full bg-zinc-600" />}
              </div>
-             <span className={`text-xs font-semibold ${currentStep >= 2 ? (isError ? 'text-red-500' : 'text-white') : 'text-zinc-500'}`}>Confirmed</span>
+             <span className={`text-xs font-semibold ${currentStep >= 2 ? (isError ? 'text-red-500' : 'text-white') : 'text-zinc-500'}`}>
+               {currentStep >= 2 && isError ? getFinalStepLabel(tx.status) : 'Confirmed'}
+             </span>
           </div>
        </div>
     </div>
@@ -430,7 +432,7 @@ function TransactionCard({ tx }: { tx: ActiveTransaction }) {
           </div>
           {/* Refresh/Status Icon - Top Right */}
           <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-zinc-400">
-             {tx.status === 'confirmed' ? <Check className="w-5 h-5 text-emerald-500" /> : <RefreshCw className="w-4 h-4 animate-spin" />}
+             {isError ? <X className="w-5 h-5 text-red-500" /> : tx.status === 'confirmed' || isSuccessState(tx.status) ? <Check className="w-5 h-5 text-emerald-500" /> : <RefreshCw className="w-4 h-4 animate-spin" />}
           </div>
        </div>
 

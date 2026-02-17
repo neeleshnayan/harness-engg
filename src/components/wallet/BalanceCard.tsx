@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useImperativeHandle, forwardRef, us
 import dynamic from "next/dynamic";
 import TransactionHistory, { TransactionHistoryRef } from "@/components/wallet/TransactionHistory";
 import ActiveTransactions from "@/components/wallet/ActiveTransactions";
-import KTTokenBalances from "@/components/wallet/KTTokenBalances";
+import SupportedAssetsBalances from "@/components/wallet/SupportedAssetsBalances";
 import { FaShieldAlt } from "react-icons/fa";
 import { useRates, CURRENCY_SYMBOLS, PriceDirection } from "@/providers/RatesProvider";
 import { Triangle, ChevronDown, Wallet } from "lucide-react";
@@ -559,7 +559,7 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
         {/* K-Token Balances - Show at the bottom if KYC is approved */}
         {showBalanceSection && isKycApproved && balance && (
           <div className="text-left">
-            <KTTokenBalances balance={balance} />
+            <SupportedAssetsBalances balance={balance} />
         </div>
         )}
 

@@ -221,21 +221,23 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
   }, [visible]); // Only depend on visible, not balance - prevents reset during transactions
 
   const fromTokenSymbol = useMemo(() => {
-    if (!selectedCurrency) {
-      return "";
-    }
-    return selectedCurrency === "USDC" ? "USDC" : `k${selectedCurrency}`;
-  }, [selectedCurrency]);
+    if (!selectedCurrency) return "";
+    if (selectedCurrency === "USDC") return "USDC";
+    // If a k-prefixed version exists in rates, it's a k-token (e.g., "EUR" -> "kEUR")
+    if (ratesTokens[`k${selectedCurrency}`]) return `k${selectedCurrency}`;
+    // Otherwise it's an RWA token, use as-is (e.g., "GC", "XAG")
+    return selectedCurrency;
+  }, [selectedCurrency, ratesTokens]);
 
   const toTokenSymbol = useMemo(() => {
-    if (!toCurrency) {
-      return "";
-    }
-    return toCurrency === "USDC" ? "USDC" : `k${toCurrency}`;
-  }, [toCurrency]);
+    if (!toCurrency) return "";
+    if (toCurrency === "USDC") return "USDC";
+    if (ratesTokens[`k${toCurrency}`]) return `k${toCurrency}`;
+    return toCurrency;
+  }, [toCurrency, ratesTokens]);
 
   const fetchUserBalances = async (): Promise<Record<string, number>> => {
-    // Extract k-token balances from the balance prop (similar to KTTokenBalances)
+    // Extract token balances from the balance prop (similar to SupportedAssetsBalances)
     const balances: Record<string, number> = {};
 
     if (!balance || !balance.tokenBalances || !Array.isArray(balance.tokenBalances)) {
@@ -244,7 +246,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
 
     for (const tb of balance.tokenBalances) {
       const tokenAddress = tb?.token?.tokenAddress?.toLowerCase();
-      const kSymbol = tokenAddress ? tokenAddressMap[tokenAddress] : undefined;
+      const resolvedSymbol = tokenAddress ? tokenAddressMap[tokenAddress] : undefined;
       const tokenSymbol = tb?.token?.symbol;
 
       const rawAmount = parseFloat(tb?.amount ?? "0");
@@ -252,13 +254,9 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
         continue;
       }
 
-      if (kSymbol) {
-        balances[kSymbol] = (balances[kSymbol] || 0) + rawAmount;
-        continue;
-      }
-
-      if (tokenSymbol === "USDC") {
-        balances["USDC"] = (balances["USDC"] || 0) + rawAmount;
+      const symbol = resolvedSymbol || tokenSymbol;
+      if (symbol) {
+        balances[symbol] = (balances[symbol] || 0) + rawAmount;
       }
     }
 
@@ -522,15 +520,11 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
     return fromBalanceValue >= amountNum;
   }, [fromAmount, fromTokenSymbol, fromBalanceValue]);
 
-  // Check if currency combination is valid (both USDC or both non-USDC)
+  // Check if currency combination is valid
   const isValidCurrencyCombination = useMemo(() => {
     if (!fromTokenSymbol || !toTokenSymbol) return false;
-
-    const fromIsUSDC = fromTokenSymbol === "USDC";
-    const toIsUSDC = toTokenSymbol === "USDC";
-
-    // Valid if both are USDC or both are non-USDC
-    return (fromIsUSDC && toIsUSDC) || (!fromIsUSDC && !toIsUSDC);
+    // All token combinations are now valid via universal swap
+    return true;
   }, [fromTokenSymbol, toTokenSymbol]);
 
   // Handle swap currencies
@@ -554,33 +548,40 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
   };
 
   /**
-   * Perform swap using Krypton_Web3 /pools/swap endpoint (Circle-based)
+   * Perform swap using Krypton_Web3 endpoints (Circle-based).
+   * Routes to /pools/swap for k-token pairs, /pools/universal/swap for cross-ecosystem.
    */
   const performSwap = async (fromSymbol: string, toSymbol: string, requiredToAmount: number): Promise<string | null> => {
-    setLoadingMessage(`Checking swap price from ${fromSymbol.replace(/^k/, "")} to ${toSymbol.replace(/^k/, "")}...`);
+    const fromDisplay = fromSymbol.replace(/^k/, "");
+    const toDisplay = toSymbol.replace(/^k/, "");
+
+    setLoadingMessage(`Checking swap price from ${fromDisplay} to ${toDisplay}...`);
     const balances = await fetchUserBalances();
 
     // Get rate: rate(to -> from) to calculate input needed for exact output
     const price = await getPoolRate(toSymbol, fromSymbol);
 
     if (price <= 0) {
-      throw new Error(`Cannot get price for swap ${fromSymbol.replace(/^k/, "")} → ${toSymbol.replace(/^k/, "")}`);
+      throw new Error(`Cannot get price for swap ${fromDisplay} → ${toDisplay}`);
     }
 
     // Calculate how much fromCurrency we need to swap to get requiredToAmount of toCurrency
     const safety = 1.02; // +2% buffer for slippage/fees
-    // requiredFrom = requiredTo * Rate(to->from)
     const requiredFromAmount = (requiredToAmount * price) * safety;
 
     const fromBalance = balances[fromSymbol] || 0;
     if (fromBalance < requiredFromAmount) {
-      throw new Error(`Insufficient ${fromSymbol.replace(/^k/, "")} balance. Need ${requiredFromAmount.toFixed(4)}, have ${fromBalance.toFixed(4)}`);
+      throw new Error(`Insufficient ${fromDisplay} balance. Need ${requiredFromAmount.toFixed(4)}, have ${fromBalance.toFixed(4)}`);
     }
 
-    setLoadingMessage(`Swapping ${requiredFromAmount.toFixed(4)} ${fromSymbol.replace(/^k/, "")} → ${toSymbol.replace(/^k/, "")}...`);
+    setLoadingMessage(`Swapping ${requiredFromAmount.toFixed(4)} ${fromDisplay} → ${toDisplay}...`);
 
-    // Use Krypton_Web3 endpoint with wallet_address (Circle-based transaction)
-    const response = await kryptonWeb3Api.post(`/pools/swap`, {
+    // Determine if this is a cross-ecosystem swap
+    const isKToken = (t: string) => t.startsWith('k');
+    const needsUniversal = !isKToken(fromSymbol) || !isKToken(toSymbol);
+    const endpoint = needsUniversal ? "/pools/universal/swap" : "/pools/swap";
+
+    const response = await kryptonWeb3Api.post(endpoint, {
       from_token: fromSymbol,
       to_token: toSymbol,
       amount: requiredFromAmount,
@@ -588,7 +589,6 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
       wallet_username: username,
     });
 
-    // Return transaction ID for tracking
     return response?.data?.transaction_id || null;
   };
 
@@ -645,58 +645,58 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
       setLoadingMessage("Checking your balance...");
       const balances = await fetchUserBalances();
 
-      // Determine which currency to send (the "to" currency)
       const sendCurrency = toTokenSymbol;
       const sendCurrencyDisplay = sendCurrency === "USDC" ? "USDC" : sendCurrency.replace(/^k/, "");
+      const fromCurrency = fromTokenSymbol;
+      if (!fromCurrency) {
+        throw new Error("Please select a from currency.");
+      }
 
-      if (sendCurrency === "USDC") {
-        // Use the USDC send endpoint (same as SendUSDCModal)
-        if (!userId) {
-          throw new Error("User ID is required to send USDC.");
+      // Use universal swapIfNeededAndPay when swap is required. This ensures the transfer
+      // is queued behind the swap on the backend (via circle_client) and only executes
+      // after the swap is submitted/confirmed - fixing the race where transfer went before swap.
+      if (fromCurrency !== sendCurrency) {
+        if (!username) {
+          throw new Error("Username is required for swap and send.");
         }
-
-        const usdcBalance = balances["USDC"] || 0;
-        if (usdcBalance < toAmountNum) {
-          throw new Error(`Insufficient USDC balance. You have ${usdcBalance.toFixed(2)} USDC, but need ${toAmountNum.toFixed(2)}.`);
-        }
-
-        setLoadingMessage(`Sending ${toAmountNum.toFixed(2)} USDC...`);
-        await api.post("/api/v1/send_usdc", {
-          sender_user_id: userId,
+        setLoadingMessage(`Swapping and sending ${toAmountNum.toFixed(2)} ${sendCurrencyDisplay} to @${receiverUsername}...`);
+        await kryptonWeb3Api.post("/pools/universal/swapIfNeededAndPay", {
+          from_token: fromCurrency,
+          to_token: sendCurrency,
+          received_amount: toAmountNum,
+          sender_username: username,
           receiver_username: receiverUsername.trim(),
-          amount: toAmountNum
+          slippage_tolerance: 0.05,
         });
+        await new Promise(resolve => setTimeout(resolve, 1000));
       } else {
-        // For k-tokens, resolve address and use swap/transfer flow
-        setLoadingMessage("Resolving receiver address...");
-        const toAddress = await resolveReceiverAddress(receiverUsername.trim());
-
-        const fromCurrency = fromTokenSymbol;
-        if (!fromCurrency) {
-          throw new Error("Please select a from currency.");
+        // Direct send (no swap): ensure sufficient balance of send currency
+        const fromBalance = balances[fromCurrency] || 0;
+        const fromAmountNum = parseFloat(fromAmount);
+        if (fromBalance < fromAmountNum) {
+          const fromDisplay = fromCurrency.replace(/^k/, "");
+          throw new Error(`Insufficient balance. You have ${fromBalance.toFixed(4)} ${fromDisplay}, but need ${fromAmountNum.toFixed(4)}.`);
         }
 
-        if (fromCurrency !== sendCurrency) {
-          await performSwap(fromCurrency, sendCurrency, toAmountNum);
-
-          // Small delay to allow backend to propagate swap status and UI to update
-          // This improves UX (user sees "Swapping...") and helps avoid race conditions
+        // Send the target currency to the receiver (no preceding swap)
+        if (sendCurrency === "USDC") {
+          if (!userId) {
+            throw new Error("User ID is required to send USDC.");
+          }
+          setLoadingMessage(`Sending ${toAmountNum.toFixed(2)} USDC...`);
+          await kryptonWeb3Api.post("/erc20/send-usdc", {
+            sender_user_id: userId,
+            receiver_username: receiverUsername.trim(),
+            amount: toAmountNum
+          });
           await new Promise(resolve => setTimeout(resolve, 1000));
         } else {
-          const fromBalance = balances[fromCurrency] || 0;
-          const fromAmountNum = parseFloat(fromAmount);
-          if (fromBalance < fromAmountNum) {
-            const fromDisplay = fromCurrency.replace(/^k/, "");
-            throw new Error(`Insufficient balance. You have ${fromBalance.toFixed(4)} ${fromDisplay}, but need ${fromAmountNum.toFixed(4)}.`);
-          }
+          setLoadingMessage("Resolving receiver address...");
+          const toAddress = await resolveReceiverAddress(receiverUsername.trim());
+          setLoadingMessage(`Transferring ${toAmountNum.toFixed(2)} ${sendCurrencyDisplay} to @${receiverUsername}...`);
+          await transferTokens(sendCurrency, toAddress, toAmountNum);
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
-
-        setLoadingMessage(`Transferring ${toAmountNum.toFixed(2)} ${sendCurrencyDisplay} to @${receiverUsername}...`);
-        await transferTokens(sendCurrency, toAddress, toAmountNum);
-
-        // Small delay to allow backend to propagate swap status and UI to update
-        // This improves UX (user sees "Transferring...") and helps avoid race conditions
-        await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
       // Show success with countdown (non-blocking)

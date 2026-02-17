@@ -32,6 +32,15 @@ export async function fetchRatesSummary(): Promise<RatesSummaryResponse> {
 }
 
 /**
+ * Classify a token as k-token, USDC, or RWA.
+ */
+function tokenEcosystem(token: string): 'k' | 'usdc' | 'rwa' {
+  if (token === 'USDC') return 'usdc';
+  if (token.startsWith('k')) return 'k';
+  return 'rwa';
+}
+
+/**
  * Get pool rate between two tokens.
  * Used by SwapModal and SendERC20Modal for rate calculations.
  *
@@ -39,8 +48,10 @@ export async function fetchRatesSummary(): Promise<RatesSummaryResponse> {
  * For cross-rates (like kEUR/kGBP), we calculate using:
  *   kEUR/kGBP = (kEUR/kUSD) / (kGBP/kUSD)
  *
- * @param fromToken - Source token (e.g., 'kUSD', 'kEUR')
- * @param toToken - Target token (e.g., 'kEUR', 'kGBP')
+ * For cross-ecosystem pairs (k-token <-> RWA), uses the universal estimate endpoint.
+ *
+ * @param fromToken - Source token (e.g., 'kUSD', 'kEUR', 'XAG', 'USDC')
+ * @param toToken - Target token (e.g., 'kEUR', 'kGBP', 'NVDA', 'USDC')
  * @returns Rate (how much toToken per 1 fromToken) or 0 if not found
  */
 export async function getPoolRate(fromToken: string, toToken: string): Promise<number> {
@@ -48,53 +59,88 @@ export async function getPoolRate(fromToken: string, toToken: string): Promise<n
     return 1;
   }
 
-  // Determine base token (kUSD for k-tokens, USDC for RWA tokens)
-  const isKToken = (token: string) => token.startsWith('k') || token === 'USDC';
-  const baseToken = isKToken(fromToken) && isKToken(toToken) ? 'kUSD' : 'USDC';
+  const fromEco = tokenEcosystem(fromToken);
+  const toEco = tokenEcosystem(toToken);
+
+  // Same ecosystem: k-token <-> k-token (including kUSD, USDC treated as k-ecosystem)
+  const isSameEcosystem =
+    (fromEco === 'k' || fromEco === 'usdc') && (toEco === 'k' || toEco === 'usdc');
+
+  if (isSameEcosystem) {
+    return getPoolRateSubgraph(fromToken, toToken);
+  }
+
+  // RWA <-> RWA: try subgraph first (USDC-base pairs), fallback to universal estimate if no rate
+  if (fromEco === 'rwa' && toEco === 'rwa') {
+    const subgraphRate = await getPoolRateSubgraph(fromToken, toToken);
+    if (subgraphRate > 0) return subgraphRate;
+    return getPoolRateUniversal(fromToken, toToken);
+  }
+
+  // Cross-ecosystem or involving RWA+USDC: use universal estimate
+  return getPoolRateUniversal(fromToken, toToken);
+}
+
+/**
+ * Get rate via subgraph pool-price (Balancer pools for k-tokens, works for same-ecosystem).
+ */
+async function getPoolRateSubgraph(fromToken: string, toToken: string): Promise<number> {
+  const isKEco = (token: string) => token.startsWith('k') || token === 'USDC';
+  const baseToken = isKEco(fromToken) && isKEco(toToken) ? 'kUSD' : 'USDC';
 
   try {
-    // We want: how much toToken do we get for 1 fromToken?
-    // Subgraph stores kEUR/kUSD = 0.849 (meaning 1 kUSD = 0.849 kEUR, or how much kEUR per kUSD)
-    // So to get "how much kUSD per 1 kEUR" we need to ask for kUSD/kEUR which returns 1.18
-
     // Case 1: One of the tokens IS the base token - direct rate
     if (fromToken === baseToken) {
-      // fromToken is kUSD, toToken is kEUR
-      // We want: how much kEUR per 1 kUSD = ask for kEUR/kUSD (how much kEUR per kUSD)
       const tokenPair = `${toToken}/${baseToken}`;
       const result = await subgraphApi.getPoolPrice(tokenPair);
       return result.price > 0 ? result.price : 0;
     }
 
     if (toToken === baseToken) {
-      // fromToken is kEUR, toToken is kUSD
-      // We want: how much kUSD per 1 kEUR = ask for kUSD/kEUR
       const tokenPair = `${baseToken}/${fromToken}`;
       const result = await subgraphApi.getPoolPrice(tokenPair);
       return result.price;
     }
 
     // Case 2: Neither token is base - calculate cross-rate
-    // For kEUR -> kGBP:
-    //   Ask kUSD/kEUR = 1.18 (how much kUSD per 1 kEUR)
-    //   Ask kUSD/kGBP = 1.27 (how much kUSD per 1 kGBP)
-    //   kEUR/kGBP = (kUSD/kEUR) / (kUSD/kGBP) = 1.18 / 1.27 = 0.93 kGBP per kEUR
     const [fromResult, toResult] = await Promise.all([
       subgraphApi.getPoolPrice(`${baseToken}/${fromToken}`),
       subgraphApi.getPoolPrice(`${baseToken}/${toToken}`),
     ]);
 
-    const fromRate = fromResult.price; // kUSD per 1 fromToken
-    const toRate = toResult.price;     // kUSD per 1 toToken
+    const fromRate = fromResult.price;
+    const toRate = toResult.price;
 
     if (fromRate > 0 && toRate > 0) {
-      // Cross-rate: kEUR -> kGBP = (kUSD/kEUR) / (kUSD/kGBP) = how much kGBP per 1 kEUR
       return fromRate / toRate;
     }
 
     return 0;
   } catch (error) {
     console.error(`Failed to get pool rate for ${fromToken}/${toToken}:`, error);
+    return 0;
+  }
+}
+
+/**
+ * Get rate via universal estimate endpoint (for cross-ecosystem pairs).
+ * Sends amount=1 to get the per-unit rate.
+ */
+async function getPoolRateUniversal(fromToken: string, toToken: string): Promise<number> {
+  try {
+    const response = await kryptonWeb3Api.post('/pools/universal/estimate', {
+      from_token: fromToken,
+      to_token: toToken,
+      amount: 1.0,
+      slippage_tolerance: 0.05,
+    });
+    const estimated = response.data?.estimated_output;
+    if (estimated && estimated > 0) {
+      return estimated;
+    }
+    return 0;
+  } catch (error) {
+    console.error(`Failed to get universal rate for ${fromToken}/${toToken}:`, error);
     return 0;
   }
 }

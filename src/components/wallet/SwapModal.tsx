@@ -37,7 +37,7 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
   // Get token data from context 🚀
   const { tokens, getTokenAddressToSymbol } = useRates();
   const tokenAddressMap = useMemo(() => getTokenAddressToSymbol(), [getTokenAddressToSymbol]);
-  const kTokenSymbolList = useMemo(() => Object.keys(tokens).filter(s => s.startsWith('k')), [tokens]);
+  const allTokenSymbols = useMemo(() => Object.keys(tokens), [tokens]);
 
   // Cleanup countdown on unmount
   useEffect(() => {
@@ -85,12 +85,14 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
 
       const tokenAddress = tb?.token?.tokenAddress?.toLowerCase();
       const tokenSymbol = tb?.token?.symbol;
-      const kSymbol = tokenAddress ? tokenAddressMap[tokenAddress] : undefined;
+      const resolvedSymbol = tokenAddress ? tokenAddressMap[tokenAddress] : undefined;
 
-      if (kSymbol) {
-        result[kSymbol] = (result[kSymbol] || 0) + rawAmount;
+      if (resolvedSymbol) {
+        result[resolvedSymbol] = (result[resolvedSymbol] || 0) + rawAmount;
       } else if (tokenSymbol === "USDC") {
         result["USDC"] = (result["USDC"] || 0) + rawAmount;
+      } else if (tokenSymbol) {
+        result[tokenSymbol] = (result[tokenSymbol] || 0) + rawAmount;
       }
     }
 
@@ -98,10 +100,23 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
   }, [balance, tokenAddressMap]);
 
   const supportedTokens = useMemo(() => {
-    const tokenSet = new Set<string>(["kUSD"]);
-    kTokenSymbolList.forEach((token) => tokenSet.add(token));
-    return Array.from(tokenSet);
-  }, [kTokenSymbolList]);
+    const kTokens: string[] = [];
+    const rwaTokens: string[] = [];
+    for (const symbol of allTokenSymbols) {
+      if (symbol.startsWith('k')) {
+        kTokens.push(symbol);
+      } else {
+        rwaTokens.push(symbol);
+      }
+    }
+    if (!kTokens.includes('kUSD')) kTokens.unshift('kUSD');
+    return [...kTokens, 'USDC', ...rwaTokens];
+  }, [allTokenSymbols]);
+
+  // From dropdown: only tokens the user has balance for (like SendERC20Modal)
+  const fromTokens = useMemo(() => {
+    return supportedTokens.filter((symbol) => (balances[symbol] || 0) > 0);
+  }, [supportedTokens, balances]);
 
   useEffect(() => {
     if (!visible) {
@@ -121,6 +136,20 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
       return;
     }
   }, [visible]);
+
+  // When modal opens or balances change, ensure from/to are valid (from must have balance)
+  useEffect(() => {
+    if (!visible || fromTokens.length === 0) return;
+    const fromValid = fromTokens.includes(fromCurrency);
+    if (!fromValid) {
+      setFromCurrency(fromTokens[0]);
+      const other = supportedTokens.find((t) => t !== fromTokens[0]);
+      if (other) setToCurrency(other);
+    } else if (toCurrency === fromCurrency) {
+      const alt = supportedTokens.find((t) => t !== fromCurrency);
+      if (alt) setToCurrency(alt);
+    }
+  }, [visible, fromTokens, supportedTokens, fromCurrency, toCurrency]);
 
   // Calculate To amount when From amount changes
   useEffect(() => {
@@ -347,8 +376,12 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
     try {
       setLoading(true);
 
-      // Use Krypton_Web3 endpoint (Circle-based transaction)
-      const swapResponse = await kryptonWeb3Api.post("/pools/swap", {
+      // Determine if this is a cross-ecosystem swap
+      const isKToken = (t: string) => t.startsWith('k');
+      const needsUniversal = !isKToken(fromCurrency) || !isKToken(toCurrency);
+
+      const endpoint = needsUniversal ? "/pools/universal/swap" : "/pools/swap";
+      const swapResponse = await kryptonWeb3Api.post(endpoint, {
         from_token: fromCurrency,
         to_token: toCurrency,
         amount: amountValue,
@@ -357,9 +390,10 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
       });
 
       const estimatedOutput = swapResponse.data?.estimated_output || toAmount;
+      const fromDisplay = fromCurrency.replace(/^k/, "");
+      const toDisplay = toCurrency.replace(/^k/, "");
 
-      // Show success with countdown (non-blocking)
-      setSuccess(`Swap submitted: ${amountValue.toFixed(2)} ${fromCurrency.replace(/^k/, "")} → ${parseFloat(estimatedOutput).toFixed(2)} ${toCurrency.replace(/^k/, "")}`);
+      setSuccess(`Swap submitted: ${amountValue.toFixed(2)} ${fromDisplay} → ${parseFloat(estimatedOutput).toFixed(2)} ${toDisplay}`);
       setFromAmount("");
       setToAmount("");
       startCloseCountdown();
@@ -487,7 +521,7 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
                                }}
                                disabled={loading}
                            >
-                               {supportedTokens.map((token) => (
+                               {fromTokens.map((token) => (
                                  <option key={token} value={token}>{token.replace(/^k/, "")}</option>
                                ))}
                            </select>

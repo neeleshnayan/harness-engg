@@ -10,17 +10,20 @@ interface TokenBalance {
   balance: string;
 }
 
-interface KTTokenBalancesProps {
+interface SupportedAssetsBalancesProps {
   balance: any;
   className?: string;
 }
 
 /**
- * Displays token balances with color-coded price indicators 🎨
+ * Displays all supported token balances with color-coded price indicators.
+ *
+ * Covers k-tokens (kUSD, kEUR, kGBP, kAED, kINR),
+ * RWA tokens (GC, XAG, NVDA, ETH), and USDC.
  *
  * Uses RatesContext for all rate data - no direct API calls here!
  */
-const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = "" }) => {
+const SupportedAssetsBalances: React.FC<SupportedAssetsBalancesProps> = ({ balance, className = "" }) => {
   const { tokens, getTokenAddressToSymbol, getTokenDirection, isLoading } = useRates();
 
   // Get address -> symbol map
@@ -122,7 +125,7 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
     return symbol;
   };
 
-  // Get background color based on price direction 🎨
+  // Get background color based on price direction
   const getBgColor = (symbol: string) => {
     if (symbol === "USDC" || symbol === "kUSD") {
       return "bg-zinc-800/60 border-zinc-700/50";
@@ -164,7 +167,7 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
         <div className="flex items-center gap-3 mb-4">
            <div className="flex items-center text-zinc-400 text-sm font-medium whitespace-nowrap">
              <img src="/coin-stack.svg" alt="" className="mr-2 w-4 h-4 opacity-80" />
-             All Currencies
+             All Assets
            </div>
            <div className="h-[1.5px] bg-zinc-600/80 flex-1 rounded-full"></div>
         </div>
@@ -204,4 +207,4 @@ const KTTokenBalances: React.FC<KTTokenBalancesProps> = ({ balance, className = 
   );
 };
 
-export default KTTokenBalances;
+export default SupportedAssetsBalances;

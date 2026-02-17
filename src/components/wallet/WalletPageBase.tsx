@@ -9,7 +9,7 @@ import { getFirebaseApp } from "@/lib/firebaseClient";
 import UsernameCard from "@/components/wallet/UsernameCard";
 import BalanceCard, { BalanceCardRef } from "@/components/wallet/BalanceCard";
 import HamburgerMenu from "@/components/wallet/HamburgerMenu";
-import api from "@/lib/api";
+import api, { kryptonWeb3Api } from "@/lib/api";
 import { parseErrorMessage } from "@/lib/parseError";
 import WalletHeader from "@/components/wallet/WalletHeader";
 import axios from "axios";
@@ -176,6 +176,17 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   // WebSocket message handler - stabilized with useCallback and refs
   const handleWebSocketMessage = useCallback((message: any) => {
     console.log('📨 WebSocket message received:', message);
+
+    // Handle transaction_failed - trigger immediate ActiveTransactions refresh
+    if (message.type === 'transaction_failed') {
+      console.log('❌ Transaction failed event:', message.transaction_id, message.state);
+      setTransactionHistoryRefresh(prev => !prev);  // Trigger ActiveTransactions poll
+      if (config.showWebhookNotification) {
+        setWebhookNotification(`Transaction failed: ${message.state || 'Error'}`);
+        setTimeout(() => setWebhookNotification(null), 5000);
+      }
+      return;
+    }
 
     // Handle new Krypton_Web3 event format (from webhook.py)
     if (message.type === 'transaction_confirmed' || message.type === 'transaction_update') {
@@ -646,7 +657,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     setSendSuccess(null);
 
     try {
-      const response = await api.post("/api/v1/send_usdc", {
+      const response = await kryptonWeb3Api.post("/erc20/send-usdc", {
         sender_user_id: accountData.user_id,
         receiver_username: receiverUsername.trim(),
         amount: amount
