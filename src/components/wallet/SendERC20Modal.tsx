@@ -688,7 +688,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
         });
         await new Promise(resolve => setTimeout(resolve, 1000));
       } else {
-        // Direct send (no swap): ensure sufficient balance of send currency
+        // Direct send (no swap): ensure sufficient balance of krypton pay
         const fromBalance = balances[fromCurrency] || 0;
         const fromAmountNum = parseFloat(fromAmount);
         if (fromBalance < fromAmountNum) {
@@ -757,7 +757,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
         onClick={(e) => !success && e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-8">
-           <h2 className="text-2xl font-bold text-white tracking-tight">Send Currency</h2>
+           <h2 className="text-2xl font-bold text-white tracking-tight">Krypton Pay</h2>
            <button
              onClick={() => onClose(false)}
              className="text-teal-200/60 hover:text-white transition-colors"
