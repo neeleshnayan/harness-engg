@@ -1,5 +1,6 @@
 import React from "react";
 import { FaTimes, FaSignOutAlt, FaCopy } from "react-icons/fa";
+import { ArrowUpRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface HamburgerMenuProps {
@@ -55,60 +56,74 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
     onOpenQuestionnaire?.();
   };
 
+  const neutralGlass =
+    "rounded-2xl bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl transition-all duration-200";
+  const iconPill =
+    "inline-flex items-center justify-center w-10 h-10 rounded-xl text-teal-400/90 flex-shrink-0";
+  const iconPillStyle = {
+    background: "rgba(45, 212, 191, 0.08)",
+    boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+  };
+
   return (
     <div
-      className="fixed inset-0 z-50 backdrop-blur-md"
-      style={{ background: 'rgba(0, 10, 10, 0.65)' }}
+      className="fixed inset-0 z-50 backdrop-blur-xl"
+      style={{ background: "rgba(0, 0, 0, 0.5)" }}
       onClick={handleBackdropClick}
     >
       <div className="flex flex-col items-center justify-center min-h-screen p-6">
         <div
-          className="w-full max-w-md rounded-3xl p-8"
-          style={{
-            background: 'linear-gradient(135deg, rgba(0, 28, 27, 0.50) 0%, rgba(0, 40, 38, 0.40) 50%, rgba(0, 20, 20, 0.55) 100%)',
-            backdropFilter: 'blur(32px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(32px) saturate(180%)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            boxShadow: '0 0 0 1px rgba(45, 212, 191, 0.08), 0 32px 64px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
-          }}
+          className="w-full max-w-md rounded-[28px] p-8 bg-[#001C1B]/70 backdrop-blur-xl"
+          style={{ boxShadow: "0 24px 48px -12px rgba(0, 0, 0, 0.5)" }}
           onClick={handleModalClick}
         >
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-white mb-2">Menu</h2>
-            <div className="w-16 h-1 bg-gradient-to-r from-cyan-400 to-green-400 mx-auto rounded-full"></div>
+          {/* Header - Apple-style minimal title */}
+          <div className="text-center mb-10">
+            <h2 className="text-xl font-semibold tracking-tight" style={{ color: "#90E7EE" }}>
+              Menu
+            </h2>
           </div>
 
-          {/* Wallet Address Section */}
-          <div className="mb-8">
-            <h3 className="text-sm font-medium text-zinc-400 mb-4 text-center">Wallet Address</h3>
-            <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-              <div className="flex items-center justify-between">
-                <p className="font-mono text-sm text-zinc-200 break-all flex-1 mr-3">
+          {/* Wallet Address - matches token portfolio glass */}
+          <div className="mb-6">
+            <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3 text-center">
+              Wallet Address
+            </p>
+            <div className={`rounded-2xl p-5 ${neutralGlass}`}>
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-mono text-sm text-white/90 break-all flex-1 min-w-0">
                   {accountData?.wallet_address}
                 </p>
                 <button
                   onClick={handleCopyClick}
-                  className="text-teal-400 hover:text-teal-300 transition-colors p-2 rounded-xl flex-shrink-0"
-                  style={{ background: 'rgba(45, 212, 191, 0.08)' }}
+                  className={`${iconPill} hover:bg-teal-500/15 active:scale-[0.97] transition-transform`}
+                  style={iconPillStyle}
                 >
-                  <FaCopy />
+                  <FaCopy className="h-4 w-4" />
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Navigation Section */}
-          <div className="mb-8 space-y-3">
+          {/* Navigation - unified glass list */}
+          <div className="space-y-3 mb-6">
             {onOpenQuestionnaire && (
               <button
                 onClick={handleOpenQuestionnaire}
-                className="flex items-center justify-center w-full text-teal-300 hover:text-teal-200 px-6 py-4 rounded-2xl transition-all duration-200 font-medium"
-                style={{ background: 'rgba(45, 212, 191, 0.06)', border: '1px solid rgba(45, 212, 191, 0.15)' }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(45, 212, 191, 0.12)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(45, 212, 191, 0.06)')}
+                className={`flex items-center justify-center w-full text-white/90 hover:text-white px-6 py-4 rounded-2xl font-medium text-[15px] ${neutralGlass} active:scale-[0.99]`}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-3 flex-shrink-0">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="mr-3 flex-shrink-0 opacity-80"
+                >
                   <line x1="4" y1="6" x2="20" y2="6" />
                   <line x1="4" y1="12" x2="20" y2="12" />
                   <line x1="4" y1="18" x2="20" y2="18" />
@@ -118,40 +133,48 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
             )}
             <button
               onClick={handleNavigateToClark}
-              className="flex items-center justify-center w-full text-teal-300 hover:text-teal-200 px-6 py-4 rounded-2xl transition-all duration-200 font-medium"
-              style={{ background: 'rgba(45, 212, 191, 0.06)', border: '1px solid rgba(45, 212, 191, 0.15)' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(45, 212, 191, 0.12)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(45, 212, 191, 0.06)')}
+              className={`flex items-center justify-between w-full text-white/90 hover:text-white px-6 py-4 rounded-2xl font-medium text-[15px] ${neutralGlass} active:scale-[0.99]`}
             >
-              <img src="/clark.svg" alt="Clark" className="h-6 w-6 mr-3" />
-              Open Clark AI
+              <div className="flex items-center flex-1 justify-center min-w-0 mr-3">
+                <img
+                  src="/Krypton Clark.svg"
+                  alt="Clark"
+                  className="h-12 w-12 mr-3 flex-shrink-0"
+                />
+                <span>Clark AI</span>
+              </div>
+              <span className={iconPill} style={iconPillStyle}>
+                <ArrowUpRight className="h-5 w-5" />
+              </span>
             </button>
           </div>
 
-          {/* Sign Out Section */}
+          {/* Sign Out */}
           <div className="mb-8">
             <button
               onClick={handleSignOutClick}
-              className="flex items-center justify-center w-full text-red-400 hover:text-red-300 px-6 py-4 rounded-2xl transition-all duration-200 font-medium"
-              style={{ background: 'rgba(239, 68, 68, 0.06)', border: '1px solid rgba(239, 68, 68, 0.15)' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.06)')}
+              className="flex items-center justify-center w-full px-6 py-4 rounded-2xl font-medium text-[15px] border border-[#604038] text-[#ED7771] hover:text-[#F08A84] hover:border-[#6B4A42] active:scale-[0.99] transition-all duration-200"
+              style={{ background: "rgba(239, 68, 68, 0.06)" }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "rgba(239, 68, 68, 0.12)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "rgba(239, 68, 68, 0.06)")
+              }
             >
-              <FaSignOutAlt className="mr-3" />
+              <FaSignOutAlt className="mr-3 h-[18px] w-[18px]" />
               Sign Out
             </button>
           </div>
 
-          {/* Close Button */}
-          <div className="text-center">
+          {/* Close - minimal Apple-style control */}
+          <div className="flex justify-center">
             <button
               onClick={onClose}
-              className="text-zinc-400 hover:text-white transition-colors p-3 rounded-2xl"
-              style={{ background: 'rgba(255,255,255,0.05)' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.10)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+              className="flex items-center justify-center h-10 w-10 rounded-full text-zinc-500 hover:text-white/90 transition-all duration-200 hover:bg-white/[0.06] active:scale-95"
+              aria-label="Close menu"
             >
-              <FaTimes className="text-xl" />
+              <FaTimes className="text-lg" />
             </button>
           </div>
         </div>
