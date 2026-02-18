@@ -332,12 +332,19 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogPortal>
-        <DialogOverlay className="bg-black/80 backdrop-blur-sm" />
+        <DialogOverlay className="bg-black/70 backdrop-blur-md" />
         <DialogPrimitive.Content
-          className="fixed left-[50%] top-[50%] z-50 w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 shadow-2xl p-0 overflow-hidden rounded-3xl max-h-[90vh] focus:outline-none focus:ring-0 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]"
+          className="fixed left-[50%] top-[50%] z-50 w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] p-0 overflow-hidden rounded-3xl max-h-[90vh] focus:outline-none focus:ring-0 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]"
+          style={{
+            background: 'linear-gradient(135deg, rgba(0, 28, 27, 0.50) 0%, rgba(0, 40, 38, 0.40) 50%, rgba(0, 20, 20, 0.55) 100%)',
+            backdropFilter: 'blur(32px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(32px) saturate(180%)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            boxShadow: '0 0 0 1px rgba(45, 212, 191, 0.08), 0 32px 64px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+          }}
         >
         {/* Header */}
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-zinc-800/50 !text-left">
+        <DialogHeader className="px-6 pt-6 pb-4 !text-left" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div className="flex items-start justify-between">
             <div className="flex-1 text-left">
               <DialogTitle className="text-xl font-bold text-white text-left">
@@ -400,7 +407,7 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
               <div className="flex-1 overflow-hidden relative min-h-0 px-1">
                 <div className="flex h-full" style={{ height: '320px', maxHeight: '320px' }}>
                   {/* Fixed Y-axis */}
-                  <div className="flex-shrink-0 w-[55px] relative bg-zinc-900/95">
+                  <div className="flex-shrink-0 w-[55px] relative" style={{ background: 'rgba(0, 28, 27, 0.6)' }}>
                     <ChartContainer config={chartConfig} className="h-full w-full" style={{ height: '320px' }}>
                       <LineChart
                         data={chartData.slice(0, 1)} // Minimal data just for Y-axis
@@ -488,7 +495,7 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
                                 const isNow = payloadData?.dateLabel === 'Now';
 
                                 return (
-                                  <div className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-800/50 rounded-xl p-4 shadow-2xl min-w-[12rem]">
+                                   <div className="rounded-xl p-4 min-w-[12rem]" style={{ background: 'rgba(0, 28, 27, 0.85)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)' }}>
                                     <div className="text-xs text-zinc-400 mb-2 font-light">
                                       {isNow ? 'Current Price (Now)' : formatDate(actualDate)}
                                     </div>

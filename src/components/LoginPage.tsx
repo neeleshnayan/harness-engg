@@ -144,7 +144,7 @@ export default function LoginPage() {
 
       {/* Footer - Moved to bottom of page */}
       <footer className="relative z-10 w-full py-8 flex flex-col items-center gap-3 mt-auto">
-        <p className="text-zinc-400 text-sm">© 2025 Krypton Fund LLC</p>
+        <p className="text-zinc-400 text-sm">© 2026 Krypton Fund LLC</p>
         <div className="flex gap-6 md:gap-10 text-zinc-500 text-sm">
           <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
           <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
