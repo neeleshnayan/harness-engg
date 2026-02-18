@@ -57,12 +57,20 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-black/80 backdrop-blur-xl z-50"
+      className="fixed inset-0 z-50 backdrop-blur-md"
+      style={{ background: 'rgba(0, 10, 10, 0.65)' }}
       onClick={handleBackdropClick}
     >
       <div className="flex flex-col items-center justify-center min-h-screen p-6">
         <div
-          className="w-full max-w-md bg-black/60 border border-white/10 rounded-3xl shadow-2xl backdrop-blur-xl p-8"
+          className="w-full max-w-md rounded-3xl p-8"
+          style={{
+            background: 'linear-gradient(135deg, rgba(0, 28, 27, 0.50) 0%, rgba(0, 40, 38, 0.40) 50%, rgba(0, 20, 20, 0.55) 100%)',
+            backdropFilter: 'blur(32px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(32px) saturate(180%)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            boxShadow: '0 0 0 1px rgba(45, 212, 191, 0.08), 0 32px 64px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+          }}
           onClick={handleModalClick}
         >
           {/* Header */}
@@ -74,14 +82,15 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
           {/* Wallet Address Section */}
           <div className="mb-8">
             <h3 className="text-sm font-medium text-zinc-400 mb-4 text-center">Wallet Address</h3>
-            <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-4">
+            <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
               <div className="flex items-center justify-between">
                 <p className="font-mono text-sm text-zinc-200 break-all flex-1 mr-3">
                   {accountData?.wallet_address}
                 </p>
                 <button
                   onClick={handleCopyClick}
-                  className="text-cyan-400 hover:text-cyan-300 transition-colors p-2 rounded-xl hover:bg-cyan-900/30 flex-shrink-0"
+                  className="text-teal-400 hover:text-teal-300 transition-colors p-2 rounded-xl flex-shrink-0"
+                  style={{ background: 'rgba(45, 212, 191, 0.08)' }}
                 >
                   <FaCopy />
                 </button>
@@ -94,7 +103,10 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
             {onOpenQuestionnaire && (
               <button
                 onClick={handleOpenQuestionnaire}
-                className="flex items-center justify-center w-full text-cyan-400 hover:text-cyan-300 hover:bg-cyan-900/20 px-6 py-4 rounded-2xl transition-all duration-200 font-medium border border-cyan-900/30 hover:border-cyan-700/50"
+                className="flex items-center justify-center w-full text-teal-300 hover:text-teal-200 px-6 py-4 rounded-2xl transition-all duration-200 font-medium"
+                style={{ background: 'rgba(45, 212, 191, 0.06)', border: '1px solid rgba(45, 212, 191, 0.15)' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(45, 212, 191, 0.12)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(45, 212, 191, 0.06)')}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-3 flex-shrink-0">
                   <line x1="4" y1="6" x2="20" y2="6" />
@@ -106,7 +118,10 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
             )}
             <button
               onClick={handleNavigateToClark}
-              className="flex items-center justify-center w-full text-cyan-400 hover:text-cyan-300 hover:bg-cyan-900/20 px-6 py-4 rounded-2xl transition-all duration-200 font-medium border border-cyan-900/30 hover:border-cyan-700/50"
+              className="flex items-center justify-center w-full text-teal-300 hover:text-teal-200 px-6 py-4 rounded-2xl transition-all duration-200 font-medium"
+              style={{ background: 'rgba(45, 212, 191, 0.06)', border: '1px solid rgba(45, 212, 191, 0.15)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(45, 212, 191, 0.12)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(45, 212, 191, 0.06)')}
             >
               <img src="/clark.svg" alt="Clark" className="h-6 w-6 mr-3" />
               Open Clark AI
@@ -117,7 +132,10 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
           <div className="mb-8">
             <button
               onClick={handleSignOutClick}
-              className="flex items-center justify-center w-full text-red-400 hover:text-red-300 hover:bg-red-900/20 px-6 py-4 rounded-2xl transition-all duration-200 font-medium border border-red-900/30 hover:border-red-700/50"
+              className="flex items-center justify-center w-full text-red-400 hover:text-red-300 px-6 py-4 rounded-2xl transition-all duration-200 font-medium"
+              style={{ background: 'rgba(239, 68, 68, 0.06)', border: '1px solid rgba(239, 68, 68, 0.15)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.06)')}
             >
               <FaSignOutAlt className="mr-3" />
               Sign Out
@@ -128,7 +146,10 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
           <div className="text-center">
             <button
               onClick={onClose}
-              className="text-zinc-400 hover:text-white transition-colors p-3 rounded-2xl hover:bg-white/10"
+              className="text-zinc-400 hover:text-white transition-colors p-3 rounded-2xl"
+              style={{ background: 'rgba(255,255,255,0.05)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.10)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
             >
               <FaTimes className="text-xl" />
             </button>
