@@ -10,13 +10,12 @@ import { useNettingPoolsAuth } from '@/hooks/useNettingPoolsAuth';
 export default function Dashboard() {
   const { username, walletAddress, isAuthenticated, loading: authLoading } = useNettingPoolsAuth();
   const [mainTab, setMainTab] = useState<'tokens' | 'pools'>('tokens'); // Default to tokens tab
-  const [balances, setBalances] = useState<Record<string, string>>({});
+  const [supplies, setSupplies] = useState<Record<string, string>>({});
   const [pools, setPools] = useState<PoolInfo[]>([]);
   const [selectedPool, setSelectedPool] = useState<PoolInfo | null>(null);
   const [loading, setLoading] = useState(false);
-  const [balancesLoading, setBalancesLoading] = useState(true); // Track balances loading separately
+  const [suppliesLoading, setSuppliesLoading] = useState(true);
   const [error, setError] = useState<string>('');
-  const [defaultSignerAddress, setDefaultSignerAddress] = useState<string | null>(null);
 
   // Dynamic token configuration from API
   const [tokenSymbols, setTokenSymbols] = useState<string[]>([]);
@@ -26,7 +25,7 @@ export default function Dashboard() {
     if (isAuthenticated && !authLoading) {
       fetchTokenConfigs();
       fetchPools();
-      fetchDefaultSignerAndBalances();
+      fetchTotalSupply();
     }
   }, [isAuthenticated, authLoading]);
 
@@ -72,46 +71,19 @@ export default function Dashboard() {
     }
   };
 
-  const fetchDefaultSignerAndBalances = async () => {
-    setBalancesLoading(true);
+  const fetchTotalSupply = async () => {
+    setSuppliesLoading(true);
     try {
-      // First, get the default signer address
-      const signerData = await nettingPoolsApi.getDefaultSigner();
-      setDefaultSignerAddress(signerData.address);
-
-      // Then fetch balances for the default signer
-      if (signerData.address) {
-        const balanceData = await nettingPoolsApi.getBalances(signerData.address);
-        const balanceMap: Record<string, string> = {};
-        balanceData.forEach((b: TokenBalance) => {
-          balanceMap[b.symbol] = b.balance;
-        });
-        setBalances(balanceMap);
-      }
-    } catch (err: any) {
-      console.error('Error fetching default signer balances:', err);
-    } finally {
-      setBalancesLoading(false);
-    }
-  };
-
-  const fetchBalances = async () => {
-    if (!defaultSignerAddress) {
-      await fetchDefaultSignerAndBalances();
-      return;
-    }
-    setBalancesLoading(true);
-    try {
-      const balanceData = await nettingPoolsApi.getBalances(defaultSignerAddress);
-      const balanceMap: Record<string, string> = {};
-      balanceData.forEach((b: TokenBalance) => {
-        balanceMap[b.symbol] = b.balance;
+      const supplyData = await nettingPoolsApi.getTotalSupply();
+      const supplyMap: Record<string, string> = {};
+      supplyData.forEach((b: TokenBalance) => {
+        supplyMap[b.symbol] = b.balance;
       });
-      setBalances(balanceMap);
+      setSupplies(supplyMap);
     } catch (err: any) {
-      console.error('Error fetching balances:', err);
+      console.error('Error fetching total supply:', err);
     } finally {
-      setBalancesLoading(false);
+      setSuppliesLoading(false);
     }
   };
 
@@ -121,6 +93,15 @@ export default function Dashboard() {
       return `${baseClasses} bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20`;
     }
     return `${baseClasses} bg-white/[0.02] text-gray-400 hover:text-white hover:bg-white/[0.05]`;
+  };
+
+  /** Format a supply string with comma-separated thousands and 2 decimal places. */
+  const formatSupply = (value: string | undefined): string => {
+    const num = parseFloat(value || '0');
+    return new Intl.NumberFormat('en', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(num);
   };
 
   if (authLoading) {
@@ -210,22 +191,17 @@ export default function Dashboard() {
                     Token Balances
                   </h2>
                   <p className="text-gray-500 text-sm font-light">
-                    Default signer account balances
-                    {defaultSignerAddress && (
-                      <span className="ml-2 font-mono text-xs text-gray-600">
-                        ({defaultSignerAddress.slice(0, 6)}...{defaultSignerAddress.slice(-4)})
-                      </span>
-                    )}
+                    Total tokens in circulation
                   </p>
                 </div>
 
                 {tokenSymbols.length === 0 ? (
                   /* Skeleton grid while loading token config */
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                  <div className="flex flex-wrap gap-6">
                     {[1, 2, 3, 4, 5].map((i) => (
                       <div
                         key={i}
-                        className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6 animate-pulse"
+                        className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6 animate-pulse min-w-[160px]"
                       >
                         <div className="h-4 bg-white/[0.08] rounded w-12 mb-4" />
                         <div className="h-8 bg-white/[0.08] rounded w-20" />
@@ -233,18 +209,18 @@ export default function Dashboard() {
                     ))}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                  <div className="flex flex-wrap gap-6">
                     {tokenSymbols.map((symbol) => (
                       <div
                         key={symbol}
-                        className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6 hover:bg-white/[0.04] transition-all duration-300"
+                        className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6 hover:bg-white/[0.04] transition-all duration-300 min-w-[160px]"
                       >
                         <div className="text-gray-400 text-xs mb-2">{symbol}</div>
-                        {balancesLoading ? (
+                        {suppliesLoading ? (
                           <div className="h-8 bg-white/[0.08] rounded w-20 animate-pulse" />
                         ) : (
-                          <div className="text-2xl font-light text-white">
-                            {parseFloat(balances[symbol] || '0').toFixed(2)}
+                          <div className="text-2xl font-light text-white whitespace-nowrap">
+                            {formatSupply(supplies[symbol])}
                           </div>
                         )}
                       </div>
@@ -253,11 +229,11 @@ export default function Dashboard() {
                 )}
 
                 <button
-                  onClick={fetchBalances}
-                  disabled={balancesLoading}
+                  onClick={fetchTotalSupply}
+                  disabled={suppliesLoading}
                   className="mt-6 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-xl transition-all"
                 >
-                  {balancesLoading ? 'Refreshing...' : 'Refresh Balances'}
+                  {suppliesLoading ? 'Refreshing...' : 'Refresh'}
                 </button>
 
                 {/* Oracle Price Feeds Section */}
@@ -291,7 +267,7 @@ export default function Dashboard() {
                       Swap between any tokens through kUSD hub
                     </p>
                   </div>
-                  <MultiHopSwap onSuccess={fetchBalances} />
+                  <MultiHopSwap onSuccess={fetchTotalSupply} />
                 </div>
               </div>
             ) : (

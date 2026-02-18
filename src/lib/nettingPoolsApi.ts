@@ -151,6 +151,12 @@ export const nettingPoolsApi = {
     return response.data;
   },
 
+  // Get total circulating supply for all k_tokens
+  async getTotalSupply(): Promise<TokenBalance[]> {
+    const response = await kryptonWeb3Api.get('/netting-pools/total-supply');
+    return response.data;
+  },
+
   // Get oracle rate
   async getOracleRate(fxPair: string): Promise<OracleRateResponse> {
     const response = await kryptonWeb3Api.get('/netting-pools/oracle/rate', {
