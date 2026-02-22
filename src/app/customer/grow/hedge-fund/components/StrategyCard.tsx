@@ -240,8 +240,6 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategyName, onRefresh, on
       const approveTxId = approveResponse.data.transaction_id || approveResponse.data.approve_tx;
       setTransactionStage('confirming');
 
-      await new Promise(resolve => setTimeout(resolve, 5000));
-
       const depositResponse = await hedgeFundApi.post(`/api/v1/strategy/${strategyName}/deposit`, {
         amount: amountWei,
         wallet_address: parsedData.wallet_address,

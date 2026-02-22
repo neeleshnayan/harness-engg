@@ -90,14 +90,10 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   const [showSendForm, setShowSendForm] = useState(false);
   const [showSendERC20Form, setShowSendERC20Form] = useState(false);
   const [receiverUsername, setReceiverUsername] = useState<string>("");
-  const [sendCurrency, setSendCurrency] = useState<string>("");
   const [sendAmount, setSendAmount] = useState<string>("");
   const [sendLoading, setSendLoading] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendSuccess, setSendSuccess] = useState<string | null>(null);
-  const [sendERC20Loading, setSendERC20Loading] = useState(false);
-  const [sendERC20Error, setSendERC20Error] = useState<string | null>(null);
-  const [sendERC20Success, setSendERC20Success] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [showTransactions, setShowTransactions] = useState(false);
   const [refreshingBalance, setRefreshingBalance] = useState(false);
@@ -325,14 +321,31 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   }, [config.showWebhookNotification]);
 
   // WebSocket close handler - stabilized
-  const handleWebSocketClose = useCallback(() => { }, []);
-
-  // Ref to track connection status for error handler
-  const connectionStatusRef = useRef<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
+  const handleWebSocketClose = useCallback((event?: CloseEvent) => {
+    if (!event) return;
+    // Common close codes are expected during reconnects/navigation.
+    if (event.code !== 1000) {
+      console.warn('WebSocket closed:', {
+        code: event.code,
+        reason: event.reason || '(no reason)',
+        wasClean: event.wasClean
+      });
+    }
+  }, []);
 
   // WebSocket error handler - stabilized with ref
-  const handleWebSocketError = useCallback((error: Event) => {
-    console.error('WebSocket error:', error);
+  const handleWebSocketError = useCallback((error: Event | Record<string, unknown>) => {
+    const diagnostic = (error && typeof error === 'object')
+      ? {
+        type: (error as any).type || 'websocket_error',
+        readyState: (error as any).readyState,
+        lastCloseCode: (error as any).lastCloseCode,
+        lastCloseReason: (error as any).lastCloseReason,
+        lastCloseWasClean: (error as any).lastCloseWasClean,
+        url: (error as any).url,
+      }
+      : { type: 'websocket_error' };
+    console.warn('WebSocket error (diagnostic):', diagnostic);
   }, []);
 
   // WebSocket connection for real-time transaction updates from Krypton_Web3
@@ -347,7 +360,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     return `${baseUrl}/ws?wallet_address=${encodeURIComponent(walletAddress)}`;
   }, [accountData?.wallet_address]);
 
-  const { isConnected: wsConnected, connectionStatus, reconnect: wsReconnect } = useWebSocket(
+  const { connectionStatus } = useWebSocket(
     wsUrl || '',
     {
       onMessage: handleWebSocketMessage,
@@ -356,11 +369,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       onError: handleWebSocketError
     }
   );
-
-  // Update connection status ref when it changes
-  useEffect(() => {
-    connectionStatusRef.current = connectionStatus;
-  }, [connectionStatus]);
 
   // Cleanup debounce timer and reset processed events on unmount
   useEffect(() => {
@@ -612,7 +620,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     try {
       await navigator.clipboard.writeText(text);
     } catch {
-      // Clipboard API not available (e.g. insecure context) — silently skip
+      // Clipboard API not available (e.g. insecure context) - silently skip
     }
   };
 
@@ -723,10 +731,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     setShowSendERC20Form(false);
     setReceiverUsername("");
     setSendAmount("");
-    setSendCurrency("");
-    setSendERC20Error(null);
-    setSendERC20Success(null);
-    setSendERC20Loading(false);
     // Only switch to Transaction History tab on auto-close (success), not on manual X button close
     if (autoClose) {
       balanceCardRef.current?.showTransactionHistory();

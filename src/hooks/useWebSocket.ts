@@ -13,8 +13,8 @@ interface WebSocketMessage {
 interface UseWebSocketOptions {
   onMessage?: (message: WebSocketMessage) => void;
   onOpen?: () => void;
-  onClose?: () => void;
-  onError?: (error: Event) => void;
+  onClose?: (event?: CloseEvent) => void;
+  onError?: (error: Event | Record<string, unknown>) => void;
   reconnectInterval?: number; // base delay in ms
   maxReconnectAttempts?: number | null; // null/undefined => unlimited
 }
@@ -50,6 +50,7 @@ export const useWebSocket = (
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const isConnectingRef = useRef(false);
+  const lastCloseRef = useRef<{ code: number; reason: string; wasClean: boolean } | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
 
   const connect = useCallback(() => {
@@ -71,6 +72,7 @@ export const useWebSocket = (
       ws.onopen = () => {
         isConnectingRef.current = false;
         reconnectAttemptsRef.current = 0;
+        lastCloseRef.current = null;
         setConnectionStatus('connected');
         onOpenRef.current?.();
       };
@@ -90,8 +92,13 @@ export const useWebSocket = (
 
       ws.onclose = (event) => {
         isConnectingRef.current = false;
+        lastCloseRef.current = {
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean,
+        };
         setConnectionStatus('disconnected');
-        onCloseRef.current?.();
+        onCloseRef.current?.(event);
 
         // Attempt to reconnect if not manually closed.
         if (event.code !== 1000) {
@@ -129,7 +136,16 @@ export const useWebSocket = (
       ws.onerror = (error) => {
         isConnectingRef.current = false;
         setConnectionStatus('error');
-        onErrorRef.current?.(error);
+        // Browser websocket error events are often opaque ({}). Include contextual diagnostics.
+        onErrorRef.current?.({
+          type: 'websocket_error',
+          readyState: ws.readyState,
+          url,
+          lastCloseCode: lastCloseRef.current?.code,
+          lastCloseReason: lastCloseRef.current?.reason,
+          lastCloseWasClean: lastCloseRef.current?.wasClean,
+          originalEventType: error?.type,
+        });
       };
     } catch (error) {
       console.error('Failed to create WebSocket:', error);
@@ -157,7 +173,6 @@ export const useWebSocket = (
   const send = useCallback((data: any) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(data));
-    } else {
     }
   }, []);
 

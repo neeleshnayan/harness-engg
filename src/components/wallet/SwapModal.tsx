@@ -34,7 +34,7 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
   const focusedFieldRef = useRef<"from" | "to" | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Get token data from context 🚀
+  // Get token data from context
   const { tokens, getTokenAddressToSymbol } = useRates();
   const tokenAddressMap = useMemo(() => getTokenAddressToSymbol(), [getTokenAddressToSymbol]);
   const allTokenSymbols = useMemo(() => Object.keys(tokens), [tokens]);
@@ -407,12 +407,7 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
     try {
       setLoading(true);
 
-      // Determine if this is a cross-ecosystem swap
-      const isKToken = (t: string) => t.startsWith('k');
-      const needsUniversal = !isKToken(fromCurrency) || !isKToken(toCurrency);
-
-      const endpoint = needsUniversal ? "/pools/universal/swap" : "/pools/swap";
-      const swapResponse = await kryptonWeb3Api.post(endpoint, {
+      const swapResponse = await kryptonWeb3Api.post("/pools/universal/swap", {
         from_token: fromCurrency,
         to_token: toCurrency,
         amount: amountValue,
@@ -424,7 +419,7 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
       const fromDisplay = fromCurrency.replace(/^k/, "");
       const toDisplay = toCurrency.replace(/^k/, "");
 
-      setSuccess(`Swap submitted: ${amountValue.toFixed(2)} ${fromDisplay} → ${parseFloat(estimatedOutput).toFixed(2)} ${toDisplay}`);
+      setSuccess(`Swap submitted: ${amountValue.toFixed(2)} ${fromDisplay} -> ${parseFloat(estimatedOutput).toFixed(2)} ${toDisplay}`);
       setFromAmount("");
       setToAmount("");
       startCloseCountdown();

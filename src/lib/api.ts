@@ -228,7 +228,7 @@ export const getDailyPriceHistory = async (
  */
 export const swap = async (swapRequest: SwapRequest): Promise<SwapResponse> => {
   try {
-    const response = await kryptonWeb3Api.post<SwapResponse>('/pools/swap', swapRequest);
+    const response = await kryptonWeb3Api.post<SwapResponse>('/pools/universal/swap', swapRequest);
     return response.data;
   } catch (error: unknown) {
     console.error('Error executing swap:', error);

@@ -32,6 +32,7 @@ export enum CircleTransactionState {
 export const TERMINAL_STATES = new Set<string>([
   CircleTransactionState.CANCELLED,
   CircleTransactionState.CONFIRMED,
+  CircleTransactionState.CLEARED,
   CircleTransactionState.COMPLETE,
   CircleTransactionState.DENIED,
   CircleTransactionState.FAILED,
@@ -43,6 +44,7 @@ export const TERMINAL_STATES = new Set<string>([
  */
 export const SUCCESS_STATES = new Set<string>([
   CircleTransactionState.CONFIRMED,
+  CircleTransactionState.CLEARED,
   CircleTransactionState.COMPLETE,
   CircleTransactionState.SUCCESS,
 ]);
@@ -222,7 +224,7 @@ export function getStateLabel(state: string): string {
 
 /**
  * Progress tracker steps for UI display
- * Steps: Queued (0) → Confirmed (1) → Complete/Failed (2)
+ * Steps: Queued (0) -> Confirmed (1) -> Complete/Failed (2)
  */
 export type ProgressStep = 'queued' | 'confirmed' | 'complete';
 

@@ -108,6 +108,7 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
   const [activeTransactionsRefreshKey, setActiveTransactionsRefreshKey] = useState(0);
   const transactionHistoryRef = useRef<TransactionHistoryRef | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const lastTransactionHistoryRefreshRef = useRef<boolean | undefined>(transactionHistoryRefresh);
 
   // 🚀 THE MAGIC - All rates from context!
   const {
@@ -285,10 +286,16 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
     }
   }, [balanceCardRefresh]);
 
-  // Sync active transactions refresh with transactionHistoryRefresh prop from parent
+  // Sync refreshes with transactionHistoryRefresh prop from parent.
+  // Parent toggles boolean, so we must react on any edge (true->false or false->true),
+  // not only when it's truthy.
   useEffect(() => {
-    if (transactionHistoryRefresh) {
-      setActiveTransactionsRefreshKey(prev => prev + 1);
+    if (transactionHistoryRefresh === lastTransactionHistoryRefreshRef.current) return;
+    lastTransactionHistoryRefreshRef.current = transactionHistoryRefresh;
+    setActiveTransactionsRefreshKey(prev => prev + 1);
+    setTransactionHistoryRefreshKey(prev => prev + 1);
+    if (transactionHistoryRef.current?.refresh) {
+      transactionHistoryRef.current.refresh();
     }
   }, [transactionHistoryRefresh]);
 

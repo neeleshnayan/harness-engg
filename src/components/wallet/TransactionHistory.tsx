@@ -59,7 +59,7 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
     // Track whether we have already consumed the one-shot initialData
     const initialDataUsedRef = useRef(false);
 
-    const fetchTransactions = async () => {
+    const fetchTransactions = useCallback(async () => {
       try {
         setLoading(true);
         setError(null);
@@ -82,11 +82,11 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
       } finally {
         setLoading(false);
       }
-    };
+    }, [username]);
 
     useImperativeHandle(ref, () => ({
       refresh: fetchTransactions
-    }));
+    }), [fetchTransactions]);
 
     useEffect(() => {
       // On first mount: use the pre-fetched initialData to avoid a duplicate network
@@ -102,7 +102,8 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
         return;
       }
       fetchTransactions();
-    }, [username, refreshKey]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [fetchTransactions, refreshKey]);
 
     const loadMore = useCallback(async () => {
       if (loadingMore || !hasMore) return;
@@ -188,6 +189,13 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
     const shortenAddress = (address?: string) => {
       if (!address) return 'Unknown';
       return `${address.slice(0, 6)}...${address.slice(-4)}`;
+    };
+    const displayIdentity = (username?: string, address?: string) => {
+      const normalized = (username || '').trim().toLowerCase();
+      if (normalized && normalized !== 'unknown' && normalized !== 'n/a') {
+        return `@${username}`;
+      }
+      return shortenAddress(address);
     };
 
     const formatToken = (symbol?: string) => {
@@ -276,11 +284,11 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
 
               if (tx.type === 'transfer_in') {
                 titleText = 'Received';
-                const name = tx.from_username ? `@${tx.from_username}` : 'Unknown';
+                const name = displayIdentity(tx.from_username, tx.from);
                 subText = name;
               } else {
                 titleText = 'Sent';
-                const name = tx.to_username ? `@${tx.to_username}` : 'Unknown';
+                const name = displayIdentity(tx.to_username, tx.to);
                 subText = name;
               }
             }
@@ -307,15 +315,15 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
                         ) : (
                           <span
                             className={
-                              (tx.type === 'transfer_in' && tx.from_username) ||
-                                (tx.type === 'transfer_out' && tx.to_username)
+                              ((tx.type === 'transfer_in' && tx.from_username && tx.from_username.trim().toLowerCase() !== 'unknown' && tx.from_username.trim().toLowerCase() !== 'n/a')) ||
+                                ((tx.type === 'transfer_out' && tx.to_username && tx.to_username.trim().toLowerCase() !== 'unknown' && tx.to_username.trim().toLowerCase() !== 'n/a'))
                                 ? "text-cyan-400 font-medium"
                                 : "text-zinc-300"
                             }
                           >
                             {tx.type === 'transfer_in'
-                              ? (tx.from_username ? `@${tx.from_username}` : 'Unknown')
-                              : (tx.to_username ? `@${tx.to_username}` : 'Unknown')
+                              ? displayIdentity(tx.from_username, tx.from)
+                              : displayIdentity(tx.to_username, tx.to)
                             }
                           </span>
                         )}
