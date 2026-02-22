@@ -42,22 +42,20 @@ export function TransactionWebhookProvider({ walletAddress, children }: Transact
 
     const transactionId = message.transaction_id as string | undefined;
     if (!transactionId) return;
+    const eventKey = `${message.type}:${transactionId}`;
 
     // Deduplicate
-    if (processedEventsRef.current.has(transactionId)) {
-      console.log(`[WebhookCtx] Skipping duplicate event for ${transactionId}`);
+    if (processedEventsRef.current.has(eventKey)) {
       return;
     }
-    processedEventsRef.current.add(transactionId);
+    processedEventsRef.current.add(eventKey);
     setTimeout(() => {
-      processedEventsRef.current.delete(transactionId);
+      processedEventsRef.current.delete(eventKey);
     }, 5 * 60 * 1000);
 
-    console.log(`[WebhookCtx] Received ${message.type} for tx ${transactionId}`);
-
-    // Resolve any pending promise waiting on this txId
+    // Resolve only when we have a real confirmation event.
     const pending = pendingRef.current.get(transactionId);
-    if (pending) {
+    if (pending && message.type === "transaction_confirmed") {
       clearTimeout(pending.timer);
       pendingRef.current.delete(transactionId);
       pending.resolve();
@@ -66,14 +64,13 @@ export function TransactionWebhookProvider({ walletAddress, children }: Transact
 
   const { connectionStatus } = useWebSocket(wsUrl, {
     onMessage: handleMessage,
-    onOpen: () => console.log("[WebhookCtx] WebSocket connected"),
-    onClose: () => console.log("[WebhookCtx] WebSocket disconnected"),
+    onOpen: () => {},
+    onClose: () => {},
   });
 
   const waitForTransaction = useCallback((txId: string, timeoutMs = 60000): Promise<void> => {
-    // If already processed (e.g. webhook arrived before we started waiting)
-    if (processedEventsRef.current.has(txId)) {
-      console.log(`[WebhookCtx] tx ${txId} already confirmed`);
+    // If already confirmed (e.g. webhook arrived before we started waiting)
+    if (processedEventsRef.current.has(`transaction_confirmed:${txId}`)) {
       return Promise.resolve();
     }
 

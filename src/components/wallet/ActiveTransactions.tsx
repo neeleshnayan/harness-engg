@@ -3,17 +3,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { kryptonWeb3Api } from '@/lib/api';
 import {
-  getStateCategory,
-  getProgressStepIndex,
-  getProgressStepLabel,
-  getStateLabel,
-  StateCategory,
   isTerminalState,
   isSuccessState,
   isErrorState,
   CircleTransactionState,
 } from '@/lib/circleStates';
-import { ArrowRight, Check, X, Loader2, ArrowLeftRight, Send, RefreshCw, ArrowUp } from 'lucide-react';
+import { ArrowRight, Check, X, Loader2, ArrowLeftRight, RefreshCw, ArrowUp } from 'lucide-react';
 
 // Poll interval in milliseconds (10 seconds for better UX)
 const POLL_INTERVAL_MS = 10000;
@@ -88,35 +83,6 @@ function formatAmount(amount: number | null): string {
 }
 
 /**
- * Format relative time
- */
-function formatRelativeTime(timestamp: number | null): string {
-  if (!timestamp) return '';
-
-  const now = Date.now() / 1000;
-  const diff = now - timestamp;
-
-  if (diff < 60) return 'just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
-}
-
-/**
- * Get transaction type icon
- */
-function TransactionTypeIcon({ txType, className }: { txType: string; className?: string }) {
-  switch (txType) {
-    case 'swap':
-      return <img src="/swap-icon-small.svg" className={className} alt="Swap" />;
-    case 'transfer':
-      return <img src="/sent-icon.svg" className={className} alt="Transfer" />;
-    default:
-      return <img src="/swap-icon-small.svg" className={className} alt="Transaction" />;
-  }
-}
-
-/**
  * Get transaction description
  */
 function getTransactionDescription(tx: ActiveTransaction): string {
@@ -138,157 +104,6 @@ function getTransactionDescription(tx: ActiveTransaction): string {
   const symbol = cleanTokenSymbol(tx.token_symbol || tx.from_token);
   const amountStr = tx.amount ? formatAmount(tx.amount) : '';
   return amountStr && symbol ? `${amountStr} ${symbol}` : 'Transaction';
-}
-
-/**
- * Progress Step Component
- *
- * Visual Logic:
- * - Step 0 (Queued):
- *   - If currentStep=0: yellow spinner (currently queued)
- *   - If currentStep>0: green checkmark (passed)
- * - Step 1 (Confirmed):
- *   - If currentStep<1: gray (not reached)
- *   - If currentStep=1: green checkmark (confirmed, waiting for completion)
- *   - If currentStep>1: green checkmark (passed)
- * - Step 2 (Complete/Failed):
- *   - If currentStep<2: gray or yellow spinner (if currentStep>=1)
- *   - If currentStep=2: green checkmark (success) or red X (error)
- */
-function ProgressStep({
-  stepIndex,
-  currentStep,
-  label,
-  isSuccess,
-  isError,
-  isTerminal,
-}: {
-  stepIndex: number;
-  currentStep: number;
-  label: string;
-  isSuccess: boolean;
-  isError: boolean;
-  isTerminal: boolean;
-}) {
-  const isFinal = stepIndex === 2;
-
-  // Step is completed (green checkmark) if we're PAST it
-  const isPastStep = stepIndex < currentStep;
-
-  // Step is current (the one we're on right now)
-  const isCurrentStep = stepIndex === currentStep;
-
-  // Determine the visual state
-  let bgColor = 'bg-zinc-700';
-  let borderColor = 'border-zinc-600';
-  let textColor = 'text-zinc-500';
-  let icon = null;
-
-  if (isFinal && isTerminal) {
-    // Final step when transaction is terminal - show success/error
-    if (isSuccess) {
-      bgColor = 'bg-emerald-500';
-      borderColor = 'border-emerald-400';
-      textColor = 'text-emerald-400';
-      icon = <Check className="w-3 h-3 text-white" />;
-    } else if (isError) {
-      bgColor = 'bg-red-500';
-      borderColor = 'border-red-400';
-      textColor = 'text-red-400';
-      icon = <X className="w-3 h-3 text-white" />;
-    }
-  } else if (isPastStep) {
-    // Steps we've already passed - green checkmark
-    bgColor = 'bg-emerald-500';
-    borderColor = 'border-emerald-400';
-    textColor = 'text-emerald-400';
-    icon = <Check className="w-3 h-3 text-white" />;
-  } else if (isCurrentStep && !isFinal) {
-    // Current non-final step
-    if (currentStep === 0) {
-      // At "Queued" step - show yellow spinner (waiting to be confirmed)
-      bgColor = 'bg-amber-500';
-      borderColor = 'border-amber-400';
-      textColor = 'text-amber-400';
-      icon = <Loader2 className="w-3 h-3 text-white animate-spin" />;
-    } else {
-      // At "Confirmed" step (currentStep=1) - show green (we've reached it)
-      bgColor = 'bg-emerald-500';
-      borderColor = 'border-emerald-400';
-      textColor = 'text-emerald-400';
-      icon = <Check className="w-3 h-3 text-white" />;
-    }
-  } else if (isFinal && !isTerminal && currentStep >= 1) {
-    // Final step when not terminal but we've passed confirmed - show yellow spinner
-    bgColor = 'bg-amber-500';
-    borderColor = 'border-amber-400';
-    textColor = 'text-amber-400';
-    icon = <Loader2 className="w-3 h-3 text-white animate-spin" />;
-  }
-  // Otherwise: default gray (not reached yet)
-
-  return (
-    <div className="flex flex-col items-center">
-      <div
-        className={`
-          w-6 h-6 rounded-full flex items-center justify-center
-          border-2 ${borderColor} ${bgColor}
-          transition-all duration-300
-        `}
-      >
-        {icon}
-      </div>
-      <span className={`text-[10px] mt-1 font-medium ${textColor}`}>
-        {label}
-      </span>
-    </div>
-  );
-}
-
-/**
- * Progress Line Component
- *
- * Colors:
- * - Gray: Not reached yet
- * - Amber/Yellow: In progress (next step is pending/processing)
- * - Green: Completed successfully
- * - Red: Transaction ended in error (for line leading to error state)
- */
-function ProgressLine({
-  isCompleted,
-  isInProgress = false,
-  isError = false,
-  isLeadingToFinal = false,
-}: {
-  isCompleted: boolean;
-  isInProgress?: boolean;
-  isError?: boolean;
-  isLeadingToFinal?: boolean;
-}) {
-  let bgColor = 'bg-zinc-700';
-
-  if (isCompleted) {
-    // Line is completed - show green or red based on final state
-    if (isLeadingToFinal && isError) {
-      bgColor = 'bg-red-500';
-    } else {
-      bgColor = 'bg-emerald-500';
-    }
-  } else if (isInProgress) {
-    // Line is in progress - show amber/yellow
-    bgColor = 'bg-amber-500';
-  }
-
-  return (
-    <div className="flex-1 h-0.5 mx-1 mt-3">
-      <div
-        className={`
-          h-full rounded-full transition-all duration-500
-          ${bgColor}
-        `}
-      />
-    </div>
-  );
 }
 
 /**
@@ -379,37 +194,6 @@ function TransactionProgressTracker({ tx }: { tx: ActiveTransaction }) {
       </div>
     </div>
   );
-}
-
-/**
- * Get status badge color classes
- */
-function getStatusBadgeClasses(status: string): { bg: string; text: string } {
-  const normalizedStatus = status.toLowerCase();
-
-  switch (normalizedStatus) {
-    case CircleTransactionState.SUCCESS:
-    case CircleTransactionState.COMPLETE:
-      return { bg: 'bg-emerald-500/20', text: 'text-emerald-400' };
-    case CircleTransactionState.FAILED:
-      return { bg: 'bg-red-500/20', text: 'text-red-400' };
-    case CircleTransactionState.DENIED:
-      return { bg: 'bg-orange-500/20', text: 'text-orange-400' };
-    case CircleTransactionState.CANCELLED:
-      return { bg: 'bg-zinc-500/20', text: 'text-zinc-400' };
-    case CircleTransactionState.QUEUED:
-    case CircleTransactionState.SUBMITTED:
-    case CircleTransactionState.CREATED:
-      return { bg: 'bg-blue-500/20', text: 'text-blue-400' };
-    case CircleTransactionState.CONFIRMED:
-    case CircleTransactionState.SENT:
-    case CircleTransactionState.CLEARED:
-      return { bg: 'bg-amber-500/20', text: 'text-amber-400' };
-    case CircleTransactionState.STUCK:
-      return { bg: 'bg-yellow-500/20', text: 'text-yellow-400' };
-    default:
-      return { bg: 'bg-zinc-500/20', text: 'text-zinc-400' };
-  }
 }
 
 /**
@@ -550,8 +334,16 @@ export default function ActiveTransactions({ username, className = '', onAllTran
           return existing?.completed_at ? { ...newTx, completed_at: existing.completed_at } : newTx;
         });
 
+        // Drop terminal transactions after display window even if backend still returns them.
+        const visibleUpdatedNew = persistCompleted
+          ? updatedNew
+          : updatedNew.filter(tx => {
+            if (!tx.completed_at) return true;
+            return now - tx.completed_at < COMPLETED_TX_DISPLAY_TIME;
+          });
+
         // Combine and sort by created_at descending (newest first)
-        const combined = [...updatedNew, ...completedToKeep];
+        const combined = [...visibleUpdatedNew, ...completedToKeep];
         combined.sort((a, b) => {
           const aTime = a.created_at || 0;
           const bTime = b.created_at || 0;
@@ -573,7 +365,7 @@ export default function ActiveTransactions({ username, className = '', onAllTran
         initialFetch.current = false;
       }
     }
-  }, [username, onlyShowInitial]);
+  }, [username, onlyShowInitial, persistCompleted]);
 
   // Initial fetch and polling
   // Poll only when visible AND WebSocket is not connected.

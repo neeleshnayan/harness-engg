@@ -132,21 +132,21 @@ const SupportedAssetsBalances: React.FC<SupportedAssetsBalancesProps> = ({ balan
   // Uniform border for all; color applied inside based on price direction
   // Solid-ish backgrounds avoid backdrop blur artifacts / 3D pattern bleed-through
   const getTokenStyle = (symbol: string) => {
-    const border = "border border-white/10";
+    const neutralBorder = "border border-white/12";
 
     // USDC and kUSD are stable — neutral fill
     if (symbol === "USDC" || symbol === "kUSD") {
-      return { bg: "bg-zinc-800/95", border };
+      return { bg: "bg-zinc-800/95", border: neutralBorder };
     }
 
     const direction = getTokenDirection(symbol);
     switch (direction) {
       case "up":
-        return { bg: "bg-emerald-900/40", border };
+        return { bg: "bg-emerald-700/30", border: "border border-emerald-400/40" };
       case "down":
-        return { bg: "bg-red-900/30", border };
+        return { bg: "bg-red-700/30", border: "border border-red-400/40" };
       default:
-        return { bg: "bg-zinc-800/95", border };
+        return { bg: "bg-zinc-800/95", border: neutralBorder };
     }
   };
 
@@ -159,7 +159,7 @@ const SupportedAssetsBalances: React.FC<SupportedAssetsBalancesProps> = ({ balan
         key={`${token.symbol}-${rowSuffix}${idx}`}
         onClick={() => handleTokenClick(token.symbol)}
         className={`${style.bg} ${style.border} rounded-lg px-3 py-1.5 flex items-center flex-shrink-0 transition-all duration-200 ${clickable
-          ? "cursor-pointer hover:bg-zinc-700/80 hover:shadow-lg hover:shadow-black/20 active:scale-95"
+          ? "cursor-pointer hover:brightness-110 hover:shadow-lg hover:shadow-black/20 active:scale-95"
           : ""
           }`}
       >

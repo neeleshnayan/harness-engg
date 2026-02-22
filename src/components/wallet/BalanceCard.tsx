@@ -44,7 +44,7 @@ interface BalanceCardProps {
   balanceRefreshing?: boolean;
   balanceFlickering?: boolean;
   onTransactionsComplete?: () => void;
-  /** Pre-fetched transactions from wallet-init batch call — skips TransactionHistory's initial fetch. */
+  /** Pre-fetched transactions from background bootstrap — skips TransactionHistory's initial fetch. */
   initialTransactions?: {
     transactions: any[];
     count: number;
@@ -117,6 +117,7 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
     getOverallPriceChange,
     getTokenAddressToSymbol
   } = useRates();
+  const balanceVersion = (balance as any)?._fetchedAt;
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
@@ -268,7 +269,7 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
   };
 
 
-  const showKycSection = accountData?.username && kycStatus !== 'approved' && onKycClick;
+  const showKycSection = accountData?.username && !!kycStatus && kycStatus !== 'approved' && onKycClick;
   const showBalanceSection = accountData?.username; // Always show balance if username exists
   const isKycApproved = kycStatus === 'approved';
 
@@ -313,13 +314,12 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
   const priceChangeInfo = useMemo(() => {
     if (!balance) return null;
     const raw = getOverallPriceChange(balance.tokenBalances || []);
-    // If rounded percentage is 0.00%, always show green (optimistic default)
-    const roundedPct = Math.abs(raw.percentageChange).toFixed(2);
-    if (roundedPct === '0.00') {
-      return { ...raw, direction: 'up' as const, percentageChange: 0 };
+    // Treat tiny moves as neutral so users don't see noisy red/green flicker.
+    if (Math.abs(raw.percentageChange) < 0.05) {
+      return { ...raw, direction: 'same' as PriceDirection, percentageChange: 0 };
     }
     return raw;
-  }, [balance, getOverallPriceChange, (balance as any)?._fetchedAt]);
+  }, [balance, getOverallPriceChange]);
 
   // Calculate total balance - now uses context! 🎯
   // useMemo ensures this recalculates when balance or selectedCurrency changes
@@ -329,13 +329,6 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
     }
 
     const totalInUSD = calculateBalanceInUSD(balance.tokenBalances);
-
-    console.log('💰 BalanceCard: Calculating totalBalance', {
-      totalInUSD,
-      selectedCurrency,
-      tokenCount: balance.tokenBalances.length,
-      _fetchedAt: (balance as any)?._fetchedAt
-    });
 
     // Convert from USD to selected currency if needed
     if (selectedCurrency === 'USD') {
@@ -354,7 +347,14 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
 
     // If rate not available, return USD value
     return totalInUSD;
-  }, [balance, selectedCurrency, tokens, calculateBalanceInUSD, (balance as any)?._fetchedAt]);
+  }, [balance, selectedCurrency, tokens, calculateBalanceInUSD]);
+
+  const formattedTotalBalance = useMemo(() => {
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(totalBalance);
+  }, [totalBalance]);
 
   // Get available currencies for dropdown - from context tokens! 🎉
   const kTokenSymbols = Object.keys(tokens).filter(s => s.startsWith('k'));
@@ -435,8 +435,8 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
           <div className="w-full shrink-0 min-w-0 overflow-hidden px-8 pt-5 pb-3 flex flex-col" style={{ minHeight: '340px' }}>
             <div className="text-center mb-5">
               <div className="flex items-center justify-center gap-3">
-                <Wallet className="w-8 h-8 text-zinc-400" />
-                <h3 className="text-xl font-bold text-zinc-400 tracking-wide">Your Balance</h3>
+                <Wallet className="w-8 h-8 text-zinc-300" />
+                <h3 className="text-xl font-bold text-zinc-300 tracking-wide">Your Balance</h3>
               </div>
             </div>
 
@@ -507,7 +507,7 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
                   ) : error ? (
                     <span className="text-red-400 text-xl font-semibold">{error}</span>
                   ) : (
-                    <div className="relative group cursor-pointer flex items-baseline justify-center">
+                    <div className="relative group cursor-pointer flex items-baseline justify-center" aria-live="polite">
                       {/* Hidden Select Overlay */}
                       <select
                         value={selectedCurrency}
@@ -530,7 +530,7 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
                         </div>
                         <span className="font-bold text-white tracking-tight leading-none" style={{ fontSize: 'calc(clamp(3rem, 12vw, 5.5rem) * var(--balance-amount-scale))' }}>
                           {(() => {
-                            const val = totalBalance > 0 ? totalBalance.toFixed(2) : '0.00';
+                            const val = totalBalance > 0 ? formattedTotalBalance : '0.00';
                             const [int, dec] = val.split('.');
                             return (
                               <>
@@ -553,13 +553,15 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
                 {isKycApproved && !balanceLoading && !ratesLoading && priceChangeInfo && (
                   <div className={`flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full ${priceChangeInfo.direction === 'down'
                     ? 'bg-red-500/10 text-red-400'
-                    : 'bg-emerald-500/10 text-emerald-400'
+                    : priceChangeInfo.direction === 'up'
+                      ? 'bg-emerald-500/10 text-emerald-400'
+                      : 'bg-zinc-500/10 text-zinc-300'
                     }`}>
                     {priceChangeInfo.direction === 'down' ? (
                       <Triangle className="h-3 w-3 rotate-180 fill-red-400" />
-                    ) : (
+                    ) : priceChangeInfo.direction === 'up' ? (
                       <Triangle className="h-3 w-3 fill-emerald-400" />
-                    )}
+                    ) : null}
                     <span className="text-sm font-bold">
                       {Math.abs(priceChangeInfo.percentageChange).toFixed(2)}%
                     </span>
@@ -628,12 +630,12 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
             </div>
           </div>
         </div>
-        <div className="flex justify-center gap-2 py-4 bg-transparent">
+        <div className="flex justify-center gap-2 py-4 bg-transparent" aria-label="Wallet sections">
           {[0, 1, 2].map((index) => (
             <button
               key={index}
               onClick={() => setActiveSlide(index)}
-              className={`w-2.5 h-2.5 rounded-full transition-all ${activeSlide === index ? 'bg-white' : 'bg-zinc-600/70'}`}
+              className={`w-3 h-3 rounded-full transition-all ${activeSlide === index ? 'bg-white' : 'bg-zinc-600/70'}`}
               aria-label={`Go to slide ${index + 1}`}
             />
           ))}

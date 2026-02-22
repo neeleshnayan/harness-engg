@@ -211,6 +211,8 @@ function getFinalStepLabel(status: string): string {
   const normalizedStatus = status.toLowerCase();
 
   switch (normalizedStatus) {
+    case CircleTransactionState.CONFIRMED:
+      return 'Confirmed';
     case CircleTransactionState.SUCCESS:
     case CircleTransactionState.COMPLETE:
       return 'Complete';
@@ -279,6 +281,7 @@ function getStatusBadgeClasses(status: string): { bg: string; text: string } {
   const normalizedStatus = status.toLowerCase();
 
   switch (normalizedStatus) {
+    case CircleTransactionState.CONFIRMED:
     case CircleTransactionState.SUCCESS:
     case CircleTransactionState.COMPLETE:
       return { bg: 'bg-emerald-500/20', text: 'text-emerald-400' };
@@ -292,7 +295,6 @@ function getStatusBadgeClasses(status: string): { bg: string; text: string } {
     case CircleTransactionState.SUBMITTED:
     case CircleTransactionState.CREATED:
       return { bg: 'bg-blue-500/20', text: 'text-blue-400' };
-    case CircleTransactionState.CONFIRMED:
     case CircleTransactionState.SENT:
     case CircleTransactionState.CLEARED:
       return { bg: 'bg-amber-500/20', text: 'text-amber-400' };

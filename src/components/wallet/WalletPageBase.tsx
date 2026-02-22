@@ -13,6 +13,7 @@ import api, { kryptonWeb3Api } from "@/lib/api";
 import { parseErrorMessage } from "@/lib/parseError";
 import WalletHeader from "@/components/wallet/WalletHeader";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { useWalletKyc } from "@/hooks/useWalletKyc";
 
 // Dynamically import heavy modals to reduce initial bundle size
 const SendUSDCModal = dynamic(() => import("@/components/wallet/SendUSDCModal"), {
@@ -102,11 +103,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   const [refreshingBalance, setRefreshingBalance] = useState(false);
   const [showTransakModal, setShowTransakModal] = useState(false);
   const [transactionHistoryRefresh, setTransactionHistoryRefresh] = useState(false);
-  const [kycModalVisible, setKycModalVisible] = useState(false);
-  const [kycAccessToken, setKycAccessToken] = useState<string | null>(null);
-  const [kycStatus, setKycStatus] = useState<string | null>(null);
-  const [kycChecking, setKycChecking] = useState(false);
-  const [kycMessage, setKycMessage] = useState<string | null>(null);
   const [webhookNotification, setWebhookNotification] = useState<string | null>(null);
   const [balanceCardRefresh, setBalanceCardRefresh] = useState(false);
   const [balanceRefreshing, setBalanceRefreshing] = useState(false);
@@ -121,6 +117,18 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   // refresh TransactionHistory without waiting for the ActiveTransactions drain.
   const [txHistoryForceRefresh, setTxHistoryForceRefresh] = useState(0);
   const router = useRouter();
+  const {
+    kycModalVisible,
+    kycAccessToken,
+    kycStatus,
+    kycChecking,
+    kycMessage,
+    setKycStatus,
+    openKycModal,
+    checkKycStatus,
+    skipKyc,
+    handleKycModalClose,
+  } = useWalletKyc({ accountData, setAccountData });
 
   // Refs to prevent excessive balance fetches
   const balanceFetchInProgressRef = useRef(false);
@@ -128,7 +136,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   const accountDataRef = useRef(accountData);
   const showTransactionsRef = useRef(showTransactions);
   const fetchBalanceRef = useRef<((address: string, options?: { background?: boolean }) => Promise<void>) | null>(null);
-  const processedWebhookEventsRef = useRef<Set<string>>(new Set()); // Track processed webhook event IDs
+  const processedWebhookEventsRef = useRef<Set<string>>(new Set()); // Track processed webhook event keys (type+txId)
   const balanceCardRef = useRef<BalanceCardRef | null>(null); // Ref to BalanceCard for switching tabs
 
   // Update refs when state changes
@@ -181,11 +189,9 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
   // WebSocket message handler - stabilized with useCallback and refs
   const handleWebSocketMessage = useCallback((message: any) => {
-    console.log('📨 WebSocket message received:', message);
 
     // Handle transaction_failed - trigger immediate ActiveTransactions refresh
     if (message.type === 'transaction_failed') {
-      console.log('❌ Transaction failed event:', message.transaction_id, message.state);
       setTransactionHistoryRefresh(prev => !prev);  // Trigger ActiveTransactions poll
       if (config.showWebhookNotification) {
         setWebhookNotification(`Transaction failed: ${message.state || 'Error'}`);
@@ -199,25 +205,21 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       const transactionId = message.transaction_id;
       const txHash = message.tx_hash;
 
-      console.log('🎯 Processing transaction event:', {
-        type: message.type,
-        transactionId,
-        txHash,
-        alreadyProcessed: processedWebhookEventsRef.current.has(transactionId)
-      });
+      const eventKey = `${message.type}:${transactionId || ''}`;
 
-      // Deduplicate: Skip if we've already processed this transaction event
-      if (transactionId && processedWebhookEventsRef.current.has(transactionId)) {
-        console.log('⏭️ Skipping duplicate transaction event');
+      // Deduplicate per event type + tx id.
+      // This allows transaction_update and transaction_confirmed for the same tx
+      // to both be processed in order.
+      if (transactionId && processedWebhookEventsRef.current.has(eventKey)) {
         return;
       }
 
       // Mark this event as processed
       if (transactionId) {
-        processedWebhookEventsRef.current.add(transactionId);
+        processedWebhookEventsRef.current.add(eventKey);
         // Clean up old event IDs after 5 minutes to prevent memory leak
         setTimeout(() => {
-          processedWebhookEventsRef.current.delete(transactionId);
+          processedWebhookEventsRef.current.delete(eventKey);
         }, 5 * 60 * 1000);
       }
 
@@ -252,7 +254,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
           };
           setBalance(transformedBalance);
           setBalanceRefreshing(false);
-          console.log('✅ Balance updated from WebSocket payload (no API call)');
         } else {
           // Fallback: fetch balance from API
           if (fetchBalanceRef.current) {
@@ -266,8 +267,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
         setBalanceCardRefresh(prev => !prev);
         setTransactionHistoryRefresh(prev => !prev);
-      } else {
-        console.log('⚠️ No wallet address found, skipping balance refresh');
       }
 
       return;
@@ -297,7 +296,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
             _fetchedAt: Date.now(),
           };
           setBalance(transformedBalance);
-          console.log('✅ Balance updated from balance_update WebSocket event (subgraph confirmed indexed)');
         } else {
           // Fallback: fetch from API (subgraph may not have returned data)
           if (fetchBalanceRef.current) {
@@ -316,7 +314,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       return;
     }
 
-    console.log('ℹ️ Unhandled WebSocket message type:', message.type);
   }, [config.showWebhookNotification]);
 
   // WebSocket open handler - stabilized
@@ -376,32 +373,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     };
   }, []);
 
-  useEffect(() => {
-    const userData = localStorage.getItem('userData');
-    if (!userData) {
-      router.push('/');
-      return;
-    }
-    try {
-      const data = JSON.parse(userData);
-      setAccountData(data);
-
-      if (data.user_id) {
-        fetchUserData(data.user_id);
-      }
-      if (data.wallet_address && data.username) {
-        // Batch call: loads balance + transactions + rates in one request
-        fetchWalletInit(data.wallet_address, data.username, { background: config.pageType === 'business' });
-      } else if (data.wallet_address) {
-        // Username not set yet — fall back to wallet-init with empty username
-        fetchWalletInit(data.wallet_address, '', { background: config.pageType === 'business' });
-      }
-    } catch (err) {
-      setError('Invalid user data.');
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
 
   const fetchUserData = async (userId: string) => {
     try {
@@ -409,7 +380,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
       const response = await api.get(`/api/v1/user/${userId}`);
       const userData = response.data;
-      setKycStatus(userData.kyc_status || 'pending');
 
       // Preserve existing wallet data if not in the response
       const currentData = accountData || {};
@@ -423,6 +393,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         // Ensure user_id is preserved (Firestore returns 'id' but we need 'user_id')
         user_id: userData.id || currentData.user_id || userId
       };
+      const resolvedKycStatus = userData.kyc_status || currentData.kyc_status || null;
+      setKycStatus(resolvedKycStatus);
 
       setAccountData(updatedData);
       localStorage.setItem('userData', JSON.stringify(updatedData));
@@ -433,7 +405,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       }
 
       // If user has username but KYC is not approved, check status
-      if (updatedData.username && userData.kyc_status !== 'approved') {
+      if (updatedData.username && resolvedKycStatus && resolvedKycStatus !== 'approved') {
         setTimeout(() => {
           checkKycStatus(userId);
         }, 1000);
@@ -443,7 +415,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       console.error('Failed to fetch user data:', err);
       // Fallback to localStorage data
       const data = JSON.parse(localStorage.getItem('userData') || '{}');
-      setKycStatus(data.kyc_status || 'pending');
+      setKycStatus(data.kyc_status || null);
     } finally {
       setUserDataLoading(false);
     }
@@ -470,10 +442,12 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         setBalanceLoading(true);
       }
 
-      // Use the new subgraph API endpoint with cache-busting timestamp
+      // Use wallet-overview (balances + rates) with cache-busting timestamp.
+      // Rates are returned for backend-driven bootstrap consistency; this component
+      // currently consumes balances directly.
       const kryptonWeb3ApiUrl = process.env.NEXT_PUBLIC_KRYPTON_WEB3_API_URL || 'https://kryptonweb3-production.up.railway.app';
       const cacheBuster = Date.now();
-      const response = await fetch(`${kryptonWeb3ApiUrl}/subgraph/user/${address}/balances?_t=${cacheBuster}`, {
+      const response = await fetch(`${kryptonWeb3ApiUrl}/subgraph/wallet-overview?address=${encodeURIComponent(address)}&_t=${cacheBuster}`, {
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
@@ -486,17 +460,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       }
 
       const subgraphResponse = await response.json();
-
-      // The backend /subgraph/user/{address}/balances endpoint returns an array directly
-      // Format: [{"symbol": "USDC", "balance": 100.5, "decimals": 6, ...}, ...]
-      const balances = Array.isArray(subgraphResponse) ? subgraphResponse : (subgraphResponse?.balances || []);
-
-      console.log('🔄 Balance API response:', {
-        address,
-        balanceCount: balances.length,
-        balances: balances.map((b: any) => `${b.symbol}: ${b.balance}`),
-        timestamp: new Date().toISOString()
-      });
+      const balances = Array.isArray(subgraphResponse?.balances) ? subgraphResponse.balances : [];
 
       const transformedBalance = {
         tokenBalances: balances.map((balance: any) => ({
@@ -519,11 +483,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         _fetchedAt: Date.now(),
       };
 
-      console.log('✅ Setting new balance state:', {
-        tokenCount: transformedBalance.tokenBalances.length,
-        _fetchedAt: transformedBalance._fetchedAt
-      });
-
       setBalance(transformedBalance);
 
     } catch (err) {
@@ -532,30 +491,21 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     } finally {
       if (isBackground) {
         setBalanceRefreshing(false);
-        balanceFetchInProgressRef.current = false;
-        // Stop flickering when balance refresh is complete
-        if (balanceFlickering) {
-          setBalanceFlickering(false);
-        }
       } else {
         setBalanceLoading(false);
-        balanceFetchInProgressRef.current = false;
-        // Stop flickering when balance loading is complete
-        if (balanceFlickering) {
-          setBalanceFlickering(false);
-        }
       }
+      balanceFetchInProgressRef.current = false;
+      // Stop flickering when balance request completes.
+      setBalanceFlickering(false);
     }
-  }, [balanceFlickering]);
+  }, []);
 
   /**
-   * Batch init: fetches balance + transactions + rates from /subgraph/wallet-init
-   * in a single round trip on page load. Replaces the old separate fetchBalance call.
-   * Subsequent balance refreshes (from WebSocket, etc.) still call fetchBalance directly
-   * since only balance needs updating then.
+   * Background hydration: fetch initial transaction history only.
+   * Balance is fetched separately via fetchBalance for faster first paint.
    */
-  const fetchWalletInit = useCallback(async (
-    address: string,
+  const fetchInitialTransactions = useCallback(async (
+    _address: string,
     username: string,
     options?: { background?: boolean }
   ) => {
@@ -563,48 +513,56 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     if (!isBackground) setBalanceLoading(true);
 
     try {
-      const kryptonWeb3ApiUrl = process.env.NEXT_PUBLIC_KRYPTON_WEB3_API_URL || 'https://kryptonweb3-production.up.railway.app';
-      const cacheBuster = Date.now();
-      const response = await fetch(
-        `${kryptonWeb3ApiUrl}/subgraph/wallet-init?address=${encodeURIComponent(address)}&username=${encodeURIComponent(username)}&tx_limit=10&_t=${cacheBuster}`,
-        { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }
+      if (!username) return;
+      const response = await kryptonWeb3Api.get(
+        `/subgraph/transactions/${encodeURIComponent(username)}?limit=10&skip=0`
       );
-      if (!response.ok) throw new Error(`wallet-init failed: ${response.statusText}`);
-
-      const data = await response.json();
-
-      // --- Balance ---
-      const balances = Array.isArray(data.balances) ? data.balances : [];
-      const transformedBalance = {
-        tokenBalances: balances.map((b: any) => ({
-          amount: String(b.balance ?? 0),
-          token: {
-            name: b.symbol === 'USDC' ? 'USD Coin' : b.symbol?.startsWith('k') ? `Krypton ${b.symbol.substring(1).toUpperCase()}` : b.symbol ?? '',
-            blockchain: 'ETH-SEPOLIA',
-            decimals: b.decimals,
-            isNative: b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA',
-            symbol: b.symbol ?? '',
-            tokenAddress: b.address,
-            standard: (b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA') ? undefined : 'ERC20',
-          },
-        })),
-        _fetchedAt: Date.now(),
-      };
-      setBalance(transformedBalance);
-
-      // --- Transactions (pre-seed TransactionHistory so it skips its own fetch) ---
-      if (data.transactions) {
-        setInitialTransactions(data.transactions);
+      if (response?.data) {
+        setInitialTransactions(response.data);
       }
-
     } catch (err) {
-      console.error('Failed wallet-init batch fetch:', err);
-      setError('Failed to load wallet data.');
+      console.error('Failed initial transactions fetch:', err);
+      if (!isBackground) {
+        setError('Failed to load wallet data.');
+      }
     } finally {
       if (!isBackground) setBalanceLoading(false);
       balanceFetchInProgressRef.current = false;
     }
   }, []);
+
+  useEffect(() => {
+    const userData = localStorage.getItem('userData');
+    if (!userData) {
+      router.push('/');
+      return;
+    }
+    try {
+      const data = JSON.parse(userData);
+      setAccountData(data);
+      setKycStatus(data.kyc_status || null);
+
+      if (data.user_id) {
+        fetchUserData(data.user_id);
+      }
+
+      if (data.wallet_address) {
+        // Fast path: render wallet with live balance first.
+        fetchBalance(data.wallet_address, { background: false });
+
+        // Background hydration: seed transactions/rates without blocking first paint.
+        if (data.username) {
+          fetchInitialTransactions(data.wallet_address, data.username, {
+            background: true,
+          });
+        }
+      }
+    } catch (err) {
+      setError('Invalid user data.');
+    } finally {
+      setLoading(false);
+    }
+  }, [router, fetchBalance, fetchInitialTransactions]);
 
   // Update fetchBalance ref when it changes
   useEffect(() => {
@@ -776,171 +734,13 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     }
   };
 
-  const openKycModal = async (userId: string) => {
-    try {
-      // 1. Create applicant if needed
-      await api.post('/api/v1/kyc/applicant', { user_id: userId });
-
-      // 2. Get access token
-      const tokenRes = await api.post('/api/v1/kyc/access-token', { user_id: userId });
-      setKycAccessToken(tokenRes.data.token || tokenRes.data.accessToken || tokenRes.data.access_token);
-      setKycModalVisible(true);
-
-    } catch (err) {
-      console.error('Failed to open KYC modal:', err);
-    }
-  };
-
-  const checkKycStatus = async (userId: string) => {
-    setKycChecking(true);
-    setKycMessage(null);
-
-    try {
-      const response = await api.post(`/api/v1/kyc/check-status/${userId}`);
-
-      if (response.data.status === 'success') {
-        const newStatus = response.data.kyc_status;
-        setKycStatus(newStatus);
-        const updatedData = { ...accountData, kyc_status: newStatus };
-        setAccountData(updatedData);
-        localStorage.setItem('userData', JSON.stringify(updatedData));
-
-        if (newStatus === 'approved') {
-          setKycMessage('KYC verification completed successfully!');
-          setTimeout(() => setKycMessage(null), 3000);
-        } else if (newStatus === 'rejected') {
-          setKycMessage('KYC verification was rejected. Please try again.');
-          setTimeout(() => setKycMessage(null), 5000);
-        } else {
-          setKycMessage(`KYC status: ${newStatus}`);
-          setTimeout(() => setKycMessage(null), 3000);
-        }
-
-      } else {
-        setKycMessage(response.data.message || 'Failed to check KYC status');
-        setTimeout(() => setKycMessage(null), 5000);
-      }
-    } catch (err) {
-      console.error('Failed to check KYC status:', err);
-      setKycMessage(parseErrorMessage(err, 'Failed to check KYC status'));
-      setTimeout(() => setKycMessage(null), 5000);
-    } finally {
-      setKycChecking(false);
-    }
-  };
-
-  const skipKyc = async (userId: string) => {
-    try {
-      // Use accountData.id as fallback if userId is not provided
-      const actualUserId = userId || accountData?.id;
-
-      if (!actualUserId) {
-        console.error('No user ID provided for skip KYC');
-        setKycMessage('No user ID found');
-        return;
-      }
-
-      // Update KYC status to approved in the backend
-      const response = await api.post(`/api/v1/kyc/skip/${actualUserId}`);
-
-      if (response.data.status === 'success') {
-        setKycStatus('approved');
-        const updatedData = { ...accountData, kyc_status: 'approved' };
-        setAccountData(updatedData);
-        localStorage.setItem('userData', JSON.stringify(updatedData));
-        setKycMessage('KYC skipped successfully');
-      } else {
-        setKycMessage(response.data.message || 'Failed to skip KYC');
-      }
-    } catch (err) {
-      console.error('Failed to skip KYC:', err);
-      setKycMessage(parseErrorMessage(err, 'Failed to skip KYC'));
-    } finally {
-      // Clear message after 5 seconds
-      setTimeout(() => setKycMessage(null), 5000);
-    }
-  };
-
-  const pollKycStatus = async (userId: string) => {
-    // Poll user data for KYC status
-    for (let i = 0; i < 15; i++) { // Increased attempts
-      try {
-        const res = await api.get(`/api/v1/user/${userId}`);
-        const status = res.data.kyc_status;
-
-        if (status === 'approved') {
-          setKycStatus('approved');
-          const updated = { ...accountData, kyc_status: 'approved' };
-          setAccountData(updated);
-          localStorage.setItem('userData', JSON.stringify(updated));
-          setKycMessage('KYC verification completed successfully!');
-
-          // Clear success message after 3 seconds
-          setTimeout(() => setKycMessage(null), 3000);
-          break;
-        } else if (status === 'rejected') {
-          setKycStatus('rejected');
-          setKycMessage('KYC verification was rejected. Please try again.');
-          // Clear error message after 5 seconds
-          setTimeout(() => setKycMessage(null), 5000);
-          break;
-        } else {
-          // Update status even if pending to ensure UI reflects current state
-          setKycStatus(status || 'pending');
-        }
-
-        // Wait 2 seconds between checks (reduced from 3)
-        await new Promise(r => setTimeout(r, 2000));
-      } catch (err) {
-        console.error(`Error polling KYC status (attempt ${i + 1}):`, err);
-        // Don't break on first error, continue polling
-        await new Promise(r => setTimeout(r, 2000));
-      }
-    }
-
-    // If we've exhausted all attempts, try one final manual check
-    try {
-      const finalRes = await api.post(`/api/v1/kyc/check-status/${userId}`);
-      if (finalRes.data.status === 'success') {
-        const finalStatus = finalRes.data.kyc_status;
-        setKycStatus(finalStatus);
-        const updated = { ...accountData, kyc_status: finalStatus };
-        setAccountData(updated);
-        localStorage.setItem('userData', JSON.stringify(updated));
-
-        if (finalStatus === 'approved') {
-          setKycMessage('KYC verification completed successfully!');
-          setTimeout(() => setKycMessage(null), 3000);
-        }
-      }
-    } catch (err) {
-      console.error('Error in final KYC status check:', err);
-    }
-  };
-
-  const handleKycModalClose = () => {
-    setKycModalVisible(false);
-
-    // Immediately check status once
-    if (accountData?.user_id) {
-      checkKycStatus(accountData.user_id);
-    }
-
-    // Add a small delay to allow webhook processing, then start polling
-    setTimeout(() => {
-      if (accountData?.user_id) {
-        pollKycStatus(accountData.user_id);
-      }
-    }, 2000);
-  };
-
-  if (loading || userDataLoading || balanceLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen w-full bg-[hsl(var(--brand-bg))] dark overflow-x-hidden flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-[hsl(var(--brand-accent))] border-t-transparent mx-auto mb-4"></div>
           <p className="text-zinc-400 font-medium">
-            {loading ? "Loading wallet..." : userDataLoading ? "Fetching user data..." : balanceLoading ? "Loading balance..." : "Loading..."}
+            Loading wallet...
           </p>
         </div>
       </div>
@@ -975,12 +775,14 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
   return (
     <>
-      <SumsubKYCModal
-        accessToken={kycAccessToken || ''}
-        visible={kycModalVisible}
-        onClose={handleKycModalClose}
-        applicantEmail={accountData?.email}
-      />
+      {kycModalVisible && kycStatus !== 'approved' && kycAccessToken && (
+        <SumsubKYCModal
+          accessToken={kycAccessToken}
+          visible={kycModalVisible}
+          onClose={() => handleKycModalClose(accountData?.user_id)}
+          applicantEmail={accountData?.email}
+        />
+      )}
       <div className="min-h-screen w-full bg-[hsl(var(--brand-bg))] dark overflow-x-hidden">
         <WalletHeader
           accountData={accountData}
@@ -1019,19 +821,19 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
             <div className={`text-center mb-8 ${welcomeMargin}`}>
               <span className="text-white text-3xl">Hello </span>
               <span className="text-[hsl(var(--brand-accent))] text-3xl">@{accountData.username}</span>
-              <div className="flex items-center justify-center gap-1.5 text-base">
+              <div className="flex items-center justify-center gap-1.5 text-base" aria-live="polite">
                 {config.showKycStatusBadge ? (
                   kycStatus === 'approved' ? (
                     <>
-                      <span className="text-zinc-400">Active</span>
+                      <span className="text-zinc-300">Active</span>
                       <FaCheck className="text-green-500 shrink-0" />
                     </>
                   ) : (
-                    <span className="text-zinc-400">KYC needed</span>
+                    <span className="text-zinc-300">Verification required</span>
                   )
                 ) : (
                   <>
-                    <span className="text-zinc-400">Active</span>
+                    <span className="text-zinc-300">Active</span>
                     <FaCheck className="text-green-500 shrink-0" />
                   </>
                 )}
@@ -1077,7 +879,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
                       setShowSendForm(true);
                     }
                   }}
-                  className="p-0 border-0 bg-transparent cursor-pointer focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity"
+                  className="p-0 border-0 bg-transparent cursor-pointer focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity min-h-[56px] min-w-[140px] rounded-full"
                   aria-label="Pay"
                 >
                   <img
@@ -1093,7 +895,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
                     e.stopPropagation();
                     router.push(config.growRoute);
                   }}
-                  className="p-0 border-0 bg-transparent cursor-pointer focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity"
+                  className="p-0 border-0 bg-transparent cursor-pointer focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity min-h-[56px] min-w-[140px] rounded-full"
                   aria-label="Grow"
                 >
                   <img
@@ -1138,7 +940,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
                       <button
                         type="button"
                         onClick={() => setShowClarkChat(true)}
-                        className="p-0 border-0 bg-transparent cursor-pointer inline-flex focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity"
+                        className="p-0 border-0 bg-transparent cursor-pointer inline-flex focus:outline-none focus:ring-0 hover:opacity-90 active:opacity-80 transition-opacity min-h-[48px] min-w-[120px] rounded-full"
                         aria-label="Open Clark Chat"
                       >
                         <img

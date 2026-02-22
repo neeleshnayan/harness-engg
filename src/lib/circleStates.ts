@@ -31,6 +31,7 @@ export enum CircleTransactionState {
  */
 export const TERMINAL_STATES = new Set<string>([
   CircleTransactionState.CANCELLED,
+  CircleTransactionState.CONFIRMED,
   CircleTransactionState.COMPLETE,
   CircleTransactionState.DENIED,
   CircleTransactionState.FAILED,
@@ -41,6 +42,7 @@ export const TERMINAL_STATES = new Set<string>([
  * Success states - transaction completed successfully
  */
 export const SUCCESS_STATES = new Set<string>([
+  CircleTransactionState.CONFIRMED,
   CircleTransactionState.COMPLETE,
   CircleTransactionState.SUCCESS,
 ]);
@@ -61,7 +63,6 @@ export const ERROR_STATES = new Set<string>([
 export const ONGOING_STATES = new Set<string>([
   CircleTransactionState.CREATED,
   CircleTransactionState.INITIATED,
-  CircleTransactionState.CONFIRMED,
   CircleTransactionState.QUEUED,
   CircleTransactionState.SENT,
   CircleTransactionState.STUCK,
