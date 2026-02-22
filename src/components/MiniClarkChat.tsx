@@ -50,7 +50,7 @@ export default function MiniClarkChat({
   useEffect(() => {
     const newSessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
     setSessionId(newSessionId)
-    
+
     // Extract username from localStorage
     const storedUserData = localStorage.getItem('userData')
     if (storedUserData) {
@@ -277,7 +277,7 @@ export default function MiniClarkChat({
 
   return (
     <>
-      <div className="relative w-full flex flex-col rounded-2xl bg-[#001C1B] overflow-hidden shadow-xl max-h-[70vh]">
+      <div className="relative w-full flex flex-col rounded-2xl bg-[hsl(var(--brand-bg))] overflow-hidden shadow-xl max-h-[70vh]">
         <Button
           onClick={handleExpand}
           variant="ghost"

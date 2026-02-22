@@ -12,7 +12,6 @@ import HamburgerMenu from "@/components/wallet/HamburgerMenu";
 import api, { kryptonWeb3Api } from "@/lib/api";
 import { parseErrorMessage } from "@/lib/parseError";
 import WalletHeader from "@/components/wallet/WalletHeader";
-import axios from "axios";
 import { useWebSocket } from "@/hooks/useWebSocket";
 
 // Dynamically import heavy modals to reduce initial bundle size
@@ -37,8 +36,8 @@ const SendERC20Modal = dynamic(() => import("@/components/wallet/SendERC20Modal"
 });
 
 // Configuration: Delay before fetching balance after webhook event (in milliseconds)
-// Increase this if Circle API hasn't updated the balance yet when webhook arrives
-const WEBHOOK_BALANCE_REFRESH_DELAY_MS = 5000; // 5 seconds - wait for Circle/subgraph to update
+// The backend now polls the Subgraph itself and triggers the WebSocket, so we wait just 1 second down from 5+ seconds.
+const WEBHOOK_BALANCE_REFRESH_DELAY_MS = 1000;
 
 export interface WalletPageConfig {
   // Page type identifier
@@ -108,12 +107,19 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   const [kycStatus, setKycStatus] = useState<string | null>(null);
   const [kycChecking, setKycChecking] = useState(false);
   const [kycMessage, setKycMessage] = useState<string | null>(null);
-  const [fiatData, setFiatData] = useState<any>([]);
   const [webhookNotification, setWebhookNotification] = useState<string | null>(null);
   const [balanceCardRefresh, setBalanceCardRefresh] = useState(false);
   const [balanceRefreshing, setBalanceRefreshing] = useState(false);
   const [balanceFlickering, setBalanceFlickering] = useState(false);
   const [showClarkChat, setShowClarkChat] = useState(false);
+  const [initialTransactions, setInitialTransactions] = useState<{
+    transactions: any[];
+    count: number;
+    has_more: boolean;
+  } | undefined>(undefined);
+  // Incremented only on balance_update (post-subgraph indexing) to directly
+  // refresh TransactionHistory without waiting for the ActiveTransactions drain.
+  const [txHistoryForceRefresh, setTxHistoryForceRefresh] = useState(0);
   const router = useRouter();
 
   // Refs to prevent excessive balance fetches
@@ -191,10 +197,12 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     // Handle new Krypton_Web3 event format (from webhook.py)
     if (message.type === 'transaction_confirmed' || message.type === 'transaction_update') {
       const transactionId = message.transaction_id;
+      const txHash = message.tx_hash;
 
       console.log('🎯 Processing transaction event:', {
         type: message.type,
         transactionId,
+        txHash,
         alreadyProcessed: processedWebhookEventsRef.current.has(transactionId)
       });
 
@@ -215,63 +223,96 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
       // Show notification to user
       if (message.type === 'transaction_confirmed' && config.showWebhookNotification) {
-        setWebhookNotification('Transaction confirmed! Refreshing balance...');
+        setWebhookNotification('Transaction confirmed!');
         setTimeout(() => setWebhookNotification(null), 5000);
       }
 
-      // Refresh balance - no need to check address since we're receiving user-specific events
+      // Update balance: use balances from WebSocket if present (backend sends after subgraph indexation)
       const currentAccountData = accountDataRef.current;
       if (currentAccountData?.wallet_address) {
-        console.log('🔄 Triggering balance refresh after webhook, delay:', WEBHOOK_BALANCE_REFRESH_DELAY_MS);
+        setBalanceRefreshing(true);
+        const balances = message.balances;
 
-        // Use configurable delay to allow Circle API time to update balance
-        const debounceDelay = WEBHOOK_BALANCE_REFRESH_DELAY_MS;
-
-        // Clear any existing debounce timer
-        if (balanceDebounceTimerRef.current) {
-          clearTimeout(balanceDebounceTimerRef.current);
-          balanceDebounceTimerRef.current = null;
-        }
-
-        // DELAYED UI UPDATE:
-        // We do NOT set refreshing=true immediately. We wait until the delay passes.
-        // This prevents the "blinking" effect before the data is actually ready.
-
-        balanceDebounceTimerRef.current = setTimeout(() => {
-          console.log('⏰ Webhook delay expired, fetching balance now');
-          // Now we start the refresh UI
-          setBalanceRefreshing(true);
-
+        if (Array.isArray(balances) && balances.length > 0) {
+          // Backend sent updated balances - update UI directly, no API call
+          const transformedBalance = {
+            tokenBalances: balances.map((b: { symbol: string; balance: number; decimals?: number; address?: string }) => ({
+              amount: String(b.balance ?? 0),
+              token: {
+                name: b.symbol === 'USDC' ? 'USD Coin' : b.symbol?.startsWith('k') ? `Krypton ${b.symbol.substring(1).toUpperCase()}` : b.symbol ?? '',
+                blockchain: 'ETH-SEPOLIA',
+                decimals: b.decimals,
+                isNative: b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA',
+                symbol: b.symbol ?? '',
+                tokenAddress: b.address,
+                standard: (b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA') ? undefined : 'ERC20',
+              },
+            })),
+            _fetchedAt: Date.now(),
+          };
+          setBalance(transformedBalance);
+          setBalanceRefreshing(false);
+          console.log('✅ Balance updated from WebSocket payload (no API call)');
+        } else {
+          // Fallback: fetch balance from API
           if (fetchBalanceRef.current) {
-            console.log('📞 Calling fetchBalance...');
             fetchBalanceRef.current(currentAccountData.wallet_address, { background: true })
-              .then(() => {
-                console.log('✅ Balance fetch completed');
-                setBalanceRefreshing(false);
-              })
-              .catch((err) => {
-                console.error('❌ Error fetching balance:', err);
-                setBalanceRefreshing(false);
-              });
+              .then(() => setBalanceRefreshing(false))
+              .catch(() => setBalanceRefreshing(false));
           } else {
-            console.log('⚠️ fetchBalanceRef.current is null/undefined!');
             setBalanceRefreshing(false);
           }
+        }
 
-          // Trigger BalanceCard refresh
-          setBalanceCardRefresh(prev => !prev);
-
-          // NOTE: Do NOT refresh transaction history here!
-          // Transaction history will be refreshed by handleAllTransactionsComplete
-          // when the last active transaction card is removed from UI
-        }, debounceDelay);
-
-        // Safety timeout: Clear refreshing state if it somehow gets stuck later
-        // (This is less critical now since we only set it true inside the timeout)
+        setBalanceCardRefresh(prev => !prev);
+        setTransactionHistoryRefresh(prev => !prev);
       } else {
         console.log('⚠️ No wallet address found, skipping balance refresh');
       }
 
+      return;
+    }
+
+    // Handle balance_update event - sent by backend AFTER subgraph indexes the tx
+    // This is separate from transaction_confirmed to bypass the dedup check above
+    if (message.type === 'balance_update') {
+      const currentAccountData = accountDataRef.current;
+      if (currentAccountData?.wallet_address) {
+        const balances = message.balances;
+        if (Array.isArray(balances) && balances.length > 0) {
+          // Backend confirmed subgraph is indexed - apply balances directly
+          const transformedBalance = {
+            tokenBalances: balances.map((b: { symbol: string; balance: number; decimals?: number; address?: string }) => ({
+              amount: String(b.balance ?? 0),
+              token: {
+                name: b.symbol === 'USDC' ? 'USD Coin' : b.symbol?.startsWith('k') ? `Krypton ${b.symbol.substring(1).toUpperCase()}` : b.symbol ?? '',
+                blockchain: 'ETH-SEPOLIA',
+                decimals: b.decimals,
+                isNative: b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA',
+                symbol: b.symbol ?? '',
+                tokenAddress: b.address,
+                standard: (b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA') ? undefined : 'ERC20',
+              },
+            })),
+            _fetchedAt: Date.now(),
+          };
+          setBalance(transformedBalance);
+          console.log('✅ Balance updated from balance_update WebSocket event (subgraph confirmed indexed)');
+        } else {
+          // Fallback: fetch from API (subgraph may not have returned data)
+          if (fetchBalanceRef.current) {
+            fetchBalanceRef.current(currentAccountData.wallet_address, { background: true }).catch(() => { });
+          }
+        }
+        // Also refresh transaction history now that subgraph is indexed
+        setTransactionHistoryRefresh(prev => !prev);
+        setTxHistoryForceRefresh(prev => prev + 1);
+      }
+      return;
+    }
+
+    if (message.type === 'connection_established') {
+      // Ignore this message, it's just a connection confirmation
       return;
     }
 
@@ -287,7 +328,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   }, [config.showWebhookNotification]);
 
   // WebSocket close handler - stabilized
-  const handleWebSocketClose = useCallback(() => {}, []);
+  const handleWebSocketClose = useCallback(() => { }, []);
 
   // Ref to track connection status for error handler
   const connectionStatusRef = useRef<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
@@ -295,12 +336,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   // WebSocket error handler - stabilized with ref
   const handleWebSocketError = useCallback((error: Event) => {
     console.error('WebSocket error:', error);
-    console.error('WebSocket error details:', {
-      error,
-      errorType: error.type,
-      errorTarget: error.target,
-      timestamp: new Date().toISOString()
-    });
   }, []);
 
   // WebSocket connection for real-time transaction updates from Krypton_Web3
@@ -351,14 +386,16 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       const data = JSON.parse(userData);
       setAccountData(data);
 
-      // Fetch fresh KYC status from backend instead of relying on localStorage
       if (data.user_id) {
         fetchUserData(data.user_id);
       }
-      if (data.wallet_address) {
-        fetchBalance(data.wallet_address, { background: config.pageType === 'business' });
+      if (data.wallet_address && data.username) {
+        // Batch call: loads balance + transactions + rates in one request
+        fetchWalletInit(data.wallet_address, data.username, { background: config.pageType === 'business' });
+      } else if (data.wallet_address) {
+        // Username not set yet — fall back to wallet-init with empty username
+        fetchWalletInit(data.wallet_address, '', { background: config.pageType === 'business' });
       }
-      // Don't show error if wallet address is missing - it will be fetched by fetchUserData
     } catch (err) {
       setError('Invalid user data.');
     } finally {
@@ -374,16 +411,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       const userData = response.data;
       setKycStatus(userData.kyc_status || 'pending');
 
-      const res = await axios.get('https://api-stg.transak.com/fiat/public/v1/currencies/fiat-currencies?apiKey=f4c10825-55fd-4ccc-bd3f-40fc021468e5');
-      const fiatDataMap: { name: string; code: string; symbol: string }[] = []
-      for (const currency of res.data.response) {
-        fiatDataMap.push({
-          name: currency.name,
-          code: currency.symbol,
-          symbol: currency.logoSymbol
-        });
-      }
-      setFiatData(fiatDataMap);
       // Preserve existing wallet data if not in the response
       const currentData = accountData || {};
       const updatedData = {
@@ -400,9 +427,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       setAccountData(updatedData);
       localStorage.setItem('userData', JSON.stringify(updatedData));
 
-      // If we have a wallet address and it's not already being fetched, fetch balance
-      // Only fetch if balance is null (initial load) or if wallet address changed
-      if (updatedData.wallet_address && (!balance || accountDataRef.current?.wallet_address !== updatedData.wallet_address)) {
+      // Only fetch balance when wallet address changed (initial effect already fetches on load)
+      if (updatedData.wallet_address && accountDataRef.current?.wallet_address !== updatedData.wallet_address) {
         fetchBalance(updatedData.wallet_address, { background: true });
       }
 
@@ -461,15 +487,17 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
       const subgraphResponse = await response.json();
 
+      // The backend /subgraph/user/{address}/balances endpoint returns an array directly
+      // Format: [{"symbol": "USDC", "balance": 100.5, "decimals": 6, ...}, ...]
+      const balances = Array.isArray(subgraphResponse) ? subgraphResponse : (subgraphResponse?.balances || []);
+
       console.log('🔄 Balance API response:', {
         address,
-        balanceCount: subgraphResponse.balances?.length || 0,
-        balances: subgraphResponse.balances?.map((b: any) => `${b.symbol}: ${b.balance}`) || [],
+        balanceCount: balances.length,
+        balances: balances.map((b: any) => `${b.symbol}: ${b.balance}`),
         timestamp: new Date().toISOString()
       });
 
-      // Transform subgraph response to frontend format (guard against missing balances)
-      const balances = Array.isArray(subgraphResponse?.balances) ? subgraphResponse.balances : [];
       const transformedBalance = {
         tokenBalances: balances.map((balance: any) => ({
           amount: balance.balance.toString(),
@@ -477,8 +505,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
             name: balance.symbol === "USDC"
               ? "USD Coin"
               : balance.symbol.startsWith("k")
-              ? `Krypton ${balance.symbol.substring(1).toUpperCase()}`
-              : balance.symbol,
+                ? `Krypton ${balance.symbol.substring(1).toUpperCase()}`
+                : balance.symbol,
             blockchain: "ETH-SEPOLIA",
             decimals: balance.decimals,
             isNative: balance.symbol === "ETH" || balance.symbol === "ETH-SEPOLIA",
@@ -520,6 +548,64 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     }
   }, [balanceFlickering]);
 
+  /**
+   * Batch init: fetches balance + transactions + rates from /subgraph/wallet-init
+   * in a single round trip on page load. Replaces the old separate fetchBalance call.
+   * Subsequent balance refreshes (from WebSocket, etc.) still call fetchBalance directly
+   * since only balance needs updating then.
+   */
+  const fetchWalletInit = useCallback(async (
+    address: string,
+    username: string,
+    options?: { background?: boolean }
+  ) => {
+    const isBackground = options?.background === true;
+    if (!isBackground) setBalanceLoading(true);
+
+    try {
+      const kryptonWeb3ApiUrl = process.env.NEXT_PUBLIC_KRYPTON_WEB3_API_URL || 'https://kryptonweb3-production.up.railway.app';
+      const cacheBuster = Date.now();
+      const response = await fetch(
+        `${kryptonWeb3ApiUrl}/subgraph/wallet-init?address=${encodeURIComponent(address)}&username=${encodeURIComponent(username)}&tx_limit=10&_t=${cacheBuster}`,
+        { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }
+      );
+      if (!response.ok) throw new Error(`wallet-init failed: ${response.statusText}`);
+
+      const data = await response.json();
+
+      // --- Balance ---
+      const balances = Array.isArray(data.balances) ? data.balances : [];
+      const transformedBalance = {
+        tokenBalances: balances.map((b: any) => ({
+          amount: String(b.balance ?? 0),
+          token: {
+            name: b.symbol === 'USDC' ? 'USD Coin' : b.symbol?.startsWith('k') ? `Krypton ${b.symbol.substring(1).toUpperCase()}` : b.symbol ?? '',
+            blockchain: 'ETH-SEPOLIA',
+            decimals: b.decimals,
+            isNative: b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA',
+            symbol: b.symbol ?? '',
+            tokenAddress: b.address,
+            standard: (b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA') ? undefined : 'ERC20',
+          },
+        })),
+        _fetchedAt: Date.now(),
+      };
+      setBalance(transformedBalance);
+
+      // --- Transactions (pre-seed TransactionHistory so it skips its own fetch) ---
+      if (data.transactions) {
+        setInitialTransactions(data.transactions);
+      }
+
+    } catch (err) {
+      console.error('Failed wallet-init batch fetch:', err);
+      setError('Failed to load wallet data.');
+    } finally {
+      if (!isBackground) setBalanceLoading(false);
+      balanceFetchInProgressRef.current = false;
+    }
+  }, []);
+
   // Update fetchBalance ref when it changes
   useEffect(() => {
     fetchBalanceRef.current = fetchBalance;
@@ -527,9 +613,9 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
   /**
    * Called when all active transactions complete (from BalanceCard/ActiveTransactions).
-   * Triggers balance refresh with blinking effect.
+   * Triggers explicit backend polling via websocket wait before fetching logic.
    */
-  const handleTransactionsComplete = useCallback(() => {
+  const handleTransactionsComplete = useCallback((txHash?: string) => {
     const currentAccountData = accountDataRef.current;
     if (currentAccountData?.wallet_address) {
       // Start blinking immediately
@@ -540,22 +626,12 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         clearTimeout(balanceDebounceTimerRef.current);
       }
 
-      // First refresh after 5 seconds (give subgraph time to index)
-      const firstDelay = WEBHOOK_BALANCE_REFRESH_DELAY_MS; // 5 seconds
-      debouncedFetchBalance(currentAccountData.wallet_address, { background: true }, firstDelay);
+      // Fetch immediately as a quick visual refresh; final sync comes from WebSocket balance_update.
+      debouncedFetchBalance(currentAccountData.wallet_address, { background: true }, WEBHOOK_BALANCE_REFRESH_DELAY_MS);
 
-      // Second refresh after 10 seconds (for slow subgraph indexing)
-      setTimeout(() => {
-        const accountData = accountDataRef.current;
-        if (accountData?.wallet_address) {
-          console.log('Transaction complete: Second balance refresh attempt');
-          setBalanceRefreshing(true);
-          debouncedFetchBalance(accountData.wallet_address, { background: true }, 0);
-        }
-      }, 10000);
-
-      // Toggle balance card refresh
+      // Toggle balance card refresh and tx history explicitly
       setBalanceCardRefresh(prev => !prev);
+      setTransactionHistoryRefresh(prev => !prev);
     }
   }, [debouncedFetchBalance]);
 
@@ -577,13 +653,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-    } catch (err) {
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
+    } catch {
+      // Clipboard API not available (e.g. insecure context) — silently skip
     }
   };
 
@@ -865,9 +936,9 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
   if (loading || userDataLoading || balanceLoading) {
     return (
-      <div className="min-h-screen w-full bg-[#001C1B] dark overflow-x-hidden flex items-center justify-center">
+      <div className="min-h-screen w-full bg-[hsl(var(--brand-bg))] dark overflow-x-hidden flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-[hsl(var(--brand-accent))] border-t-transparent mx-auto mb-4"></div>
           <p className="text-zinc-400 font-medium">
             {loading ? "Loading wallet..." : userDataLoading ? "Fetching user data..." : balanceLoading ? "Loading balance..." : "Loading..."}
           </p>
@@ -878,7 +949,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
   if (error) {
     return (
-      <div className="min-h-screen w-full bg-[#001C1B] dark overflow-x-hidden flex items-center justify-center p-4">
+      <div className="min-h-screen w-full bg-[hsl(var(--brand-bg))] dark overflow-x-hidden flex items-center justify-center p-4">
         <div className="text-center max-w-md mx-auto">
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl p-8 shadow-2xl">
             <div className="mb-6">
@@ -910,7 +981,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         onClose={handleKycModalClose}
         applicantEmail={accountData?.email}
       />
-      <div className="min-h-screen w-full bg-[#001C1B] dark overflow-x-hidden">
+      <div className="min-h-screen w-full bg-[hsl(var(--brand-bg))] dark overflow-x-hidden">
         <WalletHeader
           accountData={accountData}
           onLogout={handleLogout}
@@ -946,8 +1017,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
           )}
           {accountData?.username && (
             <div className={`text-center mb-8 ${welcomeMargin}`}>
-                <span className="text-white text-3xl">Hello </span>
-                <span className="text-[#90E7EE] text-3xl">@{accountData.username}</span>
+              <span className="text-white text-3xl">Hello </span>
+              <span className="text-[hsl(var(--brand-accent))] text-3xl">@{accountData.username}</span>
               <div className="flex items-center justify-center gap-1.5 text-base">
                 {config.showKycStatusBadge ? (
                   kycStatus === 'approved' ? (
@@ -988,6 +1059,9 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
             balanceRefreshing={balanceRefreshing}
             balanceFlickering={balanceFlickering}
             onTransactionsComplete={handleTransactionsComplete}
+            initialTransactions={initialTransactions}
+            wsConnectionStatus={connectionStatus}
+            txHistoryForceRefresh={txHistoryForceRefresh}
           />
           {accountData?.username && kycStatus === 'approved' && (
             <>
@@ -1123,7 +1197,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         )}
         {showTransakModal && (
           <BuyUSDCModal
-            fiatData={fiatData}
+            fiatData={[]}
             onClose={() => setShowTransakModal(false)}
             walletAddress={accountData?.wallet_address}
           />

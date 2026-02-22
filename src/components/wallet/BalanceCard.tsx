@@ -43,7 +43,18 @@ interface BalanceCardProps {
   balanceCardRefresh?: boolean;
   balanceRefreshing?: boolean;
   balanceFlickering?: boolean;
-  onTransactionsComplete?: () => void; // Called when all active transactions complete
+  onTransactionsComplete?: () => void;
+  /** Pre-fetched transactions from wallet-init batch call — skips TransactionHistory's initial fetch. */
+  initialTransactions?: {
+    transactions: any[];
+    count: number;
+    has_more: boolean;
+  };
+  /** WebSocket connection status from WalletPageBase — used to suppress ActiveTransactions polling when WS is live. */
+  wsConnectionStatus?: 'connecting' | 'connected' | 'disconnected' | 'error';
+  /** Incremented by WalletPageBase on balance_update (post-subgraph indexing).
+   * Directly triggers TransactionHistory re-fetch when new data is available. */
+  txHistoryForceRefresh?: number;
 }
 
 const WALLET_ICON = (
@@ -79,6 +90,9 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
   balanceRefreshing = false,
   balanceFlickering = false,
   onTransactionsComplete,
+  initialTransactions,
+  wsConnectionStatus,
+  txHistoryForceRefresh,
 }, ref) => {
   const [localRefreshing, setLocalRefreshing] = useState(false);
   const [isFlickering, setIsFlickering] = useState(false);
@@ -110,8 +124,8 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
     // Check if touch started inside a modal/dialog
     // Radix UI Dialog uses [role="dialog"] and data attributes
     const isInModal = target.closest('[role="dialog"]') ||
-                      target.closest('[data-radix-portal]') ||
-                      target.closest('[data-state="open"]');
+      target.closest('[data-radix-portal]') ||
+      target.closest('[data-state="open"]');
 
     if (isInModal) {
       return; // Ignore touches when modal is open
@@ -132,8 +146,8 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
 
     // Check if touch is inside a modal/dialog
     const isInModal = target.closest('[role="dialog"]') ||
-                      target.closest('[data-radix-portal]') ||
-                      target.closest('[data-state="open"]');
+      target.closest('[data-radix-portal]') ||
+      target.closest('[data-state="open"]');
 
     if (isInModal) {
       // Reset touch state if moved into modal
@@ -168,8 +182,8 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
 
     // Check if touch ended inside a modal/dialog
     const isInModal = target.closest('[role="dialog"]') ||
-                      target.closest('[data-radix-portal]') ||
-                      target.closest('[data-state="open"]');
+      target.closest('[data-radix-portal]') ||
+      target.closest('[data-state="open"]');
 
     if (isInModal) {
       // Reset touch state if ended in modal
@@ -277,6 +291,15 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
     }
   }, [transactionHistoryRefresh]);
 
+  // On balance_update (post-subgraph): directly refresh TransactionHistory.
+  // This bypasses the 3s ActiveTransactions drain chain, fetching new data
+  // exactly when the subgraph confirms it's indexed.
+  useEffect(() => {
+    if (txHistoryForceRefresh && txHistoryForceRefresh > 0) {
+      setTransactionHistoryRefreshKey(prev => prev + 1);
+    }
+  }, [txHistoryForceRefresh]);
+
   // Handle balance flickering when USDC is sent out
   useEffect(() => {
     if (balanceFlickering) {
@@ -286,9 +309,16 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
     }
   }, [balanceFlickering]);
 
-  // Get price change info from context - SO CLEAN! ✨
+  // Get price change info from context
   const priceChangeInfo = useMemo(() => {
-    return balance ? getOverallPriceChange(balance.tokenBalances || []) : null;
+    if (!balance) return null;
+    const raw = getOverallPriceChange(balance.tokenBalances || []);
+    // If rounded percentage is 0.00%, always show green (optimistic default)
+    const roundedPct = Math.abs(raw.percentageChange).toFixed(2);
+    if (roundedPct === '0.00') {
+      return { ...raw, direction: 'up' as const, percentageChange: 0 };
+    }
+    return raw;
   }, [balance, getOverallPriceChange, (balance as any)?._fetchedAt]);
 
   // Calculate total balance - now uses context! 🎯
@@ -337,22 +367,21 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
   return (
     <>
       <div
-        className={`bg-no-repeat bg-cover bg-center backdrop-blur-3xl rounded-3xl p-0 shadow-2xl border mb-8 transition-all duration-300 overflow-hidden ${
-          (balanceRefreshing || localRefreshing)
-            ? 'ring-2 ring-green-500 ring-opacity-70 border-green-500/50 shadow-green-500/20'
-            : 'border-white/10'
-        } ${className || ''}`}
+        className={`bg-no-repeat bg-cover bg-center backdrop-blur-3xl rounded-3xl p-0 shadow-2xl border mb-8 transition-all duration-300 overflow-hidden ${(balanceRefreshing || localRefreshing)
+          ? 'ring-2 ring-green-500 ring-opacity-70 border-green-500/50 shadow-green-500/20'
+          : 'border-white/10'
+          } ${className || ''}`}
         style={{ backgroundImage: "url('/wallet-bg.svg')" }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
         <div
-          className="flex transition-transform duration-300"
+          className="flex w-full transition-transform duration-300"
           style={{ transform: `translateX(-${activeSlide * 100}%)` }}
         >
           {/* Transaction History Tab */}
-          <div className="w-full flex-shrink-0 pt-8 px-6 pb-4">
+          <div className="w-full shrink-0 min-w-0 overflow-hidden pt-8 px-6 pb-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-2xl font-bold text-white">Transactions</h3>
               <button
@@ -385,12 +414,15 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
                   onAllTransactionsComplete={handleAllTransactionsComplete}
                   refreshKey={activeTransactionsRefreshKey}
                   isVisible={activeSlide === 0}
+                  isWebSocketConnected={wsConnectionStatus === 'connected'}
                 />
                 <TransactionHistory
                   ref={transactionHistoryRef}
                   username={accountData.username}
                   userWalletAddress={accountData.wallet_address}
-                  refresh={transactionHistoryRefresh || transactionHistoryRefreshKey > 0}
+                  refreshKey={transactionHistoryRefreshKey}
+                  scrollRoot={scrollContainerRef}
+                  initialData={initialTransactions}
                 />
               </div>
             ) : (
@@ -400,171 +432,166 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
             )}
           </div>
           {/* Balance Tab */}
-          <div className="w-full flex-shrink-0 p-8">
-            <div className="text-center mb-6">
+          <div className="w-full shrink-0 min-w-0 overflow-hidden px-8 pt-5 pb-3 flex flex-col" style={{ minHeight: '340px' }}>
+            <div className="text-center mb-5">
               <div className="flex items-center justify-center gap-3">
-                 <Wallet className="w-8 h-8 text-zinc-400" />
-                 <h3 className="text-xl font-bold text-zinc-400 tracking-wide">Your Balance</h3>
+                <Wallet className="w-8 h-8 text-zinc-400" />
+                <h3 className="text-xl font-bold text-zinc-400 tracking-wide">Your Balance</h3>
               </div>
             </div>
 
-        {/* <div className={`mt-4 pt-4 border-t border-zinc-700/50 ${className || ''}`}></div> */}
+            {/* <div className={`mt-4 pt-4 border-t border-zinc-700/50 ${className || ''}`}></div> */}
 
-        {/* Show KYC banner if username is set but KYC not approved */}
-        {showKycSection && (
-          <div className="mb-6">
-            <div className="bg-gradient-to-r from-purple-900/50 to-blue-900/50 border border-purple-500/30 rounded-2xl p-6 mb-4">
-              <div className="flex items-center justify-center mb-4">
-                <FaShieldAlt className="text-3xl text-purple-400 mr-3" />
-                <h3 className="text-xl font-bold text-white">Complete KYC Verification</h3>
-              </div>
-              <p className="text-zinc-300 mb-4 text-center">
-                Complete your identity verification to unlock full wallet functionality and start sending payments securely.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <button
-                  onClick={onKycClick}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 px-8 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
-                >
-                  <FaShieldAlt className="inline mr-2" />
-                  Continue KYC
-                </button>
-                <button
-                  onClick={() => {
-                    if (onSkipKyc) {
-                      onSkipKyc();
-                    } else {
-                      console.error('onSkipKyc function is not provided');
-                    }
-                  }}
-                  className="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-semibold py-3 px-8 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
-                >
-                  Skip for Now
-                </button>
-
-              </div>
-              <p className="text-xs text-zinc-500 mt-3 text-center">
-                You can complete KYC later to unlock full functionality
-              </p>
-              {kycMessage && (
-                <div className={`mt-3 p-3 rounded-lg text-sm text-center ${
-                  kycMessage.includes('approved')
-                    ? 'bg-green-900/30 text-green-400 border border-green-500/30'
-                    : kycMessage.includes('error') || kycMessage.includes('Failed')
-                    ? 'bg-red-900/30 text-red-400 border border-red-500/30'
-                    : 'bg-blue-900/30 text-blue-400 border border-blue-500/30'
-                }`}>
-                  {kycMessage}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-
-
-        {/* Show balance always if username exists, but blur if KYC not approved */}
-        {showBalanceSection && (
-          <div className="flex flex-col items-center justify-center mb-6 relative z-10">
-             {/* Balance Display */}
-            <div className={`relative transition-all duration-200 ${!isKycApproved ? 'blur-sm' : ''} ${
-                isFlickering || balanceRefreshing || localRefreshing ? 'balance-flicker' : ''
-              }`}>
-                {balanceLoading || ratesLoading ? (
-                  <div className="flex items-center justify-center h-16">
-                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mr-3"></div>
-                    <span className="text-xl text-zinc-400">Loading...</span>
+            {/* Show KYC banner if username is set but KYC not approved */}
+            {showKycSection && (
+              <div className="mb-6">
+                <div className="bg-gradient-to-r from-teal-900/40 to-cyan-900/40 border border-teal-500/30 rounded-2xl p-6 mb-4">
+                  <div className="flex items-center justify-center mb-4">
+                    <FaShieldAlt className="text-3xl text-teal-400 mr-3" />
+                    <h3 className="text-xl font-bold text-white">Complete KYC Verification</h3>
                   </div>
-                ) : error ? (
-                  <span className="text-red-400 text-xl font-semibold">{error}</span>
-                ) : (
-                    <div className="relative group cursor-pointer flex items-baseline justify-center">
-                       {/* Hidden Select Overlay */}
-                       <select
-                           value={selectedCurrency}
-                           onChange={(e) => setSelectedCurrency(e.target.value)}
-                           className="absolute inset-0 w-full h-full opacity-0 z-20 cursor-pointer"
-                           aria-label="Select Currency"
-                       >
-                           {availableCurrencies.map((currency) => (
-                             <option key={currency} value={currency} className="bg-zinc-800 text-white">
-                               {currency} ({CURRENCY_SYMBOLS[currency]})
-                             </option>
-                           ))}
-                       </select>
+                  <p className="text-zinc-300 mb-4 text-center">
+                    Complete your identity verification to unlock full wallet functionality and start sending payments securely.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <button
+                      onClick={onKycClick}
+                      className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white font-semibold py-3 px-8 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
+                    >
+                      <FaShieldAlt className="inline mr-2" />
+                      Continue KYC
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (onSkipKyc) {
+                          onSkipKyc();
+                        } else {
+                          console.error('onSkipKyc function is not provided');
+                        }
+                      }}
+                      className="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-semibold py-3 px-8 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
+                    >
+                      Skip for Now
+                    </button>
 
-                       {/* Visual Display: Chevron -> Symbol -> Amount */}
-                       <div className="flex items-baseline justify-center">
-                           <div className="flex items-center mr-2">
-                               <ChevronDown className="w-6 h-6 text-zinc-500 mr-0.5 group-hover:text-white transition-colors" />
-                               <span className="text-4xl font-medium text-white tracking-normal leading-none">{currencySymbol}</span>
-                           </div>
-                           <span className="text-6xl font-bold text-white tracking-tight leading-none mr-2">
-                             {(() => {
-                                const val = totalBalance > 0 ? totalBalance.toFixed(2) : '0.00';
-                                const [int, dec] = val.split('.');
-                                return (
-                                  <>
-                                    {int}<span className="text-4xl font-medium text-zinc-400 tracking-normal leading-none">.{dec}</span>
-                                  </>
-                                );
-                             })()}
-                           </span>
-                       </div>
+                  </div>
+                  <p className="text-xs text-zinc-500 mt-3 text-center">
+                    You can complete KYC later to unlock full functionality
+                  </p>
+                  {kycMessage && (
+                    <div className={`mt-3 p-3 rounded-lg text-sm text-center ${kycMessage.includes('approved')
+                      ? 'bg-green-900/30 text-green-400 border border-green-500/30'
+                      : kycMessage.includes('error') || kycMessage.includes('Failed')
+                        ? 'bg-red-900/30 text-red-400 border border-red-500/30'
+                        : 'bg-teal-900/30 text-teal-400 border border-teal-500/30'
+                      }`}>
+                      {kycMessage}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+
+
+            {showBalanceSection && (
+              <div className="flex flex-col items-center justify-center mb-4 relative z-10 flex-[6]">
+                {/* Balance Display */}
+                <div className={`relative transition-all duration-200 ${!isKycApproved ? 'blur-sm' : ''} ${isFlickering || balanceRefreshing || localRefreshing ? 'balance-flicker' : ''
+                  }`}>
+                  {balanceLoading || ratesLoading ? (
+                    <div className="flex items-center justify-center h-16">
+                      <div className="animate-spin rounded-full h-8 w-8 border-2 border-[hsl(var(--brand-accent))] border-t-transparent mr-3"></div>
+                      <span className="text-xl text-zinc-400">Loading...</span>
+                    </div>
+                  ) : error ? (
+                    <span className="text-red-400 text-xl font-semibold">{error}</span>
+                  ) : (
+                    <div className="relative group cursor-pointer flex items-baseline justify-center">
+                      {/* Hidden Select Overlay */}
+                      <select
+                        value={selectedCurrency}
+                        onChange={(e) => setSelectedCurrency(e.target.value)}
+                        className="absolute inset-0 w-full h-full opacity-0 z-20 cursor-pointer"
+                        aria-label="Select Currency"
+                      >
+                        {availableCurrencies.map((currency) => (
+                          <option key={currency} value={currency} className="bg-zinc-800 text-white">
+                            {currency} ({CURRENCY_SYMBOLS[currency]})
+                          </option>
+                        ))}
+                      </select>
+
+                      {/* Visual Display: Chevron -> Symbol -> Amount */}
+                      <div className="flex items-baseline justify-center w-full">
+                        <div className="flex items-center mr-1 sm:mr-2 shrink-0">
+                          <ChevronDown className="w-6 h-6 sm:w-7 sm:h-7 text-zinc-500 mr-0.5 group-hover:text-white transition-colors" />
+                          <span className="text-5xl sm:text-6xl font-medium text-white tracking-normal leading-none">{currencySymbol}</span>
+                        </div>
+                        <span className="font-bold text-white tracking-tight leading-none" style={{ fontSize: 'calc(clamp(3rem, 12vw, 5.5rem) * var(--balance-amount-scale))' }}>
+                          {(() => {
+                            const val = totalBalance > 0 ? totalBalance.toFixed(2) : '0.00';
+                            const [int, dec] = val.split('.');
+                            return (
+                              <>
+                                {int}<span className="font-medium text-zinc-400 tracking-normal leading-none" style={{ fontSize: '0.6em' }}>.{dec}</span>
+                              </>
+                            );
+                          })()}
+                        </span>
+                      </div>
                     </div>
                   )}
 
-                {/* Subtle refresh indicator */}
-                {(localRefreshing || balanceRefreshing) && (
-                  <div className="absolute -top-1 -right-4 w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_#22c55e]"></div>
-                )}
-            </div>
-
-            {/* Price change indicator - MOVED BELOW */}
-            {isKycApproved && !balanceLoading && !balanceRefreshing && !localRefreshing && !ratesLoading && priceChangeInfo && priceChangeInfo.direction !== 'same' && Math.abs(priceChangeInfo.percentageChange) >= 0.01 && (
-                <div className={`flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full ${
-                  priceChangeInfo.direction === 'up'
-                    ? 'bg-emerald-500/10 text-emerald-400'
-                    : 'bg-red-500/10 text-red-400'
-                }`}>
-                  {priceChangeInfo.direction === 'up' ? (
-                    <Triangle className="h-3 w-3 fill-emerald-400" />
-                  ) : (
-                    <Triangle className="h-3 w-3 rotate-180 fill-red-400" />
+                  {/* Subtle refresh indicator */}
+                  {(localRefreshing || balanceRefreshing) && (
+                    <div className="absolute -top-1 -right-4 w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_#22c55e]"></div>
                   )}
-                  <span className="text-sm font-bold">
-                    {Math.abs(priceChangeInfo.percentageChange).toFixed(2)}%
-                  </span>
                 </div>
-              )}
+
+                {/* Price change indicator */}
+                {isKycApproved && !balanceLoading && !ratesLoading && priceChangeInfo && (
+                  <div className={`flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full ${priceChangeInfo.direction === 'down'
+                    ? 'bg-red-500/10 text-red-400'
+                    : 'bg-emerald-500/10 text-emerald-400'
+                    }`}>
+                    {priceChangeInfo.direction === 'down' ? (
+                      <Triangle className="h-3 w-3 rotate-180 fill-red-400" />
+                    ) : (
+                      <Triangle className="h-3 w-3 fill-emerald-400" />
+                    )}
+                    <span className="text-sm font-bold">
+                      {Math.abs(priceChangeInfo.percentageChange).toFixed(2)}%
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Show message based on status */}
+            {!showBalanceSection && (
+              <div className="text-2xl font-bold text-zinc-400 mb-4">
+                {!accountData?.username ? 'Set username to continue' : 'Complete KYC to view balance'}
+              </div>
+            )}
+
+            {!isKycApproved && (
+              <p className="text-zinc-400 font-medium my-4">
+                {showBalanceSection
+                  ? 'Complete KYC to unlock full functionality'
+                  : 'Wallet functionality will be unlocked after verification'
+                }
+              </p>
+            )}
+
+            {showBalanceSection && isKycApproved && balance && (
+              <div className="text-left flex-[4] flex flex-col justify-end">
+                <SupportedAssetsBalances balance={balance} className="mt-4" />
+              </div>
+            )}
+
           </div>
-        )}
-
-        {/* Show message based on status */}
-        {!showBalanceSection && (
-          <div className="text-2xl font-bold text-zinc-400 mb-4">
-            {!accountData?.username ? 'Set username to continue' : 'Complete KYC to view balance'}
-          </div>
-        )}
-
-        {!isKycApproved && (
-           <p className="text-zinc-400 font-medium my-4">
-             {showBalanceSection
-               ? 'Complete KYC to unlock full functionality'
-               : 'Wallet functionality will be unlocked after verification'
-             }
-           </p>
-        )}
-
-        {/* K-Token Balances - Show at the bottom if KYC is approved */}
-        {showBalanceSection && isKycApproved && balance && (
-          <div className="text-left">
-            <SupportedAssetsBalances balance={balance} />
-        </div>
-        )}
-
-          </div>
-          <div className="w-full flex-shrink-0 p-8">
+          <div className="w-full shrink-0 min-w-0 overflow-hidden p-8">
             <div className="text-white h-full flex flex-col justify-center">
               <div className="flex flex-col items-start w-full mb-8">
                 <h3 className="text-2xl font-bold mb-2">Quick Actions</h3>

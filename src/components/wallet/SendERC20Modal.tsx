@@ -91,7 +91,9 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
             clearInterval(countdownIntervalRef.current);
             countdownIntervalRef.current = null;
           }
-          onClose(true); // Auto-close: switch to transaction history
+          // Fix React warning: "Cannot update a component while rendering a different component"
+          // We schedule the onClose side-effect to happen outside of the setState render cycle.
+          setTimeout(() => onClose(true), 0);
           return 0;
         }
         return prev - 1;
@@ -158,25 +160,25 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
 
         // Fetch RWA tokens
         try {
-           const rwaRes = await kryptonWeb3Api.get("/erc20/supported-tokens");
-           const rwaTokensData = rwaRes.data?.rwa_tokens || {};
-           const rwaList: SupportedToken[] = Object.entries(rwaTokensData).map(([symbol, conf]: [string, any]) => ({
-               symbol,
-               address: conf.address,
-               decimals: conf.decimals || 18,
-           }));
+          const rwaRes = await kryptonWeb3Api.get("/erc20/supported-tokens");
+          const rwaTokensData = rwaRes.data?.rwa_tokens || {};
+          const rwaList: SupportedToken[] = Object.entries(rwaTokensData).map(([symbol, conf]: [string, any]) => ({
+            symbol,
+            address: conf.address,
+            decimals: conf.decimals || 18,
+          }));
 
-           if (rwaList.length > 0) {
-               allTokens.push({
-                   symbol: "--- RWA Tokens ---",
-                   address: "SEPARATOR",
-                   decimals: 0,
-                   isSeparator: true
-               });
-               allTokens = [...allTokens, ...rwaList];
-           }
+          if (rwaList.length > 0) {
+            allTokens.push({
+              symbol: "--- RWA Tokens ---",
+              address: "SEPARATOR",
+              decimals: 0,
+              isSeparator: true
+            });
+            allTokens = [...allTokens, ...rwaList];
+          }
         } catch (err) {
-            console.error("Failed to fetch RWA tokens", err);
+          console.error("Failed to fetch RWA tokens", err);
         }
 
         // Filter tokens to only include those with non-zero balances (for "from" dropdown)
@@ -190,7 +192,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
           if (tokenBalance > 0) {
             // Check if it's an RWA token (not a k-token and not USDC from K_TOKEN_SYMBOLS)
             const isRWA = !token.symbol.startsWith('k') && token.symbol !== 'USDC' &&
-                          !Object.keys(K_TOKEN_SYMBOLS).includes(token.symbol);
+              !Object.keys(K_TOKEN_SYMBOLS).includes(token.symbol);
             if (isRWA) {
               rwaTokensWithBalance.push(token);
             } else {
@@ -748,249 +750,249 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#001C1B]/60 backdrop-blur-md p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[hsl(var(--brand-bg))]/60 backdrop-blur-md p-4 animate-in fade-in duration-200"
       onClick={handleBackdropClick}
     >
       <div
-        className="w-full max-w-[440px] bg-[#001C1B] bg-cover bg-center shadow-2xl relative overflow-visible rounded-xl p-6 animate-in zoom-in-95 duration-200 border border-white/5"
+        className="w-full max-w-[440px] bg-[hsl(var(--brand-bg))] bg-cover bg-center shadow-2xl relative overflow-visible rounded-xl p-6 animate-in zoom-in-95 duration-200 border border-white/5"
         style={{ backgroundImage: "url('/wallet-bg.svg')" }}
         onClick={(e) => !success && e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-8">
-           <h2 className="text-2xl font-bold text-white tracking-tight">Krypton Pay</h2>
-           <button
-             onClick={() => onClose(false)}
-             className="text-teal-200/60 hover:text-white transition-colors"
-           >
-             <X size={24} />
-           </button>
+          <h2 className="text-2xl font-bold text-white tracking-tight">Krypton Pay</h2>
+          <button
+            onClick={() => onClose(false)}
+            className="text-teal-200/60 hover:text-white transition-colors"
+          >
+            <X size={24} />
+          </button>
         </div>
 
-          {/* Success Animation */}
-          {success && (
-            <div
-              className="flex flex-col items-center justify-center py-8 cursor-pointer"
-            >
-              <div className="mb-6 relative">
-                <div className="absolute inset-0 bg-green-500/20 blur-xl rounded-full"></div>
-                <img src="/tx-success.svg" alt="Success" width="100" height="100" className="relative animate-pulse drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]" />
+        {/* Success Animation */}
+        {success && (
+          <div
+            className="flex flex-col items-center justify-center py-8 cursor-pointer"
+          >
+            <div className="mb-6 relative">
+              <div className="absolute inset-0 bg-green-500/20 blur-xl rounded-full"></div>
+              <img src="/tx-success.svg" alt="Success" width="100" height="100" className="relative animate-pulse drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]" />
+            </div>
+            <div className="text-green-400 text-lg font-bold mb-2 tracking-wide">Transaction Submitted!</div>
+            <div className="text-teal-200/80 text-sm text-center max-w-[80%] leading-relaxed">{success}</div>
+            <div className="mt-8 text-teal-200/60 text-xs font-medium">
+              Tap anywhere to close{closeCountdown > 0 && ` (${closeCountdown}s)`}
+            </div>
+          </div>
+        )}
+
+        {/* Form */}
+        {!success && (
+          <div className="space-y-6">
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-200 text-sm p-3 rounded-lg flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0" />
+                <span>{error}</span>
               </div>
-              <div className="text-green-400 text-lg font-bold mb-2 tracking-wide">Transaction Submitted!</div>
-              <div className="text-teal-200/80 text-sm text-center max-w-[80%] leading-relaxed">{success}</div>
-              <div className="mt-8 text-teal-200/60 text-xs font-medium">
-                Tap anywhere to close{closeCountdown > 0 && ` (${closeCountdown}s)`}
+            )}
+
+            {/* Receiver Input */}
+            <div>
+              <label className="block text-sm font-bold mb-2 ml-1 text-white tracking-tight">Receiver</label>
+              <div className="relative group">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base group-focus-within:text-white transition-colors z-10 pointer-events-none" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>@</span>
+                <input
+                  type="text"
+                  value={receiverUsername}
+                  onChange={(e) => setReceiverUsername(e.target.value)}
+                  placeholder="username"
+                  className="w-full pl-8 pr-3 py-3 backdrop-blur-sm rounded-md focus:outline-none text-white transition-all font-medium text-base"
+                  style={{
+                    background: 'rgba(58, 96, 97, 0.5)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                  }}
+                  disabled={loading}
+                  autoFocus
+                />
               </div>
             </div>
-          )}
 
-          {/* Form */}
-          {!success && (
-            <div className="space-y-6">
-              {error && (
-                <div className="bg-red-500/10 border border-red-500/20 text-red-200 text-sm p-3 rounded-lg flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0" />
-                  <span>{error}</span>
+            {/* From/To Section */}
+            <div className="flex justify-between relative mb-4">
+              {/* From Box */}
+              <div
+                className="w-[130px] md:w-[160px] rounded-md h-[130px] md:h-[160px] relative flex flex-col items-start justify-center p-4 transition-colors group"
+                style={{
+                  background: 'linear-gradient(180deg, rgba(58, 96, 97, 0.6) 0%, rgba(125, 160, 161, 0.6) 100%)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)'
+                }}
+              >
+                <span className="text-[10px] font-medium mb-1.5" style={{ color: 'rgba(161, 207, 211, 0.8)' }}>From</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={fromAmount}
+                  onChange={(e) => {
+                    focusedFieldRef.current = "from";
+                    const val = e.target.value.replace(/[^0-9.]/g, '');
+                    isUpdatingToRef.current = false;
+                    setFromAmount(val);
+                  }}
+                  onFocus={() => { focusedFieldRef.current = "from"; }}
+                  placeholder="0"
+                  className="bg-transparent text-2xl font-bold text-white text-left w-full focus:outline-none placeholder-white/30"
+                  disabled={loading}
+                />
+                <div className="text-[10px] mt-1 font-medium truncate w-full" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>
+                  Balance: <span className="text-white">{fromBalanceValue.toFixed(2)}</span>
+                </div>
+
+                {/* Currency Selector Pill */}
+                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-20">
+                  <div className="relative shadow-xl">
+                    <select
+                      value={selectedCurrency}
+                      onChange={(e) => {
+                        if (e.target.value !== "") {
+                          setSelectedCurrency(e.target.value);
+                        }
+                      }}
+                      className="appearance-none text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded cursor-pointer focus:outline-none transition-colors w-[85px]"
+                      style={{
+                        background: '#115E59',
+                        border: '1px solid rgba(255, 255, 255, 0.15)'
+                      }}
+                      disabled={loading}
+                    >
+                      {availableTokens.map((token) => (
+                        <option
+                          key={token.symbol}
+                          value={token.isSeparator ? "" : token.symbol.replace(/^k/, "")}
+                          disabled={token.isSeparator}
+                          style={token.isSeparator ? { opacity: 0.6, fontStyle: 'italic' } : {}}
+                        >
+                          {token.symbol.replace(/^k/, "")}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>
+                      <ChevronDown size={12} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Arrow Button */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+                <button
+                  onClick={handleSwapCurrencies}
+                  className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all cursor-pointer"
+                  style={{
+                    background: 'rgba(85, 124, 130, 1)'
+                  }}
+                  disabled={loading}
+                >
+                  <ArrowRight className="w-4 h-4 md:w-5 md:h-5 text-white" strokeWidth={2.5} />
+                </button>
+              </div>
+
+              {/* To Box */}
+              <div
+                className="w-[130px] md:w-[160px] rounded-md h-[130px] md:h-[160px] relative flex flex-col items-start justify-center p-4 transition-colors group"
+                style={{
+                  background: 'linear-gradient(180deg, rgba(58, 96, 97, 0.6) 0%, rgba(125, 160, 161, 0.6) 100%)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)'
+                }}
+              >
+                <span className="text-[10px] font-medium mb-1.5" style={{ color: 'rgba(161, 207, 211, 0.8)' }}>To</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={toAmount}
+                  onChange={(e) => {
+                    focusedFieldRef.current = "to";
+                    const val = e.target.value.replace(/[^0-9.]/g, '');
+                    isUpdatingFromRef.current = false;
+                    setToAmount(val);
+                  }}
+                  onFocus={() => { focusedFieldRef.current = "to"; }}
+                  placeholder="0"
+                  className="bg-transparent text-2xl font-bold text-white text-left w-full focus:outline-none placeholder-white/30"
+                  disabled={loading}
+                />
+                <div className={`text-[10px] mt-1 font-medium h-[15px] flex items-center truncate w-full ${(isCalculatingFrom || isCalculatingTo || exchangeRateLoading) ? 'animate-pulse text-white/50' : ''}`}>
+                  {exchangeRate && !exchangeRateLoading ? (
+                    <>
+                      <span style={{ color: 'rgba(161, 207, 211, 0.7)' }}>1 {selectedCurrency && selectedCurrency.replace(/^k/, '')} =&nbsp;</span>
+                      <span className="text-white">{exchangeRate.toFixed(2)} {toCurrency && toCurrency.replace(/^k/, '')}</span>
+                    </>
+                  ) : ((isCalculatingFrom || isCalculatingTo || exchangeRateLoading) ? 'Updating...' : '')}
+                </div>
+
+                {/* Currency Selector Pill */}
+                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-20">
+                  <div className="relative shadow-xl">
+                    <select
+                      value={toCurrency}
+                      onChange={(e) => {
+                        if (e.target.value !== "") {
+                          setToCurrency(e.target.value);
+                        }
+                      }}
+                      className="appearance-none text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded cursor-pointer focus:outline-none transition-colors w-[85px]"
+                      style={{
+                        background: '#115E59',
+                        border: '1px solid rgba(255, 255, 255, 0.15)'
+                      }}
+                      disabled={loading}
+                    >
+                      {supportedTokensList.map((token) => (
+                        <option
+                          key={token.symbol}
+                          value={token.isSeparator ? "" : token.symbol.replace(/^k/, "")}
+                          disabled={token.isSeparator}
+                          style={token.isSeparator ? { opacity: 0.6, fontStyle: 'italic' } : {}}
+                        >
+                          {token.symbol.replace(/^k/, "")}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>
+                      <ChevronDown size={12} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleSend}
+              disabled={loading || !isValidCurrencyCombination || isCalculatingFrom || isCalculatingTo || !hasSufficientBalance}
+              className="w-full h-11 text-white text-sm font-bold rounded-md shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed mt-5 relative z-10"
+              style={{
+                background: 'rgba(85, 124, 130, 0.9)',
+                border: '1px solid rgba(255, 255, 255, 0.15)'
+              }}
+            >
+              {loading ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Processing...</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <ArrowUp className="w-5 h-5" />
+                  <span>Send</span>
                 </div>
               )}
+            </Button>
 
-              {/* Receiver Input */}
-              <div>
-                <label className="block text-sm font-bold mb-2 ml-1 text-white tracking-tight">Receiver</label>
-                <div className="relative group">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base group-focus-within:text-white transition-colors z-10 pointer-events-none" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>@</span>
-                  <input
-                    type="text"
-                    value={receiverUsername}
-                    onChange={(e) => setReceiverUsername(e.target.value)}
-                    placeholder="username"
-                    className="w-full pl-8 pr-3 py-3 backdrop-blur-sm rounded-md focus:outline-none text-white transition-all font-medium text-base"
-                    style={{
-                      background: 'rgba(58, 96, 97, 0.5)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)'
-                    }}
-                    disabled={loading}
-                    autoFocus
-                  />
-                </div>
-              </div>
-
-               {/* From/To Section */}
-               <div className="flex justify-between relative mb-4">
-                  {/* From Box */}
-                  <div
-                    className="w-[130px] md:w-[160px] rounded-md h-[130px] md:h-[160px] relative flex flex-col items-start justify-center p-4 transition-colors group"
-                    style={{
-                      background: 'linear-gradient(180deg, rgba(58, 96, 97, 0.6) 0%, rgba(125, 160, 161, 0.6) 100%)',
-                      backdropFilter: 'blur(10px)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)'
-                    }}
-                  >
-                     <span className="text-[10px] font-medium mb-1.5" style={{ color: 'rgba(161, 207, 211, 0.8)' }}>From</span>
-                     <input
-                        type="text"
-                        inputMode="decimal"
-                        value={fromAmount}
-                        onChange={(e) => {
-                            focusedFieldRef.current = "from";
-                            const val = e.target.value.replace(/[^0-9.]/g, '');
-                            isUpdatingToRef.current = false;
-                            setFromAmount(val);
-                        }}
-                        onFocus={() => { focusedFieldRef.current = "from"; }}
-                        placeholder="0"
-                        className="bg-transparent text-2xl font-bold text-white text-left w-full focus:outline-none placeholder-white/30"
-                        disabled={loading}
-                     />
-                     <div className="text-[10px] mt-1 font-medium truncate w-full" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>
-                        Balance: <span className="text-white">{fromBalanceValue.toFixed(2)}</span>
-                     </div>
-
-                     {/* Currency Selector Pill */}
-                     <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-20">
-                        <div className="relative shadow-xl">
-                            <select
-                                value={selectedCurrency}
-                                onChange={(e) => {
-                                  if (e.target.value !== "") {
-                                    setSelectedCurrency(e.target.value);
-                                  }
-                                }}
-                                className="appearance-none text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded cursor-pointer focus:outline-none transition-colors w-[85px]"
-                                style={{
-                                  background: '#115E59',
-                                  border: '1px solid rgba(255, 255, 255, 0.15)'
-                                }}
-                                disabled={loading}
-                            >
-                                {availableTokens.map((token) => (
-                                <option
-                                  key={token.symbol}
-                                  value={token.isSeparator ? "" : token.symbol.replace(/^k/, "")}
-                                  disabled={token.isSeparator}
-                                  style={token.isSeparator ? { opacity: 0.6, fontStyle: 'italic' } : {}}
-                                >
-                                    {token.symbol.replace(/^k/, "")}
-                                </option>
-                                ))}
-                            </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>
-                                <ChevronDown size={12} />
-                            </div>
-                        </div>
-                     </div>
-                  </div>
-
-                  {/* Arrow Button */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
-                     <button
-                        onClick={handleSwapCurrencies}
-                        className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all cursor-pointer"
-                        style={{
-                          background: 'rgba(85, 124, 130, 1)'
-                        }}
-                        disabled={loading}
-                     >
-                        <ArrowRight className="w-4 h-4 md:w-5 md:h-5 text-white" strokeWidth={2.5} />
-                     </button>
-                  </div>
-
-                  {/* To Box */}
-                  <div
-                    className="w-[130px] md:w-[160px] rounded-md h-[130px] md:h-[160px] relative flex flex-col items-start justify-center p-4 transition-colors group"
-                    style={{
-                      background: 'linear-gradient(180deg, rgba(58, 96, 97, 0.6) 0%, rgba(125, 160, 161, 0.6) 100%)',
-                      backdropFilter: 'blur(10px)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)'
-                    }}
-                  >
-                     <span className="text-[10px] font-medium mb-1.5" style={{ color: 'rgba(161, 207, 211, 0.8)' }}>To</span>
-                     <input
-                        type="text"
-                        inputMode="decimal"
-                        value={toAmount}
-                         onChange={(e) => {
-                            focusedFieldRef.current = "to";
-                            const val = e.target.value.replace(/[^0-9.]/g, '');
-                            isUpdatingFromRef.current = false;
-                            setToAmount(val);
-                        }}
-                        onFocus={() => { focusedFieldRef.current = "to"; }}
-                        placeholder="0"
-                        className="bg-transparent text-2xl font-bold text-white text-left w-full focus:outline-none placeholder-white/30"
-                        disabled={loading}
-                     />
-                     <div className={`text-[10px] mt-1 font-medium h-[15px] flex items-center truncate w-full ${(isCalculatingFrom || isCalculatingTo || exchangeRateLoading) ? 'animate-pulse text-white/50' : ''}`}>
-                        {exchangeRate && !exchangeRateLoading ? (
-                          <>
-                            <span style={{ color: 'rgba(161, 207, 211, 0.7)' }}>1 {selectedCurrency && selectedCurrency.replace(/^k/, '')} =&nbsp;</span>
-                            <span className="text-white">{exchangeRate.toFixed(2)} {toCurrency && toCurrency.replace(/^k/, '')}</span>
-                          </>
-                        ) : ((isCalculatingFrom || isCalculatingTo || exchangeRateLoading) ? 'Updating...' : '')}
-                     </div>
-
-                     {/* Currency Selector Pill */}
-                     <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-20">
-                        <div className="relative shadow-xl">
-                            <select
-                                value={toCurrency}
-                                onChange={(e) => {
-                                  if (e.target.value !== "") {
-                                    setToCurrency(e.target.value);
-                                  }
-                                }}
-                                className="appearance-none text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded cursor-pointer focus:outline-none transition-colors w-[85px]"
-                                style={{
-                                  background: '#115E59',
-                                  border: '1px solid rgba(255, 255, 255, 0.15)'
-                                }}
-                                disabled={loading}
-                            >
-                                {supportedTokensList.map((token) => (
-                                <option
-                                  key={token.symbol}
-                                  value={token.isSeparator ? "" : token.symbol.replace(/^k/, "")}
-                                  disabled={token.isSeparator}
-                                  style={token.isSeparator ? { opacity: 0.6, fontStyle: 'italic' } : {}}
-                                >
-                                    {token.symbol.replace(/^k/, "")}
-                                </option>
-                                ))}
-                            </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>
-                                <ChevronDown size={12} />
-                            </div>
-                        </div>
-                     </div>
-                  </div>
-               </div>
-
-               <Button
-                 onClick={handleSend}
-                 disabled={loading || !isValidCurrencyCombination || isCalculatingFrom || isCalculatingTo || !hasSufficientBalance}
-                 className="w-full h-11 text-white text-sm font-bold rounded-md shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed mt-5 relative z-10"
-                 style={{
-                   background: 'rgba(85, 124, 130, 0.9)',
-                   border: '1px solid rgba(255, 255, 255, 0.15)'
-                 }}
-               >
-                 {loading ? (
-                   <div className="flex items-center gap-2">
-                       <Loader2 className="h-5 w-5 animate-spin" />
-                       <span>Processing...</span>
-                   </div>
-                 ) : (
-                    <div className="flex items-center gap-2">
-                        <ArrowUp className="w-5 h-5" />
-                        <span>Send</span>
-                    </div>
-                 )}
-               </Button>
-
-               {loading && loadingMessage && (
-                  <p className="text-teal-200/60 text-xs text-center animate-pulse">{loadingMessage}</p>
-               )}
-            </div>
-          )}
+            {loading && loadingMessage && (
+              <p className="text-teal-200/60 text-xs text-center animate-pulse">{loadingMessage}</p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

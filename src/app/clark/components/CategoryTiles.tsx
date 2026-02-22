@@ -80,7 +80,7 @@ export default function CategoryTiles({
   const totalTiles = categories.length
   const tilesPerRow = 2
   const totalRows = Math.ceil(totalTiles / tilesPerRow)
-  
+
   return (
     <div className="pb-1 mb-1">
       {/* Category Tiles */}
@@ -131,7 +131,7 @@ export default function CategoryTiles({
             for (let i = 0; i < columns.length; i += 2) {
               const hasSecondColumn = Boolean(columns[i + 1])
               pages.push(
-                <div key={`page-${i/2}`} className="snap-start px-4 flex-shrink-0" style={{ flexBasis: `${100 / pageCount}%`, minWidth: `${100 / pageCount}%` }}>
+                <div key={`page-${i / 2}`} className="snap-start px-4 flex-shrink-0" style={{ flexBasis: `${100 / pageCount}%`, minWidth: `${100 / pageCount}%` }}>
                   <div className={`flex ${hasSecondColumn ? 'justify-center' : 'justify-start'} gap-3`}>
                     {columns[i]}
                     {columns[i + 1]}
@@ -143,7 +143,7 @@ export default function CategoryTiles({
           })()}
         </div>
       </div>
-      
+
       {/* Desktop: Responsive grid */}
       <div className="hidden sm:grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 w-full max-w-6xl mx-auto">
         {categories.map((category) => (
@@ -180,7 +180,7 @@ export default function CategoryTiles({
       {/* Prompts Modal */}
       {selectedCategory && (
         <div
-          className="fixed inset-0 bg-[#001C1B]/85 backdrop-blur-md z-50 flex items-end sm:items-center justify-center px-4 pb-28 sm:pb-8 sm:px-4 sm:pt-4"
+          className="fixed inset-0 bg-[hsl(var(--brand-bg))]/85 backdrop-blur-md z-50 flex items-end sm:items-center justify-center px-4 pb-28 sm:pb-8 sm:px-4 sm:pt-4"
           onClick={() => onCategorySelect('')}
         >
           <Card
@@ -218,13 +218,13 @@ export default function CategoryTiles({
             </CardHeader>
             <CardContent className="pt-4 p-4 sm:p-6 max-h-[calc(85vh-120px)] sm:max-h-[60vh] overflow-y-auto">
               <div className="space-y-3">
-                    {categories.find(c => c.id === selectedCategory)?.prompts.map((prompt, index) => (
-                      <PromptRowWithCopy
-                        key={index}
-                        prompt={prompt}
-                        isLoading={isLoading}
-                        onUse={() => onPromptClick(prompt, selectedCategory as string)}
-                      />
+                {categories.find(c => c.id === selectedCategory)?.prompts.map((prompt, index) => (
+                  <PromptRowWithCopy
+                    key={index}
+                    prompt={prompt}
+                    isLoading={isLoading}
+                    onUse={() => onPromptClick(prompt, selectedCategory as string)}
+                  />
                 ))}
               </div>
             </CardContent>

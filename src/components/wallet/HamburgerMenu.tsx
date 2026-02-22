@@ -73,13 +73,13 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
     >
       <div className="flex flex-col items-center justify-center min-h-screen p-6">
         <div
-          className="w-full max-w-md rounded-[28px] p-8 bg-[#001C1B]/70 backdrop-blur-xl"
+          className="w-full max-w-md rounded-[28px] p-8 bg-[hsl(var(--brand-bg))]/70 backdrop-blur-xl"
           style={{ boxShadow: "0 24px 48px -12px rgba(0, 0, 0, 0.5)" }}
           onClick={handleModalClick}
         >
           {/* Header - Apple-style minimal title */}
           <div className="text-center mb-10">
-            <h2 className="text-xl font-semibold tracking-tight" style={{ color: "#90E7EE" }}>
+            <h2 className="text-xl font-semibold tracking-tight text-[hsl(var(--brand-accent))]">
               Menu
             </h2>
           </div>

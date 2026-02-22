@@ -82,7 +82,7 @@ const SupportedAssetsBalances: React.FC<SupportedAssetsBalancesProps> = ({ balan
       if (!container) return;
 
       const containerWidth = container.offsetWidth;
-      const estimatedItemWidth = 130;
+      const estimatedItemWidth = 140;
       const itemsPerRow = Math.max(1, Math.floor(containerWidth / estimatedItemWidth));
       setItemsPerRow(itemsPerRow);
     };
@@ -129,74 +129,92 @@ const SupportedAssetsBalances: React.FC<SupportedAssetsBalancesProps> = ({ balan
     return symbol;
   };
 
-  // Get background color based on price direction
-  const getBgColor = (symbol: string) => {
+  // Uniform border for all; color applied inside based on price direction
+  // Solid-ish backgrounds avoid backdrop blur artifacts / 3D pattern bleed-through
+  const getTokenStyle = (symbol: string) => {
+    const border = "border border-white/10";
+
+    // USDC and kUSD are stable — neutral fill
     if (symbol === "USDC" || symbol === "kUSD") {
-      return "bg-zinc-800/60 border-zinc-700/50";
+      return { bg: "bg-zinc-800/95", border };
     }
 
     const direction = getTokenDirection(symbol);
     switch (direction) {
       case "up":
-        return "bg-[#6AFF90]/20 border-[#00FF40]/60";
+        return { bg: "bg-emerald-900/40", border };
       case "down":
-        return "bg-[#FF3434]/20 border-[#FF0004]/60";
+        return { bg: "bg-red-900/30", border };
       default:
-        return "bg-zinc-800/60 border-zinc-700/50";
+        return { bg: "bg-zinc-800/95", border };
     }
   };
 
   const renderToken = (token: TokenBalance, idx: number, rowSuffix: string = "") => {
-    const bgColor = getBgColor(token.symbol);
+    const style = getTokenStyle(token.symbol);
     const clickable = isClickable(token.symbol);
 
     return (
       <div
         key={`${token.symbol}-${rowSuffix}${idx}`}
         onClick={() => handleTokenClick(token.symbol)}
-        className={`${bgColor} border rounded-lg px-3 py-2 flex items-center flex-shrink-0 ${
-          clickable ? "cursor-pointer hover:opacity-80 transition-opacity" : ""
-        }`}
+        className={`${style.bg} ${style.border} rounded-lg px-3 py-1.5 flex items-center flex-shrink-0 transition-all duration-200 ${clickable
+          ? "cursor-pointer hover:bg-zinc-700/80 hover:shadow-lg hover:shadow-black/20 active:scale-95"
+          : ""
+          }`}
       >
-        <span className="text-white font-medium text-sm whitespace-nowrap">
-          {parseFloat(token.balance).toFixed(2)} {formatDisplaySymbol(token.symbol)}
+        <span className="text-white/90 font-medium text-xs whitespace-nowrap tracking-wide">
+          {parseFloat(token.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <span className="text-white/40 ml-1 font-normal text-[11px]">{formatDisplaySymbol(token.symbol)}</span>
         </span>
       </div>
     );
   };
 
+  const half = Math.ceil(tokenBalances.length / 2);
+
   return (
     <>
-      <div className={`mt-4 ${className}`}>
-        <div className="flex items-center gap-3 mb-4">
-           <div className="flex items-center text-zinc-400 text-sm font-medium whitespace-nowrap">
-             <img src="/coin-stack.svg" alt="" className="mr-2 w-4 h-4 opacity-80" />
-             All Currencies
-           </div>
-           <div className="h-[1.5px] bg-zinc-600/80 flex-1 rounded-full"></div>
-        </div>
-        <div
-          ref={containerRef}
-          className="overflow-x-auto overflow-y-hidden pb-2 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-zinc-600"
-          style={{
-            WebkitOverflowScrolling: 'touch',
-            scrollbarWidth: 'thin',
-            overscrollBehavior: 'contain'
-          }}
-          onTouchStart={(e) => e.stopPropagation()}
-          onTouchMove={(e) => e.stopPropagation()}
-          onTouchEnd={(e) => e.stopPropagation()}
-        >
-          <div className="inline-block">
-            <div className="flex gap-2 mb-2">
-              {finalFirstRow.map((token, idx) => renderToken(token, idx, "row1-"))}
-            </div>
-            {finalSecondRow.length > 0 && (
-              <div className="flex gap-2">
-                {finalSecondRow.map((token, idx) => renderToken(token, idx, "row2-"))}
-              </div>
-            )}
+      <div className={className}>
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="flex items-center text-zinc-500 text-sm font-medium whitespace-nowrap">
+            <img src="/coin-stack.svg" alt="" className="mr-2 w-5 h-5 opacity-60" />
+            All Currencies
           </div>
+          <div className="h-[1.5px] bg-gradient-to-r from-zinc-600/80 to-transparent flex-1 rounded-full"></div>
+        </div>
+
+        {/* Desktop: single row, wraps naturally */}
+        <div className="hidden sm:flex flex-wrap gap-2">
+          {tokenBalances.map((token, idx) => renderToken(token, idx, "desktop-"))}
+        </div>
+
+        {/* Mobile: two rows, horizontal scroll with fade hint */}
+        <div className="sm:hidden relative">
+          <div
+            ref={containerRef}
+            className="overflow-x-auto overflow-y-hidden pb-3 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full"
+            style={{
+              WebkitOverflowScrolling: 'touch',
+              scrollbarWidth: 'thin',
+              overscrollBehavior: 'contain'
+            }}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchMove={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+          >
+            <div className="inline-flex flex-col gap-2 min-w-max">
+              <div className="flex gap-2">
+                {tokenBalances.slice(0, half).map((token, idx) => renderToken(token, idx, "row1-"))}
+              </div>
+              {tokenBalances.length > half && (
+                <div className="flex gap-2">
+                  {tokenBalances.slice(half).map((token, idx) => renderToken(token, idx, "row2-"))}
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
       </div>
 

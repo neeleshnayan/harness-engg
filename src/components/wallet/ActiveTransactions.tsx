@@ -64,6 +64,11 @@ interface ActiveTransactionsProps {
   persistCompleted?: boolean;
   /** When true (e.g. Clark inline card), only show initialTransactions and only update their status from API; never add other users' or other requests' transactions */
   onlyShowInitial?: boolean;
+  /**
+   * When true, the WebSocket connection is live and will deliver push updates.
+   * The polling interval is suppressed; polling only runs as a fallback when WS is disconnected.
+   */
+  isWebSocketConnected?: boolean;
 }
 
 /**
@@ -328,53 +333,50 @@ function TransactionProgressTracker({ tx }: { tx: ActiveTransaction }) {
 
   return (
     <div className="w-full px-6 mt-6 mb-8 relative">
-       {/* Connecting Lines */}
-       <div className="absolute top-[22px] left-[15%] right-[15%] h-[2px] bg-zinc-700/50 -z-0">
-          <div
-            className="h-full bg-emerald-500 transition-all duration-500 ease-out"
-            style={{ width: currentStep === 0 ? '0%' : currentStep === 1 ? '50%' : '100%' }}
-          />
-       </div>
+      {/* Connecting Lines */}
+      <div className="absolute top-[22px] left-[15%] right-[15%] h-[2px] bg-zinc-700/50 -z-0">
+        <div
+          className="h-full bg-emerald-500 transition-all duration-500 ease-out"
+          style={{ width: currentStep === 0 ? '0%' : currentStep === 1 ? '50%' : '100%' }}
+        />
+      </div>
 
-       <div className="flex justify-between relative z-10 text-center">
-          {/* Step 1: Queued */}
-          <div className="flex flex-col items-center gap-3 w-1/3">
-             <div className={`w-12 h-12 rounded-full flex items-center justify-center border-[3px] transition-all duration-300 ${
-                 currentStep >= 0
-                 ? 'bg-emerald-500 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]'
-                 : 'bg-zinc-800 border-zinc-700 text-zinc-500'
-             }`}>
-                {currentStep >= 0 ? <Check className="w-6 h-6 stroke-[3]" /> : <Loader2 className="w-5 h-5 animate-spin" />}
-             </div>
-             <span className={`text-xs font-semibold ${currentStep >= 0 ? 'text-white' : 'text-zinc-500'}`}>Queued</span>
+      <div className="flex justify-between relative z-10 text-center">
+        {/* Step 1: Queued */}
+        <div className="flex flex-col items-center gap-3 w-1/3">
+          <div className={`w-12 h-12 rounded-full flex items-center justify-center border-[3px] transition-all duration-300 ${currentStep >= 0
+            ? 'bg-emerald-500 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]'
+            : 'bg-zinc-800 border-zinc-700 text-zinc-500'
+            }`}>
+            {currentStep >= 0 ? <Check className="w-6 h-6 stroke-[3]" /> : <Loader2 className="w-5 h-5 animate-spin" />}
           </div>
+          <span className={`text-xs font-semibold ${currentStep >= 0 ? 'text-white' : 'text-zinc-500'}`}>Queued</span>
+        </div>
 
-          {/* Step 2: Submitted */}
-          <div className="flex flex-col items-center gap-3 w-1/3">
-             <div className={`w-12 h-12 rounded-full flex items-center justify-center border-[3px] transition-all duration-300 ${
-                 currentStep >= 1
-                 ? 'bg-emerald-500 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]'
-                 : 'bg-zinc-800 border-zinc-700 text-zinc-500'
-             }`}>
-                {currentStep >= 1 ? <Check className="w-6 h-6 stroke-[3]" /> : currentStep === 0 && !isError ? <Loader2 className="w-5 h-5 animate-spin text-emerald-500" /> : <div className="w-2 h-2 rounded-full bg-zinc-600" />}
-             </div>
-             <span className={`text-xs font-semibold ${currentStep >= 1 ? 'text-white' : 'text-zinc-500'}`}>Submitted</span>
+        {/* Step 2: Submitted */}
+        <div className="flex flex-col items-center gap-3 w-1/3">
+          <div className={`w-12 h-12 rounded-full flex items-center justify-center border-[3px] transition-all duration-300 ${currentStep >= 1
+            ? 'bg-emerald-500 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]'
+            : 'bg-zinc-800 border-zinc-700 text-zinc-500'
+            }`}>
+            {currentStep >= 1 ? <Check className="w-6 h-6 stroke-[3]" /> : currentStep === 0 && !isError ? <Loader2 className="w-5 h-5 animate-spin text-emerald-500" /> : <div className="w-2 h-2 rounded-full bg-zinc-600" />}
           </div>
+          <span className={`text-xs font-semibold ${currentStep >= 1 ? 'text-white' : 'text-zinc-500'}`}>Submitted</span>
+        </div>
 
-          {/* Step 3: Confirmed or Failed */}
-          <div className="flex flex-col items-center gap-3 w-1/3">
-             <div className={`w-12 h-12 rounded-full flex items-center justify-center border-[3px] transition-all duration-300 ${
-                 currentStep >= 2
-                 ? (isError ? 'bg-red-500 border-red-500 text-white' : 'bg-emerald-500 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]')
-                 : 'bg-zinc-800 border-zinc-700 text-zinc-500'
-             }`}>
-                {currentStep >= 2 ? (isError ? <X className="w-6 h-6 stroke-[3]" /> : <Check className="w-6 h-6 stroke-[3]" />) : currentStep === 1 && !isError ? <Loader2 className="w-5 h-5 animate-spin text-emerald-500" /> : <div className="w-2 h-2 rounded-full bg-zinc-600" />}
-             </div>
-             <span className={`text-xs font-semibold ${currentStep >= 2 ? (isError ? 'text-red-500' : 'text-white') : 'text-zinc-500'}`}>
-               {currentStep >= 2 && isError ? getFinalStepLabel(tx.status) : 'Confirmed'}
-             </span>
+        {/* Step 3: Confirmed or Failed */}
+        <div className="flex flex-col items-center gap-3 w-1/3">
+          <div className={`w-12 h-12 rounded-full flex items-center justify-center border-[3px] transition-all duration-300 ${currentStep >= 2
+            ? (isError ? 'bg-red-500 border-red-500 text-white' : 'bg-emerald-500 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]')
+            : 'bg-zinc-800 border-zinc-700 text-zinc-500'
+            }`}>
+            {currentStep >= 2 ? (isError ? <X className="w-6 h-6 stroke-[3]" /> : <Check className="w-6 h-6 stroke-[3]" />) : currentStep === 1 && !isError ? <Loader2 className="w-5 h-5 animate-spin text-emerald-500" /> : <div className="w-2 h-2 rounded-full bg-zinc-600" />}
           </div>
-       </div>
+          <span className={`text-xs font-semibold ${currentStep >= 2 ? (isError ? 'text-red-500' : 'text-white') : 'text-zinc-500'}`}>
+            {currentStep >= 2 && isError ? getFinalStepLabel(tx.status) : 'Confirmed'}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -420,39 +422,39 @@ function TransactionCard({ tx }: { tx: ActiveTransaction }) {
 
   return (
     <div className="w-full bg-zinc-800/40 backdrop-blur-md rounded-[24px] border border-white/5 p-5 mb-4 shadow-xl">
-       {/* Header */}
-       <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-3">
-             <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-                {tx.tx_type === 'swap' ? <ArrowLeftRight className="w-5 h-5 text-white" /> : <ArrowUp className="w-5 h-5 text-white" />}
-             </div>
-             <div className="flex flex-col">
-                <span className="text-lg font-bold text-white tracking-tight">{description}</span>
-             </div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+            {tx.tx_type === 'swap' ? <ArrowLeftRight className="w-5 h-5 text-white" /> : <ArrowUp className="w-5 h-5 text-white" />}
           </div>
-          {/* Refresh/Status Icon - Top Right */}
-          <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-zinc-400">
-             {isError ? <X className="w-5 h-5 text-red-500" /> : tx.status === 'confirmed' || isSuccessState(tx.status) ? <Check className="w-5 h-5 text-emerald-500" /> : <RefreshCw className="w-4 h-4 animate-spin" />}
+          <div className="flex flex-col">
+            <span className="text-lg font-bold text-white tracking-tight">{description}</span>
           </div>
-       </div>
+        </div>
+        {/* Refresh/Status Icon - Top Right */}
+        <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-zinc-400">
+          {isError ? <X className="w-5 h-5 text-red-500" /> : tx.status === 'confirmed' || isSuccessState(tx.status) ? <Check className="w-5 h-5 text-emerald-500" /> : <RefreshCw className="w-4 h-4 animate-spin" />}
+        </div>
+      </div>
 
-       {/* Progress Tracker */}
-       <TransactionProgressTracker tx={tx} />
+      {/* Progress Tracker */}
+      <TransactionProgressTracker tx={tx} />
 
-       {/* Hash */}
-       {tx.tx_hash && (
-         <div className="pt-4 border-t border-white/5 flex items-center gap-2">
-           <a
-             href={`https://sepolia.etherscan.io/tx/${tx.tx_hash}`}
-             target="_blank"
-             rel="noreferrer"
-             className="text-xs text-zinc-500 font-mono hover:text-white transition-colors flex items-center gap-1 group"
-           >
-             {tx.tx_hash.slice(0, 10)}...{tx.tx_hash.slice(-8)}
-             <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-           </a>
-         </div>
-       )}
+      {/* Hash */}
+      {tx.tx_hash && (
+        <div className="pt-4 border-t border-white/5 flex items-center gap-2">
+          <a
+            href={`https://sepolia.etherscan.io/tx/${tx.tx_hash}`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs text-zinc-500 font-mono hover:text-white transition-colors flex items-center gap-1 group"
+          >
+            {tx.tx_hash.slice(0, 10)}...{tx.tx_hash.slice(-8)}
+            <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+          </a>
+        </div>
+      )}
     </div>
   );
 }
@@ -464,7 +466,7 @@ function TransactionCard({ tx }: { tx: ActiveTransaction }) {
  * Polls the backend every 10 seconds.
  * Persists transactions to localStorage to survive page refreshes.
  */
-export default function ActiveTransactions({ username, className = '', onAllTransactionsComplete, refreshKey = 0, isVisible = true, initialTransactions, showHeader = true, persistCompleted = false, onlyShowInitial = false }: ActiveTransactionsProps) {
+export default function ActiveTransactions({ username, className = '', onAllTransactionsComplete, refreshKey = 0, isVisible = true, initialTransactions, showHeader = true, persistCompleted = false, onlyShowInitial = false, isWebSocketConnected = false }: ActiveTransactionsProps) {
   const [transactions, setTransactions] = useState<ActiveTransaction[]>(() => initialTransactions ?? []);
   const [loading, setLoading] = useState(false);
   const initialFetch = useRef(true);
@@ -573,26 +575,25 @@ export default function ActiveTransactions({ username, className = '', onAllTran
     }
   }, [username, onlyShowInitial]);
 
-  // Initial fetch and polling - only poll when visible to save API calls
+  // Initial fetch and polling
+  // Poll only when visible AND WebSocket is not connected.
+  // When the WebSocket is live, push updates via refreshKey handle re-fetches;
+  // polling is only needed as a fallback when the connection is down.
   useEffect(() => {
     if (!username) return;
 
-    // Always do initial fetch when component mounts or becomes visible
     if (isVisible) {
       fetchActiveTransactions();
     }
 
-    // Only set up polling interval when visible
-    if (!isVisible) {
+    // Skip polling when WebSocket is connected — push updates handle it.
+    if (!isVisible || isWebSocketConnected) {
       return;
     }
 
     const interval = setInterval(fetchActiveTransactions, POLL_INTERVAL_MS);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, [username, fetchActiveTransactions, isVisible]);
+    return () => clearInterval(interval);
+  }, [username, fetchActiveTransactions, isVisible, isWebSocketConnected]);
 
   // Refresh when refreshKey changes (triggered by parent component)
   useEffect(() => {
@@ -632,7 +633,7 @@ export default function ActiveTransactions({ username, className = '', onAllTran
         onAllTransactionsComplete();
       }
     }
-  }, [transactions.length, onAllTransactionsComplete]);
+  }, [transactions, onAllTransactionsComplete]);
 
   // Don't render if no transactions or no username
   if (!username || transactions.length === 0) {
