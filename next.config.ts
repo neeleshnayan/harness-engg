@@ -31,20 +31,14 @@ const nextConfig: NextConfig = {
 
   // Proxy to external backends to bypass CORS in local development
   async rewrites() {
+    const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000').trim();
+    const web3Url = (process.env.NEXT_PUBLIC_KRYPTON_WEB3_API_URL || 'http://127.0.0.1:8001').trim();
+    const hedgeUrl = (process.env.NEXT_PUBLIC_HEDGE_FUND_API_URL || 'http://127.0.0.1:8000').trim();
     return [
-      {
-        source: '/proxy/main/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/:path*`
-      },
-      {
-        source: '/proxy/web3/:path*',
-        destination: `${process.env.NEXT_PUBLIC_KRYPTON_WEB3_API_URL || 'http://127.0.0.1:8001'}/:path*`
-      },
-      {
-        source: '/proxy/hedge/:path*',
-        destination: `${process.env.NEXT_PUBLIC_HEDGE_FUND_API_URL || 'http://127.0.0.1:8000'}/:path*`
-      }
-    ]
+      { source: '/proxy/main/:path*', destination: `${apiUrl}/:path*` },
+      { source: '/proxy/web3/:path*', destination: `${web3Url}/:path*` },
+      { source: '/proxy/hedge/:path*', destination: `${hedgeUrl}/:path*` },
+    ];
   },
 
   webpack: (config, { isServer }) => {
