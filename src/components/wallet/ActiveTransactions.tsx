@@ -10,6 +10,7 @@ import {
 import { ArrowRight, Check, X, Loader2, ArrowLeftRight, RefreshCw, ArrowUp } from 'lucide-react';
 
 const INITIAL_ONLY_STALE_HIDE_MS = 90000;
+const ACTIVE_TX_POLL_INTERVAL_MS = 8000;
 
 // How long to keep terminal transactions visible (12 seconds)
 const COMPLETED_TX_DISPLAY_TIME = 12000;
@@ -700,6 +701,17 @@ export default function ActiveTransactions({ username, className = '', onAllTran
       fetchActiveTransactions();
     }
   }, [refreshKey, fetchActiveTransactions]);
+
+  // Fallback polling for status progression when WS is unavailable.
+  useEffect(() => {
+    if (!username || !isVisible || isWebSocketConnected) return;
+
+    const interval = setInterval(() => {
+      fetchActiveTransactions();
+    }, ACTIVE_TX_POLL_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [username, isVisible, isWebSocketConnected, fetchActiveTransactions]);
 
   // Clean up old completed transactions periodically (skip when persistCompleted, e.g. Clark feed)
   useEffect(() => {

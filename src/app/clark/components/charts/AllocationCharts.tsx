@@ -6,22 +6,27 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { PieChart as PieChartIcon } from 'lucide-react'
 import { BacktestAllocation } from '../../types'
-import { chartConfig, allocationColors } from '../../constants'
+import { chartConfig, allocationColors, chartUi } from '../../constants'
 
 interface AllocationChartsProps {
   allocations: BacktestAllocation[]
 }
 
+const RETURN_COLORS = {
+  positive: '#22c55e',
+  negative: '#ef4444',
+} as const
+
 export default function AllocationCharts({ allocations }: AllocationChartsProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-      <Card className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+      <Card className={chartUi.card}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-white">
             <PieChartIcon className="h-5 w-5" />
             Portfolio Allocation
           </CardTitle>
-          <CardDescription className="text-teal-200/70">
+          <CardDescription className={chartUi.muted}>
             Final allocation percentages by asset
           </CardDescription>
         </CardHeader>
@@ -72,10 +77,10 @@ export default function AllocationCharts({ allocations }: AllocationChartsProps)
         </CardContent>
       </Card>
 
-      <Card className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+      <Card className={chartUi.card}>
         <CardHeader>
           <CardTitle className=' text-white'>Asset Performance</CardTitle>
-          <CardDescription className="text-teal-200/70">
+          <CardDescription className={chartUi.muted}>
             Individual asset returns during backtest period
           </CardDescription>
         </CardHeader>
@@ -98,9 +103,12 @@ export default function AllocationCharts({ allocations }: AllocationChartsProps)
                 axisLine={{ stroke: 'rgba(255,255,255,0.12)' }}
                 tickLine={{ stroke: 'rgba(255,255,255,0.12)' }}
               />
-              <Bar dataKey="total_return" fill="#10b981">
+              <Bar dataKey="total_return" fill={RETURN_COLORS.positive}>
                 {allocations.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.total_return >= 0 ? '#10b981' : '#ef4444'} />
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={entry.total_return >= 0 ? RETURN_COLORS.positive : RETURN_COLORS.negative}
+                  />
                 ))}
               </Bar>
             </BarChart>

@@ -1,91 +1,109 @@
 import { Category } from './types'
 
+const CHART_PALETTE = {
+  performance: '#2dd4bf',
+  positive: '#4ade80',
+  negative: '#f87171',
+  warning: '#facc15',
+  info: '#22d3ee',
+  neutral: '#cbd5e1',
+  secondary: '#67e8f9',
+  tertiary: '#14b8a6',
+} as const
+
+export const chartUi = {
+  card: 'w-full bg-teal-900/25 border-teal-700/40 backdrop-blur-sm',
+  muted: 'text-teal-100/75',
+  tooltip: 'bg-zinc-900/95 border border-teal-700/50 rounded-lg shadow-lg',
+  empty: 'border border-dashed border-teal-600/40 bg-teal-900/10 text-teal-100/75',
+} as const
+
 export const chartConfig = {
   portfolio: {
-    label: " Value",
-    color: "hsl(var(--chart-1))",
+    label: "Value",
+    color: CHART_PALETTE.performance,
   },
   cumulative: {
     label: "Cumulative Return",
-    color: "hsl(var(--chart-2))",
+    color: CHART_PALETTE.positive,
   },
   daily: {
     label: "Daily Return",
-    color: "hsl(var(--chart-3))",
+    color: CHART_PALETTE.info,
   },
   sma_30: {
     label: "30-day SMA",
-    color: "hsl(var(--chart-4))",
+    color: CHART_PALETTE.warning,
   },
   sma_100: {
     label: "100-day SMA",
-    color: "hsl(var(--chart-5))",
+    color: CHART_PALETTE.secondary,
   },
   sma_200: {
     label: "200-day SMA",
-    color: "hsl(var(--chart-6))",
+    color: CHART_PALETTE.positive,
   },
   rsi: {
     label: "RSI",
-    color: "hsl(var(--chart-7))",
+    color: CHART_PALETTE.warning,
   },
   stochastic_rsi: {
     label: "Stochastic RSI",
-    color: "#34d399",
+    color: CHART_PALETTE.tertiary,
   },
   stochastic_rsi_k: {
     label: "Stoch RSI %K",
-    color: "#34d399",
+    color: CHART_PALETTE.performance,
   },
   stochastic_rsi_d: {
     label: "Stoch RSI %D",
-    color: "#60a5fa",
+    color: CHART_PALETTE.secondary,
   },
   bb_upper: {
     label: "Bollinger Upper",
-    color: "hsl(var(--chart-8))",
+    color: CHART_PALETTE.info,
   },
   bb_middle: {
     label: "Bollinger Middle",
-    color: "hsl(var(--chart-9))",
+    color: CHART_PALETTE.neutral,
   },
   bb_lower: {
     label: "Bollinger Lower",
-    color: "hsl(var(--chart-10))",
+    color: CHART_PALETTE.warning,
   },
   price: {
     label: "Price",
-    color: "#fbbf24",
+    color: CHART_PALETTE.warning,
   },
   super_trend: {
     label: "Super Trend",
-    color: "#10b981",
+    color: CHART_PALETTE.positive,
   },
   adx: {
     label: "ADX",
-    color: "#8b5cf6",
+    color: CHART_PALETTE.secondary,
   },
   adx_plus_dmi: {
     label: "+DMI",
-    color: "#10b981",
+    color: CHART_PALETTE.positive,
   },
   adx_minus_dmi: {
     label: "-DMI",
-    color: "#ef4444",
+    color: CHART_PALETTE.negative,
   },
 }
 
 export const allocationColors = [
-  "hsl(var(--chart-1))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))",
-  "hsl(var(--chart-6))",
-  "hsl(var(--chart-7))",
-  "hsl(var(--chart-8))",
-  "hsl(var(--chart-9))",
-  "hsl(var(--chart-10))",
+  '#2dd4bf',
+  '#4ade80',
+  '#22d3ee',
+  '#67e8f9',
+  '#14b8a6',
+  '#34d399',
+  '#06b6d4',
+  '#84cc16',
+  '#facc15',
+  '#f87171',
 ]
 
 export const categories: Category[] = [

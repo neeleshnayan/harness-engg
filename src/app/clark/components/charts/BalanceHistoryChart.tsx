@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
 import type { DailyBalanceEntry, IntradayBalanceEntry } from '../../types'
+import { chartUi } from '../../constants'
 
 const KNOWN_K_TOKENS = ['kUSD', 'kEUR', 'kGBP', 'kAED'] as const
 
@@ -159,10 +160,10 @@ export default function BalanceHistoryChart({
 
   if (chartData.length === 0 || tokens.length === 0) {
     return (
-      <Card className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+      <Card className={chartUi.card}>
         <CardHeader>
           <CardTitle className="text-lg text-white">{title}</CardTitle>
-          <CardDescription className="text-teal-200/70">
+          <CardDescription className={chartUi.muted}>
             No balance history data for this period.
           </CardDescription>
         </CardHeader>
@@ -179,10 +180,10 @@ export default function BalanceHistoryChart({
   const domainMax = maxVal + padding
 
   return (
-    <Card className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+    <Card className={chartUi.card}>
       <CardHeader>
         <CardTitle className="text-lg text-white">{title}</CardTitle>
-        <CardDescription className="text-teal-200/70">
+        <CardDescription className={chartUi.muted}>
           {isDaily ? 'Daily' : 'Intraday'} balance history
           {username_or_address ? ` · ${username_or_address}` : ''} · {chartData.length} data points · {tokens.length} token{tokens.length !== 1 ? 's' : ''}
         </CardDescription>
@@ -224,14 +225,14 @@ export default function BalanceHistoryChart({
                 if (!active || !payload || !payload.length) return null
                 const data = payload[0].payload
                 return (
-                  <ChartTooltipContent className="bg-zinc-900/95 border border-teal-700/50 rounded-lg p-3 shadow-lg min-w-[140px]">
-                    <p className="text-xs text-teal-300/80 font-medium mb-2">
+                  <ChartTooltipContent className={`${chartUi.tooltip} p-3 min-w-[140px]`}>
+                    <p className={`text-xs font-medium mb-2 ${chartUi.muted}`}>
                       {isDaily ? formatDateShort(data.rawLabel) : formatTimeShort(data.rawLabel)}
                     </p>
                     <div className="space-y-1">
                       {tokens.map(t => (
                         <div key={t} className="flex justify-between items-center gap-4">
-                          <span className="text-teal-200/90">{displayToken(t)}</span>
+                          <span className={chartUi.muted}>{displayToken(t)}</span>
                           <span className="text-white font-medium tabular-nums">
                             {formatAxisValue(Number(data[t] ?? 0))}
                           </span>
@@ -244,7 +245,7 @@ export default function BalanceHistoryChart({
             />
             <Legend
               wrapperStyle={{ paddingTop: 8 }}
-              formatter={(value) => <span className="text-teal-200/90 text-xs">{value}</span>}
+              formatter={(value) => <span className={`text-xs ${chartUi.muted}`}>{value}</span>}
             />
             {tokens.map((token, i) => {
               const color = chartConfig[token]?.color ?? BALANCE_CHART_COLORS[i % BALANCE_CHART_COLORS.length]

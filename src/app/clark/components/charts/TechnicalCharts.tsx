@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { BacktestDataPoint } from '../../types'
-import { chartConfig } from '../../constants'
+import { chartConfig, chartUi } from '../../constants'
 import { formatDate } from '../../utils'
 
 interface TechnicalChartsProps {
@@ -14,11 +14,11 @@ interface TechnicalChartsProps {
   targetAssets: string[]
 }
 
-// Explicit stroke colors so SMA lines always render (SVG can fail to resolve CSS vars in some contexts)
-const SMA_LINE_COLORS = {
-  sma_30: '#fbbf24',
-  sma_100: '#a855f7',
-  sma_200: '#10b981',
+const REFERENCE_COLORS = {
+  overbought: '#ef4444',
+  oversold: '#38bdf8',
+  trend20: '#fbbf24',
+  trend25: '#f59e0b',
 } as const
 
 export default function TechnicalCharts({ 
@@ -107,10 +107,10 @@ export default function TechnicalCharts({
         technicalIndicatorsRequested.includes('sma_100') ||
         technicalIndicatorsRequested.includes('sma_200')
       ) && (
-        <Card className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+        <Card className={chartUi.card}>
           <CardHeader>
             <CardTitle className="text-lg text-white">Moving Averages Analysis</CardTitle>
-            <CardDescription className="text-teal-200/70">
+            <CardDescription className={chartUi.muted}>
               Simple Moving Averages (SMA) for {targetAssets.length > 0 ? targetAssets.join(', ') : 'selected assets'}
             </CardDescription>
           </CardHeader>
@@ -136,7 +136,7 @@ export default function TechnicalCharts({
                   <Line
                     type="monotone"
                     dataKey="sma_30"
-                    stroke={SMA_LINE_COLORS.sma_30}
+                    stroke="var(--color-sma_30)"
                     strokeWidth={2}
                     dot={false}
                     name="30-day SMA"
@@ -147,7 +147,7 @@ export default function TechnicalCharts({
                   <Line
                     type="monotone"
                     dataKey="sma_100"
-                    stroke={SMA_LINE_COLORS.sma_100}
+                    stroke="var(--color-sma_100)"
                     strokeWidth={2}
                     dot={false}
                     name="100-day SMA"
@@ -158,7 +158,7 @@ export default function TechnicalCharts({
                   <Line
                     type="monotone"
                     dataKey="sma_200"
-                    stroke={SMA_LINE_COLORS.sma_200}
+                    stroke="var(--color-sma_200)"
                     strokeWidth={2}
                     dot={false}
                     name="200-day SMA"
@@ -173,10 +173,10 @@ export default function TechnicalCharts({
 
       {/* RSI Chart */}
       {technicalIndicatorsRequested.includes('rsi') && (
-        <Card className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+        <Card className={chartUi.card}>
           <CardHeader>
             <CardTitle className="text-lg text-white">Relative Strength Index (RSI)</CardTitle>
-            <CardDescription className="text-teal-200/70">
+            <CardDescription className={chartUi.muted}>
               RSI with overbought (70) and oversold (30) levels for {targetAssets.length > 0 ? targetAssets.join(', ') : 'selected assets'}
             </CardDescription>
           </CardHeader>
@@ -212,7 +212,7 @@ export default function TechnicalCharts({
                 <Line
                   type="monotone"
                   dataKey={() => 70}
-                  stroke="#ef4444"
+                  stroke={REFERENCE_COLORS.overbought}
                   strokeWidth={1}
                   strokeDasharray="3 3"
                   dot={false}
@@ -221,7 +221,7 @@ export default function TechnicalCharts({
                 <Line
                   type="monotone"
                   dataKey={() => 30}
-                  stroke="#ef4444"
+                  stroke={REFERENCE_COLORS.oversold}
                   strokeWidth={1}
                   strokeDasharray="3 3"
                   dot={false}
@@ -235,10 +235,10 @@ export default function TechnicalCharts({
 
       {/* Stochastic RSI Chart */}
       {technicalIndicatorsRequested.includes('stochastic_rsi') && (
-        <Card className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+        <Card className={chartUi.card}>
           <CardHeader>
             <CardTitle className="text-lg text-white">Stochastic RSI Oscillator</CardTitle>
-            <CardDescription className="text-teal-200/70">
+            <CardDescription className={chartUi.muted}>
               Stochastic RSI %K and %D with overbought (80) and oversold (20) levels for {targetAssets.length > 0 ? targetAssets.join(', ') : 'selected assets'}
             </CardDescription>
           </CardHeader>
@@ -294,7 +294,7 @@ export default function TechnicalCharts({
                 <Line
                   type="monotone"
                   dataKey={() => 80}
-                  stroke="#f97316"
+                  stroke={REFERENCE_COLORS.overbought}
                   strokeWidth={1}
                   strokeDasharray="3 3"
                   dot={false}
@@ -303,7 +303,7 @@ export default function TechnicalCharts({
                 <Line
                   type="monotone"
                   dataKey={() => 20}
-                  stroke="#38bdf8"
+                  stroke={REFERENCE_COLORS.oversold}
                   strokeWidth={1}
                   strokeDasharray="3 3"
                   dot={false}
@@ -317,16 +317,16 @@ export default function TechnicalCharts({
 
       {/* Bollinger Bands Chart */}
       {technicalIndicatorsRequested.includes('bollinger_bands') && (
-        <Card className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+        <Card className={chartUi.card}>
           <CardHeader>
             <CardTitle className="text-lg text-white">Bollinger Bands Analysis</CardTitle>
-            <CardDescription className="text-teal-200/70">
+            <CardDescription className={chartUi.muted}>
               Bollinger Bands (20-period, 2 standard deviations) for volatility analysis of {targetAssets.length > 0 ? targetAssets.join(', ') : 'selected assets'}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {bollingerData.length === 0 ? (
-              <div className="h-[400px] w-full flex items-center justify-center rounded-md border border-dashed border-teal-600/40 bg-teal-900/10 text-teal-200/70">
+              <div className={`h-[400px] w-full flex items-center justify-center rounded-md ${chartUi.empty}`}>
                 <p>No Bollinger Bands data available for this period.</p>
               </div>
             ) : (
@@ -396,10 +396,10 @@ export default function TechnicalCharts({
 
       {/* Super Trend Chart */}
       {(technicalIndicatorsRequested.includes('super_trend') || technicalIndicatorsRequested.includes('supertrend')) && (
-        <Card className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+        <Card className={chartUi.card}>
           <CardHeader>
             <CardTitle className="text-lg text-white">Super Trend Analysis</CardTitle>
-            <CardDescription className="text-teal-200/70">
+            <CardDescription className={chartUi.muted}>
               Super Trend indicator (volatility adjusted trend levels) for {targetAssets.length > 0 ? targetAssets.join(', ') : 'selected assets'}.
             </CardDescription>
           </CardHeader>
@@ -451,10 +451,10 @@ export default function TechnicalCharts({
       {(technicalIndicatorsRequested.includes('adx') || 
         technicalIndicatorsRequested.includes('adx_plus_dmi') || 
         technicalIndicatorsRequested.includes('adx_minus_dmi')) && (
-        <Card className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+        <Card className={chartUi.card}>
           <CardHeader>
             <CardTitle className="text-lg text-white">Average Directional Index (ADX)</CardTitle>
-            <CardDescription className="text-teal-200/70">
+            <CardDescription className={chartUi.muted}>
               ADX with +DMI (Positive Directional Movement) and -DMI (Negative Directional Movement) for {targetAssets.length > 0 ? targetAssets.join(', ') : 'selected assets'}.
               ADX measures trend strength, +DMI shows upward momentum, -DMI shows downward momentum.
             </CardDescription>
@@ -522,7 +522,7 @@ export default function TechnicalCharts({
                     <Line
                       type="monotone"
                       dataKey={() => 20}
-                      stroke="#fbbf24"
+                      stroke={REFERENCE_COLORS.trend20}
                       strokeWidth={1}
                       strokeDasharray="3 3"
                       dot={false}
@@ -531,7 +531,7 @@ export default function TechnicalCharts({
                     <Line
                       type="monotone"
                       dataKey={() => 25}
-                      stroke="#f59e0b"
+                      stroke={REFERENCE_COLORS.trend25}
                       strokeWidth={1}
                       strokeDasharray="3 3"
                       dot={false}

@@ -4,6 +4,7 @@ import React, { useMemo, useRef, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { CandleData, CandleDataPoint } from '../../types'
 import { formatDate } from '../../utils'
+import { chartUi } from '../../constants'
 
 interface CandleChartProps {
   candleData: CandleData
@@ -170,12 +171,12 @@ export default function CandleChart({ candleData, title }: CandleChartProps) {
   }
 
   return (
-    <Card className="bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+    <Card className={chartUi.card}>
       <CardHeader>
         <CardTitle className="text-white text-lg">
           {title || `${candleData.symbol} Price Chart`}
         </CardTitle>
-        <CardDescription className="text-teal-200/70 text-sm">
+        <CardDescription className={`${chartUi.muted} text-sm`}>
           OHLC Candlestick Chart
         </CardDescription>
       </CardHeader>
@@ -305,45 +306,45 @@ export default function CandleChart({ candleData, title }: CandleChartProps) {
           {/* Tooltip */}
           {hoveredCandle && tooltipPosition && (
             <div
-              className="fixed z-50 rounded-lg border bg-teal-900/95 backdrop-blur-sm p-3 shadow-lg border-teal-700/50 pointer-events-none"
+              className={`fixed z-50 ${chartUi.tooltip} bg-teal-900/95 backdrop-blur-sm p-3 pointer-events-none`}
               style={{
                 left: `${tooltipPosition.x + 10}px`,
                 top: `${tooltipPosition.y - 10}px`,
                 transform: 'translateY(-100%)',
               }}
             >
-              <div className="text-xs font-medium text-teal-200/70 mb-2">
+              <div className={`text-xs font-medium mb-2 ${chartUi.muted}`}>
                 {formatDate(hoveredCandle.date)}
               </div>
               <div className="space-y-1">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-teal-200/70 text-xs">Open:</span>
+                  <span className={`text-xs ${chartUi.muted}`}>Open:</span>
                   <span className="text-white text-xs font-medium">
                     {formatAxisValue(hoveredCandle.open)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-teal-200/70 text-xs">High:</span>
+                  <span className={`text-xs ${chartUi.muted}`}>High:</span>
                   <span className="text-green-400 text-xs font-medium">
                     {formatAxisValue(hoveredCandle.high)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-teal-200/70 text-xs">Low:</span>
+                  <span className={`text-xs ${chartUi.muted}`}>Low:</span>
                   <span className="text-red-400 text-xs font-medium">
                     {formatAxisValue(hoveredCandle.low)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-teal-200/70 text-xs">Close:</span>
+                  <span className={`text-xs ${chartUi.muted}`}>Close:</span>
                   <span className={`text-xs font-medium ${hoveredCandle.isUp ? 'text-green-400' : 'text-red-400'}`}>
                     {formatAxisValue(hoveredCandle.close)}
                   </span>
                 </div>
                 {hoveredCandle.volume !== null && hoveredCandle.volume !== undefined && (
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-teal-200/70 text-xs">Volume:</span>
-                    <span className="text-teal-200/90 text-xs font-medium">
+                    <span className={`text-xs ${chartUi.muted}`}>Volume:</span>
+                    <span className={`text-xs font-medium ${chartUi.muted}`}>
                       {formatAxisValue(hoveredCandle.volume)}
                     </span>
                   </div>

@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { DailyPriceHistoryDataPoint } from '@/lib/api'
-import { chartConfig } from '../../constants'
+import { chartConfig, chartUi } from '../../constants'
 import { formatDate } from '../../utils'
 
 interface PriceHistoryChartProps {
@@ -97,12 +97,15 @@ export default function PriceHistoryChart({ token, dataPoints, lookbackDays }: P
     return { change, changePercent }
   }, [chartData])
 
+  const isPositiveTrend = (priceChange?.change ?? 0) >= 0
+  const trendColor = isPositiveTrend ? '#22c55e' : '#ef4444'
+
   if (!chartData.length) {
     return (
-      <Card className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+      <Card className={chartUi.card}>
         <CardHeader>
           <CardTitle className="text-lg text-white">Price History - {token}</CardTitle>
-          <CardDescription className="text-teal-200/70">
+          <CardDescription className={chartUi.muted}>
             No price data available
           </CardDescription>
         </CardHeader>
@@ -111,10 +114,10 @@ export default function PriceHistoryChart({ token, dataPoints, lookbackDays }: P
   }
 
   return (
-    <Card className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+    <Card className={chartUi.card}>
       <CardHeader>
         <CardTitle className="text-lg text-white">Price History - {token}</CardTitle>
-        <CardDescription className="text-teal-200/70">
+        <CardDescription className={chartUi.muted}>
           {lookbackDays ? `Last ${lookbackDays} days` : 'Daily price history'} • {chartData.length} data points
         </CardDescription>
         {currentPrice !== null && (
@@ -173,9 +176,13 @@ export default function PriceHistoryChart({ token, dataPoints, lookbackDays }: P
 
                 const data = payload[0].payload
                 return (
-                  <ChartTooltipContent className="bg-zinc-900/95 border border-teal-700/50 rounded-lg p-3 shadow-lg">
+                  <ChartTooltipContent
+                    className={`${chartUi.tooltip} p-3 ${
+                      isPositiveTrend ? 'border border-emerald-700/50' : 'border border-rose-700/50'
+                    }`}
+                  >
                     <div className="space-y-1">
-                      <p className="text-xs text-teal-300/80 font-medium">
+                      <p className={`text-xs font-medium ${chartUi.muted}`}>
                         {formatDate(data.date)}
                       </p>
                       <p className="text-sm font-semibold text-white">
@@ -189,10 +196,10 @@ export default function PriceHistoryChart({ token, dataPoints, lookbackDays }: P
             <Line
               type="monotone"
               dataKey="price"
-              stroke="#10b981"
+              stroke={trendColor}
               strokeWidth={2}
               dot={false}
-              activeDot={{ r: 4, fill: '#10b981', stroke: '#10b981', strokeWidth: 2 }}
+              activeDot={{ r: 4, fill: trendColor, stroke: trendColor, strokeWidth: 2 }}
             />
           </LineChart>
         </ChartContainer>

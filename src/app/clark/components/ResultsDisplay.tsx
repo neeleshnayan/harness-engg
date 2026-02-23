@@ -602,10 +602,12 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
     if (!message.backtestResult) return null
     const backtestResult = message.backtestResult
     const isTechnicalAnalysisOnly = backtestResult.include_technical_analysis && !backtestResult.show_performance_stats
+    const hasTrades = Array.isArray(backtestResult.trades) && backtestResult.trades.length > 0
+
     return (
       <div key={`bt-${message.id}`} className="space-y-4">
         {backtestResult.show_performance_stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 w-full">
             <Card className="bg-zinc-800/20 border-zinc-700/30 backdrop-blur-sm">
               <CardContent className="p-4">
                 <div className="flex items-center space-x-3">
@@ -662,8 +664,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
           </div>
         )}
 
-        {/* Trades Table - Show if trades exist */}
-        {!isTechnicalAnalysisOnly && backtestResult.trades && backtestResult.trades.length > 0 && (() => {
+        {!isTechnicalAnalysisOnly && hasTrades && (() => {
           const tableId = `trades-${message.id}`
           const isExpanded = expandedTradeTables.has(tableId)
           return (
@@ -702,67 +703,6 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
               </CardHeader>
               {isExpanded && (
                 <CardContent>
-                  {backtestResult.metrics.total_trades !== null && backtestResult.metrics.total_trades !== undefined && backtestResult.metrics.total_trades > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 w-full mb-4">
-                      <Card className="bg-teal-900/30 border-teal-700/50">
-                        <CardContent className="p-4">
-                          <div className="flex items-center space-x-3">
-                            <BarChart3 className="h-5 w-5 text-cyan-400" />
-                            <div>
-                              <p className="text-xs font-medium text-white/70">Total Trades</p>
-                              <p className="text-xl font-bold text-white">{backtestResult.metrics.total_trades}</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <Card className="bg-teal-900/30 border-teal-700/50">
-                        <CardContent className="p-4">
-                          <div className="flex items-center space-x-3">
-                            <TrendingUp className="h-5 w-5 text-green-400" />
-                            <div>
-                              <p className="text-xs font-medium text-white/70">Winning Trades</p>
-                              <p className="text-xl font-bold text-green-400">
-                                {backtestResult.metrics.winning_trades ?? 0}
-                              </p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <Card className="bg-teal-900/30 border-teal-700/50">
-                        <CardContent className="p-4">
-                          <div className="flex items-center space-x-3">
-                            <TrendingDown className="h-5 w-5 text-red-400" />
-                            <div>
-                              <p className="text-xs font-medium text-white/70">Losing Trades</p>
-                              <p className="text-xl font-bold text-red-400">
-                                {backtestResult.metrics.losing_trades ?? 0}
-                              </p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <Card className="bg-teal-900/30 border-teal-700/50">
-                        <CardContent className="p-4">
-                          <div className="flex items-center space-x-3">
-                            <DollarSign className="h-5 w-5 text-teal-400" />
-                            <div>
-                              <p className="text-xs font-medium text-white/70">Avg Trade Return</p>
-                              <p className={`text-xl font-bold ${
-                                (backtestResult.metrics.avg_trade_return ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'
-                              }`}>
-                                {backtestResult.metrics.avg_trade_return !== null && backtestResult.metrics.avg_trade_return !== undefined
-                                  ? formatCurrency(backtestResult.metrics.avg_trade_return)
-                                  : 'N/A'}
-                              </p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )}
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
@@ -808,8 +748,17 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
             </Card>
           )
         })()}
-        
-        {/* Candle Charts - Show for each asset with candle data */}
+
+        {!isTechnicalAnalysisOnly && backtestResult.show_performance_stats && !hasTrades && (
+          <Card className="bg-zinc-900/30 border-zinc-700/40">
+            <CardContent className="p-4">
+              <p className="text-sm text-white/75">
+                No completed trades were generated for this backtest window. Try extending the date range or adjusting strategy parameters.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {backtestResult.candle_data && backtestResult.candle_data.length > 0 && (
           <div className="space-y-4">
             {backtestResult.candle_data.map((candleData, index) => (
@@ -822,7 +771,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
         )}
 
         {backtestResult.show_performance_stats && (
-          <PortfolioChart 
+          <PortfolioChart
             dataPoints={backtestResult.data_points}
             startDate={backtestResult.start_date}
             endDate={backtestResult.end_date}
@@ -831,7 +780,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
         )}
 
         {backtestResult.include_technical_analysis && (
-          <TechnicalCharts 
+          <TechnicalCharts
             dataPoints={backtestResult.data_points}
             technicalIndicatorsRequested={backtestResult.technical_indicators_requested}
             targetAssets={backtestResult.target_assets}
@@ -844,7 +793,6 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
       </div>
     )
   }
-
   return (
     <div className="space-y-6">
       {messages.map((message, index) => (
@@ -1043,6 +991,12 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
               }
             }
 
+            const statusIdentity =
+              username ||
+              message.parsedIntent?.username ||
+              message.parsedIntent?.from_username ||
+              inlineTxData?.from_address
+
             return (
             <>
               {/* For krypton_pay flows, hide Clark's natural language bubble entirely.
@@ -1202,16 +1156,18 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
               })()}
               
               {/* Show transaction status card when we detect a krypton_pay transaction */}
-              {isKryptonPay && username && (
+              {isKryptonPay && (
                 <div className="flex flex-col gap-2 justify-start items-start mt-2">
-                  <div className="flex gap-2 justify-start items-start w-full">
-                    <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                      <img src="/clark process.svg" alt="Clark" className="h-8 w-8 opacity-90"  />
+                  {statusIdentity && (
+                    <div className="flex gap-2 justify-start items-start w-full">
+                      <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                        <img src="/clark process.svg" alt="Clark" className="h-8 w-8 opacity-90"  />
+                      </div>
+                      <div className="max-w-[85%]">
+                        <TransactionStatus username={statusIdentity} initialData={inlineTxData} />
+                      </div>
                     </div>
-                    <div className="max-w-[85%]">
-                      <TransactionStatus username={username} initialData={inlineTxData} />
-                    </div>
-                  </div>
+                  )}
                   {/* Persistent transaction row (TransactionHistory-style) so the tx stays visible in the feed */}
                   {inlineTxData && (inlineTxData.amount != null || inlineTxData.transaction_id) && (
                     <div className="w-full max-w-[85%] ml-10 rounded-b-xl border border-t-0 border-white/10 bg-black/30 px-3 py-2 flex items-center justify-between min-w-0">
