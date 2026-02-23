@@ -9,9 +9,6 @@ import {
 } from '@/lib/circleStates';
 import { ArrowRight, Check, X, Loader2, ArrowLeftRight, RefreshCw, ArrowUp } from 'lucide-react';
 
-// Poll interval in milliseconds (10 seconds for better UX)
-const POLL_INTERVAL_MS = 10000;
-const WS_SAFETY_POLL_INTERVAL_MS = 20000;
 const INITIAL_ONLY_STALE_HIDE_MS = 90000;
 
 // How long to keep terminal transactions visible (12 seconds)
@@ -508,7 +505,7 @@ function TransactionCard({ tx, nowTs, currentUsername }: { tx: ActiveTransaction
  * ActiveTransactions Component
  *
  * Shows active (ongoing) transactions with a progress tracker.
- * Polls the backend every 10 seconds.
+ * Event-driven: refreshes only on initial mount/visibility and explicit refreshKey.
  * Persists transactions to localStorage to survive page refreshes.
  */
 export default function ActiveTransactions({ username, className = '', onAllTransactionsComplete, refreshKey = 0, isVisible = true, initialTransactions, showHeader = true, persistCompleted = false, onlyShowInitial = false, isWebSocketConnected = false }: ActiveTransactionsProps) {
@@ -669,26 +666,6 @@ export default function ActiveTransactions({ username, className = '', onAllTran
       fetchActiveTransactions();
     }
   }, [username, fetchActiveTransactions, isVisible]);
-
-  // Polling strategy:
-  // - WS disconnected: normal poll cadence
-  // - WS connected + pending tx visible: slower safety poll
-  // - WS connected + no pending tx: no polling
-  useEffect(() => {
-    if (!username || !isVisible) {
-      return;
-    }
-
-    const hasPendingVisible = transactions.some((tx) => !isFinishedStatus(tx.status));
-    const shouldSafetyPoll = isWebSocketConnected && hasPendingVisible;
-    if (isWebSocketConnected && !shouldSafetyPoll) {
-      return;
-    }
-
-    const intervalMs = shouldSafetyPoll ? WS_SAFETY_POLL_INTERVAL_MS : POLL_INTERVAL_MS;
-    const interval = setInterval(fetchActiveTransactions, intervalMs);
-    return () => clearInterval(interval);
-  }, [username, fetchActiveTransactions, isVisible, isWebSocketConnected, transactions]);
 
   // Refresh when refreshKey changes (triggered by parent component)
   useEffect(() => {

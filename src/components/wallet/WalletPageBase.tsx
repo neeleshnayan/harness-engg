@@ -638,13 +638,14 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       // Prefer WebSocket-driven balance_update when live; fallback to API fetch only when WS is not connected.
       if (connectionStatus !== 'connected') {
         debouncedFetchBalance(currentAccountData.wallet_address, { background: true }, WEBHOOK_BALANCE_REFRESH_DELAY_MS);
+        // Fallback path when WS is unavailable: explicitly refresh tx views.
+        setTransactionHistoryRefresh(prev => prev + 1);
       } else {
         setBalanceRefreshing(false);
       }
 
       // Toggle balance card refresh and tx history explicitly
       setBalanceCardRefresh(prev => !prev);
-      setTransactionHistoryRefresh(prev => prev + 1);
     }
   }, [connectionStatus, debouncedFetchBalance]);
 

@@ -235,9 +235,7 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
     if (onTransactionsComplete) {
       onTransactionsComplete();
     }
-    // Also refresh transaction history
-    handleTransactionHistoryRefresh();
-  }, [onTransactionsComplete, handleTransactionHistoryRefresh]);
+  }, [onTransactionsComplete]);
 
   /**
    * Switch to Transaction History tab and refresh
