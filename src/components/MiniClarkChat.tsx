@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import agentsApi from '@/lib/agents_api'
+import { kryptonWeb3Api } from '@/lib/api'
 import { parseErrorMessage } from '@/lib/parseError'
 import { ChatMessage } from '@/app/clark/types'
 import ResultsDisplay from '@/app/clark/components/ResultsDisplay'
@@ -43,7 +44,6 @@ export default function MiniClarkChat({
   const [interrupts, setInterrupts] = useState<InterruptFromApi[]>([])
   const [pendingInterruptResponse, setPendingInterruptResponse] = useState<{ query: string; userMessage: ChatMessage } | null>(null)
   const shownInterruptIdsRef = useRef<Set<string>>(new Set())
-  const approvedPaymentContextRef = useRef<Record<string, unknown> | null>(null)
 
   const shouldShowInputOnly = showInputOnly && !hasSentMessage
 
@@ -117,6 +117,14 @@ export default function MiniClarkChat({
               timestamp: new Date(),
             },
           })
+        } else {
+          setMessages(prev => [...prev, {
+            id: (Date.now() + Math.random()).toString(),
+            type: 'assistant',
+            content: 'Approval is required, but no confirmation payload was returned. Please resend the payment request.',
+            timestamp: new Date(),
+            success: false,
+          }])
         }
         setIsLoading(false)
         return
@@ -144,72 +152,6 @@ export default function MiniClarkChat({
         onTransactionRefresh?.()
       }
       const assistantMessage = createAssistantMessage(payload)
-      const approvedPaymentContext = approvedPaymentContextRef.current
-      if (approvedPaymentContext) {
-        const payloadAgentNodes = payload?.agent_flow?.nodes || []
-        const payloadHasTxData = Boolean(
-          payload?.data?.transaction_id ||
-          (typeof payload?.data?.status === 'string' && payload.data.status.toUpperCase() === 'SUBMITTED') ||
-          payload?.data?.operation ||
-          payloadAgentNodes.some((node: any) =>
-            Boolean(
-              node?.output?.data?.transaction_id ||
-              (typeof node?.output?.data?.status === 'string' && node.output.data.status.toUpperCase() === 'SUBMITTED') ||
-              node?.output?.data?.operation
-            )
-          )
-        )
-
-        if (!payloadHasTxData) {
-          const existingIntent =
-            assistantMessage.parsedIntent && typeof assistantMessage.parsedIntent === 'object'
-              ? assistantMessage.parsedIntent as Record<string, unknown>
-              : {}
-          const existingAgentIds = Array.isArray(existingIntent.agent_ids)
-            ? existingIntent.agent_ids.filter((v): v is string => typeof v === 'string')
-            : []
-          const operation =
-            (existingIntent.operation as string | undefined) ||
-            (approvedPaymentContext.operation as string | undefined) ||
-            'direct_transfer'
-
-          assistantMessage.parsedIntent = {
-            ...existingIntent,
-            operation,
-            agent_ids: Array.from(new Set([...existingAgentIds, 'krypton_pay'])),
-          }
-
-          const syntheticNode = {
-            id: 'krypton_pay',
-            name: 'Krypton Pay',
-            type: 'specialized',
-            status: 'completed',
-            tool_name: 'consult_krypton_pay',
-            output: {
-              success: true,
-              message: 'Awaiting transaction status',
-              has_data: true,
-              data: {
-                operation,
-                status: 'SUBMITTED',
-                token: (approvedPaymentContext.to_token as string | undefined) || undefined,
-                amount: approvedPaymentContext.received_amount as number | undefined,
-                to_username: approvedPaymentContext.receiver_username as string | undefined,
-              },
-            },
-          }
-
-          if (!assistantMessage.agentFlow) {
-            assistantMessage.agentFlow = [syntheticNode] as any
-          } else if (Array.isArray(assistantMessage.agentFlow)) {
-            assistantMessage.agentFlow = [...assistantMessage.agentFlow, syntheticNode] as any
-          } else if ((assistantMessage.agentFlow as any)?.nodes && Array.isArray((assistantMessage.agentFlow as any).nodes)) {
-            ;(assistantMessage.agentFlow as any).nodes = [...(assistantMessage.agentFlow as any).nodes, syntheticNode]
-          }
-        }
-
-        approvedPaymentContextRef.current = null
-      }
       setMessages(prev => [...prev, assistantMessage])
     } catch (error) {
       console.error('LangChain API error:', error)
@@ -228,14 +170,73 @@ export default function MiniClarkChat({
     }
   }
 
+  const _sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+  const _appendCanonicalActiveTransaction = async (operationHint?: string) => {
+    const username = userName || 'krypton'
+    if (!username) return
+    try {
+      await _sleep(3000)
+      const response = await kryptonWeb3Api.get(
+        `/circle/active-transactions/${encodeURIComponent(username)}`
+      )
+      const txs = Array.isArray(response?.data?.transactions) ? response.data.transactions : []
+      if (!txs.length) return
+      const tx = txs
+        .slice()
+        .sort((a: any, b: any) => Number(b?.created_at || 0) - Number(a?.created_at || 0))[0]
+      if (!tx?.transaction_id) return
+
+      const payload = {
+        success: true,
+        message: 'Transaction submitted.',
+        parsed_intent: {
+          agent_ids: ['krypton_pay'],
+          operation: operationHint || tx.operation || (tx.tx_type === 'swap' ? 'swap_and_transfer' : 'direct_transfer'),
+        },
+        data: {
+          transaction_id: tx.transaction_id,
+          status: String(tx.status || 'SUBMITTED').toUpperCase(),
+          operation: tx.operation || operationHint || (tx.tx_type === 'swap' ? 'swap_and_transfer' : 'direct_transfer'),
+          token: tx.to_token || tx.from_token || tx.token_symbol,
+          amount: tx.amount,
+          received_amount: tx.received_amount,
+          to_address: tx.to_address,
+          to_username: tx.to_username,
+          tx_hash: tx.tx_hash,
+          created_at: tx.created_at,
+          kind: tx.kind,
+          tx_type: tx.tx_type,
+        },
+      }
+      const assistantMessage = createAssistantMessage(payload)
+      setMessages((prev) => {
+        const alreadyRendered = prev.some((m) => {
+          const nodes = (m.agentFlow && 'nodes' in (m.agentFlow as any))
+            ? (m.agentFlow as any).nodes
+            : (Array.isArray(m.agentFlow) ? m.agentFlow : [])
+          return Array.isArray(nodes) && nodes.some((n: any) => n?.output?.data?.transaction_id === tx.transaction_id)
+        })
+        if (alreadyRendered) return prev
+        return [...prev, assistantMessage]
+      })
+    } catch (err) {
+      console.warn('MiniClark reconcile: failed to fetch active transactions', err)
+    }
+  }
+
   const handleInterruptApprove = async (interruptId: string, reason?: Record<string, unknown>) => {
     const pending = pendingInterruptResponse
     if (!pending) return
-    approvedPaymentContextRef.current = reason ?? null
+    const fallbackReason =
+      reason ??
+      (interrupts.find((i) => String(i?.id ?? '') === String(interruptId))?.reason as Record<string, unknown> | undefined) ??
+      { operation: 'direct_transfer' }
     setInterrupts([])
     setPendingInterruptResponse(null)
     const interruptResponses = [{ interruptResponse: { interruptId, response: 'yes' } }]
     await runQuery(pending.query, pending.userMessage, interruptResponses)
+    await _appendCanonicalActiveTransaction(fallbackReason?.operation as string | undefined)
     onBalanceRefresh?.()
     onTransactionRefresh?.()
   }
@@ -243,7 +244,6 @@ export default function MiniClarkChat({
   const handleInterruptReject = async (interruptId: string) => {
     const pending = pendingInterruptResponse
     if (!pending) return
-    approvedPaymentContextRef.current = null
     setInterrupts([])
     setPendingInterruptResponse(null)
     setMessages(prev => [...prev, {

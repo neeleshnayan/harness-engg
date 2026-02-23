@@ -901,6 +901,8 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
             const messageContent = message.content || ''
             const hasTransactionKeywords = /(sent|transfer|transaction|successfully|swapped|swap completed)/i.test(messageContent) &&
               /(USD|EUR|AED|to @|transaction id)/i.test(messageContent)
+            const hasCanonicalTxSignal = /transaction\s*id\s*:\s*[0-9a-f-]{16,}/i.test(messageContent)
+              || /\bstatus\s*:\s*(submitted|queued|pending|confirmed|complete)\b/i.test(messageContent)
 
             // Only treat as krypton_pay transaction if we have actual payment/swap (not balance-only read).
             // Exclude balance queries: operation "balances" | "balances_daily" | "balances_intraday" = read-only, no transaction UI.
@@ -915,8 +917,8 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
 
             const isBalanceOnlyQuery = message.balanceResult && ['balances', 'balances_daily', 'balances_intraday'].includes(message.balanceResult.operation)
             const isKryptonPay = !isPriceHistoryQuery && !isPriceHistoryOperation && !isBalanceOnlyQuery &&
-              (hasKryptonPayInIntent || hasKryptonPayInFlow) &&
-              (hasTransactionData || hasTransactionKeywords)
+              ((hasKryptonPayInIntent || hasKryptonPayInFlow) || hasCanonicalTxSignal) &&
+              (hasTransactionData || hasTransactionKeywords || hasCanonicalTxSignal)
 
             // Try to derive minimal transaction details from the krypton_pay agent node
             // Only extract if this is actually a transaction (not price history)
