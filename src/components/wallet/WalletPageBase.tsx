@@ -216,23 +216,35 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         const singleTx = message.transaction;
 
         if (Array.isArray(balances) && balances.length > 0) {
-          // Backend sent updated balances - update UI directly, no API call
-          const transformedBalance = {
-            tokenBalances: balances.map((b: { symbol: string; balance: number; decimals?: number; address?: string }) => ({
-              amount: String(b.balance ?? 0),
-              token: {
-                name: b.symbol === 'USDC' ? 'USD Coin' : b.symbol?.startsWith('k') ? `Krypton ${b.symbol.substring(1).toUpperCase()}` : b.symbol ?? '',
-                blockchain: 'ETH-SEPOLIA',
-                decimals: b.decimals,
-                isNative: b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA',
-                symbol: b.symbol ?? '',
-                tokenAddress: b.address,
-                standard: (b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA') ? undefined : 'ERC20',
-              },
-            })),
-            _fetchedAt: Date.now(),
-          };
-          setBalance(transformedBalance);
+          const incoming = balances.map((b: { symbol: string; balance: number; decimals?: number; address?: string }) => ({
+            amount: String(b.balance ?? 0),
+            token: {
+              name: b.symbol === 'USDC' ? 'USD Coin' : b.symbol?.startsWith('k') ? `Krypton ${b.symbol.substring(1).toUpperCase()}` : b.symbol ?? '',
+              blockchain: 'ETH-SEPOLIA',
+              decimals: b.decimals,
+              isNative: b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA',
+              symbol: b.symbol ?? '',
+              tokenAddress: b.address,
+              standard: (b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA') ? undefined : 'ERC20',
+            },
+          }));
+          // Merge incoming balances so partial webhook payloads (e.g., USDC-only) don't wipe other tokens.
+          setBalance((prev: any) => {
+            const existing = Array.isArray(prev?.tokenBalances) ? prev.tokenBalances : [];
+            const bySymbol = new Map<string, any>();
+            for (const tb of existing) {
+              const sym = tb?.token?.symbol;
+              if (sym) bySymbol.set(sym, tb);
+            }
+            for (const tb of incoming) {
+              const sym = tb?.token?.symbol;
+              if (sym) bySymbol.set(sym, tb);
+            }
+            return {
+              tokenBalances: Array.from(bySymbol.values()),
+              _fetchedAt: Date.now(),
+            };
+          });
           setBalanceRefreshing(false);
         } else {
           // No balances in WS message — don't fallback to API.
@@ -269,23 +281,34 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         const balances = message.balances;
         const singleTx = message.transaction;
         if (Array.isArray(balances) && balances.length > 0) {
-          // Backend confirmed subgraph is indexed - apply balances directly
-          const transformedBalance = {
-            tokenBalances: balances.map((b: { symbol: string; balance: number; decimals?: number; address?: string }) => ({
-              amount: String(b.balance ?? 0),
-              token: {
-                name: b.symbol === 'USDC' ? 'USD Coin' : b.symbol?.startsWith('k') ? `Krypton ${b.symbol.substring(1).toUpperCase()}` : b.symbol ?? '',
-                blockchain: 'ETH-SEPOLIA',
-                decimals: b.decimals,
-                isNative: b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA',
-                symbol: b.symbol ?? '',
-                tokenAddress: b.address,
-                standard: (b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA') ? undefined : 'ERC20',
-              },
-            })),
-            _fetchedAt: Date.now(),
-          };
-          setBalance(transformedBalance);
+          const incoming = balances.map((b: { symbol: string; balance: number; decimals?: number; address?: string }) => ({
+            amount: String(b.balance ?? 0),
+            token: {
+              name: b.symbol === 'USDC' ? 'USD Coin' : b.symbol?.startsWith('k') ? `Krypton ${b.symbol.substring(1).toUpperCase()}` : b.symbol ?? '',
+              blockchain: 'ETH-SEPOLIA',
+              decimals: b.decimals,
+              isNative: b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA',
+              symbol: b.symbol ?? '',
+              tokenAddress: b.address,
+              standard: (b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA') ? undefined : 'ERC20',
+            },
+          }));
+          setBalance((prev: any) => {
+            const existing = Array.isArray(prev?.tokenBalances) ? prev.tokenBalances : [];
+            const bySymbol = new Map<string, any>();
+            for (const tb of existing) {
+              const sym = tb?.token?.symbol;
+              if (sym) bySymbol.set(sym, tb);
+            }
+            for (const tb of incoming) {
+              const sym = tb?.token?.symbol;
+              if (sym) bySymbol.set(sym, tb);
+            }
+            return {
+              tokenBalances: Array.from(bySymbol.values()),
+              _fetchedAt: Date.now(),
+            };
+          });
         } else {
           // No balances in WS message — skip; balance will update on next WS event or page reload.
         }
