@@ -32,6 +32,7 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
   const isUpdatingFromRef = useRef<boolean>(false);
   const isUpdatingToRef = useRef<boolean>(false);
   const focusedFieldRef = useRef<"from" | "to" | null>(null);
+  const lastEditedFieldRef = useRef<"from" | "to">("from");
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get token data from context
@@ -154,6 +155,7 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
       setExchangeRateLoading(false);
       setCloseCountdown(0);
       focusedFieldRef.current = null;
+      lastEditedFieldRef.current = "from";
       // Clear countdown
       if (countdownIntervalRef.current) {
         clearInterval(countdownIntervalRef.current);
@@ -406,11 +408,18 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
 
     try {
       setLoading(true);
+      const toAmountValue = parseFloat(toAmount);
+      const useExactOutput =
+        lastEditedFieldRef.current === "to" &&
+        !isNaN(toAmountValue) &&
+        toAmountValue > 0;
+      const requestAmount = useExactOutput ? toAmountValue : amountValue;
 
       const swapResponse = await kryptonWeb3Api.post("/pools/universal/swap", {
         from_token: fromCurrency,
         to_token: toCurrency,
-        amount: amountValue,
+        amount: requestAmount,
+        quote_mode: useExactOutput ? "exact_output" : "exact_input",
         wallet_address: userAddress,
         wallet_username: username,
       });
@@ -418,10 +427,14 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
       const estimatedOutput = swapResponse.data?.estimated_output || toAmount;
       const fromDisplay = fromCurrency.replace(/^k/, "");
       const toDisplay = toCurrency.replace(/^k/, "");
+      const estimatedOutputNum = parseFloat(estimatedOutput);
+      const displayOutput = !isNaN(estimatedOutputNum) ? estimatedOutputNum : toAmountValue;
+      const displayInput = parseFloat(fromAmount);
 
-      setSuccess(`Swap submitted: ${amountValue.toFixed(2)} ${fromDisplay} -> ${parseFloat(estimatedOutput).toFixed(2)} ${toDisplay}`);
+      setSuccess(`Swap submitted: ${displayInput.toFixed(2)} ${fromDisplay} -> ${displayOutput.toFixed(2)} ${toDisplay}`);
       setFromAmount("");
       setToAmount("");
+      lastEditedFieldRef.current = "from";
       startCloseCountdown();
     } catch (err: any) {
       console.error("Swap failed:", err);
@@ -514,6 +527,7 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
                   value={fromAmount}
                   onChange={(e) => {
                     focusedFieldRef.current = "from";
+                    lastEditedFieldRef.current = "from";
                     const val = e.target.value.replace(/[^0-9.]/g, '');
                     isUpdatingToRef.current = false;
                     setFromAmount(val);
@@ -597,6 +611,7 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
                   value={toAmount}
                   onChange={(e) => {
                     focusedFieldRef.current = "to";
+                    lastEditedFieldRef.current = "to";
                     const val = e.target.value.replace(/[^0-9.]/g, '');
                     isUpdatingFromRef.current = false;
                     setToAmount(val);

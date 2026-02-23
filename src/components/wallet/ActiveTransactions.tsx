@@ -13,6 +13,9 @@ const INITIAL_ONLY_STALE_HIDE_MS = 90000;
 
 // How long to keep terminal transactions visible (12 seconds)
 const COMPLETED_TX_DISPLAY_TIME = 12000;
+// Non-terminal stale policy: show warning after 2 minutes, hide after 3 minutes.
+const NON_TERMINAL_STALE_WARN_MS = 120000;
+const NON_TERMINAL_MAX_AGE_MS = 180000;
 
 /** Exported for use by TransactionStatus (Clark) when seeding from agent flow */
 export interface ActiveTransaction {
@@ -85,6 +88,21 @@ function formatAmount(amount: number | null): string {
 function toMsTimestamp(value: number | null | undefined): number | null {
   if (value === null || value === undefined || Number.isNaN(value)) return null;
   return value < 1e12 ? value * 1000 : value;
+}
+
+function isNonTerminalExpired(tx: ActiveTransaction, nowMs: number): boolean {
+  const createdAtMs = toMsTimestamp(tx.created_at);
+  if (!createdAtMs) return false;
+  if (isFinishedStatus(tx.status)) return false;
+  return nowMs - createdAtMs > NON_TERMINAL_MAX_AGE_MS;
+}
+
+function isNonTerminalStale(tx: ActiveTransaction, nowMs: number): boolean {
+  const createdAtMs = toMsTimestamp(tx.created_at);
+  if (!createdAtMs) return false;
+  if (isFinishedStatus(tx.status)) return false;
+  const age = nowMs - createdAtMs;
+  return age > NON_TERMINAL_STALE_WARN_MS && age <= NON_TERMINAL_MAX_AGE_MS;
 }
 
 function formatElapsed(ms: number): string {
@@ -449,6 +467,7 @@ function TransactionCard({ tx, nowTs, currentUsername }: { tx: ActiveTransaction
   const elapsedMs = createdAtMs
     ? Math.max(0, (isFinished ? (completedAtMs || updatedAtMs || nowTs) : nowTs) - createdAtMs)
     : 0;
+  const staleWarning = isNonTerminalStale(tx, nowTs);
 
   return (
     <div className="w-full bg-zinc-900/55 backdrop-blur-md rounded-[24px] border border-white/10 p-5 mb-4 shadow-xl shadow-black/20">
@@ -479,6 +498,11 @@ function TransactionCard({ tx, nowTs, currentUsername }: { tx: ActiveTransaction
         <span className="truncate max-w-[70%]">{description}</span>
         <span className={`${isError ? 'text-red-300' : 'text-zinc-400'}`}>Step {Math.min(step + 1, totalSteps)}/{totalSteps}</span>
       </div>
+      {staleWarning && (
+        <div className="mb-2 text-[10px] sm:text-xs text-amber-300">
+          Possibly stale. Refreshing state...
+        </div>
+      )}
 
       {/* Progress Tracker */}
       <TransactionProgressTracker tx={tx} />
@@ -570,13 +594,14 @@ export default function ActiveTransactions({ username, className = '', onAllTran
               completed_at: isFinished && !tx.completed_at ? now : tx.completed_at,
             };
           });
+          const nonTerminalFiltered = updated.filter(tx => !isNonTerminalExpired(tx, now));
           // Sort by created_at descending (newest first)
-          updated.sort((a, b) => {
+          nonTerminalFiltered.sort((a, b) => {
             const aTime = a.created_at || 0;
             const bTime = b.created_at || 0;
             return bTime - aTime;
           });
-          return updated.length ? updated : prev;
+          return nonTerminalFiltered.length ? nonTerminalFiltered : prev.filter(tx => !isNonTerminalExpired(tx, now));
         }
         // When API returns empty and we had initial data (e.g. Clark agent flow), keep showing it
         if (newTransactions.length === 0 && hadInitialTransactions.current) {
@@ -630,12 +655,13 @@ export default function ActiveTransactions({ username, className = '', onAllTran
 
         // Combine and sort by created_at descending (newest first)
         const combined = [...visibleUpdatedNew, ...completedToKeep];
-        combined.sort((a, b) => {
+        const nonTerminalFiltered = combined.filter(tx => !isNonTerminalExpired(tx, now));
+        nonTerminalFiltered.sort((a, b) => {
           const aTime = a.created_at || 0;
           const bTime = b.created_at || 0;
           return bTime - aTime; // Descending order (newest first)
         });
-        return combined;
+        return nonTerminalFiltered;
       });
     } catch (err: any) {
       txDebug("fetch_error", {
@@ -683,9 +709,8 @@ export default function ActiveTransactions({ username, className = '', onAllTran
       const now = Date.now();
       setTransactions(prev =>
         prev.filter(tx => {
-          if (tx.completed_at) {
-            return now - tx.completed_at < COMPLETED_TX_DISPLAY_TIME;
-          }
+          if (tx.completed_at) return now - tx.completed_at < COMPLETED_TX_DISPLAY_TIME;
+          if (isNonTerminalExpired(tx, now)) return false;
           return true;
         })
       );
