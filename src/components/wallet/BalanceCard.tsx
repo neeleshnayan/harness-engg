@@ -55,6 +55,8 @@ interface BalanceCardProps {
   /** Incremented by WalletPageBase on balance_update (post-subgraph indexing).
    * Directly triggers TransactionHistory re-fetch when new data is available. */
   txHistoryForceRefresh?: number;
+  latestWsTransaction?: any | null;
+  latestWsTransactionVersion?: number;
 }
 
 const WALLET_ICON = (
@@ -93,6 +95,8 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
   initialTransactions,
   wsConnectionStatus,
   txHistoryForceRefresh,
+  latestWsTransaction,
+  latestWsTransactionVersion,
 }, ref) => {
   const [localRefreshing, setLocalRefreshing] = useState(false);
   const [isFlickering, setIsFlickering] = useState(false);
@@ -221,9 +225,6 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
   const handleTransactionHistoryRefresh = useCallback(() => {
     setTransactionHistoryRefreshKey(prev => prev + 1);
     setActiveTransactionsRefreshKey(prev => prev + 1);
-    if (transactionHistoryRef.current?.refresh) {
-      transactionHistoryRef.current.refresh();
-    }
   }, []);
 
   /**
@@ -291,10 +292,6 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
     if (transactionHistoryRefresh === lastTransactionHistoryRefreshRef.current) return;
     lastTransactionHistoryRefreshRef.current = transactionHistoryRefresh;
     setActiveTransactionsRefreshKey(prev => prev + 1);
-    setTransactionHistoryRefreshKey(prev => prev + 1);
-    if (transactionHistoryRef.current?.refresh) {
-      transactionHistoryRef.current.refresh();
-    }
   }, [transactionHistoryRefresh]);
 
   // On balance_update (post-subgraph): directly refresh TransactionHistory.
@@ -422,6 +419,8 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
                   userWalletAddress={accountData.wallet_address}
                   refreshKey={transactionHistoryRefreshKey}
                   scrollRoot={scrollContainerRef}
+                  incomingTransaction={latestWsTransaction}
+                  incomingTransactionVersion={latestWsTransactionVersion}
                   initialData={initialTransactions}
                 />
               </div>

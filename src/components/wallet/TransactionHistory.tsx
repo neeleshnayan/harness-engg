@@ -31,6 +31,8 @@ interface TransactionHistoryProps {
   userWalletAddress: string;
   refreshKey?: number;
   scrollRoot?: React.RefObject<HTMLDivElement | null>;
+  incomingTransaction?: Transaction | null;
+  incomingTransactionVersion?: number;
   /** Pre-fetched first page — skips the initial network call when provided. */
   initialData?: {
     transactions: Transaction[];
@@ -47,7 +49,15 @@ const PAGE_SIZE = 10;
 const MAX_ITEMS = 50;
 
 const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryProps>(
-  ({ username, userWalletAddress, refreshKey, scrollRoot, initialData }, ref) => {
+  ({
+    username,
+    userWalletAddress,
+    refreshKey,
+    scrollRoot,
+    incomingTransaction,
+    incomingTransactionVersion,
+    initialData,
+  }, ref) => {
     const txDebugEnabled =
       process.env.NEXT_PUBLIC_TX_DEBUG === "1" ||
       (typeof window !== "undefined" && window.localStorage.getItem("krypton_tx_debug") === "1");
@@ -65,11 +75,17 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
     const [hasMore, setHasMore] = useState(true);
     const offsetRef = useRef(0);
     const sentinelRef = useRef<HTMLDivElement>(null);
+    const fetchInFlightRef = useRef(false);
     // Track whether we have already consumed the one-shot initialData
     const initialDataUsedRef = useRef(false);
 
     const fetchTransactions = useCallback(async () => {
+      if (fetchInFlightRef.current) {
+        txDebug("fetch_skipped_inflight", { username, page: 0 });
+        return;
+      }
       try {
+        fetchInFlightRef.current = true;
         setLoading(true);
         setError(null);
         offsetRef.current = 0;
@@ -97,6 +113,7 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
         console.error('Error fetching transactions:', err);
         setError('Failed to fetch transactions');
       } finally {
+        fetchInFlightRef.current = false;
         setLoading(false);
       }
     }, [username, txDebug]);
@@ -121,6 +138,23 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
       fetchTransactions();
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [fetchTransactions, refreshKey]);
+
+    // Append a single websocket-supplied transaction instead of refetching full history.
+    useEffect(() => {
+      const tx = incomingTransaction;
+      if (!tx || !tx.hash) return;
+      setTransactions(prev => {
+        const deduped = prev.filter(item => item.hash !== tx.hash);
+        const merged = [tx, ...deduped];
+        return merged.slice(0, MAX_ITEMS);
+      });
+      setTotalCount(prev => prev + 1);
+      txDebug("append_single_tx", {
+        username,
+        hash: tx.hash,
+        type: tx.type,
+      });
+    }, [incomingTransactionVersion, incomingTransaction, username, txDebug]);
 
     const loadMore = useCallback(async () => {
       if (loadingMore || !hasMore) return;

@@ -121,6 +121,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   // Incremented only on balance_update (post-subgraph indexing) to directly
   // refresh TransactionHistory without waiting for the ActiveTransactions drain.
   const [txHistoryForceRefresh, setTxHistoryForceRefresh] = useState(0);
+  const [latestWsTransaction, setLatestWsTransaction] = useState<any | null>(null);
+  const [latestWsTransactionVersion, setLatestWsTransactionVersion] = useState(0);
   const router = useRouter();
   const {
     kycModalVisible,
@@ -211,6 +213,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       if (currentAccountData?.wallet_address) {
         setBalanceRefreshing(true);
         const balances = message.balances;
+        const singleTx = message.transaction;
 
         if (Array.isArray(balances) && balances.length > 0) {
           // Backend sent updated balances - update UI directly, no API call
@@ -237,11 +240,21 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
           setBalanceRefreshing(false);
         }
 
+        if (singleTx && singleTx.hash) {
+          setLatestWsTransaction(singleTx);
+          setLatestWsTransactionVersion(prev => prev + 1);
+        } else {
+          // Fallback: ensure sender/receiver history still updates even if webhook
+          // did not include a single transaction payload.
+          setTxHistoryForceRefresh(prev => prev + 1);
+        }
+
         setBalanceCardRefresh(prev => !prev);
         setTransactionHistoryRefresh(prev => prev + 1);
         txDebug("tx_confirmed_refresh_triggered", {
           transaction_id: transactionId,
           tx_hash: txHash,
+          has_transaction: !!(singleTx && singleTx.hash),
         });
       }
 
@@ -254,6 +267,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       const currentAccountData = accountDataRef.current;
       if (currentAccountData?.wallet_address) {
         const balances = message.balances;
+        const singleTx = message.transaction;
         if (Array.isArray(balances) && balances.length > 0) {
           // Backend confirmed subgraph is indexed - apply balances directly
           const transformedBalance = {
@@ -275,13 +289,20 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         } else {
           // No balances in WS message — skip; balance will update on next WS event or page reload.
         }
-        // Also refresh transaction history now that subgraph is indexed
+        // Keep ActiveTransactions in sync.
         setTransactionHistoryRefresh(prev => prev + 1);
-        setTxHistoryForceRefresh(prev => prev + 1);
+        // Prefer one-row append; fallback to full history fetch if payload missing.
+        if (singleTx && singleTx.hash) {
+          setLatestWsTransaction(singleTx);
+          setLatestWsTransactionVersion(prev => prev + 1);
+        } else {
+          setTxHistoryForceRefresh(prev => prev + 1);
+        }
         txDebug("balance_update_refresh_triggered", {
           transaction_id: message?.transaction_id,
           tx_hash: message?.tx_hash,
           has_balances: Array.isArray(message?.balances),
+          has_transaction: !!(singleTx && singleTx.hash),
         });
       }
       return;
@@ -844,6 +865,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
             initialTransactions={initialTransactions}
             wsConnectionStatus={connectionStatus}
             txHistoryForceRefresh={txHistoryForceRefresh}
+            latestWsTransaction={latestWsTransaction}
+            latestWsTransactionVersion={latestWsTransactionVersion}
           />
           {accountData?.username && kycStatus === 'approved' && (
             <>

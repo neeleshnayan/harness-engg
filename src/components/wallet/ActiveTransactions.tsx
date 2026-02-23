@@ -551,6 +551,7 @@ export default function ActiveTransactions({ username, className = '', onAllTran
   const lastRefreshKey = useRef(refreshKey);
   const hadInitialTransactions = useRef(!!(initialTransactions?.length));
   const initialIds = useRef(new Set((initialTransactions ?? []).map(t => t.transaction_id)));
+  const hasLiveOnlyInitialTx = onlyShowInitial && transactions.some((tx) => !isFinishedStatus(tx.status));
 
   const fetchActiveTransactions = useCallback(async () => {
     if (!username) return;
@@ -688,11 +689,13 @@ export default function ActiveTransactions({ username, className = '', onAllTran
   // Initial fetch when component becomes visible.
   useEffect(() => {
     if (!username) return;
+    // Clark inline cards that only show initial tx should not refetch once terminal.
+    if (onlyShowInitial && transactions.length > 0 && !hasLiveOnlyInitialTx) return;
 
     if (isVisible) {
       fetchActiveTransactions();
     }
-  }, [username, fetchActiveTransactions, isVisible]);
+  }, [username, fetchActiveTransactions, isVisible, onlyShowInitial, transactions.length, hasLiveOnlyInitialTx]);
 
   // Refresh when refreshKey changes (triggered by parent component)
   useEffect(() => {
@@ -705,13 +708,15 @@ export default function ActiveTransactions({ username, className = '', onAllTran
   // Fallback polling for status progression when WS is unavailable.
   useEffect(() => {
     if (!username || !isVisible || isWebSocketConnected) return;
+    // For Clark inline cards, stop polling after transaction reaches terminal state.
+    if (onlyShowInitial && !hasLiveOnlyInitialTx) return;
 
     const interval = setInterval(() => {
       fetchActiveTransactions();
     }, ACTIVE_TX_POLL_INTERVAL_MS);
 
     return () => clearInterval(interval);
-  }, [username, isVisible, isWebSocketConnected, fetchActiveTransactions]);
+  }, [username, isVisible, isWebSocketConnected, fetchActiveTransactions, onlyShowInitial, hasLiveOnlyInitialTx]);
 
   // Clean up old completed transactions periodically (skip when persistCompleted, e.g. Clark feed)
   useEffect(() => {
