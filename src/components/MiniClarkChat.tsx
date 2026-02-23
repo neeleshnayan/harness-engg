@@ -96,9 +96,11 @@ export default function MiniClarkChat({
       const response = await agentsApi.post('/api/v1/agents/query', body)
       const payload = response.data
 
-      // Payment / interrupt: show confirmation dialog instead of appending a message
-      if (payload?.stop_reason === 'interrupt' && payload?.interrupts?.length) {
-        const newInterrupts = (payload.interrupts as InterruptFromApi[]).filter((i) => {
+      // Payment / interrupt: show confirmation dialog instead of appending a message.
+      // Some responses can carry stop_reason=interrupt with an empty/missing interrupts array.
+      if (payload?.stop_reason === 'interrupt') {
+        const interruptItems = Array.isArray(payload.interrupts) ? (payload.interrupts as InterruptFromApi[]) : []
+        const newInterrupts = interruptItems.filter((i) => {
           const id = i?.id != null ? String(i.id) : ''
           if (id && shownInterruptIdsRef.current.has(id)) return false
           if (id) shownInterruptIdsRef.current.add(id)
@@ -177,20 +179,32 @@ export default function MiniClarkChat({
             agent_ids: Array.from(new Set([...existingAgentIds, 'krypton_pay'])),
           }
 
-          if (!assistantMessage.agentFlow) {
-            assistantMessage.agentFlow = [{
-              id: 'krypton_pay',
-              name: 'Krypton Pay',
-              type: 'specialized',
-              status: 'completed',
-              tool_name: 'consult_krypton_pay',
-              output: {
-                success: true,
-                message: 'Awaiting transaction status',
-                has_data: true,
-                data: { operation },
+          const syntheticNode = {
+            id: 'krypton_pay',
+            name: 'Krypton Pay',
+            type: 'specialized',
+            status: 'completed',
+            tool_name: 'consult_krypton_pay',
+            output: {
+              success: true,
+              message: 'Awaiting transaction status',
+              has_data: true,
+              data: {
+                operation,
+                status: 'SUBMITTED',
+                token: (approvedPaymentContext.to_token as string | undefined) || undefined,
+                amount: approvedPaymentContext.received_amount as number | undefined,
+                to_username: approvedPaymentContext.receiver_username as string | undefined,
               },
-            }] as any
+            },
+          }
+
+          if (!assistantMessage.agentFlow) {
+            assistantMessage.agentFlow = [syntheticNode] as any
+          } else if (Array.isArray(assistantMessage.agentFlow)) {
+            assistantMessage.agentFlow = [...assistantMessage.agentFlow, syntheticNode] as any
+          } else if ((assistantMessage.agentFlow as any)?.nodes && Array.isArray((assistantMessage.agentFlow as any).nodes)) {
+            ;(assistantMessage.agentFlow as any).nodes = [...(assistantMessage.agentFlow as any).nodes, syntheticNode]
           }
         }
 

@@ -288,10 +288,11 @@ export default function BacktestPage() {
         })
       }
 
-      // Check for interrupts (dedupe by id so same HITL never shows twice)
-      if (payload.stop_reason === 'interrupt' && payload.interrupts && payload.interrupts.length > 0) {
+      // Check for interrupts (even when the interrupt array is temporarily empty)
+      if (payload.stop_reason === 'interrupt') {
         const seen = shownInterruptIdsRef.current
-        const newInterrupts = (payload.interrupts as InterruptFromApi[]).filter((i) => {
+        const interruptItems = Array.isArray(payload.interrupts) ? (payload.interrupts as InterruptFromApi[]) : []
+        const newInterrupts = interruptItems.filter((i) => {
           const id = i?.id != null ? String(i.id) : ''
           if (id && seen.has(id)) return false
           if (id) seen.add(id)
@@ -389,20 +390,32 @@ export default function BacktestPage() {
             agent_ids: Array.from(new Set([...existingAgentIds, 'krypton_pay'])),
           }
 
-          if (!assistantMessage.agentFlow) {
-            assistantMessage.agentFlow = [{
-              id: 'krypton_pay',
-              name: 'Krypton Pay',
-              type: 'specialized',
-              status: 'completed',
-              tool_name: 'consult_krypton_pay',
-              output: {
-                success: true,
-                message: 'Awaiting transaction status',
-                has_data: true,
-                data: { operation },
+          const syntheticNode = {
+            id: 'krypton_pay',
+            name: 'Krypton Pay',
+            type: 'specialized',
+            status: 'completed',
+            tool_name: 'consult_krypton_pay',
+            output: {
+              success: true,
+              message: 'Awaiting transaction status',
+              has_data: true,
+              data: {
+                operation,
+                status: 'SUBMITTED',
+                token: (approvedPaymentContext.to_token as string | undefined) || undefined,
+                amount: approvedPaymentContext.received_amount as number | undefined,
+                to_username: approvedPaymentContext.receiver_username as string | undefined,
               },
-            }] as any
+            },
+          }
+
+          if (!assistantMessage.agentFlow) {
+            assistantMessage.agentFlow = [syntheticNode] as any
+          } else if (Array.isArray(assistantMessage.agentFlow)) {
+            assistantMessage.agentFlow = [...assistantMessage.agentFlow, syntheticNode] as any
+          } else if ((assistantMessage.agentFlow as any)?.nodes && Array.isArray((assistantMessage.agentFlow as any).nodes)) {
+            ;(assistantMessage.agentFlow as any).nodes = [...(assistantMessage.agentFlow as any).nodes, syntheticNode]
           }
         }
 
@@ -501,10 +514,11 @@ export default function BacktestPage() {
         })
       }
 
-      // Check for interrupts (dedupe by id so same HITL never shows twice)
-      if (payload.stop_reason === 'interrupt' && payload.interrupts && payload.interrupts.length > 0) {
+      // Check for interrupts (even when the interrupt array is temporarily empty)
+      if (payload.stop_reason === 'interrupt') {
         const seen = shownInterruptIdsRef.current
-        const newInterrupts = (payload.interrupts as InterruptFromApi[]).filter((i) => {
+        const interruptItems = Array.isArray(payload.interrupts) ? (payload.interrupts as InterruptFromApi[]) : []
+        const newInterrupts = interruptItems.filter((i) => {
           const id = i?.id != null ? String(i.id) : ''
           if (id && seen.has(id)) return false
           if (id) seen.add(id)
