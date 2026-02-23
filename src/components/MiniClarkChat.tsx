@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import agentsApi from '@/lib/agents_api'
@@ -13,6 +13,7 @@ import ChatInputBar from '@/app/clark/components/ChatInterface'
 import CategoryTiles from '@/app/clark/components/CategoryTiles'
 import { categories } from '@/app/clark/constants'
 import { createAssistantMessage } from '@/app/clark/utils/createAssistantMessage'
+import { useWebSocket } from '@/hooks/useWebSocket'
 
 type InterruptFromApi = { id?: string; name?: string; reason?: Record<string, unknown> }
 
@@ -37,6 +38,7 @@ export default function MiniClarkChat({
   const [isLoading, setIsLoading] = useState(false)
   const [sessionId, setSessionId] = useState<string>('')
   const [userName, setUserName] = useState<string>('')
+  const [walletAddress, setWalletAddress] = useState<string>('')
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const feedRef = useRef<HTMLDivElement>(null)
@@ -44,6 +46,8 @@ export default function MiniClarkChat({
   const [interrupts, setInterrupts] = useState<InterruptFromApi[]>([])
   const [pendingInterruptResponse, setPendingInterruptResponse] = useState<{ query: string; userMessage: ChatMessage } | null>(null)
   const shownInterruptIdsRef = useRef<Set<string>>(new Set())
+  const txEventsRef = useRef<Map<string, any>>(new Map())
+  const txWaitersRef = useRef<Map<string, Array<(event: any | null) => void>>>(new Map())
 
   const shouldShowInputOnly = showInputOnly && !hasSentMessage
 
@@ -59,6 +63,9 @@ export default function MiniClarkChat({
         const parsedData = JSON.parse(storedUserData)
         if (parsedData.username) {
           setUserName(parsedData.username)
+        }
+        if (parsedData.wallet_address) {
+          setWalletAddress(parsedData.wallet_address)
         }
       } catch (error) {
         console.error('Error parsing user data:', error)
@@ -78,8 +85,31 @@ export default function MiniClarkChat({
     }
   }, [interrupts.length])
 
+  const clarkWsUrl = useMemo(() => {
+    if (!walletAddress) return ''
+    const baseUrl =
+      process.env.NEXT_PUBLIC_KRYPTON_WEB3_WS_URL ||
+      (process.env.NEXT_PUBLIC_KRYPTON_WEB3_API_URL
+        ? process.env.NEXT_PUBLIC_KRYPTON_WEB3_API_URL.replace('https://', 'wss://').replace('http://', 'ws://')
+        : 'wss://web3.kryptonfund.com')
+    return `${baseUrl}/ws?wallet_address=${encodeURIComponent(walletAddress)}`
+  }, [walletAddress])
+
+  const handleClarkTxWsMessage = useCallback((message: any) => {
+    const eventType = String(message?.type || '')
+    if (eventType !== 'transaction_update' && eventType !== 'transaction_confirmed') return
+    const txId = String(message?.transaction_id || '').trim()
+    if (!txId) return
+    txEventsRef.current.set(txId, message)
+    const waiters = txWaitersRef.current.get(txId) || []
+    waiters.forEach((resolve) => resolve(message))
+    txWaitersRef.current.delete(txId)
+  }, [])
+
+  useWebSocket(clarkWsUrl, { onMessage: handleClarkTxWsMessage })
+
   /** Single path for API call, callbacks, and response handling. */
-  const runQuery = async (query: string, userMessage?: ChatMessage, interruptResponses?: unknown[]) => {
+  const runQuery = async (query: string, userMessage?: ChatMessage, interruptResponses?: unknown[]): Promise<any | null> => {
     setIsLoading(true)
     try {
       const body: Record<string, unknown> = {
@@ -127,7 +157,7 @@ export default function MiniClarkChat({
           }])
         }
         setIsLoading(false)
-        return
+        return payload
       }
 
       setInterrupts([])
@@ -153,6 +183,7 @@ export default function MiniClarkChat({
       }
       const assistantMessage = createAssistantMessage(payload)
       setMessages(prev => [...prev, assistantMessage])
+      return payload
     } catch (error) {
       console.error('LangChain API error:', error)
       setMessages(prev => [
@@ -165,6 +196,7 @@ export default function MiniClarkChat({
           success: false,
         },
       ])
+      return null
     } finally {
       setIsLoading(false)
     }
@@ -172,19 +204,53 @@ export default function MiniClarkChat({
 
   const _sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
+  const _extractTransactionIdFromPayload = (payload: any): string | undefined => {
+    const direct = String(payload?.data?.transaction_id || '').trim()
+    if (direct) return direct
+    const nodes = Array.isArray(payload?.agent_flow?.nodes) ? payload.agent_flow.nodes : []
+    for (const node of nodes) {
+      const nodeTxId = String(node?.output?.data?.transaction_id || '').trim()
+      if (nodeTxId) return nodeTxId
+    }
+    return undefined
+  }
+
+  const _waitForTransactionEvent = async (txId: string, timeoutMs = 8000): Promise<any | null> => {
+    if (!txId) return null
+    const existing = txEventsRef.current.get(txId)
+    if (existing) return existing
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        const waiters = txWaitersRef.current.get(txId) || []
+        txWaitersRef.current.set(txId, waiters.filter((r) => r !== resolve))
+        resolve(null)
+      }, timeoutMs)
+      const wrappedResolve = (event: any | null) => {
+        clearTimeout(timer)
+        resolve(event)
+      }
+      const waiters = txWaitersRef.current.get(txId) || []
+      txWaitersRef.current.set(txId, [...waiters, wrappedResolve])
+    })
+  }
+
   const _appendCanonicalActiveTransaction = async (operationHint?: string) => {
     const username = userName || 'krypton'
     if (!username) return
     try {
-      await _sleep(3000)
-      const response = await kryptonWeb3Api.get(
-        `/circle/active-transactions/${encodeURIComponent(username)}`
-      )
-      const txs = Array.isArray(response?.data?.transactions) ? response.data.transactions : []
-      if (!txs.length) return
-      const tx = txs
-        .slice()
-        .sort((a: any, b: any) => Number(b?.created_at || 0) - Number(a?.created_at || 0))[0]
+      let tx: any = null
+      for (let attempt = 0; attempt < 4; attempt++) {
+        if (attempt > 0) await _sleep(1500)
+        const response = await kryptonWeb3Api.get(
+          `/circle/active-transactions/${encodeURIComponent(username)}`
+        )
+        const txs = Array.isArray(response?.data?.transactions) ? response.data.transactions : []
+        if (!txs.length) continue
+        tx = txs
+          .slice()
+          .sort((a: any, b: any) => Number(b?.created_at || 0) - Number(a?.created_at || 0))[0]
+        if (tx?.transaction_id) break
+      }
       if (!tx?.transaction_id) return
 
       const payload = {
@@ -235,7 +301,11 @@ export default function MiniClarkChat({
     setInterrupts([])
     setPendingInterruptResponse(null)
     const interruptResponses = [{ interruptResponse: { interruptId, response: 'yes' } }]
-    await runQuery(pending.query, pending.userMessage, interruptResponses)
+    const payload = await runQuery(pending.query, pending.userMessage, interruptResponses)
+    const txId = _extractTransactionIdFromPayload(payload)
+    if (txId) {
+      await _waitForTransactionEvent(txId, 8000)
+    }
     await _appendCanonicalActiveTransaction(fallbackReason?.operation as string | undefined)
     onBalanceRefresh?.()
     onTransactionRefresh?.()
