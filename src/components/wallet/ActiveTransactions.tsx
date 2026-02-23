@@ -11,6 +11,8 @@ import { ArrowRight, Check, X, Loader2, ArrowLeftRight, RefreshCw, ArrowUp } fro
 
 // Poll interval in milliseconds (10 seconds for better UX)
 const POLL_INTERVAL_MS = 10000;
+const WS_SAFETY_POLL_INTERVAL_MS = 20000;
+const INITIAL_ONLY_STALE_HIDE_MS = 90000;
 
 // How long to keep terminal transactions visible (12 seconds)
 const COMPLETED_TX_DISPLAY_TIME = 12000;
@@ -108,8 +110,12 @@ function isFinishedStatus(status: string): boolean {
   );
 }
 
-function getRecipient(tx: ActiveTransaction): string {
+function getRecipient(tx: ActiveTransaction, currentUsername?: string): string {
   const normalizedUsername = tx.to_username?.trim().toLowerCase();
+  const normalizedCurrent = (currentUsername || '').trim().toLowerCase();
+  if (normalizedUsername && normalizedCurrent && normalizedUsername === normalizedCurrent) {
+    return '';
+  }
   if (normalizedUsername && normalizedUsername !== 'unknown' && normalizedUsername !== 'n/a') {
     return `@${tx.to_username}`;
   }
@@ -117,25 +123,25 @@ function getRecipient(tx: ActiveTransaction): string {
   return '';
 }
 
-function isSwapAndTransferTx(tx: ActiveTransaction): boolean {
-  return tx.tx_type === 'swap' && Boolean(getRecipient(tx));
+function isSwapAndTransferTx(tx: ActiveTransaction, currentUsername?: string): boolean {
+  return tx.tx_type === 'swap' && Boolean(getRecipient(tx, currentUsername));
 }
 
 /**
  * Get transaction description
  */
-function getTransactionDescription(tx: ActiveTransaction): string {
+function getTransactionDescription(tx: ActiveTransaction, currentUsername?: string): string {
   if (tx.tx_type === 'swap' && tx.from_token && tx.to_token) {
     const fromSymbol = cleanTokenSymbol(tx.from_token);
     const toSymbol = cleanTokenSymbol(tx.to_token);
     const amountStr = tx.amount ? formatAmount(tx.amount) : '';
-    return `Swap ${amountStr} ${fromSymbol} -> ${toSymbol}`;
+    return `${amountStr} ${fromSymbol} → ${toSymbol}`.trim();
   }
 
   if (tx.tx_type === 'transfer') {
     const symbol = cleanTokenSymbol(tx.token_symbol || tx.from_token);
     const amountStr = tx.amount ? formatAmount(tx.amount) : '';
-    const recipient = getRecipient(tx);
+    const recipient = getRecipient(tx, currentUsername);
     return `Send ${amountStr} ${symbol}${recipient ? ` to ${recipient}` : ''}`;
   }
 
@@ -145,8 +151,8 @@ function getTransactionDescription(tx: ActiveTransaction): string {
   return amountStr && symbol ? `${amountStr} ${symbol}` : 'Transaction';
 }
 
-function getTransactionPhaseCopy(tx: ActiveTransaction): { title: string; subtitle: string } {
-  const isSwapAndTransfer = isSwapAndTransferTx(tx);
+function getTransactionPhaseCopy(tx: ActiveTransaction, currentUsername?: string): { title: string; subtitle: string } {
+  const isSwapAndTransfer = isSwapAndTransferTx(tx, currentUsername);
   const step = getProgressStep(tx.status, isSwapAndTransfer);
   const isError = isErrorState(tx.status);
   const isDone = isFinishedStatus(tx.status) && !isError;
@@ -154,7 +160,7 @@ function getTransactionPhaseCopy(tx: ActiveTransaction): { title: string; subtit
   const toSymbol = cleanTokenSymbol(tx.to_token || tx.token_symbol);
   const amount = tx.amount ? `${formatAmount(tx.amount)} ${fromSymbol}`.trim() : fromSymbol;
   const receivedAmount = tx.received_amount ? `${formatAmount(tx.received_amount)} ${toSymbol}`.trim() : toSymbol;
-  const recipient = getRecipient(tx);
+  const recipient = getRecipient(tx, currentUsername);
 
   if (tx.tx_type === 'swap') {
     if (isError) {
@@ -183,7 +189,7 @@ function getTransactionPhaseCopy(tx: ActiveTransaction): { title: string; subtit
     }
     return {
       title: 'Swapping',
-      subtitle: amount && toSymbol ? `${amount} -> ${toSymbol}` : 'Executing token swap',
+      subtitle: amount && toSymbol ? `${amount} → ${toSymbol}` : 'Executing token swap',
     };
   }
 
@@ -432,11 +438,11 @@ function TransactionProgressTracker({ tx }: { tx: ActiveTransaction }) {
 /**
  * Single Transaction Card
  */
-function TransactionCard({ tx, nowTs }: { tx: ActiveTransaction; nowTs: number }) {
+function TransactionCard({ tx, nowTs, currentUsername }: { tx: ActiveTransaction; nowTs: number; currentUsername?: string }) {
   const isError = isErrorState(tx.status);
-  const phaseCopy = getTransactionPhaseCopy(tx);
-  const description = getTransactionDescription(tx);
-  const isSwapAndTransfer = isSwapAndTransferTx(tx);
+  const phaseCopy = getTransactionPhaseCopy(tx, currentUsername);
+  const description = getTransactionDescription(tx, currentUsername);
+  const isSwapAndTransfer = isSwapAndTransferTx(tx, currentUsername);
   const totalSteps = isSwapAndTransfer ? 4 : 3;
   const step = getProgressStep(tx.status, isSwapAndTransfer);
   const createdAtMs = toMsTimestamp(tx.created_at);
@@ -506,6 +512,15 @@ function TransactionCard({ tx, nowTs }: { tx: ActiveTransaction; nowTs: number }
  * Persists transactions to localStorage to survive page refreshes.
  */
 export default function ActiveTransactions({ username, className = '', onAllTransactionsComplete, refreshKey = 0, isVisible = true, initialTransactions, showHeader = true, persistCompleted = false, onlyShowInitial = false, isWebSocketConnected = false }: ActiveTransactionsProps) {
+  const txDebugEnabled =
+    process.env.NEXT_PUBLIC_TX_DEBUG === "1" ||
+    (typeof window !== "undefined" && window.localStorage.getItem("krypton_tx_debug") === "1");
+  const txDebug = useCallback((event: string, payload?: Record<string, unknown>) => {
+    if (!txDebugEnabled) return;
+    // eslint-disable-next-line no-console
+    console.log(`[TX_DEBUG] ActiveTransactions:${event}`, payload || {});
+  }, [txDebugEnabled]);
+
   const [transactions, setTransactions] = useState<ActiveTransaction[]>(() => initialTransactions ?? []);
   const [loading, setLoading] = useState(false);
   const [nowTs, setNowTs] = useState(() => Date.now());
@@ -528,6 +543,11 @@ export default function ActiveTransactions({ username, className = '', onAllTran
       );
 
       const newTransactions = response.data.transactions || [];
+      txDebug("fetch_success", {
+        username,
+        count: newTransactions.length,
+        states: newTransactions.map((t) => `${t.transaction_id}:${t.status}`),
+      });
       const now = Date.now();
 
       // Keep completed transactions visible for a short time, then remove them
@@ -535,7 +555,15 @@ export default function ActiveTransactions({ username, className = '', onAllTran
         // onlyShowInitial: only show initial set and only update their status from API; never add other users' transactions
         if (onlyShowInitial && initialIds.current.size > 0) {
           const fromApi = newTransactions.filter(t => initialIds.current.has(t.transaction_id));
-          if (fromApi.length === 0) return prev;
+          if (fromApi.length === 0) {
+            // Avoid indefinite spinner when initial-only cards miss updates (e.g. app restart
+            // during webhook delivery). Hide stale entries after a grace window.
+            return prev.filter((tx) => {
+              const createdMs = toMsTimestamp(tx.created_at);
+              if (!createdMs) return true;
+              return (now - createdMs) < INITIAL_ONLY_STALE_HIDE_MS;
+            });
+          }
           const updated = prev.map(tx => {
             const fromApiMatch = fromApi.find(a => a.transaction_id === tx.transaction_id);
             if (!fromApiMatch) return tx;
@@ -613,6 +641,11 @@ export default function ActiveTransactions({ username, className = '', onAllTran
         return combined;
       });
     } catch (err: any) {
+      txDebug("fetch_error", {
+        username,
+        status: err?.response?.status,
+        message: err?.message,
+      });
       console.error('Error fetching active transactions:', err);
       // On 404 or error, only clear if we never had initial data (e.g. Clark inline tx)
       if (err?.response?.status === 404 && hadInitialTransactions.current) {
@@ -626,27 +659,36 @@ export default function ActiveTransactions({ username, className = '', onAllTran
         initialFetch.current = false;
       }
     }
-  }, [username, onlyShowInitial, persistCompleted]);
+  }, [username, onlyShowInitial, persistCompleted, txDebug]);
 
-  // Initial fetch and polling
-  // Poll only when visible AND WebSocket is not connected.
-  // When the WebSocket is live, push updates via refreshKey handle re-fetches;
-  // polling is only needed as a fallback when the connection is down.
+  // Initial fetch when component becomes visible.
   useEffect(() => {
     if (!username) return;
 
     if (isVisible) {
       fetchActiveTransactions();
     }
+  }, [username, fetchActiveTransactions, isVisible]);
 
-    // Skip polling when WebSocket is connected - push updates handle it.
-    if (!isVisible || isWebSocketConnected) {
+  // Polling strategy:
+  // - WS disconnected: normal poll cadence
+  // - WS connected + pending tx visible: slower safety poll
+  // - WS connected + no pending tx: no polling
+  useEffect(() => {
+    if (!username || !isVisible) {
       return;
     }
 
-    const interval = setInterval(fetchActiveTransactions, POLL_INTERVAL_MS);
+    const hasPendingVisible = transactions.some((tx) => !isFinishedStatus(tx.status));
+    const shouldSafetyPoll = isWebSocketConnected && hasPendingVisible;
+    if (isWebSocketConnected && !shouldSafetyPoll) {
+      return;
+    }
+
+    const intervalMs = shouldSafetyPoll ? WS_SAFETY_POLL_INTERVAL_MS : POLL_INTERVAL_MS;
+    const interval = setInterval(fetchActiveTransactions, intervalMs);
     return () => clearInterval(interval);
-  }, [username, fetchActiveTransactions, isVisible, isWebSocketConnected]);
+  }, [username, fetchActiveTransactions, isVisible, isWebSocketConnected, transactions]);
 
   // Refresh when refreshKey changes (triggered by parent component)
   useEffect(() => {
@@ -716,9 +758,10 @@ export default function ActiveTransactions({ username, className = '', onAllTran
       {/* Transaction List */}
       <div className="space-y-3">
         {transactions.map((tx) => (
-          <TransactionCard key={tx.transaction_id} tx={tx} nowTs={nowTs} />
+          <TransactionCard key={tx.transaction_id} tx={tx} nowTs={nowTs} currentUsername={username} />
         ))}
       </div>
     </div>
   );
 }
+

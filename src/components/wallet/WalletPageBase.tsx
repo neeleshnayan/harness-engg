@@ -76,6 +76,15 @@ interface WalletPageBaseProps {
 }
 
 export default function WalletPageBase({ config }: WalletPageBaseProps) {
+  const txDebugEnabled =
+    process.env.NEXT_PUBLIC_TX_DEBUG === "1" ||
+    (typeof window !== "undefined" && window.localStorage.getItem("krypton_tx_debug") === "1");
+  const txDebug = useCallback((event: string, payload?: Record<string, unknown>) => {
+    if (!txDebugEnabled) return;
+    // eslint-disable-next-line no-console
+    console.log(`[TX_DEBUG] ${event}`, payload || {});
+  }, [txDebugEnabled]);
+
   const [accountData, setAccountData] = useState<any>(null);
   const [balance, setBalance] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -98,7 +107,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   const [showTransactions, setShowTransactions] = useState(false);
   const [refreshingBalance, setRefreshingBalance] = useState(false);
   const [showTransakModal, setShowTransakModal] = useState(false);
-  const [transactionHistoryRefresh, setTransactionHistoryRefresh] = useState(false);
+  const [transactionHistoryRefresh, setTransactionHistoryRefresh] = useState(0);
   const [webhookNotification, setWebhookNotification] = useState<string | null>(null);
   const [balanceCardRefresh, setBalanceCardRefresh] = useState(false);
   const [balanceRefreshing, setBalanceRefreshing] = useState(false);
@@ -185,10 +194,20 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
   // WebSocket message handler - stabilized with useCallback and refs
   const handleWebSocketMessage = useCallback((message: any) => {
+    txDebug("ws_message", {
+      type: message?.type,
+      transaction_id: message?.transaction_id,
+      tx_hash: message?.tx_hash,
+      has_balances: Array.isArray(message?.balances),
+    });
 
     // Handle transaction_failed - trigger immediate ActiveTransactions refresh
     if (message.type === 'transaction_failed') {
-      setTransactionHistoryRefresh(prev => !prev);  // Trigger ActiveTransactions poll
+      setTransactionHistoryRefresh(prev => prev + 1);  // Trigger ActiveTransactions poll
+      txDebug("tx_failed_refresh_triggered", {
+        transaction_id: message?.transaction_id,
+        state: message?.state,
+      });
       if (config.showWebhookNotification) {
         setWebhookNotification(`Transaction failed: ${message.state || 'Error'}`);
         setTimeout(() => setWebhookNotification(null), 5000);
@@ -262,7 +281,11 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         }
 
         setBalanceCardRefresh(prev => !prev);
-        setTransactionHistoryRefresh(prev => !prev);
+        setTransactionHistoryRefresh(prev => prev + 1);
+        txDebug("tx_confirmed_refresh_triggered", {
+          transaction_id: transactionId,
+          tx_hash: txHash,
+        });
       }
 
       return;
@@ -299,8 +322,13 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
           }
         }
         // Also refresh transaction history now that subgraph is indexed
-        setTransactionHistoryRefresh(prev => !prev);
+        setTransactionHistoryRefresh(prev => prev + 1);
         setTxHistoryForceRefresh(prev => prev + 1);
+        txDebug("balance_update_refresh_triggered", {
+          transaction_id: message?.transaction_id,
+          tx_hash: message?.tx_hash,
+          has_balances: Array.isArray(message?.balances),
+        });
       }
       return;
     }
@@ -310,7 +338,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       return;
     }
 
-  }, [config.showWebhookNotification]);
+  }, [config.showWebhookNotification, txDebug]);
 
   // WebSocket open handler - stabilized
   const handleWebSocketOpen = useCallback(() => {
@@ -597,7 +625,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
       // Toggle balance card refresh and tx history explicitly
       setBalanceCardRefresh(prev => !prev);
-      setTransactionHistoryRefresh(prev => !prev);
+      setTransactionHistoryRefresh(prev => prev + 1);
     }
   }, [debouncedFetchBalance]);
 
@@ -709,7 +737,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       // Don't immediately fetch balance - wait for WebSocket webhook to trigger refresh
       // The webhook will arrive when Circle confirms the transaction
       // This prevents fetching stale balance before transaction is confirmed
-      setTransactionHistoryRefresh(prev => !prev);
+      setTransactionHistoryRefresh(prev => prev + 1);
 
     } catch (err) {
       setSendError(parseErrorMessage(err, "Failed to send USDC"));
@@ -734,7 +762,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     // Only switch to Transaction History tab on auto-close (success), not on manual X button close
     if (autoClose) {
       balanceCardRef.current?.showTransactionHistory();
-      setTransactionHistoryRefresh(prev => !prev);
+      setTransactionHistoryRefresh(prev => prev + 1);
     }
   };
 
@@ -934,7 +962,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
                           setBalanceFlickering(true);
                         },
                         onTransactionRefresh: () => {
-                          setTransactionHistoryRefresh(prev => !prev);
+                          setTransactionHistoryRefresh(prev => prev + 1);
                         },
                       })}
                     </div>
@@ -969,7 +997,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
                       setBalanceFlickering(true);
                     },
                     onTransactionRefresh: () => {
-                      setTransactionHistoryRefresh(prev => !prev);
+                      setTransactionHistoryRefresh(prev => prev + 1);
                     },
                   })}
                 </div>

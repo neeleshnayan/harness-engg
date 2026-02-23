@@ -642,9 +642,9 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
       setError("Please enter receiver username.");
       return;
     }
-    const toAmountNum = parseFloat(toAmount);
-    if (!toAmount.trim() || isNaN(toAmountNum) || toAmountNum <= 0) {
-      setError("Please enter a valid amount.");
+    const fromAmountNum = parseFloat(fromAmount);
+    if (!fromAmount.trim() || isNaN(fromAmountNum) || fromAmountNum <= 0) {
+      setError("Please enter a valid amount to send.");
       return;
     }
     if (!toTokenSymbol || !toCurrency) {
@@ -679,11 +679,12 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
         if (!username) {
           throw new Error("Username is required for swap and send.");
         }
-        setLoadingMessage(`Swapping and sending ${toAmountNum.toFixed(2)} ${sendCurrencyDisplay} to @${receiverUsername}...`);
+        setLoadingMessage(`Swapping and sending ${fromAmountNum.toFixed(2)} ${fromCurrency.replace(/^k/, "")} to @${receiverUsername}...`);
         await kryptonWeb3Api.post("/pools/universal/swapIfNeededAndPay", {
           from_token: fromCurrency,
           to_token: sendCurrency,
-          received_amount: toAmountNum,
+          input_amount: fromAmountNum,
+          quote_mode: "exact_input",
           sender_username: username,
           receiver_username: receiverUsername.trim(),
           slippage_tolerance: 0.05,
@@ -692,7 +693,6 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
       } else {
         // Direct send (no swap): ensure sufficient balance of krypton pay
         const fromBalance = balances[fromCurrency] || 0;
-        const fromAmountNum = parseFloat(fromAmount);
         if (fromBalance < fromAmountNum) {
           const fromDisplay = fromCurrency.replace(/^k/, "");
           throw new Error(`Insufficient balance. You have ${fromBalance.toFixed(4)} ${fromDisplay}, but need ${fromAmountNum.toFixed(4)}.`);
@@ -703,24 +703,24 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
           if (!userId) {
             throw new Error("User ID is required to send USDC.");
           }
-          setLoadingMessage(`Sending ${toAmountNum.toFixed(2)} USDC...`);
+          setLoadingMessage(`Sending ${fromAmountNum.toFixed(2)} USDC...`);
           await kryptonWeb3Api.post("/erc20/send-usdc", {
             sender_user_id: userId,
             receiver_username: receiverUsername.trim(),
-            amount: toAmountNum
+            amount: fromAmountNum
           });
           await new Promise(resolve => setTimeout(resolve, 1000));
         } else {
           setLoadingMessage("Resolving receiver address...");
           const toAddress = await resolveReceiverAddress(receiverUsername.trim());
-          setLoadingMessage(`Transferring ${toAmountNum.toFixed(2)} ${sendCurrencyDisplay} to @${receiverUsername}...`);
-          await transferTokens(sendCurrency, toAddress, toAmountNum);
+          setLoadingMessage(`Transferring ${fromAmountNum.toFixed(2)} ${sendCurrencyDisplay} to @${receiverUsername}...`);
+          await transferTokens(sendCurrency, toAddress, fromAmountNum);
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
 
       // Show success with countdown (non-blocking)
-      setSuccess(`Transaction submitted: ${toAmountNum.toFixed(2)} ${sendCurrencyDisplay} to @${receiverUsername}`);
+      setSuccess(`Transaction submitted: ${fromAmountNum.toFixed(2)} ${fromCurrency.replace(/^k/, "")} to @${receiverUsername}`);
       startCloseCountdown();
     } catch (e: any) {
       console.error(e);

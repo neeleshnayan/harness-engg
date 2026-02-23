@@ -4,7 +4,7 @@ import TransactionHistory, { TransactionHistoryRef } from "@/components/wallet/T
 import ActiveTransactions from "@/components/wallet/ActiveTransactions";
 import SupportedAssetsBalances from "@/components/wallet/SupportedAssetsBalances";
 import { FaShieldAlt } from "react-icons/fa";
-import { useRates, CURRENCY_SYMBOLS, PriceDirection } from "@/providers/RatesProvider";
+import { useRates, CURRENCY_SYMBOLS } from "@/providers/RatesProvider";
 import { Triangle, ChevronDown, Wallet } from "lucide-react";
 
 // Dynamically import modals to reduce initial bundle size
@@ -30,7 +30,7 @@ interface BalanceCardProps {
   showTransactions: boolean;
   setShowTransactions: (show: boolean) => void;
   className?: string;
-  transactionHistoryRefresh?: boolean;
+  transactionHistoryRefresh?: number;
   kycStatus?: string | null;
   onKycClick?: () => void;
   onRefreshKyc?: () => void;
@@ -108,7 +108,7 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
   const [activeTransactionsRefreshKey, setActiveTransactionsRefreshKey] = useState(0);
   const transactionHistoryRef = useRef<TransactionHistoryRef | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-  const lastTransactionHistoryRefreshRef = useRef<boolean | undefined>(transactionHistoryRefresh);
+  const lastTransactionHistoryRefreshRef = useRef<number | undefined>(transactionHistoryRefresh);
 
   // 🚀 THE MAGIC - All rates from context!
   const {
@@ -320,12 +320,7 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
   // Get price change info from context
   const priceChangeInfo = useMemo(() => {
     if (!balance) return null;
-    const raw = getOverallPriceChange(balance.tokenBalances || []);
-    // Treat tiny moves as neutral so users don't see noisy red/green flicker.
-    if (Math.abs(raw.percentageChange) < 0.05) {
-      return { ...raw, direction: 'same' as PriceDirection, percentageChange: 0 };
-    }
-    return raw;
+    return getOverallPriceChange(balance.tokenBalances || []);
   }, [balance, getOverallPriceChange]);
 
   // Calculate total balance - now uses context! 🎯

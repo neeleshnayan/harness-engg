@@ -79,7 +79,7 @@ function getTransactionDescription(tx: ActiveTransaction): string {
     const fromSymbol = cleanTokenSymbol(tx.from_token);
     const toSymbol = cleanTokenSymbol(tx.to_token);
     const amountStr = tx.amount ? formatAmount(tx.amount) : '';
-    return `Swap ${amountStr} ${fromSymbol} → ${toSymbol}`;
+    return `${amountStr} ${fromSymbol} \u2192 ${toSymbol}`.trim();
   }
 
   if (tx.tx_type === 'transfer') {
@@ -498,3 +498,4 @@ export default function TransactionConfirmationCard({ username, onClose }: Trans
     </div>
   );
 }
+
