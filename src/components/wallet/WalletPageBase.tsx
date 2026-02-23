@@ -36,9 +36,7 @@ const SendERC20Modal = dynamic(() => import("@/components/wallet/SendERC20Modal"
   ssr: false,
 });
 
-// Configuration: Delay before fetching balance after webhook event (in milliseconds)
-// The backend now polls the Subgraph itself and triggers the WebSocket, so we wait just 1 second down from 5+ seconds.
-const WEBHOOK_BALANCE_REFRESH_DELAY_MS = 1000;
+
 // Guardrail to prevent repeated background fetch bursts from overlapping UI triggers.
 const MIN_BACKGROUND_BALANCE_FETCH_INTERVAL_MS = 15000;
 
@@ -140,7 +138,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   // Refs to prevent excessive balance fetches
   const balanceFetchInProgressRef = useRef(false);
   const lastBackgroundBalanceFetchAtRef = useRef(0);
-  const balanceDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const accountDataRef = useRef(accountData);
   const showTransactionsRef = useRef(showTransactions);
   const fetchBalanceRef = useRef<((address: string, options?: { background?: boolean }) => Promise<void>) | null>(null);
@@ -156,44 +153,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     showTransactionsRef.current = showTransactions;
   }, [showTransactions]);
 
-  // Debounced balance fetch function
-  const debouncedFetchBalance = useCallback((address: string, options?: { background?: boolean }, delay: number = 500) => {
-    // Clear existing timer
-    if (balanceDebounceTimerRef.current) {
-      clearTimeout(balanceDebounceTimerRef.current);
-      balanceDebounceTimerRef.current = null;
-    }
-
-    // Set new timer
-    balanceDebounceTimerRef.current = setTimeout(() => {
-      if (!balanceFetchInProgressRef.current && address && fetchBalanceRef.current) {
-        balanceFetchInProgressRef.current = true;
-        fetchBalanceRef.current(address, options)
-          .then(() => {
-            // Ensure refreshing state is cleared after successful fetch
-            if (options?.background) {
-              setBalanceRefreshing(false);
-            }
-          })
-          .catch((err) => {
-            console.error('Error fetching balance:', err);
-            // Ensure refreshing state is cleared even on error
-            if (options?.background) {
-              setBalanceRefreshing(false);
-            }
-          })
-          .finally(() => {
-            balanceFetchInProgressRef.current = false;
-          });
-      } else {
-        // If fetch was skipped, clear refreshing state
-        if (options?.background) {
-          setBalanceRefreshing(false);
-        }
-      }
-      balanceDebounceTimerRef.current = null;
-    }, delay);
-  }, []);
 
   // WebSocket message handler - stabilized with useCallback and refs
   const handleWebSocketMessage = useCallback((message: any) => {
@@ -273,14 +232,9 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
           setBalance(transformedBalance);
           setBalanceRefreshing(false);
         } else {
-          // Fallback: fetch balance from API
-          if (fetchBalanceRef.current) {
-            fetchBalanceRef.current(currentAccountData.wallet_address, { background: true })
-              .then(() => setBalanceRefreshing(false))
-              .catch(() => setBalanceRefreshing(false));
-          } else {
-            setBalanceRefreshing(false);
-          }
+          // No balances in WS message — don't fallback to API.
+          // Balance will update on next WS event with data or on manual page reload.
+          setBalanceRefreshing(false);
         }
 
         setBalanceCardRefresh(prev => !prev);
@@ -319,10 +273,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
           };
           setBalance(transformedBalance);
         } else {
-          // Fallback: fetch from API (subgraph may not have returned data)
-          if (fetchBalanceRef.current) {
-            fetchBalanceRef.current(currentAccountData.wallet_address, { background: true }).catch(() => { });
-          }
+          // No balances in WS message — skip; balance will update on next WS event or page reload.
         }
         // Also refresh transaction history now that subgraph is indexed
         setTransactionHistoryRefresh(prev => prev + 1);
@@ -401,13 +352,9 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     }
   );
 
-  // Cleanup debounce timer and reset processed events on unmount
+  // Cleanup: reset processed webhook events on unmount
   useEffect(() => {
     return () => {
-      if (balanceDebounceTimerRef.current) {
-        clearTimeout(balanceDebounceTimerRef.current);
-      }
-      // Clear processed events set on unmount
       processedWebhookEventsRef.current.clear();
     };
   }, []);
@@ -624,30 +571,11 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
    * Called when all active transactions complete (from BalanceCard/ActiveTransactions).
    * Triggers explicit backend polling via websocket wait before fetching logic.
    */
-  const handleTransactionsComplete = useCallback((txHash?: string) => {
-    const currentAccountData = accountDataRef.current;
-    if (currentAccountData?.wallet_address) {
-      // Start blinking immediately
-      setBalanceRefreshing(true);
-
-      // Clear any existing timer
-      if (balanceDebounceTimerRef.current) {
-        clearTimeout(balanceDebounceTimerRef.current);
-      }
-
-      // Prefer WebSocket-driven balance_update when live; fallback to API fetch only when WS is not connected.
-      if (connectionStatus !== 'connected') {
-        debouncedFetchBalance(currentAccountData.wallet_address, { background: true }, WEBHOOK_BALANCE_REFRESH_DELAY_MS);
-        // Fallback path when WS is unavailable: explicitly refresh tx views.
-        setTransactionHistoryRefresh(prev => prev + 1);
-      } else {
-        setBalanceRefreshing(false);
-      }
-
-      // Toggle balance card refresh and tx history explicitly
-      setBalanceCardRefresh(prev => !prev);
-    }
-  }, [connectionStatus, debouncedFetchBalance]);
+  const handleTransactionsComplete = useCallback((_txHash?: string) => {
+    // Don't fetch balance from API — wait for WebSocket balance_update event
+    // or user page reload to avoid hitting rate-limited subgraph.
+    setBalanceCardRefresh(prev => !prev);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -975,7 +903,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
                         userId: accountData?.user_id,
                         onBalanceRefresh: () => {
                           if (accountData?.wallet_address) {
-                            debouncedFetchBalance(accountData.wallet_address, { background: true }, 500);
+                            fetchBalance(accountData.wallet_address, { background: true });
                           }
                         },
                         onBalanceFlicker: () => {
@@ -1010,7 +938,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
                     userId: accountData?.user_id,
                     onBalanceRefresh: () => {
                       if (accountData?.wallet_address) {
-                        debouncedFetchBalance(accountData.wallet_address, { background: true }, 500);
+                        fetchBalance(accountData.wallet_address, { background: true });
                       }
                     },
                     onBalanceFlicker: () => {

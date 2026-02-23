@@ -40,18 +40,18 @@ export default function BacktestPage() {
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false)
   const [isDevtoolsOpen, setIsDevtoolsOpen] = useState(false)
   const feedRef = useRef<HTMLDivElement>(null)
-  
+
   // Session management for mem0 integration
   const [userId, setUserId] = useState<string>('')
   const [userName, setUserName] = useState<string>('')
   const [sessionId, setSessionId] = useState<string>('')
   const [userData, setUserData] = useState<any>(null)
-  
+
   // Cost tracking - session cost resets on new session, overall cost fetched from Firebase
   const [sessionCost, setSessionCost] = useState<number>(0)
   const [overallCost, setOverallCost] = useState<number>(0)
   const [isFetchingCosts, setIsFetchingCosts] = useState<boolean>(false)
-  
+
   // Interrupt handling
   const [interrupts, setInterrupts] = useState<any[]>([])
   const [isInterruptModalOpen, setIsInterruptModalOpen] = useState(false)
@@ -61,6 +61,7 @@ export default function BacktestPage() {
   } | null>(null)
   const submittingInterruptRef = useRef(false)
   const shownInterruptIdsRef = useRef<Set<string>>(new Set())
+  const approvedPaymentContextRef = useRef<Record<string, unknown> | null>(null)
   const queryQueueRef = useRef<Array<{ query: string }>>([])
   const [queueLength, setQueueLength] = useState(0)
   const [queueQueries, setQueueQueries] = useState<string[]>([])
@@ -83,9 +84,9 @@ export default function BacktestPage() {
         // Use actual user_id from userData, fallback to other unique identifiers
         // Try user_id first, then uid (Firebase), then email
         // These should all be unique per user and consistent across sessions
-        const actualUserId = parsedData.user_id || 
-                            parsedData.uid || 
-                            parsedData.email
+        const actualUserId = parsedData.user_id ||
+          parsedData.uid ||
+          parsedData.email
         if (actualUserId) {
           setUserId(actualUserId)
         } else {
@@ -103,12 +104,12 @@ export default function BacktestPage() {
       setUserId('krypton_user')
       setUserName('krypton')
     }
-    
+
     // Check for expanded messages from mini chat components
     try {
       const expandedMessages = localStorage.getItem('clark_expanded_messages')
       const expandedSessionId = localStorage.getItem('clark_expanded_session_id')
-      
+
       if (expandedMessages && expandedSessionId) {
         // Load messages from expansion
         const parsedMessages = JSON.parse(expandedMessages).map((msg: any) => ({
@@ -117,7 +118,7 @@ export default function BacktestPage() {
         })) as ChatMessage[]
         setMessages(parsedMessages)
         setSessionId(expandedSessionId)
-        
+
         // Clear the stored data to avoid reloading on refresh
         localStorage.removeItem('clark_expanded_messages')
         localStorage.removeItem('clark_expanded_session_id')
@@ -132,7 +133,7 @@ export default function BacktestPage() {
       const newSessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
       setSessionId(newSessionId)
     }
-    
+
     // Reset session cost for new session
     setSessionCost(0)
   }, [])
@@ -141,7 +142,7 @@ export default function BacktestPage() {
   useEffect(() => {
     const fetchInitialCosts = async () => {
       if (!userId || isFetchingCosts) return
-      
+
       setIsFetchingCosts(true)
       try {
         // Fetch overall cost from Firebase using dedicated endpoint (no query processing)
@@ -255,7 +256,7 @@ export default function BacktestPage() {
     setSelectedCategory(null)
     setIsPromptModalOpen(false)
     setInputValue('')
-    
+
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       type: 'user',
@@ -265,7 +266,7 @@ export default function BacktestPage() {
 
     setMessages(prev => [...prev, userMessage])
     setIsLoading(true)
-    
+
     try {
       const response = await agentsApi.post('/api/v1/agents/query', {
         query: routedPrompt,
@@ -307,13 +308,13 @@ export default function BacktestPage() {
         setIsLoading(false)
         return
       }
-      
+
       // Clear interrupt state if no interrupts
       shownInterruptIdsRef.current.clear()
       setInterrupts([])
       setIsInterruptModalOpen(false)
       setPendingInterruptResponse(null)
-      
+
       // Update costs if available and persist overall cost to localStorage
       if (payload.costs) {
         const newSessionCost = payload.costs.session_cost || 0
@@ -323,36 +324,91 @@ export default function BacktestPage() {
         // Persist overall cost to localStorage (session cost resets on new session)
         localStorage.setItem('clark_overall_cost', newOverallCost.toString())
       }
-      
+
       // Check if krypton_pay transaction was made
       // Check multiple possible locations for krypton_pay indication
       const agentIds = payload?.parsed_intent?.agent_ids || []
       const hasKryptonPayInIntent = agentIds.includes('krypton_pay')
-      
+
       const agentFlowNodes = payload?.agent_flow?.nodes || []
-      const hasKryptonPayInFlow = agentFlowNodes.some((node: any) => 
-        node.tool_name === 'consult_krypton_pay' || 
+      const hasKryptonPayInFlow = agentFlowNodes.some((node: any) =>
+        node.tool_name === 'consult_krypton_pay' ||
         node.id === 'krypton_pay' ||
         (node.output?.data && (
-          node.output.data.transaction_id || 
+          node.output.data.transaction_id ||
           node.output.data.status === 'SUBMITTED' ||
           node.output.data.operation
         ))
       )
-      
+
       // Also check if response data contains transaction info
-      const hasTransactionData = payload?.data?.transaction_id || 
+      const hasTransactionData = payload?.data?.transaction_id ||
         payload?.data?.status === 'SUBMITTED' ||
         payload?.data?.operation
-      
+
       // Fallback: check message content for transaction keywords
       const message = payload?.message || ''
-      const hasTransactionKeywords = /(sent|transfer|transaction|successfully)/i.test(message) && 
+      const hasTransactionKeywords = /(sent|transfer|transaction|successfully)/i.test(message) &&
         /(USD|EUR|AED|to @)/i.test(message)
-      
+
       const hasKryptonPay = hasKryptonPayInIntent || hasKryptonPayInFlow || hasTransactionData || hasTransactionKeywords
-      
+
       const assistantMessage = createAssistantMessage(payload)
+      const approvedPaymentContext = approvedPaymentContextRef.current
+      if (approvedPaymentContext) {
+        const payloadAgentNodes = payload?.agent_flow?.nodes || []
+        const payloadHasTxData = Boolean(
+          payload?.data?.transaction_id ||
+          payload?.data?.status === 'SUBMITTED' ||
+          payload?.data?.operation ||
+          payloadAgentNodes.some((node: any) =>
+            Boolean(
+              node?.output?.data?.transaction_id ||
+              node?.output?.data?.status === 'SUBMITTED' ||
+              node?.output?.data?.operation
+            )
+          )
+        )
+
+        if (!payloadHasTxData) {
+          const existingIntent =
+            assistantMessage.parsedIntent && typeof assistantMessage.parsedIntent === 'object'
+              ? assistantMessage.parsedIntent as Record<string, unknown>
+              : {}
+          const existingAgentIds = Array.isArray(existingIntent.agent_ids)
+            ? existingIntent.agent_ids.filter((v): v is string => typeof v === 'string')
+            : []
+          const operation =
+            (existingIntent.operation as string | undefined) ||
+            (approvedPaymentContext.operation as string | undefined) ||
+            'direct_transfer'
+
+          assistantMessage.parsedIntent = {
+            ...existingIntent,
+            operation,
+            agent_ids: Array.from(new Set([...existingAgentIds, 'krypton_pay'])),
+          }
+
+          if (!assistantMessage.agentFlow) {
+            assistantMessage.agentFlow = [{
+              id: 'krypton_pay',
+              name: 'Krypton Pay',
+              type: 'specialized',
+              status: 'completed',
+              tool_name: 'consult_krypton_pay',
+              output: {
+                success: true,
+                message: 'Awaiting transaction status',
+                has_data: true,
+                data: { operation },
+              },
+            }] as any
+          }
+        }
+
+        approvedPaymentContextRef.current = null
+      }
+
 
       // Append Clark's response so ResultsDisplay can render results/backtests/etc.
       setMessages(prev => [...prev, assistantMessage])
@@ -395,19 +451,19 @@ export default function BacktestPage() {
     const userMessage: ChatMessage = interruptResponses && pendingInterruptResponse
       ? pendingInterruptResponse.userMessage
       : {
-          id: Date.now().toString(),
-          type: 'user',
-          content: queryText,
-          timestamp: new Date(),
-        }
+        id: Date.now().toString(),
+        type: 'user',
+        content: queryText,
+        timestamp: new Date(),
+      }
 
     if (!interruptResponses) {
       setMessages(prev => [...prev, userMessage])
       if (!overrideQuery) setInputValue('')
     }
-    
+
     setIsLoading(true)
-    
+
     try {
       const requestBody: any = {
         user_id: userId,
@@ -465,13 +521,13 @@ export default function BacktestPage() {
         setIsLoading(false)
         return
       }
-      
+
       // Clear interrupt state if no interrupts
       shownInterruptIdsRef.current.clear()
       setInterrupts([])
       setIsInterruptModalOpen(false)
       setPendingInterruptResponse(null)
-      
+
       // Update costs if available and persist overall cost to localStorage
       if (payload.costs) {
         const newSessionCost = payload.costs.session_cost || 0
@@ -481,35 +537,35 @@ export default function BacktestPage() {
         // Persist overall cost to localStorage (session cost resets on new session)
         localStorage.setItem('clark_overall_cost', newOverallCost.toString())
       }
-      
+
       // Check if krypton_pay transaction was made
       // Check multiple possible locations for krypton_pay indication
       const agentIds = payload?.parsed_intent?.agent_ids || []
       const hasKryptonPayInIntent = agentIds.includes('krypton_pay')
-      
+
       const agentFlowNodes = payload?.agent_flow?.nodes || []
-      const hasKryptonPayInFlow = agentFlowNodes.some((node: any) => 
-        node.tool_name === 'consult_krypton_pay' || 
+      const hasKryptonPayInFlow = agentFlowNodes.some((node: any) =>
+        node.tool_name === 'consult_krypton_pay' ||
         node.id === 'krypton_pay' ||
         (node.output?.data && (
-          node.output.data.transaction_id || 
+          node.output.data.transaction_id ||
           node.output.data.status === 'SUBMITTED' ||
           node.output.data.operation
         ))
       )
-      
+
       // Also check if response data contains transaction info
-      const hasTransactionData = payload?.data?.transaction_id || 
+      const hasTransactionData = payload?.data?.transaction_id ||
         payload?.data?.status === 'SUBMITTED' ||
         payload?.data?.operation
-      
+
       // Fallback: check message content for transaction keywords
       const message = payload?.message || ''
-      const hasTransactionKeywords = /(sent|transfer|transaction|successfully)/i.test(message) && 
+      const hasTransactionKeywords = /(sent|transfer|transaction|successfully)/i.test(message) &&
         /(USD|EUR|AED|to @)/i.test(message)
-      
+
       const hasKryptonPay = hasKryptonPayInIntent || hasKryptonPayInFlow || hasTransactionData || hasTransactionKeywords
-      
+
       const assistantMessage = createAssistantMessage(payload)
 
       // Always append Clark's response; ResultsDisplay will decide what to show,
@@ -560,16 +616,17 @@ export default function BacktestPage() {
     const next = direction === 'up' ? index - 1 : index + 1
     if (next < 0 || next >= len) return
     const arr = [...queryQueueRef.current]
-    ;[arr[index], arr[next]] = [arr[next], arr[index]]
+      ;[arr[index], arr[next]] = [arr[next], arr[index]]
     queryQueueRef.current = arr
     setQueueQueries(prev => {
       const copy = [...prev]
-      ;[copy[index], copy[next]] = [copy[next], copy[index]]
+        ;[copy[index], copy[next]] = [copy[next], copy[index]]
       return copy
     })
   }
 
-  const handleInterruptApprove = async (interruptId: string) => {
+  const handleInterruptApprove = async (interruptId: string, reason?: Record<string, unknown>) => {
+    approvedPaymentContextRef.current = reason ?? null
     const interruptResponses = [{
       interruptResponse: {
         interruptId: interruptId,
@@ -590,6 +647,7 @@ export default function BacktestPage() {
   }
 
   const handleInterruptReject = async (interruptId: string) => {
+    approvedPaymentContextRef.current = null
     const interruptResponses = [{
       interruptResponse: {
         interruptId: interruptId,
@@ -768,7 +826,7 @@ export default function BacktestPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleInterruptApprove(paymentInterrupt.id)}
+                          onClick={() => handleInterruptApprove(paymentInterrupt.id, reason)}
                           className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-sm font-medium transition-colors border border-white/20"
                         >
                           Confirm
@@ -781,17 +839,17 @@ export default function BacktestPage() {
             </div>
           </div>
         </div>
-        
-      {/* Prompts modal opened by left icon - shared with MiniClark */}
-      <PromptGuideModal
-        open={isPromptModalOpen}
-        onOpenChange={setIsPromptModalOpen}
-        categories={categories}
-        selectedCategory={selectedCategory}
-        onSelectCategory={setSelectedCategory}
-        onPromptClick={handlePromptClick}
-        isLoading={isLoading}
-      />
+
+        {/* Prompts modal opened by left icon - shared with MiniClark */}
+        <PromptGuideModal
+          open={isPromptModalOpen}
+          onOpenChange={setIsPromptModalOpen}
+          categories={categories}
+          selectedCategory={selectedCategory}
+          onSelectCategory={setSelectedCategory}
+          onPromptClick={handlePromptClick}
+          isLoading={isLoading}
+        />
       </div>
 
       {/* Chat Input Bar - fixed at bottom */}

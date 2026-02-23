@@ -99,7 +99,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
   const renderEconomic = (message: ChatMessage) => {
     if (!message.economicResult) return null
     const economicResult = message.economicResult
-    
+
     // If we only have markdown (from economic agent), render it as markdown
     if (economicResult.markdown && !economicResult.results) {
       return (
@@ -116,7 +116,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
         </Card>
       )
     }
-    
+
     // Otherwise, render structured data
     const isNews = economicResult.indicator === 'news'
     const isCalendar = economicResult.indicator === 'calendar'
@@ -126,8 +126,8 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
           <CardTitle className="text-lg text-white">{economicResult.indicator_name || 'Economic Data'}</CardTitle>
           <CardDescription className="text-white/70">
             {isNews ? `${economicResult.total_found || 0} latest news articles` :
-             isCalendar ? `${economicResult.total_found || 0} upcoming economic events` :
-             `Economic indicators for ${economicResult.total_found || 0} countries`}
+              isCalendar ? `${economicResult.total_found || 0} upcoming economic events` :
+                `Economic indicators for ${economicResult.total_found || 0} countries`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -233,10 +233,9 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                         <td className="py-3 px-4 text-sm text-right text-white/90">
                           {hasPreviousValue && typeof data.previous_value === 'number' ? data.previous_value.toLocaleString() : 'N/A'}
                         </td>
-                        <td className={`py-3 px-4 text-sm text-right font-medium ${
-                          change !== null && change > 0 ? 'text-green-500' :
-                          change !== null && change < 0 ? 'text-red-500' : 'text-white/90'
-                        }`}>
+                        <td className={`py-3 px-4 text-sm text-right font-medium ${change !== null && change > 0 ? 'text-green-500' :
+                            change !== null && change < 0 ? 'text-red-500' : 'text-white/90'
+                          }`}>
                           {change !== null ? (
                             <>
                               {change > 0 ? '+' : ''}{change.toFixed(2)}
@@ -338,14 +337,14 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
   const renderScreener = (message: ChatMessage) => {
     if (!message.screenerResult) return null
     const screenerResult = message.screenerResult
-    
+
     // Handle stock/crypto/forex quotes and profiles
     const isStockQuote = screenerResult.screener_type === 'stock_quote'
     const isStockScreener = screenerResult.screener_type === 'stock_screener'
     const isStockProfile = screenerResult.screener_type === 'stock_profile'
     const isCryptoQuote = screenerResult.screener_type === 'crypto_quote'
     const isForexQuote = screenerResult.screener_type === 'forex_quote'
-    
+
     if (isStockQuote || isStockProfile) {
       // Single stock display
       if (!screenerResult.results || screenerResult.results.length === 0) {
@@ -468,7 +467,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
         </Card>
       )
     }
-    
+
     return (
       <Card key={`scr-${message.id}`} className="w-full bg-zinc-800/20 border-zinc-700/30 backdrop-blur-sm">
         <CardHeader className="pb-4">
@@ -534,25 +533,22 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                     <td className="py-3 px-4 text-sm font-medium text-white">{item.name || item.symbol}</td>
                     <td className="py-3 px-4 text-sm text-white/90">{item.symbol}</td>
                     <td className="py-3 px-4 text-sm text-right text-white">{formatCurrency(item.price)}</td>
-                    <td className={`py-3 px-4 text-sm text-right font-medium ${
-                      (item.daily_change_percent || 0) >= 0 ? 'text-green-500' : 'text-red-500'
-                    }`}>
+                    <td className={`py-3 px-4 text-sm text-right font-medium ${(item.daily_change_percent || 0) >= 0 ? 'text-green-500' : 'text-red-500'
+                      }`}>
                       {(item.daily_change_percent || 0) >= 0 ? '+' : ''}{(item.daily_change_percent || 0).toFixed(2)}%
                     </td>
                     {screenerResult.screener_type === '52w_high_low' && (
-                      <td className={`py-3 px-4 text-sm text-right font-medium ${
-                        item.percent_from_high !== undefined && item.percent_from_high >= -10 ? 'text-green-500' :
-                        item.percent_from_low !== undefined && item.percent_from_low <= 10 ? 'text-red-500' : 'text-white/90'
-                      }`}>
+                      <td className={`py-3 px-4 text-sm text-right font-medium ${item.percent_from_high !== undefined && item.percent_from_high >= -10 ? 'text-green-500' :
+                          item.percent_from_low !== undefined && item.percent_from_low <= 10 ? 'text-red-500' : 'text-white/90'
+                        }`}>
                         {item.percent_from_high !== undefined ? `${item.percent_from_high.toFixed(1)}% from high` :
-                         item.percent_from_low !== undefined ? `${item.percent_from_low.toFixed(1)}% from low` : 'N/A'}
+                          item.percent_from_low !== undefined ? `${item.percent_from_low.toFixed(1)}% from low` : 'N/A'}
                       </td>
                     )}
                     {screenerResult.screener_type === 'rsi' && (
-                      <td className={`py-3 px-4 text-sm text-right font-medium ${
-                        item.rsi !== undefined && item.rsi <= 30 ? 'text-red-500' :
-                        item.rsi !== undefined && item.rsi >= 70 ? 'text-green-500' : 'text-white/90'
-                      }`}>
+                      <td className={`py-3 px-4 text-sm text-right font-medium ${item.rsi !== undefined && item.rsi <= 30 ? 'text-red-500' :
+                          item.rsi !== undefined && item.rsi >= 70 ? 'text-green-500' : 'text-white/90'
+                        }`}>
                         {item.rsi !== undefined ? item.rsi.toFixed(1) : 'N/A'}
                       </td>
                     )}
@@ -626,9 +622,8 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                   <TrendingUp className="h-5 w-5 text-cyan-400" />
                   <div>
                     <p className="text-xs font-medium text-white/70">Total Return</p>
-                    <p className={`text-xl font-bold ${
-                      backtestResult.metrics.total_return >= 0 ? 'text-green-400' : 'text-red-400'
-                    }`}>
+                    <p className={`text-xl font-bold ${backtestResult.metrics.total_return >= 0 ? 'text-green-400' : 'text-red-400'
+                      }`}>
                       {formatPercentage(backtestResult.metrics.total_return)}
                     </p>
                   </div>
@@ -727,14 +722,12 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                             <td className="py-3 px-4 text-sm text-right text-white">{formatCurrency(trade.entry_price)}</td>
                             <td className="py-3 px-4 text-sm text-right text-white">{formatCurrency(trade.exit_price)}</td>
                             <td className="py-3 px-4 text-sm text-right text-white/90">{formatNumber(trade.size)}</td>
-                            <td className={`py-3 px-4 text-sm text-right font-medium ${
-                              trade.pnl >= 0 ? 'text-green-400' : 'text-red-400'
-                            }`}>
+                            <td className={`py-3 px-4 text-sm text-right font-medium ${trade.pnl >= 0 ? 'text-green-400' : 'text-red-400'
+                              }`}>
                               {trade.pnl >= 0 ? '+' : ''}{formatCurrency(trade.pnl)}
                             </td>
-                            <td className={`py-3 px-4 text-sm text-right font-medium ${
-                              trade.return_pct >= 0 ? 'text-green-400' : 'text-red-400'
-                            }`}>
+                            <td className={`py-3 px-4 text-sm text-right font-medium ${trade.return_pct >= 0 ? 'text-green-400' : 'text-red-400'
+                              }`}>
                               {trade.return_pct >= 0 ? '+' : ''}{formatPercentage(trade.return_pct)}
                             </td>
                             <td className="py-3 px-4 text-sm text-right text-white/90">{trade.duration_days} {trade.duration_days === 1 ? 'day' : 'days'}</td>
@@ -843,9 +836,8 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                                 return next
                               })
                             }}
-                            className={`inline-flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0 ${
-                              revealed ? 'opacity-60' : ''
-                            }`}
+                            className={`inline-flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0 ${revealed ? 'opacity-60' : ''
+                              }`}
                             title={revealed ? "Hide Clark's response" : "Show Clark's response"}
                             aria-label={revealed ? "Hide Clark's response" : "Show Clark's response"}
                           >
@@ -877,12 +869,12 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
 
           {message.type === 'assistant' && (() => {
             // Check if this is a price history query first (exclude from transaction detection)
-            const isPriceHistoryQuery = message.priceHistoryResult && 
-              message.priceHistoryResult.data_points && 
+            const isPriceHistoryQuery = message.priceHistoryResult &&
+              message.priceHistoryResult.data_points &&
               message.priceHistoryResult.data_points.length > 0
             const parsedIntentOperation = message.parsedIntent?.operation
             const isPriceHistoryOperation = parsedIntentOperation === 'price_history'
-            
+
             // Detect krypton_pay-style payment / transfer responses so we can
             // suppress Clark's natural language bubble and rely purely on the
             // structured transaction status UI.
@@ -890,24 +882,24 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
             const agentIds = message.parsedIntent?.agent_ids || []
             const hasKryptonPayInIntent = agentIds.includes('krypton_pay')
 
-            const agentFlowNodes = message.agentFlow && 'nodes' in message.agentFlow 
-              ? message.agentFlow.nodes 
-              : Array.isArray(message.agentFlow) 
-                ? message.agentFlow 
+            const agentFlowNodes = message.agentFlow && 'nodes' in message.agentFlow
+              ? message.agentFlow.nodes
+              : Array.isArray(message.agentFlow)
+                ? message.agentFlow
                 : []
 
-            const hasKryptonPayInFlow = agentFlowNodes.some((node: any) => 
-              node.tool_name === 'consult_krypton_pay' || 
+            const hasKryptonPayInFlow = agentFlowNodes.some((node: any) =>
+              node.tool_name === 'consult_krypton_pay' ||
               node.id === 'krypton_pay' ||
               (node.output?.data && (
-                node.output.data.transaction_id || 
+                node.output.data.transaction_id ||
                 node.output.data.status === 'SUBMITTED' ||
                 node.output.data.operation
               ))
             )
 
             const messageContent = message.content || ''
-            const hasTransactionKeywords = /(sent|transfer|transaction|successfully|swapped|swap completed)/i.test(messageContent) && 
+            const hasTransactionKeywords = /(sent|transfer|transaction|successfully|swapped|swap completed)/i.test(messageContent) &&
               /(USD|EUR|AED|to @|transaction id)/i.test(messageContent)
 
             // Only treat as krypton_pay transaction if we have actual payment/swap (not balance-only read).
@@ -917,12 +909,13 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
               if (!data) return false
               const op = data.operation
               if (op === 'balances' || op === 'balances_daily' || op === 'balances_intraday') return false
-              return !!(data.transaction_id || data.status === 'SUBMITTED' || data.estimated_output || data.route)
+              const statusUpper = typeof data.status === 'string' ? data.status.toUpperCase() : ''
+              return !!(data.transaction_id || statusUpper === 'SUBMITTED' || data.estimated_output || data.route || op === 'direct_transfer' || op === 'swap_and_transfer')
             })
-            
+
             const isBalanceOnlyQuery = message.balanceResult && ['balances', 'balances_daily', 'balances_intraday'].includes(message.balanceResult.operation)
             const isKryptonPay = !isPriceHistoryQuery && !isPriceHistoryOperation && !isBalanceOnlyQuery &&
-              (hasKryptonPayInIntent || hasKryptonPayInFlow) && 
+              (hasKryptonPayInIntent || hasKryptonPayInFlow) &&
               (hasTransactionData || hasTransactionKeywords)
 
             // Try to derive minimal transaction details from the krypton_pay agent node
@@ -937,7 +930,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                   node.name?.toLowerCase().includes('krypton')
                 )
                 const data = kryptonNode?.output?.data
-                
+
                 // Only create inlineTxData if we have transaction indicators
                 if (data && (data.transaction_id || data.status || data.operation || data.estimated_output)) {
                   // For swaps, extract from the swap response structure
@@ -955,7 +948,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                       tx_hash: data.tx_hash,
                       created_at: data.created_at,
                     }
-                  } else if (data.transaction_id || data.status) {
+                  } else if (data.transaction_id || data.status || data.operation) {
                     // This is a transfer/swap+transfer response
                     inlineTxData = {
                       transaction_id: data.transaction_id,
@@ -971,7 +964,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                   }
                 }
               }
-              
+
               // Fallback: if no data from agent flow nodes, try to extract from parsedIntent for swaps
               if (!inlineTxData && message.parsedIntent?.operation === 'swap') {
                 const parsedIntent = message.parsedIntent
@@ -998,227 +991,227 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
               inlineTxData?.from_address
 
             return (
-            <>
-              {/* For krypton_pay flows, hide Clark's natural language bubble entirely.
+              <>
+                {/* For krypton_pay flows, hide Clark's natural language bubble entirely.
                   We'll show only the structured TransactionStatus card below. */}
-              {!isKryptonPay && message.content && (message.success === false || !hasStructuredResults(message)) && (
-                <>
-                  <div className="flex gap-2 justify-start items-center">
-                    <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                      <img src="/clark process.svg" alt="Clark" className="h-8 w-8 opacity-90"  />
-                    </div>
-                    <span className="text-xs font-medium text-white/90">
-                      Clark
-                    </span>
-                  </div>
-                  <div className="mt-1 ml-10 max-w-[85%]">
-                    {/* No bubble: Clark's output is plain text on the feed background */}
-                    {(() => {
-                      const sourceLabel = formatSourceLabel(message.source)
-                      if (!sourceLabel) return null
-                      return (
-                        <div className="text-[10px] uppercase tracking-[0.2em] text-white/80 mb-2">
-                          {sourceLabel}
-                        </div>
-                      )
-                    })()}
-                    <div className="text-sm leading-relaxed text-white/95">
-                      <div
-                        className="clark-prose prose prose-invert max-w-none"
-                        dangerouslySetInnerHTML={{ __html: markdownToHtml(stripReasoningFromMessage(message.content)) }}
-                      />
-                      {message.capabilitiesSummary && (
-                        <div className="mt-3 text-xs text-white/80 whitespace-pre-wrap leading-relaxed">
-                          {message.capabilitiesSummary}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* When success === true, show full Clark response (formatted) alongside structured results,
-                  except for krypton_pay flows where we rely solely on TransactionStatus. */}
-              {!isKryptonPay && message.success === true && hasStructuredResults(message) && message.content && (() => {
-                const content = stripReasoningFromMessage(message.content).trim()
-                if (!content) return null
-                return (
+                {!isKryptonPay && message.content && (message.success === false || !hasStructuredResults(message)) && (
                   <>
                     <div className="flex gap-2 justify-start items-center">
                       <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                        <img src="/clark process.svg" alt="Clark" className="h-8 w-8 opacity-90"  />
+                        <img src="/clark process.svg" alt="Clark" className="h-8 w-8 opacity-90" />
                       </div>
                       <span className="text-xs font-medium text-white/90">
                         Clark
                       </span>
                     </div>
                     <div className="mt-1 ml-10 max-w-[85%]">
-                      <div
-                        className="clark-prose text-sm text-white/95 leading-relaxed"
-                        dangerouslySetInnerHTML={{ __html: markdownToHtml(content) }}
-                      />
+                      {/* No bubble: Clark's output is plain text on the feed background */}
+                      {(() => {
+                        const sourceLabel = formatSourceLabel(message.source)
+                        if (!sourceLabel) return null
+                        return (
+                          <div className="text-[10px] uppercase tracking-[0.2em] text-white/80 mb-2">
+                            {sourceLabel}
+                          </div>
+                        )
+                      })()}
+                      <div className="text-sm leading-relaxed text-white/95">
+                        <div
+                          className="clark-prose prose prose-invert max-w-none"
+                          dangerouslySetInnerHTML={{ __html: markdownToHtml(stripReasoningFromMessage(message.content)) }}
+                        />
+                        {message.capabilitiesSummary && (
+                          <div className="mt-3 text-xs text-white/80 whitespace-pre-wrap leading-relaxed">
+                            {message.capabilitiesSummary}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </>
-                )
-              })()}
+                )}
 
-              {/* Render only backtest results */}
-              {renderBacktest(message)}
-              
-              {/* Render price history chart */}
-              {(() => {
-                // Check if we have price history data
-                const priceHistoryResult = message.priceHistoryResult
-                const hasPriceHistory = priceHistoryResult && 
-                  priceHistoryResult.data_points && 
-                  Array.isArray(priceHistoryResult.data_points) &&
-                  priceHistoryResult.data_points.length > 0
-                
-                if (!hasPriceHistory || !priceHistoryResult) return null
-
-                // Display EUR/GBP (strip k prefix if present for consistency)
-                const displayToken = (priceHistoryResult.token || '').replace(/^k/i, '') || priceHistoryResult.token
-
-                return (
-                  <div className="flex gap-2 justify-start items-start mt-2">
-                    <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                      <img src="/clark process.svg" alt="Clark" className="h-8 w-8 opacity-90"  />
-                    </div>
-                    <div className="max-w-[85%] w-full">
-                      <PriceHistoryChart
-                        token={displayToken}
-                        dataPoints={priceHistoryResult.data_points}
-                        lookbackDays={priceHistoryResult.lookback_days}
-                      />
-                    </div>
-                  </div>
-                )
-              })()}
-
-              {/* Render balance result (current, daily, or intraday) */}
-              {(() => {
-                const balanceResult = message.balanceResult
-                if (!balanceResult) return null
-                const { username_or_address, operation, balances, dailyBalances, intradayBalances } = balanceResult
-                const hasCurrent = Array.isArray(balances) && balances.length > 0
-                const hasDaily = Array.isArray(dailyBalances) && dailyBalances.length > 0
-                const hasIntraday = Array.isArray(intradayBalances) && intradayBalances.length > 0
-                const hasAnyData = hasCurrent || hasDaily || hasIntraday
-
-                const title = operation === 'balances_daily'
-                  ? `Daily balance history · ${username_or_address || 'User'}`
-                  : operation === 'balances_intraday'
-                    ? `Intraday balance history · ${username_or_address || 'User'}`
-                    : `Balances · ${username_or_address || 'User'}`
-
-                return (
-                  <div className="flex gap-2 justify-start items-start mt-2">
-                    <div className="max-w-[85%] w-full rounded-2xl p-4 bg-teal-900/40 border border-teal-700/50 backdrop-blur-sm">
-                      <div className="text-[10px] uppercase tracking-[0.2em] text-white/80 mb-3">{title}</div>
-                      {!hasAnyData && (
-                        <p className="text-sm text-teal-200/80">No balance data recorded yet for this period.</p>
-                      )}
-                      {hasCurrent && (
-                        <div className="space-y-2">
-                          {(balances as BalanceEntry[]).map((entry, idx) => {
-                            const e = entry as unknown as Record<string, unknown>
-                            const rawLabel = e.token ?? e.symbol ?? e.tokenSymbol ?? e.token_name ?? e.name ?? '—'
-                            const tokenLabel = displayTokenLabel(String(rawLabel))
-                            const balanceVal = entry.balance != null ? (typeof entry.balance === 'string' ? entry.balance : String(entry.balance)) : '—'
-                            return (
-                              <div key={`${String(tokenLabel)}-${idx}`} className="flex justify-between items-center py-2 px-3 rounded-lg bg-teal-800/30 border border-teal-700/30">
-                                <span className="text-white font-medium">{String(tokenLabel)}</span>
-                                <span className="text-teal-100 tabular-nums">{balanceVal}</span>
-                              </div>
-                            )
-                          })}
+                {/* When success === true, show full Clark response (formatted) alongside structured results,
+                  except for krypton_pay flows where we rely solely on TransactionStatus. */}
+                {!isKryptonPay && message.success === true && hasStructuredResults(message) && message.content && (() => {
+                  const content = stripReasoningFromMessage(message.content).trim()
+                  if (!content) return null
+                  return (
+                    <>
+                      <div className="flex gap-2 justify-start items-center">
+                        <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                          <img src="/clark process.svg" alt="Clark" className="h-8 w-8 opacity-90" />
                         </div>
-                      )}
-                      {hasDaily && (
-                        <BalanceHistoryChartLazy
-                          title={title}
-                          mode="daily"
-                          dailyBalances={dailyBalances as DailyBalanceEntry[]}
-                          username_or_address={username_or_address}
+                        <span className="text-xs font-medium text-white/90">
+                          Clark
+                        </span>
+                      </div>
+                      <div className="mt-1 ml-10 max-w-[85%]">
+                        <div
+                          className="clark-prose text-sm text-white/95 leading-relaxed"
+                          dangerouslySetInnerHTML={{ __html: markdownToHtml(content) }}
                         />
-                      )}
-                      {hasIntraday && (
-                        <BalanceHistoryChartLazy
-                          title={title}
-                          mode="intraday"
-                          intradayBalances={intradayBalances as IntradayBalanceEntry[]}
-                          username_or_address={username_or_address}
-                        />
-                      )}
-                    </div>
-                  </div>
-                )
-              })()}
-              
-              {/* Show transaction status card when we detect a krypton_pay transaction */}
-              {isKryptonPay && (
-                <div className="flex flex-col gap-2 justify-start items-start mt-2">
-                  {statusIdentity && (
-                    <div className="flex gap-2 justify-start items-start w-full">
+                      </div>
+                    </>
+                  )
+                })()}
+
+                {/* Render only backtest results */}
+                {renderBacktest(message)}
+
+                {/* Render price history chart */}
+                {(() => {
+                  // Check if we have price history data
+                  const priceHistoryResult = message.priceHistoryResult
+                  const hasPriceHistory = priceHistoryResult &&
+                    priceHistoryResult.data_points &&
+                    Array.isArray(priceHistoryResult.data_points) &&
+                    priceHistoryResult.data_points.length > 0
+
+                  if (!hasPriceHistory || !priceHistoryResult) return null
+
+                  // Display EUR/GBP (strip k prefix if present for consistency)
+                  const displayToken = (priceHistoryResult.token || '').replace(/^k/i, '') || priceHistoryResult.token
+
+                  return (
+                    <div className="flex gap-2 justify-start items-start mt-2">
                       <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                        <img src="/clark process.svg" alt="Clark" className="h-8 w-8 opacity-90"  />
+                        <img src="/clark process.svg" alt="Clark" className="h-8 w-8 opacity-90" />
                       </div>
-                      <div className="max-w-[85%]">
-                        <TransactionStatus username={statusIdentity} initialData={inlineTxData} />
+                      <div className="max-w-[85%] w-full">
+                        <PriceHistoryChart
+                          token={displayToken}
+                          dataPoints={priceHistoryResult.data_points}
+                          lookbackDays={priceHistoryResult.lookback_days}
+                        />
                       </div>
                     </div>
-                  )}
-                  {/* Persistent transaction row (TransactionHistory-style) so the tx stays visible in the feed */}
-                  {inlineTxData && (inlineTxData.amount != null || inlineTxData.transaction_id) && (
-                    <div className="w-full max-w-[85%] ml-10 rounded-b-xl border border-t-0 border-white/10 bg-black/30 px-3 py-2 flex items-center justify-between min-w-0">
-                      <div className="flex items-center min-w-0 flex-1 overflow-hidden">
-                        <div className="flex items-center justify-center w-8 h-8 mr-2 flex-shrink-0">
-                          {(inlineTxData.operation === 'swap' || inlineTxData.operation === 'swap_and_transfer')
-                            ? <ArrowUpDown className="h-4 w-4 text-cyan-400" style={{ transform: 'rotate(90deg)' }} />
-                            : <ArrowUpRight className="h-5 w-5 text-red-600" />
-                          }
+                  )
+                })()}
+
+                {/* Render balance result (current, daily, or intraday) */}
+                {(() => {
+                  const balanceResult = message.balanceResult
+                  if (!balanceResult) return null
+                  const { username_or_address, operation, balances, dailyBalances, intradayBalances } = balanceResult
+                  const hasCurrent = Array.isArray(balances) && balances.length > 0
+                  const hasDaily = Array.isArray(dailyBalances) && dailyBalances.length > 0
+                  const hasIntraday = Array.isArray(intradayBalances) && intradayBalances.length > 0
+                  const hasAnyData = hasCurrent || hasDaily || hasIntraday
+
+                  const title = operation === 'balances_daily'
+                    ? `Daily balance history · ${username_or_address || 'User'}`
+                    : operation === 'balances_intraday'
+                      ? `Intraday balance history · ${username_or_address || 'User'}`
+                      : `Balances · ${username_or_address || 'User'}`
+
+                  return (
+                    <div className="flex gap-2 justify-start items-start mt-2">
+                      <div className="max-w-[85%] w-full rounded-2xl p-4 bg-teal-900/40 border border-teal-700/50 backdrop-blur-sm">
+                        <div className="text-[10px] uppercase tracking-[0.2em] text-white/80 mb-3">{title}</div>
+                        {!hasAnyData && (
+                          <p className="text-sm text-teal-200/80">No balance data recorded yet for this period.</p>
+                        )}
+                        {hasCurrent && (
+                          <div className="space-y-2">
+                            {(balances as BalanceEntry[]).map((entry, idx) => {
+                              const e = entry as unknown as Record<string, unknown>
+                              const rawLabel = e.token ?? e.symbol ?? e.tokenSymbol ?? e.token_name ?? e.name ?? '—'
+                              const tokenLabel = displayTokenLabel(String(rawLabel))
+                              const balanceVal = entry.balance != null ? (typeof entry.balance === 'string' ? entry.balance : String(entry.balance)) : '—'
+                              return (
+                                <div key={`${String(tokenLabel)}-${idx}`} className="flex justify-between items-center py-2 px-3 rounded-lg bg-teal-800/30 border border-teal-700/30">
+                                  <span className="text-white font-medium">{String(tokenLabel)}</span>
+                                  <span className="text-teal-100 tabular-nums">{balanceVal}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                        {hasDaily && (
+                          <BalanceHistoryChartLazy
+                            title={title}
+                            mode="daily"
+                            dailyBalances={dailyBalances as DailyBalanceEntry[]}
+                            username_or_address={username_or_address}
+                          />
+                        )}
+                        {hasIntraday && (
+                          <BalanceHistoryChartLazy
+                            title={title}
+                            mode="intraday"
+                            intradayBalances={intradayBalances as IntradayBalanceEntry[]}
+                            username_or_address={username_or_address}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Show transaction status card when we detect a krypton_pay transaction */}
+                {isKryptonPay && (
+                  <div className="flex flex-col gap-2 justify-start items-start mt-2">
+                    {statusIdentity && (
+                      <div className="flex gap-2 justify-start items-start w-full">
+                        <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                          <img src="/clark process.svg" alt="Clark" className="h-8 w-8 opacity-90" />
                         </div>
-                        <div className="flex flex-col min-w-0 flex-1 overflow-hidden justify-center">
-                          <span className="text-white font-semibold text-sm tracking-tight whitespace-nowrap truncate" title={inlineTxData.to_address || undefined}>
-                            {inlineTxData.amount != null && inlineTxData.token
-                              ? `${Number(inlineTxData.amount).toFixed(2)} ${(inlineTxData.token || '').replace(/^k/i, '')}`
-                              : 'Transaction'
+                        <div className="max-w-[85%]">
+                          <TransactionStatus username={statusIdentity} initialData={inlineTxData} />
+                        </div>
+                      </div>
+                    )}
+                    {/* Persistent transaction row (TransactionHistory-style) so the tx stays visible in the feed */}
+                    {inlineTxData && (inlineTxData.amount != null || inlineTxData.transaction_id) && (
+                      <div className="w-full max-w-[85%] ml-10 rounded-b-xl border border-t-0 border-white/10 bg-black/30 px-3 py-2 flex items-center justify-between min-w-0">
+                        <div className="flex items-center min-w-0 flex-1 overflow-hidden">
+                          <div className="flex items-center justify-center w-8 h-8 mr-2 flex-shrink-0">
+                            {(inlineTxData.operation === 'swap' || inlineTxData.operation === 'swap_and_transfer')
+                              ? <ArrowUpDown className="h-4 w-4 text-cyan-400" style={{ transform: 'rotate(90deg)' }} />
+                              : <ArrowUpRight className="h-5 w-5 text-red-600" />
                             }
-                            {(inlineTxData.operation === 'swap' || inlineTxData.operation === 'swap_and_transfer') && ' · Swap'}
-                            {inlineTxData.operation === 'direct_transfer' && inlineTxData.to_address && ` · To ${inlineTxData.to_address.slice(0, 6)}...`}
-                          </span>
-                          <span className="text-zinc-400 text-xs mt-0.5">
-                            {inlineTxData.status === 'SUCCESS' || inlineTxData.status === 'COMPLETE' || inlineTxData.status === 'CONFIRMED'
-                              ? 'Completed'
-                              : inlineTxData.status || 'Processing...'}
-                          </span>
+                          </div>
+                          <div className="flex flex-col min-w-0 flex-1 overflow-hidden justify-center">
+                            <span className="text-white font-semibold text-sm tracking-tight whitespace-nowrap truncate" title={inlineTxData.to_address || undefined}>
+                              {inlineTxData.amount != null && inlineTxData.token
+                                ? `${Number(inlineTxData.amount).toFixed(2)} ${(inlineTxData.token || '').replace(/^k/i, '')}`
+                                : 'Transaction'
+                              }
+                              {(inlineTxData.operation === 'swap' || inlineTxData.operation === 'swap_and_transfer') && ' · Swap'}
+                              {inlineTxData.operation === 'direct_transfer' && inlineTxData.to_address && ` · To ${inlineTxData.to_address.slice(0, 6)}...`}
+                            </span>
+                            <span className="text-zinc-400 text-xs mt-0.5">
+                              {inlineTxData.status === 'SUCCESS' || inlineTxData.status === 'COMPLETE' || inlineTxData.status === 'CONFIRMED'
+                                ? 'Completed'
+                                : inlineTxData.status || 'Processing...'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                          {inlineTxData.created_at != null && (
+                            <span className="text-zinc-500 text-[10px] md:text-xs text-right whitespace-nowrap">
+                              {new Date((typeof inlineTxData.created_at === 'number' ? inlineTxData.created_at : parseInt(String(inlineTxData.created_at), 10)) * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              {' '}
+                              {new Date((typeof inlineTxData.created_at === 'number' ? inlineTxData.created_at : parseInt(String(inlineTxData.created_at), 10)) * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
+                          {inlineTxData.tx_hash && (
+                            <a
+                              href={`https://sepolia.etherscan.io/tx/${inlineTxData.tx_hash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="hover:text-cyan-400 cursor-pointer transition-all duration-200 hover:scale-110 group"
+                              title="View on Etherscan"
+                            >
+                              <CheckCircle className="h-5 w-5 text-green-500 group-hover:drop-shadow-sm" />
+                            </a>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                        {inlineTxData.created_at != null && (
-                          <span className="text-zinc-500 text-[10px] md:text-xs text-right whitespace-nowrap">
-                            {new Date((typeof inlineTxData.created_at === 'number' ? inlineTxData.created_at : parseInt(String(inlineTxData.created_at), 10)) * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                            {' '}
-                            {new Date((typeof inlineTxData.created_at === 'number' ? inlineTxData.created_at : parseInt(String(inlineTxData.created_at), 10)) * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        )}
-                        {inlineTxData.tx_hash && (
-                          <a
-                            href={`https://sepolia.etherscan.io/tx/${inlineTxData.tx_hash}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="hover:text-cyan-400 cursor-pointer transition-all duration-200 hover:scale-110 group"
-                            title="View on Etherscan"
-                          >
-                            <CheckCircle className="h-5 w-5 text-green-500 group-hover:drop-shadow-sm" />
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
+                    )}
+                  </div>
+                )}
+              </>
             )
           })()}
         </div>
@@ -1228,7 +1221,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
         <>
           <div className="flex gap-2 justify-start items-center">
             <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-              <img src="/clark process.svg" alt="Clark" className="h-8 w-8 animate-pulse opacity-90"  />
+              <img src="/clark process.svg" alt="Clark" className="h-8 w-8 animate-pulse opacity-90" />
             </div>
             <span className="text-xs font-medium text-white/90">Clark</span>
           </div>

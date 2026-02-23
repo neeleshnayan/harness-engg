@@ -43,6 +43,7 @@ export default function MiniClarkChat({
   const [interrupts, setInterrupts] = useState<InterruptFromApi[]>([])
   const [pendingInterruptResponse, setPendingInterruptResponse] = useState<{ query: string; userMessage: ChatMessage } | null>(null)
   const shownInterruptIdsRef = useRef<Set<string>>(new Set())
+  const approvedPaymentContextRef = useRef<Record<string, unknown> | null>(null)
 
   const shouldShowInputOnly = showInputOnly && !hasSentMessage
 
@@ -123,12 +124,78 @@ export default function MiniClarkChat({
       setPendingInterruptResponse(null)
       shownInterruptIdsRef.current.clear()
 
-      if (payload?.success && payload?.parsed_intent?.action === 'send_usdc' && payload.parsed_intent.confidence > 0.7) {
+      // Detect krypton_pay transactions so we can trigger balance/transaction refresh
+      const isLegacySendUsdc = payload?.parsed_intent?.action === 'send_usdc' && payload.parsed_intent.confidence > 0.7
+      const kryptonPayAgentIds = payload?.parsed_intent?.agent_ids || []
+      const isKryptonPayAgent = Array.isArray(kryptonPayAgentIds) && kryptonPayAgentIds.includes('krypton_pay')
+      const kryptonPayOp = payload?.parsed_intent?.operation
+      const isBalanceOnlyOp = ['balances', 'balances_daily', 'balances_intraday', 'price_history'].includes(kryptonPayOp)
+      const hasKryptonPayInFlow = (payload?.agent_flow?.nodes || []).some((n: any) =>
+        n.tool_name === 'consult_krypton_pay' || n.id === 'krypton_pay'
+      )
+      const isKryptonPayTransaction = payload?.success && !isBalanceOnlyOp &&
+        (isKryptonPayAgent || hasKryptonPayInFlow)
+
+      if (isLegacySendUsdc || isKryptonPayTransaction) {
         onBalanceFlicker?.()
         onBalanceRefresh?.()
         onTransactionRefresh?.()
       }
       const assistantMessage = createAssistantMessage(payload)
+      const approvedPaymentContext = approvedPaymentContextRef.current
+      if (approvedPaymentContext) {
+        const payloadAgentNodes = payload?.agent_flow?.nodes || []
+        const payloadHasTxData = Boolean(
+          payload?.data?.transaction_id ||
+          (typeof payload?.data?.status === 'string' && payload.data.status.toUpperCase() === 'SUBMITTED') ||
+          payload?.data?.operation ||
+          payloadAgentNodes.some((node: any) =>
+            Boolean(
+              node?.output?.data?.transaction_id ||
+              (typeof node?.output?.data?.status === 'string' && node.output.data.status.toUpperCase() === 'SUBMITTED') ||
+              node?.output?.data?.operation
+            )
+          )
+        )
+
+        if (!payloadHasTxData) {
+          const existingIntent =
+            assistantMessage.parsedIntent && typeof assistantMessage.parsedIntent === 'object'
+              ? assistantMessage.parsedIntent as Record<string, unknown>
+              : {}
+          const existingAgentIds = Array.isArray(existingIntent.agent_ids)
+            ? existingIntent.agent_ids.filter((v): v is string => typeof v === 'string')
+            : []
+          const operation =
+            (existingIntent.operation as string | undefined) ||
+            (approvedPaymentContext.operation as string | undefined) ||
+            'direct_transfer'
+
+          assistantMessage.parsedIntent = {
+            ...existingIntent,
+            operation,
+            agent_ids: Array.from(new Set([...existingAgentIds, 'krypton_pay'])),
+          }
+
+          if (!assistantMessage.agentFlow) {
+            assistantMessage.agentFlow = [{
+              id: 'krypton_pay',
+              name: 'Krypton Pay',
+              type: 'specialized',
+              status: 'completed',
+              tool_name: 'consult_krypton_pay',
+              output: {
+                success: true,
+                message: 'Awaiting transaction status',
+                has_data: true,
+                data: { operation },
+              },
+            }] as any
+          }
+        }
+
+        approvedPaymentContextRef.current = null
+      }
       setMessages(prev => [...prev, assistantMessage])
     } catch (error) {
       console.error('LangChain API error:', error)
@@ -147,9 +214,10 @@ export default function MiniClarkChat({
     }
   }
 
-  const handleInterruptApprove = async (interruptId: string) => {
+  const handleInterruptApprove = async (interruptId: string, reason?: Record<string, unknown>) => {
     const pending = pendingInterruptResponse
     if (!pending) return
+    approvedPaymentContextRef.current = reason ?? null
     setInterrupts([])
     setPendingInterruptResponse(null)
     const interruptResponses = [{ interruptResponse: { interruptId, response: 'yes' } }]
@@ -161,6 +229,7 @@ export default function MiniClarkChat({
   const handleInterruptReject = async (interruptId: string) => {
     const pending = pendingInterruptResponse
     if (!pending) return
+    approvedPaymentContextRef.current = null
     setInterrupts([])
     setPendingInterruptResponse(null)
     setMessages(prev => [...prev, {
@@ -358,7 +427,7 @@ export default function MiniClarkChat({
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleInterruptApprove(String(paymentInterrupt.id ?? ''))}
+                          onClick={() => handleInterruptApprove(String(paymentInterrupt.id ?? ''), reason)}
                           className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-sm font-medium border border-white/20"
                         >
                           Confirm
