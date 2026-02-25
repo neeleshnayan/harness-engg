@@ -2,11 +2,14 @@
 
 import React, { createContext, useContext, useRef, useMemo, useCallback } from "react";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { kryptonWeb3Api } from "@/lib/api";
+import { isErrorState, isSuccessState, isTerminalState } from "@/lib/circleStates";
 
 interface PendingTransaction {
   resolve: () => void;
   reject: (reason: Error) => void;
   timer: NodeJS.Timeout;
+  poller?: NodeJS.Timeout;
 }
 
 interface TransactionWebhookContextValue {
@@ -42,48 +45,114 @@ export function TransactionWebhookProvider({ walletAddress, children }: Transact
 
     const transactionId = message.transaction_id as string | undefined;
     if (!transactionId) return;
+    const eventKey = `${message.type}:${transactionId}`;
 
     // Deduplicate
-    if (processedEventsRef.current.has(transactionId)) {
-      console.log(`[WebhookCtx] Skipping duplicate event for ${transactionId}`);
+    if (processedEventsRef.current.has(eventKey)) {
       return;
     }
-    processedEventsRef.current.add(transactionId);
+    processedEventsRef.current.add(eventKey);
     setTimeout(() => {
-      processedEventsRef.current.delete(transactionId);
+      processedEventsRef.current.delete(eventKey);
     }, 5 * 60 * 1000);
 
-    console.log(`[WebhookCtx] Received ${message.type} for tx ${transactionId}`);
-
-    // Resolve any pending promise waiting on this txId
+    // Resolve/reject from websocket updates, not only explicit "transaction_confirmed".
     const pending = pendingRef.current.get(transactionId);
-    if (pending) {
+    if (!pending) return;
+
+    const rawStatus = (message.status || message.state || "").toString().toLowerCase();
+    if (message.type === "transaction_confirmed" || (rawStatus && isSuccessState(rawStatus))) {
       clearTimeout(pending.timer);
+      if (pending.poller) clearInterval(pending.poller);
       pendingRef.current.delete(transactionId);
       pending.resolve();
+      return;
+    }
+
+    if (rawStatus && isErrorState(rawStatus)) {
+      clearTimeout(pending.timer);
+      if (pending.poller) clearInterval(pending.poller);
+      pendingRef.current.delete(transactionId);
+      pending.reject(new Error(`Transaction ${transactionId} failed with status: ${rawStatus}`));
     }
   }, []);
 
   const { connectionStatus } = useWebSocket(wsUrl, {
     onMessage: handleMessage,
-    onOpen: () => console.log("[WebhookCtx] WebSocket connected"),
-    onClose: () => console.log("[WebhookCtx] WebSocket disconnected"),
+    onOpen: () => {},
+    onClose: () => {},
   });
 
   const waitForTransaction = useCallback((txId: string, timeoutMs = 60000): Promise<void> => {
-    // If already processed (e.g. webhook arrived before we started waiting)
-    if (processedEventsRef.current.has(txId)) {
-      console.log(`[WebhookCtx] tx ${txId} already confirmed`);
+    // If already confirmed (e.g. webhook arrived before we started waiting)
+    if (processedEventsRef.current.has(`transaction_confirmed:${txId}`)) {
       return Promise.resolve();
     }
 
     return new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => {
+        const pending = pendingRef.current.get(txId);
+        if (pending?.poller) clearInterval(pending.poller);
         pendingRef.current.delete(txId);
         reject(new Error(`Webhook timeout: no confirmation for tx ${txId} after ${timeoutMs / 1000}s`));
       }, timeoutMs);
 
       pendingRef.current.set(txId, { resolve, reject, timer });
+
+      // Fallback polling: handles missed websocket events and queued/promoted transactions.
+      const startedAt = Date.now();
+      const pollIntervalMs = 4000;
+      const interval = setInterval(async () => {
+        try {
+          const response = await kryptonWeb3Api.get(`/circle/transaction/${txId}`);
+          const data = response.data?.data || {};
+          const status = (data.status || data.state || "").toString().toLowerCase();
+          if (!status) {
+            if (Date.now() - startedAt >= timeoutMs) {
+              clearInterval(interval);
+            }
+            return;
+          }
+
+          if (isSuccessState(status) || (isTerminalState(status) && !isErrorState(status))) {
+            const pending = pendingRef.current.get(txId);
+            if (pending) {
+              clearTimeout(pending.timer);
+              if (pending.poller) clearInterval(pending.poller);
+              pendingRef.current.delete(txId);
+              pending.resolve();
+            }
+            clearInterval(interval);
+            return;
+          }
+
+          if (isErrorState(status)) {
+            const pending = pendingRef.current.get(txId);
+            if (pending) {
+              clearTimeout(pending.timer);
+              if (pending.poller) clearInterval(pending.poller);
+              pendingRef.current.delete(txId);
+              pending.reject(new Error(`Transaction ${txId} failed with status: ${status}`));
+            }
+            clearInterval(interval);
+            return;
+          }
+
+          if (Date.now() - startedAt >= timeoutMs) {
+            clearInterval(interval);
+          }
+        } catch {
+          if (Date.now() - startedAt >= timeoutMs) {
+            clearInterval(interval);
+          }
+        }
+      }, pollIntervalMs);
+
+      const pending = pendingRef.current.get(txId);
+      if (pending) {
+        pending.poller = interval;
+        pendingRef.current.set(txId, pending);
+      }
     });
   }, []);
 

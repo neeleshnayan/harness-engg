@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
 import { JsonRpcProvider, Contract, isAddress } from 'ethers';
+import { DEFAULT_SEPOLIA_RPC_URL, USDC_ADDRESS, WETH_ADDRESS, XAG_RWA_ADDRESS } from '@/lib/constants';
 
-// Simple in-memory cache to prevent redundant network calls across components
+// Simple in-memory cache to prevent redundant network calls across components.
+// Keys are normalized to lowercase addresses for consistency.
 const symbolCache: Record<string, string> = {
-    "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238": "USDC", // Common Sepolia USDC
-    "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14": "WETH", // Common Sepolia WETH (one of them)
-    "0x326251D13257939170769a8904614381736a0950": "XAG" // Known XAG from user request to pre-fill
+    [USDC_ADDRESS]: "USDC",
+    [WETH_ADDRESS]: "WETH",
+    [XAG_RWA_ADDRESS]: "XAG",
 };
 
-// Use an environment variable or fallback to a reliable public Sepolia RPC
+// Use a shared default Sepolia RPC URL (with env override).
 // Note: Public RPCs can be rate-limited.
-const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com";
+const RPC_URL = DEFAULT_SEPOLIA_RPC_URL;
 
 const ERC20_ABI = [
     "function symbol() view returns (string)"
@@ -57,9 +59,11 @@ export const useTokenSymbol = (tokenAddress?: string) => {
             return;
         }
 
+        const normalizedAddress = tokenAddress.toLowerCase();
+
         // Check cache first
-        if (symbolCache[tokenAddress]) {
-            setSymbol(symbolCache[tokenAddress]);
+        if (symbolCache[normalizedAddress]) {
+            setSymbol(symbolCache[normalizedAddress]);
             return;
         }
 
@@ -76,7 +80,7 @@ export const useTokenSymbol = (tokenAddress?: string) => {
                     const fetchedSymbol = await contract.symbol();
 
                     if (mounted) {
-                        symbolCache[tokenAddress] = fetchedSymbol;
+                        symbolCache[normalizedAddress] = fetchedSymbol;
                         setSymbol(fetchedSymbol);
                     }
                 });

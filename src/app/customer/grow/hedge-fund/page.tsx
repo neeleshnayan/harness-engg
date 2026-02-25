@@ -19,6 +19,7 @@ import { TransactionWebhookProvider } from "@/contexts/TransactionWebhookContext
 import { filterStrategies } from "./utils/strategyFilters";
 import { AvailableStrategiesSection } from "./components/AvailableStrategiesSection";
 import { useStrategiesWithMetrics } from "./hooks/useStrategiesWithMetrics";
+import { USDC_ADDRESS } from "@/lib/constants";
 
 export default function HedgeFundV2Page() {
   const router = useRouter();
@@ -153,7 +154,7 @@ export default function HedgeFundV2Page() {
           amount: batchData.usdc_balance,
           token: {
             symbol: "USDC",
-            address: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" // USDC address
+            address: USDC_ADDRESS,
           }
         });
       }
@@ -217,13 +218,13 @@ export default function HedgeFundV2Page() {
         setIsEditing(true);
         setShowDashboard(true);
         setFormData({
-            age: submissionData.age,
-            annualIncome: submissionData.annualIncome,
-            emergencyFund: submissionData.emergencyFund,
-            investmentDropReaction: submissionData.investmentDropReaction,
-            investmentStyle: submissionData.investmentStyle,
-            marketLossExperience: submissionData.marketLossExperience,
-            portfolioComfort: submissionData.portfolioComfort
+          age: submissionData.age,
+          annualIncome: submissionData.annualIncome,
+          emergencyFund: submissionData.emergencyFund,
+          investmentDropReaction: submissionData.investmentDropReaction,
+          investmentStyle: submissionData.investmentStyle,
+          marketLossExperience: submissionData.marketLossExperience,
+          portfolioComfort: submissionData.portfolioComfort
         });
       }
     } catch (err: any) {
@@ -278,7 +279,7 @@ export default function HedgeFundV2Page() {
 
   if (success) {
     return (
-      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#001C1B] p-4 sm:p-8">
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[hsl(var(--brand-bg))] p-4 sm:p-8">
         <div className="text-center max-w-md bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl p-8 shadow-2xl">
           <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="h-10 w-10 text-green-400" />
@@ -289,7 +290,7 @@ export default function HedgeFundV2Page() {
           </p>
           <button
             onClick={() => setShowDashboard(true)}
-            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-200"
+            className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-200"
           >
             Go to Dashboard
           </button>
@@ -300,9 +301,9 @@ export default function HedgeFundV2Page() {
 
   if (balanceLoading) {
     return (
-      <div className="min-h-screen w-full bg-[#001C1B] dark overflow-x-hidden flex items-center justify-center">
+      <div className="min-h-screen w-full bg-[hsl(var(--brand-bg))] dark overflow-x-hidden flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-[hsl(var(--brand-accent))] border-t-transparent mx-auto mb-4"></div>
           <p className="text-zinc-400 font-medium">Loading balance...</p>
         </div>
       </div>
@@ -312,7 +313,7 @@ export default function HedgeFundV2Page() {
   return (
     <TransactionWebhookProvider walletAddress={accountData?.wallet_address}>
       <Toaster />
-      <div className="min-h-screen w-full min-w-0 bg-[#001C1B] dark overflow-x-hidden">
+      <div className="min-h-screen w-full min-w-0 bg-[hsl(var(--brand-bg))] dark overflow-x-hidden">
         <WalletHeader
           accountData={accountData}
           onLogout={handleLogout}

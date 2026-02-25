@@ -81,7 +81,7 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
 
   const getTokenIcon = (symbol: string) => {
     const upperSymbol = symbol.toUpperCase();
-    
+
     // Map currency symbols to their SVG icons
     const currencyIconMap: Record<string, string> = {
       'KGBP': '/currencies/GBP.svg',
@@ -483,16 +483,15 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
               Token Portfolio
             </h3>
             <ChevronDown
-              className={`w-5 h-5 text-zinc-400/70 transition-transform duration-300 ${
-                isExpanded ? 'rotate-180' : ''
-              }`}
+              className={`w-5 h-5 text-zinc-400/70 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''
+                }`}
             />
           </div>
-          
+
           {/* Balance Values */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div className="text-center">
-              <div className="text-2xl sm:text-3xl font-bold mb-1 tracking-tight" style={{ color: '#90E7EE' }}>
+              <div className="text-2xl sm:text-3xl font-bold mb-1 tracking-tight text-[hsl(var(--brand-accent))]">
                 {priceLoading || loading ? (
                   <Skeleton className="h-8 w-32 bg-white/10 mx-auto" />
                 ) : (
@@ -547,14 +546,14 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
                     content={(props) => {
                       if (!props.active || !props.payload || !props.payload.length) return null;
                       const data = props.payload[0].payload;
-                      
+
                       // Format date for tooltip
                       const formatTooltipDate = (date: string) => {
                         if (!date) return '';
                         try {
                           const dateObj = new Date(date);
-                          return dateObj.toLocaleDateString('en-US', { 
-                            month: 'short', 
+                          return dateObj.toLocaleDateString('en-US', {
+                            month: 'short',
                             day: 'numeric',
                             year: dateObj.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
                           });
@@ -562,7 +561,7 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
                           return date;
                         }
                       };
-                      
+
                       return (
                         <StrategyChartTooltip
                           active={props.active}
@@ -613,9 +612,8 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
 
         {/* Collapsible Content */}
         <div
-          className={`overflow-hidden transition-all duration-500 ease-in-out ${
-            isExpanded ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'
-          }`}
+          className={`overflow-hidden transition-all duration-500 ease-in-out ${isExpanded ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'
+            }`}
         >
           {/* Horizontal Tabs */}
           {availableTabs.length > 0 && (
@@ -624,14 +622,13 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`relative overflow-hidden px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${
-                    currentTab === tab
-                      ? 'shadow-lg backdrop-blur-sm'
-                      : 'text-zinc-400/70 hover:text-zinc-300 bg-white/5 hover:bg-white/10 backdrop-blur-sm'
-                  }`}
-                  style={currentTab === tab ? { 
-                    backgroundColor: '#90E7EE',
-                    color: '#001C1B'
+                  className={`relative overflow-hidden px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${currentTab === tab
+                    ? 'shadow-lg backdrop-blur-sm'
+                    : 'text-zinc-400/70 hover:text-zinc-300 bg-white/5 hover:bg-white/10 backdrop-blur-sm'
+                    }`}
+                  style={currentTab === tab ? {
+                    backgroundColor: 'hsl(183, 71%, 75%)',
+                    color: 'hsl(180, 100%, 5%)'
                   } : {}}
                 >
                   {tab === 'k_tokens' && currentTab === tab && (
@@ -645,90 +642,88 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
 
           {/* Token List for Active Tab */}
           {currentTokens.length > 0 && (
-          <div className="space-y-3 sm:space-y-4 lg:space-y-5 mb-6 lg:mb-8">
-            {currentTokens.map((tokenDetail: TokenWithValue, index: number) => (
-              <div
-                key={`${tokenDetail.token.id}-${index}`}
-                className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/10 transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20 "
-                style={{
-                  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
-                }}
-              >
-                <div className="relative p-4 sm:p-5 lg:p-7 xl:p-8">
-                  {/* Mobile: Stacked Layout, Desktop: Side by Side */}
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-5 lg:gap-6 mb-5 lg:mb-6">
-                    {/* Left: Icon and Token Info */}
-                    <div className="flex items-start gap-3 sm:gap-4 lg:gap-5 flex-1 min-w-0">
-                      <div className="flex-shrink-0">
-                        {getTokenIcon(tokenDetail.token.symbol)}
+            <div className="space-y-3 sm:space-y-4 lg:space-y-5 mb-6 lg:mb-8">
+              {currentTokens.map((tokenDetail: TokenWithValue, index: number) => (
+                <div
+                  key={`${tokenDetail.token.id}-${index}`}
+                  className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/10 transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20 "
+                  style={{
+                    boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                  }}
+                >
+                  <div className="relative p-4 sm:p-5 lg:p-7 xl:p-8">
+                    {/* Mobile: Stacked Layout, Desktop: Side by Side */}
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-5 lg:gap-6 mb-5 lg:mb-6">
+                      {/* Left: Icon and Token Info */}
+                      <div className="flex items-start gap-3 sm:gap-4 lg:gap-5 flex-1 min-w-0">
+                        <div className="flex-shrink-0">
+                          {getTokenIcon(tokenDetail.token.symbol)}
+                        </div>
+                        <div className="flex-1 min-w-0 pt-0.5 lg:pt-1">
+                          <h4 className="text-base sm:text-lg lg:text-xl xl:text-2xl font-semibold text-white mb-1 sm:mb-1.5 lg:mb-2 tracking-tight truncate drop-shadow-sm">
+                            {tokenDetail.token.name || tokenDetail.token.symbol}
+                          </h4>
+                          <p className="text-zinc-300/80 text-xs sm:text-sm lg:text-base font-medium drop-shadow-sm">
+                            {tokenDetail.token.symbol}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0 pt-0.5 lg:pt-1">
-                        <h4 className="text-base sm:text-lg lg:text-xl xl:text-2xl font-semibold text-white mb-1 sm:mb-1.5 lg:mb-2 tracking-tight truncate drop-shadow-sm">
-                          {tokenDetail.token.name || tokenDetail.token.symbol}
-                        </h4>
-                        <p className="text-zinc-300/80 text-xs sm:text-sm lg:text-base font-medium drop-shadow-sm">
-                          {tokenDetail.token.symbol}
-                        </p>
-                      </div>
-                    </div>
 
-                    {/* Right: Balance and Value - Mobile: Full Width, Desktop: Right Aligned */}
-                    <div className="flex flex-col sm:text-right sm:flex-shrink-0 w-full sm:w-auto space-y-2 sm:space-y-2.5 lg:space-y-3">
-                      {/* Quantity with Label */}
-                      <div>
-                        <div className="text-xs text-zinc-400/70 mb-1 sm:hidden">Balance</div>
-                        <div className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-semibold text-white tracking-tight drop-shadow-sm leading-tight">
-                          {formatTokenAmount(tokenDetail.amount, tokenDetail.token.decimals, tokenDetail.token.symbol)} <span className="text-zinc-300/70 text-sm sm:text-base lg:text-lg xl:text-xl font-medium">{tokenDetail.token.symbol}</span>
-                        </div>
-                      </div>
-                      
-                      {/* Price and 24hr Change */}
-                      <div className="sm:text-right">
-                        <div className="text-xs text-zinc-400/70 mb-1 sm:hidden">Price</div>
-                        <div className="flex items-baseline gap-2 sm:gap-2.5 lg:gap-3 sm:justify-end">
-                          <div className="text-zinc-300/90 text-xs sm:text-sm lg:text-base font-medium drop-shadow-sm">
-                            ${tokenDetail.price.toFixed(4)}
+                      {/* Right: Balance and Value - Mobile: Full Width, Desktop: Right Aligned */}
+                      <div className="flex flex-col sm:text-right sm:flex-shrink-0 w-full sm:w-auto space-y-2 sm:space-y-2.5 lg:space-y-3">
+                        {/* Quantity with Label */}
+                        <div>
+                          <div className="text-xs text-zinc-400/70 mb-1 sm:hidden">Balance</div>
+                          <div className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-semibold text-white tracking-tight drop-shadow-sm leading-tight">
+                            {formatTokenAmount(tokenDetail.amount, tokenDetail.token.decimals, tokenDetail.token.symbol)} <span className="text-zinc-300/70 text-sm sm:text-base lg:text-lg xl:text-xl font-medium">{tokenDetail.token.symbol}</span>
                           </div>
-                          {(() => {
-                            // Get token symbol - check address map first, then fallback to token symbol
-                            const tokenAddress = tokenDetail.token.tokenAddress?.toLowerCase();
-                            const rateSymbol = tokenAddress ? tokenAddressMap[tokenAddress] : tokenDetail.token.symbol;
-                            const tokenRate = rateSymbol ? tokens[rateSymbol] : null;
-                            const percentChange = tokenRate?.percentage_change ?? null;
-                            const direction = tokenRate?.direction ?? 'same';
-                            
-                            if (percentChange !== null && Math.abs(percentChange) >= 0.01) {
-                              const isPositive = direction === 'up' || percentChange > 0;
-                              return (
-                                <div className={`flex items-center gap-1 text-xs sm:text-sm lg:text-base font-semibold ${
-                                  isPositive ? 'text-emerald-400' : 'text-red-400'
-                                }`}>
-                                  <Triangle 
-                                    className={`h-2.5 w-2.5 sm:h-3 sm:w-3 lg:h-3.5 lg:w-3.5 ${isPositive ? '' : 'rotate-180'}`}
-                                    fill={isPositive ? '#22c55e' : '#ef4444'}
-                                  />
-                                  <span>{Math.abs(percentChange).toFixed(2)}%</span>
-                                  <span className="text-zinc-400/60 text-[10px] ml-0.5 sm:hidden">24h</span>
-                                </div>
-                              );
-                            }
-                            return null;
-                          })()}
                         </div>
-                      </div>
-                      
-                      {/* Total Value with Label */}
-                      <div>
-                        <div className="text-xs text-zinc-400/70 mb-1 sm:hidden">Total Value</div>
-                        <div className={`text-base sm:text-lg lg:text-xl xl:text-2xl font-semibold drop-shadow-sm leading-tight ${
-                          (() => {
+
+                        {/* Price and 24hr Change */}
+                        <div className="sm:text-right">
+                          <div className="text-xs text-zinc-400/70 mb-1 sm:hidden">Price</div>
+                          <div className="flex items-baseline gap-2 sm:gap-2.5 lg:gap-3 sm:justify-end">
+                            <div className="text-zinc-300/90 text-xs sm:text-sm lg:text-base font-medium drop-shadow-sm">
+                              ${tokenDetail.price.toFixed(4)}
+                            </div>
+                            {(() => {
+                              // Get token symbol - check address map first, then fallback to token symbol
+                              const tokenAddress = tokenDetail.token.tokenAddress?.toLowerCase();
+                              const rateSymbol = tokenAddress ? tokenAddressMap[tokenAddress] : tokenDetail.token.symbol;
+                              const tokenRate = rateSymbol ? tokens[rateSymbol] : null;
+                              const percentChange = tokenRate?.percentage_change ?? null;
+                              const direction = tokenRate?.direction ?? 'same';
+
+                              if (percentChange !== null && Math.abs(percentChange) >= 0.01) {
+                                const isPositive = direction === 'up' || percentChange > 0;
+                                return (
+                                  <div className={`flex items-center gap-1 text-xs sm:text-sm lg:text-base font-semibold ${isPositive ? 'text-emerald-400' : 'text-red-400'
+                                    }`}>
+                                    <Triangle
+                                      className={`h-2.5 w-2.5 sm:h-3 sm:w-3 lg:h-3.5 lg:w-3.5 ${isPositive ? '' : 'rotate-180'}`}
+                                      fill={isPositive ? '#22c55e' : '#ef4444'}
+                                    />
+                                    <span>{Math.abs(percentChange).toFixed(2)}%</span>
+                                    <span className="text-zinc-400/60 text-[10px] ml-0.5 sm:hidden">24h</span>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </div>
+                        </div>
+
+                        {/* Total Value with Label */}
+                        <div>
+                          <div className="text-xs text-zinc-400/70 mb-1 sm:hidden">Total Value</div>
+                          <div className={`text-base sm:text-lg lg:text-xl xl:text-2xl font-semibold drop-shadow-sm leading-tight ${(() => {
                             // Get rate change direction to determine color
                             const tokenAddress = tokenDetail.token.tokenAddress?.toLowerCase();
                             const rateSymbol = tokenAddress ? tokenAddressMap[tokenAddress] : tokenDetail.token.symbol;
                             const tokenRate = rateSymbol ? tokens[rateSymbol] : null;
                             const direction = tokenRate?.direction ?? 'same';
                             const percentChange = tokenRate?.percentage_change ?? null;
-                            
+
                             // Use rate direction if available, otherwise fallback to value >= 0
                             if (direction === 'up' || (percentChange !== null && percentChange > 0)) {
                               return 'text-emerald-400';
@@ -738,36 +733,36 @@ const TokenBalances: React.FC<TokenBalancesProps> = ({
                             // Default: green for positive value, red for negative
                             return tokenDetail.value >= 0 ? 'text-emerald-400' : 'text-red-400';
                           })()
-                        }`}>
-                          {formatValue(tokenDetail.value)}
+                            }`}>
+                            {formatValue(tokenDetail.value)}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Portfolio Chart */}
-                  {tokenDetail.portfolioHistory && tokenDetail.portfolioHistory.length > 0 && (() => {
-                    // Get rate change direction for chart color
-                    const tokenAddress = tokenDetail.token.tokenAddress?.toLowerCase();
-                    const rateSymbol = tokenAddress ? tokenAddressMap[tokenAddress] : tokenDetail.token.symbol;
-                    const tokenRate = rateSymbol ? tokens[rateSymbol] : null;
-                    const direction = tokenRate?.direction ?? 'same';
-                    
-                    return (
-                      <div className="mt-5 lg:mt-6 pt-5 lg:pt-6 border-t border-white/10 lg:border-white/15">
-                        <div className="w-full">
-                          <TokenPortfolioChart 
-                            data={tokenDetail.portfolioHistory} 
-                            rateChangeDirection={direction}
-                          />
+                    {/* Portfolio Chart */}
+                    {tokenDetail.portfolioHistory && tokenDetail.portfolioHistory.length > 0 && (() => {
+                      // Get rate change direction for chart color
+                      const tokenAddress = tokenDetail.token.tokenAddress?.toLowerCase();
+                      const rateSymbol = tokenAddress ? tokenAddressMap[tokenAddress] : tokenDetail.token.symbol;
+                      const tokenRate = rateSymbol ? tokens[rateSymbol] : null;
+                      const direction = tokenRate?.direction ?? 'same';
+
+                      return (
+                        <div className="mt-5 lg:mt-6 pt-5 lg:pt-6 border-t border-white/10 lg:border-white/15">
+                          <div className="w-full">
+                            <TokenPortfolioChart
+                              data={tokenDetail.portfolioHistory}
+                              rateChangeDirection={direction}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })()}
+                      );
+                    })()}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
           )}
 
           {/* Footer with token count */}

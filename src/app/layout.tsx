@@ -23,7 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link rel="icon" href="/favicon.ico" sizes="32x32" type="image/x-icon" />
+        <link rel="icon" href="/Krypton logo.svg" type="image/svg+xml" />
       </head>
       <body className={`${instrumentSans.variable} ${instrumentSans.className}`}>
         <QueryProvider>

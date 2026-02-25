@@ -13,10 +13,10 @@ interface WebSocketMessage {
 interface UseWebSocketOptions {
   onMessage?: (message: WebSocketMessage) => void;
   onOpen?: () => void;
-  onClose?: () => void;
-  onError?: (error: Event) => void;
-  reconnectInterval?: number;
-  maxReconnectAttempts?: number;
+  onClose?: (event?: CloseEvent) => void;
+  onError?: (error: Event | Record<string, unknown>) => void;
+  reconnectInterval?: number; // base delay in ms
+  maxReconnectAttempts?: number | null; // null/undefined => unlimited
 }
 
 export const useWebSocket = (
@@ -28,8 +28,8 @@ export const useWebSocket = (
     onOpen,
     onClose,
     onError,
-    reconnectInterval = 3000,
-    maxReconnectAttempts = 5
+    reconnectInterval = 1000,
+    maxReconnectAttempts = null
   } = options;
 
   // Create stable references to the callback functions to prevent unnecessary reconnections
@@ -50,6 +50,7 @@ export const useWebSocket = (
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const isConnectingRef = useRef(false);
+  const lastCloseRef = useRef<{ code: number; reason: string; wasClean: boolean } | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
 
   const connect = useCallback(() => {
@@ -71,6 +72,7 @@ export const useWebSocket = (
       ws.onopen = () => {
         isConnectingRef.current = false;
         reconnectAttemptsRef.current = 0;
+        lastCloseRef.current = null;
         setConnectionStatus('connected');
         onOpenRef.current?.();
       };
@@ -90,25 +92,60 @@ export const useWebSocket = (
 
       ws.onclose = (event) => {
         isConnectingRef.current = false;
+        lastCloseRef.current = {
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean,
+        };
         setConnectionStatus('disconnected');
-        onCloseRef.current?.();
+        onCloseRef.current?.(event);
 
-        // Attempt to reconnect if not manually closed
-        if (event.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
+        // Attempt to reconnect if not manually closed.
+        if (event.code !== 1000) {
+          reconnectAttemptsRef.current += 1;
+
+          // Optional max attempts; if reached, cool down then retry.
+          if (
+            maxReconnectAttempts &&
+            maxReconnectAttempts > 0 &&
+            reconnectAttemptsRef.current >= maxReconnectAttempts
+          ) {
+            console.error('Max reconnection attempts reached, retrying after cooldown');
+            setConnectionStatus('error');
+            reconnectTimeoutRef.current = setTimeout(() => {
+              reconnectAttemptsRef.current = 0;
+              connect();
+            }, 60000);
+            return;
+          }
+
+          // Exponential backoff with jitter and upper cap.
+          const cappedBaseDelay = Math.min(
+            reconnectInterval * Math.pow(2, reconnectAttemptsRef.current - 1),
+            30000
+          );
+          const jitterFactor = 0.8 + Math.random() * 0.4; // 0.8x..1.2x
+          const reconnectDelay = Math.floor(cappedBaseDelay * jitterFactor);
+
           reconnectTimeoutRef.current = setTimeout(() => {
-            reconnectAttemptsRef.current++;
             connect();
-          }, reconnectInterval);
-        } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
-          console.error('Max reconnection attempts reached');
-          setConnectionStatus('error');
+          }, reconnectDelay);
         }
       };
 
       ws.onerror = (error) => {
         isConnectingRef.current = false;
         setConnectionStatus('error');
-        onErrorRef.current?.(error);
+        // Browser websocket error events are often opaque ({}). Include contextual diagnostics.
+        onErrorRef.current?.({
+          type: 'websocket_error',
+          readyState: ws.readyState,
+          url,
+          lastCloseCode: lastCloseRef.current?.code,
+          lastCloseReason: lastCloseRef.current?.reason,
+          lastCloseWasClean: lastCloseRef.current?.wasClean,
+          originalEventType: error?.type,
+        });
       };
     } catch (error) {
       console.error('Failed to create WebSocket:', error);
@@ -136,7 +173,6 @@ export const useWebSocket = (
   const send = useCallback((data: any) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(data));
-    } else {
     }
   }, []);
 

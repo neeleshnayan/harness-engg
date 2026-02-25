@@ -169,7 +169,7 @@ export default function MiniHedgeFundChat({
 
   return (
     <>
-      <div className="relative w-full min-w-0 flex flex-col rounded-2xl bg-[#001C1B] overflow-hidden shadow-xl max-h-[70vh]">
+      <div className="relative w-full min-w-0 flex flex-col rounded-2xl bg-[hsl(var(--brand-bg))] overflow-hidden shadow-xl max-h-[70vh]">
         <Button
           onClick={handleExpand}
           variant="ghost"

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
-import { ArrowUpRight, ArrowDownLeft, Clock, CheckCircle, XCircle, AlertCircle, ArrowUpDown, ArrowRightLeft } from 'lucide-react';
+import React, { useState, useEffect, useImperativeHandle, forwardRef, useRef, useCallback } from 'react';
+import { Clock, AlertCircle, ArrowRightLeft } from 'lucide-react';
 import { kryptonWeb3Api } from '@/lib/api';
 
 interface Transaction {
@@ -22,84 +22,197 @@ interface Transaction {
   amount_out?: number;
   pool?: string;
   // Common
-  status?: string; // Derived or future use
+  status?: string;
   raw?: any;
 }
 
 interface TransactionHistoryProps {
   username: string;
   userWalletAddress: string;
-  refresh?: boolean;
+  refreshKey?: number;
+  scrollRoot?: React.RefObject<HTMLDivElement | null>;
+  incomingTransaction?: Transaction | null;
+  incomingTransactionVersion?: number;
+  /** Pre-fetched first page — skips the initial network call when provided. */
+  initialData?: {
+    transactions: Transaction[];
+    count: number;
+    has_more: boolean;
+  };
 }
 
 export interface TransactionHistoryRef {
   refresh: () => void;
 }
 
+const PAGE_SIZE = 10;
+const MAX_ITEMS = 50;
+
 const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryProps>(
-  ({ username, userWalletAddress, refresh }, ref) => {
+  ({
+    username,
+    userWalletAddress,
+    refreshKey,
+    scrollRoot,
+    incomingTransaction,
+    incomingTransactionVersion,
+    initialData,
+  }, ref) => {
+    const txDebugEnabled =
+      process.env.NEXT_PUBLIC_TX_DEBUG === "1" ||
+      (typeof window !== "undefined" && window.localStorage.getItem("krypton_tx_debug") === "1");
+    const txDebug = useCallback((event: string, payload?: Record<string, unknown>) => {
+      if (!txDebugEnabled) return;
+      // eslint-disable-next-line no-console
+      console.log(`[TX_DEBUG] TransactionHistory:${event}`, payload || {});
+    }, [txDebugEnabled]);
+
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [totalCount, setTotalCount] = useState<number>(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [offset, setOffset] = useState(0);
     const [loadingMore, setLoadingMore] = useState(false);
-    const LIMIT = 50;
+    const [hasMore, setHasMore] = useState(true);
+    const offsetRef = useRef(0);
+    const sentinelRef = useRef<HTMLDivElement>(null);
+    const fetchInFlightRef = useRef(false);
+    // Track whether we have already consumed the one-shot initialData
+    const initialDataUsedRef = useRef(false);
 
-    const fetchTransactions = async () => {
+    const fetchTransactions = useCallback(async () => {
+      if (fetchInFlightRef.current) {
+        txDebug("fetch_skipped_inflight", { username, page: 0 });
+        return;
+      }
       try {
+        fetchInFlightRef.current = true;
         setLoading(true);
         setError(null);
-        // Reset offset on fresh fetch
-        setOffset(0);
-        const response = await kryptonWeb3Api.get(`/subgraph/transactions/${username}?limit=${LIMIT}&skip=0`);
+        offsetRef.current = 0;
+        const response = await kryptonWeb3Api.get(`/subgraph/transactions/${username}?limit=${PAGE_SIZE}&skip=0`);
         const data = response.data;
         if (data.error) {
           setError(data.error);
         } else {
-          setTransactions(data.transactions || []);
+          const txs = data.transactions || [];
+          txDebug("fetch_page", {
+            username,
+            page: 0,
+            count: txs.length,
+            usdc_count: txs.filter((t: Transaction) => t.token === "USDC").length,
+            hashes: txs.map((t: Transaction) => t.hash),
+          });
+          setTransactions(txs);
           setTotalCount(data.count || 0);
-          setOffset(LIMIT);
+          offsetRef.current = txs.length;
+          // Use has_more from API, fallback to checking tx array size against MAX_ITEMS
+          setHasMore(data.has_more ?? (txs.length < Math.min(data.count || 0, MAX_ITEMS)));
         }
       } catch (err) {
+        txDebug("fetch_error", { username, page: 0 });
         console.error('Error fetching transactions:', err);
         setError('Failed to fetch transactions');
       } finally {
+        fetchInFlightRef.current = false;
         setLoading(false);
       }
-    };
+    }, [username, txDebug]);
 
     useImperativeHandle(ref, () => ({
       refresh: fetchTransactions
-    }));
+    }), [fetchTransactions]);
 
     useEffect(() => {
+      // On first mount: use the pre-fetched initialData to avoid a duplicate network
+      // call. Once consumed, any subsequent refreshKey change triggers a real fetch.
+      if (initialData && !initialDataUsedRef.current) {
+        initialDataUsedRef.current = true;
+        const txs = initialData.transactions || [];
+        setTransactions(txs);
+        setTotalCount(initialData.count || 0);
+        offsetRef.current = txs.length;
+        setHasMore(initialData.has_more ?? txs.length < Math.min(initialData.count || 0, MAX_ITEMS));
+        setLoading(false);
+        return;
+      }
       fetchTransactions();
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [username, refresh]);
+    }, [fetchTransactions, refreshKey]);
 
-    const loadMore = async () => {
-      if (transactions.length >= totalCount) return;
+    // Append a single websocket-supplied transaction instead of refetching full history.
+    useEffect(() => {
+      const tx = incomingTransaction;
+      if (!tx || !tx.hash) return;
+      setTransactions(prev => {
+        const deduped = prev.filter(item => item.hash !== tx.hash);
+        const merged = [tx, ...deduped];
+        return merged.slice(0, MAX_ITEMS);
+      });
+      setTotalCount(prev => prev + 1);
+      txDebug("append_single_tx", {
+        username,
+        hash: tx.hash,
+        type: tx.type,
+      });
+    }, [incomingTransactionVersion, incomingTransaction, username, txDebug]);
+
+    const loadMore = useCallback(async () => {
+      if (loadingMore || !hasMore) return;
+      const currentOffset = offsetRef.current;
+      if (currentOffset >= MAX_ITEMS) {
+        setHasMore(false);
+        return;
+      }
       try {
         setLoadingMore(true);
-        const response = await kryptonWeb3Api.get(`/subgraph/transactions/${username}?limit=${LIMIT}&skip=${offset}`);
+        const response = await kryptonWeb3Api.get(`/subgraph/transactions/${username}?limit=${PAGE_SIZE}&skip=${currentOffset}`);
         const data = response.data;
         if (data.error) {
           setError(data.error);
         } else {
-          setTransactions(prev => [...prev, ...(data.transactions || [])]);
-          setOffset(prev => prev + LIMIT);
+          const newTxs = data.transactions || [];
+          txDebug("fetch_page", {
+            username,
+            page: Math.floor(currentOffset / PAGE_SIZE),
+            count: newTxs.length,
+            usdc_count: newTxs.filter((t: Transaction) => t.token === "USDC").length,
+            hashes: newTxs.map((t: Transaction) => t.hash),
+          });
+          setTransactions(prev => {
+            const combined = [...prev, ...newTxs];
+            return combined.slice(0, MAX_ITEMS);
+          });
+          offsetRef.current = currentOffset + newTxs.length;
+          // Use has_more from API, falling back to basic checks
+          setHasMore(data.has_more ?? (newTxs.length === PAGE_SIZE && (currentOffset + newTxs.length) < Math.min(data.count || totalCount, MAX_ITEMS)));
         }
       } catch (err) {
+        txDebug("fetch_error", { username, page: Math.floor(currentOffset / PAGE_SIZE) });
         console.error('Error loading more transactions:', err);
-        setError('Failed to load more transactions');
       } finally {
         setLoadingMore(false);
       }
-    };
+    }, [loadingMore, hasMore, username, totalCount, txDebug]);
+
+    // IntersectionObserver for infinite scroll
+    useEffect(() => {
+      const sentinel = sentinelRef.current;
+      if (!sentinel) return;
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+            loadMore();
+          }
+        },
+        { root: scrollRoot?.current || null, rootMargin: '100px' }
+      );
+
+      observer.observe(sentinel);
+      return () => observer.disconnect();
+    }, [hasMore, loadingMore, loading, loadMore]);
 
     const getStatusIcon = (tx: Transaction) => {
-      // Default to success as backend filters confirmed txs usually, but handle failure if status present
       const isFailed = tx.status === 'failed';
       const iconSrc = isFailed ? "/check-circle-failed.svg" : "/check-circle-succeeded.svg";
 
@@ -118,16 +231,14 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
 
     const getTransactionTypeIcon = (type: string, large = false) => {
       if (type === 'swap') {
-         // Swap icon needs a container because the SVG is just arrows
-         const containerSize = large ? 'w-16 h-16' : 'w-10 h-10';
-         const iconSize = large ? 'w-8 h-8' : 'w-5 h-5';
-         return (
-           <div className={`flex items-center justify-center ${containerSize} bg-white/10 rounded-md`}>
-             <ArrowRightLeft className={`${iconSize} text-white`} />
-           </div>
-         );
+        const containerSize = large ? 'w-16 h-16' : 'w-10 h-10';
+        const iconSize = large ? 'w-8 h-8' : 'w-5 h-5';
+        return (
+          <div className={`flex items-center justify-center ${containerSize} bg-white/10 rounded-md`}>
+            <ArrowRightLeft className={`${iconSize} text-white`} />
+          </div>
+        );
       }
-      // Transfer icons have built-in background
       const size = large ? 'w-16 h-16' : 'w-10 h-10';
       return type === 'transfer_in' ?
         <img src="/receive-icon.svg" alt="Received" className={size} /> :
@@ -137,6 +248,53 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
     const shortenAddress = (address?: string) => {
       if (!address) return 'Unknown';
       return `${address.slice(0, 6)}...${address.slice(-4)}`;
+    };
+    const displayIdentity = (username?: string, address?: string) => {
+      const normalized = (username || '').trim().toLowerCase();
+      if (normalized && normalized !== 'unknown' && normalized !== 'n/a') {
+        return `@${username}`;
+      }
+      return shortenAddress(address);
+    };
+
+    const getSwapCounterparty = (tx: Transaction): { label: string; value: string; highlight: boolean } | null => {
+      const userAddr = (userWalletAddress || '').toLowerCase();
+      const userName = (username || '').trim().toLowerCase();
+      const fromAddr = (tx.from || '').toLowerCase();
+      const toAddr = (tx.to || '').toLowerCase();
+      const fromUser = (tx.from_username || '').trim().toLowerCase();
+      const toUser = (tx.to_username || '').trim().toLowerCase();
+
+      // Self-swap: suppress counterparty labels and keep "Pool Swap".
+      if (
+        (userAddr && fromAddr === userAddr && toAddr === userAddr) ||
+        (userName && (
+          (fromUser && fromUser === userName && toUser && toUser === userName) ||
+          (toUser && toUser === userName)
+        ))
+      ) {
+        return null;
+      }
+
+      if (userAddr && fromAddr === userAddr && tx.to && toAddr !== userAddr) {
+        const value = displayIdentity(tx.to_username, tx.to);
+        const highlight = !!(tx.to_username && tx.to_username.trim().toLowerCase() !== 'unknown' && tx.to_username.trim().toLowerCase() !== 'n/a');
+        return { label: 'To: ', value, highlight };
+      }
+
+      if (userAddr && toAddr === userAddr && tx.from && fromAddr !== userAddr) {
+        const value = displayIdentity(tx.from_username, tx.from);
+        const highlight = !!(tx.from_username && tx.from_username.trim().toLowerCase() !== 'unknown' && tx.from_username.trim().toLowerCase() !== 'n/a');
+        return { label: 'From: ', value, highlight };
+      }
+
+      if (tx.to_username || tx.to) {
+        const value = displayIdentity(tx.to_username, tx.to);
+        const highlight = !!(tx.to_username && tx.to_username.trim().toLowerCase() !== 'unknown' && tx.to_username.trim().toLowerCase() !== 'n/a');
+        return { label: 'To: ', value, highlight };
+      }
+
+      return null;
     };
 
     const formatToken = (symbol?: string) => {
@@ -155,7 +313,7 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
     const formatDateOnly = (timestamp: number) => {
       if (!timestamp) return '';
       try {
-        const date = new Date(timestamp * 1000); // Subgraph returns seconds
+        const date = new Date(timestamp * 1000);
         return date.toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric'
@@ -181,7 +339,7 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
     if (loading) {
       return (
         <div className="flex items-center justify-center py-4">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-cyan-400"></div>
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[hsl(var(--brand-accent))]"></div>
         </div>
       );
     }
@@ -197,7 +355,7 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
 
     if (transactions.length === 0) {
       return (
-        <div className="text-center py-4 text-gray-400 text-xs flex items-center justify-center gap-2">
+        <div className="text-center py-4 text-zinc-400 text-xs flex items-center justify-center gap-2">
           <Clock className="h-4 w-4" />
           <span>No transactions yet</span>
         </div>
@@ -208,30 +366,16 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
       <div className="flex flex-col">
         <div className="flex flex-col">
           {transactions.map((tx, idx) => {
-            let titleText = '';
-            let subText = '';
             let amountDisplay = '';
 
             if (tx.type === 'swap') {
               const inToken = formatToken(tx.token_in);
               const outToken = formatToken(tx.token_out);
-              titleText = `Swap ${inToken} to ${outToken}`;
               amountDisplay = `${formatAmount(tx.amount_in)} ${inToken} → ${formatAmount(tx.amount_out)} ${outToken}`;
-              subText = 'Pool Swap';
             } else {
               const token = formatToken(tx.token);
               const amount = formatAmount(tx.amount);
               amountDisplay = `${amount} ${token}`;
-
-              if (tx.type === 'transfer_in') {
-                titleText = 'Received';
-                const name = tx.from_username ? `@${tx.from_username}` : 'Unknown';
-                subText = name;
-              } else {
-                titleText = 'Sent';
-                const name = tx.to_username ? `@${tx.to_username}` : 'Unknown';
-                subText = name;
-              }
             }
 
             return (
@@ -252,21 +396,32 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
                       <span className="text-zinc-400 inline-flex items-center gap-1">
                         {tx.type === 'transfer_in' ? 'From: ' : tx.type === 'transfer_out' ? 'To: ' : ''}
                         {tx.type === 'swap' ? (
-                          'Pool Swap'
+                          (() => {
+                            const cp = getSwapCounterparty(tx);
+                            if (!cp) return 'Pool Swap';
+                            return (
+                              <>
+                                {cp.label}
+                                <span className={cp.highlight ? "text-cyan-400 font-medium" : "text-zinc-300"}>
+                                  {cp.value}
+                                </span>
+                              </>
+                            );
+                          })()
                         ) : (
                           <span
-                              className={
-                                (tx.type === 'transfer_in' && tx.from_username) ||
-                                  (tx.type === 'transfer_out' && tx.to_username)
-                                  ? "text-cyan-400 font-medium"
-                                  : "text-zinc-300"
-                              }
-                            >
-                              {tx.type === 'transfer_in'
-                                ? (tx.from_username ? `@${tx.from_username}` : 'Unknown')
-                                : (tx.to_username ? `@${tx.to_username}` : 'Unknown')
-                              }
-                            </span>
+                            className={
+                              ((tx.type === 'transfer_in' && tx.from_username && tx.from_username.trim().toLowerCase() !== 'unknown' && tx.from_username.trim().toLowerCase() !== 'n/a')) ||
+                                ((tx.type === 'transfer_out' && tx.to_username && tx.to_username.trim().toLowerCase() !== 'unknown' && tx.to_username.trim().toLowerCase() !== 'n/a'))
+                                ? "text-cyan-400 font-medium"
+                                : "text-zinc-300"
+                            }
+                          >
+                            {tx.type === 'transfer_in'
+                              ? displayIdentity(tx.from_username, tx.from)
+                              : displayIdentity(tx.to_username, tx.to)
+                            }
+                          </span>
                         )}
                       </span>
                     </span>
@@ -286,17 +441,18 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
           })}
         </div>
 
-        {transactions.length < totalCount && (
-          <div className="flex justify-center mt-4">
-            <button
-              onClick={loadMore}
-              disabled={loadingMore}
-              className="px-4 py-2 rounded-lg bg-zinc-800 text-zinc-200 hover:bg-zinc-700 disabled:opacity-60 text-sm"
-            >
-              {loadingMore ? 'Loading...' : 'Load more'}
-            </button>
-          </div>
-        )}
+        {/* Infinite scroll sentinel */}
+        <div ref={sentinelRef} className="py-2 flex justify-center">
+          {loadingMore && (
+            <div className="flex items-center gap-2 text-zinc-400 text-xs">
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-zinc-600 border-t-[hsl(var(--brand-accent))]"></div>
+              <span>Loading more...</span>
+            </div>
+          )}
+          {!hasMore && transactions.length > PAGE_SIZE && (
+            <span className="text-zinc-600 text-xs">All transactions loaded</span>
+          )}
+        </div>
       </div>
     );
   }
@@ -305,3 +461,5 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
 TransactionHistory.displayName = 'TransactionHistory';
 
 export default TransactionHistory;
+
+

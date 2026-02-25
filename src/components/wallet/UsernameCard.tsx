@@ -34,10 +34,10 @@ const UsernameCard: React.FC<UsernameCardProps> = memo(({
     <>
       {/* Username display or set username card */}
       {!accountData?.username && (
-        <div className="bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-zinc-800 mb-8">
+        <div className="bg-[hsl(var(--brand-bg))]/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/10 mb-8">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-bold text-white flex items-center">
-              <FaUser className="mr-3 text-purple-400" />
+              <FaUser className="mr-3 text-teal-400" />
               Krypton Username
             </h3>
           </div>
@@ -45,7 +45,7 @@ const UsernameCard: React.FC<UsernameCardProps> = memo(({
             <p className="text-zinc-400 mb-4">Set a unique username to receive payments by handle</p>
             <Button
               onClick={() => setShowUsernameForm(true)}
-              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-2xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl"
+              className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white px-6 py-3 rounded-2xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl"
             >
               <FaUser className="mr-2" />
               Set Username
@@ -55,18 +55,18 @@ const UsernameCard: React.FC<UsernameCardProps> = memo(({
       )}
       {/* Username Form Modal */}
       {showUsernameForm && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           onClick={usernameSuccess ? handleCancelUsername : undefined}
           style={{ cursor: usernameSuccess ? 'pointer' : 'default' }}
         >
-          <Card 
-            className="w-full max-w-md bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 shadow-2xl relative overflow-hidden"
+          <Card
+            className="w-full max-w-md bg-[hsl(var(--brand-bg))]/95 backdrop-blur-xl border border-white/10 shadow-2xl relative overflow-hidden"
             onClick={e => e.stopPropagation()} // Prevent modal click from closing overlay
           >
             <CardHeader>
               <CardTitle className="text-xl font-bold text-white flex items-center">
-                <FaUser className="mr-3 text-purple-400" />
+                <FaUser className="mr-3 text-teal-400" />
                 Set Your Username
               </CardTitle>
             </CardHeader>
@@ -114,7 +114,7 @@ const UsernameCard: React.FC<UsernameCardProps> = memo(({
                           value={username}
                           onChange={(e) => setUsername(e.target.value)}
                           placeholder="yourusername"
-                          className="w-full pl-8 pr-4 py-3 border border-zinc-800 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-zinc-800 text-white"
+                          className="w-full pl-8 pr-4 py-3 border border-white/10 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200 bg-white/5 text-white"
                           disabled={usernameLoading}
                         />
                       </div>
@@ -127,7 +127,7 @@ const UsernameCard: React.FC<UsernameCardProps> = memo(({
                     <Button
                       onClick={handleSetUsername}
                       disabled={usernameLoading || !username.trim()}
-                      className="flex-1 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white py-3 rounded-lg text-lg font-semibold shadow-md"
+                      className="flex-1 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white py-3 rounded-lg text-lg font-semibold shadow-md"
                     >
                       {usernameLoading ? "Setting..." : "Set Username"}
                     </Button>

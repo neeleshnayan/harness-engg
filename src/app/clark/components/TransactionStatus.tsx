@@ -52,6 +52,7 @@ function inlineDataToActiveTransaction(data: InlineTransactionData): ActiveTrans
  * available and continues polling the active-transactions API for live status.
  */
 export default function TransactionStatus({ username, initialData }: TransactionStatusProps) {
+  const hasRealInitialTransactionId = Boolean(initialData?.transaction_id);
   const initialTransactions =
     initialData && (initialData.transaction_id || initialData.amount)
       ? [inlineDataToActiveTransaction(initialData)]
@@ -63,7 +64,7 @@ export default function TransactionStatus({ username, initialData }: Transaction
       initialTransactions={initialTransactions}
       showHeader={false}
       persistCompleted={true}
-      onlyShowInitial={true}
+      onlyShowInitial={hasRealInitialTransactionId}
     />
   );
 }

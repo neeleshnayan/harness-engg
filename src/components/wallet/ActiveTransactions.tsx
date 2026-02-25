@@ -3,23 +3,20 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { kryptonWeb3Api } from '@/lib/api';
 import {
-  getStateCategory,
-  getProgressStepIndex,
-  getProgressStepLabel,
-  getStateLabel,
-  StateCategory,
   isTerminalState,
-  isSuccessState,
   isErrorState,
   CircleTransactionState,
 } from '@/lib/circleStates';
-import { ArrowRight, Check, X, Loader2, ArrowLeftRight, Send, RefreshCw, ArrowUp } from 'lucide-react';
+import { ArrowRight, Check, X, Loader2, ArrowLeftRight, RefreshCw, ArrowUp } from 'lucide-react';
 
-// Poll interval in milliseconds (10 seconds for better UX)
-const POLL_INTERVAL_MS = 10000;
+const INITIAL_ONLY_STALE_HIDE_MS = 90000;
+const ACTIVE_TX_POLL_INTERVAL_MS = 8000;
 
-// How long to keep completed transactions visible (5 seconds)
-const COMPLETED_TX_DISPLAY_TIME = 3000;
+// How long to keep terminal transactions visible (12 seconds)
+const COMPLETED_TX_DISPLAY_TIME = 12000;
+// Non-terminal stale policy: show warning after 2 minutes, hide after 3 minutes.
+const NON_TERMINAL_STALE_WARN_MS = 120000;
+const NON_TERMINAL_MAX_AGE_MS = 180000;
 
 /** Exported for use by TransactionStatus (Clark) when seeding from agent flow */
 export interface ActiveTransaction {
@@ -27,12 +24,14 @@ export interface ActiveTransaction {
   status: string;
   kind: string | null;
   tx_type: string;
+  operation?: string | null;
   created_at: number | null;
   updated_at: number | null;
   from_token: string | null;
   to_token: string | null;
   token_symbol: string | null;
   amount: number | null;
+  received_amount?: number | null;
   to_address: string | null;
   to_username: string | null;
   tx_hash: string | null;
@@ -64,6 +63,11 @@ interface ActiveTransactionsProps {
   persistCompleted?: boolean;
   /** When true (e.g. Clark inline card), only show initialTransactions and only update their status from API; never add other users' or other requests' transactions */
   onlyShowInitial?: boolean;
+  /**
+   * When true, the WebSocket connection is live and will deliver push updates.
+   * The polling interval is suppressed; polling only runs as a fallback when WS is disconnected.
+   */
+  isWebSocketConnected?: boolean;
 }
 
 /**
@@ -82,50 +86,78 @@ function formatAmount(amount: number | null): string {
   return amount.toFixed(2);
 }
 
-/**
- * Format relative time
- */
-function formatRelativeTime(timestamp: number | null): string {
-  if (!timestamp) return '';
-
-  const now = Date.now() / 1000;
-  const diff = now - timestamp;
-
-  if (diff < 60) return 'just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
+function toMsTimestamp(value: number | null | undefined): number | null {
+  if (value === null || value === undefined || Number.isNaN(value)) return null;
+  return value < 1e12 ? value * 1000 : value;
 }
 
-/**
- * Get transaction type icon
- */
-function TransactionTypeIcon({ txType, className }: { txType: string; className?: string }) {
-  switch (txType) {
-    case 'swap':
-      return <img src="/swap-icon-small.svg" className={className} alt="Swap" />;
-    case 'transfer':
-      return <img src="/sent-icon.svg" className={className} alt="Transfer" />;
-    default:
-      return <img src="/swap-icon-small.svg" className={className} alt="Transaction" />;
+function isNonTerminalExpired(tx: ActiveTransaction, nowMs: number): boolean {
+  const createdAtMs = toMsTimestamp(tx.created_at);
+  if (!createdAtMs) return false;
+  if (isFinishedStatus(tx.status)) return false;
+  return nowMs - createdAtMs > NON_TERMINAL_MAX_AGE_MS;
+}
+
+function isNonTerminalStale(tx: ActiveTransaction, nowMs: number): boolean {
+  const createdAtMs = toMsTimestamp(tx.created_at);
+  if (!createdAtMs) return false;
+  if (isFinishedStatus(tx.status)) return false;
+  const age = nowMs - createdAtMs;
+  return age > NON_TERMINAL_STALE_WARN_MS && age <= NON_TERMINAL_MAX_AGE_MS;
+}
+
+function formatElapsed(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
+}
+
+function isFinishedStatus(status: string): boolean {
+  const normalized = status.toLowerCase();
+  return (
+    isTerminalState(status) ||
+    normalized === CircleTransactionState.CONFIRMED ||
+    normalized === CircleTransactionState.CLEARED
+  );
+}
+
+function getRecipient(tx: ActiveTransaction, currentUsername?: string): string {
+  const normalizedUsername = tx.to_username?.trim().toLowerCase();
+  const normalizedCurrent = (currentUsername || '').trim().toLowerCase();
+  if (normalizedUsername && normalizedCurrent && normalizedUsername === normalizedCurrent) {
+    return '';
   }
+  if (normalizedUsername && normalizedUsername !== 'unknown' && normalizedUsername !== 'n/a') {
+    return `@${tx.to_username}`;
+  }
+  if (tx.to_address) return `${tx.to_address.slice(0, 6)}...${tx.to_address.slice(-4)}`;
+  return '';
+}
+
+function isSwapAndTransferTx(tx: ActiveTransaction, currentUsername?: string): boolean {
+  return tx.tx_type === 'swap' && Boolean(getRecipient(tx, currentUsername));
 }
 
 /**
  * Get transaction description
  */
-function getTransactionDescription(tx: ActiveTransaction): string {
+function getTransactionDescription(tx: ActiveTransaction, currentUsername?: string): string {
   if (tx.tx_type === 'swap' && tx.from_token && tx.to_token) {
     const fromSymbol = cleanTokenSymbol(tx.from_token);
     const toSymbol = cleanTokenSymbol(tx.to_token);
     const amountStr = tx.amount ? formatAmount(tx.amount) : '';
-    return `Swap ${amountStr} ${fromSymbol} → ${toSymbol}`;
+    return `${amountStr} ${fromSymbol} → ${toSymbol}`.trim();
   }
 
   if (tx.tx_type === 'transfer') {
     const symbol = cleanTokenSymbol(tx.token_symbol || tx.from_token);
     const amountStr = tx.amount ? formatAmount(tx.amount) : '';
-    const recipient = tx.to_username ? `@${tx.to_username}` : (tx.to_address ? `${tx.to_address.slice(0, 6)}...` : '');
+    const recipient = getRecipient(tx, currentUsername);
     return `Send ${amountStr} ${symbol}${recipient ? ` to ${recipient}` : ''}`;
   }
 
@@ -135,155 +167,71 @@ function getTransactionDescription(tx: ActiveTransaction): string {
   return amountStr && symbol ? `${amountStr} ${symbol}` : 'Transaction';
 }
 
-/**
- * Progress Step Component
- *
- * Visual Logic:
- * - Step 0 (Queued):
- *   - If currentStep=0: yellow spinner (currently queued)
- *   - If currentStep>0: green checkmark (passed)
- * - Step 1 (Confirmed):
- *   - If currentStep<1: gray (not reached)
- *   - If currentStep=1: green checkmark (confirmed, waiting for completion)
- *   - If currentStep>1: green checkmark (passed)
- * - Step 2 (Complete/Failed):
- *   - If currentStep<2: gray or yellow spinner (if currentStep>=1)
- *   - If currentStep=2: green checkmark (success) or red X (error)
- */
-function ProgressStep({
-  stepIndex,
-  currentStep,
-  label,
-  isSuccess,
-  isError,
-  isTerminal,
-}: {
-  stepIndex: number;
-  currentStep: number;
-  label: string;
-  isSuccess: boolean;
-  isError: boolean;
-  isTerminal: boolean;
-}) {
-  const isFinal = stepIndex === 2;
+function getTransactionPhaseCopy(tx: ActiveTransaction, currentUsername?: string): { title: string; subtitle: string } {
+  const isSwapAndTransfer = isSwapAndTransferTx(tx, currentUsername);
+  const step = getProgressStep(tx.status, isSwapAndTransfer);
+  const isError = isErrorState(tx.status);
+  const isDone = isFinishedStatus(tx.status) && !isError;
+  const fromSymbol = cleanTokenSymbol(tx.from_token || tx.token_symbol);
+  const toSymbol = cleanTokenSymbol(tx.to_token || tx.token_symbol);
+  const amount = tx.amount ? `${formatAmount(tx.amount)} ${fromSymbol}`.trim() : fromSymbol;
+  const receivedAmount = tx.received_amount ? `${formatAmount(tx.received_amount)} ${toSymbol}`.trim() : toSymbol;
+  const recipient = getRecipient(tx, currentUsername);
 
-  // Step is completed (green checkmark) if we're PAST it
-  const isPastStep = stepIndex < currentStep;
-
-  // Step is current (the one we're on right now)
-  const isCurrentStep = stepIndex === currentStep;
-
-  // Determine the visual state
-  let bgColor = 'bg-zinc-700';
-  let borderColor = 'border-zinc-600';
-  let textColor = 'text-zinc-500';
-  let icon = null;
-
-  if (isFinal && isTerminal) {
-    // Final step when transaction is terminal - show success/error
-    if (isSuccess) {
-      bgColor = 'bg-emerald-500';
-      borderColor = 'border-emerald-400';
-      textColor = 'text-emerald-400';
-      icon = <Check className="w-3 h-3 text-white" />;
-    } else if (isError) {
-      bgColor = 'bg-red-500';
-      borderColor = 'border-red-400';
-      textColor = 'text-red-400';
-      icon = <X className="w-3 h-3 text-white" />;
+  if (tx.tx_type === 'swap') {
+    if (isError) {
+      return {
+        title: 'Swap failed',
+        subtitle: amount ? `Could not swap ${amount}` : 'Swap transaction failed',
+      };
     }
-  } else if (isPastStep) {
-    // Steps we've already passed - green checkmark
-    bgColor = 'bg-emerald-500';
-    borderColor = 'border-emerald-400';
-    textColor = 'text-emerald-400';
-    icon = <Check className="w-3 h-3 text-white" />;
-  } else if (isCurrentStep && !isFinal) {
-    // Current non-final step
-    if (currentStep === 0) {
-      // At "Queued" step - show yellow spinner (waiting to be confirmed)
-      bgColor = 'bg-amber-500';
-      borderColor = 'border-amber-400';
-      textColor = 'text-amber-400';
-      icon = <Loader2 className="w-3 h-3 text-white animate-spin" />;
-    } else {
-      // At "Confirmed" step (currentStep=1) - show green (we've reached it)
-      bgColor = 'bg-emerald-500';
-      borderColor = 'border-emerald-400';
-      textColor = 'text-emerald-400';
-      icon = <Check className="w-3 h-3 text-white" />;
+    if (isDone) {
+      if (!isSwapAndTransfer) {
+        return {
+          title: 'Swap completed',
+          subtitle: receivedAmount ? `Received ${receivedAmount}` : 'Swap completed successfully',
+        };
+      }
+      return {
+        title: 'Transfer completed',
+        subtitle: recipient ? `Delivered ${receivedAmount || toSymbol} to ${recipient}` : 'Swap and transfer completed',
+      };
     }
-  } else if (isFinal && !isTerminal && currentStep >= 1) {
-    // Final step when not terminal but we've passed confirmed - show yellow spinner
-    bgColor = 'bg-amber-500';
-    borderColor = 'border-amber-400';
-    textColor = 'text-amber-400';
-    icon = <Loader2 className="w-3 h-3 text-white animate-spin" />;
-  }
-  // Otherwise: default gray (not reached yet)
-
-  return (
-    <div className="flex flex-col items-center">
-      <div
-        className={`
-          w-6 h-6 rounded-full flex items-center justify-center
-          border-2 ${borderColor} ${bgColor}
-          transition-all duration-300
-        `}
-      >
-        {icon}
-      </div>
-      <span className={`text-[10px] mt-1 font-medium ${textColor}`}>
-        {label}
-      </span>
-    </div>
-  );
-}
-
-/**
- * Progress Line Component
- *
- * Colors:
- * - Gray: Not reached yet
- * - Amber/Yellow: In progress (next step is pending/processing)
- * - Green: Completed successfully
- * - Red: Transaction ended in error (for line leading to error state)
- */
-function ProgressLine({
-  isCompleted,
-  isInProgress = false,
-  isError = false,
-  isLeadingToFinal = false,
-}: {
-  isCompleted: boolean;
-  isInProgress?: boolean;
-  isError?: boolean;
-  isLeadingToFinal?: boolean;
-}) {
-  let bgColor = 'bg-zinc-700';
-
-  if (isCompleted) {
-    // Line is completed - show green or red based on final state
-    if (isLeadingToFinal && isError) {
-      bgColor = 'bg-red-500';
-    } else {
-      bgColor = 'bg-emerald-500';
+    if (isSwapAndTransfer && step >= 2) {
+      return {
+        title: 'Sending swapped amount',
+        subtitle: recipient ? `Sending ${receivedAmount || toSymbol} to ${recipient}` : `Sending ${receivedAmount || toSymbol}`,
+      };
     }
-  } else if (isInProgress) {
-    // Line is in progress - show amber/yellow
-    bgColor = 'bg-amber-500';
+    return {
+      title: 'Swapping',
+      subtitle: amount && toSymbol ? `${amount} → ${toSymbol}` : 'Executing token swap',
+    };
   }
 
-  return (
-    <div className="flex-1 h-0.5 mx-1 mt-3">
-      <div
-        className={`
-          h-full rounded-full transition-all duration-500
-          ${bgColor}
-        `}
-      />
-    </div>
-  );
+  if (tx.tx_type === 'transfer') {
+    if (isError) {
+      return {
+        title: 'Transfer failed',
+        subtitle: amount ? `Could not send ${amount}` : 'Transfer transaction failed',
+      };
+    }
+    if (isDone) {
+      return {
+        title: 'Transfer completed',
+        subtitle: recipient ? `Delivered ${amount} to ${recipient}` : `${amount} sent successfully`,
+      };
+    }
+    return {
+      title: 'Sending',
+      subtitle: recipient ? `Sending ${amount} to ${recipient}` : `Sending ${amount}`,
+    };
+  }
+
+  return {
+    title: 'Processing transaction',
+    subtitle: getTransactionDescription(tx),
+  };
 }
 
 /**
@@ -298,7 +246,8 @@ function getFinalStepLabel(status: string): string {
     case CircleTransactionState.SUCCESS:
     case CircleTransactionState.COMPLETE:
     case CircleTransactionState.CONFIRMED:
-      return 'Confirmed';
+    case CircleTransactionState.CLEARED:
+      return 'Completed';
     case CircleTransactionState.FAILED:
       return 'Failed';
     case CircleTransactionState.DENIED:
@@ -307,152 +256,272 @@ function getFinalStepLabel(status: string): string {
       return 'Cancelled';
     default:
       // For ongoing transactions, show what the final step will be
-      return 'Confirmed';
+      return 'Completed';
   }
+}
+
+function getProgressStep(status: string, isSwapAndTransfer: boolean = true): number {
+  const normalized = status.toLowerCase();
+
+  if (normalized === 'local_queued' || normalized === CircleTransactionState.CREATED) {
+    return 0;
+  }
+
+  if (
+    normalized === CircleTransactionState.QUEUED ||
+    normalized === CircleTransactionState.INITIATED ||
+    normalized === CircleTransactionState.SENT ||
+    normalized === CircleTransactionState.STUCK ||
+    normalized === CircleTransactionState.SUBMITTED ||
+    normalized === 'pending'
+  ) {
+    return 1;
+  }
+
+  if (
+    normalized === CircleTransactionState.CLEARED ||
+    normalized === CircleTransactionState.CONFIRMED ||
+    normalized === CircleTransactionState.COMPLETE ||
+    normalized === CircleTransactionState.SUCCESS ||
+    normalized === CircleTransactionState.FAILED ||
+    normalized === CircleTransactionState.DENIED ||
+    normalized === CircleTransactionState.CANCELLED
+  ) {
+    return isSwapAndTransfer ? 3 : 2;
+  }
+
+  return 1;
+}
+
+function getProgressWidth(step: number, maxStep: number): string {
+  if (maxStep <= 0) return '0%';
+  const pct = Math.max(0, Math.min(100, (step / maxStep) * 100));
+  return `${pct}%`;
+}
+
+function StepNode({
+  active,
+  loading,
+  error,
+  label,
+}: {
+  active: boolean;
+  loading?: boolean;
+  error?: boolean;
+  label: string;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center border-[3px] transition-all duration-300 ${active
+        ? (error ? 'bg-red-500 border-red-500 text-white' : 'bg-emerald-500 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]')
+        : 'bg-zinc-800 border-zinc-700 text-zinc-500'
+        }`}>
+        {active ? (
+          error ? <X className="w-5 h-5 stroke-[3]" /> : <Check className="w-5 h-5 stroke-[3]" />
+        ) : loading ? (
+          <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+        ) : (
+          <div className="w-2 h-2 rounded-full bg-zinc-600" />
+        )}
+      </div>
+      <span className={`text-[11px] font-semibold ${active ? (error ? 'text-red-500' : 'text-white') : 'text-zinc-500'}`}>{label}</span>
+    </div>
+  );
 }
 
 /**
  * Transaction Progress Tracker
  */
 function TransactionProgressTracker({ tx }: { tx: ActiveTransaction }) {
-  // Map status to step index (0: Queued, 1: Submitted, 2: Confirmed)
-  let currentStep = 0;
-  const status = tx.status.toLowerCase();
-
-  if (status === 'queued' || status === 'created') currentStep = 0;
-  else if (status === 'submitted' || status === 'pending' || status === 'sent') currentStep = 1;
-  else if (status === 'confirmed' || status === 'complete' || status === 'success' || status === 'cleared') currentStep = 2;
+  const isSwapAndTransfer = isSwapAndTransferTx(tx);
+  const maxStep = isSwapAndTransfer ? 3 : 2;
+  // Map status to step index (0: Queued, 1: Submitted, 2: Swapped, 3: Completed)
+  const currentStep = getProgressStep(tx.status, isSwapAndTransfer);
 
   // Handle failure
   const isError = isErrorState(tx.status);
 
   return (
-    <div className="w-full px-6 mt-6 mb-8 relative">
-       {/* Connecting Lines */}
-       <div className="absolute top-[22px] left-[15%] right-[15%] h-[2px] bg-zinc-700/50 -z-0">
+    <div className="w-full mt-6 mb-8">
+      {/* Desktop: single-line 4-step track */}
+      <div className="hidden sm:block px-6 relative">
+        <div className="absolute top-[22px] left-[15%] right-[15%] h-[2px] bg-zinc-700/50 -z-0">
           <div
-            className="h-full bg-emerald-500 transition-all duration-500 ease-out"
-            style={{ width: currentStep === 0 ? '0%' : currentStep === 1 ? '50%' : '100%' }}
+            className={`h-full transition-all duration-500 ease-out ${isError ? 'bg-red-500' : 'bg-emerald-500'}`}
+            style={{ width: getProgressWidth(currentStep, maxStep) }}
           />
-       </div>
+        </div>
 
-       <div className="flex justify-between relative z-10 text-center">
-          {/* Step 1: Queued */}
-          <div className="flex flex-col items-center gap-3 w-1/3">
-             <div className={`w-12 h-12 rounded-full flex items-center justify-center border-[3px] transition-all duration-300 ${
-                 currentStep >= 0
-                 ? 'bg-emerald-500 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]'
-                 : 'bg-zinc-800 border-zinc-700 text-zinc-500'
-             }`}>
-                {currentStep >= 0 ? <Check className="w-6 h-6 stroke-[3]" /> : <Loader2 className="w-5 h-5 animate-spin" />}
-             </div>
-             <span className={`text-xs font-semibold ${currentStep >= 0 ? 'text-white' : 'text-zinc-500'}`}>Queued</span>
+        {isSwapAndTransfer ? (
+          <div className="flex justify-between relative z-10 text-center">
+            <div className="w-1/4">
+              <StepNode active={currentStep >= 0} label="Queued" />
+            </div>
+            <div className="w-1/4">
+              <StepNode active={currentStep >= 1} loading={currentStep === 0 && !isError} label="Submitted" />
+            </div>
+            <div className="w-1/4">
+              <StepNode active={currentStep >= 2} loading={currentStep === 1 && !isError} error={currentStep >= 2 && isError} label="Swapped" />
+            </div>
+            <div className="w-1/4">
+              <StepNode
+                active={currentStep >= 3}
+                loading={currentStep === 2 && !isError}
+                error={currentStep >= 3 && isError}
+                label={currentStep >= 3 && isError ? getFinalStepLabel(tx.status) : 'Completed'}
+              />
+            </div>
           </div>
+        ) : (
+          <div className="flex justify-between relative z-10 text-center">
+            <div className="w-1/3">
+              <StepNode active={currentStep >= 0} label="Queued" />
+            </div>
+            <div className="w-1/3">
+              <StepNode active={currentStep >= 1} loading={currentStep === 0 && !isError} label="Submitted" />
+            </div>
+            <div className="w-1/3">
+              <StepNode
+                active={currentStep >= 2}
+                loading={currentStep === 1 && !isError}
+                error={currentStep >= 2 && isError}
+                label={currentStep >= 2 && isError ? getFinalStepLabel(tx.status) : 'Completed'}
+              />
+            </div>
+          </div>
+        )}
+      </div>
 
-          {/* Step 2: Submitted */}
-          <div className="flex flex-col items-center gap-3 w-1/3">
-             <div className={`w-12 h-12 rounded-full flex items-center justify-center border-[3px] transition-all duration-300 ${
-                 currentStep >= 1
-                 ? 'bg-emerald-500 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]'
-                 : 'bg-zinc-800 border-zinc-700 text-zinc-500'
-             }`}>
-                {currentStep >= 1 ? <Check className="w-6 h-6 stroke-[3]" /> : currentStep === 0 && !isError ? <Loader2 className="w-5 h-5 animate-spin text-emerald-500" /> : <div className="w-2 h-2 rounded-full bg-zinc-600" />}
-             </div>
-             <span className={`text-xs font-semibold ${currentStep >= 1 ? 'text-white' : 'text-zinc-500'}`}>Submitted</span>
-          </div>
+      {/* Mobile: linear vertical flow for unambiguous execution order */}
+      <div className="sm:hidden px-2 relative">
+        <div className="relative pt-1">
+          <div className="absolute left-[12%] right-[12%] top-[15px] h-[2px] bg-zinc-700/60" />
+          <div
+            className={`absolute left-[12%] top-[15px] h-[2px] transition-all duration-500 ease-out ${isError ? 'bg-red-500' : 'bg-emerald-500'}`}
+            style={{ width: `${Math.min(Math.max((currentStep / maxStep) * 76, 0), 76)}%` }}
+          />
 
-          {/* Step 3: Confirmed or Failed */}
-          <div className="flex flex-col items-center gap-3 w-1/3">
-             <div className={`w-12 h-12 rounded-full flex items-center justify-center border-[3px] transition-all duration-300 ${
-                 currentStep >= 2
-                 ? (isError ? 'bg-red-500 border-red-500 text-white' : 'bg-emerald-500 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]')
-                 : 'bg-zinc-800 border-zinc-700 text-zinc-500'
-             }`}>
-                {currentStep >= 2 ? (isError ? <X className="w-6 h-6 stroke-[3]" /> : <Check className="w-6 h-6 stroke-[3]" />) : currentStep === 1 && !isError ? <Loader2 className="w-5 h-5 animate-spin text-emerald-500" /> : <div className="w-2 h-2 rounded-full bg-zinc-600" />}
-             </div>
-             <span className={`text-xs font-semibold ${currentStep >= 2 ? (isError ? 'text-red-500' : 'text-white') : 'text-zinc-500'}`}>
-               {currentStep >= 2 && isError ? getFinalStepLabel(tx.status) : 'Confirmed'}
-             </span>
+          <div className={`relative z-10 grid ${isSwapAndTransfer ? 'grid-cols-4' : 'grid-cols-3'} gap-1 text-center`}>
+            <div className="flex flex-col items-center gap-1">
+              <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${currentStep >= 0 ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-500'}`}>
+                <Check className="w-3.5 h-3.5 stroke-[3]" />
+              </div>
+              <span className={`text-[10px] font-semibold ${currentStep >= 0 ? 'text-white' : 'text-zinc-500'}`}>Queued</span>
+            </div>
+
+            <div className="flex flex-col items-center gap-1">
+              <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${currentStep >= 1 ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-500'}`}>
+                {currentStep >= 1 ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : currentStep === 0 && !isError ? <Loader2 className="w-3 h-3 animate-spin text-emerald-500" /> : <div className="w-1.5 h-1.5 rounded-full bg-zinc-600" />}
+              </div>
+              <span className={`text-[10px] font-semibold ${currentStep >= 1 ? 'text-white' : 'text-zinc-500'}`}>Submitted</span>
+            </div>
+
+            {isSwapAndTransfer ? (
+              <>
+                <div className="flex flex-col items-center gap-1">
+                  <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${currentStep >= 2 ? (isError ? 'bg-red-500 border-red-500 text-white' : 'bg-emerald-500 border-emerald-500 text-white') : 'bg-zinc-900 border-zinc-700 text-zinc-500'}`}>
+                    {currentStep >= 2 ? (isError ? <X className="w-3.5 h-3.5 stroke-[3]" /> : <Check className="w-3.5 h-3.5 stroke-[3]" />) : currentStep === 1 && !isError ? <Loader2 className="w-3 h-3 animate-spin text-emerald-500" /> : <div className="w-1.5 h-1.5 rounded-full bg-zinc-600" />}
+                  </div>
+                  <span className={`text-[10px] font-semibold ${currentStep >= 2 ? (isError ? 'text-red-400' : 'text-white') : 'text-zinc-500'}`}>Swapped</span>
+                </div>
+
+                <div className="flex flex-col items-center gap-1">
+                  <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${currentStep >= 3 ? (isError ? 'bg-red-500 border-red-500 text-white' : 'bg-emerald-500 border-emerald-500 text-white') : 'bg-zinc-900 border-zinc-700 text-zinc-500'}`}>
+                    {currentStep >= 3 ? (isError ? <X className="w-3.5 h-3.5 stroke-[3]" /> : <Check className="w-3.5 h-3.5 stroke-[3]" />) : currentStep === 2 && !isError ? <Loader2 className="w-3 h-3 animate-spin text-emerald-500" /> : <div className="w-1.5 h-1.5 rounded-full bg-zinc-600" />}
+                  </div>
+                  <span className={`text-[10px] font-semibold ${currentStep >= 3 ? (isError ? 'text-red-400' : 'text-white') : 'text-zinc-500'}`}>
+                    {currentStep >= 3 && isError ? getFinalStepLabel(tx.status) : 'Completed'}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-1">
+                <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${currentStep >= 2 ? (isError ? 'bg-red-500 border-red-500 text-white' : 'bg-emerald-500 border-emerald-500 text-white') : 'bg-zinc-900 border-zinc-700 text-zinc-500'}`}>
+                  {currentStep >= 2 ? (isError ? <X className="w-3.5 h-3.5 stroke-[3]" /> : <Check className="w-3.5 h-3.5 stroke-[3]" />) : currentStep === 1 && !isError ? <Loader2 className="w-3 h-3 animate-spin text-emerald-500" /> : <div className="w-1.5 h-1.5 rounded-full bg-zinc-600" />}
+                </div>
+                <span className={`text-[10px] font-semibold ${currentStep >= 2 ? (isError ? 'text-red-400' : 'text-white') : 'text-zinc-500'}`}>
+                  {currentStep >= 2 && isError ? getFinalStepLabel(tx.status) : 'Completed'}
+                </span>
+              </div>
+            )}
           </div>
-       </div>
+        </div>
+      </div>
     </div>
   );
 }
 
 /**
- * Get status badge color classes
- */
-function getStatusBadgeClasses(status: string): { bg: string; text: string } {
-  const normalizedStatus = status.toLowerCase();
-
-  switch (normalizedStatus) {
-    case CircleTransactionState.SUCCESS:
-    case CircleTransactionState.COMPLETE:
-      return { bg: 'bg-emerald-500/20', text: 'text-emerald-400' };
-    case CircleTransactionState.FAILED:
-      return { bg: 'bg-red-500/20', text: 'text-red-400' };
-    case CircleTransactionState.DENIED:
-      return { bg: 'bg-orange-500/20', text: 'text-orange-400' };
-    case CircleTransactionState.CANCELLED:
-      return { bg: 'bg-zinc-500/20', text: 'text-zinc-400' };
-    case CircleTransactionState.QUEUED:
-    case CircleTransactionState.SUBMITTED:
-    case CircleTransactionState.CREATED:
-      return { bg: 'bg-blue-500/20', text: 'text-blue-400' };
-    case CircleTransactionState.CONFIRMED:
-    case CircleTransactionState.SENT:
-    case CircleTransactionState.CLEARED:
-      return { bg: 'bg-amber-500/20', text: 'text-amber-400' };
-    case CircleTransactionState.STUCK:
-      return { bg: 'bg-yellow-500/20', text: 'text-yellow-400' };
-    default:
-      return { bg: 'bg-zinc-500/20', text: 'text-zinc-400' };
-  }
-}
-
-/**
  * Single Transaction Card
  */
-function TransactionCard({ tx }: { tx: ActiveTransaction }) {
+function TransactionCard({ tx, nowTs, currentUsername }: { tx: ActiveTransaction; nowTs: number; currentUsername?: string }) {
   const isError = isErrorState(tx.status);
-
-  const description = getTransactionDescription(tx);
+  const phaseCopy = getTransactionPhaseCopy(tx, currentUsername);
+  const description = getTransactionDescription(tx, currentUsername);
+  const isSwapAndTransfer = isSwapAndTransferTx(tx, currentUsername);
+  const totalSteps = isSwapAndTransfer ? 4 : 3;
+  const step = getProgressStep(tx.status, isSwapAndTransfer);
+  const createdAtMs = toMsTimestamp(tx.created_at);
+  const updatedAtMs = toMsTimestamp(tx.updated_at);
+  const completedAtMs = toMsTimestamp(tx.completed_at ?? null);
+  const isFinished = isFinishedStatus(tx.status);
+  const elapsedMs = createdAtMs
+    ? Math.max(0, (isFinished ? (completedAtMs || updatedAtMs || nowTs) : nowTs) - createdAtMs)
+    : 0;
+  const staleWarning = isNonTerminalStale(tx, nowTs);
 
   return (
-    <div className="w-full bg-zinc-800/40 backdrop-blur-md rounded-[24px] border border-white/5 p-5 mb-4 shadow-xl">
-       {/* Header */}
-       <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-3">
-             <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-                {tx.tx_type === 'swap' ? <ArrowLeftRight className="w-5 h-5 text-white" /> : <ArrowUp className="w-5 h-5 text-white" />}
-             </div>
-             <div className="flex flex-col">
-                <span className="text-lg font-bold text-white tracking-tight">{description}</span>
-             </div>
+    <div className="w-full bg-zinc-900/55 backdrop-blur-md rounded-[24px] border border-white/10 p-5 mb-4 shadow-xl shadow-black/20">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-2 gap-3">
+        <div className="flex items-start gap-3 min-w-0 flex-1 pr-2">
+          <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center mt-0.5 shrink-0">
+            {tx.tx_type === 'swap' ? <ArrowLeftRight className="w-5 h-5 text-white" /> : <ArrowUp className="w-5 h-5 text-white" />}
           </div>
-          {/* Refresh/Status Icon - Top Right */}
-          <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-zinc-400">
-             {isError ? <X className="w-5 h-5 text-red-500" /> : tx.status === 'confirmed' || isSuccessState(tx.status) ? <Check className="w-5 h-5 text-emerald-500" /> : <RefreshCw className="w-4 h-4 animate-spin" />}
+          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+            <span className="text-base sm:text-lg font-bold text-white tracking-tight truncate max-w-full">{phaseCopy.title}</span>
+            <span className="text-xs sm:text-sm text-zinc-300 truncate max-w-full">{phaseCopy.subtitle}</span>
           </div>
-       </div>
+        </div>
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          <div className="h-10 rounded-xl border border-white/20 bg-white/8 backdrop-blur-md px-3 inline-flex items-center gap-2 shadow-[0_4px_14px_rgba(0,0,0,0.14)]">
+            <div className="w-6 h-6 rounded-md bg-white/8 border border-white/20 flex items-center justify-center">
+              {isError ? <X className="w-3.5 h-3.5 text-red-300" /> : isFinished ? <Check className="w-3.5 h-3.5 text-zinc-100" /> : <RefreshCw className="w-3.5 h-3.5 animate-spin text-zinc-100" />}
+            </div>
+            <span className={`text-xs font-medium tabular-nums ${isError ? 'text-red-200' : 'text-zinc-100'}`}>
+              {createdAtMs ? formatElapsed(elapsedMs) : '--'}
+            </span>
+          </div>
+        </div>
+      </div>
 
-       {/* Progress Tracker */}
-       <TransactionProgressTracker tx={tx} />
+      <div className="mb-1 flex items-center justify-between text-[10px] sm:text-xs text-zinc-400">
+        <span className="truncate max-w-[70%]">{description}</span>
+        <span className={`${isError ? 'text-red-300' : 'text-zinc-400'}`}>Step {Math.min(step + 1, totalSteps)}/{totalSteps}</span>
+      </div>
+      {staleWarning && (
+        <div className="mb-2 text-[10px] sm:text-xs text-amber-300">
+          Possibly stale. Refreshing state...
+        </div>
+      )}
 
-       {/* Hash */}
-       {tx.tx_hash && (
-         <div className="pt-4 border-t border-white/5 flex items-center gap-2">
-           <a
-             href={`https://sepolia.etherscan.io/tx/${tx.tx_hash}`}
-             target="_blank"
-             rel="noreferrer"
-             className="text-xs text-zinc-500 font-mono hover:text-white transition-colors flex items-center gap-1 group"
-           >
-             {tx.tx_hash.slice(0, 10)}...{tx.tx_hash.slice(-8)}
-             <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-           </a>
-         </div>
-       )}
+      {/* Progress Tracker */}
+      <TransactionProgressTracker tx={tx} />
+
+      {/* Hash */}
+      {tx.tx_hash && (
+        <div className="pt-3 border-t border-white/10 flex items-center gap-2">
+          <a
+            href={`https://sepolia.etherscan.io/tx/${tx.tx_hash}`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-[11px] text-zinc-400 font-mono hover:text-white transition-colors flex items-center gap-1 group"
+          >
+            {tx.tx_hash.slice(0, 10)}...{tx.tx_hash.slice(-8)}
+            <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+          </a>
+        </div>
+      )}
     </div>
   );
 }
@@ -461,17 +530,28 @@ function TransactionCard({ tx }: { tx: ActiveTransaction }) {
  * ActiveTransactions Component
  *
  * Shows active (ongoing) transactions with a progress tracker.
- * Polls the backend every 10 seconds.
+ * Event-driven: refreshes only on initial mount/visibility and explicit refreshKey.
  * Persists transactions to localStorage to survive page refreshes.
  */
-export default function ActiveTransactions({ username, className = '', onAllTransactionsComplete, refreshKey = 0, isVisible = true, initialTransactions, showHeader = true, persistCompleted = false, onlyShowInitial = false }: ActiveTransactionsProps) {
+export default function ActiveTransactions({ username, className = '', onAllTransactionsComplete, refreshKey = 0, isVisible = true, initialTransactions, showHeader = true, persistCompleted = false, onlyShowInitial = false, isWebSocketConnected = false }: ActiveTransactionsProps) {
+  const txDebugEnabled =
+    process.env.NEXT_PUBLIC_TX_DEBUG === "1" ||
+    (typeof window !== "undefined" && window.localStorage.getItem("krypton_tx_debug") === "1");
+  const txDebug = useCallback((event: string, payload?: Record<string, unknown>) => {
+    if (!txDebugEnabled) return;
+    // eslint-disable-next-line no-console
+    console.log(`[TX_DEBUG] ActiveTransactions:${event}`, payload || {});
+  }, [txDebugEnabled]);
+
   const [transactions, setTransactions] = useState<ActiveTransaction[]>(() => initialTransactions ?? []);
   const [loading, setLoading] = useState(false);
+  const [nowTs, setNowTs] = useState(() => Date.now());
   const initialFetch = useRef(true);
   const hadTransactions = useRef(false);
   const lastRefreshKey = useRef(refreshKey);
   const hadInitialTransactions = useRef(!!(initialTransactions?.length));
   const initialIds = useRef(new Set((initialTransactions ?? []).map(t => t.transaction_id)));
+  const hasLiveOnlyInitialTx = onlyShowInitial && transactions.some((tx) => !isFinishedStatus(tx.status));
 
   const fetchActiveTransactions = useCallback(async () => {
     if (!username) return;
@@ -486,6 +566,11 @@ export default function ActiveTransactions({ username, className = '', onAllTran
       );
 
       const newTransactions = response.data.transactions || [];
+      txDebug("fetch_success", {
+        username,
+        count: newTransactions.length,
+        states: newTransactions.map((t) => `${t.transaction_id}:${t.status}`),
+      });
       const now = Date.now();
 
       // Keep completed transactions visible for a short time, then remove them
@@ -493,23 +578,32 @@ export default function ActiveTransactions({ username, className = '', onAllTran
         // onlyShowInitial: only show initial set and only update their status from API; never add other users' transactions
         if (onlyShowInitial && initialIds.current.size > 0) {
           const fromApi = newTransactions.filter(t => initialIds.current.has(t.transaction_id));
-          if (fromApi.length === 0) return prev;
+          if (fromApi.length === 0) {
+            // Avoid indefinite spinner when initial-only cards miss updates (e.g. app restart
+            // during webhook delivery). Hide stale entries after a grace window.
+            return prev.filter((tx) => {
+              const createdMs = toMsTimestamp(tx.created_at);
+              if (!createdMs) return true;
+              return (now - createdMs) < INITIAL_ONLY_STALE_HIDE_MS;
+            });
+          }
           const updated = prev.map(tx => {
             const fromApiMatch = fromApi.find(a => a.transaction_id === tx.transaction_id);
             if (!fromApiMatch) return tx;
-            const isFinished = isTerminalState(fromApiMatch.status) || fromApiMatch.status.toLowerCase() === CircleTransactionState.CONFIRMED;
+            const isFinished = isFinishedStatus(fromApiMatch.status);
             return {
               ...fromApiMatch,
               completed_at: isFinished && !tx.completed_at ? now : tx.completed_at,
             };
           });
+          const nonTerminalFiltered = updated.filter(tx => !isNonTerminalExpired(tx, now));
           // Sort by created_at descending (newest first)
-          updated.sort((a, b) => {
+          nonTerminalFiltered.sort((a, b) => {
             const aTime = a.created_at || 0;
             const bTime = b.created_at || 0;
             return bTime - aTime;
           });
-          return updated.length ? updated : prev;
+          return nonTerminalFiltered.length ? nonTerminalFiltered : prev.filter(tx => !isNonTerminalExpired(tx, now));
         }
         // When API returns empty and we had initial data (e.g. Clark agent flow), keep showing it
         if (newTransactions.length === 0 && hadInitialTransactions.current) {
@@ -518,11 +612,13 @@ export default function ActiveTransactions({ username, className = '', onAllTran
         // Filter out incoming transactions that are already finished (Confirmed or Terminal)
         // AND are not currently tracked in our state. This implements "filter out on refresh".
         const filteredNewTransactions = newTransactions.filter(newTx => {
-          const isFinished = isTerminalState(newTx.status) || newTx.status.toLowerCase() === CircleTransactionState.CONFIRMED;
+          const isFinished = isFinishedStatus(newTx.status);
+          const isErrorTx = isErrorState(newTx.status);
           const isTracked = prev.some(p => p.transaction_id === newTx.transaction_id);
 
-          // If finished and not tracked, skip it
-          if (isFinished && !isTracked) return false;
+          // If finished+successful and not tracked, skip it.
+          // Failed/denied/cancelled should always be surfaced to the user.
+          if (isFinished && !isTracked && !isErrorTx) return false;
           return true;
         });
 
@@ -540,24 +636,41 @@ export default function ActiveTransactions({ username, className = '', onAllTran
         // Mark transactions as completed if they just became terminal (or confirmed)
         const updatedNew = filteredNewTransactions.map(newTx => {
           const existing = prev.find(p => p.transaction_id === newTx.transaction_id);
-          const isFinished = isTerminalState(newTx.status) || newTx.status.toLowerCase() === CircleTransactionState.CONFIRMED;
+          const isFinished = isFinishedStatus(newTx.status);
 
+          if (isFinished && !existing) {
+            return { ...newTx, completed_at: now };
+          }
           if (isFinished && existing && !existing.completed_at) {
             return { ...newTx, completed_at: now };
           }
           return existing?.completed_at ? { ...newTx, completed_at: existing.completed_at } : newTx;
         });
 
+        // Drop terminal transactions after display window even if backend still returns them.
+        const visibleUpdatedNew = persistCompleted
+          ? updatedNew
+          : updatedNew.filter(tx => {
+            if (!tx.completed_at) return true;
+            return now - tx.completed_at < COMPLETED_TX_DISPLAY_TIME;
+          });
+
         // Combine and sort by created_at descending (newest first)
-        const combined = [...updatedNew, ...completedToKeep];
-        combined.sort((a, b) => {
+        const combined = [...visibleUpdatedNew, ...completedToKeep];
+        const nonTerminalFiltered = combined.filter(tx => !isNonTerminalExpired(tx, now));
+        nonTerminalFiltered.sort((a, b) => {
           const aTime = a.created_at || 0;
           const bTime = b.created_at || 0;
           return bTime - aTime; // Descending order (newest first)
         });
-        return combined;
+        return nonTerminalFiltered;
       });
     } catch (err: any) {
+      txDebug("fetch_error", {
+        username,
+        status: err?.response?.status,
+        message: err?.message,
+      });
       console.error('Error fetching active transactions:', err);
       // On 404 or error, only clear if we never had initial data (e.g. Clark inline tx)
       if (err?.response?.status === 404 && hadInitialTransactions.current) {
@@ -571,28 +684,18 @@ export default function ActiveTransactions({ username, className = '', onAllTran
         initialFetch.current = false;
       }
     }
-  }, [username, onlyShowInitial]);
+  }, [username, onlyShowInitial, persistCompleted, txDebug]);
 
-  // Initial fetch and polling - only poll when visible to save API calls
+  // Initial fetch when component becomes visible.
   useEffect(() => {
     if (!username) return;
+    // Clark inline cards that only show initial tx should not refetch once terminal.
+    if (onlyShowInitial && transactions.length > 0 && !hasLiveOnlyInitialTx) return;
 
-    // Always do initial fetch when component mounts or becomes visible
     if (isVisible) {
       fetchActiveTransactions();
     }
-
-    // Only set up polling interval when visible
-    if (!isVisible) {
-      return;
-    }
-
-    const interval = setInterval(fetchActiveTransactions, POLL_INTERVAL_MS);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, [username, fetchActiveTransactions, isVisible]);
+  }, [username, fetchActiveTransactions, isVisible, onlyShowInitial, transactions.length, hasLiveOnlyInitialTx]);
 
   // Refresh when refreshKey changes (triggered by parent component)
   useEffect(() => {
@@ -602,6 +705,19 @@ export default function ActiveTransactions({ username, className = '', onAllTran
     }
   }, [refreshKey, fetchActiveTransactions]);
 
+  // Fallback polling for status progression when WS is unavailable.
+  useEffect(() => {
+    if (!username || !isVisible || isWebSocketConnected) return;
+    // For Clark inline cards, stop polling after transaction reaches terminal state.
+    if (onlyShowInitial && !hasLiveOnlyInitialTx) return;
+
+    const interval = setInterval(() => {
+      fetchActiveTransactions();
+    }, ACTIVE_TX_POLL_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [username, isVisible, isWebSocketConnected, fetchActiveTransactions, onlyShowInitial, hasLiveOnlyInitialTx]);
+
   // Clean up old completed transactions periodically (skip when persistCompleted, e.g. Clark feed)
   useEffect(() => {
     if (persistCompleted) return;
@@ -610,9 +726,8 @@ export default function ActiveTransactions({ username, className = '', onAllTran
       const now = Date.now();
       setTransactions(prev =>
         prev.filter(tx => {
-          if (tx.completed_at) {
-            return now - tx.completed_at < COMPLETED_TX_DISPLAY_TIME;
-          }
+          if (tx.completed_at) return now - tx.completed_at < COMPLETED_TX_DISPLAY_TIME;
+          if (isNonTerminalExpired(tx, now)) return false;
           return true;
         })
       );
@@ -632,7 +747,14 @@ export default function ActiveTransactions({ username, className = '', onAllTran
         onAllTransactionsComplete();
       }
     }
-  }, [transactions.length, onAllTransactionsComplete]);
+  }, [transactions, onAllTransactionsComplete]);
+
+  // Live elapsed timer for transparency in the UI
+  useEffect(() => {
+    if (!transactions.length) return;
+    const interval = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [transactions.length]);
 
   // Don't render if no transactions or no username
   if (!username || transactions.length === 0) {
@@ -655,9 +777,10 @@ export default function ActiveTransactions({ username, className = '', onAllTran
       {/* Transaction List */}
       <div className="space-y-3">
         {transactions.map((tx) => (
-          <TransactionCard key={tx.transaction_id} tx={tx} />
+          <TransactionCard key={tx.transaction_id} tx={tx} nowTs={nowTs} currentUsername={username} />
         ))}
       </div>
     </div>
   );
 }
+

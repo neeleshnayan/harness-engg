@@ -7,7 +7,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
 import type { DotProps } from 'recharts'
 import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
 import { BacktestDataPoint, BacktestTrade } from '../../types'
-import { chartConfig } from '../../constants'
+import { chartConfig, chartUi } from '../../constants'
 import { formatDate } from '../../utils'
 
 interface PortfolioChartProps {
@@ -21,6 +21,12 @@ type TradeBucket = {
   buys: BacktestTrade[]
   sells: BacktestTrade[]
 }
+
+const TRADE_MARKER_COLORS = {
+  buy: '#22c55e',
+  sell: '#ef4444',
+  stroke: '#0f172a',
+} as const
 
 const normalizeDate = (value: string) => {
   const parsed = new Date(value)
@@ -132,16 +138,16 @@ export default function PortfolioChart({ dataPoints, startDate, endDate, trades 
             cx={cx}
             cy={circleY}
             r={4}
-            fill="#22c55e"
-            stroke="#0f172a"
+            fill={TRADE_MARKER_COLORS.buy}
+            stroke={TRADE_MARKER_COLORS.stroke}
             strokeWidth={1}
           />
         )}
         {hasSell && (
           <path
             d={`M ${cx} ${triangleY} L ${cx - 5} ${triangleY + 10} L ${cx + 5} ${triangleY + 10} Z`}
-            fill="#ef4444"
-            stroke="#0f172a"
+            fill={TRADE_MARKER_COLORS.sell}
+            stroke={TRADE_MARKER_COLORS.stroke}
             strokeWidth={1}
           />
         )}
@@ -179,27 +185,27 @@ export default function PortfolioChart({ dataPoints, startDate, endDate, trades 
   }
 
   return (
-    <Card className="w-full bg-teal-800/20 border-teal-700/30 backdrop-blur-sm">
+    <Card className={chartUi.card}>
       <CardHeader className="pb-4">
         <CardTitle className="text-lg text-white">Portfolio Performance</CardTitle>
-        <CardDescription className="text-teal-200/70">
+        <CardDescription className={chartUi.muted}>
           Portfolio value over time from {formatDate(startDate)} to {formatDate(endDate)}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[400px] w-full">
           <LineChart data={dataPoints}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
             <XAxis 
               dataKey="date" 
               tickFormatter={(value) => formatDate(value)}
-              tick={{ fontSize: 12, fill: 'rgba(255,255,255,0.6)' }}
+              tick={{ fontSize: 12, fill: 'rgba(255,255,255,0.68)' }}
               axisLine={{ stroke: 'rgba(255,255,255,0.12)' }}
               tickLine={{ stroke: 'rgba(255,255,255,0.12)' }}
             />
             <YAxis 
               tickFormatter={formatAxisValue}
-              tick={{ fontSize: 12, fill: 'rgba(255,255,255,0.6)' }}
+              tick={{ fontSize: 12, fill: 'rgba(255,255,255,0.68)' }}
               axisLine={{ stroke: 'rgba(255,255,255,0.12)' }}
               tickLine={{ stroke: 'rgba(255,255,255,0.12)' }}
               domain={[domainMin, domainMax]}
@@ -216,8 +222,9 @@ export default function PortfolioChart({ dataPoints, startDate, endDate, trades 
               type="monotone"
               dataKey="portfolio_value"
               stroke="var(--color-portfolio)"
-              strokeWidth={2}
+              strokeWidth={2.5}
               dot={renderTradeDot}
+              activeDot={{ r: 4, fill: 'var(--color-portfolio)', stroke: 'var(--color-portfolio)' }}
             />
           </LineChart>
         </ChartContainer>

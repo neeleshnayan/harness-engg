@@ -61,8 +61,8 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
             name: balance.symbol === "USDC"
               ? "USD Coin"
               : balance.symbol.startsWith("k")
-              ? `Krypton ${balance.symbol.substring(1).toUpperCase()}`
-              : balance.symbol,
+                ? `Krypton ${balance.symbol.substring(1).toUpperCase()}`
+                : balance.symbol,
             blockchain: "ETH-SEPOLIA",
             decimals: balance.decimals,
             isNative: balance.symbol === "ETH" || balance.symbol === "ETH-SEPOLIA",
@@ -105,7 +105,7 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col bg-[#001C1B] p-8">
+    <div className="min-h-screen w-full flex flex-col bg-[hsl(var(--brand-bg))] dark p-8">
       <div className="container mx-auto max-w-6xl">
         {/* Header with Back to Wallet Button */}
         <div className="flex justify-between items-start mb-12">
@@ -131,7 +131,7 @@ export default function GrowPage({ userType, backRoute }: GrowPageProps) {
           {accountData?.username && (
             <div className="mb-4">
               <p className="text-zinc-400 text-lg">
-                Hello, <span className="font-semibold" style={{ color: '#90E7EE' }}>@{accountData.username}</span>
+                Hello, <span className="font-semibold text-[hsl(var(--brand-accent))]">@{accountData.username}</span>
               </p>
             </div>
           )}

@@ -4,8 +4,16 @@ import https from 'https';
 import { parseErrorMessage } from './parseError';
 
 // Main backend: login, auth, user, wallet. Always api.kryptonfund.com.
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
-const KRYPTON_WEB3_API_BASE_URL = process.env.NEXT_PUBLIC_KRYPTON_WEB3_API_URL || 'http://127.0.0.1:8001';
+const IS_DEV = process.env.NODE_ENV === 'development';
+const IS_BROWSER = typeof window !== 'undefined';
+
+const API_BASE_URL = (IS_DEV && IS_BROWSER)
+  ? '/proxy/main'
+  : (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000');
+
+const KRYPTON_WEB3_API_BASE_URL = (IS_DEV && IS_BROWSER)
+  ? '/proxy/web3'
+  : (process.env.NEXT_PUBLIC_KRYPTON_WEB3_API_URL || 'http://127.0.0.1:8001');
 
 const httpAgent = new http.Agent({
   keepAlive: true,
@@ -46,9 +54,9 @@ const ensureProtocol = (url: string) => {
 };
 
 // Hedge Fund API: localhost for local dev; set NEXT_PUBLIC_HEDGE_FUND_API_URL to Railway URL in production
-const HEDGE_FUND_API_BASE_URL = ensureProtocol(
-  process.env.NEXT_PUBLIC_HEDGE_FUND_API_URL || 'http://127.0.0.1:8000'
-);
+const HEDGE_FUND_API_BASE_URL = (IS_DEV && IS_BROWSER)
+  ? '/proxy/hedge'
+  : ensureProtocol(process.env.NEXT_PUBLIC_HEDGE_FUND_API_URL || 'http://127.0.0.1:8000');
 
 /** Hedge fund subgraph (strategy metrics, deposits, signals). Override with NEXT_PUBLIC_HEDGE_FUND_SUBGRAPH_API_URL or NEXT_PUBLIC_SUBGRAPH_URL. */
 export const HEDGE_FUND_SUBGRAPH_URL =
@@ -220,7 +228,7 @@ export const getDailyPriceHistory = async (
  */
 export const swap = async (swapRequest: SwapRequest): Promise<SwapResponse> => {
   try {
-    const response = await kryptonWeb3Api.post<SwapResponse>('/pools/swap', swapRequest);
+    const response = await kryptonWeb3Api.post<SwapResponse>('/pools/universal/swap', swapRequest);
     return response.data;
   } catch (error: unknown) {
     console.error('Error executing swap:', error);
