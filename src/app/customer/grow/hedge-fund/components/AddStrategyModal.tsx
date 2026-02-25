@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ethers } from "ethers";
+import { USDC_ADDRESS } from "@/lib/constants";
 
 // Add specific type for window.ethereum to avoid TS errors
 declare global {
@@ -30,7 +31,7 @@ export function AddStrategyModal({ isOpen, onClose, onSuccess }: AddStrategyModa
     const [formData, setFormData] = useState({
         name: "",
         symbol: "",
-        assetAddress: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", // USDC Sepolia
+        assetAddress: USDC_ADDRESS, // USDC Sepolia (can be overridden via env)
         targetAddress: "", // Token B
         vaultAddress: "", // Underlying Yearn Vault - Not used in UI but kept for type compatibility if needed
         poolAddress: "", // Specific Uniswap V3 Pool

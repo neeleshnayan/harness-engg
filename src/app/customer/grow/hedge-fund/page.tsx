@@ -19,6 +19,7 @@ import { TransactionWebhookProvider } from "@/contexts/TransactionWebhookContext
 import { filterStrategies } from "./utils/strategyFilters";
 import { AvailableStrategiesSection } from "./components/AvailableStrategiesSection";
 import { useStrategiesWithMetrics } from "./hooks/useStrategiesWithMetrics";
+import { USDC_ADDRESS } from "@/lib/constants";
 
 export default function HedgeFundV2Page() {
   const router = useRouter();
@@ -153,7 +154,7 @@ export default function HedgeFundV2Page() {
           amount: batchData.usdc_balance,
           token: {
             symbol: "USDC",
-            address: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" // USDC address
+            address: USDC_ADDRESS,
           }
         });
       }
