@@ -62,6 +62,34 @@ export default function BacktestPage() {
     query: string
     userMessage: ChatMessage
   } | null>(null)
+
+  // Track whether we already initialized from a mini-chat expansion so we
+  // don't override that state with Firebase last-chat data.
+  const initializedFromExpansionRef = useRef(false)
+
+  const persistLastChat = React.useCallback(
+    async (allMessages: ChatMessage[]) => {
+      if (!userId) return
+
+      try {
+        const payload = {
+          user_id: userId,
+          session_id: sessionId,
+          messages: allMessages.map((msg) => ({
+            id: msg.id,
+            type: msg.type,
+            content: msg.content,
+            timestamp: msg.timestamp instanceof Date ? msg.timestamp.toISOString() : msg.timestamp,
+          })),
+        }
+        // Fire and forget; errors are logged to console only.
+        await agentsApi.post('/api/v1/agents/clark-chat', payload)
+      } catch (error) {
+        console.error('Error persisting Clark last chat:', error)
+      }
+    },
+    [userId, sessionId]
+  )
   const submittingInterruptRef = useRef(false)
   const shownInterruptIdsRef = useRef<Set<string>>(new Set())
   const queryQueueRef = useRef<Array<{ query: string }>>([])
@@ -126,7 +154,8 @@ export default function BacktestPage() {
         })) as ChatMessage[]
         setMessages(parsedMessages)
         setSessionId(expandedSessionId)
-
+        initializedFromExpansionRef.current = true
+        
         // Clear the stored data to avoid reloading on refresh
         localStorage.removeItem('clark_expanded_messages')
         localStorage.removeItem('clark_expanded_session_id')
@@ -145,6 +174,42 @@ export default function BacktestPage() {
     // Reset session cost for new session
     setSessionCost(0)
   }, [])
+
+  // Fetch last Clark chat (prompts & responses) from Firebase when userId is available
+  // and we haven't already initialized from a mini-chat expansion.
+  useEffect(() => {
+    const fetchLastChat = async () => {
+      if (!userId) return
+      if (initializedFromExpansionRef.current) return
+      if (messages.length > 0) return
+
+      try {
+        const response = await agentsApi.get('/api/v1/agents/clark-chat', {
+          params: { user_id: userId },
+        })
+        const payload = response.data
+        if (payload?.success && payload?.last_chat && Array.isArray(payload.last_chat.messages)) {
+          const restoredMessages: ChatMessage[] = payload.last_chat.messages.map((msg: any) => ({
+            id: String(msg.id ?? ''),
+            type: msg.type === 'assistant' ? 'assistant' : 'user',
+            content: msg.content ?? '',
+            timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+          }))
+
+          if (restoredMessages.length > 0) {
+            setMessages(restoredMessages)
+            if (payload.last_chat.session_id) {
+              setSessionId(payload.last_chat.session_id)
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching Clark last chat:', error)
+      }
+    }
+
+    fetchLastChat()
+  }, [userId, messages.length])
 
   // Fetch initial costs from Firebase via API when userId is available
   useEffect(() => {
@@ -397,7 +462,11 @@ export default function BacktestPage() {
 
 
       // Append Clark's response so ResultsDisplay can render results/backtests/etc.
-      setMessages(prev => [...prev, assistantMessage])
+      setMessages(prev => {
+        const updated = [...prev, assistantMessage]
+        void persistLastChat(updated)
+        return updated
+      })
     } catch (error) {
       console.error('Clark API error:', error)
       const content = parseErrorMessage(error, "Sorry, I'm unable to process your request at the moment.")
@@ -565,6 +634,11 @@ export default function BacktestPage() {
 
       // Always append Clark's response; ResultsDisplay will decide what to show,
       // including any transaction status cards for krypton_pay flows.
+      setMessages(prev => {
+        const updated = [...prev, assistantMessage]
+        void persistLastChat(updated)
+        return updated
+      })
       setMessages(prev => [...prev, assistantMessage])
       return payload
     } catch (error) {
