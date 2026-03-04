@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Clock, Zap, TrendingUp, Activity, BarChart3, Filter, Brain, Loader2, RefreshCw } from 'lucide-react'
+import { X, Clock, Zap, TrendingUp, Activity, BarChart3, Filter, Brain, Loader2, RefreshCw, MessageSquare } from 'lucide-react'
 import { ChatMessage, AgentFlowGraph, AgentFlowStep } from '../types'
 import AgentFlow from './AgentFlow'
 import MemoriesTab from './MemoriesTab'
+import PastConversationsTab from './PastConversationsTab'
 import agentsApi from '@/lib/agents_api'
 
 interface DevtoolsOverlayProps {
@@ -17,6 +18,7 @@ interface DevtoolsOverlayProps {
   sessionId?: string
   sessionCost?: number
   overallCost?: number
+  onLoadConversationFromHistory?: (sessionId: string, messages: ChatMessage[]) => void
 }
 
 interface AgentFlowEntry {
@@ -27,10 +29,20 @@ interface AgentFlowEntry {
   created_at?: any
 }
 
-export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, userName, sessionId, sessionCost = 0, overallCost = 0 }: DevtoolsOverlayProps) {
+export default function DevtoolsOverlay({
+  isOpen,
+  onClose,
+  messages,
+  userId,
+  userName,
+  sessionId,
+  sessionCost = 0,
+  overallCost = 0,
+  onLoadConversationFromHistory,
+}: DevtoolsOverlayProps) {
   const [selectedQueryIndex, setSelectedQueryIndex] = useState<number | null>(null)
   const [filterType, setFilterType] = useState<'all' | 'single' | 'sequential' | 'parallel'>('all')
-  const [activeTab, setActiveTab] = useState<'agent-flow' | 'memories'>('agent-flow')
+  const [activeTab, setActiveTab] = useState<'agent-flow' | 'memories' | 'history'>('agent-flow')
   const [firebaseAgentflows, setFirebaseAgentflows] = useState<AgentFlowEntry[]>([])
   const [isLoadingAgentflows, setIsLoadingAgentflows] = useState(false)
 
@@ -266,6 +278,17 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, use
                   <Brain className="h-4 w-4" />
                   Memories
                 </button>
+                <button
+                  onClick={() => setActiveTab('history')}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${
+                    activeTab === 'history'
+                      ? 'bg-teal-900/40 text-teal-100 shadow-sm'
+                      : 'text-teal-200/60 hover:text-teal-100/80'
+                  }`}
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  History
+                </button>
               </div>
             </div>
 
@@ -408,8 +431,10 @@ export default function DevtoolsOverlay({ isOpen, onClose, messages, userId, use
                 </>
               )}
               
-              {activeTab === 'memories' && (
-                <MemoriesTab userId={userId} sessionId={sessionId} messages={messages} />
+              {activeTab === 'memories' && <MemoriesTab userId={userId} sessionId={sessionId} messages={messages} />}
+
+              {activeTab === 'history' && (
+                <PastConversationsTab userId={userId} onLoadConversation={onLoadConversationFromHistory} />
               )}
             </div>
           </motion.div>
