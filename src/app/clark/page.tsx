@@ -880,34 +880,36 @@ export default function BacktestPage() {
       {/* Spacer for fixed navbar height */}
       <div className="h-24" />
 
-      {/* Main Content Area */}
-      <div className="container mx-auto px-4 py-10 max-w-6xl relative z-0">
-        {/* Category Tiles - hidden when prompt modal is open so a single card click doesn't fire both modal and tiles */}
-        {showCategoryTiles && (
-          <CategoryTiles
-            categories={categories}
-            selectedCategory={selectedCategory}
-            onCategorySelect={(categoryId) => setSelectedCategory(categoryId || null)}
-            onPromptClick={handlePromptClick}
-            isLoading={isLoading}
+      {/* Main Content Area - full width so past conversations can sit flush left */}
+      <div className="w-full flex flex-col lg:flex-row relative z-0">
+        {/* Left: Past conversations column - flush to viewport left */}
+        <aside className="order-2 lg:order-1 w-full lg:w-[280px] lg:flex-shrink-0 lg:pl-4 lg:pr-3 lg:py-10 lg:border-r border-white/10">
+          <PastConversationsTab
+            userId={userId}
+            onLoadConversation={handleLoadConversationFromHistory}
           />
-        )}
+        </aside>
 
-        {/* Left-side conversation history + main chat feed */}
-        <div className="mt-6 grid gap-6 lg:grid-cols-[320px,minmax(0,1fr)]">
-          <div className="order-2 lg:order-1">
-            <PastConversationsTab
-              userId={userId}
-              onLoadConversation={handleLoadConversationFromHistory}
-            />
-          </div>
+        {/* Right: Centered main content (tiles + feed) */}
+        <div className="order-1 lg:order-2 flex-1 min-w-0">
+          <div className="container mx-auto px-4 py-10 max-w-6xl">
+            {/* Category Tiles - hidden when prompt modal is open so a single card click doesn't fire both modal and tiles */}
+            {showCategoryTiles && (
+              <CategoryTiles
+                categories={categories}
+                selectedCategory={selectedCategory}
+                onCategorySelect={(categoryId) => setSelectedCategory(categoryId || null)}
+                onPromptClick={handlePromptClick}
+                isLoading={isLoading}
+              />
+            )}
 
-          {/* Continuous Feed: scrollable area bounded by navbar (top) and chat input (bottom) */}
-          <div className="order-1 lg:order-2 dark">
-            <div
-              ref={feedRef}
-              className="scrollbar-minimal min-h-[200px] max-h-[calc(100vh-6rem-8rem)] overflow-y-auto scroll-smooth"
-            >
+            {/* Continuous Feed: scrollable area bounded by navbar (top) and chat input (bottom) */}
+            <div className="mt-6 dark">
+              <div
+                ref={feedRef}
+                className="scrollbar-minimal min-h-[200px] max-h-[calc(100vh-6rem-8rem)] overflow-y-auto scroll-smooth"
+              >
               <div className="pb-40">
                 {/* Loading with no messages yet: show "Thinking…"; once messages exist, ResultsDisplay shows "Processing your request..." */}
                 {isLoading && messages.length === 0 && (
@@ -992,19 +994,20 @@ export default function BacktestPage() {
               </div>
             </div>
           </div>
+          </div>
         </div>
-
-        {/* Prompts modal opened by left icon - shared with MiniClark */}
-        <PromptGuideModal
-          open={isPromptModalOpen}
-          onOpenChange={setIsPromptModalOpen}
-          categories={categories}
-          selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
-          onPromptClick={handlePromptClick}
-          isLoading={isLoading}
-        />
       </div>
+
+      {/* Prompts modal opened by left icon - shared with MiniClark */}
+      <PromptGuideModal
+        open={isPromptModalOpen}
+        onOpenChange={setIsPromptModalOpen}
+        categories={categories}
+        selectedCategory={selectedCategory}
+        onSelectCategory={setSelectedCategory}
+        onPromptClick={handlePromptClick}
+        isLoading={isLoading}
+      />
 
       {/* Chat Input Bar - fixed at bottom */}
       <ChatInputBar
