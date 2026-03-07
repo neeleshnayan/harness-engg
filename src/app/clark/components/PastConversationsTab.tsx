@@ -9,7 +9,12 @@ import type { ChatMessage } from '../types'
 
 interface PastConversationsTabProps {
   userId?: string
-  onLoadConversation?: (sessionId: string, messages: ChatMessage[]) => void
+  onLoadConversation?: (
+    sessionId: string,
+    messages: ChatMessage[],
+    sessionCondensedMemory?: unknown[],
+    sessionCondensedSummary?: string
+  ) => void
 }
 
 interface ConversationListItem {
@@ -17,6 +22,8 @@ interface ConversationListItem {
   sessionId: string
   preview: string
   messages: ChatMessage[]
+  sessionCondensedMemory?: unknown[]
+  sessionCondensedSummary?: string
 }
 
 export default function PastConversationsTab({ userId, onLoadConversation }: PastConversationsTabProps) {
@@ -31,6 +38,11 @@ export default function PastConversationsTab({ userId, onLoadConversation }: Pas
       if (!conv) return
       const sessionId: string = conv.session_id || ''
       const messagesRaw: any[] = Array.isArray(conv.messages) ? conv.messages : []
+      const sessionCondensedMemory: unknown[] = Array.isArray(conv.session_condensed_memory)
+        ? conv.session_condensed_memory
+        : []
+      const sessionCondensedSummary: string | undefined =
+        typeof conv.session_condensed_summary === 'string' ? conv.session_condensed_summary : undefined
 
       const messages: ChatMessage[] = messagesRaw.map((msg) => ({
         id: String(msg?.id ?? ''),
@@ -51,6 +63,8 @@ export default function PastConversationsTab({ userId, onLoadConversation }: Pas
         sessionId,
         preview,
         messages,
+        sessionCondensedMemory,
+        sessionCondensedSummary,
       })
     })
 
@@ -103,59 +117,42 @@ export default function PastConversationsTab({ userId, onLoadConversation }: Pas
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header with refresh button */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <MessageSquare className="h-5 w-5 text-teal-400" />
-            Past Conversations
-          </h2>
-          <p className="text-sm text-white/60 mt-1">Browse and continue your previous Clark chats.</p>
+    <div className="space-y-5">
+      {/* Header with icon and title */}
+      <div className="flex items-center justify-between px-2">
+        <div className="flex items-center gap-2">
+          <MessageSquare className="h-3.5 w-3.5 text-teal-400" />
+          <h2 className="text-[11px] font-bold text-white/50 uppercase tracking-[0.15em]">History</h2>
         </div>
-        {/* <button
-          onClick={fetchConversations}
-          disabled={isLoading}
-          className="flex items-center gap-2 px-4 py-2 bg-teal-900/40 hover:bg-teal-800/50 backdrop-blur-sm border border-teal-700/30 text-white rounded-xl transition-colors disabled:opacity-50"
-        >
-          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          Refresh
-        </button> */}
       </div>
 
       {error && (
-        <Card className="bg-red-900/20 border-red-700/30 backdrop-blur-xl">
-          <CardContent className="p-4">
-            <p className="text-red-300 text-sm">{error}</p>
-          </CardContent>
-        </Card>
+        <div className="p-3 rounded-xl bg-red-900/20 border border-red-700/30 backdrop-blur-xl">
+          <p className="text-red-300 text-xs">{error}</p>
+        </div>
       )}
 
       {isLoading && !conversations.length && (
-        <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl">
-          <CardContent className="p-8 text-center">
-            <Loader2 className="h-8 w-8 text-teal-400 animate-spin mx-auto mb-4" />
-            <p className="text-white/60">Loading conversations...</p>
-          </CardContent>
-        </Card>
+        <div className="p-8 text-center">
+          <Loader2 className="h-6 w-6 text-teal-400 animate-spin mx-auto mb-3" />
+          <p className="text-white/50 text-xs">Loading...</p>
+        </div>
       )}
 
       {!isLoading && !error && conversations.length === 0 && (
-        <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl">
-          <CardContent className="p-8 text-center">
-            <p className="text-white/60">No past conversations found yet. Start chatting with Clark to build history.</p>
-          </CardContent>
-        </Card>
+        <div className="p-8 text-center rounded-xl bg-white/5 border border-white/5">
+          <p className="text-white/40 text-xs leading-relaxed">No past conversations found.</p>
+        </div>
       )}
 
       {!isLoading && conversations.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-0.5">
           {conversations.map((conv, index) => (
             <motion.div
               key={conv.id}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.02 }}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.01 }}
             >
               <button
                 type="button"
@@ -163,20 +160,22 @@ export default function PastConversationsTab({ userId, onLoadConversation }: Pas
                   if (!onLoadConversation) return
                   const safeSessionId =
                     conv.sessionId || `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
-                  onLoadConversation(safeSessionId, conv.messages)
+                  onLoadConversation(
+                    safeSessionId,
+                    conv.messages,
+                    conv.sessionCondensedMemory,
+                    conv.sessionCondensedSummary
+                  )
                 }}
-                className="w-full text-left"
+                className="w-full text-left group px-2"
               >
-                <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/10 hover:border-white/25 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.4)] transition-colors">
-                  <CardHeader className="py-3">
-                    <div className="flex items-center gap-2">
-                      <MessageSquare className="h-4 w-4 text-teal-400 flex-shrink-0" />
-                      <CardTitle className="text-sm text-white truncate">
-                        {conv.preview.length > 80 ? `${conv.preview.slice(0, 80)}…` : conv.preview}
-                      </CardTitle>
-                    </div>
-                  </CardHeader>
-                </Card>
+                <div className="px-3 py-2 rounded-xl border border-transparent hover:bg-white/[0.04] active:bg-white/[0.06] transition-all duration-200">
+                  <div className="flex items-start gap-3">
+                    <span className="text-[13px] text-white/60 group-hover:text-white/90 leading-snug line-clamp-2 transition-colors">
+                      {conv.preview}
+                    </span>
+                  </div>
+                </div>
               </button>
             </motion.div>
           ))}

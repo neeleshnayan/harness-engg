@@ -185,6 +185,59 @@ For detailed optimization documentation, see:
     - Streaming‑style feed of messages and structured results
     - Modal prompts and devtools overlay.
 
+### Clark memory and past conversations
+
+Clark keeps **session memory** (summarized conversation for the current session) and **condensed persona** (cross-session user summary). Past conversations are stored in Firebase and can be loaded so their session memory is restored.
+
+#### Data and APIs
+
+| Concept | Where it lives | API / usage |
+|--------|-----------------|-------------|
+| **Past conversations list** | Firebase `conversation_history` (per user) | `GET /api/v1/agents/conversations?user_id=&limit=` – used by `PastConversationsTab` |
+| **Session condensed memory** | Backend in-memory (per `user_id` + `session_id`); persisted on save | Stored with each conversation doc as `session_condensed_memory` (raw) and `session_condensed_summary` (LLM summary) |
+| **Condensed memories (all sessions)** | Backend local + Firebase `clark/{user_id}.condensed_memories` | `GET /api/v1/agents/memories?user_id=&session_id=` – returns condensed persona and current-session summary |
+| **Persist after each reply** | Frontend calls after assistant message | `POST /api/v1/agents/clark-chat` with `user_id`, `session_id`, `messages` – backend also saves session memory and LLM summary to Firebase |
+
+#### Flow: saving (current session)
+
+1. User sends messages; backend stores turns in memory and builds a **session condensed summary** (LLM).
+2. After each assistant reply, the frontend calls **`POST /api/v1/agents/clark-chat`** with the full message list.
+3. Backend:
+   - Saves **last chat** and **conversation_history** (messages).
+   - Reads current session memory from the memory manager, runs **LLM summarization** for this session, and stores:
+     - **`session_condensed_memory`** (raw interaction entries) and  
+     - **`session_condensed_summary`** (one paragraph)  
+     on the conversation document in Firebase.
+
+#### Flow: loading a past conversation
+
+1. User opens **Past conversations** (sidebar or Devtools → History), backed by **`GET /api/v1/agents/conversations`**.
+2. Each item has: `session_id`, `messages`, optional **`session_condensed_memory`**, optional **`session_condensed_summary`**.
+3. On **“Load”** (click a conversation), the frontend calls **`POST /api/v1/agents/restore-session-memory`** with:
+   - **`user_id`**, **`session_id`**
+   - **`session_condensed_memory`** and **`session_condensed_summary`** when present (from the conversation doc).
+   - **`messages`** when the doc has **no** stored session memory (e.g. older conversations): backend builds session entries from messages, runs the summarizer, and stores the summary for that session.
+4. Backend restores:
+   - Raw session entries into the memory manager for that `session_id`.
+   - Session summary override (so the Memories tab can show it without another LLM call).
+5. Frontend sets **`sessionId`** and **`messages`** so the feed shows that conversation; subsequent queries use the restored session context.
+
+#### Flow: Devtools → Memories tab
+
+1. **Memories** tab calls **`GET /api/v1/agents/memories?user_id=&session_id=`** (current page `session_id`, e.g. active or loaded conversation).
+2. Response includes:
+   - **Session condensed memory** – one LLM summary for the **current** session (from stored override after load, or from on-the-fly summarization of current-session turns).
+   - **Condensed memories (all sessions)** – global condensed persona from backend (local storage + Firebase).
+   - **Transient / persistent knowledge base** – backend KB entries.
+3. **Refresh** re-fetches so that after loading a past conversation, the tab shows that conversation’s session summary.
+
+#### Components involved
+
+- **`src/app/clark/page.tsx`** – Keeps `sessionId`, calls `persistLastChat` (clark-chat) and `handleLoadConversationFromHistory` (restore-session-memory + set state).
+- **`src/app/clark/components/PastConversationsTab.tsx`** – Fetches conversations, maps `session_condensed_memory` / `session_condensed_summary`, invokes **`onLoadConversation(sessionId, messages, sessionCondensedMemory?, sessionCondensedSummary?)`**.
+- **`src/app/clark/components/MemoriesTab.tsx`** – Fetches **`GET /api/v1/agents/memories`** with **`userId`** and **`sessionId`**; displays session condensed memory, condensed memories, and KB sections.
+- **`src/app/clark/components/DevtoolsOverlay.tsx`** – Hosts Agent Flow, Memories, and History (Past conversations); passes **`sessionId`** into **MemoriesTab** so the tab reflects the active or loaded conversation.
+
 ### Mini Clark (Embedded in Wallet)
 
 - **Component**: `src/components/MiniClarkChat.tsx`
@@ -448,7 +501,7 @@ When adding new features:
 
 ---
 
-**Last Updated**: January 27, 2026  
+**Last Updated**: March 6, 2026  
 **Next.js Version**: 15.5.9  
 **React Version**: 19.2.0  
 **Build Status**: ✅ Optimized

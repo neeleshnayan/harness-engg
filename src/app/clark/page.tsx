@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import dynamic from 'next/dynamic'
-import { Menu } from 'lucide-react'
+import { Menu, PanelLeft, PanelRight } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import PromptGuideModal from './components/PromptGuideModal'
 import agentsApi from '@/lib/agents_api'
 import { kryptonWeb3Api } from '@/lib/api'
@@ -42,6 +43,7 @@ export default function BacktestPage() {
   const [showMenu, setShowMenu] = useState(false)
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false)
   const [isDevtoolsOpen, setIsDevtoolsOpen] = useState(false)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const feedRef = useRef<HTMLDivElement>(null)
 
   // Session management for mem0 integration
@@ -851,10 +853,38 @@ export default function BacktestPage() {
     !messages.some((m) => m.backtestResult) &&
     !isPromptModalOpen
 
-  const handleLoadConversationFromHistory = (historySessionId: string, historyMessages: ChatMessage[]) => {
-    // When loading a conversation from history, treat that as the canonical
-    // source of truth for this page and prevent "last chat" bootstrap from
-    // overwriting it on refresh.
+  const handleLoadConversationFromHistory = async (
+    historySessionId: string,
+    historyMessages: ChatMessage[],
+    sessionCondensedMemory?: unknown[],
+    sessionCondensedSummary?: string
+  ) => {
+    // When loading a conversation from history, restore its session memory and summary
+    // on the backend so subsequent queries and the Memories tab have that context.
+    // For older conversations without stored session_condensed_memory, send messages so
+    // the backend can build and summarize session memory from them.
+    if (userId) {
+      try {
+        const hasStoredMemory = Array.isArray(sessionCondensedMemory) && sessionCondensedMemory.length > 0
+        const payload: Record<string, unknown> = {
+          user_id: userId,
+          session_id: historySessionId,
+          session_condensed_memory: sessionCondensedMemory ?? [],
+          session_condensed_summary: sessionCondensedSummary ?? undefined,
+        }
+        if (!hasStoredMemory && historyMessages.length > 0) {
+          payload.messages = historyMessages.map((m) => ({
+            id: m.id,
+            type: m.type,
+            content: m.content,
+            timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp,
+          }))
+        }
+        await agentsApi.post('/api/v1/agents/restore-session-memory', payload)
+      } catch (err) {
+        console.error('Error restoring session memory for conversation:', err)
+      }
+    }
     initializedFromExpansionRef.current = true
     setSessionId(historySessionId)
     setMessages(historyMessages)
@@ -906,18 +936,41 @@ export default function BacktestPage() {
       <div className="h-24" />
 
       {/* Main Content Area - full width so past conversations can sit flush left */}
-      <div className="w-full flex flex-col lg:flex-row relative z-0">
-        {/* Left: Past conversations column - flush to viewport left */}
-        <aside className="order-2 lg:order-1 w-full lg:w-[280px] lg:flex-shrink-0 lg:pl-4 lg:pr-3 lg:py-10 lg:border-r border-white/10">
-          <PastConversationsTab
-            userId={userId}
-            onLoadConversation={handleLoadConversationFromHistory}
-          />
-        </aside>
+      <div className="w-full flex relative z-0">
+        {/* Sidebar Toggle Button - floating to the left of the divider, animates with sidebar */}
+        <motion.button
+          initial={false}
+          animate={{ left: isSidebarOpen ? 212 : 16 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="hidden lg:flex fixed top-[114px] z-50 items-center justify-center w-8 h-8 rounded-lg bg-[#001C1B]/80 backdrop-blur-md hover:bg-white/10 text-white/40 hover:text-white transition-colors border border-white/10"
+          title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+        >
+          {isSidebarOpen ? <PanelLeft className="h-4 w-4" /> : <PanelRight className="h-4 w-4" />}
+        </motion.button>
+
+        {/* Left: Past conversations column - collapsible on desktop, hidden on mobile */}
+        <AnimatePresence initial={false}>
+          {isSidebarOpen && (
+            <motion.aside
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 260, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="hidden lg:flex lg:flex-col lg:w-[260px] lg:flex-shrink-0 lg:pl-4 lg:pr-3 lg:py-10 lg:border-r border-white/10 overflow-hidden"
+            >
+              <PastConversationsTab
+                userId={userId}
+                onLoadConversation={handleLoadConversationFromHistory}
+              />
+            </motion.aside>
+          )}
+        </AnimatePresence>
 
         {/* Right: Centered main content (tiles + feed) */}
-        <div className="order-1 lg:order-2 flex-1 min-w-0">
-          <div className="container mx-auto px-4 py-10 max-w-6xl">
+        <div className={`flex-1 min-w-0 flex flex-col pt-10 px-4 relative transition-all duration-300 ${isSidebarOpen ? 'lg:items-start' : 'items-center'}`}>
+          <div className="w-full max-w-6xl relative">
+            {/* Category Tiles - hidden when prompt modal is open so a single card click doesn't fire both modal and tiles */}
             {/* Category Tiles - hidden when prompt modal is open so a single card click doesn't fire both modal and tiles */}
             {showCategoryTiles && (
               <CategoryTiles
@@ -930,95 +983,95 @@ export default function BacktestPage() {
             )}
 
             {/* Continuous Feed: scrollable area bounded by navbar (top) and chat input (bottom) */}
-            <div className="mt-6 dark">
+            <div className="mt-12 dark w-full">
               <div
                 ref={feedRef}
                 className="scrollbar-minimal min-h-[200px] max-h-[calc(100vh-6rem-8rem)] overflow-y-auto scroll-smooth"
               >
-              <div className="pb-40">
-                {/* Loading with no messages yet: show "Thinking…"; once messages exist, ResultsDisplay shows "Processing your request..." */}
-                {isLoading && messages.length === 0 && (
-                  <div className="flex gap-2 justify-start items-center py-4">
-                    <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                      <img src="/clark process.svg" alt="Clark" className="h-8 w-8 animate-pulse" />
-                    </div>
-                    <div className="rounded-2xl px-4 py-3 bg-zinc-900/30 border border-zinc-700/40 text-white/80 text-sm">
-                      Thinking…
-                    </div>
-                  </div>
-                )}
-                <ResultsDisplay messages={messages} isLoading={isLoading} username={userName} />
-                {/* When messages exist, loading state is shown inside ResultsDisplay as "Processing your request..." */}
-                {/* Show payment confirmation inline at the end of the conversation */}
-                {interrupts && interrupts.length > 0 && (() => {
-                  const paymentInterrupt = interrupts.find((i) => i.name === 'krypton-pay-approval')
-                  if (!paymentInterrupt) return null
-                  const { reason } = paymentInterrupt
-                  const operation =
-                    reason.operation === 'swap_and_transfer' ? 'Swap & Transfer' : 'Transfer'
-                  const fromToken = reason.from_token || reason.to_token
-                  const toToken = reason.to_token || ''
-                  return (
-                    <div className="mb-4 flex gap-2 justify-start items-start">
+                <div className="pb-40">
+                  {/* Loading with no messages yet: show "Thinking…"; once messages exist, ResultsDisplay shows "Processing your request..." */}
+                  {isLoading && messages.length === 0 && (
+                    <div className="flex gap-2 justify-start items-center py-4">
                       <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                        <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
+                        <img src="/clark process.svg" alt="Clark" className="h-8 w-8 animate-pulse" />
                       </div>
-                      <div className="max-w-[85%] rounded-2xl p-4 bg-zinc-900/40 border border-zinc-700/50 text-white backdrop-blur-sm">
-                        <div className="text-[10px] uppercase tracking-[0.2em] text-white/80 mb-2">
-                          Payment confirmation
+                      <div className="rounded-2xl px-4 py-3 bg-zinc-900/30 border border-zinc-700/40 text-white/80 text-sm">
+                        Thinking…
+                      </div>
+                    </div>
+                  )}
+                  <ResultsDisplay messages={messages} isLoading={isLoading} username={userName} />
+                  {/* When messages exist, loading state is shown inside ResultsDisplay as "Processing your request..." */}
+                  {/* Show payment confirmation inline at the end of the conversation */}
+                  {interrupts && interrupts.length > 0 && (() => {
+                    const paymentInterrupt = interrupts.find((i) => i.name === 'krypton-pay-approval')
+                    if (!paymentInterrupt) return null
+                    const { reason } = paymentInterrupt
+                    const operation =
+                      reason.operation === 'swap_and_transfer' ? 'Swap & Transfer' : 'Transfer'
+                    const fromToken = reason.from_token || reason.to_token
+                    const toToken = reason.to_token || ''
+                    return (
+                      <div className="mb-4 flex gap-2 justify-start items-start">
+                        <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                          <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
                         </div>
-                        <p className="text-sm text-white/90 mb-3">
-                          Please review and confirm the payment details below.
-                        </p>
-                        <div className="bg-zinc-900/60 rounded-lg p-3 border border-zinc-700/40 space-y-2 text-sm">
-                          {reason.operation === 'swap_and_transfer' && reason.from_token && (
+                        <div className="max-w-[85%] rounded-2xl p-4 bg-zinc-900/40 border border-zinc-700/50 text-white backdrop-blur-sm">
+                          <div className="text-[10px] uppercase tracking-[0.2em] text-white/80 mb-2">
+                            Payment confirmation
+                          </div>
+                          <p className="text-sm text-white/90 mb-3">
+                            Please review and confirm the payment details below.
+                          </p>
+                          <div className="bg-zinc-900/60 rounded-lg p-3 border border-zinc-700/40 space-y-2 text-sm">
+                            {reason.operation === 'swap_and_transfer' && reason.from_token && (
+                              <div className="flex justify-between items-center">
+                                <span className="text-white/80">Swap From:</span>
+                                <span className="text-white font-medium">
+                                  {reason.from_token}
+                                </span>
+                              </div>
+                            )}
                             <div className="flex justify-between items-center">
-                              <span className="text-white/80">Swap From:</span>
-                              <span className="text-white font-medium">
-                                {reason.from_token}
+                              <span className="text-white/80">Send Amount:</span>
+                              <span className="text-white font-semibold">
+                                {reason.received_amount} {toToken}
                               </span>
                             </div>
-                          )}
-                          <div className="flex justify-between items-center">
-                            <span className="text-white/80">Send Amount:</span>
-                            <span className="text-white font-semibold">
-                              {reason.received_amount} {toToken}
-                            </span>
+                            <div className="flex justify-between items-center">
+                              <span className="text-white/80">To:</span>
+                              <span className="text-white font-medium">
+                                @{reason.receiver_username}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-white/80">Operation:</span>
+                              <span className="text-white font-medium">{operation}</span>
+                            </div>
                           </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-white/80">To:</span>
-                            <span className="text-white font-medium">
-                              @{reason.receiver_username}
-                            </span>
+                          <div className="flex gap-3 pt-3 mt-2">
+                            <button
+                              type="button"
+                              onClick={() => handleInterruptReject(paymentInterrupt.id)}
+                              className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-xl border border-red-700/60 bg-red-900/30 text-red-100 hover:bg-red-900/50 text-sm font-medium transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleInterruptApprove(paymentInterrupt.id, reason)}
+                              className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-sm font-medium transition-colors border border-white/20"
+                            >
+                              Confirm
+                            </button>
                           </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-white/80">Operation:</span>
-                            <span className="text-white font-medium">{operation}</span>
-                          </div>
-                        </div>
-                        <div className="flex gap-3 pt-3 mt-2">
-                          <button
-                            type="button"
-                            onClick={() => handleInterruptReject(paymentInterrupt.id)}
-                            className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-xl border border-red-700/60 bg-red-900/30 text-red-100 hover:bg-red-900/50 text-sm font-medium transition-colors"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleInterruptApprove(paymentInterrupt.id, reason)}
-                            className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-sm font-medium transition-colors border border-white/20"
-                          >
-                            Confirm
-                          </button>
                         </div>
                       </div>
-                    </div>
-                  )
-                })()}
+                    )
+                  })()}
+                </div>
               </div>
             </div>
-          </div>
           </div>
         </div>
       </div>

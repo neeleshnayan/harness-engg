@@ -5,7 +5,6 @@ import { motion } from 'framer-motion'
 import { Brain, Clock, MessageSquare, Database, Loader2, RefreshCw, User } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import agentsApi from '@/lib/agents_api'
-import type { ChatMessage } from '../types'
 import { stripReasoningFromMessage } from '../utils/createAssistantMessage'
 
 interface Memory {
@@ -64,7 +63,6 @@ interface Memory {
 interface MemoriesTabProps {
   userId?: string
   sessionId?: string
-  messages?: ChatMessage[]
 }
 
 interface KnowledgeBaseEntry {
@@ -73,9 +71,9 @@ interface KnowledgeBaseEntry {
   timestamp: string
 }
 
-export default function MemoriesTab({ userId, sessionId, messages = [] }: MemoriesTabProps) {
+export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
+  const [sessionCondensedMemories, setSessionCondensedMemories] = useState<Memory[]>([])
   const [condensedMemories, setCondensedMemories] = useState<Memory[]>([])
-  const [recentMemories, setRecentMemories] = useState<Memory[]>([])
   const [transientKB, setTransientKB] = useState<KnowledgeBaseEntry[]>([])
   const [persistentKB, setPersistentKB] = useState<KnowledgeBaseEntry[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -100,11 +98,13 @@ export default function MemoriesTab({ userId, sessionId, messages = [] }: Memori
       })
 
       if (response.data.success) {
+        const sessionCondensed = response.data.current_session_memories || []
         const condensed = response.data.condensed_memories || []
         const transient = response.data.transient_knowledge_base || []
         const persistent = response.data.persistent_knowledge_base || []
         
         // Ensure we have arrays (defensive)
+        setSessionCondensedMemories(Array.isArray(sessionCondensed) ? sessionCondensed : [])
         setCondensedMemories(Array.isArray(condensed) ? condensed : [])
         setTransientKB(Array.isArray(transient) ? transient : [])
         setPersistentKB(Array.isArray(persistent) ? persistent : [])
@@ -124,49 +124,7 @@ export default function MemoriesTab({ userId, sessionId, messages = [] }: Memori
       fetchMemories()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId])
-
-  // Build current session memories purely from UI chat messages (not persisted anywhere)
-  useEffect(() => {
-    if (!messages || messages.length === 0) {
-      setRecentMemories([])
-      return
-    }
-
-    const uiMemories: Memory[] = []
-
-    for (let i = 0; i < messages.length; i++) {
-      const msg = messages[i]
-      if (msg.type !== 'user') continue
-
-      const next = messages[i + 1]
-      const assistant = next && next.type === 'assistant' ? next : undefined
-
-      const timestampIso = msg.timestamp instanceof Date ? msg.timestamp.toISOString() : new Date(msg.timestamp).toISOString()
-
-      uiMemories.push({
-        id: msg.id,
-        message: `User: ${msg.content}${assistant ? ` | Assistant: ${assistant.content}` : ''}`,
-        metadata: {
-          type: 'user_interaction',
-          session_id: sessionId,
-          interaction: {
-            user_query: msg.content,
-            final_response: assistant
-              ? {
-                  message: assistant.content,
-                  success: assistant.success,
-                }
-              : undefined,
-          },
-          timestamp: timestampIso,
-        },
-        created_at: timestampIso,
-      })
-    }
-
-    setRecentMemories(uiMemories)
-  }, [messages, sessionId])
+  }, [userId, sessionId])
 
   const formatTimestamp = (timestamp?: string) => {
     if (!timestamp) return "Unknown date"
@@ -308,8 +266,17 @@ export default function MemoriesTab({ userId, sessionId, messages = [] }: Memori
                   {(memoryType === 'condensed_persona' || memoryType === 'persona_memory') && (
                     <User className="h-4 w-4 text-teal-400" />
                   )}
+                  {memoryType === 'session_condensed_summary' && (
+                    <MessageSquare className="h-4 w-4 text-teal-400" />
+                  )}
                   <CardTitle className="text-sm text-white capitalize">
-                    {memoryType === 'condensed_persona' ? 'Condensed Persona' : memoryType === 'persona_memory' ? 'Persona Memory' : memoryType.replace('_', ' ')}
+                    {memoryType === 'condensed_persona'
+                      ? 'Condensed Persona'
+                      : memoryType === 'persona_memory'
+                        ? 'Persona Memory'
+                        : memoryType === 'session_condensed_summary'
+                          ? 'Session summary'
+                          : memoryType.replace('_', ' ')}
                   </CardTitle>
                 </div>
                 {sessionId && (
@@ -614,28 +581,28 @@ export default function MemoriesTab({ userId, sessionId, messages = [] }: Memori
 
       {!isLoading && !error && (
         <>
-          {/* Current Session Memories */}
+          {/* Session condensed memory (current session, from backend) */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <Brain className="h-5 w-5 text-teal-400" />
+              <MessageSquare className="h-5 w-5 text-teal-400" />
               <h3 className="text-lg font-semibold text-white">
-                Current Session Memories
+                Session condensed memory
               </h3>
               <span className="px-2 py-1 bg-teal-900/40 text-teal-300 text-xs rounded-xl border border-teal-700/30">
-                {recentMemories.length}
+                {sessionCondensedMemories.length}
               </span>
             </div>
-            {recentMemories.length === 0 ? (
+            {sessionCondensedMemories.length === 0 ? (
               <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl">
                 <CardContent className="p-8 text-center">
                   <p className="text-white/60">
-                    No current session memories found.
+                    No session condensed memory for this conversation. Send messages in this session to build it, or load a past conversation to restore its memory.
                   </p>
                 </CardContent>
               </Card>
             ) : (
               <div className="space-y-4">
-                {recentMemories.map((memory, index) => renderMemory(memory, index))}
+                {sessionCondensedMemories.map((memory, index) => renderMemory(memory, index))}
               </div>
             )}
           </div>

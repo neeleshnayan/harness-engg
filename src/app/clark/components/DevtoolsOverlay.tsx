@@ -108,13 +108,13 @@ export default function DevtoolsOverlay({
     if (Array.isArray(flow)) {
       return flow.length > 0
     }
-    return (flow as AgentFlowGraph)?.steps?.length > 0 || 
-           (flow as AgentFlowGraph)?.nodes?.length > 0
+    return (flow as AgentFlowGraph)?.steps?.length > 0 ||
+      (flow as AgentFlowGraph)?.nodes?.length > 0
   }
 
   const calculateTotalLatency = (flow: AgentFlowGraph | AgentFlowStep[] | undefined): number | null => {
     if (!flow) return null
-    
+
     // If flow is a graph and has total_query_time_ms, use that (most accurate)
     if (!Array.isArray(flow)) {
       const graphFlow = flow as AgentFlowGraph
@@ -123,48 +123,48 @@ export default function DevtoolsOverlay({
         return totalTime
       }
     }
-    
+
     // Fallback: calculate from earliest start to latest end timestamp
-    const steps: AgentFlowStep[] = Array.isArray(flow) 
-      ? flow 
+    const steps: AgentFlowStep[] = Array.isArray(flow)
+      ? flow
       : (flow as AgentFlowGraph)?.steps || (flow as AgentFlowGraph)?.nodes || []
-    
+
     // Try to calculate from timestamps (more accurate for parallel execution)
     const timestamps_start = steps
       .map(step => step.timestamp_start)
       .filter((ts): ts is string => ts !== undefined && ts !== null)
       .map(ts => new Date(ts).getTime())
-    
+
     const timestamps_end = steps
       .map(step => step.timestamp_end)
       .filter((ts): ts is string => ts !== undefined && ts !== null)
       .map(ts => new Date(ts).getTime())
-    
+
     if (timestamps_start.length > 0 && timestamps_end.length > 0) {
       const earliest_start = Math.min(...timestamps_start)
       const latest_end = Math.max(...timestamps_end)
       return latest_end - earliest_start
     }
-    
+
     // Last resort: sum individual latencies (less accurate for parallel execution)
     const latencies = steps
       .map(step => step.latency_ms)
       .filter((latency): latency is number => latency !== undefined && latency !== null)
-    
+
     if (latencies.length === 0) return null
-    
+
     return latencies.reduce((sum, latency) => sum + latency, 0)
   }
 
   const getAgentCount = (flow: AgentFlowGraph | AgentFlowStep[] | undefined): number => {
     if (!flow) return 0
-    
-    const steps: AgentFlowStep[] = Array.isArray(flow) 
-      ? flow 
+
+    const steps: AgentFlowStep[] = Array.isArray(flow)
+      ? flow
       : (flow as AgentFlowGraph)?.steps || (flow as AgentFlowGraph)?.nodes || []
-    
+
     // Exclude start and orchestrator nodes
-    return steps.filter(step => 
+    return steps.filter(step =>
       step.type !== 'start' && step.type !== 'orchestrator'
     ).length
   }
@@ -174,18 +174,18 @@ export default function DevtoolsOverlay({
     const allLatencies = queriesWithFlows
       .map(q => calculateTotalLatency(q.agentFlow))
       .filter((lat): lat is number => lat !== null)
-    
+
     const avgLatency = allLatencies.length > 0
       ? allLatencies.reduce((sum, lat) => sum + lat, 0) / allLatencies.length
       : 0
-    
+
     const totalQueries = queriesWithFlows.length
     const flowTypeCounts = {
       single: queriesWithFlows.filter(q => ((q.agentFlow as AgentFlowGraph)?.flow_type || 'single') === 'single').length,
       sequential: queriesWithFlows.filter(q => ((q.agentFlow as AgentFlowGraph)?.flow_type || 'single') === 'sequential').length,
       parallel: queriesWithFlows.filter(q => ((q.agentFlow as AgentFlowGraph)?.flow_type || 'single') === 'parallel').length,
     }
-    
+
     return { avgLatency, totalQueries, flowTypeCounts }
   }
 
@@ -211,7 +211,7 @@ export default function DevtoolsOverlay({
             className="fixed inset-0 bg-black/40 backdrop-blur-md z-50"
             onClick={onClose}
           />
-          
+
           {/* Overlay Panel - Apple-inspired: clean surfaces, generous spacing, soft shadows */}
           <motion.div
             initial={{ x: '100%' }}
@@ -253,38 +253,35 @@ export default function DevtoolsOverlay({
                   </button>
                 </div>
               </div>
-              
+
               {/* Tab Navigation - segmented control style */}
               <div className="flex mx-4 mb-0.5 p-1 rounded-xl bg-teal-950/30 w-fit">
                 <button
                   onClick={() => setActiveTab('agent-flow')}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${
-                    activeTab === 'agent-flow'
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${activeTab === 'agent-flow'
                       ? 'bg-teal-900/40 text-teal-100 shadow-sm'
                       : 'text-teal-200/60 hover:text-teal-100/80'
-                  }`}
+                    }`}
                 >
                   <BarChart3 className="h-4 w-4" />
                   Agent Flow
                 </button>
                 <button
                   onClick={() => setActiveTab('memories')}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${
-                    activeTab === 'memories'
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${activeTab === 'memories'
                       ? 'bg-teal-900/40 text-teal-100 shadow-sm'
                       : 'text-teal-200/60 hover:text-teal-100/80'
-                  }`}
+                    }`}
                 >
                   <Brain className="h-4 w-4" />
                   Memories
                 </button>
                 <button
                   onClick={() => setActiveTab('history')}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${
-                    activeTab === 'history'
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${activeTab === 'history'
                       ? 'bg-teal-900/40 text-teal-100 shadow-sm'
                       : 'text-teal-200/60 hover:text-teal-100/80'
-                  }`}
+                    }`}
                 >
                   <MessageSquare className="h-4 w-4" />
                   History
@@ -295,143 +292,142 @@ export default function DevtoolsOverlay({
             <div className="px-5 py-6">
               {activeTab === 'agent-flow' && (
                 <>
-              <div className="flex items-center justify-between gap-4 mb-6">
-                <p className="text-[13px] text-white/50">Recent agent flows from Firebase</p>
-                <button
-                  onClick={() => {
-                    if (userId) {
-                      setIsLoadingAgentflows(true)
-                      agentsApi.get('/api/v1/agents/agentflows', { params: { user_id: userId } })
-                        .then(response => {
-                          if (response.data.success) setFirebaseAgentflows(response.data.agentflows || [])
-                        })
-                        .catch(err => console.error('Error fetching agentflows:', err))
-                        .finally(() => setIsLoadingAgentflows(false))
-                    }
-                  }}
-                  disabled={isLoadingAgentflows}
-                  className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-[13px] font-medium text-white/80 transition-colors disabled:opacity-50"
-                >
-                  {isLoadingAgentflows ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                  Refresh
-                </button>
-              </div>
-
-              {/* Stats - compact pills */}
-              {queriesWithFlows.length > 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-                  {[
-                    { label: 'Queries', value: stats.totalQueries, icon: Activity, color: 'text-emerald-400/90' },
-                    { label: 'Avg latency', value: stats.avgLatency < 1000 ? `${stats.avgLatency.toFixed(0)}ms` : `${(stats.avgLatency / 1000).toFixed(2)}s`, icon: Zap, color: 'text-amber-400/90' },
-                    { label: 'Parallel', value: stats.flowTypeCounts.parallel, icon: BarChart3, color: 'text-sky-400/90' },
-                    { label: 'Sequential', value: stats.flowTypeCounts.sequential, icon: TrendingUp, color: 'text-violet-400/90' },
-                  ].map((item, i) => (
-                    <motion.div
-                      key={item.label}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.04 }}
-                      className="rounded-2xl bg-teal-950/15 p-4 border border-teal-900/20"
-                    >
-                      <p className="text-[11px] font-medium uppercase tracking-wider text-white/40 mb-1">{item.label}</p>
-                      <p className="text-lg font-semibold text-white tracking-tight">{item.value}</p>
-                      <item.icon className={`h-5 w-5 mt-2 ${item.color}`} />
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-
-              {/* Filter - pill group */}
-              {queriesWithFlows.length > 0 && (
-                <div className="flex items-center gap-1.5 mb-5 p-1 rounded-xl bg-teal-950/30 w-fit">
-                  <Filter className="h-3.5 w-3.5 text-white/40 ml-1" />
-                  {(['all', 'single', 'sequential', 'parallel'] as const).map((type) => (
+                  <div className="flex items-center justify-between gap-4 mb-6">
+                    <p className="text-[13px] text-white/50">Recent agent flows from Firebase</p>
                     <button
-                      key={type}
-                      onClick={() => setFilterType(type)}
-                      className={`px-3.5 py-2 rounded-lg text-[13px] font-medium transition-all ${
-                        filterType === type ? 'bg-teal-900/40 text-teal-100' : 'text-teal-200/55 hover:text-teal-100/75'
-                      }`}
+                      onClick={() => {
+                        if (userId) {
+                          setIsLoadingAgentflows(true)
+                          agentsApi.get('/api/v1/agents/agentflows', { params: { user_id: userId } })
+                            .then(response => {
+                              if (response.data.success) setFirebaseAgentflows(response.data.agentflows || [])
+                            })
+                            .catch(err => console.error('Error fetching agentflows:', err))
+                            .finally(() => setIsLoadingAgentflows(false))
+                        }
+                      }}
+                      disabled={isLoadingAgentflows}
+                      className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-[13px] font-medium text-white/80 transition-colors disabled:opacity-50"
                     >
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                      {isLoadingAgentflows ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                      Refresh
                     </button>
-                  ))}
-                </div>
-              )}
+                  </div>
 
-              {queriesWithFlows.length === 0 ? (
-                <div className="rounded-2xl bg-teal-950/15 border border-teal-900/20 p-12 text-center">
-                  <p className="text-[15px] text-white/50 leading-relaxed">
-                    No agent flow data yet. Send queries in Clark to see flow graphs here.
-                  </p>
-                </div>
-              ) : filteredQueries.length === 0 ? (
-                <div className="rounded-2xl bg-teal-950/15 border border-teal-900/20 p-12 text-center">
-                  <p className="text-[15px] text-white/50">No queries match the selected filter.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <AnimatePresence>
-                    {filteredQueries.map((queryData, index) => {
-                      const originalIndex = queriesWithFlows.indexOf(queryData)
-                      const isExpanded = selectedQueryIndex === originalIndex
-                      const totalLatency = calculateTotalLatency(queryData.agentFlow)
-                      const agentCount = getAgentCount(queryData.agentFlow)
-                      const flowType = (queryData.agentFlow as AgentFlowGraph)?.flow_type || 'single'
-                      return (
+                  {/* Stats - compact pills */}
+                  {queriesWithFlows.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                      {[
+                        { label: 'Queries', value: stats.totalQueries, icon: Activity, color: 'text-emerald-400/90' },
+                        { label: 'Avg latency', value: stats.avgLatency < 1000 ? `${stats.avgLatency.toFixed(0)}ms` : `${(stats.avgLatency / 1000).toFixed(2)}s`, icon: Zap, color: 'text-amber-400/90' },
+                        { label: 'Parallel', value: stats.flowTypeCounts.parallel, icon: BarChart3, color: 'text-sky-400/90' },
+                        { label: 'Sequential', value: stats.flowTypeCounts.sequential, icon: TrendingUp, color: 'text-violet-400/90' },
+                      ].map((item, i) => (
                         <motion.div
-                          key={originalIndex}
-                          initial={{ opacity: 0, y: 12 }}
+                          key={item.label}
+                          initial={{ opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.2, delay: index * 0.03 }}
-                          className="rounded-2xl bg-teal-950/15 border border-teal-900/20 overflow-hidden hover:border-teal-800/30 transition-colors"
+                          transition={{ delay: i * 0.04 }}
+                          className="rounded-2xl bg-teal-950/15 p-4 border border-teal-900/20"
                         >
-                          <div className="p-5">
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                                  <span className="text-[13px] font-semibold text-white/90">Query {originalIndex + 1}</span>
-                                  {flowType !== 'single' && (
-                                    <span className="rounded-md bg-white/[0.08] px-2 py-0.5 text-[11px] font-medium text-white/60">
-                                      {flowType === 'parallel' ? 'Parallel' : 'Sequential'}
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-[14px] text-white/70 leading-snug mb-3 line-clamp-2">{queryData.query}</p>
-                                <div className="flex items-center gap-4 text-[12px] text-white/45">
-                                  <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{queryData.timestamp.toLocaleString()}</span>
-                                  {agentCount > 0 && <span>{agentCount} agent{agentCount !== 1 ? 's' : ''}</span>}
-                                  {totalLatency !== null && (
-                                    <span className="text-white/55">
-                                      {totalLatency < 1000 ? `${totalLatency.toFixed(0)}ms` : `${(totalLatency / 1000).toFixed(2)}s`}
-                                    </span>
-                                  )}
+                          <p className="text-[11px] font-medium uppercase tracking-wider text-white/40 mb-1">{item.label}</p>
+                          <p className="text-lg font-semibold text-white tracking-tight">{item.value}</p>
+                          <item.icon className={`h-5 w-5 mt-2 ${item.color}`} />
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Filter - pill group */}
+                  {queriesWithFlows.length > 0 && (
+                    <div className="flex items-center gap-1.5 mb-5 p-1 rounded-xl bg-teal-950/30 w-fit">
+                      <Filter className="h-3.5 w-3.5 text-white/40 ml-1" />
+                      {(['all', 'single', 'sequential', 'parallel'] as const).map((type) => (
+                        <button
+                          key={type}
+                          onClick={() => setFilterType(type)}
+                          className={`px-3.5 py-2 rounded-lg text-[13px] font-medium transition-all ${filterType === type ? 'bg-teal-900/40 text-teal-100' : 'text-teal-200/55 hover:text-teal-100/75'
+                            }`}
+                        >
+                          {type.charAt(0).toUpperCase() + type.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {queriesWithFlows.length === 0 ? (
+                    <div className="rounded-2xl bg-teal-950/15 border border-teal-900/20 p-12 text-center">
+                      <p className="text-[15px] text-white/50 leading-relaxed">
+                        No agent flow data yet. Send queries in Clark to see flow graphs here.
+                      </p>
+                    </div>
+                  ) : filteredQueries.length === 0 ? (
+                    <div className="rounded-2xl bg-teal-950/15 border border-teal-900/20 p-12 text-center">
+                      <p className="text-[15px] text-white/50">No queries match the selected filter.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <AnimatePresence>
+                        {filteredQueries.map((queryData, index) => {
+                          const originalIndex = queriesWithFlows.indexOf(queryData)
+                          const isExpanded = selectedQueryIndex === originalIndex
+                          const totalLatency = calculateTotalLatency(queryData.agentFlow)
+                          const agentCount = getAgentCount(queryData.agentFlow)
+                          const flowType = (queryData.agentFlow as AgentFlowGraph)?.flow_type || 'single'
+                          return (
+                            <motion.div
+                              key={originalIndex}
+                              initial={{ opacity: 0, y: 12 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0 }}
+                              transition={{ duration: 0.2, delay: index * 0.03 }}
+                              className="rounded-2xl bg-teal-950/15 border border-teal-900/20 overflow-hidden hover:border-teal-800/30 transition-colors"
+                            >
+                              <div className="p-5">
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                                      <span className="text-[13px] font-semibold text-white/90">Query {originalIndex + 1}</span>
+                                      {flowType !== 'single' && (
+                                        <span className="rounded-md bg-white/[0.08] px-2 py-0.5 text-[11px] font-medium text-white/60">
+                                          {flowType === 'parallel' ? 'Parallel' : 'Sequential'}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-[14px] text-white/70 leading-snug mb-3 line-clamp-2">{queryData.query}</p>
+                                    <div className="flex items-center gap-4 text-[12px] text-white/45">
+                                      <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{queryData.timestamp.toLocaleString()}</span>
+                                      {agentCount > 0 && <span>{agentCount} agent{agentCount !== 1 ? 's' : ''}</span>}
+                                      {totalLatency !== null && (
+                                        <span className="text-white/55">
+                                          {totalLatency < 1000 ? `${totalLatency.toFixed(0)}ms` : `${(totalLatency / 1000).toFixed(2)}s`}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={() => setSelectedQueryIndex(isExpanded ? null : originalIndex)}
+                                    className="flex-shrink-0 px-4 py-2 rounded-lg bg-white/[0.08] hover:bg-white/[0.12] text-[13px] font-medium text-white/90 transition-colors"
+                                  >
+                                    {isExpanded ? 'Hide' : 'Show flow'}
+                                  </button>
                                 </div>
                               </div>
-                              <button
-                                onClick={() => setSelectedQueryIndex(isExpanded ? null : originalIndex)}
-                                className="flex-shrink-0 px-4 py-2 rounded-lg bg-white/[0.08] hover:bg-white/[0.12] text-[13px] font-medium text-white/90 transition-colors"
-                              >
-                                {isExpanded ? 'Hide' : 'Show flow'}
-                              </button>
-                            </div>
-                          </div>
-                          {isExpanded && queryData.agentFlow && hasFlowContent(queryData.agentFlow) && (
-                            <div className="border-t border-teal-900/20 p-4 bg-teal-950/20">
-                              <AgentFlow flow={queryData.agentFlow} />
-                            </div>
-                          )}
-                        </motion.div>
-                      )
-                    })}
-                  </AnimatePresence>
-                </div>
-              )}
+                              {isExpanded && queryData.agentFlow && hasFlowContent(queryData.agentFlow) && (
+                                <div className="border-t border-teal-900/20 p-4 bg-teal-950/20">
+                                  <AgentFlow flow={queryData.agentFlow} />
+                                </div>
+                              )}
+                            </motion.div>
+                          )
+                        })}
+                      </AnimatePresence>
+                    </div>
+                  )}
                 </>
               )}
-              
-              {activeTab === 'memories' && <MemoriesTab userId={userId} sessionId={sessionId} messages={messages} />}
+
+              {activeTab === 'memories' && <MemoriesTab userId={userId} sessionId={sessionId} />}
 
               {activeTab === 'history' && (
                 <PastConversationsTab userId={userId} onLoadConversation={onLoadConversationFromHistory} />
