@@ -915,10 +915,14 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
               return !!(data.transaction_id || statusUpper === 'SUBMITTED' || data.estimated_output || data.route || op === 'direct_transfer' || op === 'swap_and_transfer')
             })
 
+            // Also check parsedIntent.operation for transaction signals (e.g. from _appendCanonicalActiveTransaction reconciliation)
+            const txOperations = new Set(['direct_transfer', 'swap_and_transfer', 'swap', 'universal_swap_and_transfer_atomic'])
+            const hasTransactionIntentOp = !!(parsedIntentOperation && txOperations.has(parsedIntentOperation))
+
             const isBalanceOnlyQuery = message.balanceResult && ['balances', 'balances_daily', 'balances_intraday'].includes(message.balanceResult.operation)
             const isKryptonPay = !isPriceHistoryQuery && !isPriceHistoryOperation && !isBalanceOnlyQuery &&
               ((hasKryptonPayInIntent || hasKryptonPayInFlow) || hasCanonicalTxSignal) &&
-              (hasTransactionData || hasTransactionKeywords || hasCanonicalTxSignal)
+              (hasTransactionData || hasTransactionIntentOp || hasTransactionKeywords || hasCanonicalTxSignal)
 
             // Try to derive minimal transaction details from the krypton_pay agent node
             // Only extract if this is actually a transaction (not price history)
@@ -967,7 +971,27 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                 }
               }
 
-              // Fallback: if no data from agent flow nodes, try to extract from parsedIntent for swaps
+              // Fallback: if no data from agent flow nodes, try parsedIntent data
+              // This handles reconciled transactions from _appendCanonicalActiveTransaction
+              if (!inlineTxData && message.parsedIntent) {
+                const pi = message.parsedIntent as Record<string, any>
+                // Check if parsedIntent has transaction_id (set by reconciliation)
+                if (pi.transaction_id || (pi.operation && txOperations.has(pi.operation))) {
+                  inlineTxData = {
+                    transaction_id: pi.transaction_id,
+                    status: pi.status || 'SUBMITTED',
+                    operation: pi.operation,
+                    token: pi.token || pi.to_token,
+                    amount: pi.amount || pi.received_amount,
+                    from_address: pi.from_address,
+                    to_address: pi.to_address,
+                    tx_hash: pi.tx_hash,
+                    created_at: pi.created_at,
+                  }
+                }
+              }
+
+              // Fallback: if still no data, try to extract from parsedIntent for swaps
               if (!inlineTxData && message.parsedIntent?.operation === 'swap') {
                 const parsedIntent = message.parsedIntent
                 if (parsedIntent.to_token && parsedIntent.amount) {

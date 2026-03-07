@@ -293,10 +293,10 @@ function getStatusBadgeClasses(status: string): { bg: string; text: string } {
       return { bg: 'bg-zinc-500/20', text: 'text-zinc-400' };
     case CircleTransactionState.QUEUED:
     case CircleTransactionState.SUBMITTED:
+    case CircleTransactionState.CLEARED:
     case CircleTransactionState.CREATED:
       return { bg: 'bg-blue-500/20', text: 'text-blue-400' };
     case CircleTransactionState.SENT:
-    case CircleTransactionState.CLEARED:
       return { bg: 'bg-amber-500/20', text: 'text-amber-400' };
     case CircleTransactionState.STUCK:
       return { bg: 'bg-yellow-500/20', text: 'text-yellow-400' };
@@ -320,7 +320,7 @@ export default function TransactionConfirmationCard({ username, onClose }: Trans
 
       const newTransactions = response.data.transactions || [];
       setTransactions(newTransactions);
-      
+
     } catch (err: any) {
       console.error('Error fetching active transactions:', err);
       // If 404, transaction might have completed already - keep card visible briefly
@@ -357,7 +357,7 @@ export default function TransactionConfirmationCard({ username, onClose }: Trans
   // Show card even if no transactions found initially (transaction might have completed quickly)
   // But hide after a few failed attempts
   const [failedAttempts, setFailedAttempts] = useState(0);
-  
+
   useEffect(() => {
     if (transactions.length === 0) {
       setFailedAttempts(prev => prev + 1);
@@ -370,7 +370,7 @@ export default function TransactionConfirmationCard({ username, onClose }: Trans
   if (!username || (transactions.length === 0 && failedAttempts >= 3)) {
     return null;
   }
-  
+
   // If no transactions yet but we haven't given up, show a loading state
   if (transactions.length === 0) {
     return (

@@ -118,12 +118,7 @@ function formatElapsed(ms: number): string {
 }
 
 function isFinishedStatus(status: string): boolean {
-  const normalized = status.toLowerCase();
-  return (
-    isTerminalState(status) ||
-    normalized === CircleTransactionState.CONFIRMED ||
-    normalized === CircleTransactionState.CLEARED
-  );
+  return isTerminalState(status);
 }
 
 function getRecipient(tx: ActiveTransaction, currentUsername?: string): string {
@@ -246,7 +241,6 @@ function getFinalStepLabel(status: string): string {
     case CircleTransactionState.SUCCESS:
     case CircleTransactionState.COMPLETE:
     case CircleTransactionState.CONFIRMED:
-    case CircleTransactionState.CLEARED:
       return 'Completed';
     case CircleTransactionState.FAILED:
       return 'Failed';
@@ -270,6 +264,7 @@ function getProgressStep(status: string, isSwapAndTransfer: boolean = true): num
   if (
     normalized === CircleTransactionState.QUEUED ||
     normalized === CircleTransactionState.INITIATED ||
+    normalized === CircleTransactionState.CLEARED ||
     normalized === CircleTransactionState.SENT ||
     normalized === CircleTransactionState.STUCK ||
     normalized === CircleTransactionState.SUBMITTED ||
@@ -279,7 +274,6 @@ function getProgressStep(status: string, isSwapAndTransfer: boolean = true): num
   }
 
   if (
-    normalized === CircleTransactionState.CLEARED ||
     normalized === CircleTransactionState.CONFIRMED ||
     normalized === CircleTransactionState.COMPLETE ||
     normalized === CircleTransactionState.SUCCESS ||

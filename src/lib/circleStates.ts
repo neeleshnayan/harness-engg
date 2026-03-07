@@ -32,7 +32,6 @@ export enum CircleTransactionState {
 export const TERMINAL_STATES = new Set<string>([
   CircleTransactionState.CANCELLED,
   CircleTransactionState.CONFIRMED,
-  CircleTransactionState.CLEARED,
   CircleTransactionState.COMPLETE,
   CircleTransactionState.DENIED,
   CircleTransactionState.FAILED,
@@ -44,7 +43,6 @@ export const TERMINAL_STATES = new Set<string>([
  */
 export const SUCCESS_STATES = new Set<string>([
   CircleTransactionState.CONFIRMED,
-  CircleTransactionState.CLEARED,
   CircleTransactionState.COMPLETE,
   CircleTransactionState.SUCCESS,
 ]);
@@ -65,6 +63,7 @@ export const ERROR_STATES = new Set<string>([
 export const ONGOING_STATES = new Set<string>([
   CircleTransactionState.CREATED,
   CircleTransactionState.INITIATED,
+  CircleTransactionState.CLEARED,
   CircleTransactionState.QUEUED,
   CircleTransactionState.SENT,
   CircleTransactionState.STUCK,
@@ -80,6 +79,7 @@ export const PROGRESS_STEP_STATES = [
   [
     CircleTransactionState.CREATED,
     CircleTransactionState.INITIATED,
+    CircleTransactionState.CLEARED,
     CircleTransactionState.QUEUED,
     CircleTransactionState.SENT,
     CircleTransactionState.STUCK,
@@ -90,7 +90,6 @@ export const PROGRESS_STEP_STATES = [
   // Step 2: Confirmed, Complete, or Failed (Final visible state)
   [
     CircleTransactionState.CONFIRMED,
-    CircleTransactionState.CLEARED,
     CircleTransactionState.COMPLETE,
     CircleTransactionState.SUCCESS,
     CircleTransactionState.FAILED,

@@ -156,7 +156,7 @@ export default function BacktestPage() {
         setMessages(parsedMessages)
         setSessionId(expandedSessionId)
         initializedFromExpansionRef.current = true
-        
+
         // Clear the stored data to avoid reloading on refresh
         localStorage.removeItem('clark_expanded_messages')
         localStorage.removeItem('clark_expanded_session_id')
@@ -604,7 +604,6 @@ export default function BacktestPage() {
         void persistLastChat(updated)
         return updated
       })
-      setMessages(prev => [...prev, assistantMessage])
       return payload
     } catch (error) {
       console.error('Clark API error:', error)
@@ -712,26 +711,52 @@ export default function BacktestPage() {
       }
       if (!tx?.transaction_id) return
 
+      const txOperation = operationHint || tx.operation || (tx.tx_type === 'swap' ? 'swap_and_transfer' : 'direct_transfer')
+      const txData = {
+        transaction_id: tx.transaction_id,
+        status: String(tx.status || 'SUBMITTED').toUpperCase(),
+        operation: txOperation,
+        token: tx.to_token || tx.from_token || tx.token_symbol,
+        amount: tx.amount,
+        received_amount: tx.received_amount,
+        to_address: tx.to_address,
+        to_username: tx.to_username,
+        tx_hash: tx.tx_hash,
+        created_at: tx.created_at,
+        kind: tx.kind,
+        tx_type: tx.tx_type,
+      }
       const payload = {
         success: true,
         message: 'Transaction submitted.',
         parsed_intent: {
           agent_ids: ['krypton_pay'],
-          operation: operationHint || tx.operation || (tx.tx_type === 'swap' ? 'swap_and_transfer' : 'direct_transfer'),
-        },
-        data: {
+          operation: txOperation,
+          // Include transaction fields so ResultsDisplay can extract inlineTxData
           transaction_id: tx.transaction_id,
-          status: String(tx.status || 'SUBMITTED').toUpperCase(),
-          operation: tx.operation || operationHint || (tx.tx_type === 'swap' ? 'swap_and_transfer' : 'direct_transfer'),
-          token: tx.to_token || tx.from_token || tx.token_symbol,
-          amount: tx.amount,
+          status: txData.status,
+          token: txData.token,
+          amount: txData.amount,
           received_amount: tx.received_amount,
+          from_address: tx.from_address,
           to_address: tx.to_address,
-          to_username: tx.to_username,
           tx_hash: tx.tx_hash,
           created_at: tx.created_at,
-          kind: tx.kind,
-          tx_type: tx.tx_type,
+        },
+        data: txData,
+        // Include synthetic agent_flow so ResultsDisplay can detect the krypton_pay transaction node
+        agent_flow: {
+          nodes: [{
+            id: 'krypton_pay',
+            name: 'Krypton Pay Agent',
+            type: 'specialized',
+            tool_name: 'consult_krypton_pay',
+            status: 'completed',
+            output: { success: true, data: txData },
+          }],
+          edges: [],
+          execution_order: ['krypton_pay'],
+          flow_type: 'single',
         },
       }
       const assistantMessage = createAssistantMessage(payload)

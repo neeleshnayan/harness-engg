@@ -236,7 +236,9 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
     if (onTransactionsComplete) {
       onTransactionsComplete();
     }
-  }, [onTransactionsComplete]);
+    // Also trigger a refresh of the transaction history when there are no more active transactions
+    handleTransactionHistoryRefresh();
+  }, [onTransactionsComplete, handleTransactionHistoryRefresh]);
 
   /**
    * Switch to Transaction History tab and refresh
