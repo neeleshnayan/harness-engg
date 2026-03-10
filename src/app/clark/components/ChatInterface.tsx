@@ -60,7 +60,7 @@ export default function ChatInputBar({
       className={
         embedded
           ? 'relative z-40 w-full outline-none ring-0'
-          : 'fixed bottom-0 left-0 right-0 z-40'
+          : 'fixed bottom-0 left-0 right-0 z-40 bg-[#001C1B]/80 backdrop-blur-md'
       }
     >
       <div

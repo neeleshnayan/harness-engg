@@ -986,9 +986,9 @@ export default function BacktestPage() {
             <div className="mt-12 dark w-full">
               <div
                 ref={feedRef}
-                className="scrollbar-minimal min-h-[200px] max-h-[calc(100vh-6rem-8rem)] overflow-y-auto scroll-smooth"
+                className="scrollbar-minimal min-h-[200px] h-[calc(100vh-10rem)] overflow-y-auto scroll-smooth"
               >
-                <div className="pb-40">
+                <div className="pb-32">
                   {/* Loading with no messages yet: show "Thinking…"; once messages exist, ResultsDisplay shows "Processing your request..." */}
                   {isLoading && messages.length === 0 && (
                     <div className="flex gap-2 justify-start items-center py-4">
