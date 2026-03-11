@@ -47,6 +47,12 @@ export default function CLPoolMonitor({
   const [success, setSuccess] = useState('');
   const [activeTab, setActiveTab] = useState<'history' | 'swap' | 'liquidity' | 'initialize'>('history');
   const [chartsRefreshKey, setChartsRefreshKey] = useState(0);
+  const [gyroLoading, setGyroLoading] = useState(false);
+  const [gyroUpdating, setGyroUpdating] = useState(false);
+  const [gyroCurrentAlpha, setGyroCurrentAlpha] = useState('');
+  const [gyroCurrentBeta, setGyroCurrentBeta] = useState('');
+  const [gyroNewAlpha, setGyroNewAlpha] = useState('');
+  const [gyroNewBeta, setGyroNewBeta] = useState('');
 
   // Pending transactions - event-based, no polling
   const [pendingTransactions, setPendingTransactions] = useState<Map<string, PendingTransaction>>(new Map());
@@ -54,6 +60,9 @@ export default function CLPoolMonitor({
 
   // Track the current pool address to prevent stale data
   const currentPoolRef = useRef(poolAddress);
+  const selectedPoolTokenSymbol =
+    token0Symbol === 'kUSD' ? token1Symbol : token1Symbol === 'kUSD' ? token0Symbol : token1Symbol;
+  const hasGyroControls = !!rateProviderAddress && !!selectedPoolTokenSymbol && selectedPoolTokenSymbol !== 'USDC';
 
   // WebSocket URL for receiving transaction events
   const wsUrl = walletAddress
@@ -117,6 +126,33 @@ export default function CLPoolMonitor({
     }
     fetchPoolState();
   }, [poolAddress]);
+
+  useEffect(() => {
+    if (!hasGyroControls) {
+      setGyroCurrentAlpha('');
+      setGyroCurrentBeta('');
+      setGyroNewAlpha('');
+      setGyroNewBeta('');
+      return;
+    }
+
+    const fetchGyroParams = async () => {
+      setGyroLoading(true);
+      try {
+        const response = await nettingPoolsApi.getGyroParams(selectedPoolTokenSymbol);
+        setGyroCurrentAlpha(response.alpha);
+        setGyroCurrentBeta(response.beta);
+        setGyroNewAlpha(response.alpha);
+        setGyroNewBeta(response.beta);
+      } catch (err) {
+        console.error('Failed to fetch gyro params:', err);
+      } finally {
+        setGyroLoading(false);
+      }
+    };
+
+    fetchGyroParams();
+  }, [hasGyroControls, selectedPoolTokenSymbol, poolAddress]);
 
   const fetchPoolState = async (forceRefresh = false) => {
     // Capture the poolAddress at call time to check for stale responses
@@ -192,6 +228,48 @@ export default function CLPoolMonitor({
 
   const handleRefreshCharts = () => {
     setChartsRefreshKey((prev) => prev + 1);
+  };
+
+  const handleUpdateGyroParams = async () => {
+    if (!hasGyroControls) return;
+    if (!username) {
+      setError('Please log in to update Gyro parameters');
+      return;
+    }
+
+    const alpha = parseFloat(gyroNewAlpha || '0');
+    const beta = parseFloat(gyroNewBeta || '0');
+    if (!alpha || !beta || alpha <= 0 || beta <= 0) {
+      setError('Enter valid alpha and beta values');
+      return;
+    }
+    if (alpha >= beta) {
+      setError('Alpha must be less than beta');
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+    setGyroUpdating(true);
+    try {
+      const result = await nettingPoolsApi.updateGyroParams({
+        token_symbol: selectedPoolTokenSymbol,
+        alpha,
+        beta,
+        username,
+      });
+      setSuccess(`Gyro params update submitted: ${result.transaction_id}`);
+      const refreshed = await nettingPoolsApi.getGyroParams(selectedPoolTokenSymbol);
+      setGyroCurrentAlpha(refreshed.alpha);
+      setGyroCurrentBeta(refreshed.beta);
+      setGyroNewAlpha(refreshed.alpha);
+      setGyroNewBeta(refreshed.beta);
+      await fetchPoolState(true);
+    } catch (err: any) {
+      setError('Failed to update Gyro params: ' + (err?.response?.data?.detail || err?.message || 'Unknown error'));
+    } finally {
+      setGyroUpdating(false);
+    }
   };
 
   const formatNumber = (value: string | number | null | undefined, decimals = 2) => {
@@ -416,6 +494,44 @@ export default function CLPoolMonitor({
                     {poolState.oracle_info?.deviation_percent?.toFixed(2) || '0.00'}%
                   </span>
                 </div>
+                {hasGyroControls && (
+                  <div className="pt-3 border-t border-white/[0.05] space-y-2">
+                    <div className="text-gray-400 text-xs">Gyro Alpha/Beta</div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500 text-xs">Current</span>
+                      <span className="text-white font-mono text-xs">
+                        {gyroLoading ? 'Loading...' : `${gyroCurrentAlpha || '-'} / ${gyroCurrentBeta || '-'}`}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.000001"
+                        value={gyroNewAlpha}
+                        onChange={(e) => setGyroNewAlpha(e.target.value)}
+                        className="px-2 py-1.5 bg-white/[0.02] border border-white/[0.05] text-white rounded text-xs focus:outline-none"
+                        placeholder="Alpha"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.000001"
+                        value={gyroNewBeta}
+                        onChange={(e) => setGyroNewBeta(e.target.value)}
+                        className="px-2 py-1.5 bg-white/[0.02] border border-white/[0.05] text-white rounded text-xs focus:outline-none"
+                        placeholder="Beta"
+                      />
+                    </div>
+                    <button
+                      onClick={handleUpdateGyroParams}
+                      disabled={gyroUpdating || gyroLoading || !username}
+                      className="w-full py-1.5 bg-cyan-600/30 hover:bg-cyan-600/40 disabled:bg-gray-600/40 text-cyan-300 disabled:text-gray-400 rounded-lg text-xs font-medium transition-all"
+                    >
+                      {gyroUpdating ? 'Updating...' : 'Update Alpha/Beta'}
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-gray-500 text-sm">No parameters data</div>

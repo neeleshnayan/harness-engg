@@ -108,6 +108,31 @@ export interface DefaultSignerResponse {
   username: string | null;
 }
 
+export interface TokenAdminOperationResponse {
+  status: string;
+  token: string;
+  transaction_id: string;
+  action?: string;
+  amount?: string;
+  decimals?: number;
+  wallet_address?: string;
+  from_address?: string;
+}
+
+export interface TokenPauseStatusResponse {
+  token: string;
+  is_paused: boolean;
+}
+
+export interface GyroParamsResponse {
+  token_symbol: string;
+  rate_provider: string;
+  sqrt_alpha: string;
+  sqrt_beta: string;
+  alpha: string;
+  beta: string;
+}
+
 // Read-only endpoints (all users)
 export const nettingPoolsApi = {
   // Get default signer address (for displaying admin wallet balances)
@@ -176,6 +201,56 @@ export const nettingPoolsApi = {
     }>;
   }> {
     const response = await kryptonWeb3Api.get('/erc20/supported-tokens');
+    return response.data;
+  },
+
+  async mintToken(params: {
+    token_symbol: string;
+    amount: number;
+    username?: string;
+    wallet_address?: string;
+  }): Promise<TokenAdminOperationResponse> {
+    const response = await kryptonWeb3Api.post('/erc20/mint', params);
+    return response.data;
+  },
+
+  async burnToken(params: {
+    token_symbol: string;
+    amount: number;
+    username?: string;
+    from_address?: string;
+  }): Promise<TokenAdminOperationResponse> {
+    const response = await kryptonWeb3Api.post('/erc20/burn', params);
+    return response.data;
+  },
+
+  async pauseToken(token_symbol: string): Promise<TokenAdminOperationResponse> {
+    const response = await kryptonWeb3Api.post('/erc20/pause', { token_symbol });
+    return response.data;
+  },
+
+  async unpauseToken(token_symbol: string): Promise<TokenAdminOperationResponse> {
+    const response = await kryptonWeb3Api.post('/erc20/unpause', { token_symbol });
+    return response.data;
+  },
+
+  async getTokenPauseStatus(token_symbol: string): Promise<TokenPauseStatusResponse> {
+    const response = await kryptonWeb3Api.get(`/erc20/is-paused/${token_symbol}`);
+    return response.data;
+  },
+
+  async getGyroParams(token_symbol: string): Promise<GyroParamsResponse> {
+    const response = await kryptonWeb3Api.get(`/netting-pools/token/${token_symbol}/gyro-params`);
+    return response.data;
+  },
+
+  async updateGyroParams(params: {
+    token_symbol: string;
+    alpha: number;
+    beta: number;
+    username: string;
+  }): Promise<AdminOperationResponse> {
+    const response = await kryptonWeb3Api.post('/netting-pools/oracle/update-gyro-params', params);
     return response.data;
   },
 

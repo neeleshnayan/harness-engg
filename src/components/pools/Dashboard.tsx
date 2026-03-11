@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import CLPoolMonitor from './CLPoolMonitor';
 import PriceFeedCard from './PriceFeedCard';
 import MultiHopSwap from './MultiHopSwap';
+import TokenControlsSection from './TokenControlsSection';
 import { nettingPoolsApi, PoolInfo, TokenBalance } from '@/lib/nettingPoolsApi';
 import { useNettingPoolsAuth } from '@/hooks/useNettingPoolsAuth';
 
@@ -95,15 +96,6 @@ export default function Dashboard() {
     return `${baseClasses} bg-white/[0.02] text-gray-400 hover:text-white hover:bg-white/[0.05]`;
   };
 
-  /** Format a supply string with comma-separated thousands and 2 decimal places. */
-  const formatSupply = (value: string | undefined): string => {
-    const num = parseFloat(value || '0');
-    return new Intl.NumberFormat('en', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(num);
-  };
-
   if (authLoading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -186,55 +178,14 @@ export default function Dashboard() {
           <div className="p-6">
             {mainTab === 'tokens' ? (
               <div>
-                <div className="mb-8">
-                  <h2 className="text-3xl font-light text-white mb-3 tracking-tight">
-                    Token Balances
-                  </h2>
-                  <p className="text-gray-500 text-sm font-light">
-                    Total tokens in circulation
-                  </p>
-                </div>
-
-                {tokenSymbols.length === 0 ? (
-                  /* Skeleton grid while loading token config */
-                  <div className="flex flex-wrap gap-6">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <div
-                        key={i}
-                        className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6 animate-pulse min-w-[160px]"
-                      >
-                        <div className="h-4 bg-white/[0.08] rounded w-12 mb-4" />
-                        <div className="h-8 bg-white/[0.08] rounded w-20" />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-6">
-                    {tokenSymbols.map((symbol) => (
-                      <div
-                        key={symbol}
-                        className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6 hover:bg-white/[0.04] transition-all duration-300 min-w-[160px]"
-                      >
-                        <div className="text-gray-400 text-xs mb-2">{symbol}</div>
-                        {suppliesLoading ? (
-                          <div className="h-8 bg-white/[0.08] rounded w-20 animate-pulse" />
-                        ) : (
-                          <div className="text-2xl font-light text-white whitespace-nowrap">
-                            {formatSupply(supplies[symbol])}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <button
-                  onClick={fetchTotalSupply}
-                  disabled={suppliesLoading}
-                  className="mt-6 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-xl transition-all"
-                >
-                  {suppliesLoading ? 'Refreshing...' : 'Refresh'}
-                </button>
+                <TokenControlsSection
+                  tokenSymbols={tokenSymbols}
+                  supplies={supplies}
+                  suppliesLoading={suppliesLoading}
+                  username={username}
+                  walletAddress={walletAddress}
+                  onRefreshSupplies={fetchTotalSupply}
+                />
 
                 {/* Oracle Price Feeds Section */}
                 <div className="mt-12">
