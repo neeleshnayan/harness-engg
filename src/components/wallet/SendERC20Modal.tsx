@@ -6,6 +6,7 @@ import { AlertCircle, ArrowRight, Loader2, X, ArrowUp, ChevronDown } from "lucid
 import api, { kryptonWeb3Api } from "@/lib/api";
 import { useRates } from "@/providers/RatesProvider";
 import { getPoolRate } from "@/lib/ratesApi";
+import WalletProgressState from "@/components/wallet/WalletProgressState";
 
 interface SendERC20ModalProps {
   visible: boolean;
@@ -36,7 +37,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
   const [loading, setLoading] = useState<boolean>(false);
   const [loadingMessage, setLoadingMessage] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [success, setSuccess] = useState<{ heading: string; detail: string } | null>(null);
   const [fromBalanceValue, setFromBalanceValue] = useState<number>(0);
   const [toBalanceValue, setToBalanceValue] = useState<number>(0);
   const [toCurrency, setToCurrency] = useState<string>("");
@@ -720,7 +721,12 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
       }
 
       // Show success with countdown (non-blocking)
-      setSuccess(`Transaction submitted: ${fromAmountNum.toFixed(2)} ${fromCurrency.replace(/^k/, "")} to @${receiverUsername}`);
+      const convertedAmount = parseFloat(toAmount);
+      const transferAmount = fromCurrency === sendCurrency || isNaN(convertedAmount) ? fromAmountNum : convertedAmount;
+      setSuccess({
+        heading: "Transferring...",
+        detail: `Sending ${transferAmount.toFixed(2)} ${sendCurrencyDisplay} to @${receiverUsername}`,
+      });
       startCloseCountdown();
     } catch (e: any) {
       console.error(e);
@@ -760,29 +766,19 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
       >
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold text-white tracking-tight">Krypton Pay</h2>
-          <button
-            onClick={() => onClose(false)}
-            className="text-teal-200/60 hover:text-white transition-colors"
-          >
+          <button onClick={() => onClose(false)} className="text-white/80 hover:text-white transition-colors">
             <X size={24} />
           </button>
         </div>
 
         {/* Success Animation */}
         {success && (
-          <div
-            className="flex flex-col items-center justify-center py-8 cursor-pointer"
-          >
-            <div className="mb-6 relative">
-              <div className="absolute inset-0 bg-green-500/20 blur-xl rounded-full"></div>
-              <img src="/tx-success.svg" alt="Success" width="100" height="100" className="relative animate-pulse drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]" />
-            </div>
-            <div className="text-green-400 text-lg font-bold mb-2 tracking-wide">Transaction Submitted!</div>
-            <div className="text-teal-200/80 text-sm text-center max-w-[80%] leading-relaxed">{success}</div>
-            <div className="mt-8 text-teal-200/60 text-xs font-medium">
-              Tap anywhere to close{closeCountdown > 0 && ` (${closeCountdown}s)`}
-            </div>
-          </div>
+          <WalletProgressState
+            heading={success.heading}
+            detail={success.detail}
+            animationPath="/animations/pay/pay-animation.json"
+            closeCountdown={closeCountdown}
+          />
         )}
 
         {/* Form */}

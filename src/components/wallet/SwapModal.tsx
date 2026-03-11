@@ -3,6 +3,7 @@ import { kryptonWeb3Api } from "@/lib/api";
 import { useRates } from "@/providers/RatesProvider";
 import { getPoolRate } from "@/lib/ratesApi";
 import { ArrowRight, ChevronDown } from "lucide-react";
+import WalletProgressState from "@/components/wallet/WalletProgressState";
 
 interface SwapModalProps {
   visible: boolean;
@@ -27,7 +28,7 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
   const [exchangeRate, setExchangeRate] = useState<number | null>(null);
   const [exchangeRateLoading, setExchangeRateLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [success, setSuccess] = useState<{ heading: string; detail: string } | null>(null);
   const [closeCountdown, setCloseCountdown] = useState<number>(0);
   const isUpdatingFromRef = useRef<boolean>(false);
   const isUpdatingToRef = useRef<boolean>(false);
@@ -431,7 +432,10 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
       const displayOutput = !isNaN(estimatedOutputNum) ? estimatedOutputNum : toAmountValue;
       const displayInput = parseFloat(fromAmount);
 
-      setSuccess(`Swap submitted: ${displayInput.toFixed(2)} ${fromDisplay} -> ${displayOutput.toFixed(2)} ${toDisplay}`);
+      setSuccess({
+        heading: "Swapping...",
+        detail: `Swapping ${displayInput.toFixed(2)} ${fromDisplay} -> ${displayOutput.toFixed(2)} ${toDisplay}`,
+      });
       setFromAmount("");
       setToAmount("");
       lastEditedFieldRef.current = "from";
@@ -473,30 +477,19 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
       >
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold text-white tracking-tight">Swap Assets</h2>
-          <button
-            onClick={() => onClose(false)}
-            className="text-teal-200/60 hover:text-white transition-colors"
-          >
+          <button onClick={() => onClose(false)} className="text-white/80 hover:text-white transition-colors">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
           </button>
         </div>
 
         {/* Success Animation */}
         {success && (
-          <div
-            className="flex flex-col items-center justify-center py-8 cursor-pointer"
-            onClick={handleBackdropClick}
-          >
-            <div className="mb-6 relative">
-              <div className="absolute inset-0 bg-green-500/20 blur-xl rounded-full"></div>
-              <img src="/tx-success.svg" alt="Success" width="100" height="100" className="relative animate-pulse drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]" />
-            </div>
-            <div className="text-green-400 text-lg font-bold mb-2 tracking-wide">Swap Submitted!</div>
-            <div className="text-teal-200/80 text-sm text-center max-w-[80%] leading-relaxed">{success}</div>
-            <div className="mt-8 text-teal-200/60 text-xs font-medium">
-              Tap anywhere to close{closeCountdown > 0 && ` (${closeCountdown}s)`}
-            </div>
-          </div>
+          <WalletProgressState
+            heading={success.heading}
+            detail={success.detail}
+            animationPath="/animations/swap/swap-animation.json"
+            closeCountdown={closeCountdown}
+          />
         )}
 
         {/* Form */}
