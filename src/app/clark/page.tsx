@@ -942,7 +942,7 @@ export default function BacktestPage() {
           animate={{ left: isSidebarOpen ? 212 : 16 }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="hidden lg:flex fixed top-[22px] z-[100] items-center justify-center w-8 h-8 rounded-lg bg-[#001C1B]/80 backdrop-blur-md hover:bg-white/10 text-white/40 hover:text-white transition-colors border border-white/10"
+          className="hidden lg:flex fixed top-[32px] z-[100] items-center justify-center w-8 h-8 rounded-lg bg-[#001C1B]/80 backdrop-blur-md hover:bg-white/10 text-white/40 hover:text-white transition-colors border border-white/10"
           title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
         >
           {isSidebarOpen ? <PanelLeft className="h-5 w-5" /> : <PanelRight className="h-5 w-5" />}
@@ -956,7 +956,7 @@ export default function BacktestPage() {
               animate={{ width: 260, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="hidden lg:flex lg:flex-col lg:w-[260px] lg:flex-shrink-0 lg:pl-4 lg:pr-3 lg:pt-20 lg:pb-10 lg:border-r border-white/10 overflow-hidden relative z-[90] bg-[#001C1B]"
+              className="hidden lg:flex lg:flex-col lg:w-[260px] lg:flex-shrink-0 lg:pl-4 lg:pr-3 lg:pt-10 lg:pb-10 lg:border-r border-white/10 overflow-hidden relative z-[90] bg-[#001C1B]"
             >
               <PastConversationsTab
                 userId={userId}
