@@ -119,7 +119,7 @@ export default function PastConversationsTab({ userId, onLoadConversation }: Pas
   return (
     <div className="space-y-5">
       {/* Header with icon and title */}
-      <div className="flex items-center justify-between px-2">
+      <div className="flex items-center justify-between px-2 py-2">
         <div className="flex items-center gap-2">
           <MessageSquare className="h-3.5 w-3.5 text-teal-400" />
           <h2 className="text-[11px] font-bold text-white/50 uppercase tracking-[0.15em]">History</h2>

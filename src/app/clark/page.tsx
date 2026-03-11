@@ -933,20 +933,19 @@ export default function BacktestPage() {
         </div>
       </header>
       {/* Spacer for fixed navbar height */}
-      <div className="h-24" />
 
       {/* Main Content Area - full width so past conversations can sit flush left */}
-      <div className="w-full flex relative z-0">
+      <div className="w-full flex relative">
         {/* Sidebar Toggle Button - floating to the left of the divider, animates with sidebar */}
         <motion.button
           initial={false}
           animate={{ left: isSidebarOpen ? 212 : 16 }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="hidden lg:flex fixed top-[114px] z-50 items-center justify-center w-8 h-8 rounded-lg bg-[#001C1B]/80 backdrop-blur-md hover:bg-white/10 text-white/40 hover:text-white transition-colors border border-white/10"
+          className="hidden lg:flex fixed top-[22px] z-[100] items-center justify-center w-8 h-8 rounded-lg bg-[#001C1B]/80 backdrop-blur-md hover:bg-white/10 text-white/40 hover:text-white transition-colors border border-white/10"
           title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
         >
-          {isSidebarOpen ? <PanelLeft className="h-4 w-4" /> : <PanelRight className="h-4 w-4" />}
+          {isSidebarOpen ? <PanelLeft className="h-5 w-5" /> : <PanelRight className="h-5 w-5" />}
         </motion.button>
 
         {/* Left: Past conversations column - collapsible on desktop, hidden on mobile */}
@@ -957,7 +956,7 @@ export default function BacktestPage() {
               animate={{ width: 260, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="hidden lg:flex lg:flex-col lg:w-[260px] lg:flex-shrink-0 lg:pl-4 lg:pr-3 lg:py-10 lg:border-r border-white/10 overflow-hidden"
+              className="hidden lg:flex lg:flex-col lg:w-[260px] lg:flex-shrink-0 lg:pl-4 lg:pr-3 lg:pt-20 lg:pb-10 lg:border-r border-white/10 overflow-hidden relative z-[90] bg-[#001C1B]"
             >
               <PastConversationsTab
                 userId={userId}
@@ -968,7 +967,7 @@ export default function BacktestPage() {
         </AnimatePresence>
 
         {/* Right: Centered main content (tiles + feed) */}
-        <div className={`flex-1 min-w-0 flex flex-col pt-10 px-4 relative transition-all duration-300 ${isSidebarOpen ? 'lg:items-start' : 'items-center'}`}>
+        <div className={`flex-1 min-w-0 flex flex-col pt-24 px-4 relative transition-all duration-300 ${isSidebarOpen ? 'lg:items-start' : 'items-center'}`}>
           <div className="w-full max-w-6xl relative">
             {/* Category Tiles - hidden when prompt modal is open so a single card click doesn't fire both modal and tiles */}
             {/* Category Tiles - hidden when prompt modal is open so a single card click doesn't fire both modal and tiles */}
