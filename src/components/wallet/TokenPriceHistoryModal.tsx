@@ -2,19 +2,15 @@
 
 import React, { useEffect, useState, useMemo, useRef, useLayoutEffect } from "react";
 import {
-  Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogPortal,
-  DialogOverlay,
 } from "@/components/ui/dialog";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine } from "recharts";
 import { subgraphApi } from "@/lib/subgraphApi";
 import { useRates } from "@/providers/RatesProvider";
 import { X, Triangle } from "lucide-react";
+import WalletModalShell from "@/components/wallet/WalletModalShell";
 
 interface HistoricalPricePoint {
   date: string;
@@ -330,19 +326,19 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
   }, [open, loading, chartData.length]);
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogPortal>
-        <DialogOverlay className="bg-black/70 backdrop-blur-md" />
-        <DialogPrimitive.Content
-          className="fixed left-[50%] top-[50%] z-50 w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] p-0 overflow-hidden rounded-3xl max-h-[90vh] focus:outline-none focus:ring-0 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]"
-          style={{
-            background: 'linear-gradient(135deg, rgba(0, 28, 27, 0.50) 0%, rgba(0, 40, 38, 0.40) 50%, rgba(0, 20, 20, 0.55) 100%)',
-            backdropFilter: 'blur(32px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(32px) saturate(180%)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            boxShadow: '0 0 0 1px rgba(45, 212, 191, 0.08), 0 32px 64px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
-          }}
-        >
+    <WalletModalShell
+      open={open}
+      onDismiss={onClose}
+      screenReaderTitle={`${displaySymbol} Price History`}
+      contentClassName="w-[calc(100%-2rem)] max-w-lg p-0 overflow-hidden rounded-3xl max-h-[90vh] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]"
+      contentStyle={{
+        background: 'linear-gradient(135deg, rgba(0, 28, 27, 0.50) 0%, rgba(0, 40, 38, 0.40) 50%, rgba(0, 20, 20, 0.55) 100%)',
+        backdropFilter: 'blur(32px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(32px) saturate(180%)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        boxShadow: '0 0 0 1px rgba(45, 212, 191, 0.08), 0 32px 64px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+      }}
+    >
           {/* Header */}
           <DialogHeader className="px-6 pt-6 pb-4 !text-left" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <div className="flex items-start justify-between">
@@ -528,9 +524,7 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
               </>
             )}
           </div>
-        </DialogPrimitive.Content>
-      </DialogPortal>
-    </Dialog>
+    </WalletModalShell>
   );
 };
 

@@ -56,7 +56,7 @@ const ensureProtocol = (url: string) => {
 // Hedge Fund API: localhost for local dev; set NEXT_PUBLIC_HEDGE_FUND_API_URL to Railway URL in production
 const HEDGE_FUND_API_BASE_URL = (IS_DEV && IS_BROWSER)
   ? '/proxy/hedge'
-  : ensureProtocol(process.env.NEXT_PUBLIC_HEDGE_FUND_API_URL || 'http://127.0.0.1:8000');
+  : ensureProtocol(process.env.NEXT_PUBLIC_HEDGE_FUND_API_URL || 'http://127.0.0.1:8005');
 
 /** Hedge fund subgraph (strategy metrics, deposits, signals). Override with NEXT_PUBLIC_HEDGE_FUND_SUBGRAPH_API_URL or NEXT_PUBLIC_SUBGRAPH_URL. */
 export const HEDGE_FUND_SUBGRAPH_URL =

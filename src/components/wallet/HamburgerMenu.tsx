@@ -59,7 +59,7 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
   const neutralGlass =
     "rounded-2xl bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl transition-all duration-200";
   const iconPill =
-    "inline-flex items-center justify-center w-10 h-10 rounded-xl text-teal-400/90 flex-shrink-0";
+    "inline-flex items-center justify-center w-10 h-10 rounded-xl flex-shrink-0";
   const iconPillStyle = {
     background: "rgba(45, 212, 191, 0.08)",
     boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.1)",
@@ -96,7 +96,7 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
                 </p>
                 <button
                   onClick={handleCopyClick}
-                  className={`${iconPill} hover:bg-teal-500/15 active:scale-[0.97] transition-transform`}
+                  className={`${iconPill} text-white hover:bg-teal-500/15 active:scale-[0.97] transition-transform`}
                   style={iconPillStyle}
                 >
                   <FaCopy className="h-4 w-4" />
@@ -122,7 +122,7 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="mr-3 flex-shrink-0 opacity-80"
+                  className="mr-3 flex-shrink-0 text-white opacity-90"
                 >
                   <line x1="4" y1="6" x2="20" y2="6" />
                   <line x1="4" y1="12" x2="20" y2="12" />
@@ -141,9 +141,9 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
                   alt="Clark"
                   className="h-12 w-12 mr-3 flex-shrink-0"
                 />
-                <span>Clark AI</span>
+                <span className="text-[hsl(var(--brand-accent))]">Clark AI</span>
               </div>
-              <span className={iconPill} style={iconPillStyle}>
+              <span className={`${iconPill} text-[hsl(var(--brand-accent))]`} style={iconPillStyle}>
                 <ArrowUpRight className="h-5 w-5" />
               </span>
             </button>
@@ -171,7 +171,7 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
           <div className="flex justify-center">
             <button
               onClick={onClose}
-              className="flex items-center justify-center h-10 w-10 rounded-full text-zinc-500 hover:text-white/90 transition-all duration-200 hover:bg-white/[0.06] active:scale-95"
+              className="flex items-center justify-center h-10 w-10 rounded-full text-white/80 hover:text-white transition-all duration-200 hover:bg-white/[0.06] active:scale-95"
               aria-label="Close menu"
             >
               <FaTimes className="text-lg" />
