@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useImperativeHandle, forwardRef, useRef, useCallback } from 'react';
-import { Clock, AlertCircle, ArrowRightLeft } from 'lucide-react';
+import { Clock, AlertCircle } from 'lucide-react';
 import { kryptonWeb3Api } from '@/lib/api';
 
 interface Transaction {
@@ -240,7 +240,7 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
         const iconSize = large ? 'w-8 h-8' : 'w-5 h-5';
         return (
           <div className={`flex items-center justify-center ${containerSize} bg-white/10 rounded-md`}>
-            <ArrowRightLeft className={`${iconSize} text-white`} />
+            <img src="/swap-icon-small.svg" alt="Swap" className={iconSize} />
           </div>
         );
       }
@@ -342,9 +342,38 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
     };
 
     if (loading) {
+      const shimmerBlockStyle: React.CSSProperties = {
+        background: 'linear-gradient(90deg, rgba(63,63,70,0.5) 25%, rgba(113,113,122,0.7) 50%, rgba(63,63,70,0.5) 75%)',
+        backgroundSize: '200% 100%',
+        animation: 'transactionShimmer 1.4s linear infinite'
+      };
+
       return (
-        <div className="flex items-center justify-center py-4">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[hsl(var(--brand-accent))]"></div>
+        <div className="flex flex-col py-2.5">
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <div key={`tx-shimmer-${idx}`} className="py-2.5 flex items-center justify-between min-w-0">
+              <div className="flex items-center min-w-0 flex-1 overflow-hidden">
+                <div className="mr-3 flex-shrink-0 w-10 h-10 rounded-md" style={shimmerBlockStyle} />
+                <div className="flex flex-col min-w-0 flex-1 overflow-hidden justify-center gap-1.5">
+                  <div className="h-4 w-48 max-w-full rounded" style={shimmerBlockStyle} />
+                  <div className="h-3 w-36 max-w-[80%] rounded" style={shimmerBlockStyle} />
+                </div>
+              </div>
+              <div className="flex flex-col text-right flex-shrink-0 ml-2 md:ml-4 justify-center gap-1">
+                <div className="h-3 w-14 rounded" style={shimmerBlockStyle} />
+                <div className="h-2.5 w-12 rounded self-end" style={shimmerBlockStyle} />
+              </div>
+              <div className="flex items-center justify-center w-5 h-5 ml-2 flex-shrink-0 self-center">
+                <div className="w-5 h-5 rounded-full" style={shimmerBlockStyle} />
+              </div>
+            </div>
+          ))}
+          <style>{`
+            @keyframes transactionShimmer {
+              0% { background-position: -200% 0; }
+              100% { background-position: 200% 0; }
+            }
+          `}</style>
         </div>
       );
     }
