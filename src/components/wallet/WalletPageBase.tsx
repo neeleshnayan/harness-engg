@@ -142,6 +142,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   const lastBackgroundBalanceFetchAtRef = useRef(0);
   const accountDataRef = useRef(accountData);
   const showTransactionsRef = useRef(showTransactions);
+  const balanceRef = useRef<any>(balance);
   const fetchBalanceRef = useRef<((address: string, options?: { background?: boolean }) => Promise<void>) | null>(null);
   const processedWebhookEventsRef = useRef<Set<string>>(new Set()); // Track processed webhook event keys (type+txId)
   const processedBalanceUpdatesRef = useRef<Map<string, { ts: number; hadBalances: boolean }>>(new Map()); // Track processed balance_update keys (txId/txHash)
@@ -156,6 +157,47 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   useEffect(() => {
     showTransactionsRef.current = showTransactions;
   }, [showTransactions]);
+
+  useEffect(() => {
+    balanceRef.current = balance;
+  }, [balance]);
+
+  const buildBalanceSignatureFromState = useCallback((currentBalance: any): string | null => {
+    const items = Array.isArray(currentBalance?.tokenBalances) ? currentBalance.tokenBalances : [];
+    if (!items.length) return null;
+    const normalized = [];
+    for (const tb of items) {
+      try {
+        const symbol = String(tb?.token?.symbol || "");
+        const address = String(tb?.token?.tokenAddress || "").toLowerCase();
+        const amountVal = parseFloat(tb?.amount ?? "0");
+        normalized.push(`${symbol}:${address}:${Number.isFinite(amountVal) ? amountVal.toFixed(8) : "0.00000000"}`);
+      } catch {
+        continue;
+      }
+    }
+    if (!normalized.length) return null;
+    normalized.sort();
+    return normalized.join("|");
+  }, []);
+
+  const buildBalanceSignatureFromWs = useCallback((balances: any[]): string | null => {
+    if (!Array.isArray(balances) || balances.length === 0) return null;
+    const normalized = [];
+    for (const b of balances) {
+      try {
+        const symbol = String(b?.symbol || "");
+        const address = String(b?.address || "").toLowerCase();
+        const amountVal = parseFloat(String(b?.balance ?? "0"));
+        normalized.push(`${symbol}:${address}:${Number.isFinite(amountVal) ? amountVal.toFixed(8) : "0.00000000"}`);
+      } catch {
+        continue;
+      }
+    }
+    if (!normalized.length) return null;
+    normalized.sort();
+    return normalized.join("|");
+  }, []);
 
 
   // WebSocket message handler - stabilized with useCallback and refs
@@ -221,7 +263,12 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         const singleTx = message.transaction;
 
         if (Array.isArray(balances) && balances.length > 0) {
-          setBalanceRefreshing(true);
+          const currentSig = buildBalanceSignatureFromState(balanceRef.current);
+          const incomingSig = buildBalanceSignatureFromWs(balances);
+          const isSameBalance = currentSig && incomingSig && currentSig === incomingSig;
+          if (!isSameBalance) {
+            setBalanceRefreshing(true);
+          }
           const incoming = balances.map((b: { symbol: string; balance: number; decimals?: number; address?: string }) => ({
             amount: String(b.balance ?? 0),
             token: {
@@ -234,24 +281,28 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
               standard: (b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA') ? undefined : 'ERC20',
             },
           }));
-          // Merge incoming balances so partial webhook payloads (e.g., USDC-only) don't wipe other tokens.
-          setBalance((prev: any) => {
-            const existing = Array.isArray(prev?.tokenBalances) ? prev.tokenBalances : [];
-            const bySymbol = new Map<string, any>();
-            for (const tb of existing) {
-              const sym = tb?.token?.symbol;
-              if (sym) bySymbol.set(sym, tb);
-            }
-            for (const tb of incoming) {
-              const sym = tb?.token?.symbol;
-              if (sym) bySymbol.set(sym, tb);
-            }
-            return {
-              tokenBalances: Array.from(bySymbol.values()),
-              _fetchedAt: Date.now(),
-            };
-          });
-          setBalanceRefreshing(false);
+          if (!isSameBalance) {
+            // Merge incoming balances so partial webhook payloads (e.g., USDC-only) don't wipe other tokens.
+            setBalance((prev: any) => {
+              const existing = Array.isArray(prev?.tokenBalances) ? prev.tokenBalances : [];
+              const bySymbol = new Map<string, any>();
+              for (const tb of existing) {
+                const sym = tb?.token?.symbol;
+                if (sym) bySymbol.set(sym, tb);
+              }
+              for (const tb of incoming) {
+                const sym = tb?.token?.symbol;
+                if (sym) bySymbol.set(sym, tb);
+              }
+              return {
+                tokenBalances: Array.from(bySymbol.values()),
+                _fetchedAt: Date.now(),
+              };
+            });
+            setBalanceRefreshing(false);
+          } else {
+            setBalanceRefreshing(false);
+          }
           setBalanceFlickering(false);
         } else {
           // No balances in WS message — don't fallback to API.
@@ -271,7 +322,11 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
         if (hasBalances) {
           sawWsBalanceUpdateRef.current = true;
-          setBalanceCardRefresh(prev => !prev);
+          const currentSig = buildBalanceSignatureFromState(balanceRef.current);
+          const incomingSig = buildBalanceSignatureFromWs(balances);
+          if (!currentSig || !incomingSig || currentSig !== incomingSig) {
+            setBalanceCardRefresh(prev => !prev);
+          }
         }
         setTransactionHistoryRefresh(prev => prev + 1);
         txDebug("tx_confirmed_refresh_triggered", {
@@ -316,6 +371,9 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         const balances = message.balances;
         const singleTx = message.transaction;
         if (Array.isArray(balances) && balances.length > 0) {
+          const currentSig = buildBalanceSignatureFromState(balanceRef.current);
+          const incomingSig = buildBalanceSignatureFromWs(balances);
+          const isSameBalance = currentSig && incomingSig && currentSig === incomingSig;
           sawWsBalanceUpdateRef.current = true;
           const incoming = balances.map((b: { symbol: string; balance: number; decimals?: number; address?: string }) => ({
             amount: String(b.balance ?? 0),
@@ -329,22 +387,24 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
               standard: (b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA') ? undefined : 'ERC20',
             },
           }));
-          setBalance((prev: any) => {
-            const existing = Array.isArray(prev?.tokenBalances) ? prev.tokenBalances : [];
-            const bySymbol = new Map<string, any>();
-            for (const tb of existing) {
-              const sym = tb?.token?.symbol;
-              if (sym) bySymbol.set(sym, tb);
-            }
-            for (const tb of incoming) {
-              const sym = tb?.token?.symbol;
-              if (sym) bySymbol.set(sym, tb);
-            }
-            return {
-              tokenBalances: Array.from(bySymbol.values()),
-              _fetchedAt: Date.now(),
-            };
-          });
+          if (!isSameBalance) {
+            setBalance((prev: any) => {
+              const existing = Array.isArray(prev?.tokenBalances) ? prev.tokenBalances : [];
+              const bySymbol = new Map<string, any>();
+              for (const tb of existing) {
+                const sym = tb?.token?.symbol;
+                if (sym) bySymbol.set(sym, tb);
+              }
+              for (const tb of incoming) {
+                const sym = tb?.token?.symbol;
+                if (sym) bySymbol.set(sym, tb);
+              }
+              return {
+                tokenBalances: Array.from(bySymbol.values()),
+                _fetchedAt: Date.now(),
+              };
+            });
+          }
           setBalanceFlickering(false);
         } else {
           // No balances in WS message — skip; balance will update on next WS event or page reload.
