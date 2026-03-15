@@ -4,6 +4,7 @@ import { useRates } from "@/providers/RatesProvider";
 import { getPoolRate } from "@/lib/ratesApi";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import WalletProgressState from "@/components/wallet/WalletProgressState";
+import WalletModalShell from "@/components/wallet/WalletModalShell";
 
 interface SwapModalProps {
   visible: boolean;
@@ -466,15 +467,17 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[hsl(var(--brand-bg))]/60 backdrop-blur-md p-4 animate-in fade-in duration-200"
-      onClick={handleBackdropClick}
+    <WalletModalShell
+      open={visible}
+      onDismiss={handleBackdropClick}
+      screenReaderTitle="Swap Assets"
+      onContentClick={success ? handleBackdropClick : undefined}
+      overlayClassName="bg-black/70 backdrop-blur-md"
+      contentClassName="w-full max-w-[440px] bg-[hsl(var(--brand-bg))] bg-cover bg-center shadow-2xl relative overflow-visible rounded-xl p-6 animate-in zoom-in-95 duration-200 border border-white/5"
+      contentStyle={{
+        backgroundImage: "url('/wallet-bg.svg')",
+      }}
     >
-      <div
-        className="w-full max-w-[440px] bg-[hsl(var(--brand-bg))] bg-cover bg-center shadow-2xl relative overflow-visible rounded-xl p-6 animate-in zoom-in-95 duration-200 border border-white/5"
-        style={{ backgroundImage: "url('/wallet-bg.svg')" }}
-        onClick={(e) => !success && e.stopPropagation()}
-      >
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold text-white tracking-tight">Swap Assets</h2>
           <button onClick={() => onClose(false)} className="text-white/80 hover:text-white transition-colors">
@@ -694,8 +697,7 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
             </button>
           </div>
         )}
-      </div>
-    </div>
+    </WalletModalShell>
   );
 };
 export default SwapModal;

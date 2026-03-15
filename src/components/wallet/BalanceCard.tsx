@@ -525,8 +525,8 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
 
                       {/* Visual Display: Chevron -> Symbol -> Amount */}
                       <div className="flex items-baseline justify-center w-full">
-                        <div className="flex items-center mr-1 sm:mr-2 shrink-0">
-                          <ChevronDown className="w-6 h-6 sm:w-7 sm:h-7 text-zinc-500 mr-0.5 group-hover:text-white transition-colors" />
+                        <div className="relative mr-1 sm:mr-2 shrink-0">
+                          <ChevronDown className="absolute right-full top-1/2 -translate-y-1/2 w-6 h-6 sm:w-7 sm:h-7 text-zinc-500 mr-0.5 sm:mr-1 group-hover:text-white transition-colors" />
                           <span className="text-5xl sm:text-6xl font-medium text-white tracking-normal leading-none">{currencySymbol}</span>
                         </div>
                         <span className="font-bold text-white tracking-tight leading-none" style={{ fontSize: 'calc(clamp(3rem, 12vw, 5.5rem) * var(--balance-amount-scale))' }}>

@@ -7,6 +7,7 @@ import api, { kryptonWeb3Api } from "@/lib/api";
 import { useRates } from "@/providers/RatesProvider";
 import { getPoolRate } from "@/lib/ratesApi";
 import WalletProgressState from "@/components/wallet/WalletProgressState";
+import WalletModalShell from "@/components/wallet/WalletModalShell";
 
 interface SendERC20ModalProps {
   visible: boolean;
@@ -140,7 +141,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
     const loadAvailableTokens = async () => {
       try {
         setLoading(true);
-        setLoadingMessage("Loading supported currencies...");
+        // setLoadingMessage("Loading supported currencies...");
 
         // Get user balances
         const balances = await fetchUserBalances();
@@ -548,6 +549,13 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
     return true;
   }, [fromTokenSymbol, toTokenSymbol]);
 
+  // Receiver validation for button state
+  const normalizedReceiverUsername = receiverUsername.trim().replace(/^@/, "").toLowerCase();
+  const normalizedSelfUsername = (username || "").trim().replace(/^@/, "").toLowerCase();
+  const hasReceiverUsername = normalizedReceiverUsername.length > 0;
+  const isReceiverSelf = normalizedSelfUsername.length > 0 && normalizedReceiverUsername === normalizedSelfUsername;
+  const isReceiverValid = hasReceiverUsername && !isReceiverSelf;
+
   // Handle swap currencies
   const handleSwapCurrencies = () => {
     const prevFrom = selectedCurrency;
@@ -754,16 +762,29 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
 
   if (!visible) return null;
 
+  const optionStyle: React.CSSProperties = {
+    color: '#0f172a',
+    backgroundColor: '#f8fafc',
+  };
+  const optionSeparatorStyle: React.CSSProperties = {
+    color: '#334155',
+    backgroundColor: '#f8fafc',
+    fontStyle: 'italic',
+    opacity: 0.7,
+  };
+
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[hsl(var(--brand-bg))]/60 backdrop-blur-md p-4 animate-in fade-in duration-200"
-      onClick={handleBackdropClick}
+    <WalletModalShell
+      open={visible}
+      onDismiss={handleBackdropClick}
+      screenReaderTitle="Krypton Pay"
+      onContentClick={success ? handleBackdropClick : undefined}
+      overlayClassName="bg-black/70 backdrop-blur-md"
+      contentClassName="w-full max-w-[440px] bg-[hsl(var(--brand-bg))] bg-cover bg-center shadow-2xl relative overflow-visible rounded-xl p-6 animate-in zoom-in-95 duration-200 border border-white/5"
+      contentStyle={{
+        backgroundImage: "url('/wallet-bg.svg')",
+      }}
     >
-      <div
-        className="w-full max-w-[440px] bg-[hsl(var(--brand-bg))] bg-cover bg-center shadow-2xl relative overflow-visible rounded-xl p-6 animate-in zoom-in-95 duration-200 border border-white/5"
-        style={{ backgroundImage: "url('/wallet-bg.svg')" }}
-        onClick={(e) => !success && e.stopPropagation()}
-      >
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold text-white tracking-tight">Krypton Pay</h2>
           <button onClick={() => onClose(false)} className="text-white/80 hover:text-white transition-colors">
@@ -865,7 +886,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                           key={token.symbol}
                           value={token.isSeparator ? "" : token.symbol.replace(/^k/, "")}
                           disabled={token.isSeparator}
-                          style={token.isSeparator ? { opacity: 0.6, fontStyle: 'italic' } : {}}
+                          style={token.isSeparator ? optionSeparatorStyle : optionStyle}
                         >
                           {token.symbol.replace(/^k/, "")}
                         </option>
@@ -948,7 +969,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                           key={token.symbol}
                           value={token.isSeparator ? "" : token.symbol.replace(/^k/, "")}
                           disabled={token.isSeparator}
-                          style={token.isSeparator ? { opacity: 0.6, fontStyle: 'italic' } : {}}
+                          style={token.isSeparator ? optionSeparatorStyle : optionStyle}
                         >
                           {token.symbol.replace(/^k/, "")}
                         </option>
@@ -964,7 +985,14 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
 
             <Button
               onClick={handleSend}
-              disabled={loading || !isValidCurrencyCombination || isCalculatingFrom || isCalculatingTo || !hasSufficientBalance}
+              disabled={
+                loading ||
+                !isValidCurrencyCombination ||
+                isCalculatingFrom ||
+                isCalculatingTo ||
+                !hasSufficientBalance ||
+                !isReceiverValid
+              }
               className="w-full h-11 text-white text-sm font-bold rounded-md shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed mt-5 relative z-10"
               style={{
                 background: 'rgba(85, 124, 130, 0.9)',
@@ -989,7 +1017,6 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
             )}
           </div>
         )}
-      </div>
-    </div>
+    </WalletModalShell>
   );
 }
