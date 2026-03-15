@@ -762,6 +762,17 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
 
   if (!visible) return null;
 
+  const optionStyle: React.CSSProperties = {
+    color: '#0f172a',
+    backgroundColor: '#f8fafc',
+  };
+  const optionSeparatorStyle: React.CSSProperties = {
+    color: '#334155',
+    backgroundColor: '#f8fafc',
+    fontStyle: 'italic',
+    opacity: 0.7,
+  };
+
   return (
     <WalletModalShell
       open={visible}
@@ -902,7 +913,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                           key={token.symbol}
                           value={token.isSeparator ? "" : token.symbol.replace(/^k/, "")}
                           disabled={token.isSeparator}
-                          style={token.isSeparator ? { opacity: 0.6, fontStyle: 'italic' } : {}}
+                          style={token.isSeparator ? optionSeparatorStyle : optionStyle}
                         >
                           {token.symbol.replace(/^k/, "")}
                         </option>
@@ -992,7 +1003,7 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                           key={token.symbol}
                           value={token.isSeparator ? "" : token.symbol.replace(/^k/, "")}
                           disabled={token.isSeparator}
-                          style={token.isSeparator ? { opacity: 0.6, fontStyle: 'italic' } : {}}
+                          style={token.isSeparator ? optionSeparatorStyle : optionStyle}
                         >
                           {token.symbol.replace(/^k/, "")}
                         </option>

@@ -144,6 +144,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   const showTransactionsRef = useRef(showTransactions);
   const fetchBalanceRef = useRef<((address: string, options?: { background?: boolean }) => Promise<void>) | null>(null);
   const processedWebhookEventsRef = useRef<Set<string>>(new Set()); // Track processed webhook event keys (type+txId)
+  const processedBalanceUpdatesRef = useRef<Map<string, { ts: number; hadBalances: boolean }>>(new Map()); // Track processed balance_update keys (txId/txHash)
   const balanceCardRef = useRef<BalanceCardRef | null>(null); // Ref to BalanceCard for switching tabs
 
   // Update refs when state changes
@@ -183,6 +184,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     if (message.type === 'transaction_confirmed' || message.type === 'transaction_update') {
       const transactionId = message.transaction_id;
       const txHash = message.tx_hash;
+      const hasBalances = Array.isArray(message?.balances) && message.balances.length > 0;
 
       const eventKey = `${message.type}:${transactionId || ''}`;
 
@@ -211,11 +213,11 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       // Update balance: use balances from WebSocket if present (backend sends after subgraph indexation)
       const currentAccountData = accountDataRef.current;
       if (currentAccountData?.wallet_address) {
-        setBalanceRefreshing(true);
         const balances = message.balances;
         const singleTx = message.transaction;
 
         if (Array.isArray(balances) && balances.length > 0) {
+          setBalanceRefreshing(true);
           const incoming = balances.map((b: { symbol: string; balance: number; decimals?: number; address?: string }) => ({
             amount: String(b.balance ?? 0),
             token: {
@@ -246,10 +248,10 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
             };
           });
           setBalanceRefreshing(false);
+          setBalanceFlickering(false);
         } else {
           // No balances in WS message — don't fallback to API.
           // Balance will update on next WS event with data or on manual page reload.
-          setBalanceRefreshing(false);
         }
 
         if (singleTx && singleTx.hash) {
@@ -261,7 +263,9 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
           setTxHistoryForceRefresh(prev => prev + 1);
         }
 
-        setBalanceCardRefresh(prev => !prev);
+        if (hasBalances) {
+          setBalanceCardRefresh(prev => !prev);
+        }
         setTransactionHistoryRefresh(prev => prev + 1);
         txDebug("tx_confirmed_refresh_triggered", {
           transaction_id: transactionId,
@@ -276,6 +280,30 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     // Handle balance_update event - sent by backend AFTER subgraph indexes the tx
     // This is separate from transaction_confirmed to bypass the dedup check above
     if (message.type === 'balance_update') {
+      const transactionId = message?.transaction_id ? String(message.transaction_id) : '';
+      const txHash = message?.tx_hash ? String(message.tx_hash).toLowerCase() : '';
+      const balanceUpdateKey = (transactionId || txHash) ? `${transactionId}:${txHash}` : '';
+      const hasBalances = Array.isArray(message?.balances) && message.balances.length > 0;
+      if (balanceUpdateKey) {
+        const existing = processedBalanceUpdatesRef.current.get(balanceUpdateKey);
+        if (existing) {
+          // If we already processed a balance-bearing update, always skip duplicates.
+          if (existing.hadBalances) {
+            return;
+          }
+          // If this update also has no balances, skip to prevent reload loops.
+          if (!hasBalances) {
+            return;
+          }
+        }
+        processedBalanceUpdatesRef.current.set(balanceUpdateKey, {
+          ts: Date.now(),
+          hadBalances: hasBalances,
+        });
+        setTimeout(() => {
+          processedBalanceUpdatesRef.current.delete(balanceUpdateKey);
+        }, 5 * 60 * 1000);
+      }
       const currentAccountData = accountDataRef.current;
       if (currentAccountData?.wallet_address) {
         const balances = message.balances;
@@ -309,6 +337,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
               _fetchedAt: Date.now(),
             };
           });
+          setBalanceFlickering(false);
         } else {
           // No balances in WS message — skip; balance will update on next WS event or page reload.
         }
@@ -400,6 +429,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   useEffect(() => {
     return () => {
       processedWebhookEventsRef.current.clear();
+      processedBalanceUpdatesRef.current.clear();
     };
   }, []);
 
