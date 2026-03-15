@@ -253,6 +253,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
           // No balances in WS message — don't fallback to API.
           // Balance will update on next WS event with data or on manual page reload.
         }
+        // Stop flicker on terminal confirmation even if balances were missing.
+        setBalanceFlickering(false);
 
         if (singleTx && singleTx.hash) {
           setLatestWsTransaction(singleTx);
@@ -341,6 +343,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         } else {
           // No balances in WS message — skip; balance will update on next WS event or page reload.
         }
+        // Stop flicker on balance_update even if balances were missing.
+        setBalanceFlickering(false);
         // Keep ActiveTransactions in sync.
         setTransactionHistoryRefresh(prev => prev + 1);
         // Prefer one-row append; fallback to full history fetch if payload missing.
