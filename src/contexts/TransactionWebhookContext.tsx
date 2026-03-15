@@ -45,7 +45,10 @@ export function TransactionWebhookProvider({ walletAddress, children }: Transact
 
     const transactionId = message.transaction_id as string | undefined;
     if (!transactionId) return;
-    const eventKey = `${message.type}:${transactionId}`;
+    const rawStatus = (message.status || message.state || "").toString().toLowerCase();
+    const eventKey = message.type === "transaction_update"
+      ? `${message.type}:${transactionId}:${rawStatus}`
+      : `${message.type}:${transactionId}`;
 
     // Deduplicate
     if (processedEventsRef.current.has(eventKey)) {
@@ -60,7 +63,6 @@ export function TransactionWebhookProvider({ walletAddress, children }: Transact
     const pending = pendingRef.current.get(transactionId);
     if (!pending) return;
 
-    const rawStatus = (message.status || message.state || "").toString().toLowerCase();
     if (message.type === "transaction_confirmed" || (rawStatus && isSuccessState(rawStatus))) {
       clearTimeout(pending.timer);
       if (pending.poller) clearInterval(pending.poller);

@@ -779,29 +779,16 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
       onDismiss={handleBackdropClick}
       screenReaderTitle="Krypton Pay"
       onContentClick={success ? handleBackdropClick : undefined}
-      contentClassName="w-[calc(100%-2rem)] max-w-[440px] max-h-[calc(100dvh-2rem)] shadow-2xl relative overflow-x-visible overflow-y-auto rounded-xl p-4 sm:p-6 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 duration-200"
+      overlayClassName="bg-black/70 backdrop-blur-md"
+      contentClassName="w-full max-w-[440px] bg-[hsl(var(--brand-bg))] bg-cover bg-center shadow-2xl relative overflow-visible rounded-xl p-6 animate-in zoom-in-95 duration-200 border border-white/5"
       contentStyle={{
-        background: 'linear-gradient(135deg, rgba(0, 28, 27, 0.50) 0%, rgba(0, 40, 38, 0.40) 50%, rgba(0, 20, 20, 0.55) 100%)',
-        backdropFilter: 'blur(32px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(32px) saturate(180%)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        boxShadow: '0 0 0 1px rgba(45, 212, 191, 0.08), 0 32px 64px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+        backgroundImage: "url('/wallet-bg.svg')",
       }}
     >
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold text-white tracking-tight">Krypton Pay</h2>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose(false);
-            }}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-white/60 hover:text-white transition-all hover:scale-105 active:scale-95"
-            style={{
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.1)',
-            }}
-          >
-            <X size={15} strokeWidth={2.5} />
+          <button onClick={() => onClose(false)} className="text-white/80 hover:text-white transition-colors">
+            <X size={24} />
           </button>
         </div>
 
@@ -817,37 +804,28 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
 
         {/* Form */}
         {!success && (
-          <div className="space-y-5">
+          <div className="space-y-6">
             {error && (
-              <div className="rounded-xl p-3 flex items-center gap-2.5 text-sm" style={{
-                background: 'rgba(239,68,68,0.07)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-                border: '1px solid rgba(239,68,68,0.18)',
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-              }}>
+              <div className="bg-red-500/10 border border-red-500/20 text-red-200 text-sm p-3 rounded-lg flex items-center gap-2">
                 <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0" />
-                <span className="text-red-200">{error}</span>
+                <span>{error}</span>
               </div>
             )}
 
             {/* Receiver Input */}
             <div>
-              <label className="block text-[9px] font-semibold mb-2 ml-1 tracking-widest uppercase" style={{ color: 'rgba(144,231,238,0.6)' }}>Receiver</label>
+              <label className="block text-sm font-bold mb-2 ml-1 text-white tracking-tight">Receiver</label>
               <div className="relative group">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-semibold z-10 pointer-events-none transition-colors" style={{ color: 'rgba(144,231,238,0.6)' }}>@</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base group-focus-within:text-white transition-colors z-10 pointer-events-none" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>@</span>
                 <input
                   type="text"
                   value={receiverUsername}
                   onChange={(e) => setReceiverUsername(e.target.value)}
                   placeholder="username"
-                  className="w-full pl-9 pr-4 py-3.5 rounded-xl focus:outline-none text-white transition-all font-medium text-sm placeholder-white/25"
+                  className="w-full pl-8 pr-3 py-3 backdrop-blur-sm rounded-md focus:outline-none text-white transition-all font-medium text-base"
                   style={{
-                    background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(0,36,34,0.55) 100%)',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                    border: '1px solid rgba(255,255,255,0.11)',
-                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.07), 0 4px 16px rgba(0,0,0,0.2)',
+                    background: 'rgba(58, 96, 97, 0.5)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)'
                   }}
                   disabled={loading}
                   autoFocus
@@ -856,19 +834,17 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
             </div>
 
             {/* From/To Section */}
-            <div className="flex justify-between relative mb-7 sm:mb-10">
+            <div className="flex justify-between relative mb-4">
               {/* From Box */}
               <div
-                className="w-[138px] md:w-[168px] rounded-2xl h-[142px] md:h-[166px] relative flex flex-col items-start justify-center p-4 transition-all"
+                className="w-[130px] md:w-[160px] rounded-md h-[130px] md:h-[160px] relative flex flex-col items-start justify-center p-4 transition-colors group"
                 style={{
-                  background: 'linear-gradient(145deg, rgba(255,255,255,0.055) 0%, rgba(0,36,34,0.62) 100%)',
-                  backdropFilter: 'blur(24px) saturate(160%)',
-                  WebkitBackdropFilter: 'blur(24px) saturate(160%)',
-                  border: '1px solid rgba(255,255,255,0.11)',
-                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 8px 32px rgba(0,0,0,0.35)',
+                  background: 'linear-gradient(180deg, rgba(58, 96, 97, 0.6) 0%, rgba(125, 160, 161, 0.6) 100%)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)'
                 }}
               >
-                <span className="text-[9px] font-semibold mb-2 tracking-widest uppercase" style={{ color: 'rgba(144,231,238,0.6)' }}>From</span>
+                <span className="text-[10px] font-medium mb-1.5" style={{ color: 'rgba(161, 207, 211, 0.8)' }}>From</span>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -881,16 +857,16 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                   }}
                   onFocus={() => { focusedFieldRef.current = "from"; }}
                   placeholder="0"
-                  className="bg-transparent text-3xl font-bold text-white text-left w-full focus:outline-none placeholder-white/20 leading-none"
+                  className="bg-transparent text-2xl font-bold text-white text-left w-full focus:outline-none placeholder-white/30"
                   disabled={loading}
                 />
-                <div className="text-[10px] mt-2 font-medium truncate w-full" style={{ color: 'rgba(144,231,238,0.55)' }}>
-                  Balance: <span style={{ color: 'rgba(255,255,255,0.75)' }}>{fromBalanceValue.toFixed(2)}</span>
+                <div className="text-[10px] mt-1 font-medium truncate w-full" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>
+                  Balance: <span className="text-white">{fromBalanceValue.toFixed(2)}</span>
                 </div>
 
                 {/* Currency Selector Pill */}
-                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 z-20">
-                  <div className="relative">
+                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-20">
+                  <div className="relative shadow-xl">
                     <select
                       value={selectedCurrency}
                       onChange={(e) => {
@@ -898,13 +874,10 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                           setSelectedCurrency(e.target.value);
                         }
                       }}
-                      className="appearance-none text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded-full cursor-pointer focus:outline-none transition-all w-[90px]"
+                      className="appearance-none text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded cursor-pointer focus:outline-none transition-colors w-[85px]"
                       style={{
-                        background: 'linear-gradient(135deg, rgba(20,184,166,0.28) 0%, rgba(13,148,136,0.38) 100%)',
-                        backdropFilter: 'blur(16px)',
-                        WebkitBackdropFilter: 'blur(16px)',
-                        border: '1px solid rgba(45,212,191,0.35)',
-                        boxShadow: '0 4px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.12)',
+                        background: '#115E59',
+                        border: '1px solid rgba(255, 255, 255, 0.15)'
                       }}
                       disabled={loading}
                     >
@@ -919,8 +892,8 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                         </option>
                       ))}
                     </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5" style={{ color: 'rgba(144,231,238,0.8)' }}>
-                      <ChevronDown size={11} />
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>
+                      <ChevronDown size={12} />
                     </div>
                   </div>
                 </div>
@@ -930,30 +903,26 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
                 <button
                   onClick={handleSwapCurrencies}
-                  className="w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center transition-all cursor-pointer hover:scale-110 active:scale-95"
+                  className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all cursor-pointer"
                   style={{
-                    background: 'linear-gradient(135deg, rgba(20,184,166,0.75) 0%, rgba(13,148,136,0.9) 100%)',
-                    border: '1px solid rgba(45,212,191,0.45)',
-                    boxShadow: '0 0 20px rgba(20,184,166,0.3), 0 4px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
+                    background: 'rgba(85, 124, 130, 1)'
                   }}
                   disabled={loading}
                 >
-                  <ArrowRight className="w-4 h-4 text-white" strokeWidth={2.5} />
+                  <ArrowRight className="w-4 h-4 md:w-5 md:h-5 text-white" strokeWidth={2.5} />
                 </button>
               </div>
 
               {/* To Box */}
               <div
-                className="w-[138px] md:w-[168px] rounded-2xl h-[142px] md:h-[166px] relative flex flex-col items-start justify-center p-4 transition-all"
+                className="w-[130px] md:w-[160px] rounded-md h-[130px] md:h-[160px] relative flex flex-col items-start justify-center p-4 transition-colors group"
                 style={{
-                  background: 'linear-gradient(145deg, rgba(255,255,255,0.055) 0%, rgba(0,36,34,0.62) 100%)',
-                  backdropFilter: 'blur(24px) saturate(160%)',
-                  WebkitBackdropFilter: 'blur(24px) saturate(160%)',
-                  border: '1px solid rgba(255,255,255,0.11)',
-                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 8px 32px rgba(0,0,0,0.35)',
+                  background: 'linear-gradient(180deg, rgba(58, 96, 97, 0.6) 0%, rgba(125, 160, 161, 0.6) 100%)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)'
                 }}
               >
-                <span className="text-[9px] font-semibold mb-2 tracking-widest uppercase" style={{ color: 'rgba(144,231,238,0.6)' }}>To</span>
+                <span className="text-[10px] font-medium mb-1.5" style={{ color: 'rgba(161, 207, 211, 0.8)' }}>To</span>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -966,21 +935,21 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                   }}
                   onFocus={() => { focusedFieldRef.current = "to"; }}
                   placeholder="0"
-                  className="bg-transparent text-3xl font-bold text-white text-left w-full focus:outline-none placeholder-white/20 leading-none"
+                  className="bg-transparent text-2xl font-bold text-white text-left w-full focus:outline-none placeholder-white/30"
                   disabled={loading}
                 />
-                <div className={`text-[10px] mt-2 font-medium h-[15px] flex items-center truncate w-full ${(isCalculatingFrom || isCalculatingTo || exchangeRateLoading) ? 'animate-pulse' : ''}`} style={{ color: 'rgba(144,231,238,0.55)' }}>
+                <div className={`text-[10px] mt-1 font-medium h-[15px] flex items-center truncate w-full ${(isCalculatingFrom || isCalculatingTo || exchangeRateLoading) ? 'animate-pulse text-white/50' : ''}`}>
                   {exchangeRate && !exchangeRateLoading ? (
                     <>
-                      <span>1 {selectedCurrency && selectedCurrency.replace(/^k/, '')} =&nbsp;</span>
-                      <span style={{ color: 'rgba(255,255,255,0.75)' }}>{exchangeRate.toFixed(2)} {toCurrency && toCurrency.replace(/^k/, '')}</span>
+                      <span style={{ color: 'rgba(161, 207, 211, 0.7)' }}>1 {selectedCurrency && selectedCurrency.replace(/^k/, '')} =&nbsp;</span>
+                      <span className="text-white">{exchangeRate.toFixed(2)} {toCurrency && toCurrency.replace(/^k/, '')}</span>
                     </>
                   ) : ((isCalculatingFrom || isCalculatingTo || exchangeRateLoading) ? 'Updating...' : '')}
                 </div>
 
                 {/* Currency Selector Pill */}
-                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 z-20">
-                  <div className="relative">
+                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-20">
+                  <div className="relative shadow-xl">
                     <select
                       value={toCurrency}
                       onChange={(e) => {
@@ -988,13 +957,10 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                           setToCurrency(e.target.value);
                         }
                       }}
-                      className="appearance-none text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded-full cursor-pointer focus:outline-none transition-all w-[90px]"
+                      className="appearance-none text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded cursor-pointer focus:outline-none transition-colors w-[85px]"
                       style={{
-                        background: 'linear-gradient(135deg, rgba(20,184,166,0.28) 0%, rgba(13,148,136,0.38) 100%)',
-                        backdropFilter: 'blur(16px)',
-                        WebkitBackdropFilter: 'blur(16px)',
-                        border: '1px solid rgba(45,212,191,0.35)',
-                        boxShadow: '0 4px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.12)',
+                        background: '#115E59',
+                        border: '1px solid rgba(255, 255, 255, 0.15)'
                       }}
                       disabled={loading}
                     >
@@ -1009,15 +975,14 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                         </option>
                       ))}
                     </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5" style={{ color: 'rgba(144,231,238,0.8)' }}>
-                      <ChevronDown size={11} />
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>
+                      <ChevronDown size={12} />
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="h-4 md:h-1" />
             <Button
               onClick={handleSend}
               disabled={
@@ -1028,28 +993,27 @@ export default function SendERC20Modal({ visible, onClose, userAddress, userId, 
                 !hasSufficientBalance ||
                 !isReceiverValid
               }
-              className="w-full h-12 text-white text-sm font-bold rounded-xl transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed mt-5 sm:mt-8 relative z-10 hover:opacity-90 active:scale-[0.98]"
+              className="w-full h-11 text-white text-sm font-bold rounded-md shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed mt-5 relative z-10"
               style={{
-                background: 'linear-gradient(135deg, rgba(20,184,166,0.82) 0%, rgba(13,148,136,0.92) 50%, rgba(8,110,102,0.88) 100%)',
-                border: '1px solid rgba(45,212,191,0.3)',
-                boxShadow: '0 0 24px rgba(20,184,166,0.2), 0 4px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)',
+                background: 'rgba(85, 124, 130, 0.9)',
+                border: '1px solid rgba(255, 255, 255, 0.15)'
               }}
             >
               {loading ? (
                 <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-5 w-5 animate-spin" />
                   <span>Processing...</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <ArrowUp className="w-4 h-4" />
+                  <ArrowUp className="w-5 h-5" />
                   <span>Send</span>
                 </div>
               )}
             </Button>
 
             {loading && loadingMessage && (
-              <p className="text-xs text-center animate-pulse" style={{ color: 'rgba(144,231,238,0.5)' }}>{loadingMessage}</p>
+              <p className="text-teal-200/60 text-xs text-center animate-pulse">{loadingMessage}</p>
             )}
           </div>
         )}

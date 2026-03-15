@@ -330,6 +330,7 @@ export const TokenPriceHistoryModal: React.FC<TokenPriceHistoryModalProps> = ({
       open={open}
       onDismiss={onClose}
       screenReaderTitle={`${displaySymbol} Price History`}
+      overlayClassName="bg-black/70 backdrop-blur-md"
       contentClassName="w-[calc(100%-2rem)] max-w-lg p-0 overflow-hidden rounded-3xl max-h-[90vh] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]"
       contentStyle={{
         background: 'linear-gradient(135deg, rgba(0, 28, 27, 0.50) 0%, rgba(0, 40, 38, 0.40) 50%, rgba(0, 20, 20, 0.55) 100%)',

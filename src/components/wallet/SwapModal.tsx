@@ -472,29 +472,16 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
       onDismiss={handleBackdropClick}
       screenReaderTitle="Swap Assets"
       onContentClick={success ? handleBackdropClick : undefined}
-      contentClassName="w-[calc(100%-2rem)] max-w-[440px] max-h-[calc(100dvh-2rem)] shadow-2xl relative overflow-x-visible overflow-y-auto rounded-xl p-4 sm:p-6 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 duration-200"
+      overlayClassName="bg-black/70 backdrop-blur-md"
+      contentClassName="w-full max-w-[440px] bg-[hsl(var(--brand-bg))] bg-cover bg-center shadow-2xl relative overflow-visible rounded-xl p-6 animate-in zoom-in-95 duration-200 border border-white/5"
       contentStyle={{
-        background: 'linear-gradient(135deg, rgba(0, 28, 27, 0.50) 0%, rgba(0, 40, 38, 0.40) 50%, rgba(0, 20, 20, 0.55) 100%)',
-        backdropFilter: 'blur(32px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(32px) saturate(180%)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        boxShadow: '0 0 0 1px rgba(45, 212, 191, 0.08), 0 32px 64px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+        backgroundImage: "url('/wallet-bg.svg')",
       }}
     >
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold text-white tracking-tight">Swap Assets</h2>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose(false);
-            }}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-white/60 hover:text-white transition-all hover:scale-105 active:scale-95"
-            style={{
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.1)',
-            }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+          <button onClick={() => onClose(false)} className="text-white/80 hover:text-white transition-colors">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
           </button>
         </div>
 
@@ -510,34 +497,26 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
 
         {/* Form */}
         {!success && (
-          <div className="space-y-5">
+          <div className="space-y-6">
             {error && (
-              <div className="rounded-xl p-3 flex items-center gap-2.5 text-sm" style={{
-                background: 'rgba(239,68,68,0.07)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-                border: '1px solid rgba(239,68,68,0.18)',
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-              }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-400 flex-shrink-0"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-                <span className="text-red-200">{error}</span>
+              <div className="bg-red-500/10 border border-red-500/20 text-red-200 text-sm p-3 rounded-lg flex items-center gap-2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+                <span>{error}</span>
               </div>
             )}
 
             {/* Swap Area */}
-            <div className="flex justify-between relative mb-10">
+            <div className="flex justify-between relative mb-4">
               {/* From Box */}
               <div
-                className="w-[138px] md:w-[168px] rounded-2xl h-[142px] md:h-[166px] relative flex flex-col items-start justify-center p-4 transition-all"
+                className="w-[130px] md:w-[160px] rounded-md h-[130px] md:h-[160px] relative flex flex-col items-start justify-center p-4 transition-colors group"
                 style={{
-                  background: 'linear-gradient(145deg, rgba(255,255,255,0.055) 0%, rgba(0,36,34,0.62) 100%)',
-                  backdropFilter: 'blur(24px) saturate(160%)',
-                  WebkitBackdropFilter: 'blur(24px) saturate(160%)',
-                  border: '1px solid rgba(255,255,255,0.11)',
-                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 8px 32px rgba(0,0,0,0.35)',
+                  background: 'linear-gradient(180deg, rgba(58, 96, 97, 0.6) 0%, rgba(125, 160, 161, 0.6) 100%)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)'
                 }}
               >
-                <span className="text-[9px] font-semibold mb-2 tracking-widest uppercase" style={{ color: 'rgba(144,231,238,0.6)' }}>From</span>
+                <span className="text-[10px] font-medium mb-1.5" style={{ color: 'rgba(161, 207, 211, 0.8)' }}>From</span>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -551,16 +530,16 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
                   }}
                   onFocus={() => { focusedFieldRef.current = "from"; }}
                   placeholder="0"
-                  className="bg-transparent text-3xl font-bold text-white text-left w-full focus:outline-none placeholder-white/20 leading-none"
+                  className="bg-transparent text-2xl font-bold text-white text-left w-full focus:outline-none placeholder-white/30"
                   disabled={loading}
                 />
-                <div className="text-[10px] mt-2 font-medium truncate w-full" style={{ color: 'rgba(144,231,238,0.55)' }}>
-                  Balance: <span style={{ color: 'rgba(255,255,255,0.75)' }}>{fromBalance.toFixed(2)}</span>
+                <div className="text-[10px] mt-1 font-medium truncate w-full" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>
+                  Balance: <span className="text-white">{fromBalance.toFixed(2)}</span>
                 </div>
 
                 {/* Selector */}
-                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 z-20">
-                  <div className="relative">
+                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-20">
+                  <div className="relative shadow-xl">
                     <select
                       value={fromCurrency}
                       onChange={(e) => {
@@ -573,13 +552,10 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
                           }
                         }
                       }}
-                      className="appearance-none text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded-full cursor-pointer focus:outline-none transition-all w-[90px]"
+                      className="appearance-none text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded cursor-pointer focus:outline-none transition-colors w-[85px]"
                       style={{
-                        background: 'linear-gradient(135deg, rgba(20,184,166,0.28) 0%, rgba(13,148,136,0.38) 100%)',
-                        backdropFilter: 'blur(16px)',
-                        WebkitBackdropFilter: 'blur(16px)',
-                        border: '1px solid rgba(45,212,191,0.35)',
-                        boxShadow: '0 4px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.12)',
+                        background: '#115E59',
+                        border: '1px solid rgba(255, 255, 255, 0.15)'
                       }}
                       disabled={loading}
                     >
@@ -594,8 +570,8 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
                         </option>
                       ))}
                     </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5" style={{ color: 'rgba(144,231,238,0.8)' }}>
-                      <ChevronDown size={11} />
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>
+                      <ChevronDown size={12} />
                     </div>
                   </div>
                 </div>
@@ -606,29 +582,25 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
                 <button
                   onClick={handleSwapCurrencies}
                   disabled={loading}
-                  className="w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center transition-all cursor-pointer hover:scale-110 active:scale-95"
+                  className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all cursor-pointer"
                   style={{
-                    background: 'linear-gradient(135deg, rgba(20,184,166,0.75) 0%, rgba(13,148,136,0.9) 100%)',
-                    border: '1px solid rgba(45,212,191,0.45)',
-                    boxShadow: '0 0 20px rgba(20,184,166,0.3), 0 4px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
+                    background: 'rgba(85, 124, 130, 1)'
                   }}
                 >
-                  <ArrowRight className="w-4 h-4 text-white" strokeWidth={2.5} />
+                  <ArrowRight className="w-4 h-4 md:w-5 md:h-5 text-white" strokeWidth={2.5} />
                 </button>
               </div>
 
               {/* To Box */}
               <div
-                className="w-[138px] md:w-[168px] rounded-2xl h-[142px] md:h-[166px] relative flex flex-col items-start justify-center p-4 transition-all"
+                className="w-[130px] md:w-[160px] rounded-md h-[130px] md:h-[160px] relative flex flex-col items-start justify-center p-4 transition-colors group"
                 style={{
-                  background: 'linear-gradient(145deg, rgba(255,255,255,0.055) 0%, rgba(0,36,34,0.62) 100%)',
-                  backdropFilter: 'blur(24px) saturate(160%)',
-                  WebkitBackdropFilter: 'blur(24px) saturate(160%)',
-                  border: '1px solid rgba(255,255,255,0.11)',
-                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 8px 32px rgba(0,0,0,0.35)',
+                  background: 'linear-gradient(180deg, rgba(58, 96, 97, 0.6) 0%, rgba(125, 160, 161, 0.6) 100%)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)'
                 }}
               >
-                <span className="text-[9px] font-semibold mb-2 tracking-widest uppercase" style={{ color: 'rgba(144,231,238,0.6)' }}>To</span>
+                <span className="text-[10px] font-medium mb-1.5" style={{ color: 'rgba(161, 207, 211, 0.8)' }}>To</span>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -642,21 +614,21 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
                   }}
                   onFocus={() => { focusedFieldRef.current = "to"; }}
                   placeholder="0"
-                  className="bg-transparent text-3xl font-bold text-white text-left w-full focus:outline-none placeholder-white/20 leading-none"
+                  className="bg-transparent text-2xl font-bold text-white text-left w-full focus:outline-none placeholder-white/30"
                   disabled={loading}
                 />
-                <div className={`text-[10px] mt-2 font-medium h-[15px] flex items-center truncate w-full ${(isCalculatingFrom || isCalculatingTo || exchangeRateLoading) ? 'animate-pulse' : ''}`} style={{ color: 'rgba(144,231,238,0.55)' }}>
+                <div className={`text-[10px] mt-1 font-medium h-[15px] flex items-center truncate w-full ${(isCalculatingFrom || isCalculatingTo || exchangeRateLoading) ? 'animate-pulse text-white/50' : ''}`}>
                   {exchangeRate ? (
                     <>
-                      <span>1 {fromCurrency.replace(/^k/, '')} =&nbsp;</span>
-                      <span style={{ color: 'rgba(255,255,255,0.75)' }}>{exchangeRate.toFixed(2)} {toCurrency.replace(/^k/, '')}</span>
+                      <span style={{ color: 'rgba(161, 207, 211, 0.7)' }}>1 {fromCurrency.replace(/^k/, '')} =&nbsp;</span>
+                      <span className="text-white">{exchangeRate.toFixed(2)} {toCurrency.replace(/^k/, '')}</span>
                     </>
                   ) : ((isCalculatingFrom || isCalculatingTo || exchangeRateLoading) ? 'Updating...' : '')}
                 </div>
 
                 {/* Selector */}
-                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 z-20">
-                  <div className="relative">
+                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-20">
+                  <div className="relative shadow-xl">
                     <select
                       value={toCurrency}
                       onChange={(e) => {
@@ -669,13 +641,10 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
                           }
                         }
                       }}
-                      className="appearance-none text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded-full cursor-pointer focus:outline-none transition-all w-[90px]"
+                      className="appearance-none text-white text-xs font-bold py-1.5 pl-3 pr-7 rounded cursor-pointer focus:outline-none transition-colors w-[85px]"
                       style={{
-                        background: 'linear-gradient(135deg, rgba(20,184,166,0.28) 0%, rgba(13,148,136,0.38) 100%)',
-                        backdropFilter: 'blur(16px)',
-                        WebkitBackdropFilter: 'blur(16px)',
-                        border: '1px solid rgba(45,212,191,0.35)',
-                        boxShadow: '0 4px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.12)',
+                        background: '#115E59',
+                        border: '1px solid rgba(255, 255, 255, 0.15)'
                       }}
                       disabled={loading}
                     >
@@ -690,15 +659,15 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
                         </option>
                       ))}
                     </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5" style={{ color: 'rgba(144,231,238,0.8)' }}>
-                      <ChevronDown size={11} />
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2" style={{ color: 'rgba(161, 207, 211, 0.7)' }}>
+                      <ChevronDown size={12} />
                     </div>
                   </div>
                 </div>
 
                 {(isCalculatingFrom || isCalculatingTo) && (
                   <div className="absolute top-3 right-3">
-                    <svg className="animate-spin h-3 w-3" style={{ color: 'rgba(45,212,191,0.6)' }} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin h-3 w-3 text-teal-500/50" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -710,16 +679,15 @@ const SwapModal: React.FC<SwapModalProps> = ({ visible, onClose, userAddress, us
             <button
               onClick={handleSwap}
               disabled={!canSwap}
-              className="w-full h-12 text-white text-sm font-bold rounded-xl transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-8 relative z-10 hover:opacity-90 active:scale-[0.98]"
+              className="w-full h-11 text-white text-sm font-bold rounded-md shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-5 relative z-10"
               style={{
-                background: 'linear-gradient(135deg, rgba(20,184,166,0.82) 0%, rgba(13,148,136,0.92) 50%, rgba(8,110,102,0.88) 100%)',
-                border: '1px solid rgba(45,212,191,0.3)',
-                boxShadow: '0 0 24px rgba(20,184,166,0.2), 0 4px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)',
+                background: 'rgba(85, 124, 130, 0.9)',
+                border: '1px solid rgba(255, 255, 255, 0.15)'
               }}
             >
               {loading ? (
                 <>
-                  <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>

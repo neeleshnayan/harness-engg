@@ -146,6 +146,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   const processedWebhookEventsRef = useRef<Set<string>>(new Set()); // Track processed webhook event keys (type+txId)
   const processedBalanceUpdatesRef = useRef<Map<string, { ts: number; hadBalances: boolean }>>(new Map()); // Track processed balance_update keys (txId/txHash)
   const balanceCardRef = useRef<BalanceCardRef | null>(null); // Ref to BalanceCard for switching tabs
+  const sawWsBalanceUpdateRef = useRef(false); // Gate refresh on real WS updates since page load
 
   // Update refs when state changes
   useEffect(() => {
@@ -186,7 +187,10 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       const txHash = message.tx_hash;
       const hasBalances = Array.isArray(message?.balances) && message.balances.length > 0;
 
-      const eventKey = `${message.type}:${transactionId || ''}`;
+      const rawStatus = String(message?.state || message?.status || '').toLowerCase();
+      const eventKey = message.type === 'transaction_update'
+        ? `${message.type}:${transactionId || ''}:${rawStatus}`
+        : `${message.type}:${transactionId || ''}`;
 
       // Deduplicate per event type + tx id.
       // This allows transaction_update and transaction_confirmed for the same tx
@@ -266,6 +270,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         }
 
         if (hasBalances) {
+          sawWsBalanceUpdateRef.current = true;
           setBalanceCardRefresh(prev => !prev);
         }
         setTransactionHistoryRefresh(prev => prev + 1);
@@ -311,6 +316,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         const balances = message.balances;
         const singleTx = message.transaction;
         if (Array.isArray(balances) && balances.length > 0) {
+          sawWsBalanceUpdateRef.current = true;
           const incoming = balances.map((b: { symbol: string; balance: number; decimals?: number; address?: string }) => ({
             amount: String(b.balance ?? 0),
             token: {
@@ -652,7 +658,9 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   const handleTransactionsComplete = useCallback((_txHash?: string) => {
     // Don't fetch balance from API — wait for WebSocket balance_update event
     // or user page reload to avoid hitting rate-limited subgraph.
-    setBalanceCardRefresh(prev => !prev);
+    if (sawWsBalanceUpdateRef.current) {
+      setBalanceCardRefresh(prev => !prev);
+    }
   }, []);
 
   const handleLogout = async () => {
