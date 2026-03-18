@@ -44,12 +44,17 @@ export default function PastConversationsTab({ userId, onLoadConversation }: Pas
       const sessionCondensedSummary: string | undefined =
         typeof conv.session_condensed_summary === 'string' ? conv.session_condensed_summary : undefined
 
-      const messages: ChatMessage[] = messagesRaw.map((msg) => ({
-        id: String(msg?.id ?? ''),
-        type: msg?.type === 'assistant' ? 'assistant' : 'user',
-        content: msg?.content ?? '',
-        timestamp: msg?.timestamp ? new Date(msg.timestamp) : new Date(),
-      }))
+      const messages: ChatMessage[] = messagesRaw.map((msg) => {
+        const timestamp = msg?.timestamp ? new Date(msg.timestamp) : new Date()
+        return {
+          // Preserve structured results for charts/plots when loading history.
+          ...(msg && typeof msg === 'object' ? msg : {}),
+          id: String(msg?.id ?? ''),
+          type: msg?.type === 'assistant' ? 'assistant' : 'user',
+          content: msg?.content ?? '',
+          timestamp,
+        } as ChatMessage
+      })
 
       if (messages.length === 0) {
         return

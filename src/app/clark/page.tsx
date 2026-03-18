@@ -78,11 +78,25 @@ export default function BacktestPage() {
         const payload = {
           user_id: userId,
           session_id: sessionId,
+          // Persist full message shape (including structured results for plots/charts).
+          // Backend will sanitize for Firestore compatibility.
           messages: allMessages.map((msg) => ({
             id: msg.id,
             type: msg.type,
             content: msg.content,
             timestamp: msg.timestamp instanceof Date ? msg.timestamp.toISOString() : msg.timestamp,
+            success: msg.success,
+            source: msg.source,
+            capabilitiesSummary: msg.capabilitiesSummary,
+            parsedIntent: msg.parsedIntent,
+            parameterRequest: msg.parameterRequest,
+            agentFlow: msg.agentFlow,
+            backtestResult: msg.backtestResult,
+            screenerResult: msg.screenerResult,
+            economicResult: msg.economicResult,
+            regulationResult: msg.regulationResult,
+            priceHistoryResult: msg.priceHistoryResult,
+            balanceResult: msg.balanceResult,
           })),
         }
         // Fire and forget; errors are logged to console only.
