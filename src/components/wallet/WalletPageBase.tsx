@@ -473,12 +473,12 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         setBalanceLoading(true);
       }
 
-      // Use wallet-overview (balances + rates) with cache-busting timestamp.
-      // Rates are returned for backend-driven bootstrap consistency; this component
-      // currently consumes balances directly.
+      // Fetch balances through backend circle API facade.
+      // Backend decides source policy (subgraph_then_circle or direct circle)
+      // and ensures pagination for Circle balance calls.
       const kryptonWeb3ApiUrl = process.env.NEXT_PUBLIC_KRYPTON_WEB3_API_URL || 'https://kryptonweb3-production.up.railway.app';
       const cacheBuster = Date.now();
-      const response = await fetch(`${kryptonWeb3ApiUrl}/subgraph/wallet-overview?address=${encodeURIComponent(address)}&_t=${cacheBuster}`, {
+      const response = await fetch(`${kryptonWeb3ApiUrl}/circle/user/${encodeURIComponent(address)}/balances?_t=${cacheBuster}`, {
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
@@ -490,8 +490,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         throw new Error(`Failed to fetch balance: ${response.statusText}`);
       }
 
-      const subgraphResponse = await response.json();
-      const balances = Array.isArray(subgraphResponse?.balances) ? subgraphResponse.balances : [];
+      const balancesResponse = await response.json();
+      const balances = Array.isArray(balancesResponse?.balances) ? balancesResponse.balances : [];
 
       const transformedBalance = {
         tokenBalances: balances.map((balance: any) => ({
