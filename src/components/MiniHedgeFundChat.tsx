@@ -80,6 +80,8 @@ export default function MiniHedgeFundChat({
       })
       const payload = response.data
       if (payload?.success && payload?.parsed_intent?.action === 'send_usdc' && (payload.parsed_intent.confidence ?? 0) > 0.7) {
+        onBalanceFlicker?.()
+        onBalanceRefresh?.()
         onTransactionRefresh?.()
       }
       const assistantMessage = createAssistantMessage(payload)

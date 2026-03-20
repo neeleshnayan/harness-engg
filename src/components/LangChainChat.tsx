@@ -98,11 +98,19 @@ export default function LangChainChat({
 
       setMessages(prev => [...prev, assistantMessage]);
       
-      // Websocket events are the source of truth for wallet refreshes and balance motion.
+      // Check if this was a successful USDC transaction and trigger balance refresh/flicker
       if (response.success && response.parsed_intent) {
         const intent = response.parsed_intent;
         // Check if it's a send USDC action with high confidence
         if (intent.action === 'send_usdc' && intent.confidence > 0.7) {
+          // Trigger balance flicker effect
+          if (onBalanceFlicker) {
+            onBalanceFlicker();
+          }
+          // Trigger balance refresh
+          if (onBalanceRefresh) {
+            onBalanceRefresh();
+          }
           // Trigger transaction history refresh
           if (onTransactionRefresh) {
             onTransactionRefresh();
