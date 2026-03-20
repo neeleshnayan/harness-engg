@@ -307,12 +307,13 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
         applyAuthoritativeBalanceUpdate(balances);
         // Keep ActiveTransactions in sync.
         setTransactionHistoryRefresh(prev => prev + 1);
+        // Always force TransactionHistory refresh on every balance_update webhook event.
+        // This guarantees full list consistency even when single-row append is skipped/fails.
+        setTxHistoryForceRefresh(prev => prev + 1);
         // Prefer one-row append; fallback to full history fetch if payload missing.
         if (singleTx && singleTx.hash) {
           setLatestWsTransaction(singleTx);
           setLatestWsTransactionVersion(prev => prev + 1);
-        } else {
-          setTxHistoryForceRefresh(prev => prev + 1);
         }
         txDebug("balance_update_refresh_triggered", {
           transaction_id: message?.transaction_id,
