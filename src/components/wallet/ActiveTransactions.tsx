@@ -10,8 +10,6 @@ import {
 import { ArrowRight, Check, X, Loader2, ArrowLeftRight, RefreshCw, ArrowUp } from 'lucide-react';
 
 const INITIAL_ONLY_STALE_HIDE_MS = 90000;
-const ACTIVE_TX_POLL_INTERVAL_MS = 8000;
-
 // How long to keep terminal transactions visible (12 seconds)
 const COMPLETED_TX_DISPLAY_TIME = 12000;
 // Non-terminal stale policy: show warning after 2 minutes, hide after 3 minutes.
@@ -53,7 +51,7 @@ interface ActiveTransactionsProps {
   onAllTransactionsComplete?: () => void;
   /** Change this value to trigger a refresh of active transactions */
   refreshKey?: number;
-  /** Whether the component is visible (controls polling - only poll when visible) */
+  /** Whether the component is visible */
   isVisible?: boolean;
   /** Optional initial transactions (e.g. from Clark agent flow) to show before first API response */
   initialTransactions?: ActiveTransaction[];
@@ -63,11 +61,15 @@ interface ActiveTransactionsProps {
   persistCompleted?: boolean;
   /** When true (e.g. Clark inline card), only show initialTransactions and only update their status from API; never add other users' or other requests' transactions */
   onlyShowInitial?: boolean;
-  /**
-   * When true, the WebSocket connection is live and will deliver push updates.
-   * The polling interval is suppressed; polling only runs as a fallback when WS is disconnected.
-   */
+  /** Whether the WebSocket connection is live. Kept for UI diagnostics/compatibility. */
   isWebSocketConnected?: boolean;
+  incomingEvent?: {
+    type?: string;
+    transaction_id?: string;
+    state?: string;
+    status?: string;
+  } | null;
+  incomingEventVersion?: number;
 }
 
 /**
@@ -527,7 +529,20 @@ function TransactionCard({ tx, nowTs, currentUsername }: { tx: ActiveTransaction
  * Event-driven: refreshes only on initial mount/visibility and explicit refreshKey.
  * Persists transactions to localStorage to survive page refreshes.
  */
-export default function ActiveTransactions({ username, className = '', onAllTransactionsComplete, refreshKey = 0, isVisible = true, initialTransactions, showHeader = true, persistCompleted = false, onlyShowInitial = false, isWebSocketConnected = false }: ActiveTransactionsProps) {
+export default function ActiveTransactions({
+  username,
+  className = '',
+  onAllTransactionsComplete,
+  refreshKey = 0,
+  isVisible = true,
+  initialTransactions,
+  showHeader = true,
+  persistCompleted = false,
+  onlyShowInitial = false,
+  isWebSocketConnected = false,
+  incomingEvent = null,
+  incomingEventVersion = 0,
+}: ActiveTransactionsProps) {
   const txDebugEnabled =
     process.env.NEXT_PUBLIC_TX_DEBUG === "1" ||
     (typeof window !== "undefined" && window.localStorage.getItem("krypton_tx_debug") === "1");
@@ -546,7 +561,6 @@ export default function ActiveTransactions({ username, className = '', onAllTran
   const hadInitialTransactions = useRef(!!(initialTransactions?.length));
   const initialIds = useRef(new Set((initialTransactions ?? []).map(t => t.transaction_id)));
   const hasLiveOnlyInitialTx = onlyShowInitial && transactions.some((tx) => !isFinishedStatus(tx.status));
-  const hasLiveTransactions = transactions.some((tx) => !isFinishedStatus(tx.status));
 
   const fetchActiveTransactions = useCallback(async () => {
     if (!username) return;
@@ -700,20 +714,38 @@ export default function ActiveTransactions({ username, className = '', onAllTran
     }
   }, [refreshKey, fetchActiveTransactions]);
 
-  // Poll while live transactions exist so the UI can converge even when websocket
-  // delivery and active-transactions API visibility are slightly out of phase.
+  // Apply websocket-driven status transitions directly so the UI can complete
+  // active transactions without polling the backend.
   useEffect(() => {
-    if (!username || !isVisible) return;
-    // For Clark inline cards, stop polling after transaction reaches terminal state.
-    if (onlyShowInitial && !hasLiveOnlyInitialTx) return;
-    if (!hasLiveTransactions) return;
+    if (!incomingEventVersion || !incomingEvent?.transaction_id) return;
 
-    const interval = setInterval(() => {
-      fetchActiveTransactions();
-    }, ACTIVE_TX_POLL_INTERVAL_MS);
+    const txId = String(incomingEvent.transaction_id);
+    const eventType = String(incomingEvent.type || '');
+    const nextStatus = String(
+      incomingEvent.state ||
+      incomingEvent.status ||
+      (eventType === 'transaction_confirmed' ? 'confirmed' : '')
+    ).toLowerCase();
 
-    return () => clearInterval(interval);
-  }, [username, isVisible, isWebSocketConnected, fetchActiveTransactions, onlyShowInitial, hasLiveOnlyInitialTx, hasLiveTransactions]);
+    if (!nextStatus) return;
+
+    setTransactions((prev) => {
+      const now = Date.now();
+      let changed = false;
+      const updated = prev.map((tx) => {
+        if (tx.transaction_id !== txId) return tx;
+        changed = true;
+        const finished = isFinishedStatus(nextStatus) || isErrorState(nextStatus);
+        return {
+          ...tx,
+          status: nextStatus,
+          updated_at: now,
+          completed_at: finished ? (tx.completed_at || now) : tx.completed_at,
+        };
+      });
+      return changed ? updated : prev;
+    });
+  }, [incomingEventVersion, incomingEvent]);
 
   // Clean up old completed transactions periodically (skip when persistCompleted, e.g. Clark feed)
   useEffect(() => {

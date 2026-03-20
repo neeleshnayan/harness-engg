@@ -57,6 +57,8 @@ interface BalanceCardProps {
   txHistoryForceRefresh?: number;
   latestWsTransaction?: any | null;
   latestWsTransactionVersion?: number;
+  latestWsActiveEvent?: any | null;
+  latestWsActiveEventVersion?: number;
 }
 
 const WALLET_ICON = (
@@ -97,6 +99,8 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
   txHistoryForceRefresh,
   latestWsTransaction,
   latestWsTransactionVersion,
+  latestWsActiveEvent,
+  latestWsActiveEventVersion,
 }, ref) => {
   const [localRefreshing, setLocalRefreshing] = useState(false);
   const [isFlickering, setIsFlickering] = useState(false);
@@ -414,6 +418,8 @@ const BalanceCard = forwardRef<BalanceCardRef, BalanceCardProps>(({
                   refreshKey={activeTransactionsRefreshKey}
                   isVisible={activeSlide === 0}
                   isWebSocketConnected={wsConnectionStatus === 'connected'}
+                  incomingEvent={latestWsActiveEvent}
+                  incomingEventVersion={latestWsActiveEventVersion}
                 />
                 <TransactionHistory
                   ref={transactionHistoryRef}
