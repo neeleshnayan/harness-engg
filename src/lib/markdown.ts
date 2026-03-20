@@ -53,10 +53,10 @@ export function markdownToHtml(markdown: string): string {
     // links: [text](url)
     const withLinks = escaped.replace(
       /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
-      '<a href="$2" target="_blank" rel="noreferrer" class="text-[hsl(var(--brand-accent))] hover:underline">$1</a>',
+      '<a href="$2" target="_blank" rel="noreferrer" class="text-blue-600 hover:text-blue-800 hover:underline">$1</a>',
     )
     return withLinks
-      .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[0.9em]">$1</code>')
+      .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-gray-100 font-mono text-[0.9em] text-gray-800">$1</code>')
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/__(.+?)__/g, '<strong>$1</strong>')
       .replace(/\*(.+?)\*/g, '<em>$1</em>')
@@ -83,7 +83,7 @@ export function markdownToHtml(markdown: string): string {
     if (!inCodeFence) return
     const code = escapeHtml(codeLines.join('\n'))
     html.push(
-      `<pre class="rounded-xl bg-white/5 border border-white/10 p-4 overflow-x-auto"><code class="font-mono text-xs text-white/90" data-lang="${escapeHtml(codeFenceLang)}">${code}</code></pre>`,
+      `<pre class="rounded-xl bg-gray-50 border border-gray-200 p-4 overflow-x-auto"><code class="font-mono text-xs text-gray-800" data-lang="${escapeHtml(codeFenceLang)}">${code}</code></pre>`,
     )
     inCodeFence = false
     codeFenceLang = ''
@@ -122,7 +122,7 @@ export function markdownToHtml(markdown: string): string {
     const h1 = trimmed.match(/^#\s+(.+)$/)
     if (h1) {
       closeList()
-      html.push(`<h1 class="text-3xl font-semibold text-white tracking-tight mt-2 mb-3">${applyInline(h1[1])}</h1>`)
+      html.push(`<h1 class="text-3xl font-semibold text-gray-900 tracking-tight mt-2 mb-3">${applyInline(h1[1])}</h1>`)
       continue
     }
 
@@ -137,7 +137,7 @@ export function markdownToHtml(markdown: string): string {
       headingSeen.set(base, n)
       const id = n === 1 ? base : `${base}-${n}`
       html.push(
-        `<h2 id="${id}" class="scroll-mt-24 text-xl font-semibold text-white mt-10 mb-3">${applyInline(text)}</h2>`,
+        `<h2 id="${id}" class="scroll-mt-24 text-xl font-semibold text-gray-900 mt-10 mb-3">${applyInline(text)}</h2>`,
       )
       continue
     }
@@ -149,7 +149,7 @@ export function markdownToHtml(markdown: string): string {
       headingSeen.set(base, n)
       const id = n === 1 ? base : `${base}-${n}`
       html.push(
-        `<h3 id="${id}" class="scroll-mt-24 text-base font-semibold text-white mt-6 mb-2">${applyInline(text)}</h3>`,
+        `<h3 id="${id}" class="scroll-mt-24 text-base font-semibold text-gray-900 mt-6 mb-2">${applyInline(text)}</h3>`,
       )
       continue
     }
@@ -158,7 +158,7 @@ export function markdownToHtml(markdown: string): string {
     const li = trimmed.match(/^-\s+(.+)$/)
     if (li) {
       if (!inList) {
-        html.push('<ul class="list-disc pl-6 space-y-1 text-white/85 text-sm">')
+        html.push('<ul class="list-disc pl-6 space-y-1 text-gray-700 text-sm">')
         inList = true
       }
       html.push(`<li>${applyInline(li[1])}</li>`)
@@ -170,14 +170,14 @@ export function markdownToHtml(markdown: string): string {
     if (bq) {
       closeList()
       html.push(
-        `<blockquote class="border-l border-white/15 pl-4 py-1 text-white/80">${applyInline(bq[1])}</blockquote>`,
+        `<blockquote class="border-l-4 border-gray-200 pl-4 py-1 text-gray-600 italic">${applyInline(bq[1])}</blockquote>`,
       )
       continue
     }
 
     // paragraph
     closeList()
-    html.push(`<p class="text-white/80 leading-relaxed">${applyInline(trimmed)}</p>`)
+    html.push(`<p class="text-gray-700 leading-relaxed">${applyInline(trimmed)}</p>`)
   }
 
   closeList()
