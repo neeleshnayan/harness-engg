@@ -141,7 +141,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   const accountDataRef = useRef(accountData);
   const balanceRef = useRef<any>(balance);
   const processedWebhookEventsRef = useRef<Set<string>>(new Set()); // Track processed webhook event keys (type+txId)
-  const processedBalanceUpdatesRef = useRef<Set<string>>(new Set()); // Track processed balance_update keys (txId/txHash)
   const balanceCardRef = useRef<BalanceCardRef | null>(null); // Ref to BalanceCard for switching tabs
 
   // Update refs when state changes
@@ -301,16 +300,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
     // Backend-driven authoritative balance event.
     if (message.type === 'balance_update') {
-      const transactionId = message?.transaction_id ? String(message.transaction_id) : '';
-      const txHash = message?.tx_hash ? String(message.tx_hash).toLowerCase() : '';
-      const balanceUpdateKey = (transactionId || txHash) ? `${transactionId}:${txHash}` : '';
-      if (balanceUpdateKey) {
-        if (processedBalanceUpdatesRef.current.has(balanceUpdateKey)) return;
-        processedBalanceUpdatesRef.current.add(balanceUpdateKey);
-        setTimeout(() => {
-          processedBalanceUpdatesRef.current.delete(balanceUpdateKey);
-        }, 5 * 60 * 1000);
-      }
       const currentAccountData = accountDataRef.current;
       if (currentAccountData?.wallet_address) {
         const balances = message.balances;
@@ -404,7 +393,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   useEffect(() => {
     return () => {
       processedWebhookEventsRef.current.clear();
-      processedBalanceUpdatesRef.current.clear();
     };
   }, []);
 

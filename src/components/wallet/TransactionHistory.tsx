@@ -143,12 +143,17 @@ const TransactionHistory = forwardRef<TransactionHistoryRef, TransactionHistoryP
     useEffect(() => {
       const tx = incomingTransaction;
       if (!tx || !tx.hash) return;
+      let inserted = false;
       setTransactions(prev => {
+        const alreadyPresent = prev.some(item => item.hash === tx.hash);
+        inserted = !alreadyPresent;
         const deduped = prev.filter(item => item.hash !== tx.hash);
         const merged = [tx, ...deduped];
         return merged.slice(0, MAX_ITEMS);
       });
-      setTotalCount(prev => prev + 1);
+      if (inserted) {
+        setTotalCount(prev => prev + 1);
+      }
       txDebug("append_single_tx", {
         username,
         hash: tx.hash,
