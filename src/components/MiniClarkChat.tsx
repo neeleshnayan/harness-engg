@@ -177,8 +177,6 @@ export default function MiniClarkChat({
         (isKryptonPayAgent || hasKryptonPayInFlow)
 
       if (isLegacySendUsdc || isKryptonPayTransaction) {
-        onBalanceFlicker?.()
-        onBalanceRefresh?.()
         onTransactionRefresh?.()
       }
       const assistantMessage = createAssistantMessage(payload)
@@ -307,7 +305,6 @@ export default function MiniClarkChat({
       await _waitForTransactionEvent(txId, 8000)
     }
     await _appendCanonicalActiveTransaction(fallbackReason?.operation as string | undefined)
-    onBalanceRefresh?.()
     onTransactionRefresh?.()
   }
 
