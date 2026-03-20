@@ -88,7 +88,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   const [accountData, setAccountData] = useState<any>(null);
   const [balance, setBalance] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [userDataLoading, setUserDataLoading] = useState(false);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [username, setUsername] = useState<string>("");
@@ -105,7 +104,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   const [sendSuccess, setSendSuccess] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [showTransactions, setShowTransactions] = useState(false);
-  const [refreshingBalance, setRefreshingBalance] = useState(false);
   const [showTransakModal, setShowTransakModal] = useState(false);
   const [transactionHistoryRefresh, setTransactionHistoryRefresh] = useState(0);
   const [webhookNotification, setWebhookNotification] = useState<string | null>(null);
@@ -141,13 +139,10 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   const balanceFetchInProgressRef = useRef(false);
   const lastBackgroundBalanceFetchAtRef = useRef(0);
   const accountDataRef = useRef(accountData);
-  const showTransactionsRef = useRef(showTransactions);
   const balanceRef = useRef<any>(balance);
-  const fetchBalanceRef = useRef<((address: string, options?: { background?: boolean }) => Promise<void>) | null>(null);
   const processedWebhookEventsRef = useRef<Set<string>>(new Set()); // Track processed webhook event keys (type+txId)
-  const processedBalanceUpdatesRef = useRef<Map<string, { ts: number; hadBalances: boolean }>>(new Map()); // Track processed balance_update keys (txId/txHash)
+  const processedBalanceUpdatesRef = useRef<Set<string>>(new Set()); // Track processed balance_update keys (txId/txHash)
   const balanceCardRef = useRef<BalanceCardRef | null>(null); // Ref to BalanceCard for switching tabs
-  const sawWsBalanceUpdateRef = useRef(false); // Gate refresh on real WS updates since page load
 
   // Update refs when state changes
   useEffect(() => {
@@ -155,15 +150,11 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   }, [accountData]);
 
   useEffect(() => {
-    showTransactionsRef.current = showTransactions;
-  }, [showTransactions]);
-
-  useEffect(() => {
     balanceRef.current = balance;
   }, [balance]);
 
-  const buildBalanceSignatureFromState = useCallback((currentBalance: any): string | null => {
-    const items = Array.isArray(currentBalance?.tokenBalances) ? currentBalance.tokenBalances : [];
+  const buildBalanceSignature = useCallback((walletBalance: any): string | null => {
+    const items = Array.isArray(walletBalance?.tokenBalances) ? walletBalance.tokenBalances : [];
     if (!items.length) return null;
     const normalized = [];
     for (const tb of items) {
@@ -181,23 +172,50 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     return normalized.join("|");
   }, []);
 
-  const buildBalanceSignatureFromWs = useCallback((balances: any[]): string | null => {
-    if (!Array.isArray(balances) || balances.length === 0) return null;
-    const normalized = [];
-    for (const b of balances) {
-      try {
-        const symbol = String(b?.symbol || "");
-        const address = String(b?.address || "").toLowerCase();
-        const amountVal = parseFloat(String(b?.balance ?? "0"));
-        normalized.push(`${symbol}:${address}:${Number.isFinite(amountVal) ? amountVal.toFixed(8) : "0.00000000"}`);
-      } catch {
-        continue;
-      }
+  const mapWsBalancesToWalletSnapshot = useCallback((balances: any[]) => ({
+    tokenBalances: balances.map((b: { symbol: string; balance: number; decimals?: number; address?: string }) => ({
+      amount: String(b.balance ?? 0),
+      token: {
+        name: b.symbol === 'USDC' ? 'USD Coin' : b.symbol?.startsWith('k') ? `Krypton ${b.symbol.substring(1).toUpperCase()}` : b.symbol ?? '',
+        blockchain: 'ETH-SEPOLIA',
+        decimals: b.decimals,
+        isNative: b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA',
+        symbol: b.symbol ?? '',
+        tokenAddress: b.address,
+        standard: (b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA') ? undefined : 'ERC20',
+      },
+    })),
+    _fetchedAt: Date.now(),
+  }), []);
+
+  const applyAuthoritativeBalanceUpdate = useCallback((balances: any[]) => {
+    if (!Array.isArray(balances) || balances.length === 0) {
+      setBalanceFlickering(false);
+      setBalanceRefreshing(false);
+      return false;
     }
-    if (!normalized.length) return null;
-    normalized.sort();
-    return normalized.join("|");
-  }, []);
+
+    const nextBalance = mapWsBalancesToWalletSnapshot(balances);
+    const currentSig = buildBalanceSignature(balanceRef.current);
+    const nextSig = buildBalanceSignature(nextBalance);
+    const changed = !currentSig || !nextSig || currentSig !== nextSig;
+
+    setBalance(nextBalance);
+
+    if (changed) {
+      setBalanceFlickering(true);
+      setBalanceCardRefresh(prev => !prev);
+      setTimeout(() => {
+        setBalanceFlickering(false);
+      }, 1200);
+    }
+
+    setBalanceRefreshing(false);
+    if (!changed) {
+      setBalanceFlickering(false);
+    }
+    return changed;
+  }, [buildBalanceSignature, mapWsBalancesToWalletSnapshot]);
 
 
   // WebSocket message handler - stabilized with useCallback and refs
@@ -212,6 +230,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     // Handle transaction_failed - trigger immediate ActiveTransactions refresh
     if (message.type === 'transaction_failed') {
       setTransactionHistoryRefresh(prev => prev + 1);  // Trigger ActiveTransactions poll
+      setBalanceFlickering(false);
+      setBalanceRefreshing(false);
       txDebug("tx_failed_refresh_triggered", {
         transaction_id: message?.transaction_id,
         state: message?.state,
@@ -223,12 +243,10 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       return;
     }
 
-    // Handle new Krypton_Web3 event format (from webhook.py)
+    // Backend-driven status events: update active/history state only.
     if (message.type === 'transaction_confirmed' || message.type === 'transaction_update') {
       const transactionId = message.transaction_id;
       const txHash = message.tx_hash;
-      const hasBalances = Array.isArray(message?.balances) && message.balances.length > 0;
-
       const rawStatus = String(message?.state || message?.status || '').toLowerCase();
       const eventKey = message.type === 'transaction_update'
         ? `${message.type}:${transactionId || ''}:${rawStatus}`
@@ -259,56 +277,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       // Update balance: use balances from WebSocket if present (backend sends after subgraph indexation)
       const currentAccountData = accountDataRef.current;
       if (currentAccountData?.wallet_address) {
-        const balances = message.balances;
         const singleTx = message.transaction;
-
-        if (Array.isArray(balances) && balances.length > 0) {
-          const currentSig = buildBalanceSignatureFromState(balanceRef.current);
-          const incomingSig = buildBalanceSignatureFromWs(balances);
-          const isSameBalance = currentSig && incomingSig && currentSig === incomingSig;
-          if (!isSameBalance) {
-            setBalanceRefreshing(true);
-          }
-          const incoming = balances.map((b: { symbol: string; balance: number; decimals?: number; address?: string }) => ({
-            amount: String(b.balance ?? 0),
-            token: {
-              name: b.symbol === 'USDC' ? 'USD Coin' : b.symbol?.startsWith('k') ? `Krypton ${b.symbol.substring(1).toUpperCase()}` : b.symbol ?? '',
-              blockchain: 'ETH-SEPOLIA',
-              decimals: b.decimals,
-              isNative: b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA',
-              symbol: b.symbol ?? '',
-              tokenAddress: b.address,
-              standard: (b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA') ? undefined : 'ERC20',
-            },
-          }));
-          if (!isSameBalance) {
-            // Merge incoming balances so partial webhook payloads (e.g., USDC-only) don't wipe other tokens.
-            setBalance((prev: any) => {
-              const existing = Array.isArray(prev?.tokenBalances) ? prev.tokenBalances : [];
-              const bySymbol = new Map<string, any>();
-              for (const tb of existing) {
-                const sym = tb?.token?.symbol;
-                if (sym) bySymbol.set(sym, tb);
-              }
-              for (const tb of incoming) {
-                const sym = tb?.token?.symbol;
-                if (sym) bySymbol.set(sym, tb);
-              }
-              return {
-                tokenBalances: Array.from(bySymbol.values()),
-                _fetchedAt: Date.now(),
-              };
-            });
-            setBalanceRefreshing(false);
-          } else {
-            setBalanceRefreshing(false);
-          }
-          setBalanceFlickering(false);
-        } else {
-          // No balances in WS message — don't fallback to API.
-          // Balance will update on next WS event with data or on manual page reload.
-        }
-        // Stop flicker on terminal confirmation even if balances were missing.
         setBalanceFlickering(false);
 
         if (singleTx && singleTx.hash) {
@@ -318,15 +287,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
           // Fallback: ensure sender/receiver history still updates even if webhook
           // did not include a single transaction payload.
           setTxHistoryForceRefresh(prev => prev + 1);
-        }
-
-        if (hasBalances) {
-          sawWsBalanceUpdateRef.current = true;
-          const currentSig = buildBalanceSignatureFromState(balanceRef.current);
-          const incomingSig = buildBalanceSignatureFromWs(balances);
-          if (!currentSig || !incomingSig || currentSig !== incomingSig) {
-            setBalanceCardRefresh(prev => !prev);
-          }
         }
         setTransactionHistoryRefresh(prev => prev + 1);
         txDebug("tx_confirmed_refresh_triggered", {
@@ -339,29 +299,14 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       return;
     }
 
-    // Handle balance_update event - sent by backend AFTER subgraph indexes the tx
-    // This is separate from transaction_confirmed to bypass the dedup check above
+    // Backend-driven authoritative balance event.
     if (message.type === 'balance_update') {
       const transactionId = message?.transaction_id ? String(message.transaction_id) : '';
       const txHash = message?.tx_hash ? String(message.tx_hash).toLowerCase() : '';
       const balanceUpdateKey = (transactionId || txHash) ? `${transactionId}:${txHash}` : '';
-      const hasBalances = Array.isArray(message?.balances) && message.balances.length > 0;
       if (balanceUpdateKey) {
-        const existing = processedBalanceUpdatesRef.current.get(balanceUpdateKey);
-        if (existing) {
-          // If we already processed a balance-bearing update, always skip duplicates.
-          if (existing.hadBalances) {
-            return;
-          }
-          // If this update also has no balances, skip to prevent reload loops.
-          if (!hasBalances) {
-            return;
-          }
-        }
-        processedBalanceUpdatesRef.current.set(balanceUpdateKey, {
-          ts: Date.now(),
-          hadBalances: hasBalances,
-        });
+        if (processedBalanceUpdatesRef.current.has(balanceUpdateKey)) return;
+        processedBalanceUpdatesRef.current.add(balanceUpdateKey);
         setTimeout(() => {
           processedBalanceUpdatesRef.current.delete(balanceUpdateKey);
         }, 5 * 60 * 1000);
@@ -370,47 +315,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       if (currentAccountData?.wallet_address) {
         const balances = message.balances;
         const singleTx = message.transaction;
-        if (Array.isArray(balances) && balances.length > 0) {
-          const currentSig = buildBalanceSignatureFromState(balanceRef.current);
-          const incomingSig = buildBalanceSignatureFromWs(balances);
-          const isSameBalance = currentSig && incomingSig && currentSig === incomingSig;
-          sawWsBalanceUpdateRef.current = true;
-          const incoming = balances.map((b: { symbol: string; balance: number; decimals?: number; address?: string }) => ({
-            amount: String(b.balance ?? 0),
-            token: {
-              name: b.symbol === 'USDC' ? 'USD Coin' : b.symbol?.startsWith('k') ? `Krypton ${b.symbol.substring(1).toUpperCase()}` : b.symbol ?? '',
-              blockchain: 'ETH-SEPOLIA',
-              decimals: b.decimals,
-              isNative: b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA',
-              symbol: b.symbol ?? '',
-              tokenAddress: b.address,
-              standard: (b.symbol === 'ETH' || b.symbol === 'ETH-SEPOLIA') ? undefined : 'ERC20',
-            },
-          }));
-          if (!isSameBalance) {
-            setBalance((prev: any) => {
-              const existing = Array.isArray(prev?.tokenBalances) ? prev.tokenBalances : [];
-              const bySymbol = new Map<string, any>();
-              for (const tb of existing) {
-                const sym = tb?.token?.symbol;
-                if (sym) bySymbol.set(sym, tb);
-              }
-              for (const tb of incoming) {
-                const sym = tb?.token?.symbol;
-                if (sym) bySymbol.set(sym, tb);
-              }
-              return {
-                tokenBalances: Array.from(bySymbol.values()),
-                _fetchedAt: Date.now(),
-              };
-            });
-          }
-          setBalanceFlickering(false);
-        } else {
-          // No balances in WS message — skip; balance will update on next WS event or page reload.
-        }
-        // Stop flicker on balance_update even if balances were missing.
-        setBalanceFlickering(false);
+        applyAuthoritativeBalanceUpdate(balances);
         // Keep ActiveTransactions in sync.
         setTransactionHistoryRefresh(prev => prev + 1);
         // Prefer one-row append; fallback to full history fetch if payload missing.
@@ -435,7 +340,7 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       return;
     }
 
-  }, [config.showWebhookNotification, txDebug]);
+  }, [applyAuthoritativeBalanceUpdate, config.showWebhookNotification, txDebug]);
 
   // WebSocket open handler - stabilized
   const handleWebSocketOpen = useCallback(() => {
@@ -506,8 +411,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
   const fetchUserData = async (userId: string) => {
     try {
-      setUserDataLoading(true);
-
       const response = await api.get(`/api/v1/user/${userId}`);
       const userData = response.data;
 
@@ -546,8 +449,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       // Fallback to localStorage data
       const data = JSON.parse(localStorage.getItem('userData') || '{}');
       setKycStatus(data.kyc_status || null);
-    } finally {
-      setUserDataLoading(false);
     }
   };
 
@@ -706,22 +607,11 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
     }
   }, [router, fetchBalance, fetchInitialTransactions]);
 
-  // Update fetchBalance ref when it changes
-  useEffect(() => {
-    fetchBalanceRef.current = fetchBalance;
-  }, [fetchBalance]);
-
   /**
-   * Called when all active transactions complete (from BalanceCard/ActiveTransactions).
-   * Triggers explicit backend polling via websocket wait before fetching logic.
+   * Active transaction drain is backend-driven via websocket events.
+   * No extra balance fetch is needed when the list empties.
    */
-  const handleTransactionsComplete = useCallback((_txHash?: string) => {
-    // Don't fetch balance from API — wait for WebSocket balance_update event
-    // or user page reload to avoid hitting rate-limited subgraph.
-    if (sawWsBalanceUpdateRef.current) {
-      setBalanceCardRefresh(prev => !prev);
-    }
-  }, []);
+  const handleTransactionsComplete = useCallback((_txHash?: string) => {}, []);
 
   const handleLogout = async () => {
     try {
@@ -824,9 +714,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       setSendSuccess(`Successfully sent $${amount} USDC to @${receiverUsername.trim()}`);
       setReceiverUsername("");
       setSendAmount("");
-
-      // Trigger balance flickering effect
-      setBalanceFlickering(true);
 
       // Don't immediately fetch balance - wait for WebSocket webhook to trigger refresh
       // The webhook will arrive when Circle confirms the transaction
@@ -1049,14 +936,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
                     <div>
                       {config.renderChatComponent({
                         userId: accountData?.user_id,
-                        onBalanceRefresh: () => {
-                          if (accountData?.wallet_address) {
-                            fetchBalance(accountData.wallet_address, { background: true });
-                          }
-                        },
-                        onBalanceFlicker: () => {
-                          setBalanceFlickering(true);
-                        },
+                        onBalanceRefresh: () => { },
+                        onBalanceFlicker: () => { },
                         onTransactionRefresh: () => {
                           setTransactionHistoryRefresh(prev => prev + 1);
                         },
@@ -1084,14 +965,8 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
                 <div>
                   {config.renderChatComponent({
                     userId: accountData?.user_id,
-                    onBalanceRefresh: () => {
-                      if (accountData?.wallet_address) {
-                        fetchBalance(accountData.wallet_address, { background: true });
-                      }
-                    },
-                    onBalanceFlicker: () => {
-                      setBalanceFlickering(true);
-                    },
+                    onBalanceRefresh: () => { },
+                    onBalanceFlicker: () => { },
                     onTransactionRefresh: () => {
                       setTransactionHistoryRefresh(prev => prev + 1);
                     },
