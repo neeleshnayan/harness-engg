@@ -1,81 +1,19 @@
 'use client';
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import api from "@/lib/api";
-import {
-  browserLocalPersistence,
-  getAuth,
-  getRedirectResult,
-  GoogleAuthProvider,
-  setPersistence,
-  signInWithPopup,
-  signInWithRedirect,
-  UserCredential,
-} from "firebase/auth";
+import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { getFirebaseApp } from "@/lib/firebaseClient";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-
-const LOGIN_ROLE_STORAGE_KEY = "krypton_login_role";
-const POPUP_FALLBACK_ERROR_CODES = new Set([
-  "auth/popup-blocked",
-  "auth/cancelled-popup-request",
-  "auth/operation-not-supported-in-this-environment",
-]);
 
 export default function LoginPage() {
   const [loading, setLoading] = useState<'business' | 'customer' | false>(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const finishLogin = async (credential: UserCredential, role: 'business' | 'customer') => {
-    const idToken = await credential.user.getIdToken();
-    const res = await api.post("/api/v1/login", { idToken });
-    localStorage.setItem('userData', JSON.stringify(res.data));
-    sessionStorage.removeItem(LOGIN_ROLE_STORAGE_KEY);
-    router.push(role === 'business' ? '/business' : '/customer');
-  };
-
-  useEffect(() => {
-    const app = getFirebaseApp();
-    if (!app) return;
-
-    const auth = getAuth(app);
-    let cancelled = false;
-
-    const recoverRedirectLogin = async () => {
-      const pendingRole = (sessionStorage.getItem(LOGIN_ROLE_STORAGE_KEY) as 'business' | 'customer' | null) || 'customer';
-      try {
-        const result = await getRedirectResult(auth);
-        if (!result || cancelled) return;
-        setLoading(pendingRole);
-        await finishLogin(result, pendingRole);
-      } catch (err: any) {
-        if (cancelled) return;
-        sessionStorage.removeItem(LOGIN_ROLE_STORAGE_KEY);
-        if (err?.code?.startsWith?.('auth/')) {
-          setError(err.message || 'Google sign-in failed after redirect.');
-        } else {
-          const status = err?.response?.status;
-          const detail = err?.response?.data?.detail ?? err?.response?.data?.message;
-          const msg = typeof detail === 'string' ? detail : err?.message || 'Login failed';
-          setError(status ? `Login error (${status}): ${msg}` : msg);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    recoverRedirectLogin();
-    return () => {
-      cancelled = true;
-    };
-  }, [router]);
-
-  const handleLogin = async (role: 'business' | 'customer') => {
+  const handleLogin = (role: 'business' | 'customer') => {
     setLoading(role);
     setError(null);
     const app = getFirebaseApp();
@@ -84,58 +22,35 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
-
     const auth = getAuth(app);
     const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: "select_account" });
-    sessionStorage.setItem(LOGIN_ROLE_STORAGE_KEY, role);
 
-    try {
-      await setPersistence(auth, browserLocalPersistence);
-
-      const prefersRedirect =
-        typeof window !== "undefined" &&
-        (/iPhone|iPad|iPod|Android/i.test(window.navigator.userAgent) || window.matchMedia("(max-width: 768px)").matches);
-
-      if (prefersRedirect) {
-        await signInWithRedirect(auth, provider);
-        return;
-      }
-
-      const result = await signInWithPopup(auth, provider);
-      await finishLogin(result, role);
-    } catch (err: any) {
-      if (POPUP_FALLBACK_ERROR_CODES.has(err?.code)) {
-        try {
-          await signInWithRedirect(auth, provider);
-          return;
-        } catch (redirectErr: any) {
-          const redirectMessage = redirectErr?.message || 'Google sign-in redirect failed.';
-          setError(redirectMessage);
-          sessionStorage.removeItem(LOGIN_ROLE_STORAGE_KEY);
-          setLoading(false);
-          return;
-        }
-      }
-
-      if (err?.code?.startsWith?.('auth/')) {
-        if (err.code === "auth/popup-closed-by-user") {
-          setError("Google sign-in popup was closed before completion.");
+    signInWithPopup(auth, provider)
+      .then(async (result) => {
+        const idToken = await result.user.getIdToken();
+        const res = await api.post("/api/v1/login", { idToken });
+        localStorage.setItem('userData', JSON.stringify(res.data));
+        if (role === 'business') {
+          router.push('/business');
         } else {
-          setError(err.message || 'Google sign-in failed. Try again or check that this app is allowed in Firebase.');
+          router.push('/customer');
         }
-        sessionStorage.removeItem(LOGIN_ROLE_STORAGE_KEY);
+      })
+      .catch((err) => {
+        // Firebase/auth errors (popup closed, blocked, etc.)
+        if (err?.code?.startsWith?.('auth/')) {
+          setError(err.message || 'Google sign-in failed. Try again or check that this app is allowed in Firebase.');
+          return;
+        }
+        // API error (CORS, 4xx/5xx) – show backend message when available
+        const status = err?.response?.status;
+        const detail = err?.response?.data?.detail ?? err?.response?.data?.message;
+        const msg = typeof detail === 'string' ? detail : err?.message || 'Login failed';
+        setError(status ? `Login error (${status}): ${msg}` : msg);
+      })
+      .finally(() => {
         setLoading(false);
-        return;
-      }
-
-      const status = err?.response?.status;
-      const detail = err?.response?.data?.detail ?? err?.response?.data?.message;
-      const msg = typeof detail === 'string' ? detail : err?.message || 'Login failed';
-      setError(status ? `Login error (${status}): ${msg}` : msg);
-      sessionStorage.removeItem(LOGIN_ROLE_STORAGE_KEY);
-      setLoading(false);
-    }
+      });
   };
 
   return (
