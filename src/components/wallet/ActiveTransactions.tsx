@@ -546,7 +546,6 @@ export default function ActiveTransactions({ username, className = '', onAllTran
   const hadInitialTransactions = useRef(!!(initialTransactions?.length));
   const initialIds = useRef(new Set((initialTransactions ?? []).map(t => t.transaction_id)));
   const hasLiveOnlyInitialTx = onlyShowInitial && transactions.some((tx) => !isFinishedStatus(tx.status));
-  const hasLiveTransactions = transactions.some((tx) => !isFinishedStatus(tx.status));
 
   const fetchActiveTransactions = useCallback(async () => {
     if (!username) return;
@@ -700,20 +699,18 @@ export default function ActiveTransactions({ username, className = '', onAllTran
     }
   }, [refreshKey, fetchActiveTransactions]);
 
-  // Poll while live transactions exist so the UI can converge even when websocket
-  // delivery and active-transactions API visibility are slightly out of phase.
+  // Fallback polling for status progression when WS is unavailable.
   useEffect(() => {
-    if (!username || !isVisible) return;
+    if (!username || !isVisible || isWebSocketConnected) return;
     // For Clark inline cards, stop polling after transaction reaches terminal state.
     if (onlyShowInitial && !hasLiveOnlyInitialTx) return;
-    if (!hasLiveTransactions) return;
 
     const interval = setInterval(() => {
       fetchActiveTransactions();
     }, ACTIVE_TX_POLL_INTERVAL_MS);
 
     return () => clearInterval(interval);
-  }, [username, isVisible, isWebSocketConnected, fetchActiveTransactions, onlyShowInitial, hasLiveOnlyInitialTx, hasLiveTransactions]);
+  }, [username, isVisible, isWebSocketConnected, fetchActiveTransactions, onlyShowInitial, hasLiveOnlyInitialTx]);
 
   // Clean up old completed transactions periodically (skip when persistCompleted, e.g. Clark feed)
   useEffect(() => {
