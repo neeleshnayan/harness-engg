@@ -93,6 +93,15 @@ export default function LoginPage() {
     try {
       await setPersistence(auth, browserLocalPersistence);
 
+      const prefersRedirect =
+        typeof window !== "undefined" &&
+        (/iPhone|iPad|iPod|Android/i.test(window.navigator.userAgent) || window.matchMedia("(max-width: 768px)").matches);
+
+      if (prefersRedirect) {
+        await signInWithRedirect(auth, provider);
+        return;
+      }
+
       const result = await signInWithPopup(auth, provider);
       await finishLogin(result, role);
     } catch (err: any) {
