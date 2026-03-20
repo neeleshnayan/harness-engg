@@ -123,8 +123,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
   const [txHistoryForceRefresh, setTxHistoryForceRefresh] = useState(0);
   const [latestWsTransaction, setLatestWsTransaction] = useState<any | null>(null);
   const [latestWsTransactionVersion, setLatestWsTransactionVersion] = useState(0);
-  const [latestWsActiveEvent, setLatestWsActiveEvent] = useState<any | null>(null);
-  const [latestWsActiveEventVersion, setLatestWsActiveEventVersion] = useState(0);
   const router = useRouter();
   const {
     kycModalVisible,
@@ -225,8 +223,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
 
     // Handle transaction_failed - trigger immediate ActiveTransactions refresh
     if (message.type === 'transaction_failed') {
-      setLatestWsActiveEvent(message);
-      setLatestWsActiveEventVersion(prev => prev + 1);
       setTransactionHistoryRefresh(prev => prev + 1);  // Trigger ActiveTransactions poll
       txDebug("tx_failed_refresh_triggered", {
         transaction_id: message?.transaction_id,
@@ -275,13 +271,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
       // The unified balance-authoritative event is balance_update.
       const currentAccountData = accountDataRef.current;
       if (currentAccountData?.wallet_address) {
-        setLatestWsActiveEvent({
-          type: message.type,
-          transaction_id: transactionId,
-          state: rawStatus || 'confirmed',
-          status: rawStatus || 'confirmed',
-        });
-        setLatestWsActiveEventVersion(prev => prev + 1);
         const singleTx = message.transaction;
 
         if (singleTx && singleTx.hash) {
@@ -958,8 +947,6 @@ export default function WalletPageBase({ config }: WalletPageBaseProps) {
             txHistoryForceRefresh={txHistoryForceRefresh}
             latestWsTransaction={latestWsTransaction}
             latestWsTransactionVersion={latestWsTransactionVersion}
-            latestWsActiveEvent={latestWsActiveEvent}
-            latestWsActiveEventVersion={latestWsActiveEventVersion}
           />
           {accountData?.username && kycStatus === 'approved' && (
             <>
