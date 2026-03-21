@@ -1,20 +1,32 @@
 "use client"
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { MessageSquare, Loader2, RefreshCw } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { MessageSquare, Loader2, RefreshCw, Trash2, SquarePen } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import agentsApi from '@/lib/agents_api'
 import type { ChatMessage } from '../types'
 
+export type PastConversationsTabVariant = 'sidebar' | 'embedded'
+
 interface PastConversationsTabProps {
   userId?: string
+  variant?: PastConversationsTabVariant
+  /** Bump to refetch list from API (e.g. after starting a new chat). */
+  refreshTrigger?: number
   onLoadConversation?: (
     sessionId: string,
     messages: ChatMessage[],
     sessionCondensedMemory?: unknown[],
     sessionCondensedSummary?: string
   ) => void
+  onOpenDevtools?: () => void
+  /** Current session shown in the main feed — merged at top of the list when it has messages. */
+  activeSessionId?: string
+  activeMessages?: ChatMessage[]
+  onNewChat?: () => void | Promise<void>
+  /** Called when the row for the active session is deleted or after new chat clears it server-side. */
+  onActiveSessionDeleted?: () => void
 }
 
 interface ConversationListItem {
@@ -26,10 +38,23 @@ interface ConversationListItem {
   sessionCondensedSummary?: string
 }
 
-export default function PastConversationsTab({ userId, onLoadConversation }: PastConversationsTabProps) {
+export default function PastConversationsTab({
+  userId,
+  variant = 'sidebar',
+  refreshTrigger = 0,
+  onLoadConversation,
+  onOpenDevtools,
+  activeSessionId,
+  activeMessages,
+  onNewChat,
+  onActiveSessionDeleted,
+}: PastConversationsTabProps) {
   const [conversations, setConversations] = useState<ConversationListItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const isEmbedded = variant === 'embedded'
 
   const mapApiConversations = (rawConversations: any[]): ConversationListItem[] => {
     const items: ConversationListItem[] = []
@@ -47,7 +72,6 @@ export default function PastConversationsTab({ userId, onLoadConversation }: Pas
       const messages: ChatMessage[] = messagesRaw.map((msg) => {
         const timestamp = msg?.timestamp ? new Date(msg.timestamp) : new Date()
         return {
-          // Preserve structured results for charts/plots when loading history.
           ...(msg && typeof msg === 'object' ? msg : {}),
           id: String(msg?.id ?? ''),
           type: msg?.type === 'assistant' ? 'assistant' : 'user',
@@ -109,7 +133,60 @@ export default function PastConversationsTab({ userId, onLoadConversation }: Pas
       fetchConversations()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId])
+  }, [userId, refreshTrigger])
+
+  const displayConversations = useMemo((): ConversationListItem[] => {
+    const sid = activeSessionId?.trim()
+    const live = activeMessages ?? []
+    const withoutActive = sid
+      ? conversations.filter((c) => c.sessionId !== sid)
+      : conversations
+
+    if (!sid || live.length === 0) {
+      return withoutActive
+    }
+
+    const firstUser = live.find((m) => m.type === 'user')
+    const preview =
+      firstUser?.content?.trim() ||
+      live[0]?.content?.trim() ||
+      'Current conversation'
+
+    const liveItem: ConversationListItem = {
+      id: `live_${sid}`,
+      sessionId: sid,
+      preview,
+      messages: live,
+      sessionCondensedMemory: [],
+      sessionCondensedSummary: undefined,
+    }
+
+    return [liveItem, ...withoutActive]
+  }, [conversations, activeSessionId, activeMessages])
+
+  const handleDelete = async (e: React.MouseEvent, conv: ConversationListItem) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!userId || !conv.sessionId) return
+
+    const isActive = Boolean(activeSessionId && conv.sessionId === activeSessionId)
+    setDeletingId(conv.id)
+
+    try {
+      await agentsApi.delete('/api/v1/agents/conversations', {
+        params: { user_id: userId, session_id: conv.sessionId },
+      })
+    } catch (err) {
+      console.warn('Delete conversation API:', err)
+    }
+
+    if (isActive) {
+      onActiveSessionDeleted?.()
+    }
+
+    await fetchConversations()
+    setDeletingId(null)
+  }
 
   if (!userId) {
     return (
@@ -123,11 +200,46 @@ export default function PastConversationsTab({ userId, onLoadConversation }: Pas
 
   return (
     <div className="space-y-5">
-      {/* Header with icon and title */}
-      <div className="flex items-center justify-between px-2 py-2">
-        <div className="flex items-center gap-2">
-          <MessageSquare className="h-3.5 w-3.5 text-teal-400" />
-          <h2 className="text-[11px] font-bold text-white/50 uppercase tracking-[0.15em]">History</h2>
+      <div className="flex items-center justify-between gap-1 px-2 py-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <MessageSquare className="h-3.5 w-3.5 text-teal-400 flex-shrink-0" />
+          <h2 className="text-[11px] font-bold text-white/50 uppercase tracking-[0.15em] truncate">
+            History
+          </h2>
+        </div>
+        <div className="flex items-center gap-0.5 flex-shrink-0">
+          {!isEmbedded && onNewChat && (
+            <button
+              type="button"
+              onClick={() => void onNewChat()}
+              className="p-1.5 rounded-lg text-white/45 hover:text-teal-300 hover:bg-white/[0.06] transition-colors"
+              title="New chat"
+              aria-label="New chat"
+            >
+              <SquarePen className="h-4 w-4" />
+            </button>
+          )}
+          {!isEmbedded && onOpenDevtools && (
+            <button
+              type="button"
+              onClick={() => onOpenDevtools()}
+              className="p-1.5 rounded-lg text-white/45 hover:text-teal-300 hover:bg-white/[0.06] transition-colors"
+              title="Open devtools"
+              aria-label="Open devtools"
+            >
+              <img src="/devtools.svg" alt="" className="h-4 w-4 opacity-80" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => void fetchConversations()}
+            disabled={isLoading}
+            className="p-1.5 rounded-lg text-white/45 hover:text-teal-300 hover:bg-white/[0.06] transition-colors disabled:opacity-40"
+            title="Refresh list"
+            aria-label="Refresh conversations"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
       </div>
 
@@ -137,56 +249,81 @@ export default function PastConversationsTab({ userId, onLoadConversation }: Pas
         </div>
       )}
 
-      {isLoading && !conversations.length && (
+      {isLoading && !displayConversations.length && (
         <div className="p-8 text-center">
           <Loader2 className="h-6 w-6 text-teal-400 animate-spin mx-auto mb-3" />
           <p className="text-white/50 text-xs">Loading...</p>
         </div>
       )}
 
-      {!isLoading && !error && conversations.length === 0 && (
+      {!isLoading && !error && displayConversations.length === 0 && (
         <div className="p-8 text-center rounded-xl bg-white/5 border border-white/5">
           <p className="text-white/40 text-xs leading-relaxed">No past conversations found.</p>
         </div>
       )}
 
-      {!isLoading && conversations.length > 0 && (
+      {displayConversations.length > 0 && (
         <div className="space-y-0.5">
-          {conversations.map((conv, index) => (
-            <motion.div
-              key={conv.id}
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.01 }}
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  if (!onLoadConversation) return
-                  const safeSessionId =
-                    conv.sessionId || `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
-                  onLoadConversation(
-                    safeSessionId,
-                    conv.messages,
-                    conv.sessionCondensedMemory,
-                    conv.sessionCondensedSummary
-                  )
-                }}
-                className="w-full text-left group px-2"
+          {displayConversations.map((conv, index) => {
+            const isActiveRow = Boolean(activeSessionId && conv.sessionId === activeSessionId)
+            return (
+              <motion.div
+                key={conv.id}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.01 }}
+                className="group flex items-stretch gap-0.5"
               >
-                <div className="px-3 py-2 rounded-xl border border-transparent hover:bg-white/[0.04] active:bg-white/[0.06] transition-all duration-200">
-                  <div className="flex items-start gap-3">
-                    <span className="text-[13px] text-white/60 group-hover:text-white/90 leading-snug line-clamp-2 transition-colors">
-                      {conv.preview}
-                    </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!onLoadConversation) return
+                    const safeSessionId =
+                      conv.sessionId || `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
+                    onLoadConversation(
+                      safeSessionId,
+                      conv.messages,
+                      conv.sessionCondensedMemory,
+                      conv.sessionCondensedSummary
+                    )
+                  }}
+                  className={`flex-1 min-w-0 text-left px-2 rounded-xl border transition-all duration-200 ${
+                    isActiveRow
+                      ? 'bg-teal-500/10 border-teal-500/25'
+                      : 'border-transparent hover:bg-white/[0.04] active:bg-white/[0.06]'
+                  }`}
+                >
+                  <div className="px-3 py-2">
+                    <div className="flex items-start gap-3">
+                      <span
+                        className={`text-[13px] leading-snug line-clamp-2 transition-colors ${
+                          isActiveRow ? 'text-teal-100/90' : 'text-white/60 group-hover:text-white/90'
+                        }`}
+                      >
+                        {conv.preview}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </button>
-            </motion.div>
-          ))}
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => void handleDelete(e, conv)}
+                  disabled={deletingId === conv.id}
+                  className="flex-shrink-0 self-center p-2 rounded-lg text-white/30 hover:text-red-300 hover:bg-red-500/10 transition-colors disabled:opacity-40"
+                  title="Delete conversation"
+                  aria-label="Delete conversation"
+                >
+                  {deletingId === conv.id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              </motion.div>
+            )
+          })}
         </div>
       )}
     </div>
   )
 }
-

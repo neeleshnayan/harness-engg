@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import dynamic from 'next/dynamic'
-import { Menu, PanelLeft, PanelRight } from 'lucide-react'
+import { PanelLeft, PanelRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import PromptGuideModal from './components/PromptGuideModal'
 import agentsApi from '@/lib/agents_api'
@@ -44,6 +44,7 @@ export default function BacktestPage() {
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false)
   const [isDevtoolsOpen, setIsDevtoolsOpen] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0)
   const feedRef = useRef<HTMLDivElement>(null)
 
   // Session management for mem0 integration
@@ -867,6 +868,36 @@ export default function BacktestPage() {
     !messages.some((m) => m.backtestResult) &&
     !isPromptModalOpen
 
+  const resetClarkSessionState = useCallback(() => {
+    shownInterruptIdsRef.current.clear()
+    setInterrupts([])
+    setIsInterruptModalOpen(false)
+    setPendingInterruptResponse(null)
+    queryQueueRef.current = []
+    setQueueLength(0)
+    setQueueQueries([])
+    submittingInterruptRef.current = false
+    const newSessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
+    setSessionId(newSessionId)
+    setMessages([])
+    setSessionCost(0)
+    setInputValue('')
+    initializedFromExpansionRef.current = false
+  }, [])
+
+  const handleNewChat = useCallback(async () => {
+    if (messages.length > 0 && userId) {
+      await persistLastChat(messages)
+    }
+    resetClarkSessionState()
+    setHistoryRefreshKey((k) => k + 1)
+  }, [messages, userId, persistLastChat, resetClarkSessionState])
+
+  const handleActiveSessionDeleted = useCallback(() => {
+    resetClarkSessionState()
+    setHistoryRefreshKey((k) => k + 1)
+  }, [resetClarkSessionState])
+
   const handleLoadConversationFromHistory = async (
     historySessionId: string,
     historyMessages: ChatMessage[],
@@ -910,19 +941,7 @@ export default function BacktestPage() {
       <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-[#001C1B]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-2 min-h-[4rem]">
-            <div className="flex justify-start">
-              <button
-                onClick={() => setIsDevtoolsOpen(true)}
-                className="flex items-center text-white px-4 py-2 rounded-xl transition-colors font-medium"
-                aria-label="Open devtools"
-              >
-                <img
-                  src="/devtools.svg"
-                  alt="Devtools"
-                  className="h-6 w-6"
-                />
-              </button>
-            </div>
+            <div className="flex justify-start w-14 sm:w-16" aria-hidden />
             <div className="flex justify-center flex-1">
               <img
                 src="/Krypton Clark.svg"
@@ -974,7 +993,13 @@ export default function BacktestPage() {
             >
               <PastConversationsTab
                 userId={userId}
+                refreshTrigger={historyRefreshKey}
                 onLoadConversation={handleLoadConversationFromHistory}
+                onOpenDevtools={() => setIsDevtoolsOpen(true)}
+                activeSessionId={sessionId}
+                activeMessages={messages}
+                onNewChat={handleNewChat}
+                onActiveSessionDeleted={handleActiveSessionDeleted}
               />
             </motion.aside>
           )}

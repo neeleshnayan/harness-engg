@@ -18,7 +18,12 @@ interface DevtoolsOverlayProps {
   sessionId?: string
   sessionCost?: number
   overallCost?: number
-  onLoadConversationFromHistory?: (sessionId: string, messages: ChatMessage[]) => void
+  onLoadConversationFromHistory?: (
+    sessionId: string,
+    messages: ChatMessage[],
+    sessionCondensedMemory?: unknown[],
+    sessionCondensedSummary?: string
+  ) => void
 }
 
 interface AgentFlowEntry {
@@ -430,7 +435,13 @@ export default function DevtoolsOverlay({
               {activeTab === 'memories' && <MemoriesTab userId={userId} sessionId={sessionId} />}
 
               {activeTab === 'history' && (
-                <PastConversationsTab userId={userId} onLoadConversation={onLoadConversationFromHistory} />
+                <PastConversationsTab
+                  variant="embedded"
+                  userId={userId}
+                  onLoadConversation={onLoadConversationFromHistory}
+                  activeSessionId={sessionId}
+                  activeMessages={messages}
+                />
               )}
             </div>
           </motion.div>
