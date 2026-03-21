@@ -45,6 +45,7 @@ export default function BacktestPage() {
   const [isDevtoolsOpen, setIsDevtoolsOpen] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0)
+  const [isMobileHistoryOpen, setIsMobileHistoryOpen] = useState(false)
   const feedRef = useRef<HTMLDivElement>(null)
 
   // Session management for mem0 integration
@@ -935,13 +936,43 @@ export default function BacktestPage() {
     setMessages(historyMessages)
   }
 
+  const handleMobileLoadConversation: typeof handleLoadConversationFromHistory = async (
+    historySessionId,
+    historyMessages,
+    sessionCondensedMemory,
+    sessionCondensedSummary
+  ) => {
+    await handleLoadConversationFromHistory(
+      historySessionId,
+      historyMessages,
+      sessionCondensedMemory,
+      sessionCondensedSummary
+    )
+    setIsMobileHistoryOpen(false)
+  }
+
   return (
     <div className="min-h-screen w-full bg-[#001C1B] overflow-x-hidden">
       {/* Navbar */}
       <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-[#001C1B]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-2 min-h-[4rem]">
-            <div className="flex justify-start w-14 sm:w-16" aria-hidden />
+            <div className="flex justify-start w-14 sm:w-16">
+              <button
+                type="button"
+                onClick={() => setIsMobileHistoryOpen((open) => !open)}
+                className="lg:hidden flex items-center justify-center text-white w-10 h-10 sm:w-11 sm:h-11 rounded-xl transition-colors hover:bg-white/10 text-white/50 hover:text-white border border-white/10"
+                title={isMobileHistoryOpen ? 'Hide conversation history' : 'Show conversation history'}
+                aria-expanded={isMobileHistoryOpen}
+                aria-label={isMobileHistoryOpen ? 'Hide conversation history' : 'Show conversation history'}
+              >
+                {isMobileHistoryOpen ? (
+                  <PanelLeft className="h-5 w-5" />
+                ) : (
+                  <PanelRight className="h-5 w-5" />
+                )}
+              </button>
+            </div>
             <div className="flex justify-center flex-1">
               <img
                 src="/Krypton Clark.svg"
@@ -975,7 +1006,7 @@ export default function BacktestPage() {
           animate={{ left: isSidebarOpen ? 212 : 16 }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="hidden lg:flex fixed top-[32px] z-[100] items-center justify-center w-8 h-8 rounded-lg bg-[#001C1B]/80 backdrop-blur-md hover:bg-white/10 text-white/40 hover:text-white transition-colors border border-white/10"
+          className="hidden lg:flex fixed top-2 z-[100] items-center justify-center w-8 h-8 rounded-lg bg-[#001C1B]/80 backdrop-blur-md hover:bg-white/10 text-white/40 hover:text-white transition-colors border border-white/10"
           title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
         >
           {isSidebarOpen ? <PanelLeft className="h-5 w-5" /> : <PanelRight className="h-5 w-5" />}
@@ -1142,6 +1173,52 @@ export default function BacktestPage() {
         onEditQueueItem={editQueueItem}
         onMoveQueueItem={moveQueueItem}
       />
+
+      {/* Mobile: past conversations sheet (desktop uses left sidebar) */}
+      <AnimatePresence>
+        {isMobileHistoryOpen && (
+          <>
+            <motion.button
+              type="button"
+              aria-label="Close conversation history"
+              className="lg:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setIsMobileHistoryOpen(false)}
+            />
+            <motion.aside
+              className="lg:hidden fixed left-0 top-16 bottom-0 z-50 w-[min(100vw-2.5rem,300px)] max-w-[88vw] bg-[#001C1B] border-r border-white/10 shadow-[8px_0_32px_rgba(0,0,0,0.35)] flex flex-col overflow-hidden"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+            >
+              <div className="flex-1 overflow-y-auto overscroll-contain px-2 pt-3 pb-8 scrollbar-minimal">
+                <PastConversationsTab
+                  variant="mobileSheet"
+                  onRequestClose={() => setIsMobileHistoryOpen(false)}
+                  userId={userId}
+                  refreshTrigger={historyRefreshKey}
+                  onLoadConversation={handleMobileLoadConversation}
+                  onOpenDevtools={() => {
+                    setIsMobileHistoryOpen(false)
+                    setIsDevtoolsOpen(true)
+                  }}
+                  activeSessionId={sessionId}
+                  activeMessages={messages}
+                  onNewChat={async () => {
+                    await handleNewChat()
+                    setIsMobileHistoryOpen(false)
+                  }}
+                  onActiveSessionDeleted={handleActiveSessionDeleted}
+                />
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Hamburger Menu */}
       <HamburgerMenu

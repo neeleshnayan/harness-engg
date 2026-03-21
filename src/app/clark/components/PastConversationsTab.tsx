@@ -2,16 +2,18 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { MessageSquare, Loader2, RefreshCw, Trash2, SquarePen } from 'lucide-react'
+import { MessageSquare, Loader2, RefreshCw, Trash2, SquarePen, X } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import agentsApi from '@/lib/agents_api'
 import type { ChatMessage } from '../types'
 
-export type PastConversationsTabVariant = 'sidebar' | 'embedded'
+export type PastConversationsTabVariant = 'sidebar' | 'embedded' | 'mobileSheet'
 
 interface PastConversationsTabProps {
   userId?: string
   variant?: PastConversationsTabVariant
+  /** When variant is mobileSheet, shown as a close control in the header row. */
+  onRequestClose?: () => void
   /** Bump to refetch list from API (e.g. after starting a new chat). */
   refreshTrigger?: number
   onLoadConversation?: (
@@ -41,6 +43,7 @@ interface ConversationListItem {
 export default function PastConversationsTab({
   userId,
   variant = 'sidebar',
+  onRequestClose,
   refreshTrigger = 0,
   onLoadConversation,
   onOpenDevtools,
@@ -55,6 +58,7 @@ export default function PastConversationsTab({
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const isEmbedded = variant === 'embedded'
+  const isMobileSheet = variant === 'mobileSheet'
 
   const mapApiConversations = (rawConversations: any[]): ConversationListItem[] => {
     const items: ConversationListItem[] = []
@@ -240,6 +244,17 @@ export default function PastConversationsTab({
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
+          {isMobileSheet && onRequestClose && (
+            <button
+              type="button"
+              onClick={() => onRequestClose()}
+              className="p-1.5 rounded-lg text-white/45 hover:text-white hover:bg-white/[0.08] transition-colors"
+              title="Close"
+              aria-label="Close history"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
 
