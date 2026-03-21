@@ -1233,13 +1233,11 @@ export default function BacktestPage() {
       <DevtoolsOverlay
         isOpen={isDevtoolsOpen}
         onClose={() => setIsDevtoolsOpen(false)}
-        messages={messages}
         userId={userId}
         userName={userName}
         sessionId={sessionId}
         sessionCost={sessionCost}
         overallCost={overallCost}
-        onLoadConversationFromHistory={handleLoadConversationFromHistory}
       />
     </div>
   )
