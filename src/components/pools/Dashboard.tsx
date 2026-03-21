@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import CLPoolMonitor from './CLPoolMonitor';
 import PriceFeedCard from './PriceFeedCard';
 import MultiHopSwap from './MultiHopSwap';
 import TokenControlsSection from './TokenControlsSection';
-import { nettingPoolsApi, PoolInfo, TokenBalance } from '@/lib/nettingPoolsApi';
+import { nettingPoolsApi, PoolInfo, RwaPoolLink, TokenBalance } from '@/lib/nettingPoolsApi';
 import { useNettingPoolsAuth } from '@/hooks/useNettingPoolsAuth';
 
 export default function Dashboard() {
@@ -17,6 +17,9 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [suppliesLoading, setSuppliesLoading] = useState(true);
   const [error, setError] = useState<string>('');
+  const [rwaPoolLinks, setRwaPoolLinks] = useState<RwaPoolLink[]>([]);
+  const [rwaPoolsOpen, setRwaPoolsOpen] = useState(false);
+  const rwaPopoverRef = useRef<HTMLDivElement | null>(null);
 
   // Dynamic token configuration from API
   const [tokenSymbols, setTokenSymbols] = useState<string[]>([]);
@@ -27,8 +30,37 @@ export default function Dashboard() {
       fetchTokenConfigs();
       fetchPools();
       fetchTotalSupply();
+      fetchRwaPoolLinks();
     }
   }, [isAuthenticated, authLoading]);
+
+  useEffect(() => {
+    if (!rwaPoolsOpen) {
+      return;
+    }
+
+    const onPointerDown = (event: MouseEvent) => {
+      if (!rwaPopoverRef.current) {
+        return;
+      }
+      if (!rwaPopoverRef.current.contains(event.target as Node)) {
+        setRwaPoolsOpen(false);
+      }
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setRwaPoolsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [rwaPoolsOpen]);
 
   const fetchTokenConfigs = async () => {
     try {
@@ -85,6 +117,16 @@ export default function Dashboard() {
       console.error('Error fetching total supply:', err);
     } finally {
       setSuppliesLoading(false);
+    }
+  };
+
+  const fetchRwaPoolLinks = async () => {
+    try {
+      const links = await nettingPoolsApi.getRwaPoolLinks();
+      setRwaPoolLinks(Array.isArray(links) ? links : []);
+    } catch (err: any) {
+      console.error('Error fetching RWA pool links:', err);
+      setRwaPoolLinks([]);
     }
   };
 
@@ -234,19 +276,59 @@ export default function Dashboard() {
 
                 {/* Pool Selection Tabs */}
                 {pools.length > 0 && (
-                  <div className="flex gap-3 mb-8 overflow-x-auto pb-2">
-                    {pools.map((pool) => (
+                  <div className="mb-8 flex items-start gap-3">
+                    <div className="flex-1 overflow-x-auto pb-2">
+                      <div className="flex gap-3 min-w-max">
+                        {pools.map((pool) => (
+                          <button
+                            key={pool.pool_address}
+                            onClick={() => setSelectedPool(pool)}
+                            className={poolTabClasses(pool)}
+                          >
+                            {pool.token0_symbol}/{pool.token1_symbol}
+                            {!pool.is_initialized && (
+                              <span className="ml-2 text-xs text-yellow-400">●</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="relative shrink-0" ref={rwaPopoverRef}>
                       <button
-                        key={pool.pool_address}
-                        onClick={() => setSelectedPool(pool)}
-                        className={poolTabClasses(pool)}
+                        type="button"
+                        onClick={() => setRwaPoolsOpen(prev => !prev)}
+                        disabled={rwaPoolLinks.length === 0}
+                        className={`px-4 py-3 rounded-xl text-sm font-medium tracking-wide transition-all duration-300 border ${
+                          rwaPoolLinks.length === 0
+                            ? 'bg-white/[0.02] text-gray-500 border-slate-700/40 cursor-not-allowed'
+                            : 'bg-white/[0.02] text-gray-200 border-slate-600/40 hover:text-white hover:bg-white/[0.06]'
+                        }`}
                       >
-                        {pool.token0_symbol}/{pool.token1_symbol}
-                        {!pool.is_initialized && (
-                          <span className="ml-2 text-xs text-yellow-400">●</span>
-                        )}
+                        RWA Pools
                       </button>
-                    ))}
+
+                      {rwaPoolsOpen && rwaPoolLinks.length > 0 && (
+                        <div className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-slate-700/40 bg-slate-950/95 backdrop-blur-xl shadow-2xl p-2 z-40">
+                          <div className="mb-2 px-2 py-1 text-xs text-gray-400 tracking-wide">
+                            Uniswap Sepolia
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            {rwaPoolLinks.map((link) => (
+                              <button
+                                key={link.pool_address}
+                                type="button"
+                                onClick={() => window.open(link.uniswap_url, '_blank', 'noopener,noreferrer')}
+                                className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-200 hover:text-white hover:bg-slate-800/70 transition-colors"
+                              >
+                                {link.symbol}/USDC
+                                <span className="ml-2 text-xs text-gray-500">{link.name}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 

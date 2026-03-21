@@ -16,6 +16,13 @@ export interface PoolInfo {
   } | null;
 }
 
+export interface RwaPoolLink {
+  symbol: string;
+  name: string;
+  pool_address: string;
+  uniswap_url: string;
+}
+
 export interface PoolParameters {
   pool_type: string;
   range_lower: number | null;
@@ -144,6 +151,12 @@ export const nettingPoolsApi = {
   // List all pools
   async getPools(): Promise<PoolInfo[]> {
     const response = await kryptonWeb3Api.get('/netting-pools/pools');
+    return response.data;
+  },
+
+  // List RWA pools links for Uniswap UI
+  async getRwaPoolLinks(): Promise<RwaPoolLink[]> {
+    const response = await kryptonWeb3Api.get('/netting-pools/rwa-pools-links');
     return response.data;
   },
 
