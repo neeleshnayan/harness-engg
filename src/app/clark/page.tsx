@@ -981,8 +981,8 @@ export default function BacktestPage() {
         </AnimatePresence>
 
         {/* Right: Centered main content (tiles + feed) */}
-        <div className={`flex-1 min-w-0 flex flex-col pt-24 px-4 relative transition-all duration-300 ${isSidebarOpen ? 'lg:items-start' : 'items-center'}`}>
-          <div className="w-full max-w-6xl relative">
+        <div className={`flex-1 min-w-0 flex flex-col pt-24 px-4 relative transition-all duration-300 items-center`}>
+          <div className={`w-full max-w-6xl relative transition-transform duration-300 ${isSidebarOpen ? 'lg:-translate-x-[130px]' : 'translate-x-0'}`}>
             {/* Category Tiles - hidden when prompt modal is open so a single card click doesn't fire both modal and tiles */}
             {/* Category Tiles - hidden when prompt modal is open so a single card click doesn't fire both modal and tiles */}
             {showCategoryTiles && (
