@@ -220,33 +220,53 @@ export default function DevtoolsOverlay({
             {/* Header */}
             <div className="sticky top-0 z-10 bg-[#0c1210]/90 backdrop-blur-xl border-b border-teal-900/20">
               <div className="flex items-start justify-between gap-4 px-6 pt-6 pb-4">
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1 space-y-1.5">
                   <h1 className="text-[22px] font-semibold text-white tracking-tight">Devtools</h1>
-                  {(userId || userName) && (
-                    <p className="mt-1.5 text-[13px] text-white/50 truncate">
-                      {userName && <span>{userName}</span>}
-                      {userId && userName && <span className="text-white/40"> · </span>}
-                      {userId && <span className="text-white/40 font-mono">{userId.slice(0, 12)}…</span>}
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-white/[0.06] px-3 py-1.5 text-[13px] text-white/70">
-                      Session <span className="font-medium text-white/90">${sessionCost.toFixed(4)}</span>
+                  <p className="text-[13px] text-white/60">
+                    <span>
+                      Session:{' '}
+                      <span className="font-medium tabular-nums text-white/90">
+                        ${sessionCost.toFixed(4)}
+                      </span>
                     </span>
-                    <span className="rounded-full bg-white/[0.06] px-3 py-1.5 text-[13px] text-white/70">
-                      Total <span className="font-medium text-white/90">${overallCost.toFixed(4)}</span>
+                    <span className="text-white/35 mx-1">·</span>
+                    <span>
+                      Total:{' '}
+                      <span className="font-medium tabular-nums text-white/90">
+                        ${overallCost.toFixed(4)}
+                      </span>
                     </span>
-                  </div>
-                  <button
-                    onClick={onClose}
-                    className="flex items-center justify-center w-9 h-9 rounded-full bg-white/[0.08] hover:bg-white/[0.12] text-white/80 hover:text-white transition-colors"
-                    aria-label="Close devtools"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+                    <span className="text-white/35 mx-1">·</span>
+                    <span className="min-w-0 max-w-full">
+                      Name{' '}
+                      <span className="font-mono text-white/70 break-all">
+                        {userName || '—'}
+                      </span>
+                    </span>
+                  </p>
+                  {/* <p className="text-[12px] text-white/45 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                    <span className="min-w-0 max-w-full">
+                      User Name{' '}
+                      <span className="font-mono text-white/70 break-all">
+                        {userName || '—'}
+                      </span>
+                    </span>
+                    <span className="min-w-0 max-w-full">
+                      Session Id{' '}
+                      <span className="font-mono text-white/70 break-all">
+                        {sessionId || '—'}
+                      </span>
+                    </span>
+                  </p> */}
                 </div>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex items-center justify-center w-9 h-9 rounded-full bg-white/[0.08] hover:bg-white/[0.12] text-white/80 hover:text-white transition-colors shrink-0"
+                  aria-label="Close devtools"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
 
               {/* Tab Navigation - segmented control style */}
