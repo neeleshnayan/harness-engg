@@ -93,7 +93,7 @@ export default function CategoryTiles({
               const startIndex = colIndex * tilesPerRow
               const colTiles = categories.slice(startIndex, startIndex + tilesPerRow)
               return (
-                <div key={`col-${colIndex}`} className="flex flex-col gap-3 flex-1 min-w-0">
+                <div key={`col-${colIndex}`} className="flex flex-col gap-3 min-w-0">
                   {colTiles.map((category) => (
                     <Card
                       key={category.id}
@@ -129,12 +129,13 @@ export default function CategoryTiles({
 
             const pages = [] as React.ReactNode[]
             for (let i = 0; i < columns.length; i += 2) {
-              const hasSecondColumn = Boolean(columns[i + 1])
+              const second = columns[i + 1]
               pages.push(
                 <div key={`page-${i / 2}`} className="snap-start px-4 flex-shrink-0" style={{ flexBasis: `${100 / pageCount}%`, minWidth: `${100 / pageCount}%` }}>
-                  <div className={`flex ${hasSecondColumn ? 'justify-center' : 'justify-start'} gap-3`}>
+                  {/* Two-column grid: lone column on last page stays half-width (matches other tiles) */}
+                  <div className="grid grid-cols-2 gap-3 w-full">
                     {columns[i]}
-                    {columns[i + 1]}
+                    {second}
                   </div>
                 </div>
               )
