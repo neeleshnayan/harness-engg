@@ -208,20 +208,10 @@ export default function PastConversationsTab({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2 px-2 shrink-0">
+      <div className="flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2 min-w-0">
         </div>
-        {isMobileSheet && onRequestClose && (
-          <button
-            type="button"
-            onClick={() => onRequestClose()}
-            className="p-1.5 rounded-lg text-white/45 hover:text-white hover:bg-white/[0.08] transition-colors flex-shrink-0"
-            title="Close"
-            aria-label="Close history"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
+        
       </div>
 
       {!isEmbedded && (onNewChat || onOpenDevtools) && (
