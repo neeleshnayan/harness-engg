@@ -203,7 +203,8 @@ export default function PastConversationsTab({
   }
 
   const actionRowClass =
-    'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-left text-sm text-white/80 hover:bg-white/[0.06] hover:text-white hover:border-white/15 transition-colors'
+    // "Ghost" style: no filled background/border by default, just subtle hover feedback.
+    'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-transparent bg-transparent text-left text-sm text-white/80 hover:bg-white/[0.04] hover:text-white hover:border-white/10 transition-colors'
 
   return (
     <div className="flex flex-col gap-4">
