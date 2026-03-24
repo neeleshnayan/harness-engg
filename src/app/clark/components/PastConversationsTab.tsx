@@ -202,61 +202,72 @@ export default function PastConversationsTab({
     )
   }
 
+  const actionRowClass =
+    'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-left text-sm text-white/80 hover:bg-white/[0.06] hover:text-white hover:border-white/15 transition-colors'
+
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between gap-1 px-2 py-2">
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-2 px-2 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <MessageSquare className="h-3.5 w-3.5 text-teal-400 flex-shrink-0" />
-          <h2 className="text-[11px] font-bold text-white/50 uppercase tracking-[0.15em] truncate">
-            History
-          </h2>
         </div>
-        <div className="flex items-center gap-0.5 flex-shrink-0">
-          {!isEmbedded && onNewChat && (
+        {isMobileSheet && onRequestClose && (
+          <button
+            type="button"
+            onClick={() => onRequestClose()}
+            className="p-1.5 rounded-lg text-white/45 hover:text-white hover:bg-white/[0.08] transition-colors flex-shrink-0"
+            title="Close"
+            aria-label="Close history"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {!isEmbedded && (onNewChat || onOpenDevtools) && (
+        <div className="flex flex-col gap-2 px-0">
+          {onNewChat && (
             <button
               type="button"
               onClick={() => void onNewChat()}
-              className="p-1.5 rounded-lg text-white/45 hover:text-teal-300 hover:bg-white/[0.06] transition-colors"
+              className={actionRowClass}
               title="New chat"
               aria-label="New chat"
             >
-              <SquarePen className="h-4 w-4" />
+              <SquarePen className="h-4 w-4 text-teal-400/90 flex-shrink-0" />
+              <span className="font-medium">New Chat</span>
             </button>
           )}
-          {!isEmbedded && onOpenDevtools && (
+          {onOpenDevtools && (
             <button
               type="button"
               onClick={() => onOpenDevtools()}
-              className="p-1.5 rounded-lg text-white/45 hover:text-teal-300 hover:bg-white/[0.06] transition-colors"
+              className={actionRowClass}
               title="Open devtools"
               aria-label="Open devtools"
             >
-              <img src="/devtools.svg" alt="" className="h-4 w-4 opacity-80" />
+              <img src="/devtools.svg" alt="" className="h-4 w-4 opacity-80 flex-shrink-0" />
+              <span className="font-medium">Dev Tools</span>
             </button>
           )}
+        </div>
+      )}
+
+      <div className="flex flex-col gap-2 min-h-0">
+        <div className="flex items-center justify-between gap-2 px-2">
+          <h3 className="text-[11px] font-bold text-white/50 uppercase tracking-[0.15em]">
+            Recents
+          </h3>
           <button
             type="button"
             onClick={() => void fetchConversations()}
             disabled={isLoading}
-            className="p-1.5 rounded-lg text-white/45 hover:text-teal-300 hover:bg-white/[0.06] transition-colors disabled:opacity-40"
+            className="p-1.5 rounded-lg text-white/45 hover:text-teal-300 hover:bg-white/[0.06] transition-colors disabled:opacity-40 flex-shrink-0"
             title="Refresh list"
             aria-label="Refresh conversations"
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
-          {isMobileSheet && onRequestClose && (
-            <button
-              type="button"
-              onClick={() => onRequestClose()}
-              className="p-1.5 rounded-lg text-white/45 hover:text-white hover:bg-white/[0.08] transition-colors"
-              title="Close"
-              aria-label="Close history"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
         </div>
-      </div>
 
       {error && (
         <div className="p-3 rounded-xl bg-red-900/20 border border-red-700/30 backdrop-blur-xl">
@@ -339,6 +350,7 @@ export default function PastConversationsTab({
           })}
         </div>
       )}
+      </div>
     </div>
   )
 }
