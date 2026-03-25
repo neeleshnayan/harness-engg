@@ -53,6 +53,8 @@ export default function CLPoolMonitor({
   const [gyroCurrentBeta, setGyroCurrentBeta] = useState('');
   const [gyroNewAlpha, setGyroNewAlpha] = useState('');
   const [gyroNewBeta, setGyroNewBeta] = useState('');
+  const [isFixBoundsModalOpen, setIsFixBoundsModalOpen] = useState(false);
+  const fixBoundsPopoverRef = useRef<HTMLDivElement | null>(null);
 
   // Pending transactions - event-based, no polling
   const [pendingTransactions, setPendingTransactions] = useState<Map<string, PendingTransaction>>(new Map());
@@ -153,6 +155,30 @@ export default function CLPoolMonitor({
 
     fetchGyroParams();
   }, [hasGyroControls, selectedPoolTokenSymbol, poolAddress]);
+
+  useEffect(() => {
+    if (!isFixBoundsModalOpen) return;
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (fixBoundsPopoverRef.current && !fixBoundsPopoverRef.current.contains(event.target as Node)) {
+        setIsFixBoundsModalOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsFixBoundsModalOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isFixBoundsModalOpen]);
 
   const fetchPoolState = async (forceRefresh = false) => {
     // Capture the poolAddress at call time to check for stale responses
@@ -494,44 +520,6 @@ export default function CLPoolMonitor({
                     {poolState.oracle_info?.deviation_percent?.toFixed(2) || '0.00'}%
                   </span>
                 </div>
-                {hasGyroControls && (
-                  <div className="pt-3 border-t border-white/[0.05] space-y-2">
-                    <div className="text-gray-400 text-xs">Gyro Alpha/Beta</div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-500 text-xs">Current</span>
-                      <span className="text-white font-mono text-xs">
-                        {gyroLoading ? 'Loading...' : `${gyroCurrentAlpha || '-'} / ${gyroCurrentBeta || '-'}`}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.000001"
-                        value={gyroNewAlpha}
-                        onChange={(e) => setGyroNewAlpha(e.target.value)}
-                        className="px-2 py-1.5 bg-white/[0.02] border border-white/[0.05] text-white rounded text-xs focus:outline-none"
-                        placeholder="Alpha"
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.000001"
-                        value={gyroNewBeta}
-                        onChange={(e) => setGyroNewBeta(e.target.value)}
-                        className="px-2 py-1.5 bg-white/[0.02] border border-white/[0.05] text-white rounded text-xs focus:outline-none"
-                        placeholder="Beta"
-                      />
-                    </div>
-                    <button
-                      onClick={handleUpdateGyroParams}
-                      disabled={gyroUpdating || gyroLoading || !username}
-                      className="w-full py-1.5 bg-cyan-600/30 hover:bg-cyan-600/40 disabled:bg-gray-600/40 text-cyan-300 disabled:text-gray-400 rounded-lg text-xs font-medium transition-all"
-                    >
-                      {gyroUpdating ? 'Updating...' : 'Update Alpha/Beta'}
-                    </button>
-                  </div>
-                )}
               </div>
             ) : (
               <div className="text-gray-500 text-sm">No parameters data</div>
@@ -561,11 +549,15 @@ export default function CLPoolMonitor({
 
       {/* Price Tracking Section */}
       {poolState && (
-        <div className="backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6">
+        <div className="relative z-30 backdrop-blur-xl bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6">
           <div className="flex items-center justify-between mb-6">
             <h4 className="text-lg font-medium text-white">Price Tracking</h4>
-            <div className="flex gap-2">
-              <button className="px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg text-sm font-medium transition-all">
+            <div ref={fixBoundsPopoverRef} className="relative flex gap-2">
+              <button
+                onClick={() => setIsFixBoundsModalOpen(prev => !prev)}
+                disabled={!hasGyroControls}
+                className="px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 ⚙ Fix Bounds
               </button>
               <button
@@ -575,6 +567,62 @@ export default function CLPoolMonitor({
               >
                 🔄 Sync Oracle
               </button>
+
+              {isFixBoundsModalOpen && hasGyroControls && (
+                <div className="absolute right-0 top-full z-[60] mt-2 w-[min(90vw,28rem)] rounded-2xl border border-white/[0.08] bg-[#0A1020]/95 p-5 shadow-2xl">
+                  <div className="mb-4 flex items-start justify-between">
+                    <div>
+                      <h4 className="text-base font-semibold text-white">Gyro Alpha/Beta</h4>
+                      <div className="mt-1 text-sm text-gray-400">Adjust and submit pool bounds</div>
+                    </div>
+                    <button
+                      onClick={() => setIsFixBoundsModalOpen(false)}
+                      className="rounded-md p-1 text-gray-400 hover:bg-white/[0.05] hover:text-white"
+                      aria-label="Close"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">Current</span>
+                      <span className="font-mono text-white">
+                        {gyroLoading ? 'Loading...' : `${gyroCurrentAlpha || '-'} / ${gyroCurrentBeta || '-'}`}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.000001"
+                        value={gyroNewAlpha}
+                        onChange={(e) => setGyroNewAlpha(e.target.value)}
+                        className="rounded border border-white/[0.08] bg-white/[0.02] px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                        placeholder="0.99000000"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.000001"
+                        value={gyroNewBeta}
+                        onChange={(e) => setGyroNewBeta(e.target.value)}
+                        className="rounded border border-white/[0.08] bg-white/[0.02] px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                        placeholder="1.01000000"
+                      />
+                    </div>
+                    <button
+                      onClick={handleUpdateGyroParams}
+                      disabled={gyroUpdating || gyroLoading || !username}
+                      className="w-full rounded-lg bg-cyan-600/30 py-2 text-sm font-medium text-cyan-300 transition-all hover:bg-cyan-600/40 disabled:bg-gray-600/40 disabled:text-gray-400"
+                    >
+                      {gyroUpdating ? 'Updating...' : 'Update Alpha/Beta'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
