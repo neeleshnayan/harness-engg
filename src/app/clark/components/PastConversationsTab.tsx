@@ -23,7 +23,9 @@ interface PastConversationsTabProps {
     sessionCondensedSummary?: string
   ) => void
   onOpenDevtools?: () => void
-  /** Current session shown in the main feed — merged at top of the list when it has messages. */
+  /** When true, show a loader in the results/feed (not in the title list). */
+  onHistoryLoadingChange?: (loading: boolean) => void
+  /** Current session shown in the main feed (used only for active-row highlighting). */
   activeSessionId?: string
   activeMessages?: ChatMessage[]
   onNewChat?: () => void | Promise<void>
@@ -34,8 +36,9 @@ interface PastConversationsTabProps {
 interface ConversationListItem {
   id: string
   sessionId: string
-  preview: string
-  messages: ChatMessage[]
+  title: string
+  // Present only for the active/live conversation row (already in memory on the client).
+  messages?: ChatMessage[]
   sessionCondensedMemory?: unknown[]
   sessionCondensedSummary?: string
 }
@@ -47,6 +50,7 @@ export default function PastConversationsTab({
   refreshTrigger = 0,
   onLoadConversation,
   onOpenDevtools,
+  onHistoryLoadingChange,
   activeSessionId,
   activeMessages,
   onNewChat,
@@ -56,6 +60,7 @@ export default function PastConversationsTab({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [loadingConversationId, setLoadingConversationId] = useState<string | null>(null)
 
   const isEmbedded = variant === 'embedded'
   const isMobileSheet = variant === 'mobileSheet'
@@ -66,38 +71,13 @@ export default function PastConversationsTab({
     rawConversations.forEach((conv, index) => {
       if (!conv) return
       const sessionId: string = conv.session_id || ''
-      const messagesRaw: any[] = Array.isArray(conv.messages) ? conv.messages : []
-      const sessionCondensedMemory: unknown[] = Array.isArray(conv.session_condensed_memory)
-        ? conv.session_condensed_memory
-        : []
-      const sessionCondensedSummary: string | undefined =
-        typeof conv.session_condensed_summary === 'string' ? conv.session_condensed_summary : undefined
-
-      const messages: ChatMessage[] = messagesRaw.map((msg) => {
-        const timestamp = msg?.timestamp ? new Date(msg.timestamp) : new Date()
-        return {
-          ...(msg && typeof msg === 'object' ? msg : {}),
-          id: String(msg?.id ?? ''),
-          type: msg?.type === 'assistant' ? 'assistant' : 'user',
-          content: msg?.content ?? '',
-          timestamp,
-        } as ChatMessage
-      })
-
-      if (messages.length === 0) {
-        return
-      }
-
-      const firstUserMessage = messages.find((m) => m.type === 'user')
-      const preview = firstUserMessage?.content || messages[0].content || 'Conversation'
+      const title: string =
+        typeof conv.title === 'string' && conv.title.trim() ? conv.title : 'Conversation'
 
       items.push({
         id: String(conv.id ?? `${sessionId || 'conv'}_${index}`),
         sessionId,
-        preview,
-        messages,
-        sessionCondensedMemory,
-        sessionCondensedSummary,
+        title,
       })
     })
 
@@ -132,6 +112,55 @@ export default function PastConversationsTab({
     }
   }
 
+  const fetchConversationDetail = async (
+    conversationId: string,
+  ): Promise<{
+    sessionId: string
+    messages: ChatMessage[]
+    sessionCondensedMemory?: unknown[]
+    sessionCondensedSummary?: string
+  }> => {
+    if (!userId) throw new Error('User ID is required')
+    if (!conversationId) throw new Error('conversationId is required')
+
+    setLoadingConversationId(conversationId)
+    onHistoryLoadingChange?.(true)
+    try {
+      const response = await agentsApi.get('/api/v1/agents/conversations/detail', {
+        params: { user_id: userId, conversation_id: conversationId },
+      })
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Failed to fetch conversation detail')
+      }
+
+      const conv = response.data?.conversation ?? {}
+      const returnedSessionId =
+        typeof conv.session_id === 'string' && conv.session_id.trim() ? conv.session_id : ''
+      const messagesRaw: any[] = Array.isArray(conv.messages) ? conv.messages : []
+      const sessionCondensedMemory: unknown[] = Array.isArray(conv.session_condensed_memory)
+        ? conv.session_condensed_memory
+        : []
+      const sessionCondensedSummary: string | undefined =
+        typeof conv.session_condensed_summary === 'string' ? conv.session_condensed_summary : undefined
+
+      const messages: ChatMessage[] = messagesRaw.map((msg) => {
+        const timestamp = msg?.timestamp ? new Date(msg.timestamp) : new Date()
+        return {
+          ...(msg && typeof msg === 'object' ? msg : {}),
+          id: String(msg?.id ?? ''),
+          type: msg?.type === 'assistant' ? 'assistant' : 'user',
+          content: msg?.content ?? '',
+          timestamp,
+        } as ChatMessage
+      })
+
+      return { sessionId: returnedSessionId, messages, sessionCondensedMemory, sessionCondensedSummary }
+    } finally {
+      setLoadingConversationId(null)
+      onHistoryLoadingChange?.(false)
+    }
+  }
+
   useEffect(() => {
     if (userId) {
       fetchConversations()
@@ -140,33 +169,9 @@ export default function PastConversationsTab({
   }, [userId, refreshTrigger])
 
   const displayConversations = useMemo((): ConversationListItem[] => {
-    const sid = activeSessionId?.trim()
-    const live = activeMessages ?? []
-    const withoutActive = sid
-      ? conversations.filter((c) => c.sessionId !== sid)
-      : conversations
-
-    if (!sid || live.length === 0) {
-      return withoutActive
-    }
-
-    const firstUser = live.find((m) => m.type === 'user')
-    const preview =
-      firstUser?.content?.trim() ||
-      live[0]?.content?.trim() ||
-      'Current conversation'
-
-    const liveItem: ConversationListItem = {
-      id: `live_${sid}`,
-      sessionId: sid,
-      preview,
-      messages: live,
-      sessionCondensedMemory: [],
-      sessionCondensedSummary: undefined,
-    }
-
-    return [liveItem, ...withoutActive]
-  }, [conversations, activeSessionId, activeMessages])
+    // Preserve the backend ordering. We only highlight the active row.
+    return conversations
+  }, [conversations])
 
   const handleDelete = async (e: React.MouseEvent, conv: ConversationListItem) => {
     e.preventDefault()
@@ -294,21 +299,39 @@ export default function PastConversationsTab({
                 <button
                   type="button"
                   onClick={() => {
-                    if (!onLoadConversation) return
-                    const safeSessionId =
-                      conv.sessionId || `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
-                    onLoadConversation(
-                      safeSessionId,
-                      conv.messages,
-                      conv.sessionCondensedMemory,
-                      conv.sessionCondensedSummary
-                    )
+                    void (async () => {
+                      if (!onLoadConversation) return
+
+                      if (conv.messages) {
+                        onLoadConversation(
+                          conv.sessionId || `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
+                          conv.messages,
+                          conv.sessionCondensedMemory,
+                          conv.sessionCondensedSummary
+                        )
+                        return
+                      }
+
+                      const detail = await fetchConversationDetail(conv.id)
+
+                      const safeSessionId =
+                        detail.sessionId ||
+                        conv.sessionId ||
+                        `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
+                      onLoadConversation(
+                        safeSessionId,
+                        detail.messages,
+                        detail.sessionCondensedMemory,
+                        detail.sessionCondensedSummary
+                      )
+                    })()
                   }}
                   className={`flex-1 min-w-0 text-left px-2 rounded-xl border transition-all duration-200 ${
                     isActiveRow
                       ? 'bg-teal-500/10 border-teal-500/25'
                       : 'border-transparent hover:bg-white/[0.04] active:bg-white/[0.06]'
                   }`}
+                  disabled={loadingConversationId === conv.id}
                 >
                   <div className="px-3 py-2">
                     <div className="flex items-start gap-3">
@@ -317,7 +340,7 @@ export default function PastConversationsTab({
                           isActiveRow ? 'text-teal-100/90' : 'text-white/60 group-hover:text-white/90'
                         }`}
                       >
-                        {conv.preview}
+                        {conv.title}
                       </span>
                     </div>
                   </div>

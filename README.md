@@ -193,7 +193,7 @@ Clark keeps **session memory** (summarized conversation for the current session)
 
 | Concept | Where it lives | API / usage |
 |--------|-----------------|-------------|
-| **Past conversations list** | Firebase `conversation_history` (per user) | `GET /api/v1/agents/conversations?user_id=&limit=` – used by `PastConversationsTab` |
+| **Past conversations list** | Firebase `conversation_history` (per user) | `GET /api/v1/agents/conversations?user_id=&limit=` – used by `PastConversationsTab` (returns only `session_id` + `title`) |
 | **Session condensed memory** | Backend in-memory (per `user_id` + `session_id`); persisted on save | Stored with each conversation doc as `session_condensed_memory` (raw) and `session_condensed_summary` (LLM summary) |
 | **Condensed memories (all sessions)** | Backend local + Firebase `clark/{user_id}.condensed_memories` | `GET /api/v1/agents/memories?user_id=&session_id=` – returns condensed persona and current-session summary |
 | **Persist after each reply** | Frontend calls after assistant message | `POST /api/v1/agents/clark-chat` with `user_id`, `session_id`, `messages` – backend also saves session memory and LLM summary to Firebase |
@@ -212,15 +212,19 @@ Clark keeps **session memory** (summarized conversation for the current session)
 #### Flow: loading a past conversation
 
 1. User opens **Past conversations** (sidebar or Devtools → History), backed by **`GET /api/v1/agents/conversations`**.
-2. Each item has: `session_id`, `messages`, optional **`session_condensed_memory`**, optional **`session_condensed_summary`**.
-3. On **“Load”** (click a conversation), the frontend calls **`POST /api/v1/agents/restore-session-memory`** with:
+2. Each item has: `session_id` and lightweight `title` (no full messages).
+3. On **“Load”** (click a conversation), the frontend first calls **`GET /api/v1/agents/conversations/detail?user_id=&session_id=`** to fetch:
+   - `messages`
+   - optional **`session_condensed_memory`**
+   - optional **`session_condensed_summary`**
+4. Then the frontend calls **`POST /api/v1/agents/restore-session-memory`** with:
    - **`user_id`**, **`session_id`**
    - **`session_condensed_memory`** and **`session_condensed_summary`** when present (from the conversation doc).
    - **`messages`** when the doc has **no** stored session memory (e.g. older conversations): backend builds session entries from messages, runs the summarizer, and stores the summary for that session.
-4. Backend restores:
+5. Backend restores:
    - Raw session entries into the memory manager for that `session_id`.
    - Session summary override (so the Memories tab can show it without another LLM call).
-5. Frontend sets **`sessionId`** and **`messages`** so the feed shows that conversation; subsequent queries use the restored session context.
+6. Frontend sets **`sessionId`** and **`messages`** so the feed shows that conversation; subsequent queries use the restored session context.
 
 #### Flow: Devtools → Memories tab
 

@@ -39,6 +39,7 @@ export default function BacktestPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [showMenu, setShowMenu] = useState(false)
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false)
@@ -1026,6 +1027,7 @@ export default function BacktestPage() {
                 userId={userId}
                 refreshTrigger={historyRefreshKey}
                 onLoadConversation={handleLoadConversationFromHistory}
+                onHistoryLoadingChange={setIsHistoryLoading}
                 onOpenDevtools={() => setIsDevtoolsOpen(true)}
                 activeSessionId={sessionId}
                 activeMessages={messages}
@@ -1058,86 +1060,101 @@ export default function BacktestPage() {
                 className="scrollbar-minimal min-h-[200px] h-[calc(100vh-10rem)] overflow-y-auto scroll-smooth"
               >
                 <div className="pb-32">
-                  {/* Loading with no messages yet: show "Thinking…"; once messages exist, ResultsDisplay shows "Processing your request..." */}
-                  {isLoading && messages.length === 0 && (
-                    <div className="flex gap-2 justify-start items-center py-4">
-                      <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                        <img src="/clark process.svg" alt="Clark" className="h-8 w-8 animate-pulse" />
+                  {isHistoryLoading ? (
+                    <div className="w-full flex flex-col items-center justify-center py-16 min-h-[calc(100vh-10rem)]">
+                      <div className="w-12 h-12 flex items-center justify-center flex-shrink-0">
+                        <img src="/clark process.svg" alt="Clark" className="h-12 w-12 animate-pulse" />
                       </div>
-                      <div className="rounded-2xl px-4 py-3 bg-zinc-900/30 border border-zinc-700/40 text-white/80 text-sm">
-                        Thinking…
+                      <div className="mt-4 rounded-2xl px-6 py-3 bg-zinc-900/30 border border-zinc-700/40 text-white/80 text-sm">
+                        Loading past conversation…
                       </div>
                     </div>
-                  )}
-                  <ResultsDisplay messages={messages} isLoading={isLoading} username={userName} />
-                  {/* When messages exist, loading state is shown inside ResultsDisplay as "Processing your request..." */}
-                  {/* Show payment confirmation inline at the end of the conversation */}
-                  {interrupts && interrupts.length > 0 && (() => {
-                    const paymentInterrupt = interrupts.find((i) => i.name === 'krypton-pay-approval')
-                    if (!paymentInterrupt) return null
-                    const { reason } = paymentInterrupt
-                    const operation =
-                      reason.operation === 'swap_and_transfer' ? 'Swap & Transfer' : 'Transfer'
-                    const fromToken = reason.from_token || reason.to_token
-                    const toToken = reason.to_token || ''
-                    return (
-                      <div className="mb-4 flex gap-2 justify-start items-start">
-                        <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                          <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
-                        </div>
-                        <div className="max-w-[85%] rounded-2xl p-4 bg-zinc-900/40 border border-zinc-700/50 text-white backdrop-blur-sm">
-                          <div className="text-[10px] uppercase tracking-[0.2em] text-white/80 mb-2">
-                            Payment confirmation
+                  ) : (
+                    <>
+                      {/* Loading with no messages yet: show "Thinking…"; once messages exist, ResultsDisplay shows "Processing your request..." */}
+                      {isLoading && messages.length === 0 && (
+                        <div className="flex gap-2 justify-start items-center py-4">
+                          <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                            <img src="/clark process.svg" alt="Clark" className="h-8 w-8 animate-pulse" />
                           </div>
-                          <p className="text-sm text-white/90 mb-3">
-                            Please review and confirm the payment details below.
-                          </p>
-                          <div className="bg-zinc-900/60 rounded-lg p-3 border border-zinc-700/40 space-y-2 text-sm">
-                            {reason.operation === 'swap_and_transfer' && reason.from_token && (
-                              <div className="flex justify-between items-center">
-                                <span className="text-white/80">Swap From:</span>
-                                <span className="text-white font-medium">
-                                  {reason.from_token}
-                                </span>
+                          <div className="rounded-2xl px-4 py-3 bg-zinc-900/30 border border-zinc-700/40 text-white/80 text-sm">
+                            Thinking…
+                          </div>
+                        </div>
+                      )}
+
+                      <ResultsDisplay messages={messages} isLoading={isLoading} username={userName} />
+                      {/* When messages exist, loading state is shown inside ResultsDisplay as "Processing your request..." */}
+
+                      {/* Show payment confirmation inline at the end of the conversation */}
+                      {interrupts && interrupts.length > 0 && (() => {
+                        const paymentInterrupt = interrupts.find((i) => i.name === 'krypton-pay-approval')
+                        if (!paymentInterrupt) return null
+                        const { reason } = paymentInterrupt
+                        const operation =
+                          reason.operation === 'swap_and_transfer' ? 'Swap & Transfer' : 'Transfer'
+                        const fromToken = reason.from_token || reason.to_token
+                        const toToken = reason.to_token || ''
+                        return (
+                          <div className="mb-4 flex gap-2 justify-start items-start">
+                            <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                              <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
+                            </div>
+                            <div className="max-w-[85%] rounded-2xl p-4 bg-zinc-900/40 border border-zinc-700/50 text-white backdrop-blur-sm">
+                              <div className="text-[10px] uppercase tracking-[0.2em] text-white/80 mb-2">
+                                Payment confirmation
                               </div>
-                            )}
-                            <div className="flex justify-between items-center">
-                              <span className="text-white/80">Send Amount:</span>
-                              <span className="text-white font-semibold">
-                                {reason.received_amount} {toToken}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-white/80">To:</span>
-                              <span className="text-white font-medium">
-                                @{reason.receiver_username}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-white/80">Operation:</span>
-                              <span className="text-white font-medium">{operation}</span>
+                              <p className="text-sm text-white/90 mb-3">
+                                Please review and confirm the payment details below.
+                              </p>
+                              <div className="bg-zinc-900/60 rounded-lg p-3 border border-zinc-700/40 space-y-2 text-sm">
+                                {reason.operation === 'swap_and_transfer' && reason.from_token && (
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-white/80">Swap From:</span>
+                                    <span className="text-white font-medium">
+                                      {reason.from_token}
+                                    </span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between items-center">
+                                  <span className="text-white/80">Send Amount:</span>
+                                  <span className="text-white font-semibold">
+                                    {reason.received_amount} {toToken}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-white/80">To:</span>
+                                  <span className="text-white font-medium">
+                                    @{reason.receiver_username}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-white/80">Operation:</span>
+                                  <span className="text-white font-medium">{operation}</span>
+                                </div>
+                              </div>
+                              <div className="flex gap-3 pt-3 mt-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleInterruptReject(paymentInterrupt.id)}
+                                  className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-xl border border-red-700/60 bg-red-900/30 text-red-100 hover:bg-red-900/50 text-sm font-medium transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleInterruptApprove(paymentInterrupt.id, reason)}
+                                  className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-sm font-medium transition-colors border border-white/20"
+                                >
+                                  Confirm
+                                </button>
+                              </div>
                             </div>
                           </div>
-                          <div className="flex gap-3 pt-3 mt-2">
-                            <button
-                              type="button"
-                              onClick={() => handleInterruptReject(paymentInterrupt.id)}
-                              className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-xl border border-red-700/60 bg-red-900/30 text-red-100 hover:bg-red-900/50 text-sm font-medium transition-colors"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleInterruptApprove(paymentInterrupt.id, reason)}
-                              className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-sm font-medium transition-colors border border-white/20"
-                            >
-                              Confirm
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })()}
+                        )
+                      })()}
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -1202,6 +1219,7 @@ export default function BacktestPage() {
                   userId={userId}
                   refreshTrigger={historyRefreshKey}
                   onLoadConversation={handleMobileLoadConversation}
+                  onHistoryLoadingChange={setIsHistoryLoading}
                   onOpenDevtools={() => {
                     setIsMobileHistoryOpen(false)
                     setIsDevtoolsOpen(true)
