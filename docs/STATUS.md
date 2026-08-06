@@ -93,7 +93,10 @@ Smoke tests: `scripts/smoke_fund.py`, `scripts/smoke_ledger.py`.
   `client_order_id`; pure mappers unit-tested). Env-selected (`ALPACA_API_KEY` set → Alpaca, else
   paper). Still: async fill poller + reconciliation, and set `ALPACA_SECRET_KEY` in the deploy env to
   go live on the paper account.
-- **G10 · Brain not wired** — `krypton_clark` ↔ spine is the agentic premise and isn't connected yet.
+- **G10 · Brain wired** — ✅ `krypton_clark` has a `fund` skill (auto-discovered as `consult_fund`,
+  4 tests) that reads the spine and proposes orders through the same human-approval interrupt as
+  `krypton_pay` (resumed by `clark_mcp`'s `krypton_approve_interrupt`). Config via `CLARK_HARNESS_URL`.
+  Still: point it at the deployed harness; a studio UI is separate.
 
 ### Hygiene
 - **G11 · Test suite** — ✅ addressed. `tests/` runs 8 pytest cases (spine + ledger fairness) against
@@ -119,7 +122,7 @@ Smoke tests: `scripts/smoke_fund.py`, `scripts/smoke_ledger.py`.
 8. AuthN/Z (G4). **Gate: must land before any external LP access.**
 
 **P3 — the vision:**
-9. Wire the brain (`krypton_clark`) to the spine — fund skills + generalize the pay-interrupt to order approval (G10).
+9. ✅ Wire the brain (`krypton_clark`) to the spine — `fund` skill + pay-interrupt generalized to order approval (G10).
 10. quantconnect v2 — thin signal adapter posting tagged proposed orders.
 
 ---
