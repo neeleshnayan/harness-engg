@@ -228,8 +228,8 @@ The money-losing case: a timeout where you don't know if the order landed.
 | Repo | Layer | Role |
 |------|-------|------|
 | `quantconnect` (LEAN) | signal source | strategy engine; emits *proposed* commands; owns IBKR exec (pending §11) |
-| `strands_agents` | reasoning | turns operator intent into commands; composes read tools; explains decisions |
-| `clark_mcp` | tool surface | **repurposed** from 2-tool proxy → the fund's tool contract (reads + gated writes) |
+| `krypton_clark` (strands) | reasoning | **existing** orchestrator (skills + memory + `krypton_pay` interrupt approval); add fund skills that call the spine; generalize the pay-interrupt → order approval |
+| `clark_mcp` | tool surface | thin proxy to `krypton_clark`; new fund skills surface via `krypton_query` automatically — add explicit tools later |
 | `kryptonpay_backend` | spine (brain-body) | **extended** with event store, projections, connectors, risk, command handlers; holds custody |
 | frontend | interface | **thinned** to render projections + capture intent; all NAV/P&L/history math moves back to the spine |
 | `ClarkHarness` (this repo) | design + interface | architecture spec now; home for the operator REPL + LP view as they take shape |
