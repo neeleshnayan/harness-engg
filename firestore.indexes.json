@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "fund_events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "aggregate_id", "order": "ASCENDING" },
+        { "fieldPath": "seq", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

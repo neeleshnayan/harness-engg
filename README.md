@@ -58,3 +58,13 @@ python3 scripts/smoke_fund.py
 
 Runs deposit → propose → approve → fill → NAV strike, plus the idempotency
 guard and a risk rejection.
+
+## Tests
+
+```sh
+pip install -r requirements-dev.txt
+pytest
+```
+
+`tests/` runs the spine and ledger-fairness suites against the in-memory
+Firestore fake (no Firebase needed).

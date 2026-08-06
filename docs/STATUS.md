@@ -67,8 +67,9 @@ Smoke tests: `scripts/smoke_fund.py`, `scripts/smoke_ledger.py`.
 ### Security / ops — blockers before any external user
 - **G4 · No authN/Z.** `GET /fund/lp/{id}` exposes any LP's position; approve/decline are
   unauthenticated. **Must-fix before a single friend gets a link.**
-- **G5 · Firestore composite indexes missing.** Queries like `where(seq>) + order_by(seq)` and
-  `where(aggregate_id==) + order_by(seq)` need a `firestore.indexes.json`, or they fail in prod.
+- **G5 · Firestore composite indexes** — ✅ addressed. `firestore.indexes.json` ships the
+  `fund_events (aggregate_id, seq)` composite; single-field range+order queries use auto indexes.
+  (Still needs `firebase deploy --only firestore:indexes` at deploy time.)
 - **G6 · No scheduled NAV strike / async fill poller / reconciliation.** The LP value trend needs
   periodic strikes; real IBKR fills settle async and need a poller; the reconciler (event book vs.
   venue truth) is designed but unbuilt.
@@ -81,8 +82,8 @@ Smoke tests: `scripts/smoke_fund.py`, `scripts/smoke_ledger.py`.
 - **G10 · Brain not wired** — `krypton_clark` ↔ spine is the agentic premise and isn't connected yet.
 
 ### Hygiene
-- **G11 · No pytest suite / CI.** Smoke scripts assert but aren't a regression net; risk grows as the
-  surface multiplies.
+- **G11 · Test suite** — ✅ addressed. `tests/` runs 8 pytest cases (spine + ledger fairness) against
+  the in-memory fake. CI wiring still to do.
 - **G12 · Minimal error handling / observability.** No structured logging or config module.
 
 ---
@@ -90,9 +91,9 @@ Smoke tests: `scripts/smoke_fund.py`, `scripts/smoke_ledger.py`.
 ## 4. Prioritized backlog
 
 **P0 — harden the base (do before features multiply the surface):**
-1. Money precision: `Decimal` end-to-end (G1).
-2. Real pytest suite from the smoke scenarios + CI (G11).
-3. `firestore.indexes.json` + verify query patterns (G5).
+1. Money precision: `Decimal` end-to-end (G1). ← **next**
+2. ✅ pytest suite (`tests/`, 8 cases). Still: wire CI (G11).
+3. ✅ `firestore.indexes.json` (G5). Still: deploy the indexes.
 
 **P1 — the platform (stated priority):**
 4. Strategy layer: `strategy_id` tagging + attribution projection + registry (G7).
