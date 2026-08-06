@@ -8,11 +8,25 @@ interface Interrupt {
   id: string
   name: string
   reason: {
+    // krypton-pay-approval
     receiver_username?: string
     to_token?: string
     received_amount?: number
     from_token?: string
     operation?: string
+    // krypton-fund-order-approval
+    symbol?: string
+    side?: 'buy' | 'sell'
+    qty?: number
+    strategy_id?: string | null
+    order_id?: string
+    impact_preview?: {
+      quote_price?: number
+      notional_usd?: number
+      nav_before?: number
+      cash_before?: number
+      cash_after?: number
+    }
   }
 }
 
@@ -23,89 +37,101 @@ interface InterruptModalProps {
   onReject: (interruptId: string) => void
 }
 
-export default function InterruptModal({
-  isOpen,
-  interrupts,
-  onApprove,
-  onReject,
-}: InterruptModalProps) {
-  if (!interrupts || interrupts.length === 0) {
-    return null
-  }
+const money = (n?: number) =>
+  n == null ? '—' : `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-  // Find the krypton-pay-approval interrupt
-  const paymentInterrupt = interrupts.find((i) => i.name === 'krypton-pay-approval')
+export default function InterruptModal({ isOpen, interrupts, onApprove, onReject }: InterruptModalProps) {
+  if (!interrupts || interrupts.length === 0) return null
 
-  if (!paymentInterrupt) {
-    return null
-  }
+  const active = interrupts.find(
+    (i) => i.name === 'krypton-pay-approval' || i.name === 'krypton-fund-order-approval',
+  )
+  if (!active) return null
 
-  const { reason } = paymentInterrupt
-  const operation = reason.operation === 'swap_and_transfer' ? 'Swap & Transfer' : 'Transfer'
-  const fromToken = reason.from_token || reason.to_token
-  const toToken = reason.to_token || ''
+  const isOrder = active.name === 'krypton-fund-order-approval'
+  const { reason } = active
 
-  return (
+  const shell = (
+    title: string,
+    description: string,
+    body: React.ReactNode,
+    confirmLabel: string,
+  ) => (
     <Dialog open={isOpen} onOpenChange={() => {}}>
       <DialogContent className="sm:max-w-md bg-gradient-to-b from-[#1c2f2f]/95 to-[#0b1515]/95 backdrop-blur-xl border border-teal-700/50 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.8)]">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold text-teal-200">
-            Confirm Payment
-          </DialogTitle>
-          <DialogDescription className="text-teal-300/80 mt-2">
-            Please review and confirm the payment details below.
-          </DialogDescription>
+          <DialogTitle className="text-xl font-semibold text-teal-200">{title}</DialogTitle>
+          <DialogDescription className="text-teal-300/80 mt-2">{description}</DialogDescription>
         </DialogHeader>
-
         <div className="mt-4 space-y-4">
-          {/* Payment Details */}
           <div className="bg-teal-900/30 rounded-lg p-4 border border-teal-700/30">
-            <div className="space-y-3">
-              {reason.operation === 'swap_and_transfer' && reason.from_token && (
-                <div className="flex justify-between items-center">
-                  <span className="text-teal-200/80">Swap From:</span>
-                  <span className="text-teal-100 font-medium">
-                    {reason.from_token}
-                  </span>
-                </div>
-              )}
-              <div className="flex justify-between items-center">
-                <span className="text-teal-200/80">Send Amount:</span>
-                <span className="text-teal-100 font-semibold">
-                  {reason.received_amount} {toToken}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-teal-200/80">To:</span>
-                <span className="text-teal-100 font-medium">
-                  @{reason.receiver_username}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-teal-200/80">Operation:</span>
-                <span className="text-teal-100 font-medium">{operation}</span>
-              </div>
-            </div>
+            <div className="space-y-3">{body}</div>
           </div>
-
-          {/* Action Buttons */}
           <div className="flex gap-3 pt-2">
             <Button
-              onClick={() => onReject(paymentInterrupt.id)}
+              onClick={() => onReject(active.id)}
               variant="outline"
               className="flex-1 bg-red-900/20 hover:bg-red-900/40 border-red-700/50 text-red-200 hover:text-red-100"
             >
-              Cancel
+              {isOrder ? 'Decline' : 'Cancel'}
             </Button>
-            <Button
-              onClick={() => onApprove(paymentInterrupt.id)}
-              className="flex-1 bg-teal-600 hover:bg-teal-700 text-white"
-            >
-              Confirm
+            <Button onClick={() => onApprove(active.id)} className="flex-1 bg-teal-600 hover:bg-teal-700 text-white">
+              {confirmLabel}
             </Button>
           </div>
         </div>
       </DialogContent>
     </Dialog>
+  )
+
+  const Row = ({ label, value, strong }: { label: string; value: React.ReactNode; strong?: boolean }) => (
+    <div className="flex justify-between items-center">
+      <span className="text-teal-200/80">{label}:</span>
+      <span className={`text-teal-100 ${strong ? 'font-semibold' : 'font-medium'}`}>{value}</span>
+    </div>
+  )
+
+  if (isOrder) {
+    const p = reason.impact_preview || {}
+    const side = (reason.side || 'buy').toUpperCase()
+    return shell(
+      'Confirm Trade',
+      'Review this order before it executes.',
+      <>
+        <Row
+          label="Order"
+          value={
+            <span className={reason.side === 'sell' ? 'text-red-300' : 'text-emerald-300'}>
+              {side} {reason.qty} {reason.symbol}
+            </span>
+          }
+          strong
+        />
+        {reason.strategy_id ? <Row label="Strategy" value={reason.strategy_id} /> : null}
+        {p.quote_price != null ? <Row label="Price" value={money(p.quote_price)} /> : null}
+        {p.notional_usd != null ? <Row label="Notional" value={money(p.notional_usd)} strong /> : null}
+        {p.cash_before != null && p.cash_after != null ? (
+          <Row label="Cash" value={`${money(p.cash_before)} → ${money(p.cash_after)}`} />
+        ) : null}
+      </>,
+      'Approve',
+    )
+  }
+
+  // krypton-pay-approval (unchanged behaviour)
+  const operation = reason.operation === 'swap_and_transfer' ? 'Swap & Transfer' : 'Transfer'
+  const toToken = reason.to_token || ''
+  return shell(
+    'Confirm Payment',
+    'Please review and confirm the payment details below.',
+    <>
+      {reason.operation === 'swap_and_transfer' && reason.from_token ? (
+        <Row label="Swap From" value={reason.from_token} />
+      ) : null}
+      <Row label="Send Amount" value={`${reason.received_amount} ${toToken}`} strong />
+      <Row label="To" value={`@${reason.receiver_username}`} />
+      <Row label="Operation" value={operation} />
+    </>,
+    'Confirm',
   )
 }
