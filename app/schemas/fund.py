@@ -18,3 +18,22 @@ class ApprovalRequest(BaseModel):
 
 class StrikeNavRequest(BaseModel):
     actor: str = Field("system", description="Who triggered the strike")
+
+
+class ActorRequest(BaseModel):
+    actor: str = Field(..., description="Who is taking the action (the manager)")
+
+
+class SubscribeRequest(BaseModel):
+    lp_id: str = Field(..., description="Stable identifier for the LP")
+    usd_amount: float = Field(..., gt=0, description="Amount the LP is investing, in USD")
+    lp_name: Optional[str] = Field(None, description="Display name for the LP")
+    actor: str = Field("manager", description="Who recorded the subscription")
+
+
+class RedeemRequest(BaseModel):
+    lp_id: str = Field(..., description="LP redeeming units")
+    units: Optional[float] = Field(
+        None, gt=0, description="Units to redeem; omit to redeem the full holding"
+    )
+    actor: str = Field("manager", description="Who recorded the redemption")

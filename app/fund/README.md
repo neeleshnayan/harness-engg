@@ -1,4 +1,4 @@
-# `app/fund` — the harness spine (Step 1 scaffold)
+# `app/fund` — the harness spine (Steps 1 + 3)
 
 The event-sourced core the fund harness is built on. Everything the system
 knows is derived by folding an append-only event log; audit, reconciliation,
@@ -29,8 +29,23 @@ decline are both events — the audit trail is complete by construction.
 | `projections/nav.py` | `NavService` — `compute()` / `strike()` NAV and NAV-per-unit → `fund_nav_snapshots` |
 | `risk.py` | `RiskGate` — hard-reject tier (position/notional/cash limits); Step 4 adds thresholds |
 | `pipeline.py` | `CommandPipeline` — the propose/approve/decline write path |
+| `ledger.py` | `LedgerService` — subscribe/redeem: two-phase confirm, mint/burn units at NAV |
+| `projections/holdings.py` | `HoldingsProjection` — per-LP units + value ("what do I own?") |
 
-HTTP surface: `app/api/v1/fund.py`, mounted at `/api/v1/fund/*`.
+HTTP surface: `app/api/v1/fund.py`, mounted at `/api/v1/fund/*` (orders, NAV,
+positions, LP subscribe/redeem, per-LP holdings, audit event log).
+
+## Unit ledger
+
+```
+subscribe: SubscriptionRequested → (confirm) → CashConfirmed + UnitsIssued
+redeem:    RedemptionRequested   → (confirm) → UnitsBurned  + PayoutSent
+```
+
+Units mint at the NAV-per-unit struck *before* the new cash is counted, so a
+subscription never dilutes existing LPs (and a redemption is NAV-neutral).
+Deposits/payouts move off-platform in v0; "confirm" is the manager attesting the
+wire landed / the payout was sent.
 
 ## Swapping the venue
 
@@ -45,13 +60,17 @@ Nothing else changes — the pipeline, projections and API are venue-agnostic.
 ## Smoke test
 
 The spine runs without a live Firestore via an in-memory fake (no
-`firebase_admin` install needed): see `scripts/smoke_fund.py`, which
-exercises deposit → propose → approve → fill → NAV strike, the idempotency
-guard, and a risk rejection.
+`firebase_admin` install needed):
+
+- `scripts/smoke_fund.py` — deposit → propose → approve → fill → NAV strike, the
+  idempotency guard, and a risk rejection.
+- `scripts/smoke_ledger.py` — three LPs subscribe at different NAVs, the fund
+  gains, everyone revalues pro-rata; a later subscription doesn't dilute, and a
+  full redemption is NAV-neutral.
 
 ## Not yet (later steps)
 
 - **Step 2** — `IBKRConnector` (paper account) + async fill poller + reconciler.
-- **Step 3** — subscribe/redeem commands: two-phase cash confirm, mint/burn units at struck NAV.
 - **Step 4** — risk threshold/escalation tier.
-- Scheduled NAV strike + reconciliation (reuse the existing 30-min scheduler pattern).
+- Scheduled NAV strike + reconciliation (reuse the 30-min scheduler pattern).
+- LP-facing read UI on top of `/fund/lp/*`.
