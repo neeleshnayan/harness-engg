@@ -1,0 +1,119 @@
+"""Append-only event store — the fund's single source of truth.
+
+Everything the harness knows about the fund is derived by folding these events.
+Audit, reconciliation, NAV, positions and the unit ledger are all projections
+over this log (see ``app/fund/projections``). Events are immutable: state is
+never mutated in place, only appended.
+
+Storage: Firestore collection ``fund_events``. A global monotonic ``seq`` is
+assigned via an atomic counter so the log has a total order that is cheap to
+page through. Per-aggregate ordering is recovered by filtering on
+``aggregate_id`` and sorting by ``seq``.
+
+At Friends & Family scale this is more than enough; if throughput ever
+outgrows Firestore the same ``EventStore`` interface can front a real event
+store or a Temporal-backed pipeline without touching callers.
+"""
+
+from __future__ import annotations
+
+import uuid
+from dataclasses import dataclass, field, asdict
+from datetime import datetime, timezone
+from enum import Enum
+from typing import Any, Optional
+
+from firebase_admin import firestore
+
+EVENTS_COLLECTION = "fund_events"
+_COUNTER_DOC = ("fund_meta", "event_counter")
+
+
+class EventType(str, Enum):
+    """The phase-1 event catalog (see docs/architecture.md §4 in ClarkHarness)."""
+
+    # Order lifecycle
+    ORDER_PROPOSED = "OrderProposed"
+    ORDER_REJECTED = "OrderRejected"            # failed the risk gate (terminal)
+    ORDER_APPROVED = "OrderApproved"
+    ORDER_DECLINED = "OrderDeclined"            # human rejected (terminal)
+    ORDER_SUBMITTED = "OrderSubmitted"          # connector accepted it
+    ORDER_PARTIALLY_FILLED = "OrderPartiallyFilled"
+    ORDER_FILLED = "OrderFilled"                # terminal
+    ORDER_FAILED = "OrderFailed"                # terminal
+
+    # Subscription / redemption (unit ledger — Step 3)
+    SUBSCRIPTION_REQUESTED = "SubscriptionRequested"
+    CASH_CONFIRMED = "CashConfirmed"
+    UNITS_ISSUED = "UnitsIssued"
+    REDEMPTION_REQUESTED = "RedemptionRequested"
+    UNITS_BURNED = "UnitsBurned"
+    PAYOUT_SENT = "PayoutSent"
+
+    # Valuation & reconciliation
+    NAV_STRUCK = "NavStruck"
+    RECONCILIATION_MISMATCH = "ReconciliationMismatch"
+
+
+@dataclass
+class Event:
+    """An immutable fact. ``seq`` is assigned by the store on append."""
+
+    aggregate_id: str                 # e.g. order id, lp id, or "fund"
+    aggregate_type: str               # "order" | "lp" | "fund"
+    type: EventType
+    payload: dict[str, Any]
+    actor: str                        # who/what caused it: user id, "agent", "system"
+    event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    seq: Optional[int] = None
+    ts: Optional[str] = None          # ISO-8601 UTC, set on append
+
+    def to_dict(self) -> dict[str, Any]:
+        d = asdict(self)
+        d["type"] = self.type.value
+        return d
+
+
+class EventStore:
+    """Append-only writer/reader over ``fund_events``."""
+
+    def __init__(self, db=None):
+        self._db = db or firestore.client()
+
+    def append(self, event: Event) -> Event:
+        """Assign a global seq + server timestamp and persist. Returns the stored event."""
+
+        counter_ref = self._db.collection(_COUNTER_DOC[0]).document(_COUNTER_DOC[1])
+
+        @firestore.transactional
+        def _txn(txn) -> int:
+            snap = counter_ref.get(transaction=txn)
+            current = (snap.to_dict() or {}).get("seq", 0) if snap.exists else 0
+            nxt = current + 1
+            txn.set(counter_ref, {"seq": nxt}, merge=True)
+            return nxt
+
+        event.seq = _txn(self._db.transaction())
+        event.ts = datetime.now(timezone.utc).isoformat()
+
+        self._db.collection(EVENTS_COLLECTION).document(event.event_id).set(event.to_dict())
+        return event
+
+    def by_aggregate(self, aggregate_id: str) -> list[dict[str, Any]]:
+        """All events for one aggregate, in order."""
+        q = (
+            self._db.collection(EVENTS_COLLECTION)
+            .where("aggregate_id", "==", aggregate_id)
+            .order_by("seq")
+        )
+        return [d.to_dict() for d in q.stream()]
+
+    def stream(self, since_seq: int = 0, limit: int = 200) -> list[dict[str, Any]]:
+        """The global log from ``since_seq`` (exclusive), oldest first — the audit trail."""
+        q = (
+            self._db.collection(EVENTS_COLLECTION)
+            .where("seq", ">", since_seq)
+            .order_by("seq")
+            .limit(limit)
+        )
+        return [d.to_dict() for d in q.stream()]
