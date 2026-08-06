@@ -18,6 +18,7 @@ is extracted into pure functions that are unit-tested without a network.
 from __future__ import annotations
 
 import os
+import time
 from typing import Any, Optional
 
 from app.fund.connectors.base import (
@@ -71,12 +72,18 @@ def map_positions(raw: list[Any]) -> list[Position]:
 class AlpacaConnector(Connector):
     name = "alpaca"
 
-    def __init__(self, key=None, secret=None, paper=None, trading=None, data=None):
+    def __init__(self, key=None, secret=None, paper=None, trading=None, data=None,
+                 price_ttl=None, clock=None):
         self._key = key or os.getenv("ALPACA_API_KEY")
         self._secret = secret or os.getenv("ALPACA_SECRET_KEY")
         self._paper = (os.getenv("ALPACA_PAPER", "true").lower() != "false") if paper is None else paper
         self._t = trading   # inject in tests; else built lazily from creds
         self._d = data
+        # Short TTL cache so repeated NAV computes (cockpit polls every ~4s) don't
+        # hammer the data API. Tunable via ALPACA_PRICE_TTL (seconds).
+        self._ttl = float(os.getenv("ALPACA_PRICE_TTL", "5")) if price_ttl is None else float(price_ttl)
+        self._clock = clock or time.monotonic
+        self._pcache: dict[str, tuple[float, float]] = {}
 
     # --- lazy SDK clients --------------------------------------------------
     def _trading(self):
@@ -97,6 +104,15 @@ class AlpacaConnector(Connector):
 
     # --- pricing -----------------------------------------------------------
     def price(self, symbol: str) -> float:
+        now = self._clock()
+        hit = self._pcache.get(symbol)
+        if hit is not None and (now - hit[0]) < self._ttl:
+            return hit[1]
+        px = self._fetch_price(symbol)
+        self._pcache[symbol] = (now, px)
+        return px
+
+    def _fetch_price(self, symbol: str) -> float:
         from alpaca.data.requests import StockLatestTradeRequest
         res = self._data_client().get_stock_latest_trade(
             StockLatestTradeRequest(symbol_or_symbols=symbol)

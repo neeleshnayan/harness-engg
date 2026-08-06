@@ -126,6 +126,12 @@ Smoke tests: `scripts/smoke_fund.py`, `scripts/smoke_ledger.py`.
 
 ## 5. Recommended next move
 
-P0 is done — the base is hardened (Decimal money, test suite, indexes). Next is
-**P1: the strategy layer** (`strategy_id` tagging + per-strategy attribution +
-registry) then the **strategy-aware operator cockpit** — the stated priority arc.
+P0 + P1 done; execution + async settlement + reconciliation + scheduler done;
+Alpaca connector (with price cache) done. **Go-live prep** shipped:
+`scripts/preflight.py` + the [`DEPLOY.md`](./DEPLOY.md) runbook — set
+`ALPACA_SECRET_KEY`, run preflight, seed LPs/strategy, verify the approve →
+Alpaca → fill → NAV loop.
+
+Remaining before real LPs: **auth** (G4 — `/fund/lp/{id}` and writes are open;
+the hard gate before sharing links). Then **wire the brain** (P3, the agentic
+premise), plus studio UI, Alpaca-bars into backtests, and CI.

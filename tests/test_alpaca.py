@@ -63,6 +63,27 @@ def test_idempotency_returns_existing_without_resubmit():
     assert trading.submitted == []  # never double-submitted
 
 
+def test_price_cache_ttl():
+    clock = {"t": 0.0}
+
+    class Conn(AlpacaConnector):
+        def __init__(self, **kw):
+            super().__init__(**kw)
+            self.fetches = 0
+
+        def _fetch_price(self, symbol):
+            self.fetches += 1
+            return 100.0 + self.fetches  # changes each real fetch
+
+    c = Conn(price_ttl=5, clock=lambda: clock["t"])
+    p1 = c.price("AAPL")
+    p2 = c.price("AAPL")          # within TTL -> cached, no refetch
+    assert p1 == p2 and c.fetches == 1
+    clock["t"] = 6.0              # past TTL
+    p3 = c.price("AAPL")          # refetch
+    assert c.fetches == 2 and p3 != p1
+
+
 def test_fresh_submit_sets_client_order_id():
     class Conn(AlpacaConnector):
         # avoid importing alpaca-py for the request object in this unit test
