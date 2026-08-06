@@ -19,34 +19,43 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Any, Callable, Optional
 
 from firebase_admin import firestore
 
 from app.fund.events import Event, EventStore, EventType
+from app.fund.money import D, f, money, units
 from app.fund.projections.positions import Book, PositionsProjection
 
 NAV_SNAPSHOTS = "fund_nav_snapshots"
-BASE_NAV_PER_UNIT = 1.00
+BASE_NAV_PER_UNIT = Decimal("1.00")
+_NAVPU_Q = Decimal("0.000001")
+_EPS = Decimal("1e-9")
 
 
 @dataclass
 class NavSnapshot:
     ts: str
-    total_nav_usd: float
-    units_outstanding: float
-    nav_per_unit: float
-    breakdown: dict[str, float]                 # {"positions": x, "cash": y}
+    total_nav_usd: Decimal
+    units_outstanding: Decimal
+    nav_per_unit: Decimal
+    breakdown: dict[str, Decimal]               # {"positions": x, "cash": y}
     positions: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
+        # Downcast to float at the JSON/storage edge — display, not accounting.
         return {
             "ts": self.ts,
-            "total_nav_usd": self.total_nav_usd,
-            "units_outstanding": self.units_outstanding,
-            "nav_per_unit": self.nav_per_unit,
-            "breakdown": self.breakdown,
-            "positions": self.positions,
+            "total_nav_usd": f(self.total_nav_usd),
+            "units_outstanding": f(self.units_outstanding),
+            "nav_per_unit": f(self.nav_per_unit),
+            "breakdown": {k: f(v) for k, v in self.breakdown.items()},
+            "positions": [
+                {"symbol": p["symbol"], "qty": f(p["qty"]),
+                 "mark": f(p["mark"]), "usd_value": f(p["usd_value"])}
+                for p in self.positions
+            ],
         }
 
 
@@ -67,12 +76,12 @@ class NavService:
         """Value the current book without persisting — safe to call any time."""
         book = book or self._proj.build()
 
-        positions_value = 0.0
+        positions_value = Decimal("0")
         positions_detail: list[dict[str, Any]] = []
         for symbol, pos in book.positions.items():
-            if abs(pos["qty"]) < 1e-9:
+            if abs(pos["qty"]) < _EPS:
                 continue
-            mark = self._price(symbol)
+            mark = D(self._price(symbol))
             value = pos["qty"] * mark
             positions_value += value
             positions_detail.append(
@@ -80,15 +89,15 @@ class NavService:
             )
 
         total = positions_value + book.cash
-        units = book.units_outstanding
-        nav_per_unit = (total / units) if units > 1e-9 else BASE_NAV_PER_UNIT
+        units_out = book.units_outstanding
+        navpu = (total / units_out) if units_out > _EPS else BASE_NAV_PER_UNIT
 
         return NavSnapshot(
             ts=datetime.now(timezone.utc).isoformat(),
-            total_nav_usd=round(total, 6),
-            units_outstanding=round(units, 6),
-            nav_per_unit=round(nav_per_unit, 6),
-            breakdown={"positions": round(positions_value, 6), "cash": round(book.cash, 6)},
+            total_nav_usd=money(total),
+            units_outstanding=units(units_out),
+            nav_per_unit=navpu.quantize(_NAVPU_Q),
+            breakdown={"positions": money(positions_value), "cash": money(book.cash)},
             positions=positions_detail,
         )
 

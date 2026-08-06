@@ -54,9 +54,9 @@ Smoke tests: `scripts/smoke_fund.py`, `scripts/smoke_ledger.py`.
 ## 3. Gap analysis (honest)
 
 ### Foundational correctness — fix before piling on features
-- **G1 · Money/units use `float`.** Rounding error accumulates across NAV/unit, ownership %, and
-  payouts — a real latent bug for anything holding real money. Move to `Decimal` (or integer minor
-  units) end-to-end. *Cheap now, painful later.*
+- **G1 · Money/units precision** — ✅ addressed. `Decimal` end-to-end via `app/fund/money.py`: exact
+  arithmetic and exact stored truth (Decimals serialized to strings in Firestore); connectors stay
+  `float` at the venue edge; JSON responses downcast to `float` for display only. Guarded by the tests.
 - **G2 · NAV-strike timing not enforced.** `confirm_subscription` mints at the live `compute()` rather
   than a discrete *next strike*; "don't strike over in-flight fills" isn't scheduled. Acceptable for
   v0 manual ops, but the discipline should be explicit.
@@ -90,8 +90,8 @@ Smoke tests: `scripts/smoke_fund.py`, `scripts/smoke_ledger.py`.
 
 ## 4. Prioritized backlog
 
-**P0 — harden the base (do before features multiply the surface):**
-1. Money precision: `Decimal` end-to-end (G1). ← **next**
+**P0 — harden the base — ✅ done:**
+1. ✅ Money precision: `Decimal` end-to-end (`app/fund/money.py`) (G1).
 2. ✅ pytest suite (`tests/`, 8 cases). Still: wire CI (G11).
 3. ✅ `firestore.indexes.json` (G5). Still: deploy the indexes.
 
@@ -112,7 +112,6 @@ Smoke tests: `scripts/smoke_fund.py`, `scripts/smoke_ledger.py`.
 
 ## 5. Recommended next move
 
-Do **P0** before building the strategy layer and cockpit. Money precision and a
-test suite are cheapest to fix now and get more expensive with every feature that
-depends on them; the index file is a one-shot go-live unblocker. Then P1
-(strategy layer → cockpit), which is the priority arc.
+P0 is done — the base is hardened (Decimal money, test suite, indexes). Next is
+**P1: the strategy layer** (`strategy_id` tagging + per-strategy attribution +
+registry) then the **strategy-aware operator cockpit** — the stated priority arc.

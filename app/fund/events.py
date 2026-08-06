@@ -25,6 +25,8 @@ from typing import Any, Optional
 
 from firebase_admin import firestore
 
+from app.fund.money import encode
+
 EVENTS_COLLECTION = "fund_events"
 _COUNTER_DOC = ("fund_meta", "event_counter")
 
@@ -96,7 +98,7 @@ class EventStore:
         event.seq = _txn(self._db.transaction())
         event.ts = datetime.now(timezone.utc).isoformat()
 
-        self._db.collection(EVENTS_COLLECTION).document(event.event_id).set(event.to_dict())
+        self._db.collection(EVENTS_COLLECTION).document(event.event_id).set(encode(event.to_dict()))
         return event
 
     def by_aggregate(self, aggregate_id: str) -> list[dict[str, Any]]:

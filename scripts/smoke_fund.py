@@ -133,13 +133,13 @@ assert res2["status"] == "filled"
 print("4) Book now reflects the fill")
 book = proj.build()
 line(f"cash={book.cash}  positions={book.positions}")
-assert abs(book.cash - 8000.0) < 1e-6
+assert abs(float(book.cash) - 8000.0) < 1e-6
 assert abs(book.positions["AAPL"]["qty"] - 10) < 1e-6
 
 print("5) NAV holds (2000 in AAPL + 8000 cash = 10000)")
 snap2 = nav.strike(actor="system")
 line(f"NAV={snap2.total_nav_usd}  breakdown={snap2.breakdown}")
-assert abs(snap2.total_nav_usd - 10000.0) < 1e-6
+assert abs(float(snap2.total_nav_usd) - 10000.0) < 1e-6
 assert nav.latest()["total_nav_usd"] == 10000.0
 
 print("6) Idempotency: re-approving the same order is refused")

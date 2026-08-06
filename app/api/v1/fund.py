@@ -15,6 +15,7 @@ from app.fund.connectors.base import Order, Side
 from app.fund.connectors.paper import PaperConnector
 from app.fund.events import EventStore
 from app.fund.ledger import LedgerError, LedgerService
+from app.fund.money import D, f
 from app.fund.pipeline import CommandError, CommandPipeline
 from app.fund.projections.holdings import HoldingsProjection
 from app.fund.projections.nav import NavService
@@ -58,9 +59,12 @@ def get_positions():
     """The event-sourced book: cash, units outstanding, positions."""
     book = _projection.build()
     return {
-        "cash": book.cash,
-        "units_outstanding": book.units_outstanding,
-        "positions": book.positions,
+        "cash": f(book.cash),
+        "units_outstanding": f(book.units_outstanding),
+        "positions": {
+            s: {"qty": f(p["qty"]), "avg_price": f(p["avg_price"])}
+            for s, p in book.positions.items()
+        },
     }
 
 
@@ -68,7 +72,7 @@ def get_positions():
 def get_lps():
     """Every LP with units and current value (the manager's LP book)."""
     nav = _nav.compute()
-    return {"nav_per_unit": nav.nav_per_unit, "lps": _holdings.with_values(nav.nav_per_unit)}
+    return {"nav_per_unit": f(nav.nav_per_unit), "lps": _holdings.with_values(nav.nav_per_unit)}
 
 
 @router.get("/fund/lp/{lp_id}")
@@ -76,18 +80,19 @@ def get_lp(lp_id: str):
     """One LP's managed-fund view: units, value, and share of the fund."""
     nav = _nav.compute()
     rec = _holdings.build().get(lp_id)
-    if rec is None or abs(rec["units"]) < 1e-9:
+    if rec is None or abs(rec["units"]) < D("1e-9"):
         raise HTTPException(status_code=404, detail=f"no holdings for {lp_id}")
     units = rec["units"]
-    outstanding = nav.units_outstanding or units
+    outstanding = nav.units_outstanding if nav.units_outstanding > 0 else units
     return {
         "lp_id": lp_id,
         "name": rec["name"],
-        "units": round(units, 6),
-        "value_usd": round(units * nav.nav_per_unit, 2),
-        "nav_per_unit": nav.nav_per_unit,
-        "ownership_pct": round(100.0 * units / outstanding, 4),
+        "units": f(units),
+        "value_usd": f((units * nav.nav_per_unit).quantize(D("0.01"))),
+        "nav_per_unit": f(nav.nav_per_unit),
+        "ownership_pct": f((D(100) * units / outstanding).quantize(D("0.0001"))),
     }
+
 
 
 @router.get("/fund/events")

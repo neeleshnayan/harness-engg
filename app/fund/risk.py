@@ -9,8 +9,10 @@ threshold/escalation tier; the seams are here.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from decimal import Decimal
 
 from app.fund.connectors.base import Order, Side
+from app.fund.money import D
 from app.fund.projections.nav import NavSnapshot
 
 
@@ -34,8 +36,11 @@ class RiskGate:
 
     def check(self, order: Order, quote_price: float, nav: NavSnapshot) -> RiskDecision:
         breaches: list[str] = []
-        notional = order.qty * quote_price
-        nav_usd = nav.total_nav_usd
+        notional = D(order.qty) * D(quote_price)
+        nav_usd = nav.total_nav_usd                       # Decimal
+        max_order = D(self.limits.max_order_notional_pct)
+        max_pos = D(self.limits.max_position_pct)
+        buffer = D(self.limits.min_cash_buffer)
 
         # Sane bounds
         if order.qty <= 0:
@@ -43,29 +48,30 @@ class RiskGate:
 
         if nav_usd > 0:
             # Single-order size cap
-            if notional > self.limits.max_order_notional_pct * nav_usd:
+            if notional > max_order * nav_usd:
                 breaches.append(
-                    f"order notional {notional:.2f} exceeds "
-                    f"{self.limits.max_order_notional_pct:.0%} of NAV ({nav_usd:.2f})"
+                    f"order notional {float(notional):.2f} exceeds "
+                    f"{float(max_order):.0%} of NAV ({float(nav_usd):.2f})"
                 )
             # Resulting single-name concentration (rough: current + this order)
             current = next(
-                (p["usd_value"] for p in nav.positions if p["symbol"] == order.symbol), 0.0
+                (p["usd_value"] for p in nav.positions if p["symbol"] == order.symbol),
+                Decimal("0"),
             )
             projected = current + (notional if order.side == Side.BUY else -notional)
-            if abs(projected) > self.limits.max_position_pct * nav_usd:
+            if abs(projected) > max_pos * nav_usd:
                 breaches.append(
-                    f"{order.symbol} would be {abs(projected) / nav_usd:.0%} of NAV "
-                    f"(limit {self.limits.max_position_pct:.0%})"
+                    f"{order.symbol} would be {float(abs(projected) / nav_usd):.0%} of NAV "
+                    f"(limit {float(max_pos):.0%})"
                 )
 
         # Cash buffer on buys
         if order.side == Side.BUY:
-            post_cash = nav.breakdown.get("cash", 0.0) - notional
-            if post_cash < self.limits.min_cash_buffer:
+            post_cash = nav.breakdown.get("cash", Decimal("0")) - notional
+            if post_cash < buffer:
                 breaches.append(
-                    f"buy would drop cash to {post_cash:.2f}, below buffer "
-                    f"{self.limits.min_cash_buffer:.2f}"
+                    f"buy would drop cash to {float(post_cash):.2f}, below buffer "
+                    f"{float(buffer):.2f}"
                 )
 
         return RiskDecision(ok=not breaches, breaches=breaches)

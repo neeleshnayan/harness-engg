@@ -7,9 +7,11 @@ the current NAV-per-unit (passed in), so a single NAV drives every LP's number.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 from app.fund.events import EventStore, EventType
+from app.fund.money import D, f, money
 
 
 class HoldingsProjection:
@@ -20,7 +22,7 @@ class HoldingsProjection:
         holdings: dict[str, dict[str, Any]] = {}
 
         def lp(lp_id: str) -> dict[str, Any]:
-            return holdings.setdefault(lp_id, {"lp_id": lp_id, "name": None, "units": 0.0})
+            return holdings.setdefault(lp_id, {"lp_id": lp_id, "name": None, "units": Decimal("0")})
 
         for e in self._store.stream(since_seq=0, limit=100_000):
             p = e.get("payload", {})
@@ -30,21 +32,22 @@ class HoldingsProjection:
                 if p.get("lp_name"):
                     rec["name"] = p["lp_name"]
             elif etype == EventType.UNITS_ISSUED.value:
-                lp(p["lp_id"])["units"] += float(p["units"])
+                lp(p["lp_id"])["units"] += D(p["units"])
             elif etype == EventType.UNITS_BURNED.value:
-                lp(p["lp_id"])["units"] -= float(p["units"])
+                lp(p["lp_id"])["units"] -= D(p["units"])
 
         return holdings
 
-    def with_values(self, nav_per_unit: float) -> list[dict[str, Any]]:
+    def with_values(self, nav_per_unit: Decimal) -> list[dict[str, Any]]:
+        navpu = D(nav_per_unit)
         out = []
         for rec in self.build().values():
-            if abs(rec["units"]) < 1e-9:
+            if abs(rec["units"]) < D("1e-9"):
                 continue
             out.append({
                 "lp_id": rec["lp_id"],
                 "name": rec["name"],
-                "units": round(rec["units"], 6),
-                "value_usd": round(rec["units"] * nav_per_unit, 2),
+                "units": f(rec["units"]),
+                "value_usd": f(money(rec["units"] * navpu)),
             })
         return sorted(out, key=lambda r: r["value_usd"], reverse=True)

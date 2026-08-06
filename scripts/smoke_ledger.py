@@ -32,7 +32,7 @@ holdings = HoldingsProjection(store)
 
 
 def approx(a, b, tol=1e-6):
-    return abs(a - b) < tol
+    return abs(float(a) - float(b)) < tol
 
 
 def sub(lp, amount, name):

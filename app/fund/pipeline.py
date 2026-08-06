@@ -18,6 +18,7 @@ from typing import Any
 
 from app.fund.connectors.base import Connector, FillState, Order, Side
 from app.fund.events import Event, EventStore, EventType
+from app.fund.money import D, f, money
 from app.fund.projections.nav import NavService
 from app.fund.risk import RiskGate
 
@@ -61,17 +62,15 @@ class CommandPipeline:
             )
             return {"status": "rejected", "order_id": order_id, "breaches": breaches}
 
-        notional = order.qty * quote.price
+        notional = D(order.qty) * D(quote.price)
+        cash_before = nav.breakdown.get("cash", D(0))
+        cash_after = cash_before - (notional if order.side == Side.BUY else -notional)
         preview = {
-            "quote_price": quote.price,
-            "notional_usd": round(notional, 2),
-            "nav_before": nav.total_nav_usd,
-            "cash_before": nav.breakdown.get("cash", 0.0),
-            "cash_after": round(
-                nav.breakdown.get("cash", 0.0)
-                - (notional if order.side == Side.BUY else -notional),
-                2,
-            ),
+            "quote_price": f(D(quote.price)),
+            "notional_usd": f(money(notional)),
+            "nav_before": f(nav.total_nav_usd),
+            "cash_before": f(cash_before),
+            "cash_after": f(money(cash_after)),
         }
         self._store.append(
             Event(
@@ -122,15 +121,16 @@ class CommandPipeline:
                     payload={
                         "symbol": order.symbol,
                         "side": order.side.value,
-                        "filled_qty": status.filled_qty,
-                        "avg_price": status.avg_price,
-                        "fees": status.fees,
+                        # Exact-decimal truth; venue floats converted at ingestion.
+                        "filled_qty": D(status.filled_qty),
+                        "avg_price": D(status.avg_price),
+                        "fees": D(status.fees),
                     },
                     actor="system",
                 )
             )
             return {"status": "filled", "order_id": order_id,
-                    "filled_qty": status.filled_qty, "avg_price": status.avg_price}
+                    "filled_qty": f(D(status.filled_qty)), "avg_price": f(D(status.avg_price))}
 
         self._store.append(
             Event(

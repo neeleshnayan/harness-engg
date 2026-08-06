@@ -24,6 +24,7 @@ import uuid
 from typing import Any, Optional
 
 from app.fund.events import Event, EventStore, EventType
+from app.fund.money import D, f
 from app.fund.projections.nav import NavService
 
 
@@ -48,21 +49,21 @@ class LedgerService:
                 aggregate_id=sub_id,
                 aggregate_type="subscription",
                 type=EventType.SUBSCRIPTION_REQUESTED,
-                payload={"lp_id": lp_id, "lp_name": lp_name, "usd_amount": usd_amount},
+                payload={"lp_id": lp_id, "lp_name": lp_name, "usd_amount": D(usd_amount)},
                 actor=actor,
             )
         )
         return {"status": "pending_cash", "subscription_id": sub_id,
-                "lp_id": lp_id, "usd_amount": usd_amount}
+                "lp_id": lp_id, "usd_amount": float(usd_amount)}
 
     def confirm_subscription(self, subscription_id: str, actor: str) -> dict[str, Any]:
         """Cash has landed → mint units at the current (pre-deposit) NAV-per-unit."""
         req = self._require_last(subscription_id, EventType.SUBSCRIPTION_REQUESTED, "subscription")
         lp_id = req["lp_id"]
-        amount = float(req["usd_amount"])
+        amount = D(req["usd_amount"])
 
-        nav_per_unit = self._nav.compute().nav_per_unit  # struck before this deposit
-        units = amount / nav_per_unit
+        nav_per_unit = self._nav.compute().nav_per_unit  # Decimal, struck before this deposit
+        issued = amount / nav_per_unit
 
         # Cash and units enter together so NAV-per-unit is unchanged for everyone else.
         self._store.append(
@@ -71,11 +72,11 @@ class LedgerService:
         )
         self._store.append(
             Event(subscription_id, "subscription", EventType.UNITS_ISSUED,
-                  {"lp_id": lp_id, "units": units, "nav_per_unit": nav_per_unit}, actor)
+                  {"lp_id": lp_id, "units": issued, "nav_per_unit": nav_per_unit}, actor)
         )
         return {"status": "issued", "subscription_id": subscription_id, "lp_id": lp_id,
-                "usd_amount": amount, "units_issued": round(units, 6),
-                "nav_per_unit": nav_per_unit}
+                "usd_amount": f(amount), "units_issued": f(issued),
+                "nav_per_unit": f(nav_per_unit)}
 
     # --- redeem ------------------------------------------------------------
     def request_redemption(
@@ -84,41 +85,41 @@ class LedgerService:
         """Redeem ``units`` (or the LP's full holding when units is None)."""
         from app.fund.projections.holdings import HoldingsProjection
 
-        held = HoldingsProjection(self._store).build().get(lp_id, {}).get("units", 0.0)
-        units = held if units is None else units
-        if units <= 0:
+        held = HoldingsProjection(self._store).build().get(lp_id, {}).get("units", D(0))
+        want = held if units is None else D(units)
+        if want <= 0:
             raise LedgerError(f"{lp_id} has no units to redeem")
-        if units - held > 1e-9:
-            raise LedgerError(f"{lp_id} holds {held} units, cannot redeem {units}")
+        if want - held > D("1e-9"):
+            raise LedgerError(f"{lp_id} holds {held} units, cannot redeem {want}")
 
         red_id = str(uuid.uuid4())
         self._store.append(
             Event(red_id, "redemption", EventType.REDEMPTION_REQUESTED,
-                  {"lp_id": lp_id, "units": units}, actor)
+                  {"lp_id": lp_id, "units": want}, actor)
         )
         return {"status": "pending_payout", "redemption_id": red_id,
-                "lp_id": lp_id, "units": round(units, 6)}
+                "lp_id": lp_id, "units": f(want)}
 
     def confirm_redemption(self, redemption_id: str, actor: str) -> dict[str, Any]:
         """Payout sent → burn units and remove cash at the current NAV-per-unit."""
         req = self._require_last(redemption_id, EventType.REDEMPTION_REQUESTED, "redemption")
         lp_id = req["lp_id"]
-        units = float(req["units"])
+        burned = D(req["units"])
 
         nav_per_unit = self._nav.compute().nav_per_unit
-        usd_out = units * nav_per_unit
+        usd_out = burned * nav_per_unit
 
         self._store.append(
             Event(redemption_id, "redemption", EventType.UNITS_BURNED,
-                  {"lp_id": lp_id, "units": units, "nav_per_unit": nav_per_unit}, actor)
+                  {"lp_id": lp_id, "units": burned, "nav_per_unit": nav_per_unit}, actor)
         )
         self._store.append(
             Event(redemption_id, "redemption", EventType.PAYOUT_SENT,
                   {"lp_id": lp_id, "usd_amount": usd_out}, actor)
         )
         return {"status": "paid_out", "redemption_id": redemption_id, "lp_id": lp_id,
-                "units_burned": round(units, 6), "usd_out": round(usd_out, 2),
-                "nav_per_unit": nav_per_unit}
+                "units_burned": f(burned), "usd_out": f(usd_out.quantize(D("0.01"))),
+                "nav_per_unit": f(nav_per_unit)}
 
     # --- helpers -----------------------------------------------------------
     def _require_last(self, agg_id: str, expected: EventType, kind: str) -> dict[str, Any]:
