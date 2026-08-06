@@ -47,6 +47,12 @@ def get_nav():
     return {"live": _nav.compute().to_dict(), "last_struck": _nav.latest()}
 
 
+@router.get("/fund/nav/history")
+def get_nav_history(limit: int = Query(90, ge=1, le=365)):
+    """Recent struck NAV snapshots, oldest first — for value trend charts."""
+    return {"history": _nav.history(limit=limit)}
+
+
 @router.get("/fund/positions")
 def get_positions():
     """The event-sourced book: cash, units outstanding, positions."""

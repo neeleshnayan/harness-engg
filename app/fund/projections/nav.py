@@ -115,3 +115,13 @@ class NavService:
             .stream()
         )
         return next((d.to_dict() for d in q), None)
+
+    def history(self, limit: int = 90) -> list[dict[str, Any]]:
+        """Recent struck snapshots, oldest first — for value/NAV trend charts."""
+        q = (
+            self._db.collection(NAV_SNAPSHOTS)
+            .order_by("ts", direction=firestore.Query.DESCENDING)
+            .limit(limit)
+            .stream()
+        )
+        return list(reversed([d.to_dict() for d in q]))

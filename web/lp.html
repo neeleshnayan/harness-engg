@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Krypton Fund — Your Position</title>
+<style>
+  :root{
+    --paper:#EFEEE9; --card:#F8F7F3; --ink:#191A18; --muted:#6F6C64;
+    --line:#DED9CE; --brand:#1C5D4C; --gain:#1C6B4E; --loss:#BC4A3C;
+    --bar:#C9C3B5; --barfill:#1C5D4C;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#121412; --card:#1B1E1B; --ink:#E9E7DF; --muted:#8E8A7E;
+      --line:#2C302C; --brand:#57C39B; --gain:#5FC98E; --loss:#E37E70;
+      --bar:#33382F; --barfill:#57C39B;
+    }
+  }
+  :root[data-theme="light"]{
+    --paper:#EFEEE9; --card:#F8F7F3; --ink:#191A18; --muted:#6F6C64;
+    --line:#DED9CE; --brand:#1C5D4C; --gain:#1C6B4E; --loss:#BC4A3C;
+    --bar:#C9C3B5; --barfill:#1C5D4C;
+  }
+  :root[data-theme="dark"]{
+    --paper:#121412; --card:#1B1E1B; --ink:#E9E7DF; --muted:#8E8A7E;
+    --line:#2C302C; --brand:#57C39B; --gain:#5FC98E; --loss:#E37E70;
+    --bar:#33382F; --barfill:#57C39B;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+    line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:760px;margin:0 auto;padding:28px 20px 80px}
+  .tabnum{font-variant-numeric:tabular-nums}
+
+  header.bar{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
+    padding-bottom:18px;border-bottom:1px solid var(--line);margin-bottom:26px;flex-wrap:wrap}
+  .brand{font-family:var(--serif);font-size:20px;font-weight:600;letter-spacing:.01em}
+  .brand .k{color:var(--brand)}
+  .asof{font-family:var(--mono);font-size:12px;color:var(--muted)}
+
+  .demo{display:none;margin:0 0 20px;padding:9px 13px;border:1px solid var(--line);
+    border-radius:9px;background:var(--card);font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .demo.on{display:block}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:22px 22px;margin-bottom:16px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--muted);margin:0 0 10px}
+
+  .hero .who{font-size:14px;color:var(--muted);margin:0 0 2px}
+  .value{font-family:var(--serif);font-size:clamp(40px,9vw,58px);font-weight:600;
+    line-height:1;letter-spacing:-.02em;margin:2px 0 10px}
+  .plchip{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:14px;
+    padding:5px 11px;border-radius:999px;font-weight:600}
+  .plchip.up{color:var(--gain);background:color-mix(in srgb,var(--gain) 12%,transparent)}
+  .plchip.down{color:var(--loss);background:color-mix(in srgb,var(--loss) 12%,transparent)}
+  .facts{display:flex;flex-wrap:wrap;gap:26px;margin-top:20px;padding-top:18px;border-top:1px solid var(--line)}
+  .fact .l{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .fact .v{font-size:17px;margin-top:3px}
+
+  figure{margin:0}
+  .chartwrap{width:100%;overflow-x:auto}
+  svg.chart{display:block;width:100%;height:auto}
+  figcaption{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:8px}
+
+  .hold{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line)}
+  .hold:first-of-type{border-top:0}
+  .hold .sym{width:64px;font-family:var(--mono);font-size:13px;font-weight:600}
+  .hold .track{flex:1;height:8px;background:var(--bar);border-radius:6px;overflow:hidden}
+  .hold .fill{height:100%;background:var(--barfill);border-radius:6px}
+  .hold .wt{width:52px;text-align:right;font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .hold .amt{width:92px;text-align:right;font-family:var(--mono);font-size:13px}
+
+  .act{display:flex;gap:12px;padding:10px 0;border-top:1px solid var(--line);font-size:14px}
+  .act:first-of-type{border-top:0}
+  .act .dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--brand);margin-top:7px}
+  .act .when{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap}
+
+  footer{margin-top:26px;text-align:center;font-size:13px;color:var(--muted);line-height:1.6}
+  footer .note{font-size:12px;margin-top:6px}
+  a.link{color:var(--brand)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <div class="brand"><span class="k">Krypton</span> Fund</div>
+    <div class="asof" id="asof">—</div>
+  </header>
+
+  <div class="demo" id="demoBanner">Showing sample data — connect to the fund service to see live figures.</div>
+
+  <section class="card hero">
+    <p class="who" id="who">Your position</p>
+    <div class="value tabnum" id="value">$—</div>
+    <span class="plchip up" id="pl">—</span>
+    <div class="facts">
+      <div class="fact"><div class="l">Invested</div><div class="v tabnum" id="invested">$—</div></div>
+      <div class="fact"><div class="l">Units</div><div class="v tabnum" id="units">—</div></div>
+      <div class="fact"><div class="l">Price / unit</div><div class="v tabnum" id="navpu">$—</div></div>
+      <div class="fact"><div class="l">Your share</div><div class="v tabnum" id="share">—%</div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <p class="eyebrow">Your value over time</p>
+    <figure>
+      <div class="chartwrap"><svg class="chart" id="chart" viewBox="0 0 700 200" role="img"
+        aria-label="Your position value over time"></svg></div>
+      <figcaption id="chartcap">—</figcaption>
+    </figure>
+  </section>
+
+  <section class="card">
+    <p class="eyebrow">What the fund holds</p>
+    <div id="holdings"></div>
+  </section>
+
+  <section class="card">
+    <p class="eyebrow">Recent activity</p>
+    <div id="activity"></div>
+  </section>
+
+  <footer>
+    Managed by Rushi · Krypton Fund
+    <div class="note">Deposits and withdrawals are arranged directly with the manager.</div>
+  </footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+const LP = params.get("lp") || "you";
+const money = (n) => (n<0?"-$":"$") + Math.abs(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const num = (n,d=2) => Number(n).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
+
+// --- demo data (renders when the fund service isn't reachable) -------------
+const DEMO = {
+  lp:   { name:"Aisha", units:100, nav_per_unit:1.086, ownership_pct:5.0 },
+  nav:  { positions:[
+            {symbol:"AAPL", usd_value:642}, {symbol:"MSFT", usd_value:498},
+            {symbol:"NVDA", usd_value:414}, {symbol:"SPY", usd_value:286}],
+          breakdown:{ cash:332 }, nav_per_unit:1.086, total_nav_usd:2172 },
+  history: [1.0,1.004,0.998,1.011,1.02,1.017,1.033,1.041,1.036,1.052,1.06,1.058,1.073,1.086]
+             .map((v,i)=>({ts:`d${i}`, nav_per_unit:v})),
+  events: [
+    {type:"CashConfirmed", payload:{lp_id:LP, usd_amount:100}, ts:"2026-07-03T10:00:00Z"},
+    {type:"OrderFilled", payload:{symbol:"AAPL", side:"buy", filled_qty:3, avg_price:214}, ts:"2026-07-05T14:12:00Z"},
+    {type:"OrderFilled", payload:{symbol:"NVDA", side:"buy", filled_qty:3.4, avg_price:121.7}, ts:"2026-07-11T15:03:00Z"},
+    {type:"OrderFilled", payload:{symbol:"MSFT", side:"buy", filled_qty:1.1, avg_price:452}, ts:"2026-07-19T13:40:00Z"},
+    {type:"NavStruck", payload:{nav_per_unit:1.086}, ts:"2026-08-06T21:00:00Z"},
+  ],
+};
+
+async function getJSON(url){ const r = await fetch(url); if(!r.ok) throw new Error(r.status); return r.json(); }
+
+async function load(){
+  try {
+    const [lpRes, navRes, histRes, evRes] = await Promise.all([
+      getJSON(`/api/v1/fund/lp/${encodeURIComponent(LP)}`),
+      getJSON(`/api/v1/fund/nav`),
+      getJSON(`/api/v1/fund/nav/history?limit=90`),
+      getJSON(`/api/v1/fund/events?limit=200`),
+    ]);
+    return {
+      lp: lpRes,
+      nav: navRes.live,
+      history: (histRes.history||[]).map(h=>({ts:h.ts, nav_per_unit:h.nav_per_unit})),
+      events: evRes.events||[],
+      demo:false,
+    };
+  } catch(e){
+    return { lp:{name:DEMO.lp.name, units:DEMO.lp.units, value_usd:DEMO.lp.units*DEMO.lp.nav_per_unit,
+             nav_per_unit:DEMO.lp.nav_per_unit, ownership_pct:DEMO.lp.ownership_pct},
+             nav:DEMO.nav, history:DEMO.history, events:DEMO.events, demo:true };
+  }
+}
+
+function costBasis(events){
+  let c=0;
+  for(const e of events){
+    const p=e.payload||{};
+    if(p.lp_id!==LP && !(DEMOMODE)) continue; // live: filter to this LP
+    if(e.type==="CashConfirmed") c+=Number(p.usd_amount||0);
+    if(e.type==="PayoutSent")    c-=Number(p.usd_amount||0);
+  }
+  return c;
+}
+let DEMOMODE=false;
+
+function drawChart(series){
+  const svg=$("chart"); const W=700,H=200,padL=8,padR=8,padT=14,padB=8;
+  if(!series||series.length<2){
+    $("chartcap").textContent="A trend line appears after the first few valuations.";
+    svg.innerHTML=`<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="var(--muted)" font-family="var(--mono)" font-size="13">Not enough history yet</text>`;
+    return;
+  }
+  const vals=series.map(d=>d.v);
+  const min=Math.min(...vals), max=Math.max(...vals), span=(max-min)||1;
+  const x=i=>padL+(i*(W-padL-padR))/(series.length-1);
+  const y=v=>padT+(H-padT-padB)*(1-(v-min)/span);
+  const pts=series.map((d,i)=>[x(i),y(d.v)]);
+  const line=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
+  const area=`M ${pts[0][0].toFixed(1)} ${(H-padB).toFixed(1)} `+
+    pts.map(p=>"L "+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ")+
+    ` L ${pts[pts.length-1][0].toFixed(1)} ${(H-padB).toFixed(1)} Z`;
+  const end=pts[pts.length-1];
+  const up=vals[vals.length-1]>=vals[0];
+  const col=up?"var(--gain)":"var(--loss)";
+  svg.innerHTML=`
+    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${col}" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="${col}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${area}" fill="url(#g)"/>
+    <path d="${line}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${end[0].toFixed(1)}" cy="${end[1].toFixed(1)}" r="4.5" fill="${col}"/>`;
+  $("chartcap").textContent=`${series.length} valuations · ${money(vals[0])} → ${money(vals[vals.length-1])}`;
+}
+
+function holdingsHTML(nav){
+  const pos=(nav.positions||[]).slice().sort((a,b)=>b.usd_value-a.usd_value);
+  const cash=(nav.breakdown&&nav.breakdown.cash)||0;
+  const total=(nav.total_nav_usd)|| (pos.reduce((s,p)=>s+p.usd_value,0)+cash) || 1;
+  const rows=pos.map(p=>{
+    const wt=100*p.usd_value/total;
+    return `<div class="hold"><div class="sym">${p.symbol}</div>
+      <div class="track"><div class="fill" style="width:${wt.toFixed(1)}%"></div></div>
+      <div class="wt tabnum">${wt.toFixed(1)}%</div><div class="amt tabnum">${money(p.usd_value)}</div></div>`;
+  });
+  const cwt=100*cash/total;
+  rows.push(`<div class="hold"><div class="sym" style="color:var(--muted)">Cash</div>
+    <div class="track"><div class="fill" style="width:${cwt.toFixed(1)}%;background:var(--bar)"></div></div>
+    <div class="wt tabnum">${cwt.toFixed(1)}%</div><div class="amt tabnum">${money(cash)}</div></div>`);
+  return rows.join("");
+}
+
+function activityHTML(events){
+  const fmt=(e)=>{
+    const p=e.payload||{};
+    if(e.type==="CashConfirmed" && (DEMOMODE||p.lp_id===LP)) return `You invested ${money(p.usd_amount)}`;
+    if(e.type==="PayoutSent" && (DEMOMODE||p.lp_id===LP)) return `You withdrew ${money(p.usd_amount)}`;
+    if(e.type==="OrderFilled") return `Fund ${p.side==="sell"?"sold":"bought"} ${num(p.filled_qty,2)} ${p.symbol} @ ${money(p.avg_price)}`;
+    if(e.type==="NavStruck") return `Valued at ${money(p.nav_per_unit)} per unit`;
+    return null;
+  };
+  const when=(ts)=>{ const d=new Date(ts); return isNaN(d)?"":d.toLocaleDateString(undefined,{month:"short",day:"numeric"});};
+  const rows=events.slice().reverse().map(e=>{const t=fmt(e); if(!t)return"";
+    return `<div class="act"><span class="dot"></span><span>${t}</span><span class="when">${when(e.ts)}</span></div>`;})
+    .filter(Boolean).slice(0,7);
+  return rows.length?rows.join(""):`<div class="act"><span>No activity yet.</span></div>`;
+}
+
+(async()=>{
+  const data=await load();
+  DEMOMODE=data.demo;
+  if(data.demo) $("demoBanner").classList.add("on");
+
+  const lp=data.lp;
+  const value=lp.value_usd!=null?lp.value_usd:(lp.units*lp.nav_per_unit);
+  const basis=costBasis(data.events);
+  const pl=value-basis, plpct=basis>0?100*pl/basis:0;
+
+  $("asof").textContent="As of "+new Date().toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"});
+  $("who").textContent=(lp.name?lp.name+" — ":"")+"your position";
+  $("value").textContent=money(value);
+  const chip=$("pl"), up=pl>=0;
+  chip.className="plchip "+(up?"up":"down");
+  chip.textContent=`${up?"▲":"▼"} ${money(pl)}  (${up?"+":""}${num(plpct,1)}%)`;
+  $("invested").textContent=money(basis);
+  $("units").textContent=num(lp.units,2);
+  $("navpu").textContent=money(lp.nav_per_unit);
+  $("share").textContent=num(lp.ownership_pct,2)+"%";
+
+  drawChart((data.history||[]).map(h=>({v:lp.units*h.nav_per_unit})));
+  $("holdings").innerHTML=holdingsHTML(data.nav);
+  $("activity").innerHTML=activityHTML(data.events);
+})();
+</script>
+</body>
+</html>

@@ -9,13 +9,17 @@ See docs/architecture.md for the full design.
 """
 
 import os
+import pathlib
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from app.core.firebase import initialize_firebase
+
+_WEB_DIR = pathlib.Path(__file__).resolve().parents[1] / "web"
 
 load_dotenv()
 
@@ -61,3 +65,9 @@ app.include_router(fund_router.router, prefix="/api/v1", tags=["fund"])
 @app.get("/health")
 def health():
     return {"status": "healthy", "service": "clarkharness", "version": "0.1.0"}
+
+
+@app.get("/lp", include_in_schema=False)
+def lp_view():
+    """Serve the LP-facing managed-fund view (reads /api/v1/fund/* client-side)."""
+    return FileResponse(_WEB_DIR / "lp.html")
