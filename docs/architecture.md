@@ -1,7 +1,7 @@
-# Krypton Fund — Harness Architecture (Phase 1)
+# Krypton Fund — Harness Architecture
 
-> **Status:** design spec, phase 1.
-> **Companion diagram:** the command-lifecycle + repo-topology figure produced alongside this doc.
+> **Status:** living design spec. For current build state, the decisions log, gaps and priorities see
+> [`STATUS.md`](./STATUS.md).
 > **One-line thesis:** audit, reconciliation, risk, idempotency, approval, and orchestration are not
 > six subsystems — they are gates and projections on a single event-sourced command lifecycle.
 
@@ -9,25 +9,28 @@
 
 ## 1. Goals & non-goals
 
-**Goal.** A "Claude Code for the fund": an agentic interface where the operator (Rushi) sources and
-makes decisions with the harness as a complement, and LPs get a read-only view to understand their
-portfolio. Rushi keeps ownership of the fund; the AI orchestrates, it does not custody.
+**Goal.** A "Claude Code for the fund": an agentic interface where the operator (Rushi) creates and
+deploys strategies, sources and makes decisions with the harness as a complement, and LPs get a
+read-only view to understand their portfolio. Rushi keeps ownership of the fund; the AI orchestrates,
+it does not custody.
 
-**Phase 1 scope (locked).**
+**v0 scope.** 20 friends & family; one pooled, multi-strategy managed-fund experience.
 
 | In | Out (later) |
 |----|-------------|
-| IBKR execution (equities/ETFs) via LEAN | Uniswap / any on-chain trading → **Phase 2** |
-| USDC as the cash & deposit rail (Circle) | Vault-token / on-chain unitization → **Phase 3, if ever** |
-| Pooled custody + **off-chain** unit ledger | Management/performance fees (leave the hook) |
-| Human approval on every financial action | Multi-strategy / multi-PM |
+| IBKR execution (equities/ETFs), **connector-owned** | Uniswap / any on-chain trading |
+| Deposits wired to the manager, recorded **off-platform** | Wallets / self-custody / add-cash |
+| Pooled custody + off-platform unit ledger | KryptonPay payments rail (regulatory surface) |
+| Human approval on every financial action | Management/performance fees (leave the hook) |
+| Multi-strategy: create → backtest → deploy → allocate (§13) | Multi-PM |
 
-**Non-goals for phase 1.** No Kafka / dedicated event-store DB (Firestore append-only collection is
-enough at this scale). No autonomous execution. No client-side financial math.
+**Non-goals.** No Kafka / dedicated event-store DB (Firestore append-only collection is enough at this
+scale). No autonomous execution. No client-side financial math. **No payments / money-transmission
+surface** — money moves off-platform, person to person.
 
-**Testing posture.** We test with our own money at F&F scale first. Legal structure is a parallel,
-later workstream and deliberately does **not** block the build — the technical design (pooled unit
-ledger) is identical regardless of the eventual legal wrapper.
+**Testing posture.** Test with our own money at F&F scale first. Legal structure is a parallel, later
+workstream and deliberately does **not** block the build — the technical design (pooled unit ledger)
+is identical regardless of the eventual legal wrapper.
 
 ---
 
@@ -131,12 +134,14 @@ keeps the internal ledger honest against the venues.
 Standard open-ended-fund accounting — solves "20 people, one pool" without ever tracking who owns
 which share:
 
-- **NAV** = Σ(position qty × price) across IBKR + idle USDC, in USD.
+- **NAV** = Σ(position qty × price) across IBKR positions + idle cash, in USD.
 - **NAV per unit** = NAV ÷ units outstanding.
 - **Subscribe** ($100 in): `units_issued = deposit ÷ current nav_per_unit`. First LP sets
   `nav_per_unit = 1.00` (base). LPs buy in at *current* price, not par.
 - **Redeem:** burn units, pay `units × nav_per_unit`.
-- P&L accrues to NAV; every LP's units revalue pro-rata automatically. **No per-trade attribution.**
+- P&L accrues to NAV; every LP's units revalue pro-rata automatically. **No per-LP attribution** is
+  needed. (Per-*strategy* attribution is a separate projection — §13 — and does not touch unit
+  accounting.)
 
 **Rules that prevent silent losses:**
 
@@ -162,8 +167,8 @@ positions      venue, asset, qty, price, usd_value, as_of, source
 events         seq, aggregate_id, type, ts, actor, payload   (append-only, source of truth)
 ```
 
-**Pricing sources:** IBKR marks the equities; idle USDC = face value. (Phase 2 adds an on-chain oracle
-for tokens — FMP/CoinGecko already available to start, Chainlink/TWAP later.)
+**Pricing sources:** IBKR marks the equities; idle cash = face value. (An on-chain oracle enters only
+if/when on-chain trading is added.)
 
 ---
 
@@ -179,11 +184,11 @@ class Connector(Protocol):
     def balances(self) -> list[Balance]: ...
 ```
 
-**Phase 1 implementations**
+**Implementations**
 
-- `IBKRConnector` — equities/ETFs. **Open decision (see §11):** LEAN owns execution natively *or* the
-  connector calls the IBKR API and LEAN only signals.
-- `CircleConnector` — USDC custody, deposits/redemptions, balances. (No swaps in phase 1.)
+- `PaperConnector` — in-repo simulation with real idempotency. **Built** — the current venue.
+- `IBKRConnector` — equities/ETFs. **Decision resolved (§11):** connector-owned execution, LEAN only
+  *signals*. *(Not yet built — needs an IBKR paper account.)*
 
 `execute()` is **not** request/response. IBKR fills settle asynchronously; the connector returns a
 `VenueRef` immediately and a poller/webhook emits `OrderFilled` / `OrderFailed` later. This
@@ -223,56 +228,82 @@ The money-losing case: a timeout where you don't know if the order landed.
 
 ---
 
-## 10. Repo topology (no new spine repo needed for phase 1)
+## 10. Repo topology
 
 | Repo | Layer | Role |
 |------|-------|------|
-| `quantconnect` (LEAN) | signal source | strategy engine; emits *proposed* commands; owns IBKR exec (pending §11) |
-| `krypton_clark` (strands) | reasoning | **existing** orchestrator (skills + memory + `krypton_pay` interrupt approval); add fund skills that call the spine; generalize the pay-interrupt → order approval |
-| `clark_mcp` | tool surface | thin proxy to `krypton_clark`; new fund skills surface via `krypton_query` automatically — add explicit tools later |
-| `kryptonpay_backend` | spine (brain-body) | **extended** with event store, projections, connectors, risk, command handlers; holds custody |
-| frontend | interface | **thinned** to render projections + capture intent; all NAV/P&L/history math moves back to the spine |
-| `ClarkHarness` (this repo) | design + interface | architecture spec now; home for the operator REPL + LP view as they take shape |
+| `ClarkHarness` (this repo) | **the fund** | Standalone service: the spine (event store, connectors, projections, risk, pipeline, unit ledger), the LP view, and the operator cockpit. Home for everything fund. |
+| `quantconnect` (LEAN) → v2 | signal source | Rebuilt as a thin adapter: deployed strategies emit *proposed* orders via `POST /fund/orders/propose` (tagged with `strategy_id`). No tunnel, no Circle, no custody. |
+| `krypton_clark` (strands) | reasoning | Existing orchestrator (skills + memory + interrupt approval + LEAN/backtest/data engine). Add fund skills that call the spine; its backtest engine powers the Strategy Studio (§13). |
+| `clark_mcp` | tool surface | Thin proxy to `krypton_clark`; fund skills surface via `krypton_query`. |
+| `kryptonpay_backend` | — | **Out of scope for the fund.** The payments product; the spine was moved *out* of it into ClarkHarness to keep the fund clear of its regulatory surface. |
 
 ### The frontend cut line
 
-Frontend keeps exactly two jobs — **render projections** and **capture intent** (submit commands /
-approve interrupts), ideally over a websocket/SSE feed off the event stream. Everything else moves
-back to the spine:
+The **LP view** and the **operator cockpit** (in `ClarkHarness/web`) are the only "frontend", and they
+keep exactly two jobs — **render projections** and **capture intent** (submit commands / approve
+interrupts). No financial math lives client-side:
 
-| Move to backend | Becomes |
+| Client must never compute | Reads instead |
 |-----------------|---------|
-| NAV / P&L math | `nav_snapshots` projection |
-| trade history assembled client-side | `audit` / `positions` projection API |
-| "what's my share" | `holdings` projection |
-| order construction / routing | command pipeline + connectors |
+| NAV / P&L | `/fund/nav`, `nav_snapshots` |
+| trade history | `/fund/events` (audit) / `positions` |
+| "what's my share" | `/fund/lp/{id}` (holdings) |
+| order construction / routing | the command pipeline + connectors |
 
 ---
 
-## 11. Open decisions
+## 11. Decisions (resolved)
 
-1. **IBKR execution ownership** — LEAN as native brokerage (truth for the TradFi sleeve lives in
-   LEAN; reconciler pulls from there) **vs.** connector-owned execution via IBKR API (LEAN signals
-   only). The diagram currently assumes LEAN-native.
-2. Nothing else blocking — event store = Firestore append-only collection for phase 1 (agreed).
-
----
-
-## 12. Build order
-
-Dependency-ordered; read-only tools and the LP view parallelize once projections exist.
-
-1. **Event store** — append-only `events` collection + a small append/read API in `kryptonpay_backend`.
-2. **NAV service + projections** — `StrikeNav` handler → `nav_snapshots`; `positions`, `risk_state`,
-   `holdings` folds. (Reuse the existing scheduler for periodic strike + reconciliation.)
-3. **Connector interface + `IBKRConnector` + `CircleConnector`** — with the async poll → event path.
-4. **Risk gate** — hard tier first, thresholds second.
-5. **Command pipeline + approval** — wire `PlaceOrder` / `Subscribe` / `Redeem` through
-   risk → `krypton_approve_interrupt` → connector → events.
-6. **Clark tool surface** — read tools (`portfolio_status`, `nav`, `lp_book`, `risk`) then gated write
-   tools, each write returning a pre-trade impact preview.
-7. **Thin the frontend** — swap client-side math for projection reads; subscribe to the event feed.
+1. **IBKR execution** — connector-owned; LEAN only *signals*. Human approval has no clean seam inside
+   LEAN's autonomous order loop, so LEAN cannot own execution.
+2. **Event store** — Firestore append-only collection.
+3. **Home** — ClarkHarness, standalone, separate from KryptonPay.
+4. **Custody / deposits** — pooled; deposits wired to the manager and recorded off-platform; no
+   payments rail in v0.
+5. **Framework** — Strands stays for the *episodic* brain; the 24×7 layer is deterministic workers,
+   not a running agent. The spine has no agent-framework dependency.
+6. **Multi-strategy** — part of the platform before launch: one pooled account, strategies as tags
+   (`strategy_id`), per-strategy attribution as a projection (§13).
 
 ---
 
-*Phase 1 · pooled custody · IBKR + USDC · human approval on every financial action.*
+## 12. Build order & status
+
+Done — verified with in-repo smoke tests against an in-memory Firestore fake:
+
+1. ✅ Event store (`fund_events`, global `seq`).
+2. ✅ Connector interface + `PaperConnector`.
+3. ✅ Projections — positions, NAV (`strike`/`history`), holdings.
+4. ✅ Risk gate (hard tier).
+5. ✅ Command pipeline — propose → risk → approve → idempotent execute.
+6. ✅ Unit ledger — subscribe/redeem, fairness-verified.
+7. ✅ LP view (`GET /lp`).
+
+Next — see `STATUS.md` for the prioritized backlog and gap analysis:
+
+8. Strategy layer — `strategy_id` tagging + per-strategy attribution + registry (create/backtest/deploy/allocate).
+9. Operator cockpit (`GET /ops`), strategy-aware.
+10. `IBKRConnector` (paper → live) + async fill poller + reconciliation.
+11. Cross-cutting hardening — auth, scheduled NAV strike, money precision (see STATUS gaps).
+12. Wire the brain (`krypton_clark`) to the spine.
+
+---
+
+## 13. Multi-strategy platform
+
+The fund is one pooled IBKR account; **strategies are tags, not separate accounts.**
+
+- **Strategy** — `id`, name, definition (LEAN algo / params), lifecycle (`draft → backtested →
+  deployed → paused`), backtest results, target allocation %.
+- **Tagging** — every order/fill carries `strategy_id` (`None` = discretionary). Allocation is a
+  *target weight*; actual exposure = Σ of that strategy's tagged positions.
+- **Attribution** — a projection folding tagged fills → per-strategy exposure and P&L. **Forensics** =
+  filter the event log by `strategy_id` + time and replay; it's free once the log exists.
+- **Studio** — create → backtest (via `krypton_clark`'s LEAN/backtest engine) → promote to deployed →
+  allocate. A deployed strategy's signals `POST` proposed (tagged) orders into the approval queue.
+
+---
+
+*v0 · pooled custody · off-platform deposits · IBKR, connector-owned · multi-strategy · human approval
+on every financial action.*

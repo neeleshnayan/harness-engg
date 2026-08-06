@@ -14,7 +14,10 @@ and a complete audit log — with a human approving every financial action.
 
 See **[docs/architecture.md](docs/architecture.md)** for the full design — the
 command lifecycle, event catalog, projections, connector interface, risk engine,
-unit-ledger/NAV accounting, and build order.
+unit-ledger/NAV accounting, and the multi-strategy model.
+
+For **current build state, the decisions log, gap analysis and the prioritized
+backlog**, see **[docs/STATUS.md](docs/STATUS.md)**.
 
 ```
 Command → Risk Gate → Human Approval → Connector → Event Log → Projections
