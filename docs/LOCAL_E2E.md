@@ -60,7 +60,16 @@ npm run dev
 Open **http://localhost:3000/clark/studio** — create → backtest → deploy →
 allocate strategies against the live spine.
 
-**3. Drive the fund loop directly (no UI) — curl against :8090**
+**3. One-command E2E (recommended)** — with the spine up:
+```bash
+HARNESS_URL=http://127.0.0.1:8090 python3 scripts/e2e_local.py
+```
+Runs the whole loop (deposit→units, strategy create/backtest/deploy/allocate,
+propose→approve→settle, reads, reconcile) with PASS/FAIL output. Safe to re-run
+(unique ids per run). The manual `curl` version is below if you want to poke at
+individual endpoints.
+
+**3b. Drive the fund loop directly (no UI) — curl against :8090**
 ```bash
 H=http://127.0.0.1:8090/api/v1/fund
 

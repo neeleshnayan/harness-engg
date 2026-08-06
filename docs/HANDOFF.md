@@ -89,3 +89,46 @@ Pooled custody + off-platform deposits · Alpaca over IBKR (API-first, no gatewa
 brain, deterministic workers for 24×7 · multi-strategy as tags on one pooled
 account · no LEAN in v0 (Backtester seam) · Decimal money · legal is a parallel,
 non-blocking workstream.
+
+---
+
+## Local run & test — kickoff for the local session
+
+Once the branch is checked out locally, **paste this into a Claude Code session
+started in the `ClarkHarness` folder.** It sets up, tests everything, and reports.
+
+> Read `docs/HANDOFF.md` and `docs/LOCAL_E2E.md` to get up to speed, then run and
+> test the fund locally end-to-end and give me a feedback report:
+>
+> 1. **Spine (Tier 1).** Create a venv, `pip install -r requirements.txt`. I'll
+>    give you `firebase_service_account.json` (and optionally `ALPACA_API_KEY` /
+>    `ALPACA_SECRET_KEY` for paper). Run `pytest` (should be 27 green), then
+>    `python scripts/preflight.py`, then start the spine on port 8090.
+> 2. **Automated E2E.** With the spine up, run
+>    `HARNESS_URL=http://127.0.0.1:8090 python scripts/e2e_local.py` and report
+>    the PASS/FAIL output (deposit→units, strategy create/backtest/deploy/allocate,
+>    propose→approve→settle, NAV/positions/strategies/LPs, reconcile).
+> 3. **Frontend.** In the `KryptonPay` repo: `npm install`, set
+>    `NEXT_PUBLIC_HARNESS_API_URL=http://127.0.0.1:8090`, `npm run build` (report
+>    any TS errors), then `npm run dev` and open `/clark/studio` — create a
+>    strategy, run a backtest, deploy, allocate, and confirm it reflects the spine.
+> 4. **Tier 2 (optional, needs AWS Bedrock).** Start `Krypton_Clark` on :8000 with
+>    `CLARK_HARNESS_URL=http://127.0.0.1:8090`; in `/clark`, ask "what's the fund
+>    at?" and "buy 10 AAPL for <strategy>" → confirm the approval card appears and
+>    approving executes.
+> 5. **Feedback report** — for each of the above: ✅ worked / ⚠️ worked-with-notes /
+>    ❌ broke (paste the exact error). List concrete fixes you'd make, then fix the
+>    clear ones on the `claude/krypton-fund-agentic-j8r2mu` branch and re-run.
+>
+> Don't invent credentials or endpoints — ask me for anything you need. Keep the
+> spine and orchestrator on different ports (8090 vs 8000).
+
+### Feedback template (what to hand back)
+
+```
+TIER 1 spine:     pytest __/27 · preflight [ok|fail] · e2e_local [ok|fail: which checks]
+FRONTEND:         npm build [ok|errors] · /clark/studio [ok|notes]
+TIER 2 chat:      [ran|skipped] · status/query [ok|fail] · order approval card [ok|fail]
+BROKE:            <error → file:line → fix applied / proposed>
+OPEN QUESTIONS:   <anything needing a decision>
+```
