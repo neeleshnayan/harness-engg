@@ -43,7 +43,6 @@ export default function StrategyStudioPage() {
       toast({
         title: "Deploy failed",
         description: e?.response?.data?.detail || e?.message,
-        variant: "destructive",
       });
     }
   };
@@ -57,7 +56,6 @@ export default function StrategyStudioPage() {
       toast({
         title: "Pause failed",
         description: e?.response?.data?.detail || e?.message,
-        variant: "destructive",
       });
     }
   };
