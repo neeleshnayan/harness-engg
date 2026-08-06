@@ -48,6 +48,18 @@ def test_risk_rejects_oversized_order(wire):
     assert any(e["type"] == EventType.ORDER_REJECTED.value for e in wire.store.stream())
 
 
+def test_pending_queue_reflects_approvals(wire):
+    seed_cash(wire, 10_000)
+    a = wire.pipe_open.propose_order(Order("paper", "AAPL", Side.BUY, 2), actor="rushi")
+    b = wire.pipe_open.propose_order(Order("paper", "MSFT", Side.BUY, 1), actor="rushi")
+    pending_ids = {o["order_id"] for o in wire.orders.pending()}
+    assert pending_ids == {a["order_id"], b["order_id"]}
+
+    wire.pipe_open.approve_order(a["order_id"], approver="rushi")
+    pending_ids = {o["order_id"] for o in wire.orders.pending()}
+    assert pending_ids == {b["order_id"]}  # approved order leaves the queue
+
+
 def test_nav_holds_across_a_fill(wire):
     seed_cash(wire, 10_000)
     res = wire.pipe_open.propose_order(Order("paper", "AAPL", Side.BUY, 10), actor="rushi")

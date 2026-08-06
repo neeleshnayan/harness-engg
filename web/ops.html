@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Krypton Fund — Operator</title>
+<style>
+  :root{
+    --bg:#0E0F0D; --panel:#161814; --panel2:#1E211B; --ink:#E9E6DC; --muted:#8B877A;
+    --line:#282C20; --brass:#D6AE6F; --gain:#5FC98E; --loss:#E37E70; --live:#5FC98E;
+    --bar:#2B2F24;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;font-size:14px}
+  .tab{font-variant-numeric:tabular-nums}
+  a{color:inherit}
+
+  header{display:flex;align-items:center;gap:16px;padding:14px 20px;border-bottom:1px solid var(--line);
+    position:sticky;top:0;background:rgba(14,15,13,.92);backdrop-filter:blur(6px);z-index:5;flex-wrap:wrap}
+  .wordmark{font-family:var(--mono);font-weight:700;letter-spacing:.04em}
+  .wordmark .k{color:var(--brass)}
+  .live{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .live .dot{width:8px;height:8px;border-radius:50%;background:var(--live);box-shadow:0 0 0 0 var(--live);
+    animation:pulse 2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(95,201,142,.5)}70%{box-shadow:0 0 0 7px rgba(95,201,142,0)}100%{box-shadow:0 0 0 0 rgba(95,201,142,0)}}
+  @media (prefers-reduced-motion:reduce){.live .dot{animation:none}}
+  .demo{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--brass);
+    border:1px solid var(--line);padding:5px 10px;border-radius:7px;display:none}
+  .demo.on{display:inline-block}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);
+    border-bottom:1px solid var(--line)}
+  .stat{background:var(--bg);padding:14px 20px}
+  .stat .l{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .stat .v{font-family:var(--mono);font-size:24px;margin-top:5px}
+  @media (max-width:680px){.stats{grid-template-columns:repeat(2,1fr)}}
+
+  .grid{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;padding:18px 20px;max-width:1280px;margin:0 auto}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  .col{display:flex;flex-direction:column;gap:16px;min-width:0}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .card h2{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);
+    margin:0;padding:13px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between}
+  .card h2 .count{color:var(--brass)}
+  .body{padding:8px 16px 14px}
+
+  /* approvals */
+  .appr{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:10px;background:var(--panel2)}
+  .appr .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .side{font-family:var(--mono);font-weight:700;font-size:12px;padding:2px 8px;border-radius:6px}
+  .side.buy{color:var(--gain);background:color-mix(in srgb,var(--gain) 15%,transparent)}
+  .side.sell{color:var(--loss);background:color-mix(in srgb,var(--loss) 15%,transparent)}
+  .appr .sym{font-family:var(--mono);font-size:16px;font-weight:600}
+  .appr .strat{font-family:var(--mono);font-size:11px;color:var(--brass);margin-left:auto}
+  .appr .prev{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:8px;display:flex;gap:16px;flex-wrap:wrap}
+  .appr .prev b{color:var(--ink);font-weight:600}
+  .actions{display:flex;gap:8px;margin-top:11px}
+  button{font-family:var(--mono);font-size:12.5px;font-weight:600;border:1px solid var(--line);
+    border-radius:8px;padding:8px 14px;cursor:pointer;background:var(--panel);color:var(--ink)}
+  button.approve{background:var(--gain);color:#08130C;border-color:transparent}
+  button.decline{color:var(--loss);border-color:color-mix(in srgb,var(--loss) 40%,var(--line))}
+  button:active{transform:translateY(1px)}
+  .empty{color:var(--muted);font-family:var(--mono);font-size:12px;padding:14px 2px}
+
+  /* strategy cards */
+  .strat-card{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:10px}
+  .strat-card .row1{display:flex;align-items:center;gap:10px}
+  .strat-card .name{font-weight:600}
+  .pill{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+    padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--muted)}
+  .pill.deployed{color:var(--gain);border-color:color-mix(in srgb,var(--gain) 40%,var(--line))}
+  .pill.paused{color:var(--muted)}
+  .pill.backtested,.pill.draft{color:var(--brass);border-color:color-mix(in srgb,var(--brass) 40%,var(--line))}
+  .pnl{margin-left:auto;font-family:var(--mono);font-weight:700}
+  .pnl.up{color:var(--gain)} .pnl.down{color:var(--loss)}
+  .alloc{margin-top:10px}
+  .alloc .track{height:8px;background:var(--bar);border-radius:6px;position:relative;overflow:hidden}
+  .alloc .actual{height:100%;background:var(--brass);border-radius:6px}
+  .alloc .target{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink)}
+  .alloc .lbl{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:6px;display:flex;justify-content:space-between}
+
+  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px}
+  th{text-align:left;font-weight:500;color:var(--muted);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+    padding:6px 6px;border-bottom:1px solid var(--line)}
+  td{padding:7px 6px;border-bottom:1px solid var(--line)}
+  td.r,th.r{text-align:right}
+  tr:last-child td{border-bottom:0}
+
+  .log{font-family:var(--mono);font-size:12px;max-height:340px;overflow-y:auto}
+  .log .e{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
+  .log .e:last-child{border-bottom:0}
+  .log .t{color:var(--brass);white-space:nowrap}
+  .log .m{color:var(--ink);min-width:0}
+  .log .w{margin-left:auto;color:var(--muted);white-space:nowrap;font-size:11px}
+
+  #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--panel2);
+    border:1px solid var(--line);color:var(--ink);font-family:var(--mono);font-size:12.5px;
+    padding:10px 16px;border-radius:9px;opacity:0;transition:opacity .25s;pointer-events:none}
+  #toast.show{opacity:1}
+</style>
+</head>
+<body>
+  <header>
+    <span class="wordmark"><span class="k">KRYPTON</span> // OPERATOR</span>
+    <span class="live"><span class="dot"></span><span id="clock">live</span></span>
+    <span class="demo" id="demo">SAMPLE DATA</span>
+  </header>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="grid">
+    <div class="col">
+      <section class="card">
+        <h2>Pending approvals <span class="count" id="apprCount">0</span></h2>
+        <div class="body" id="approvals"></div>
+      </section>
+      <section class="card">
+        <h2>Strategies <span class="count" id="stratCount">0</span></h2>
+        <div class="body" id="strategies"></div>
+      </section>
+    </div>
+    <div class="col">
+      <section class="card">
+        <h2>Positions</h2>
+        <div class="body"><table id="positions"></table></div>
+      </section>
+      <section class="card">
+        <h2>LP book <span class="count" id="lpCount">0</span></h2>
+        <div class="body"><table id="lps"></table></div>
+      </section>
+      <section class="card">
+        <h2>Activity</h2>
+        <div class="body log" id="log"></div>
+      </section>
+    </div>
+  </div>
+  <div id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let DEMO = false;
+const money = (n) => (n<0?"-$":"$")+Math.abs(Number(n||0)).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const pct = (n) => Number(n||0).toFixed(1)+"%";
+const num = (n,d=2) => Number(n||0).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
+
+const DEMODATA = {
+  nav: {live:{total_nav_usd:2480, nav_per_unit:1.24, units_outstanding:2000, breakdown:{positions:2148,cash:332},
+    positions:[{symbol:"AAPL",qty:6,mark:214,usd_value:1284},{symbol:"NVDA",qty:5,mark:121,usd_value:605},
+               {symbol:"MSFT",qty:0.57,mark:452,usd_value:259}]}},
+  pending: {pending:[
+    {order_id:"o1", symbol:"NVDA", side:"buy", qty:4, strategy_id:"momentum",
+     impact_preview:{quote_price:121.0, notional_usd:484.0, cash_before:332.0, cash_after:-152.0}},
+    {order_id:"o2", symbol:"AAPL", side:"sell", qty:2, strategy_id:null,
+     impact_preview:{quote_price:214.0, notional_usd:428.0, cash_before:332.0, cash_after:760.0}},
+  ]},
+  strategies: {nav_usd:2480, strategies:[
+    {strategy_id:"momentum", name:"Momentum", state:"deployed", allocation_pct:45, actual_pct:52.0, exposure_usd:1290, pnl_usd:186},
+    {strategy_id:"meanrev", name:"Mean Reversion", state:"deployed", allocation_pct:30, actual_pct:24.4, exposure_usd:605, pnl_usd:-38},
+    {strategy_id:"carry", name:"Carry (WIP)", state:"backtested", allocation_pct:0, actual_pct:0, exposure_usd:0, pnl_usd:0},
+  ], discretionary:{strategy_id:"discretionary", exposure_usd:253, pnl_usd:12}},
+  lps: {nav_per_unit:1.24, lps:[
+    {lp_id:"aisha",name:"Aisha",units:100,value_usd:124},{lp_id:"rushi",name:"Rushi",units:800,value_usd:992},
+    {lp_id:"dev",name:"Dev",units:500,value_usd:620},{lp_id:"maya",name:"Maya",units:600,value_usd:744}]},
+  events: {events:[
+    {type:"NavStruck",payload:{nav_per_unit:1.24},ts:"2026-08-06T21:00:00Z"},
+    {type:"OrderFilled",payload:{symbol:"NVDA",side:"buy",filled_qty:5,avg_price:121,strategy_id:"momentum"},ts:"2026-08-06T18:22:00Z"},
+    {type:"StrategyAllocationSet",payload:{target_pct:45},ts:"2026-08-06T17:05:00Z"},
+    {type:"UnitsIssued",payload:{lp_id:"maya",units:600},ts:"2026-08-05T12:00:00Z"},
+  ]},
+};
+
+async function getJSON(u){const r=await fetch(u);if(!r.ok)throw new Error(r.status);return r.json();}
+
+async function loadAll(){
+  try {
+    const [nav,pending,strategies,lps,events] = await Promise.all([
+      getJSON("/api/v1/fund/nav"), getJSON("/api/v1/fund/orders/pending"),
+      getJSON("/api/v1/fund/strategies"), getJSON("/api/v1/fund/lps"), getJSON("/api/v1/fund/events?limit=40"),
+    ]);
+    DEMO=false; return {nav,pending,strategies,lps,events};
+  } catch(e){ DEMO=true; return DEMODATA; }
+}
+
+function renderStats(d){
+  const n=d.nav.live;
+  $("stats").innerHTML = [
+    ["NAV", money(n.total_nav_usd)], ["NAV / unit", money(n.nav_per_unit)],
+    ["Cash", money(n.breakdown.cash)], ["Units out", num(n.units_outstanding,0)],
+  ].map(([l,v])=>`<div class="stat"><div class="l">${l}</div><div class="v tab">${v}</div></div>`).join("");
+}
+
+function renderApprovals(d){
+  const items=d.pending.pending||[];
+  $("apprCount").textContent=items.length;
+  if(!items.length){ $("approvals").innerHTML=`<div class="empty">Nothing awaiting approval.</div>`; return; }
+  $("approvals").innerHTML=items.map(o=>{
+    const p=o.impact_preview||{};
+    return `<div class="appr">
+      <div class="top">
+        <span class="side ${o.side}">${o.side.toUpperCase()}</span>
+        <span class="sym tab">${num(o.qty,2)} ${o.symbol}</span>
+        <span class="strat">${o.strategy_id||"discretionary"}</span>
+      </div>
+      <div class="prev tab">
+        <span>@ <b>${money(p.quote_price)}</b></span>
+        <span>notional <b>${money(p.notional_usd)}</b></span>
+        <span>cash <b>${money(p.cash_before)} → ${money(p.cash_after)}</b></span>
+      </div>
+      <div class="actions">
+        <button class="approve" onclick="act('${o.order_id}','approve')">Approve</button>
+        <button class="decline" onclick="act('${o.order_id}','decline')">Decline</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function renderStrategies(d){
+  const rows=(d.strategies.strategies||[]).slice();
+  const disc=d.strategies.discretionary;
+  $("stratCount").textContent=rows.length;
+  let html=rows.map(s=>{
+    const up=(s.pnl_usd||0)>=0;
+    const actual=Math.min(100,Number(s.actual_pct||0));
+    return `<div class="strat-card">
+      <div class="row1">
+        <span class="name">${s.name}</span>
+        <span class="pill ${s.state}">${s.state}</span>
+        <span class="pnl ${up?"up":"down"} tab">${up?"+":""}${money(s.pnl_usd)}</span>
+      </div>
+      <div class="alloc">
+        <div class="track"><div class="actual" style="width:${actual}%"></div>
+          <div class="target" style="left:${Math.min(100,Number(s.allocation_pct||0))}%" title="target"></div></div>
+        <div class="lbl tab"><span>actual ${pct(s.actual_pct)} · exposure ${money(s.exposure_usd)}</span><span>target ${pct(s.allocation_pct)}</span></div>
+      </div>
+    </div>`;
+  }).join("");
+  if(disc && disc.exposure_usd){
+    const up=(disc.pnl_usd||0)>=0;
+    html+=`<div class="strat-card"><div class="row1"><span class="name" style="color:var(--muted)">Discretionary</span>
+      <span class="pnl ${up?"up":"down"} tab" style="margin-left:auto">${up?"+":""}${money(disc.pnl_usd)}</span></div>
+      <div class="lbl tab" style="margin-top:8px;color:var(--muted)">exposure ${money(disc.exposure_usd)}</div></div>`;
+  }
+  $("strategies").innerHTML=html||`<div class="empty">No strategies yet.</div>`;
+}
+
+function renderPositions(d){
+  const pos=(d.nav.live.positions||[]).slice().sort((a,b)=>b.usd_value-a.usd_value);
+  const total=d.nav.live.total_nav_usd||1;
+  $("positions").innerHTML=`<tr><th>Sym</th><th class="r">Qty</th><th class="r">Mark</th><th class="r">Value</th><th class="r">Wt</th></tr>`+
+    pos.map(p=>`<tr><td>${p.symbol}</td><td class="r tab">${num(p.qty,2)}</td><td class="r tab">${money(p.mark)}</td>
+      <td class="r tab">${money(p.usd_value)}</td><td class="r tab">${pct(100*p.usd_value/total)}</td></tr>`).join("");
+}
+
+function renderLPs(d){
+  const lps=(d.lps.lps||[]);
+  $("lpCount").textContent=lps.length;
+  $("lps").innerHTML=`<tr><th>LP</th><th class="r">Units</th><th class="r">Value</th></tr>`+
+    lps.map(l=>`<tr><td>${l.name||l.lp_id}</td><td class="r tab">${num(l.units,2)}</td><td class="r tab">${money(l.value_usd)}</td></tr>`).join("");
+}
+
+function renderLog(d){
+  const fmt=(e)=>{const p=e.payload||{};
+    if(e.type==="OrderFilled")return `${p.side==="sell"?"SELL":"BUY"} ${num(p.filled_qty,2)} ${p.symbol} @ ${money(p.avg_price)}${p.strategy_id?" ["+p.strategy_id+"]":""}`;
+    if(e.type==="OrderProposed")return `proposed ${p.side} ${num(p.qty,2)} ${p.symbol}`;
+    if(e.type==="NavStruck")return `NAV struck @ ${money(p.nav_per_unit)}/unit`;
+    if(e.type==="UnitsIssued")return `units issued → ${p.lp_id} (${num(p.units,2)})`;
+    if(e.type==="StrategyAllocationSet")return `allocation set ${pct(p.target_pct)}`;
+    if(e.type==="StrategyStateChanged")return `strategy → ${p.state}`;
+    return e.type;};
+  const when=(ts)=>{const dt=new Date(ts);return isNaN(dt)?"":dt.toLocaleString(undefined,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});};
+  $("log").innerHTML=(d.events.events||[]).slice().reverse().map(e=>
+    `<div class="e"><span class="t">${e.type.replace(/([A-Z])/g," $1").trim().split(" ")[0]}</span><span class="m">${fmt(e)}</span><span class="w">${when(e.ts)}</span></div>`
+  ).join("")||`<div class="empty">No activity.</div>`;
+}
+
+function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2200);}
+
+async function act(orderId, kind){
+  if(DEMO){ toast("Sample data — connect the service to approve for real"); return; }
+  try{
+    await fetch(`/api/v1/fund/orders/${orderId}/${kind}`,{method:"POST",
+      headers:{"Content-Type":"application/json"},body:JSON.stringify({approver:"rushi"})});
+    toast(kind==="approve"?"Approved — executing":"Declined");
+    refresh();
+  }catch(e){ toast("Action failed: "+e.message); }
+}
+
+async function refresh(){
+  const d=await loadAll();
+  $("demo").classList.toggle("on",DEMO);
+  $("clock").textContent = DEMO ? "sample" : new Date().toLocaleTimeString();
+  renderStats(d); renderApprovals(d); renderStrategies(d); renderPositions(d); renderLPs(d); renderLog(d);
+}
+refresh();
+setInterval(refresh, 4000);
+</script>
+</body>
+</html>

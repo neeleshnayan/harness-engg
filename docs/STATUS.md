@@ -79,7 +79,9 @@ Smoke tests: `scripts/smoke_fund.py`, `scripts/smoke_ledger.py`.
   `StrategyService`/`StrategyRegistry` (event-sourced lifecycle: draft→backtested→deployed→paused +
   target allocation); `StrategyAttribution` folds tagged fills → per-strategy exposure/P&L; endpoints
   under `/fund/strategies`. Still: the studio UI + real backtest wiring into `krypton_clark`'s LEAN.
-- **G8 · Operator cockpit absent** — the strategy-aware `/ops` dashboard. ← **next**
+- **G8 · Operator cockpit** — ✅ built. Dark, live-refreshing `/ops`: NAV strip, pending-approval
+  queue (Approve/Decline), per-strategy cards (target vs. actual + P&L), positions, LP book, activity
+  log. Reads `/fund/*`; demo fallback. Pending-queue endpoint + `OrdersProjection` (1 test).
 - **G9 · IBKR connector absent** — paper only; blocked on an IBKR paper account.
 - **G10 · Brain not wired** — `krypton_clark` ↔ spine is the agentic premise and isn't connected yet.
 
@@ -99,7 +101,7 @@ Smoke tests: `scripts/smoke_fund.py`, `scripts/smoke_ledger.py`.
 
 **P1 — the platform (stated priority):**
 4. ✅ Strategy layer: `strategy_id` tagging + attribution projection + registry (G7). Still: studio UI + LEAN backtest wiring.
-5. Operator cockpit `/ops`, strategy-aware (G8). ← **next**
+5. ✅ Operator cockpit `/ops`, strategy-aware (G8).
 
 **P2 — make it live:**
 6. `IBKRConnector` (paper→live) + async fill poller + reconciliation (G9, G6). _Needs IBKR paper account._

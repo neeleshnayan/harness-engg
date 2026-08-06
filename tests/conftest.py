@@ -23,6 +23,7 @@ from app.fund.ledger import LedgerService  # noqa: E402
 from app.fund.pipeline import CommandPipeline  # noqa: E402
 from app.fund.projections.holdings import HoldingsProjection  # noqa: E402
 from app.fund.projections.nav import NavService  # noqa: E402
+from app.fund.projections.orders import OrdersProjection  # noqa: E402
 from app.fund.projections.positions import PositionsProjection  # noqa: E402
 from app.fund.projections.strategy import StrategyAttribution  # noqa: E402
 from app.fund.risk import RiskGate, RiskLimits  # noqa: E402
@@ -54,4 +55,5 @@ def wire():
         ledger=LedgerService(nav_service=nav, store=store),
         strategies=StrategyService(store=store),
         attribution=StrategyAttribution(store),
+        orders=OrdersProjection(store),
     )

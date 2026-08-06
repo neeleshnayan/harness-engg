@@ -19,6 +19,7 @@ from app.fund.money import D, f
 from app.fund.pipeline import CommandError, CommandPipeline
 from app.fund.projections.holdings import HoldingsProjection
 from app.fund.projections.nav import NavService
+from app.fund.projections.orders import OrdersProjection
 from app.fund.projections.positions import PositionsProjection
 from app.fund.projections.strategy import StrategyAttribution
 from app.fund.strategies import StrategyError, StrategyService
@@ -47,6 +48,7 @@ _ledger = LedgerService(nav_service=_nav, store=_store)
 _holdings = HoldingsProjection(_store)
 _strategies = StrategyService(store=_store)
 _attribution = StrategyAttribution(_store)
+_orders = OrdersProjection(_store)
 
 
 # --- reads -----------------------------------------------------------------
@@ -107,6 +109,12 @@ def get_lp(lp_id: str):
 def get_events(since_seq: int = Query(0, ge=0), limit: int = Query(200, ge=1, le=1000)):
     """The audit trail — the global event log from ``since_seq`` (exclusive)."""
     return {"events": _store.stream(since_seq=since_seq, limit=limit)}
+
+
+@router.get("/fund/orders/pending")
+def get_pending_orders():
+    """The approval queue — orders awaiting a human decision (also where LEAN signals land)."""
+    return {"pending": _orders.pending()}
 
 
 @router.get("/fund/orders/{order_id}")

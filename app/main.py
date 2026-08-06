@@ -71,3 +71,9 @@ def health():
 def lp_view():
     """Serve the LP-facing managed-fund view (reads /api/v1/fund/* client-side)."""
     return FileResponse(_WEB_DIR / "lp.html")
+
+
+@app.get("/ops", include_in_schema=False)
+def ops_view():
+    """Serve the operator cockpit (reads /api/v1/fund/* client-side)."""
+    return FileResponse(_WEB_DIR / "ops.html")
