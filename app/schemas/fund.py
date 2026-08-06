@@ -34,6 +34,14 @@ class BacktestResultRequest(BaseModel):
     actor: str = Field("operator", description="Who recorded the backtest")
 
 
+class BacktestRunRequest(BaseModel):
+    prices: list[float] = Field(..., min_length=2, description="Close prices, oldest first")
+    strategy: Literal["sma", "buy_hold"] = Field("sma", description="Built-in strategy to simulate")
+    fast: int = Field(10, gt=0, description="Fast SMA window (sma only)")
+    slow: int = Field(30, gt=0, description="Slow SMA window (sma only)")
+    actor: str = Field("operator", description="Who ran the backtest")
+
+
 class ApprovalRequest(BaseModel):
     approver: str = Field(..., description="Who approved/declined (the human in the loop)")
 

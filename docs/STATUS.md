@@ -50,6 +50,7 @@ Smoke tests: `scripts/smoke_fund.py`, `scripts/smoke_ledger.py`.
 | D8 | Money at F&F scale; legal is a parallel, non-blocking workstream | ship and learn |
 | D9 | Execution venue = **Alpaca** (paper first), not IBKR | API-first, no Gateway to babysit in a 24×7 cloud service, commission-free + fractional; IBKR remains a future connector via the same seam |
 | D10 | Alpaca **MCP server** is for the brain later, not the spine | keep the LLM out of the deterministic money path |
+| D11 | **No LEAN in v0** — backtesting behind a `Backtester` seam, lightweight impl | Alpaca covers execution + data; LEAN's only role would be backtesting, and it's heavy to operate; plug it in later as another `Backtester` if needed |
 
 ---
 
@@ -83,7 +84,8 @@ Smoke tests: `scripts/smoke_fund.py`, `scripts/smoke_ledger.py`.
 - **G7 · Strategy layer** — ✅ spine built (5 tests). `strategy_id` tags orders/fills;
   `StrategyService`/`StrategyRegistry` (event-sourced lifecycle: draft→backtested→deployed→paused +
   target allocation); `StrategyAttribution` folds tagged fills → per-strategy exposure/P&L; endpoints
-  under `/fund/strategies`. Still: the studio UI + real backtest wiring into `krypton_clark`'s LEAN.
+  under `/fund/strategies`. ✅ Backtest step: `Backtester` seam + `SimpleBacktester` (no LEAN, D11) +
+  `POST /fund/strategies/{id}/backtest/run`. Still: studio UI + wiring Alpaca historical bars into it.
 - **G8 · Operator cockpit** — ✅ built. Dark, live-refreshing `/ops`: NAV strip, pending-approval
   queue (Approve/Decline), per-strategy cards (target vs. actual + P&L), positions, LP book, activity
   log. Reads `/fund/*`; demo fallback. Pending-queue endpoint + `OrdersProjection` (1 test).
@@ -108,7 +110,7 @@ Smoke tests: `scripts/smoke_fund.py`, `scripts/smoke_ledger.py`.
 3. ✅ `firestore.indexes.json` (G5). Still: deploy the indexes.
 
 **P1 — the platform (stated priority):**
-4. ✅ Strategy layer: `strategy_id` tagging + attribution projection + registry (G7). Still: studio UI + LEAN backtest wiring.
+4. ✅ Strategy layer: tagging + attribution + registry + backtest seam (G7, D11). Still: studio UI + Alpaca-data into backtests.
 5. ✅ Operator cockpit `/ops`, strategy-aware (G8).
 
 **P2 — make it live:**

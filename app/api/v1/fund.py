@@ -15,6 +15,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.fund.connectors.alpaca import AlpacaConnector
 from app.fund.connectors.base import Order, Side
+from app.fund.backtest import SimpleBacktester, sma_crossover_signals
 from app.fund.connectors.paper import PaperConnector
 from app.fund.events import EventStore
 from app.fund.ledger import LedgerError, LedgerService
@@ -31,6 +32,7 @@ from app.schemas.fund import (
     ActorRequest,
     ApprovalRequest,
     BacktestResultRequest,
+    BacktestRunRequest,
     ProposeOrderRequest,
     RedeemRequest,
     StrategyAllocationRequest,
@@ -281,6 +283,24 @@ def record_backtest(strategy_id: str, req: BacktestResultRequest):
         return _strategies.record_backtest(strategy_id, results=req.results, actor=req.actor)
     except StrategyError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/fund/strategies/{strategy_id}/backtest/run")
+def run_backtest(strategy_id: str, req: BacktestRunRequest):
+    """Run a built-in backtest over supplied prices, record the result, mark backtested.
+
+    (Prices are client-supplied for now; wiring Alpaca historical bars is a fast-follow.)
+    """
+    if req.strategy == "sma":
+        signals = sma_crossover_signals(req.prices, req.fast, req.slow)
+    else:  # buy_hold
+        signals = [1.0] * len(req.prices)
+    result = SimpleBacktester().run(req.prices, signals)
+    try:
+        rec = _strategies.record_backtest(strategy_id, results=result.to_dict(), actor=req.actor)
+    except StrategyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {"result": result.to_dict(), "strategy": rec}
 
 
 @router.post("/fund/strategies/{strategy_id}/state")

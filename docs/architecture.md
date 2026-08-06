@@ -300,8 +300,15 @@ The fund is one pooled IBKR account; **strategies are tags, not separate account
   *target weight*; actual exposure = Σ of that strategy's tagged positions.
 - **Attribution** — a projection folding tagged fills → per-strategy exposure and P&L. **Forensics** =
   filter the event log by `strategy_id` + time and replay; it's free once the log exists.
-- **Studio** — create → backtest (via `krypton_clark`'s LEAN/backtest engine) → promote to deployed →
-  allocate. A deployed strategy's signals `POST` proposed (tagged) orders into the approval queue.
+- **Studio** — create → backtest → promote to deployed → allocate. A deployed strategy's signals
+  `POST` proposed (tagged) orders into the approval queue — a signal is just plain Python over Alpaca
+  data, no engine required.
+- **Backtesting is a seam, not LEAN.** A strategy is a pure `prices → signals` function; a
+  `Backtester` simulates it. v0 ships `SimpleBacktester` (dependency-free, in-process) on Alpaca
+  historical bars — **LEAN is not needed** with Alpaca (Alpaca covers execution + data; LEAN's only
+  role would be backtesting). If institutional fill/slippage modelling or options/futures backtests
+  are ever wanted, implement the same `Backtester` protocol with LEAN — the Studio and registry don't
+  change. (See D11.)
 
 ---
 
