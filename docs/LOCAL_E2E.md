@@ -45,6 +45,8 @@ python3 -m venv venv && source venv/bin/activate    # Windows: venv\Scripts\acti
 pip install -r requirements.txt
 # put firebase_service_account.json in the repo root (git-ignored)
 export FIREBASE_SERVICE_ACCOUNT_JSON=firebase_service_account.json
+# --- OR, to test with NO Firebase creds (ephemeral in-memory store, dev only): ---
+#   export USE_FAKE_FIRESTORE=1     # verified: the full E2E passes against this
 # optional live venue (else paper): export ALPACA_API_KEY=... ALPACA_SECRET_KEY=... ALPACA_PAPER=true
 python3 scripts/preflight.py                          # verify Firebase/Alpaca reachable
 uvicorn app.main:app --port 8090

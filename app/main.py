@@ -27,8 +27,16 @@ _WEB_DIR = pathlib.Path(__file__).resolve().parents[1] / "web"
 
 load_dotenv()
 
-# Firebase must init before importing routers that build Firestore clients.
-initialize_firebase()
+# Firebase must be ready before importing routers that build Firestore clients.
+# Dev escape hatch: USE_FAKE_FIRESTORE=1 runs with an in-memory Firestore (no
+# creds, ephemeral) so you can test locally without a service account.
+if os.getenv("USE_FAKE_FIRESTORE", "").lower() in ("1", "true", "yes"):
+    _log.warning("USE_FAKE_FIRESTORE set — using in-memory Firestore (DEV ONLY, data is ephemeral).")
+    from app.core.dev_firestore import install_fake
+
+    install_fake()
+else:
+    initialize_firebase()
 
 from app.api.v1 import fund as fund_router  # noqa: E402
 

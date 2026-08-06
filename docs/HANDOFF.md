@@ -100,10 +100,12 @@ started in the `ClarkHarness` folder.** It sets up, tests everything, and report
 > Read `docs/HANDOFF.md` and `docs/LOCAL_E2E.md` to get up to speed, then run and
 > test the fund locally end-to-end and give me a feedback report:
 >
-> 1. **Spine (Tier 1).** Create a venv, `pip install -r requirements.txt`. I'll
->    give you `firebase_service_account.json` (and optionally `ALPACA_API_KEY` /
->    `ALPACA_SECRET_KEY` for paper). Run `pytest` (should be 27 green), then
->    `python scripts/preflight.py`, then start the spine on port 8090.
+> 1. **Spine (Tier 1).** Create a venv, `pip install -r requirements.txt`. For
+>    Firebase either use `firebase_service_account.json`, or **run with no creds**
+>    via `export USE_FAKE_FIRESTORE=1` (in-memory, ephemeral — verified the full
+>    E2E passes against it). Optionally `ALPACA_API_KEY` / `ALPACA_SECRET_KEY` for
+>    paper. Run `pytest` (should be 27 green), then `python scripts/preflight.py`
+>    (skip if using the fake store), then start the spine on port 8090.
 > 2. **Automated E2E.** With the spine up, run
 >    `HARNESS_URL=http://127.0.0.1:8090 python scripts/e2e_local.py` and report
 >    the PASS/FAIL output (deposit→units, strategy create/backtest/deploy/allocate,
