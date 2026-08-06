@@ -16,6 +16,7 @@ from fastapi import APIRouter, HTTPException, Query
 from app.fund.connectors.alpaca import AlpacaConnector
 from app.fund.connectors.base import Order, Side
 from app.fund.backtest import SimpleBacktester, sma_crossover_signals
+from app.fund.marketdata import BarsError, fetch_daily_bars
 from app.fund.connectors.paper import PaperConnector
 from app.fund.events import EventStore
 from app.fund.ledger import LedgerError, LedgerService
@@ -31,6 +32,7 @@ from app.fund.strategies import StrategyError, StrategyService
 from app.schemas.fund import (
     ActorRequest,
     ApprovalRequest,
+    BacktestBySymbolRequest,
     BacktestResultRequest,
     BacktestRunRequest,
     ProposeOrderRequest,
@@ -301,6 +303,37 @@ def run_backtest(strategy_id: str, req: BacktestRunRequest):
     except StrategyError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return {"result": result.to_dict(), "strategy": rec}
+
+
+@router.post("/fund/strategies/{strategy_id}/backtest/by_symbol")
+def run_backtest_by_symbol(strategy_id: str, req: BacktestBySymbolRequest):
+    """Fetch real free daily bars for a symbol and run the built-in backtest.
+
+    Bars come from Alpaca (free IEX) when ALPACA_API_KEY/SECRET are set, else from
+    Stooq (free, no key). Returns the result plus the price series for charting.
+    """
+    try:
+        bars = fetch_daily_bars(req.symbol, lookback_days=req.lookback_days)
+    except BarsError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    prices = bars.closes
+    if req.strategy == "sma":
+        signals = sma_crossover_signals(prices, req.fast, req.slow)
+    else:  # buy_hold
+        signals = [1.0] * len(prices)
+    result = SimpleBacktester().run(prices, signals)
+    try:
+        rec = _strategies.record_backtest(strategy_id, results=result.to_dict(), actor=req.actor)
+    except StrategyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {
+        "result": result.to_dict(),
+        "strategy": rec,
+        "source": bars.source,
+        "symbol": bars.symbol,
+        "bars": {"closes": prices, "dates": bars.dates, "start": bars.start, "end": bars.end},
+    }
 
 
 @router.post("/fund/strategies/{strategy_id}/state")

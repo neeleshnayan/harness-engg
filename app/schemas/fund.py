@@ -42,6 +42,15 @@ class BacktestRunRequest(BaseModel):
     actor: str = Field("operator", description="Who ran the backtest")
 
 
+class BacktestBySymbolRequest(BaseModel):
+    symbol: str = Field(..., min_length=1, max_length=6, description="US equity symbol, e.g. AAPL")
+    strategy: Literal["sma", "buy_hold"] = Field("sma", description="Built-in strategy to simulate")
+    fast: int = Field(10, gt=0, description="Fast SMA window (sma only)")
+    slow: int = Field(30, gt=0, description="Slow SMA window (sma only)")
+    lookback_days: int = Field(365, gt=1, le=2000, description="Trailing calendar days of daily bars")
+    actor: str = Field("operator", description="Who ran the backtest")
+
+
 class ApprovalRequest(BaseModel):
     approver: str = Field(..., description="Who approved/declined (the human in the loop)")
 
