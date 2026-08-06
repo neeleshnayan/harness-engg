@@ -5,6 +5,15 @@ revalue pro-rata to their units. Also checks a full redemption and that a
 subscription never dilutes existing LPs.
 """
 
+import sys
+
+# Windows consoles default to cp1252; this script prints non-ASCII. Force UTF-8.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:  # noqa: BLE001
+    pass
+
 import _fake_firestore
 
 _fake_firestore.install()

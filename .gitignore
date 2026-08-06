@@ -4,3 +4,5 @@ __pycache__/
 venv/
 .env
 firebase_service_account.json
+scratch_*
+*.log

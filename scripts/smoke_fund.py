@@ -10,6 +10,13 @@ import pathlib
 import sys
 import types
 
+# Windows consoles default to cp1252; this script prints non-ASCII. Force UTF-8.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:  # noqa: BLE001
+    pass
+
 # ---------------------------------------------------------------------------
 # Minimal in-memory Firestore fake
 # ---------------------------------------------------------------------------

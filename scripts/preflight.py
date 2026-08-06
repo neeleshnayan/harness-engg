@@ -10,6 +10,13 @@ import os
 import pathlib
 import sys
 
+# Windows consoles default to cp1252; this script prints ✅ ❌. Force UTF-8.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:  # noqa: BLE001
+    pass
+
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 

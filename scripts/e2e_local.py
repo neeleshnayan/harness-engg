@@ -17,9 +17,17 @@ required). Exit code 0 = all green.
 
 import json
 import os
+import sys
 import time
 import urllib.error
 import urllib.request
+
+# Windows consoles default to cp1252; this script prints → × ✅ ❌. Force UTF-8.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:  # noqa: BLE001  (older/odd streams without reconfigure)
+    pass
 
 BASE = os.getenv("HARNESS_URL", "http://127.0.0.1:8090").rstrip("/")
 API = BASE + "/api/v1/fund"
