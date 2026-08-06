@@ -129,12 +129,19 @@ Smoke tests: `scripts/smoke_fund.py`, `scripts/smoke_ledger.py`.
 
 ## 5. Recommended next move
 
-P0 + P1 done; execution + async settlement + reconciliation + scheduler done;
-Alpaca connector (with price cache) done. **Go-live prep** shipped:
-`scripts/preflight.py` + the [`DEPLOY.md`](./DEPLOY.md) runbook — set
-`ALPACA_SECRET_KEY`, run preflight, seed LPs/strategy, verify the approve →
-Alpaca → fill → NAV loop.
+Spine, ledger, strategies + attribution + backtest, Alpaca connector, async
+settlement + reconciliation + scheduler, LP view, operator cockpit, **the brain**
+(`krypton_clark` `fund` skill), and the **Clark UI** (Studio + generalized
+approval modal) are all done. Go-live prep shipped ([`DEPLOY.md`](./DEPLOY.md),
+`scripts/preflight.py`) and a local run guide ([`LOCAL_E2E.md`](./LOCAL_E2E.md)).
 
-Remaining before real LPs: **auth** (G4 — `/fund/lp/{id}` and writes are open;
-the hard gate before sharing links). Then **wire the brain** (P3, the agentic
-premise), plus studio UI, Alpaca-bars into backtests, and CI.
+**Cross-repo handoff:** [`HANDOFF.md`](./HANDOFF.md).
+
+Remaining backlog:
+- **Auth** (G4) — `/fund/lp/{id}`, the cockpit, and write routes are open. The
+  hard gate before sharing LP links. **Do this before external users.**
+- Repoint the KryptonPay **customer strategies** + **LP portfolio** views to the
+  spine (Studio + approval modal already done).
+- Alpaca **historical bars** into `backtest/run` (prices are client-supplied now).
+- **CI** wiring for the test suites; open PRs from the branch.
+- quantconnect-v2 **signal adapter** (thin: deployed strategy → POST proposed order).

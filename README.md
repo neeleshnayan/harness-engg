@@ -16,9 +16,13 @@ See **[docs/architecture.md](docs/architecture.md)** for the full design — the
 command lifecycle, event catalog, projections, connector interface, risk engine,
 unit-ledger/NAV accounting, and the multi-strategy model.
 
+**New here?** Start with the **[handoff](docs/HANDOFF.md)** — the cross-repo
+summary of what's built, where, what's verified, and what's left.
+
 For **current build state, the decisions log, gap analysis and the prioritized
-backlog**, see **[docs/STATUS.md](docs/STATUS.md)**. To deploy and verify on
-Alpaca paper, see the **[go-live runbook](docs/DEPLOY.md)**.
+backlog**, see **[docs/STATUS.md](docs/STATUS.md)**. To run it locally end-to-end,
+see **[docs/LOCAL_E2E.md](docs/LOCAL_E2E.md)**; to deploy and verify on Alpaca
+paper, the **[go-live runbook](docs/DEPLOY.md)**.
 
 ```
 Command → Risk Gate → Human Approval → Connector → Event Log → Projections
