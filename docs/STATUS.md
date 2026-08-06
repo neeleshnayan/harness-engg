@@ -72,9 +72,12 @@ Smoke tests: `scripts/smoke_fund.py`, `scripts/smoke_ledger.py`.
 - **G5 · Firestore composite indexes** — ✅ addressed. `firestore.indexes.json` ships the
   `fund_events (aggregate_id, seq)` composite; single-field range+order queries use auto indexes.
   (Still needs `firebase deploy --only firestore:indexes` at deploy time.)
-- **G6 · No scheduled NAV strike / async fill poller / reconciliation.** The LP value trend needs
-  periodic strikes; real IBKR fills settle async and need a poller; the reconciler (event book vs.
-  venue truth) is designed but unbuilt.
+- **G6 · Async settlement / reconciliation / scheduled strike** — ✅ built (3 tests). Approve does one
+  poll (instant venues settle now; async stay `working`); `poll_open_orders()` drives in-flight orders
+  to terminal (partial→fill books once; fail-after-partial books the executed portion). `Reconciler`
+  compares the event book vs. venue `positions()` → `ReconciliationMismatch`. A guarded scheduler in
+  the app lifespan settles every ~30s and strikes NAV + reconciles every ~30min (env-configurable).
+  Endpoints: `POST /fund/orders/settle`, `POST /fund/reconcile`.
 
 ### Platform — the stated priority
 - **G7 · Strategy layer** — ✅ spine built (5 tests). `strategy_id` tags orders/fills;
@@ -109,8 +112,8 @@ Smoke tests: `scripts/smoke_fund.py`, `scripts/smoke_ledger.py`.
 5. ✅ Operator cockpit `/ops`, strategy-aware (G8).
 
 **P2 — make it live:**
-6. ✅ `AlpacaConnector` (execution). Still: async fill poller + reconciliation (G6). _Alpaca paper account ready; set the secret in env._
-7. Scheduled NAV strike (G6).
+6. ✅ `AlpacaConnector` (execution) + ✅ async fill poller + ✅ reconciliation (G6). _Alpaca paper ready; set the secret in env._
+7. ✅ Scheduled NAV strike + settlement + reconcile worker (G6).
 8. AuthN/Z (G4). **Gate: must land before any external LP access.**
 
 **P3 — the vision:**

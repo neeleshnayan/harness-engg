@@ -25,6 +25,7 @@ from app.fund.projections.nav import NavService
 from app.fund.projections.orders import OrdersProjection
 from app.fund.projections.positions import PositionsProjection
 from app.fund.projections.strategy import StrategyAttribution
+from app.fund.reconcile import Reconciler
 from app.fund.strategies import StrategyError, StrategyService
 from app.schemas.fund import (
     ActorRequest,
@@ -53,6 +54,23 @@ _holdings = HoldingsProjection(_store)
 _strategies = StrategyService(store=_store)
 _attribution = StrategyAttribution(_store)
 _orders = OrdersProjection(_store)
+_reconciler = Reconciler(connector=_connector, store=_store, projection=_projection)
+
+
+# --- worker hooks (called by endpoints and the scheduled worker) -----------
+def run_settlement() -> dict:
+    """Poll in-flight orders to terminal — the async fill tick."""
+    return _pipeline.poll_open_orders()
+
+
+def run_reconcile() -> dict:
+    """Event book vs. venue truth."""
+    return _reconciler.run()
+
+
+def run_strike() -> dict:
+    """Strike and persist a NAV snapshot."""
+    return _nav.strike().to_dict()
 
 
 # --- reads -----------------------------------------------------------------
@@ -165,6 +183,18 @@ def decline_order(order_id: str, req: ApprovalRequest):
 def strike_nav(req: StrikeNavRequest):
     """Strike and persist a NAV snapshot (the scheduled valuation moment)."""
     return _nav.strike(actor=req.actor).to_dict()
+
+
+@router.post("/fund/orders/settle")
+def settle_orders():
+    """Poll in-flight orders and emit any terminal/partial events (async fill tick)."""
+    return run_settlement()
+
+
+@router.post("/fund/reconcile")
+def reconcile():
+    """Compare the event book against venue truth; emit mismatches."""
+    return run_reconcile()
 
 
 # --- ledger writes (subscribe / redeem) ------------------------------------

@@ -8,6 +8,8 @@ money-transmission surface — deposits are recorded off-platform.
 See docs/architecture.md for the full design.
 """
 
+import asyncio
+import logging
 import os
 import pathlib
 from contextlib import asynccontextmanager
@@ -19,6 +21,8 @@ from fastapi.responses import FileResponse
 
 from app.core.firebase import initialize_firebase
 
+_log = logging.getLogger("clarkharness")
+
 _WEB_DIR = pathlib.Path(__file__).resolve().parents[1] / "web"
 
 load_dotenv()
@@ -29,10 +33,43 @@ initialize_firebase()
 from app.api.v1 import fund as fund_router  # noqa: E402
 
 
+async def _scheduler():
+    """24×7 deterministic worker: settle fills often; strike NAV + reconcile on the slow cycle.
+
+    Every tick is guarded so a transient failure never takes the loop (or the app) down.
+    Intervals and on/off are env-configurable.
+    """
+    settle_every = int(os.getenv("SETTLE_INTERVAL_SECONDS", "30"))
+    strike_every = int(os.getenv("STRIKE_INTERVAL_SECONDS", "1800"))
+    since_strike = 0
+    while True:
+        await asyncio.sleep(settle_every)
+        since_strike += settle_every
+        try:
+            fund_router.run_settlement()
+        except Exception as e:  # noqa: BLE001
+            _log.warning("settlement tick failed: %s", e)
+        if since_strike >= strike_every:
+            since_strike = 0
+            for fn in (fund_router.run_strike, fund_router.run_reconcile):
+                try:
+                    fn()
+                except Exception as e:  # noqa: BLE001
+                    _log.warning("%s failed: %s", fn.__name__, e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup / shutdown hooks (scheduled NAV strike + reconciliation land here).
+    task = None
+    if os.getenv("ENABLE_SCHEDULER", "true").lower() != "false":
+        task = asyncio.create_task(_scheduler())
     yield
+    if task:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(

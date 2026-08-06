@@ -16,10 +16,11 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from app.fund.connectors.base import Connector, FillState, Order, Side
+from app.fund.connectors.base import Connector, FillState, Order, Side, VenueRef
 from app.fund.events import Event, EventStore, EventType
 from app.fund.money import D, f, money
 from app.fund.projections.nav import NavService
+from app.fund.projections.orders import OrdersProjection
 from app.fund.risk import RiskGate
 
 
@@ -111,38 +112,66 @@ class CommandPipeline:
             )
         )
 
-        status = self._connector.poll(ref)
+        # One poll now: instant-fill venues settle here; async venues stay
+        # 'working' and the settlement poller drives them to terminal later.
+        return self._apply_status(order_id, order, self._connector.poll(ref))
+
+    # --- settlement (async fill path) --------------------------------------
+    def poll_order(self, order_id: str) -> dict[str, Any]:
+        """Re-poll one in-flight order and emit any resulting terminal/partial event."""
+        rec = next(
+            (r for r in OrdersProjection(self._store).in_flight() if r["order_id"] == order_id),
+            None,
+        )
+        if rec is None:
+            return {"status": "not_in_flight", "order_id": order_id}
+        order, _ = self._load_order(order_id)
+        ref = VenueRef(venue=rec["venue"], ref_id=rec["venue_ref"])
+        return self._apply_status(order_id, order, self._connector.poll(ref),
+                                  last_filled=rec["last_filled_qty"])
+
+    def poll_open_orders(self) -> dict[str, Any]:
+        """Chase every in-flight order — the settlement worker's tick."""
+        results = [self.poll_order(r["order_id"]) for r in OrdersProjection(self._store).in_flight()]
+        return {"polled": len(results), "results": results}
+
+    def _emit_fill(self, order_id: str, order: Order, qty, px, fees) -> None:
+        self._store.append(Event(
+            aggregate_id=order_id, aggregate_type="order", type=EventType.ORDER_FILLED,
+            payload={
+                "symbol": order.symbol, "side": order.side.value, "strategy_id": order.strategy_id,
+                "filled_qty": D(qty), "avg_price": D(px or 0), "fees": D(fees or 0),
+            },
+            actor="system",
+        ))
+
+    def _apply_status(self, order_id: str, order: Order, status, last_filled: float = 0.0):
         if status.state == FillState.FILLED:
-            self._store.append(
-                Event(
-                    aggregate_id=order_id,
-                    aggregate_type="order",
-                    type=EventType.ORDER_FILLED,
-                    payload={
-                        "symbol": order.symbol,
-                        "side": order.side.value,
-                        "strategy_id": order.strategy_id,
-                        # Exact-decimal truth; venue floats converted at ingestion.
-                        "filled_qty": D(status.filled_qty),
-                        "avg_price": D(status.avg_price),
-                        "fees": D(status.fees),
-                    },
-                    actor="system",
-                )
-            )
+            self._emit_fill(order_id, order, status.filled_qty, status.avg_price, status.fees)
             return {"status": "filled", "order_id": order_id,
                     "filled_qty": f(D(status.filled_qty)), "avg_price": f(D(status.avg_price))}
 
-        self._store.append(
-            Event(
-                aggregate_id=order_id,
-                aggregate_type="order",
-                type=EventType.ORDER_FAILED,
-                payload={"reason": status.reason or "unknown"},
-                actor="system",
-            )
-        )
-        return {"status": "failed", "order_id": order_id, "reason": status.reason}
+        if status.state == FillState.FAILED:
+            # Book any already-executed portion before recording the failure.
+            if status.filled_qty and status.filled_qty > last_filled:
+                self._emit_fill(order_id, order, status.filled_qty, status.avg_price, status.fees)
+            self._store.append(Event(
+                aggregate_id=order_id, aggregate_type="order", type=EventType.ORDER_FAILED,
+                payload={"reason": status.reason or "unknown"}, actor="system",
+            ))
+            return {"status": "failed", "order_id": order_id, "reason": status.reason}
+
+        if status.state == FillState.PARTIAL:
+            if status.filled_qty > last_filled:
+                self._store.append(Event(
+                    aggregate_id=order_id, aggregate_type="order",
+                    type=EventType.ORDER_PARTIALLY_FILLED,
+                    payload={"cumulative_qty": D(status.filled_qty), "avg_price": D(status.avg_price or 0)},
+                    actor="system",
+                ))
+            return {"status": "working", "order_id": order_id, "filled_qty": f(D(status.filled_qty))}
+
+        return {"status": "working", "order_id": order_id}  # PENDING
 
     def decline_order(self, order_id: str, approver: str) -> dict[str, Any]:
         _, last_type = self._load_order(order_id)
