@@ -3,5 +3,5 @@ uvicorn[standard]>=0.29
 pydantic>=2.6
 firebase-admin>=6.5
 python-dotenv>=1.0
-# Step 2: IBKR connector
-# ib_insync>=0.9.86
+# Live venue (Step 2) — paper or real trading via Alpaca
+alpaca-py>=0.20

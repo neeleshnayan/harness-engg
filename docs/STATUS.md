@@ -48,6 +48,8 @@ Smoke tests: `scripts/smoke_fund.py`, `scripts/smoke_ledger.py`.
 | D6 | Strands for the *episodic* brain; 24×7 = deterministic workers | don't put an LLM in a live fund's hot loop |
 | D7 | Multi-strategy **before launch**; one pooled account, strategies as tags | attribution via a projection, forensics via event replay |
 | D8 | Money at F&F scale; legal is a parallel, non-blocking workstream | ship and learn |
+| D9 | Execution venue = **Alpaca** (paper first), not IBKR | API-first, no Gateway to babysit in a 24×7 cloud service, commission-free + fractional; IBKR remains a future connector via the same seam |
+| D10 | Alpaca **MCP server** is for the brain later, not the spine | keep the LLM out of the deterministic money path |
 
 ---
 
@@ -82,7 +84,10 @@ Smoke tests: `scripts/smoke_fund.py`, `scripts/smoke_ledger.py`.
 - **G8 · Operator cockpit** — ✅ built. Dark, live-refreshing `/ops`: NAV strip, pending-approval
   queue (Approve/Decline), per-strategy cards (target vs. actual + P&L), positions, LP book, activity
   log. Reads `/fund/*`; demo fallback. Pending-queue endpoint + `OrdersProjection` (1 test).
-- **G9 · IBKR connector absent** — paper only; blocked on an IBKR paper account.
+- **G9 · Live venue** — ✅ `AlpacaConnector` built (execution + venue-side idempotency via
+  `client_order_id`; pure mappers unit-tested). Env-selected (`ALPACA_API_KEY` set → Alpaca, else
+  paper). Still: async fill poller + reconciliation, and set `ALPACA_SECRET_KEY` in the deploy env to
+  go live on the paper account.
 - **G10 · Brain not wired** — `krypton_clark` ↔ spine is the agentic premise and isn't connected yet.
 
 ### Hygiene
@@ -104,7 +109,7 @@ Smoke tests: `scripts/smoke_fund.py`, `scripts/smoke_ledger.py`.
 5. ✅ Operator cockpit `/ops`, strategy-aware (G8).
 
 **P2 — make it live:**
-6. `IBKRConnector` (paper→live) + async fill poller + reconciliation (G9, G6). _Needs IBKR paper account._
+6. ✅ `AlpacaConnector` (execution). Still: async fill poller + reconciliation (G6). _Alpaca paper account ready; set the secret in env._
 7. Scheduled NAV strike (G6).
 8. AuthN/Z (G4). **Gate: must land before any external LP access.**
 

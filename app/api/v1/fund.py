@@ -9,8 +9,11 @@ The pipeline is wired to the PaperConnector today; swapping in the IBKRConnector
 (Step 2) changes only the construction block below.
 """
 
+import os
+
 from fastapi import APIRouter, HTTPException, Query
 
+from app.fund.connectors.alpaca import AlpacaConnector
 from app.fund.connectors.base import Order, Side
 from app.fund.connectors.paper import PaperConnector
 from app.fund.events import EventStore
@@ -39,7 +42,8 @@ from app.schemas.fund import (
 router = APIRouter()
 
 # --- spine wiring (single place to swap the venue) -------------------------
-_connector = PaperConnector()
+# Alpaca when configured, else the in-Firestore paper venue. Same protocol.
+_connector = AlpacaConnector() if os.getenv("ALPACA_API_KEY") else PaperConnector()
 _store = EventStore()
 _projection = PositionsProjection(_store)
 _nav = NavService(pricer=_connector.price, store=_store, projection=_projection)
