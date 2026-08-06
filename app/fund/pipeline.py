@@ -121,6 +121,7 @@ class CommandPipeline:
                     payload={
                         "symbol": order.symbol,
                         "side": order.side.value,
+                        "strategy_id": order.strategy_id,
                         # Exact-decimal truth; venue floats converted at ingestion.
                         "filled_qty": D(status.filled_qty),
                         "avg_price": D(status.avg_price),
@@ -167,6 +168,7 @@ class CommandPipeline:
             "side": order.side.value,
             "qty": order.qty,
             "limit_price": order.limit_price,
+            "strategy_id": order.strategy_id,
         }
 
     def _load_order(self, order_id: str) -> tuple[Order, str]:
@@ -185,5 +187,6 @@ class CommandPipeline:
             side=Side(p["side"]),
             qty=p["qty"],
             limit_price=p.get("limit_price"),
+            strategy_id=p.get("strategy_id"),
         )
         return order, events[-1]["type"]

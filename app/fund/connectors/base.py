@@ -39,6 +39,9 @@ class Order:
     qty: float
     # None => market order. Limit price otherwise.
     limit_price: Optional[float] = None
+    # Which strategy generated this order (None => discretionary). One pooled
+    # account; strategies are tags for attribution, not separate accounts.
+    strategy_id: Optional[str] = None
 
 
 @dataclass

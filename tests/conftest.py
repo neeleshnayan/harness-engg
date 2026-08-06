@@ -24,7 +24,9 @@ from app.fund.pipeline import CommandPipeline  # noqa: E402
 from app.fund.projections.holdings import HoldingsProjection  # noqa: E402
 from app.fund.projections.nav import NavService  # noqa: E402
 from app.fund.projections.positions import PositionsProjection  # noqa: E402
+from app.fund.projections.strategy import StrategyAttribution  # noqa: E402
 from app.fund.risk import RiskGate, RiskLimits  # noqa: E402
+from app.fund.strategies import StrategyService  # noqa: E402
 
 
 @pytest.fixture
@@ -50,4 +52,6 @@ def wire():
             connector=conn, nav_service=nav, store=store, risk_gate=permissive
         ),
         ledger=LedgerService(nav_service=nav, store=store),
+        strategies=StrategyService(store=store),
+        attribution=StrategyAttribution(store),
     )

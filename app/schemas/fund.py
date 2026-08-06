@@ -10,6 +10,28 @@ class ProposeOrderRequest(BaseModel):
     venue: str = Field("paper", description="Execution venue connector name")
     limit_price: Optional[float] = Field(None, description="None => market order")
     actor: str = Field("operator", description="Who initiated: operator id or 'agent'")
+    strategy_id: Optional[str] = Field(None, description="Tagging strategy; None => discretionary")
+
+
+class StrategyRegisterRequest(BaseModel):
+    name: str = Field(..., description="Human-readable strategy name")
+    definition: Optional[dict] = Field(None, description="LEAN algo / params (opaque blob)")
+    actor: str = Field("operator", description="Who registered it")
+
+
+class StrategyStateRequest(BaseModel):
+    state: Literal["draft", "backtested", "deployed", "paused"]
+    actor: str = Field("operator", description="Who changed the state")
+
+
+class StrategyAllocationRequest(BaseModel):
+    target_pct: float = Field(..., ge=0, le=100, description="Target % of NAV for this strategy")
+    actor: str = Field("operator", description="Who set the allocation")
+
+
+class BacktestResultRequest(BaseModel):
+    results: dict = Field(..., description="Backtest metrics blob (from the studio / LEAN)")
+    actor: str = Field("operator", description="Who recorded the backtest")
 
 
 class ApprovalRequest(BaseModel):

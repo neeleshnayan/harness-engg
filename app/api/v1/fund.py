@@ -20,11 +20,17 @@ from app.fund.pipeline import CommandError, CommandPipeline
 from app.fund.projections.holdings import HoldingsProjection
 from app.fund.projections.nav import NavService
 from app.fund.projections.positions import PositionsProjection
+from app.fund.projections.strategy import StrategyAttribution
+from app.fund.strategies import StrategyError, StrategyService
 from app.schemas.fund import (
     ActorRequest,
     ApprovalRequest,
+    BacktestResultRequest,
     ProposeOrderRequest,
     RedeemRequest,
+    StrategyAllocationRequest,
+    StrategyRegisterRequest,
+    StrategyStateRequest,
     StrikeNavRequest,
     SubscribeRequest,
 )
@@ -39,6 +45,8 @@ _nav = NavService(pricer=_connector.price, store=_store, projection=_projection)
 _pipeline = CommandPipeline(connector=_connector, nav_service=_nav, store=_store)
 _ledger = LedgerService(nav_service=_nav, store=_store)
 _holdings = HoldingsProjection(_store)
+_strategies = StrategyService(store=_store)
+_attribution = StrategyAttribution(_store)
 
 
 # --- reads -----------------------------------------------------------------
@@ -119,6 +127,7 @@ def propose_order(req: ProposeOrderRequest):
         side=Side(req.side),
         qty=req.qty,
         limit_price=req.limit_price,
+        strategy_id=req.strategy_id,
     )
     return _pipeline.propose_order(order, actor=req.actor)
 
@@ -183,3 +192,68 @@ def confirm_redemption(redemption_id: str, req: ActorRequest):
         return _ledger.confirm_redemption(redemption_id, actor=req.actor)
     except LedgerError as e:
         raise HTTPException(status_code=409, detail=str(e))
+
+
+# --- strategies ------------------------------------------------------------
+@router.get("/fund/strategies")
+def list_strategies():
+    """Every strategy with its target allocation and live exposure/P&L, plus any
+    discretionary (untagged) book. `actual_pct` is exposure as a share of NAV."""
+    nav = _nav.compute()
+    total = float(nav.total_nav_usd)
+    attr = {a["strategy_id"]: a for a in _attribution.with_values(_connector.price)}
+
+    rows = []
+    for s in _strategies.list():
+        a = attr.get(s["strategy_id"], {})
+        exposure = a.get("exposure_usd", 0.0)
+        rows.append({
+            **s,
+            "exposure_usd": exposure,
+            "pnl_usd": a.get("pnl_usd", 0.0),
+            "positions": a.get("positions", {}),
+            "actual_pct": round(100.0 * exposure / total, 4) if total else 0.0,
+        })
+    return {"nav_usd": total, "strategies": rows, "discretionary": attr.get("discretionary")}
+
+
+@router.get("/fund/strategies/{strategy_id}")
+def get_strategy(strategy_id: str):
+    try:
+        s = _strategies.get(strategy_id)
+    except StrategyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    attr = {a["strategy_id"]: a for a in _attribution.with_values(_connector.price)}
+    return {**s, "attribution": attr.get(strategy_id)}
+
+
+@router.post("/fund/strategies")
+def register_strategy(req: StrategyRegisterRequest):
+    return _strategies.register(name=req.name, definition=req.definition, actor=req.actor)
+
+
+@router.post("/fund/strategies/{strategy_id}/backtest")
+def record_backtest(strategy_id: str, req: BacktestResultRequest):
+    """Record a backtest result (run in the studio / LEAN) and mark it backtested."""
+    try:
+        return _strategies.record_backtest(strategy_id, results=req.results, actor=req.actor)
+    except StrategyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/fund/strategies/{strategy_id}/state")
+def set_strategy_state(strategy_id: str, req: StrategyStateRequest):
+    """Move a strategy through its lifecycle (deploy, pause, …)."""
+    try:
+        return _strategies.set_state(strategy_id, state=req.state, actor=req.actor)
+    except StrategyError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
+@router.post("/fund/strategies/{strategy_id}/allocation")
+def set_strategy_allocation(strategy_id: str, req: StrategyAllocationRequest):
+    """Set a strategy's target allocation (% of NAV)."""
+    try:
+        return _strategies.set_allocation(strategy_id, target_pct=req.target_pct, actor=req.actor)
+    except StrategyError as e:
+        raise HTTPException(status_code=400, detail=str(e))

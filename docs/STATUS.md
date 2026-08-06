@@ -75,9 +75,11 @@ Smoke tests: `scripts/smoke_fund.py`, `scripts/smoke_ledger.py`.
   venue truth) is designed but unbuilt.
 
 ### Platform — the stated priority
-- **G7 · Strategy layer absent** — `strategy_id` tagging, per-strategy attribution, the registry, and
-  the studio (create/backtest/deploy/allocate).
-- **G8 · Operator cockpit absent** — the strategy-aware `/ops` dashboard.
+- **G7 · Strategy layer** — ✅ spine built (5 tests). `strategy_id` tags orders/fills;
+  `StrategyService`/`StrategyRegistry` (event-sourced lifecycle: draft→backtested→deployed→paused +
+  target allocation); `StrategyAttribution` folds tagged fills → per-strategy exposure/P&L; endpoints
+  under `/fund/strategies`. Still: the studio UI + real backtest wiring into `krypton_clark`'s LEAN.
+- **G8 · Operator cockpit absent** — the strategy-aware `/ops` dashboard. ← **next**
 - **G9 · IBKR connector absent** — paper only; blocked on an IBKR paper account.
 - **G10 · Brain not wired** — `krypton_clark` ↔ spine is the agentic premise and isn't connected yet.
 
@@ -96,8 +98,8 @@ Smoke tests: `scripts/smoke_fund.py`, `scripts/smoke_ledger.py`.
 3. ✅ `firestore.indexes.json` (G5). Still: deploy the indexes.
 
 **P1 — the platform (stated priority):**
-4. Strategy layer: `strategy_id` tagging + attribution projection + registry (G7).
-5. Operator cockpit `/ops`, strategy-aware (G8).
+4. ✅ Strategy layer: `strategy_id` tagging + attribution projection + registry (G7). Still: studio UI + LEAN backtest wiring.
+5. Operator cockpit `/ops`, strategy-aware (G8). ← **next**
 
 **P2 — make it live:**
 6. `IBKRConnector` (paper→live) + async fill poller + reconciliation (G9, G6). _Needs IBKR paper account._

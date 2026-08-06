@@ -56,6 +56,12 @@ class EventType(str, Enum):
     NAV_STRUCK = "NavStruck"
     RECONCILIATION_MISMATCH = "ReconciliationMismatch"
 
+    # Strategy lifecycle (event-sourced so allocations/deploys are auditable)
+    STRATEGY_REGISTERED = "StrategyRegistered"
+    STRATEGY_BACKTESTED = "StrategyBacktested"
+    STRATEGY_STATE_CHANGED = "StrategyStateChanged"
+    STRATEGY_ALLOCATION_SET = "StrategyAllocationSet"
+
 
 @dataclass
 class Event:
