@@ -84,12 +84,12 @@ repointing data at the spine and generalizing one modal.
 
 ## Build order
 
-1. **Plumbing** — `/proxy/harness` rewrite + `fund_api.ts` + env.
-2. **Linchpin** — generalize `InterruptModal`; verify chat "buy 10 AAPL for
-   momentum" → approval card → fill (against a running spine + orchestrator).
-3. **Strategies UI** → spine.
-4. **Operator cockpit** surface.
-5. **LP view** → spine + auth gating.
+1. ✅ **Plumbing** — `/proxy/harness` rewrite (`next.config.ts`) + `src/lib/fund_api.ts` + `NEXT_PUBLIC_HARNESS_API_URL`.
+2. ✅ **Linchpin** — `InterruptModal` generalized to render `krypton-fund-order-approval` (order impact preview + Approve/Decline) alongside pay.
+3. ✅ **Strategy Studio (operator)** — `/clark/studio` create → backtest → deploy → allocate on the spine.
+4. ⬜ **Customer strategies view** → repoint `customer/grow/hedge-fund/` from `hedgeFundApi`/on-chain to `fund_api` (real state/allocation/P&L).
+5. ⬜ **Operator cockpit** surface (or embed ClarkHarness `/ops`).
+6. ⬜ **LP portfolio view** → `fund_api.getLP(lpId)` + **auth** (uid → lp_id) gating.
 
 ## Dependencies / gates
 
