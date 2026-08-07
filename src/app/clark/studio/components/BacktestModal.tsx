@@ -28,6 +28,11 @@ export function BacktestModal({ strategy, onClose, onSuccess, onCharted }: Props
   const [rsiLow, setRsiLow] = useState(30);
   const [rsiHigh, setRsiHigh] = useState(70);
   const [breakoutLookback, setBreakoutLookback] = useState(20);
+  const [macdFast, setMacdFast] = useState(12);
+  const [macdSlow, setMacdSlow] = useState(26);
+  const [macdSignal, setMacdSignal] = useState(9);
+  const [bollPeriod, setBollPeriod] = useState(20);
+  const [bollK, setBollK] = useState(2);
   const [symbol, setSymbol] = useState("AAPL");
   const [lookback, setLookback] = useState(365);
   const [pricesText, setPricesText] = useState("");
@@ -47,9 +52,20 @@ export function BacktestModal({ strategy, onClose, onSuccess, onCharted }: Props
     rsi_low: rsiLow,
     rsi_high: rsiHigh,
     breakout_lookback: breakoutLookback,
+    macd_fast: macdFast,
+    macd_slow: macdSlow,
+    macd_signal: macdSignal,
+    boll_period: bollPeriod,
+    boll_k: bollK,
   });
   // Minimum bars a template needs before it produces a signal.
-  const minBars = type === "sma" ? slow : type === "breakout" ? breakoutLookback + 1 : type === "rsi" ? rsiPeriod + 1 : 2;
+  const minBars =
+    type === "sma" ? slow
+    : type === "breakout" ? breakoutLookback + 1
+    : type === "rsi" ? rsiPeriod + 1
+    : type === "macd" ? macdSlow + 1
+    : type === "bollinger" ? bollPeriod
+    : 2;
 
   const runManual = async () => {
     const prices = pricesText.split(/[\s,]+/).map((x) => parseFloat(x)).filter((x) => !isNaN(x));
@@ -140,6 +156,8 @@ export function BacktestModal({ strategy, onClose, onSuccess, onCharted }: Props
                 <option value="sma">SMA crossover</option>
                 <option value="rsi">RSI mean-reversion</option>
                 <option value="breakout">Donchian breakout</option>
+                <option value="macd">MACD trend</option>
+                <option value="bollinger">Bollinger reversion</option>
                 <option value="buy_hold">Buy &amp; hold</option>
               </select>
             </div>
@@ -172,6 +190,19 @@ export function BacktestModal({ strategy, onClose, onSuccess, onCharted }: Props
               </>
             )}
             {type === "breakout" && <NumField label="Channel" value={breakoutLookback} set={setBreakoutLookback} />}
+            {type === "macd" && (
+              <>
+                <NumField label="Fast" value={macdFast} set={setMacdFast} />
+                <NumField label="Slow" value={macdSlow} set={setMacdSlow} />
+                <NumField label="Signal" value={macdSignal} set={setMacdSignal} />
+              </>
+            )}
+            {type === "bollinger" && (
+              <>
+                <NumField label="Period" value={bollPeriod} set={setBollPeriod} />
+                <NumField label="Std devs" value={bollK} set={setBollK} />
+              </>
+            )}
             {mode === "symbol" && <NumField label="Lookback (d)" value={lookback} set={setLookback} min={30} />}
           </div>
 
