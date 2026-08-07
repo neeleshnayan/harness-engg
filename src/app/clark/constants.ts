@@ -108,10 +108,26 @@ export const allocationColors = [
 
 export const categories: Category[] = [
   {
+    id: 'fund',
+    title: 'Fund Operations',
+    icon: '/backtesting.svg',
+    description: 'Run the fund with Clark',
+    prompts: [
+      "What's the fund at?",
+      'Show me the strategies',
+      'What positions do we hold?',
+      'Who are our LPs?',
+      "What's pending approval?",
+      'Buy 2 AAPL for US Momentum',
+      'Sell 1 MSFT',
+      'Deploy the Mega-Cap Tech strategy',
+    ],
+  },
+  {
     id: 'strategy',
     title: 'Strategy & Backtesting',
     icon: '/backtesting.svg',
-    description: 'Test portfolio strategies',
+    description: 'Test portfolio strategies (crypto/legacy)',
     prompts: [
       'Backtest a 100-day SMA filter on Gold; stay in cash when below SMA; from 2024-01-01 to 2024-09-30 with $12,000',
       'Backtest Gold from 01/01/2025 to 09/09/2025 with 1000 USD',
