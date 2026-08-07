@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
 import type { DotProps } from 'recharts'
 import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
 import { BacktestDataPoint, BacktestTrade } from '../../types'
@@ -194,8 +194,14 @@ export default function PortfolioChart({ dataPoints, startDate, endDate, trades 
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[400px] w-full">
-          <LineChart data={dataPoints}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+          <AreaChart data={dataPoints}>
+            <defs>
+              <linearGradient id="pf-fill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--color-portfolio)" stopOpacity={0.35} />
+                <stop offset="100%" stopColor="var(--color-portfolio)" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.06)" />
             <XAxis 
               dataKey="date" 
               tickFormatter={(value) => formatDate(value)}
@@ -218,15 +224,16 @@ export default function PortfolioChart({ dataPoints, startDate, endDate, trades 
                 />
               }
             />
-            <Line
+            <Area
               type="monotone"
               dataKey="portfolio_value"
               stroke="var(--color-portfolio)"
-              strokeWidth={2.5}
+              strokeWidth={2}
+              fill="url(#pf-fill)"
               dot={renderTradeDot}
               activeDot={{ r: 4, fill: 'var(--color-portfolio)', stroke: 'var(--color-portfolio)' }}
             />
-          </LineChart>
+          </AreaChart>
         </ChartContainer>
       </CardContent>
     </Card>

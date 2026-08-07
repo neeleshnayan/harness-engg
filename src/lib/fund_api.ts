@@ -91,6 +91,7 @@ export interface PendingOrder {
   side: 'buy' | 'sell';
   qty: number;
   strategy_id?: string | null;
+  thesis_id?: string | null;
   impact_preview?: {
     quote_price?: number;
     notional_usd?: number;
@@ -99,6 +100,80 @@ export interface PendingOrder {
     cash_after?: number;
   };
   ts?: string;
+}
+
+export type ThesisStatus = 'draft' | 'active' | 'invalidated' | 'exited' | 'reviewed';
+
+export interface ThesisView {
+  thesis_id: string;
+  title: string;
+  status: ThesisStatus;
+  claim?: string | null;
+  assets?: string[] | null;
+  strategy_id?: string | null;
+  owner?: string | null;
+  horizon?: string | null;
+  entry_rationale?: string | null;
+  key_risks?: string[] | null;
+  invalidation_conditions?: string[] | null;
+  target_exposure_pct?: number | null;
+  review_cadence?: string | null;
+  order_ids?: string[];
+  memo_ids?: string[];
+  has_postmortem?: boolean;
+}
+
+export type MemoStatus = 'draft' | 'final';
+
+export interface MemoView {
+  memo_id: string;
+  thesis_id: string;
+  title: string;
+  status: MemoStatus;
+  recommendation?: string | null;
+  conviction?: 'low' | 'medium' | 'high' | null;
+  summary?: string | null;
+  sections?: Record<string, string> | null;
+  sources?: string[] | null;
+  author?: string | null;
+}
+
+export interface RiskScenario {
+  label: string;
+  symbol?: string | null;
+  pct: number;
+  pnl_usd: number;
+  nav_before: number;
+  nav_after: number;
+  nav_change_pct: number;
+  nav_per_unit_before: number;
+  nav_per_unit_after: number;
+  affected: { symbol: string; shocked_mark: number; pnl_usd: number }[];
+}
+
+export interface RiskAnalytics {
+  nav_usd: number;
+  gross_exposure_usd: number;
+  gross_exposure_pct: number;
+  cash_usd: number;
+  cash_pct: number;
+  n_positions: number;
+  largest_position?: { symbol: string; qty: number; mark: number; usd_value: number; weight_pct: number } | null;
+  concentration_hhi: number;
+  positions: { symbol: string; qty: number; mark: number; usd_value: number; weight_pct: number }[];
+  flags: string[];
+  scenarios: RiskScenario[];
+}
+
+export interface Postmortem {
+  postmortem_id: string;
+  thesis_id: string;
+  verdict: 'correct' | 'partially_correct' | 'wrong' | 'invalidated' | 'too_early';
+  outcome_pnl_usd: number;
+  what_happened?: string | null;
+  lessons?: string[];
+  predicted_claim?: string | null;
+  invalidation_conditions?: string[];
 }
 
 export interface BacktestResult {
@@ -204,6 +279,48 @@ export const fundApiClient = {
     (await fundApi.post(`${P}/orders/${orderId}/decline`, { approver })).data,
 
   settle: async () => (await fundApi.post(`${P}/orders/settle`)).data,
+
+  // --- theses (the versioned investment idea a trade references) ---
+  getTheses: async (): Promise<{ theses: ThesisView[] }> =>
+    (await fundApi.get(`${P}/theses`)).data,
+
+  getThesis: async (thesisId: string): Promise<ThesisView> =>
+    (await fundApi.get(`${P}/theses/${thesisId}`)).data,
+
+  createThesis: async (body: Partial<ThesisView> & { title: string; actor?: string }): Promise<ThesisView> =>
+    (await fundApi.post(`${P}/theses`, { actor: 'operator', ...body })).data,
+
+  setThesisStatus: async (thesisId: string, status: ThesisStatus, note?: string, actor = 'operator') =>
+    (await fundApi.post(`${P}/theses/${thesisId}/status`, { status, note, actor })).data,
+
+  getThesisMemos: async (thesisId: string): Promise<{ memos: MemoView[] }> =>
+    (await fundApi.get(`${P}/theses/${thesisId}/memos`)).data,
+
+  getPostmortem: async (thesisId: string): Promise<Postmortem> =>
+    (await fundApi.get(`${P}/theses/${thesisId}/postmortem`)).data,
+
+  recordPostmortem: async (
+    thesisId: string,
+    body: { verdict: Postmortem['verdict']; what_happened?: string; lessons?: string[]; actor?: string },
+  ): Promise<ThesisView> =>
+    (await fundApi.post(`${P}/theses/${thesisId}/postmortem`, { actor: 'operator', ...body })).data,
+
+  // --- memos (the written case for a trade) ---
+  getMemo: async (memoId: string): Promise<MemoView> =>
+    (await fundApi.get(`${P}/memos/${memoId}`)).data,
+
+  createMemo: async (body: Partial<MemoView> & { thesis_id: string; title: string; actor?: string }): Promise<MemoView> =>
+    (await fundApi.post(`${P}/memos`, { actor: 'operator', ...body })).data,
+
+  finalizeMemo: async (memoId: string, actor = 'operator'): Promise<MemoView> =>
+    (await fundApi.post(`${P}/memos/${memoId}/finalize`, { actor })).data,
+
+  // --- risk analytics (concentration + scenario shocks) ---
+  getRiskAnalytics: async (): Promise<RiskAnalytics> =>
+    (await fundApi.get(`${P}/risk/analytics`)).data,
+
+  runRiskShock: async (symbol: string | null, pct: number): Promise<RiskScenario> =>
+    (await fundApi.post(`${P}/risk/shock`, { symbol, pct })).data,
 };
 
 export default fundApi;

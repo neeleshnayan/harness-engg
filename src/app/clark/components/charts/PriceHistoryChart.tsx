@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { DailyPriceHistoryDataPoint } from '@/lib/api'
 import { chartConfig, chartUi } from '../../constants'
 import { formatDate } from '../../utils'
@@ -140,13 +140,18 @@ export default function PriceHistoryChart({ token, dataPoints, lookbackDays }: P
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[400px] w-full">
-          <LineChart
+          <AreaChart
             data={chartData}
             margin={{ left: 20, right: 20, top: 10, bottom: 40 }}
           >
+            <defs>
+              <linearGradient id="px-fill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={trendColor} stopOpacity={0.3} />
+                <stop offset="100%" stopColor={trendColor} stopOpacity={0} />
+              </linearGradient>
+            </defs>
             <CartesianGrid
               vertical={false}
-              strokeDasharray="3 3"
               stroke="rgba(255, 255, 255, 0.05)"
               className="opacity-50"
             />
@@ -193,15 +198,16 @@ export default function PriceHistoryChart({ token, dataPoints, lookbackDays }: P
                 )
               }}
             />
-            <Line
+            <Area
               type="monotone"
               dataKey="price"
               stroke={trendColor}
               strokeWidth={2}
+              fill="url(#px-fill)"
               dot={false}
               activeDot={{ r: 4, fill: trendColor, stroke: trendColor, strokeWidth: 2 }}
             />
-          </LineChart>
+          </AreaChart>
         </ChartContainer>
       </CardContent>
     </Card>

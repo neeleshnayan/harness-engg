@@ -19,15 +19,19 @@ import { useToast } from "@/hooks/use-toast";
 import {
   fundApiClient,
   LpView,
+  MemoView,
   NavResponse,
   PendingOrder,
   StrategiesResponse,
   StrategyView,
+  ThesisView,
 } from "@/lib/fund_api";
 import { CreateStrategyModal } from "./components/CreateStrategyModal";
 import { StrategyDetailModal } from "./components/StrategyDetailModal";
 import { BacktestModal } from "./components/BacktestModal";
 import { AllocationModal } from "./components/AllocationModal";
+import { RiskPanel } from "./components/RiskPanel";
+import { ThesisPanel } from "./components/ThesisPanel";
 import { TVAreaChart, TVPoint } from "./components/TVAreaChart";
 
 /* ---------- formatting helpers ---------- */
@@ -72,9 +76,11 @@ export default function StrategyStudioPage() {
   const [nav, setNav] = useState<NavResponse | null>(null);
   const [lps, setLps] = useState<LpView[]>([]);
   const [pending, setPending] = useState<PendingOrder[]>([]);
+  const [thesisCtx, setThesisCtx] = useState<Record<string, { thesis: ThesisView; memo?: MemoView }>>({});
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [tick, setTick] = useState(0);
   const [busyOrder, setBusyOrder] = useState<string | null>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -107,6 +113,7 @@ export default function StrategyStudioPage() {
       setLps(l.lps || []);
       setPending(p.pending || []);
       setLastSync(new Date());
+      setTick((v) => v + 1);
       setErr(null);
     } catch (e: unknown) {
       const msg = (e as { message?: string })?.message || "Could not reach the fund spine.";
@@ -115,6 +122,40 @@ export default function StrategyStudioPage() {
       setLoading(false);
     }
   }, []);
+
+  // Enrich pending orders that reference a thesis with the thesis + its latest
+  // memo, so the approval card renders the *case*, not just the ticket.
+  useEffect(() => {
+    const ids = Array.from(new Set(pending.map((o) => o.thesis_id).filter(Boolean))) as string[];
+    if (ids.length === 0) {
+      setThesisCtx({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const entries = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const thesis = await fundApiClient.getThesis(id);
+            let memo: MemoView | undefined;
+            if (thesis.memo_ids?.length) {
+              const m = await fundApiClient.getThesisMemos(id);
+              memo = m.memos?.[m.memos.length - 1];
+            }
+            return [id, { thesis, memo }] as const;
+          } catch {
+            return null;
+          }
+        }),
+      );
+      if (!cancelled) {
+        setThesisCtx(Object.fromEntries(entries.filter(Boolean) as [string, { thesis: ThesisView; memo?: MemoView }][]));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pending]);
 
   const loadChart = useCallback(async (symbol: string) => {
     setChartLoading(true);
@@ -434,6 +475,7 @@ export default function StrategyStudioPage() {
                 <div className="divide-y divide-zinc-800/70">
                   {pending.map((o) => {
                     const ip = o.impact_preview || {};
+                    const ctx = o.thesis_id ? thesisCtx[o.thesis_id] : undefined;
                     return (
                       <div key={o.order_id} className="p-3">
                         <div className="flex items-center gap-2">
@@ -447,6 +489,21 @@ export default function StrategyStudioPage() {
                           <span>px {money(ip.quote_price)}</span>
                           <span>cash → {money(ip.cash_after)}</span>
                         </div>
+                        {/* the case for the trade: thesis + Clark's memo */}
+                        {ctx ? (
+                          <div className="mt-2 rounded-md border border-teal-800/40 bg-teal-950/20 p-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="rounded bg-teal-500/20 px-1 py-0.5 text-[9px] font-semibold uppercase text-teal-300">thesis</span>
+                              <span className="min-w-0 truncate text-[11px] font-medium text-teal-200">{ctx.thesis.title}</span>
+                            </div>
+                            {ctx.thesis.claim && <p className="mt-1 text-[11px] text-zinc-400">{ctx.thesis.claim}</p>}
+                            {ctx.memo?.recommendation && (
+                              <p className="mt-1 text-[11px] text-teal-300">▸ {ctx.memo.recommendation}</p>
+                            )}
+                          </div>
+                        ) : o.thesis_id ? null : (
+                          <div className="mt-2 text-[10px] italic text-amber-500/70">discretionary — no thesis</div>
+                        )}
                         <div className="mt-2 flex gap-2">
                           <Button
                             className="h-7 flex-1 bg-emerald-600 text-white hover:bg-emerald-700"
@@ -470,6 +527,12 @@ export default function StrategyStudioPage() {
                 </div>
               )}
             </div>
+
+            {/* theses — every trade should reference one */}
+            <ThesisPanel refreshKey={tick} onChanged={() => load(true)} />
+
+            {/* analytical risk cockpit */}
+            <RiskPanel refreshKey={tick} />
 
             {/* LP book */}
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/40">
