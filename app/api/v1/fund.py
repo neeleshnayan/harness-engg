@@ -542,11 +542,12 @@ def run_backtest(strategy_id: str, req: BacktestRunRequest):
 
 
 @router.get("/fund/marketdata/bars")
-def get_bars(symbol: str = Query(..., min_length=1, max_length=6),
-             lookback_days: int = Query(180, gt=1, le=2000)):
-    """Free daily bars for a symbol (Alpaca if keyed, else Yahoo) — for charts."""
+def get_bars(symbol: str = Query(..., min_length=1, max_length=12),
+             lookback_days: int = Query(180, gt=1, le=2000),
+             start_date: str | None = Query(None), end_date: str | None = Query(None)):
+    """Free daily bars for a symbol (crypto→CoinGecko, else Alpaca/Yahoo) — for charts."""
     try:
-        bars = fetch_daily_bars(symbol, lookback_days=lookback_days)
+        bars = fetch_daily_bars(symbol, lookback_days=lookback_days, start=start_date, end=end_date)
     except BarsError as e:
         raise HTTPException(status_code=422, detail=str(e))
     return {"symbol": bars.symbol, "source": bars.source,
@@ -562,7 +563,8 @@ def run_backtest_by_symbol(strategy_id: str, req: BacktestBySymbolRequest):
     Stooq (free, no key). Returns the result plus the price series for charting.
     """
     try:
-        bars = fetch_daily_bars(req.symbol, lookback_days=req.lookback_days)
+        bars = fetch_daily_bars(req.symbol, lookback_days=req.lookback_days,
+                                start=req.start_date, end=req.end_date)
     except BarsError as e:
         raise HTTPException(status_code=422, detail=str(e))
 

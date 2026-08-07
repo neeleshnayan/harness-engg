@@ -60,6 +60,55 @@ def _from_alpaca(symbol: str, lookback_days: int) -> Bars | None:
         raise BarsError(f"Alpaca bars failed for {symbol}: {e}") from e
 
 
+# Crypto tickers -> CoinGecko coin ids (free, no key; better crypto coverage
+# than Alpaca/Yahoo and supports exact date ranges). Accepts BTC, BTC-USD, BTC/USDT.
+_CRYPTO_IDS = {
+    "BTC": "bitcoin", "XBT": "bitcoin", "ETH": "ethereum", "SOL": "solana",
+    "DOGE": "dogecoin", "ADA": "cardano", "XRP": "ripple", "BNB": "binancecoin",
+    "DOT": "polkadot", "LTC": "litecoin", "MATIC": "matic-network", "AVAX": "avalanche-2",
+    "LINK": "chainlink", "TRX": "tron", "USDC": "usd-coin", "USDT": "tether",
+}
+
+
+def _crypto_id(symbol: str) -> str | None:
+    base = (symbol or "").upper().split("-")[0].split("/")[0].strip()
+    return _CRYPTO_IDS.get(base)
+
+
+def _epoch(d: str) -> int:
+    return int(datetime.fromisoformat(d).replace(tzinfo=timezone.utc).timestamp())
+
+
+def _from_coingecko(symbol: str, lookback_days: int,
+                    start: str | None = None, end: str | None = None) -> Bars | None:
+    """Free daily closes for a crypto asset. Range endpoint honours exact windows."""
+    coin = _crypto_id(symbol)
+    if not coin:
+        return None
+    base = "https://api.coingecko.com/api/v3/coins/" + coin + "/market_chart"
+    if start and end:
+        url = f"{base}/range?vs_currency=usd&from={_epoch(start)}&to={_epoch(end)}"
+    else:
+        url = f"{base}?vs_currency=usd&days={max(1, lookback_days)}&interval=daily"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (ClarkHarness)"})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            payload = json.loads(r.read().decode("utf-8", "replace"))
+    except Exception as e:  # noqa: BLE001
+        raise BarsError(f"Could not reach CoinGecko for {symbol}: {e}") from e
+    # prices: [[ms_epoch, price], ...]; collapse to one close per calendar date.
+    by_date: dict[str, float] = {}
+    for ms, px in payload.get("prices", []):
+        d = datetime.fromtimestamp(ms / 1000, tz=timezone.utc).date().isoformat()
+        by_date[d] = float(px)  # last price seen for the date = daily close
+    dates = sorted(by_date)
+    closes = [by_date[d] for d in dates]
+    if len(closes) < 2:
+        raise BarsError(f"Not enough CoinGecko bars for '{symbol}' (got {len(closes)}).")
+    return Bars(symbol=symbol.upper(), closes=closes, dates=dates, source="coingecko",
+                start=dates[0], end=dates[-1])
+
+
 def _yahoo_range(lookback_days: int) -> str:
     for days, rng in ((365, "1y"), (730, "2y"), (1825, "5y"), (3650, "10y")):
         if lookback_days <= days:
@@ -67,12 +116,16 @@ def _yahoo_range(lookback_days: int) -> str:
     return "max"
 
 
-def _from_yahoo(symbol: str, lookback_days: int) -> Bars:
+def _from_yahoo(symbol: str, lookback_days: int,
+                start: str | None = None, end: str | None = None) -> Bars:
     # Yahoo Finance chart API — free, no key. Returns epoch timestamps + OHLC.
-    rng = _yahoo_range(lookback_days)
+    if start and end:
+        window = f"period1={_epoch(start)}&period2={_epoch(end)}"
+    else:
+        window = f"range={_yahoo_range(lookback_days)}"
     url = (
         f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
-        f"?range={rng}&interval=1d"
+        f"?{window}&interval=1d"
     )
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (ClarkHarness)"})
@@ -98,7 +151,7 @@ def _from_yahoo(symbol: str, lookback_days: int) -> Bars:
         closes.append(float(c))
         dates.append(datetime.fromtimestamp(ts, tz=timezone.utc).date().isoformat())
 
-    if lookback_days and len(closes) > lookback_days:
+    if not (start and end) and lookback_days and len(closes) > lookback_days:
         closes, dates = closes[-lookback_days:], dates[-lookback_days:]
     if len(closes) < 2:
         raise BarsError(f"Not enough bars for '{symbol}' to backtest (got {len(closes)}).")
@@ -112,15 +165,33 @@ def _from_yahoo(symbol: str, lookback_days: int) -> Bars:
     )
 
 
-def fetch_daily_bars(symbol: str, lookback_days: int = 365) -> Bars:
-    """Fetch daily close prices for a symbol (Alpaca if keyed, else Yahoo)."""
+def fetch_daily_bars(symbol: str, lookback_days: int = 365,
+                     start: str | None = None, end: str | None = None) -> Bars:
+    """Daily closes for a symbol. Crypto -> CoinGecko; equities -> Alpaca (if keyed) else Yahoo.
+
+    ``start``/``end`` (ISO ``YYYY-MM-DD``) fetch an exact historical window; omit
+    them for a trailing ``lookback_days`` window.
+    """
     symbol = (symbol or "").strip().upper()
-    if not symbol.isalnum() or len(symbol) > 6:
+    # Crypto: CoinGecko first (free tier ≈ last 365 days). For deeper history it
+    # errors, so fall back to Yahoo's crypto series (e.g. ETH-USD) which serves
+    # full history + exact date ranges for free.
+    if _crypto_id(symbol):
+        base = symbol.split("-")[0].split("/")[0]
+        try:
+            cg = _from_coingecko(symbol, lookback_days, start=start, end=end)
+            if cg is not None:
+                return cg
+        except BarsError:
+            pass
+        return _from_yahoo(f"{base}-USD", lookback_days, start=start, end=end)
+    # Equities/ETFs: alnum tickers only (e.g. AAPL, GLD, SPY).
+    if not symbol.replace(".", "").isalnum() or len(symbol) > 6:
         raise BarsError(f"Invalid symbol '{symbol}'.")
-    alpaca = _from_alpaca(symbol, lookback_days)
+    alpaca = _from_alpaca(symbol, lookback_days) if not (start and end) else None
     if alpaca is not None:
         return alpaca
-    return _from_yahoo(symbol, lookback_days)
+    return _from_yahoo(symbol, lookback_days, start=start, end=end)
 
 
 # --- live marks (free) -----------------------------------------------------

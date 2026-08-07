@@ -140,8 +140,10 @@ class BacktestRunRequest(_StrategyParams):
 
 
 class BacktestBySymbolRequest(_StrategyParams):
-    symbol: str = Field(..., min_length=1, max_length=6, description="US equity symbol, e.g. AAPL")
-    lookback_days: int = Field(365, gt=1, le=2000, description="Trailing calendar days of daily bars")
+    symbol: str = Field(..., min_length=1, max_length=12, description="Equity (AAPL) or crypto (BTC, ETH) symbol")
+    lookback_days: int = Field(365, gt=1, le=2000, description="Trailing calendar days (ignored if start/end given)")
+    start_date: Optional[str] = Field(None, description="Exact window start, YYYY-MM-DD")
+    end_date: Optional[str] = Field(None, description="Exact window end, YYYY-MM-DD")
 
 
 class ApprovalRequest(BaseModel):
