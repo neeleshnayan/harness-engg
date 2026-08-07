@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Activity,
   ArrowUpRight,
   Check,
   Loader2,
+  MessageSquare,
   Plus,
   RefreshCw,
   Search,
@@ -198,6 +200,12 @@ export default function StrategyStudioPage() {
             </div>
           </div>
           <div className="ml-auto flex items-center gap-2">
+            <Link
+              href="/clark"
+              className="flex h-8 items-center gap-1.5 rounded-md border border-zinc-700 px-3 text-sm text-zinc-200 hover:bg-zinc-800"
+            >
+              <MessageSquare size={14} /> Clark
+            </Link>
             <Button variant="outline" className="h-8 border-zinc-700 bg-transparent text-zinc-200" onClick={() => load()}>
               <RefreshCw size={14} className="mr-1.5" /> Refresh
             </Button>

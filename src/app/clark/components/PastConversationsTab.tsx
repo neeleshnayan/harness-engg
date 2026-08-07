@@ -2,7 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { MessageSquare, Loader2, RefreshCw, Trash2, SquarePen, X } from 'lucide-react'
+import { MessageSquare, Loader2, RefreshCw, Trash2, SquarePen, X, LineChart } from 'lucide-react'
+import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import agentsApi from '@/lib/agents_api'
 import type { ChatMessage } from '../types'
@@ -233,6 +234,10 @@ export default function PastConversationsTab({
               <span className="font-medium">New Chat</span>
             </button>
           )}
+          <Link href="/clark/studio" className={actionRowClass} title="Strategy Studio (admin)" aria-label="Strategy Studio">
+            <LineChart className="h-4 w-4 text-teal-400/90 flex-shrink-0" />
+            <span className="font-medium">Strategy Studio</span>
+          </Link>
           {onOpenDevtools && (
             <button
               type="button"

@@ -1030,7 +1030,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                         Clark
                       </span>
                     </div>
-                    <div className="mt-1 ml-10 max-w-[85%]">
+                    <div className="mt-1 ml-10 max-w-[85%] min-w-0 break-words">
                       {/* No bubble: Clark's output is plain text on the feed background */}
                       {(() => {
                         const sourceLabel = formatSourceLabel(message.source)
@@ -1071,7 +1071,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                           Clark
                         </span>
                       </div>
-                      <div className="mt-1 ml-10 max-w-[85%]">
+                      <div className="mt-1 ml-10 max-w-[85%] min-w-0 break-words">
                         <div
                           className="clark-prose text-sm text-white/95 leading-relaxed"
                           dangerouslySetInnerHTML={{ __html: markdownToHtml(content) }}
