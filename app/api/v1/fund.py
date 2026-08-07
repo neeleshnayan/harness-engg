@@ -171,6 +171,30 @@ def get_pending_orders():
     return {"pending": _orders.pending()}
 
 
+@router.get("/fund/orders/history")
+def get_order_history(strategy_id: str | None = Query(None), limit: int = Query(200, ge=1, le=1000)):
+    """The trade blotter — order lifecycle rows, newest first.
+
+    With ``strategy_id`` on a container strategy, rolls up over its whole subtree
+    (the layered cake), so a parent shows its children's trades too.
+    """
+    subtree: set[str] | None = None
+    if strategy_id:
+        # collect the strategy + all descendants
+        kids: dict[str, list[str]] = {}
+        for s in _strategies.list():
+            if s.get("parent_id"):
+                kids.setdefault(s["parent_id"], []).append(s["strategy_id"])
+        subtree, stack = set(), [strategy_id]
+        while stack:
+            cur = stack.pop()
+            if cur in subtree:
+                continue
+            subtree.add(cur)
+            stack.extend(kids.get(cur, []))
+    return {"orders": _orders.history(strategy_ids=subtree, limit=limit)}
+
+
 @router.get("/fund/orders/{order_id}")
 def get_order(order_id: str):
     events = _store.by_aggregate(order_id)
