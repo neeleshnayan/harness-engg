@@ -52,6 +52,7 @@ class OrdersProjection:
             out.append({
                 "order_id": rec["order_id"], "symbol": p.get("symbol"), "side": p.get("side"),
                 "qty": p.get("qty"), "strategy_id": p.get("strategy_id"),
+                "thesis_id": p.get("thesis_id"),  # so the approval card can render the case
                 "impact_preview": p.get("impact_preview"), "ts": rec["ts"],
             })
         return sorted(out, key=lambda r: r["ts"] or "")
