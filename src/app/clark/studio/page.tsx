@@ -276,7 +276,7 @@ export default function StrategyStudioPage() {
               </div>
             </div>
           </div>
-          <div className="ml-2 hidden md:block">
+          <div className="order-last w-full md:order-none md:ml-2 md:w-auto">
             <StudioNav />
           </div>
           <div className="ml-auto flex items-center gap-2">
