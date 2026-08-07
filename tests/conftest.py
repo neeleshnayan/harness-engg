@@ -26,6 +26,9 @@ from app.fund.projections.nav import NavService  # noqa: E402
 from app.fund.projections.orders import OrdersProjection  # noqa: E402
 from app.fund.projections.positions import PositionsProjection  # noqa: E402
 from app.fund.projections.strategy import StrategyAttribution  # noqa: E402
+from app.fund.memo import MemoService  # noqa: E402
+from app.fund.postmortem import PostmortemService  # noqa: E402
+from app.fund.riskanalytics import RiskAnalytics  # noqa: E402
 from app.fund.risk import RiskGate, RiskLimits  # noqa: E402
 from app.fund.strategies import StrategyService  # noqa: E402
 
@@ -56,4 +59,7 @@ def wire():
         strategies=StrategyService(store=store),
         attribution=StrategyAttribution(store),
         orders=OrdersProjection(store),
+        memos=MemoService(store=store),
+        risk=RiskAnalytics(nav_service=nav),
+        postmortem=PostmortemService(store=store, pricer=conn.price),
     )

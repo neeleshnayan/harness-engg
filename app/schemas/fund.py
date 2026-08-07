@@ -43,6 +43,39 @@ class ThesisStatusRequest(BaseModel):
     actor: str = Field("operator", description="Who changed it")
 
 
+class MemoCreateRequest(BaseModel):
+    thesis_id: str = Field(..., description="The thesis this memo argues the case for")
+    title: str = Field(..., description="Memo headline, e.g. 'Long AAPL into the print'")
+    recommendation: Optional[str] = Field(None, description="The ask, e.g. 'Buy 2% NAV of AAPL'")
+    conviction: Optional[Literal["low", "medium", "high"]] = Field(None, description="Conviction level")
+    summary: Optional[str] = Field(None, description="One-paragraph thesis-in-brief")
+    sections: Optional[dict] = Field(None, description="Ordered {heading: markdown} body sections")
+    sources: Optional[list[str]] = Field(None, description="Evidence / source references")
+    author: Optional[str] = Field(None, description="Who drafted it (default the actor, e.g. 'clark')")
+    actor: str = Field("operator", description="Who created it")
+
+
+class MemoUpdateRequest(BaseModel):
+    patch: dict = Field(..., description="Partial memo fields to update")
+    actor: str = Field("operator", description="Who updated it")
+
+
+class MemoFinalizeRequest(BaseModel):
+    actor: str = Field("operator", description="Who signed off on the memo")
+
+
+class RiskShockRequest(BaseModel):
+    symbol: Optional[str] = Field(None, description="Symbol to shock; None => whole book")
+    pct: float = Field(..., ge=-99, le=99, description="Percent move to apply, e.g. -20")
+
+
+class PostmortemRequest(BaseModel):
+    verdict: Literal["correct", "partially_correct", "wrong", "invalidated", "too_early"]
+    what_happened: Optional[str] = Field(None, description="Narrative of how it played out")
+    lessons: Optional[list[str]] = Field(None, description="What we learned for next time")
+    actor: str = Field("operator", description="Who recorded the post-mortem")
+
+
 class StrategyRegisterRequest(BaseModel):
     name: str = Field(..., description="Human-readable strategy name")
     definition: Optional[dict] = Field(None, description="LEAN algo / params (opaque blob)")

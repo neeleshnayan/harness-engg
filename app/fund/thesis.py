@@ -26,7 +26,9 @@ class ThesisStatus(str, Enum):
 
 # Allowed status transitions (auditable lifecycle).
 _ALLOWED: dict[ThesisStatus, set[ThesisStatus]] = {
-    ThesisStatus.DRAFT: {ThesisStatus.ACTIVE, ThesisStatus.INVALIDATED},
+    # REVIEWED is reachable from any live state — a post-mortem can close a
+    # thesis you never acted on as readily as one you traded.
+    ThesisStatus.DRAFT: {ThesisStatus.ACTIVE, ThesisStatus.INVALIDATED, ThesisStatus.REVIEWED},
     ThesisStatus.ACTIVE: {ThesisStatus.INVALIDATED, ThesisStatus.EXITED, ThesisStatus.REVIEWED},
     ThesisStatus.INVALIDATED: {ThesisStatus.REVIEWED, ThesisStatus.EXITED},
     ThesisStatus.EXITED: {ThesisStatus.REVIEWED},
@@ -105,8 +107,10 @@ class ThesisRegistry:
             aid = e.get("aggregate_id")
             p = e.get("payload", {}) or {}
             if etype == EventType.THESIS_CREATED.value:
-                rec = {"thesis_id": aid, "status": ThesisStatus.DRAFT.value, "order_ids": []}
+                rec = {"thesis_id": aid, "status": ThesisStatus.DRAFT.value,
+                       "order_ids": [], "memo_ids": [], "has_postmortem": False}
                 rec.update({k: p.get(k) for k in _FIELDS})
+                rec["memo_ids"] = rec.get("memo_ids") or []
                 out[aid] = rec
             elif etype == EventType.THESIS_UPDATED.value and aid in out:
                 out[aid].update({k: v for k, v in p.items() if v is not None})
@@ -116,6 +120,14 @@ class ThesisRegistry:
                 tid = p.get("thesis_id")
                 if tid in out:
                     out[tid]["order_ids"].append(aid)
+            elif etype == EventType.MEMO_CREATED.value:
+                tid = p.get("thesis_id")
+                if tid in out and aid not in out[tid]["memo_ids"]:
+                    out[tid]["memo_ids"].append(aid)
+            elif etype == EventType.POSTMORTEM_RECORDED.value:
+                tid = p.get("thesis_id")
+                if tid in out:
+                    out[tid]["has_postmortem"] = True
         return out
 
     def get(self, thesis_id: str) -> Optional[dict[str, Any]]:

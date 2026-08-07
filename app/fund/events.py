@@ -68,6 +68,15 @@ class EventType(str, Enum):
     THESIS_UPDATED = "ThesisUpdated"
     THESIS_STATUS_CHANGED = "ThesisStatusChanged"
 
+    # Investment memo — the written case Clark drafts against a thesis and a
+    # human signs off on. Rendered at the approval card. Auditable like the rest.
+    MEMO_CREATED = "MemoCreated"
+    MEMO_UPDATED = "MemoUpdated"
+
+    # Post-mortem — the closing entry that diffs a thesis's prediction against
+    # what actually happened. Closes the loop and builds the reasoning dataset.
+    POSTMORTEM_RECORDED = "PostmortemRecorded"
+
 
 @dataclass
 class Event:

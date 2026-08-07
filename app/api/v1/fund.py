@@ -27,7 +27,10 @@ from app.fund.projections.nav import NavService
 from app.fund.projections.orders import OrdersProjection
 from app.fund.projections.positions import PositionsProjection
 from app.fund.projections.strategy import StrategyAttribution
+from app.fund.memo import MemoError, MemoService
+from app.fund.postmortem import PostmortemError, PostmortemService
 from app.fund.reconcile import Reconciler
+from app.fund.riskanalytics import RiskAnalytics
 from app.fund.strategies import StrategyError, StrategyService
 from app.fund.thesis import ThesisError, ThesisService
 from app.schemas.fund import (
@@ -36,8 +39,13 @@ from app.schemas.fund import (
     BacktestBySymbolRequest,
     BacktestResultRequest,
     BacktestRunRequest,
+    MemoCreateRequest,
+    MemoFinalizeRequest,
+    MemoUpdateRequest,
+    PostmortemRequest,
     ProposeOrderRequest,
     RedeemRequest,
+    RiskShockRequest,
     StrategyAllocationRequest,
     StrategyRegisterRequest,
     StrategyStateRequest,
@@ -73,6 +81,9 @@ _ledger = LedgerService(nav_service=_nav, store=_store)
 _holdings = HoldingsProjection(_store)
 _strategies = StrategyService(store=_store)
 _theses = ThesisService(store=_store)
+_memos = MemoService(store=_store)
+_risk = RiskAnalytics(nav_service=_nav)
+_postmortem = PostmortemService(store=_store, pricer=_connector.price)
 _attribution = StrategyAttribution(_store)
 _orders = OrdersProjection(_store)
 _reconciler = Reconciler(connector=_connector, store=_store, projection=_projection)
@@ -308,6 +319,91 @@ def set_thesis_status(thesis_id: str, req: ThesisStatusRequest):
         return _theses.set_status(thesis_id, status=req.status, actor=req.actor, note=req.note)
     except ThesisError as e:
         raise HTTPException(status_code=409, detail=str(e))
+
+
+@router.get("/fund/theses/{thesis_id}/memos")
+def list_thesis_memos(thesis_id: str):
+    """Every memo drafted against a thesis (Clark's written case)."""
+    return {"memos": _memos.list(thesis_id=thesis_id)}
+
+
+@router.post("/fund/theses/{thesis_id}/postmortem")
+def record_postmortem(thesis_id: str, req: PostmortemRequest):
+    """Close the loop: grade the thesis vs. outcome and record realized P&L."""
+    try:
+        return _postmortem.record(
+            thesis_id, verdict=req.verdict, actor=req.actor,
+            what_happened=req.what_happened, lessons=req.lessons,
+        )
+    except ThesisError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except PostmortemError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@router.get("/fund/theses/{thesis_id}/postmortem")
+def get_postmortem(thesis_id: str):
+    pm = _postmortem.get(thesis_id)
+    if pm is None:
+        raise HTTPException(status_code=404, detail=f"no post-mortem for thesis {thesis_id}")
+    return pm
+
+
+# --- memos (the written case for a trade, drafted against a thesis) ---------
+@router.post("/fund/memos")
+def create_memo(req: MemoCreateRequest):
+    body = req.model_dump()
+    try:
+        _theses.get(req.thesis_id)  # a memo must reference a real thesis
+    except ThesisError:
+        raise HTTPException(status_code=404, detail=f"unknown thesis {req.thesis_id}")
+    try:
+        return _memos.create(body, actor=req.actor)
+    except MemoError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@router.get("/fund/memos")
+def list_memos(thesis_id: str | None = Query(None)):
+    return {"memos": _memos.list(thesis_id=thesis_id)}
+
+
+@router.get("/fund/memos/{memo_id}")
+def get_memo(memo_id: str):
+    try:
+        return _memos.get(memo_id)
+    except MemoError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/fund/memos/{memo_id}")
+def update_memo(memo_id: str, req: MemoUpdateRequest):
+    try:
+        return _memos.update(memo_id, req.patch, actor=req.actor)
+    except MemoError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/fund/memos/{memo_id}/finalize")
+def finalize_memo(memo_id: str, req: MemoFinalizeRequest):
+    """Human signs off — the memo becomes the record of decision."""
+    try:
+        return _memos.finalize(memo_id, actor=req.actor)
+    except MemoError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+# --- risk analytics (concentration + scenario shocks; read-only) ------------
+@router.get("/fund/risk/analytics")
+def get_risk_analytics():
+    """Concentration, cash buffer, HHI, breach flags and default stress scenarios."""
+    return _risk.analytics()
+
+
+@router.post("/fund/risk/shock")
+def run_risk_shock(req: RiskShockRequest):
+    """Reprice a symbol (or the whole book) by a percent move — a what-if on NAV."""
+    return _risk.shock(req.symbol, req.pct)
 
 
 # --- strategies ------------------------------------------------------------
