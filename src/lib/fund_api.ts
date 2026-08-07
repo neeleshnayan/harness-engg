@@ -21,6 +21,15 @@ const P = '/api/v1/fund';
 
 export type StrategyState = 'draft' | 'backtested' | 'deployed' | 'paused';
 
+export interface BacktestSummary {
+  total_return: number;
+  sharpe: number;
+  max_drawdown: number;
+  n_trades: number;
+  final_equity: number;
+  bars: number;
+}
+
 export interface StrategyView {
   strategy_id: string;
   name: string;
@@ -29,13 +38,58 @@ export interface StrategyView {
   actual_pct?: number;
   exposure_usd?: number;
   pnl_usd?: number;
-  backtest?: Record<string, unknown> | null;
+  backtest?: BacktestSummary | null;
 }
 
 export interface StrategiesResponse {
   nav_usd: number;
   strategies: StrategyView[];
   discretionary?: { exposure_usd?: number; pnl_usd?: number } | null;
+}
+
+export interface NavPosition {
+  symbol: string;
+  qty: number;
+  mark: number;
+  usd_value: number;
+}
+
+export interface NavSnapshot {
+  ts?: string;
+  total_nav_usd: number;
+  units_outstanding: number;
+  nav_per_unit: number;
+  breakdown: { positions: number; cash: number };
+  positions: NavPosition[];
+}
+
+export interface NavResponse {
+  live: NavSnapshot;
+  last_struck: NavSnapshot | null;
+}
+
+export interface LpView {
+  lp_id: string;
+  name?: string;
+  units: number;
+  value_usd: number;
+  ownership_pct?: number;
+}
+
+export interface PendingOrder {
+  order_id: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  qty: number;
+  strategy_id?: string | null;
+  impact_preview?: {
+    quote_price?: number;
+    notional_usd?: number;
+    nav_before?: number;
+    cash_before?: number;
+    cash_after?: number;
+  };
+  ts?: string;
 }
 
 export interface BacktestResult {
@@ -55,11 +109,40 @@ export interface BacktestRunBody {
   actor?: string;
 }
 
+export interface BacktestBySymbolBody {
+  symbol: string;
+  strategy: 'sma' | 'buy_hold';
+  fast?: number;
+  slow?: number;
+  lookback_days?: number;
+  actor?: string;
+}
+
+export interface BacktestBySymbolResponse {
+  result: BacktestResult;
+  strategy: StrategyView;
+  source: string;
+  symbol: string;
+  bars: { closes: number[]; dates: string[] | null; start: string | null; end: string | null };
+}
+
 export const fundApiClient = {
-  getNav: async () => (await fundApi.get(`${P}/nav`)).data,
+  getNav: async (): Promise<NavResponse> => (await fundApi.get(`${P}/nav`)).data,
 
   getStrategies: async (): Promise<StrategiesResponse> =>
     (await fundApi.get(`${P}/strategies`)).data,
+
+  getLps: async (): Promise<{ nav_per_unit: number; lps: LpView[] }> =>
+    (await fundApi.get(`${P}/lps`)).data,
+
+  getPending: async (): Promise<{ pending: PendingOrder[] }> =>
+    (await fundApi.get(`${P}/orders/pending`)).data,
+
+  getBars: async (
+    symbol: string,
+    lookbackDays = 180,
+  ): Promise<{ symbol: string; source: string; closes: number[]; dates: string[] | null; start: string | null; end: string | null }> =>
+    (await fundApi.get(`${P}/marketdata/bars`, { params: { symbol, lookback_days: lookbackDays } })).data,
 
   registerStrategy: async (name: string, actor = 'operator') =>
     (await fundApi.post(`${P}/strategies`, { name, actor })).data,
@@ -73,6 +156,15 @@ export const fundApiClient = {
       ...body,
     })).data,
 
+  runBacktestBySymbol: async (
+    strategyId: string,
+    body: BacktestBySymbolBody,
+  ): Promise<BacktestBySymbolResponse> =>
+    (await fundApi.post(`${P}/strategies/${strategyId}/backtest/by_symbol`, {
+      actor: 'operator',
+      ...body,
+    })).data,
+
   setState: async (strategyId: string, state: StrategyState, actor = 'operator') =>
     (await fundApi.post(`${P}/strategies/${strategyId}/state`, { state, actor })).data,
 
@@ -81,6 +173,14 @@ export const fundApiClient = {
       target_pct: targetPct,
       actor,
     })).data,
+
+  approveOrder: async (orderId: string, approver = 'operator') =>
+    (await fundApi.post(`${P}/orders/${orderId}/approve`, { approver })).data,
+
+  declineOrder: async (orderId: string, approver = 'operator') =>
+    (await fundApi.post(`${P}/orders/${orderId}/decline`, { approver })).data,
+
+  settle: async () => (await fundApi.post(`${P}/orders/settle`)).data,
 };
 
 export default fundApi;
