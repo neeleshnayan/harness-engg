@@ -40,8 +40,10 @@ export interface StrategyView {
   pnl_usd?: number;
   positions?: Record<string, { qty?: number; avg_price?: number }>;
   backtest?: BacktestSummary | null;
-  // Layered cake (nested strategies)
-  parent_id?: string | null;
+  // Layered cake (nested strategies) — many-to-many composition
+  parent_id?: string | null;   // back-compat: first parent
+  parents?: string[];          // full membership set (a strategy can have several)
+  archived?: boolean;
   children?: string[];
   is_container?: boolean;
   depth?: number;
@@ -283,6 +285,18 @@ export const fundApiClient = {
       actor: 'operator',
       ...body,
     })).data,
+
+  renameStrategy: async (strategyId: string, name: string, actor = 'operator') =>
+    (await fundApi.post(`${P}/strategies/${strategyId}/rename`, { name, actor })).data,
+
+  archiveStrategy: async (strategyId: string, actor = 'operator') =>
+    (await fundApi.post(`${P}/strategies/${strategyId}/archive`, { actor })).data,
+
+  addStrategyParent: async (strategyId: string, parentId: string, actor = 'operator') =>
+    (await fundApi.post(`${P}/strategies/${strategyId}/parents`, { parent_id: parentId, actor })).data,
+
+  removeStrategyParent: async (strategyId: string, parentId: string, actor = 'operator') =>
+    (await fundApi.post(`${P}/strategies/${strategyId}/parents/remove`, { parent_id: parentId, actor })).data,
 
   setState: async (strategyId: string, state: StrategyState, actor = 'operator') =>
     (await fundApi.post(`${P}/strategies/${strategyId}/state`, { state, actor })).data,

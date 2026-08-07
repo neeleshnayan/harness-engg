@@ -29,6 +29,7 @@ import {
 } from "@/lib/fund_api";
 import { CreateStrategyModal } from "./components/CreateStrategyModal";
 import { StrategyDetailModal } from "./components/StrategyDetailModal";
+import { StrategyManageModal } from "./components/StrategyManageModal";
 import { BacktestModal } from "./components/BacktestModal";
 import { AllocationModal } from "./components/AllocationModal";
 import { RiskPanel } from "./components/RiskPanel";
@@ -90,6 +91,7 @@ export default function StrategyStudioPage() {
   const [backtestTarget, setBacktestTarget] = useState<StrategyView | null>(null);
   const [detailTarget, setDetailTarget] = useState<StrategyView | null>(null);
   const [allocTarget, setAllocTarget] = useState<StrategyView | null>(null);
+  const [manageTarget, setManageTarget] = useState<StrategyView | null>(null);
 
   // Chart panel state — NAV movement is the default; price is opt-in.
   const [chartMode, setChartMode] = useState<"nav" | "price">("nav");
@@ -197,7 +199,7 @@ export default function StrategyStudioPage() {
     };
   }, [load]);
 
-  const strategies = strat?.strategies || [];
+  const strategies = (strat?.strategies || []).filter((s) => !s.archived);
   const live = nav?.live;
   const positions = live?.positions || [];
 
@@ -463,8 +465,8 @@ export default function StrategyStudioPage() {
                               Pause
                             </button>
                           )}
-                          <button className="rounded border border-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-300 hover:bg-zinc-800" onClick={() => setAllocTarget(s)}>
-                            Alloc
+                          <button className="rounded border border-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-300 hover:bg-zinc-800" onClick={() => setManageTarget(s)}>
+                            Manage
                           </button>
                         </div>
                       </div>
@@ -637,6 +639,7 @@ export default function StrategyStudioPage() {
         }}
       />
       <AllocationModal strategy={allocTarget} onClose={() => setAllocTarget(null)} onSuccess={() => load(true)} />
+      <StrategyManageModal strategy={manageTarget} all={strategies} onClose={() => setManageTarget(null)} onSuccess={() => load(true)} />
       <StrategyDetailModal strategy={detailTarget} all={strategies} navUsd={strat?.nav_usd} onClose={() => setDetailTarget(null)} />
     </div>
   );
