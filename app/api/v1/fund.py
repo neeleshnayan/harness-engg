@@ -347,6 +347,7 @@ def run_backtest(strategy_id: str, req: BacktestRunRequest):
         breakout_lookback=req.breakout_lookback, macd_fast=req.macd_fast,
         macd_slow=req.macd_slow, macd_signal=req.macd_signal,
         boll_period=req.boll_period, boll_k=req.boll_k,
+        momentum_lookback=req.momentum_lookback, atr_period=req.atr_period, atr_mult=req.atr_mult,
     )
     result = SimpleBacktester().run(req.prices, signals)
     try:
@@ -388,6 +389,7 @@ def run_backtest_by_symbol(strategy_id: str, req: BacktestBySymbolRequest):
         breakout_lookback=req.breakout_lookback, macd_fast=req.macd_fast,
         macd_slow=req.macd_slow, macd_signal=req.macd_signal,
         boll_period=req.boll_period, boll_k=req.boll_k,
+        momentum_lookback=req.momentum_lookback, atr_period=req.atr_period, atr_mult=req.atr_mult,
     )
     result = SimpleBacktester().run(prices, signals)
     try:

@@ -4,9 +4,11 @@ import pytest
 
 from app.fund.backtest import (
     SimpleBacktester,
+    atr_trailing_signals,
     bollinger_signals,
     breakout_signals,
     macd_signals,
+    momentum_signals,
     rsi_signals,
     signals_for,
     sma_crossover_signals,
@@ -90,3 +92,19 @@ def test_signals_for_dispatch():
     assert signals_for("breakout", prices, breakout_lookback=20) == breakout_signals(prices, 20)
     assert signals_for("macd", prices) == macd_signals(prices, 12, 26, 9)
     assert signals_for("bollinger", prices) == bollinger_signals(prices, 20, 2.0)
+    assert signals_for("momentum", prices) == momentum_signals(prices, 20)
+    assert signals_for("atr_trail", prices) == atr_trailing_signals(prices, 14, 3.0)
+
+
+def test_momentum_long_in_uptrend():
+    prices = list(range(1, 41))
+    sig = momentum_signals(prices, lookback=20)
+    assert sig[:20] == [0.0] * 20 and sig[-1] == 1.0
+
+
+def test_atr_trailing_exits_on_crash():
+    prices = list(range(100, 140)) + [139, 137, 120, 100, 90]   # uptrend then a crash
+    sig = atr_trailing_signals(prices, period=14, mult=3.0)
+    assert set(sig) <= {0.0, 1.0}
+    assert 1.0 in sig            # was long in the uptrend
+    assert sig[-1] == 0.0        # trailing stop flattened it in the crash

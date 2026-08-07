@@ -35,7 +35,8 @@ class BacktestResultRequest(BaseModel):
     actor: str = Field("operator", description="Who recorded the backtest")
 
 
-StrategyName = Literal["sma", "buy_hold", "rsi", "breakout", "macd", "bollinger"]
+StrategyName = Literal["sma", "buy_hold", "rsi", "breakout", "macd", "bollinger",
+                       "momentum", "atr_trail"]
 
 
 class _StrategyParams(BaseModel):
@@ -51,6 +52,9 @@ class _StrategyParams(BaseModel):
     macd_signal: int = Field(9, gt=0, description="MACD signal EMA (macd)")
     boll_period: int = Field(20, gt=1, description="Bollinger window (bollinger)")
     boll_k: float = Field(2.0, gt=0, le=5, description="Bollinger band width in std devs (bollinger)")
+    momentum_lookback: int = Field(20, gt=0, description="Momentum lookback (momentum)")
+    atr_period: int = Field(14, gt=0, description="ATR window (atr_trail)")
+    atr_mult: float = Field(3.0, gt=0, le=10, description="ATR trailing-stop multiple (atr_trail)")
     actor: str = Field("operator", description="Who ran the backtest")
 
 

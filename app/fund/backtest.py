@@ -183,10 +183,40 @@ def bollinger_signals(prices: Sequence[float], period: int = 20, k: float = 2.0)
     return out
 
 
+def momentum_signals(prices: Sequence[float], lookback: int = 20) -> list[float]:
+    """Time-series momentum: long when price is above its value ``lookback`` bars ago."""
+    out = []
+    for i in range(len(prices)):
+        out.append(1.0 if i >= lookback and prices[i] > prices[i - lookback] else 0.0)
+    return out
+
+
+def atr_trailing_signals(prices: Sequence[float], period: int = 14, mult: float = 3.0) -> list[float]:
+    """Ride the trend with a close-to-close ATR trailing stop: exit when price falls
+    ``mult``×ATR below the running peak; re-enter on a fresh high."""
+    n = len(prices)
+    out, pos, peak = [], 0.0, prices[0] if prices else 0.0
+    for i in range(n):
+        if i < period:
+            out.append(0.0)
+            continue
+        atr = sum(abs(prices[j] - prices[j - 1]) for j in range(i - period + 1, i + 1)) / period
+        if pos == 0.0:
+            if prices[i] >= peak:          # (re)enter long on a new high
+                pos, peak = 1.0, prices[i]
+        else:
+            peak = max(peak, prices[i])
+            if prices[i] <= peak - mult * atr:
+                pos = 0.0                  # trailing stop hit -> flat
+        out.append(pos)
+    return out
+
+
 def signals_for(strategy: str, prices: Sequence[float], *, fast: int = 10, slow: int = 30,
                 rsi_period: int = 14, rsi_low: float = 30.0, rsi_high: float = 70.0,
                 breakout_lookback: int = 20, macd_fast: int = 12, macd_slow: int = 26,
-                macd_signal: int = 9, boll_period: int = 20, boll_k: float = 2.0) -> list[float]:
+                macd_signal: int = 9, boll_period: int = 20, boll_k: float = 2.0,
+                momentum_lookback: int = 20, atr_period: int = 14, atr_mult: float = 3.0) -> list[float]:
     """Dispatch a built-in strategy name to its signal series."""
     if strategy == "sma":
         return sma_crossover_signals(prices, fast, slow)
@@ -198,4 +228,8 @@ def signals_for(strategy: str, prices: Sequence[float], *, fast: int = 10, slow:
         return macd_signals(prices, macd_fast, macd_slow, macd_signal)
     if strategy == "bollinger":
         return bollinger_signals(prices, boll_period, boll_k)
+    if strategy == "momentum":
+        return momentum_signals(prices, momentum_lookback)
+    if strategy == "atr_trail":
+        return atr_trailing_signals(prices, atr_period, atr_mult)
     return [1.0] * len(prices)  # buy_hold
