@@ -110,7 +110,8 @@ export interface BacktestResult {
   bars: number;
 }
 
-export type StrategyTemplate = 'sma' | 'buy_hold' | 'rsi' | 'breakout' | 'macd' | 'bollinger';
+export type StrategyTemplate =
+  | 'sma' | 'buy_hold' | 'rsi' | 'breakout' | 'macd' | 'bollinger' | 'momentum' | 'atr_trail';
 
 export interface StrategyParams {
   strategy: StrategyTemplate;
@@ -125,6 +126,9 @@ export interface StrategyParams {
   macd_signal?: number;
   boll_period?: number;
   boll_k?: number;
+  momentum_lookback?: number;
+  atr_period?: number;
+  atr_mult?: number;
   actor?: string;
 }
 

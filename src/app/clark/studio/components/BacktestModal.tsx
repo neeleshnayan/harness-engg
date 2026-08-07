@@ -33,6 +33,9 @@ export function BacktestModal({ strategy, onClose, onSuccess, onCharted }: Props
   const [macdSignal, setMacdSignal] = useState(9);
   const [bollPeriod, setBollPeriod] = useState(20);
   const [bollK, setBollK] = useState(2);
+  const [momLookback, setMomLookback] = useState(20);
+  const [atrPeriod, setAtrPeriod] = useState(14);
+  const [atrMult, setAtrMult] = useState(3);
   const [symbol, setSymbol] = useState("AAPL");
   const [lookback, setLookback] = useState(365);
   const [pricesText, setPricesText] = useState("");
@@ -57,6 +60,9 @@ export function BacktestModal({ strategy, onClose, onSuccess, onCharted }: Props
     macd_signal: macdSignal,
     boll_period: bollPeriod,
     boll_k: bollK,
+    momentum_lookback: momLookback,
+    atr_period: atrPeriod,
+    atr_mult: atrMult,
   });
   // Minimum bars a template needs before it produces a signal.
   const minBars =
@@ -65,6 +71,8 @@ export function BacktestModal({ strategy, onClose, onSuccess, onCharted }: Props
     : type === "rsi" ? rsiPeriod + 1
     : type === "macd" ? macdSlow + 1
     : type === "bollinger" ? bollPeriod
+    : type === "momentum" ? momLookback + 1
+    : type === "atr_trail" ? atrPeriod + 1
     : 2;
 
   const runManual = async () => {
@@ -158,6 +166,8 @@ export function BacktestModal({ strategy, onClose, onSuccess, onCharted }: Props
                 <option value="breakout">Donchian breakout</option>
                 <option value="macd">MACD trend</option>
                 <option value="bollinger">Bollinger reversion</option>
+                <option value="momentum">Momentum (ROC)</option>
+                <option value="atr_trail">ATR trailing stop</option>
                 <option value="buy_hold">Buy &amp; hold</option>
               </select>
             </div>
@@ -201,6 +211,13 @@ export function BacktestModal({ strategy, onClose, onSuccess, onCharted }: Props
               <>
                 <NumField label="Period" value={bollPeriod} set={setBollPeriod} />
                 <NumField label="Std devs" value={bollK} set={setBollK} />
+              </>
+            )}
+            {type === "momentum" && <NumField label="Lookback" value={momLookback} set={setMomLookback} />}
+            {type === "atr_trail" && (
+              <>
+                <NumField label="ATR period" value={atrPeriod} set={setAtrPeriod} />
+                <NumField label="Stop ×ATR" value={atrMult} set={setAtrMult} />
               </>
             )}
             {mode === "symbol" && <NumField label="Lookback (d)" value={lookback} set={setLookback} min={30} />}
