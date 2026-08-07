@@ -89,8 +89,10 @@ change. Currently only the Alpaca **key id** is on hand; the **secret** is neede
 cd ClarkHarness
 python -m venv venv && source venv/Scripts/activate   # Windows Git Bash
 pip install -r requirements.txt -r requirements-dev.txt
-python scripts/run_local_fake.py                        # :8090, in-memory store, live marks on
-# real Firebase instead: set FIREBASE_SERVICE_ACCOUNT_JSON and use `uvicorn app.main:app --port 8090`
+# No-Firebase dev mode (in-memory, ephemeral). Add FUND_LIVE_MARKS=true for live
+# free marks on the paper venue; set ALPACA_API_KEY/SECRET to use Alpaca paper.
+USE_FAKE_FIRESTORE=1 FUND_LIVE_MARKS=true uvicorn app.main:app --port 8090
+# real Firebase instead: set FIREBASE_SERVICE_ACCOUNT_JSON and drop USE_FAKE_FIRESTORE
 ```
 
 **Frontend cockpit:**
