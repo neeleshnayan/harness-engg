@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, AlertCircle } from "lucide-react";
-import { fundApiClient, StrategyView, BacktestResult } from "@/lib/fund_api";
+import { fundApiClient, StrategyView, BacktestResult, StrategyParams, StrategyTemplate } from "@/lib/fund_api";
 import { TVAreaChart, TVPoint } from "./TVAreaChart";
 
 interface Props {
@@ -21,9 +21,13 @@ const asPct = (n: number) => `${(n * 100).toFixed(2)}%`;
 
 export function BacktestModal({ strategy, onClose, onSuccess, onCharted }: Props) {
   const [mode, setMode] = useState<"symbol" | "manual">("symbol");
-  const [type, setType] = useState<"sma" | "buy_hold">("sma");
+  const [type, setType] = useState<StrategyTemplate>("sma");
   const [fast, setFast] = useState(20);
   const [slow, setSlow] = useState(50);
+  const [rsiPeriod, setRsiPeriod] = useState(14);
+  const [rsiLow, setRsiLow] = useState(30);
+  const [rsiHigh, setRsiHigh] = useState(70);
+  const [breakoutLookback, setBreakoutLookback] = useState(20);
   const [symbol, setSymbol] = useState("AAPL");
   const [lookback, setLookback] = useState(365);
   const [pricesText, setPricesText] = useState("");
@@ -35,20 +39,32 @@ export function BacktestModal({ strategy, onClose, onSuccess, onCharted }: Props
 
   if (!strategy) return null;
 
+  const params = (): StrategyParams => ({
+    strategy: type,
+    fast,
+    slow,
+    rsi_period: rsiPeriod,
+    rsi_low: rsiLow,
+    rsi_high: rsiHigh,
+    breakout_lookback: breakoutLookback,
+  });
+  // Minimum bars a template needs before it produces a signal.
+  const minBars = type === "sma" ? slow : type === "breakout" ? breakoutLookback + 1 : type === "rsi" ? rsiPeriod + 1 : 2;
+
   const runManual = async () => {
     const prices = pricesText.split(/[\s,]+/).map((x) => parseFloat(x)).filter((x) => !isNaN(x));
     if (prices.length < 2) {
       setError("Enter at least 2 close prices (comma or space separated).");
       return;
     }
-    if (type === "sma" && prices.length < slow) {
-      setError(`SMA needs at least ${slow} bars (the slow window); you entered ${prices.length}.`);
+    if (prices.length < minBars) {
+      setError(`${type} needs at least ${minBars} bars; you entered ${prices.length}.`);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const res = await fundApiClient.runBacktest(strategy.strategy_id, { prices, strategy: type, fast, slow });
+      const res = await fundApiClient.runBacktest(strategy.strategy_id, { prices, ...params() });
       setResult(res.result);
       setSeries(prices.map((v, i) => ({ t: String(i), v })));
       setSource("manual");
@@ -71,10 +87,8 @@ export function BacktestModal({ strategy, onClose, onSuccess, onCharted }: Props
     try {
       const res = await fundApiClient.runBacktestBySymbol(strategy.strategy_id, {
         symbol: sym,
-        strategy: type,
-        fast,
-        slow,
         lookback_days: lookback,
+        ...params(),
       });
       setResult(res.result);
       const dates = res.bars.dates || [];
@@ -120,10 +134,12 @@ export function BacktestModal({ strategy, onClose, onSuccess, onCharted }: Props
               <select
                 id="btype"
                 value={type}
-                onChange={(e) => setType(e.target.value as "sma" | "buy_hold")}
+                onChange={(e) => setType(e.target.value as StrategyTemplate)}
                 className="h-10 rounded-md border border-zinc-700 bg-zinc-800 px-3 text-sm"
               >
                 <option value="sma">SMA crossover</option>
+                <option value="rsi">RSI mean-reversion</option>
+                <option value="breakout">Donchian breakout</option>
                 <option value="buy_hold">Buy &amp; hold</option>
               </select>
             </div>
@@ -141,24 +157,23 @@ export function BacktestModal({ strategy, onClose, onSuccess, onCharted }: Props
             )}
           </div>
 
-          {type === "sma" && (
-            <div className="grid grid-cols-3 gap-3">
-              <div className="grid gap-2">
-                <Label htmlFor="fast">Fast</Label>
-                <Input id="fast" type="number" value={fast} onChange={(e) => setFast(parseInt(e.target.value) || 1)} className="border-zinc-700 bg-zinc-800" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="slow">Slow</Label>
-                <Input id="slow" type="number" value={slow} onChange={(e) => setSlow(parseInt(e.target.value) || 1)} className="border-zinc-700 bg-zinc-800" />
-              </div>
-              {mode === "symbol" && (
-                <div className="grid gap-2">
-                  <Label htmlFor="lb">Lookback (d)</Label>
-                  <Input id="lb" type="number" value={lookback} onChange={(e) => setLookback(parseInt(e.target.value) || 30)} className="border-zinc-700 bg-zinc-800" />
-                </div>
-              )}
-            </div>
-          )}
+          <div className="grid grid-cols-3 gap-3">
+            {type === "sma" && (
+              <>
+                <NumField label="Fast" value={fast} set={setFast} />
+                <NumField label="Slow" value={slow} set={setSlow} />
+              </>
+            )}
+            {type === "rsi" && (
+              <>
+                <NumField label="Period" value={rsiPeriod} set={setRsiPeriod} />
+                <NumField label="Oversold <" value={rsiLow} set={setRsiLow} />
+                <NumField label="Overbought >" value={rsiHigh} set={setRsiHigh} />
+              </>
+            )}
+            {type === "breakout" && <NumField label="Channel" value={breakoutLookback} set={setBreakoutLookback} />}
+            {mode === "symbol" && <NumField label="Lookback (d)" value={lookback} set={setLookback} min={30} />}
+          </div>
 
           {mode === "manual" && (
             <div className="grid gap-2">
@@ -214,6 +229,20 @@ export function BacktestModal({ strategy, onClose, onSuccess, onCharted }: Props
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function NumField({ label, value, set, min = 1 }: { label: string; value: number; set: (n: number) => void; min?: number }) {
+  return (
+    <div className="grid gap-2">
+      <Label>{label}</Label>
+      <Input
+        type="number"
+        value={value}
+        onChange={(e) => set(parseInt(e.target.value) || min)}
+        className="border-zinc-700 bg-zinc-800"
+      />
+    </div>
   );
 }
 

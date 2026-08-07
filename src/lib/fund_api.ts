@@ -101,21 +101,26 @@ export interface BacktestResult {
   bars: number;
 }
 
-export interface BacktestRunBody {
-  prices: number[];
-  strategy: 'sma' | 'buy_hold';
+export type StrategyTemplate = 'sma' | 'buy_hold' | 'rsi' | 'breakout';
+
+export interface StrategyParams {
+  strategy: StrategyTemplate;
   fast?: number;
   slow?: number;
+  rsi_period?: number;
+  rsi_low?: number;
+  rsi_high?: number;
+  breakout_lookback?: number;
   actor?: string;
 }
 
-export interface BacktestBySymbolBody {
+export interface BacktestRunBody extends StrategyParams {
+  prices: number[];
+}
+
+export interface BacktestBySymbolBody extends StrategyParams {
   symbol: string;
-  strategy: 'sma' | 'buy_hold';
-  fast?: number;
-  slow?: number;
   lookback_days?: number;
-  actor?: string;
 }
 
 export interface BacktestBySymbolResponse {
