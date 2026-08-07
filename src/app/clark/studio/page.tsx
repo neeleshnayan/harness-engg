@@ -25,6 +25,7 @@ import {
   StrategyView,
 } from "@/lib/fund_api";
 import { CreateStrategyModal } from "./components/CreateStrategyModal";
+import { StrategyDetailModal } from "./components/StrategyDetailModal";
 import { BacktestModal } from "./components/BacktestModal";
 import { AllocationModal } from "./components/AllocationModal";
 import { TVAreaChart, TVPoint } from "./components/TVAreaChart";
@@ -78,6 +79,7 @@ export default function StrategyStudioPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [backtestTarget, setBacktestTarget] = useState<StrategyView | null>(null);
+  const [detailTarget, setDetailTarget] = useState<StrategyView | null>(null);
   const [allocTarget, setAllocTarget] = useState<StrategyView | null>(null);
 
   // Chart panel state
@@ -326,7 +328,13 @@ export default function StrategyStudioPage() {
                         <div className="col-span-3 min-w-0">
                           <div className={`flex items-center gap-1.5 ${isChild ? "pl-4" : ""}`}>
                             {isChild && <span className="text-zinc-600">└</span>}
-                            <span className="truncate text-sm font-medium">{s.name}</span>
+                            <button
+                              onClick={() => setDetailTarget(s)}
+                              className="truncate text-left text-sm font-medium hover:text-teal-300 hover:underline"
+                              title="View performance"
+                            >
+                              {s.name}
+                            </button>
                             {s.is_container && (
                               <span className="rounded bg-sky-500/15 px-1 py-0.5 text-[9px] font-semibold uppercase text-sky-300">container</span>
                             )}
@@ -508,6 +516,7 @@ export default function StrategyStudioPage() {
         }}
       />
       <AllocationModal strategy={allocTarget} onClose={() => setAllocTarget(null)} onSuccess={() => load(true)} />
+      <StrategyDetailModal strategy={detailTarget} all={strategies} navUsd={strat?.nav_usd} onClose={() => setDetailTarget(null)} />
     </div>
   );
 }

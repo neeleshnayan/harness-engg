@@ -38,6 +38,7 @@ export interface StrategyView {
   actual_pct?: number;
   exposure_usd?: number;
   pnl_usd?: number;
+  positions?: Record<string, { qty?: number; avg_price?: number }>;
   backtest?: BacktestSummary | null;
   // Layered cake (nested strategies)
   parent_id?: string | null;
