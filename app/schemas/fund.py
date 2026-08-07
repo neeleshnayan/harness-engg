@@ -34,7 +34,7 @@ class BacktestResultRequest(BaseModel):
     actor: str = Field("operator", description="Who recorded the backtest")
 
 
-StrategyName = Literal["sma", "buy_hold", "rsi", "breakout"]
+StrategyName = Literal["sma", "buy_hold", "rsi", "breakout", "macd", "bollinger"]
 
 
 class _StrategyParams(BaseModel):
@@ -45,6 +45,11 @@ class _StrategyParams(BaseModel):
     rsi_low: float = Field(30.0, ge=0, le=100, description="RSI oversold entry (rsi)")
     rsi_high: float = Field(70.0, ge=0, le=100, description="RSI overbought exit (rsi)")
     breakout_lookback: int = Field(20, gt=1, description="Donchian channel window (breakout)")
+    macd_fast: int = Field(12, gt=0, description="MACD fast EMA (macd)")
+    macd_slow: int = Field(26, gt=0, description="MACD slow EMA (macd)")
+    macd_signal: int = Field(9, gt=0, description="MACD signal EMA (macd)")
+    boll_period: int = Field(20, gt=1, description="Bollinger window (bollinger)")
+    boll_k: float = Field(2.0, gt=0, le=5, description="Bollinger band width in std devs (bollinger)")
     actor: str = Field("operator", description="Who ran the backtest")
 
 

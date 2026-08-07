@@ -4,7 +4,9 @@ import pytest
 
 from app.fund.backtest import (
     SimpleBacktester,
+    bollinger_signals,
     breakout_signals,
+    macd_signals,
     rsi_signals,
     signals_for,
     sma_crossover_signals,
@@ -63,9 +65,28 @@ def test_breakout_signals_go_long_on_new_high():
     assert sig[-1] == 1.0                                     # long after the breakout
 
 
+def test_macd_signals_long_in_uptrend():
+    prices = list(range(1, 61))                              # steady uptrend
+    sig = macd_signals(prices, fast=12, slow=26, signal=9)
+    assert len(sig) == len(prices)
+    assert set(sig) <= {0.0, 1.0}
+    assert sig[:26] == [0.0] * 26                            # warm-up flat
+    assert sig[-1] == 1.0                                    # MACD above signal in an uptrend
+
+
+def test_bollinger_signals_buy_the_dip():
+    prices = [100] * 25 + [80] + [100] * 5                   # a sharp dip below the lower band
+    sig = bollinger_signals(prices, period=20, k=2.0)
+    assert len(sig) == len(prices)
+    assert set(sig) <= {0.0, 1.0}
+    assert 1.0 in sig                                        # entered long on the dip
+
+
 def test_signals_for_dispatch():
-    prices = list(range(1, 41))
+    prices = list(range(1, 61))
     assert signals_for("buy_hold", prices) == [1.0] * len(prices)
     assert signals_for("sma", prices, fast=5, slow=20) == sma_crossover_signals(prices, 5, 20)
     assert signals_for("rsi", prices, rsi_period=14) == rsi_signals(prices, 14, 30.0, 70.0)
     assert signals_for("breakout", prices, breakout_lookback=20) == breakout_signals(prices, 20)
+    assert signals_for("macd", prices) == macd_signals(prices, 12, 26, 9)
+    assert signals_for("bollinger", prices) == bollinger_signals(prices, 20, 2.0)

@@ -143,9 +143,50 @@ def breakout_signals(prices: Sequence[float], lookback: int = 20) -> list[float]
     return out
 
 
+def _ema(prices: Sequence[float], span: int) -> list[float]:
+    """Exponential moving average seeded on the first price."""
+    if not prices:
+        return []
+    k = 2.0 / (span + 1)
+    out = [float(prices[0])]
+    for p in prices[1:]:
+        out.append(out[-1] + k * (float(p) - out[-1]))
+    return out
+
+
+def macd_signals(prices: Sequence[float], fast: int = 12, slow: int = 26, signal: int = 9) -> list[float]:
+    """Trend: long when the MACD line is above its signal line, else flat."""
+    n = len(prices)
+    if n < slow:
+        return [0.0] * n
+    ef, es = _ema(prices, fast), _ema(prices, slow)
+    macd = [ef[i] - es[i] for i in range(n)]
+    sig = _ema(macd, signal)
+    return [0.0 if i < slow else (1.0 if macd[i] > sig[i] else 0.0) for i in range(n)]
+
+
+def bollinger_signals(prices: Sequence[float], period: int = 20, k: float = 2.0) -> list[float]:
+    """Mean-reversion: long when price closes below the lower band; exit at the mid band."""
+    out, pos = [], 0.0
+    for i in range(len(prices)):
+        if i + 1 < period:
+            out.append(0.0)
+            continue
+        window = prices[i - period + 1:i + 1]
+        mid = sum(window) / period
+        sd = statistics.pstdev(window)
+        if prices[i] <= mid - k * sd:
+            pos = 1.0
+        elif prices[i] >= mid:
+            pos = 0.0
+        out.append(pos)
+    return out
+
+
 def signals_for(strategy: str, prices: Sequence[float], *, fast: int = 10, slow: int = 30,
                 rsi_period: int = 14, rsi_low: float = 30.0, rsi_high: float = 70.0,
-                breakout_lookback: int = 20) -> list[float]:
+                breakout_lookback: int = 20, macd_fast: int = 12, macd_slow: int = 26,
+                macd_signal: int = 9, boll_period: int = 20, boll_k: float = 2.0) -> list[float]:
     """Dispatch a built-in strategy name to its signal series."""
     if strategy == "sma":
         return sma_crossover_signals(prices, fast, slow)
@@ -153,4 +194,8 @@ def signals_for(strategy: str, prices: Sequence[float], *, fast: int = 10, slow:
         return rsi_signals(prices, rsi_period, rsi_low, rsi_high)
     if strategy == "breakout":
         return breakout_signals(prices, breakout_lookback)
+    if strategy == "macd":
+        return macd_signals(prices, macd_fast, macd_slow, macd_signal)
+    if strategy == "bollinger":
+        return bollinger_signals(prices, boll_period, boll_k)
     return [1.0] * len(prices)  # buy_hold
