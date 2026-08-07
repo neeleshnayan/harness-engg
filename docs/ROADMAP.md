@@ -62,19 +62,48 @@ Yearn-style per-strategy tokens, **Option B**: reuse existing web3 infra rather 
 
 ## What to "steal" from the many-agents agentic-fund pattern
 
-*(General patterns worth adopting — not sourced from any specific private write-up.)*
+*(Distilled from the "managing 250 agents for an agentic hedge fund" write-up, mapped to
+what actually fits our architecture. Take the operating model; skip the tool-specific bits.)*
 
-- **Agent registry + scorecards** — treat each agent like a strategy: track its proposals,
-  hit rate, and P&L attribution. The post-mortem dataset we're building is exactly the
-  substrate for this.
-- **Hard human seam + kill switch** — one place agents can be paused globally; no agent path
-  that executes without human approval. (We have the approval interrupt; add a global pause.)
-- **Everything through the event log** — agents never share mutable state; they read/write the
-  spine. This is what makes 4 agents — or 250 — auditable instead of chaos.
-- **Per-agent risk budgets** — extend the `RiskGate` so each agent/strategy has its own
+**Adopt now — high fit:**
+- **Skills as SOPs.** Treat each agent capability as a documented standard operating
+  procedure, versioned in-repo. Our fund skill is already deterministic; formalize each
+  action (thesis, memo, backtest, risk) as an SOP with expected inputs/outputs.
+- **Orchestrator → sub-agents → report back**, mapped visually like a Zapier/Make flow.
+  This is exactly our web-of-agents plan (Researcher → Risk officer → Ops → Historian).
+  Keep the topology explicit and small.
+- **Shared memory = a boring artifact.** Their shared memory is "literally a JSON or notes."
+  Ours is stronger and already exists: the **event log**. Agents coordinate through it — no
+  clever shared-state layer needed.
+- **Fresh eyes; never let an agent grade its own homework.** Post-mortems and memo sign-off
+  should be reviewed by a *different* seam than the one that produced them. Bake into the
+  approval flow.
+- **Behaviour-validation contracts + regression tests on critical paths with golden
+  I/O.** We already do this (54 spine tests; thesis/memo/risk/post-mortem shipped with
+  tests). Extend to every money-touching path.
+- **"As complex as necessary, as simply as possible."** Our north star for repo leanness.
+
+**Adopt soon — needs a bit of build:**
+- **Agents-run-a-skill-on-repeat "departments."** Their dev-team loop (find bugs, audit PRs,
+  simplify code, remove superseded code, SRE checks) maps cleanly to our **R&D department:
+  agents running backtests 24/7, proposing new algo configs** — each proposal lands as a
+  *draft strategy + backtest* on the spine for human review. This is the most exciting steal
+  for us and fits the existing backtest endpoints.
+- **Adversarial 2-agent plan review (2–3 iterations).** Before a thesis goes `active` or a
+  new strategy deploys, have two agents audit for gaps/weaknesses. Enforceable as a gate.
+- **Agent scorecards / P&L attribution.** Track each agent's proposals, hit rate, and P&L —
+  the post-mortem dataset is the substrate. Treat a losing agent like a losing strategy.
+
+**Skip / not now:**
+- Tool-specific plumbing (Codex app-server, Hermes/Kimi routing, Telegram/voice, ghostty/cmux,
+  specific model picks). Interesting, but orthogonal to the fund's core and churny to chase.
+
+**Non-negotiables regardless of how many agents:**
+- **Hard human seam + global kill switch** — no agent path executes without human approval;
+  one place to pause all agents.
+- **Per-agent risk budgets** — extend `RiskGate` so each agent/strategy has its own
   position/notional caps, not just fund-level limits.
-- **Cheap, boring orchestration** — deterministic dispatch + typed tool calls over the spine
-  beats a clever emergent swarm for anything touching money.
+- **Everything through the event log** — what makes 4 agents, or 250, auditable instead of chaos.
 
 ---
 
