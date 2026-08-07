@@ -176,6 +176,19 @@ export interface Postmortem {
   invalidation_conditions?: string[];
 }
 
+export interface OrderHistoryRow {
+  order_id: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  qty: number;
+  strategy_id?: string | null;
+  thesis_id?: string | null;
+  status: 'pending' | 'approved' | 'working' | 'partial' | 'filled' | 'failed' | 'rejected' | 'declined';
+  filled_qty?: number | null;
+  avg_price?: number | null;
+  ts?: string | null;
+}
+
 export interface BacktestResult {
   total_return: number;
   sharpe: number;
@@ -226,6 +239,14 @@ export interface BacktestBySymbolResponse {
 
 export const fundApiClient = {
   getNav: async (): Promise<NavResponse> => (await fundApi.get(`${P}/nav`)).data,
+
+  getNavHistory: async (limit = 90): Promise<{ history: NavSnapshot[] }> =>
+    (await fundApi.get(`${P}/nav/history`, { params: { limit } })).data,
+
+  getOrderHistory: async (strategyId?: string | null, limit = 200): Promise<{ orders: OrderHistoryRow[] }> =>
+    (await fundApi.get(`${P}/orders/history`, {
+      params: { ...(strategyId ? { strategy_id: strategyId } : {}), limit },
+    })).data,
 
   getStrategies: async (): Promise<StrategiesResponse> =>
     (await fundApi.get(`${P}/strategies`)).data,

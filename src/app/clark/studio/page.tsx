@@ -21,6 +21,7 @@ import {
   LpView,
   MemoView,
   NavResponse,
+  OrderHistoryRow,
   PendingOrder,
   StrategiesResponse,
   StrategyView,
@@ -32,6 +33,7 @@ import { BacktestModal } from "./components/BacktestModal";
 import { AllocationModal } from "./components/AllocationModal";
 import { RiskPanel } from "./components/RiskPanel";
 import { ThesisPanel } from "./components/ThesisPanel";
+import { OrderBlotter } from "./components/OrderBlotter";
 import { TVAreaChart, TVPoint } from "./components/TVAreaChart";
 
 /* ---------- formatting helpers ---------- */
@@ -88,7 +90,9 @@ export default function StrategyStudioPage() {
   const [detailTarget, setDetailTarget] = useState<StrategyView | null>(null);
   const [allocTarget, setAllocTarget] = useState<StrategyView | null>(null);
 
-  // Chart panel state
+  // Chart panel state — NAV movement is the default; price is opt-in.
+  const [chartMode, setChartMode] = useState<"nav" | "price">("nav");
+  const [navHistory, setNavHistory] = useState<TVPoint[]>([]);
   const [chartSymbol, setChartSymbol] = useState("SPY");
   const [chartInput, setChartInput] = useState("SPY");
   const [chartData, setChartData] = useState<TVPoint[]>([]);
@@ -96,22 +100,30 @@ export default function StrategyStudioPage() {
   const [chartLoading, setChartLoading] = useState(false);
   const [chartErr, setChartErr] = useState<string | null>(null);
 
+  // Order blotter (trade history), filterable by strategy (parent rolls up children).
+  const [orderHistory, setOrderHistory] = useState<OrderHistoryRow[]>([]);
+  const [blotterFilter, setBlotterFilter] = useState<string | null>(null);
+
   const { toast } = useToast();
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async (soft = false) => {
     try {
       if (!soft) setErr(null);
-      const [s, n, l, p] = await Promise.all([
+      const [s, n, l, p, nh, oh] = await Promise.all([
         fundApiClient.getStrategies(),
         fundApiClient.getNav(),
         fundApiClient.getLps(),
         fundApiClient.getPending(),
+        fundApiClient.getNavHistory(90),
+        fundApiClient.getOrderHistory(blotterFilter, 200),
       ]);
       setStrat(s);
       setNav(n);
       setLps(l.lps || []);
       setPending(p.pending || []);
+      setNavHistory((nh.history || []).map((h) => ({ t: h.ts || "", v: h.total_nav_usd })));
+      setOrderHistory(oh.orders || []);
       setLastSync(new Date());
       setTick((v) => v + 1);
       setErr(null);
@@ -121,7 +133,7 @@ export default function StrategyStudioPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [blotterFilter]);
 
   // Enrich pending orders that reference a thesis with the thesis + its latest
   // memo, so the approval card renders the *case*, not just the ticket.
@@ -178,12 +190,11 @@ export default function StrategyStudioPage() {
 
   useEffect(() => {
     load();
-    loadChart("SPY");
     timer.current = setInterval(() => load(true), 6000);
     return () => {
       if (timer.current) clearInterval(timer.current);
     };
-  }, [load, loadChart]);
+  }, [load]);
 
   const strategies = strat?.strategies || [];
   const live = nav?.live;
@@ -301,36 +312,70 @@ export default function StrategyStudioPage() {
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
           {/* left: strategies + chart */}
           <div className="lg:col-span-2 space-y-4">
-            {/* chart panel */}
+            {/* chart panel — fund NAV movement by default, symbol price opt-in */}
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
-              <div className="mb-2 flex items-center gap-2">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
                 <Activity size={14} className="text-teal-400" />
-                <span className="text-sm font-semibold">{chartSymbol}</span>
-                <span className="text-[11px] text-zinc-500">
-                  daily · {chartMeta?.source || "—"} {chartMeta?.range ? `· ${chartMeta.range}` : ""}
-                </span>
-                <form
-                  className="ml-auto flex items-center gap-1"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (chartInput.trim()) loadChart(chartInput.trim().toUpperCase());
-                  }}
-                >
-                  <div className="flex items-center rounded-md border border-zinc-700 bg-zinc-800/60 px-2">
-                    <Search size={12} className="text-zinc-500" />
-                    <input
-                      value={chartInput}
-                      onChange={(e) => setChartInput(e.target.value)}
-                      placeholder="symbol"
-                      className="w-20 bg-transparent px-1.5 py-1 text-xs uppercase outline-none placeholder:text-zinc-600"
-                    />
-                  </div>
-                  <Button type="submit" variant="outline" className="h-7 border-zinc-700 bg-transparent px-2 text-xs text-zinc-200">
-                    Load
-                  </Button>
-                </form>
+                {/* NAV | Price toggle */}
+                <div className="flex overflow-hidden rounded-md border border-zinc-700">
+                  <button
+                    onClick={() => setChartMode("nav")}
+                    className={`px-2 py-1 text-xs ${chartMode === "nav" ? "bg-teal-600/80 text-white" : "bg-transparent text-zinc-300 hover:bg-zinc-800"}`}
+                  >
+                    Fund NAV
+                  </button>
+                  <button
+                    onClick={() => {
+                      setChartMode("price");
+                      if (!chartData.length) loadChart(chartSymbol);
+                    }}
+                    className={`px-2 py-1 text-xs ${chartMode === "price" ? "bg-teal-600/80 text-white" : "bg-transparent text-zinc-300 hover:bg-zinc-800"}`}
+                  >
+                    Price
+                  </button>
+                </div>
+                {chartMode === "nav" ? (
+                  <span className="text-[11px] text-zinc-500">
+                    total NAV · {navHistory.length} strike{navHistory.length === 1 ? "" : "s"}
+                  </span>
+                ) : (
+                  <>
+                    <span className="text-sm font-semibold">{chartSymbol}</span>
+                    <span className="text-[11px] text-zinc-500">
+                      daily · {chartMeta?.source || "—"} {chartMeta?.range ? `· ${chartMeta.range}` : ""}
+                    </span>
+                    <form
+                      className="ml-auto flex items-center gap-1"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (chartInput.trim()) loadChart(chartInput.trim().toUpperCase());
+                      }}
+                    >
+                      <div className="flex items-center rounded-md border border-zinc-700 bg-zinc-800/60 px-2">
+                        <Search size={12} className="text-zinc-500" />
+                        <input
+                          value={chartInput}
+                          onChange={(e) => setChartInput(e.target.value)}
+                          placeholder="symbol"
+                          className="w-20 bg-transparent px-1.5 py-1 text-xs uppercase outline-none placeholder:text-zinc-600"
+                        />
+                      </div>
+                      <Button type="submit" variant="outline" className="h-7 border-zinc-700 bg-transparent px-2 text-xs text-zinc-200">
+                        Load
+                      </Button>
+                    </form>
+                  </>
+                )}
               </div>
-              {chartErr ? (
+              {chartMode === "nav" ? (
+                navHistory.length < 2 ? (
+                  <div className="flex h-[220px] items-center justify-center text-center text-xs text-zinc-500">
+                    NAV curve builds as snapshots are struck (POST /fund/nav/strike, or the scheduled valuation).
+                  </div>
+                ) : (
+                  <TVAreaChart data={navHistory} height={220} />
+                )
+              ) : chartErr ? (
                 <div className="flex h-[220px] items-center justify-center text-xs text-red-400">{chartErr}</div>
               ) : chartLoading && !chartData.length ? (
                 <div className="flex h-[220px] items-center justify-center text-zinc-500">
@@ -457,6 +502,14 @@ export default function StrategyStudioPage() {
                 </table>
               )}
             </div>
+
+            {/* order history (trade blotter), filterable by strategy */}
+            <OrderBlotter
+              orders={orderHistory}
+              strategies={strategies}
+              filter={blotterFilter}
+              onFilter={setBlotterFilter}
+            />
           </div>
 
           {/* right rail */}
@@ -573,6 +626,7 @@ export default function StrategyStudioPage() {
         onClose={() => setBacktestTarget(null)}
         onSuccess={() => load(true)}
         onCharted={(symbol, points) => {
+          setChartMode("price");
           setChartData(points);
           setChartSymbol(symbol);
           setChartMeta({ source: "backtest" });
