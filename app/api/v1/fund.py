@@ -272,6 +272,38 @@ def list_strategies():
             "positions": a.get("positions", {}),
             "actual_pct": round(100.0 * exposure / total, 4) if total else 0.0,
         })
+
+    # Layered cake: roll each container strategy up over its descendants.
+    by_id = {r["strategy_id"]: r for r in rows}
+    children: dict[str, list[str]] = {}
+    for r in rows:
+        if r.get("parent_id") in by_id:
+            children.setdefault(r["parent_id"], []).append(r["strategy_id"])
+
+    def _rollup(sid: str, seen: set | None = None) -> tuple[float, float]:
+        seen = seen or set()
+        if sid in seen:
+            return 0.0, 0.0
+        seen.add(sid)
+        r = by_id[sid]
+        exp, pnl = r["exposure_usd"], r["pnl_usd"]
+        for c in children.get(sid, []):
+            ce, cp = _rollup(c, seen)
+            exp += ce
+            pnl += cp
+        return exp, pnl
+
+    for r in rows:
+        kids = children.get(r["strategy_id"], [])
+        r["children"] = kids
+        r["is_container"] = bool(kids)
+        r["depth"] = 0 if not r.get("parent_id") else 1  # UI indent hint (1 level for now)
+        if kids:
+            re_, rp_ = _rollup(r["strategy_id"])
+            r["rolled_exposure_usd"] = round(re_, 2)
+            r["rolled_pnl_usd"] = round(rp_, 2)
+            r["rolled_actual_pct"] = round(100.0 * re_ / total, 4) if total else 0.0
+
     return {"nav_usd": total, "strategies": rows, "discretionary": attr.get("discretionary")}
 
 
@@ -287,7 +319,11 @@ def get_strategy(strategy_id: str):
 
 @router.post("/fund/strategies")
 def register_strategy(req: StrategyRegisterRequest):
-    return _strategies.register(name=req.name, definition=req.definition, actor=req.actor)
+    try:
+        return _strategies.register(name=req.name, definition=req.definition,
+                                    parent_id=req.parent_id, actor=req.actor)
+    except StrategyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.post("/fund/strategies/{strategy_id}/backtest")

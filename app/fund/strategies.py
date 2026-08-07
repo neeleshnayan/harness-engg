@@ -45,13 +45,17 @@ class StrategyService:
     def __init__(self, store: EventStore | None = None):
         self._store = store or EventStore()
 
-    def register(self, name: str, actor: str, definition: Optional[dict] = None) -> dict[str, Any]:
+    def register(self, name: str, actor: str, definition: Optional[dict] = None,
+                 parent_id: Optional[str] = None) -> dict[str, Any]:
+        if parent_id:
+            self._require(parent_id)  # a child must attach to an existing strategy (the "container")
         sid = str(uuid.uuid4())
         self._store.append(
             Event(sid, "strategy", EventType.STRATEGY_REGISTERED,
-                  {"name": name, "definition": definition or {}}, actor)
+                  {"name": name, "definition": definition or {}, "parent_id": parent_id}, actor)
         )
-        return {"strategy_id": sid, "name": name, "state": StrategyState.DRAFT.value}
+        return {"strategy_id": sid, "name": name, "state": StrategyState.DRAFT.value,
+                "parent_id": parent_id}
 
     def record_backtest(self, strategy_id: str, results: dict, actor: str) -> dict[str, Any]:
         self._require(strategy_id)
@@ -126,6 +130,7 @@ class StrategyRegistry:
                     "state": StrategyState.DRAFT.value,
                     "allocation_pct": Decimal("0"),
                     "definition": p.get("definition", {}),
+                    "parent_id": p.get("parent_id"),
                     "backtest": None,
                 }
             elif sid in strategies:

@@ -16,6 +16,7 @@ class ProposeOrderRequest(BaseModel):
 class StrategyRegisterRequest(BaseModel):
     name: str = Field(..., description="Human-readable strategy name")
     definition: Optional[dict] = Field(None, description="LEAN algo / params (opaque blob)")
+    parent_id: Optional[str] = Field(None, description="Attach under a container strategy (the layered cake)")
     actor: str = Field("operator", description="Who registered it")
 
 
