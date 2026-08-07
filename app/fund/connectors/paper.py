@@ -48,12 +48,23 @@ _DEFAULT_PRICE = 100.0
 class PaperConnector(Connector):
     name = "paper"
 
-    def __init__(self, db=None, prices: dict[str, float] | None = None):
+    def __init__(self, db=None, prices: dict[str, float] | None = None, live_pricer=None):
         self._db = db or firestore.client()
         self._prices = {**_SEED_PRICES, **(prices or {})}
+        # Optional callable(symbol)->float|None for live free marks. When set,
+        # positions/NAV are marked at real market levels; falls back to the seed
+        # price on any miss. Off by default so tests stay deterministic.
+        self._live_pricer = live_pricer
 
     # --- pricing -----------------------------------------------------------
     def price(self, symbol: str) -> float:
+        if self._live_pricer is not None:
+            try:
+                px = self._live_pricer(symbol)
+                if px and px > 0:
+                    return float(px)
+            except Exception:  # noqa: BLE001 — never let pricing take the venue down
+                pass
         return self._prices.get(symbol.upper(), _DEFAULT_PRICE)
 
     def quote(self, order: Order) -> Quote:

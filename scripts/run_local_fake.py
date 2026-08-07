@@ -26,6 +26,10 @@ import _fake_firestore  # noqa: E402
 
 _fake_firestore.install()
 
+# Local demo: mark the paper venue at live free prices (Yahoo) so NAV/P&L move
+# with the real market. Override by exporting FUND_LIVE_MARKS=false.
+os.environ.setdefault("FUND_LIVE_MARKS", "true")
+
 # Augment the fake `firebase_admin` so app.core.firebase imports + initializes
 # harmlessly (the fake only provides `firestore`; the real init path also touches
 # `credentials`, `initialize_app`, and `_apps`).

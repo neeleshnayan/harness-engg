@@ -121,3 +121,35 @@ def fetch_daily_bars(symbol: str, lookback_days: int = 365) -> Bars:
     if alpaca is not None:
         return alpaca
     return _from_yahoo(symbol, lookback_days)
+
+
+# --- live marks (free) -----------------------------------------------------
+# Cache last quotes so NAV recompute / projections don't hammer the source.
+_QUOTE_CACHE: dict[str, tuple[float, float]] = {}
+_QUOTE_TTL_S = 300.0
+
+
+def live_price(symbol: str) -> float | None:
+    """Latest free mark for a symbol (most-recent daily close), cached ~5min.
+
+    Returns None on any failure so callers can fall back to a seed price. Lets
+    the paper venue mark positions at real market levels without a paid feed —
+    'paper execution, live marks'. When Alpaca is configured the venue uses its
+    own live marks instead and this path is unused.
+    """
+    import time
+
+    symbol = (symbol or "").strip().upper()
+    if not symbol.isalnum() or len(symbol) > 6:
+        return None
+    now = time.time()
+    hit = _QUOTE_CACHE.get(symbol)
+    if hit and now - hit[1] < _QUOTE_TTL_S:
+        return hit[0]
+    try:
+        bars = _from_yahoo(symbol, lookback_days=5)
+        px = bars.closes[-1]
+        _QUOTE_CACHE[symbol] = (px, now)
+        return px
+    except Exception:  # noqa: BLE001
+        return None

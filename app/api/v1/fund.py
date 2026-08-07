@@ -48,7 +48,19 @@ router = APIRouter()
 
 # --- spine wiring (single place to swap the venue) -------------------------
 # Alpaca when configured, else the in-Firestore paper venue. Same protocol.
-_connector = AlpacaConnector() if os.getenv("ALPACA_API_KEY") else PaperConnector()
+def _paper_live_pricer():
+    """Live free marks for the paper venue when FUND_LIVE_MARKS is truthy."""
+    if os.getenv("FUND_LIVE_MARKS", "false").lower() in ("1", "true", "yes"):
+        from app.fund.marketdata import live_price
+        return live_price
+    return None
+
+
+_connector = (
+    AlpacaConnector()
+    if os.getenv("ALPACA_API_KEY")
+    else PaperConnector(live_pricer=_paper_live_pricer())
+)
 _store = EventStore()
 _projection = PositionsProjection(_store)
 _nav = NavService(pricer=_connector.price, store=_store, projection=_projection)
@@ -303,6 +315,19 @@ def run_backtest(strategy_id: str, req: BacktestRunRequest):
     except StrategyError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return {"result": result.to_dict(), "strategy": rec}
+
+
+@router.get("/fund/marketdata/bars")
+def get_bars(symbol: str = Query(..., min_length=1, max_length=6),
+             lookback_days: int = Query(180, gt=1, le=2000)):
+    """Free daily bars for a symbol (Alpaca if keyed, else Yahoo) — for charts."""
+    try:
+        bars = fetch_daily_bars(symbol, lookback_days=lookback_days)
+    except BarsError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return {"symbol": bars.symbol, "source": bars.source,
+            "closes": bars.closes, "dates": bars.dates,
+            "start": bars.start, "end": bars.end}
 
 
 @router.post("/fund/strategies/{strategy_id}/backtest/by_symbol")
