@@ -89,24 +89,27 @@ class PaperConnector(Connector):
 
         px = self.quote(order).price
         ref_id = str(uuid.uuid4())
-        ref_doc.set(
-            {
-                "ref_id": ref_id,
-                "symbol": order.symbol,
-                "side": order.side.value,
-                "qty": order.qty,
-                "avg_price": px,
-                "fees": 0.0,
-                "state": FillState.FILLED.value,  # paper fills instantly
-            }
-        )
+        record = {
+            "ref_id": ref_id,
+            "symbol": order.symbol,
+            "side": order.side.value,
+            "qty": order.qty,
+            "avg_price": px,
+            "fees": 0.0,
+            "state": FillState.FILLED.value,  # paper fills instantly
+        }
+        ref_doc.set(record)  # keyed by idempotency_key -> replay guard
+        # Also key the record by ref_id so poll() is a deterministic *document*
+        # read. The old where("ref_id"==) field query returned inconsistently on
+        # real Firestore, leaving paper orders stuck at 'working'.
+        self._db.collection(_ORDERS).document(ref_id).set(record)
         self._apply_to_book(order, px)
         return VenueRef(venue=self.name, ref_id=ref_id)
 
     def poll(self, ref: VenueRef) -> ExecStatus:
-        # Paper orders settle instantly; find the record by ref_id.
-        q = self._db.collection(_ORDERS).where("ref_id", "==", ref.ref_id).limit(1).stream()
-        rec = next((d.to_dict() for d in q), None)
+        # Paper orders settle instantly; read the record directly by ref_id.
+        snap = self._db.collection(_ORDERS).document(ref.ref_id).get()
+        rec = snap.to_dict() if snap.exists else None
         if rec is None:
             return ExecStatus(state=FillState.FAILED, reason="unknown ref")
         return ExecStatus(
