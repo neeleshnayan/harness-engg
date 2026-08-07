@@ -198,6 +198,7 @@ class CommandPipeline:
             "qty": order.qty,
             "limit_price": order.limit_price,
             "strategy_id": order.strategy_id,
+            "thesis_id": order.thesis_id,
         }
 
     def _load_order(self, order_id: str) -> tuple[Order, str]:

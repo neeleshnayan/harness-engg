@@ -29,6 +29,7 @@ from app.fund.projections.positions import PositionsProjection
 from app.fund.projections.strategy import StrategyAttribution
 from app.fund.reconcile import Reconciler
 from app.fund.strategies import StrategyError, StrategyService
+from app.fund.thesis import ThesisError, ThesisService
 from app.schemas.fund import (
     ActorRequest,
     ApprovalRequest,
@@ -42,6 +43,9 @@ from app.schemas.fund import (
     StrategyStateRequest,
     StrikeNavRequest,
     SubscribeRequest,
+    ThesisCreateRequest,
+    ThesisStatusRequest,
+    ThesisUpdateRequest,
 )
 
 router = APIRouter()
@@ -68,6 +72,7 @@ _pipeline = CommandPipeline(connector=_connector, nav_service=_nav, store=_store
 _ledger = LedgerService(nav_service=_nav, store=_store)
 _holdings = HoldingsProjection(_store)
 _strategies = StrategyService(store=_store)
+_theses = ThesisService(store=_store)
 _attribution = StrategyAttribution(_store)
 _orders = OrdersProjection(_store)
 _reconciler = Reconciler(connector=_connector, store=_store, projection=_projection)
@@ -166,7 +171,22 @@ def get_order(order_id: str):
 # --- order writes ----------------------------------------------------------
 @router.post("/fund/orders/propose")
 def propose_order(req: ProposeOrderRequest):
-    """Propose an order. Passes the risk gate then awaits human approval."""
+    """Propose an order. Passes the risk gate then awaits human approval.
+
+    Every trade should reference a thesis or be explicitly discretionary — that
+    rule is what makes post-mortems meaningful.
+    """
+    if req.thesis_id:
+        try:
+            _theses.get(req.thesis_id)  # must reference a real thesis
+        except ThesisError:
+            raise HTTPException(status_code=404, detail=f"unknown thesis {req.thesis_id}")
+    elif not req.discretionary and os.getenv("REQUIRE_THESIS", "false").lower() in ("1", "true", "yes"):
+        # Opt-in discipline: every trade references a thesis or is explicitly discretionary.
+        raise HTTPException(
+            status_code=422,
+            detail="order must reference a thesis_id or be marked discretionary=true",
+        )
     order = Order(
         venue=req.venue,
         symbol=req.symbol.upper(),
@@ -174,6 +194,7 @@ def propose_order(req: ProposeOrderRequest):
         qty=req.qty,
         limit_price=req.limit_price,
         strategy_id=req.strategy_id,
+        thesis_id=req.thesis_id,
     )
     return _pipeline.propose_order(order, actor=req.actor)
 
@@ -249,6 +270,43 @@ def confirm_redemption(redemption_id: str, req: ActorRequest):
     try:
         return _ledger.confirm_redemption(redemption_id, actor=req.actor)
     except LedgerError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
+# --- theses (the versioned investment idea a trade references) --------------
+@router.post("/fund/theses")
+def create_thesis(req: ThesisCreateRequest):
+    body = req.model_dump()
+    body["owner"] = body.get("owner") or req.actor
+    return _theses.create(body, actor=req.actor)
+
+
+@router.get("/fund/theses")
+def list_theses():
+    return {"theses": _theses.list()}
+
+
+@router.get("/fund/theses/{thesis_id}")
+def get_thesis(thesis_id: str):
+    try:
+        return _theses.get(thesis_id)
+    except ThesisError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/fund/theses/{thesis_id}")
+def update_thesis(thesis_id: str, req: ThesisUpdateRequest):
+    try:
+        return _theses.update(thesis_id, req.patch, actor=req.actor)
+    except ThesisError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/fund/theses/{thesis_id}/status")
+def set_thesis_status(thesis_id: str, req: ThesisStatusRequest):
+    try:
+        return _theses.set_status(thesis_id, status=req.status, actor=req.actor, note=req.note)
+    except ThesisError as e:
         raise HTTPException(status_code=409, detail=str(e))
 
 

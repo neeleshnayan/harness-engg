@@ -42,6 +42,8 @@ class Order:
     # Which strategy generated this order (None => discretionary). One pooled
     # account; strategies are tags for attribution, not separate accounts.
     strategy_id: Optional[str] = None
+    # The investment thesis this order acts on (None => discretionary trade).
+    thesis_id: Optional[str] = None
 
 
 @dataclass

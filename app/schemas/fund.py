@@ -11,6 +11,36 @@ class ProposeOrderRequest(BaseModel):
     limit_price: Optional[float] = Field(None, description="None => market order")
     actor: str = Field("operator", description="Who initiated: operator id or 'agent'")
     strategy_id: Optional[str] = Field(None, description="Tagging strategy; None => discretionary")
+    thesis_id: Optional[str] = Field(None, description="Investment thesis this order acts on")
+    discretionary: bool = Field(False, description="Explicitly a discretionary trade (no thesis)")
+
+
+class ThesisCreateRequest(BaseModel):
+    title: str = Field(..., description="Short name for the idea")
+    claim: Optional[str] = Field(None, description="The falsifiable claim, e.g. 'AAPL revisions improve over 3-6mo'")
+    assets: Optional[list[str]] = Field(None, description="Symbols the thesis is about")
+    strategy_id: Optional[str] = Field(None, description="Linked strategy (systematic edge)")
+    owner: Optional[str] = Field(None, description="Who owns the thesis (default the actor)")
+    horizon: Optional[str] = Field(None, description="Expected holding horizon")
+    entry_rationale: Optional[str] = Field(None, description="Why now / expected catalyst")
+    key_risks: Optional[list[str]] = Field(None, description="What could go wrong")
+    invalidation_conditions: Optional[list[str]] = Field(None, description="What would falsify this")
+    target_exposure_pct: Optional[float] = Field(None, description="Target exposure as % of NAV")
+    review_cadence: Optional[str] = Field(None, description="How often to review")
+    evidence_ids: Optional[list[str]] = Field(None, description="Linked evidence object ids")
+    memo_ids: Optional[list[str]] = Field(None, description="Linked memo ids")
+    actor: str = Field("operator", description="Who created it")
+
+
+class ThesisUpdateRequest(BaseModel):
+    patch: dict = Field(..., description="Partial thesis fields to update")
+    actor: str = Field("operator", description="Who updated it")
+
+
+class ThesisStatusRequest(BaseModel):
+    status: Literal["draft", "active", "invalidated", "exited", "reviewed"]
+    note: Optional[str] = Field(None, description="Why the status changed")
+    actor: str = Field("operator", description="Who changed it")
 
 
 class StrategyRegisterRequest(BaseModel):

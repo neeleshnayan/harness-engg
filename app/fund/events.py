@@ -62,6 +62,12 @@ class EventType(str, Enum):
     STRATEGY_STATE_CHANGED = "StrategyStateChanged"
     STRATEGY_ALLOCATION_SET = "StrategyAllocationSet"
 
+    # Thesis lifecycle — the versioned investment idea a trade must reference
+    # (or be marked discretionary). Makes post-mortems meaningful.
+    THESIS_CREATED = "ThesisCreated"
+    THESIS_UPDATED = "ThesisUpdated"
+    THESIS_STATUS_CHANGED = "ThesisStatusChanged"
+
 
 @dataclass
 class Event:
