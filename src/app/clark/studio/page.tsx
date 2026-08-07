@@ -34,6 +34,7 @@ import { AllocationModal } from "./components/AllocationModal";
 import { RiskPanel } from "./components/RiskPanel";
 import { ThesisPanel } from "./components/ThesisPanel";
 import { OrderBlotter } from "./components/OrderBlotter";
+import { StudioNav } from "./components/StudioNav";
 import { TVAreaChart, TVPoint } from "./components/TVAreaChart";
 
 /* ---------- formatting helpers ---------- */
@@ -274,6 +275,9 @@ export default function StrategyStudioPage() {
                 {lastSync && !err && <span>· synced {lastSync.toLocaleTimeString()}</span>}
               </div>
             </div>
+          </div>
+          <div className="ml-2 hidden md:block">
+            <StudioNav />
           </div>
           <div className="ml-auto flex items-center gap-2">
             <Link
