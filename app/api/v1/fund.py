@@ -15,7 +15,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.fund.connectors.alpaca import AlpacaConnector
 from app.fund.connectors.base import Order, Side
-from app.fund.backtest import SimpleBacktester, sma_crossover_signals
+from app.fund.backtest import SimpleBacktester, signals_for
 from app.fund.marketdata import BarsError, fetch_daily_bars
 from app.fund.connectors.paper import PaperConnector
 from app.fund.events import EventStore
@@ -305,10 +305,11 @@ def run_backtest(strategy_id: str, req: BacktestRunRequest):
 
     (Prices are client-supplied for now; wiring Alpaca historical bars is a fast-follow.)
     """
-    if req.strategy == "sma":
-        signals = sma_crossover_signals(req.prices, req.fast, req.slow)
-    else:  # buy_hold
-        signals = [1.0] * len(req.prices)
+    signals = signals_for(
+        req.strategy, req.prices, fast=req.fast, slow=req.slow,
+        rsi_period=req.rsi_period, rsi_low=req.rsi_low, rsi_high=req.rsi_high,
+        breakout_lookback=req.breakout_lookback,
+    )
     result = SimpleBacktester().run(req.prices, signals)
     try:
         rec = _strategies.record_backtest(strategy_id, results=result.to_dict(), actor=req.actor)
@@ -343,10 +344,11 @@ def run_backtest_by_symbol(strategy_id: str, req: BacktestBySymbolRequest):
         raise HTTPException(status_code=422, detail=str(e))
 
     prices = bars.closes
-    if req.strategy == "sma":
-        signals = sma_crossover_signals(prices, req.fast, req.slow)
-    else:  # buy_hold
-        signals = [1.0] * len(prices)
+    signals = signals_for(
+        req.strategy, prices, fast=req.fast, slow=req.slow,
+        rsi_period=req.rsi_period, rsi_low=req.rsi_low, rsi_high=req.rsi_high,
+        breakout_lookback=req.breakout_lookback,
+    )
     result = SimpleBacktester().run(prices, signals)
     try:
         rec = _strategies.record_backtest(strategy_id, results=result.to_dict(), actor=req.actor)

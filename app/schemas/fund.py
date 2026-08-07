@@ -34,21 +34,27 @@ class BacktestResultRequest(BaseModel):
     actor: str = Field("operator", description="Who recorded the backtest")
 
 
-class BacktestRunRequest(BaseModel):
+StrategyName = Literal["sma", "buy_hold", "rsi", "breakout"]
+
+
+class _StrategyParams(BaseModel):
+    strategy: StrategyName = Field("sma", description="Built-in template to simulate")
+    fast: int = Field(10, gt=0, description="Fast SMA window (sma)")
+    slow: int = Field(30, gt=0, description="Slow SMA window (sma)")
+    rsi_period: int = Field(14, gt=0, description="RSI lookback (rsi)")
+    rsi_low: float = Field(30.0, ge=0, le=100, description="RSI oversold entry (rsi)")
+    rsi_high: float = Field(70.0, ge=0, le=100, description="RSI overbought exit (rsi)")
+    breakout_lookback: int = Field(20, gt=1, description="Donchian channel window (breakout)")
+    actor: str = Field("operator", description="Who ran the backtest")
+
+
+class BacktestRunRequest(_StrategyParams):
     prices: list[float] = Field(..., min_length=2, description="Close prices, oldest first")
-    strategy: Literal["sma", "buy_hold"] = Field("sma", description="Built-in strategy to simulate")
-    fast: int = Field(10, gt=0, description="Fast SMA window (sma only)")
-    slow: int = Field(30, gt=0, description="Slow SMA window (sma only)")
-    actor: str = Field("operator", description="Who ran the backtest")
 
 
-class BacktestBySymbolRequest(BaseModel):
+class BacktestBySymbolRequest(_StrategyParams):
     symbol: str = Field(..., min_length=1, max_length=6, description="US equity symbol, e.g. AAPL")
-    strategy: Literal["sma", "buy_hold"] = Field("sma", description="Built-in strategy to simulate")
-    fast: int = Field(10, gt=0, description="Fast SMA window (sma only)")
-    slow: int = Field(30, gt=0, description="Slow SMA window (sma only)")
     lookback_days: int = Field(365, gt=1, le=2000, description="Trailing calendar days of daily bars")
-    actor: str = Field("operator", description="Who ran the backtest")
 
 
 class ApprovalRequest(BaseModel):

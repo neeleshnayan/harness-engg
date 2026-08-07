@@ -93,3 +93,64 @@ def sma_crossover_signals(prices: Sequence[float], fast: int = 10, slow: int = 3
         s = sum(prices[i - slow + 1:i + 1]) / slow
         out.append(1.0 if f > s else 0.0)
     return out
+
+
+def _rsi(prices: Sequence[float], period: int = 14) -> list[float]:
+    """Simple (SMA-based) RSI series aligned to ``prices``; warm-up bars are 50 (neutral)."""
+    rsis = [50.0] * len(prices)
+    if len(prices) <= period:
+        return rsis
+    gains, losses = [], []
+    for i in range(1, len(prices)):
+        ch = prices[i] - prices[i - 1]
+        gains.append(max(ch, 0.0))
+        losses.append(max(-ch, 0.0))
+    # gains[j] corresponds to the move into prices[j+1]
+    for i in range(period, len(prices)):
+        ag = sum(gains[i - period:i]) / period
+        al = sum(losses[i - period:i]) / period
+        rsis[i] = 100.0 if al == 0 else 100.0 - 100.0 / (1.0 + ag / al)
+    return rsis
+
+
+def rsi_signals(prices: Sequence[float], period: int = 14,
+                low: float = 30.0, high: float = 70.0) -> list[float]:
+    """Mean-reversion: go long when RSI dips below ``low``; exit when RSI rises above ``high``."""
+    rsi = _rsi(prices, period)
+    out, pos = [], 0.0
+    for i in range(len(prices)):
+        if pos == 0.0 and rsi[i] < low:
+            pos = 1.0
+        elif pos == 1.0 and rsi[i] > high:
+            pos = 0.0
+        out.append(pos)
+    return out
+
+
+def breakout_signals(prices: Sequence[float], lookback: int = 20) -> list[float]:
+    """Donchian breakout: long when price breaks the prior ``lookback`` high; exit below the prior low."""
+    out, pos = [], 0.0
+    for i in range(len(prices)):
+        if i < lookback:
+            out.append(0.0)
+            continue
+        window = prices[i - lookback:i]
+        if prices[i] >= max(window):
+            pos = 1.0
+        elif prices[i] <= min(window):
+            pos = 0.0
+        out.append(pos)
+    return out
+
+
+def signals_for(strategy: str, prices: Sequence[float], *, fast: int = 10, slow: int = 30,
+                rsi_period: int = 14, rsi_low: float = 30.0, rsi_high: float = 70.0,
+                breakout_lookback: int = 20) -> list[float]:
+    """Dispatch a built-in strategy name to its signal series."""
+    if strategy == "sma":
+        return sma_crossover_signals(prices, fast, slow)
+    if strategy == "rsi":
+        return rsi_signals(prices, rsi_period, rsi_low, rsi_high)
+    if strategy == "breakout":
+        return breakout_signals(prices, breakout_lookback)
+    return [1.0] * len(prices)  # buy_hold
