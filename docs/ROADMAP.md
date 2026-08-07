@@ -107,6 +107,34 @@ what actually fits our architecture. Take the operating model; skip the tool-spe
 
 ---
 
+## Studio information architecture + strategy model (requested next)
+
+**1. Break the cockpit into subpages.** Today Pending approvals, Theses, and the
+Risk cockpit are right-rail panels. Promote each to its own route under
+`/clark/studio/*` so they can grow and each integrate with Clark for complex
+actions:
+- `/clark/studio` — overview (KPIs, NAV movement, strategies, blotter).
+- `/clark/studio/approvals` — the approval desk (thesis + memo + risk context per order; batch actions; Clark "explain this order").
+- `/clark/studio/theses` — thesis workbench (full memo editor, evidence, post-mortems; Clark "draft/critique this thesis").
+- `/clark/studio/risk` — risk cockpit (concentration, multi-scenario stress, per-strategy exposure; Clark "what's my tail risk?").
+The panel components already exist (`ThesisPanel`, `RiskPanel`, approval card) —
+this is mostly routing + a shared layout/nav, then deepen each page. Each page
+gets a Clark action bar so the human can ask for complex actions in context.
+
+**2. Strategies: many-to-many composition + full CRUD.** Today a strategy has a
+single `parent_id` (a tree). Move to **membership**: a strategy can belong to
+*multiple* parents or stand alone (a DAG, not a tree) — so a reusable sleeve
+(e.g. "Momentum") composes into several parent strategies.
+- Data model: replace `parent_id` with `StrategyMembership` events
+  (`STRATEGY_ADDED_TO_PARENT` / `STRATEGY_REMOVED_FROM_PARENT`), each with a
+  weight. NAV rollup folds over the membership edges (guard against cycles).
+- CRUD: create / rename / edit / archive with a clean interface, and the
+  test→deploy lifecycle (backtest → deployed → paused) surfaced consistently.
+- Rollup + the blotter's subtree filter already assume a hierarchy — update both
+  to walk membership edges instead of the single parent.
+This is the larger of the two (touches the event model + NAV rollup + tests);
+do it deliberately with new tests, not as a drive-by.
+
 ## Cleanup / hygiene (ongoing)
 
 - Retire **Krypton_HedgeFund**; move live web3 to **Krypton_Web3**. Scrub the plaintext
