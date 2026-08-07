@@ -83,6 +83,20 @@ class StrategyRegisterRequest(BaseModel):
     actor: str = Field("operator", description="Who registered it")
 
 
+class StrategyRenameRequest(BaseModel):
+    name: str = Field(..., min_length=1, description="New strategy name")
+    actor: str = Field("operator", description="Who renamed it")
+
+
+class StrategyParentRequest(BaseModel):
+    parent_id: str = Field(..., description="Parent strategy to add/remove this one under")
+    actor: str = Field("operator", description="Who changed the membership")
+
+
+class StrategyArchiveRequest(BaseModel):
+    actor: str = Field("operator", description="Who archived it")
+
+
 class StrategyStateRequest(BaseModel):
     state: Literal["draft", "backtested", "deployed", "paused"]
     actor: str = Field("operator", description="Who changed the state")

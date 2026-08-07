@@ -61,6 +61,11 @@ class EventType(str, Enum):
     STRATEGY_BACKTESTED = "StrategyBacktested"
     STRATEGY_STATE_CHANGED = "StrategyStateChanged"
     STRATEGY_ALLOCATION_SET = "StrategyAllocationSet"
+    STRATEGY_RENAMED = "StrategyRenamed"
+    STRATEGY_ARCHIVED = "StrategyArchived"
+    # Many-to-many composition (a strategy can compose into multiple parents).
+    STRATEGY_ADDED_TO_PARENT = "StrategyAddedToParent"
+    STRATEGY_REMOVED_FROM_PARENT = "StrategyRemovedFromParent"
 
     # Thesis lifecycle — the versioned investment idea a trade must reference
     # (or be marked discretionary). Makes post-mortems meaningful.

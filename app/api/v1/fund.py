@@ -47,7 +47,10 @@ from app.schemas.fund import (
     RedeemRequest,
     RiskShockRequest,
     StrategyAllocationRequest,
+    StrategyArchiveRequest,
+    StrategyParentRequest,
     StrategyRegisterRequest,
+    StrategyRenameRequest,
     StrategyStateRequest,
     StrikeNavRequest,
     SubscribeRequest,
@@ -180,11 +183,11 @@ def get_order_history(strategy_id: str | None = Query(None), limit: int = Query(
     """
     subtree: set[str] | None = None
     if strategy_id:
-        # collect the strategy + all descendants
+        # collect the strategy + all descendants across many-to-many edges
         kids: dict[str, list[str]] = {}
         for s in _strategies.list():
-            if s.get("parent_id"):
-                kids.setdefault(s["parent_id"], []).append(s["strategy_id"])
+            for pid in (s.get("parents") or ([s["parent_id"]] if s.get("parent_id") else [])):
+                kids.setdefault(pid, []).append(s["strategy_id"])
         subtree, stack = set(), [strategy_id]
         while stack:
             cur = stack.pop()
@@ -451,12 +454,15 @@ def list_strategies():
             "actual_pct": round(100.0 * exposure / total, 4) if total else 0.0,
         })
 
-    # Layered cake: roll each container strategy up over its descendants.
+    # Layered cake: roll each container strategy up over its descendants. A
+    # strategy can belong to *multiple* parents (many-to-many), so it rolls into
+    # each parent it composes into.
     by_id = {r["strategy_id"]: r for r in rows}
     children: dict[str, list[str]] = {}
     for r in rows:
-        if r.get("parent_id") in by_id:
-            children.setdefault(r["parent_id"], []).append(r["strategy_id"])
+        for pid in (r.get("parents") or ([r["parent_id"]] if r.get("parent_id") else [])):
+            if pid in by_id:
+                children.setdefault(pid, []).append(r["strategy_id"])
 
     def _rollup(sid: str, seen: set | None = None) -> tuple[float, float]:
         seen = seen or set()
@@ -581,6 +587,39 @@ def run_backtest_by_symbol(strategy_id: str, req: BacktestBySymbolRequest):
         "symbol": bars.symbol,
         "bars": {"closes": prices, "dates": bars.dates, "start": bars.start, "end": bars.end},
     }
+
+
+@router.post("/fund/strategies/{strategy_id}/rename")
+def rename_strategy(strategy_id: str, req: StrategyRenameRequest):
+    try:
+        return _strategies.rename(strategy_id, name=req.name, actor=req.actor)
+    except StrategyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/fund/strategies/{strategy_id}/archive")
+def archive_strategy(strategy_id: str, req: StrategyArchiveRequest):
+    try:
+        return _strategies.archive(strategy_id, actor=req.actor)
+    except StrategyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/fund/strategies/{strategy_id}/parents")
+def add_strategy_parent(strategy_id: str, req: StrategyParentRequest):
+    """Compose this strategy into another parent (many-to-many)."""
+    try:
+        return _strategies.add_parent(strategy_id, parent_id=req.parent_id, actor=req.actor)
+    except StrategyError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
+@router.post("/fund/strategies/{strategy_id}/parents/remove")
+def remove_strategy_parent(strategy_id: str, req: StrategyParentRequest):
+    try:
+        return _strategies.remove_parent(strategy_id, parent_id=req.parent_id, actor=req.actor)
+    except StrategyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.post("/fund/strategies/{strategy_id}/state")
