@@ -146,6 +146,28 @@ export default function StrategyStudioPage() {
   const live = nav?.live;
   const positions = live?.positions || [];
 
+  // Layered cake: order children directly under their parent for the table.
+  const orderedStrategies = useMemo(() => {
+    const byParent = new Map<string, StrategyView[]>();
+    strategies.forEach((s) => {
+      if (s.parent_id) {
+        const a = byParent.get(s.parent_id) || [];
+        a.push(s);
+        byParent.set(s.parent_id, a);
+      }
+    });
+    const out: StrategyView[] = [];
+    const pushWithKids = (s: StrategyView) => {
+      out.push(s);
+      (byParent.get(s.strategy_id) || []).forEach(pushWithKids);
+    };
+    strategies.filter((s) => !s.parent_id).forEach(pushWithKids);
+    strategies.forEach((s) => {
+      if (!out.includes(s)) out.push(s);
+    }); // orphans (parent missing)
+    return out;
+  }, [strategies]);
+
   const deployedCount = strategies.filter((s) => s.state === "deployed").length;
   const totalExposure = strategies.reduce((a, s) => a + (s.exposure_usd || 0), 0);
   const totalPnl = strategies.reduce((a, s) => a + (s.pnl_usd || 0), 0);
@@ -290,19 +312,26 @@ export default function StrategyStudioPage() {
                 <div className="p-8 text-center text-sm text-zinc-500">No strategies yet. Create one to begin.</div>
               ) : (
                 <div className="divide-y divide-zinc-800/70">
-                  {strategies.map((s) => {
-                    const up = (s.pnl_usd ?? 0) >= 0;
-                    const actual = Math.min(100, s.actual_pct ?? 0);
+                  {orderedStrategies.map((s) => {
+                    const isChild = !!s.parent_id;
+                    const exposureShown = s.is_container ? s.rolled_exposure_usd ?? s.exposure_usd : s.exposure_usd;
+                    const pnlShown = s.is_container ? s.rolled_pnl_usd ?? s.pnl_usd : s.pnl_usd;
+                    const up = (pnlShown ?? 0) >= 0;
+                    const actual = Math.min(100, (s.is_container ? s.rolled_actual_pct : s.actual_pct) ?? 0);
                     const target = Math.min(100, s.allocation_pct ?? 0);
                     const sharpe = s.backtest?.sharpe;
                     const ret = s.backtest?.total_return;
                     return (
                       <div key={s.strategy_id} className="grid grid-cols-12 items-center gap-2 px-4 py-2.5 hover:bg-zinc-800/30">
                         <div className="col-span-3 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className={`flex items-center gap-1.5 ${isChild ? "pl-4" : ""}`}>
+                            {isChild && <span className="text-zinc-600">└</span>}
                             <span className="truncate text-sm font-medium">{s.name}</span>
+                            {s.is_container && (
+                              <span className="rounded bg-sky-500/15 px-1 py-0.5 text-[9px] font-semibold uppercase text-sky-300">container</span>
+                            )}
                           </div>
-                          <div className="mt-0.5"><StateBadge state={s.state} /></div>
+                          <div className={`mt-0.5 ${isChild ? "pl-4" : ""}`}><StateBadge state={s.state} /></div>
                         </div>
                         {/* allocation bar */}
                         <div className="col-span-3">
@@ -315,9 +344,9 @@ export default function StrategyStudioPage() {
                             <span>tgt {pct(s.allocation_pct)}</span>
                           </div>
                         </div>
-                        <div className="col-span-2 text-right font-mono text-xs text-zinc-300">{money(s.exposure_usd)}</div>
+                        <div className="col-span-2 text-right font-mono text-xs text-zinc-300">{money(exposureShown)}</div>
                         <div className={`col-span-1 text-right font-mono text-xs ${up ? "text-emerald-400" : "text-red-400"}`}>
-                          {s.pnl_usd == null ? "—" : `${up ? "+" : ""}${Number(s.pnl_usd).toFixed(0)}`}
+                          {pnlShown == null ? "—" : `${up ? "+" : ""}${Number(pnlShown).toFixed(0)}`}
                         </div>
                         <div className="col-span-1 text-right font-mono text-[11px] text-zinc-400" title="backtest sharpe / return">
                           {sharpe != null ? sharpe.toFixed(2) : "—"}
@@ -467,7 +496,7 @@ export default function StrategyStudioPage() {
         </div>
       </div>
 
-      <CreateStrategyModal isOpen={createOpen} onClose={() => setCreateOpen(false)} onSuccess={() => load(true)} />
+      <CreateStrategyModal isOpen={createOpen} onClose={() => setCreateOpen(false)} onSuccess={() => load(true)} strategies={strategies} />
       <BacktestModal
         strategy={backtestTarget}
         onClose={() => setBacktestTarget(null)}

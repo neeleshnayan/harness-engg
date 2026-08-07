@@ -7,16 +7,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { fundApiClient } from "@/lib/fund_api";
+import { fundApiClient, StrategyView } from "@/lib/fund_api";
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  strategies?: StrategyView[];
 }
 
-export function CreateStrategyModal({ isOpen, onClose, onSuccess }: Props) {
+export function CreateStrategyModal({ isOpen, onClose, onSuccess, strategies = [] }: Props) {
   const [name, setName] = useState("");
+  const [parentId, setParentId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -29,9 +31,13 @@ export function CreateStrategyModal({ isOpen, onClose, onSuccess }: Props) {
     try {
       setLoading(true);
       setError(null);
-      await fundApiClient.registerStrategy(name.trim());
-      toast({ title: "Strategy created", description: `'${name.trim()}' registered as a draft.` });
+      await fundApiClient.registerStrategy(name.trim(), parentId || null);
+      const where = parentId
+        ? ` under ${strategies.find((s) => s.strategy_id === parentId)?.name || "container"}`
+        : "";
+      toast({ title: "Strategy created", description: `'${name.trim()}' registered as a draft${where}.` });
       setName("");
+      setParentId("");
       onSuccess();
       onClose();
     } catch (e: any) {
@@ -57,6 +63,21 @@ export function CreateStrategyModal({ isOpen, onClose, onSuccess }: Props) {
               placeholder="e.g. Momentum"
               className="bg-zinc-800 border-zinc-700"
             />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="sparent">Parent strategy (optional)</Label>
+            <select
+              id="sparent"
+              value={parentId}
+              onChange={(e) => setParentId(e.target.value)}
+              className="h-10 rounded-md border border-zinc-700 bg-zinc-800 px-3 text-sm"
+            >
+              <option value="">— none (top-level) —</option>
+              {strategies.map((s) => (
+                <option key={s.strategy_id} value={s.strategy_id}>{s.name}</option>
+              ))}
+            </select>
+            <span className="text-[11px] text-zinc-500">Nest this under a container strategy — the layered cake.</span>
           </div>
           {error && (
             <div className="text-red-400 text-sm flex items-center gap-2">

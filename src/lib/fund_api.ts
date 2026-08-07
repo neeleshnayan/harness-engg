@@ -39,6 +39,14 @@ export interface StrategyView {
   exposure_usd?: number;
   pnl_usd?: number;
   backtest?: BacktestSummary | null;
+  // Layered cake (nested strategies)
+  parent_id?: string | null;
+  children?: string[];
+  is_container?: boolean;
+  depth?: number;
+  rolled_exposure_usd?: number;
+  rolled_pnl_usd?: number;
+  rolled_actual_pct?: number;
 }
 
 export interface StrategiesResponse {
@@ -154,8 +162,8 @@ export const fundApiClient = {
   ): Promise<{ symbol: string; source: string; closes: number[]; dates: string[] | null; start: string | null; end: string | null }> =>
     (await fundApi.get(`${P}/marketdata/bars`, { params: { symbol, lookback_days: lookbackDays } })).data,
 
-  registerStrategy: async (name: string, actor = 'operator') =>
-    (await fundApi.post(`${P}/strategies`, { name, actor })).data,
+  registerStrategy: async (name: string, parentId?: string | null, actor = 'operator') =>
+    (await fundApi.post(`${P}/strategies`, { name, parent_id: parentId ?? null, actor })).data,
 
   runBacktest: async (
     strategyId: string,
