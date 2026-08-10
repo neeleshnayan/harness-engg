@@ -3,9 +3,14 @@
 import React, { useState } from 'react'
 import dynamic from 'next/dynamic'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { DollarSign, TrendingUp, BarChart3, TrendingDown, ChevronDown, ChevronUp } from 'lucide-react'
+import { DollarSign, TrendingUp, BarChart3, TrendingDown, ChevronDown, ChevronUp, Terminal } from 'lucide-react'
 import { Loader2, Info, User, ArrowUpRight, ArrowUpDown, CheckCircle } from 'lucide-react'
 import { ChatMessage, BacktestResult, ScreenerResult, EconomicResult, NewsData, CalendarData, EconomicData, RegulationResult, AgentFlowGraph, AgentFlowStep, BalanceResult, BalanceEntry, DailyBalanceEntry, IntradayBalanceEntry } from '../types'
+
+const AgentFlow = dynamic(() => import('./AgentFlow'), {
+  loading: () => <div className="flex items-center justify-center p-4 text-xs text-emerald-400 font-mono">Initializing terminal execution console...</div>,
+  ssr: false,
+});
 import { formatCurrency, formatPercentage, formatDate, formatNumber, formatTimestamp } from '../utils'
 import { stripReasoningFromMessage } from '../utils/createAssistantMessage'
 import TransactionStatus, { InlineTransactionData } from './TransactionStatus'
@@ -50,6 +55,16 @@ interface ResultsDisplayProps {
 export default function ResultsDisplay({ messages, isLoading, username }: ResultsDisplayProps) {
   const [revealedAssistantIds, setRevealedAssistantIds] = useState<Set<string>>(new Set())
   const [expandedTradeTables, setExpandedTradeTables] = useState<Set<string>>(new Set())
+  const [expandedTerminalIds, setExpandedTerminalIds] = useState<Set<string>>(new Set())
+
+  const toggleTerminalFlow = (id: string) => {
+    setExpandedTerminalIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
   const hasAnyContent = messages.length > 0
   if (!hasAnyContent) return null
 
@@ -1238,6 +1253,24 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                             </a>
                           )}
                         </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* Render inline Terminal Execution Log toggle */}
+                {message.type === 'assistant' && message.agentFlow && (
+                  <div className="mt-3 ml-10">
+                    <button
+                      onClick={() => toggleTerminalFlow(message.id)}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#090D16] border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/60 text-xs font-mono transition-all shadow-sm group"
+                    >
+                      <Terminal className="h-3.5 w-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+                      <span>{expandedTerminalIds.has(message.id) ? 'Hide Terminal Flow' : '>_ Terminal Execution Log'}</span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-1" />
+                    </button>
+                    {expandedTerminalIds.has(message.id) && (
+                      <div className="mt-3 w-full max-w-5xl">
+                        <AgentFlow flow={message.agentFlow} />
                       </div>
                     )}
                   </div>
