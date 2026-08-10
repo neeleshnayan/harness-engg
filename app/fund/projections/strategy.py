@@ -37,15 +37,17 @@ class StrategyAttribution:
         for e in self._store.stream(since_seq=0, limit=100_000):
             if e.get("type") != EventType.ORDER_FILLED.value:
                 continue
-            p = e["payload"]
+            p = e.get("payload", {}) or {}
             key = p.get("strategy_id") or DISCRETIONARY
-            qty = D(p["filled_qty"])
-            px = D(p["avg_price"])
+            qty = D(p.get("filled_qty", p.get("qty", 0)))
+            px = D(p.get("avg_price", p.get("price", p.get("fill_price", 0))))
             fees = D(p.get("fees", 0))
-            signed = qty if p["side"] == "buy" else -qty
+            side = p.get("side", "buy")
+            sym = p.get("symbol", "UNKNOWN")
+            signed = qty if side == "buy" else -qty
 
             rec = s(key)
-            rec["positions"][p["symbol"]] = rec["positions"].get(p["symbol"], Decimal("0")) + signed
+            rec["positions"][sym] = rec["positions"].get(sym, Decimal("0")) + signed
             rec["net_invested"] += signed * px + fees
 
         return strats

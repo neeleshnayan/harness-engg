@@ -94,6 +94,73 @@ class RiskAnalytics:
             "scenarios": [self.shock(sym, pct) for (sym, pct) in _DEFAULT_SCENARIOS],
         }
 
+    # --- per-strategy risk --------------------------------------------------
+    def strategy_analytics(
+        self,
+        strategy: dict[str, Any],
+        attribution: dict[str, Any] | None,
+        pricer,
+    ) -> dict[str, Any]:
+        """Concentration + shock analytics scoped to a single strategy."""
+        assets: list[str] = strategy.get("assets") or []
+        attr_positions = (attribution or {}).get("positions", {})
+        exposure = float((attribution or {}).get("exposure_usd", 0))
+        pnl = float((attribution or {}).get("pnl_usd", 0))
+
+        rows: list[dict[str, Any]] = []
+        for sym in assets:
+            qty = float(attr_positions.get(sym, 0))
+            try:
+                mark = float(pricer(sym))
+            except Exception:
+                mark = 0.0
+            val = qty * mark
+            wt = (100.0 * val / exposure) if exposure else 0.0
+            shock_10 = val * -0.10
+            shock_20 = val * -0.20
+            rows.append({
+                "symbol": sym,
+                "qty": round(qty, 6),
+                "mark": round(mark, 2),
+                "value_usd": round(val, 2),
+                "weight_pct": round(wt, 4),
+                "shock_10_pct": round(shock_10, 2),
+                "shock_20_pct": round(shock_20, 2),
+            })
+
+        # HHI over the strategy's own position weights
+        hhi = 0.0
+        if exposure:
+            for r in rows:
+                share = 100.0 * r["value_usd"] / exposure if exposure else 0.0
+                hhi += share * share
+
+        flags: list[str] = []
+        for r in rows:
+            if r["weight_pct"] > 50.0:
+                flags.append(f"{r['symbol']} is {r['weight_pct']:.1f}% of strategy exposure (>50%)")
+
+        # Strategy-level shocks
+        scenarios = [
+            {"label": f"strategy −10%", "pnl_usd": round(exposure * -0.10, 2),
+             "exposure_after": round(exposure * 0.90, 2)},
+            {"label": f"strategy −20%", "pnl_usd": round(exposure * -0.20, 2),
+             "exposure_after": round(exposure * 0.80, 2)},
+        ]
+
+        return {
+            "strategy_id": strategy.get("strategy_id"),
+            "name": strategy.get("name"),
+            "state": strategy.get("state"),
+            "exposure_usd": round(exposure, 2),
+            "pnl_usd": round(pnl, 2),
+            "concentration_hhi": round(hhi, 1),
+            "n_assets": len(assets),
+            "assets": rows,
+            "flags": flags,
+            "scenarios": scenarios,
+        }
+
     # --- scenario shock ----------------------------------------------------
     def shock(self, symbol: Optional[str], pct: float, label: str | None = None) -> dict[str, Any]:
         """Reprice ``symbol`` (or the whole book if None) by ``pct`` percent.

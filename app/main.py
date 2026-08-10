@@ -30,23 +30,26 @@ load_dotenv()
 # Firebase must be ready before importing routers that build Firestore clients.
 # Dev escape hatch: USE_FAKE_FIRESTORE=1 runs with an in-memory Firestore (no
 # creds, ephemeral) so you can test locally without a service account.
-if os.getenv("USE_FAKE_FIRESTORE", "").lower() in ("1", "true", "yes"):
-    _log.warning("USE_FAKE_FIRESTORE set — using in-memory Firestore (DEV ONLY, data is ephemeral).")
-    from app.core.dev_firestore import install_fake
+use_fake = os.getenv("USE_FAKE_FIRESTORE", "").lower() in ("1", "true", "yes")
 
+if use_fake:
+    _log.warning("USE_FAKE_FIRESTORE set — using in-memory Firestore.")
+    from app.core.dev_firestore import install_fake
     install_fake()
 else:
-    initialize_firebase()
+    try:
+        initialize_firebase()
+    except Exception as e:
+        _log.warning("Firebase init failed (%s) — falling back to local dev Firestore.", e)
+        from app.core.dev_firestore import install_fake
+        install_fake()
 
 from app.api.v1 import fund as fund_router  # noqa: E402
+from app.fund.demo_seed import seed_if_empty  # noqa: E402
 
 
 async def _scheduler():
-    """24×7 deterministic worker: settle fills often; strike NAV + reconcile on the slow cycle.
-
-    Every tick is guarded so a transient failure never takes the loop (or the app) down.
-    Intervals and on/off are env-configurable.
-    """
+    """24×7 deterministic worker: settle fills often; strike NAV + reconcile on the slow cycle."""
     settle_every = int(os.getenv("SETTLE_INTERVAL_SECONDS", "30"))
     strike_every = int(os.getenv("STRIKE_INTERVAL_SECONDS", "1800"))
     since_strike = 0
@@ -68,6 +71,12 @@ async def _scheduler():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Auto-seed demo state if empty on server start
+    try:
+        seed_if_empty(fund_router._store, fund_router._nav._db)
+    except Exception as e:
+        _log.warning("Auto-seed error (%s) — proceeding with existing state.", e)
+
     task = None
     if os.getenv("ENABLE_SCHEDULER", "true").lower() != "false":
         task = asyncio.create_task(_scheduler())
@@ -122,3 +131,9 @@ def lp_view():
 def ops_view():
     """Serve the operator cockpit (reads /api/v1/fund/* client-side)."""
     return FileResponse(_WEB_DIR / "ops.html")
+
+
+@app.get("/strategies", include_in_schema=False)
+def strategies_view():
+    """Serve the strategies workbench (reads /api/v1/fund/strategies/* client-side)."""
+    return FileResponse(_WEB_DIR / "strategies.html")

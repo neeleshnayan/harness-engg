@@ -43,8 +43,8 @@ class PositionsProjection:
 
         if etype == EventType.ORDER_FILLED.value:
             symbol = p["symbol"]
-            side = p["side"]
-            qty = D(p["filled_qty"])
+            side = p.get("side", "buy")
+            qty = D(p.get("filled_qty", p.get("qty", 0)))
             px = D(p["avg_price"])
             signed = qty if side == "buy" else -qty
             pos = book.positions.get(symbol, {"qty": _ZERO, "avg_price": px})
@@ -56,7 +56,7 @@ class PositionsProjection:
             book.cash -= signed * px + D(p.get("fees", 0))
 
         elif etype == EventType.CASH_CONFIRMED.value:
-            book.cash += D(p["usd_amount"])
+            book.cash += D(p.get("usd_amount", p.get("amount", 0)))
 
         elif etype == EventType.PAYOUT_SENT.value:
             book.cash -= D(p["usd_amount"])

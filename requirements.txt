@@ -5,3 +5,4 @@ firebase-admin>=6.5
 python-dotenv>=1.0
 # Live venue (Step 2) — paper or real trading via Alpaca
 alpaca-py>=0.20
+PyPortfolioOpt

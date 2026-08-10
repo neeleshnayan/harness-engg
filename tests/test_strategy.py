@@ -65,3 +65,24 @@ def test_untagged_orders_bucket_as_discretionary(wire):
     attr = {a["strategy_id"]: a for a in wire.attribution.with_values(wire.conn.price)}
     assert "discretionary" in attr
     assert attr["discretionary"]["exposure_usd"] == pytest.approx(600.0)  # 3 * 200
+
+
+# --- asset scoping ---------------------------------------------------------
+
+def test_set_assets_stores_and_retrieves(wire):
+    sid = wire.strategies.register("Tech Momentum", actor="rushi")["strategy_id"]
+    wire.strategies.set_assets(sid, ["aapl", " NVDA ", "msft"], actor="rushi")
+    s = wire.strategies.get(sid)
+    assert s["assets"] == ["AAPL", "MSFT", "NVDA"]  # sorted, uppercased, trimmed
+
+
+def test_set_assets_replaces_previous(wire):
+    sid = wire.strategies.register("X", actor="rushi")["strategy_id"]
+    wire.strategies.set_assets(sid, ["AAPL", "NVDA"], actor="rushi")
+    wire.strategies.set_assets(sid, ["MSFT"], actor="rushi")
+    assert wire.strategies.get(sid)["assets"] == ["MSFT"]
+
+
+def test_set_assets_unknown_strategy_raises(wire):
+    with pytest.raises(StrategyError):
+        wire.strategies.set_assets("nonexistent", ["AAPL"], actor="rushi")

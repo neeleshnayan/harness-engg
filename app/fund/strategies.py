@@ -81,6 +81,16 @@ class StrategyService:
         )
         return self.get(strategy_id)
 
+    def set_assets(self, strategy_id: str, symbols: list[str], actor: str) -> dict[str, Any]:
+        """Set the universe of symbols this strategy scopes (replaces any previous set)."""
+        self._require(strategy_id)
+        clean = sorted({s.strip().upper() for s in symbols if s and s.strip()})
+        self._store.append(
+            Event(strategy_id, "strategy", EventType.STRATEGY_ASSETS_SET,
+                  {"symbols": clean}, actor)
+        )
+        return self.get(strategy_id)
+
     def archive(self, strategy_id: str, actor: str) -> dict[str, Any]:
         """Soft-delete: hide from active lists but keep the audit trail."""
         self._require(strategy_id)
@@ -190,6 +200,7 @@ class StrategyRegistry:
                     "parents": init_parents,
                     "archived": False,
                     "backtest": None,
+                    "assets": [],
                 }
             elif sid in strategies:
                 if etype == EventType.STRATEGY_STATE_CHANGED.value:
@@ -206,6 +217,8 @@ class StrategyRegistry:
                     pid = p.get("parent_id")
                     if pid and pid not in strategies[sid]["parents"]:
                         strategies[sid]["parents"].append(pid)
+                elif etype == EventType.STRATEGY_ASSETS_SET.value:
+                    strategies[sid]["assets"] = p.get("symbols", [])
                 elif etype == EventType.STRATEGY_REMOVED_FROM_PARENT.value:
                     pid = p.get("parent_id")
                     if pid in strategies[sid]["parents"]:

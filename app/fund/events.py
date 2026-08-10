@@ -63,6 +63,7 @@ class EventType(str, Enum):
     STRATEGY_ALLOCATION_SET = "StrategyAllocationSet"
     STRATEGY_RENAMED = "StrategyRenamed"
     STRATEGY_ARCHIVED = "StrategyArchived"
+    STRATEGY_ASSETS_SET = "StrategyAssetsSet"   # the universe of symbols a strategy scopes
     # Many-to-many composition (a strategy can compose into multiple parents).
     STRATEGY_ADDED_TO_PARENT = "StrategyAddedToParent"
     STRATEGY_REMOVED_FROM_PARENT = "StrategyRemovedFromParent"

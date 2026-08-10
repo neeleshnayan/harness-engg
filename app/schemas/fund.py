@@ -97,6 +97,16 @@ class StrategyArchiveRequest(BaseModel):
     actor: str = Field("operator", description="Who archived it")
 
 
+class StrategyAssetsRequest(BaseModel):
+    symbols: list[str] = Field(..., min_length=1, description="The asset universe for this strategy")
+    actor: str = Field("operator", description="Who set the assets")
+
+
+class StrategyOptimizeRequest(BaseModel):
+    method: Literal["max_sharpe", "min_volatility"] = Field("max_sharpe", description="Objective for PyPortfolioOpt")
+    lookback_days: int = Field(365, description="Historical lookback for covariance")
+
+
 class StrategyStateRequest(BaseModel):
     state: Literal["draft", "backtested", "deployed", "paused"]
     actor: str = Field("operator", description="Who changed the state")

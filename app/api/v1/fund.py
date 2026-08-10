@@ -10,8 +10,10 @@ The pipeline is wired to the PaperConnector today; swapping in the IBKRConnector
 """
 
 import os
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
 
 from app.fund.connectors.alpaca import AlpacaConnector
 from app.fund.connectors.base import Order, Side
@@ -31,6 +33,8 @@ from app.fund.memo import MemoError, MemoService
 from app.fund.postmortem import PostmortemError, PostmortemService
 from app.fund.reconcile import Reconciler
 from app.fund.riskanalytics import RiskAnalytics
+from app.fund.simulation import CounterfactualSimulator
+from app.fund.sentinel import SentinelRadar
 from app.fund.strategies import StrategyError, StrategyService
 from app.fund.thesis import ThesisError, ThesisService
 from app.schemas.fund import (
@@ -48,6 +52,7 @@ from app.schemas.fund import (
     RiskShockRequest,
     StrategyAllocationRequest,
     StrategyArchiveRequest,
+    StrategyAssetsRequest,
     StrategyParentRequest,
     StrategyRegisterRequest,
     StrategyRenameRequest,
@@ -57,7 +62,10 @@ from app.schemas.fund import (
     ThesisCreateRequest,
     ThesisStatusRequest,
     ThesisUpdateRequest,
+    StrategyOptimizeRequest,
 )
+
+from app.fund.optimization import optimize_portfolio
 
 router = APIRouter()
 
@@ -90,6 +98,13 @@ _postmortem = PostmortemService(store=_store, pricer=_connector.price)
 _attribution = StrategyAttribution(_store)
 _orders = OrdersProjection(_store)
 _reconciler = Reconciler(connector=_connector, store=_store, projection=_projection)
+from app.fund.pair_arb import PairArbitrageEngine
+from app.fund.macro_regime import MacroRegimeClassifier
+
+_pair_arb = PairArbitrageEngine()
+_macro_regime = MacroRegimeClassifier()
+_simulator = CounterfactualSimulator(nav_service=_nav, positions_projection=_projection, strategy_service=_strategies)
+_sentinel = SentinelRadar(thesis_service=_theses, memo_service=_memos, store=_store)
 
 
 # --- worker hooks (called by endpoints and the scheduled worker) -----------
@@ -106,6 +121,13 @@ def run_reconcile() -> dict:
 def run_strike() -> dict:
     """Strike and persist a NAV snapshot."""
     return _nav.strike().to_dict()
+
+
+@router.post("/fund/nav/strike")
+def post_nav_strike(req: ActorRequest | None = None):
+    """Manually strike and persist a NAV snapshot into Firestore."""
+    actor = req.actor if req else "operator"
+    return _nav.strike(actor=actor).to_dict()
 
 
 # --- reads -----------------------------------------------------------------
@@ -204,6 +226,14 @@ def get_order(order_id: str):
     if not events:
         raise HTTPException(status_code=404, detail=f"unknown order {order_id}")
     return {"order_id": order_id, "events": events}
+
+
+@router.get("/fund/events")
+def get_events(limit: int = Query(100, ge=1, le=1000), since_seq: int = Query(0, ge=0)):
+    """Immutable fund audit event log, newest first — powers the live audit feed."""
+    raw = _store.stream(since_seq=since_seq, limit=limit)
+    raw.sort(key=lambda e: e.get("seq") or 0, reverse=True)
+    return {"events": raw}
 
 
 # --- order writes ----------------------------------------------------------
@@ -591,6 +621,69 @@ def run_backtest_by_symbol(strategy_id: str, req: BacktestBySymbolRequest):
     }
 
 
+@router.post("/fund/strategies/{strategy_id}/optimize")
+def optimize_strategy(strategy_id: str, req: StrategyOptimizeRequest):
+    try:
+        strat = _strategies.get(strategy_id)
+        assets = strat.get("assets", [])
+        if not assets:
+            return {}
+        opt_result = optimize_portfolio(assets, lookback_days=req.lookback_days, method=req.method)
+        return opt_result
+    except StrategyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=f"Optimization failed: {e}")
+
+
+class SimulationRequest(BaseModel):
+    scenario: Optional[str] = None
+    crude_oil_price: Optional[float] = None
+    yield_10y_bps: Optional[float] = None
+    market_shock_pct: Optional[float] = None
+    vix_spike_pct: Optional[float] = None
+    crypto_shock_pct: Optional[float] = None
+
+
+@router.post("/fund/risk/simulate")
+def simulate_risk(req: SimulationRequest):
+    """Run counterfactual macro factor stress test against live fund holdings."""
+    return _simulator.simulate(
+        scenario=req.scenario,
+        crude_oil_price=req.crude_oil_price,
+        yield_10y_bps=req.yield_10y_bps,
+        market_shock_pct=req.market_shock_pct,
+        vix_spike_pct=req.vix_spike_pct,
+        crypto_shock_pct=req.crypto_shock_pct,
+    )
+
+
+@router.get("/fund/sentinel/signals")
+def get_sentinel_signals():
+    """Get active Clark Sentinel Alpha Radar signals."""
+    return {"signals": _sentinel.get_signals()}
+
+
+@router.post("/fund/sentinel/scan")
+def scan_sentinel(symbol: Optional[str] = Query(None)):
+    """Trigger autonomous Alpha Radar scan across multi-modal feeds."""
+    return _sentinel.scan(force_trigger_symbol=symbol)
+
+
+@router.get("/fund/risk/pairs")
+def get_pair_trade_signals():
+    """Scan statistical arbitrage pair trade opportunities."""
+    return _pair_arb.get_summary()
+
+
+@router.get("/fund/risk/macro-regime")
+def get_macro_regime():
+    """Classify current global macro regime and risk conviction modifier."""
+    return _macro_regime.get_regime_summary()
+
+
 @router.post("/fund/strategies/{strategy_id}/rename")
 def rename_strategy(strategy_id: str, req: StrategyRenameRequest):
     try:
@@ -640,3 +733,43 @@ def set_strategy_allocation(strategy_id: str, req: StrategyAllocationRequest):
         return _strategies.set_allocation(strategy_id, target_pct=req.target_pct, actor=req.actor)
     except StrategyError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/fund/strategies/{strategy_id}/assets")
+def set_strategy_assets(strategy_id: str, req: StrategyAssetsRequest):
+    """Set (replace) the asset universe this strategy scopes."""
+    try:
+        return _strategies.set_assets(strategy_id, symbols=req.symbols, actor=req.actor)
+    except StrategyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/fund/strategies/{strategy_id}/risk")
+def get_strategy_risk(strategy_id: str):
+    """Per-asset and strategy-level concentration + shock analytics."""
+    try:
+        s = _strategies.get(strategy_id)
+    except StrategyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    attr = {a["strategy_id"]: a for a in _attribution.with_values(_connector.price)}
+    return _risk.strategy_analytics(s, attr.get(strategy_id), _connector.price)
+
+
+@router.get("/fund/strategies/{strategy_id}/bars")
+def get_strategy_bars(strategy_id: str,
+                     lookback_days: int = Query(180, gt=1, le=2000)):
+    """Daily bars for every asset scoped into this strategy — powers sparkline charts."""
+    try:
+        s = _strategies.get(strategy_id)
+    except StrategyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    assets = s.get("assets") or []
+    result = {}
+    for sym in assets:
+        try:
+            bars = fetch_daily_bars(sym, lookback_days=lookback_days)
+            result[sym] = {"closes": bars.closes, "dates": bars.dates,
+                           "source": bars.source, "start": bars.start, "end": bars.end}
+        except BarsError as e:
+            result[sym] = {"error": str(e)}
+    return {"strategy_id": strategy_id, "assets": assets, "bars": result}
