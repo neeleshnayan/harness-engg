@@ -316,6 +316,14 @@ export interface BalanceResult {
   intradayBalances?: IntradayBalanceEntry[]
 }
 
+export interface SessionMetrics {
+  prompt_tokens?: number
+  completion_tokens?: number
+  total_tokens?: number
+  latency_ms?: number
+  tokens_per_sec?: number
+}
+
 export interface ChatMessage {
   id: string
   type: 'user' | 'assistant'
@@ -333,6 +341,7 @@ export interface ChatMessage {
   capabilitiesSummary?: string
   parameterRequest?: ParameterRequest
   agentFlow?: AgentFlowGraph | AgentFlowStep[]  // Support both old array and new graph format
+  metrics?: SessionMetrics
 }
 
 export interface Category {

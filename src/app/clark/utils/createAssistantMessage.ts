@@ -208,5 +208,6 @@ export function createAssistantMessage(payload: unknown): ChatMessage {
     capabilitiesSummary: (p?.capabilities_summary ?? rawData?.capabilities_summary) as string | undefined,
     parameterRequest: parameterRequest as ChatMessage['parameterRequest'],
     agentFlow: p?.agent_flow as ChatMessage['agentFlow'],
+    metrics: p?.metrics as ChatMessage['metrics'],
   }
 }

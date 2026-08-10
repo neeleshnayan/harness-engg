@@ -1256,6 +1256,7 @@ export default function BacktestPage() {
         sessionId={sessionId}
         sessionCost={sessionCost}
         overallCost={overallCost}
+        messages={messages}
       />
     </div>
   )
