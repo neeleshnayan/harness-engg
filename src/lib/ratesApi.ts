@@ -23,12 +23,27 @@ export interface RatesSummaryResponse {
   tokens: Record<string, TokenRateInfo>;
 }
 
+const DEFAULT_FALLBACK_RATES: Record<string, TokenRateInfo> = {
+  kUSD: { symbol: 'kUSD', address: '', pool_address: '', decimals: 18, base_token: 'kUSD', current_rate: 1.0, closing_rate: 1.0, direction: 'same', percentage_change: 0 },
+  kEUR: { symbol: 'kEUR', address: '', pool_address: '', decimals: 18, base_token: 'kUSD', current_rate: 1.08, closing_rate: 1.08, direction: 'same', percentage_change: 0 },
+  kGBP: { symbol: 'kGBP', address: '', pool_address: '', decimals: 18, base_token: 'kUSD', current_rate: 1.27, closing_rate: 1.27, direction: 'same', percentage_change: 0 },
+  USDC: { symbol: 'USDC', address: '', pool_address: '', decimals: 6, base_token: 'USDC', current_rate: 1.0, closing_rate: 1.0, direction: 'same', percentage_change: 0 },
+};
+
 /**
- * Fetch rates summary from backend - THE ONLY API CALL WE NEED! 🔥
+ * Fetch rates summary from backend — with graceful fallback on backend 500 error.
  */
 export async function fetchRatesSummary(): Promise<RatesSummaryResponse> {
-  const response = await kryptonWeb3Api.get<RatesSummaryResponse>('/subgraph/rates-summary');
-  return response.data;
+  try {
+    const response = await kryptonWeb3Api.get<RatesSummaryResponse>('/subgraph/rates-summary');
+    if (response.data && response.data.tokens) {
+      return response.data;
+    }
+    return { tokens: DEFAULT_FALLBACK_RATES };
+  } catch (error) {
+    console.warn('Rates summary endpoint error — using fallback rates:', error);
+    return { tokens: DEFAULT_FALLBACK_RATES };
+  }
 }
 
 /**

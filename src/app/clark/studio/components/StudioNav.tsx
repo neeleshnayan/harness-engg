@@ -3,10 +3,11 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CheckSquare, LayoutDashboard, ShieldAlert, Target } from "lucide-react";
+import { CheckSquare, Layers, LayoutDashboard, ShieldAlert, Target } from "lucide-react";
 
 const TABS = [
   { href: "/clark/studio", label: "Overview", icon: LayoutDashboard, exact: true },
+  { href: "/clark/studio/strategies", label: "Strategies", icon: Layers },
   { href: "/clark/studio/approvals", label: "Approvals", icon: CheckSquare },
   { href: "/clark/studio/theses", label: "Theses", icon: Target },
   { href: "/clark/studio/risk", label: "Risk", icon: ShieldAlert },

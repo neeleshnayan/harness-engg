@@ -51,14 +51,34 @@ async function proxy(
 
     const body = method !== 'GET' && method !== 'HEAD' ? await request.text() : undefined;
 
-    const res = await fetch(url, {
-      method,
-      headers,
-      body: body || undefined,
-      signal: controller.signal,
-    });
+    let res: Response | null = null;
+    let lastFetchError: unknown = null;
+
+    // Retry fetch up to 2 attempts for transient socket disconnects/reloads
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        res = await fetch(url, {
+          method,
+          headers,
+          body: body || undefined,
+          signal: controller.signal,
+        });
+        break; // fetch succeeded
+      } catch (err: unknown) {
+        lastFetchError = err;
+        if (attempt < 2 && !(err instanceof Error && err.name === 'AbortError')) {
+          await new Promise((resolve) => setTimeout(resolve, 800));
+        } else {
+          throw err;
+        }
+      }
+    }
 
     clearTimeout(timeoutId);
+
+    if (!res) {
+      throw lastFetchError || new Error('Fetch failed without response');
+    }
 
     const resBody = await res.text();
     return new NextResponse(resBody, {
@@ -70,6 +90,7 @@ async function proxy(
     });
   } catch (e: unknown) {
     clearTimeout(timeoutId);
+    console.error(`[Agents Proxy Error] Failed proxying ${method} ${url}:`, e);
     if (e instanceof Error && e.name === 'AbortError') {
       return NextResponse.json(
         {

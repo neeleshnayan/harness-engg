@@ -77,6 +77,9 @@ export function createAssistantMessage(payload: unknown): ChatMessage {
   if (regulationResult) responseMessage = ''
 
   let backtestResult = rawData?.backtest_result ?? rawData?.backtestResult
+  if (backtestResult && (backtestResult as any).backtest_result) {
+    backtestResult = (backtestResult as any).backtest_result
+  }
   if (!backtestResult && rawData) {
     if (rawData.technical && typeof rawData.technical === 'object' && (rawData.technical as Record<string, unknown>).backtest_result)
       backtestResult = (rawData.technical as Record<string, unknown>).backtest_result
@@ -86,8 +89,41 @@ export function createAssistantMessage(payload: unknown): ChatMessage {
       backtestResult = rawData.backtest_result ?? (rawData.backtest as Record<string, unknown>)?.backtest_result
   }
 
+  // Map new ClarkHarness `bars: { closes: [], dates: [] }` back to legacy `data_points` for charts
+  if (backtestResult && (backtestResult as any).bars && Array.isArray((backtestResult as any).bars.closes) && !(backtestResult as any).data_points) {
+    const b = (backtestResult as any).bars
+    const mappedDataPoints = b.closes.map((close: number, i: number) => ({
+      date: b.dates && b.dates[i] ? b.dates[i] : `Day ${i}`,
+      portfolio_value: close
+    }))
+    ;(backtestResult as any).data_points = mappedDataPoints
+    
+    // Ensure metrics are populated if missing but we have result object
+    if (!(backtestResult as any).metrics && (backtestResult as any).result) {
+      const res = (backtestResult as any).result
+      ;(backtestResult as any).metrics = {
+        total_return: res.total_return ?? 0,
+        sharpe_ratio: res.sharpe ?? 0,
+        max_drawdown: res.max_drawdown ?? 0,
+        total_trades: res.n_trades ?? 0
+      }
+      ;(backtestResult as any).final_capital = res.final_equity ?? 0
+      ;(backtestResult as any).show_performance_stats = true
+    }
+  }
+
   const priceHistoryData = rawData?.price_history ?? rawData?.priceHistory
   let dataPoints = (priceHistoryData as Record<string, unknown> | undefined)?.data_points ?? (priceHistoryData as Record<string, unknown> | undefined)?.data
+  
+  // Also map new ClarkHarness bars to price history data points if priceHistoryData is in that format
+  if (!dataPoints && priceHistoryData && (priceHistoryData as any).closes) {
+    const b = priceHistoryData as any
+    dataPoints = b.closes.map((close: number, i: number) => ({
+      date: b.dates && b.dates[i] ? b.dates[i] : `Day ${i}`,
+      price: close
+    }))
+  }
+
   if (!dataPoints && Array.isArray(priceHistoryData)) dataPoints = priceHistoryData
   const hasValidPricePoints = Array.isArray(dataPoints) && dataPoints.length > 0 &&
     (dataPoints as { price?: number }[]).some((pt) => typeof pt?.price === 'number')

@@ -3,13 +3,14 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, Loader2, ShieldAlert, Zap } from "lucide-react";
 import { fundApiClient, RiskAnalytics, RiskScenario } from "@/lib/fund_api";
+import { AllocationDonut } from "./charts/AllocationDonut";
 
 const money = (n?: number | null) =>
   n == null ? "—" : `$${Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 const pct = (n?: number | null, dp = 1) => (n == null ? "—" : `${Number(n).toFixed(dp)}%`);
 
 /** Read-only analytical risk cockpit: concentration + scenario shocks. */
-export function RiskPanel({ refreshKey }: { refreshKey?: number }) {
+export function RiskPanel({ refreshKey, hideDonut }: { refreshKey?: number; hideDonut?: boolean }) {
   const [data, setData] = useState<RiskAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [shockSym, setShockSym] = useState("");
@@ -79,6 +80,23 @@ export function RiskPanel({ refreshKey }: { refreshKey?: number }) {
               </div>
             </div>
           </div>
+
+          {/* Allocation Donut */}
+          {!hideDonut && (
+            <div className="py-2">
+              <AllocationDonut
+                positions={data.positions.map(p => ({
+                  symbol: p.symbol,
+                  qty: p.qty,
+                  mark: p.mark,
+                  usd_value: p.usd_value
+                }))}
+                cash={data.cash_usd}
+                totalNav={data.nav_usd}
+                height={200}
+              />
+            </div>
+          )}
 
           {/* breach flags */}
           {data.flags.length > 0 && (

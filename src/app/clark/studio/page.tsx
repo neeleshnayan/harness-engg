@@ -32,11 +32,23 @@ import { StrategyDetailModal } from "./components/StrategyDetailModal";
 import { StrategyManageModal } from "./components/StrategyManageModal";
 import { BacktestModal } from "./components/BacktestModal";
 import { AllocationModal } from "./components/AllocationModal";
+import { RebalanceModal } from "./components/RebalanceModal";
+import { SimulationModal } from "./components/SimulationModal";
+import { SentinelRadarFeed } from "./components/SentinelRadarFeed";
+import { ShieldAlert, Radio, Scale } from "lucide-react";
+import { AuditLogFeed } from "./components/AuditLogFeed";
 import { RiskPanel } from "./components/RiskPanel";
 import { ThesisPanel } from "./components/ThesisPanel";
 import { OrderBlotter } from "./components/OrderBlotter";
+import { AllocationDonut } from "./components/charts/AllocationDonut";
+import { StrategyPerformanceBar } from "./components/charts/StrategyPerformanceBar";
+import HeroChart from "./components/charts/HeroChart";
+import { AnimatedNumber } from "./components/ui/AnimatedNumber";
+import { GlassPanel } from "./components/ui/GlassPanel";
+import { StatusPulse } from "./components/ui/StatusPulse";
+import { StrategyCard } from "./components/ui/StrategyCard";
 import { StudioNav } from "./components/StudioNav";
-import { TVAreaChart, TVPoint } from "./components/TVAreaChart";
+import { TVPoint } from "./components/TVAreaChart";
 
 /* ---------- formatting helpers ---------- */
 const money = (n?: number | null, dp = 2) =>
@@ -56,13 +68,23 @@ const STATE_STYLE: Record<string, string> = {
 };
 
 /* ---------- small presentational pieces ---------- */
-function Stat({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
+function Stat({ label, value, sub, accent, rawValue }: { label: string; value: string; sub?: string; accent?: string; rawValue?: number }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-lg border border-zinc-800/80 bg-zinc-900/40 px-3.5 py-2.5">
+    <GlassPanel className="flex flex-col gap-1 !p-3">
       <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">{label}</span>
-      <span className={`font-mono text-lg leading-tight ${accent || "text-zinc-100"}`}>{value}</span>
+      {rawValue !== undefined ? (
+        <AnimatedNumber
+          value={rawValue}
+          className={`text-lg leading-tight font-medium ${accent || "text-zinc-100"}`}
+          prefix={value.startsWith('$') ? '$' : value.startsWith('+$') ? '+$' : value.startsWith('-') ? '-' : ''}
+          suffix={value.endsWith('%') ? '%' : ''}
+          decimals={value.includes('.') ? value.split('.')[1].replace(/[^0-9]/g, '').length : 0}
+        />
+      ) : (
+        <span className={`tabular-nums text-lg leading-tight font-medium ${accent || "text-zinc-100"}`}>{value}</span>
+      )}
       {sub && <span className="text-[11px] text-zinc-500">{sub}</span>}
-    </div>
+    </GlassPanel>
   );
 }
 
@@ -88,6 +110,9 @@ export default function StrategyStudioPage() {
   const [busyOrder, setBusyOrder] = useState<string | null>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [rebalanceOpen, setRebalanceOpen] = useState(false);
+  const [simOpen, setSimOpen] = useState(false);
+  const [events, setEvents] = useState<any[]>([]);
   const [backtestTarget, setBacktestTarget] = useState<StrategyView | null>(null);
   const [detailTarget, setDetailTarget] = useState<StrategyView | null>(null);
   const [allocTarget, setAllocTarget] = useState<StrategyView | null>(null);
@@ -113,13 +138,14 @@ export default function StrategyStudioPage() {
   const load = useCallback(async (soft = false) => {
     try {
       if (!soft) setErr(null);
-      const [s, n, l, p, nh, oh] = await Promise.all([
+      const [s, n, l, p, nh, oh, ev] = await Promise.all([
         fundApiClient.getStrategies(),
         fundApiClient.getNav(),
         fundApiClient.getLps(),
         fundApiClient.getPending(),
         fundApiClient.getNavHistory(90),
         fundApiClient.getOrderHistory(blotterFilter, 200),
+        fundApiClient.getEvents(100).catch(() => ({ events: [] })),
       ]);
       setStrat(s);
       setNav(n);
@@ -127,6 +153,7 @@ export default function StrategyStudioPage() {
       setPending(p.pending || []);
       setNavHistory((nh.history || []).map((h) => ({ t: h.ts || "", v: h.total_nav_usd })));
       setOrderHistory(oh.orders || []);
+      setEvents(ev.events || []);
       setLastSync(new Date());
       setTick((v) => v + 1);
       setErr(null);
@@ -272,8 +299,7 @@ export default function StrategyStudioPage() {
             <div className="leading-tight">
               <div className="text-sm font-semibold">Krypton Fund · Strategy Studio</div>
               <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
-                <span className={`h-1.5 w-1.5 rounded-full ${err ? "bg-red-500" : "bg-emerald-500"}`} />
-                {err ? "spine unreachable" : "live"}
+                <StatusPulse state={err ? "offline" : lastSync ? "live" : "syncing"} label={err ? "spine unreachable" : "live"} />
                 {lastSync && !err && <span>· synced {lastSync.toLocaleTimeString()}</span>}
               </div>
             </div>
@@ -291,6 +317,20 @@ export default function StrategyStudioPage() {
             <Button variant="outline" className="h-8 border-zinc-700 bg-transparent text-zinc-200" onClick={() => load()}>
               <RefreshCw size={14} className="mr-1.5" /> Refresh
             </Button>
+            <Button
+              variant="outline"
+              className="h-8 border-amber-800/80 bg-amber-950/40 text-amber-300 hover:bg-amber-900/50"
+              onClick={() => setSimOpen(true)}
+            >
+              <ShieldAlert size={14} className="mr-1.5" /> Simulator
+            </Button>
+            <Button
+              variant="outline"
+              className="h-8 border-teal-800/80 bg-teal-950/40 text-teal-300 hover:bg-teal-900/50"
+              onClick={() => setRebalanceOpen(true)}
+            >
+              <Scale size={14} className="mr-1.5" /> Rebalance
+            </Button>
             <Button className="h-8 bg-gradient-to-r from-teal-600 to-sky-600 text-white" onClick={() => setCreateOpen(true)}>
               <Plus size={14} className="mr-1.5" /> New strategy
             </Button>
@@ -306,20 +346,20 @@ export default function StrategyStudioPage() {
         )}
 
         {/* KPI strip */}
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
-          <Stat label="NAV" value={compact(live?.total_nav_usd)} sub={`${money(live?.nav_per_unit, 4)}/unit`} accent="text-teal-300" />
-          <Stat label="Cash" value={compact(live?.breakdown?.cash)} sub={`${pct(live && live.total_nav_usd ? (live.breakdown.cash / live.total_nav_usd) * 100 : 0)} of NAV`} />
-          <Stat label="Deployed Exp." value={compact(totalExposure)} sub={`${deployedCount} live ${deployedCount === 1 ? "strategy" : "strategies"}`} />
-          <Stat label="Unrealized P&L" value={signed(totalPnl)} accent={totalPnl >= 0 ? "text-emerald-400" : "text-red-400"} />
-          <Stat label="LPs" value={String(lps.length)} sub={`${(live?.units_outstanding || 0).toLocaleString()} units`} />
-          <Stat label="Pending" value={String(pending.length)} sub="awaiting approval" accent={pending.length ? "text-amber-300" : "text-zinc-100"} />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <Stat label="NAV" value={compact(live?.total_nav_usd)} rawValue={live?.total_nav_usd} sub={`${money(live?.nav_per_unit, 4)}/unit`} accent="text-teal-400 glow-teal" />
+          <Stat label="Cash" value={compact(live?.breakdown?.cash)} rawValue={live?.breakdown?.cash} sub={`${pct(live && live.total_nav_usd ? (live.breakdown.cash / live.total_nav_usd) * 100 : 0)} of NAV`} />
+          <Stat label="Deployed Exp." value={compact(totalExposure)} rawValue={totalExposure} sub={`${deployedCount} live ${deployedCount === 1 ? "strategy" : "strategies"}`} />
+          <Stat label="Unrealized P&L" value={signed(totalPnl)} rawValue={Math.abs(totalPnl)} sub={totalPnl >= 0 ? "Profit" : "Loss"} accent={totalPnl >= 0 ? "text-emerald-400" : "text-rose-400"} />
+          <Stat label="LPs" value={String(lps.length)} rawValue={lps.length} sub={`${(live?.units_outstanding || 0).toLocaleString()} units`} />
+          <Stat label="Pending" value={String(pending.length)} rawValue={pending.length} sub="awaiting approval" accent={pending.length ? "text-amber-400" : "text-zinc-100"} />
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
           {/* left: strategies + chart */}
           <div className="lg:col-span-2 space-y-4">
             {/* chart panel — fund NAV movement by default, symbol price opt-in */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+            <GlassPanel className="p-1">
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <Activity size={14} className="text-teal-400" />
                 {/* NAV | Price toggle */}
@@ -375,27 +415,36 @@ export default function StrategyStudioPage() {
               </div>
               {chartMode === "nav" ? (
                 navHistory.length < 2 ? (
-                  <div className="flex h-[220px] items-center justify-center text-center text-xs text-zinc-500">
-                    NAV curve builds as snapshots are struck (POST /fund/nav/strike, or the scheduled valuation).
+                  <div className="flex h-[320px] items-center justify-center text-center text-xs text-zinc-500">
+                    NAV curve builds as snapshots are struck.
                   </div>
                 ) : (
-                  <TVAreaChart data={navHistory} height={220} />
+                  <HeroChart data={navHistory} height={320} />
                 )
               ) : chartErr ? (
-                <div className="flex h-[220px] items-center justify-center text-xs text-red-400">{chartErr}</div>
+                <div className="flex h-[320px] items-center justify-center text-xs text-red-400">{chartErr}</div>
               ) : chartLoading && !chartData.length ? (
-                <div className="flex h-[220px] items-center justify-center text-zinc-500">
-                  <Loader2 className="animate-spin" size={18} />
+                <div className="flex h-[320px] items-center justify-center text-zinc-500">
+                  <Loader2 className="animate-spin text-teal-500" size={18} />
                 </div>
               ) : (
-                <TVAreaChart data={chartData} height={220} />
+                <HeroChart data={chartData} height={320} />
               )}
+            </GlassPanel>
+
+            {/* High Level Analytics */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <GlassPanel title="Asset Allocation">
+                <AllocationDonut positions={positions} cash={live?.breakdown.cash || 0} totalNav={live?.total_nav_usd || 0} />
+              </GlassPanel>
+              <GlassPanel title="Strategy Performance">
+                <StrategyPerformanceBar strategies={orderedStrategies} />
+              </GlassPanel>
             </div>
 
-            {/* strategies table */}
-            <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40">
-              <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-2.5">
-                <span className="text-sm font-semibold">Strategies</span>
+            <div className="mt-8 mb-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-zinc-100">Strategies</h2>
                 <span className="text-[11px] text-zinc-500">{strategies.length} total · target vs actual allocation</span>
               </div>
               {loading ? (
@@ -403,82 +452,22 @@ export default function StrategyStudioPage() {
                   <Loader2 className="animate-spin" size={16} /> Loading…
                 </div>
               ) : strategies.length === 0 ? (
-                <div className="p-8 text-center text-sm text-zinc-500">No strategies yet. Create one to begin.</div>
+                <GlassPanel className="p-8 text-center text-sm text-zinc-500">No strategies yet. Create one to begin.</GlassPanel>
               ) : (
-                <div className="divide-y divide-zinc-800/70">
-                  {orderedStrategies.map((s) => {
-                    const isChild = !!s.parent_id;
-                    const exposureShown = s.is_container ? s.rolled_exposure_usd ?? s.exposure_usd : s.exposure_usd;
-                    const pnlShown = s.is_container ? s.rolled_pnl_usd ?? s.pnl_usd : s.pnl_usd;
-                    const up = (pnlShown ?? 0) >= 0;
-                    const actual = Math.min(100, (s.is_container ? s.rolled_actual_pct : s.actual_pct) ?? 0);
-                    const target = Math.min(100, s.allocation_pct ?? 0);
-                    const sharpe = s.backtest?.sharpe;
-                    const ret = s.backtest?.total_return;
-                    return (
-                      <div key={s.strategy_id} className="grid grid-cols-12 items-center gap-2 px-4 py-2.5 hover:bg-zinc-800/30">
-                        <div className="col-span-3 min-w-0">
-                          <div className={`flex items-center gap-1.5 ${isChild ? "pl-4" : ""}`}>
-                            {isChild && <span className="text-zinc-600">└</span>}
-                            <button
-                              onClick={() => setDetailTarget(s)}
-                              className="truncate text-left text-sm font-medium hover:text-teal-300 hover:underline"
-                              title="View performance"
-                            >
-                              {s.name}
-                            </button>
-                            {s.is_container && (
-                              <span className="rounded bg-sky-500/15 px-1 py-0.5 text-[9px] font-semibold uppercase text-sky-300">container</span>
-                            )}
-                          </div>
-                          <div className={`mt-0.5 ${isChild ? "pl-4" : ""}`}><StateBadge state={s.state} /></div>
-                        </div>
-                        {/* allocation bar */}
-                        <div className="col-span-3">
-                          <div className="relative h-1.5 rounded-full bg-zinc-800">
-                            <div className="h-full rounded-full bg-gradient-to-r from-teal-500 to-sky-500" style={{ width: `${actual}%` }} />
-                            <div className="absolute -top-1 h-3.5 w-0.5 bg-zinc-100/80" style={{ left: `${target}%` }} title={`target ${target}%`} />
-                          </div>
-                          <div className="mt-1 flex justify-between font-mono text-[10px] text-zinc-500">
-                            <span>act {pct(s.actual_pct)}</span>
-                            <span>tgt {pct(s.allocation_pct)}</span>
-                          </div>
-                        </div>
-                        <div className="col-span-2 text-right font-mono text-xs text-zinc-300">{money(exposureShown)}</div>
-                        <div className={`col-span-1 text-right font-mono text-xs ${up ? "text-emerald-400" : "text-red-400"}`}>
-                          {pnlShown == null ? "—" : `${up ? "+" : ""}${Number(pnlShown).toFixed(0)}`}
-                        </div>
-                        <div className="col-span-1 text-right font-mono text-[11px] text-zinc-400" title="backtest sharpe / return">
-                          {sharpe != null ? sharpe.toFixed(2) : "—"}
-                          {ret != null && <div className={ret >= 0 ? "text-emerald-500/80" : "text-red-500/80"}>{(ret * 100).toFixed(1)}%</div>}
-                        </div>
-                        <div className="col-span-2 flex justify-end gap-1">
-                          <button className="rounded border border-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-300 hover:bg-zinc-800" onClick={() => setBacktestTarget(s)}>
-                            Test
-                          </button>
-                          {s.state !== "deployed" ? (
-                            <button className="rounded bg-teal-600/90 px-1.5 py-0.5 text-[10px] text-white hover:bg-teal-600" onClick={() => setState(s, "deployed")}>
-                              Deploy
-                            </button>
-                          ) : (
-                            <button className="rounded border border-amber-700/50 px-1.5 py-0.5 text-[10px] text-amber-300 hover:bg-amber-900/20" onClick={() => setState(s, "paused")}>
-                              Pause
-                            </button>
-                          )}
-                          <button className="rounded border border-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-300 hover:bg-zinc-800" onClick={() => setManageTarget(s)}>
-                            Manage
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {orderedStrategies.map((s) => (
+                    <StrategyCard
+                      key={s.strategy_id}
+                      strategy={s}
+                      onClick={() => setDetailTarget(s)}
+                    />
+                  ))}
                 </div>
               )}
             </div>
 
             {/* positions */}
-            <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40">
-              <div className="border-b border-zinc-800 px-4 py-2.5 text-sm font-semibold">Positions</div>
+            <GlassPanel title="Positions" className="!p-0">
               {positions.length === 0 ? (
                 <div className="p-6 text-center text-sm text-zinc-500">Flat — no open positions.</div>
               ) : (
@@ -507,7 +496,7 @@ export default function StrategyStudioPage() {
                   </tbody>
                 </table>
               )}
-            </div>
+            </GlassPanel>
 
             {/* order history (trade blotter), filterable by strategy */}
             <OrderBlotter
@@ -518,16 +507,17 @@ export default function StrategyStudioPage() {
             />
           </div>
 
-          {/* right rail */}
           <div className="space-y-4">
             {/* pending approvals */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40">
-              <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-2.5">
-                <span className="text-sm font-semibold">Pending approvals</span>
-                {pending.length > 0 && (
+            <GlassPanel
+              title="Pending approvals"
+              headerRight={
+                pending.length > 0 && (
                   <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300">{pending.length}</span>
-                )}
-              </div>
+                )
+              }
+              className="!p-0"
+            >
               {pending.length === 0 ? (
                 <div className="p-6 text-center text-sm text-zinc-500">Queue clear.</div>
               ) : (
@@ -585,13 +575,19 @@ export default function StrategyStudioPage() {
                   })}
                 </div>
               )}
-            </div>
+            </GlassPanel>
+
+            {/* Clark Sentinel 24/7 Alpha Radar Feed */}
+            <SentinelRadarFeed />
 
             {/* theses — every trade should reference one */}
             <ThesisPanel refreshKey={tick} onChanged={() => load(true)} />
 
             {/* analytical risk cockpit */}
             <RiskPanel refreshKey={tick} />
+
+            {/* spine real-time audit log stream */}
+            <AuditLogFeed events={events} />
 
             {/* LP book */}
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/40">
@@ -627,6 +623,18 @@ export default function StrategyStudioPage() {
       </div>
 
       <CreateStrategyModal isOpen={createOpen} onClose={() => setCreateOpen(false)} onSuccess={() => load(true)} strategies={strategies} />
+      <RebalanceModal
+        open={rebalanceOpen}
+        onOpenChange={setRebalanceOpen}
+        strategies={strategies}
+        totalNavUsd={live?.total_nav_usd || 100000}
+        onSuccess={() => load(true)}
+      />
+      <SimulationModal
+        open={simOpen}
+        onOpenChange={setSimOpen}
+        onSuccess={() => load(true)}
+      />
       <BacktestModal
         strategy={backtestTarget}
         onClose={() => setBacktestTarget(null)}

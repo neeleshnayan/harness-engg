@@ -31,7 +31,7 @@ export function CreateStrategyModal({ isOpen, onClose, onSuccess, strategies = [
     try {
       setLoading(true);
       setError(null);
-      await fundApiClient.registerStrategy(name.trim(), parentId || null);
+      await fundApiClient.registerStrategy(name.trim(), "Sandbox", parentId || undefined);
       const where = parentId
         ? ` under ${strategies.find((s) => s.strategy_id === parentId)?.name || "container"}`
         : "";
@@ -41,7 +41,11 @@ export function CreateStrategyModal({ isOpen, onClose, onSuccess, strategies = [
       onSuccess();
       onClose();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || e?.message || "Failed to create strategy.");
+      let msg = e?.response?.data?.detail || e?.message || "Failed to create strategy.";
+      if (typeof msg === "object") {
+        msg = Array.isArray(msg) ? msg.map((m: any) => m.msg || JSON.stringify(m)).join(", ") : JSON.stringify(msg);
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }

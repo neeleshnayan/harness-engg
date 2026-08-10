@@ -25,7 +25,10 @@ function isFlowGraph(flow: AgentFlowGraph | AgentFlowStep[]): flow is AgentFlowG
   return flow && typeof flow === 'object' && 'nodes' in flow && 'edges' in flow
 }
 
+import { TerminalExecutionFlow } from './TerminalExecutionFlow'
+
 export default function AgentFlow({ flow }: AgentFlowProps) {
+  const [viewMode, setViewMode] = useState<'flow' | 'terminal'>('flow')
   const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set())
   const [expandedData, setExpandedData] = useState<Set<string>>(new Set())
   if (!flow) {
@@ -990,7 +993,7 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
 
   return (
     <Card className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 flex flex-row items-center justify-between">
         <CardTitle className="text-base text-white flex items-center gap-2">
           {getFlowTypeIcon()}
           <span>{getFlowTypeLabel()}</span>
@@ -1000,11 +1003,40 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
             </span>
           )}
         </CardTitle>
+        <div className="flex items-center gap-1.5 rounded-lg bg-zinc-900/80 p-1 border border-zinc-700/50">
+          <button
+            onClick={() => setViewMode('flow')}
+            className={`px-2.5 py-1 text-xs rounded-md font-medium transition ${
+              viewMode === 'flow'
+                ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30 shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            Flow Diagram
+          </button>
+          <button
+            onClick={() => setViewMode('terminal')}
+            className={`px-2.5 py-1 text-xs rounded-md font-medium flex items-center gap-1.5 transition ${
+              viewMode === 'terminal'
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <span>Terminal View</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          </button>
+        </div>
       </CardHeader>
       <CardContent>
-        {flowType === 'parallel' && renderParallelFlow()}
-        {flowType === 'sequential' && renderSequentialFlow()}
-        {flowType === 'single' && renderLinearFlow()}
+        {viewMode === 'terminal' ? (
+          <TerminalExecutionFlow flow={flow} />
+        ) : (
+          <>
+            {flowType === 'parallel' && renderParallelFlow()}
+            {flowType === 'sequential' && renderSequentialFlow()}
+            {flowType === 'single' && renderLinearFlow()}
+          </>
+        )}
       </CardContent>
     </Card>
   )

@@ -9,7 +9,7 @@ const IS_BROWSER = typeof window !== 'undefined';
 const HARNESS_BASE_URL =
   IS_DEV && IS_BROWSER
     ? '/proxy/harness'
-    : (process.env.NEXT_PUBLIC_HARNESS_API_URL || 'http://127.0.0.1:8000');
+    : (process.env.NEXT_PUBLIC_HARNESS_API_URL || 'http://127.0.0.1:8090');
 
 const fundApi = axios.create({
   baseURL: HARNESS_BASE_URL,
@@ -20,6 +20,17 @@ const fundApi = axios.create({
 const P = '/api/v1/fund';
 
 export type StrategyState = 'draft' | 'backtested' | 'deployed' | 'paused';
+
+export interface SpineEvent {
+  event_id: string;
+  seq: number;
+  aggregate_id: string;
+  aggregate_type: string;
+  type: string;
+  payload: Record<string, any>;
+  actor: string;
+  ts: string;
+}
 
 export interface BacktestSummary {
   total_return: number;
@@ -40,6 +51,7 @@ export interface StrategyView {
   pnl_usd?: number;
   positions?: Record<string, { qty?: number; avg_price?: number }>;
   backtest?: BacktestSummary | null;
+  assets?: string[];             // scoped asset universe
   // Layered cake (nested strategies) — many-to-many composition
   parent_id?: string | null;   // back-compat: first parent
   parents?: string[];          // full membership set (a strategy can have several)
@@ -239,6 +251,112 @@ export interface BacktestBySymbolResponse {
   bars: { closes: number[]; dates: string[] | null; start: string | null; end: string | null };
 }
 
+// --- strategy-level risk & bars (asset-scoped) ---
+export interface FrontierPoint {
+  target_return: number;
+  return: number;
+  volatility: number;
+  sharpe: number;
+  weights: Record<string, number>;
+}
+
+export interface StrategyOptimizeResponse {
+  weights?: Record<string, number>;
+  optimal_weights?: Record<string, number>;
+  expected_sharpe?: number;
+  frontier_points?: FrontierPoint[];
+  correlation?: Record<string, Record<string, number>>;
+}
+
+export interface StrategyRiskAsset {
+  symbol: string; qty: number; mark: number; value_usd: number;
+  weight_pct: number; shock_10_pct: number; shock_20_pct: number;
+}
+
+export interface StrategyRiskResponse {
+  strategy_id: string; name: string; state: string;
+  exposure_usd: number; pnl_usd: number; concentration_hhi: number;
+  n_assets: number; assets: StrategyRiskAsset[];
+  flags: string[];
+  scenarios: { label: string; pnl_usd: number; exposure_after: number }[];
+}
+
+export interface StrategyBarsResponse {
+  strategy_id: string; assets: string[];
+  bars: Record<string, { closes: number[]; dates: string[] | null; source: string; start?: string | null; end?: string | null; error?: string }>;
+}
+
+export interface PositionImpact {
+  symbol: string;
+  qty: number;
+  mark_before: number;
+  mark_after: number;
+  value_before: number;
+  value_after: number;
+  pnl_usd: number;
+  shock_pct: number;
+  sensitivities: {
+    market_beta: number;
+    oil_beta: number;
+    duration: number;
+  };
+}
+
+export interface HedgingProposal {
+  proposal_id: string;
+  title: string;
+  description: string;
+  actions: Array<{
+    strategy_name: string;
+    current_pct: number;
+    recommended_pct: number;
+  }>;
+  expected_beta_after: number;
+  mitigated_drawdown_usd: number;
+  mitigated_drawdown_pct: number;
+}
+
+export interface SimulationResponse {
+  preset?: { key: string; name: string; description: string };
+  inputs: {
+    crude_oil_price: number;
+    yield_10y_bps: number;
+    market_shock_pct: number;
+    vix_spike_pct: number;
+    crypto_shock_pct: number;
+  };
+  summary: {
+    nav_usd_before: number;
+    nav_usd_after: number;
+    drawdown_usd: number;
+    drawdown_pct: number;
+    portfolio_beta: number;
+    sharpe_before: number;
+    sharpe_after: number;
+    cash_usd: number;
+  };
+  position_impacts: PositionImpact[];
+  warnings: string[];
+  hedging_proposals: HedgingProposal[];
+}
+
+export interface SentinelSignal {
+  signal_id: string;
+  symbol: string;
+  title: string;
+  source: string;
+  conviction_score: number;
+  summary: string;
+  details?: Record<string, string>;
+  target_exposure_pct: number;
+  target_upside_pct: number;
+  invalidation_criteria?: string[];
+  status: string;
+  created_at: string;
+  thesis_id?: string | null;
+  memo_id?: string | null;
+}
+
 export const fundApiClient = {
   getNav: async (): Promise<NavResponse> => (await fundApi.get(`${P}/nav`)).data,
 
@@ -265,8 +383,8 @@ export const fundApiClient = {
   ): Promise<{ symbol: string; source: string; closes: number[]; dates: string[] | null; start: string | null; end: string | null }> =>
     (await fundApi.get(`${P}/marketdata/bars`, { params: { symbol, lookback_days: lookbackDays } })).data,
 
-  registerStrategy: async (name: string, parentId?: string | null, actor = 'operator') =>
-    (await fundApi.post(`${P}/strategies`, { name, parent_id: parentId ?? null, actor })).data,
+  registerStrategy: async (name: string, definition: string = "Sandbox", parentId?: string, actor = 'operator'): Promise<StrategyView> =>
+    (await fundApi.post(`${P}/strategies`, { name, definition, parent_id: parentId, actor })).data,
 
   runBacktest: async (
     strategyId: string,
@@ -356,6 +474,42 @@ export const fundApiClient = {
 
   runRiskShock: async (symbol: string | null, pct: number): Promise<RiskScenario> =>
     (await fundApi.post(`${P}/risk/shock`, { symbol, pct })).data,
+
+  // --- strategy asset scoping, risk & bars ---
+  setStrategyAssets: async (strategyId: string, symbols: string[], actor = 'operator') =>
+    (await fundApi.post(`${P}/strategies/${strategyId}/assets`, { symbols, actor })).data,
+
+  optimizeStrategy: async (strategyId: string, method: 'max_sharpe' | 'min_volatility' = 'max_sharpe', lookbackDays = 365): Promise<StrategyOptimizeResponse> =>
+    (await fundApi.post(`${P}/strategies/${strategyId}/optimize`, { method, lookback_days: lookbackDays })).data,
+
+  getStrategyRisk: async (strategyId: string): Promise<StrategyRiskResponse> =>
+    (await fundApi.get(`${P}/strategies/${strategyId}/risk`)).data,
+
+  getStrategyBars: async (
+    strategyId: string,
+    lookbackDays = 180,
+  ): Promise<StrategyBarsResponse> =>
+    (await fundApi.get(`${P}/strategies/${strategyId}/bars`, { params: { lookback_days: lookbackDays } })).data,
+
+  getEvents: async (limit = 100, sinceSeq = 0): Promise<{ events: SpineEvent[] }> =>
+    (await fundApi.get(`${P}/events`, { params: { limit, since_seq: sinceSeq } })).data,
+
+  // --- simulation & sentinel ---
+  simulateRisk: async (body: {
+    scenario?: string;
+    crude_oil_price?: number;
+    yield_10y_bps?: number;
+    market_shock_pct?: number;
+    vix_spike_pct?: number;
+    crypto_shock_pct?: number;
+  }): Promise<SimulationResponse> =>
+    (await fundApi.post(`${P}/risk/simulate`, body)).data,
+
+  getSentinelSignals: async (): Promise<{ signals: SentinelSignal[] }> =>
+    (await fundApi.get(`${P}/sentinel/signals`)).data,
+
+  scanSentinel: async (symbol?: string): Promise<{ status: string; total_signals_scanned: number; newly_drafted_theses: any[]; signals: SentinelSignal[] }> =>
+    (await fundApi.post(`${P}/sentinel/scan`, null, { params: { symbol } })).data,
 };
 
 export default fundApi;
