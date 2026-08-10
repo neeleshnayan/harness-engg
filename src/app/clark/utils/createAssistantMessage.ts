@@ -112,6 +112,17 @@ export function createAssistantMessage(payload: unknown): ChatMessage {
     }
   }
 
+  // Ensure allocations array is populated for single/multi asset backtests
+  if (backtestResult && (!Array.isArray((backtestResult as any).allocations) || (backtestResult as any).allocations.length === 0)) {
+    const sym = (backtestResult as any).symbol || (Array.isArray((backtestResult as any).target_assets) && (backtestResult as any).target_assets[0]) || 'GLD'
+    const totRet = (backtestResult as any).metrics?.total_return ?? 0
+    ;(backtestResult as any).allocations = [{
+      symbol: String(sym).toUpperCase(),
+      allocation_percentage: 100,
+      total_return: typeof totRet === 'number' ? totRet : 0
+    }]
+  }
+
   const priceHistoryData = rawData?.price_history ?? rawData?.priceHistory
   let dataPoints = (priceHistoryData as Record<string, unknown> | undefined)?.data_points ?? (priceHistoryData as Record<string, unknown> | undefined)?.data
   

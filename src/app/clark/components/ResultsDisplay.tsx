@@ -781,7 +781,12 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
         )}
 
         {backtestResult.show_performance_stats && (
-          <AllocationCharts allocations={backtestResult.allocations} />
+          <AllocationCharts 
+            allocations={backtestResult.allocations} 
+            symbol={backtestResult.symbol || (Array.isArray(backtestResult.target_assets) && backtestResult.target_assets[0])}
+            targetAssets={backtestResult.target_assets}
+            totalReturn={backtestResult.metrics?.total_return}
+          />
         )}
       </div>
     )
