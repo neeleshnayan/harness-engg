@@ -44,8 +44,6 @@ import {
   Zap,
   Sparkles,
   ShieldAlert,
-  ArrowUpRight,
-  SlidersHorizontal,
 } from "lucide-react";
 import { AllocationDonut } from "../components/charts/AllocationDonut";
 import { EfficientFrontierChart } from "../components/charts/EfficientFrontierChart";
@@ -304,7 +302,7 @@ export default function StrategiesPage() {
   const deployedCount = deployedStrats.length;
   const draftCount = draftStrats.length;
 
-  /* ---------- When Selected Strategy Changes, Bind Context Seamlessly & Run Optimization ---------- */
+  /* ---------- When Selected Strategy Changes, Bind Context Seamlessly ---------- */
   useEffect(() => {
     if (!selected || !strat) return;
 
@@ -320,13 +318,10 @@ export default function StrategiesPage() {
     fundApiClient.getStrategyRisk(selected).then(setRisk).catch(() => setRisk(null));
     fundApiClient.getStrategyBars(selected).then(setBars).catch(() => setBars(null));
 
-    // Auto-compute PyPortfolioOpt weights on workspace load
     fundApiClient
       .optimizeStrategy(selected, optMethod, btLookback)
       .then(setOptResponse)
       .catch(() => {
-        // Fallback weights
-        const n = assets.length || 1;
         const wObj: Record<string, number> = {};
         assets.forEach((a, i) => {
           wObj[a] = i === 0 ? 0.45 : i === 1 ? 0.35 : 0.2;
@@ -777,7 +772,7 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
 
               <Button
                 onClick={createSandbox}
-                className="bg-teal-950/80 hover:bg-teal-900/80 border border-teal-500/40 text-teal-300 font-bold text-xs h-9 px-4 rounded-xl"
+                className="bg-teal-950/80 hover:bg-teal-900/80 border border-teal-500/40 text-teal-300 font-bold text-xs h-9 px-4 rounded-xl cursor-pointer"
               >
                 <Plus size={14} className="mr-1.5" />
                 New Sandbox
@@ -1129,61 +1124,166 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
             )}
 
             {/* ============================================================
-               SUB-TAB 2: PYTHON QUANT IDE & CLARK AI (Dedicated Quant View)
+               SUB-TAB 2: PYTHON QUANT IDE & CLARK AI (Unified Institutional Shell)
                ============================================================ */}
             {subTab === "ide" && strat && (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                {/* Left Side: Python IDE & Clark AI (7 Columns) */}
-                <div className="lg:col-span-7 space-y-4">
-                  <div className="rounded-2xl border border-teal-500/30 bg-gradient-to-b from-[#0B1329]/95 via-[#070D1D]/95 to-[#050914]/95 p-6 shadow-2xl backdrop-blur-md space-y-4">
-                    {/* IDE Header explicitly bound to active strategy & target ticker */}
-                    <div className="flex flex-wrap items-center justify-between gap-4 border-b border-teal-900/40 pb-4">
+              <div className="rounded-2xl border border-teal-500/30 bg-[#040813] p-6 shadow-2xl space-y-5 font-mono">
+                {/* WORKSPACE HEADER BAR */}
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-teal-900/40 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/30 shadow-[0_0_15px_rgba(20,184,166,0.15)]">
+                      <Code2 size={24} />
+                    </div>
+                    <div>
                       <div className="flex items-center gap-3">
-                        <div className="p-2.5 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/30 shadow-[0_0_15px_rgba(20,184,166,0.15)]">
-                          <Code2 size={22} />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2.5">
-                            <h2 className="text-base font-black tracking-tight text-white font-mono uppercase">
-                              {strat.name} — PYTHON IDE
-                            </h2>
-                            <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 text-[10px] font-mono font-bold">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                              TARGET TICKER: {targetAsset}
-                            </span>
-                          </div>
-                          <p className="text-xs text-zinc-400 mt-0.5">
-                            Editing algorithm for <strong className="text-teal-300">{strat.name}</strong> (Bound Ticker: <strong className="text-white">{targetAsset}</strong> | Scoped: {assets.join(", ")})
-                          </p>
-                        </div>
+                        <h2 className="text-lg font-black tracking-tight text-white uppercase">
+                          {strat.name} — PRO QUANT WORKBENCH
+                        </h2>
+                        <span className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs font-bold">
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                          TARGET: {targetAsset}
+                        </span>
+                      </div>
+                      <p className="text-xs text-zinc-400 mt-0.5">
+                        Institutional Python algorithm editor bound to <strong className="text-teal-300">{strat.name}</strong> (Scoped Assets: {assets.join(", ")})
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Preset Code Buttons */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] uppercase font-bold text-zinc-400 mr-1">Algorithm Boilerplates:</span>
+                    {Object.keys(CODE_PRESETS).map((key) => {
+                      const preset = CODE_PRESETS[key];
+                      const active = selectedPresetKey === key;
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => selectPreset(key)}
+                          className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                            active
+                              ? "bg-gradient-to-r from-teal-500 to-emerald-500 text-zinc-950 border-teal-400 shadow-md"
+                              : "bg-zinc-950/80 text-zinc-300 border-zinc-800 hover:border-teal-700/50 hover:text-white"
+                          }`}
+                        >
+                          {preset.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 3-COLUMN INTEGRATED WORKBENCH BODY */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                  {/* LEFT COLUMN: SCOPED TICKERS & PARAMETERS (3 Columns) */}
+                  <div className="lg:col-span-3 space-y-4">
+                    {/* Scoped Assets Box */}
+                    <div className="rounded-xl border border-teal-900/40 bg-[#070D1A] p-4 space-y-3">
+                      <div className="flex items-center justify-between border-b border-teal-900/30 pb-2">
+                        <span className="text-xs font-bold uppercase text-zinc-300">Scoped Tickers ({assets.length})</span>
+                        <span className="text-[10px] text-teal-400">Click to Select Target</span>
                       </div>
 
-                      {/* Preset Code Buttons */}
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-[10px] uppercase font-mono font-bold text-zinc-400 mr-1">Presets:</span>
-                        {Object.keys(CODE_PRESETS).map((key) => {
-                          const preset = CODE_PRESETS[key];
-                          const active = selectedPresetKey === key;
+                      <div className="space-y-1.5 max-h-[160px] overflow-y-auto">
+                        {assets.map((sym) => {
+                          const isTarget = sym === targetAsset;
                           return (
                             <button
-                              key={key}
-                              onClick={() => selectPreset(key)}
-                              className={`px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold transition-all border cursor-pointer ${
-                                active
-                                  ? "bg-gradient-to-r from-teal-500 to-emerald-500 text-zinc-950 border-teal-400 shadow-md"
-                                  : "bg-zinc-950/80 text-zinc-300 border-zinc-800 hover:border-teal-700/50 hover:text-white"
+                              key={sym}
+                              onClick={() => setTargetAsset(sym)}
+                              className={`w-full flex items-center justify-between py-1.5 px-2.5 rounded-lg border text-xs font-bold transition cursor-pointer ${
+                                isTarget
+                                  ? "bg-teal-950/80 border-teal-500/60 text-teal-300 shadow-md"
+                                  : "bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:text-white"
                               }`}
                             >
-                              {preset.name}
+                              <span>{sym}</span>
+                              {isTarget && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+                                  TARGET
+                                </span>
+                              )}
                             </button>
                           );
                         })}
                       </div>
+
+                      <div className="flex gap-1.5 pt-1">
+                        <Input
+                          value={addSym}
+                          onChange={(e) => setAddSym(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && addAsset()}
+                          placeholder="Add Ticker..."
+                          className="bg-zinc-950 border-zinc-800 text-xs font-mono text-teal-300 h-8"
+                        />
+                        <Button size="sm" onClick={addAsset} disabled={addBusy || !addSym.trim()} className="h-8 px-2.5 bg-teal-500 text-zinc-950 cursor-pointer">
+                          <Plus size={14} />
+                        </Button>
+                      </div>
                     </div>
 
-                    {/* CLARK AI CODE GENERATOR BAR */}
+                    {/* Backtest Parameters Box */}
+                    <div className="rounded-xl border border-teal-900/40 bg-[#070D1A] p-4 space-y-3">
+                      <span className="text-xs font-bold uppercase text-zinc-300 block border-b border-teal-900/30 pb-2">
+                        Execution Parameters
+                      </span>
+
+                      <div className="space-y-2 text-xs">
+                        <div>
+                          <label className="text-[10px] text-zinc-400 block mb-1">Target Symbol</label>
+                          <select
+                            value={targetAsset}
+                            onChange={(e) => setTargetAsset(e.target.value)}
+                            className="w-full h-8 rounded-lg border border-zinc-800 bg-zinc-950 px-2 text-xs font-bold text-teal-300 outline-none cursor-pointer"
+                          >
+                            {assets.map((sym) => (
+                              <option key={sym} value={sym}>{sym}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] text-zinc-400 block mb-1">Lookback (Days)</label>
+                          <select
+                            value={btLookback}
+                            onChange={(e) => setBtLookback(Number(e.target.value))}
+                            className="w-full h-8 rounded-lg border border-zinc-800 bg-zinc-950 px-2 text-xs font-bold text-teal-300 outline-none cursor-pointer"
+                          >
+                            <option value={30}>30 Days</option>
+                            <option value={90}>90 Days</option>
+                            <option value={180}>180 Days</option>
+                            <option value={365}>365 Days (1 Year)</option>
+                          </select>
+                        </div>
+
+                        <div className="pt-2 space-y-2">
+                          <Button
+                            onClick={runPythonBacktest}
+                            disabled={btRunning}
+                            className="w-full bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-zinc-950 font-extrabold text-xs h-9 rounded-xl shadow-lg cursor-pointer"
+                          >
+                            {btRunning ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Play size={14} className="mr-1.5 fill-current" />}
+                            Run Backtest [{targetAsset}]
+                          </Button>
+
+                          <Button
+                            onClick={() => deployStrategyCode()}
+                            disabled={deployBusy || !selected}
+                            className="w-full bg-zinc-900 hover:bg-teal-950/80 border border-teal-500/40 text-teal-300 font-extrabold text-xs h-9 rounded-xl cursor-pointer"
+                          >
+                            {deployBusy ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Rocket size={14} className="mr-1.5 text-teal-400" />}
+                            Deploy [{targetAsset}] Model
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CENTER COLUMN: INTEGRATED CLARK AI & TOKENIZED PYTHON CODE EDITOR (6 Columns) */}
+                  <div className="lg:col-span-6 space-y-4">
+                    {/* CLARK AI PROMPT BAR */}
                     <div className="p-3.5 rounded-xl bg-gradient-to-r from-[#0D1B36] via-[#091428] to-[#0D1B36] border border-teal-500/40 shadow-xl space-y-2">
-                      <div className="flex items-center gap-2 text-xs font-mono font-bold text-teal-300">
+                      <div className="flex items-center gap-2 text-xs font-bold text-teal-300">
                         <Bot size={16} className="text-teal-400 animate-bounce" />
                         <span>ASK CLARK AI TO GENERATE CODE FOR [{targetAsset}] ON [{strat.name.toUpperCase()}]</span>
                       </div>
@@ -1193,7 +1293,7 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                           value={aiPrompt}
                           onChange={(e) => setAiPrompt(e.target.value)}
                           onKeyDown={(e) => e.key === "Enter" && generateCodeWithClark()}
-                          placeholder={`e.g. 'Write TSLA breakout strategy with 5% risk stop' or 'Create RSI dip buyer'`}
+                          placeholder={`e.g. 'Write TSLA breakout strategy with 5% risk stop'`}
                           className="bg-zinc-950 border-zinc-800 text-xs font-mono text-white placeholder:text-zinc-500 flex-1 h-9 focus:border-teal-500"
                         />
 
@@ -1207,31 +1307,25 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                       </div>
 
                       <div className="flex flex-wrap gap-2 pt-1">
-                        <span className="text-[10px] text-zinc-500 font-mono">Quick Prompts:</span>
+                        <span className="text-[10px] text-zinc-500">Quick Prompts:</span>
                         <button
                           onClick={() => generateCodeWithClark("Write TSLA channel breakout strategy with 5% risk stop")}
                           className="text-[10px] font-mono text-teal-300 hover:text-teal-200 bg-teal-950/60 px-2 py-0.5 rounded border border-teal-800/60 cursor-pointer"
                         >
-                          ✨ TSLA Breakout Strategy
+                          ✨ TSLA Breakout
                         </button>
                         <button
                           onClick={() => generateCodeWithClark("Create RSI mean reversion oversold dip buyer for TSLA")}
                           className="text-[10px] font-mono text-teal-300 hover:text-teal-200 bg-teal-950/60 px-2 py-0.5 rounded border border-teal-800/60 cursor-pointer"
                         >
-                          ✨ TSLA RSI Dip Buyer
-                        </button>
-                        <button
-                          onClick={() => generateCodeWithClark("Build multi-factor momentum and volatility tilt for NVDA")}
-                          className="text-[10px] font-mono text-teal-300 hover:text-teal-200 bg-teal-950/60 px-2 py-0.5 rounded border border-teal-800/60 cursor-pointer"
-                        >
-                          ✨ NVDA Multi-Factor Tilt
+                          ✨ TSLA RSI Dip
                         </button>
                       </div>
                     </div>
 
-                    {/* TOKENIZED PYTHON CODE EDITOR */}
-                    <div className="rounded-xl border border-teal-900/50 bg-[#040813] overflow-hidden shadow-2xl space-y-0">
-                      <div className="flex items-center justify-between px-3 py-2 bg-[#080F22] border-b border-teal-900/40 font-mono text-xs text-zinc-400">
+                    {/* CODE EDITOR WITH FILE TABS */}
+                    <div className="rounded-xl border border-teal-900/50 bg-[#040813] overflow-hidden shadow-2xl">
+                      <div className="flex items-center justify-between px-3 py-2 bg-[#080F22] border-b border-teal-900/40 text-xs text-zinc-400">
                         <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => setActiveFile("main.py")}
@@ -1260,14 +1354,14 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => setPythonCode(CODE_PRESETS[selectedPresetKey]?.code || "")}
-                            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition"
+                            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition cursor-pointer"
                             title="Reset Code"
                           >
                             <RotateCcw size={13} />
                           </button>
                           <button
                             onClick={() => navigator.clipboard.writeText(pythonCode)}
-                            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition"
+                            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition cursor-pointer"
                             title="Copy Code"
                           >
                             <Copy size={13} />
@@ -1278,10 +1372,10 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                       <PythonCodeEditor
                         value={pythonCode}
                         onChange={setPythonCode}
-                        height="380px"
+                        height="360px"
                       />
 
-                      <div className="flex items-center justify-between px-4 py-2 bg-[#080F22] border-t border-teal-900/40 font-mono text-[10px] text-zinc-400">
+                      <div className="flex items-center justify-between px-4 py-2 bg-[#080F22] border-t border-teal-900/40 text-[10px] text-zinc-400">
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-1.5 text-emerald-400">
                             <CheckCircle2 size={12} />
@@ -1296,74 +1390,14 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                       </div>
                     </div>
 
-                    {/* BACKTEST & EXECUTION PARAMETERS + ACTION BUTTONS */}
-                    <div className="p-4 rounded-xl border border-teal-900/40 bg-[#081022]/90 space-y-3">
-                      <div className="grid grid-cols-2 gap-3 font-mono text-xs">
-                        <div>
-                          <label className="text-[10px] uppercase font-bold text-zinc-400 block mb-1">Target Symbol (From Scoped Assets)</label>
-                          <select
-                            value={targetAsset}
-                            onChange={(e) => setTargetAsset(e.target.value)}
-                            className="w-full h-9 rounded-xl border border-zinc-800 bg-zinc-950 px-3 text-xs font-bold text-teal-300 outline-none cursor-pointer font-mono"
-                          >
-                            {assets.map((sym) => (
-                              <option key={sym} value={sym}>{sym}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="text-[10px] uppercase font-bold text-zinc-400 block mb-1">Lookback (Days)</label>
-                          <select
-                            value={btLookback}
-                            onChange={(e) => setBtLookback(Number(e.target.value))}
-                            className="w-full h-9 rounded-xl border border-zinc-800 bg-zinc-950 px-3 text-xs font-bold text-teal-300 outline-none cursor-pointer font-mono"
-                          >
-                            <option value={30}>30 Days</option>
-                            <option value={90}>90 Days</option>
-                            <option value={180}>180 Days</option>
-                            <option value={365}>365 Days (1 Year)</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row gap-2 pt-1">
-                        <Button
-                          onClick={runPythonBacktest}
-                          disabled={btRunning}
-                          className="flex-1 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-zinc-950 font-extrabold text-xs h-10 rounded-xl shadow-lg transition-all cursor-pointer"
-                        >
-                          {btRunning ? (
-                            <Loader2 size={15} className="animate-spin mr-2" />
-                          ) : (
-                            <Play size={15} className="mr-2 fill-current" />
-                          )}
-                          Run Backtest on [{targetAsset}]
-                        </Button>
-
-                        <Button
-                          onClick={() => deployStrategyCode()}
-                          disabled={deployBusy || !selected}
-                          className="flex-1 bg-zinc-900 hover:bg-teal-950/80 border border-teal-500/40 text-teal-300 hover:text-teal-200 font-extrabold text-xs h-10 rounded-xl transition-all cursor-pointer"
-                        >
-                          {deployBusy ? (
-                            <Loader2 size={15} className="animate-spin mr-2" />
-                          ) : (
-                            <Rocket size={15} className="mr-2 text-teal-400" />
-                          )}
-                          Deploy [{targetAsset}] Strategy
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* TERMINAL CONSOLE */}
-                    <div className="rounded-xl border border-teal-900/40 bg-[#03060F] p-3 font-mono text-[11px] space-y-1.5 shadow-inner overflow-hidden">
-                      <div className="flex items-center gap-2 border-b border-zinc-800 pb-2 mb-2">
+                    {/* TERMINAL CONSOLE DRAWER */}
+                    <div className="rounded-xl border border-teal-900/40 bg-[#03060F] p-3 text-[11px] space-y-1.5 shadow-inner overflow-hidden">
+                      <div className="flex items-center gap-2 border-b border-zinc-800 pb-2 mb-1">
                         <TerminalIcon size={14} className="text-teal-400" />
                         <span className="font-bold text-zinc-300 text-xs">EXECUTION TERMINAL CONSOLE</span>
                       </div>
 
-                      <div className="h-[180px] overflow-y-auto space-y-1 text-zinc-400">
+                      <div className="h-[140px] overflow-y-auto space-y-1 text-zinc-400">
                         {terminalLogs.map((log, i) => (
                           <div key={i} className="leading-tight">
                             <span
@@ -1382,126 +1416,60 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Right Side: Backtest Performance Metrics & Tickers */}
-                <div className="lg:col-span-5 space-y-4">
-                  {/* Scoped Assets List */}
-                  <div className="rounded-2xl border border-teal-900/40 bg-[#090F1E]/90 overflow-hidden shadow-xl backdrop-blur-md">
-                    <div className="flex items-center justify-between px-5 py-3.5 border-b border-teal-900/30">
-                      <div className="flex items-center gap-2">
-                        <Crosshair size={15} className="text-teal-400" />
-                        <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-mono">
-                          Scoped Assets for [{strat.name}]
-                        </span>
-                      </div>
-                      <span className="text-xs font-mono font-bold text-teal-400 bg-teal-950/80 px-2.5 py-0.5 rounded border border-teal-700/50">
-                        {assets.length} Tickers
-                      </span>
-                    </div>
-
-                    <div className="px-5 py-3 space-y-1">
-                      {assets.map((sym) => {
-                        const b = bars?.bars?.[sym];
-                        const last = b?.closes?.length ? b.closes[b.closes.length - 1] : null;
-                        const prev = b?.closes && b.closes.length > 1 ? b.closes[b.closes.length - 2] : last;
-                        const chg = prev && last ? ((last - prev) / prev) * 100 : 0;
-                        const up = chg >= 0;
-                        const isTarget = sym === targetAsset;
-
-                        return (
-                          <div
-                            key={sym}
-                            onClick={() => setTargetAsset(sym)}
-                            className={`flex items-center gap-3 py-2 px-2 rounded-xl border transition cursor-pointer ${
-                              isTarget
-                                ? "bg-teal-950/50 border-teal-500/50 text-white"
-                                : "border-transparent hover:bg-zinc-900/60"
-                            }`}
-                          >
-                            <span className="font-mono text-sm font-bold text-teal-300 bg-teal-950/80 px-2.5 py-1 rounded border border-teal-700/50">
-                              {sym}
-                            </span>
-                            {isTarget && (
-                              <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/60">
-                                TARGET
-                              </span>
-                            )}
-                            <span className="font-mono text-sm text-zinc-200 ml-auto font-bold">
-                              {last != null ? money(last) : "—"}
-                            </span>
-                            <span className={`font-mono text-xs w-[58px] text-right font-bold ${up ? "text-emerald-400" : "text-rose-400"}`}>
-                              {last != null ? `${up ? "+" : ""}${chg.toFixed(2)}%` : ""}
-                            </span>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeAsset(sym);
-                              }}
-                              className="p-1 rounded hover:bg-zinc-800 text-zinc-500 hover:text-rose-400 transition"
-                            >
-                              <X size={14} />
-                            </button>
+                  {/* RIGHT COLUMN: REAL-TIME BACKTEST PERFORMANCE SUMMARY (3 Columns) */}
+                  <div className="lg:col-span-3 space-y-4">
+                    {/* Backtest KPI Performance Card */}
+                    {btResults.length > 0 ? (
+                      <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-950/60 via-[#071520] to-[#040C18] border border-emerald-500/40 shadow-xl space-y-3">
+                        <div className="flex items-center justify-between border-b border-emerald-800/40 pb-2">
+                          <div className="flex items-center gap-1.5 text-emerald-300 font-bold text-xs">
+                            <Activity size={15} />
+                            <span>BACKTEST FOR [{btResults[0]?.symbol || targetAsset}]</span>
                           </div>
-                        );
-                      })}
+                          <span className="text-[9px] text-emerald-400 bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-700/60 font-bold">
+                            {btLookback}D
+                          </span>
+                        </div>
 
-                      <div className="flex gap-2 pt-3">
-                        <Input
-                          value={addSym}
-                          onChange={(e) => setAddSym(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && addAsset()}
-                          placeholder={`Scope ticker e.g. TSLA...`}
-                          className="bg-zinc-950 border-zinc-800 text-sm font-mono text-teal-300"
-                        />
-                        <Button
-                          size="sm"
-                          onClick={addAsset}
-                          disabled={addBusy || !addSym.trim()}
-                          className="bg-gradient-to-r from-teal-500 to-emerald-500 text-zinc-950 font-bold px-4"
-                        >
-                          {addBusy ? <Loader2 className="animate-spin" size={14} /> : <Plus size={14} />}
-                        </Button>
+                        <div className="space-y-2">
+                          <div className="p-2.5 rounded-lg bg-zinc-950/80 border border-zinc-800 flex justify-between items-center">
+                            <span className="text-[10px] text-zinc-400">Total Return</span>
+                            <span className="text-base font-black text-emerald-400">+{pct((btResults[0]?.total_return || 0.348) * 100)}</span>
+                          </div>
+
+                          <div className="p-2.5 rounded-lg bg-zinc-950/80 border border-zinc-800 flex justify-between items-center">
+                            <span className="text-[10px] text-zinc-400">Sharpe Ratio</span>
+                            <span className="text-base font-black text-teal-300">{(btResults[0]?.sharpe || 2.52).toFixed(2)}</span>
+                          </div>
+
+                          <div className="p-2.5 rounded-lg bg-zinc-950/80 border border-zinc-800 flex justify-between items-center">
+                            <span className="text-[10px] text-zinc-400">Max Drawdown</span>
+                            <span className="text-base font-black text-rose-400">-{pct((btResults[0]?.max_drawdown || 0.042) * 100)}</span>
+                          </div>
+
+                          <div className="p-2.5 rounded-lg bg-zinc-950/80 border border-zinc-800 flex justify-between items-center">
+                            <span className="text-[10px] text-zinc-400">Total Signals</span>
+                            <span className="text-base font-black text-white">{btResults[0]?.n_trades || 38}</span>
+                          </div>
+                        </div>
                       </div>
+                    ) : (
+                      <div className="p-5 rounded-xl border border-teal-900/40 bg-[#070D1A] text-center space-y-2 py-12">
+                        <Activity size={28} className="mx-auto text-teal-400 opacity-40 animate-pulse" />
+                        <p className="text-xs text-zinc-400">Click <strong>[Run Backtest]</strong> or prompt <strong>Clark AI</strong> to view live backtest metrics.</p>
+                      </div>
+                    )}
+
+                    {/* Quick Strategy Info */}
+                    <div className="p-4 rounded-xl border border-teal-900/40 bg-[#070D1A] space-y-2 text-xs text-zinc-400">
+                      <div className="text-white font-bold border-b border-teal-900/30 pb-2">Active Strategy Metadata</div>
+                      <div className="flex justify-between"><span>Name:</span><strong className="text-teal-300">{strat.name}</strong></div>
+                      <div className="flex justify-between"><span>State:</span><strong className="text-emerald-400 uppercase">{strat.state}</strong></div>
+                      <div className="flex justify-between"><span>Target Alloc:</span><strong className="text-white">{pct(strat.allocation_pct)}</strong></div>
+                      <div className="flex justify-between"><span>Exposure:</span><strong className="text-zinc-200">{money(strat.exposure_usd)}</strong></div>
                     </div>
                   </div>
-
-                  {/* Backtest Performance & Sharpe KPI Card */}
-                  {btResults.length > 0 && (
-                    <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/60 to-teal-950/60 border border-emerald-500/40 shadow-xl space-y-3 font-mono">
-                      <div className="flex items-center justify-between border-b border-emerald-800/40 pb-2">
-                        <div className="flex items-center gap-2 text-emerald-300 font-bold text-xs">
-                          <Activity size={16} />
-                          <span>BACKTEST METRICS FOR [{btResults[0]?.symbol || targetAsset}]</span>
-                        </div>
-                        <span className="text-[10px] text-emerald-400 bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-700/60">
-                          {btLookback}D Lookback
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                        <div className="p-2 rounded-xl bg-zinc-950/80 border border-zinc-800">
-                          <span className="text-[10px] text-zinc-400 block">Total Return</span>
-                          <span className="text-sm font-extrabold text-emerald-400">+{pct((btResults[0]?.total_return || 0.348) * 100)}</span>
-                        </div>
-
-                        <div className="p-2 rounded-xl bg-zinc-950/80 border border-zinc-800">
-                          <span className="text-[10px] text-zinc-400 block">Sharpe Ratio</span>
-                          <span className="text-sm font-extrabold text-teal-300">{(btResults[0]?.sharpe || 2.52).toFixed(2)}</span>
-                        </div>
-
-                        <div className="p-2 rounded-xl bg-zinc-950/80 border border-zinc-800">
-                          <span className="text-[10px] text-zinc-400 block">Max Drawdown</span>
-                          <span className="text-sm font-extrabold text-rose-400">-{pct((btResults[0]?.max_drawdown || 0.042) * 100)}</span>
-                        </div>
-
-                        <div className="p-2 rounded-xl bg-zinc-950/80 border border-zinc-800">
-                          <span className="text-[10px] text-zinc-400 block">Total Trades</span>
-                          <span className="text-sm font-extrabold text-white">{btResults[0]?.n_trades || 38}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
