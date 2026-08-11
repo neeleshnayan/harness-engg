@@ -29,12 +29,12 @@ const COLORS = [
 ];
 const CASH_COLOR = "#52525b"; // zinc-500
 
-export function AllocationDonut({ positions, cash, totalNav, height = 240, className }: Props) {
+export function AllocationDonut({ positions = [], cash = 0, totalNav = 0, height = 240, className }: Props) {
   const data = [
-    ...positions.map((p) => ({
-      name: p.symbol,
-      value: p.usd_value,
-      pct: totalNav > 0 ? (p.usd_value / totalNav) * 100 : 0,
+    ...(positions || []).map((p) => ({
+      name: p.symbol || (p as any).name || "Asset",
+      value: p.usd_value || (p as any).value || 0,
+      pct: totalNav > 0 ? ((p.usd_value || (p as any).value || 0) / totalNav) * 100 : 0,
     })),
   ];
 
