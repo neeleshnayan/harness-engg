@@ -8,7 +8,7 @@ import { ConcentrationTreemap } from "../components/charts/ConcentrationTreemap"
 import { StressGrid, StressScenario } from "../components/ui/StressGrid";
 import { AnimatedNumber } from "../components/ui/AnimatedNumber";
 import { fundApiClient, RiskAnalytics, StrategyView } from "@/lib/fund_api";
-import { Loader2, AlertTriangle, Zap, ShieldCheck, Activity, RefreshCw, Radio, Scale, ShieldAlert, Cpu, Layers, Filter, TrendingDown, ArrowUpRight, CheckCircle2, Sliders, Target, Globe, PieChart, Layers3 } from "lucide-react";
+import { Loader2, AlertTriangle, Zap, ShieldCheck, Activity, RefreshCw, Radio, Scale, ShieldAlert, Cpu, Layers, Filter, TrendingDown, ArrowUpRight, CheckCircle2, Sliders, Target, Globe, PieChart, Layers3, ChevronDown, ChevronRight, CornerDownRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const pct = (n?: number | null, dp = 1) => (n == null ? "—" : `${Number(n).toFixed(dp)}%`);
@@ -30,6 +30,9 @@ export default function RiskPage() {
 
   // Risk Scope Switcher (Portfolio Level vs Asset Level)
   const [riskScope, setRiskScope] = useState<"portfolio" | "asset">("portfolio");
+
+  // Selected Strategy ID for Asset Drill-Down
+  const [expandedStrategyId, setExpandedStrategyId] = useState<string | null>("strat-1");
 
   // Selected Asset for Single Asset Analysis
   const [selectedAssetSym, setSelectedAssetSym] = useState<string>("AAPL");
@@ -286,6 +289,13 @@ export default function RiskPage() {
     { symbol: "NVDA", qty: 14, mark: 125.0, usd_value: 1750.0, weight_pct: 1.7 },
   ];
 
+  // Drill down helper: filter positions belonging to a strategy
+  const getStrategyUnderlyingPositions = (strat: StrategyView) => {
+    const assetList = strat.assets || [];
+    if (assetList.length === 0) return assetPositions;
+    return assetPositions.filter((p) => assetList.includes(p.symbol));
+  };
+
   return (
     <div className="min-h-screen bg-[#050811] text-zinc-100 font-sans selection:bg-teal-500/30">
       {/* Studio Header Subnav */}
@@ -365,7 +375,7 @@ export default function RiskPage() {
 
         {/* Clark AI Action Prompt Bar */}
         <ClarkActionBar
-          placeholder="Ask Clark AI… e.g. 'what if AAPL drops 20%' or 'run risk analysis on US Momentum portfolio'"
+          placeholder="Ask Clark AI… e.g. 'what if AAPL drops 20%' or 'drill down into US Momentum portfolio assets'"
           suggestions={["what if AAPL drops 20%", "what if NVDA drops 30%", "show risk breaches"]}
           onDone={() => load(false)}
         />
@@ -457,7 +467,7 @@ export default function RiskPage() {
             {riskScope === "portfolio" ? (
               /* PORTFOLIO LEVEL RISK VIEW */
               <div className="space-y-6">
-                {/* ACTIVE PORTFOLIOS & STRATEGIES RISK MATRIX */}
+                {/* ACTIVE PORTFOLIOS & STRATEGIES RISK MATRIX WITH ASSET DRILL-DOWN */}
                 <div className="bg-[#090F1E]/90 border border-teal-900/40 rounded-2xl p-6 shadow-2xl backdrop-blur-md">
                   <div className="flex flex-wrap items-center justify-between gap-4 border-b border-teal-900/30 pb-4 mb-4">
                     <div className="flex items-center gap-3">
@@ -465,8 +475,8 @@ export default function RiskPage() {
                         <Layers3 size={18} />
                       </div>
                       <div>
-                        <h2 className="text-base font-bold text-white tracking-tight">ACTIVE PORTFOLIOS & STRATEGIES RISK MATRIX</h2>
-                        <p className="text-xs text-zinc-400">Live risk, allocation weights, Sharpe ratios, drawdowns, and VaR metrics across all active fund strategies</p>
+                        <h2 className="text-base font-bold text-white tracking-tight">ACTIVE PORTFOLIOS & STRATEGIES (CLICK TO DRILL DOWN ASSETS)</h2>
+                        <p className="text-xs text-zinc-400">Click any portfolio row to expand and inspect underlying constituent asset holdings and position risk</p>
                       </div>
                     </div>
 
@@ -475,11 +485,12 @@ export default function RiskPage() {
                     </div>
                   </div>
 
-                  {/* Strategy Risk Table */}
+                  {/* Strategy Risk Table with Expandable Asset Drawer */}
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-zinc-800/80 text-[11px] font-bold uppercase tracking-wider text-zinc-400 bg-zinc-950/60">
+                          <th className="w-8 px-2 py-3.5 text-center"></th>
                           <th className="px-4 py-3.5 text-left">Portfolio / Strategy Name</th>
                           <th className="px-4 py-3.5 text-left">Status</th>
                           <th className="px-4 py-3.5 text-right">Target Alloc (%)</th>
@@ -499,51 +510,152 @@ export default function RiskPage() {
                           const sharpe = strat.backtest?.sharpe ?? 2.1;
                           const maxDd = strat.backtest?.max_drawdown ? (strat.backtest.max_drawdown * 100) : 5.0;
                           const stratVar = expUsd * 0.018;
+                          const isExpanded = expandedStrategyId === strat.strategy_id;
+                          const underlyingAssets = getStrategyUnderlyingPositions(strat);
 
                           return (
-                            <tr key={strat.strategy_id} className="hover:bg-teal-950/20 transition-colors group">
-                              <td className="px-4 py-3.5 font-sans">
-                                <div className="font-semibold text-sm text-white group-hover:text-teal-300 transition-colors">{strat.name}</div>
-                                <div className="text-xs text-zinc-400 mt-0.5 flex items-center gap-1">
-                                  <span>Assets:</span>
-                                  <span className="text-teal-300 font-mono font-bold">{strat.assets?.join(", ") || "AAPL, MSFT, NVDA"}</span>
-                                </div>
-                              </td>
+                            <React.Fragment key={strat.strategy_id}>
+                              {/* Strategy Main Row */}
+                              <tr
+                                onClick={() => setExpandedStrategyId(isExpanded ? null : strat.strategy_id)}
+                                className={`hover:bg-teal-950/30 cursor-pointer transition-colors group ${
+                                  isExpanded ? "bg-teal-950/40 border-l-4 border-teal-400" : ""
+                                }`}
+                              >
+                                <td className="px-2 py-3.5 text-center text-teal-400">
+                                  {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                </td>
 
-                              <td className="px-4 py-3.5">
-                                <span
-                                  className={`rounded-lg px-2.5 py-1 text-[10px] uppercase font-bold tracking-wider ${
-                                    strat.state === "deployed"
-                                      ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
-                                      : "bg-amber-500/15 text-amber-300 border border-amber-500/30"
-                                  }`}
-                                >
-                                  {strat.state}
-                                </span>
-                              </td>
+                                <td className="px-4 py-3.5 font-sans">
+                                  <div className="font-semibold text-sm text-white group-hover:text-teal-300 transition-colors flex items-center gap-2">
+                                    {strat.name}
+                                    <span className="text-[10px] font-mono text-teal-400 bg-teal-950/80 px-2 py-0.5 rounded border border-teal-700/50">
+                                      Click to drill down
+                                    </span>
+                                  </div>
+                                  <div className="text-xs text-zinc-400 mt-0.5 flex items-center gap-1">
+                                    <span>Constituent Tickers:</span>
+                                    <span className="text-teal-300 font-mono font-bold">{strat.assets?.join(", ") || "AAPL, MSFT, NVDA"}</span>
+                                  </div>
+                                </td>
 
-                              <td className="px-4 py-3.5 text-right text-zinc-300">{pct(strat.allocation_pct, 1)}</td>
-                              <td className="px-4 py-3.5 text-right font-bold text-white">{money(expUsd)}</td>
-                              <td className="px-4 py-3.5 text-right font-bold text-teal-300">{pct(actualPct, 1)}</td>
-                              <td className="px-4 py-3.5 text-right font-bold text-emerald-400">{sharpe.toFixed(2)}</td>
-                              <td className="px-4 py-3.5 text-right text-rose-400">-{maxDd.toFixed(1)}%</td>
-                              <td className="px-4 py-3.5 text-right text-rose-400">-{money(stratVar)}</td>
+                                <td className="px-4 py-3.5">
+                                  <span
+                                    className={`rounded-lg px-2.5 py-1 text-[10px] uppercase font-bold tracking-wider ${
+                                      strat.state === "deployed"
+                                        ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
+                                        : "bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                                    }`}
+                                  >
+                                    {strat.state}
+                                  </span>
+                                </td>
 
-                              <td className="px-4 py-3.5 text-center">
-                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950/80 text-emerald-400 border border-emerald-800/50">
-                                  PASSING
-                                </span>
-                              </td>
+                                <td className="px-4 py-3.5 text-right text-zinc-300">{pct(strat.allocation_pct, 1)}</td>
+                                <td className="px-4 py-3.5 text-right font-bold text-white">{money(expUsd)}</td>
+                                <td className="px-4 py-3.5 text-right font-bold text-teal-300">{pct(actualPct, 1)}</td>
+                                <td className="px-4 py-3.5 text-right font-bold text-emerald-400">{sharpe.toFixed(2)}</td>
+                                <td className="px-4 py-3.5 text-right text-rose-400">-{maxDd.toFixed(1)}%</td>
+                                <td className="px-4 py-3.5 text-right text-rose-400">-{money(stratVar)}</td>
 
-                              <td className="px-4 py-3.5 text-center">
-                                <button
-                                  onClick={() => runCustomScenario(strat.name, -20, `-20% ${strat.name} Shock`)}
-                                  className="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-teal-900/40 text-teal-300 hover:text-teal-200 text-xs border border-zinc-800 hover:border-teal-500/40 font-sans font-semibold transition-all"
-                                >
-                                  Shock Portfolio
-                                </button>
-                              </td>
-                            </tr>
+                                <td className="px-4 py-3.5 text-center">
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950/80 text-emerald-400 border border-emerald-800/50">
+                                    PASSING
+                                  </span>
+                                </td>
+
+                                <td className="px-4 py-3.5 text-center">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      runCustomScenario(strat.name, -20, `-20% ${strat.name} Shock`);
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-teal-900/40 text-teal-300 hover:text-teal-200 text-xs border border-zinc-800 hover:border-teal-500/40 font-sans font-semibold transition-all"
+                                  >
+                                    Shock Portfolio
+                                  </button>
+                                </td>
+                              </tr>
+
+                              {/* DRILL-DOWN UNDERLYING ASSET BREAKDOWN DRAWER */}
+                              {isExpanded && (
+                                <tr className="bg-gradient-to-r from-[#070E1D] via-[#0A1428] to-[#070E1D] border-b border-teal-500/30">
+                                  <td colSpan={11} className="p-4 pl-8">
+                                    <div className="p-4 rounded-xl border border-teal-500/30 bg-[#081022]/90 shadow-2xl space-y-3">
+                                      <div className="flex items-center justify-between border-b border-teal-900/40 pb-2.5">
+                                        <div className="flex items-center gap-2">
+                                          <CornerDownRight size={16} className="text-teal-400" />
+                                          <h4 className="text-xs font-bold text-teal-300 font-mono tracking-wide uppercase">
+                                            UNDERLYING CONSTITUENT ASSETS & RISK BREAKDOWN FOR [{strat.name.toUpperCase()}]
+                                          </h4>
+                                        </div>
+
+                                        <button
+                                          onClick={() => {
+                                            setSelectedAssetSym(underlyingAssets[0]?.symbol || "AAPL");
+                                            setRiskScope("asset");
+                                          }}
+                                          className="text-xs font-mono font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-950/60 px-3 py-1 rounded-lg border border-emerald-800/60 flex items-center gap-1.5 transition"
+                                        >
+                                          <Target size={13} />
+                                          Drill Down to Asset Level Matrix →
+                                        </button>
+                                      </div>
+
+                                      <div className="overflow-x-auto">
+                                        <table className="w-full text-xs font-mono">
+                                          <thead>
+                                            <tr className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider bg-zinc-950/60">
+                                              <th className="p-2 text-left">Constituent Asset</th>
+                                              <th className="p-2 text-right">Shares / Qty</th>
+                                              <th className="p-2 text-right">Mark Price</th>
+                                              <th className="p-2 text-right">Position Value</th>
+                                              <th className="p-2 text-right">Portfolio Weight</th>
+                                              <th className="p-2 text-right">Asset VaR (95%)</th>
+                                              <th className="p-2 text-right">-10% Shock P&L</th>
+                                              <th className="p-2 text-right">-25% Shock P&L</th>
+                                              <th className="p-2 text-center">Action</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody className="divide-y divide-zinc-800/40">
+                                            {underlyingAssets.map((asset) => {
+                                              const drop10 = asset.usd_value * -0.10;
+                                              const drop25 = asset.usd_value * -0.25;
+                                              const assetVar = asset.usd_value * 0.021;
+
+                                              return (
+                                                <tr key={asset.symbol} className="hover:bg-teal-950/30 transition">
+                                                  <td className="p-2 font-sans font-bold text-teal-300">
+                                                    <span className="bg-teal-950/80 px-2 py-0.5 rounded border border-teal-700/40">
+                                                      {asset.symbol}
+                                                    </span>
+                                                  </td>
+                                                  <td className="p-2 text-right text-zinc-200">{asset.qty}</td>
+                                                  <td className="p-2 text-right text-zinc-200">{money(asset.mark)}</td>
+                                                  <td className="p-2 text-right font-bold text-white">{money(asset.usd_value)}</td>
+                                                  <td className="p-2 text-right font-bold text-teal-300">{pct(asset.weight_pct, 1)}</td>
+                                                  <td className="p-2 text-right text-rose-400">-{money(assetVar)}</td>
+                                                  <td className="p-2 text-right text-rose-400">-{money(Math.abs(drop10))}</td>
+                                                  <td className="p-2 text-right text-rose-400 font-bold">-{money(Math.abs(drop25))}</td>
+                                                  <td className="p-2 text-center">
+                                                    <button
+                                                      onClick={() => runCustomScenario(asset.symbol, -20, `-20% ${asset.symbol} Shock`)}
+                                                      className="px-2.5 py-1 rounded bg-rose-950/80 hover:bg-rose-900 text-rose-300 text-[10px] font-sans font-semibold border border-rose-800/60 transition"
+                                                    >
+                                                      Shock {asset.symbol}
+                                                    </button>
+                                                  </td>
+                                                </tr>
+                                              );
+                                            })}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
                           );
                         })}
                       </tbody>
