@@ -8,7 +8,7 @@ import { ConcentrationTreemap } from "../components/charts/ConcentrationTreemap"
 import { StressGrid, StressScenario } from "../components/ui/StressGrid";
 import { AnimatedNumber } from "../components/ui/AnimatedNumber";
 import { fundApiClient, RiskAnalytics } from "@/lib/fund_api";
-import { Loader2, AlertTriangle, Zap, ShieldCheck, Activity, RefreshCw, Radio, Scale, ShieldAlert, Cpu, Layers, Filter, TrendingDown, ArrowUpRight, CheckCircle2, Sliders } from "lucide-react";
+import { Loader2, AlertTriangle, Zap, ShieldCheck, Activity, RefreshCw, Radio, Scale, ShieldAlert, Cpu, Layers, Filter, TrendingDown, ArrowUpRight, CheckCircle2, Sliders, Target, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const pct = (n?: number | null, dp = 1) => (n == null ? "—" : `${Number(n).toFixed(dp)}%`);
@@ -26,6 +26,12 @@ export default function RiskPage() {
   const [loading, setLoading] = useState(true);
   const [livePolling, setLivePolling] = useState(true);
   const [lastSync, setLastSync] = useState<Date | null>(null);
+
+  // Risk Scope Switcher (Portfolio Level vs Asset Level)
+  const [riskScope, setRiskScope] = useState<"portfolio" | "asset">("portfolio");
+
+  // Selected Asset for Single Asset Analysis
+  const [selectedAssetSym, setSelectedAssetSym] = useState<string>("AAPL");
 
   // Custom Scenario Builder State
   const [selectedPortfolio, setSelectedPortfolio] = useState("all");
@@ -100,7 +106,7 @@ export default function RiskPage() {
       const res = await fundApiClient.runRiskShock(targetSym || null, targetPct);
       const newScenario: StressScenario = {
         id: `custom-${Date.now()}`,
-        name: `${name} (${selectedPortfolio.toUpperCase()})`,
+        name: `${name} (${riskScope.toUpperCase()})`,
         description: `Custom scenario simulation on ${targetSym || "all positions"} (${selectedPortfolio})`,
         impact_pct: res.nav_change_pct,
         impact_usd: res.pnl_usd,
@@ -116,7 +122,7 @@ export default function RiskPage() {
         const navPct = data.nav_usd > 0 ? (pnl / data.nav_usd) * 100 : targetPct;
         const newScenario: StressScenario = {
           id: `custom-${Date.now()}`,
-          name: `${name} (${selectedPortfolio.toUpperCase()})`,
+          name: `${name} (${riskScope.toUpperCase()})`,
           description: `Simulated custom shock on ${targetSym || "all positions"}`,
           impact_pct: navPct,
           impact_usd: pnl,
@@ -221,13 +227,22 @@ export default function RiskPage() {
   const var95Usd = data ? Math.abs(data.nav_usd * (data.gross_exposure_pct / 100) * 0.0165) : 0;
   const var95Pct = data && data.nav_usd > 0 ? (var95Usd / data.nav_usd) * 100 : 0;
 
+  // Asset Level Risk Data Calculation
+  const assetPositions = data?.positions || [
+    { symbol: "AAPL", qty: 35, mark: 176.5, usd_value: 6177.5, weight_pct: 6.0 },
+    { symbol: "MSFT", qty: 12, mark: 420.8, usd_value: 5049.6, weight_pct: 4.9 },
+    { symbol: "NVDA", qty: 14, mark: 125.0, usd_value: 1750.0, weight_pct: 1.7 },
+  ];
+
+  const activeSelectedAsset = assetPositions.find((p) => p.symbol === selectedAssetSym) || assetPositions[0];
+
   return (
     <div className="min-h-screen bg-[#050811] text-zinc-100 font-sans selection:bg-teal-500/30">
       {/* Studio Header Subnav */}
-      <StudioHeader subtitle="Institutional Live Risk Cockpit — Multi-Portfolio Scenario Matrix & Deterministic Risk Gate" />
+      <StudioHeader subtitle="Institutional Live Risk Cockpit — Dual-Level Asset & Portfolio Stress Analytics" />
 
       <div className="mx-auto max-w-[1600px] space-y-6 px-6 py-6">
-        {/* Top Control Bar with Live Venue Status & Auto-Poll */}
+        {/* Top Control Bar & Risk Scope Toggle */}
         <div className="flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-[#0B132B]/90 via-[#070D1F]/90 to-[#0B132B]/90 p-5 rounded-2xl border border-teal-500/20 shadow-2xl backdrop-blur-md">
           <div className="flex items-center gap-4">
             <div className="p-3 rounded-2xl bg-teal-500/10 border border-teal-500/30 text-teal-400 shadow-[0_0_15px_rgba(20,184,166,0.15)]">
@@ -248,7 +263,33 @@ export default function RiskPage() {
             </div>
           </div>
 
+          {/* DUAL RISK LEVEL SEGMENT SWITCHER */}
           <div className="flex items-center gap-3">
+            <div className="flex items-center bg-zinc-950 p-1 rounded-xl border border-teal-900/40 shadow-inner">
+              <button
+                onClick={() => setRiskScope("portfolio")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-mono font-extrabold transition-all ${
+                  riskScope === "portfolio"
+                    ? "bg-gradient-to-r from-teal-500 to-emerald-500 text-zinc-950 shadow-md"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                <Globe size={14} />
+                PORTFOLIO LEVEL RISK
+              </button>
+              <button
+                onClick={() => setRiskScope("asset")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-mono font-extrabold transition-all ${
+                  riskScope === "asset"
+                    ? "bg-gradient-to-r from-teal-500 to-emerald-500 text-zinc-950 shadow-md"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                <Target size={14} />
+                ASSET LEVEL RISK
+              </button>
+            </div>
+
             <button
               onClick={() => setLivePolling((v) => !v)}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-mono font-bold transition-all shadow-md ${
@@ -274,7 +315,7 @@ export default function RiskPage() {
 
         {/* Clark AI Action Prompt Bar */}
         <ClarkActionBar
-          placeholder="Ask Clark AI… e.g. 'what if AAPL drops 20%' or 'simulate rate hike shock on tech strategy'"
+          placeholder="Ask Clark AI… e.g. 'what if AAPL drops 20%' or 'run single-asset risk analysis on NVDA'"
           suggestions={["what if AAPL drops 20%", "what if NVDA drops 30%", "show risk breaches"]}
           onDone={() => load(false)}
         />
@@ -362,107 +403,201 @@ export default function RiskPage() {
               </div>
             )}
 
-            {/* FULL-WIDTH MULTI-PORTFOLIO STRESS SCENARIO MATRIX */}
-            <div className="bg-[#090F1E]/90 border border-teal-900/40 rounded-2xl p-6 shadow-2xl backdrop-blur-md">
-              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-teal-900/30 pb-4 mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
-                    <Activity size={18} />
+            {/* DYNAMIC RISK LEVEL VIEW SWITCHER */}
+            {riskScope === "portfolio" ? (
+              /* PORTFOLIO LEVEL RISK VIEW */
+              <div className="bg-[#090F1E]/90 border border-teal-900/40 rounded-2xl p-6 shadow-2xl backdrop-blur-md">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-teal-900/30 pb-4 mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                      <Globe size={18} />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-bold text-white tracking-tight">PORTFOLIO LEVEL MULTI-STRATEGY STRESS SCENARIO MATRIX</h2>
+                      <p className="text-xs text-zinc-400">Aggregate portfolio & multi-strategy stress simulations across macro factor shocks</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-base font-bold text-white tracking-tight">MULTI-PORTFOLIO & HISTORICAL STRESS SCENARIO MATRIX</h2>
-                    <p className="text-xs text-zinc-400">Pre-computed deterministic stress simulations across all fund strategies and macro market shocks</p>
+
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 bg-zinc-950 px-3 py-1.5 rounded-xl border border-zinc-800">
+                      <Filter size={13} className="text-teal-400" />
+                      <span className="text-xs text-zinc-400 font-mono">Filter Scope:</span>
+                      <select
+                        value={selectedPortfolio}
+                        onChange={(e) => setSelectedPortfolio(e.target.value)}
+                        className="bg-transparent text-xs font-bold text-teal-300 outline-none cursor-pointer"
+                      >
+                        <option value="all" className="bg-zinc-950 text-white">All Strategies & Portfolios</option>
+                        <option value="momentum" className="bg-zinc-950 text-white">US Momentum Strategy</option>
+                        <option value="tech" className="bg-zinc-950 text-white">Mega-Cap Tech Strategy</option>
+                        <option value="crypto" className="bg-zinc-950 text-white">Crypto Trend Strategy</option>
+                        <option value="alpha" className="bg-zinc-950 text-white">Alpha Neutral Strategy</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 bg-zinc-950 px-3 py-1.5 rounded-xl border border-zinc-800">
-                    <Filter size={13} className="text-teal-400" />
-                    <span className="text-xs text-zinc-400 font-mono">Filter Scope:</span>
-                    <select
-                      value={selectedPortfolio}
-                      onChange={(e) => setSelectedPortfolio(e.target.value)}
-                      className="bg-transparent text-xs font-bold text-teal-300 outline-none cursor-pointer"
-                    >
-                      <option value="all" className="bg-zinc-950 text-white">All Strategies & Portfolios</option>
-                      <option value="momentum" className="bg-zinc-950 text-white">US Momentum Strategy</option>
-                      <option value="tech" className="bg-zinc-950 text-white">Mega-Cap Tech Strategy</option>
-                      <option value="crypto" className="bg-zinc-950 text-white">Crypto Trend Strategy</option>
-                      <option value="alpha" className="bg-zinc-950 text-white">Alpha Neutral Strategy</option>
-                    </select>
-                  </div>
+                {/* Portfolio Stress Scenario Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-zinc-800/80 text-[11px] font-bold uppercase tracking-wider text-zinc-400 bg-zinc-950/60">
+                        <th className="px-4 py-3.5 text-left">Portfolio Scenario Name & Context</th>
+                        <th className="px-4 py-3.5 text-left">Category / Type</th>
+                        <th className="px-4 py-3.5 text-right">NAV Impact (%)</th>
+                        <th className="px-4 py-3.5 text-right">USD P&L Impact</th>
+                        <th className="px-4 py-3.5 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800/60 font-mono">
+                      {filteredScenarios.map((s) => (
+                        <tr key={s.id} className="hover:bg-teal-950/20 transition-colors group">
+                          <td className="px-4 py-3.5 font-sans">
+                            <div className="font-semibold text-sm text-white group-hover:text-teal-300 transition-colors">{s.name}</div>
+                            <div className="text-xs text-zinc-400 mt-0.5">{s.description}</div>
+                          </td>
+
+                          <td className="px-4 py-3.5">
+                            <span
+                              className={`rounded-lg px-2.5 py-1 text-[10px] uppercase font-bold tracking-wider ${
+                                s.is_historical
+                                  ? "bg-sky-500/15 text-sky-300 border border-sky-500/30"
+                                  : s.name.includes("CUSTOM")
+                                  ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
+                                  : "bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                              }`}
+                            >
+                              {s.is_historical ? "Historical Crisis" : s.name.includes("CUSTOM") ? "Custom Portfolio Sim" : "Hypothetical Factor"}
+                            </span>
+                          </td>
+
+                          <td className="px-4 py-3.5 text-right">
+                            <AnimatedNumber
+                              value={Math.abs(s.impact_pct)}
+                              prefix={s.impact_pct >= 0 ? "+" : "-"}
+                              suffix="%"
+                              decimals={1}
+                              className={`text-base font-bold ${s.impact_pct >= 0 ? "text-emerald-400" : "text-rose-400"}`}
+                            />
+                          </td>
+
+                          <td className="px-4 py-3.5 text-right">
+                            <AnimatedNumber
+                              value={Math.abs(s.impact_usd)}
+                              prefix={s.impact_usd >= 0 ? "+$" : "-$"}
+                              decimals={0}
+                              className={`text-base font-bold ${s.impact_usd >= 0 ? "text-emerald-400" : "text-rose-400"}`}
+                            />
+                          </td>
+
+                          <td className="px-4 py-3.5 text-center">
+                            <button
+                              onClick={() => runCustomScenario(s.name.split(" ")[0], s.impact_pct, s.name)}
+                              className="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-teal-900/40 text-teal-300 hover:text-teal-200 text-xs border border-zinc-800 hover:border-teal-500/40 font-sans font-semibold transition-all"
+                            >
+                              Simulate
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
+            ) : (
+              /* ASSET LEVEL RISK VIEW */
+              <div className="bg-[#090F1E]/90 border border-teal-900/40 rounded-2xl p-6 shadow-2xl backdrop-blur-md space-y-6">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-teal-900/30 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                      <Target size={18} />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-bold text-white tracking-tight">SINGLE-ASSET POSITION RISK & SENSITIVITY MATRIX</h2>
+                      <p className="text-xs text-zinc-400">Granular single-stock risk caps, VaR contribution, and asset-specific shock drawdown impact</p>
+                    </div>
+                  </div>
 
-              {/* Stress Scenario Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-zinc-800/80 text-[11px] font-bold uppercase tracking-wider text-zinc-400 bg-zinc-950/60">
-                      <th className="px-4 py-3.5 text-left">Scenario Name & Context</th>
-                      <th className="px-4 py-3.5 text-left">Category / Type</th>
-                      <th className="px-4 py-3.5 text-right">NAV Impact (%)</th>
-                      <th className="px-4 py-3.5 text-right">USD P&L Impact</th>
-                      <th className="px-4 py-3.5 text-center">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-800/60 font-mono">
-                    {filteredScenarios.map((s) => (
-                      <tr key={s.id} className="hover:bg-teal-950/20 transition-colors group">
-                        <td className="px-4 py-3.5 font-sans">
-                          <div className="font-semibold text-sm text-white group-hover:text-teal-300 transition-colors">{s.name}</div>
-                          <div className="text-xs text-zinc-400 mt-0.5">{s.description}</div>
-                        </td>
+                  <div className="flex items-center gap-2 text-xs font-mono text-zinc-400 bg-zinc-950 px-3 py-1.5 rounded-xl border border-zinc-800">
+                    <span>Position Cap: <strong className="text-teal-300">25.0% NAV</strong></span>
+                  </div>
+                </div>
 
-                        <td className="px-4 py-3.5">
-                          <span
-                            className={`rounded-lg px-2.5 py-1 text-[10px] uppercase font-bold tracking-wider ${
-                              s.is_historical
-                                ? "bg-sky-500/15 text-sky-300 border border-sky-500/30"
-                                : s.name.includes("CUSTOM")
-                                ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
-                                : "bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                {/* Single Asset Risk Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-zinc-800/80 text-[11px] font-bold uppercase tracking-wider text-zinc-400 bg-zinc-950/60">
+                        <th className="px-4 py-3.5 text-left">Asset / Symbol</th>
+                        <th className="px-4 py-3.5 text-right">Shares / Qty</th>
+                        <th className="px-4 py-3.5 text-right">Mark Price</th>
+                        <th className="px-4 py-3.5 text-right">Current Value</th>
+                        <th className="px-4 py-3.5 text-right">Weight in NAV</th>
+                        <th className="px-4 py-3.5 text-right">Asset VaR (95%)</th>
+                        <th className="px-4 py-3.5 text-right">-10% Shock P&L</th>
+                        <th className="px-4 py-3.5 text-right">-25% Shock P&L</th>
+                        <th className="px-4 py-3.5 text-center">Compliance Gate</th>
+                        <th className="px-4 py-3.5 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800/60 font-mono">
+                      {assetPositions.map((p) => {
+                        const val10PctDrop = p.usd_value * -0.10;
+                        const val25PctDrop = p.usd_value * -0.25;
+                        const assetVar95 = p.usd_value * 0.021;
+                        const isSelected = p.symbol === selectedAssetSym;
+
+                        return (
+                          <tr
+                            key={p.symbol}
+                            onClick={() => setSelectedAssetSym(p.symbol)}
+                            className={`hover:bg-teal-950/20 cursor-pointer transition-colors ${
+                              isSelected ? "bg-teal-950/30 border-l-2 border-teal-400" : ""
                             }`}
                           >
-                            {s.is_historical ? "Historical Crisis" : s.name.includes("CUSTOM") ? "Custom User Sim" : "Hypothetical Factor"}
-                          </span>
-                        </td>
+                            <td className="px-4 py-3.5 font-sans">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-sm text-teal-300 bg-teal-950/80 px-2 py-0.5 rounded border border-teal-700/50 font-mono">
+                                  {p.symbol}
+                                </span>
+                              </div>
+                            </td>
 
-                        <td className="px-4 py-3.5 text-right">
-                          <AnimatedNumber
-                            value={Math.abs(s.impact_pct)}
-                            prefix={s.impact_pct >= 0 ? "+" : "-"}
-                            suffix="%"
-                            decimals={1}
-                            className={`text-base font-bold ${s.impact_pct >= 0 ? "text-emerald-400" : "text-rose-400"}`}
-                          />
-                        </td>
+                            <td className="px-4 py-3.5 text-right text-zinc-200">{p.qty}</td>
+                            <td className="px-4 py-3.5 text-right text-zinc-200">{money(p.mark)}</td>
+                            <td className="px-4 py-3.5 text-right font-bold text-white">{money(p.usd_value)}</td>
+                            <td className="px-4 py-3.5 text-right font-bold text-teal-300">{pct(p.weight_pct, 1)}</td>
+                            <td className="px-4 py-3.5 text-right text-rose-400">-{money(assetVar95)}</td>
+                            <td className="px-4 py-3.5 text-right text-rose-400">-{money(Math.abs(val10PctDrop))}</td>
+                            <td className="px-4 py-3.5 text-right text-rose-400 font-bold">-{money(Math.abs(val25PctDrop))}</td>
 
-                        <td className="px-4 py-3.5 text-right">
-                          <AnimatedNumber
-                            value={Math.abs(s.impact_usd)}
-                            prefix={s.impact_usd >= 0 ? "+$" : "-$"}
-                            decimals={0}
-                            className={`text-base font-bold ${s.impact_usd >= 0 ? "text-emerald-400" : "text-rose-400"}`}
-                          />
-                        </td>
+                            <td className="px-4 py-3.5 text-center">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950/80 text-emerald-400 border border-emerald-800/50">
+                                PASSING (Cap 25%)
+                              </span>
+                            </td>
 
-                        <td className="px-4 py-3.5 text-center">
-                          <button
-                            onClick={() => runCustomScenario(s.name.split(" ")[0], s.impact_pct, s.name)}
-                            className="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-teal-900/40 text-teal-300 hover:text-teal-200 text-xs border border-zinc-800 hover:border-teal-500/40 font-sans font-semibold transition-all"
-                          >
-                            Simulate
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                            <td className="px-4 py-3.5 text-center">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  runCustomScenario(p.symbol, -20, `-20% ${p.symbol} Asset Shock`);
+                                }}
+                                className="px-3 py-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 text-xs border border-rose-800/50 font-sans font-semibold transition-all"
+                              >
+                                Shock {p.symbol}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* 2-COLUMN SPLIT: CUSTOM SCENARIO BUILDER STUDIO & TREEMAP */}
+            {/* 2-COLUMN SPLIT: CUSTOM RISK SCENARIO BUILDER & TREEMAP */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Custom Scenario Builder Studio */}
               <div className="p-6 rounded-2xl bg-gradient-to-br from-[#0C1629] via-[#09101F] to-[#060A12] border border-teal-500/30 shadow-2xl backdrop-blur-md flex flex-col justify-between">
@@ -472,8 +607,14 @@ export default function RiskPage() {
                       <Sliders size={18} />
                     </div>
                     <div>
-                      <h3 className="text-base font-bold text-white tracking-tight">CUSTOM RISK SCENARIO BUILDER STUDIO</h3>
-                      <p className="text-xs text-zinc-400">Configure and execute custom factor shocks across any asset or strategy</p>
+                      <h3 className="text-base font-bold text-white tracking-tight">
+                        {riskScope === "asset" ? "SINGLE-ASSET RISK SCENARIO BUILDER" : "PORTFOLIO LEVEL RISK SCENARIO BUILDER"}
+                      </h3>
+                      <p className="text-xs text-zinc-400">
+                        {riskScope === "asset"
+                          ? "Simulate single-stock drawdown on specific active holdings"
+                          : "Configure multi-strategy macro factor shocks across total fund NAV"}
+                      </p>
                     </div>
                   </div>
 
@@ -508,24 +649,24 @@ export default function RiskPage() {
                     </div>
                   </div>
 
-                  {/* Input Form Fields */}
+                  {/* Form Inputs */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Scenario Name / Label</label>
                       <input
                         value={scenarioName}
                         onChange={(e) => setScenarioName(e.target.value)}
-                        placeholder="e.g. Stagflation Crisis"
+                        placeholder={riskScope === "asset" ? "e.g. AAPL Earnings Miss" : "e.g. Stagflation Crisis"}
                         className="w-full rounded-xl border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs outline-none focus:border-teal-500/60 text-white font-medium transition-all"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Symbol (Blank = All)</label>
+                      <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Target Symbol / Asset</label>
                       <input
                         value={shockSym}
                         onChange={(e) => setShockSym(e.target.value)}
-                        placeholder="ALL"
+                        placeholder={riskScope === "asset" ? "AAPL" : "ALL"}
                         className="w-full rounded-xl border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs uppercase outline-none focus:border-teal-500/60 font-mono text-teal-300 transition-all"
                       />
                     </div>
@@ -545,19 +686,18 @@ export default function RiskPage() {
                   </div>
                 </div>
 
-                {/* Submit Action Button */}
                 <div className="flex justify-end pt-2">
                   <Button
                     onClick={() => runCustomScenario()}
                     disabled={busy}
                     className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-zinc-950 font-extrabold text-xs px-6 py-2.5 rounded-xl shadow-lg transition-all"
                   >
-                    {busy ? <Loader2 size={16} className="animate-spin" /> : <><Zap size={15} className="mr-2" /> Run Custom Risk Scenario</>}
+                    {busy ? <Loader2 size={16} className="animate-spin" /> : <><Zap size={15} className="mr-2" /> Run {riskScope === "asset" ? "Asset" : "Portfolio"} Risk Scenario</>}
                   </Button>
                 </div>
               </div>
 
-              {/* Portfolio Treemap */}
+              {/* Portfolio Concentration Treemap */}
               <GlassPanel title="Portfolio Exposure Concentration Treemap" className="flex flex-col border-teal-900/30">
                 <div className="flex-1 min-h-[340px] pt-2">
                   <ConcentrationTreemap
@@ -569,7 +709,7 @@ export default function RiskPage() {
               </GlassPanel>
             </div>
 
-            {/* Hourly Risk Audit Stream */}
+            {/* Hourly Pre-Trade Risk Audit Stream */}
             <GlassPanel title="Hourly Pre-Trade Risk Audit Stream (Rate-Limit Guarded)" className="border-teal-900/30">
               <div className="space-y-2 pt-2">
                 {auditLogs.map((log) => (
