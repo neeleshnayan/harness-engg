@@ -346,11 +346,17 @@ export default function StrategyStudioPage() {
           </div>
         )}
 
-        {/* KPI strip */}
+        {/* KPI strip with exact un-compacted NAV calculation */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <Stat label="NAV" value={compact(live?.total_nav_usd)} rawValue={live?.total_nav_usd} sub={`${money(live?.nav_per_unit, 4)}/unit`} accent="text-teal-400 glow-teal" />
-          <Stat label="Cash" value={compact(live?.breakdown?.cash)} rawValue={live?.breakdown?.cash} sub={`${pct(live && live.total_nav_usd ? (live.breakdown.cash / live.total_nav_usd) * 100 : 0)} of NAV`} />
-          <Stat label="Deployed Exp." value={compact(totalExposure)} rawValue={totalExposure} sub={`${deployedCount} live ${deployedCount === 1 ? "strategy" : "strategies"}`} />
+          <Stat
+            label="Total Fund NAV"
+            value={money(live?.total_nav_usd)}
+            rawValue={live?.total_nav_usd}
+            sub={`${money(live?.nav_per_unit, 4)}/unit · (${money(live?.breakdown?.positions)} pos + ${money(live?.breakdown?.cash)} cash)`}
+            accent="text-orange-400 glow-orange"
+          />
+          <Stat label="Idle Cash" value={money(live?.breakdown?.cash)} rawValue={live?.breakdown?.cash} sub={`${pct(live && live.total_nav_usd ? (live.breakdown.cash / live.total_nav_usd) * 100 : 0)} of NAV`} />
+          <Stat label="Deployed Exp." value={money(totalExposure)} rawValue={totalExposure} sub={`${deployedCount} live ${deployedCount === 1 ? "strategy" : "strategies"}`} />
           <Stat label="Unrealized P&L" value={signed(totalPnl)} rawValue={Math.abs(totalPnl)} sub={totalPnl >= 0 ? "Profit" : "Loss"} accent={totalPnl >= 0 ? "text-emerald-400" : "text-rose-400"} />
           <Stat label="LPs" value={String(lps.length)} rawValue={lps.length} sub={`${(live?.units_outstanding || 0).toLocaleString()} units`} />
           <Stat label="Pending" value={String(pending.length)} rawValue={pending.length} sub="awaiting approval" accent={pending.length ? "text-amber-400" : "text-zinc-100"} />
