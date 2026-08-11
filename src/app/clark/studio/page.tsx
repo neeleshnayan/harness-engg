@@ -27,6 +27,7 @@ import {
   StrategyView,
   ThesisView,
 } from "@/lib/fund_api";
+import { VisualStrategyCanvas } from "./components/VisualStrategyCanvas";
 import { CreateStrategyModal } from "./components/CreateStrategyModal";
 import { StrategyDetailModal } from "./components/StrategyDetailModal";
 import { StrategyManageModal } from "./components/StrategyManageModal";
@@ -441,6 +442,9 @@ export default function StrategyStudioPage() {
                 <StrategyPerformanceBar strategies={orderedStrategies} />
               </GlassPanel>
             </div>
+
+            {/* Visual Node-Graph Strategy Builder Canvas */}
+            <VisualStrategyCanvas className="mt-6 mb-6" />
 
             <div className="mt-8 mb-4">
               <div className="flex items-center justify-between mb-4">
