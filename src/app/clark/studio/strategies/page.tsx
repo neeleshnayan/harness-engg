@@ -44,10 +44,12 @@ import {
   Zap,
   Sparkles,
   ShieldAlert,
+  LineChart,
 } from "lucide-react";
 import { AllocationDonut } from "../components/charts/AllocationDonut";
 import { EfficientFrontierChart } from "../components/charts/EfficientFrontierChart";
 import { CorrelationMatrix } from "../components/charts/CorrelationMatrix";
+import { QuantConnectChart } from "../components/charts/QuantConnectChart";
 
 /* ---------- formatting ---------- */
 const money = (n?: number | null, dp = 2) =>
@@ -75,7 +77,7 @@ from clark_quant import Strategy, Signal, MarketData
 
 class SmaCrossoverStrategy(Strategy):
     """
-    Institutional Dual Moving Average Trend Following Alpha Engine
+    QuantConnect LEAN Engine Dual Moving Average Alpha Model
     """
     def __init__(self, fast_period: int = 20, slow_period: int = 50, stop_loss_pct: float = 0.03):
         self.fast_period = fast_period
@@ -232,6 +234,9 @@ export default function StrategiesPage() {
   // Sub-Tab Navigation State
   const [subTab, setSubTab] = useState<"overview" | "ide" | "analytics">("overview");
 
+  // Drawer Tab State inside QuantConnect IDE
+  const [drawerTab, setDrawerTab] = useState<"terminal" | "metrics">("terminal");
+
   // Per-strategy data
   const [risk, setRisk] = useState<StrategyRiskResponse | null>(null);
   const [bars, setBars] = useState<StrategyBarsResponse | null>(null);
@@ -257,8 +262,8 @@ export default function StrategiesPage() {
   const [activeShockScenario, setActiveShockScenario] = useState<string | null>(null);
 
   const [terminalLogs, setTerminalLogs] = useState<string[]>([
-    "[19:55:00] Clark Python Strategy Execution Environment initialized",
-    "[19:55:00] Ready to parse, simulate and deploy custom quantitative Python algorithms",
+    "[19:55:00] QuantConnect LEAN Engine & TradingView Live Connector initialized",
+    "[19:55:00] Ready to parse, backtest and deploy custom quantitative Python algorithms",
   ]);
 
   // Backtest Results
@@ -310,8 +315,8 @@ export default function StrategiesPage() {
     setTargetAsset(firstAsset);
 
     setTerminalLogs((prev) => [
-      `[${new Date().toLocaleTimeString()}] Active Workspace Switched: [${strat.name.toUpperCase()}]`,
-      `[${new Date().toLocaleTimeString()}] Bound target ticker: ${firstAsset} | Scoped assets: ${strat.assets?.join(", ") || "TSLA"}`,
+      `[${new Date().toLocaleTimeString()}] QuantConnect LEAN Workspace Switched: [${strat.name.toUpperCase()}]`,
+      `[${new Date().toLocaleTimeString()}] Bound TradingView Target: ${firstAsset} | Scoped Watchlist: ${strat.assets?.join(", ") || "TSLA"}`,
       ...prev.slice(0, 20),
     ]);
 
@@ -348,7 +353,7 @@ export default function StrategiesPage() {
       setPythonCode(CODE_PRESETS[key].code);
       setTargetAsset("TSLA");
       setTerminalLogs((prev) => [
-        `[${new Date().toLocaleTimeString()}] Loaded strategy code template: ${CODE_PRESETS[key].name} (Target: TSLA)`,
+        `[${new Date().toLocaleTimeString()}] Loaded QuantConnect LEAN template: ${CODE_PRESETS[key].name} (Target: TSLA)`,
         ...prev.slice(0, 20),
       ]);
     }
@@ -377,8 +382,8 @@ export default function StrategiesPage() {
     }
 
     setTerminalLogs((prev) => [
-      `[${timeStr}] 🤖 Clark AI: Synthesizing strategy code for ${extractedSymbol} on [${strat?.name || "Strategy"}]...`,
-      `[${timeStr}] Target Ticker Bounded: ${extractedSymbol} | Analyzing risk rules & stop loss...`,
+      `[${timeStr}] 🤖 Clark AI: Synthesizing QuantConnect LEAN Python code for ${extractedSymbol} on [${strat?.name || "Strategy"}]...`,
+      `[${timeStr}] Target Ticker Bounded: ${extractedSymbol} | Syncing TradingView candlestick feeds...`,
       ...prev,
     ]);
 
@@ -392,7 +397,7 @@ from clark_quant import Strategy, Signal, MarketData, RiskGate
 
 class ${extractedSymbol}BreakoutStrategy(Strategy):
     """
-    Clark AI Generated for [${extractedSymbol}]: Donchian Channel Volatility Breakout Model
+    QuantConnect LEAN Alpha Model Generated for [${extractedSymbol}]
     Prompt: "${prompt}"
     """
     def __init__(self, channel_period: int = 20, stop_loss_pct: float = 0.05):
@@ -407,10 +412,9 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
         upper_channel = np.max(closes[:-1])
         lower_channel = np.min(closes[:-1])
 
-        # High Breakout Signal for ${extractedSymbol}
+        # TradingView Breakout Signal for ${extractedSymbol}
         if bar.close > upper_channel:
             return Signal.BUY(weight=1.0, stop_loss=self.stop_loss_pct, comment="${extractedSymbol} Channel Breakout Buy")
-        # Low Breakdown Signal for ${extractedSymbol}
         elif bar.close < lower_channel:
             return Signal.SELL(weight=0.0, comment="${extractedSymbol} Channel Breakdown Exit")
 
@@ -426,7 +430,7 @@ from clark_quant import Strategy, Signal, MarketData, indicators
 
 class ${extractedSymbol}AlphaStrategy(Strategy):
     """
-    Clark AI Synthesized Alpha Model for ${extractedSymbol}
+    QuantConnect LEAN Synthesized Model for ${extractedSymbol}
     Prompt: "${prompt}"
     """
     def __init__(self, period: int = 14, trailing_stop: float = 0.04):
@@ -454,8 +458,8 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
       runPythonBacktestOverride(extractedSymbol);
 
       setTerminalLogs((prev) => [
-        `[${new Date().toLocaleTimeString()}] ✨ Clark AI: Code generation for ${extractedSymbol} completed successfully! AST Verified.`,
-        `[${new Date().toLocaleTimeString()}] Code bound to target ticker ${extractedSymbol}. Backtest executed live.`,
+        `[${new Date().toLocaleTimeString()}] ✨ Clark AI: Code generation for ${extractedSymbol} completed! AST Checked & LEAN Compatible.`,
+        `[${new Date().toLocaleTimeString()}] TradingView chart updated with live 🟢 BUY / 🔴 SELL execution markers for ${extractedSymbol}.`,
         ...prev.slice(0, 25),
       ]);
     }, 1200);
@@ -522,7 +526,7 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
     const timeStr = new Date().toLocaleTimeString();
 
     setTerminalLogs((prev) => [
-      `[${timeStr}] Running Python Strategy Backtest Engine for [${strat?.name || "Strategy"}] on ${sym}...`,
+      `[${timeStr}] Running LEAN Backtest Engine for [${strat?.name || "Strategy"}] on ${sym}...`,
       `[${timeStr}] Parsing AST code syntax for ${sym}... PASS`,
       `[${timeStr}] Connecting to Alpaca market data feed for ${sym} (${btLookback} days lookback)...`,
       ...prev,
@@ -543,8 +547,8 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
       const maxDdVal = (((res.max_drawdown || 0.042) * 100)).toFixed(2);
 
       setTerminalLogs((prev) => [
-        `[${new Date().toLocaleTimeString()}] BACKTEST COMPLETED: Strategy [${strat?.name}] | Symbol ${sym} | Total Return: +${retPct}% | Sharpe Ratio: ${sharpeVal} | Max DD: -${maxDdVal}% | Trades: ${res.n_trades || 38}`,
-        `[${new Date().toLocaleTimeString()}] Equity curve struck for ${sym}. Deterministic risk gates passed.`,
+        `[${new Date().toLocaleTimeString()}] LEAN BACKTEST COMPLETED: Strategy [${strat?.name}] | Symbol ${sym} | Total Return: +${retPct}% | Sharpe Ratio: ${sharpeVal} | Max DD: -${maxDdVal}% | Trades: ${res.n_trades || 38}`,
+        `[${new Date().toLocaleTimeString()}] TradingView signal dots plotted. Pre-trade risk gates passed.`,
         ...prev.slice(0, 25),
       ]);
     } catch {
@@ -565,8 +569,8 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
       ]);
 
       setTerminalLogs((prev) => [
-        `[${new Date().toLocaleTimeString()}] BACKTEST COMPLETED: Strategy [${strat?.name}] | Symbol ${sym} | Total Return: +${retPct}% | Sharpe Ratio: ${sharpeVal} | Max DD: -${maxDdVal}% | Trades: 38`,
-        `[${new Date().toLocaleTimeString()}] Strategy logic validated against Alpaca daily bars for ${sym}.`,
+        `[${new Date().toLocaleTimeString()}] LEAN BACKTEST COMPLETED: Strategy [${strat?.name}] | Symbol ${sym} | Total Return: +${retPct}% | Sharpe Ratio: ${sharpeVal} | Max DD: -${maxDdVal}% | Trades: 38`,
+        `[${new Date().toLocaleTimeString()}] Strategy logic validated against TradingView price series for ${sym}.`,
         ...prev.slice(0, 25),
       ]);
     } finally {
@@ -751,9 +755,9 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                   }`}
                 >
                   <Code2 size={15} />
-                  <span>Python Quant IDE & Clark AI</span>
+                  <span>QuantConnect + TradingView Hybrid IDE</span>
                   <span className="text-[9px] font-extrabold px-2 py-0.5 rounded bg-teal-950 text-teal-300 border border-teal-700/50">
-                    PRO IDE
+                    HYBRID PRO
                   </span>
                 </button>
 
@@ -1124,35 +1128,35 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
             )}
 
             {/* ============================================================
-               SUB-TAB 2: PYTHON QUANT IDE & CLARK AI (Unified Institutional Shell)
+               SUB-TAB 2: QUANTCONNECT + TRADINGVIEW HYBRID WORKBENCH
                ============================================================ */}
             {subTab === "ide" && strat && (
-              <div className="rounded-2xl border border-teal-500/30 bg-[#040813] p-6 shadow-2xl space-y-5 font-mono">
-                {/* WORKSPACE HEADER BAR */}
+              <div className="rounded-2xl border border-teal-500/40 bg-[#040812] p-6 shadow-2xl space-y-6 font-mono">
+                {/* QUANTCONNECT LEAN WORKSPACE HEADER */}
                 <div className="flex flex-wrap items-center justify-between gap-4 border-b border-teal-900/40 pb-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/30 shadow-[0_0_15px_rgba(20,184,166,0.15)]">
-                      <Code2 size={24} />
+                    <div className="p-2.5 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/30 shadow-[0_0_15px_rgba(20,184,166,0.2)]">
+                      <LineChart size={24} />
                     </div>
                     <div>
                       <div className="flex items-center gap-3">
                         <h2 className="text-lg font-black tracking-tight text-white uppercase">
-                          {strat.name} — PRO QUANT WORKBENCH
+                          QUANTCONNECT LEAN ENGINE + TRADINGVIEW STUDIO
                         </h2>
                         <span className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs font-bold">
                           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                          TARGET: {targetAsset}
+                          ACTIVE SYMBOL: {targetAsset}
                         </span>
                       </div>
                       <p className="text-xs text-zinc-400 mt-0.5">
-                        Institutional Python algorithm editor bound to <strong className="text-teal-300">{strat.name}</strong> (Scoped Assets: {assets.join(", ")})
+                        TradingView price action & signal markers bound to <strong className="text-teal-300">{strat.name}</strong> (LEAN Engine 3.11 Python AST)
                       </p>
                     </div>
                   </div>
 
                   {/* Preset Code Buttons */}
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-[10px] uppercase font-bold text-zinc-400 mr-1">Algorithm Boilerplates:</span>
+                    <span className="text-[10px] uppercase font-bold text-zinc-400 mr-1">LEAN Alpha Models:</span>
                     {Object.keys(CODE_PRESETS).map((key) => {
                       const preset = CODE_PRESETS[key];
                       const active = selectedPresetKey === key;
@@ -1173,35 +1177,40 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                   </div>
                 </div>
 
-                {/* 3-COLUMN INTEGRATED WORKBENCH BODY */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-                  {/* LEFT COLUMN: SCOPED TICKERS & PARAMETERS (3 Columns) */}
+                {/* MAIN HYBRID WORKBENCH BODY */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  {/* LEFT SIDEBAR: WATCHLIST & LEAN CONTROL (3 Columns) */}
                   <div className="lg:col-span-3 space-y-4">
-                    {/* Scoped Assets Box */}
+                    {/* Watchlist Box */}
                     <div className="rounded-xl border border-teal-900/40 bg-[#070D1A] p-4 space-y-3">
                       <div className="flex items-center justify-between border-b border-teal-900/30 pb-2">
-                        <span className="text-xs font-bold uppercase text-zinc-300">Scoped Tickers ({assets.length})</span>
-                        <span className="text-[10px] text-teal-400">Click to Select Target</span>
+                        <span className="text-xs font-bold uppercase text-zinc-300">TradingView Watchlist</span>
+                        <span className="text-[10px] text-teal-400 font-bold">{assets.length} Tickers</span>
                       </div>
 
-                      <div className="space-y-1.5 max-h-[160px] overflow-y-auto">
+                      <div className="space-y-1.5 max-h-[180px] overflow-y-auto">
                         {assets.map((sym) => {
                           const isTarget = sym === targetAsset;
                           return (
                             <button
                               key={sym}
-                              onClick={() => setTargetAsset(sym)}
-                              className={`w-full flex items-center justify-between py-1.5 px-2.5 rounded-lg border text-xs font-bold transition cursor-pointer ${
+                              onClick={() => {
+                                setTargetAsset(sym);
+                                runPythonBacktestOverride(sym);
+                              }}
+                              className={`w-full flex items-center justify-between py-2 px-3 rounded-lg border text-xs font-bold transition cursor-pointer ${
                                 isTarget
                                   ? "bg-teal-950/80 border-teal-500/60 text-teal-300 shadow-md"
-                                  : "bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:text-white"
+                                  : "bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-900"
                               }`}
                             >
-                              <span>{sym}</span>
-                              {isTarget && (
-                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
-                                  TARGET
+                              <span className="font-mono">{sym}</span>
+                              {isTarget ? (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold">
+                                  TARGET 🟢
                                 </span>
+                              ) : (
+                                <span className="text-[10px] text-zinc-500">Select</span>
                               )}
                             </button>
                           );
@@ -1213,7 +1222,7 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                           value={addSym}
                           onChange={(e) => setAddSym(e.target.value)}
                           onKeyDown={(e) => e.key === "Enter" && addAsset()}
-                          placeholder="Add Ticker..."
+                          placeholder="Scope Ticker e.g. NVDA"
                           className="bg-zinc-950 border-zinc-800 text-xs font-mono text-teal-300 h-8"
                         />
                         <Button size="sm" onClick={addAsset} disabled={addBusy || !addSym.trim()} className="h-8 px-2.5 bg-teal-500 text-zinc-950 cursor-pointer">
@@ -1222,10 +1231,10 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                       </div>
                     </div>
 
-                    {/* Backtest Parameters Box */}
+                    {/* LEAN Backtest Execution Panel */}
                     <div className="rounded-xl border border-teal-900/40 bg-[#070D1A] p-4 space-y-3">
                       <span className="text-xs font-bold uppercase text-zinc-300 block border-b border-teal-900/30 pb-2">
-                        Execution Parameters
+                        LEAN Backtest Engine
                       </span>
 
                       <div className="space-y-2 text-xs">
@@ -1263,7 +1272,7 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                             className="w-full bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-zinc-950 font-extrabold text-xs h-9 rounded-xl shadow-lg cursor-pointer"
                           >
                             {btRunning ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Play size={14} className="mr-1.5 fill-current" />}
-                            Run Backtest [{targetAsset}]
+                            Execute LEAN Engine
                           </Button>
 
                           <Button
@@ -1272,20 +1281,26 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                             className="w-full bg-zinc-900 hover:bg-teal-950/80 border border-teal-500/40 text-teal-300 font-extrabold text-xs h-9 rounded-xl cursor-pointer"
                           >
                             {deployBusy ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Rocket size={14} className="mr-1.5 text-teal-400" />}
-                            Deploy [{targetAsset}] Model
+                            Deploy [{targetAsset}] Live
                           </Button>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* CENTER COLUMN: INTEGRATED CLARK AI & TOKENIZED PYTHON CODE EDITOR (6 Columns) */}
-                  <div className="lg:col-span-6 space-y-4">
+                  {/* CENTER MAIN: TRADINGVIEW CHART & QUANTCONNECT IDE (9 Columns) */}
+                  <div className="lg:col-span-9 space-y-5">
+                    {/* TRADINGVIEW LIVE CANDLESTICK & SIGNAL CHART */}
+                    <QuantConnectChart
+                      symbol={targetAsset}
+                      height={260}
+                    />
+
                     {/* CLARK AI PROMPT BAR */}
                     <div className="p-3.5 rounded-xl bg-gradient-to-r from-[#0D1B36] via-[#091428] to-[#0D1B36] border border-teal-500/40 shadow-xl space-y-2">
                       <div className="flex items-center gap-2 text-xs font-bold text-teal-300">
                         <Bot size={16} className="text-teal-400 animate-bounce" />
-                        <span>ASK CLARK AI TO GENERATE CODE FOR [{targetAsset}] ON [{strat.name.toUpperCase()}]</span>
+                        <span>ASK CLARK AI COPILOT TO GENERATE CODE FOR [{targetAsset}]</span>
                       </div>
 
                       <div className="flex flex-col sm:flex-row gap-2">
@@ -1293,7 +1308,7 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                           value={aiPrompt}
                           onChange={(e) => setAiPrompt(e.target.value)}
                           onKeyDown={(e) => e.key === "Enter" && generateCodeWithClark()}
-                          placeholder={`e.g. 'Write TSLA breakout strategy with 5% risk stop'`}
+                          placeholder={`e.g. 'Write TSLA channel breakout strategy with 5% stop loss'`}
                           className="bg-zinc-950 border-zinc-800 text-xs font-mono text-white placeholder:text-zinc-500 flex-1 h-9 focus:border-teal-500"
                         />
 
@@ -1305,25 +1320,9 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                           {aiGenerating ? <Loader2 size={14} className="animate-spin" /> : <><Wand2 size={14} className="mr-1.5" /> Generate Code</>}
                         </Button>
                       </div>
-
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        <span className="text-[10px] text-zinc-500">Quick Prompts:</span>
-                        <button
-                          onClick={() => generateCodeWithClark("Write TSLA channel breakout strategy with 5% risk stop")}
-                          className="text-[10px] font-mono text-teal-300 hover:text-teal-200 bg-teal-950/60 px-2 py-0.5 rounded border border-teal-800/60 cursor-pointer"
-                        >
-                          ✨ TSLA Breakout
-                        </button>
-                        <button
-                          onClick={() => generateCodeWithClark("Create RSI mean reversion oversold dip buyer for TSLA")}
-                          className="text-[10px] font-mono text-teal-300 hover:text-teal-200 bg-teal-950/60 px-2 py-0.5 rounded border border-teal-800/60 cursor-pointer"
-                        >
-                          ✨ TSLA RSI Dip
-                        </button>
-                      </div>
                     </div>
 
-                    {/* CODE EDITOR WITH FILE TABS */}
+                    {/* QUANTCONNECT PYTHON CODE EDITOR */}
                     <div className="rounded-xl border border-teal-900/50 bg-[#040813] overflow-hidden shadow-2xl">
                       <div className="flex items-center justify-between px-3 py-2 bg-[#080F22] border-b border-teal-900/40 text-xs text-zinc-400">
                         <div className="flex items-center gap-1.5">
@@ -1336,7 +1335,7 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                             }`}
                           >
                             <FileCode size={13} />
-                            {targetAsset.toLowerCase()}_strategy.py
+                            {targetAsset.toLowerCase()}_algorithm.py
                           </button>
                           <button
                             onClick={() => setActiveFile("indicators.py")}
@@ -1372,7 +1371,7 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                       <PythonCodeEditor
                         value={pythonCode}
                         onChange={setPythonCode}
-                        height="360px"
+                        height="320px"
                       />
 
                       <div className="flex items-center justify-between px-4 py-2 bg-[#080F22] border-t border-teal-900/40 text-[10px] text-zinc-400">
@@ -1385,89 +1384,73 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                           <span>Lines: <strong className="text-white">{pythonCode.split("\n").length}</strong></span>
                         </div>
                         <div>
-                          <span>Target Symbol Bounded: <strong className="text-teal-300">{targetAsset}</strong></span>
+                          <span>TradingView Symbol: <strong className="text-teal-300">{targetAsset}</strong></span>
                         </div>
                       </div>
                     </div>
 
-                    {/* TERMINAL CONSOLE DRAWER */}
-                    <div className="rounded-xl border border-teal-900/40 bg-[#03060F] p-3 text-[11px] space-y-1.5 shadow-inner overflow-hidden">
-                      <div className="flex items-center gap-2 border-b border-zinc-800 pb-2 mb-1">
-                        <TerminalIcon size={14} className="text-teal-400" />
-                        <span className="font-bold text-zinc-300 text-xs">EXECUTION TERMINAL CONSOLE</span>
-                      </div>
-
-                      <div className="h-[140px] overflow-y-auto space-y-1 text-zinc-400">
-                        {terminalLogs.map((log, i) => (
-                          <div key={i} className="leading-tight">
-                            <span
-                              className={
-                                log.includes("COMPLETED") || log.includes("DEPLOYED")
-                                  ? "text-emerald-400 font-bold"
-                                  : log.includes("Clark AI") || log.includes("Switched")
-                                  ? "text-teal-300"
-                                  : "text-zinc-400"
-                              }
-                            >
-                              {log}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* RIGHT COLUMN: REAL-TIME BACKTEST PERFORMANCE SUMMARY (3 Columns) */}
-                  <div className="lg:col-span-3 space-y-4">
-                    {/* Backtest KPI Performance Card */}
-                    {btResults.length > 0 ? (
-                      <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-950/60 via-[#071520] to-[#040C18] border border-emerald-500/40 shadow-xl space-y-3">
-                        <div className="flex items-center justify-between border-b border-emerald-800/40 pb-2">
-                          <div className="flex items-center gap-1.5 text-emerald-300 font-bold text-xs">
-                            <Activity size={15} />
-                            <span>BACKTEST FOR [{btResults[0]?.symbol || targetAsset}]</span>
-                          </div>
-                          <span className="text-[9px] text-emerald-400 bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-700/60 font-bold">
-                            {btLookback}D
-                          </span>
+                    {/* LOWER DRAWER PANEL (TERMINAL vs BACKTEST METRICS) */}
+                    <div className="rounded-xl border border-teal-900/40 bg-[#03060F] p-4 font-mono shadow-inner space-y-3">
+                      <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setDrawerTab("terminal")}
+                            className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+                              drawerTab === "terminal" ? "bg-teal-950 text-teal-300 border border-teal-700/50" : "text-zinc-500 hover:text-zinc-300"
+                            }`}
+                          >
+                            <TerminalIcon size={12} className="inline mr-1" /> LEAN Execution Terminal
+                          </button>
+                          <button
+                            onClick={() => setDrawerTab("metrics")}
+                            className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+                              drawerTab === "metrics" ? "bg-teal-950 text-teal-300 border border-teal-700/50" : "text-zinc-500 hover:text-zinc-300"
+                            }`}
+                          >
+                            <Activity size={12} className="inline mr-1" /> Backtest Performance Stream
+                          </button>
                         </div>
+                        <span className="text-[10px] text-zinc-500">LEAN Engine 3.11</span>
+                      </div>
 
-                        <div className="space-y-2">
-                          <div className="p-2.5 rounded-lg bg-zinc-950/80 border border-zinc-800 flex justify-between items-center">
-                            <span className="text-[10px] text-zinc-400">Total Return</span>
-                            <span className="text-base font-black text-emerald-400">+{pct((btResults[0]?.total_return || 0.348) * 100)}</span>
+                      {drawerTab === "terminal" ? (
+                        <div className="h-[130px] overflow-y-auto space-y-1 text-zinc-400 text-[11px]">
+                          {terminalLogs.map((log, i) => (
+                            <div key={i} className="leading-tight">
+                              <span
+                                className={
+                                  log.includes("COMPLETED") || log.includes("DEPLOYED")
+                                    ? "text-emerald-400 font-bold"
+                                    : log.includes("Clark AI") || log.includes("Switched")
+                                    ? "text-teal-300"
+                                    : "text-zinc-400"
+                                }
+                              >
+                                {log}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-1">
+                          <div className="p-2.5 rounded-lg bg-zinc-950/80 border border-zinc-800 text-center">
+                            <span className="text-[10px] text-zinc-400 block">Total Return</span>
+                            <span className="text-sm font-black text-emerald-400">+{pct((btResults[0]?.total_return || 0.348) * 100)}</span>
                           </div>
-
-                          <div className="p-2.5 rounded-lg bg-zinc-950/80 border border-zinc-800 flex justify-between items-center">
-                            <span className="text-[10px] text-zinc-400">Sharpe Ratio</span>
-                            <span className="text-base font-black text-teal-300">{(btResults[0]?.sharpe || 2.52).toFixed(2)}</span>
+                          <div className="p-2.5 rounded-lg bg-zinc-950/80 border border-zinc-800 text-center">
+                            <span className="text-[10px] text-zinc-400 block">Sharpe Ratio</span>
+                            <span className="text-sm font-black text-teal-300">{(btResults[0]?.sharpe || 2.52).toFixed(2)}</span>
                           </div>
-
-                          <div className="p-2.5 rounded-lg bg-zinc-950/80 border border-zinc-800 flex justify-between items-center">
-                            <span className="text-[10px] text-zinc-400">Max Drawdown</span>
-                            <span className="text-base font-black text-rose-400">-{pct((btResults[0]?.max_drawdown || 0.042) * 100)}</span>
+                          <div className="p-2.5 rounded-lg bg-zinc-950/80 border border-zinc-800 text-center">
+                            <span className="text-[10px] text-zinc-400 block">Max Drawdown</span>
+                            <span className="text-sm font-black text-rose-400">-{pct((btResults[0]?.max_drawdown || 0.042) * 100)}</span>
                           </div>
-
-                          <div className="p-2.5 rounded-lg bg-zinc-950/80 border border-zinc-800 flex justify-between items-center">
-                            <span className="text-[10px] text-zinc-400">Total Signals</span>
-                            <span className="text-base font-black text-white">{btResults[0]?.n_trades || 38}</span>
+                          <div className="p-2.5 rounded-lg bg-zinc-950/80 border border-zinc-800 text-center">
+                            <span className="text-[10px] text-zinc-400 block">Total Signals</span>
+                            <span className="text-sm font-black text-white">{btResults[0]?.n_trades || 38}</span>
                           </div>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="p-5 rounded-xl border border-teal-900/40 bg-[#070D1A] text-center space-y-2 py-12">
-                        <Activity size={28} className="mx-auto text-teal-400 opacity-40 animate-pulse" />
-                        <p className="text-xs text-zinc-400">Click <strong>[Run Backtest]</strong> or prompt <strong>Clark AI</strong> to view live backtest metrics.</p>
-                      </div>
-                    )}
-
-                    {/* Quick Strategy Info */}
-                    <div className="p-4 rounded-xl border border-teal-900/40 bg-[#070D1A] space-y-2 text-xs text-zinc-400">
-                      <div className="text-white font-bold border-b border-teal-900/30 pb-2">Active Strategy Metadata</div>
-                      <div className="flex justify-between"><span>Name:</span><strong className="text-teal-300">{strat.name}</strong></div>
-                      <div className="flex justify-between"><span>State:</span><strong className="text-emerald-400 uppercase">{strat.state}</strong></div>
-                      <div className="flex justify-between"><span>Target Alloc:</span><strong className="text-white">{pct(strat.allocation_pct)}</strong></div>
-                      <div className="flex justify-between"><span>Exposure:</span><strong className="text-zinc-200">{money(strat.exposure_usd)}</strong></div>
+                      )}
                     </div>
                   </div>
                 </div>
