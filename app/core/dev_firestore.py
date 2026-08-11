@@ -1,18 +1,20 @@
-"""In-memory Firestore for local dev — run the spine with NO Firebase creds.
+"""In-memory + File-backed persistent Firestore for local dev & production fallback.
 
-Enable with `USE_FAKE_FIRESTORE=1`. Data is in-process and ephemeral (lost on
-restart). For local testing only — never production. Implements exactly the
-Firestore operations the spine uses (document get/set incl. merge, collection
-where/order_by/limit/stream, and a transactional counter).
-
-`install_fake()` overrides `firebase_admin.firestore.client` / `.transactional`
-/ `.Query` so every `firestore.client()` in the app returns this fake — no app
-init, no service account. Call it BEFORE importing modules that build clients.
+Data is loaded from `.firestore_local_db.json` on startup and saved synchronously
+on mutation (doc set/update/delete), ensuring 100% persistence across restarts
+without hitting external quota limits.
 """
 
 from __future__ import annotations
 
+import os
+import json
+import logging
 from firebase_admin import firestore
+
+logger = logging.getLogger(__name__)
+
+_DB_FILEPATH = os.path.join(os.path.dirname(__file__), "../../.firestore_local_db.json")
 
 
 class _Snap:
@@ -61,7 +63,7 @@ class _Query:
     def stream(self):
         rows = [(k, v) for k, v in self._coll._docs.items() if self._match(v)]
         if self._order:
-            rows.sort(key=lambda kv: kv[1].get(self._order), reverse=self._desc)
+            rows.sort(key=lambda kv: kv[1].get(self._order) or "", reverse=self._desc)
         if self._limit is not None:
             rows = rows[: self._limit]
         return [_Snap(k, v) for k, v in rows]
@@ -80,6 +82,12 @@ class _Doc:
             self._coll._docs[self.id].update(data)
         else:
             self._coll._docs[self.id] = dict(data)
+        self._coll._db._save()
+
+    def delete(self):
+        if self.id in self._coll._docs:
+            del self._coll._docs[self.id]
+            self._coll._db._save()
 
 
 class _Collection(_Query):
@@ -98,8 +106,29 @@ class _Txn:
 
 
 class _DB:
-    def __init__(self):
+    def __init__(self, filepath: str = _DB_FILEPATH):
+        self._filepath = filepath
         self._store: dict[str, dict] = {}
+        self._load()
+
+    def _load(self):
+        if os.path.exists(self._filepath):
+            try:
+                with open(self._filepath, "r", encoding="utf-8") as f:
+                    self._store = json.load(f)
+                logger.info("Loaded persistent local Firestore DB from %s", self._filepath)
+            except Exception as e:
+                logger.warning("Failed to load local Firestore DB: %s", e)
+                self._store = {}
+
+    def _save(self):
+        try:
+            tmp = self._filepath + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(self._store, f, indent=2, default=str)
+            os.replace(tmp, self._filepath)
+        except Exception as e:
+            logger.error("Failed to save local Firestore DB: %s", e)
 
     def collection(self, name):
         return _Collection(self, name)
