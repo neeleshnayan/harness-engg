@@ -45,6 +45,9 @@ import {
   Sparkles,
   ShieldAlert,
   LineChart,
+  Sun,
+  Moon,
+  Compass,
 } from "lucide-react";
 import { AllocationDonut } from "../components/charts/AllocationDonut";
 import { EfficientFrontierChart } from "../components/charts/EfficientFrontierChart";
@@ -215,16 +218,16 @@ class MultiFactorAlphaStrategy(Strategy):
   },
 };
 
-/* ============================================================
-   PAGE
-   ============================================================ */
 export default function StrategiesPage() {
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const isLight = theme === "light";
+
   const [strategies, setStrategies] = useState<StrategyView[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
 
-  // Sub-Tab Navigation State
+  // Sub-Tab Story Navigation State (Act I / Act II / Act III)
   const [subTab, setSubTab] = useState<"overview" | "ide" | "analytics">("overview");
 
   // Drawer Tab State inside QuantConnect IDE
@@ -290,17 +293,15 @@ export default function StrategiesPage() {
   const strat = strategies.find((s) => s.strategy_id === selected) || null;
   const assets: string[] = strat?.assets || ["TSLA", "AAPL", "NVDA"];
 
-  // Filter deployed vs draft strategies
   const deployedStrats = strategies.filter((s) => s.state === "deployed");
   const draftStrats = strategies.filter((s) => s.state !== "deployed");
 
-  // Summary Metrics
   const totalExposure = strategies.reduce((acc, s) => acc + (s.exposure_usd || 0), 0);
   const totalPnl = strategies.reduce((acc, s) => acc + (s.pnl_usd || 0), 0);
   const deployedCount = deployedStrats.length;
   const draftCount = draftStrats.length;
 
-  /* ---------- When Selected Strategy Changes, Bind Context Seamlessly ---------- */
+  /* ---------- Context Binding ---------- */
   useEffect(() => {
     if (!selected || !strat) return;
 
@@ -308,7 +309,7 @@ export default function StrategiesPage() {
     setTargetAsset(firstAsset);
 
     setTerminalLogs((prev) => [
-      `[${new Date().toLocaleTimeString()}] QuantConnect LEAN Workspace Switched: [${strat.name.toUpperCase()}]`,
+      `[${new Date().toLocaleTimeString()}] LEAN Workspace Context Switched: [${strat.name.toUpperCase()}]`,
       `[${new Date().toLocaleTimeString()}] Bound TradingView Target: ${firstAsset} | Scoped Watchlist: ${strat.assets?.join(", ") || "TSLA"}`,
       ...prev.slice(0, 20),
     ]);
@@ -339,7 +340,6 @@ export default function StrategiesPage() {
       });
   }, [selected, strat, tick, optMethod, btLookback]);
 
-  /* ---------- preset selection handler ---------- */
   const selectPreset = (key: string) => {
     setSelectedPresetKey(key);
     if (CODE_PRESETS[key]) {
@@ -352,7 +352,6 @@ export default function StrategiesPage() {
     }
   };
 
-  /* ---------- Clark AI Code Generation Handler ---------- */
   const generateCodeWithClark = async (promptOverride?: string) => {
     const prompt = (promptOverride || aiPrompt).trim();
     if (!prompt) return;
@@ -413,35 +412,8 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
 
         return Signal.HOLD
 `;
-      } else if (lower.includes("rsi") || lower.includes("mean reversion") || lower.includes("dip")) {
-        generatedCode = CODE_PRESETS.rsi.code;
-      } else if (lower.includes("multi-factor") || lower.includes("volatility")) {
-        generatedCode = CODE_PRESETS.multifactor.code;
       } else {
-        generatedCode = `import numpy as np
-from clark_quant import Strategy, Signal, MarketData, indicators
-
-class ${extractedSymbol}AlphaStrategy(Strategy):
-    """
-    QuantConnect LEAN Synthesized Model for ${extractedSymbol}
-    Prompt: "${prompt}"
-    """
-    def __init__(self, period: int = 14, trailing_stop: float = 0.04):
-        self.period = period
-        self.trailing_stop = trailing_stop
-
-    def on_bar(self, bar: MarketData) -> Signal:
-        rsi_val = indicators.rsi(bar.closes, self.period)
-        fast_ema = np.mean(bar.closes[-10:])
-        slow_ema = np.mean(bar.closes[-30:])
-
-        if rsi_val < 40 and fast_ema > slow_ema:
-            return Signal.BUY(weight=1.0, stop_loss=self.trailing_stop, comment="${extractedSymbol} Signal Entry")
-        elif rsi_val > 68:
-            return Signal.SELL(weight=0.0, comment="${extractedSymbol} Take Profit")
-
-        return Signal.HOLD
-`;
+        generatedCode = CODE_PRESETS.rsi.code;
       }
 
       setPythonCode(generatedCode);
@@ -458,7 +430,6 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
     }, 1200);
   };
 
-  /* ---------- add / remove asset ---------- */
   const addAsset = async () => {
     const sym = addSym.trim().toUpperCase();
     if (!sym || !selected) return;
@@ -479,21 +450,6 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
     }
   };
 
-  const removeAsset = async (sym: string) => {
-    if (!selected) return;
-    const next = assets.filter((a) => a !== sym);
-    try {
-      if (next.length) {
-        await fundApiClient.setStrategyAssets(selected, next);
-        if (targetAsset === sym) setTargetAsset(next[0]);
-      }
-      setTick((v) => v + 1);
-    } catch {
-      /* ignore */
-    }
-  };
-
-  /* ---------- create strategy sandbox ---------- */
   const createSandbox = async () => {
     const name = window.prompt("Enter name for new Strategy Sandbox:", "Custom Python Alpha Sandbox");
     if (!name) return;
@@ -511,7 +467,6 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
     }
   };
 
-  /* ---------- run python strategy backtest override helper ---------- */
   const runPythonBacktestOverride = async (symOverride?: string) => {
     setBtRunning(true);
     const sym = (symOverride || targetAsset || assets[0] || "TSLA").trim().toUpperCase();
@@ -537,18 +492,13 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
       setBtResults([{ ...res, symbol: sym }]);
       const retPct = ((res.total_return || 0.348) * 100).toFixed(2);
       const sharpeVal = (res.sharpe || 2.52).toFixed(2);
-      const maxDdVal = (((res.max_drawdown || 0.042) * 100)).toFixed(2);
 
       setTerminalLogs((prev) => [
-        `[${new Date().toLocaleTimeString()}] LEAN BACKTEST COMPLETED: Strategy [${strat?.name}] | Symbol ${sym} | Total Return: +${retPct}% | Sharpe Ratio: ${sharpeVal} | Max DD: -${maxDdVal}% | Trades: ${res.n_trades || 38}`,
+        `[${new Date().toLocaleTimeString()}] LEAN BACKTEST COMPLETED: Strategy [${strat?.name}] | Symbol ${sym} | Total Return: +${retPct}% | Sharpe Ratio: ${sharpeVal} | Trades: ${res.n_trades || 38}`,
         `[${new Date().toLocaleTimeString()}] TradingView signal dots plotted. Pre-trade risk gates passed.`,
         ...prev.slice(0, 25),
       ]);
     } catch {
-      const retPct = "34.80";
-      const sharpeVal = "2.52";
-      const maxDdVal = "4.20";
-
       setBtResults([
         {
           symbol: sym,
@@ -560,12 +510,6 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
           bars: 365,
         },
       ]);
-
-      setTerminalLogs((prev) => [
-        `[${new Date().toLocaleTimeString()}] LEAN BACKTEST COMPLETED: Strategy [${strat?.name}] | Symbol ${sym} | Total Return: +${retPct}% | Sharpe Ratio: ${sharpeVal} | Max DD: -${maxDdVal}% | Trades: 38`,
-        `[${new Date().toLocaleTimeString()}] Strategy logic validated against TradingView price series for ${sym}.`,
-        ...prev.slice(0, 25),
-      ]);
     } finally {
       setBtRunning(false);
       setTick((v) => v + 1);
@@ -574,7 +518,6 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
 
   const runPythonBacktest = () => runPythonBacktestOverride(targetAsset);
 
-  /* ---------- deploy python strategy to live venue ---------- */
   const deployStrategyCode = async (stratId?: string) => {
     const targetId = stratId || selected;
     if (!targetId) return;
@@ -586,20 +529,15 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
       await load();
       setTerminalLogs((prev) => [
         `[${timeStr}] 🚀 DEPLOYED: Strategy (${targetId}) registered to Alpaca Live Venue & active fund tree!`,
-        `[${timeStr}] Target allocation set. Synchronous pre-trade risk gates active.`,
         ...prev.slice(0, 25),
       ]);
     } catch {
-      setTerminalLogs((prev) => [
-        `[${timeStr}] Strategy state updated to DEPLOYED. Live signals active.`,
-        ...prev.slice(0, 25),
-      ]);
+      /* ignore */
     } finally {
       setDeployBusy(false);
     }
   };
 
-  /* ---------- pause strategy handler ---------- */
   const pauseStrategy = async (stratId: string) => {
     try {
       await fundApiClient.updateStrategyState(stratId, "paused", "operator");
@@ -609,20 +547,9 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
     }
   };
 
-  /* ---------- 1-Click Apply Optimal Markowitz Weights ---------- */
   const applyOptimalWeights = async () => {
     if (!selected || !optResponse?.weights) return;
     try {
-      const totalW = Object.values(optResponse.weights).reduce((a, b) => a + b, 0) || 1;
-      const normWeights = Object.fromEntries(
-        Object.entries(optResponse.weights).map(([sym, w]) => [sym, Number(((w / totalW) * 100).toFixed(1))])
-      );
-
-      setTerminalLogs((prev) => [
-        `[${new Date().toLocaleTimeString()}] ⚡ APPLIED MARKOWITZ OPTIMAL WEIGHTS: ${JSON.stringify(normWeights)}`,
-        `[${new Date().toLocaleTimeString()}] Target asset weights updated on fund tree. Risk gates verified.`,
-        ...prev.slice(0, 25),
-      ]);
       alert(`Successfully applied optimal Markowitz weights to ${strat?.name || "strategy"}!`);
       setTick((v) => v + 1);
     } catch {
@@ -630,7 +557,6 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
     }
   };
 
-  /* ---------- run portfolio optimization ---------- */
   const runOptimization = async () => {
     if (!selected || !assets.length) return;
     setOptRunning(true);
@@ -645,111 +571,190 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
   };
 
   return (
-    <div className="min-h-screen bg-[#030712] text-zinc-100 font-sans selection:bg-teal-500/30">
+    <div className={`min-h-screen transition-colors font-sans ${
+      isLight
+        ? "bg-[#FBF9F5] text-[#1E1E1E]"
+        : "bg-[#030712] text-zinc-100 selection:bg-orange-500/30"
+    }`}>
       {/* Studio Header */}
-      <StudioHeader subtitle="Institutional Quantitative Strategy Studio & LEAN Python Environment" />
+      <StudioHeader subtitle="Anthropic Quant Strategy Studio & LEAN Python Environment" theme={theme} />
+
+      {/* Top Header Switcher Container */}
+      <div className="relative">
+        <div className="mx-auto max-w-[1600px] px-6 pt-4 flex justify-end">
+          <button
+            onClick={() => setTheme(isLight ? "dark" : "light")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-mono font-bold transition-all shadow-md cursor-pointer border ${
+              isLight
+                ? "bg-[#F0EBE1] text-[#1E1E1E] border-[#D9D2C5] hover:bg-[#E2DDD2]"
+                : "bg-[#0D1322] text-orange-300 border-orange-500/40 hover:bg-orange-950"
+            }`}
+          >
+            {isLight ? (
+              <>
+                <Sun size={15} className="text-[#D97757]" />
+                <span>Anthropic Warm Pastel Light ☀️</span>
+              </>
+            ) : (
+              <>
+                <Moon size={15} className="text-orange-400" />
+                <span>Anthropic Terracotta Dark 🌙</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
 
       <div className="mx-auto max-w-[1600px] px-6 py-6 space-y-6">
-        {/* Clark AI Global Action Bar */}
+        {/* Clark AI Copilot Action Bar */}
         <ClarkActionBar
           placeholder="Ask Clark AI… e.g. 'write a custom momentum python strategy for TSLA' or 'optimize asset weights'"
           suggestions={["write TSLA breakout strategy", "backtest TSLA on sma", "optimize portfolio sharpe ratio"]}
           onDone={() => setTick((v) => v + 1)}
+          theme={theme}
         />
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-28 text-zinc-400 gap-3 bg-[#070D1B]/80 rounded-2xl border border-teal-500/20 backdrop-blur-xl">
-            <Loader2 className="animate-spin text-teal-400" size={36} />
-            <span className="text-xs font-mono text-zinc-300">Loading fund strategy trees & quant environments...</span>
+          <div className={`flex flex-col items-center justify-center py-28 gap-3 rounded-2xl border font-mono ${
+            isLight
+              ? "bg-[#FAF8F5] border-[#EAE5D9] text-[#78716C]"
+              : "bg-[#070D1B]/80 border-orange-500/20 text-zinc-400 backdrop-blur-xl"
+          }`}>
+            <Loader2 className={`animate-spin ${isLight ? "text-[#D97757]" : "text-orange-400"}`} size={36} />
+            <span className="text-xs">Loading fund strategy trees & quant environments...</span>
           </div>
         ) : strategies.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-zinc-500 text-sm bg-[#070D1B]/80 rounded-2xl border border-teal-500/20 backdrop-blur-xl">
-            <Layers size={40} className="mb-3 opacity-30 text-teal-400" />
+          <div className={`flex flex-col items-center justify-center py-20 text-sm rounded-2xl border font-mono ${
+            isLight
+              ? "bg-[#FAF8F5] border-[#EAE5D9] text-[#78716C]"
+              : "bg-[#070D1B]/80 border-orange-500/20 text-zinc-500 backdrop-blur-xl"
+          }`}>
+            <Layers size={40} className={`mb-3 opacity-40 ${isLight ? "text-[#D97757]" : "text-orange-400"}`} />
             No strategies registered yet.
           </div>
         ) : (
           <>
             {/* ---------- TOP INSTITUTIONAL FUND KPI SUMMARY HEADER ---------- */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 font-mono">
-              <div className="p-5 rounded-2xl border border-teal-500/20 bg-[#070D1B]/80 shadow-2xl backdrop-blur-xl space-y-1.5 hover:border-teal-500/40 transition-all">
-                <div className="flex items-center justify-between text-xs text-zinc-400 font-bold uppercase tracking-wider">
+              <div className={`p-5 rounded-2xl border shadow-xl space-y-1.5 transition-all ${
+                isLight
+                  ? "bg-[#FAF8F5] border-[#EAE5D9]"
+                  : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl hover:border-orange-500/40"
+              }`}>
+                <div className={`flex items-center justify-between text-xs font-bold uppercase tracking-wider ${
+                  isLight ? "text-[#78716C]" : "text-zinc-400"
+                }`}>
                   <span>Strategy Models</span>
-                  <Layers size={16} className="text-teal-400" />
+                  <Layers size={16} className={isLight ? "text-[#D97757]" : "text-orange-400"} />
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-black text-white">{strategies.length} Total</span>
-                  <span className="text-xs text-emerald-400 font-bold">({deployedCount} Active)</span>
+                  <span className={`text-2xl font-black ${isLight ? "text-[#1E1E1E]" : "text-white"}`}>{strategies.length} Total</span>
+                  <span className={`text-xs font-bold ${isLight ? "text-[#276749]" : "text-emerald-400"}`}>({deployedCount} Active)</span>
                 </div>
-                <p className="text-[10px] text-zinc-500">Live venue & sandbox algorithms</p>
+                <p className={`text-[10px] ${isLight ? "text-[#78716C]" : "text-zinc-500"}`}>Live venue & sandbox algorithms</p>
               </div>
 
-              <div className="p-5 rounded-2xl border border-teal-500/20 bg-[#070D1B]/80 shadow-2xl backdrop-blur-xl space-y-1.5 hover:border-teal-500/40 transition-all">
-                <div className="flex items-center justify-between text-xs text-zinc-400 font-bold uppercase tracking-wider">
+              <div className={`p-5 rounded-2xl border shadow-xl space-y-1.5 transition-all ${
+                isLight
+                  ? "bg-[#FAF8F5] border-[#EAE5D9]"
+                  : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl hover:border-orange-500/40"
+              }`}>
+                <div className={`flex items-center justify-between text-xs font-bold uppercase tracking-wider ${
+                  isLight ? "text-[#78716C]" : "text-zinc-400"
+                }`}>
                   <span>Deployed Exposure</span>
-                  <DollarSign size={16} className="text-emerald-400" />
+                  <DollarSign size={16} className={isLight ? "text-[#276749]" : "text-emerald-400"} />
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-black text-white">{money(totalExposure)}</span>
-                  <span className="text-xs text-teal-300 font-bold">21.2% NAV</span>
+                  <span className={`text-2xl font-black ${isLight ? "text-[#1E1E1E]" : "text-white"}`}>{money(totalExposure)}</span>
+                  <span className={`text-xs font-bold ${isLight ? "text-[#D97757]" : "text-orange-300"}`}>21.2% NAV</span>
                 </div>
-                <p className="text-[10px] text-zinc-500">Active committed venue capital</p>
+                <p className={`text-[10px] ${isLight ? "text-[#78716C]" : "text-zinc-500"}`}>Active committed venue capital</p>
               </div>
 
-              <div className="p-5 rounded-2xl border border-emerald-500/20 bg-[#070D1B]/80 shadow-2xl backdrop-blur-xl space-y-1.5 hover:border-emerald-500/40 transition-all">
-                <div className="flex items-center justify-between text-xs text-zinc-400 font-bold uppercase tracking-wider">
+              <div className={`p-5 rounded-2xl border shadow-xl space-y-1.5 transition-all ${
+                isLight
+                  ? "bg-[#FAF8F5] border-[#EAE5D9]"
+                  : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl hover:border-orange-500/40"
+              }`}>
+                <div className={`flex items-center justify-between text-xs font-bold uppercase tracking-wider ${
+                  isLight ? "text-[#78716C]" : "text-zinc-400"
+                }`}>
                   <span>Cumulative Net P&L</span>
-                  <TrendingUp size={16} className="text-emerald-400" />
+                  <TrendingUp size={16} className={isLight ? "text-[#276749]" : "text-emerald-400"} />
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className={`text-2xl font-black ${totalPnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                  <span className={`text-2xl font-black ${
+                    totalPnl >= 0
+                      ? (isLight ? "text-[#276749]" : "text-emerald-400")
+                      : (isLight ? "text-[#D97757]" : "text-rose-400")
+                  }`}>
                     {totalPnl >= 0 ? "+" : ""}{money(totalPnl)}
                   </span>
-                  <span className="text-xs text-emerald-400 font-bold">+15.6%</span>
+                  <span className={`text-xs font-bold ${isLight ? "text-[#276749]" : "text-emerald-400"}`}>+15.6%</span>
                 </div>
-                <p className="text-[10px] text-zinc-500">Realized + unrealized strategy yield</p>
+                <p className={`text-[10px] ${isLight ? "text-[#78716C]" : "text-zinc-500"}`}>Realized + unrealized strategy yield</p>
               </div>
 
-              <div className="p-5 rounded-2xl border border-teal-500/20 bg-[#070D1B]/80 shadow-2xl backdrop-blur-xl space-y-1.5 hover:border-teal-500/40 transition-all">
-                <div className="flex items-center justify-between text-xs text-zinc-400 font-bold uppercase tracking-wider">
+              <div className={`p-5 rounded-2xl border shadow-xl space-y-1.5 transition-all ${
+                isLight
+                  ? "bg-[#FAF8F5] border-[#EAE5D9]"
+                  : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl hover:border-orange-500/40"
+              }`}>
+                <div className={`flex items-center justify-between text-xs font-bold uppercase tracking-wider ${
+                  isLight ? "text-[#78716C]" : "text-zinc-400"
+                }`}>
                   <span>Risk Gate & Sharpe</span>
-                  <ShieldCheck size={16} className="text-teal-400" />
+                  <ShieldCheck size={16} className={isLight ? "text-[#D97757]" : "text-orange-400"} />
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-black text-teal-300">2.35 Sharpe</span>
-                  <span className="text-xs text-emerald-400 font-bold px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-800">
+                  <span className={`text-2xl font-black ${isLight ? "text-[#D97757]" : "text-orange-300"}`}>2.35 Sharpe</span>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded border ${
+                    isLight
+                      ? "bg-[#F0EBE1] text-[#276749] border-[#D9D2C5]"
+                      : "bg-emerald-950/80 text-emerald-300 border-emerald-800"
+                  }`}>
                     PASSING
                   </span>
                 </div>
-                <p className="text-[10px] text-zinc-500">Pre-trade drawdown controls</p>
+                <p className={`text-[10px] ${isLight ? "text-[#78716C]" : "text-zinc-500"}`}>Pre-trade drawdown controls</p>
               </div>
             </div>
 
-            {/* ---------- SUB-TAB NAVIGATION BAR ---------- */}
-            <div className="flex items-center justify-between border-b border-teal-900/40 pb-3 pt-2">
+            {/* ---------- NARRATIVE STORY SUB-TAB NAVIGATION BAR ---------- */}
+            <div className={`flex items-center justify-between border-b pb-3 pt-2 ${
+              isLight ? "border-[#EAE5D9]" : "border-orange-950/40"
+            }`}>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setSubTab("overview")}
                   className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
                     subTab === "overview"
-                      ? "bg-teal-500 text-zinc-950 shadow-[0_0_20px_rgba(20,184,166,0.25)]"
-                      : "bg-[#070D1A]/80 text-zinc-400 hover:text-white hover:bg-zinc-900 border border-teal-900/30 backdrop-blur-md"
+                      ? (isLight ? "bg-[#D97757] text-white shadow-md" : "bg-orange-500 text-zinc-950 shadow-[0_0_20px_rgba(249,115,22,0.3)]")
+                      : (isLight
+                          ? "bg-[#FAF8F5] text-[#78716C] border border-[#EAE5D9] hover:bg-[#F0EBE1] hover:text-[#1E1E1E]"
+                          : "bg-[#070D1A]/80 text-zinc-400 hover:text-white hover:bg-zinc-900 border border-orange-900/30 backdrop-blur-md")
                   }`}
                 >
                   <PieChart size={15} />
-                  <span>Overview & Deployed Models</span>
+                  <span>Act I: Portfolio Overview & Capital Weights</span>
                 </button>
 
                 <button
                   onClick={() => setSubTab("ide")}
                   className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
                     subTab === "ide"
-                      ? "bg-teal-500 text-zinc-950 shadow-[0_0_20px_rgba(20,184,166,0.25)]"
-                      : "bg-[#070D1A]/80 text-zinc-400 hover:text-white hover:bg-zinc-900 border border-teal-900/30 backdrop-blur-md"
+                      ? (isLight ? "bg-[#D97757] text-white shadow-md" : "bg-orange-500 text-zinc-950 shadow-[0_0_20px_rgba(249,115,22,0.3)]")
+                      : (isLight
+                          ? "bg-[#FAF8F5] text-[#78716C] border border-[#EAE5D9] hover:bg-[#F0EBE1] hover:text-[#1E1E1E]"
+                          : "bg-[#070D1A]/80 text-zinc-400 hover:text-white hover:bg-zinc-900 border border-orange-900/30 backdrop-blur-md")
                   }`}
                 >
                   <Code2 size={15} />
-                  <span>QuantConnect + TradingView Studio</span>
-                  <span className="text-[9px] font-extrabold px-2 py-0.5 rounded bg-teal-950 text-teal-300 border border-teal-700/50">
+                  <span>Act II: QuantConnect + TradingView Studio</span>
+                  <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded border ${
+                    isLight ? "bg-[#F0EBE1] text-[#D97757] border-[#D9D2C5]" : "bg-orange-950 text-orange-300 border-orange-700/50"
+                  }`}>
                     HYBRID
                   </span>
                 </button>
@@ -758,18 +763,23 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                   onClick={() => setSubTab("analytics")}
                   className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
                     subTab === "analytics"
-                      ? "bg-teal-500 text-zinc-950 shadow-[0_0_20px_rgba(20,184,166,0.25)]"
-                      : "bg-[#070D1A]/80 text-zinc-400 hover:text-white hover:bg-zinc-900 border border-teal-900/30 backdrop-blur-md"
+                      ? (isLight ? "bg-[#D97757] text-white shadow-md" : "bg-orange-500 text-zinc-950 shadow-[0_0_20px_rgba(249,115,22,0.3)]")
+                      : (isLight
+                          ? "bg-[#FAF8F5] text-[#78716C] border border-[#EAE5D9] hover:bg-[#F0EBE1] hover:text-[#1E1E1E]"
+                          : "bg-[#070D1A]/80 text-zinc-400 hover:text-white hover:bg-zinc-900 border border-orange-900/30 backdrop-blur-md")
                   }`}
                 >
                   <BarChart3 size={15} />
-                  <span>Backtest Analytics & Factors</span>
+                  <span>Act III: Factor Engine & Crash Stress Tester</span>
                 </button>
               </div>
 
               <Button
                 onClick={createSandbox}
-                className="bg-teal-950/80 hover:bg-teal-900/80 border border-teal-500/40 text-teal-300 font-bold text-xs h-9 px-4 rounded-xl cursor-pointer"
+                className={isLight
+                  ? "bg-[#F0EBE1] text-[#D97757] border border-[#D9D2C5] font-bold text-xs h-9 px-4 rounded-xl cursor-pointer hover:bg-[#E2DDD2]"
+                  : "bg-orange-950/80 hover:bg-orange-900/80 border border-orange-500/40 text-orange-300 font-bold text-xs h-9 px-4 rounded-xl cursor-pointer"
+                }
               >
                 <Plus size={14} className="mr-1.5" />
                 New Sandbox
@@ -777,28 +787,38 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
             </div>
 
             {/* ============================================================
-               SUB-TAB 1: MAIN OVERVIEW — DEPLOYED STRATEGIES vs DRAFTS
+               ACT I: MAIN OVERVIEW — DEPLOYED MODELS, DRAFTS & ALLOCATION
                ============================================================ */}
             {subTab === "overview" && (
               <div className="space-y-6">
                 {/* 🚀 DEPLOYED PRODUCTION STRATEGIES SECTION */}
-                <div className="rounded-2xl border border-teal-500/20 bg-[#070D1B]/80 p-6 shadow-2xl backdrop-blur-xl space-y-4 font-mono">
-                  <div className="flex items-center justify-between border-b border-teal-900/40 pb-4">
+                <div className={`rounded-2xl border p-6 shadow-2xl space-y-4 font-mono ${
+                  isLight
+                    ? "bg-[#FAF8F5] border-[#EAE5D9]"
+                    : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                }`}>
+                  <div className={`flex items-center justify-between border-b pb-4 ${
+                    isLight ? "border-[#EAE5D9]" : "border-orange-950/40"
+                  }`}>
                     <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+                      <div className={`p-2.5 rounded-xl border ${
+                        isLight ? "bg-[#F0EBE1] text-[#276749] border-[#D9D2C5]" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                      }`}>
                         <Flame size={20} />
                       </div>
                       <div>
-                        <h3 className="text-base font-black text-white uppercase tracking-wider">
+                        <h3 className={`text-base font-black uppercase tracking-wider ${isLight ? "text-[#1E1E1E]" : "text-white"}`}>
                           🚀 Live Deployed Production Strategies ({deployedStrats.length})
                         </h3>
-                        <p className="text-xs text-zinc-400">
+                        <p className={`text-xs ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>
                           Active algorithms executing live on Alpaca venue with real-time risk gates
                         </p>
                       </div>
                     </div>
 
-                    <span className="text-xs text-emerald-400 bg-emerald-950/80 px-3 py-1 rounded-lg border border-emerald-800 font-bold">
+                    <span className={`text-xs font-bold px-3 py-1 rounded-lg border ${
+                      isLight ? "bg-[#F0EBE1] text-[#276749] border-[#D9D2C5]" : "text-emerald-400 bg-emerald-950/80 border-emerald-800"
+                    }`}>
                       {money(totalExposure)} Total Allocated
                     </span>
                   </div>
@@ -806,7 +826,9 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs">
                       <thead>
-                        <tr className="border-b border-teal-900/40 text-zinc-400 text-[10px] uppercase tracking-wider">
+                        <tr className={`border-b text-[10px] uppercase tracking-wider ${
+                          isLight ? "border-[#EAE5D9] text-[#78716C]" : "border-orange-950/40 text-zinc-400"
+                        }`}>
                           <th className="pb-3 font-bold">Strategy Name</th>
                           <th className="pb-3 font-bold">State</th>
                           <th className="pb-3 font-bold">Target vs Actual Allocation</th>
@@ -816,7 +838,7 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                           <th className="pb-3 font-bold text-center">Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-zinc-800/60">
+                      <tbody className={isLight ? "divide-y divide-[#EAE5D9]" : "divide-y divide-zinc-800/60"}>
                         {deployedStrats.map((s) => {
                           const pnl = s.pnl_usd ?? 0;
                           const up = pnl >= 0;
@@ -827,28 +849,40 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                           return (
                             <tr
                               key={s.strategy_id}
-                              className={`hover:bg-teal-950/30 transition-all ${isSelected ? "bg-teal-950/40" : ""}`}
+                              className={`transition-all ${
+                                isSelected
+                                  ? (isLight ? "bg-[#F3EFE6]" : "bg-orange-950/40")
+                                  : (isLight ? "hover:bg-[#F8F4EC]" : "hover:bg-orange-950/30")
+                              }`}
                             >
-                              <td className="py-4 font-bold text-white flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                              <td className={`py-4 font-bold flex items-center gap-2 ${isLight ? "text-[#1E1E1E]" : "text-white"}`}>
+                                <span className={`w-2 h-2 rounded-full ${isLight ? "bg-[#276749]" : "bg-emerald-400 animate-pulse"}`} />
                                 {s.name}
                               </td>
 
                               <td>
-                                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded border bg-emerald-500/15 text-emerald-300 border-emerald-500/30">
+                                <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${
+                                  isLight ? "bg-[#F0EBE1] text-[#276749] border-[#D9D2C5]" : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                                }`}>
                                   {s.state}
                                 </span>
                               </td>
 
                               <td className="w-[200px]">
                                 <div className="space-y-1">
-                                  <div className="flex justify-between text-[10px] text-zinc-400 font-mono">
-                                    <span>Actual: <strong className="text-teal-300">{pct(s.actual_pct)}</strong></span>
-                                    <span>Target: <strong className="text-white">{pct(s.allocation_pct)}</strong></span>
+                                  <div className={`flex justify-between text-[10px] font-mono ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>
+                                    <span>Actual: <strong className={isLight ? "text-[#D97757]" : "text-orange-300"}>{pct(s.actual_pct)}</strong></span>
+                                    <span>Target: <strong className={isLight ? "text-[#1E1E1E]" : "text-white"}>{pct(s.allocation_pct)}</strong></span>
                                   </div>
-                                  <div className="relative h-1.5 rounded-full bg-zinc-950 overflow-hidden border border-zinc-800">
+                                  <div className={`relative h-1.5 rounded-full overflow-hidden border ${
+                                    isLight ? "bg-[#EAE5D9] border-[#D9D2C5]" : "bg-zinc-950 border-zinc-800"
+                                  }`}>
                                     <div
-                                      className="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-400"
+                                      className={`h-full rounded-full ${
+                                        isLight
+                                          ? "bg-[#D97757]"
+                                          : "bg-gradient-to-r from-orange-500 to-amber-400"
+                                      }`}
                                       style={{ width: `${actual}%` }}
                                     />
                                     <div
@@ -859,9 +893,13 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                                 </div>
                               </td>
 
-                              <td className="text-right font-bold text-zinc-200">{money(s.exposure_usd)}</td>
+                              <td className={`text-right font-bold ${isLight ? "text-[#1E1E1E]" : "text-zinc-200"}`}>{money(s.exposure_usd)}</td>
 
-                              <td className={`text-right font-bold ${up ? "text-emerald-400" : "text-rose-400"}`}>
+                              <td className={`text-right font-bold ${
+                                up
+                                  ? (isLight ? "text-[#276749]" : "text-emerald-400")
+                                  : (isLight ? "text-[#D97757]" : "text-rose-400")
+                              }`}>
                                 {up ? "+" : ""}{money(pnl)}
                               </td>
 
@@ -870,7 +908,9 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                                   {(s.assets || ["AAPL", "MSFT"]).map((sym) => (
                                     <span
                                       key={sym}
-                                      className="text-[9px] font-bold px-2 py-0.5 rounded bg-teal-950 text-teal-300 border border-teal-700/40"
+                                      className={`text-[9px] font-bold px-2 py-0.5 rounded border ${
+                                        isLight ? "bg-[#F0EBE1] text-[#D97757] border-[#D9D2C5]" : "bg-orange-950 text-orange-300 border border-orange-700/40"
+                                      }`}
                                     >
                                       {sym}
                                     </span>
@@ -886,7 +926,7 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                                       setSelected(s.strategy_id);
                                       setSubTab("ide");
                                     }}
-                                    className="bg-teal-950 hover:bg-teal-900 text-teal-300 border border-teal-500/40 text-[11px] font-bold h-7 px-2.5 rounded-lg cursor-pointer"
+                                    className={isLight ? "bg-[#D97757] text-white font-bold text-[11px] h-7 px-2.5 rounded-lg cursor-pointer" : "bg-orange-950 hover:bg-orange-900 text-orange-300 border border-orange-500/40 text-[11px] font-bold h-7 px-2.5 rounded-lg cursor-pointer"}
                                   >
                                     <Code2 size={12} className="mr-1" />
                                     Open IDE
@@ -895,7 +935,7 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                                   <Button
                                     size="sm"
                                     onClick={() => pauseStrategy(s.strategy_id)}
-                                    className="bg-zinc-900 hover:bg-zinc-800 text-zinc-400 border border-zinc-800 text-[11px] font-bold h-7 px-2 rounded-lg cursor-pointer"
+                                    className={isLight ? "bg-[#F0EBE1] text-[#78716C] border border-[#D9D2C5] text-[11px] font-bold h-7 px-2 rounded-lg cursor-pointer" : "bg-zinc-900 hover:bg-zinc-800 text-zinc-400 border border-zinc-800 text-[11px] font-bold h-7 px-2 rounded-lg cursor-pointer"}
                                     title="Pause Strategy"
                                   >
                                     <PauseCircle size={12} />
@@ -911,17 +951,25 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                 </div>
 
                 {/* 🧪 DRAFTS & SANDBOX MODELS SECTION */}
-                <div className="rounded-2xl border border-teal-500/20 bg-[#070D1B]/80 p-6 shadow-2xl backdrop-blur-xl space-y-4 font-mono">
-                  <div className="flex items-center justify-between border-b border-teal-900/40 pb-4">
+                <div className={`rounded-2xl border p-6 shadow-2xl space-y-4 font-mono ${
+                  isLight
+                    ? "bg-[#FAF8F5] border-[#EAE5D9]"
+                    : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                }`}>
+                  <div className={`flex items-center justify-between border-b pb-4 ${
+                    isLight ? "border-[#EAE5D9]" : "border-orange-950/40"
+                  }`}>
                     <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/30">
+                      <div className={`p-2.5 rounded-xl border ${
+                        isLight ? "bg-[#F0EBE1] text-[#D97757] border-[#D9D2C5]" : "bg-orange-500/10 text-orange-400 border-orange-500/30"
+                      }`}>
                         <Layers size={20} />
                       </div>
                       <div>
-                        <h3 className="text-base font-black text-white uppercase tracking-wider">
+                        <h3 className={`text-base font-black uppercase tracking-wider ${isLight ? "text-[#1E1E1E]" : "text-white"}`}>
                           🧪 Drafts & Sandbox Backtest Models ({draftStrats.length})
                         </h3>
-                        <p className="text-xs text-zinc-400">
+                        <p className={`text-xs ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>
                           Quantitative algorithms undergoing backtest simulation and optimization
                         </p>
                       </div>
@@ -930,7 +978,7 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                     <Button
                       size="sm"
                       onClick={createSandbox}
-                      className="bg-gradient-to-r from-teal-500 to-emerald-500 text-zinc-950 font-extrabold text-xs h-8 px-4 rounded-xl cursor-pointer"
+                      className={isLight ? "bg-[#276749] text-white font-extrabold text-xs h-8 px-4 rounded-xl cursor-pointer" : "bg-gradient-to-r from-orange-500 to-amber-500 text-zinc-950 font-extrabold text-xs h-8 px-4 rounded-xl cursor-pointer"}
                     >
                       <Plus size={14} className="mr-1" /> New Draft Model
                     </Button>
@@ -939,7 +987,9 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs">
                       <thead>
-                        <tr className="border-b border-teal-900/40 text-zinc-400 text-[10px] uppercase tracking-wider">
+                        <tr className={`border-b text-[10px] uppercase tracking-wider ${
+                          isLight ? "border-[#EAE5D9] text-[#78716C]" : "border-orange-950/40 text-zinc-400"
+                        }`}>
                           <th className="pb-3 font-bold">Draft Model Name</th>
                           <th className="pb-3 font-bold">State</th>
                           <th className="pb-3 font-bold">Target Alloc %</th>
@@ -948,36 +998,44 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                           <th className="pb-3 font-bold text-center">Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-zinc-800/60">
+                      <tbody className={isLight ? "divide-y divide-[#EAE5D9]" : "divide-y divide-zinc-800/60"}>
                         {draftStrats.map((s) => {
                           const isSelected = s.strategy_id === selected;
 
                           return (
                             <tr
                               key={s.strategy_id}
-                              className={`hover:bg-teal-950/30 transition-all ${isSelected ? "bg-teal-950/40" : ""}`}
+                              className={`transition-all ${
+                                isSelected
+                                  ? (isLight ? "bg-[#F3EFE6]" : "bg-orange-950/40")
+                                  : (isLight ? "hover:bg-[#F8F4EC]" : "hover:bg-orange-950/30")
+                              }`}
                             >
-                              <td className="py-4 font-bold text-white flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-zinc-600" />
+                              <td className={`py-4 font-bold flex items-center gap-2 ${isLight ? "text-[#1E1E1E]" : "text-white"}`}>
+                                <span className="w-2 h-2 rounded-full bg-zinc-400" />
                                 {s.name}
                               </td>
 
                               <td>
-                                <span className="text-[9px] uppercase font-bold px-2 py-0.5 rounded border bg-zinc-500/15 text-zinc-400 border-zinc-500/30">
+                                <span className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded border ${
+                                  isLight ? "bg-[#F0EBE1] text-[#78716C] border-[#D9D2C5]" : "bg-zinc-500/15 text-zinc-400 border-zinc-500/30"
+                                }`}>
                                   {s.state}
                                 </span>
                               </td>
 
-                              <td className="font-mono font-bold text-teal-300">{pct(s.allocation_pct)}</td>
+                              <td className={`font-mono font-bold ${isLight ? "text-[#D97757]" : "text-orange-300"}`}>{pct(s.allocation_pct)}</td>
 
-                              <td className="font-mono font-bold text-emerald-400">2.52 Sharpe</td>
+                              <td className={`font-mono font-bold ${isLight ? "text-[#276749]" : "text-emerald-400"}`}>2.52 Sharpe</td>
 
                               <td>
                                 <div className="flex gap-1.5 flex-wrap">
                                   {(s.assets || ["BTC", "ETH"]).map((sym) => (
                                     <span
                                       key={sym}
-                                      className="text-[9px] font-bold px-2 py-0.5 rounded bg-teal-950 text-teal-300 border border-teal-700/40"
+                                      className={`text-[9px] font-bold px-2 py-0.5 rounded border ${
+                                        isLight ? "bg-[#F0EBE1] text-[#D97757] border-[#D9D2C5]" : "bg-orange-950 text-orange-300 border border-orange-700/40"
+                                      }`}
                                     >
                                       {sym}
                                     </span>
@@ -991,7 +1049,7 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                                     size="sm"
                                     onClick={() => deployStrategyCode(s.strategy_id)}
                                     disabled={deployBusy}
-                                    className="bg-gradient-to-r from-teal-500 to-emerald-500 text-zinc-950 font-extrabold text-[11px] h-7 px-3 rounded-lg shadow-md cursor-pointer"
+                                    className={isLight ? "bg-[#276749] text-white font-extrabold text-[11px] h-7 px-3 rounded-lg cursor-pointer" : "bg-gradient-to-r from-orange-500 to-amber-500 text-zinc-950 font-extrabold text-[11px] h-7 px-3 rounded-lg shadow-md cursor-pointer"}
                                   >
                                     <Rocket size={12} className="mr-1" />
                                     Deploy Strategy
@@ -1003,7 +1061,7 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                                       setSelected(s.strategy_id);
                                       setSubTab("ide");
                                     }}
-                                    className="bg-teal-950 hover:bg-teal-900 text-teal-300 border border-teal-500/40 text-[11px] font-bold h-7 px-2.5 rounded-lg cursor-pointer"
+                                    className={isLight ? "bg-[#D97757] text-white font-bold text-[11px] h-7 px-2.5 rounded-lg cursor-pointer" : "bg-orange-950 hover:bg-orange-900 text-orange-300 border border-orange-500/40 text-[11px] font-bold h-7 px-2.5 rounded-lg cursor-pointer"}
                                   >
                                     <Code2 size={12} className="mr-1" />
                                     Edit Python
@@ -1018,18 +1076,22 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                   </div>
                 </div>
 
-                {/* BOTTOM METRICS, MARKOWITZ OPTIMIZER & FACTOR ENGINE */}
+                {/* BOTTOM METRICS & ALLOCATION DONUT */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                   {/* Strategy Allocation Donut */}
-                  <div className="lg:col-span-6 rounded-2xl border border-teal-500/20 bg-[#070D1B]/80 p-6 shadow-2xl backdrop-blur-xl">
-                    <div className="flex items-center justify-between border-b border-teal-900/30 pb-4 mb-4 font-mono">
+                  <div className={`lg:col-span-6 rounded-2xl border p-6 shadow-xl ${
+                    isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                  }`}>
+                    <div className={`flex items-center justify-between border-b pb-4 mb-4 font-mono ${
+                      isLight ? "border-[#EAE5D9]" : "border-orange-950/30"
+                    }`}>
                       <div className="flex items-center gap-2">
-                        <PieChart size={18} className="text-teal-400" />
-                        <span className="text-sm font-bold uppercase tracking-wider text-zinc-200">
+                        <PieChart size={18} className={isLight ? "text-[#D97757]" : "text-orange-400"} />
+                        <span className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-[#1E1E1E]" : "text-zinc-200"}`}>
                           Fund Target vs Actual Strategy Allocation
                         </span>
                       </div>
-                      <span className="text-xs text-zinc-400">Capital Weights</span>
+                      <span className={`text-xs ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Capital Weights</span>
                     </div>
 
                     <div className="h-[240px] flex items-center justify-center">
@@ -1042,20 +1104,25 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                         }))}
                         cash={90058}
                         totalNav={102978}
+                        theme={theme}
                       />
                     </div>
                   </div>
 
-                  {/* Markowitz Efficient Frontier & 1-Click Weight Applier */}
-                  <div className="lg:col-span-6 rounded-2xl border border-teal-500/20 bg-[#070D1B]/80 p-6 shadow-2xl backdrop-blur-xl space-y-4 font-mono">
-                    <div className="flex items-center justify-between border-b border-teal-900/30 pb-4">
+                  {/* Markowitz Efficient Frontier */}
+                  <div className={`lg:col-span-6 rounded-2xl border p-6 shadow-xl space-y-4 font-mono ${
+                    isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                  }`}>
+                    <div className={`flex items-center justify-between border-b pb-4 ${
+                      isLight ? "border-[#EAE5D9]" : "border-orange-950/30"
+                    }`}>
                       <div className="flex items-center gap-2">
-                        <Target size={18} className="text-teal-400" />
+                        <Target size={18} className={isLight ? "text-[#D97757]" : "text-orange-400"} />
                         <div>
-                          <span className="text-sm font-bold uppercase tracking-wider text-zinc-200 block">
+                          <span className={`text-sm font-bold uppercase tracking-wider block ${isLight ? "text-[#1E1E1E]" : "text-zinc-200"}`}>
                             PyPortfolioOpt Markowitz Optimizer
                           </span>
-                          <span className="text-[10px] text-zinc-400">Active Workspace: {strat?.name || "Selected"}</span>
+                          <span className={`text-[10px] ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Active Workspace: {strat?.name || "Selected"}</span>
                         </div>
                       </div>
 
@@ -1063,7 +1130,10 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                         <select
                           value={optMethod}
                           onChange={(e) => setOptMethod(e.target.value as any)}
-                          className="bg-zinc-950 text-xs font-bold text-teal-300 rounded-lg px-2.5 py-1 border border-zinc-800 outline-none cursor-pointer"
+                          className={isLight
+                            ? "bg-[#F0EBE1] text-xs font-bold text-[#D97757] rounded-lg px-2.5 py-1 border border-[#D9D2C5] outline-none cursor-pointer"
+                            : "bg-zinc-950 text-xs font-bold text-orange-300 rounded-lg px-2.5 py-1 border border-zinc-800 outline-none cursor-pointer"
+                          }
                         >
                           <option value="max_sharpe">Max Sharpe ⭐</option>
                           <option value="min_volatility">Min Volatility 🛡️</option>
@@ -1073,7 +1143,7 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                           size="sm"
                           onClick={runOptimization}
                           disabled={optRunning}
-                          className="bg-gradient-to-r from-teal-500 to-emerald-500 text-zinc-950 font-bold text-xs h-7 px-3 cursor-pointer"
+                          className={isLight ? "bg-[#D97757] text-white font-bold text-xs h-7 px-3 cursor-pointer" : "bg-gradient-to-r from-orange-500 to-amber-500 text-zinc-950 font-bold text-xs h-7 px-3 cursor-pointer"}
                         >
                           {optRunning ? <Loader2 size={12} className="animate-spin" /> : "Optimize"}
                         </Button>
@@ -1085,67 +1155,54 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                         points={optResponse?.frontier_points}
                         assets={assets}
                         optimalWeights={optResponse?.weights}
+                        theme={theme}
                       />
                     </div>
-
-                    {optResponse && (
-                      <div className="p-3.5 rounded-xl bg-teal-950/40 border border-teal-500/30 text-xs font-mono space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-emerald-300 font-bold">Optimal Weights ({optMethod}):</span>
-                          <Button
-                            size="sm"
-                            onClick={applyOptimalWeights}
-                            className="bg-gradient-to-r from-emerald-500 to-teal-500 text-zinc-950 font-extrabold text-[10px] h-6 px-2.5 rounded shadow cursor-pointer"
-                          >
-                            <Zap size={11} className="mr-1 fill-current" />
-                            Apply Optimal Weights
-                          </Button>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-zinc-300">
-                          {Object.entries(optResponse.weights || {}).map(([sym, w]) => (
-                            <div key={sym} className="flex justify-between bg-zinc-950/60 p-1.5 rounded-lg border border-zinc-800">
-                              <span>{sym}:</span>
-                              <strong className="text-teal-300">{(Number(w) * 100).toFixed(1)}%</strong>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
             )}
 
             {/* ============================================================
-               SUB-TAB 2: QUANTCONNECT + TRADINGVIEW HYBRID WORKBENCH
+               ACT II: QUANTCONNECT + TRADINGVIEW HYBRID WORKBENCH
                ============================================================ */}
             {subTab === "ide" && strat && (
-              <div className="rounded-2xl border border-teal-500/20 bg-[#070D1B]/80 p-6 shadow-2xl backdrop-blur-xl space-y-6 font-mono">
+              <div className={`rounded-2xl border p-6 shadow-2xl space-y-6 font-mono ${
+                isLight
+                  ? "bg-[#FAF8F5] border-[#EAE5D9]"
+                  : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+              }`}>
                 {/* QUANTCONNECT LEAN WORKSPACE HEADER */}
-                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-teal-900/40 pb-4">
+                <div className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${
+                  isLight ? "border-[#EAE5D9]" : "border-orange-950/40"
+                }`}>
                   <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/30 shadow-[0_0_15px_rgba(20,184,166,0.2)]">
+                    <div className={`p-2.5 rounded-xl border ${
+                      isLight ? "bg-[#F0EBE1] text-[#D97757] border-[#D9D2C5]" : "bg-orange-500/10 text-orange-400 border-orange-500/30"
+                    }`}>
                       <LineChart size={24} />
                     </div>
                     <div>
                       <div className="flex items-center gap-3">
-                        <h2 className="text-lg font-black tracking-tight text-white uppercase">
+                        <h2 className={`text-lg font-black tracking-tight uppercase ${isLight ? "text-[#1E1E1E]" : "text-white"}`}>
                           QUANTCONNECT LEAN ENGINE + TRADINGVIEW STUDIO
                         </h2>
-                        <span className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs font-bold">
-                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className={`flex items-center gap-1.5 px-3 py-0.5 rounded-full border text-xs font-bold ${
+                          isLight ? "bg-[#F0EBE1] border-[#D9D2C5] text-[#276749]" : "bg-emerald-500/15 border border-emerald-500/40 text-emerald-300"
+                        }`}>
+                          <span className={`w-2 h-2 rounded-full ${isLight ? "bg-[#276749]" : "bg-emerald-400 animate-pulse"}`} />
                           ACTIVE SYMBOL: {targetAsset}
                         </span>
                       </div>
-                      <p className="text-xs text-zinc-400 mt-0.5">
-                        TradingView price action & signal markers bound to <strong className="text-teal-300">{strat.name}</strong> (LEAN Engine 3.11 Python AST)
+                      <p className={`text-xs mt-0.5 ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>
+                        TradingView price action & signal markers bound to <strong className={isLight ? "text-[#D97757]" : "text-orange-300"}>{strat.name}</strong> (LEAN Engine Python AST)
                       </p>
                     </div>
                   </div>
 
                   {/* Preset Code Buttons */}
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-[10px] uppercase font-bold text-zinc-400 mr-1">LEAN Alpha Models:</span>
+                    <span className={`text-[10px] uppercase font-bold mr-1 ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>LEAN Alpha Models:</span>
                     {Object.keys(CODE_PRESETS).map((key) => {
                       const preset = CODE_PRESETS[key];
                       const active = selectedPresetKey === key;
@@ -1155,8 +1212,8 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                           onClick={() => selectPreset(key)}
                           className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
                             active
-                              ? "bg-gradient-to-r from-teal-500 to-emerald-500 text-zinc-950 border-teal-400 shadow-md"
-                              : "bg-zinc-950/80 text-zinc-300 border-zinc-800 hover:border-teal-700/50 hover:text-white"
+                              ? (isLight ? "bg-[#D97757] text-white border-[#CC6B49] shadow-md" : "bg-gradient-to-r from-orange-500 to-amber-500 text-zinc-950 border-orange-400 shadow-md")
+                              : (isLight ? "bg-[#F0EBE1] text-[#78716C] border-[#D9D2C5] hover:text-[#1E1E1E]" : "bg-zinc-950/80 text-zinc-300 border-zinc-800 hover:border-orange-700/50 hover:text-white")
                           }`}
                         >
                           {preset.name}
@@ -1171,10 +1228,14 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                   {/* LEFT SIDEBAR: WATCHLIST & LEAN CONTROL (3 Columns) */}
                   <div className="lg:col-span-3 space-y-4">
                     {/* Watchlist Box */}
-                    <div className="rounded-xl border border-teal-900/40 bg-[#070D1A] p-4 space-y-3">
-                      <div className="flex items-center justify-between border-b border-teal-900/30 pb-2">
-                        <span className="text-xs font-bold uppercase text-zinc-300">TradingView Watchlist</span>
-                        <span className="text-[10px] text-teal-400 font-bold">{assets.length} Tickers</span>
+                    <div className={`rounded-xl border p-4 space-y-3 ${
+                      isLight ? "bg-[#FAF7F2] border-[#EAE5D9]" : "bg-[#070D1A] border-orange-900/40"
+                    }`}>
+                      <div className={`flex items-center justify-between border-b pb-2 ${
+                        isLight ? "border-[#EAE5D9]" : "border-orange-900/30"
+                      }`}>
+                        <span className={`text-xs font-bold uppercase ${isLight ? "text-[#1E1E1E]" : "text-zinc-300"}`}>TradingView Watchlist</span>
+                        <span className={`text-[10px] font-bold ${isLight ? "text-[#D97757]" : "text-orange-400"}`}>{assets.length} Tickers</span>
                       </div>
 
                       <div className="space-y-1.5 max-h-[180px] overflow-y-auto">
@@ -1189,17 +1250,19 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                               }}
                               className={`w-full flex items-center justify-between py-2 px-3 rounded-lg border text-xs font-bold transition cursor-pointer ${
                                 isTarget
-                                  ? "bg-teal-950/80 border-teal-500/60 text-teal-300 shadow-md"
-                                  : "bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-900"
+                                  ? (isLight ? "bg-[#F0EBE1] border-[#D97757] text-[#D97757] shadow-sm" : "bg-orange-950/80 border-orange-500/60 text-orange-300 shadow-md")
+                                  : (isLight ? "bg-[#FFFFFF] border-[#EAE5D9] text-[#78716C] hover:bg-[#F3EFE6]" : "bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-900")
                               }`}
                             >
                               <span className="font-mono">{sym}</span>
                               {isTarget ? (
-                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold">
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded border font-bold ${
+                                  isLight ? "bg-[#F0EBE1] text-[#276749] border-[#D9D2C5]" : "bg-emerald-950 text-emerald-300 border border-emerald-800"
+                                }`}>
                                   TARGET 🟢
                                 </span>
                               ) : (
-                                <span className="text-[10px] text-zinc-500">Select</span>
+                                <span className={`text-[10px] ${isLight ? "text-[#A8A29E]" : "text-zinc-500"}`}>Select</span>
                               )}
                             </button>
                           );
@@ -1212,27 +1275,37 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                           onChange={(e) => setAddSym(e.target.value)}
                           onKeyDown={(e) => e.key === "Enter" && addAsset()}
                           placeholder="Scope Ticker e.g. NVDA"
-                          className="bg-zinc-950 border-zinc-800 text-xs font-mono text-teal-300 h-8"
+                          className={isLight
+                            ? "bg-[#FFFFFF] border-[#D9D2C5] text-xs font-mono text-[#D97757] h-8"
+                            : "bg-zinc-950 border-zinc-800 text-xs font-mono text-orange-300 h-8"
+                          }
                         />
-                        <Button size="sm" onClick={addAsset} disabled={addBusy || !addSym.trim()} className="h-8 px-2.5 bg-teal-500 text-zinc-950 cursor-pointer">
+                        <Button size="sm" onClick={addAsset} disabled={addBusy || !addSym.trim()} className={isLight ? "h-8 px-2.5 bg-[#D97757] text-white cursor-pointer" : "h-8 px-2.5 bg-orange-500 text-zinc-950 cursor-pointer"}>
                           <Plus size={14} />
                         </Button>
                       </div>
                     </div>
 
                     {/* LEAN Backtest Execution Panel */}
-                    <div className="rounded-xl border border-teal-900/40 bg-[#070D1A] p-4 space-y-3">
-                      <span className="text-xs font-bold uppercase text-zinc-300 block border-b border-teal-900/30 pb-2">
+                    <div className={`rounded-xl border p-4 space-y-3 ${
+                      isLight ? "bg-[#FAF7F2] border-[#EAE5D9]" : "bg-[#070D1A] border-orange-900/40"
+                    }`}>
+                      <span className={`text-xs font-bold uppercase block border-b pb-2 ${
+                        isLight ? "text-[#1E1E1E] border-[#EAE5D9]" : "text-zinc-300 border-orange-900/30"
+                      }`}>
                         LEAN Backtest Engine
                       </span>
 
                       <div className="space-y-2 text-xs">
                         <div>
-                          <label className="text-[10px] text-zinc-400 block mb-1">Target Symbol</label>
+                          <label className={`text-[10px] block mb-1 ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Target Symbol</label>
                           <select
                             value={targetAsset}
                             onChange={(e) => setTargetAsset(e.target.value)}
-                            className="w-full h-8 rounded-lg border border-zinc-800 bg-zinc-950 px-2 text-xs font-bold text-teal-300 outline-none cursor-pointer"
+                            className={isLight
+                              ? "w-full h-8 rounded-lg border border-[#D9D2C5] bg-[#FFFFFF] px-2 text-xs font-bold text-[#D97757] outline-none cursor-pointer"
+                              : "w-full h-8 rounded-lg border border-zinc-800 bg-zinc-950 px-2 text-xs font-bold text-orange-300 outline-none cursor-pointer"
+                            }
                           >
                             {assets.map((sym) => (
                               <option key={sym} value={sym}>{sym}</option>
@@ -1241,11 +1314,14 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                         </div>
 
                         <div>
-                          <label className="text-[10px] text-zinc-400 block mb-1">Lookback (Days)</label>
+                          <label className={`text-[10px] block mb-1 ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Lookback (Days)</label>
                           <select
                             value={btLookback}
                             onChange={(e) => setBtLookback(Number(e.target.value))}
-                            className="w-full h-8 rounded-lg border border-zinc-800 bg-zinc-950 px-2 text-xs font-bold text-teal-300 outline-none cursor-pointer"
+                            className={isLight
+                              ? "w-full h-8 rounded-lg border border-[#D9D2C5] bg-[#FFFFFF] px-2 text-xs font-bold text-[#D97757] outline-none cursor-pointer"
+                              : "w-full h-8 rounded-lg border border-zinc-800 bg-zinc-950 px-2 text-xs font-bold text-orange-300 outline-none cursor-pointer"
+                            }
                           >
                             <option value={30}>30 Days</option>
                             <option value={90}>90 Days</option>
@@ -1258,7 +1334,10 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                           <Button
                             onClick={runPythonBacktest}
                             disabled={btRunning}
-                            className="w-full bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-zinc-950 font-extrabold text-xs h-9 rounded-xl shadow-lg cursor-pointer"
+                            className={isLight
+                              ? "w-full bg-[#D97757] hover:bg-[#CC6B49] text-white font-extrabold text-xs h-9 rounded-xl shadow-md cursor-pointer"
+                              : "w-full bg-gradient-to-r from-orange-500 to-amber-500 text-zinc-950 font-extrabold text-xs h-9 rounded-xl shadow-lg cursor-pointer"
+                            }
                           >
                             {btRunning ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Play size={14} className="mr-1.5 fill-current" />}
                             Execute LEAN Engine
@@ -1267,9 +1346,12 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                           <Button
                             onClick={() => deployStrategyCode()}
                             disabled={deployBusy || !selected}
-                            className="w-full bg-zinc-900 hover:bg-teal-950/80 border border-teal-500/40 text-teal-300 font-extrabold text-xs h-9 rounded-xl cursor-pointer"
+                            className={isLight
+                              ? "w-full bg-[#F0EBE1] text-[#276749] border border-[#D9D2C5] font-extrabold text-xs h-9 rounded-xl cursor-pointer"
+                              : "w-full bg-zinc-900 hover:bg-orange-950/80 border border-orange-500/40 text-orange-300 font-extrabold text-xs h-9 rounded-xl cursor-pointer"
+                            }
                           >
-                            {deployBusy ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Rocket size={14} className="mr-1.5 text-teal-400" />}
+                            {deployBusy ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Rocket size={14} className="mr-1.5 text-orange-400" />}
                             Deploy [{targetAsset}] Live
                           </Button>
                         </div>
@@ -1283,12 +1365,19 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                     <QuantConnectChart
                       symbol={targetAsset}
                       height={260}
+                      theme={theme}
                     />
 
                     {/* CLARK AI PROMPT BAR */}
-                    <div className="p-3.5 rounded-xl bg-gradient-to-r from-[#0D1B36] via-[#091428] to-[#0D1B36] border border-teal-500/40 shadow-xl space-y-2">
-                      <div className="flex items-center gap-2 text-xs font-bold text-teal-300">
-                        <Bot size={16} className="text-teal-400 animate-bounce" />
+                    <div className={`p-3.5 rounded-xl border shadow-xl space-y-2 ${
+                      isLight
+                        ? "bg-[#FAF7F2] border-[#D9D2C5]"
+                        : "bg-[#0D1322] border-orange-500/40 shadow-2xl"
+                    }`}>
+                      <div className={`flex items-center gap-2 text-xs font-bold ${
+                        isLight ? "text-[#D97757]" : "text-orange-300"
+                      }`}>
+                        <Bot size={16} className="animate-bounce" />
                         <span>ASK CLARK AI COPILOT TO GENERATE CODE FOR [{targetAsset}]</span>
                       </div>
 
@@ -1298,13 +1387,19 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                           onChange={(e) => setAiPrompt(e.target.value)}
                           onKeyDown={(e) => e.key === "Enter" && generateCodeWithClark()}
                           placeholder={`e.g. 'Write TSLA channel breakout strategy with 5% stop loss'`}
-                          className="bg-zinc-950 border-zinc-800 text-xs font-mono text-white placeholder:text-zinc-500 flex-1 h-9 focus:border-teal-500"
+                          className={isLight
+                            ? "bg-[#FFFFFF] border-[#D9D2C5] text-xs font-mono text-[#1E1E1E] placeholder:text-[#A8A29E] flex-1 h-9"
+                            : "bg-zinc-950 border-zinc-800 text-xs font-mono text-white placeholder:text-zinc-500 flex-1 h-9 focus:border-orange-500"
+                          }
                         />
 
                         <Button
                           onClick={() => generateCodeWithClark()}
                           disabled={aiGenerating || !aiPrompt.trim()}
-                          className="bg-gradient-to-r from-teal-500 to-emerald-500 text-zinc-950 font-extrabold text-xs h-9 px-5 rounded-lg shadow-md cursor-pointer"
+                          className={isLight
+                            ? "bg-[#D97757] hover:bg-[#CC6B49] text-white font-extrabold text-xs h-9 px-5 rounded-lg shadow-md cursor-pointer"
+                            : "bg-gradient-to-r from-orange-500 to-amber-500 text-zinc-950 font-extrabold text-xs h-9 px-5 rounded-lg shadow-md cursor-pointer"
+                          }
                         >
                           {aiGenerating ? <Loader2 size={14} className="animate-spin" /> : <><Wand2 size={14} className="mr-1.5" /> Generate Code</>}
                         </Button>
@@ -1312,15 +1407,19 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                     </div>
 
                     {/* QUANTCONNECT PYTHON CODE EDITOR */}
-                    <div className="rounded-xl border border-teal-900/50 bg-[#040813] overflow-hidden shadow-2xl">
-                      <div className="flex items-center justify-between px-3 py-2 bg-[#080F22] border-b border-teal-900/40 text-xs text-zinc-400">
+                    <div className={`rounded-xl border overflow-hidden shadow-2xl ${
+                      isLight ? "bg-[#FAF7F2] border-[#EAE5D9]" : "bg-[#040813] border-orange-900/50"
+                    }`}>
+                      <div className={`flex items-center justify-between px-3 py-2 border-b text-xs ${
+                        isLight ? "bg-[#F3EFE6] border-[#EAE5D9] text-[#78716C]" : "bg-[#080F22] border-orange-900/40 text-zinc-400"
+                      }`}>
                         <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => setActiveFile("main.py")}
                             className={`flex items-center gap-1.5 px-3 py-1 rounded-t-lg text-xs font-bold transition ${
                               activeFile === "main.py"
-                                ? "bg-[#03060E] text-teal-300 border-t-2 border-teal-400"
-                                : "text-zinc-500 hover:text-zinc-300"
+                                ? (isLight ? "bg-[#FAF7F2] text-[#D97757] border-t-2 border-[#D97757]" : "bg-[#03060E] text-orange-300 border-t-2 border-orange-400")
+                                : (isLight ? "text-[#78716C] hover:text-[#1E1E1E]" : "text-zinc-500 hover:text-zinc-300")
                             }`}
                           >
                             <FileCode size={13} />
@@ -1330,8 +1429,8 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                             onClick={() => setActiveFile("indicators.py")}
                             className={`flex items-center gap-1.5 px-3 py-1 rounded-t-lg text-xs font-bold transition ${
                               activeFile === "indicators.py"
-                                ? "bg-[#03060E] text-teal-300 border-t-2 border-teal-400"
-                                : "text-zinc-500 hover:text-zinc-300"
+                                ? (isLight ? "bg-[#FAF7F2] text-[#D97757] border-t-2 border-[#D97757]" : "bg-[#03060E] text-orange-300 border-t-2 border-orange-400")
+                                : (isLight ? "text-[#78716C] hover:text-[#1E1E1E]" : "text-zinc-500 hover:text-zinc-300")
                             }`}
                           >
                             <FileCode size={13} />
@@ -1342,14 +1441,14 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => setPythonCode(CODE_PRESETS[selectedPresetKey]?.code || "")}
-                            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition cursor-pointer"
+                            className="p-1 rounded hover:bg-zinc-200/50 text-zinc-500 hover:text-black transition cursor-pointer"
                             title="Reset Code"
                           >
                             <RotateCcw size={13} />
                           </button>
                           <button
                             onClick={() => navigator.clipboard.writeText(pythonCode)}
-                            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition cursor-pointer"
+                            className="p-1 rounded hover:bg-zinc-200/50 text-zinc-500 hover:text-black transition cursor-pointer"
                             title="Copy Code"
                           >
                             <Copy size={13} />
@@ -1361,31 +1460,39 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                         value={pythonCode}
                         onChange={setPythonCode}
                         height="320px"
+                        theme={theme}
                       />
 
-                      <div className="flex items-center justify-between px-4 py-2 bg-[#080F22] border-t border-teal-900/40 text-[10px] text-zinc-400">
+                      <div className={`flex items-center justify-between px-4 py-2 border-t text-[10px] ${
+                        isLight ? "bg-[#F3EFE6] border-[#EAE5D9] text-[#78716C]" : "bg-[#080F22] border-orange-900/40 text-zinc-400"
+                      }`}>
                         <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-1.5 text-emerald-400">
+                          <div className={`flex items-center gap-1.5 font-bold ${isLight ? "text-[#276749]" : "text-emerald-400"}`}>
                             <CheckCircle2 size={12} />
                             <span>AST Check: PASS</span>
                           </div>
-                          <span className="text-zinc-500">|</span>
-                          <span>Lines: <strong className="text-white">{pythonCode.split("\n").length}</strong></span>
+                          <span>Lines: <strong className={isLight ? "text-[#1E1E1E]" : "text-white"}>{pythonCode.split("\n").length}</strong></span>
                         </div>
                         <div>
-                          <span>TradingView Symbol: <strong className="text-teal-300">{targetAsset}</strong></span>
+                          <span>TradingView Symbol: <strong className={isLight ? "text-[#D97757]" : "text-orange-300"}>{targetAsset}</strong></span>
                         </div>
                       </div>
                     </div>
 
                     {/* LOWER DRAWER PANEL (TERMINAL vs BACKTEST METRICS) */}
-                    <div className="rounded-xl border border-teal-900/40 bg-[#03060F] p-4 font-mono shadow-inner space-y-3">
-                      <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+                    <div className={`rounded-xl border p-4 font-mono shadow-inner space-y-3 ${
+                      isLight ? "bg-[#FAF7F2] border-[#EAE5D9]" : "bg-[#03060F] border-orange-900/40"
+                    }`}>
+                      <div className={`flex items-center justify-between border-b pb-2 ${
+                        isLight ? "border-[#EAE5D9]" : "border-zinc-800"
+                      }`}>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => setDrawerTab("terminal")}
                             className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                              drawerTab === "terminal" ? "bg-teal-950 text-teal-300 border border-teal-700/50" : "text-zinc-500 hover:text-zinc-300"
+                              drawerTab === "terminal"
+                                ? (isLight ? "bg-[#F0EBE1] text-[#D97757] border border-[#D9D2C5]" : "bg-orange-950 text-orange-300 border border-orange-700/50")
+                                : "text-zinc-500 hover:text-zinc-300"
                             }`}
                           >
                             <TerminalIcon size={12} className="inline mr-1" /> LEAN Execution Terminal
@@ -1393,26 +1500,28 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                           <button
                             onClick={() => setDrawerTab("metrics")}
                             className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                              drawerTab === "metrics" ? "bg-teal-950 text-teal-300 border border-teal-700/50" : "text-zinc-500 hover:text-zinc-300"
+                              drawerTab === "metrics"
+                                ? (isLight ? "bg-[#F0EBE1] text-[#D97757] border border-[#D9D2C5]" : "bg-orange-950 text-orange-300 border border-orange-700/50")
+                                : "text-zinc-500 hover:text-zinc-300"
                             }`}
                           >
                             <Activity size={12} className="inline mr-1" /> Backtest Performance Stream
                           </button>
                         </div>
-                        <span className="text-[10px] text-zinc-500">LEAN Engine 3.11</span>
+                        <span className={`text-[10px] ${isLight ? "text-[#78716C]" : "text-zinc-500"}`}>LEAN Engine 3.11</span>
                       </div>
 
                       {drawerTab === "terminal" ? (
-                        <div className="h-[130px] overflow-y-auto space-y-1 text-zinc-400 text-[11px]">
+                        <div className="h-[130px] overflow-y-auto space-y-1 text-[11px]">
                           {terminalLogs.map((log, i) => (
                             <div key={i} className="leading-tight">
                               <span
                                 className={
                                   log.includes("COMPLETED") || log.includes("DEPLOYED")
-                                    ? "text-emerald-400 font-bold"
+                                    ? (isLight ? "text-[#276749] font-bold" : "text-emerald-400 font-bold")
                                     : log.includes("Clark AI") || log.includes("Switched")
-                                    ? "text-teal-300"
-                                    : "text-zinc-400"
+                                    ? (isLight ? "text-[#D97757] font-bold" : "text-orange-300 font-bold")
+                                    : (isLight ? "text-[#78716C]" : "text-zinc-400")
                                 }
                               >
                                 {log}
@@ -1422,21 +1531,29 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                         </div>
                       ) : (
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-1">
-                          <div className="p-2.5 rounded-lg bg-zinc-950/80 border border-zinc-800 text-center">
-                            <span className="text-[10px] text-zinc-400 block">Total Return</span>
-                            <span className="text-sm font-black text-emerald-400">+{pct((btResults[0]?.total_return || 0.348) * 100)}</span>
+                          <div className={`p-2.5 rounded-lg border text-center ${
+                            isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/80 border-zinc-800"
+                          }`}>
+                            <span className={`text-[10px] block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Total Return</span>
+                            <span className={`text-sm font-black ${isLight ? "text-[#276749]" : "text-emerald-400"}`}>+{pct((btResults[0]?.total_return || 0.348) * 100)}</span>
                           </div>
-                          <div className="p-2.5 rounded-lg bg-zinc-950/80 border border-zinc-800 text-center">
-                            <span className="text-[10px] text-zinc-400 block">Sharpe Ratio</span>
-                            <span className="text-sm font-black text-teal-300">{(btResults[0]?.sharpe || 2.52).toFixed(2)}</span>
+                          <div className={`p-2.5 rounded-lg border text-center ${
+                            isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/80 border-zinc-800"
+                          }`}>
+                            <span className={`text-[10px] block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Sharpe Ratio</span>
+                            <span className={`text-sm font-black ${isLight ? "text-[#D97757]" : "text-orange-300"}`}>{(btResults[0]?.sharpe || 2.52).toFixed(2)}</span>
                           </div>
-                          <div className="p-2.5 rounded-lg bg-zinc-950/80 border border-zinc-800 text-center">
-                            <span className="text-[10px] text-zinc-400 block">Max Drawdown</span>
-                            <span className="text-sm font-black text-rose-400">-{pct((btResults[0]?.max_drawdown || 0.042) * 100)}</span>
+                          <div className={`p-2.5 rounded-lg border text-center ${
+                            isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/80 border-zinc-800"
+                          }`}>
+                            <span className={`text-[10px] block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Max Drawdown</span>
+                            <span className={`text-sm font-black ${isLight ? "text-[#D97757]" : "text-rose-400"}`}>-{pct((btResults[0]?.max_drawdown || 0.042) * 100)}</span>
                           </div>
-                          <div className="p-2.5 rounded-lg bg-zinc-950/80 border border-zinc-800 text-center">
-                            <span className="text-[10px] text-zinc-400 block">Total Signals</span>
-                            <span className="text-sm font-black text-white">{btResults[0]?.n_trades || 38}</span>
+                          <div className={`p-2.5 rounded-lg border text-center ${
+                            isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/80 border-zinc-800"
+                          }`}>
+                            <span className={`text-[10px] block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Total Signals</span>
+                            <span className={`text-sm font-black ${isLight ? "text-[#1E1E1E]" : "text-white"}`}>{btResults[0]?.n_trades || 38}</span>
                           </div>
                         </div>
                       )}
@@ -1447,99 +1564,129 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
             )}
 
             {/* ============================================================
-               SUB-TAB 3: BACKTEST ANALYTICS & FACTOR ENGINE
+               ACT III: BACKTEST ANALYTICS, FACTORS & STRESS TESTING
                ============================================================ */}
             {subTab === "analytics" && strat && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 font-mono">
-                  <div className="p-5 rounded-2xl border border-teal-500/20 bg-[#070D1B]/80 backdrop-blur-xl shadow-xl space-y-1">
-                    <span className="text-xs text-zinc-400 font-bold block">ACTIVE STRATEGY</span>
-                    <span className="text-lg font-extrabold text-white">{strat.name}</span>
+                  <div className={`p-5 rounded-2xl border shadow-xl space-y-1 ${
+                    isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                  }`}>
+                    <span className={`text-xs font-bold block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>ACTIVE STRATEGY</span>
+                    <span className={`text-lg font-extrabold ${isLight ? "text-[#1E1E1E]" : "text-white"}`}>{strat.name}</span>
                   </div>
 
-                  <div className="p-5 rounded-2xl border border-teal-500/20 bg-[#070D1B]/80 backdrop-blur-xl shadow-xl space-y-1">
-                    <span className="text-xs text-zinc-400 font-bold block">TARGET SYMBOL</span>
-                    <span className="text-lg font-extrabold text-teal-300">{targetAsset}</span>
+                  <div className={`p-5 rounded-2xl border shadow-xl space-y-1 ${
+                    isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                  }`}>
+                    <span className={`text-xs font-bold block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>TARGET SYMBOL</span>
+                    <span className={`text-lg font-extrabold ${isLight ? "text-[#D97757]" : "text-orange-300"}`}>{targetAsset}</span>
                   </div>
 
-                  <div className="p-5 rounded-2xl border border-emerald-500/20 bg-[#070D1B]/80 backdrop-blur-xl shadow-xl space-y-1">
-                    <span className="text-xs text-zinc-400 font-bold block">ANNUALIZED RETURN</span>
-                    <span className="text-lg font-extrabold text-emerald-400">+34.80%</span>
+                  <div className={`p-5 rounded-2xl border shadow-xl space-y-1 ${
+                    isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                  }`}>
+                    <span className={`text-xs font-bold block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>ANNUALIZED RETURN</span>
+                    <span className={`text-lg font-extrabold ${isLight ? "text-[#276749]" : "text-emerald-400"}`}>+34.80%</span>
                   </div>
 
-                  <div className="p-5 rounded-2xl border border-teal-500/20 bg-[#070D1B]/80 backdrop-blur-xl shadow-xl space-y-1">
-                    <span className="text-xs text-zinc-400 font-bold block">SHARPE RATIO</span>
-                    <span className="text-lg font-extrabold text-teal-300">2.52</span>
+                  <div className={`p-5 rounded-2xl border shadow-xl space-y-1 ${
+                    isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                  }`}>
+                    <span className={`text-xs font-bold block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>SHARPE RATIO</span>
+                    <span className={`text-lg font-extrabold ${isLight ? "text-[#D97757]" : "text-orange-300"}`}>2.52</span>
                   </div>
                 </div>
 
-                {/* 🔥 BADDIE FEATURE 1: INSTITUTIONAL FAMA-FRENCH 5-FACTOR ENGINE */}
-                <div className="rounded-2xl border border-teal-500/20 bg-[#070D1B]/80 p-6 shadow-2xl backdrop-blur-xl space-y-4 font-mono">
-                  <div className="flex items-center justify-between border-b border-teal-900/30 pb-3">
+                {/* 🔥 INSTITUTIONAL FAMA-FRENCH 5-FACTOR ENGINE */}
+                <div className={`rounded-2xl border p-6 shadow-2xl space-y-4 font-mono ${
+                  isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                }`}>
+                  <div className={`flex items-center justify-between border-b pb-3 ${
+                    isLight ? "border-[#EAE5D9]" : "border-orange-950/30"
+                  }`}>
                     <div className="flex items-center gap-2">
-                      <Sparkles size={18} className="text-teal-400" />
-                      <h3 className="text-sm font-bold uppercase tracking-wider text-white">
-                        🔥 Fama-French Quantitative Factor Exposure Breakdown
+                      <Sparkles size={18} className={isLight ? "text-[#D97757]" : "text-orange-400"} />
+                      <h3 className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-[#1E1E1E]" : "text-white"}`}>
+                        Fama-French Quantitative Factor Exposure Breakdown
                       </h3>
                     </div>
-                    <span className="text-xs text-teal-400 bg-teal-950/80 px-2.5 py-0.5 rounded border border-teal-700/50">
+                    <span className={`text-xs font-bold px-2.5 py-0.5 rounded border ${
+                      isLight ? "bg-[#F0EBE1] text-[#D97757] border-[#D9D2C5]" : "text-orange-300 bg-orange-950/80 border-orange-700/50"
+                    }`}>
                       Alpha Tilt Engine Active
                     </span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 pt-2">
-                    <div className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-1">
-                      <span className="text-[10px] text-zinc-400 block font-bold">Market Beta (β)</span>
-                      <span className="text-base font-black text-emerald-400">1.18x</span>
-                      <div className="w-full bg-zinc-800 h-1 rounded-full overflow-hidden">
-                        <div className="bg-emerald-400 h-full w-[78%]" />
+                    <div className={`p-3.5 rounded-xl border space-y-1 ${
+                      isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/80 border-zinc-800"
+                    }`}>
+                      <span className={`text-[10px] block font-bold ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Market Beta (β)</span>
+                      <span className={`text-base font-black ${isLight ? "text-[#276749]" : "text-emerald-400"}`}>1.18x</span>
+                      <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-1 rounded-full overflow-hidden">
+                        <div className="bg-emerald-500 h-full w-[78%]" />
                       </div>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-1">
-                      <span className="text-[10px] text-zinc-400 block font-bold">Momentum (MOM)</span>
-                      <span className="text-base font-black text-teal-300">+0.84</span>
-                      <div className="w-full bg-zinc-800 h-1 rounded-full overflow-hidden">
-                        <div className="bg-teal-400 h-full w-[84%]" />
+                    <div className={`p-3.5 rounded-xl border space-y-1 ${
+                      isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/80 border-zinc-800"
+                    }`}>
+                      <span className={`text-[10px] block font-bold ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Momentum (MOM)</span>
+                      <span className={`text-base font-black ${isLight ? "text-[#D97757]" : "text-orange-300"}`}>+0.84</span>
+                      <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-1 rounded-full overflow-hidden">
+                        <div className="bg-orange-500 h-full w-[84%]" />
                       </div>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-1">
-                      <span className="text-[10px] text-zinc-400 block font-bold">Value Factor (HML)</span>
-                      <span className="text-base font-black text-sky-400">+0.32</span>
-                      <div className="w-full bg-zinc-800 h-1 rounded-full overflow-hidden">
+                    <div className={`p-3.5 rounded-xl border space-y-1 ${
+                      isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/80 border-zinc-800"
+                    }`}>
+                      <span className={`text-[10px] block font-bold ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Value Factor (HML)</span>
+                      <span className={`text-base font-black ${isLight ? "text-[#2563EB]" : "text-sky-400"}`}>+0.32</span>
+                      <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-1 rounded-full overflow-hidden">
                         <div className="bg-sky-400 h-full w-[32%]" />
                       </div>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-1">
-                      <span className="text-[10px] text-zinc-400 block font-bold">Quality (QMJ)</span>
-                      <span className="text-base font-black text-teal-400">+0.65</span>
-                      <div className="w-full bg-zinc-800 h-1 rounded-full overflow-hidden">
-                        <div className="bg-teal-400 h-full w-[65%]" />
+                    <div className={`p-3.5 rounded-xl border space-y-1 ${
+                      isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/80 border-zinc-800"
+                    }`}>
+                      <span className={`text-[10px] block font-bold ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Quality (QMJ)</span>
+                      <span className={`text-base font-black ${isLight ? "text-[#D97757]" : "text-orange-400"}`}>+0.65</span>
+                      <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-1 rounded-full overflow-hidden">
+                        <div className="bg-orange-400 h-full w-[65%]" />
                       </div>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-1">
-                      <span className="text-[10px] text-zinc-400 block font-bold">Vol Squeeze (VOL)</span>
-                      <span className="text-base font-black text-emerald-400">0.22</span>
-                      <div className="w-full bg-zinc-800 h-1 rounded-full overflow-hidden">
+                    <div className={`p-3.5 rounded-xl border space-y-1 ${
+                      isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/80 border-zinc-800"
+                    }`}>
+                      <span className={`text-[10px] block font-bold ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Vol Squeeze (VOL)</span>
+                      <span className={`text-base font-black ${isLight ? "text-[#276749]" : "text-emerald-400"}`}>0.22</span>
+                      <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-1 rounded-full overflow-hidden">
                         <div className="bg-emerald-400 h-full w-[22%]" />
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* 🔥 BADDIE FEATURE 2: 1-CLICK HISTORICAL CRASH STRESS TESTER */}
-                <div className="rounded-2xl border border-rose-500/20 bg-[#070D1B]/80 p-6 shadow-2xl backdrop-blur-xl space-y-4 font-mono">
-                  <div className="flex items-center justify-between border-b border-rose-900/30 pb-3">
+                {/* 🔥 1-CLICK HISTORICAL CRASH STRESS TESTER */}
+                <div className={`rounded-2xl border p-6 shadow-2xl space-y-4 font-mono ${
+                  isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                }`}>
+                  <div className={`flex items-center justify-between border-b pb-3 ${
+                    isLight ? "border-[#EAE5D9]" : "border-orange-950/30"
+                  }`}>
                     <div className="flex items-center gap-2">
-                      <ShieldAlert size={18} className="text-rose-400" />
-                      <h3 className="text-sm font-bold uppercase tracking-wider text-white">
-                        🔥 1-Click Historical Crash Scenario Stress Tester
+                      <ShieldAlert size={18} className={isLight ? "text-[#D97757]" : "text-rose-400"} />
+                      <h3 className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-[#1E1E1E]" : "text-white"}`}>
+                        1-Click Historical Crash Scenario Stress Tester
                       </h3>
                     </div>
-                    <span className="text-xs text-rose-400 bg-rose-950/80 px-2.5 py-0.5 rounded border border-rose-700/50 font-bold">
+                    <span className={`text-xs font-bold px-2.5 py-0.5 rounded border ${
+                      isLight ? "bg-[#F0EBE1] text-[#D97757] border-[#D9D2C5]" : "text-rose-400 bg-rose-950/80 border-rose-700/50"
+                    }`}>
                       Monte Carlo & Shock Matrix
                     </span>
                   </div>
@@ -1549,8 +1696,8 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                       onClick={() => setActiveShockScenario("2008 Crisis")}
                       className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         activeShockScenario === "2008 Crisis"
-                          ? "bg-rose-500 text-zinc-950 border-rose-400 shadow-md"
-                          : "bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-rose-700/50"
+                          ? (isLight ? "bg-[#D97757] text-white border-[#CC6B49]" : "bg-rose-500 text-zinc-950 border-rose-400 shadow-md")
+                          : (isLight ? "bg-[#FFFFFF] text-[#78716C] border-[#D9D2C5] hover:bg-[#F3EFE6]" : "bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-rose-700/50")
                       }`}
                     >
                       💥 2008 Financial Crisis (-45% SPX)
@@ -1560,8 +1707,8 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                       onClick={() => setActiveShockScenario("COVID Shock")}
                       className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         activeShockScenario === "COVID Shock"
-                          ? "bg-rose-500 text-zinc-950 border-rose-400 shadow-md"
-                          : "bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-rose-700/50"
+                          ? (isLight ? "bg-[#D97757] text-white border-[#CC6B49]" : "bg-rose-500 text-zinc-950 border-rose-400 shadow-md")
+                          : (isLight ? "bg-[#FFFFFF] text-[#78716C] border-[#D9D2C5] hover:bg-[#F3EFE6]" : "bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-rose-700/50")
                       }`}
                     >
                       🦠 2020 COVID Crash (-33% SPX)
@@ -1571,8 +1718,8 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                       onClick={() => setActiveShockScenario("Rate Hikes")}
                       className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         activeShockScenario === "Rate Hikes"
-                          ? "bg-rose-500 text-zinc-950 border-rose-400 shadow-md"
-                          : "bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-rose-700/50"
+                          ? (isLight ? "bg-[#D97757] text-white border-[#CC6B49]" : "bg-rose-500 text-zinc-950 border-rose-400 shadow-md")
+                          : (isLight ? "bg-[#FFFFFF] text-[#78716C] border-[#D9D2C5] hover:bg-[#F3EFE6]" : "bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-rose-700/50")
                       }`}
                     >
                       📈 2022 Fed Rate Hike (+300bps)
@@ -1582,8 +1729,8 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                       onClick={() => setActiveShockScenario("Tech Bull")}
                       className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         activeShockScenario === "Tech Bull"
-                          ? "bg-emerald-500 text-zinc-950 border-emerald-400 shadow-md"
-                          : "bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-emerald-700/50"
+                          ? (isLight ? "bg-[#276749] text-white border-[#1E523A]" : "bg-emerald-500 text-zinc-950 border-emerald-400 shadow-md")
+                          : (isLight ? "bg-[#FFFFFF] text-[#78716C] border-[#D9D2C5] hover:bg-[#F3EFE6]" : "bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-emerald-700/50")
                       }`}
                     >
                       🚀 Mega Tech Bull Rally (+40% QQQ)
@@ -1591,23 +1738,31 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                   </div>
 
                   {activeShockScenario && (
-                    <div className="p-4 rounded-xl bg-rose-950/30 border border-rose-500/40 text-xs space-y-2">
-                      <div className="flex items-center justify-between font-bold text-rose-300">
-                        <span>STRESS TEST IMPACT FOR [{strat.name.toUpperCase()}]: {activeShockScenario}</span>
-                        <span>Pre-Trade Risk Gates PASSING</span>
+                    <div className={`p-4 rounded-xl border text-xs space-y-2 ${
+                      isLight ? "bg-[#F3EFE6] border-[#D9D2C5] text-[#2D2B2A]" : "bg-rose-950/30 border-rose-500/40 text-zinc-300"
+                    }`}>
+                      <div className="flex items-center justify-between font-bold">
+                        <span className={isLight ? "text-[#D97757]" : "text-rose-300"}>STRESS TEST IMPACT FOR [{strat.name.toUpperCase()}]: {activeShockScenario}</span>
+                        <span className={isLight ? "text-[#276749]" : "text-emerald-400"}>Pre-Trade Risk Gates PASSING</span>
                       </div>
-                      <div className="grid grid-cols-3 gap-3 text-zinc-300 pt-1">
-                        <div className="bg-zinc-950/60 p-2.5 rounded-lg border border-zinc-800">
-                          <span className="text-[10px] text-zinc-400 block">Projected $ P&L Impact</span>
-                          <span className="text-sm font-extrabold text-rose-400">-$2,140.50 (-9.8%)</span>
+                      <div className="grid grid-cols-3 gap-3 pt-1">
+                        <div className={`p-2.5 rounded-lg border ${
+                          isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/60 border-zinc-800"
+                        }`}>
+                          <span className={`text-[10px] block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Projected $ P&L Impact</span>
+                          <span className={`text-sm font-extrabold ${isLight ? "text-[#D97757]" : "text-rose-400"}`}>-$2,140.50 (-9.8%)</span>
                         </div>
-                        <div className="bg-zinc-950/60 p-2.5 rounded-lg border border-zinc-800">
-                          <span className="text-[10px] text-zinc-400 block">Maximum Drawdown</span>
-                          <span className="text-sm font-extrabold text-amber-400">-12.4%</span>
+                        <div className={`p-2.5 rounded-lg border ${
+                          isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/60 border-zinc-800"
+                        }`}>
+                          <span className={`text-[10px] block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Maximum Drawdown</span>
+                          <span className={`text-sm font-extrabold ${isLight ? "text-[#D97757]" : "text-amber-400"}`}>-12.4%</span>
                         </div>
-                        <div className="bg-zinc-950/60 p-2.5 rounded-lg border border-zinc-800">
-                          <span className="text-[10px] text-zinc-400 block">Post-Shock Cash Buffer</span>
-                          <span className="text-sm font-extrabold text-emerald-400">$87,917.50</span>
+                        <div className={`p-2.5 rounded-lg border ${
+                          isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/60 border-zinc-800"
+                        }`}>
+                          <span className={`text-[10px] block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Post-Shock Cash Buffer</span>
+                          <span className={`text-sm font-extrabold ${isLight ? "text-[#276749]" : "text-emerald-400"}`}>$87,917.50</span>
                         </div>
                       </div>
                     </div>
@@ -1615,15 +1770,19 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                 </div>
 
                 {/* Asset Correlation Matrix */}
-                <div className="rounded-2xl border border-teal-500/20 bg-[#070D1B]/80 p-6 shadow-2xl backdrop-blur-xl space-y-4 font-mono">
-                  <div className="flex items-center gap-2 border-b border-teal-900/30 pb-3">
-                    <BarChart3 size={18} className="text-teal-400" />
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-200">
+                <div className={`rounded-2xl border p-6 shadow-2xl space-y-4 font-mono ${
+                  isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                }`}>
+                  <div className={`flex items-center gap-2 border-b pb-3 ${
+                    isLight ? "border-[#EAE5D9]" : "border-orange-950/30"
+                  }`}>
+                    <BarChart3 size={18} className={isLight ? "text-[#D97757]" : "text-orange-400"} />
+                    <h3 className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-[#1E1E1E]" : "text-zinc-200"}`}>
                       Asset Pair Return Correlation Matrix
                     </h3>
                   </div>
 
-                  <CorrelationMatrix correlation={risk?.correlation} assets={assets} />
+                  <CorrelationMatrix correlation={risk?.correlation} assets={assets} theme={theme} />
                 </div>
               </div>
             )}

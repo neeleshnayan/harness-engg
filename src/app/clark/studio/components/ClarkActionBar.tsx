@@ -6,19 +6,22 @@ import { Loader2, Sparkles } from "lucide-react";
 const AGENTS_URL =
   (process.env.NEXT_PUBLIC_AGENTS_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
 
-/** In-context Clark bar: ask Clark to reason/act on this page's domain. */
 export function ClarkActionBar({
   placeholder,
   suggestions = [],
   onDone,
+  theme = "dark",
 }: {
   placeholder: string;
   suggestions?: string[];
   onDone?: () => void;
+  theme?: "dark" | "light";
 }) {
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const [reply, setReply] = useState<string | null>(null);
+
+  const isLight = theme === "light";
 
   const ask = async (text: string) => {
     const query = text.trim();
@@ -42,10 +45,17 @@ export function ClarkActionBar({
   };
 
   return (
-    <div className="rounded-xl border border-teal-800/40 bg-[#0C152B]/90 p-3.5 shadow-lg backdrop-blur-md">
-      <div className="mb-2 flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-widest text-teal-400">
-        <Sparkles size={13} className="text-teal-400 animate-pulse" /> Ask Clark AI Copilot
+    <div className={`rounded-2xl border p-4 font-mono shadow-xl transition-all ${
+      isLight
+        ? "bg-[#FAF8F5] border-[#EAE5D9]"
+        : "bg-[#090D18]/90 border-orange-500/20 backdrop-blur-xl shadow-2xl"
+    }`}>
+      <div className={`mb-2.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest ${
+        isLight ? "text-[#D97757]" : "text-orange-400"
+      }`}>
+        <Sparkles size={13} className="animate-pulse" /> Ask Clark AI Copilot
       </div>
+
       <form
         className="flex items-center gap-2"
         onSubmit={(e) => {
@@ -57,31 +67,49 @@ export function ClarkActionBar({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder={placeholder}
-          className="min-w-0 flex-1 rounded-lg border border-zinc-700/80 bg-zinc-950 px-3.5 py-2 text-xs font-mono text-white placeholder:text-zinc-500 outline-none focus:border-teal-500"
+          className={`min-w-0 flex-1 rounded-xl border px-4 py-2.5 text-xs font-mono outline-none transition ${
+            isLight
+              ? "bg-[#FFFFFF] border-[#D9D2C5] text-[#1E1E1E] placeholder:text-[#A8A29E] focus:border-[#D97757]"
+              : "bg-[#040812] border-zinc-800 text-white placeholder:text-zinc-500 focus:border-orange-500"
+          }`}
         />
         <button
           type="submit"
           disabled={busy}
-          className="flex h-9 items-center gap-1.5 rounded-lg bg-gradient-to-r from-teal-500 to-emerald-500 px-4 text-xs font-mono font-bold text-zinc-950 disabled:opacity-50 cursor-pointer shadow-md"
+          className={`flex h-9 items-center gap-1.5 rounded-xl px-5 text-xs font-bold transition shadow-md cursor-pointer ${
+            isLight
+              ? "bg-[#D97757] hover:bg-[#CC6B49] text-white"
+              : "bg-gradient-to-r from-orange-500 to-amber-500 text-zinc-950 hover:from-orange-400 hover:to-amber-400"
+          }`}
         >
           {busy ? <Loader2 size={14} className="animate-spin" /> : "Send"}
         </button>
       </form>
+
       {suggestions.length > 0 && (
-        <div className="mt-2.5 flex flex-wrap gap-1.5 font-mono">
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
           {suggestions.map((s) => (
             <button
               key={s}
               onClick={() => { setQ(s); ask(s); }}
-              className="rounded-full border border-teal-800/50 bg-teal-950/60 px-2.5 py-0.5 text-[11px] font-bold text-teal-300 hover:bg-teal-900 hover:text-white cursor-pointer"
+              className={`rounded-full border px-3 py-1 text-[11px] font-bold transition cursor-pointer ${
+                isLight
+                  ? "border-[#D9D2C5] bg-[#F0EBE1] text-[#D97757] hover:bg-[#E2DDD2]"
+                  : "border-orange-950/60 bg-orange-950/40 text-orange-300 hover:bg-orange-900/60"
+              }`}
             >
               {s}
             </button>
           ))}
         </div>
       )}
+
       {reply && (
-        <div className="mt-2.5 whitespace-pre-wrap rounded-lg border border-teal-700/50 bg-zinc-950 p-3 text-xs font-mono text-teal-200">
+        <div className={`mt-3 whitespace-pre-wrap rounded-xl border p-3.5 text-xs font-mono ${
+          isLight
+            ? "border-[#EAE5D9] bg-[#F3EFE6] text-[#2D2B2A]"
+            : "border-orange-900/50 bg-[#040812] text-orange-200"
+        }`}>
           {reply}
         </div>
       )}

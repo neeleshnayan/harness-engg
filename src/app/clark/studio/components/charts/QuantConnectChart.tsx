@@ -30,9 +30,12 @@ interface Props {
   barsData?: BarData[];
   height?: number;
   className?: string;
+  theme?: "dark" | "light";
 }
 
-export function QuantConnectChart({ symbol, barsData, height = 320, className }: Props) {
+export function QuantConnectChart({ symbol, barsData, height = 320, className, theme = "dark" }: Props) {
+  const isLight = theme === "light";
+
   let data: BarData[] = barsData && barsData.length > 0 ? barsData : [];
 
   if (data.length === 0) {
@@ -88,37 +91,50 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
 
   return (
     <div
-      className={`rounded-2xl border border-teal-500/20 bg-[#070D1B]/80 backdrop-blur-xl font-mono shadow-2xl space-y-3 p-5 transition-all ${className || ""}`}
+      className={`rounded-2xl border font-mono shadow-2xl space-y-3 p-5 transition-all ${
+        isLight
+          ? "bg-[#FAF8F5] border-[#EAE5D9]"
+          : "bg-[#090D18]/90 border-orange-500/20 backdrop-blur-xl"
+      } ${className || ""}`}
     >
       {/* Chart Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-teal-900/40 pb-3 text-xs">
+      <div className={`flex flex-wrap items-center justify-between gap-3 border-b pb-3 text-xs ${
+        isLight ? "border-[#EAE5D9]" : "border-orange-950/40"
+      }`}>
         <div className="flex items-center gap-3">
-          <span className="font-extrabold text-sm px-3 py-1 rounded-lg bg-teal-950/80 text-teal-300 border border-teal-700/50">
+          <span className={`font-extrabold text-sm px-3 py-1 rounded-lg border ${
+            isLight
+              ? "bg-[#F0EBE1] text-[#D97757] border-[#D9D2C5]"
+              : "bg-orange-950/80 text-orange-300 border-orange-700/50"
+          }`}>
             {symbol}
           </span>
           <div className="flex items-center gap-2 font-bold">
-            <span className="text-base font-black text-emerald-400">
+            <span className={`text-base font-black ${isLight ? "text-[#D97757]" : "text-orange-400"}`}>
               ${data[data.length - 1]?.close.toFixed(2)}
             </span>
-            <span className="text-[10px] text-zinc-500">
+            <span className={`text-[10px] ${isLight ? "text-[#78716C]" : "text-zinc-500"}`}>
               TradingView Live Feed
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-2 font-medium">
-          <span className="text-[10px] uppercase font-bold text-zinc-400">Indicators:</span>
-          <span className="text-[10px] px-2.5 py-0.5 rounded-md bg-teal-950/80 text-teal-300 border border-teal-700/40">
-            SMA(20) Cyan
+          <span className={`text-[10px] uppercase font-bold ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Indicators:</span>
+          <span className={`text-[10px] px-2.5 py-0.5 rounded-md border ${
+            isLight ? "bg-[#F0EBE1] text-[#D97757] border-[#D9D2C5]" : "bg-orange-950/80 text-orange-300 border-orange-700/40"
+          }`}>
+            Close Terracotta
           </span>
-          <span className="text-[10px] px-2.5 py-0.5 rounded-md bg-sky-950/80 text-sky-300 border border-sky-700/40">
-            SMA(50) Sky
+          <span className={`text-[10px] px-2.5 py-0.5 rounded-md border ${
+            isLight ? "bg-[#EAE5D9] text-[#276749] border-[#D9D2C5]" : "bg-emerald-950/80 text-emerald-300 border-emerald-700/40"
+          }`}>
+            SMA(20) Sage
           </span>
-          <span className="text-[10px] px-2.5 py-0.5 rounded-md bg-emerald-950/80 text-emerald-400 border border-emerald-800">
-            🟢 BUY Signal
-          </span>
-          <span className="text-[10px] px-2.5 py-0.5 rounded-md bg-rose-950/80 text-rose-400 border border-rose-800">
-            🔴 SELL Signal
+          <span className={`text-[10px] px-2.5 py-0.5 rounded-md border ${
+            isLight ? "bg-[#EAE5D9] text-[#2563EB] border-[#D9D2C5]" : "bg-sky-950/80 text-sky-300 border-sky-700/40"
+          }`}>
+            SMA(50) Blue
           </span>
         </div>
       </div>
@@ -127,18 +143,18 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
       <div style={{ width: "100%", height }}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 10, right: 10, bottom: 0, left: -10 }}>
-            <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" vertical={false} />
+            <CartesianGrid stroke={isLight ? "#EAE5D9" : "#1e293b"} strokeDasharray="3 3" vertical={false} />
             <XAxis
               dataKey="date"
-              tick={{ fill: "#64748b", fontSize: 10 }}
-              axisLine={{ stroke: "#334155" }}
+              tick={{ fill: isLight ? "#78716C" : "#64748b", fontSize: 10 }}
+              axisLine={{ stroke: isLight ? "#D9D2C5" : "#334155" }}
               tickLine={false}
             />
             <YAxis
               yAxisId="price"
               domain={[minPrice, maxPrice]}
-              tick={{ fill: "#94a3b8", fontSize: 10 }}
-              axisLine={{ stroke: "#334155" }}
+              tick={{ fill: isLight ? "#1E1E1E" : "#94a3b8", fontSize: 10 }}
+              axisLine={{ stroke: isLight ? "#D9D2C5" : "#334155" }}
               tickLine={false}
               orientation="right"
               tickFormatter={(v) => `$${v}`}
@@ -146,12 +162,12 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
             <YAxis yAxisId="volume" orientation="left" domain={[0, "auto"]} hide />
             <Tooltip
               contentStyle={{
-                background: "#030712",
-                border: "1px solid #1e293b",
+                background: isLight ? "#FFFFFF" : "#030712",
+                border: isLight ? "1px solid #D9D2C5" : "1px solid #1e293b",
                 borderRadius: 8,
                 fontSize: 11,
                 fontFamily: "monospace",
-                color: "#f8fafc",
+                color: isLight ? "#1E1E1E" : "#f8fafc",
               }}
               formatter={(val: any, name: string) => [
                 name === "volume" ? val.toLocaleString() : `$${Number(val).toFixed(2)}`,
@@ -159,14 +175,14 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
               ]}
             />
 
-            <Bar yAxisId="volume" dataKey="volume" fill="#1e293b" opacity={0.6} barSize={6} />
+            <Bar yAxisId="volume" dataKey="volume" fill={isLight ? "#E2DDD2" : "#1e293b"} opacity={0.6} barSize={6} />
 
             <Line
               yAxisId="price"
               type="monotone"
               dataKey="close"
-              stroke="#10b981"
-              strokeWidth={2.2}
+              stroke="#D97757"
+              strokeWidth={2.4}
               dot={false}
               name="Close Price"
             />
@@ -175,7 +191,7 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
               yAxisId="price"
               type="monotone"
               dataKey="sma20"
-              stroke="#2dd4bf"
+              stroke="#276749"
               strokeWidth={1.5}
               strokeDasharray="4 4"
               dot={false}
@@ -185,7 +201,7 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
               yAxisId="price"
               type="monotone"
               dataKey="sma50"
-              stroke="#38bdf8"
+              stroke="#2563EB"
               strokeWidth={1.5}
               strokeDasharray="4 4"
               dot={false}
@@ -199,7 +215,7 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
                 x={s.date}
                 y={s.close}
                 r={6}
-                fill="#10b981"
+                fill="#276749"
                 stroke="#ffffff"
                 strokeWidth={2}
               />
@@ -212,7 +228,7 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
                 x={s.date}
                 y={s.close}
                 r={6}
-                fill="#f43f5e"
+                fill="#D97757"
                 stroke="#ffffff"
                 strokeWidth={2}
               />
