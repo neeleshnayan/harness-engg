@@ -8,7 +8,7 @@ import { ConcentrationTreemap } from "../components/charts/ConcentrationTreemap"
 import { StressGrid, StressScenario } from "../components/ui/StressGrid";
 import { AnimatedNumber } from "../components/ui/AnimatedNumber";
 import { fundApiClient, RiskAnalytics } from "@/lib/fund_api";
-import { Loader2, AlertTriangle, Zap, ShieldCheck, Activity, RefreshCw, Radio, Scale, ShieldAlert, Cpu, Layers, Filter } from "lucide-react";
+import { Loader2, AlertTriangle, Zap, ShieldCheck, Activity, RefreshCw, Radio, Scale, ShieldAlert, Cpu, Layers, Filter, TrendingDown, ArrowUpRight, CheckCircle2, Sliders } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const pct = (n?: number | null, dp = 1) => (n == null ? "—" : `${Number(n).toFixed(dp)}%`);
@@ -53,7 +53,6 @@ export default function RiskPage() {
       setData(res);
       setLastSync(new Date());
 
-      // Only append routine audit log entry if an hour has elapsed since last audit check
       const now = Date.now();
       if (now - lastHourlyCheckRef.current >= 3600000) {
         lastHourlyCheckRef.current = now;
@@ -109,7 +108,6 @@ export default function RiskPage() {
       };
       setCustomScenarios((prev) => [newScenario, ...prev]);
     } catch {
-      // fallback calculation if offline
       if (data) {
         const affectedValue = targetSym
           ? (data.positions.find((p) => p.symbol === targetSym)?.usd_value || 0)
@@ -131,7 +129,7 @@ export default function RiskPage() {
     }
   };
 
-  // Comprehensive Multi-Portfolio & Historical Risk Scenario Matrix
+  // Pre-populated Scenarios Matrix
   const navTotal = data?.nav_usd || 102978;
   const expTotal = data?.gross_exposure_usd || 11385;
 
@@ -202,7 +200,6 @@ export default function RiskPage() {
     },
   ];
 
-  // Merge backend scenarios + custom scenarios + pre-populated scenarios
   const allScenarios: StressScenario[] = [
     ...customScenarios,
     ...defaultPrepopulatedScenarios,
@@ -216,7 +213,6 @@ export default function RiskPage() {
     }))),
   ];
 
-  // Filter scenarios by portfolio scope if needed
   const filteredScenarios = selectedPortfolio === "all"
     ? allScenarios
     : allScenarios.filter((s) => s.name.toLowerCase().includes(selectedPortfolio) || s.description.toLowerCase().includes(selectedPortfolio) || s.name.toLowerCase().includes("custom"));
@@ -226,36 +222,38 @@ export default function RiskPage() {
   const var95Pct = data && data.nav_usd > 0 ? (var95Usd / data.nav_usd) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-[#070B14] text-zinc-100 font-sans selection:bg-teal-500/30">
-      {/* Studio Navigation Header */}
-      <StudioHeader subtitle="Real-time risk cockpit — live Alpaca venue risk monitoring & scenario stress" />
+    <div className="min-h-screen bg-[#050811] text-zinc-100 font-sans selection:bg-teal-500/30">
+      {/* Studio Header Subnav */}
+      <StudioHeader subtitle="Institutional Live Risk Cockpit — Multi-Portfolio Scenario Matrix & Deterministic Risk Gate" />
 
-      <div className="mx-auto max-w-[1400px] space-y-6 px-4 py-6">
-        {/* Top Control Bar with Live Monitor Toggle & System Status */}
-        <div className="flex flex-wrap items-center justify-between gap-4 bg-[#0B101D] p-4 rounded-2xl border border-teal-900/30 shadow-xl">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-teal-500/10 border border-teal-500/20 text-teal-400">
-              <ShieldAlert size={22} />
+      <div className="mx-auto max-w-[1600px] space-y-6 px-6 py-6">
+        {/* Top Control Bar with Live Venue Status & Auto-Poll */}
+        <div className="flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-[#0B132B]/90 via-[#070D1F]/90 to-[#0B132B]/90 p-5 rounded-2xl border border-teal-500/20 shadow-2xl backdrop-blur-md">
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-2xl bg-teal-500/10 border border-teal-500/30 text-teal-400 shadow-[0_0_15px_rgba(20,184,166,0.15)]">
+              <ShieldAlert size={26} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base font-bold tracking-tight text-white">LIVE RISK COCKPIT</h1>
-                <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <div className="flex items-center gap-3">
+                <h1 className="text-lg font-extrabold tracking-tight text-white font-mono">LIVE RISK COCKPIT</h1>
+                <span className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-bold shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   ALPACA LIVE VENUE ACTIVE
                 </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/30 text-sky-300 text-[11px] font-mono">
+                  DISK-PERSISTED STORE
+                </span>
               </div>
-              <p className="text-xs text-zinc-400">Real-time situational risk monitoring & pre-trade deterministic gate</p>
+              <p className="text-xs text-zinc-400 mt-0.5">Real-time situational awareness, pre-trade deterministic risk gate & factor stress testing</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Live Polling Toggle */}
             <button
               onClick={() => setLivePolling((v) => !v)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-mono font-semibold transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-mono font-bold transition-all shadow-md ${
                 livePolling
-                  ? "bg-emerald-950/40 border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/40"
+                  ? "bg-emerald-950/60 border-emerald-500/50 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
                   : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800"
               }`}
             >
@@ -266,8 +264,7 @@ export default function RiskPage() {
             <Button
               onClick={() => load(false)}
               disabled={loading}
-              variant="outline"
-              className="bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-xs px-3 h-8 text-zinc-300"
+              className="bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-xs px-3.5 h-9 text-zinc-200 font-mono font-semibold"
             >
               <RefreshCw size={13} className={`mr-1.5 ${loading ? "animate-spin text-teal-400" : ""}`} />
               Refresh
@@ -275,17 +272,17 @@ export default function RiskPage() {
           </div>
         </div>
 
-        {/* Clark Action Bar */}
+        {/* Clark AI Action Prompt Bar */}
         <ClarkActionBar
-          placeholder="Ask Clark… e.g. 'what if AAPL drops 20%' or 'run stress test on tech portfolio'"
+          placeholder="Ask Clark AI… e.g. 'what if AAPL drops 20%' or 'simulate rate hike shock on tech strategy'"
           suggestions={["what if AAPL drops 20%", "what if NVDA drops 30%", "show risk breaches"]}
           onDone={() => load(false)}
         />
 
         {loading && !data ? (
-          <div className="flex flex-col items-center justify-center py-24 text-zinc-400 gap-3">
-            <Loader2 className="animate-spin text-teal-400" size={32} />
-            <span className="text-xs font-mono">Initializing live Alpaca risk analytics engine...</span>
+          <div className="flex flex-col items-center justify-center py-28 text-zinc-400 gap-3 bg-[#0B101D]/40 rounded-2xl border border-zinc-800">
+            <Loader2 className="animate-spin text-teal-400" size={36} />
+            <span className="text-xs font-mono tracking-wide text-zinc-300">Initializing live Alpaca risk analytics engine...</span>
           </div>
         ) : !data ? (
           <div className="py-20 text-center text-zinc-500 bg-zinc-900/40 rounded-2xl border border-zinc-800">
@@ -293,199 +290,283 @@ export default function RiskPage() {
           </div>
         ) : (
           <>
-            {/* Top Risk KPIs Grid */}
+            {/* Top Institutional Risk KPI Cards */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              <GlassPanel className="p-4 flex flex-col justify-between border-teal-900/30">
+              <div className="p-4 rounded-2xl bg-[#090F1E]/80 border border-teal-900/40 shadow-lg backdrop-blur-md flex flex-col justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Gross Exposure</span>
-                <div className="my-1">
-                  <span className="text-2xl font-bold font-mono text-white">{pct(data.gross_exposure_pct, 1)}</span>
+                <div className="my-1.5">
+                  <span className="text-2xl font-black font-mono text-white tracking-tight">{pct(data.gross_exposure_pct, 1)}</span>
                 </div>
                 <span className="text-[10px] text-zinc-500">Target Cap: 100% NAV</span>
-              </GlassPanel>
+              </div>
 
-              <GlassPanel className="p-4 flex flex-col justify-between border-teal-900/30">
+              <div className="p-4 rounded-2xl bg-[#090F1E]/80 border border-teal-900/40 shadow-lg backdrop-blur-md flex flex-col justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Cash Reserve</span>
-                <div className="my-1">
-                  <span className="text-2xl font-bold font-mono text-emerald-400">{pct(data.cash_pct, 1)}</span>
+                <div className="my-1.5">
+                  <span className="text-2xl font-black font-mono text-emerald-400 tracking-tight">{pct(data.cash_pct, 1)}</span>
                 </div>
                 <span className="text-[10px] font-mono text-emerald-500">{money(data.nav_usd * (data.cash_pct / 100))}</span>
-              </GlassPanel>
+              </div>
 
-              <GlassPanel className="p-4 flex flex-col justify-between border-teal-900/30">
+              <div className="p-4 rounded-2xl bg-[#090F1E]/80 border border-teal-900/40 shadow-lg backdrop-blur-md flex flex-col justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Concentration (HHI)</span>
-                <div className="my-1">
-                  <AnimatedNumber value={data.concentration_hhi} decimals={0} className="text-2xl font-bold font-mono text-amber-300" />
+                <div className="my-1.5">
+                  <AnimatedNumber value={data.concentration_hhi} decimals={0} className="text-2xl font-black font-mono text-amber-300 tracking-tight" />
                 </div>
                 <span className="text-[10px] text-amber-500 font-mono">Moderate Diversification</span>
-              </GlassPanel>
+              </div>
 
-              <GlassPanel className="p-4 flex flex-col justify-between border-teal-900/30">
+              <div className="p-4 rounded-2xl bg-[#090F1E]/80 border border-teal-900/40 shadow-lg backdrop-blur-md flex flex-col justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Top Position</span>
-                <div className="my-1 flex items-baseline gap-2">
-                  <span className="text-2xl font-bold font-mono text-white">{pct(data.largest_position?.weight_pct, 1)}</span>
-                  <span className="text-xs font-bold text-teal-400 bg-teal-950/60 px-1.5 py-0.5 rounded border border-teal-800/40">
+                <div className="my-1.5 flex items-baseline gap-2">
+                  <span className="text-2xl font-black font-mono text-white tracking-tight">{pct(data.largest_position?.weight_pct, 1)}</span>
+                  <span className="text-xs font-bold text-teal-300 bg-teal-950/80 px-2 py-0.5 rounded-md border border-teal-700/50 font-mono">
                     {data.largest_position?.symbol}
                   </span>
                 </div>
                 <span className="text-[10px] text-zinc-500">Max Limit: 25.0%</span>
-              </GlassPanel>
+              </div>
 
-              <GlassPanel className="p-4 flex flex-col justify-between border-teal-900/30">
+              <div className="p-4 rounded-2xl bg-[#090F1E]/80 border border-teal-900/40 shadow-lg backdrop-blur-md flex flex-col justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Value at Risk (95% 1D)</span>
-                <div className="my-1">
-                  <span className="text-2xl font-bold font-mono text-rose-400">-{pct(var95Pct, 2)}</span>
+                <div className="my-1.5">
+                  <span className="text-2xl font-black font-mono text-rose-400 tracking-tight">-{pct(var95Pct, 2)}</span>
                 </div>
                 <span className="text-[10px] text-rose-500 font-mono">-{money(var95Usd)}</span>
-              </GlassPanel>
+              </div>
 
-              <GlassPanel className="p-4 flex flex-col justify-between border-teal-900/30">
+              <div className="p-4 rounded-2xl bg-[#090F1E]/80 border border-teal-900/40 shadow-lg backdrop-blur-md flex flex-col justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Deterministic Gate</span>
-                <div className="my-1 flex items-center gap-1.5 text-emerald-400 font-bold text-sm">
-                  <ShieldCheck size={18} />
-                  <span>PASSING</span>
+                <div className="my-1.5 flex items-center gap-2 text-emerald-400 font-extrabold text-sm">
+                  <ShieldCheck size={20} />
+                  <span className="tracking-wide">PASSING</span>
                 </div>
                 <span className="text-[10px] text-zinc-500">Pre-trade limit active</span>
-              </GlassPanel>
+              </div>
             </div>
 
             {/* Breach Alert Banner */}
             {data.flags.length > 0 && (
-              <GlassPanel className="p-4 border-rose-500/40 bg-rose-950/20">
+              <div className="p-4 rounded-2xl border border-rose-500/50 bg-rose-950/30 shadow-xl backdrop-blur-md">
                 <div className="flex items-center gap-2 text-rose-400 font-bold text-sm mb-2">
                   <AlertTriangle size={18} className="animate-bounce" /> RISK LIMITS EXCEEDED
                 </div>
                 <div className="space-y-2">
                   {data.flags.map((f, i) => (
-                    <div key={i} className="flex items-center gap-2 text-xs text-rose-300 bg-rose-950/60 p-2.5 rounded-xl border border-rose-800/40 font-mono">
+                    <div key={i} className="flex items-center gap-2 text-xs text-rose-200 bg-rose-950/70 p-3 rounded-xl border border-rose-800/50 font-mono">
                       <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
                       {f}
                     </div>
                   ))}
                 </div>
-              </GlassPanel>
+              </div>
             )}
 
-            {/* Main Risk Dashboard Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Treemap Panel */}
-              <GlassPanel title="Portfolio Exposure Concentration Treemap" className="flex flex-col border-teal-900/30">
-                <div className="flex-1 min-h-[360px] pt-2">
-                  <ConcentrationTreemap
-                    positions={data.positions.map((p) => ({ symbol: p.symbol, usd_value: p.usd_value }))}
-                    totalNav={data.nav_usd}
-                    height={360}
-                  />
+            {/* FULL-WIDTH MULTI-PORTFOLIO STRESS SCENARIO MATRIX */}
+            <div className="bg-[#090F1E]/90 border border-teal-900/40 rounded-2xl p-6 shadow-2xl backdrop-blur-md">
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-teal-900/30 pb-4 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                    <Activity size={18} />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-white tracking-tight">MULTI-PORTFOLIO & HISTORICAL STRESS SCENARIO MATRIX</h2>
+                    <p className="text-xs text-zinc-400">Pre-computed deterministic stress simulations across all fund strategies and macro market shocks</p>
+                  </div>
                 </div>
-              </GlassPanel>
 
-              {/* Stress Scenarios Matrix & Filter Controls */}
-              <div className="space-y-6 flex flex-col">
-                <GlassPanel
-                  title="Multi-Portfolio & Historical Stress Scenario Matrix"
-                  className="border-teal-900/30"
-                  headerAction={
-                    <div className="flex items-center gap-2">
-                      <Filter size={13} className="text-teal-400" />
-                      <select
-                        value={selectedPortfolio}
-                        onChange={(e) => setSelectedPortfolio(e.target.value)}
-                        className="bg-zinc-900 border border-zinc-800 text-xs font-semibold text-teal-300 rounded-lg px-2.5 py-1 outline-none focus:border-teal-500/50"
-                      >
-                        <option value="all">All Portfolios & Strategies</option>
-                        <option value="momentum">US Momentum Strategy</option>
-                        <option value="tech">Mega-Cap Tech Strategy</option>
-                        <option value="crypto">Crypto Trend Strategy</option>
-                        <option value="alpha">Alpha Neutral Strategy</option>
-                      </select>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 bg-zinc-950 px-3 py-1.5 rounded-xl border border-zinc-800">
+                    <Filter size={13} className="text-teal-400" />
+                    <span className="text-xs text-zinc-400 font-mono">Filter Scope:</span>
+                    <select
+                      value={selectedPortfolio}
+                      onChange={(e) => setSelectedPortfolio(e.target.value)}
+                      className="bg-transparent text-xs font-bold text-teal-300 outline-none cursor-pointer"
+                    >
+                      <option value="all" className="bg-zinc-950 text-white">All Strategies & Portfolios</option>
+                      <option value="momentum" className="bg-zinc-950 text-white">US Momentum Strategy</option>
+                      <option value="tech" className="bg-zinc-950 text-white">Mega-Cap Tech Strategy</option>
+                      <option value="crypto" className="bg-zinc-950 text-white">Crypto Trend Strategy</option>
+                      <option value="alpha" className="bg-zinc-950 text-white">Alpha Neutral Strategy</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stress Scenario Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-800/80 text-[11px] font-bold uppercase tracking-wider text-zinc-400 bg-zinc-950/60">
+                      <th className="px-4 py-3.5 text-left">Scenario Name & Context</th>
+                      <th className="px-4 py-3.5 text-left">Category / Type</th>
+                      <th className="px-4 py-3.5 text-right">NAV Impact (%)</th>
+                      <th className="px-4 py-3.5 text-right">USD P&L Impact</th>
+                      <th className="px-4 py-3.5 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800/60 font-mono">
+                    {filteredScenarios.map((s) => (
+                      <tr key={s.id} className="hover:bg-teal-950/20 transition-colors group">
+                        <td className="px-4 py-3.5 font-sans">
+                          <div className="font-semibold text-sm text-white group-hover:text-teal-300 transition-colors">{s.name}</div>
+                          <div className="text-xs text-zinc-400 mt-0.5">{s.description}</div>
+                        </td>
+
+                        <td className="px-4 py-3.5">
+                          <span
+                            className={`rounded-lg px-2.5 py-1 text-[10px] uppercase font-bold tracking-wider ${
+                              s.is_historical
+                                ? "bg-sky-500/15 text-sky-300 border border-sky-500/30"
+                                : s.name.includes("CUSTOM")
+                                ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
+                                : "bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                            }`}
+                          >
+                            {s.is_historical ? "Historical Crisis" : s.name.includes("CUSTOM") ? "Custom User Sim" : "Hypothetical Factor"}
+                          </span>
+                        </td>
+
+                        <td className="px-4 py-3.5 text-right">
+                          <AnimatedNumber
+                            value={Math.abs(s.impact_pct)}
+                            prefix={s.impact_pct >= 0 ? "+" : "-"}
+                            suffix="%"
+                            decimals={1}
+                            className={`text-base font-bold ${s.impact_pct >= 0 ? "text-emerald-400" : "text-rose-400"}`}
+                          />
+                        </td>
+
+                        <td className="px-4 py-3.5 text-right">
+                          <AnimatedNumber
+                            value={Math.abs(s.impact_usd)}
+                            prefix={s.impact_usd >= 0 ? "+$" : "-$"}
+                            decimals={0}
+                            className={`text-base font-bold ${s.impact_usd >= 0 ? "text-emerald-400" : "text-rose-400"}`}
+                          />
+                        </td>
+
+                        <td className="px-4 py-3.5 text-center">
+                          <button
+                            onClick={() => runCustomScenario(s.name.split(" ")[0], s.impact_pct, s.name)}
+                            className="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-teal-900/40 text-teal-300 hover:text-teal-200 text-xs border border-zinc-800 hover:border-teal-500/40 font-sans font-semibold transition-all"
+                          >
+                            Simulate
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* 2-COLUMN SPLIT: CUSTOM SCENARIO BUILDER STUDIO & TREEMAP */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Custom Scenario Builder Studio */}
+              <div className="p-6 rounded-2xl bg-gradient-to-br from-[#0C1629] via-[#09101F] to-[#060A12] border border-teal-500/30 shadow-2xl backdrop-blur-md flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-3 border-b border-teal-900/40 pb-3 mb-4">
+                    <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                      <Sliders size={18} />
                     </div>
-                  }
-                >
-                  <StressGrid scenarios={filteredScenarios} />
-                </GlassPanel>
+                    <div>
+                      <h3 className="text-base font-bold text-white tracking-tight">CUSTOM RISK SCENARIO BUILDER STUDIO</h3>
+                      <p className="text-xs text-zinc-400">Configure and execute custom factor shocks across any asset or strategy</p>
+                    </div>
+                  </div>
 
-                {/* Custom What-If Scenario Builder Studio */}
-                <GlassPanel title="Custom Portfolio Risk Scenario Builder Studio" className="border-teal-900/30">
-                  <div className="flex flex-col gap-4 pt-1">
-                    <p className="text-xs text-zinc-400">
-                      Configure and simulate custom macro, sector, or single-stock risk scenarios across any portfolio or strategy.
-                    </p>
-
-                    {/* Quick Preset Shock Buttons */}
+                  {/* Preset Shock Pills */}
+                  <div className="space-y-2 mb-4">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">Instant Preset Shocks</label>
                     <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => runCustomScenario("", -10, "-10% Market Dip")}
-                        className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs border border-zinc-800 font-mono transition"
+                        className="px-3 py-1.5 rounded-xl bg-zinc-900/90 hover:bg-zinc-800 text-zinc-300 text-xs border border-zinc-800 font-mono transition shadow-sm"
                       >
                         -10% Market Dip
                       </button>
                       <button
                         onClick={() => runCustomScenario("", -20, "-20% Market Crash")}
-                        className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs border border-zinc-800 font-mono transition"
+                        className="px-3 py-1.5 rounded-xl bg-zinc-900/90 hover:bg-zinc-800 text-zinc-300 text-xs border border-zinc-800 font-mono transition shadow-sm"
                       >
                         -20% Market Crash
                       </button>
                       <button
                         onClick={() => runCustomScenario("NVDA", -30, "-30% NVDA Tech Shock")}
-                        className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-amber-300 text-xs border border-zinc-800 font-mono transition"
+                        className="px-3 py-1.5 rounded-xl bg-zinc-900/90 hover:bg-zinc-800 text-amber-300 text-xs border border-zinc-800 font-mono transition shadow-sm"
                       >
                         -30% NVDA Shock
                       </button>
                       <button
                         onClick={() => runCustomScenario("AAPL", -25, "-25% AAPL Shock")}
-                        className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-amber-300 text-xs border border-zinc-800 font-mono transition"
+                        className="px-3 py-1.5 rounded-xl bg-zinc-900/90 hover:bg-zinc-800 text-amber-300 text-xs border border-zinc-800 font-mono transition shadow-sm"
                       >
                         -25% AAPL Shock
                       </button>
                     </div>
+                  </div>
 
-                    {/* Form Controls */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Scenario Name / Label</label>
-                        <input
-                          value={scenarioName}
-                          onChange={(e) => setScenarioName(e.target.value)}
-                          placeholder="e.g. Fed Hawkish Shock"
-                          className="w-full rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-xs outline-none focus:border-teal-500/50 text-white transition-colors"
-                        />
-                      </div>
-
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Symbol / Asset (Blank = All)</label>
-                        <input
-                          value={shockSym}
-                          onChange={(e) => setShockSym(e.target.value)}
-                          placeholder="ALL"
-                          className="w-full rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-xs uppercase outline-none focus:border-teal-500/50 font-mono text-teal-300 transition-colors"
-                        />
-                      </div>
-
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Shock Magnitude (%)</label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            value={shockPct}
-                            onChange={(e) => setShockPct(Number(e.target.value))}
-                            className="w-full rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-2 pr-6 text-xs font-mono outline-none focus:border-teal-500/50 transition-colors"
-                          />
-                          <span className="absolute right-3 top-2 text-zinc-500 text-xs">%</span>
-                        </div>
-                      </div>
+                  {/* Input Form Fields */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Scenario Name / Label</label>
+                      <input
+                        value={scenarioName}
+                        onChange={(e) => setScenarioName(e.target.value)}
+                        placeholder="e.g. Stagflation Crisis"
+                        className="w-full rounded-xl border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs outline-none focus:border-teal-500/60 text-white font-medium transition-all"
+                      />
                     </div>
 
-                    <div className="flex justify-end pt-1">
-                      <Button
-                        onClick={() => runCustomScenario()}
-                        disabled={busy}
-                        className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs px-5 py-2 rounded-xl shadow-lg transition-all"
-                      >
-                        {busy ? <Loader2 size={14} className="animate-spin" /> : <><Zap size={13} className="mr-1.5" /> Run Custom Risk Scenario</>}
-                      </Button>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Symbol (Blank = All)</label>
+                      <input
+                        value={shockSym}
+                        onChange={(e) => setShockSym(e.target.value)}
+                        placeholder="ALL"
+                        className="w-full rounded-xl border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs uppercase outline-none focus:border-teal-500/60 font-mono text-teal-300 transition-all"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Shock Magnitude (%)</label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          value={shockPct}
+                          onChange={(e) => setShockPct(Number(e.target.value))}
+                          className="w-full rounded-xl border border-zinc-800 bg-zinc-950/80 px-3 py-2 pr-6 text-xs font-mono outline-none focus:border-teal-500/60 transition-all"
+                        />
+                        <span className="absolute right-3 top-2 text-zinc-500 text-xs">%</span>
+                      </div>
                     </div>
                   </div>
-                </GlassPanel>
+                </div>
+
+                {/* Submit Action Button */}
+                <div className="flex justify-end pt-2">
+                  <Button
+                    onClick={() => runCustomScenario()}
+                    disabled={busy}
+                    className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-zinc-950 font-extrabold text-xs px-6 py-2.5 rounded-xl shadow-lg transition-all"
+                  >
+                    {busy ? <Loader2 size={16} className="animate-spin" /> : <><Zap size={15} className="mr-2" /> Run Custom Risk Scenario</>}
+                  </Button>
+                </div>
               </div>
+
+              {/* Portfolio Treemap */}
+              <GlassPanel title="Portfolio Exposure Concentration Treemap" className="flex flex-col border-teal-900/30">
+                <div className="flex-1 min-h-[340px] pt-2">
+                  <ConcentrationTreemap
+                    positions={data.positions.map((p) => ({ symbol: p.symbol, usd_value: p.usd_value }))}
+                    totalNav={data.nav_usd}
+                    height={340}
+                  />
+                </div>
+              </GlassPanel>
             </div>
 
             {/* Hourly Risk Audit Stream */}
@@ -494,23 +575,23 @@ export default function RiskPage() {
                 {auditLogs.map((log) => (
                   <div
                     key={log.id}
-                    className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80 text-xs font-mono"
+                    className="flex items-center justify-between p-3 rounded-xl bg-zinc-950/60 border border-zinc-800/80 text-xs font-mono hover:bg-zinc-900/80 transition"
                   >
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-3">
                       <span
-                        className={`w-2 h-2 rounded-full ${
-                          log.type === "PASS" ? "bg-emerald-400" : log.type === "WARN" ? "bg-amber-400" : "bg-rose-400"
+                        className={`w-2.5 h-2.5 rounded-full ${
+                          log.type === "PASS" ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" : log.type === "WARN" ? "bg-amber-400" : "bg-rose-400"
                         }`}
                       />
                       <span className="text-zinc-400">{log.timestamp}</span>
-                      <span className="text-zinc-200">{log.message}</span>
+                      <span className="text-zinc-200 font-sans">{log.message}</span>
                     </div>
 
                     <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold ${
                         log.type === "PASS"
-                          ? "bg-emerald-950/80 text-emerald-400 border border-emerald-800/40"
-                          : "bg-amber-950/80 text-amber-400 border border-amber-800/40"
+                          ? "bg-emerald-950/80 text-emerald-400 border border-emerald-800/50"
+                          : "bg-amber-950/80 text-amber-400 border border-amber-800/50"
                       }`}
                     >
                       {log.type}
