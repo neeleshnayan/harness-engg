@@ -19,14 +19,15 @@ interface Props {
   optimalWeights?: Record<string, number>;
   height?: number;
   className?: string;
+  theme?: "dark" | "light";
 }
 
-export function EfficientFrontierChart({ points, assets, optimalWeights, height = 240, className }: Props) {
-  // Generate realistic Markowitz Efficient Frontier curve points if points is not provided
+export function EfficientFrontierChart({ points, assets, optimalWeights, height = 240, className, theme = "dark" }: Props) {
+  const isLight = theme === "light";
+
   let activePoints: FrontierPoint[] = points && points.length > 0 ? points : [];
 
   if (activePoints.length === 0) {
-    // Fallback simulation curve for visualization
     const baseVol = 0.12;
     const baseRet = 0.08;
     activePoints = Array.from({ length: 15 }, (_, i) => {
@@ -43,7 +44,6 @@ export function EfficientFrontierChart({ points, assets, optimalWeights, height 
     });
   }
 
-  // Format data for Recharts
   const data = activePoints.map((p) => ({
     volatility: Number((p.volatility * 100).toFixed(2)),
     return: Number((p.return * 100).toFixed(2)),
@@ -51,7 +51,6 @@ export function EfficientFrontierChart({ points, assets, optimalWeights, height 
     weights: p.weights,
   }));
 
-  // Max Sharpe Point (Tangency Portfolio)
   let maxSharpePoint = data[0];
   for (const p of data) {
     if (p.sharpe > maxSharpePoint.sharpe) {
@@ -59,7 +58,6 @@ export function EfficientFrontierChart({ points, assets, optimalWeights, height 
     }
   }
 
-  // Min Volatility Point (Global Minimum Variance)
   let minVolPoint = data[0];
   for (const p of data) {
     if (p.volatility < minVolPoint.volatility) {
@@ -71,14 +69,14 @@ export function EfficientFrontierChart({ points, assets, optimalWeights, height 
     <div className={className} style={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: -10 }}>
-          <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
+          <CartesianGrid stroke={isLight ? "#EAE5D9" : "#1e293b"} strokeDasharray="3 3" />
           <XAxis
             type="number"
             dataKey="volatility"
             name="Volatility"
             tickFormatter={(v) => `${v}%`}
-            tick={{ fill: "#94a3b8", fontSize: 10 }}
-            axisLine={{ stroke: "#334155" }}
+            tick={{ fill: isLight ? "#78716C" : "#94a3b8", fontSize: 10 }}
+            axisLine={{ stroke: isLight ? "#D9D2C5" : "#334155" }}
             tickLine={false}
             domain={["auto", "auto"]}
           />
@@ -87,8 +85,8 @@ export function EfficientFrontierChart({ points, assets, optimalWeights, height 
             dataKey="return"
             name="Return"
             tickFormatter={(v) => `${v}%`}
-            tick={{ fill: "#94a3b8", fontSize: 10 }}
-            axisLine={{ stroke: "#334155" }}
+            tick={{ fill: isLight ? "#78716C" : "#94a3b8", fontSize: 10 }}
+            axisLine={{ stroke: isLight ? "#D9D2C5" : "#334155" }}
             tickLine={false}
             domain={["auto", "auto"]}
           />
@@ -96,35 +94,35 @@ export function EfficientFrontierChart({ points, assets, optimalWeights, height 
           <Tooltip
             cursor={{ strokeDasharray: "3 3" }}
             contentStyle={{
-              background: "#030712",
-              border: "1px solid #1e293b",
+              background: isLight ? "#FFFFFF" : "#030712",
+              border: isLight ? "1px solid #D9D2C5" : "1px solid #1e293b",
               borderRadius: 8,
               fontSize: 11,
               fontFamily: "monospace",
-              color: "#e2e8f0",
+              color: isLight ? "#1E1E1E" : "#e2e8f0",
             }}
             formatter={(value: number, name: string) => [
               name === "sharpe" ? value.toFixed(2) : `${value.toFixed(2)}%`,
-              name === "volatility" ? "Volatility" : name === "return font-bold" ? "Return" : "Sharpe Ratio",
+              name === "volatility" ? "Volatility" : name === "return" ? "Return" : "Sharpe Ratio",
             ]}
           />
           <Scatter
             name="Efficient Frontier"
             data={data}
-            fill="#14b8a6"
-            line={{ stroke: "#14b8a6", strokeWidth: 2 }}
+            fill={isLight ? "#D97757" : "#14b8a6"}
+            line={{ stroke: isLight ? "#D97757" : "#14b8a6", strokeWidth: 2 }}
             shape="circle"
           />
           <Scatter
             name="Tangency Portfolio (Max Sharpe ⭐)"
             data={[maxSharpePoint]}
-            fill="#34d399"
+            fill={isLight ? "#276749" : "#34d399"}
             shape="star"
           />
           <Scatter
             name="Minimum Variance (Min Vol 🛡️)"
             data={[minVolPoint]}
-            fill="#38bdf8"
+            fill={isLight ? "#2B6CB0" : "#38bdf8"}
             shape="diamond"
           />
         </ScatterChart>

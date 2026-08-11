@@ -6,11 +6,7 @@ import { Loader2, Sparkles } from "lucide-react";
 const AGENTS_URL =
   (process.env.NEXT_PUBLIC_AGENTS_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
 
-/** In-context Clark bar: ask Clark to reason/act on this page's domain.
- *
- * Order proposals still land in the approval queue (human-gated); reads reply
- * inline. This is the seam for "integrate with Clark to take complex actions"
- * from each subpage. */
+/** In-context Clark bar: ask Clark to reason/act on this page's domain. */
 export function ClarkActionBar({
   placeholder,
   suggestions = [],
@@ -46,9 +42,9 @@ export function ClarkActionBar({
   };
 
   return (
-    <div className="rounded-xl border border-teal-800/40 bg-teal-950/10 p-3">
-      <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-widest text-teal-400/80">
-        <Sparkles size={12} /> Ask Clark
+    <div className="rounded-xl border border-teal-800/40 bg-[#0C152B]/90 p-3.5 shadow-lg backdrop-blur-md">
+      <div className="mb-2 flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-widest text-teal-400">
+        <Sparkles size={13} className="text-teal-400 animate-pulse" /> Ask Clark AI Copilot
       </div>
       <form
         className="flex items-center gap-2"
@@ -61,23 +57,23 @@ export function ClarkActionBar({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder={placeholder}
-          className="min-w-0 flex-1 rounded-md border border-zinc-700 bg-zinc-900/60 px-3 py-2 text-sm outline-none placeholder:text-zinc-600"
+          className="min-w-0 flex-1 rounded-lg border border-zinc-700/80 bg-zinc-950 px-3.5 py-2 text-xs font-mono text-white placeholder:text-zinc-500 outline-none focus:border-teal-500"
         />
         <button
           type="submit"
           disabled={busy}
-          className="flex h-9 items-center gap-1.5 rounded-md bg-gradient-to-r from-teal-600 to-sky-600 px-3 text-sm text-white disabled:opacity-50"
+          className="flex h-9 items-center gap-1.5 rounded-lg bg-gradient-to-r from-teal-500 to-emerald-500 px-4 text-xs font-mono font-bold text-zinc-950 disabled:opacity-50 cursor-pointer shadow-md"
         >
           {busy ? <Loader2 size={14} className="animate-spin" /> : "Send"}
         </button>
       </form>
       {suggestions.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
+        <div className="mt-2.5 flex flex-wrap gap-1.5 font-mono">
           {suggestions.map((s) => (
             <button
               key={s}
               onClick={() => { setQ(s); ask(s); }}
-              className="rounded-full border border-zinc-700 px-2 py-0.5 text-[11px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+              className="rounded-full border border-teal-800/50 bg-teal-950/60 px-2.5 py-0.5 text-[11px] font-bold text-teal-300 hover:bg-teal-900 hover:text-white cursor-pointer"
             >
               {s}
             </button>
@@ -85,7 +81,7 @@ export function ClarkActionBar({
         </div>
       )}
       {reply && (
-        <div className="mt-2 whitespace-pre-wrap rounded-md border border-zinc-800 bg-zinc-900/60 p-2.5 text-sm text-zinc-300">
+        <div className="mt-2.5 whitespace-pre-wrap rounded-lg border border-teal-700/50 bg-zinc-950 p-3 text-xs font-mono text-teal-200">
           {reply}
         </div>
       )}

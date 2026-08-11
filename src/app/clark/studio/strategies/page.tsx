@@ -1163,6 +1163,7 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                         }))}
                         cash={90058}
                         totalNav={102978}
+                        theme={theme}
                       />
                     </div>
                   </div>
@@ -1214,6 +1215,7 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                         points={optResponse?.frontier_points}
                         assets={assets}
                         optimalWeights={optResponse?.weights}
+                        theme={theme}
                       />
                     </div>
 
@@ -1840,7 +1842,7 @@ class ${extractedSymbol}AlphaStrategy(Strategy):
                     </h3>
                   </div>
 
-                  <CorrelationMatrix correlation={risk?.correlation} assets={assets} />
+                  <CorrelationMatrix correlation={risk?.correlation} assets={assets} theme={theme} />
                 </div>
               </div>
             )}

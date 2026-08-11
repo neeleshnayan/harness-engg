@@ -16,6 +16,7 @@ interface Props {
   totalNav: number;
   height?: number;
   className?: string;
+  theme?: "dark" | "light";
 }
 
 const COLORS = [
@@ -27,9 +28,12 @@ const COLORS = [
   "#f472b6", // pink-400
   "#34d399", // emerald-400
 ];
-const CASH_COLOR = "#52525b"; // zinc-500
+const CASH_COLOR_DARK = "#52525b";
+const CASH_COLOR_LIGHT = "#A8A29E";
 
-export function AllocationDonut({ positions = [], cash = 0, totalNav = 0, height = 240, className }: Props) {
+export function AllocationDonut({ positions = [], cash = 0, totalNav = 0, height = 240, className, theme = "dark" }: Props) {
+  const isLight = theme === "light";
+
   const data = [
     ...(positions || []).map((p) => ({
       name: p.symbol || (p as any).name || "Asset",
@@ -38,7 +42,6 @@ export function AllocationDonut({ positions = [], cash = 0, totalNav = 0, height
     })),
   ];
 
-  // Only add cash if it's meaningful
   if (cash > 0.01) {
     data.push({
       name: "CASH",
@@ -47,7 +50,6 @@ export function AllocationDonut({ positions = [], cash = 0, totalNav = 0, height
     });
   }
 
-  // Sort largest to smallest for better rendering
   data.sort((a, b) => b.value - a.value);
 
   const fmtValue = (n: number) =>
@@ -56,7 +58,7 @@ export function AllocationDonut({ positions = [], cash = 0, totalNav = 0, height
   if (data.length === 0) {
     return (
       <div
-        className={`flex flex-col items-center justify-center text-xs text-zinc-500 ${className || ""}`}
+        className={`flex flex-col items-center justify-center text-xs ${isLight ? "text-[#78716C]" : "text-zinc-500"} ${className || ""}`}
         style={{ height }}
       >
         No positions
@@ -81,19 +83,20 @@ export function AllocationDonut({ positions = [], cash = 0, totalNav = 0, height
             {data.map((entry, index) => (
               <Cell 
                 key={`cell-${index}`} 
-                fill={entry.name === "CASH" ? CASH_COLOR : COLORS[index % COLORS.length]} 
+                fill={entry.name === "CASH" ? (isLight ? CASH_COLOR_LIGHT : CASH_COLOR_DARK) : COLORS[index % COLORS.length]} 
               />
             ))}
           </Pie>
           <Tooltip
             cursor={false}
             contentStyle={{
-              background: "#09090b",
-              border: "1px solid #27272a",
+              background: isLight ? "#FFFFFF" : "#09090b",
+              border: isLight ? "1px solid #D9D2C5" : "1px solid #27272a",
               borderRadius: 8,
               fontSize: 12,
+              color: isLight ? "#1E1E1E" : "#f4f4f5",
             }}
-            itemStyle={{ color: "#f4f4f5" }}
+            itemStyle={{ color: isLight ? "#1E1E1E" : "#f4f4f5" }}
             formatter={(value: number, name: string, props: any) => [
               `${fmtValue(value)} (${props.payload.pct.toFixed(1)}%)`,
               name,

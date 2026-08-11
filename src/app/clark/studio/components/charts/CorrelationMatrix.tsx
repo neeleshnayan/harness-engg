@@ -6,10 +6,12 @@ interface Props {
   correlation?: Record<string, Record<string, number>> | null;
   assets?: string[];
   className?: string;
+  theme?: "dark" | "light";
 }
 
-export function CorrelationMatrix({ correlation, assets, className }: Props) {
-  // If assets array is provided without correlation map, generate a fallback correlation matrix
+export function CorrelationMatrix({ correlation, assets, className, theme = "dark" }: Props) {
+  const isLight = theme === "light";
+
   let matrix = correlation;
   if (!matrix && assets && assets.length > 0) {
     matrix = {};
@@ -27,7 +29,7 @@ export function CorrelationMatrix({ correlation, assets, className }: Props) {
 
   if (symbols.length === 0) {
     return (
-      <div className={`flex items-center justify-center text-xs text-zinc-500 py-8 ${className || ""}`}>
+      <div className={`flex items-center justify-center text-xs py-8 ${isLight ? "text-[#78716C]" : "text-zinc-500"} ${className || ""}`}>
         No correlation data available
       </div>
     );
@@ -36,9 +38,9 @@ export function CorrelationMatrix({ correlation, assets, className }: Props) {
   // Get color based on correlation value (-1 to 1)
   const getColor = (val: number) => {
     if (val < 0) {
-      return `rgba(248, 113, 113, ${Math.abs(val) * 0.8})`; // red-400
+      return isLight ? `rgba(217, 119, 87, ${Math.abs(val) * 0.85})` : `rgba(248, 113, 113, ${Math.abs(val) * 0.8})`;
     } else {
-      return `rgba(52, 211, 153, ${val * 0.8})`; // emerald-400
+      return isLight ? `rgba(39, 103, 73, ${val * 0.85})` : `rgba(52, 211, 153, ${val * 0.8})`;
     }
   };
 
@@ -49,7 +51,7 @@ export function CorrelationMatrix({ correlation, assets, className }: Props) {
           <tr>
             <th className="p-1"></th>
             {symbols.map((sym) => (
-              <th key={sym} className="p-1 text-zinc-400 font-medium text-center">
+              <th key={sym} className={`p-1 font-medium text-center ${isLight ? "text-[#44403C]" : "text-zinc-400"}`}>
                 {sym}
               </th>
             ))}
@@ -58,18 +60,18 @@ export function CorrelationMatrix({ correlation, assets, className }: Props) {
         <tbody>
           {symbols.map((rowSym) => (
             <tr key={rowSym}>
-              <td className="p-1 text-zinc-400 font-medium text-right pr-3">{rowSym}</td>
+              <td className={`p-1 font-medium text-right pr-3 ${isLight ? "text-[#44403C]" : "text-zinc-400"}`}>{rowSym}</td>
               {symbols.map((colSym) => {
                 const val = safeMap[rowSym]?.[colSym];
 
                 if (val === undefined) {
-                  return <td key={colSym} className="p-1 text-center text-zinc-600">—</td>;
+                  return <td key={colSym} className={`p-1 text-center ${isLight ? "text-[#A8A29E]" : "text-zinc-600"}`}>—</td>;
                 }
 
                 return (
                   <td key={colSym} className="p-1 text-center">
                     <div
-                      className="rounded flex items-center justify-center text-[10px] text-white w-9 h-9 mx-auto border border-zinc-800/30"
+                      className="rounded flex items-center justify-center text-[10px] text-white w-9 h-9 mx-auto border border-black/10 font-bold shadow-sm"
                       style={{ backgroundColor: getColor(val) }}
                     >
                       {val.toFixed(2)}
