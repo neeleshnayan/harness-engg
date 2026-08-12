@@ -252,6 +252,10 @@ export default function StrategyStudioPage() {
     return out;
   }, [strategies]);
 
+  const liveStrategies = useMemo(() => {
+    return orderedStrategies.filter((s) => s.state === "deployed");
+  }, [orderedStrategies]);
+
   const deployedCount = strategies.filter((s) => s.state === "deployed").length;
   const totalExposure = strategies.reduce((a, s) => a + (s.exposure_usd || 0), 0);
   const totalPnl = strategies.reduce((a, s) => a + (s.pnl_usd || 0), 0);
@@ -444,24 +448,26 @@ export default function StrategyStudioPage() {
                 <AllocationDonut positions={positions} cash={live?.breakdown.cash || 0} totalNav={live?.total_nav_usd || 0} />
               </GlassPanel>
               <GlassPanel title="Strategy Performance">
-                <StrategyPerformanceBar strategies={orderedStrategies} />
+                <StrategyPerformanceBar strategies={liveStrategies} />
               </GlassPanel>
             </div>
 
             <div className="mt-8 mb-4">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-zinc-100">Strategies</h2>
-                <span className="text-[11px] text-zinc-500">{strategies.length} total · target vs actual allocation</span>
+                <h2 className="text-lg font-semibold text-zinc-100">Live Deployed Strategies</h2>
+                <span className="text-[11px] text-zinc-500">{liveStrategies.length} active · target vs actual allocation</span>
               </div>
               {loading ? (
                 <div className="flex items-center gap-2 p-6 text-sm text-zinc-500">
                   <Loader2 className="animate-spin" size={16} /> Loading…
                 </div>
-              ) : strategies.length === 0 ? (
-                <GlassPanel className="p-8 text-center text-sm text-zinc-500">No strategies yet. Create one to begin.</GlassPanel>
+              ) : liveStrategies.length === 0 ? (
+                <GlassPanel className="p-8 text-center text-sm text-zinc-500">
+                  No live deployed strategies currently active. Draft and backtested strategies are managed in the Strategies tab.
+                </GlassPanel>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {orderedStrategies.map((s) => (
+                  {liveStrategies.map((s) => (
                     <StrategyCard
                       key={s.strategy_id}
                       strategy={s}
