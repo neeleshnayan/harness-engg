@@ -85,3 +85,8 @@ grep -rnE "Math\.random|102978|100% Win Rate|\+\$450|const MOCK|sampleData" src/
 - `src/lib/fund_api.ts` — the API client; every response shape is defined here. Cross-check
   field paths against it (a common past bug was reading `.total_return` instead of
   `.result.total_return` on backtest responses).
+
+## Next build: Strategy Composer page
+See `../ClarkHarness/docs/STRATEGY_COMPOSER_SPEC.md` (Frontend task). New route
+`/clark/studio/compose` — a multi-strategy allocator: pick child sleeves, weight them
+(manual or HRP/optimizer), see the blended equity curve + risk roll up, deploy. KT tokens only.
