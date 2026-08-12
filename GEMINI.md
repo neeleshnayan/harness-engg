@@ -86,6 +86,14 @@ grep -rnE "Math\.random|102978|100% Win Rate|\+\$450|const MOCK|sampleData" src/
   field paths against it (a common past bug was reading `.total_return` instead of
   `.result.total_return` on backtest responses).
 
+## ⬅ START HERE: `../ClarkHarness/docs/GEMINI_TASKS_NOW.md`
+The live queue. Frontend items are **C5** (finish killing the dead light/dark plumbing —
+Studio is dark-only; `const theme = "dark"` is already hardcoded so every light branch is
+dead code) and **C6** (import `KT` constants in `strategies/page.tsx`).
+Note: `src/app/clark/studio/layout.tsx` now scopes `dark` + `KT_BODY_BG` and fixes the
+white-seam bug (globals.css defaults `--background` to WHITE at `:root`). Do not revert it,
+and do NOT set `dark` on `<html>` globally — wallet/customer are light by design.
+
 ## Next build: Strategy Composer page
 See `../ClarkHarness/docs/STRATEGY_COMPOSER_SPEC.md` (Frontend task). New route
 `/clark/studio/compose` — a multi-strategy allocator: pick child sleeves, weight them
