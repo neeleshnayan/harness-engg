@@ -34,6 +34,7 @@ export default function AllocationCharts({ allocations, symbol, targetAssets, to
         symbol: String(sym).toUpperCase(),
         allocation_percentage: 100,
         total_return: ret,
+        final_value: 0,
       },
     ]
   }, [allocations, symbol, targetAssets, totalReturn])

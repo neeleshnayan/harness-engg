@@ -39,48 +39,13 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className, t
   let data: BarData[] = barsData && barsData.length > 0 ? barsData : [];
 
   if (data.length === 0) {
-    let basePrice = symbol === "TSLA" ? 240 : symbol === "NVDA" ? 125 : symbol === "MSFT" ? 418 : 220;
-    const now = new Date();
-
-    data = Array.from({ length: 40 }, (_, i) => {
-      const d = new Date(now.getTime() - (40 - i) * 24 * 60 * 60 * 1000);
-      const dateStr = d.toISOString().slice(5, 10);
-      const volatility = basePrice * 0.025;
-      const change = (Math.random() - 0.48) * volatility;
-      basePrice = Math.max(20, basePrice + change);
-
-      const open = basePrice - (Math.random() - 0.5) * 2;
-      const high = Math.max(open, basePrice) + Math.random() * 3;
-      const low = Math.min(open, basePrice) - Math.random() * 3;
-      const close = basePrice;
-      const volume = Math.floor(1500000 + Math.random() * 3500000);
-
-      let signal: "BUY" | "SELL" | null = null;
-      if (i === 12) signal = "BUY";
-      if (i === 26) signal = "SELL";
-      if (i === 36) signal = "BUY";
-
-      return {
-        date: dateStr,
-        open: Number(open.toFixed(2)),
-        high: Number(high.toFixed(2)),
-        low: Number(low.toFixed(2)),
-        close: Number(close.toFixed(2)),
-        volume,
-        signal,
-      };
-    });
-
-    for (let i = 0; i < data.length; i++) {
-      if (i >= 5) {
-        const slice20 = data.slice(Math.max(0, i - 19), i + 1);
-        data[i].sma20 = Number((slice20.reduce((a, b) => a + b.close, 0) / slice20.length).toFixed(2));
-      }
-      if (i >= 12) {
-        const slice50 = data.slice(Math.max(0, i - 49), i + 1);
-        data[i].sma50 = Number((slice50.reduce((a, b) => a + b.close, 0) / slice50.length).toFixed(2));
-      }
-    }
+    return (
+      <div className={`rounded-2xl border font-mono shadow-2xl p-8 text-center text-xs ${
+        isLight ? "bg-[#FAF8F5] border-[#EAE5D9] text-[#78716C]" : "bg-[#090D18]/90 border-orange-500/20 text-zinc-500"
+      } ${className || ""}`}>
+        No price bars available for symbol {symbol}
+      </div>
+    );
   }
 
   const buySignals = data.filter((d) => d.signal === "BUY");

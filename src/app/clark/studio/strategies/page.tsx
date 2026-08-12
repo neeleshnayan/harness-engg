@@ -223,6 +223,7 @@ export default function StrategiesPage() {
   const isLight = theme === "light";
 
   const [strategies, setStrategies] = useState<StrategyView[]>([]);
+  const [navUsd, setNavUsd] = useState<number>(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
@@ -274,6 +275,7 @@ export default function StrategiesPage() {
   const load = useCallback(async () => {
     try {
       const d = await fundApiClient.getStrategies();
+      setNavUsd(d.nav_usd || 0);
       const rows = (d.strategies || []).filter((s) => !s.archived);
       setStrategies(rows);
       if (!selected && rows.length) {
@@ -326,7 +328,6 @@ export default function StrategiesPage() {
           wObj[a] = i === 0 ? 0.45 : i === 1 ? 0.35 : 0.2;
         });
         setOptResponse({
-          method: optMethod,
           weights: wObj,
           frontier_points: Array.from({ length: 12 }, (_, i) => ({
             target_return: 0.08 + i * 0.02,
@@ -480,8 +481,9 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
       ...prev,
     ]);
 
+    if (!selected) return;
     try {
-      const res = await fundApiClient.runBacktestBySymbol(selected || "strat-1", {
+      const res = await fundApiClient.runBacktestBySymbol(selected, {
         symbol: sym,
         strategy: preset.template,
         lookback_days: btLookback,
@@ -489,27 +491,17 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
         slow: 50,
       });
 
-      setBtResults([{ ...res, symbol: sym }]);
-      const retPct = ((res.total_return || 0.348) * 100).toFixed(2);
-      const sharpeVal = (res.sharpe || 2.52).toFixed(2);
+      setBtResults([res]);
+      const retPct = (((res.result?.total_return || 0)) * 100).toFixed(2);
+      const sharpeVal = (res.result?.sharpe || 0).toFixed(2);
 
       setTerminalLogs((prev) => [
-        `[${new Date().toLocaleTimeString()}] LEAN BACKTEST COMPLETED: Strategy [${strat?.name}] | Symbol ${sym} | Total Return: +${retPct}% | Sharpe Ratio: ${sharpeVal} | Trades: ${res.n_trades || 38}`,
+        `[${new Date().toLocaleTimeString()}] LEAN BACKTEST COMPLETED: Strategy [${strat?.name}] | Symbol ${sym} | Total Return: +${retPct}% | Sharpe Ratio: ${sharpeVal} | Trades: ${res.result?.n_trades || 0}`,
         `[${new Date().toLocaleTimeString()}] TradingView signal dots plotted. Pre-trade risk gates passed.`,
         ...prev.slice(0, 25),
       ]);
     } catch {
-      setBtResults([
-        {
-          symbol: sym,
-          total_return: 0.348,
-          sharpe: 2.52,
-          max_drawdown: 0.042,
-          n_trades: 38,
-          final_equity: 134800,
-          bars: 365,
-        },
-      ]);
+      setBtResults([]);
     } finally {
       setBtRunning(false);
       setTick((v) => v + 1);
@@ -525,7 +517,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
     const timeStr = new Date().toLocaleTimeString();
 
     try {
-      await fundApiClient.updateStrategyState(targetId, "deployed", "operator");
+      await fundApiClient.setState(targetId, "deployed", "operator");
       await load();
       setTerminalLogs((prev) => [
         `[${timeStr}] 🚀 DEPLOYED: Strategy (${targetId}) registered to Alpaca Live Venue & active fund tree!`,
@@ -540,7 +532,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
 
   const pauseStrategy = async (stratId: string) => {
     try {
-      await fundApiClient.updateStrategyState(stratId, "paused", "operator");
+      await fundApiClient.setState(stratId, "paused", "operator");
       await load();
     } catch {
       /* ignore */
@@ -1098,12 +1090,12 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                       <AllocationDonut
                         positions={strategies.map((s) => ({
                           symbol: s.name,
-                          usd_value: s.exposure_usd || (s.actual_pct ? s.actual_pct * 1000 : 10000),
+                          usd_value: s.exposure_usd || (s.actual_pct ? s.actual_pct * (navUsd || 10000) : 0),
                           qty: 1,
-                          avg_price: 100,
+                          mark: s.exposure_usd || (s.actual_pct ? s.actual_pct * (navUsd || 10000) : 0),
                         }))}
-                        cash={90058}
-                        totalNav={102978}
+                        cash={Math.max(0, (navUsd || 0) - strategies.reduce((acc, s) => acc + (s.exposure_usd || 0), 0))}
+                        totalNav={navUsd || 0}
                         theme={theme}
                       />
                     </div>
@@ -1535,25 +1527,25 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                             isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/80 border-zinc-800"
                           }`}>
                             <span className={`text-[10px] block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Total Return</span>
-                            <span className={`text-sm font-black ${isLight ? "text-[#276749]" : "text-emerald-400"}`}>+{pct((btResults[0]?.total_return || 0.348) * 100)}</span>
+                            <span className={`text-sm font-black ${isLight ? "text-[#276749]" : "text-emerald-400"}`}>+{pct((btResults[0]?.result?.total_return || 0) * 100)}</span>
                           </div>
                           <div className={`p-2.5 rounded-lg border text-center ${
                             isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/80 border-zinc-800"
                           }`}>
                             <span className={`text-[10px] block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Sharpe Ratio</span>
-                            <span className={`text-sm font-black ${isLight ? "text-[#D97757]" : "text-orange-300"}`}>{(btResults[0]?.sharpe || 2.52).toFixed(2)}</span>
+                            <span className={`text-sm font-black ${isLight ? "text-[#D97757]" : "text-orange-300"}`}>{(btResults[0]?.result?.sharpe || 0).toFixed(2)}</span>
                           </div>
                           <div className={`p-2.5 rounded-lg border text-center ${
                             isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/80 border-zinc-800"
                           }`}>
                             <span className={`text-[10px] block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Max Drawdown</span>
-                            <span className={`text-sm font-black ${isLight ? "text-[#D97757]" : "text-rose-400"}`}>-{pct((btResults[0]?.max_drawdown || 0.042) * 100)}</span>
+                            <span className={`text-sm font-black ${isLight ? "text-[#D97757]" : "text-rose-400"}`}>-{pct((btResults[0]?.result?.max_drawdown || 0) * 100)}</span>
                           </div>
                           <div className={`p-2.5 rounded-lg border text-center ${
                             isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/80 border-zinc-800"
                           }`}>
                             <span className={`text-[10px] block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Total Signals</span>
-                            <span className={`text-sm font-black ${isLight ? "text-[#1E1E1E]" : "text-white"}`}>{btResults[0]?.n_trades || 38}</span>
+                            <span className={`text-sm font-black ${isLight ? "text-[#1E1E1E]" : "text-white"}`}>{btResults[0]?.result?.n_trades || 0}</span>
                           </div>
                         </div>
                       )}
@@ -1782,7 +1774,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                     </h3>
                   </div>
 
-                  <CorrelationMatrix correlation={risk?.correlation} assets={assets} theme={theme} />
+                  <CorrelationMatrix correlation={optResponse?.correlation} assets={assets} theme={theme} />
                 </div>
               </div>
             )}

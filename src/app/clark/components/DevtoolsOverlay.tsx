@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Clock, Zap, TrendingUp, Activity, BarChart3, Filter, Brain, Loader2, RefreshCw } from 'lucide-react'
-import { AgentFlowGraph, AgentFlowStep } from '../types'
+import { AgentFlowGraph, AgentFlowStep, ChatMessage } from '../types'
 import AgentFlow from './AgentFlow'
 import MemoriesTab from './MemoriesTab'
 import agentsApi from '@/lib/agents_api'

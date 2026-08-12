@@ -11,7 +11,6 @@ const AgentFlow = dynamic(() => import('./AgentFlow'), {
   loading: () => <div className="flex items-center justify-center p-4 text-xs text-emerald-400 font-mono">Initializing terminal execution console...</div>,
   ssr: false,
 });
-import PDFReportExporter from './PDFReportExporter'
 import { formatCurrency, formatPercentage, formatDate, formatNumber, formatTimestamp } from '../utils'
 import { stripReasoningFromMessage } from '../utils/createAssistantMessage'
 import TransactionStatus, { InlineTransactionData } from './TransactionStatus'
@@ -799,7 +798,7 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
         {backtestResult.show_performance_stats && (
           <AllocationCharts 
             allocations={backtestResult.allocations} 
-            symbol={backtestResult.symbol || (Array.isArray(backtestResult.target_assets) && backtestResult.target_assets[0])}
+            symbol={Array.isArray(backtestResult.target_assets) ? backtestResult.target_assets[0] : undefined}
             targetAssets={backtestResult.target_assets}
             totalReturn={backtestResult.metrics?.total_return}
           />
@@ -1271,12 +1270,6 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-1" />
                       </button>
                     )}
-
-                    <PDFReportExporter
-                      backtestResult={message.backtestResult}
-                      messageContent={message.content}
-                      username={username}
-                    />
 
                     {message.agentFlow && expandedTerminalIds.has(message.id) && (
                       <div className="mt-3 w-full max-w-5xl">

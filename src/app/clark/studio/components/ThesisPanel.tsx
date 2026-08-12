@@ -153,20 +153,18 @@ export function ThesisPanel({ refreshKey, onChanged }: { refreshKey?: number; on
         </div>
       ) : activeTab === "postmortem" ? (
         <div className="p-3 space-y-3">
-          {/* Win Rate & Accuracy Banner */}
-          <div className="flex items-center justify-between rounded-lg border border-violet-900/50 bg-violet-950/20 p-3 text-xs">
-            <div className="flex items-center gap-2 text-violet-300">
-              <Award size={18} />
-              <div>
-                <div className="font-semibold text-zinc-200">Clark Reasoning Accuracy</div>
-                <div className="text-[11px] text-zinc-400">100% Win Rate across reviewed trade theses</div>
+          {/* Accuracy Banner */}
+          {reviewedTheses.length > 0 && (
+            <div className="flex items-center justify-between rounded-lg border border-violet-900/50 bg-violet-950/20 p-3 text-xs">
+              <div className="flex items-center gap-2 text-violet-300">
+                <Award size={18} />
+                <div>
+                  <div className="font-semibold text-zinc-200">Clark Thesis Post-Mortems</div>
+                  <div className="text-[11px] text-zinc-400">{reviewedTheses.length} trade thesis post-mortems recorded</div>
+                </div>
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-sm font-bold text-emerald-400">+$450.00</div>
-              <div className="text-[10px] text-zinc-500">Realized Thesis P&L</div>
-            </div>
-          </div>
+          )}
 
           {reviewedTheses.length === 0 ? (
             <div className="py-6 text-center text-xs text-zinc-500">No completed post-mortems yet.</div>

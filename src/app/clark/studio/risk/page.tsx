@@ -32,10 +32,10 @@ export default function RiskPage() {
   const [riskScope, setRiskScope] = useState<"portfolio" | "asset">("portfolio");
 
   // Selected Strategy ID for Asset Drill-Down
-  const [expandedStrategyId, setExpandedStrategyId] = useState<string | null>("strat-1");
+  const [expandedStrategyId, setExpandedStrategyId] = useState<string | null>(null);
 
   // Selected Asset for Single Asset Analysis
-  const [selectedAssetSym, setSelectedAssetSym] = useState<string>("AAPL");
+  const [selectedAssetSym, setSelectedAssetSym] = useState<string>("");
 
   // Custom Scenario Builder State
   const [selectedPortfolio, setSelectedPortfolio] = useState("all");
@@ -46,13 +46,7 @@ export default function RiskPage() {
   const [customScenarios, setCustomScenarios] = useState<StressScenario[]>([]);
 
   // Hourly Risk Audit Checkpoints
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([
-    { id: "1", timestamp: "7:00:00 PM", type: "PASS", message: "Hourly compliance scan: All positions within 25% single-stock cap and leverage bounds" },
-    { id: "2", timestamp: "6:00:00 PM", type: "PASS", message: "Hourly compliance scan: Alpaca venue positions synchronized with event ledger" },
-    { id: "3", timestamp: "5:00:00 PM", type: "PASS", message: "Hourly compliance scan: Cash buffer maintained at 87.5% NAV ($90,058.81)" },
-    { id: "4", timestamp: "4:00:00 PM", type: "PASS", message: "Hourly compliance scan: Parametric VaR (95% 1D) checked at 0.21% NAV" },
-    { id: "5", timestamp: "3:00:00 PM", type: "PASS", message: "Hourly compliance scan: Pre-trade deterministic risk gate operational" },
-  ]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
   const lastHourlyCheckRef = useRef<number>(0);
 
@@ -61,7 +55,7 @@ export default function RiskPage() {
     try {
       const [riskRes, stratRes] = await Promise.all([
         fundApiClient.getRiskAnalytics(),
-        fundApiClient.getStrategies().catch(() => ({ nav_usd: 102978, strategies: [] })),
+        fundApiClient.getStrategies().catch(() => ({ nav_usd: 0, strategies: [] })),
       ]);
 
       setData(riskRes);
@@ -147,8 +141,8 @@ export default function RiskPage() {
   };
 
   // Pre-populated Scenarios Matrix
-  const navTotal = data?.nav_usd || 102978;
-  const expTotal = data?.gross_exposure_usd || 11385;
+  const navTotal = data?.nav_usd || 0;
+  const expTotal = data?.gross_exposure_usd || 0;
 
   const defaultPrepopulatedScenarios: StressScenario[] = [
     {
@@ -239,48 +233,7 @@ export default function RiskPage() {
   const var95Pct = data && data.nav_usd > 0 ? (var95Usd / data.nav_usd) * 100 : 0;
 
   // Active Portfolio / Strategy List with Risk Metrics
-  const activePortfolios = strategies.length > 0 ? strategies : [
-    {
-      strategy_id: "strat-1",
-      name: "US Momentum Equity Strategy",
-      state: "deployed" as const,
-      allocation_pct: 35.0,
-      actual_pct: 6.0,
-      exposure_usd: 6177.50,
-      backtest: { total_return: 0.34, sharpe: 2.41, max_drawdown: 0.048, n_trades: 42, final_equity: 134000, bars: 500 },
-      assets: ["AAPL", "MSFT"],
-    },
-    {
-      strategy_id: "strat-2",
-      name: "Mega-Cap Tech Alpha Strategy",
-      state: "deployed" as const,
-      allocation_pct: 25.0,
-      actual_pct: 4.9,
-      exposure_usd: 5049.60,
-      backtest: { total_return: 0.28, sharpe: 2.15, max_drawdown: 0.052, n_trades: 29, final_equity: 128000, bars: 500 },
-      assets: ["NVDA", "MSFT"],
-    },
-    {
-      strategy_id: "strat-3",
-      name: "Crypto Trend Follower Strategy",
-      state: "backtested" as const,
-      allocation_pct: 20.0,
-      actual_pct: 1.7,
-      exposure_usd: 1750.00,
-      backtest: { total_return: 0.52, sharpe: 1.95, max_drawdown: 0.124, n_trades: 18, final_equity: 152000, bars: 500 },
-      assets: ["BTC", "ETH"],
-    },
-    {
-      strategy_id: "strat-4",
-      name: "Alpha Market Neutral Strategy",
-      state: "deployed" as const,
-      allocation_pct: 20.0,
-      actual_pct: 0.0,
-      exposure_usd: 0.00,
-      backtest: { total_return: 0.18, sharpe: 3.10, max_drawdown: 0.021, n_trades: 64, final_equity: 118000, bars: 500 },
-      assets: ["AAPL", "NVDA"],
-    },
-  ];
+  const activePortfolios = strategies;
 
   // Asset Level Risk Data Calculation
   const assetPositions = data?.positions || [

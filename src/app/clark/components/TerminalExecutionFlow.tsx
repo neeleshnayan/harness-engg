@@ -16,10 +16,8 @@ export function TerminalExecutionFlow({ flow, query, className = "" }: TerminalE
   const [isStreaming, setIsStreaming] = useState(true);
   const [visibleCount, setVisibleCount] = useState(1);
 
-  if (!flow) return null;
-
-  const isGraph = typeof flow === "object" && "nodes" in flow && "edges" in flow;
-  const steps: AgentFlowStep[] = isGraph
+  const isGraph = flow && typeof flow === "object" && "nodes" in flow && "edges" in flow;
+  const steps: AgentFlowStep[] = !flow ? [] : isGraph
     ? (flow as AgentFlowGraph).steps || (flow as AgentFlowGraph).nodes.filter((n) => n.type !== "start" && n.type !== "end")
     : (flow as AgentFlowStep[]);
 
@@ -135,6 +133,8 @@ export function TerminalExecutionFlow({ flow, query, className = "" }: TerminalE
 
     return () => clearTimeout(timer);
   }, [visibleCount, isStreaming, streamEntries.length]);
+
+  if (!flow) return null;
 
   const displayedLogs = streamEntries.slice(0, visibleCount).filter((entry) => {
     if (filter === "BLOCKERS") return entry.level === "BLOCKER";

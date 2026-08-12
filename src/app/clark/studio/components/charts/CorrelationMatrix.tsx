@@ -12,19 +12,7 @@ interface Props {
 export function CorrelationMatrix({ correlation, assets, className, theme = "dark" }: Props) {
   const isLight = theme === "light";
 
-  let matrix = correlation;
-  if (!matrix && assets && assets.length > 0) {
-    matrix = {};
-    assets.forEach((a) => {
-      matrix![a] = {};
-      assets.forEach((b) => {
-        if (a === b) matrix![a][b] = 1.0;
-        else matrix![a][b] = Number((0.25 + Math.random() * 0.45).toFixed(2));
-      });
-    });
-  }
-
-  const safeMap = matrix || {};
+  const safeMap = correlation || {};
   const symbols = Object.keys(safeMap).sort();
 
   if (symbols.length === 0) {
