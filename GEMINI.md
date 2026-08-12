@@ -33,6 +33,26 @@ system (a real Friends-&-Family fund; capital preservation first). Implement Tas
 - `app/fund/riskmonitor.py` — the SKELETON with the full contract (the `assess()`
   docstring is canonical). Implement every `NotImplementedError`.
 
+## Risk engine follow-up fixes (validated issues — fix these next, WITH tests)
+The core risk engine is validated (kill-switch, dedup, auto-halt all correct). Two
+refinements before this guards real money:
+
+1. **`daily_loss` must use a prior-day reference, not the last strike.**
+   `RiskMonitor.evaluate_alarms` compares live NAV to `history_snaps[-1]` (the most
+   recent strike). The 24/7 runner strikes every cycle, so in production this compares
+   to a seconds-old strike and the alarm never fires. Fix: pick the last strike whose
+   date (`ts[:10]`) is BEFORE today (the daily-open reference); if none, skip the
+   daily_loss check. Add a test: strikes on two different dates, a >5% drop on "today"
+   raises `daily_loss`; a same-day frequent strike does NOT neuter it.
+
+2. **Pre-trade gate must read limits fresh.** `CommandPipeline` builds
+   `RiskGate(control.limits())` once at construction (module import), so editing limits
+   via `POST /fund/risk/limits` updates the monitor but NOT the hard pre-trade gate
+   until restart. Fix: in `propose_order`, construct/refresh the gate from
+   `self._control.limits()` at call time (or re-read limits into the existing gate).
+   Add a test: tighten `max_position_pct` via `set_limits`, then a previously-allowed
+   order is rejected by the gate **without** a restart.
+
 ## Verify before every commit
 ```bash
 ./venv/Scripts/python.exe -m pytest -q     # all green, incl. new test_riskmonitor
