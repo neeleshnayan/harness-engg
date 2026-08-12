@@ -106,7 +106,8 @@ _risk = RiskAnalytics(nav_service=_nav)
 _postmortem = PostmortemService(store=_store, pricer=_connector.price)
 _attribution = StrategyAttribution(_store)
 _orders = OrdersProjection(_store)
-_reconciler = Reconciler(connector=_connector, store=_store, projection=_projection)
+_reconciler = Reconciler(connector=_connector, store=_store, projection=_projection,
+                         nav_service=_nav)
 _control = RiskControl(store=_store)
 _monitor = RiskMonitor(nav_service=_nav, store=_store, pricer=_connector.price,
                        attribution=_attribution, strategies=_strategies, control=_control)
@@ -318,6 +319,16 @@ def settle_orders():
 def reconcile():
     """Compare the event book against venue truth; emit mismatches."""
     return run_reconcile()
+
+
+@router.get("/fund/venue/reconcile")
+def venue_reconcile():
+    """Broker-vs-book drift SIGNAL (read-only — writes no events).
+
+    NAV stays folded from the event log; broker equity is only ever a comparison.
+    A large delta means investigate before trading.
+    """
+    return _reconciler.drift()
 
 
 # --- ledger writes (subscribe / redeem) ------------------------------------
@@ -752,36 +763,29 @@ def compose_strategy_weights(parent_id: str, req: StrategyComposeWeightsRequest)
         series = None
         if c_assets:
             closes_list = []
-            for sym in c_assets[:3]:
+            for sym in c_assets:
                 try:
                     bars = fetch_daily_bars(sym, lookback_days=req.lookback_days)
                     if bars and bars.closes:
-                        closes_list.append(pd.Series(bars.closes, index=pd.to_datetime(bars.dates)))
+                        s = pd.Series(bars.closes, index=pd.to_datetime(bars.dates))
+                        norm_s = s / (s.iloc[0] if s.iloc[0] != 0 else 1.0)
+                        closes_list.append(norm_s)
                 except BarsError:
                     pass
             if closes_list:
                 series = pd.DataFrame(closes_list).T.mean(axis=1)
 
         if series is None or len(series) < 5:
-            bt = c_rec.get("backtest") or {}
-            ret = bt.get("total_return", 0.0)
-            if ret != 0.0:
-                n_bars = bt.get("bars", 100)
-                daily_r = (1.0 + ret / 100.0) ** (1.0 / max(1, n_bars)) - 1.0
-                idx = pd.date_range(end=pd.Timestamp.now(), periods=n_bars, freq="D")
-                series = pd.Series((1.0 + daily_r) ** np.arange(n_bars), index=idx)
-
-        if series is not None and len(series) >= 5:
-            streams[cid] = series
-        else:
             skipped.append(cid)
+        else:
+            streams[cid] = series
 
     if not streams:
         return {
             "weights": {m["child_id"]: round(1.0 / len(members), 4) for m in members} if members else {},
             "method": req.method,
-            "expected": {"sharpe": 0.0, "vol": 0.0, "ret": 0.0},
-            "cv": {"pbo": 0.0, "oos_sharpe": 0.0},
+            "expected": {"sharpe": None, "vol": 0.0, "ret": 0.0},
+            "cv": {"pbo": 0.0, "oos_sharpe": None},
             "skipped_members": skipped,
         }
 
@@ -826,33 +830,26 @@ def get_composite_strategy(parent_id: str):
         series = None
         if c_assets:
             closes_list = []
-            for sym in c_assets[:3]:
+            for sym in c_assets:
                 try:
                     bars = fetch_daily_bars(sym, lookback_days=180)
                     if bars and bars.closes:
-                        closes_list.append(pd.Series(bars.closes, index=pd.to_datetime(bars.dates)))
+                        s = pd.Series(bars.closes, index=pd.to_datetime(bars.dates))
+                        norm_s = s / (s.iloc[0] if s.iloc[0] != 0 else 1.0)
+                        closes_list.append(norm_s)
                 except BarsError:
                     pass
             if closes_list:
                 series = pd.DataFrame(closes_list).T.mean(axis=1)
 
         if series is None or len(series) < 5:
-            bt = c_rec.get("backtest") or {}
-            ret = bt.get("total_return", 0.0)
-            if ret != 0.0:
-                n_bars = bt.get("bars", 100)
-                daily_r = (1.0 + ret / 100.0) ** (1.0 / max(1, n_bars)) - 1.0
-                idx = pd.date_range(end=pd.Timestamp.now(), periods=n_bars, freq="D")
-                series = pd.Series((1.0 + daily_r) ** np.arange(n_bars), index=idx)
-            else:
-                flags.append(f"Child strategy '{m.get('name')}' has no backtest data")
-
-        if series is not None and len(series) >= 2:
+            flags.append(f"Child strategy '{m.get('name')}' has no backtest curve — excluded from rollup")
+        else:
             norm_series = series / (series.iloc[0] if series.iloc[0] != 0 else 1.0)
             curves[cid] = norm_series
 
     blended_points = []
-    metrics = {"total_return": 0.0, "sharpe": 0.0, "max_drawdown": 0.0}
+    metrics = None
     drawdown_pct = 0.0
     if curves:
         df_curves = pd.DataFrame(curves).dropna(how="all").ffill().bfill()
@@ -869,11 +866,11 @@ def get_composite_strategy(parent_id: str):
 
             total_ret = float(blend_vals.iloc[-1] / blend_vals.iloc[0] - 1.0) if blend_vals.iloc[0] != 0 else 0.0
             pct_changes = blend_vals.pct_change().dropna()
-            sharpe = 0.0
-            if len(pct_changes) > 1:
+            sharpe = None
+            if len(pct_changes) >= 20:
                 std_val = float(pct_changes.std())
-                if std_val > 0:
-                    sharpe = float((pct_changes.mean() / std_val) * (252 ** 0.5))
+                if std_val > 1e-9:
+                    sharpe = round(float((pct_changes.mean() / std_val) * (252 ** 0.5)), 2)
 
             cum = blend_vals.values
             peaks = np.maximum.accumulate(cum)
@@ -883,7 +880,7 @@ def get_composite_strategy(parent_id: str):
 
             metrics = {
                 "total_return": round(total_ret * 100, 2),
-                "sharpe": round(sharpe, 2),
+                "sharpe": sharpe,
                 "max_drawdown": round(max_dd, 4),
             }
 

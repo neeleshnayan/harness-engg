@@ -148,17 +148,28 @@ def test_s3_composite_rollup_api(mock_store, monkeypatch):
     svc = StrategyService(store=mock_store)
     monkeypatch.setattr("app.api.v1.fund._strategies", svc)
 
+    from app.fund.marketdata import Bars
+    def mock_fetch(symbol, lookback_days=180):
+        dates = [f"2026-01-{i:02d}" for i in range(1, 25)]
+        if symbol == "S1_ASSET":
+            closes = [100.0 + (i * 20.0 / 23.0) for i in range(24)] # 100.0 -> 120.0 (+20%)
+            return Bars(symbol="S1_ASSET", closes=closes, dates=dates, source="mock", start=dates[0], end=dates[-1])
+        elif symbol == "S2_ASSET":
+            closes = [50.0 + (i * 5.0 / 23.0) for i in range(24)] # 50.0 -> 55.0 (+10%)
+            return Bars(symbol="S2_ASSET", closes=closes, dates=dates, source="mock", start=dates[0], end=dates[-1])
+        raise ValueError(f"Unknown mock symbol {symbol}")
+
+    monkeypatch.setattr("app.api.v1.fund.fetch_daily_bars", mock_fetch)
+
     p = svc.register("Master Fund", actor="rushi")
     c1 = svc.register("Sleeve 1", actor="rushi")
     c2 = svc.register("Sleeve 2", actor="rushi")
+    svc.set_assets(c1["strategy_id"], ["S1_ASSET"], actor="rushi")
+    svc.set_assets(c2["strategy_id"], ["S2_ASSET"], actor="rushi")
 
     pid, c1_id, c2_id = p["strategy_id"], c1["strategy_id"], c2["strategy_id"]
 
-    # Record backtests for children
-    svc.record_backtest(c1_id, {"total_return": 15.0, "sharpe": 1.5, "bars": 100}, actor="rushi")
-    svc.record_backtest(c2_id, {"total_return": 10.0, "sharpe": 1.2, "bars": 100}, actor="rushi")
-
-    # Set weights (0.6 and 0.4)
+    # Set weights (0.6 and 0.4) -> sum = 1.0, cash = 0.0
     svc.set_member_weights(pid, {c1_id: 0.6, c2_id: 0.4}, actor="rushi")
 
     # Fetch composite view
@@ -166,7 +177,73 @@ def test_s3_composite_rollup_api(mock_store, monkeypatch):
     assert composite["strategy_id"] == pid
     assert len(composite["members"]) == 2
     assert composite["weights_sum"] == pytest.approx(1.0)
-    assert len(composite["blended_equity"]) > 0
-    assert "metrics" in composite
-    assert "total_return" in composite["metrics"]
-    assert composite["risk"]["concentration_hhi"] > 0
+
+    # Blended return: 0.6*(+20%) + 0.4*(+10%) = +16.00%
+    assert composite["metrics"] is not None
+    assert composite["metrics"]["total_return"] == pytest.approx(16.00, abs=0.01)
+
+    # Blended curve values per date
+    curve = composite["blended_equity"]
+    assert len(curve) == 24
+    assert curve[0]["v"] == pytest.approx(1.00, abs=0.001)
+    assert curve[-1]["v"] == pytest.approx(1.16, abs=0.001)
+
+    # Concentration HHI = 0.6^2 + 0.4^2 = 0.36 + 0.16 = 0.52
+    assert composite["risk"]["concentration_hhi"] == pytest.approx(0.52, abs=0.01)
+
+
+
+def test_c1_no_synthetic_curve_fabrication(mock_store, monkeypatch):
+    svc = StrategyService(store=mock_store)
+    monkeypatch.setattr("app.api.v1.fund._strategies", svc)
+
+    p = svc.register("Master Fund", actor="rushi")
+    c1 = svc.register("Sleeve Unbacktested", actor="rushi")
+
+    pid, c1_id = p["strategy_id"], c1["strategy_id"]
+
+    # Record backtest with total_return but NO assets / real daily price bars
+    svc.record_backtest(c1_id, {"total_return": 15.0, "sharpe": 1.5, "bars": 100}, actor="rushi")
+    svc.set_member_weight(pid, c1_id, 1.0, actor="rushi")
+
+    composite = get_composite_strategy(pid)
+    # Must NOT synthesize a smooth exponential curve!
+    assert composite["blended_equity"] == []
+    assert composite["metrics"] is None
+    assert any("has no backtest curve — excluded from rollup" in f for f in composite["risk"]["flags"])
+
+
+def test_c2_normalized_asset_price_blending(mock_store, monkeypatch):
+    svc = StrategyService(store=mock_store)
+    monkeypatch.setattr("app.api.v1.fund._strategies", svc)
+
+    # Mock fetch_daily_bars for AAPL ($230 -> $253, +10%) and F ($11 -> $11, 0%)
+    from app.fund.marketdata import Bars
+    def mock_fetch(symbol, lookback_days=180):
+        dates = [f"2026-01-{i:02d}" for i in range(1, 25)]
+        if symbol == "AAPL":
+            # AAPL starts at $230 and goes up to $253 (+10%) over 24 days
+            closes = [230.0 + (i * 1.0) for i in range(24)]
+            return Bars(symbol="AAPL", closes=closes, dates=dates, source="mock", start=dates[0], end=dates[-1])
+        elif symbol == "F":
+            # Flat at $11.0
+            closes = [11.0 for _ in range(24)]
+            return Bars(symbol="F", closes=closes, dates=dates, source="mock", start=dates[0], end=dates[-1])
+        raise ValueError(f"Unknown mock symbol {symbol}")
+
+    monkeypatch.setattr("app.api.v1.fund.fetch_daily_bars", mock_fetch)
+
+    p = svc.register("Master Fund", actor="rushi")
+    c1 = svc.register("Multi-Asset Sleeve", actor="rushi")
+    svc.set_assets(c1["strategy_id"], ["AAPL", "F"], actor="rushi")
+    svc.set_member_weight(p["strategy_id"], c1["strategy_id"], 1.0, actor="rushi")
+
+    composite = get_composite_strategy(p["strategy_id"])
+    assert composite["metrics"] is not None
+
+    # True equal weight return of AAPL (+10%) and F (0%) is +5.00%
+    # If raw prices were averaged, AAPL ($230) would dominate and report +9.54%
+    tot_ret = composite["metrics"]["total_return"]
+    assert tot_ret == pytest.approx(5.00, abs=0.1)
+
+
