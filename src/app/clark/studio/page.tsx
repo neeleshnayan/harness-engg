@@ -35,7 +35,6 @@ import { BacktestModal } from "./components/BacktestModal";
 import { AllocationModal } from "./components/AllocationModal";
 import { RebalanceModal } from "./components/RebalanceModal";
 import { SimulationModal } from "./components/SimulationModal";
-import { SentinelRadarFeed } from "./components/SentinelRadarFeed";
 import { ShieldAlert, Radio, Scale } from "lucide-react";
 import { RiskPanel } from "./components/RiskPanel";
 import { ThesisPanel } from "./components/ThesisPanel";
@@ -584,9 +583,6 @@ export default function StrategyStudioPage() {
                 </div>
               )}
             </div>
-
-            {/* Clark Sentinel 24/7 Alpha Radar Feed */}
-            <SentinelRadarFeed />
 
             {/* theses — every trade should reference one */}
             <ThesisPanel refreshKey={tick} onChanged={() => load(true)} />

@@ -3,11 +3,13 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CheckSquare, Layers, LayoutDashboard, ShieldAlert, Target } from "lucide-react";
+import { CheckSquare, Layers, LayoutDashboard, ShieldAlert, Sliders, Target } from "lucide-react";
+import { KT } from "../theme";
 
 const TABS = [
   { href: "/clark/studio", label: "Overview", icon: LayoutDashboard, exact: true },
   { href: "/clark/studio/strategies", label: "Strategies", icon: Layers },
+  { href: "/clark/studio/compose", label: "Composer", icon: Sliders },
   { href: "/clark/studio/approvals", label: "Approvals", icon: CheckSquare },
   { href: "/clark/studio/theses", label: "Theses", icon: Target },
   { href: "/clark/studio/risk", label: "Risk", icon: ShieldAlert },
@@ -25,9 +27,9 @@ export function StudioNav() {
           <Link
             key={t.href}
             href={t.href}
-            className={`flex h-8 items-center gap-1.5 rounded-md px-3 text-sm transition-colors ${
+            className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-colors ${
               active
-                ? "bg-teal-600/20 text-teal-300 border border-teal-600/40"
+                ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
                 : "border border-transparent text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
             }`}
           >

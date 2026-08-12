@@ -56,6 +56,8 @@ export interface StrategyView {
   parent_id?: string | null;   // back-compat: first parent
   parents?: string[];          // full membership set (a strategy can have several)
   archived?: boolean;
+  members?: { child_id: string; name: string; weight: number }[];
+  member_weights?: Record<string, number>;
   children?: string[];
   is_container?: boolean;
   depth?: number;
@@ -348,23 +350,6 @@ export interface SimulationResponse {
   hedging_proposals: HedgingProposal[];
 }
 
-export interface SentinelSignal {
-  signal_id: string;
-  symbol: string;
-  title: string;
-  source: string;
-  conviction_score: number;
-  summary: string;
-  details?: Record<string, string>;
-  target_exposure_pct: number;
-  target_upside_pct: number;
-  invalidation_criteria?: string[];
-  status: string;
-  created_at: string;
-  thesis_id?: string | null;
-  memo_id?: string | null;
-}
-
 export interface RiskAlarmItem {
   key: string;
   type: string;
@@ -438,6 +423,51 @@ export interface RiskMonitorResponse {
   alarms: RiskAlarmItem[];
   worst_position: RiskMonitorPosition | null;
   ts: string;
+}
+
+export interface CompositeMember {
+  child_id: string;
+  name: string;
+  weight: number;
+  exposure_usd?: number;
+  pnl_usd?: number;
+}
+
+export interface BlendedEquityPoint {
+  t: string;
+  v: number;
+}
+
+export interface CompositeView {
+  strategy_id: string;
+  members: CompositeMember[];
+  blended_equity: BlendedEquityPoint[];
+  metrics: {
+    total_return: number;
+    sharpe: number;
+    max_drawdown: number;
+  };
+  risk: {
+    concentration_hhi: number;
+    drawdown_pct: number;
+    flags: string[];
+  };
+  weights_sum: number;
+}
+
+export interface ComposeWeightsResponse {
+  weights: Record<string, number>;
+  method: string;
+  expected: {
+    sharpe: number;
+    vol: number;
+    ret: number;
+  };
+  cv: {
+    pbo: number;
+    oos_sharpe: number;
+  };
+  skipped_members?: string[];
 }
 
 export const fundApiClient = {
@@ -577,7 +607,7 @@ export const fundApiClient = {
   getEvents: async (limit = 100, sinceSeq = 0): Promise<{ events: SpineEvent[] }> =>
     (await fundApi.get(`${P}/events`, { params: { limit, since_seq: sinceSeq } })).data,
 
-  // --- simulation & sentinel ---
+  // --- simulation ---
   simulateRisk: async (body: {
     scenario?: string;
     crude_oil_price?: number;
@@ -588,11 +618,22 @@ export const fundApiClient = {
   }): Promise<SimulationResponse> =>
     (await fundApi.post(`${P}/risk/simulate`, body)).data,
 
-  getSentinelSignals: async (): Promise<{ signals: SentinelSignal[] }> =>
-    (await fundApi.get(`${P}/sentinel/signals`)).data,
+  // --- strategy composer methods ---
+  setMemberWeight: async (parentId: string, childId: string, weight: number, actor = 'operator'): Promise<StrategyView> =>
+    (await fundApi.post(`${P}/strategies/${parentId}/members`, { child_id: childId, weight, actor })).data,
 
-  scanSentinel: async (symbol?: string): Promise<{ status: string; total_signals_scanned: number; newly_drafted_theses: any[]; signals: SentinelSignal[] }> =>
-    (await fundApi.post(`${P}/sentinel/scan`, null, { params: { symbol } })).data,
+  setMemberWeights: async (parentId: string, weights: Record<string, number>, actor = 'operator'): Promise<StrategyView> =>
+    (await fundApi.post(`${P}/strategies/${parentId}/members/weights`, { weights, actor })).data,
+
+  composeWeights: async (
+    parentId: string,
+    method: 'equal' | 'risk_parity' | 'hrp' | 'max_sharpe' | 'min_volatility' = 'hrp',
+    lookbackDays = 365
+  ): Promise<ComposeWeightsResponse> =>
+    (await fundApi.post(`${P}/strategies/${parentId}/compose/weights`, { method, lookback_days: lookbackDays })).data,
+
+  getComposite: async (parentId: string): Promise<CompositeView> =>
+    (await fundApi.get(`${P}/strategies/${parentId}/composite`)).data,
 
   // --- risk monitor & kill-switch controls ---
   getRiskMonitor: async (): Promise<RiskMonitorResponse> =>
