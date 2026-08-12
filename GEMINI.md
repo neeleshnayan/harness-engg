@@ -64,6 +64,12 @@ refinements before this guards real money:
 - Alarms dedup by a stable `key` — a standing breach raises once, clears once.
 - `GET /fund/risk/monitor` is a **pure read** (no event writes). Only `run()` writes.
 
+## ⬅ START HERE: `docs/GEMINI_TASKS_NOW.md`
+That file is the live queue (validated 2026-08-13, work top-down). C1 is CRITICAL: the
+composite rollup synthesizes a smooth equity curve for children without real backtests,
+reporting **max_drawdown = 0.0 and Sharpe = 1.9e14** — a fabricated flawless strategy.
+Note: `pytest -q` is GREEN and the code is still wrong. Passing tests are not proof.
+
 ## Broker reconciliation — do it as a SIGNAL, never a NAV overwrite (regression guard)
 A prior change made `NavService.compute()` pull live Alpaca equity and return it AS the
 NAV (with a hardcoded `units_outstanding` fallback). That was reverted — it broke the
