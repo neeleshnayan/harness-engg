@@ -6,3 +6,5 @@ venv/
 firebase_service_account.json
 scratch_*
 *.log
+.firestore_local_db.json
+*.db

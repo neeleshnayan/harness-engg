@@ -24,10 +24,42 @@ class RiskDecision:
 
 @dataclass
 class RiskLimits:
-    # Phase-1 defaults — tune per mandate. All fractions are of NAV.
-    max_position_pct: float = 0.35          # no single name > 35% of NAV
-    min_cash_buffer: float = 0.0            # keep at least this much USD idle
-    max_order_notional_pct: float = 0.50    # a single order may deploy <= 50% of NAV
+    """The mandate's risk limits — one auditable config the gate and monitor share.
+
+    Fractions are of NAV unless noted. Defaults here are deliberately
+    capital-preservation-first (a Friends-&-Family PoC posture): small single-name
+    caps, a real cash floor, and a hard drawdown kill-switch.
+    """
+    # --- pre-trade gate (hard reject before human approval) ---
+    max_position_pct: float = 0.20          # no single name > 20% of NAV
+    min_cash_buffer: float = 0.0            # keep at least this much USD idle (absolute)
+    max_order_notional_pct: float = 0.25    # a single order may deploy <= 25% of NAV
+    max_strategy_pct: float = 0.40          # no single strategy > 40% of NAV
+    # --- continuous monitor (alarms + kill switch) ---
+    min_cash_pct: float = 0.10              # cash floor as a fraction of NAV (alarm below)
+    max_drawdown_pct: float = 0.15          # halt trading if NAV falls this far from its peak
+    max_daily_loss_pct: float = 0.05        # halt if NAV drops this much vs the last daily strike
+    underwater_pct: float = 0.15            # per-name alarm when a position is this far underwater
+
+    def to_dict(self) -> dict:
+        return {
+            "max_position_pct": self.max_position_pct,
+            "min_cash_buffer": self.min_cash_buffer,
+            "max_order_notional_pct": self.max_order_notional_pct,
+            "max_strategy_pct": self.max_strategy_pct,
+            "min_cash_pct": self.min_cash_pct,
+            "max_drawdown_pct": self.max_drawdown_pct,
+            "max_daily_loss_pct": self.max_daily_loss_pct,
+            "underwater_pct": self.underwater_pct,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "RiskLimits":
+        base = cls()
+        for k, v in (d or {}).items():
+            if hasattr(base, k) and v is not None:
+                setattr(base, k, float(v))
+        return base
 
 
 class RiskGate:

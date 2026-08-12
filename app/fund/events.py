@@ -83,6 +83,14 @@ class EventType(str, Enum):
     # what actually happened. Closes the loop and builds the reasoning dataset.
     POSTMORTEM_RECORDED = "PostmortemRecorded"
 
+    # Risk monitoring & controls — continuous surveillance + the kill switch.
+    # Alarms are events so the audit trail shows exactly what tripped and when.
+    RISK_LIMITS_SET = "RiskLimitsSet"           # the mandate's limits (auditable config)
+    RISK_ALARM_RAISED = "RiskAlarmRaised"       # a limit/adverse-move breach opened
+    RISK_ALARM_CLEARED = "RiskAlarmCleared"     # a breach resolved
+    TRADING_HALTED = "TradingHalted"            # kill switch engaged (drawdown/loss/manual)
+    TRADING_RESUMED = "TradingResumed"          # trading re-enabled by a human
+
 
 @dataclass
 class Event:
