@@ -79,7 +79,7 @@ export function StrategyManageModal({
               <button
                 onClick={() => run("rename", () => fundApiClient.renameStrategy(strategy.strategy_id, name.trim()))}
                 disabled={busy === "rename" || !name.trim() || name.trim() === strategy.name}
-                className="rounded-md bg-teal-600 px-3 text-sm text-[var(--kt-text-strong)] hover:bg-teal-700 disabled:opacity-40"
+                className="rounded-md bg-[var(--kt-accent-bg)] px-3 text-sm text-[var(--kt-text-strong)] hover:bg-[var(--kt-accent-bg)] disabled:opacity-40"
               >
                 {busy === "rename" ? <Loader2 size={14} className="animate-spin" /> : "Save"}
               </button>
@@ -135,7 +135,7 @@ export function StrategyManageModal({
                   <button
                     onClick={() => run("deploy", () => fundApiClient.setState(strategy.strategy_id, "deployed"))}
                     disabled={busy === "deploy"}
-                    className="flex-1 rounded-md bg-teal-600/90 px-2 py-1.5 text-xs text-[var(--kt-text-strong)] hover:bg-teal-600"
+                    className="flex-1 rounded-md bg-[var(--kt-accent-bg)] px-2 py-1.5 text-xs text-[var(--kt-text-strong)] hover:bg-[var(--kt-accent-bg)]"
                   >
                     Deploy
                   </button>

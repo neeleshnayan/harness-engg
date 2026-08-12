@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
+import { useChartColors } from "../chartColors";
 import {
   Area,
   AreaChart,
@@ -31,13 +32,14 @@ interface Props {
  * aligned with the rest of the KryptonPay chart stack.
  */
 export function TVAreaChart({ data, height = 220, up, valuePrefix = "", className }: Props) {
+  const c = useChartColors();
   const trendUp = useMemo(() => {
     if (typeof up === "boolean") return up;
     if (data.length < 2) return true;
     return data[data.length - 1].v >= data[0].v;
   }, [data, up]);
 
-  const stroke = trendUp ? "var(--kt-accent)" : "var(--kt-down)"; // teal-400 / red-400
+  const stroke = trendUp ? c.accent : c.down; // teal-400 / red-400
   const id = useMemo(() => `tvgrad-${Math.random().toString(36).slice(2, 8)}`, []);
 
   const fmt = (n: number) =>
@@ -71,19 +73,19 @@ export function TVAreaChart({ data, height = 220, up, valuePrefix = "", classNam
               <stop offset="100%" stopColor={stroke} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid stroke="var(--kt-track)" strokeDasharray="0" vertical={false} />
+          <CartesianGrid stroke={c.grid} strokeDasharray="0" vertical={false} />
           <XAxis
             dataKey="t"
             ticks={ticks}
-            tick={{ fill: "var(--kt-text-muted)", fontSize: 10 }}
+            tick={{ fill: c.textMuted, fontSize: 10 }}
             tickLine={false}
-            axisLine={{ stroke: "var(--kt-track)" }}
+            axisLine={{ stroke: c.grid }}
             minTickGap={20}
           />
           <YAxis
             orientation="right"
             domain={["auto", "auto"]}
-            tick={{ fill: "var(--kt-text-muted)", fontSize: 10 }}
+            tick={{ fill: c.textMuted, fontSize: 10 }}
             tickLine={false}
             axisLine={false}
             width={54}
@@ -92,12 +94,12 @@ export function TVAreaChart({ data, height = 220, up, valuePrefix = "", classNam
           <Tooltip
             cursor={{ stroke: "#52525b", strokeWidth: 1 }}
             contentStyle={{
-              background: "#09090b",
+              background: c.bg,
               border: "1px solid #27272a",
               borderRadius: 8,
               fontSize: 12,
             }}
-            labelStyle={{ color: "var(--kt-text-dim)" }}
+            labelStyle={{ color: c.textDim }}
             itemStyle={{ color: stroke }}
             formatter={(v: number) => [fmt(Number(v)), "px"]}
           />

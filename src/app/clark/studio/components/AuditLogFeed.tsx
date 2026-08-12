@@ -11,9 +11,9 @@ interface AuditLogFeedProps {
 }
 
 const EVENT_TYPE_BADGES: Record<string, { label: string; color: string }> = {
-  OrderProposed: { label: "Order Proposed", color: "bg-sky-500/15 text-sky-300 border-sky-500/30" },
+  OrderProposed: { label: "Order Proposed", color: "bg-[var(--kt-accent-bg)] text-[var(--kt-accent-soft)] border-[var(--kt-accent-border)]" },
   OrderApproved: { label: "Order Approved", color: "bg-emerald-500/15 text-[var(--kt-accent)] border-emerald-500/30" },
-  OrderFilled: { label: "Order Filled", color: "bg-teal-500/15 text-teal-300 border-teal-500/30" },
+  OrderFilled: { label: "Order Filled", color: "bg-[var(--kt-accent-bg)] text-[var(--kt-accent)] border-[var(--kt-accent-border)]" },
   OrderDeclined: { label: "Order Declined", color: "bg-rose-500/15 text-[var(--kt-down)] border-rose-500/30" },
   NavStruck: { label: "NAV Struck", color: "bg-purple-500/15 text-purple-300 border-purple-500/30" },
   CashConfirmed: { label: "Deposit Confirmed", color: "bg-amber-500/15 text-[var(--kt-warn)] border-amber-500/30" },
@@ -32,7 +32,7 @@ export function AuditLogFeed({ events }: AuditLogFeedProps) {
     <div className={`${KT.panel} p-4 space-y-3`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Activity size={16} className="text-teal-400" />
+          <Activity size={16} className="text-[var(--kt-accent)]" />
           <h3 className="text-sm font-semibold text-[var(--kt-text)]">Spine Audit Stream</h3>
           <span className="rounded bg-[var(--kt-inset)] px-2 py-0.5 text-[10px] font-mono text-[var(--kt-text-dim)]">
             {events.length} immutable events
@@ -68,7 +68,7 @@ export function AuditLogFeed({ events }: AuditLogFeedProps) {
 
                   <div className="flex items-center gap-3 shrink-0 text-[var(--kt-text-muted)] text-[11px]">
                     <span className="flex items-center gap-1 bg-[var(--kt-surface)] border border-[var(--kt-border)] px-1.5 py-0.5 rounded text-[var(--kt-text-dim)]">
-                      {isAgent ? <Bot size={11} className="text-teal-400" /> : <UserCheck size={11} className="text-[var(--kt-warn)]" />}
+                      {isAgent ? <Bot size={11} className="text-[var(--kt-accent)]" /> : <UserCheck size={11} className="text-[var(--kt-warn)]" />}
                       {e.actor}
                     </span>
                     <span className="tabular-nums">
@@ -81,7 +81,7 @@ export function AuditLogFeed({ events }: AuditLogFeedProps) {
                 {isExpanded && (
                   <div className="mt-2 rounded-lg border border-[var(--kt-border)] bg-[var(--kt-bg)] p-3 text-[11px] font-mono text-[var(--kt-text-dim)] space-y-1">
                     <div className="text-[10px] uppercase tracking-wider text-[var(--kt-text-muted)] mb-1">Payload JSON</div>
-                    <pre className="overflow-x-auto max-h-48 text-teal-300/90 bg-[var(--kt-surface)] p-2 rounded border border-[var(--kt-border)]">
+                    <pre className="overflow-x-auto max-h-48 text-[var(--kt-accent)]/90 bg-[var(--kt-surface)] p-2 rounded border border-[var(--kt-border)]">
                       {JSON.stringify(e.payload, null, 2)}
                     </pre>
                   </div>

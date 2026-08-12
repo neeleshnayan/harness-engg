@@ -74,11 +74,11 @@ export function VisualStrategyCanvas({ onRunBacktest, className = "" }: VisualSt
 import numpy as np
 
 class QuantConnectNodeStrategy(QCAlgorithm):
-    """
+ """
     QuantConnect LEAN Engine - Node Canvas Auto-Generated Algorithm
     Target Asset: ${symbol.toUpperCase()}
     Pipeline: Market Feed -> SMA (${fastSma}/${slowSma}) -> RSI (${rsiPeriod}) -> Risk Guardrail (${stopLoss}% Stop Loss)
-    """
+ """
 
     def Initialize(self):
         self.SetStartDate(2025, 1, 1)
@@ -197,17 +197,17 @@ class QuantConnectNodeStrategy(QCAlgorithm):
   };
 
   return (
-    <div className={`rounded-xl border border-[var(--kt-border)] bg-[#090D16] p-5 shadow-2xl ${className}`}>
+    <div className={`rounded-xl border border-[var(--kt-border)] bg-[var(--kt-surface)] p-5 shadow-2xl ${className}`}>
       {/* Canvas Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--kt-border)] pb-4 mb-5">
         <div className="flex items-center gap-3">
-          <div className="rounded-lg bg-teal-500/10 p-2 border border-teal-500/20 text-teal-400">
+          <div className="rounded-lg bg-[var(--kt-accent-bg)] p-2 border border-[var(--kt-accent-border)] text-[var(--kt-accent)]">
             <GitBranch size={18} />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-bold text-[var(--kt-text)] tracking-tight">VISUAL STRATEGY NODE CANVAS</h3>
-              <span className="rounded bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 text-[10px] font-semibold text-teal-300">
+              <span className="rounded bg-[var(--kt-accent-bg)] border border-[var(--kt-accent-border)] px-2 py-0.5 text-[10px] font-semibold text-[var(--kt-accent)]">
                 QuantConnect LEAN Compatible
               </span>
             </div>
@@ -224,7 +224,7 @@ class QuantConnectNodeStrategy(QCAlgorithm):
             <button
               onClick={() => setViewMode("nodes")}
               className={`flex items-center gap-1.5 px-3 py-1 text-[11px] font-medium rounded-md transition ${
-                viewMode === "nodes" ? "bg-[var(--kt-inset)] text-teal-300 shadow" : "text-[var(--kt-text-dim)] hover:text-[var(--kt-text)]"
+                viewMode === "nodes" ? "bg-[var(--kt-inset)] text-[var(--kt-accent)] shadow" : "text-[var(--kt-text-dim)] hover:text-[var(--kt-text)]"
               }`}
             >
               <Layers size={13} /> Visual Flow
@@ -232,7 +232,7 @@ class QuantConnectNodeStrategy(QCAlgorithm):
             <button
               onClick={() => setViewMode("code")}
               className={`flex items-center gap-1.5 px-3 py-1 text-[11px] font-medium rounded-md transition ${
-                viewMode === "code" ? "bg-[var(--kt-inset)] text-teal-300 shadow" : "text-[var(--kt-text-dim)] hover:text-[var(--kt-text)]"
+                viewMode === "code" ? "bg-[var(--kt-inset)] text-[var(--kt-accent)] shadow" : "text-[var(--kt-text-dim)] hover:text-[var(--kt-text)]"
               }`}
             >
               <Code2 size={13} /> Python Code
@@ -245,7 +245,7 @@ class QuantConnectNodeStrategy(QCAlgorithm):
               type="text"
               value={symbol}
               onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-              className="bg-transparent font-bold text-teal-300 w-16 text-center outline-none uppercase font-mono"
+              className="bg-transparent font-bold text-[var(--kt-accent)] w-16 text-center outline-none uppercase font-mono"
             />
           </div>
 
@@ -269,7 +269,7 @@ class QuantConnectNodeStrategy(QCAlgorithm):
 
       {/* Main Canvas Area */}
       {viewMode === "nodes" ? (
-        <div className="relative min-h-[300px] rounded-lg border border-[var(--kt-border)] bg-[#060911] p-5 overflow-x-auto">
+        <div className="relative min-h-[300px] rounded-lg border border-[var(--kt-border)] bg-[var(--kt-bg)] p-5 overflow-x-auto">
           {/* Node Flow Grid */}
           <div className="flex items-center gap-3 min-w-max pb-2">
             {nodes.map((node, index) => (
@@ -278,9 +278,9 @@ class QuantConnectNodeStrategy(QCAlgorithm):
                 <div
                   className={`p-3.5 rounded-xl border min-w-[210px] max-w-[240px] shadow-lg transition-all ${
                     node.type === "source"
-                      ? "bg-sky-950/30 border-sky-500/30 text-sky-200"
+                      ? "bg-[var(--kt-accent-bg)] border-[var(--kt-accent-border)] text-[var(--kt-accent-soft)]"
                       : node.type === "indicator"
-                      ? "bg-teal-950/30 border-teal-500/30 text-teal-200"
+                      ? "bg-[var(--kt-accent-bg)] border-[var(--kt-accent-border)] text-[var(--kt-accent)]"
                       : node.type === "risk"
                       ? "bg-amber-950/30 border-amber-500/30 text-amber-200"
                       : "bg-emerald-950/30 border-emerald-500/30 text-emerald-200"
@@ -292,7 +292,7 @@ class QuantConnectNodeStrategy(QCAlgorithm):
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => setActiveEditingNode(activeEditingNode === node.id ? null : node.id)}
-                          className="text-[var(--kt-text-dim)] hover:text-teal-300 p-0.5 transition"
+                          className="text-[var(--kt-text-dim)] hover:text-[var(--kt-accent)] p-0.5 transition"
                           title="Edit Node Parameters"
                         >
                           <Edit3 size={11} />
@@ -320,10 +320,10 @@ class QuantConnectNodeStrategy(QCAlgorithm):
                             type="number"
                             value={v}
                             onChange={(e) => updateNodeConfig(node.id, k, parseFloat(e.target.value) || 0)}
-                            className="bg-[var(--kt-surface)] border border-[var(--kt-border)] text-teal-300 text-[10px] w-12 px-1 py-0.5 rounded text-right outline-none font-mono"
+                            className="bg-[var(--kt-surface)] border border-[var(--kt-border)] text-[var(--kt-accent)] text-[10px] w-12 px-1 py-0.5 rounded text-right outline-none font-mono"
                           />
                         ) : (
-                          <span className="text-teal-300 font-bold">{String(v)}</span>
+                          <span className="text-[var(--kt-accent)] font-bold">{String(v)}</span>
                         )}
                       </div>
                     ))}
@@ -332,9 +332,9 @@ class QuantConnectNodeStrategy(QCAlgorithm):
 
                 {/* Arrow Connector */}
                 {index < nodes.length - 1 && (
-                  <div className="flex items-center text-teal-500/50 px-0.5">
-                    <div className="w-5 h-0.5 bg-teal-500/40" />
-                    <ChevronRight size={14} className="-ml-1 text-teal-400" />
+                  <div className="flex items-center text-[var(--kt-accent)]/50 px-0.5">
+                    <div className="w-5 h-0.5 bg-[var(--kt-accent-bg)]" />
+                    <ChevronRight size={14} className="-ml-1 text-[var(--kt-accent)]" />
                   </div>
                 )}
               </React.Fragment>
@@ -345,7 +345,7 @@ class QuantConnectNodeStrategy(QCAlgorithm):
           <div className="mt-5 flex items-center justify-center gap-3 border-t border-zinc-900 pt-3">
             <button
               onClick={() => addIndicatorNode("indicator")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--kt-surface)] hover:bg-[var(--kt-inset)] text-teal-300 text-xs border border-[var(--kt-border)] transition"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--kt-surface)] hover:bg-[var(--kt-inset)] text-[var(--kt-accent)] text-xs border border-[var(--kt-border)] transition"
             >
               <Plus size={12} /> Add Signal Node
             </button>
@@ -359,7 +359,7 @@ class QuantConnectNodeStrategy(QCAlgorithm):
         </div>
       ) : (
         /* Python Code Mode */
-        <div className="relative rounded-lg border border-[var(--kt-border)] bg-[#060911] p-4 font-mono text-xs text-[var(--kt-text-dim)] overflow-x-auto">
+        <div className="relative rounded-lg border border-[var(--kt-border)] bg-[var(--kt-bg)] p-4 font-mono text-xs text-[var(--kt-text-dim)] overflow-x-auto">
           <div className="flex items-center justify-between pb-3 mb-3 border-b border-[var(--kt-border)] text-[11px] text-[var(--kt-text-dim)]">
             <span>Auto-Generated QuantConnect LEAN Algorithm (`QCAlgorithm`)</span>
             <button
@@ -370,7 +370,7 @@ class QuantConnectNodeStrategy(QCAlgorithm):
               {copied ? "Copied" : "Copy Code"}
             </button>
           </div>
-          <pre className="text-[11px] leading-relaxed text-teal-300/90 whitespace-pre font-mono">
+          <pre className="text-[11px] leading-relaxed text-[var(--kt-accent)]/90 whitespace-pre font-mono">
             {generatePythonCode()}
           </pre>
         </div>
@@ -415,7 +415,7 @@ class QuantConnectNodeStrategy(QCAlgorithm):
             </div>
             <div className="p-2.5 rounded-lg bg-[var(--kt-surface)] border border-[var(--kt-border)]">
               <span className="text-[10px] text-[var(--kt-text-dim)] block uppercase">Bars Processed</span>
-              <span className="text-sm font-bold text-teal-300 font-mono">{backtestOutput.bars}</span>
+              <span className="text-sm font-bold text-[var(--kt-accent)] font-mono">{backtestOutput.bars}</span>
             </div>
           </div>
         </div>

@@ -45,7 +45,7 @@ export function StrategyDetailModal({ strategy: s, all, navUsd, onClose }: Props
           <DialogTitle className="flex items-center gap-2">
             {s.name}
             <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase text-[var(--kt-text-dim)] border border-[var(--kt-border)]">{s.state}</span>
-            {isContainer && <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-sky-300">container</span>}
+            {isContainer && <span className="rounded bg-[var(--kt-accent-bg)] px-1.5 py-0.5 text-[10px] font-semibold uppercase text-[var(--kt-accent-soft)]">container</span>}
           </DialogTitle>
         </DialogHeader>
 

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { createChart, IChartApi, ISeriesApi, ColorType, CrosshairMode } from "lightweight-charts";
+import { useChartColors } from "../../chartColors";
 
 interface ChartDataPoint {
   t: string;
@@ -17,6 +18,9 @@ export default function HeroChart({ data, height = 400 }: HeroChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
+  // lightweight-charts parses colors in JS, so it needs literal hexes
+  // (a CSS var throws "Cannot parse color"). Rebuilds on theme change.
+  const c = useChartColors();
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -25,26 +29,26 @@ export default function HeroChart({ data, height = 400 }: HeroChartProps) {
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
-        textColor: "var(--kt-text-dim)", // zinc-400
+        textColor: c.textDim,
         fontFamily: "Inter, sans-serif",
       },
       grid: {
-        vertLines: { color: "rgba(255, 255, 255, 0.05)" },
-        horzLines: { color: "rgba(255, 255, 255, 0.05)" },
+        vertLines: { color: c.grid },
+        horzLines: { color: c.grid },
       },
       crosshair: {
         mode: CrosshairMode.Magnet,
         vertLine: {
-          color: "rgba(45, 212, 191, 0.4)", // teal
+          color: c.accent,
           width: 1,
           style: 3, // dashed
-          labelBackgroundColor: "var(--kt-accent)",
+          labelBackgroundColor: c.accent,
         },
         horzLine: {
-          color: "rgba(45, 212, 191, 0.4)",
+          color: c.accent,
           width: 1,
           style: 3,
-          labelBackgroundColor: "var(--kt-accent)",
+          labelBackgroundColor: c.accent,
         },
       },
       rightPriceScale: {
@@ -74,9 +78,9 @@ export default function HeroChart({ data, height = 400 }: HeroChartProps) {
 
     // Create Area series
     const areaSeries = chart.addAreaSeries({
-      lineColor: "var(--kt-accent)", // teal-400
-      topColor: "rgba(45, 212, 191, 0.4)",
-      bottomColor: "rgba(45, 212, 191, 0.0)",
+      lineColor: c.accent,
+      topColor: c.accent + "66",
+      bottomColor: c.accent + "00",
       lineWidth: 2,
       priceFormat: {
         type: "price",
@@ -102,7 +106,7 @@ export default function HeroChart({ data, height = 400 }: HeroChartProps) {
       window.removeEventListener("resize", handleResize);
       chart.remove();
     };
-  }, [height]);
+  }, [height, c]);
 
   useEffect(() => {
     if (seriesRef.current && data.length > 0) {

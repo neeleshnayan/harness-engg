@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useChartColors } from "../../chartColors";
 import {
   Cell,
   Pie,
@@ -18,18 +19,11 @@ interface Props {
   className?: string;
 }
 
-const COLORS_DARK = [
-  "var(--kt-accent)", // Emerald (KT accent)
-  "var(--kt-accent)", // Emerald
-  "#38BDF8", // Sky Blue
-  "#A855F7", // Purple
-  "#FBBF24", // Amber
-  "var(--kt-accent)", // Mint
-];
 
 export function AllocationDonut({ positions = [], cash = 0, totalNav = 0, height = 240, className }: Props) {
-  const palette = COLORS_DARK;
-  const cashColor = "#475569";
+  const c = useChartColors();
+  const palette = c.series;
+  const cashColor = c.textMuted;
 
   const data = [
     ...(positions || []).map((p) => ({
@@ -87,13 +81,13 @@ export function AllocationDonut({ positions = [], cash = 0, totalNav = 0, height
           <Tooltip
             cursor={false}
             contentStyle={{
-              background: "var(--kt-bg)",
+              background: c.bg,
               border: "1px solid #1e293b",
               borderRadius: 8,
               fontSize: 12,
-              color: "var(--kt-text)",
+              color: c.text,
             }}
-            itemStyle={{ color: "var(--kt-text)" }}
+            itemStyle={{ color: c.text }}
             formatter={(value: number, name: string, props: any) => [
               `${fmtValue(value)} (${props.payload.pct.toFixed(1)}%)`,
               name,

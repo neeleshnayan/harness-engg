@@ -41,9 +41,9 @@ function highlightPython(code: string): string {
 
     // 3. Keywords (Anthropic Emerald Green)
     const keywords = [
-      "import", "from", "class", "def", "return", "if", "elif", "else",
-      "self", "in", "and", "or", "not", "is", "None", "True", "False",
-      "as", "pass", "raise", "try", "except", "finally", "with", "yield",
+ "import", "from", "class", "def", "return", "if", "elif", "else",
+ "self", "in", "and", "or", "not", "is", "None", "True", "False",
+ "as", "pass", "raise", "try", "except", "finally", "with", "yield",
     ];
     const kwRegex = new RegExp(`\\b(${keywords.join("|")})\\b`, "g");
     tokens = tokens.replace(
@@ -53,9 +53,9 @@ function highlightPython(code: string): string {
 
     // 4. Classes & Types
     const types = [
-      "Strategy", "Signal", "MarketData", "RiskGate",
-      "SmaCrossoverStrategy", "RsiMeanReversionStrategy",
-      "MacdMomentumStrategy", "BollingerDipBuyer", "MultiFactorAlphaStrategy",
+ "Strategy", "Signal", "MarketData", "RiskGate",
+ "SmaCrossoverStrategy", "RsiMeanReversionStrategy",
+ "MacdMomentumStrategy", "BollingerDipBuyer", "MultiFactorAlphaStrategy",
     ];
     const typeRegex = new RegExp(`\\b(${types.join("|")})\\b`, "g");
     tokens = tokens.replace(
@@ -130,7 +130,7 @@ export function PythonCodeEditor({
   return (
     <div
       className={`relative flex border font-mono text-xs transition-all rounded-b-xl shadow-2xl ${
-        "bg-[var(--kt-surface)] border-emerald-500/20 text-[var(--kt-text)] backdrop-blur-xl"
+ "bg-[var(--kt-surface)] border-emerald-500/20 text-[var(--kt-text)] backdrop-blur-xl"
       }`}
       style={{ height }}
     >
@@ -138,7 +138,7 @@ export function PythonCodeEditor({
       <div
         ref={gutterRef}
         className={`w-12 select-none overflow-hidden text-right pr-3 pt-3 font-mono text-xs leading-[1.625] border-r ${
-          "bg-[#0D1322] text-[var(--kt-text-muted)] border-emerald-950/40"
+ "bg-[var(--kt-inset)] text-[var(--kt-text-muted)] border-emerald-950/40"
         }`}
       >
         {Array.from({ length: lineCount }, (_, i) => (

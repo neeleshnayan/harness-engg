@@ -15,9 +15,9 @@ interface ConcentrationTreemapProps {
 }
 
 const TILE_PALETTE = [
-  { bg: "bg-teal-950/70 border-teal-500/40 text-teal-200 hover:bg-teal-900/80", accent: "bg-teal-400" },
+  { bg: "bg-[var(--kt-accent-bg)] border-[var(--kt-accent-border)] text-[var(--kt-accent)] hover:bg-[var(--kt-accent-bg)]", accent: "bg-[var(--kt-accent-bg)]" },
   { bg: "bg-emerald-950/70 border-emerald-500/40 text-emerald-200 hover:bg-emerald-900/80", accent: "bg-emerald-400" },
-  { bg: "bg-sky-950/70 border-sky-500/40 text-sky-200 hover:bg-sky-900/80", accent: "bg-sky-400" },
+  { bg: "bg-[var(--kt-accent-bg)] border-[var(--kt-accent-border)] text-[var(--kt-accent-soft)] hover:bg-[var(--kt-accent-bg)]", accent: "bg-[var(--kt-accent-bg)]" },
   { bg: "bg-indigo-950/70 border-indigo-500/40 text-indigo-200 hover:bg-indigo-900/80", accent: "bg-indigo-400" },
   { bg: "bg-violet-950/70 border-violet-500/40 text-violet-200 hover:bg-violet-900/80", accent: "bg-violet-400" },
   { bg: "bg-amber-950/70 border-amber-500/40 text-amber-200 hover:bg-amber-900/80", accent: "bg-amber-400" },
@@ -72,7 +72,7 @@ export function ConcentrationTreemap({ positions, totalNav, height = 320 }: Conc
       {/* Treemap Proportion Grid Canvas */}
       <div
         style={{ height }}
-        className="w-full flex flex-wrap gap-2 p-2 rounded-2xl bg-[#060911] border border-[var(--kt-border)] overflow-hidden relative shadow-2xl"
+        className="w-full flex flex-wrap gap-2 p-2 rounded-2xl bg-[var(--kt-bg)] border border-[var(--kt-border)] overflow-hidden relative shadow-2xl"
       >
         {tiles.map((tile, idx) => {
           const style = TILE_PALETTE[idx % TILE_PALETTE.length];
@@ -127,11 +127,11 @@ export function ConcentrationTreemap({ positions, totalNav, height = 320 }: Conc
       {/* Summary Footer Legend */}
       <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] text-[var(--kt-text-dim)] px-1 pt-1">
         <div className="flex items-center gap-2">
-          <PieChart size={13} className="text-teal-400" />
+          <PieChart size={13} className="text-[var(--kt-accent)]" />
           <span>Total NAV Basis: <strong className="text-[var(--kt-text)]">${(totalNav || 0).toLocaleString()}</strong></span>
         </div>
         <div className="flex items-center gap-4">
-          <span>Positions: <strong className="text-teal-300">{tiles.length}</strong></span>
+          <span>Positions: <strong className="text-[var(--kt-accent)]">{tiles.length}</strong></span>
           <span>Max Single Asset Cap: <strong className="text-[var(--kt-warn)]">20.0% NAV Limit</strong></span>
         </div>
       </div>

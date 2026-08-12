@@ -59,7 +59,7 @@ const signed = (n?: number | null) => (n == null ? "—" : `${n >= 0 ? "+" : ""}
 
 const STATE_STYLE: Record<string, string> = {
   deployed: "bg-emerald-500/15 text-[var(--kt-accent)] border-emerald-500/30",
-  backtested: "bg-sky-500/15 text-sky-300 border-sky-500/30",
+  backtested: "bg-[var(--kt-accent-bg)] text-[var(--kt-accent-soft)] border-[var(--kt-accent-border)]",
   draft: "bg-zinc-500/15 text-[var(--kt-text-dim)] border-zinc-500/30",
   paused: "bg-amber-500/15 text-[var(--kt-warn)] border-amber-500/30",
 };
@@ -338,12 +338,12 @@ export default function StrategyStudioPage() {
             {/* chart panel — fund NAV movement by default, symbol price opt-in */}
             <div className={`${KT.panel} p-4`}>
               <div className="mb-2 flex flex-wrap items-center gap-2">
-                <Activity size={14} className="text-teal-400" />
+                <Activity size={14} className="text-[var(--kt-accent)]" />
                 {/* NAV | Price toggle */}
                 <div className="flex overflow-hidden rounded-md border border-[var(--kt-border)]">
                   <button
                     onClick={() => setChartMode("nav")}
-                    className={`px-2 py-1 text-xs ${chartMode === "nav" ? "bg-teal-600/80 text-[var(--kt-text-strong)]" : "bg-transparent text-[var(--kt-text-dim)] hover:bg-[var(--kt-inset)]"}`}
+                    className={`px-2 py-1 text-xs ${chartMode === "nav" ? "bg-[var(--kt-accent-bg)] text-[var(--kt-text-strong)]" : "bg-transparent text-[var(--kt-text-dim)] hover:bg-[var(--kt-inset)]"}`}
                   >
                     Fund NAV
                   </button>
@@ -352,7 +352,7 @@ export default function StrategyStudioPage() {
                       setChartMode("price");
                       if (!chartData.length) loadChart(chartSymbol);
                     }}
-                    className={`px-2 py-1 text-xs ${chartMode === "price" ? "bg-teal-600/80 text-[var(--kt-text-strong)]" : "bg-transparent text-[var(--kt-text-dim)] hover:bg-[var(--kt-inset)]"}`}
+                    className={`px-2 py-1 text-xs ${chartMode === "price" ? "bg-[var(--kt-accent-bg)] text-[var(--kt-text-strong)]" : "bg-transparent text-[var(--kt-text-dim)] hover:bg-[var(--kt-inset)]"}`}
                   >
                     Price
                   </button>
@@ -406,7 +406,7 @@ export default function StrategyStudioPage() {
                 <div className="flex h-[320px] items-center justify-center text-xs text-[var(--kt-down)]">{chartErr}</div>
               ) : chartLoading && !chartData.length ? (
                 <div className="flex h-[320px] items-center justify-center text-[var(--kt-text-muted)]">
-                  <Loader2 className="animate-spin text-teal-500" size={18} />
+                  <Loader2 className="animate-spin text-[var(--kt-accent)]" size={18} />
                 </div>
               ) : (
                 <HeroChart data={chartData} height={320} />
@@ -527,14 +527,14 @@ export default function StrategyStudioPage() {
                         </div>
                         {/* the case for the trade: thesis + Clark's memo */}
                         {ctx ? (
-                          <div className="mt-2 rounded-md border border-teal-800/40 bg-teal-950/20 p-2">
+                          <div className="mt-2 rounded-md border border-[var(--kt-accent-border)] bg-[var(--kt-accent-bg)] p-2">
                             <div className="flex items-center gap-1.5">
-                              <span className="rounded bg-teal-500/20 px-1 py-0.5 text-[9px] font-semibold uppercase text-teal-300">thesis</span>
-                              <span className="min-w-0 truncate text-[11px] font-medium text-teal-200">{ctx.thesis.title}</span>
+                              <span className="rounded bg-[var(--kt-accent-bg)] px-1 py-0.5 text-[9px] font-semibold uppercase text-[var(--kt-accent)]">thesis</span>
+                              <span className="min-w-0 truncate text-[11px] font-medium text-[var(--kt-text)]">{ctx.thesis.title}</span>
                             </div>
-                            {ctx.thesis.claim && <p className="mt-1 text-[11px] text-[var(--kt-text-dim)]">{ctx.thesis.claim}</p>}
+                            {ctx.thesis.claim && <p className="mt-1 text-[11px] text-[var(--kt-text)]">{ctx.thesis.claim}</p>}
                             {ctx.memo?.recommendation && (
-                              <p className="mt-1 text-[11px] text-teal-300">▸ {ctx.memo.recommendation}</p>
+                              <p className="mt-1 text-[11px] font-medium text-[var(--kt-text)]">▸ {ctx.memo.recommendation}</p>
                             )}
                           </div>
                         ) : o.thesis_id ? null : (

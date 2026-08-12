@@ -109,13 +109,13 @@ export function ApprovalsPanel({ onChanged }: { onChanged?: () => void }) {
                   <span>cash → {money(ip.cash_after)}</span>
                 </div>
                 {c ? (
-                  <div className="mt-2 rounded-md border border-teal-800/40 bg-teal-950/20 p-2">
+                  <div className="mt-2 rounded-md border border-[var(--kt-accent-border)] bg-[var(--kt-accent-bg)] p-2">
                     <div className="flex items-center gap-1.5">
-                      <span className="rounded bg-teal-500/20 px-1 py-0.5 text-[9px] font-semibold uppercase text-teal-300">thesis</span>
-                      <span className="min-w-0 truncate text-[11px] font-medium text-teal-200">{c.thesis.title}</span>
+                      <span className="rounded bg-[var(--kt-accent-bg)] px-1 py-0.5 text-[9px] font-semibold uppercase text-[var(--kt-accent)]">thesis</span>
+                      <span className="min-w-0 truncate text-[11px] font-medium text-[var(--kt-accent)]">{c.thesis.title}</span>
                     </div>
                     {c.thesis.claim && <p className="mt-1 text-[11px] text-[var(--kt-text-dim)]">{c.thesis.claim}</p>}
-                    {c.memo?.recommendation && <p className="mt-1 text-[11px] text-teal-300">▸ {c.memo.recommendation}</p>}
+                    {c.memo?.recommendation && <p className="mt-1 text-[11px] text-[var(--kt-accent)]">▸ {c.memo.recommendation}</p>}
                   </div>
                 ) : o.thesis_id ? null : (
                   <div className="mt-2 text-[10px] italic text-[var(--kt-warn)]/70">discretionary — no thesis</div>

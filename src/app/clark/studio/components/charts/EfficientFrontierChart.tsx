@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useChartColors } from "../../chartColors";
 import {
   CartesianGrid,
   ResponsiveContainer,
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export function EfficientFrontierChart({ points, assets, height = 240, className }: Props) {
+  const c = useChartColors();
 
   let activePoints: FrontierPoint[] = points && points.length > 0 ? points : [];
 
@@ -67,14 +69,14 @@ export function EfficientFrontierChart({ points, assets, height = 240, className
     <div className={className} style={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: -10 }}>
-          <CartesianGrid stroke={"var(--kt-border)"} strokeDasharray="3 3" />
+          <CartesianGrid stroke={c.grid} strokeDasharray="3 3" />
           <XAxis
             type="number"
             dataKey="volatility"
             name="Volatility"
             tickFormatter={(v) => `${v}%`}
-            tick={{ fill: "var(--kt-text-dim)", fontSize: 10 }}
-            axisLine={{ stroke: "var(--kt-border-strong)" }}
+            tick={{ fill: c.textDim, fontSize: 10 }}
+            axisLine={{ stroke: c.axis }}
             tickLine={false}
             domain={["auto", "auto"]}
           />
@@ -83,8 +85,8 @@ export function EfficientFrontierChart({ points, assets, height = 240, className
             dataKey="return"
             name="Return"
             tickFormatter={(v) => `${v}%`}
-            tick={{ fill: "var(--kt-text-dim)", fontSize: 10 }}
-            axisLine={{ stroke: "var(--kt-border-strong)" }}
+            tick={{ fill: c.textDim, fontSize: 10 }}
+            axisLine={{ stroke: c.axis }}
             tickLine={false}
             domain={["auto", "auto"]}
           />
@@ -92,12 +94,12 @@ export function EfficientFrontierChart({ points, assets, height = 240, className
           <Tooltip
             cursor={{ strokeDasharray: "3 3" }}
             contentStyle={{
-              background: "var(--kt-bg)",
+              background: c.bg,
               border: "1px solid #1e293b",
               borderRadius: 8,
               fontSize: 11,
               fontFamily: "monospace",
-              color: "var(--kt-text)",
+              color: c.text,
             }}
             formatter={(value: number, name: string) => [
               name === "sharpe" ? value.toFixed(2) : `${value.toFixed(2)}%`,
@@ -107,14 +109,14 @@ export function EfficientFrontierChart({ points, assets, height = 240, className
           <Scatter
             name="Efficient Frontier"
             data={data}
-            fill={"var(--kt-accent)"}
-            line={{ stroke: "var(--kt-accent)", strokeWidth: 2 }}
+            fill={c.accent}
+            line={{ stroke: c.accent, strokeWidth: 2 }}
             shape="circle"
           />
           <Scatter
             name="Tangency Portfolio (Max Sharpe ⭐)"
             data={[maxSharpePoint]}
-            fill={"var(--kt-accent)"}
+            fill={c.accent}
             shape="star"
           />
           <Scatter

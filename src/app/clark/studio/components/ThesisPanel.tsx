@@ -14,7 +14,7 @@ const STATUS_STYLE: Record<string, string> = {
   draft: "bg-zinc-500/15 text-[var(--kt-text-dim)] border-zinc-500/30",
   active: "bg-emerald-500/15 text-[var(--kt-accent)] border-emerald-500/30",
   invalidated: "bg-red-500/15 text-[var(--kt-down)] border-red-500/30",
-  exited: "bg-sky-500/15 text-sky-300 border-sky-500/30",
+  exited: "bg-[var(--kt-accent-bg)] text-[var(--kt-accent-soft)] border-[var(--kt-accent-border)]",
   reviewed: "bg-violet-500/15 text-violet-300 border-violet-500/30",
 };
 const VERDICTS: Postmortem["verdict"][] = ["correct", "partially_correct", "wrong", "invalidated", "too_early"];
@@ -82,14 +82,14 @@ export function ThesisPanel({ refreshKey, onChanged }: { refreshKey?: number; on
       <div className="flex items-center justify-between border-b border-[var(--kt-border)] px-4 py-2 text-xs">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 font-semibold text-[var(--kt-text)]">
-            <Target size={14} className="text-teal-400" />
+            <Target size={14} className="text-[var(--kt-accent)]" />
             <span>Theses</span>
           </div>
           <div className="flex rounded-md border border-[var(--kt-border)] bg-[var(--kt-bg)] p-0.5 text-[11px]">
             <button
               onClick={() => setActiveTab("pipeline")}
               className={`rounded px-2 py-0.5 font-medium transition-colors ${
-                activeTab === "pipeline" ? "bg-[var(--kt-inset)] text-teal-300" : "text-[var(--kt-text-dim)] hover:text-[var(--kt-text)]"
+                activeTab === "pipeline" ? "bg-[var(--kt-inset)] text-[var(--kt-accent)]" : "text-[var(--kt-text-dim)] hover:text-[var(--kt-text)]"
               }`}
             >
               Active ({pipelineTheses.length})
@@ -139,7 +139,7 @@ export function ThesisPanel({ refreshKey, onChanged }: { refreshKey?: number; on
             <button
               onClick={create}
               disabled={busy || !form.title.trim()}
-              className="rounded bg-teal-600 px-3 py-1 text-xs text-[var(--kt-text-strong)] hover:bg-teal-700 disabled:opacity-50"
+              className="rounded bg-[var(--kt-accent-bg)] px-3 py-1 text-xs text-[var(--kt-text-strong)] hover:bg-[var(--kt-accent-bg)] disabled:opacity-50"
             >
               {busy ? <Loader2 size={13} className="animate-spin" /> : "Create"}
             </button>
@@ -267,7 +267,7 @@ function ThesisDetail({
         author: "operator",
         sections: {
           Thesis: thesis.claim || "(claim not stated)",
-          "Key risks": (thesis.key_risks || []).map((r) => `- ${r}`).join("\n") || "- (none listed)",
+ "Key risks": (thesis.key_risks || []).map((r) => `- ${r}`).join("\n") || "- (none listed)",
           Invalidation: (thesis.invalidation_conditions || []).map((c) => `- ${c}`).join("\n") || "- (none listed)",
         },
       });
@@ -303,7 +303,7 @@ function ThesisDetail({
       {/* memos */}
       <div>
         <div className="mb-1 flex items-center gap-1.5">
-          <ScrollText size={12} className="text-sky-400" />
+          <ScrollText size={12} className="text-[var(--kt-accent-soft)]" />
           <span className="text-[10px] uppercase tracking-widest text-[var(--kt-text-muted)]">Memos ({memos.length})</span>
           <button
             onClick={draftMemo}
@@ -316,11 +316,11 @@ function ThesisDetail({
         {memos.map((m) => (
           <div key={m.memo_id} className="mb-1 rounded-md border border-[var(--kt-border)] bg-[var(--kt-surface)] p-2">
             <div className="flex items-center gap-1.5">
-              <FileText size={11} className="text-sky-400" />
+              <FileText size={11} className="text-[var(--kt-accent-soft)]" />
               <span className="font-medium text-[var(--kt-text)]">{m.title}</span>
               <span className="ml-auto rounded bg-[var(--kt-inset)] px-1 text-[9px] uppercase text-[var(--kt-text-dim)]">{m.status}</span>
             </div>
-            {m.recommendation && <p className="mt-1 text-teal-300">▸ {m.recommendation}</p>}
+            {m.recommendation && <p className="mt-1 text-[var(--kt-accent)]">▸ {m.recommendation}</p>}
             {m.conviction && <p className="mt-0.5 text-[10px] text-[var(--kt-text-muted)]">conviction: {m.conviction}</p>}
           </div>
         ))}

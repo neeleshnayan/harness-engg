@@ -156,7 +156,7 @@ export default function RiskPage() {
   const limits = monitor?.limits;
 
   return (
-    <div className="min-h-screen bg-[var(--kt-bg)] text-[var(--kt-text)] font-sans selection:bg-teal-500/30">
+    <div className="min-h-screen bg-[var(--kt-bg)] text-[var(--kt-text)] font-sans selection:bg-[var(--kt-accent-bg)]">
       <StudioHeader subtitle="Institutional Live Risk Engine — Continuous Surveillance & Kill-Switch Cockpit" />
 
       <div className="mx-auto max-w-[1600px] space-y-6 px-6 py-6">
@@ -222,7 +222,7 @@ export default function RiskPage() {
               disabled={actionBusy}
               className="bg-[var(--kt-inset)] hover:bg-zinc-700 text-[var(--kt-text)] font-mono text-xs px-3.5 h-9 border border-[var(--kt-border)]"
             >
-              <Zap size={14} className="mr-1.5 text-teal-400" />
+              <Zap size={14} className="mr-1.5 text-[var(--kt-accent)]" />
               Run Monitor Tick
             </Button>
 
@@ -243,7 +243,7 @@ export default function RiskPage() {
               disabled={loading}
               className="bg-[var(--kt-surface)] border border-[var(--kt-border)] hover:bg-[var(--kt-inset)] text-xs px-3.5 h-9 text-[var(--kt-text)] font-mono font-semibold"
             >
-              <RefreshCw size={13} className={`mr-1.5 ${loading ? "animate-spin text-teal-400" : ""}`} />
+              <RefreshCw size={13} className={`mr-1.5 ${loading ? "animate-spin text-[var(--kt-accent)]" : ""}`} />
               Sync
             </Button>
           </div>
@@ -258,7 +258,7 @@ export default function RiskPage() {
 
         {loading && !monitor ? (
           <div className="flex flex-col items-center justify-center py-28 text-[var(--kt-text-dim)] gap-3 bg-[var(--kt-surface)] rounded-2xl border border-[var(--kt-border)]">
-            <Loader2 className="animate-spin text-teal-400" size={36} />
+            <Loader2 className="animate-spin text-[var(--kt-accent)]" size={36} />
             <span className="text-xs font-mono tracking-wide text-[var(--kt-text-dim)]">
               Folding live risk picture from spine event log...
             </span>
@@ -322,7 +322,7 @@ export default function RiskPage() {
               <div className="p-4 rounded-2xl bg-[var(--kt-surface)] border border-[var(--kt-border)] shadow-lg backdrop-blur-md flex flex-col justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--kt-text-dim)]">Gross Exposure</span>
                 <div className="my-1.5">
-                  <span className="text-2xl font-black font-mono text-teal-300 tracking-tight">
+                  <span className="text-2xl font-black font-mono text-[var(--kt-accent)] tracking-tight">
                     {pct(monitor.gross_exposure_pct, 1)}
                   </span>
                 </div>
@@ -374,7 +374,7 @@ export default function RiskPage() {
                 </div>
                 <button
                   onClick={() => setLimitsModalOpen(true)}
-                  className="text-[10px] text-teal-400 hover:text-teal-300 font-mono font-bold underline text-left"
+                  className="text-[10px] text-[var(--kt-accent)] hover:text-[var(--kt-accent)] font-mono font-bold underline text-left"
                 >
                   Edit Mandate Limits →
                 </button>
@@ -385,7 +385,7 @@ export default function RiskPage() {
             <div className="p-6 rounded-2xl bg-[var(--kt-surface)] border border-[var(--kt-border)] shadow-xl backdrop-blur-md space-y-4">
               <div className="flex items-center justify-between border-b border-[var(--kt-border)] pb-3">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                  <div className="p-2 rounded-xl bg-[var(--kt-accent-bg)] text-[var(--kt-accent)] border border-[var(--kt-accent-border)]">
                     <Activity size={18} />
                   </div>
                   <div>
@@ -396,7 +396,7 @@ export default function RiskPage() {
 
                 <Button
                   onClick={() => setLimitsModalOpen(true)}
-                  className="bg-[var(--kt-inset)] hover:bg-zinc-700 text-teal-300 border border-[var(--kt-border)] text-xs px-3.5 h-8 font-mono"
+                  className="bg-[var(--kt-inset)] hover:bg-zinc-700 text-[var(--kt-accent)] border border-[var(--kt-border)] text-xs px-3.5 h-8 font-mono"
                 >
                   <Sliders size={13} className="mr-1.5" />
                   Configure Limits
@@ -408,7 +408,7 @@ export default function RiskPage() {
                 <div className="p-4 rounded-xl bg-[var(--kt-bg)] border border-[var(--kt-border)]">
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-[var(--kt-text-dim)] font-sans font-bold">Max Position Weight</span>
-                    <span className="text-teal-300 font-bold">{pct((util?.max_position_pct ?? 0) * 100, 0)}</span>
+                    <span className="text-[var(--kt-accent)] font-bold">{pct((util?.max_position_pct ?? 0) * 100, 0)}</span>
                   </div>
                   <div className="w-full h-2.5 rounded-full bg-[var(--kt-surface)] overflow-hidden">
                     <div
@@ -417,7 +417,7 @@ export default function RiskPage() {
                           ? "bg-rose-500"
                           : (util?.max_position_pct ?? 0) >= 0.8
                           ? "bg-amber-400"
-                          : "bg-teal-400"
+                          : "bg-[var(--kt-accent-bg)]"
                       }`}
                       style={{ width: `${Math.min(100, (util?.max_position_pct ?? 0) * 100)}%` }}
                     />
@@ -431,7 +431,7 @@ export default function RiskPage() {
                 <div className="p-4 rounded-xl bg-[var(--kt-bg)] border border-[var(--kt-border)]">
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-[var(--kt-text-dim)] font-sans font-bold">Max Strategy Weight</span>
-                    <span className="text-teal-300 font-bold">{pct((util?.max_strategy_pct ?? 0) * 100, 0)}</span>
+                    <span className="text-[var(--kt-accent)] font-bold">{pct((util?.max_strategy_pct ?? 0) * 100, 0)}</span>
                   </div>
                   <div className="w-full h-2.5 rounded-full bg-[var(--kt-surface)] overflow-hidden">
                     <div
@@ -454,7 +454,7 @@ export default function RiskPage() {
                 <div className="p-4 rounded-xl bg-[var(--kt-bg)] border border-[var(--kt-border)]">
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-[var(--kt-text-dim)] font-sans font-bold">Cash Buffer Breach</span>
-                    <span className="text-teal-300 font-bold">{pct((util?.min_cash_pct ?? 0) * 100, 0)}</span>
+                    <span className="text-[var(--kt-accent)] font-bold">{pct((util?.min_cash_pct ?? 0) * 100, 0)}</span>
                   </div>
                   <div className="w-full h-2.5 rounded-full bg-[var(--kt-surface)] overflow-hidden">
                     <div
@@ -473,7 +473,7 @@ export default function RiskPage() {
                 <div className="p-4 rounded-xl bg-[var(--kt-bg)] border border-[var(--kt-border)]">
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-[var(--kt-text-dim)] font-sans font-bold">Drawdown Budget</span>
-                    <span className="text-teal-300 font-bold">{pct((drawdown?.utilization ?? 0) * 100, 0)}</span>
+                    <span className="text-[var(--kt-accent)] font-bold">{pct((drawdown?.utilization ?? 0) * 100, 0)}</span>
                   </div>
                   <div className="w-full h-2.5 rounded-full bg-[var(--kt-surface)] overflow-hidden">
                     <div
@@ -482,7 +482,7 @@ export default function RiskPage() {
                           ? "bg-rose-500"
                           : (drawdown?.utilization ?? 0) >= 0.8
                           ? "bg-amber-400"
-                          : "bg-teal-400"
+                          : "bg-[var(--kt-accent-bg)]"
                       }`}
                       style={{ width: `${Math.min(100, (drawdown?.utilization ?? 0) * 100)}%` }}
                     />
@@ -558,7 +558,7 @@ export default function RiskPage() {
               <div className="p-6 rounded-2xl bg-[var(--kt-surface)] border border-[var(--kt-border)] shadow-xl backdrop-blur-md space-y-4">
                 <div className="flex items-center justify-between border-b border-[var(--kt-border)] pb-3">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                    <div className="p-2 rounded-xl bg-[var(--kt-accent-bg)] text-[var(--kt-accent)] border border-[var(--kt-accent-border)]">
                       <Clock size={18} />
                     </div>
                     <div>
@@ -620,7 +620,7 @@ export default function RiskPage() {
             <div className="p-6 rounded-2xl bg-[var(--kt-surface)] border border-[var(--kt-border)] shadow-xl backdrop-blur-md space-y-4">
               <div className="flex items-center justify-between border-b border-[var(--kt-border)] pb-3">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                  <div className="p-2 rounded-xl bg-[var(--kt-accent-bg)] text-[var(--kt-accent)] border border-[var(--kt-accent-border)]">
                     <Activity size={18} />
                   </div>
                   <div>
@@ -659,7 +659,7 @@ export default function RiskPage() {
 
                         return (
                           <tr key={p.symbol} className="hover:bg-[var(--kt-inset)] transition-colors">
-                            <td className="px-4 py-3.5 font-sans font-bold text-teal-300">
+                            <td className="px-4 py-3.5 font-sans font-bold text-[var(--kt-accent)]">
                               <span className="bg-[var(--kt-bg)] px-2.5 py-1 rounded border border-[var(--kt-border)] font-mono">
                                 {p.symbol}
                               </span>
@@ -667,7 +667,7 @@ export default function RiskPage() {
                             <td className="px-4 py-3.5 text-right text-[var(--kt-text)]">{p.qty}</td>
                             <td className="px-4 py-3.5 text-right text-[var(--kt-text)]">{money(p.mark)}</td>
                             <td className="px-4 py-3.5 text-right font-bold text-[var(--kt-text-strong)]">{money(p.value_usd)}</td>
-                            <td className="px-4 py-3.5 text-right font-bold text-teal-300">
+                            <td className="px-4 py-3.5 text-right font-bold text-[var(--kt-accent)]">
                               <span className={isOverweight ? "text-[var(--kt-down)] font-black" : ""}>
                                 {pct(p.weight_pct, 1)}
                               </span>
@@ -717,7 +717,7 @@ export default function RiskPage() {
             <div className="p-6 rounded-2xl bg-[var(--kt-surface)] border border-[var(--kt-border)] shadow-xl backdrop-blur-md space-y-4">
               <div className="flex items-center justify-between border-b border-[var(--kt-border)] pb-3">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                  <div className="p-2 rounded-xl bg-[var(--kt-accent-bg)] text-[var(--kt-accent)] border border-[var(--kt-accent-border)]">
                     <Sliders size={18} />
                   </div>
                   <div>
@@ -756,7 +756,7 @@ export default function RiskPage() {
                             <span className="text-[10px] font-mono text-[var(--kt-text-dim)] block font-normal">{s.strategy_id}</span>
                           </td>
                           <td className="px-4 py-3.5 text-right font-bold text-[var(--kt-text-strong)]">{money(s.exposure_usd)}</td>
-                          <td className="px-4 py-3.5 text-right font-bold text-teal-300">{pct(s.weight_pct, 1)}</td>
+                          <td className="px-4 py-3.5 text-right font-bold text-[var(--kt-accent)]">{pct(s.weight_pct, 1)}</td>
                           <td
                             className={`px-4 py-3.5 text-right font-bold ${
                               s.pnl_usd >= 0 ? "text-[var(--kt-accent)]" : "text-[var(--kt-down)]"
@@ -766,7 +766,7 @@ export default function RiskPage() {
                             {money(s.pnl_usd)}
                           </td>
                           <td className="px-4 py-3.5 text-right text-[var(--kt-text-dim)]">{pct(s.limit_pct, 0)}</td>
-                          <td className="px-4 py-3.5 text-right text-teal-300">{pct(s.utilization * 100, 0)}</td>
+                          <td className="px-4 py-3.5 text-right text-[var(--kt-accent)]">{pct(s.utilization * 100, 0)}</td>
                           <td className="px-4 py-3.5 text-center">
                             {s.breach ? (
                               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-[var(--kt-down)] border border-rose-800">
@@ -860,7 +860,7 @@ export default function RiskPage() {
             className="bg-[var(--kt-surface)] border border-[var(--kt-border)] rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl"
           >
             <div className="flex items-center justify-between border-b border-[var(--kt-border)] pb-3">
-              <div className="flex items-center gap-2 text-teal-400 font-bold font-mono">
+              <div className="flex items-center gap-2 text-[var(--kt-accent)] font-bold font-mono">
                 <Sliders size={18} />
                 <span>MANDATE RISK LIMITS</span>
               </div>
@@ -877,7 +877,7 @@ export default function RiskPage() {
                   step="0.01"
                   value={limitsForm.max_position_pct ?? 0.20}
                   onChange={(e) => setLimitsForm({ ...limitsForm, max_position_pct: parseFloat(e.target.value) })}
-                  className="w-full rounded-xl bg-[var(--kt-bg)] border border-[var(--kt-border)] p-2.5 text-[var(--kt-text-strong)] outline-none focus:border-teal-500"
+                  className="w-full rounded-xl bg-[var(--kt-bg)] border border-[var(--kt-border)] p-2.5 text-[var(--kt-text-strong)] outline-none focus:border-[var(--kt-accent-border)]"
                 />
                 <span className="text-[9px] text-[var(--kt-text-muted)]">e.g. 0.20 = 20% of NAV</span>
               </div>
@@ -889,7 +889,7 @@ export default function RiskPage() {
                   step="0.01"
                   value={limitsForm.max_strategy_pct ?? 0.40}
                   onChange={(e) => setLimitsForm({ ...limitsForm, max_strategy_pct: parseFloat(e.target.value) })}
-                  className="w-full rounded-xl bg-[var(--kt-bg)] border border-[var(--kt-border)] p-2.5 text-[var(--kt-text-strong)] outline-none focus:border-teal-500"
+                  className="w-full rounded-xl bg-[var(--kt-bg)] border border-[var(--kt-border)] p-2.5 text-[var(--kt-text-strong)] outline-none focus:border-[var(--kt-accent-border)]"
                 />
                 <span className="text-[9px] text-[var(--kt-text-muted)]">e.g. 0.40 = 40% of NAV</span>
               </div>
@@ -901,7 +901,7 @@ export default function RiskPage() {
                   step="0.01"
                   value={limitsForm.min_cash_pct ?? 0.10}
                   onChange={(e) => setLimitsForm({ ...limitsForm, min_cash_pct: parseFloat(e.target.value) })}
-                  className="w-full rounded-xl bg-[var(--kt-bg)] border border-[var(--kt-border)] p-2.5 text-[var(--kt-text-strong)] outline-none focus:border-teal-500"
+                  className="w-full rounded-xl bg-[var(--kt-bg)] border border-[var(--kt-border)] p-2.5 text-[var(--kt-text-strong)] outline-none focus:border-[var(--kt-accent-border)]"
                 />
                 <span className="text-[9px] text-[var(--kt-text-muted)]">e.g. 0.10 = 10% of NAV</span>
               </div>
@@ -913,7 +913,7 @@ export default function RiskPage() {
                   step="0.01"
                   value={limitsForm.max_drawdown_pct ?? 0.15}
                   onChange={(e) => setLimitsForm({ ...limitsForm, max_drawdown_pct: parseFloat(e.target.value) })}
-                  className="w-full rounded-xl bg-[var(--kt-bg)] border border-[var(--kt-border)] p-2.5 text-[var(--kt-text-strong)] outline-none focus:border-teal-500"
+                  className="w-full rounded-xl bg-[var(--kt-bg)] border border-[var(--kt-border)] p-2.5 text-[var(--kt-text-strong)] outline-none focus:border-[var(--kt-accent-border)]"
                 />
                 <span className="text-[9px] text-[var(--kt-text-muted)]">e.g. 0.15 = 15% drawdown</span>
               </div>
@@ -925,7 +925,7 @@ export default function RiskPage() {
                   step="0.01"
                   value={limitsForm.max_daily_loss_pct ?? 0.05}
                   onChange={(e) => setLimitsForm({ ...limitsForm, max_daily_loss_pct: parseFloat(e.target.value) })}
-                  className="w-full rounded-xl bg-[var(--kt-bg)] border border-[var(--kt-border)] p-2.5 text-[var(--kt-text-strong)] outline-none focus:border-teal-500"
+                  className="w-full rounded-xl bg-[var(--kt-bg)] border border-[var(--kt-border)] p-2.5 text-[var(--kt-text-strong)] outline-none focus:border-[var(--kt-accent-border)]"
                 />
                 <span className="text-[9px] text-[var(--kt-text-muted)]">e.g. 0.05 = 5% daily loss</span>
               </div>
@@ -937,7 +937,7 @@ export default function RiskPage() {
                   step="0.01"
                   value={limitsForm.underwater_pct ?? 0.15}
                   onChange={(e) => setLimitsForm({ ...limitsForm, underwater_pct: parseFloat(e.target.value) })}
-                  className="w-full rounded-xl bg-[var(--kt-bg)] border border-[var(--kt-border)] p-2.5 text-[var(--kt-text-strong)] outline-none focus:border-teal-500"
+                  className="w-full rounded-xl bg-[var(--kt-bg)] border border-[var(--kt-border)] p-2.5 text-[var(--kt-text-strong)] outline-none focus:border-[var(--kt-accent-border)]"
                 />
                 <span className="text-[9px] text-[var(--kt-text-muted)]">e.g. 0.15 = 15% loss on position</span>
               </div>
@@ -954,7 +954,7 @@ export default function RiskPage() {
               <Button
                 type="submit"
                 disabled={actionBusy}
-                className="bg-teal-600 hover:bg-teal-500 text-[var(--kt-text-strong)] font-mono font-bold text-xs"
+                className="bg-[var(--kt-accent-bg)] hover:bg-[var(--kt-accent-bg)] text-[var(--kt-text-strong)] font-mono font-bold text-xs"
               >
                 Save Mandate Limits
               </Button>

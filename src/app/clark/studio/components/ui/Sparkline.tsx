@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useChartColors } from "../../chartColors";
 import { ResponsiveContainer, LineChart, Line, YAxis } from "recharts";
 
 interface SparklineProps {
@@ -12,13 +13,14 @@ interface SparklineProps {
 }
 
 export function Sparkline({ data, up, width = 60, height = 24, className = "" }: SparklineProps) {
+  const c = useChartColors();
   if (!data || data.length < 2) {
     return <div style={{ width, height }} className={`bg-[var(--kt-inset)] rounded ${className}`} />;
   }
 
   // Infer trend if not explicitly provided
   const isUp = typeof up === "boolean" ? up : data[data.length - 1] >= data[0];
-  const color = isUp ? "#34d399" : "var(--kt-down)"; // emerald-400 / rose-400
+  const color = isUp ? "#34d399" : c.down; // emerald-400 / rose-400
 
   // Format for recharts
   const chartData = data.map((val, i) => ({ val, i }));

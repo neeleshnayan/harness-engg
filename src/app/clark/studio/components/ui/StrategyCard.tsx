@@ -42,7 +42,7 @@ export function StrategyCard({ strategy, chartData, onClick }: StrategyCardProps
           <div className="flex items-center gap-2">
             <h3 className={KT.title}>{strategy.name}</h3>
             {strategy.is_container && (
-              <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-sky-300 border border-sky-500/30">
+              <span className="rounded bg-[var(--kt-accent-bg)] px-1.5 py-0.5 text-[9px] font-semibold uppercase text-[var(--kt-accent-soft)] border border-[var(--kt-accent-border)]">
                 container
               </span>
             )}

@@ -265,7 +265,7 @@ export function SimulationModal({ open, onOpenChange, onSuccess }: SimulationMod
                   <div className="text-[10px] font-medium uppercase tracking-wider text-[var(--kt-text-dim)] mb-1">
                     Sharpe Shift
                   </div>
-                  <div className="text-xl font-bold font-mono text-cyan-400">
+                  <div className="text-xl font-bold font-mono text-[var(--kt-accent)]">
                     {simResult.summary.sharpe_before} → {simResult.summary.sharpe_after}
                   </div>
                   <div className="text-xs text-[var(--kt-text-muted)] mt-0.5">Delta: {(simResult.summary.sharpe_after - simResult.summary.sharpe_before).toFixed(2)}</div>

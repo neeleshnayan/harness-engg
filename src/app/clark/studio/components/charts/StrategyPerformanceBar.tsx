@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useChartColors } from "../../chartColors";
 import {
   Bar,
   BarChart,
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export function StrategyPerformanceBar({ strategies, height = 240, className }: Props) {
+  const c = useChartColors();
   // Only show strategies that are active/deployed or have actual PnL
   const activeStrategies = strategies.filter(
     (s) => s.state === "deployed" || Math.abs(s.pnl_usd || 0) > 0.01 || Math.abs(s.exposure_usd || 0) > 0.01
@@ -52,24 +54,24 @@ export function StrategyPerformanceBar({ strategies, height = 240, className }: 
     <div className={className} style={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-          <CartesianGrid stroke="var(--kt-track)" strokeDasharray="3 3" vertical={false} />
+          <CartesianGrid stroke={c.grid} strokeDasharray="3 3" vertical={false} />
           <XAxis
             dataKey="name"
-            tick={{ fill: "var(--kt-text-dim)", fontSize: 11 }}
+            tick={{ fill: c.textDim, fontSize: 11 }}
             tickLine={false}
-            axisLine={{ stroke: "var(--kt-track)" }}
+            axisLine={{ stroke: c.grid }}
           />
           <YAxis
-            tick={{ fill: "var(--kt-text-muted)", fontSize: 10 }}
+            tick={{ fill: c.textMuted, fontSize: 10 }}
             tickLine={false}
             axisLine={false}
             tickFormatter={(v) => `$${v > 1000 ? (v / 1000).toFixed(1) + "k" : v}`}
             width={60}
           />
           <Tooltip
-            cursor={{ fill: "var(--kt-track)", opacity: 0.4 }}
+            cursor={{ fill: c.grid, opacity: 0.4 }}
             contentStyle={{
-              background: "#09090b",
+              background: c.bg,
               border: "1px solid #27272a",
               borderRadius: 8,
               fontSize: 12,
@@ -85,7 +87,7 @@ export function StrategyPerformanceBar({ strategies, height = 240, className }: 
           {/* PnL bar (overlaid or side-by-side, let's do side-by-side by not stacking) */}
           <Bar dataKey="pnl" radius={[4, 4, 0, 0]} barSize={32}>
             {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.pnl >= 0 ? "#34d399" : "var(--kt-down)"} />
+              <Cell key={`cell-${index}`} fill={entry.pnl >= 0 ? "#34d399" : c.down} />
             ))}
           </Bar>
         </BarChart>

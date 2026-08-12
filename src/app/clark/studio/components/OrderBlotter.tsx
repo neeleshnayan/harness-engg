@@ -6,8 +6,8 @@ import { OrderHistoryRow, StrategyView } from "@/lib/fund_api";
 
 const STATUS_STYLE: Record<string, string> = {
   filled: "bg-emerald-500/15 text-[var(--kt-accent)]",
-  working: "bg-sky-500/15 text-sky-300",
-  partial: "bg-sky-500/15 text-sky-300",
+  working: "bg-[var(--kt-accent-bg)] text-[var(--kt-accent-soft)]",
+  partial: "bg-[var(--kt-accent-bg)] text-[var(--kt-accent-soft)]",
   pending: "bg-amber-500/15 text-[var(--kt-warn)]",
   approved: "bg-amber-500/15 text-[var(--kt-warn)]",
   failed: "bg-red-500/15 text-[var(--kt-down)]",
@@ -41,7 +41,7 @@ export function OrderBlotter({
   return (
     <div className="overflow-hidden rounded-xl border border-[var(--kt-border)] bg-[var(--kt-surface)]">
       <div className="flex flex-wrap items-center gap-2 border-b border-[var(--kt-border)] px-4 py-2.5">
-        <History size={14} className="text-teal-400" />
+        <History size={14} className="text-[var(--kt-accent)]" />
         <span className="text-sm font-semibold">Order history</span>
         <span className="text-[11px] text-[var(--kt-text-muted)]">{orders.length} orders</span>
         <select

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useChartColors } from "../../chartColors";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -33,13 +34,14 @@ interface Props {
 }
 
 export function QuantConnectChart({ symbol, barsData, height = 320, className }: Props) {
+  const c = useChartColors();
 
   let data: BarData[] = barsData && barsData.length > 0 ? barsData : [];
 
   if (data.length === 0) {
     return (
       <div className={`rounded-2xl border font-mono shadow-2xl p-8 text-center text-xs ${
-        "bg-[var(--kt-surface)]/90 border-emerald-500/20 text-[var(--kt-text-muted)]"
+ "bg-[var(--kt-surface)]/90 border-emerald-500/20 text-[var(--kt-text-muted)]"
       } ${className || ""}`}>
         No price bars available for symbol {symbol}
       </div>
@@ -55,16 +57,16 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
   return (
     <div
       className={`rounded-2xl border font-mono shadow-2xl space-y-3 p-5 transition-all ${
-        "bg-[var(--kt-surface)]/90 border-emerald-500/20 backdrop-blur-xl"
+ "bg-[var(--kt-surface)]/90 border-emerald-500/20 backdrop-blur-xl"
       } ${className || ""}`}
     >
       {/* Chart Header Bar */}
       <div className={`flex flex-wrap items-center justify-between gap-3 border-b pb-3 text-xs ${
-        "border-emerald-950/40"
+ "border-emerald-950/40"
       }`}>
         <div className="flex items-center gap-3">
           <span className={`font-extrabold text-sm px-3 py-1 rounded-lg border ${
-            "bg-emerald-950/80 text-[var(--kt-accent)] border-emerald-700/50"
+ "bg-emerald-950/80 text-[var(--kt-accent)] border-emerald-700/50"
           }`}>
             {symbol}
           </span>
@@ -81,17 +83,17 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
         <div className="flex items-center gap-2 font-medium">
           <span className={`text-[10px] uppercase font-bold ${"text-[var(--kt-text-dim)]"}`}>Indicators:</span>
           <span className={`text-[10px] px-2.5 py-0.5 rounded-md border ${
-            "bg-emerald-950/80 text-[var(--kt-accent)] border-emerald-700/40"
+ "bg-emerald-950/80 text-[var(--kt-accent)] border-emerald-700/40"
           }`}>
             Close Terracotta
           </span>
           <span className={`text-[10px] px-2.5 py-0.5 rounded-md border ${
-            "bg-emerald-950/80 text-[var(--kt-accent)] border-emerald-700/40"
+ "bg-emerald-950/80 text-[var(--kt-accent)] border-emerald-700/40"
           }`}>
             SMA(20) Sage
           </span>
           <span className={`text-[10px] px-2.5 py-0.5 rounded-md border ${
-            "bg-sky-950/80 text-sky-300 border-sky-700/40"
+ "bg-[var(--kt-accent-bg)] text-[var(--kt-accent-soft)] border-[var(--kt-accent-border)]"
           }`}>
             SMA(50) Blue
           </span>
@@ -102,18 +104,18 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
       <div style={{ width: "100%", height }}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 10, right: 10, bottom: 0, left: -10 }}>
-            <CartesianGrid stroke={"var(--kt-border)"} strokeDasharray="3 3" vertical={false} />
+            <CartesianGrid stroke={c.grid} strokeDasharray="3 3" vertical={false} />
             <XAxis
               dataKey="date"
-              tick={{ fill: "var(--kt-text-muted)", fontSize: 10 }}
-              axisLine={{ stroke: "var(--kt-border-strong)" }}
+              tick={{ fill: c.textMuted, fontSize: 10 }}
+              axisLine={{ stroke: c.axis }}
               tickLine={false}
             />
             <YAxis
               yAxisId="price"
               domain={[minPrice, maxPrice]}
-              tick={{ fill: "var(--kt-text-dim)", fontSize: 10 }}
-              axisLine={{ stroke: "var(--kt-border-strong)" }}
+              tick={{ fill: c.textDim, fontSize: 10 }}
+              axisLine={{ stroke: c.axis }}
               tickLine={false}
               orientation="right"
               tickFormatter={(v) => `$${v}`}
@@ -121,12 +123,12 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
             <YAxis yAxisId="volume" orientation="left" domain={[0, "auto"]} hide />
             <Tooltip
               contentStyle={{
-                background: "var(--kt-bg)",
+                background: c.bg,
                 border: "1px solid #1e293b",
                 borderRadius: 8,
                 fontSize: 11,
                 fontFamily: "monospace",
-                color: "var(--kt-text)",
+                color: c.text,
               }}
               formatter={(val: any, name: string) => [
                 name === "volume" ? val.toLocaleString() : `$${Number(val).toFixed(2)}`,
@@ -134,13 +136,13 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
               ]}
             />
 
-            <Bar yAxisId="volume" dataKey="volume" fill={"var(--kt-border)"} opacity={0.6} barSize={6} />
+            <Bar yAxisId="volume" dataKey="volume" fill={c.grid} opacity={0.6} barSize={6} />
 
             <Line
               yAxisId="price"
               type="monotone"
               dataKey="close"
-              stroke="var(--kt-accent)"
+              stroke={c.accent}
               strokeWidth={2.4}
               dot={false}
               name="Close Price"
@@ -175,7 +177,7 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
                 y={s.close}
                 r={6}
                 fill="#276749"
-                stroke="var(--kt-text-strong)"
+                stroke={c.text}
                 strokeWidth={2}
               />
             ))}
@@ -187,8 +189,8 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
                 x={s.date}
                 y={s.close}
                 r={6}
-                fill="var(--kt-accent)"
-                stroke="var(--kt-text-strong)"
+                fill={c.accent}
+                stroke={c.text}
                 strokeWidth={2}
               />
             ))}

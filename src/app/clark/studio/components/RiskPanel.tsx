@@ -127,7 +127,7 @@ export function RiskPanel({ refreshKey, hideDonut }: { refreshKey?: number; hide
           {/* custom what-if */}
           <div className="rounded-md border border-[var(--kt-border)] bg-[var(--kt-surface)] p-2">
             <div className="mb-1.5 flex items-center gap-1 text-[10px] font-medium uppercase tracking-widest text-[var(--kt-text-muted)]">
-              <Zap size={11} className="text-teal-400" /> What-if
+              <Zap size={11} className="text-[var(--kt-accent)]" /> What-if
             </div>
             <div className="flex items-center gap-1.5">
               <input

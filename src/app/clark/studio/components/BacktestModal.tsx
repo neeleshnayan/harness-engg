@@ -269,7 +269,7 @@ export function BacktestModal({ strategy, onClose, onSuccess, onCharted }: Props
           <Button
             onClick={mode === "symbol" ? runSymbol : runManual}
             disabled={loading}
-            className="bg-gradient-to-r from-teal-600 to-sky-600 text-[var(--kt-text-strong)]"
+            className=" text-[var(--kt-text-strong)]"
           >
             {loading && <Loader2 className="mr-2 animate-spin" size={16} />}
             {loading ? "Running…" : mode === "symbol" ? "Fetch & backtest" : "Run backtest"}
