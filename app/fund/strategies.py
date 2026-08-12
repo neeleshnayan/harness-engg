@@ -116,6 +116,55 @@ class StrategyService:
         )
         return self.get(strategy_id)
 
+    def set_member_weight(self, parent_id: str, child_id: str, weight: Any, actor: str) -> dict[str, Any]:
+        self._require(parent_id)
+        self._require(child_id)
+        if parent_id == child_id:
+            raise StrategyError("a strategy cannot be its own parent")
+        if self._is_descendant(parent_id, child_id):
+            raise StrategyError("that would create a cycle in the strategy graph")
+        w = float(D(weight))
+        if w < 0:
+            raise StrategyError("weight cannot be negative")
+
+        child_rec = self.get(child_id)
+        if parent_id not in (child_rec.get("parents") or []):
+            self._store.append(
+                Event(child_id, "strategy", EventType.STRATEGY_ADDED_TO_PARENT,
+                      {"parent_id": parent_id}, actor)
+            )
+
+        self._store.append(
+            Event(parent_id, "strategy", EventType.STRATEGY_MEMBERSHIP_WEIGHTED,
+                  {"child_id": child_id, "weight": w}, actor)
+        )
+        return self.get(parent_id)
+
+    def set_member_weights(self, parent_id: str, weights: dict[str, Any], actor: str) -> dict[str, Any]:
+        self._require(parent_id)
+        for cid, weight in weights.items():
+            self._require(cid)
+            if parent_id == cid:
+                raise StrategyError("a strategy cannot be its own parent")
+            if self._is_descendant(parent_id, cid):
+                raise StrategyError(f"cycle detected between {parent_id} and {cid}")
+            w = float(D(weight))
+            if w < 0:
+                raise StrategyError(f"weight for {cid} cannot be negative")
+
+            child_rec = self.get(cid)
+            if parent_id not in (child_rec.get("parents") or []):
+                self._store.append(
+                    Event(cid, "strategy", EventType.STRATEGY_ADDED_TO_PARENT,
+                          {"parent_id": parent_id}, actor)
+                )
+
+            self._store.append(
+                Event(parent_id, "strategy", EventType.STRATEGY_MEMBERSHIP_WEIGHTED,
+                      {"child_id": cid, "weight": w}, actor)
+            )
+        return self.get(parent_id)
+
     def remove_parent(self, strategy_id: str, parent_id: str, actor: str) -> dict[str, Any]:
         self._require(strategy_id)
         self._store.append(
@@ -201,6 +250,8 @@ class StrategyRegistry:
                     "archived": False,
                     "backtest": None,
                     "assets": [],
+                    "members": [],
+                    "member_weights": {},
                 }
             elif sid in strategies:
                 if etype == EventType.STRATEGY_STATE_CHANGED.value:
@@ -217,12 +268,33 @@ class StrategyRegistry:
                     pid = p.get("parent_id")
                     if pid and pid not in strategies[sid]["parents"]:
                         strategies[sid]["parents"].append(pid)
+                elif etype == EventType.STRATEGY_MEMBERSHIP_WEIGHTED.value:
+                    cid = p.get("child_id")
+                    if cid and "weight" in p:
+                        strategies[sid].setdefault("_raw_member_weights", {})[cid] = float(p["weight"])
                 elif etype == EventType.STRATEGY_ASSETS_SET.value:
                     strategies[sid]["assets"] = p.get("symbols", [])
                 elif etype == EventType.STRATEGY_REMOVED_FROM_PARENT.value:
                     pid = p.get("parent_id")
                     if pid in strategies[sid]["parents"]:
                         strategies[sid]["parents"].remove(pid)
+                    if pid in strategies and sid in strategies[pid].get("_raw_member_weights", {}):
+                        del strategies[pid]["_raw_member_weights"][sid]
+
+        for pid, rec in strategies.items():
+            raw_w = rec.get("_raw_member_weights", {})
+            members = []
+            for cid, child_rec in strategies.items():
+                if pid in child_rec.get("parents", []):
+                    w = raw_w.get(cid, 0.0)
+                    members.append({
+                        "child_id": cid,
+                        "name": child_rec.get("name"),
+                        "weight": round(float(w), 4)
+                    })
+            rec["members"] = members
+            rec["member_weights"] = {m["child_id"]: m["weight"] for m in members}
+
         return strategies
 
     @staticmethod

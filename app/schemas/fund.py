@@ -88,6 +88,22 @@ class StrategyRenameRequest(BaseModel):
     actor: str = Field("operator", description="Who renamed it")
 
 
+class StrategyMemberRequest(BaseModel):
+    child_id: str = Field(..., description="Child strategy to include/weight")
+    weight: float = Field(0.0, ge=0.0, le=1.0, description="Target weight (0..1)")
+    actor: str = Field("operator", description="Who set the member weight")
+
+
+class StrategyMemberWeightsRequest(BaseModel):
+    weights: dict[str, float] = Field(..., description="Mapping of child_id to target weight (0..1)")
+    actor: str = Field("operator", description="Who set the member weights")
+
+
+class StrategyComposeWeightsRequest(BaseModel):
+    method: Literal["equal", "risk_parity", "hrp", "max_sharpe", "min_volatility"] = Field("hrp", description="Weight optimization method")
+    lookback_days: int = Field(365, gt=1, le=2000, description="Lookback period in calendar days")
+
+
 class StrategyParentRequest(BaseModel):
     parent_id: str = Field(..., description="Parent strategy to add/remove this one under")
     actor: str = Field("operator", description="Who changed the membership")

@@ -67,6 +67,7 @@ class EventType(str, Enum):
     # Many-to-many composition (a strategy can compose into multiple parents).
     STRATEGY_ADDED_TO_PARENT = "StrategyAddedToParent"
     STRATEGY_REMOVED_FROM_PARENT = "StrategyRemovedFromParent"
+    STRATEGY_MEMBERSHIP_WEIGHTED = "StrategyMembershipWeighted"
 
     # Thesis lifecycle — the versioned investment idea a trade must reference
     # (or be marked discretionary). Makes post-mortems meaningful.

@@ -239,3 +239,89 @@ def optimize_portfolio(symbols: list[str], lookback_days: int = 365, method: str
             "correlation": {},
             "cv_metrics": {},
         }
+
+
+def optimize_return_streams(df: pd.DataFrame, method: str = "hrp") -> dict:
+    """
+    Optimize weights given a DataFrame of cumulative equity curves or price series for child strategies.
+    Supported methods: equal, risk_parity, hrp, max_sharpe, min_volatility.
+    """
+    if df.empty or len(df.columns) == 0:
+        return {
+            "weights": {},
+            "method": method,
+            "expected": {"sharpe": 0.0, "vol": 0.0, "ret": 0.0},
+            "cv": {"pbo": 0.0, "oos_sharpe": 0.0},
+        }
+
+    cols = list(df.columns)
+    N = len(cols)
+    if N == 1:
+        w_dict = {cols[0]: 1.0}
+    elif method == "equal":
+        w_dict = {c: round(1.0 / N, 4) for c in cols}
+    else:
+        df_clean = df.dropna(how="all").ffill().bfill()
+        returns_df = df_clean.pct_change().dropna()
+        if returns_df.empty or len(returns_df) < 5:
+            w_dict = {c: round(1.0 / N, 4) for c in cols}
+        elif method == "risk_parity":
+            vols = returns_df.std() * (252 ** 0.5)
+            vols = vols.replace(0, 1e-8)
+            inv_vols = 1.0 / vols
+            raw_w = inv_vols / inv_vols.sum()
+            w_dict = {c: round(float(raw_w.get(c, 0.0)), 4) for c in cols}
+        elif method == "hrp":
+            try:
+                hrp = HRPOpt(returns_df)
+                raw_w = hrp.optimize()
+                w_dict = {c: round(float(raw_w.get(c, 0.0)), 4) for c in cols}
+            except Exception:
+                w_dict = {c: round(1.0 / N, 4) for c in cols}
+        else:  # min_volatility or max_sharpe
+            try:
+                mu = expected_returns.mean_historical_return(df_clean)
+                S = risk_models.sample_cov(df_clean)
+                ef = EfficientFrontier(mu, S)
+                if method == "min_volatility":
+                    ef.min_volatility()
+                else:
+                    ef.max_sharpe()
+                raw_w = ef.clean_weights()
+                w_dict = {c: round(float(raw_w.get(c, 0.0)), 4) for c in cols}
+            except Exception:
+                w_dict = {c: round(1.0 / N, 4) for c in cols}
+
+    # Normalize weights sum if non-zero
+    w_sum = sum(w_dict.values())
+    if w_sum > 0:
+        w_dict = {k: round(v / w_sum, 4) for k, v in w_dict.items()}
+
+    # Compute expected blended metrics & CV metrics
+    df_clean = df.dropna(how="all").ffill().bfill()
+    returns_df = df_clean.pct_change().dropna()
+    expected = {"sharpe": 0.0, "vol": 0.0, "ret": 0.0}
+    if not returns_df.empty:
+        w_arr = np.array([w_dict.get(c, 0.0) for c in returns_df.columns])
+        blend_rets = returns_df.values @ w_arr
+        ann_ret = float(np.mean(blend_rets) * 252)
+        ann_vol = float(np.std(blend_rets) * (252 ** 0.5) + 1e-8)
+        sharpe = float(ann_ret / ann_vol) if ann_vol > 0 else 0.0
+        expected = {
+            "sharpe": round(sharpe, 2),
+            "vol": round(ann_vol, 4),
+            "ret": round(ann_ret, 4),
+        }
+
+    cv_metrics = purged_cross_validation(df_clean, method=method, n_splits=5, purge_days=5)
+
+    return {
+        "weights": w_dict,
+        "method": method,
+        "expected": expected,
+        "cv": {
+            "pbo": cv_metrics.get("pbo", 0.0),
+            "oos_sharpe": cv_metrics.get("oos_sharpe", 0.0),
+        },
+    }
+

@@ -12,6 +12,8 @@ The pipeline is wired to the PaperConnector today; swapping in the IBKRConnector
 import os
 from typing import Optional
 
+import numpy as np
+import pandas as pd
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
@@ -35,7 +37,6 @@ from app.fund.reconcile import Reconciler
 from app.fund.riskanalytics import RiskAnalytics
 from app.fund.riskmonitor import RiskControl, RiskMonitor
 from app.fund.simulation import CounterfactualSimulator
-from app.fund.sentinel import SentinelRadar
 from app.fund.strategies import StrategyError, StrategyService
 from app.fund.thesis import ThesisError, ThesisService
 from app.schemas.fund import (
@@ -68,9 +69,12 @@ from app.schemas.fund import (
     ThesisStatusRequest,
     ThesisUpdateRequest,
     StrategyOptimizeRequest,
+    StrategyMemberRequest,
+    StrategyMemberWeightsRequest,
+    StrategyComposeWeightsRequest,
 )
 
-from app.fund.optimization import optimize_portfolio
+from app.fund.optimization import optimize_portfolio, optimize_return_streams
 
 router = APIRouter()
 
@@ -106,13 +110,7 @@ _reconciler = Reconciler(connector=_connector, store=_store, projection=_project
 _control = RiskControl(store=_store)
 _monitor = RiskMonitor(nav_service=_nav, store=_store, pricer=_connector.price,
                        attribution=_attribution, strategies=_strategies, control=_control)
-from app.fund.pair_arb import PairArbitrageEngine
-from app.fund.macro_regime import MacroRegimeClassifier
-
-_pair_arb = PairArbitrageEngine()
-_macro_regime = MacroRegimeClassifier()
 _simulator = CounterfactualSimulator(nav_service=_nav, positions_projection=_projection, strategy_service=_strategies)
-_sentinel = SentinelRadar(thesis_service=_theses, memo_service=_memos, store=_store)
 
 
 # --- worker hooks (called by endpoints and the scheduled worker) -----------
@@ -680,30 +678,6 @@ def simulate_risk(req: SimulationRequest):
     )
 
 
-@router.get("/fund/sentinel/signals")
-def get_sentinel_signals():
-    """Get active Clark Sentinel Alpha Radar signals."""
-    return {"signals": _sentinel.get_signals()}
-
-
-@router.post("/fund/sentinel/scan")
-def scan_sentinel(symbol: Optional[str] = Query(None)):
-    """Trigger autonomous Alpha Radar scan across multi-modal feeds."""
-    return _sentinel.scan(force_trigger_symbol=symbol)
-
-
-@router.get("/fund/risk/pairs")
-def get_pair_trade_signals():
-    """Scan statistical arbitrage pair trade opportunities."""
-    return _pair_arb.get_summary()
-
-
-@router.get("/fund/risk/macro-regime")
-def get_macro_regime():
-    """Classify current global macro regime and risk conviction modifier."""
-    return _macro_regime.get_regime_summary()
-
-
 @router.post("/fund/strategies/{strategy_id}/rename")
 def rename_strategy(strategy_id: str, req: StrategyRenameRequest):
     try:
@@ -735,6 +709,207 @@ def remove_strategy_parent(strategy_id: str, req: StrategyParentRequest):
         return _strategies.remove_parent(strategy_id, parent_id=req.parent_id, actor=req.actor)
     except StrategyError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/fund/strategies/{parent_id}/members")
+def set_strategy_member(parent_id: str, req: StrategyMemberRequest):
+    """Set target weight for a child strategy member under parent_id (S1)."""
+    try:
+        return _strategies.set_member_weight(parent_id, child_id=req.child_id, weight=req.weight, actor=req.actor)
+    except StrategyError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
+@router.post("/fund/strategies/{parent_id}/members/weights")
+def set_strategy_member_weights(parent_id: str, req: StrategyMemberWeightsRequest):
+    """Bulk set target weights for child strategy members under parent_id (S1)."""
+    try:
+        return _strategies.set_member_weights(parent_id, weights=req.weights, actor=req.actor)
+    except StrategyError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
+@router.post("/fund/strategies/{parent_id}/compose/weights")
+def compose_strategy_weights(parent_id: str, req: StrategyComposeWeightsRequest):
+    """Suggest optimal weights for member child strategies (S2). Does not persist."""
+    try:
+        parent = _strategies.get(parent_id)
+    except StrategyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    members = parent.get("members", [])
+    if not members:
+        all_strats = _strategies.list()
+        members = [{"child_id": s["strategy_id"], "name": s["name"], "weight": 0.0}
+                   for s in all_strats if s["strategy_id"] != parent_id and not s.get("archived")]
+
+    streams = {}
+    skipped = []
+    for m in members:
+        cid = m["child_id"]
+        c_rec = _strategies.get(cid)
+        c_assets = c_rec.get("assets") or []
+        series = None
+        if c_assets:
+            closes_list = []
+            for sym in c_assets[:3]:
+                try:
+                    bars = fetch_daily_bars(sym, lookback_days=req.lookback_days)
+                    if bars and bars.closes:
+                        closes_list.append(pd.Series(bars.closes, index=pd.to_datetime(bars.dates)))
+                except BarsError:
+                    pass
+            if closes_list:
+                series = pd.DataFrame(closes_list).T.mean(axis=1)
+
+        if series is None or len(series) < 5:
+            bt = c_rec.get("backtest") or {}
+            ret = bt.get("total_return", 0.0)
+            if ret != 0.0:
+                n_bars = bt.get("bars", 100)
+                daily_r = (1.0 + ret / 100.0) ** (1.0 / max(1, n_bars)) - 1.0
+                idx = pd.date_range(end=pd.Timestamp.now(), periods=n_bars, freq="D")
+                series = pd.Series((1.0 + daily_r) ** np.arange(n_bars), index=idx)
+
+        if series is not None and len(series) >= 5:
+            streams[cid] = series
+        else:
+            skipped.append(cid)
+
+    if not streams:
+        return {
+            "weights": {m["child_id"]: round(1.0 / len(members), 4) for m in members} if members else {},
+            "method": req.method,
+            "expected": {"sharpe": 0.0, "vol": 0.0, "ret": 0.0},
+            "cv": {"pbo": 0.0, "oos_sharpe": 0.0},
+            "skipped_members": skipped,
+        }
+
+    df_streams = pd.DataFrame(streams)
+    res = optimize_return_streams(df_streams, method=req.method)
+    res["skipped_members"] = skipped
+    return res
+
+
+@router.get("/fund/strategies/{parent_id}/composite")
+def get_composite_strategy(parent_id: str):
+    """Return composite assessment: members, blended equity curve, metrics, and risk (S3)."""
+    try:
+        parent = _strategies.get(parent_id)
+    except StrategyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    members = parent.get("members", [])
+    attr_map = {a["strategy_id"]: a for a in _attribution.with_values(_connector.price)}
+
+    enriched_members = []
+    weights_sum = 0.0
+    for m in members:
+        cid = m["child_id"]
+        w = float(m.get("weight", 0.0))
+        weights_sum += w
+        c_attr = attr_map.get(cid, {})
+        enriched_members.append({
+            "child_id": cid,
+            "name": m.get("name"),
+            "weight": round(w, 4),
+            "exposure_usd": c_attr.get("exposure_usd", 0.0),
+            "pnl_usd": c_attr.get("pnl_usd", 0.0),
+        })
+
+    curves = {}
+    flags = []
+    for m in members:
+        cid = m["child_id"]
+        c_rec = _strategies.get(cid)
+        c_assets = c_rec.get("assets") or []
+        series = None
+        if c_assets:
+            closes_list = []
+            for sym in c_assets[:3]:
+                try:
+                    bars = fetch_daily_bars(sym, lookback_days=180)
+                    if bars and bars.closes:
+                        closes_list.append(pd.Series(bars.closes, index=pd.to_datetime(bars.dates)))
+                except BarsError:
+                    pass
+            if closes_list:
+                series = pd.DataFrame(closes_list).T.mean(axis=1)
+
+        if series is None or len(series) < 5:
+            bt = c_rec.get("backtest") or {}
+            ret = bt.get("total_return", 0.0)
+            if ret != 0.0:
+                n_bars = bt.get("bars", 100)
+                daily_r = (1.0 + ret / 100.0) ** (1.0 / max(1, n_bars)) - 1.0
+                idx = pd.date_range(end=pd.Timestamp.now(), periods=n_bars, freq="D")
+                series = pd.Series((1.0 + daily_r) ** np.arange(n_bars), index=idx)
+            else:
+                flags.append(f"Child strategy '{m.get('name')}' has no backtest data")
+
+        if series is not None and len(series) >= 2:
+            norm_series = series / (series.iloc[0] if series.iloc[0] != 0 else 1.0)
+            curves[cid] = norm_series
+
+    blended_points = []
+    metrics = {"total_return": 0.0, "sharpe": 0.0, "max_drawdown": 0.0}
+    drawdown_pct = 0.0
+    if curves:
+        df_curves = pd.DataFrame(curves).dropna(how="all").ffill().bfill()
+        if not df_curves.empty:
+            cash_w = max(0.0, 1.0 - weights_sum)
+            blend_vals = pd.Series(cash_w, index=df_curves.index)
+            for cid, s in df_curves.items():
+                w = next((m["weight"] for m in members if m["child_id"] == cid), 0.0)
+                blend_vals += w * s
+
+            for idx, val in blend_vals.items():
+                date_str = str(idx)[:10]
+                blended_points.append({"t": date_str, "v": round(float(val), 4)})
+
+            total_ret = float(blend_vals.iloc[-1] / blend_vals.iloc[0] - 1.0) if blend_vals.iloc[0] != 0 else 0.0
+            pct_changes = blend_vals.pct_change().dropna()
+            sharpe = 0.0
+            if len(pct_changes) > 1:
+                std_val = float(pct_changes.std())
+                if std_val > 0:
+                    sharpe = float((pct_changes.mean() / std_val) * (252 ** 0.5))
+
+            cum = blend_vals.values
+            peaks = np.maximum.accumulate(cum)
+            dds = (cum - peaks) / np.maximum(peaks, 1e-8)
+            max_dd = float(np.min(dds)) if len(dds) > 0 else 0.0
+            drawdown_pct = abs(max_dd)
+
+            metrics = {
+                "total_return": round(total_ret * 100, 2),
+                "sharpe": round(sharpe, 2),
+                "max_drawdown": round(max_dd, 4),
+            }
+
+    hhi = 0.0
+    if weights_sum > 0:
+        hhi = float(sum((m["weight"] / weights_sum) ** 2 for m in enriched_members))
+        if hhi > 0.4:
+            flags.append("High portfolio concentration (HHI > 0.40)")
+
+    if weights_sum < 0.999:
+        flags.append(f"Weights sum to {round(weights_sum * 100, 1)}% (< 100%, remainder cash)")
+    elif weights_sum > 1.001:
+        flags.append(f"Weights sum to {round(weights_sum * 100, 1)}% (> 100%, leverage)")
+
+    return {
+        "strategy_id": parent_id,
+        "members": enriched_members,
+        "blended_equity": blended_points,
+        "metrics": metrics,
+        "risk": {
+            "concentration_hhi": round(hhi, 4),
+            "drawdown_pct": round(drawdown_pct, 4),
+            "flags": flags,
+        },
+        "weights_sum": round(weights_sum, 4),
+    }
 
 
 @router.post("/fund/strategies/{strategy_id}/state")
