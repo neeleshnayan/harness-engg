@@ -113,21 +113,21 @@ export function SimulationModal({ open, onOpenChange, onSuccess }: SimulationMod
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl bg-zinc-950 border-zinc-800 text-zinc-100 p-6 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="border-b border-zinc-800 pb-4 mb-4">
+      <DialogContent className="max-w-4xl bg-[var(--kt-bg)] border-[var(--kt-border)] text-[var(--kt-text)] p-6 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="border-b border-[var(--kt-border)] pb-4 mb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[var(--kt-warn)]">
                 <ShieldAlert className="w-5 h-5" />
               </div>
               <div>
-                <DialogTitle className="text-lg font-semibold text-zinc-100 flex items-center gap-2">
+                <DialogTitle className="text-lg font-semibold text-[var(--kt-text)] flex items-center gap-2">
                   Clark Counterfactual Stress Workbench
-                  <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-[var(--kt-accent)] border border-emerald-500/20">
                     Live Spine Connected
                   </span>
                 </DialogTitle>
-                <DialogDescription className="text-xs text-zinc-400 mt-0.5">
+                <DialogDescription className="text-xs text-[var(--kt-text-dim)] mt-0.5">
                   Simulate macro factor shocks against active portfolio holdings before executing rebalances.
                 </DialogDescription>
               </div>
@@ -138,7 +138,7 @@ export function SimulationModal({ open, onOpenChange, onSuccess }: SimulationMod
         {/* Presets Bar */}
         <div className="space-y-4">
           <div>
-            <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-400 mb-2 block">
+            <label className="text-[11px] font-medium uppercase tracking-wider text-[var(--kt-text-dim)] mb-2 block">
               Famous Macro Shock Presets
             </label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -148,8 +148,8 @@ export function SimulationModal({ open, onOpenChange, onSuccess }: SimulationMod
                   onClick={() => handleSelectPreset(p)}
                   className={`px-3 py-2 text-xs rounded-xl border text-left transition-all ${
                     selectedPreset === p.key
-                      ? 'bg-amber-500/15 border-amber-500/40 text-amber-300 font-medium'
-                      : 'bg-zinc-900/60 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                      ? 'bg-amber-500/15 border-amber-500/40 text-[var(--kt-warn)] font-medium'
+                      : 'bg-[var(--kt-surface)] border-[var(--kt-border)] text-[var(--kt-text-dim)] hover:border-[var(--kt-border)] hover:text-[var(--kt-text)]'
                   }`}
                 >
                   {p.label}
@@ -159,11 +159,11 @@ export function SimulationModal({ open, onOpenChange, onSuccess }: SimulationMod
           </div>
 
           {/* Slider Inputs Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-zinc-900/40 p-3.5 rounded-xl border border-zinc-800/80">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-[var(--kt-surface)] p-3.5 rounded-xl border border-[var(--kt-border)]">
             <div>
-              <div className="flex justify-between text-[11px] text-zinc-400 mb-1">
+              <div className="flex justify-between text-[11px] text-[var(--kt-text-dim)] mb-1">
                 <span>Brent Crude Oil</span>
-                <span className="font-mono text-amber-400 font-semibold">${crudeOil}/bbl</span>
+                <span className="font-mono text-[var(--kt-warn)] font-semibold">${crudeOil}/bbl</span>
               </div>
               <input
                 type="range"
@@ -176,9 +176,9 @@ export function SimulationModal({ open, onOpenChange, onSuccess }: SimulationMod
               />
             </div>
             <div>
-              <div className="flex justify-between text-[11px] text-zinc-400 mb-1">
+              <div className="flex justify-between text-[11px] text-[var(--kt-text-dim)] mb-1">
                 <span>10Y Yield Delta</span>
-                <span className="font-mono text-amber-400 font-semibold">+{yieldBps} bps</span>
+                <span className="font-mono text-[var(--kt-warn)] font-semibold">+{yieldBps} bps</span>
               </div>
               <input
                 type="range"
@@ -191,9 +191,9 @@ export function SimulationModal({ open, onOpenChange, onSuccess }: SimulationMod
               />
             </div>
             <div>
-              <div className="flex justify-between text-[11px] text-zinc-400 mb-1">
+              <div className="flex justify-between text-[11px] text-[var(--kt-text-dim)] mb-1">
                 <span>Market Shock (S&P)</span>
-                <span className="font-mono text-rose-400 font-semibold">{marketShock}%</span>
+                <span className="font-mono text-[var(--kt-down)] font-semibold">{marketShock}%</span>
               </div>
               <input
                 type="range"
@@ -207,9 +207,9 @@ export function SimulationModal({ open, onOpenChange, onSuccess }: SimulationMod
               />
             </div>
             <div>
-              <div className="flex justify-between text-[11px] text-zinc-400 mb-1">
+              <div className="flex justify-between text-[11px] text-[var(--kt-text-dim)] mb-1">
                 <span>VIX Spike</span>
-                <span className="font-mono text-rose-400 font-semibold">+{vixSpike}%</span>
+                <span className="font-mono text-[var(--kt-down)] font-semibold">+{vixSpike}%</span>
               </div>
               <input
                 type="range"
@@ -228,59 +228,59 @@ export function SimulationModal({ open, onOpenChange, onSuccess }: SimulationMod
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div className="bg-rose-950/20 border border-rose-900/40 rounded-xl p-3.5">
-                  <div className="text-[10px] font-medium uppercase tracking-wider text-rose-400 mb-1 flex items-center gap-1.5">
+                  <div className="text-[10px] font-medium uppercase tracking-wider text-[var(--kt-down)] mb-1 flex items-center gap-1.5">
                     <TrendingDown className="w-3.5 h-3.5" /> Forecast Drawdown
                   </div>
-                  <div className="text-xl font-bold font-mono text-rose-400">
+                  <div className="text-xl font-bold font-mono text-[var(--kt-down)]">
                     {simResult.summary.drawdown_pct}%
                   </div>
-                  <div className="text-xs text-rose-300/70 font-mono mt-0.5">
+                  <div className="text-xs text-[var(--kt-down)]/70 font-mono mt-0.5">
                     -${Math.abs(simResult.summary.drawdown_usd).toLocaleString()} USD
                   </div>
                 </div>
 
-                <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3.5">
-                  <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-400 mb-1">
+                <div className="bg-[var(--kt-surface)] border border-[var(--kt-border)] rounded-xl p-3.5">
+                  <div className="text-[10px] font-medium uppercase tracking-wider text-[var(--kt-text-dim)] mb-1">
                     Simulated Total NAV
                   </div>
-                  <div className="text-xl font-bold font-mono text-zinc-100">
+                  <div className="text-xl font-bold font-mono text-[var(--kt-text)]">
                     ${simResult.summary.nav_usd_after.toLocaleString()}
                   </div>
-                  <div className="text-xs text-zinc-500 font-mono mt-0.5">
+                  <div className="text-xs text-[var(--kt-text-muted)] font-mono mt-0.5">
                     Base: ${simResult.summary.nav_usd_before.toLocaleString()}
                   </div>
                 </div>
 
-                <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3.5">
-                  <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-400 mb-1">
+                <div className="bg-[var(--kt-surface)] border border-[var(--kt-border)] rounded-xl p-3.5">
+                  <div className="text-[10px] font-medium uppercase tracking-wider text-[var(--kt-text-dim)] mb-1">
                     Portfolio Beta
                   </div>
-                  <div className="text-xl font-bold font-mono text-amber-400">
+                  <div className="text-xl font-bold font-mono text-[var(--kt-warn)]">
                     {simResult.summary.portfolio_beta}
                   </div>
-                  <div className="text-xs text-zinc-500 mt-0.5">Factor Sensitivity</div>
+                  <div className="text-xs text-[var(--kt-text-muted)] mt-0.5">Factor Sensitivity</div>
                 </div>
 
-                <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3.5">
-                  <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-400 mb-1">
+                <div className="bg-[var(--kt-surface)] border border-[var(--kt-border)] rounded-xl p-3.5">
+                  <div className="text-[10px] font-medium uppercase tracking-wider text-[var(--kt-text-dim)] mb-1">
                     Sharpe Shift
                   </div>
                   <div className="text-xl font-bold font-mono text-cyan-400">
                     {simResult.summary.sharpe_before} → {simResult.summary.sharpe_after}
                   </div>
-                  <div className="text-xs text-zinc-500 mt-0.5">Delta: {(simResult.summary.sharpe_after - simResult.summary.sharpe_before).toFixed(2)}</div>
+                  <div className="text-xs text-[var(--kt-text-muted)] mt-0.5">Delta: {(simResult.summary.sharpe_after - simResult.summary.sharpe_before).toFixed(2)}</div>
                 </div>
               </div>
 
               {/* Position P&L Heatmap Table */}
-              <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-3.5">
-                <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-400 mb-2">
+              <div className="bg-[var(--kt-surface)] border border-[var(--kt-border)] rounded-xl p-3.5">
+                <div className="text-[11px] font-medium uppercase tracking-wider text-[var(--kt-text-dim)] mb-2">
                   Position P&L Impact & Factor Sensitivities
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs text-left">
                     <thead>
-                      <tr className="border-b border-zinc-800 text-zinc-500">
+                      <tr className="border-b border-[var(--kt-border)] text-[var(--kt-text-muted)]">
                         <th className="py-1.5 font-medium">Asset</th>
                         <th className="py-1.5 font-medium text-right">Qty</th>
                         <th className="py-1.5 font-medium text-right">Mark (Before → After)</th>
@@ -290,16 +290,16 @@ export function SimulationModal({ open, onOpenChange, onSuccess }: SimulationMod
                     </thead>
                     <tbody>
                       {simResult.position_impacts.map((pos) => (
-                        <tr key={pos.symbol} className="border-b border-zinc-800/40">
-                          <td className="py-2 font-semibold text-zinc-200">{pos.symbol}</td>
-                          <td className="py-2 text-right font-mono text-zinc-400">{pos.qty}</td>
-                          <td className="py-2 text-right font-mono text-zinc-300">
+                        <tr key={pos.symbol} className="border-b border-[var(--kt-border)]">
+                          <td className="py-2 font-semibold text-[var(--kt-text)]">{pos.symbol}</td>
+                          <td className="py-2 text-right font-mono text-[var(--kt-text-dim)]">{pos.qty}</td>
+                          <td className="py-2 text-right font-mono text-[var(--kt-text-dim)]">
                             ${pos.mark_before} → ${pos.mark_after}
                           </td>
-                          <td className={`py-2 text-right font-mono font-medium ${pos.shock_pct < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                          <td className={`py-2 text-right font-mono font-medium ${pos.shock_pct < 0 ? 'text-[var(--kt-down)]' : 'text-[var(--kt-accent)]'}`}>
                             {pos.shock_pct > 0 ? '+' : ''}{pos.shock_pct}%
                           </td>
-                          <td className={`py-2 text-right font-mono font-semibold ${pos.pnl_usd < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                          <td className={`py-2 text-right font-mono font-semibold ${pos.pnl_usd < 0 ? 'text-[var(--kt-down)]' : 'text-[var(--kt-accent)]'}`}>
                             {pos.pnl_usd < 0 ? '-' : '+'}${Math.abs(pos.pnl_usd).toLocaleString()}
                           </td>
                         </tr>
@@ -313,26 +313,26 @@ export function SimulationModal({ open, onOpenChange, onSuccess }: SimulationMod
               {simResult.hedging_proposals && simResult.hedging_proposals.length > 0 && (
                 <div className="bg-emerald-950/20 border border-emerald-500/30 rounded-xl p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
+                    <div className="flex items-center gap-2 text-[var(--kt-accent)] font-semibold text-sm">
                       <Zap className="w-4 h-4" /> Automated Hedging Rebalance Proposal
                     </div>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-[var(--kt-accent)]">
                       Clark Recommendation
                     </span>
                   </div>
                   {simResult.hedging_proposals.map((hedge) => (
                     <div key={hedge.proposal_id} className="space-y-2">
-                      <div className="text-xs text-zinc-300 font-medium">{hedge.title}</div>
-                      <div className="text-xs text-zinc-400">{hedge.description}</div>
+                      <div className="text-xs text-[var(--kt-text-dim)] font-medium">{hedge.title}</div>
+                      <div className="text-xs text-[var(--kt-text-dim)]">{hedge.description}</div>
                       <div className="flex items-center justify-between pt-2">
-                        <div className="text-xs text-emerald-300 font-mono">
+                        <div className="text-xs text-[var(--kt-accent)] font-mono">
                           Reduces drawdown to {hedge.mitigated_drawdown_pct}% (Saves ${Math.abs(hedge.mitigated_drawdown_usd).toLocaleString()})
                         </div>
                         <Button
                           size="sm"
                           disabled={applyingHedge}
                           onClick={() => handleApplyHedge(hedge)}
-                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs rounded-xl"
+                          className="bg-emerald-600 hover:bg-emerald-500 text-[var(--kt-text-strong)] font-medium text-xs rounded-xl"
                         >
                           {applyingHedge ? (
                             <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1" />

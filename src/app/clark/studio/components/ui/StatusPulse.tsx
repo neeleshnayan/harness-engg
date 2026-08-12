@@ -17,20 +17,20 @@ export function StatusPulse({ state, label, className = "" }: StatusPulseProps) 
         return {
           dot: "bg-emerald-500",
           animation: "animate-pulse-live",
-          text: "text-emerald-500",
+          text: "text-[var(--kt-accent)]",
         };
       case "syncing":
         return {
           dot: "bg-amber-500",
           animation: "animate-blink-sync",
-          text: "text-amber-500",
+          text: "text-[var(--kt-warn)]",
         };
       case "offline":
       default:
         return {
           dot: "bg-rose-500",
           animation: "",
-          text: "text-rose-500",
+          text: "text-[var(--kt-down)]",
         };
     }
   };

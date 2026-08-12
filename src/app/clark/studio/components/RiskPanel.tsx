@@ -44,38 +44,38 @@ export function RiskPanel({ refreshKey, hideDonut }: { refreshKey?: number; hide
   };
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/40">
-      <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-2.5">
-        <ShieldAlert size={14} className="text-rose-400" />
+    <div className="rounded-xl border border-[var(--kt-border)] bg-[var(--kt-surface)]">
+      <div className="flex items-center gap-2 border-b border-[var(--kt-border)] px-4 py-2.5">
+        <ShieldAlert size={14} className="text-[var(--kt-down)]" />
         <span className="text-sm font-semibold">Risk cockpit</span>
         {data && (
-          <span className="ml-auto font-mono text-[10px] text-zinc-500">
+          <span className="ml-auto font-mono text-[10px] text-[var(--kt-text-muted)]">
             HHI {data.concentration_hhi.toFixed(0)}
           </span>
         )}
       </div>
 
       {loading && !data ? (
-        <div className="flex items-center gap-2 p-6 text-sm text-zinc-500">
+        <div className="flex items-center gap-2 p-6 text-sm text-[var(--kt-text-muted)]">
           <Loader2 className="animate-spin" size={16} /> Loading…
         </div>
       ) : !data ? (
-        <div className="p-6 text-center text-sm text-zinc-500">No risk data.</div>
+        <div className="p-6 text-center text-sm text-[var(--kt-text-muted)]">No risk data.</div>
       ) : (
         <div className="space-y-3 p-3">
           {/* concentration snapshot */}
           <div className="grid grid-cols-3 gap-2 font-mono text-[11px]">
-            <div className="rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1.5">
-              <div className="text-[9px] uppercase tracking-wide text-zinc-500">Cash</div>
-              <div className="text-zinc-100">{pct(data.cash_pct, 0)}</div>
+            <div className="rounded-md border border-[var(--kt-border)] bg-[var(--kt-surface)] px-2 py-1.5">
+              <div className="text-[9px] uppercase tracking-wide text-[var(--kt-text-muted)]">Cash</div>
+              <div className="text-[var(--kt-text)]">{pct(data.cash_pct, 0)}</div>
             </div>
-            <div className="rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1.5">
-              <div className="text-[9px] uppercase tracking-wide text-zinc-500">Gross</div>
-              <div className="text-zinc-100">{pct(data.gross_exposure_pct, 0)}</div>
+            <div className="rounded-md border border-[var(--kt-border)] bg-[var(--kt-surface)] px-2 py-1.5">
+              <div className="text-[9px] uppercase tracking-wide text-[var(--kt-text-muted)]">Gross</div>
+              <div className="text-[var(--kt-text)]">{pct(data.gross_exposure_pct, 0)}</div>
             </div>
-            <div className="rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1.5">
-              <div className="text-[9px] uppercase tracking-wide text-zinc-500">Top name</div>
-              <div className="text-zinc-100">
+            <div className="rounded-md border border-[var(--kt-border)] bg-[var(--kt-surface)] px-2 py-1.5">
+              <div className="text-[9px] uppercase tracking-wide text-[var(--kt-text-muted)]">Top name</div>
+              <div className="text-[var(--kt-text)]">
                 {data.largest_position ? `${pct(data.largest_position.weight_pct, 0)}` : "—"}
               </div>
             </div>
@@ -102,7 +102,7 @@ export function RiskPanel({ refreshKey, hideDonut }: { refreshKey?: number; hide
           {data.flags.length > 0 && (
             <div className="space-y-1">
               {data.flags.map((f, i) => (
-                <div key={i} className="flex items-start gap-1.5 rounded-md border border-amber-800/40 bg-amber-950/20 px-2 py-1 text-[11px] text-amber-300">
+                <div key={i} className="flex items-start gap-1.5 rounded-md border border-amber-800/40 bg-amber-950/20 px-2 py-1 text-[11px] text-[var(--kt-warn)]">
                   <AlertTriangle size={12} className="mt-0.5 shrink-0" /> {f}
                 </div>
               ))}
@@ -111,12 +111,12 @@ export function RiskPanel({ refreshKey, hideDonut }: { refreshKey?: number; hide
 
           {/* default stress scenarios */}
           <div>
-            <div className="mb-1 text-[10px] font-medium uppercase tracking-widest text-zinc-500">Stress scenarios</div>
+            <div className="mb-1 text-[10px] font-medium uppercase tracking-widest text-[var(--kt-text-muted)]">Stress scenarios</div>
             <div className="space-y-1">
               {data.scenarios.map((s, i) => (
-                <div key={i} className="flex items-center justify-between rounded-md bg-zinc-900/60 px-2 py-1 font-mono text-[11px]">
-                  <span className="text-zinc-400">{s.label}</span>
-                  <span className={s.pnl_usd >= 0 ? "text-emerald-400" : "text-red-400"}>
+                <div key={i} className="flex items-center justify-between rounded-md bg-[var(--kt-surface)] px-2 py-1 font-mono text-[11px]">
+                  <span className="text-[var(--kt-text-dim)]">{s.label}</span>
+                  <span className={s.pnl_usd >= 0 ? "text-[var(--kt-accent)]" : "text-[var(--kt-down)]"}>
                     {money(s.pnl_usd)} ({s.nav_change_pct.toFixed(1)}%)
                   </span>
                 </div>
@@ -125,8 +125,8 @@ export function RiskPanel({ refreshKey, hideDonut }: { refreshKey?: number; hide
           </div>
 
           {/* custom what-if */}
-          <div className="rounded-md border border-zinc-800 bg-zinc-900/60 p-2">
-            <div className="mb-1.5 flex items-center gap-1 text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+          <div className="rounded-md border border-[var(--kt-border)] bg-[var(--kt-surface)] p-2">
+            <div className="mb-1.5 flex items-center gap-1 text-[10px] font-medium uppercase tracking-widest text-[var(--kt-text-muted)]">
               <Zap size={11} className="text-teal-400" /> What-if
             </div>
             <div className="flex items-center gap-1.5">
@@ -134,27 +134,27 @@ export function RiskPanel({ refreshKey, hideDonut }: { refreshKey?: number; hide
                 value={shockSym}
                 onChange={(e) => setShockSym(e.target.value)}
                 placeholder="all"
-                className="w-16 rounded border border-zinc-700 bg-zinc-800/60 px-1.5 py-1 text-xs uppercase outline-none placeholder:text-zinc-600"
+                className="w-16 rounded border border-[var(--kt-border)] bg-[var(--kt-inset)] px-1.5 py-1 text-xs uppercase outline-none placeholder:text-[var(--kt-text-muted)]"
               />
               <input
                 type="number"
                 value={shockPct}
                 onChange={(e) => setShockPct(Number(e.target.value))}
-                className="w-16 rounded border border-zinc-700 bg-zinc-800/60 px-1.5 py-1 text-right font-mono text-xs outline-none"
+                className="w-16 rounded border border-[var(--kt-border)] bg-[var(--kt-inset)] px-1.5 py-1 text-right font-mono text-xs outline-none"
               />
-              <span className="text-xs text-zinc-500">%</span>
+              <span className="text-xs text-[var(--kt-text-muted)]">%</span>
               <button
                 onClick={runShock}
                 disabled={busy}
-                className="ml-auto rounded bg-rose-600/90 px-2 py-1 text-[11px] text-white hover:bg-rose-600 disabled:opacity-50"
+                className="ml-auto rounded bg-rose-600/90 px-2 py-1 text-[11px] text-[var(--kt-text-strong)] hover:bg-rose-600 disabled:opacity-50"
               >
                 {busy ? <Loader2 size={12} className="animate-spin" /> : "Shock"}
               </button>
             </div>
             {custom && (
-              <div className="mt-2 flex items-center justify-between rounded bg-zinc-950/60 px-2 py-1 font-mono text-[11px]">
-                <span className="text-zinc-400">{custom.label}</span>
-                <span className={custom.pnl_usd >= 0 ? "text-emerald-400" : "text-red-400"}>
+              <div className="mt-2 flex items-center justify-between rounded bg-[var(--kt-bg)] px-2 py-1 font-mono text-[11px]">
+                <span className="text-[var(--kt-text-dim)]">{custom.label}</span>
+                <span className={custom.pnl_usd >= 0 ? "text-[var(--kt-accent)]" : "text-[var(--kt-down)]"}>
                   {money(custom.pnl_usd)} → NAV {money(custom.nav_after)}
                 </span>
               </div>

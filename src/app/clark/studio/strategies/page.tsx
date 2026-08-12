@@ -562,7 +562,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
 
   return (
     <div className={`min-h-screen transition-colors font-sans ${
-      "bg-[#030712] text-zinc-100 selection:bg-emerald-500/30"
+      "bg-[var(--kt-bg)] text-[var(--kt-text)] selection:bg-emerald-500/30"
     }`}>
       {/* Studio Header */}
       <StudioHeader subtitle="Anthropic Quant Strategy Studio & LEAN Python Environment" />
@@ -577,16 +577,16 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
 
         {loading ? (
           <div className={`flex flex-col items-center justify-center py-28 gap-3 rounded-2xl border font-mono ${
-            "bg-[#070D1B]/80 border-emerald-500/20 text-zinc-400 backdrop-blur-xl"
+            "bg-[#070D1B]/80 border-emerald-500/20 text-[var(--kt-text-dim)] backdrop-blur-xl"
           }`}>
-            <Loader2 className={`animate-spin ${"text-emerald-400"}`} size={36} />
+            <Loader2 className={`animate-spin ${"text-[var(--kt-accent)]"}`} size={36} />
             <span className="text-xs">Loading fund strategy trees & quant environments...</span>
           </div>
         ) : strategies.length === 0 ? (
           <div className={`flex flex-col items-center justify-center py-20 text-sm rounded-2xl border font-mono ${
-            "bg-[#070D1B]/80 border-emerald-500/20 text-zinc-500 backdrop-blur-xl"
+            "bg-[#070D1B]/80 border-emerald-500/20 text-[var(--kt-text-muted)] backdrop-blur-xl"
           }`}>
-            <Layers size={40} className={`mb-3 opacity-40 ${"text-emerald-400"}`} />
+            <Layers size={40} className={`mb-3 opacity-40 ${"text-[var(--kt-accent)]"}`} />
             No strategies registered yet.
           </div>
         ) : (
@@ -597,74 +597,74 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                 "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl hover:border-emerald-500/40"
               }`}>
                 <div className={`flex items-center justify-between text-xs font-bold uppercase tracking-wider ${
-                  "text-zinc-400"
+                  "text-[var(--kt-text-dim)]"
                 }`}>
                   <span>Strategy Models</span>
-                  <Layers size={16} className={"text-emerald-400"} />
+                  <Layers size={16} className={"text-[var(--kt-accent)]"} />
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className={`text-2xl font-black ${"text-white"}`}>{strategies.length} Total</span>
-                  <span className={`text-xs font-bold ${"text-emerald-400"}`}>({deployedCount} Active)</span>
+                  <span className={`text-2xl font-black ${"text-[var(--kt-text-strong)]"}`}>{strategies.length} Total</span>
+                  <span className={`text-xs font-bold ${"text-[var(--kt-accent)]"}`}>({deployedCount} Active)</span>
                 </div>
-                <p className={`text-[10px] ${"text-zinc-500"}`}>Live venue & sandbox algorithms</p>
+                <p className={`text-[10px] ${"text-[var(--kt-text-muted)]"}`}>Live venue & sandbox algorithms</p>
               </div>
 
               <div className={`p-5 rounded-2xl border shadow-xl space-y-1.5 transition-all ${
                 "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl hover:border-emerald-500/40"
               }`}>
                 <div className={`flex items-center justify-between text-xs font-bold uppercase tracking-wider ${
-                  "text-zinc-400"
+                  "text-[var(--kt-text-dim)]"
                 }`}>
                   <span>Deployed Exposure</span>
-                  <DollarSign size={16} className={"text-emerald-400"} />
+                  <DollarSign size={16} className={"text-[var(--kt-accent)]"} />
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className={`text-2xl font-black ${"text-white"}`}>{money(totalExposure)}</span>
-                  <span className={`text-xs font-bold ${"text-emerald-300"}`}>21.2% NAV</span>
+                  <span className={`text-2xl font-black ${"text-[var(--kt-text-strong)]"}`}>{money(totalExposure)}</span>
+                  <span className={`text-xs font-bold ${"text-[var(--kt-accent)]"}`}>21.2% NAV</span>
                 </div>
-                <p className={`text-[10px] ${"text-zinc-500"}`}>Active committed venue capital</p>
+                <p className={`text-[10px] ${"text-[var(--kt-text-muted)]"}`}>Active committed venue capital</p>
               </div>
 
               <div className={`p-5 rounded-2xl border shadow-xl space-y-1.5 transition-all ${
                 "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl hover:border-emerald-500/40"
               }`}>
                 <div className={`flex items-center justify-between text-xs font-bold uppercase tracking-wider ${
-                  "text-zinc-400"
+                  "text-[var(--kt-text-dim)]"
                 }`}>
                   <span>Cumulative Net P&L</span>
-                  <TrendingUp size={16} className={"text-emerald-400"} />
+                  <TrendingUp size={16} className={"text-[var(--kt-accent)]"} />
                 </div>
                 <div className="flex items-baseline gap-2">
                   <span className={`text-2xl font-black ${
                     totalPnl >= 0
-                      ? ("text-emerald-400")
-                      : ("text-rose-400")
+                      ? ("text-[var(--kt-accent)]")
+                      : ("text-[var(--kt-down)]")
                   }`}>
                     {totalPnl >= 0 ? "+" : ""}{money(totalPnl)}
                   </span>
-                  <span className={`text-xs font-bold ${"text-emerald-400"}`}>+15.6%</span>
+                  <span className={`text-xs font-bold ${"text-[var(--kt-accent)]"}`}>+15.6%</span>
                 </div>
-                <p className={`text-[10px] ${"text-zinc-500"}`}>Realized + unrealized strategy yield</p>
+                <p className={`text-[10px] ${"text-[var(--kt-text-muted)]"}`}>Realized + unrealized strategy yield</p>
               </div>
 
               <div className={`p-5 rounded-2xl border shadow-xl space-y-1.5 transition-all ${
                 "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl hover:border-emerald-500/40"
               }`}>
                 <div className={`flex items-center justify-between text-xs font-bold uppercase tracking-wider ${
-                  "text-zinc-400"
+                  "text-[var(--kt-text-dim)]"
                 }`}>
                   <span>Risk Gate & Sharpe</span>
-                  <ShieldCheck size={16} className={"text-emerald-400"} />
+                  <ShieldCheck size={16} className={"text-[var(--kt-accent)]"} />
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className={`text-2xl font-black ${"text-emerald-300"}`}>2.35 Sharpe</span>
+                  <span className={`text-2xl font-black ${"text-[var(--kt-accent)]"}`}>2.35 Sharpe</span>
                   <span className={`text-xs font-bold px-2 py-0.5 rounded border ${
-                    "bg-emerald-950/80 text-emerald-300 border-emerald-800"
+                    "bg-emerald-950/80 text-[var(--kt-accent)] border-emerald-800"
                   }`}>
                     PASSING
                   </span>
                 </div>
-                <p className={`text-[10px] ${"text-zinc-500"}`}>Pre-trade drawdown controls</p>
+                <p className={`text-[10px] ${"text-[var(--kt-text-muted)]"}`}>Pre-trade drawdown controls</p>
               </div>
             </div>
 
@@ -678,7 +678,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                   className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
                     subTab === "overview"
                       ? ("bg-emerald-500 text-zinc-950 shadow-[0_0_20px_rgba(16,185,129,0.3)]")
-                      : ("bg-[#070D1A]/80 text-zinc-400 hover:text-white hover:bg-zinc-900 border border-emerald-900/30 backdrop-blur-md")
+                      : ("bg-[#070D1A]/80 text-[var(--kt-text-dim)] hover:text-[var(--kt-text-strong)] hover:bg-[var(--kt-surface)] border border-emerald-900/30 backdrop-blur-md")
                   }`}
                 >
                   <PieChart size={15} />
@@ -690,13 +690,13 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                   className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
                     subTab === "ide"
                       ? ("bg-emerald-500 text-zinc-950 shadow-[0_0_20px_rgba(16,185,129,0.3)]")
-                      : ("bg-[#070D1A]/80 text-zinc-400 hover:text-white hover:bg-zinc-900 border border-emerald-900/30 backdrop-blur-md")
+                      : ("bg-[#070D1A]/80 text-[var(--kt-text-dim)] hover:text-[var(--kt-text-strong)] hover:bg-[var(--kt-surface)] border border-emerald-900/30 backdrop-blur-md")
                   }`}
                 >
                   <Code2 size={15} />
                   <span>Act II: QuantConnect + TradingView Studio</span>
                   <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded border ${
-                    "bg-emerald-950 text-emerald-300 border-emerald-700/50"
+                    "bg-emerald-950 text-[var(--kt-accent)] border-emerald-700/50"
                   }`}>
                     HYBRID
                   </span>
@@ -707,7 +707,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                   className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
                     subTab === "analytics"
                       ? ("bg-emerald-500 text-zinc-950 shadow-[0_0_20px_rgba(16,185,129,0.3)]")
-                      : ("bg-[#070D1A]/80 text-zinc-400 hover:text-white hover:bg-zinc-900 border border-emerald-900/30 backdrop-blur-md")
+                      : ("bg-[#070D1A]/80 text-[var(--kt-text-dim)] hover:text-[var(--kt-text-strong)] hover:bg-[var(--kt-surface)] border border-emerald-900/30 backdrop-blur-md")
                   }`}
                 >
                   <BarChart3 size={15} />
@@ -717,7 +717,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
 
               <Button
                 onClick={createSandbox}
-                className={"bg-emerald-950/80 hover:bg-emerald-900/80 border border-emerald-500/40 text-emerald-300 font-bold text-xs h-9 px-4 rounded-xl cursor-pointer"
+                className={"bg-emerald-950/80 hover:bg-emerald-900/80 border border-emerald-500/40 text-[var(--kt-accent)] font-bold text-xs h-9 px-4 rounded-xl cursor-pointer"
                 }
               >
                 <Plus size={14} className="mr-1.5" />
@@ -739,22 +739,22 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                   }`}>
                     <div className="flex items-center gap-3">
                       <div className={`p-2.5 rounded-xl border ${
-                        "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                        "bg-emerald-500/10 text-[var(--kt-accent)] border-emerald-500/30"
                       }`}>
                         <Flame size={20} />
                       </div>
                       <div>
-                        <h3 className={`text-base font-black uppercase tracking-wider ${"text-white"}`}>
+                        <h3 className={`text-base font-black uppercase tracking-wider ${"text-[var(--kt-text-strong)]"}`}>
                           🚀 Live Deployed Production Strategies ({deployedStrats.length})
                         </h3>
-                        <p className={`text-xs ${"text-zinc-400"}`}>
+                        <p className={`text-xs ${"text-[var(--kt-text-dim)]"}`}>
                           Active algorithms executing live on Alpaca venue with real-time risk gates
                         </p>
                       </div>
                     </div>
 
                     <span className={`text-xs font-bold px-3 py-1 rounded-lg border ${
-                      "text-emerald-400 bg-emerald-950/80 border-emerald-800"
+                      "text-[var(--kt-accent)] bg-emerald-950/80 border-emerald-800"
                     }`}>
                       {money(totalExposure)} Total Allocated
                     </span>
@@ -764,7 +764,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                     <table className="w-full text-left text-xs">
                       <thead>
                         <tr className={`border-b text-[10px] uppercase tracking-wider ${
-                          "border-emerald-950/40 text-zinc-400"
+                          "border-emerald-950/40 text-[var(--kt-text-dim)]"
                         }`}>
                           <th className="pb-3 font-bold">Strategy Name</th>
                           <th className="pb-3 font-bold">State</th>
@@ -792,14 +792,14 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                                   : ("hover:bg-emerald-950/30")
                               }`}
                             >
-                              <td className={`py-4 font-bold flex items-center gap-2 ${"text-white"}`}>
+                              <td className={`py-4 font-bold flex items-center gap-2 ${"text-[var(--kt-text-strong)]"}`}>
                                 <span className={`w-2 h-2 rounded-full ${"bg-emerald-400 animate-pulse"}`} />
                                 {s.name}
                               </td>
 
                               <td>
                                 <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${
-                                  "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                                  "bg-emerald-500/15 text-[var(--kt-accent)] border-emerald-500/30"
                                 }`}>
                                   {s.state}
                                 </span>
@@ -807,12 +807,12 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
 
                               <td className="w-[200px]">
                                 <div className="space-y-1">
-                                  <div className={`flex justify-between text-[10px] font-mono ${"text-zinc-400"}`}>
-                                    <span>Actual: <strong className={"text-emerald-300"}>{pct(s.actual_pct)}</strong></span>
-                                    <span>Target: <strong className={"text-white"}>{pct(s.allocation_pct)}</strong></span>
+                                  <div className={`flex justify-between text-[10px] font-mono ${"text-[var(--kt-text-dim)]"}`}>
+                                    <span>Actual: <strong className={"text-[var(--kt-accent)]"}>{pct(s.actual_pct)}</strong></span>
+                                    <span>Target: <strong className={"text-[var(--kt-text-strong)]"}>{pct(s.allocation_pct)}</strong></span>
                                   </div>
                                   <div className={`relative h-1.5 rounded-full overflow-hidden border ${
-                                    "bg-zinc-950 border-zinc-800"
+                                    "bg-[var(--kt-bg)] border-[var(--kt-border)]"
                                   }`}>
                                     <div
                                       className={`h-full rounded-full ${
@@ -828,12 +828,12 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                                 </div>
                               </td>
 
-                              <td className={`text-right font-bold ${"text-zinc-200"}`}>{money(s.exposure_usd)}</td>
+                              <td className={`text-right font-bold ${"text-[var(--kt-text)]"}`}>{money(s.exposure_usd)}</td>
 
                               <td className={`text-right font-bold ${
                                 up
-                                  ? ("text-emerald-400")
-                                  : ("text-rose-400")
+                                  ? ("text-[var(--kt-accent)]")
+                                  : ("text-[var(--kt-down)]")
                               }`}>
                                 {up ? "+" : ""}{money(pnl)}
                               </td>
@@ -844,7 +844,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                                     <span
                                       key={sym}
                                       className={`text-[9px] font-bold px-2 py-0.5 rounded border ${
-                                        "bg-emerald-950 text-emerald-300 border border-emerald-700/40"
+                                        "bg-emerald-950 text-[var(--kt-accent)] border border-emerald-700/40"
                                       }`}
                                     >
                                       {sym}
@@ -861,7 +861,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                                       setSelected(s.strategy_id);
                                       setSubTab("ide");
                                     }}
-                                    className={"bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold h-7 px-2.5 rounded-lg cursor-pointer"}
+                                    className={"bg-emerald-950 hover:bg-emerald-900 text-[var(--kt-accent)] border border-emerald-500/40 text-[11px] font-bold h-7 px-2.5 rounded-lg cursor-pointer"}
                                   >
                                     <Code2 size={12} className="mr-1" />
                                     Open IDE
@@ -870,7 +870,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                                   <Button
                                     size="sm"
                                     onClick={() => pauseStrategy(s.strategy_id)}
-                                    className={"bg-zinc-900 hover:bg-zinc-800 text-zinc-400 border border-zinc-800 text-[11px] font-bold h-7 px-2 rounded-lg cursor-pointer"}
+                                    className={"bg-[var(--kt-surface)] hover:bg-[var(--kt-inset)] text-[var(--kt-text-dim)] border border-[var(--kt-border)] text-[11px] font-bold h-7 px-2 rounded-lg cursor-pointer"}
                                     title="Pause Strategy"
                                   >
                                     <PauseCircle size={12} />
@@ -894,15 +894,15 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                   }`}>
                     <div className="flex items-center gap-3">
                       <div className={`p-2.5 rounded-xl border ${
-                        "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                        "bg-emerald-500/10 text-[var(--kt-accent)] border-emerald-500/30"
                       }`}>
                         <Layers size={20} />
                       </div>
                       <div>
-                        <h3 className={`text-base font-black uppercase tracking-wider ${"text-white"}`}>
+                        <h3 className={`text-base font-black uppercase tracking-wider ${"text-[var(--kt-text-strong)]"}`}>
                           🧪 Drafts & Sandbox Backtest Models ({draftStrats.length})
                         </h3>
-                        <p className={`text-xs ${"text-zinc-400"}`}>
+                        <p className={`text-xs ${"text-[var(--kt-text-dim)]"}`}>
                           Quantitative algorithms undergoing backtest simulation and optimization
                         </p>
                       </div>
@@ -921,7 +921,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                     <table className="w-full text-left text-xs">
                       <thead>
                         <tr className={`border-b text-[10px] uppercase tracking-wider ${
-                          "border-emerald-950/40 text-zinc-400"
+                          "border-emerald-950/40 text-[var(--kt-text-dim)]"
                         }`}>
                           <th className="pb-3 font-bold">Draft Model Name</th>
                           <th className="pb-3 font-bold">State</th>
@@ -944,22 +944,22 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                                   : ("hover:bg-emerald-950/30")
                               }`}
                             >
-                              <td className={`py-4 font-bold flex items-center gap-2 ${"text-white"}`}>
+                              <td className={`py-4 font-bold flex items-center gap-2 ${"text-[var(--kt-text-strong)]"}`}>
                                 <span className="w-2 h-2 rounded-full bg-zinc-400" />
                                 {s.name}
                               </td>
 
                               <td>
                                 <span className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded border ${
-                                  "bg-zinc-500/15 text-zinc-400 border-zinc-500/30"
+                                  "bg-zinc-500/15 text-[var(--kt-text-dim)] border-zinc-500/30"
                                 }`}>
                                   {s.state}
                                 </span>
                               </td>
 
-                              <td className={`font-mono font-bold ${"text-emerald-300"}`}>{pct(s.allocation_pct)}</td>
+                              <td className={`font-mono font-bold ${"text-[var(--kt-accent)]"}`}>{pct(s.allocation_pct)}</td>
 
-                              <td className={`font-mono font-bold ${"text-emerald-400"}`}>2.52 Sharpe</td>
+                              <td className={`font-mono font-bold ${"text-[var(--kt-accent)]"}`}>2.52 Sharpe</td>
 
                               <td>
                                 <div className="flex gap-1.5 flex-wrap">
@@ -967,7 +967,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                                     <span
                                       key={sym}
                                       className={`text-[9px] font-bold px-2 py-0.5 rounded border ${
-                                        "bg-emerald-950 text-emerald-300 border border-emerald-700/40"
+                                        "bg-emerald-950 text-[var(--kt-accent)] border border-emerald-700/40"
                                       }`}
                                     >
                                       {sym}
@@ -994,7 +994,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                                       setSelected(s.strategy_id);
                                       setSubTab("ide");
                                     }}
-                                    className={"bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold h-7 px-2.5 rounded-lg cursor-pointer"}
+                                    className={"bg-emerald-950 hover:bg-emerald-900 text-[var(--kt-accent)] border border-emerald-500/40 text-[11px] font-bold h-7 px-2.5 rounded-lg cursor-pointer"}
                                   >
                                     <Code2 size={12} className="mr-1" />
                                     Edit Python
@@ -1019,12 +1019,12 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                       "border-emerald-950/30"
                     }`}>
                       <div className="flex items-center gap-2">
-                        <PieChart size={18} className={"text-emerald-400"} />
-                        <span className={`text-sm font-bold uppercase tracking-wider ${"text-zinc-200"}`}>
+                        <PieChart size={18} className={"text-[var(--kt-accent)]"} />
+                        <span className={`text-sm font-bold uppercase tracking-wider ${"text-[var(--kt-text)]"}`}>
                           Fund Target vs Actual Strategy Allocation
                         </span>
                       </div>
-                      <span className={`text-xs ${"text-zinc-400"}`}>Capital Weights</span>
+                      <span className={`text-xs ${"text-[var(--kt-text-dim)]"}`}>Capital Weights</span>
                     </div>
 
                     <div className="h-[240px] flex items-center justify-center">
@@ -1049,12 +1049,12 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                       "border-emerald-950/30"
                     }`}>
                       <div className="flex items-center gap-2">
-                        <Target size={18} className={"text-emerald-400"} />
+                        <Target size={18} className={"text-[var(--kt-accent)]"} />
                         <div>
-                          <span className={`text-sm font-bold uppercase tracking-wider block ${"text-zinc-200"}`}>
+                          <span className={`text-sm font-bold uppercase tracking-wider block ${"text-[var(--kt-text)]"}`}>
                             PyPortfolioOpt Markowitz Optimizer
                           </span>
-                          <span className={`text-[10px] ${"text-zinc-400"}`}>Active Workspace: {strat?.name || "Selected"}</span>
+                          <span className={`text-[10px] ${"text-[var(--kt-text-dim)]"}`}>Active Workspace: {strat?.name || "Selected"}</span>
                         </div>
                       </div>
 
@@ -1062,7 +1062,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                         <select
                           value={optMethod}
                           onChange={(e) => setOptMethod(e.target.value as any)}
-                          className={"bg-zinc-950 text-xs font-bold text-emerald-300 rounded-lg px-2.5 py-1 border border-zinc-800 outline-none cursor-pointer"
+                          className={"bg-[var(--kt-bg)] text-xs font-bold text-[var(--kt-accent)] rounded-lg px-2.5 py-1 border border-[var(--kt-border)] outline-none cursor-pointer"
                           }
                         >
                           <option value="hrp">HRP (Hierarchical Risk Parity) 🌳</option>
@@ -1091,19 +1091,19 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
 
                     {/* skfolio Purged Cross-Validation Anti-Overfitting Metrics */}
                     {optResponse?.cv_metrics && (
-                      <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between text-[11px] font-mono">
+                      <div className="pt-2 border-t border-[var(--kt-border)] flex items-center justify-between text-[11px] font-mono">
                         <div className="flex items-center gap-2">
-                          <span className="text-zinc-400">skfolio Purged CV:</span>
-                          <span className="text-emerald-400 font-bold">OOS Sharpe {optResponse.cv_metrics.oos_sharpe ?? "1.85"}</span>
-                          <span className="text-zinc-500">|</span>
+                          <span className="text-[var(--kt-text-dim)]">skfolio Purged CV:</span>
+                          <span className="text-[var(--kt-accent)] font-bold">OOS Sharpe {optResponse.cv_metrics.oos_sharpe ?? "1.85"}</span>
+                          <span className="text-[var(--kt-text-muted)]">|</span>
                           <span className="text-teal-300">OOS Ret {pct((optResponse.cv_metrics.oos_annual_return ?? 0.184) * 100)}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-zinc-400">PBO (Overfitting Risk):</span>
+                          <span className="text-[var(--kt-text-dim)]">PBO (Overfitting Risk):</span>
                           <span className={`font-bold px-2 py-0.5 rounded border ${
                             (optResponse.cv_metrics.pbo ?? 0) > 0.3
-                              ? "bg-rose-950/80 text-rose-300 border-rose-800"
-                              : "bg-emerald-950/80 text-emerald-300 border-emerald-800"
+                              ? "bg-rose-950/80 text-[var(--kt-down)] border-rose-800"
+                              : "bg-emerald-950/80 text-[var(--kt-accent)] border-emerald-800"
                           }`}>
                             {((optResponse.cv_metrics.pbo ?? 0) * 100).toFixed(0)}% PBO
                           </span>
@@ -1130,31 +1130,31 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                 }`}>
                   <div className="flex items-center gap-3">
                     <div className={`p-2.5 rounded-xl border ${
-                      "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                      "bg-emerald-500/10 text-[var(--kt-accent)] border-emerald-500/30"
                     }`}>
                       <LineChart size={24} />
                     </div>
                     <div>
                       <div className="flex items-center gap-3">
-                        <h2 className={`text-lg font-black tracking-tight uppercase ${"text-white"}`}>
+                        <h2 className={`text-lg font-black tracking-tight uppercase ${"text-[var(--kt-text-strong)]"}`}>
                           QUANTCONNECT LEAN ENGINE + TRADINGVIEW STUDIO
                         </h2>
                         <span className={`flex items-center gap-1.5 px-3 py-0.5 rounded-full border text-xs font-bold ${
-                          "bg-emerald-500/15 border border-emerald-500/40 text-emerald-300"
+                          "bg-emerald-500/15 border border-emerald-500/40 text-[var(--kt-accent)]"
                         }`}>
                           <span className={`w-2 h-2 rounded-full ${"bg-emerald-400 animate-pulse"}`} />
                           ACTIVE SYMBOL: {targetAsset}
                         </span>
                       </div>
-                      <p className={`text-xs mt-0.5 ${"text-zinc-400"}`}>
-                        TradingView price action & signal markers bound to <strong className={"text-emerald-300"}>{strat.name}</strong> (LEAN Engine Python AST)
+                      <p className={`text-xs mt-0.5 ${"text-[var(--kt-text-dim)]"}`}>
+                        TradingView price action & signal markers bound to <strong className={"text-[var(--kt-accent)]"}>{strat.name}</strong> (LEAN Engine Python AST)
                       </p>
                     </div>
                   </div>
 
                   {/* Preset Code Buttons */}
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className={`text-[10px] uppercase font-bold mr-1 ${"text-zinc-400"}`}>LEAN Alpha Models:</span>
+                    <span className={`text-[10px] uppercase font-bold mr-1 ${"text-[var(--kt-text-dim)]"}`}>LEAN Alpha Models:</span>
                     {Object.keys(CODE_PRESETS).map((key) => {
                       const preset = CODE_PRESETS[key];
                       const active = selectedPresetKey === key;
@@ -1165,7 +1165,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                           className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
                             active
                               ? ("bg-gradient-to-r from-emerald-500 to-amber-500 text-zinc-950 border-emerald-400 shadow-md")
-                              : ("bg-zinc-950/80 text-zinc-300 border-zinc-800 hover:border-emerald-700/50 hover:text-white")
+                              : ("bg-[var(--kt-bg)] text-[var(--kt-text-dim)] border-[var(--kt-border)] hover:border-emerald-700/50 hover:text-[var(--kt-text-strong)]")
                           }`}
                         >
                           {preset.name}
@@ -1186,8 +1186,8 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                       <div className={`flex items-center justify-between border-b pb-2 ${
                         "border-emerald-900/30"
                       }`}>
-                        <span className={`text-xs font-bold uppercase ${"text-zinc-300"}`}>TradingView Watchlist</span>
-                        <span className={`text-[10px] font-bold ${"text-emerald-400"}`}>{assets.length} Tickers</span>
+                        <span className={`text-xs font-bold uppercase ${"text-[var(--kt-text-dim)]"}`}>TradingView Watchlist</span>
+                        <span className={`text-[10px] font-bold ${"text-[var(--kt-accent)]"}`}>{assets.length} Tickers</span>
                       </div>
 
                       <div className="space-y-1.5 max-h-[180px] overflow-y-auto">
@@ -1202,19 +1202,19 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                               }}
                               className={`w-full flex items-center justify-between py-2 px-3 rounded-lg border text-xs font-bold transition cursor-pointer ${
                                 isTarget
-                                  ? ("bg-emerald-950/80 border-emerald-500/60 text-emerald-300 shadow-md")
-                                  : ("bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-900")
+                                  ? ("bg-emerald-950/80 border-emerald-500/60 text-[var(--kt-accent)] shadow-md")
+                                  : ("bg-[var(--kt-bg)] border-[var(--kt-border)] text-[var(--kt-text-dim)] hover:text-[var(--kt-text-strong)] hover:bg-[var(--kt-surface)]")
                               }`}
                             >
                               <span className="font-mono">{sym}</span>
                               {isTarget ? (
                                 <span className={`text-[9px] px-1.5 py-0.5 rounded border font-bold ${
-                                  "bg-emerald-950 text-emerald-300 border border-emerald-800"
+                                  "bg-emerald-950 text-[var(--kt-accent)] border border-emerald-800"
                                 }`}>
                                   TARGET 🟢
                                 </span>
                               ) : (
-                                <span className={`text-[10px] ${"text-zinc-500"}`}>Select</span>
+                                <span className={`text-[10px] ${"text-[var(--kt-text-muted)]"}`}>Select</span>
                               )}
                             </button>
                           );
@@ -1227,7 +1227,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                           onChange={(e) => setAddSym(e.target.value)}
                           onKeyDown={(e) => e.key === "Enter" && addAsset()}
                           placeholder="Scope Ticker e.g. NVDA"
-                          className={"bg-zinc-950 border-zinc-800 text-xs font-mono text-emerald-300 h-8"
+                          className={"bg-[var(--kt-bg)] border-[var(--kt-border)] text-xs font-mono text-[var(--kt-accent)] h-8"
                           }
                         />
                         <Button size="sm" onClick={addAsset} disabled={addBusy || !addSym.trim()} className={"h-8 px-2.5 bg-emerald-500 text-zinc-950 cursor-pointer"}>
@@ -1241,18 +1241,18 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                       "bg-[#070D1A] border-emerald-900/40"
                     }`}>
                       <span className={`text-xs font-bold uppercase block border-b pb-2 ${
-                        "text-zinc-300 border-emerald-900/30"
+                        "text-[var(--kt-text-dim)] border-emerald-900/30"
                       }`}>
                         LEAN Backtest Engine
                       </span>
 
                       <div className="space-y-2 text-xs">
                         <div>
-                          <label className={`text-[10px] block mb-1 ${"text-zinc-400"}`}>Target Symbol</label>
+                          <label className={`text-[10px] block mb-1 ${"text-[var(--kt-text-dim)]"}`}>Target Symbol</label>
                           <select
                             value={targetAsset}
                             onChange={(e) => setTargetAsset(e.target.value)}
-                            className={"w-full h-8 rounded-lg border border-zinc-800 bg-zinc-950 px-2 text-xs font-bold text-emerald-300 outline-none cursor-pointer"
+                            className={"w-full h-8 rounded-lg border border-[var(--kt-border)] bg-[var(--kt-bg)] px-2 text-xs font-bold text-[var(--kt-accent)] outline-none cursor-pointer"
                             }
                           >
                             {assets.map((sym) => (
@@ -1262,11 +1262,11 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                         </div>
 
                         <div>
-                          <label className={`text-[10px] block mb-1 ${"text-zinc-400"}`}>Lookback (Days)</label>
+                          <label className={`text-[10px] block mb-1 ${"text-[var(--kt-text-dim)]"}`}>Lookback (Days)</label>
                           <select
                             value={btLookback}
                             onChange={(e) => setBtLookback(Number(e.target.value))}
-                            className={"w-full h-8 rounded-lg border border-zinc-800 bg-zinc-950 px-2 text-xs font-bold text-emerald-300 outline-none cursor-pointer"
+                            className={"w-full h-8 rounded-lg border border-[var(--kt-border)] bg-[var(--kt-bg)] px-2 text-xs font-bold text-[var(--kt-accent)] outline-none cursor-pointer"
                             }
                           >
                             <option value={30}>30 Days</option>
@@ -1290,10 +1290,10 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                           <Button
                             onClick={() => deployStrategyCode()}
                             disabled={deployBusy || !selected}
-                            className={"w-full bg-zinc-900 hover:bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-extrabold text-xs h-9 rounded-xl cursor-pointer"
+                            className={"w-full bg-[var(--kt-surface)] hover:bg-emerald-950/80 border border-emerald-500/40 text-[var(--kt-accent)] font-extrabold text-xs h-9 rounded-xl cursor-pointer"
                             }
                           >
-                            {deployBusy ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Rocket size={14} className="mr-1.5 text-emerald-400" />}
+                            {deployBusy ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Rocket size={14} className="mr-1.5 text-[var(--kt-accent)]" />}
                             Deploy [{targetAsset}] Live
                           </Button>
                         </div>
@@ -1314,7 +1314,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                       "bg-[#0D1322] border-emerald-500/40 shadow-2xl"
                     }`}>
                       <div className={`flex items-center gap-2 text-xs font-bold ${
-                        "text-emerald-300"
+                        "text-[var(--kt-accent)]"
                       }`}>
                         <Bot size={16} className="animate-bounce" />
                         <span>ASK CLARK AI COPILOT TO GENERATE CODE FOR [{targetAsset}]</span>
@@ -1326,7 +1326,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                           onChange={(e) => setAiPrompt(e.target.value)}
                           onKeyDown={(e) => e.key === "Enter" && generateCodeWithClark()}
                           placeholder={`e.g. 'Write TSLA channel breakout strategy with 5% stop loss'`}
-                          className={"bg-zinc-950 border-zinc-800 text-xs font-mono text-white placeholder:text-zinc-500 flex-1 h-9 focus:border-emerald-500"
+                          className={"bg-[var(--kt-bg)] border-[var(--kt-border)] text-xs font-mono text-[var(--kt-text-strong)] placeholder:text-[var(--kt-text-muted)] flex-1 h-9 focus:border-emerald-500"
                           }
                         />
 
@@ -1346,15 +1346,15 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                       "bg-[#040813] border-emerald-900/50"
                     }`}>
                       <div className={`flex items-center justify-between px-3 py-2 border-b text-xs ${
-                        "bg-[#080F22] border-emerald-900/40 text-zinc-400"
+                        "bg-[#080F22] border-emerald-900/40 text-[var(--kt-text-dim)]"
                       }`}>
                         <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => setActiveFile("main.py")}
                             className={`flex items-center gap-1.5 px-3 py-1 rounded-t-lg text-xs font-bold transition ${
                               activeFile === "main.py"
-                                ? ("bg-[#03060E] text-emerald-300 border-t-2 border-emerald-400")
-                                : ("text-zinc-500 hover:text-zinc-300")
+                                ? ("bg-[#03060E] text-[var(--kt-accent)] border-t-2 border-emerald-400")
+                                : ("text-[var(--kt-text-muted)] hover:text-[var(--kt-text-dim)]")
                             }`}
                           >
                             <FileCode size={13} />
@@ -1364,8 +1364,8 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                             onClick={() => setActiveFile("indicators.py")}
                             className={`flex items-center gap-1.5 px-3 py-1 rounded-t-lg text-xs font-bold transition ${
                               activeFile === "indicators.py"
-                                ? ("bg-[#03060E] text-emerald-300 border-t-2 border-emerald-400")
-                                : ("text-zinc-500 hover:text-zinc-300")
+                                ? ("bg-[#03060E] text-[var(--kt-accent)] border-t-2 border-emerald-400")
+                                : ("text-[var(--kt-text-muted)] hover:text-[var(--kt-text-dim)]")
                             }`}
                           >
                             <FileCode size={13} />
@@ -1376,14 +1376,14 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => setPythonCode(CODE_PRESETS[selectedPresetKey]?.code || "")}
-                            className="p-1 rounded hover:bg-zinc-800 text-zinc-500 hover:text-zinc-100 transition cursor-pointer"
+                            className="p-1 rounded hover:bg-[var(--kt-inset)] text-[var(--kt-text-muted)] hover:text-[var(--kt-text)] transition cursor-pointer"
                             title="Reset Code"
                           >
                             <RotateCcw size={13} />
                           </button>
                           <button
                             onClick={() => navigator.clipboard.writeText(pythonCode)}
-                            className="p-1 rounded hover:bg-zinc-800 text-zinc-500 hover:text-zinc-100 transition cursor-pointer"
+                            className="p-1 rounded hover:bg-[var(--kt-inset)] text-[var(--kt-text-muted)] hover:text-[var(--kt-text)] transition cursor-pointer"
                             title="Copy Code"
                           >
                             <Copy size={13} />
@@ -1398,17 +1398,17 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                       />
 
                       <div className={`flex items-center justify-between px-4 py-2 border-t text-[10px] ${
-                        "bg-[#080F22] border-emerald-900/40 text-zinc-400"
+                        "bg-[#080F22] border-emerald-900/40 text-[var(--kt-text-dim)]"
                       }`}>
                         <div className="flex items-center gap-3">
-                          <div className={`flex items-center gap-1.5 font-bold ${"text-emerald-400"}`}>
+                          <div className={`flex items-center gap-1.5 font-bold ${"text-[var(--kt-accent)]"}`}>
                             <CheckCircle2 size={12} />
                             <span>AST Check: PASS</span>
                           </div>
-                          <span>Lines: <strong className={"text-white"}>{pythonCode.split("\n").length}</strong></span>
+                          <span>Lines: <strong className={"text-[var(--kt-text-strong)]"}>{pythonCode.split("\n").length}</strong></span>
                         </div>
                         <div>
-                          <span>TradingView Symbol: <strong className={"text-emerald-300"}>{targetAsset}</strong></span>
+                          <span>TradingView Symbol: <strong className={"text-[var(--kt-accent)]"}>{targetAsset}</strong></span>
                         </div>
                       </div>
                     </div>
@@ -1418,15 +1418,15 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                       "bg-[#03060F] border-emerald-900/40"
                     }`}>
                       <div className={`flex items-center justify-between border-b pb-2 ${
-                        "border-zinc-800"
+                        "border-[var(--kt-border)]"
                       }`}>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => setDrawerTab("terminal")}
                             className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
                               drawerTab === "terminal"
-                                ? ("bg-emerald-950 text-emerald-300 border border-emerald-700/50")
-                                : "text-zinc-500 hover:text-zinc-300"
+                                ? ("bg-emerald-950 text-[var(--kt-accent)] border border-emerald-700/50")
+                                : "text-[var(--kt-text-muted)] hover:text-[var(--kt-text-dim)]"
                             }`}
                           >
                             <TerminalIcon size={12} className="inline mr-1" /> LEAN Execution Terminal
@@ -1435,14 +1435,14 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                             onClick={() => setDrawerTab("metrics")}
                             className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
                               drawerTab === "metrics"
-                                ? ("bg-emerald-950 text-emerald-300 border border-emerald-700/50")
-                                : "text-zinc-500 hover:text-zinc-300"
+                                ? ("bg-emerald-950 text-[var(--kt-accent)] border border-emerald-700/50")
+                                : "text-[var(--kt-text-muted)] hover:text-[var(--kt-text-dim)]"
                             }`}
                           >
                             <Activity size={12} className="inline mr-1" /> Backtest Performance Stream
                           </button>
                         </div>
-                        <span className={`text-[10px] ${"text-zinc-500"}`}>LEAN Engine 3.11</span>
+                        <span className={`text-[10px] ${"text-[var(--kt-text-muted)]"}`}>LEAN Engine 3.11</span>
                       </div>
 
                       {drawerTab === "terminal" ? (
@@ -1452,10 +1452,10 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                               <span
                                 className={
                                   log.includes("COMPLETED") || log.includes("DEPLOYED")
-                                    ? ("text-emerald-400 font-bold")
+                                    ? ("text-[var(--kt-accent)] font-bold")
                                     : log.includes("Clark AI") || log.includes("Switched")
-                                    ? ("text-emerald-300 font-bold")
-                                    : ("text-zinc-400")
+                                    ? ("text-[var(--kt-accent)] font-bold")
+                                    : ("text-[var(--kt-text-dim)]")
                                 }
                               >
                                 {log}
@@ -1466,28 +1466,28 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                       ) : (
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-1">
                           <div className={`p-2.5 rounded-lg border text-center ${
-                            "bg-zinc-950/80 border-zinc-800"
+                            "bg-[var(--kt-bg)] border-[var(--kt-border)]"
                           }`}>
-                            <span className={`text-[10px] block ${"text-zinc-400"}`}>Total Return</span>
-                            <span className={`text-sm font-black ${"text-emerald-400"}`}>+{pct((btResults[0]?.result?.total_return || 0) * 100)}</span>
+                            <span className={`text-[10px] block ${"text-[var(--kt-text-dim)]"}`}>Total Return</span>
+                            <span className={`text-sm font-black ${"text-[var(--kt-accent)]"}`}>+{pct((btResults[0]?.result?.total_return || 0) * 100)}</span>
                           </div>
                           <div className={`p-2.5 rounded-lg border text-center ${
-                            "bg-zinc-950/80 border-zinc-800"
+                            "bg-[var(--kt-bg)] border-[var(--kt-border)]"
                           }`}>
-                            <span className={`text-[10px] block ${"text-zinc-400"}`}>Sharpe Ratio</span>
-                            <span className={`text-sm font-black ${"text-emerald-300"}`}>{(btResults[0]?.result?.sharpe || 0).toFixed(2)}</span>
+                            <span className={`text-[10px] block ${"text-[var(--kt-text-dim)]"}`}>Sharpe Ratio</span>
+                            <span className={`text-sm font-black ${"text-[var(--kt-accent)]"}`}>{(btResults[0]?.result?.sharpe || 0).toFixed(2)}</span>
                           </div>
                           <div className={`p-2.5 rounded-lg border text-center ${
-                            "bg-zinc-950/80 border-zinc-800"
+                            "bg-[var(--kt-bg)] border-[var(--kt-border)]"
                           }`}>
-                            <span className={`text-[10px] block ${"text-zinc-400"}`}>Max Drawdown</span>
-                            <span className={`text-sm font-black ${"text-rose-400"}`}>-{pct((btResults[0]?.result?.max_drawdown || 0) * 100)}</span>
+                            <span className={`text-[10px] block ${"text-[var(--kt-text-dim)]"}`}>Max Drawdown</span>
+                            <span className={`text-sm font-black ${"text-[var(--kt-down)]"}`}>-{pct((btResults[0]?.result?.max_drawdown || 0) * 100)}</span>
                           </div>
                           <div className={`p-2.5 rounded-lg border text-center ${
-                            "bg-zinc-950/80 border-zinc-800"
+                            "bg-[var(--kt-bg)] border-[var(--kt-border)]"
                           }`}>
-                            <span className={`text-[10px] block ${"text-zinc-400"}`}>Total Signals</span>
-                            <span className={`text-sm font-black ${"text-white"}`}>{btResults[0]?.result?.n_trades || 0}</span>
+                            <span className={`text-[10px] block ${"text-[var(--kt-text-dim)]"}`}>Total Signals</span>
+                            <span className={`text-sm font-black ${"text-[var(--kt-text-strong)]"}`}>{btResults[0]?.result?.n_trades || 0}</span>
                           </div>
                         </div>
                       )}
@@ -1506,29 +1506,29 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                   <div className={`p-5 rounded-2xl border shadow-xl space-y-1 ${
                     "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl"
                   }`}>
-                    <span className={`text-xs font-bold block ${"text-zinc-400"}`}>ACTIVE STRATEGY</span>
-                    <span className={`text-lg font-extrabold ${"text-white"}`}>{strat.name}</span>
+                    <span className={`text-xs font-bold block ${"text-[var(--kt-text-dim)]"}`}>ACTIVE STRATEGY</span>
+                    <span className={`text-lg font-extrabold ${"text-[var(--kt-text-strong)]"}`}>{strat.name}</span>
                   </div>
 
                   <div className={`p-5 rounded-2xl border shadow-xl space-y-1 ${
                     "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl"
                   }`}>
-                    <span className={`text-xs font-bold block ${"text-zinc-400"}`}>TARGET SYMBOL</span>
-                    <span className={`text-lg font-extrabold ${"text-emerald-300"}`}>{targetAsset}</span>
+                    <span className={`text-xs font-bold block ${"text-[var(--kt-text-dim)]"}`}>TARGET SYMBOL</span>
+                    <span className={`text-lg font-extrabold ${"text-[var(--kt-accent)]"}`}>{targetAsset}</span>
                   </div>
 
                   <div className={`p-5 rounded-2xl border shadow-xl space-y-1 ${
                     "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl"
                   }`}>
-                    <span className={`text-xs font-bold block ${"text-zinc-400"}`}>ANNUALIZED RETURN</span>
-                    <span className={`text-lg font-extrabold ${"text-emerald-400"}`}>+34.80%</span>
+                    <span className={`text-xs font-bold block ${"text-[var(--kt-text-dim)]"}`}>ANNUALIZED RETURN</span>
+                    <span className={`text-lg font-extrabold ${"text-[var(--kt-accent)]"}`}>+34.80%</span>
                   </div>
 
                   <div className={`p-5 rounded-2xl border shadow-xl space-y-1 ${
                     "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl"
                   }`}>
-                    <span className={`text-xs font-bold block ${"text-zinc-400"}`}>SHARPE RATIO</span>
-                    <span className={`text-lg font-extrabold ${"text-emerald-300"}`}>2.52</span>
+                    <span className={`text-xs font-bold block ${"text-[var(--kt-text-dim)]"}`}>SHARPE RATIO</span>
+                    <span className={`text-lg font-extrabold ${"text-[var(--kt-accent)]"}`}>2.52</span>
                   </div>
                 </div>
 
@@ -1540,13 +1540,13 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                     "border-emerald-950/30"
                   }`}>
                     <div className="flex items-center gap-2">
-                      <Sparkles size={18} className={"text-emerald-400"} />
-                      <h3 className={`text-sm font-bold uppercase tracking-wider ${"text-white"}`}>
+                      <Sparkles size={18} className={"text-[var(--kt-accent)]"} />
+                      <h3 className={`text-sm font-bold uppercase tracking-wider ${"text-[var(--kt-text-strong)]"}`}>
                         Fama-French Quantitative Factor Exposure Breakdown
                       </h3>
                     </div>
                     <span className={`text-xs font-bold px-2.5 py-0.5 rounded border ${
-                      "text-emerald-300 bg-emerald-950/80 border-emerald-700/50"
+                      "text-[var(--kt-accent)] bg-emerald-950/80 border-emerald-700/50"
                     }`}>
                       Alpha Tilt Engine Active
                     </span>
@@ -1554,29 +1554,29 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
 
                   <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 pt-2">
                     <div className={`p-3.5 rounded-xl border space-y-1 ${
-                      "bg-zinc-950/80 border-zinc-800"
+                      "bg-[var(--kt-bg)] border-[var(--kt-border)]"
                     }`}>
-                      <span className={`text-[10px] block font-bold ${"text-zinc-400"}`}>Market Beta (β)</span>
-                      <span className={`text-base font-black ${"text-emerald-400"}`}>1.18x</span>
+                      <span className={`text-[10px] block font-bold ${"text-[var(--kt-text-dim)]"}`}>Market Beta (β)</span>
+                      <span className={`text-base font-black ${"text-[var(--kt-accent)]"}`}>1.18x</span>
                       <div className={`w-full h-1 ${KT.barTrack}`}>
                         <div className="bg-emerald-500 h-full w-[78%]" />
                       </div>
                     </div>
 
                     <div className={`p-3.5 rounded-xl border space-y-1 ${
-                      "bg-zinc-950/80 border-zinc-800"
+                      "bg-[var(--kt-bg)] border-[var(--kt-border)]"
                     }`}>
-                      <span className={`text-[10px] block font-bold ${"text-zinc-400"}`}>Momentum (MOM)</span>
-                      <span className={`text-base font-black ${"text-emerald-300"}`}>+0.84</span>
+                      <span className={`text-[10px] block font-bold ${"text-[var(--kt-text-dim)]"}`}>Momentum (MOM)</span>
+                      <span className={`text-base font-black ${"text-[var(--kt-accent)]"}`}>+0.84</span>
                       <div className={`w-full h-1 ${KT.barTrack}`}>
                         <div className="bg-emerald-500 h-full w-[84%]" />
                       </div>
                     </div>
 
                     <div className={`p-3.5 rounded-xl border space-y-1 ${
-                      "bg-zinc-950/80 border-zinc-800"
+                      "bg-[var(--kt-bg)] border-[var(--kt-border)]"
                     }`}>
-                      <span className={`text-[10px] block font-bold ${"text-zinc-400"}`}>Value Factor (HML)</span>
+                      <span className={`text-[10px] block font-bold ${"text-[var(--kt-text-dim)]"}`}>Value Factor (HML)</span>
                       <span className={`text-base font-black ${"text-sky-400"}`}>+0.32</span>
                       <div className={`w-full h-1 ${KT.barTrack}`}>
                         <div className="bg-sky-400 h-full w-[32%]" />
@@ -1584,20 +1584,20 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                     </div>
 
                     <div className={`p-3.5 rounded-xl border space-y-1 ${
-                      "bg-zinc-950/80 border-zinc-800"
+                      "bg-[var(--kt-bg)] border-[var(--kt-border)]"
                     }`}>
-                      <span className={`text-[10px] block font-bold ${"text-zinc-400"}`}>Quality (QMJ)</span>
-                      <span className={`text-base font-black ${"text-emerald-400"}`}>+0.65</span>
+                      <span className={`text-[10px] block font-bold ${"text-[var(--kt-text-dim)]"}`}>Quality (QMJ)</span>
+                      <span className={`text-base font-black ${"text-[var(--kt-accent)]"}`}>+0.65</span>
                       <div className={`w-full h-1 ${KT.barTrack}`}>
                         <div className="bg-emerald-400 h-full w-[65%]" />
                       </div>
                     </div>
 
                     <div className={`p-3.5 rounded-xl border space-y-1 ${
-                      "bg-zinc-950/80 border-zinc-800"
+                      "bg-[var(--kt-bg)] border-[var(--kt-border)]"
                     }`}>
-                      <span className={`text-[10px] block font-bold ${"text-zinc-400"}`}>Vol Squeeze (VOL)</span>
-                      <span className={`text-base font-black ${"text-emerald-400"}`}>0.22</span>
+                      <span className={`text-[10px] block font-bold ${"text-[var(--kt-text-dim)]"}`}>Vol Squeeze (VOL)</span>
+                      <span className={`text-base font-black ${"text-[var(--kt-accent)]"}`}>0.22</span>
                       <div className={`w-full h-1 ${KT.barTrack}`}>
                         <div className="bg-emerald-400 h-full w-[22%]" />
                       </div>
@@ -1613,13 +1613,13 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                     "border-emerald-950/30"
                   }`}>
                     <div className="flex items-center gap-2">
-                      <ShieldAlert size={18} className={"text-rose-400"} />
-                      <h3 className={`text-sm font-bold uppercase tracking-wider ${"text-white"}`}>
+                      <ShieldAlert size={18} className={"text-[var(--kt-down)]"} />
+                      <h3 className={`text-sm font-bold uppercase tracking-wider ${"text-[var(--kt-text-strong)]"}`}>
                         1-Click Historical Crash Scenario Stress Tester
                       </h3>
                     </div>
                     <span className={`text-xs font-bold px-2.5 py-0.5 rounded border ${
-                      "text-rose-400 bg-rose-950/80 border-rose-700/50"
+                      "text-[var(--kt-down)] bg-rose-950/80 border-rose-700/50"
                     }`}>
                       Monte Carlo & Shock Matrix
                     </span>
@@ -1631,7 +1631,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                       className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         activeShockScenario === "2008 Crisis"
                           ? ("bg-rose-500 text-zinc-950 border-rose-400 shadow-md")
-                          : ("bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-rose-700/50")
+                          : ("bg-[var(--kt-bg)] text-[var(--kt-text-dim)] border-[var(--kt-border)] hover:border-rose-700/50")
                       }`}
                     >
                       💥 2008 Financial Crisis (-45% SPX)
@@ -1642,7 +1642,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                       className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         activeShockScenario === "COVID Shock"
                           ? ("bg-rose-500 text-zinc-950 border-rose-400 shadow-md")
-                          : ("bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-rose-700/50")
+                          : ("bg-[var(--kt-bg)] text-[var(--kt-text-dim)] border-[var(--kt-border)] hover:border-rose-700/50")
                       }`}
                     >
                       🦠 2020 COVID Crash (-33% SPX)
@@ -1653,7 +1653,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                       className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         activeShockScenario === "Rate Hikes"
                           ? ("bg-rose-500 text-zinc-950 border-rose-400 shadow-md")
-                          : ("bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-rose-700/50")
+                          : ("bg-[var(--kt-bg)] text-[var(--kt-text-dim)] border-[var(--kt-border)] hover:border-rose-700/50")
                       }`}
                     >
                       📈 2022 Fed Rate Hike (+300bps)
@@ -1664,7 +1664,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                       className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         activeShockScenario === "Tech Bull"
                           ? ("bg-emerald-500 text-zinc-950 border-emerald-400 shadow-md")
-                          : ("bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-emerald-700/50")
+                          : ("bg-[var(--kt-bg)] text-[var(--kt-text-dim)] border-[var(--kt-border)] hover:border-emerald-700/50")
                       }`}
                     >
                       🚀 Mega Tech Bull Rally (+40% QQQ)
@@ -1673,30 +1673,30 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
 
                   {activeShockScenario && (
                     <div className={`p-4 rounded-xl border text-xs space-y-2 ${
-                      "bg-rose-950/30 border-rose-500/40 text-zinc-300"
+                      "bg-rose-950/30 border-rose-500/40 text-[var(--kt-text-dim)]"
                     }`}>
                       <div className="flex items-center justify-between font-bold">
-                        <span className={"text-rose-300"}>STRESS TEST IMPACT FOR [{strat.name.toUpperCase()}]: {activeShockScenario}</span>
-                        <span className={"text-emerald-400"}>Pre-Trade Risk Gates PASSING</span>
+                        <span className={"text-[var(--kt-down)]"}>STRESS TEST IMPACT FOR [{strat.name.toUpperCase()}]: {activeShockScenario}</span>
+                        <span className={"text-[var(--kt-accent)]"}>Pre-Trade Risk Gates PASSING</span>
                       </div>
                       <div className="grid grid-cols-3 gap-3 pt-1">
                         <div className={`p-2.5 rounded-lg border ${
-                          "bg-zinc-950/60 border-zinc-800"
+                          "bg-[var(--kt-bg)] border-[var(--kt-border)]"
                         }`}>
-                          <span className={`text-[10px] block ${"text-zinc-400"}`}>Projected $ P&L Impact</span>
-                          <span className={`text-sm font-extrabold ${"text-rose-400"}`}>-$2,140.50 (-9.8%)</span>
+                          <span className={`text-[10px] block ${"text-[var(--kt-text-dim)]"}`}>Projected $ P&L Impact</span>
+                          <span className={`text-sm font-extrabold ${"text-[var(--kt-down)]"}`}>-$2,140.50 (-9.8%)</span>
                         </div>
                         <div className={`p-2.5 rounded-lg border ${
-                          "bg-zinc-950/60 border-zinc-800"
+                          "bg-[var(--kt-bg)] border-[var(--kt-border)]"
                         }`}>
-                          <span className={`text-[10px] block ${"text-zinc-400"}`}>Maximum Drawdown</span>
-                          <span className={`text-sm font-extrabold ${"text-amber-400"}`}>-12.4%</span>
+                          <span className={`text-[10px] block ${"text-[var(--kt-text-dim)]"}`}>Maximum Drawdown</span>
+                          <span className={`text-sm font-extrabold ${"text-[var(--kt-warn)]"}`}>-12.4%</span>
                         </div>
                         <div className={`p-2.5 rounded-lg border ${
-                          "bg-zinc-950/60 border-zinc-800"
+                          "bg-[var(--kt-bg)] border-[var(--kt-border)]"
                         }`}>
-                          <span className={`text-[10px] block ${"text-zinc-400"}`}>Post-Shock Cash Buffer</span>
-                          <span className={`text-sm font-extrabold ${"text-emerald-400"}`}>$87,917.50</span>
+                          <span className={`text-[10px] block ${"text-[var(--kt-text-dim)]"}`}>Post-Shock Cash Buffer</span>
+                          <span className={`text-sm font-extrabold ${"text-[var(--kt-accent)]"}`}>$87,917.50</span>
                         </div>
                       </div>
                     </div>
@@ -1710,8 +1710,8 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                   <div className={`flex items-center gap-2 border-b pb-3 ${
                     "border-emerald-950/30"
                   }`}>
-                    <BarChart3 size={18} className={"text-emerald-400"} />
-                    <h3 className={`text-sm font-bold uppercase tracking-wider ${"text-zinc-200"}`}>
+                    <BarChart3 size={18} className={"text-[var(--kt-accent)]"} />
+                    <h3 className={`text-sm font-bold uppercase tracking-wider ${"text-[var(--kt-text)]"}`}>
                       Asset Pair Return Correlation Matrix
                     </h3>
                   </div>

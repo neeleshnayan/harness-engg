@@ -15,7 +15,7 @@ export function CorrelationMatrix({ correlation, assets, className }: Props) {
 
   if (symbols.length === 0) {
     return (
-      <div className={`flex items-center justify-center text-xs py-8 ${"text-zinc-500"} ${className || ""}`}>
+      <div className={`flex items-center justify-center text-xs py-8 ${"text-[var(--kt-text-muted)]"} ${className || ""}`}>
         No correlation data available
       </div>
     );
@@ -37,7 +37,7 @@ export function CorrelationMatrix({ correlation, assets, className }: Props) {
           <tr>
             <th className="p-1"></th>
             {symbols.map((sym) => (
-              <th key={sym} className={`p-1 font-medium text-center ${"text-zinc-400"}`}>
+              <th key={sym} className={`p-1 font-medium text-center ${"text-[var(--kt-text-dim)]"}`}>
                 {sym}
               </th>
             ))}
@@ -46,18 +46,18 @@ export function CorrelationMatrix({ correlation, assets, className }: Props) {
         <tbody>
           {symbols.map((rowSym) => (
             <tr key={rowSym}>
-              <td className={`p-1 font-medium text-right pr-3 ${"text-zinc-400"}`}>{rowSym}</td>
+              <td className={`p-1 font-medium text-right pr-3 ${"text-[var(--kt-text-dim)]"}`}>{rowSym}</td>
               {symbols.map((colSym) => {
                 const val = safeMap[rowSym]?.[colSym];
 
                 if (val === undefined) {
-                  return <td key={colSym} className={`p-1 text-center ${"text-zinc-600"}`}>—</td>;
+                  return <td key={colSym} className={`p-1 text-center ${"text-[var(--kt-text-muted)]"}`}>—</td>;
                 }
 
                 return (
                   <td key={colSym} className="p-1 text-center">
                     <div
-                      className="rounded-lg flex items-center justify-center text-[10px] text-white w-9 h-9 mx-auto border border-black/10 font-bold shadow-sm"
+                      className="rounded-lg flex items-center justify-center text-[10px] text-[var(--kt-text-strong)] w-9 h-9 mx-auto border border-black/10 font-bold shadow-sm"
                       style={{ backgroundColor: getColor(val) }}
                     >
                       {val.toFixed(2)}

@@ -29,8 +29,8 @@ export function StudioNav() {
             href={t.href}
             className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-colors ${
               active
-                ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
-                : "border border-transparent text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
+                ? "bg-emerald-500/15 text-[var(--kt-accent)] border border-emerald-500/30"
+                : "border border-transparent text-[var(--kt-text-dim)] hover:bg-[var(--kt-inset)] hover:text-[var(--kt-text)]"
             }`}
           >
             <Icon size={14} /> {t.label}

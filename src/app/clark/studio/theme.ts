@@ -2,57 +2,58 @@
  * Krypton Studio design tokens — THE single source of truth for Studio styling.
  *
  * Distilled from the "Krypton Fund — Your Position" artifact:
- *   emerald-on-near-black · big light white numerals · small uppercase mono
- *   labels · thin-bordered rounded cards · generous whitespace · calm & minimal.
+ *   emerald accent · big light numerals · small uppercase mono labels ·
+ *   thin-bordered rounded cards · generous whitespace · calm & minimal.
  *
- * RULE: every Studio page/component styles itself ONLY from these constants.
- * Do NOT hardcode colors. Delete former orange colors (#10B981 / accent-series);
- * both adopt this system. No per-page palettes, no per-page theme switchers.
- * This is a dark-only system (the artifact is dark).
+ * RULE: every Studio page/component styles itself ONLY from these constants, and
+ * NEVER branches on the active theme. Light/dark differ in exactly one place —
+ * the CSS variables in `studio-theme.css`, swapped via `data-kt-theme` on the
+ * Studio root. Components stay theme-agnostic, which is what keeps the palettes
+ * from drifting apart the way they did before.
  */
 
 export const KT = {
   // --- surfaces ---
-  page: "bg-[#0A0A0B] text-zinc-100 min-h-screen",
-  panel: "rounded-2xl border border-zinc-800/70 bg-[#111113]",   // add your own padding
-  card: "rounded-2xl border border-zinc-800/70 bg-[#111113] p-5",
-  cardHover: "transition-colors hover:border-zinc-700/70",
-  inset: "rounded-xl border border-zinc-800/60 bg-[#0D0D0F]",
-  border: "border-zinc-800/70",
+  page: "bg-[var(--kt-bg)] text-[var(--kt-text)] min-h-screen",
+  panel: "rounded-2xl border border-[var(--kt-border)] bg-[var(--kt-surface)]", // add your own padding
+  card: "rounded-2xl border border-[var(--kt-border)] bg-[var(--kt-surface)] p-5",
+  cardHover: "transition-colors hover:border-[var(--kt-border-strong)]",
+  inset: "rounded-xl border border-[var(--kt-border)] bg-[var(--kt-inset)]",
+  border: "border-[var(--kt-border)]",
 
   // --- typography ---
-  // small caps mono label, e.g. "YOUR VALUE OVER TIME", "WHAT THE FUND HOLDS"
-  label: "font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-500",
-  hero: "font-mono tabular-nums text-4xl font-light tracking-tight text-white", // the big $ figure
-  numberLg: "font-mono tabular-nums text-2xl font-light text-white",
-  number: "font-mono tabular-nums text-sm text-zinc-200",
-  title: "text-sm font-semibold text-zinc-100",
-  body: "text-sm text-zinc-300",
-  muted: "text-zinc-500",
+  // small caps mono label, e.g. "LIVE NAV", "WHAT THE FUND HOLDS"
+  label: "font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--kt-text-muted)]",
+  hero: "font-mono tabular-nums text-4xl font-light tracking-tight text-[var(--kt-text-strong)]",
+  numberLg: "font-mono tabular-nums text-2xl font-light text-[var(--kt-text-strong)]",
+  number: "font-mono tabular-nums text-sm text-[var(--kt-text)]",
+  title: "text-sm font-semibold text-[var(--kt-text)]",
+  body: "text-sm text-[var(--kt-text-dim)]",
+  muted: "text-[var(--kt-text-muted)]",
 
-  // --- accent (emerald/mint — the ONLY brand color) ---
-  accent: "text-emerald-400",
-  accentSoft: "text-emerald-300",
-  chip: "rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-300",
-  up: "text-emerald-400",
-  down: "text-rose-400",
-  dot: "h-1.5 w-1.5 rounded-full bg-emerald-400",
+  // --- accent (emerald — the ONLY brand color) ---
+  accent: "text-[var(--kt-accent)]",
+  accentSoft: "text-[var(--kt-accent-soft)]",
+  chip: "rounded-full border border-[var(--kt-accent-border)] bg-[var(--kt-accent-bg)] px-2 py-0.5 text-[11px] text-[var(--kt-accent)]",
+  up: "text-[var(--kt-up)]",
+  down: "text-[var(--kt-down)]",
+  dot: "h-1.5 w-1.5 rounded-full bg-[var(--kt-accent)]",
 
   // --- holdings / allocation bars ---
-  barTrack: "h-1.5 rounded-full bg-zinc-800/70 overflow-hidden",
-  barFill: "h-full rounded-full bg-emerald-400/80",
+  barTrack: "h-1.5 rounded-full bg-[var(--kt-track)] overflow-hidden",
+  barFill: "h-full rounded-full bg-[var(--kt-accent)]",
 
   // --- controls ---
-  btn: "rounded-lg border border-emerald-500/25 bg-emerald-500/15 px-3 py-1.5 text-sm text-emerald-300 transition-colors hover:bg-emerald-500/25",
-  btnGhost: "rounded-lg border border-zinc-800 px-3 py-1.5 text-sm text-zinc-300 transition-colors hover:bg-zinc-900",
-  btnDanger: "rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-sm text-rose-300 transition-colors hover:bg-rose-500/20",
-  input: "rounded-lg border border-zinc-800 bg-[#0D0D0F] px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-500/50",
+  btn: "rounded-lg border border-[var(--kt-accent-border)] bg-[var(--kt-accent-bg)] px-3 py-1.5 text-sm text-[var(--kt-accent)] transition-colors hover:border-[var(--kt-accent)]",
+  btnGhost: "rounded-lg border border-[var(--kt-border)] px-3 py-1.5 text-sm text-[var(--kt-text-dim)] transition-colors hover:bg-[var(--kt-hover)]",
+  btnDanger: "rounded-lg border border-[var(--kt-down)]/30 bg-[var(--kt-down)]/10 px-3 py-1.5 text-sm text-[var(--kt-down)] transition-colors hover:bg-[var(--kt-down)]/20",
+  input: "rounded-lg border border-[var(--kt-border)] bg-[var(--kt-inset)] px-3 py-2 text-sm text-[var(--kt-text)] outline-none placeholder:text-[var(--kt-text-muted)] focus:border-[var(--kt-accent)]",
 
-  // --- status (alarms/severity) ---
+  // --- status (limit breaches / severity) ---
   sev: {
-    info: "text-zinc-400",
-    warn: "text-amber-400",
-    critical: "text-rose-400",
+    info: "text-[var(--kt-text-dim)]",
+    warn: "text-[var(--kt-warn)]",
+    critical: "text-[var(--kt-down)]",
   },
 
   // --- layout ---
@@ -61,5 +62,10 @@ export const KT = {
   gap: "gap-4",
 } as const;
 
-/** Set `body` to the page ground so the app never shows a lighter seam. */
-export const KT_BODY_BG = "#0A0A0B";
+export type KtTheme = "dark" | "light";
+
+/** Studio default. Dark is the design reference. */
+export const KT_DEFAULT_THEME: KtTheme = "dark";
+
+/** Where the user's choice is remembered. */
+export const KT_THEME_STORAGE_KEY = "kt-studio-theme";

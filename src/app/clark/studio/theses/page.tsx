@@ -8,7 +8,7 @@ import { ClarkActionBar } from "../components/ClarkActionBar";
 export default function ThesesPage() {
   const [tick, setTick] = useState(0);
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="min-h-screen bg-[var(--kt-bg)] text-[var(--kt-text)]">
       <StudioHeader subtitle="Thesis workbench — the falsifiable idea behind every trade" />
       <div className="mx-auto max-w-[900px] space-y-4 px-4 py-4">
         <ClarkActionBar
@@ -17,7 +17,7 @@ export default function ThesesPage() {
           onDone={() => setTick((v) => v + 1)}
         />
         <ThesisPanel refreshKey={tick} onChanged={() => setTick((v) => v + 1)} />
-        <p className="text-center text-[11px] text-zinc-600">
+        <p className="text-center text-[11px] text-[var(--kt-text-muted)]">
           Clark can draft theses and memos; the human owns activation and the trade decision.
         </p>
       </div>

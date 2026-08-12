@@ -5,14 +5,14 @@ import { History } from "lucide-react";
 import { OrderHistoryRow, StrategyView } from "@/lib/fund_api";
 
 const STATUS_STYLE: Record<string, string> = {
-  filled: "bg-emerald-500/15 text-emerald-300",
+  filled: "bg-emerald-500/15 text-[var(--kt-accent)]",
   working: "bg-sky-500/15 text-sky-300",
   partial: "bg-sky-500/15 text-sky-300",
-  pending: "bg-amber-500/15 text-amber-300",
-  approved: "bg-amber-500/15 text-amber-300",
-  failed: "bg-red-500/15 text-red-300",
-  rejected: "bg-red-500/15 text-red-300",
-  declined: "bg-zinc-500/15 text-zinc-400",
+  pending: "bg-amber-500/15 text-[var(--kt-warn)]",
+  approved: "bg-amber-500/15 text-[var(--kt-warn)]",
+  failed: "bg-red-500/15 text-[var(--kt-down)]",
+  rejected: "bg-red-500/15 text-[var(--kt-down)]",
+  declined: "bg-zinc-500/15 text-[var(--kt-text-dim)]",
 };
 
 const fmtTs = (ts?: string | null) => {
@@ -39,15 +39,15 @@ export function OrderBlotter({
     id ? strategies.find((s) => s.strategy_id === id)?.name || "—" : "discretionary";
 
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40">
-      <div className="flex flex-wrap items-center gap-2 border-b border-zinc-800 px-4 py-2.5">
+    <div className="overflow-hidden rounded-xl border border-[var(--kt-border)] bg-[var(--kt-surface)]">
+      <div className="flex flex-wrap items-center gap-2 border-b border-[var(--kt-border)] px-4 py-2.5">
         <History size={14} className="text-teal-400" />
         <span className="text-sm font-semibold">Order history</span>
-        <span className="text-[11px] text-zinc-500">{orders.length} orders</span>
+        <span className="text-[11px] text-[var(--kt-text-muted)]">{orders.length} orders</span>
         <select
           value={filter ?? ""}
           onChange={(e) => onFilter(e.target.value || null)}
-          className="ml-auto rounded border border-zinc-700 bg-zinc-800/60 px-2 py-1 text-xs text-zinc-200 outline-none"
+          className="ml-auto rounded border border-[var(--kt-border)] bg-[var(--kt-inset)] px-2 py-1 text-xs text-[var(--kt-text)] outline-none"
         >
           <option value="">All strategies</option>
           {strategies.map((s) => (
@@ -58,12 +58,12 @@ export function OrderBlotter({
         </select>
       </div>
       {orders.length === 0 ? (
-        <div className="p-6 text-center text-sm text-zinc-500">No orders yet.</div>
+        <div className="p-6 text-center text-sm text-[var(--kt-text-muted)]">No orders yet.</div>
       ) : (
         <div className="max-h-[280px] overflow-y-auto">
           <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-zinc-900/95">
-              <tr className="text-[10px] uppercase tracking-wide text-zinc-500">
+            <thead className="sticky top-0 bg-[var(--kt-surface)]">
+              <tr className="text-[10px] uppercase tracking-wide text-[var(--kt-text-muted)]">
                 <th className="px-4 py-1.5 text-left font-medium">When</th>
                 <th className="px-2 py-1.5 text-left font-medium">Side</th>
                 <th className="px-2 py-1.5 text-left font-medium">Order</th>
@@ -74,20 +74,20 @@ export function OrderBlotter({
             </thead>
             <tbody>
               {orders.map((o) => (
-                <tr key={o.order_id} className="border-t border-zinc-800/60 hover:bg-zinc-800/20">
-                  <td className="px-4 py-1.5 font-mono text-[11px] text-zinc-500">{fmtTs(o.ts)}</td>
+                <tr key={o.order_id} className="border-t border-[var(--kt-border)] hover:bg-[var(--kt-inset)]">
+                  <td className="px-4 py-1.5 font-mono text-[11px] text-[var(--kt-text-muted)]">{fmtTs(o.ts)}</td>
                   <td className="px-2 py-1.5">
-                    <span className={`text-[10px] font-bold uppercase ${o.side === "buy" ? "text-emerald-400" : "text-red-400"}`}>
+                    <span className={`text-[10px] font-bold uppercase ${o.side === "buy" ? "text-[var(--kt-accent)]" : "text-[var(--kt-down)]"}`}>
                       {o.side}
                     </span>
                   </td>
                   <td className="px-2 py-1.5 font-mono text-xs">{o.qty} {o.symbol}</td>
-                  <td className="px-2 py-1.5 text-right font-mono text-[11px] text-zinc-400">
+                  <td className="px-2 py-1.5 text-right font-mono text-[11px] text-[var(--kt-text-dim)]">
                     {o.filled_qty != null ? `${o.filled_qty} @ ${money(o.avg_price)}` : "—"}
                   </td>
-                  <td className="px-2 py-1.5 truncate text-[11px] text-zinc-400">{nameOf(o.strategy_id)}</td>
+                  <td className="px-2 py-1.5 truncate text-[11px] text-[var(--kt-text-dim)]">{nameOf(o.strategy_id)}</td>
                   <td className="px-4 py-1.5 text-right">
-                    <span className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase ${STATUS_STYLE[o.status] || "bg-zinc-500/15 text-zinc-400"}`}>
+                    <span className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase ${STATUS_STYLE[o.status] || "bg-zinc-500/15 text-[var(--kt-text-dim)]"}`}>
                       {o.status}
                     </span>
                   </td>

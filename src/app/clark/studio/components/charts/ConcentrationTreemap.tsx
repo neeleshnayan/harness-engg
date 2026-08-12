@@ -61,7 +61,7 @@ export function ConcentrationTreemap({ positions, totalNav, height = 320 }: Conc
 
   if (tiles.length === 0) {
     return (
-      <div style={{ height }} className="flex items-center justify-center text-xs font-mono text-zinc-500 border border-zinc-800 rounded-xl bg-zinc-950/50">
+      <div style={{ height }} className="flex items-center justify-center text-xs font-mono text-[var(--kt-text-muted)] border border-[var(--kt-border)] rounded-xl bg-[var(--kt-bg)]">
         No active position exposure to display in treemap.
       </div>
     );
@@ -72,7 +72,7 @@ export function ConcentrationTreemap({ positions, totalNav, height = 320 }: Conc
       {/* Treemap Proportion Grid Canvas */}
       <div
         style={{ height }}
-        className="w-full flex flex-wrap gap-2 p-2 rounded-2xl bg-[#060911] border border-zinc-800/80 overflow-hidden relative shadow-2xl"
+        className="w-full flex flex-wrap gap-2 p-2 rounded-2xl bg-[#060911] border border-[var(--kt-border)] overflow-hidden relative shadow-2xl"
       >
         {tiles.map((tile, idx) => {
           const style = TILE_PALETTE[idx % TILE_PALETTE.length];
@@ -95,25 +95,25 @@ export function ConcentrationTreemap({ positions, totalNav, height = 320 }: Conc
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span className={`w-2 h-2 rounded-full ${style.accent}`} />
-                  <span className="font-bold text-xs font-sans tracking-tight truncate text-white">
+                  <span className="font-bold text-xs font-sans tracking-tight truncate text-[var(--kt-text-strong)]">
                     {tile.symbol}
                   </span>
                 </div>
-                <span className="text-xs font-black font-mono tracking-tight text-white bg-zinc-950/60 px-1.5 py-0.5 rounded border border-zinc-800">
+                <span className="text-xs font-black font-mono tracking-tight text-[var(--kt-text-strong)] bg-[var(--kt-bg)] px-1.5 py-0.5 rounded border border-[var(--kt-border)]">
                   {tile.pct.toFixed(1)}%
                 </span>
               </div>
 
               {/* Tile Middle: USD Exposure Value */}
               <div className="my-2">
-                <span className="text-[10px] text-zinc-400 block uppercase tracking-wider font-semibold">Exposure Value</span>
-                <span className="text-sm font-bold font-mono text-zinc-100">
+                <span className="text-[10px] text-[var(--kt-text-dim)] block uppercase tracking-wider font-semibold">Exposure Value</span>
+                <span className="text-sm font-bold font-mono text-[var(--kt-text)]">
                   ${tile.usd_value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </span>
               </div>
 
               {/* Tile Bottom Progress Bar */}
-              <div className="w-full h-1.5 rounded-full bg-zinc-950/80 overflow-hidden border border-zinc-900">
+              <div className="w-full h-1.5 rounded-full bg-[var(--kt-bg)] overflow-hidden border border-zinc-900">
                 <div
                   className={`h-full rounded-full ${style.accent}`}
                   style={{ width: `${Math.min(100, tile.pct)}%` }}
@@ -125,14 +125,14 @@ export function ConcentrationTreemap({ positions, totalNav, height = 320 }: Conc
       </div>
 
       {/* Summary Footer Legend */}
-      <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] text-zinc-400 px-1 pt-1">
+      <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] text-[var(--kt-text-dim)] px-1 pt-1">
         <div className="flex items-center gap-2">
           <PieChart size={13} className="text-teal-400" />
-          <span>Total NAV Basis: <strong className="text-zinc-200">${(totalNav || 0).toLocaleString()}</strong></span>
+          <span>Total NAV Basis: <strong className="text-[var(--kt-text)]">${(totalNav || 0).toLocaleString()}</strong></span>
         </div>
         <div className="flex items-center gap-4">
           <span>Positions: <strong className="text-teal-300">{tiles.length}</strong></span>
-          <span>Max Single Asset Cap: <strong className="text-amber-300">20.0% NAV Limit</strong></span>
+          <span>Max Single Asset Cap: <strong className="text-[var(--kt-warn)]">20.0% NAV Limit</strong></span>
         </div>
       </div>
     </div>

@@ -37,7 +37,7 @@ export function TVAreaChart({ data, height = 220, up, valuePrefix = "", classNam
     return data[data.length - 1].v >= data[0].v;
   }, [data, up]);
 
-  const stroke = trendUp ? "#2dd4bf" : "#f87171"; // teal-400 / red-400
+  const stroke = trendUp ? "var(--kt-accent)" : "var(--kt-down)"; // teal-400 / red-400
   const id = useMemo(() => `tvgrad-${Math.random().toString(36).slice(2, 8)}`, []);
 
   const fmt = (n: number) =>
@@ -53,7 +53,7 @@ export function TVAreaChart({ data, height = 220, up, valuePrefix = "", classNam
   if (!data.length) {
     return (
       <div
-        className={`flex items-center justify-center text-xs text-zinc-600 ${className || ""}`}
+        className={`flex items-center justify-center text-xs text-[var(--kt-text-muted)] ${className || ""}`}
         style={{ height }}
       >
         No series
@@ -71,19 +71,19 @@ export function TVAreaChart({ data, height = 220, up, valuePrefix = "", classNam
               <stop offset="100%" stopColor={stroke} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid stroke="#27272a" strokeDasharray="0" vertical={false} />
+          <CartesianGrid stroke="var(--kt-track)" strokeDasharray="0" vertical={false} />
           <XAxis
             dataKey="t"
             ticks={ticks}
-            tick={{ fill: "#71717a", fontSize: 10 }}
+            tick={{ fill: "var(--kt-text-muted)", fontSize: 10 }}
             tickLine={false}
-            axisLine={{ stroke: "#27272a" }}
+            axisLine={{ stroke: "var(--kt-track)" }}
             minTickGap={20}
           />
           <YAxis
             orientation="right"
             domain={["auto", "auto"]}
-            tick={{ fill: "#71717a", fontSize: 10 }}
+            tick={{ fill: "var(--kt-text-muted)", fontSize: 10 }}
             tickLine={false}
             axisLine={false}
             width={54}
@@ -97,7 +97,7 @@ export function TVAreaChart({ data, height = 220, up, valuePrefix = "", classNam
               borderRadius: 8,
               fontSize: 12,
             }}
-            labelStyle={{ color: "#a1a1aa" }}
+            labelStyle={{ color: "var(--kt-text-dim)" }}
             itemStyle={{ color: stroke }}
             formatter={(v: number) => [fmt(Number(v)), "px"]}
           />

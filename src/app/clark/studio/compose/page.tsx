@@ -203,8 +203,8 @@ export default function StrategyComposerPage() {
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <Sliders className="h-6 w-6 text-emerald-400" />
-              <h1 className="text-2xl font-light tracking-tight text-white">Strategy Composer</h1>
+              <Sliders className="h-6 w-6 text-[var(--kt-accent)]" />
+              <h1 className="text-2xl font-light tracking-tight text-[var(--kt-text-strong)]">Strategy Composer</h1>
             </div>
             <p className={KT.muted}>
               Multi-sleeve capital allocator — blend child strategies into composite meta-portfolios with HRP & Purged CV.
@@ -216,14 +216,14 @@ export default function StrategyComposerPage() {
             <div className={`${KT.inset} flex items-center gap-3 px-4 py-2`}>
               <div className="text-right">
                 <div className={KT.label}>TOTAL WEIGHT</div>
-                <div className={`font-mono text-sm font-semibold ${totalWeightPct > 100 ? "text-rose-400" : "text-white"}`}>
+                <div className={`font-mono text-sm font-semibold ${totalWeightPct > 100 ? "text-[var(--kt-down)]" : "text-[var(--kt-text-strong)]"}`}>
                   {totalWeightPct}%
                 </div>
               </div>
-              <div className="h-6 w-px bg-zinc-800" />
+              <div className="h-6 w-px bg-[var(--kt-inset)]" />
               <div className="text-right">
-                <div className={KT.label}>CASH REMAINDER</div>
-                <div className="font-mono text-sm font-semibold text-emerald-400">
+                <div className={KT.label}>UNALLOCATED CASH</div>
+                <div className="font-mono text-sm font-semibold text-[var(--kt-accent)]">
                   {cashRemainderPct}%
                 </div>
               </div>
@@ -236,15 +236,15 @@ export default function StrategyComposerPage() {
           <div
             className={`mb-6 flex items-center justify-between rounded-xl border px-4 py-3 text-sm ${
               statusMsg.type === "success"
-                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                : "border-rose-500/30 bg-rose-500/10 text-rose-300"
+                ? "border-emerald-500/30 bg-emerald-500/10 text-[var(--kt-accent)]"
+                : "border-rose-500/30 bg-rose-500/10 text-[var(--kt-down)]"
             }`}
           >
             <div className="flex items-center gap-2">
               {statusMsg.type === "success" ? <Check size={16} /> : <AlertTriangle size={16} />}
               <span>{statusMsg.msg}</span>
             </div>
-            <button onClick={() => setStatusMsg(null)} className="text-zinc-400 hover:text-white">
+            <button onClick={() => setStatusMsg(null)} className="text-[var(--kt-text-dim)] hover:text-[var(--kt-text-strong)]">
               ✕
             </button>
           </div>
@@ -254,7 +254,7 @@ export default function StrategyComposerPage() {
         <div className={`${KT.card} mb-6`}>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-2 text-emerald-400">
+              <div className="rounded-lg border border-[var(--kt-border)] bg-[var(--kt-surface)] p-2 text-[var(--kt-accent)]">
                 <Layers size={20} />
               </div>
               <div>
@@ -262,7 +262,7 @@ export default function StrategyComposerPage() {
                 <select
                   value={selectedParentId || ""}
                   onChange={(e) => setSelectedParentId(e.target.value)}
-                  className="mt-1 rounded-lg border border-zinc-800 bg-[#0D0D0F] px-3 py-1.5 font-mono text-sm text-zinc-100 outline-none focus:border-emerald-500/50"
+                  className="mt-1 rounded-lg border border-[var(--kt-border)] bg-[var(--kt-inset)] px-3 py-1.5 font-mono text-sm text-[var(--kt-text)] outline-none focus:border-emerald-500/50"
                 >
                   {strategies.map((s) => (
                     <option key={s.strategy_id} value={s.strategy_id}>
@@ -293,11 +293,11 @@ export default function StrategyComposerPage() {
           </div>
 
           {currentParent && (
-            <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-zinc-800/70 pt-3 text-xs">
+            <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-[var(--kt-border)] pt-3 text-xs">
               <span className={KT.chip}>{currentParent.state.toUpperCase()}</span>
-              <span className={KT.muted}>Target Allocation: <strong className="text-white">{currentParent.allocation_pct}% NAV</strong></span>
+              <span className={KT.muted}>Target Allocation: <strong className="text-[var(--kt-text-strong)]">{currentParent.allocation_pct}% NAV</strong></span>
               {currentParent.members && (
-                <span className={KT.muted}>Active Sleeves: <strong className="text-emerald-400">{currentParent.members.length}</strong></span>
+                <span className={KT.muted}>Active Sleeves: <strong className="text-[var(--kt-accent)]">{currentParent.members.length}</strong></span>
               )}
             </div>
           )}
@@ -328,25 +328,25 @@ export default function StrategyComposerPage() {
                       className={`flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-colors ${
                         isSelected
                           ? "border-emerald-500/40 bg-emerald-500/5"
-                          : "border-zinc-800/60 bg-[#0D0D0F] hover:border-zinc-700"
+                          : "border-[var(--kt-border)] bg-[var(--kt-inset)] hover:border-[var(--kt-border)]"
                       }`}
                     >
                       <div className="flex items-center gap-3">
                         <div
                           className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${
-                            isSelected ? "border-emerald-400 bg-emerald-500/20 text-emerald-400" : "border-zinc-700 bg-zinc-900"
+                            isSelected ? "border-emerald-400 bg-emerald-500/20 text-[var(--kt-accent)]" : "border-[var(--kt-border)] bg-[var(--kt-surface)]"
                           }`}
                         >
                           {isSelected && <Check size={12} />}
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-zinc-100">{child.name}</span>
-                            <span className="rounded border border-zinc-800 bg-zinc-900 px-1.5 py-0.5 text-[10px] text-zinc-400">
+                            <span className="text-sm font-medium text-[var(--kt-text)]">{child.name}</span>
+                            <span className="rounded border border-[var(--kt-border)] bg-[var(--kt-surface)] px-1.5 py-0.5 text-[10px] text-[var(--kt-text-dim)]">
                               {child.state}
                             </span>
                           </div>
-                          <div className="text-xs text-zinc-500">
+                          <div className="text-xs text-[var(--kt-text-muted)]">
                             Assets: {child.assets && child.assets.length ? child.assets.join(", ") : "All market"}
                           </div>
                         </div>
@@ -356,15 +356,15 @@ export default function StrategyComposerPage() {
                         {sharpe !== undefined && sharpe !== null ? (
                           <div>
                             <div className={KT.label}>SHARPE</div>
-                            <div className="font-mono text-xs font-semibold text-emerald-300">{sharpe.toFixed(2)}</div>
+                            <div className="font-mono text-xs font-semibold text-[var(--kt-accent)]">{sharpe.toFixed(2)}</div>
                           </div>
                         ) : (
-                          <div className="text-xs text-zinc-600">No backtest</div>
+                          <div className="text-xs text-[var(--kt-text-muted)]">No backtest</div>
                         )}
                         {child.exposure_usd ? (
                           <div>
                             <div className={KT.label}>EXPOSURE</div>
-                            <div className="font-mono text-xs text-zinc-200">${child.exposure_usd.toLocaleString()}</div>
+                            <div className="font-mono text-xs text-[var(--kt-text)]">${child.exposure_usd.toLocaleString()}</div>
                           </div>
                         ) : null}
                       </div>
@@ -417,7 +417,7 @@ export default function StrategyComposerPage() {
 
               {/* Sliders & Numeric Inputs */}
               {selectedChildren.length === 0 ? (
-                <div className={`${KT.inset} py-8 text-center text-xs text-zinc-500`}>
+                <div className={`${KT.inset} py-8 text-center text-xs text-[var(--kt-text-muted)]`}>
                   No sleeves selected. Pick sleeves above to configure portfolio weights.
                 </div>
               ) : (
@@ -430,7 +430,7 @@ export default function StrategyComposerPage() {
                     return (
                       <div key={cid} className={`${KT.inset} p-3`}>
                         <div className="mb-2 flex items-center justify-between">
-                          <span className="text-sm font-medium text-zinc-200">{child?.name || cid}</span>
+                          <span className="text-sm font-medium text-[var(--kt-text)]">{child?.name || cid}</span>
                           <div className="flex items-center gap-2">
                             <input
                               type="number"
@@ -439,9 +439,9 @@ export default function StrategyComposerPage() {
                               step="1"
                               value={pctVal}
                               onChange={(e) => handleWeightChange(cid, (parseFloat(e.target.value) || 0) / 100)}
-                              className="w-16 rounded border border-zinc-800 bg-zinc-900 px-2 py-1 font-mono text-right text-xs text-emerald-300 outline-none focus:border-emerald-500"
+                              className="w-16 rounded border border-[var(--kt-border)] bg-[var(--kt-surface)] px-2 py-1 font-mono text-right text-xs text-[var(--kt-accent)] outline-none focus:border-emerald-500"
                             />
-                            <span className="font-mono text-xs text-zinc-400">%</span>
+                            <span className="font-mono text-xs text-[var(--kt-text-dim)]">%</span>
                           </div>
                         </div>
 
@@ -467,26 +467,26 @@ export default function StrategyComposerPage() {
                 <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <span className={KT.label}>SKFOLIO PURGED CV DIAGNOSTICS ({optResults.method.toUpperCase()})</span>
-                    <span className="text-xs text-emerald-400 font-medium">Overfit Protection</span>
+                    <span className="text-xs text-[var(--kt-accent)] font-medium">Overfitting Risk (PBO)</span>
                   </div>
                   <div className="grid grid-cols-4 gap-2 text-center">
-                    <div className="rounded border border-zinc-800/80 bg-zinc-900/60 p-2">
+                    <div className="rounded border border-[var(--kt-border)] bg-[var(--kt-surface)] p-2">
                       <div className={KT.label}>EXPECTED SHARPE</div>
-                      <div className="font-mono text-sm text-emerald-300">{optResults.expected?.sharpe ?? "—"}</div>
+                      <div className="font-mono text-sm text-[var(--kt-accent)]">{optResults.expected?.sharpe ?? "—"}</div>
                     </div>
-                    <div className="rounded border border-zinc-800/80 bg-zinc-900/60 p-2">
-                      <div className={KT.label}>ANNUAL VOL</div>
-                      <div className="font-mono text-sm text-zinc-200">
+                    <div className="rounded border border-[var(--kt-border)] bg-[var(--kt-surface)] p-2">
+                      <div className={KT.label}>ANNUALIZED VOL</div>
+                      <div className="font-mono text-sm text-[var(--kt-text)]">
                         {optResults.expected?.vol ? `${(optResults.expected.vol * 100).toFixed(1)}%` : "—"}
                       </div>
                     </div>
-                    <div className="rounded border border-zinc-800/80 bg-zinc-900/60 p-2">
-                      <div className={KT.label}>OOS SHARPE</div>
-                      <div className="font-mono text-sm text-emerald-300">{optResults.cv?.oos_sharpe ?? "—"}</div>
+                    <div className="rounded border border-[var(--kt-border)] bg-[var(--kt-surface)] p-2">
+                      <div className={KT.label}>OUT-OF-SAMPLE SHARPE</div>
+                      <div className="font-mono text-sm text-[var(--kt-accent)]">{optResults.cv?.oos_sharpe ?? "—"}</div>
                     </div>
-                    <div className="rounded border border-zinc-800/80 bg-zinc-900/60 p-2">
+                    <div className="rounded border border-[var(--kt-border)] bg-[var(--kt-surface)] p-2">
                       <div className={KT.label}>PBO (OVERFIT)</div>
-                      <div className={`font-mono text-sm ${optResults.cv?.pbo > 0.3 ? "text-rose-400" : "text-emerald-300"}`}>
+                      <div className={`font-mono text-sm ${optResults.cv?.pbo > 0.3 ? "text-[var(--kt-down)]" : "text-[var(--kt-accent)]"}`}>
                         {optResults.cv?.pbo !== undefined ? `${(optResults.cv.pbo * 100).toFixed(0)}%` : "—"}
                       </div>
                     </div>
@@ -507,7 +507,7 @@ export default function StrategyComposerPage() {
                 </div>
                 <button
                   onClick={() => selectedParentId && fetchComposite(selectedParentId)}
-                  className="text-zinc-400 hover:text-white"
+                  className="text-[var(--kt-text-dim)] hover:text-[var(--kt-text-strong)]"
                   title="Refresh Rollup"
                 >
                   <RotateCcw size={14} />
@@ -518,19 +518,19 @@ export default function StrategyComposerPage() {
               <div className="mb-4 grid grid-cols-3 gap-3">
                 <div className={`${KT.inset} p-3 text-center`}>
                   <div className={KT.label}>BLENDED RETURN</div>
-                  <div className="font-mono text-lg font-light text-emerald-400">
+                  <div className="font-mono text-lg font-light text-[var(--kt-accent)]">
                     {composite?.metrics?.total_return !== undefined ? `+${composite.metrics.total_return}%` : "—"}
                   </div>
                 </div>
                 <div className={`${KT.inset} p-3 text-center`}>
                   <div className={KT.label}>BLENDED SHARPE</div>
-                  <div className="font-mono text-lg font-light text-white">
+                  <div className="font-mono text-lg font-light text-[var(--kt-text-strong)]">
                     {composite?.metrics?.sharpe ?? "—"}
                   </div>
                 </div>
                 <div className={`${KT.inset} p-3 text-center`}>
                   <div className={KT.label}>MAX DRAWDOWN</div>
-                  <div className="font-mono text-lg font-light text-rose-400">
+                  <div className="font-mono text-lg font-light text-[var(--kt-down)]">
                     {composite?.metrics?.max_drawdown !== undefined ? `${(composite.metrics.max_drawdown * 100).toFixed(1)}%` : "—"}
                   </div>
                 </div>
@@ -538,15 +538,15 @@ export default function StrategyComposerPage() {
 
               {/* Blended Equity Curve Chart */}
               {composite?.blended_equity && composite.blended_equity.length > 0 ? (
-                <div className="rounded-xl border border-zinc-800 bg-[#0D0D0F] p-3">
+                <div className="rounded-xl border border-[var(--kt-border)] bg-[var(--kt-inset)] p-3">
                   <div className="mb-2 flex items-center justify-between">
-                    <span className={KT.label}>BLENDED NAV PERFORMANCE</span>
-                    <span className="font-mono text-xs text-emerald-400 font-medium">Normalized (1.00)</span>
+                    <span className={KT.label}>COMPOSITE PERFORMANCE</span>
+                    <span className="font-mono text-xs text-[var(--kt-accent)] font-medium">Normalized (1.00)</span>
                   </div>
                   <TVAreaChart data={composite.blended_equity} height={200} />
                 </div>
               ) : (
-                <div className={`${KT.inset} flex h-48 items-center justify-center text-center text-xs text-zinc-500`}>
+                <div className={`${KT.inset} flex h-48 items-center justify-center text-center text-xs text-[var(--kt-text-muted)]`}>
                   No equity curve available. Select child sleeves with backtests to preview blended performance.
                 </div>
               )}
@@ -556,39 +556,39 @@ export default function StrategyComposerPage() {
             <div className={KT.card}>
               <div className="mb-3 flex items-center justify-between">
                 <h3 className={KT.title}>Composite Risk & Concentration</h3>
-                <ShieldAlert size={16} className="text-zinc-400" />
+                <ShieldAlert size={16} className="text-[var(--kt-text-dim)]" />
               </div>
 
               <div className="mb-4 grid grid-cols-2 gap-3">
                 <div className={`${KT.inset} p-3`}>
                   <div className={KT.label}>CONCENTRATION (HHI)</div>
-                  <div className="font-mono text-base font-medium text-white">
+                  <div className="font-mono text-base font-medium text-[var(--kt-text-strong)]">
                     {composite?.risk?.concentration_hhi ?? "0.000"}
                   </div>
-                  <div className="text-[10px] text-zinc-500">Target HHI &lt; 0.40</div>
+                  <div className="text-[10px] text-[var(--kt-text-muted)]">Target HHI &lt; 0.40</div>
                 </div>
 
                 <div className={`${KT.inset} p-3`}>
                   <div className={KT.label}>DRAWDOWN VS LIMIT</div>
-                  <div className="font-mono text-base font-medium text-emerald-400">
+                  <div className="font-mono text-base font-medium text-[var(--kt-accent)]">
                     {composite?.risk?.drawdown_pct !== undefined ? `${(composite.risk.drawdown_pct * 100).toFixed(1)}%` : "0.0%"}
                   </div>
-                  <div className="text-[10px] text-zinc-500">Max limit 15.0%</div>
+                  <div className="text-[10px] text-[var(--kt-text-muted)]">Max limit 15.0%</div>
                 </div>
               </div>
 
               {/* Warning Flags List */}
               <div className="space-y-2">
-                <span className={KT.label}>RISK AUDIT FLAGS</span>
+                <span className={KT.label}>RISK FLAGS</span>
                 {composite?.risk?.flags && composite.risk.flags.length > 0 ? (
                   composite.risk.flags.map((flag, idx) => (
-                    <div key={idx} className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+                    <div key={idx} className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-[var(--kt-warn)]">
                       <AlertTriangle size={14} className="shrink-0" />
                       <span>{flag}</span>
                     </div>
                   ))
                 ) : (
-                  <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+                  <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-[var(--kt-accent)]">
                     <Check size={14} className="shrink-0" />
                     <span>No portfolio concentration or leverage breaches detected.</span>
                   </div>

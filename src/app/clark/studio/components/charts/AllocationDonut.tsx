@@ -19,12 +19,12 @@ interface Props {
 }
 
 const COLORS_DARK = [
-  "#34D399", // Emerald (KT accent)
-  "#10B981", // Emerald
+  "var(--kt-accent)", // Emerald (KT accent)
+  "var(--kt-accent)", // Emerald
   "#38BDF8", // Sky Blue
   "#A855F7", // Purple
   "#FBBF24", // Amber
-  "#34D399", // Mint
+  "var(--kt-accent)", // Mint
 ];
 
 export function AllocationDonut({ positions = [], cash = 0, totalNav = 0, height = 240, className }: Props) {
@@ -55,7 +55,7 @@ export function AllocationDonut({ positions = [], cash = 0, totalNav = 0, height
   if (data.length === 0) {
     return (
       <div
-        className={`flex flex-col items-center justify-center text-xs ${"text-zinc-500"} ${className || ""}`}
+        className={`flex flex-col items-center justify-center text-xs ${"text-[var(--kt-text-muted)]"} ${className || ""}`}
         style={{ height }}
       >
         No positions
@@ -87,13 +87,13 @@ export function AllocationDonut({ positions = [], cash = 0, totalNav = 0, height
           <Tooltip
             cursor={false}
             contentStyle={{
-              background: "#030712",
+              background: "var(--kt-bg)",
               border: "1px solid #1e293b",
               borderRadius: 8,
               fontSize: 12,
-              color: "#f4f4f5",
+              color: "var(--kt-text)",
             }}
-            itemStyle={{ color: "#f4f4f5" }}
+            itemStyle={{ color: "var(--kt-text)" }}
             formatter={(value: number, name: string, props: any) => [
               `${fmtValue(value)} (${props.payload.pct.toFixed(1)}%)`,
               name,

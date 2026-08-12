@@ -49,7 +49,7 @@ export function StrategyCard({ strategy, chartData, onClick }: StrategyCardProps
           </div>
           <div className="mt-1 flex items-center gap-2">
             <StatusPulse state={STATE_COLORS[strategy.state] || "offline"} label={strategy.state} />
-            {isChild && <span className="text-[10px] text-zinc-500">Child strategy</span>}
+            {isChild && <span className="text-[10px] text-[var(--kt-text-muted)]">Child strategy</span>}
           </div>
         </div>
         {chartData && (
@@ -75,7 +75,7 @@ export function StrategyCard({ strategy, chartData, onClick }: StrategyCardProps
       </div>
 
       <div className="flex flex-col gap-1.5 mt-2">
-        <div className="flex justify-between text-[10px] text-zinc-500 font-mono">
+        <div className="flex justify-between text-[10px] text-[var(--kt-text-muted)] font-mono">
           <span>act {actual.toFixed(1)}%</span>
           <span>tgt {target.toFixed(1)}%</span>
         </div>
@@ -84,7 +84,7 @@ export function StrategyCard({ strategy, chartData, onClick }: StrategyCardProps
         </div>
       </div>
 
-      <div className="flex justify-between items-center border-t border-zinc-800/60 pt-3 mt-1">
+      <div className="flex justify-between items-center border-t border-[var(--kt-border)] pt-3 mt-1">
         <div className="flex gap-4">
           <div className="flex flex-col">
             <span className={KT.label}>Sharpe</span>

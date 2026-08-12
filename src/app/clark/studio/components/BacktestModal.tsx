@@ -130,21 +130,21 @@ export function BacktestModal({ strategy, onClose, onSuccess, onCharted }: Props
 
   return (
     <Dialog open={!!strategy} onOpenChange={onClose}>
-      <DialogContent className="w-[calc(100%-2rem)] max-w-[560px] max-h-[92vh] overflow-y-auto border-zinc-800 bg-zinc-900 text-white">
+      <DialogContent className="w-[calc(100%-2rem)] max-w-[560px] max-h-[92vh] overflow-y-auto border-[var(--kt-border)] bg-[var(--kt-surface)] text-[var(--kt-text-strong)]">
         <DialogHeader>
           <DialogTitle>Backtest — {strategy.name}</DialogTitle>
         </DialogHeader>
 
         {/* mode toggle */}
-        <div className="mt-1 inline-flex rounded-lg border border-zinc-700 bg-zinc-800/60 p-0.5 text-xs">
+        <div className="mt-1 inline-flex rounded-lg border border-[var(--kt-border)] bg-[var(--kt-inset)] p-0.5 text-xs">
           <button
-            className={`rounded-md px-3 py-1.5 ${mode === "symbol" ? "bg-zinc-700 text-white" : "text-zinc-400"}`}
+            className={`rounded-md px-3 py-1.5 ${mode === "symbol" ? "bg-zinc-700 text-[var(--kt-text-strong)]" : "text-[var(--kt-text-dim)]"}`}
             onClick={() => setMode("symbol")}
           >
             By symbol · free data
           </button>
           <button
-            className={`rounded-md px-3 py-1.5 ${mode === "manual" ? "bg-zinc-700 text-white" : "text-zinc-400"}`}
+            className={`rounded-md px-3 py-1.5 ${mode === "manual" ? "bg-zinc-700 text-[var(--kt-text-strong)]" : "text-[var(--kt-text-dim)]"}`}
             onClick={() => setMode("manual")}
           >
             Paste prices
@@ -159,7 +159,7 @@ export function BacktestModal({ strategy, onClose, onSuccess, onCharted }: Props
                 id="btype"
                 value={type}
                 onChange={(e) => setType(e.target.value as StrategyTemplate)}
-                className="h-10 rounded-md border border-zinc-700 bg-zinc-800 px-3 text-sm"
+                className="h-10 rounded-md border border-[var(--kt-border)] bg-[var(--kt-inset)] px-3 text-sm"
               >
                 <option value="sma">SMA crossover</option>
                 <option value="rsi">RSI mean-reversion</option>
@@ -179,7 +179,7 @@ export function BacktestModal({ strategy, onClose, onSuccess, onCharted }: Props
                   value={symbol}
                   onChange={(e) => setSymbol(e.target.value.toUpperCase())}
                   placeholder="AAPL"
-                  className="border-zinc-700 bg-zinc-800 uppercase"
+                  className="border-[var(--kt-border)] bg-[var(--kt-inset)] uppercase"
                 />
               </div>
             )}
@@ -232,20 +232,20 @@ export function BacktestModal({ strategy, onClose, onSuccess, onCharted }: Props
                 onChange={(e) => setPricesText(e.target.value)}
                 rows={3}
                 placeholder="100, 102, 101, 105, 108, ..."
-                className="rounded-md border border-zinc-700 bg-zinc-800 p-3 font-mono text-sm"
+                className="rounded-md border border-[var(--kt-border)] bg-[var(--kt-inset)] p-3 font-mono text-sm"
               />
             </div>
           )}
 
           {error && (
-            <div className="flex items-center gap-2 text-sm text-red-400">
+            <div className="flex items-center gap-2 text-sm text-[var(--kt-down)]">
               <AlertCircle size={16} /> {error}
             </div>
           )}
 
           {series.length > 0 && (
-            <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-2">
-              <div className="mb-1 px-1 text-[11px] text-zinc-500">
+            <div className="rounded-lg border border-[var(--kt-border)] bg-[var(--kt-bg)] p-2">
+              <div className="mb-1 px-1 text-[11px] text-[var(--kt-text-muted)]">
                 {mode === "symbol" ? `${symbol} · ${source} · ${series.length} bars` : `${series.length} bars`}
               </div>
               <TVAreaChart data={series} height={160} valuePrefix="$" />
@@ -253,7 +253,7 @@ export function BacktestModal({ strategy, onClose, onSuccess, onCharted }: Props
           )}
 
           {result && (
-            <div className="grid grid-cols-4 gap-3 rounded-lg border border-zinc-700 bg-zinc-800/50 p-4 font-mono text-sm">
+            <div className="grid grid-cols-4 gap-3 rounded-lg border border-[var(--kt-border)] bg-[var(--kt-inset)] p-4 font-mono text-sm">
               <Metric label="Return" value={asPct(result.total_return)} good={result.total_return >= 0} />
               <Metric label="Sharpe" value={result.sharpe.toFixed(2)} />
               <Metric label="Max DD" value={asPct(result.max_drawdown)} bad />
@@ -263,13 +263,13 @@ export function BacktestModal({ strategy, onClose, onSuccess, onCharted }: Props
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="border-zinc-700 bg-transparent text-zinc-300">
+          <Button variant="outline" onClick={onClose} className="border-[var(--kt-border)] bg-transparent text-[var(--kt-text-dim)]">
             Close
           </Button>
           <Button
             onClick={mode === "symbol" ? runSymbol : runManual}
             disabled={loading}
-            className="bg-gradient-to-r from-teal-600 to-sky-600 text-white"
+            className="bg-gradient-to-r from-teal-600 to-sky-600 text-[var(--kt-text-strong)]"
           >
             {loading && <Loader2 className="mr-2 animate-spin" size={16} />}
             {loading ? "Running…" : mode === "symbol" ? "Fetch & backtest" : "Run backtest"}
@@ -288,17 +288,17 @@ function NumField({ label, value, set, min = 1 }: { label: string; value: number
         type="number"
         value={value}
         onChange={(e) => set(parseInt(e.target.value) || min)}
-        className="border-zinc-700 bg-zinc-800"
+        className="border-[var(--kt-border)] bg-[var(--kt-inset)]"
       />
     </div>
   );
 }
 
 function Metric({ label, value, good, bad }: { label: string; value: string; good?: boolean; bad?: boolean }) {
-  const color = good ? "text-emerald-400" : bad ? "text-red-400" : "text-zinc-100";
+  const color = good ? "text-[var(--kt-accent)]" : bad ? "text-[var(--kt-down)]" : "text-[var(--kt-text)]";
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-wide text-zinc-500">{label}</div>
+      <div className="text-[10px] uppercase tracking-wide text-[var(--kt-text-muted)]">{label}</div>
       <div className={color}>{value}</div>
     </div>
   );

@@ -67,14 +67,14 @@ export function EfficientFrontierChart({ points, assets, height = 240, className
     <div className={className} style={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: -10 }}>
-          <CartesianGrid stroke={"#1e293b"} strokeDasharray="3 3" />
+          <CartesianGrid stroke={"var(--kt-border)"} strokeDasharray="3 3" />
           <XAxis
             type="number"
             dataKey="volatility"
             name="Volatility"
             tickFormatter={(v) => `${v}%`}
-            tick={{ fill: "#94a3b8", fontSize: 10 }}
-            axisLine={{ stroke: "#334155" }}
+            tick={{ fill: "var(--kt-text-dim)", fontSize: 10 }}
+            axisLine={{ stroke: "var(--kt-border-strong)" }}
             tickLine={false}
             domain={["auto", "auto"]}
           />
@@ -83,8 +83,8 @@ export function EfficientFrontierChart({ points, assets, height = 240, className
             dataKey="return"
             name="Return"
             tickFormatter={(v) => `${v}%`}
-            tick={{ fill: "#94a3b8", fontSize: 10 }}
-            axisLine={{ stroke: "#334155" }}
+            tick={{ fill: "var(--kt-text-dim)", fontSize: 10 }}
+            axisLine={{ stroke: "var(--kt-border-strong)" }}
             tickLine={false}
             domain={["auto", "auto"]}
           />
@@ -92,12 +92,12 @@ export function EfficientFrontierChart({ points, assets, height = 240, className
           <Tooltip
             cursor={{ strokeDasharray: "3 3" }}
             contentStyle={{
-              background: "#030712",
+              background: "var(--kt-bg)",
               border: "1px solid #1e293b",
               borderRadius: 8,
               fontSize: 11,
               fontFamily: "monospace",
-              color: "#e2e8f0",
+              color: "var(--kt-text)",
             }}
             formatter={(value: number, name: string) => [
               name === "sharpe" ? value.toFixed(2) : `${value.toFixed(2)}%`,
@@ -107,14 +107,14 @@ export function EfficientFrontierChart({ points, assets, height = 240, className
           <Scatter
             name="Efficient Frontier"
             data={data}
-            fill={"#34D399"}
-            line={{ stroke: "#34D399", strokeWidth: 2 }}
+            fill={"var(--kt-accent)"}
+            line={{ stroke: "var(--kt-accent)", strokeWidth: 2 }}
             shape="circle"
           />
           <Scatter
             name="Tangency Portfolio (Max Sharpe ⭐)"
             data={[maxSharpePoint]}
-            fill={"#10B981"}
+            fill={"var(--kt-accent)"}
             shape="star"
           />
           <Scatter

@@ -130,7 +130,7 @@ export function PythonCodeEditor({
   return (
     <div
       className={`relative flex border font-mono text-xs transition-all rounded-b-xl shadow-2xl ${
-        "bg-[#090D18] border-emerald-500/20 text-zinc-100 backdrop-blur-xl"
+        "bg-[var(--kt-surface)] border-emerald-500/20 text-[var(--kt-text)] backdrop-blur-xl"
       }`}
       style={{ height }}
     >
@@ -138,7 +138,7 @@ export function PythonCodeEditor({
       <div
         ref={gutterRef}
         className={`w-12 select-none overflow-hidden text-right pr-3 pt-3 font-mono text-xs leading-[1.625] border-r ${
-          "bg-[#0D1322] text-zinc-600 border-emerald-950/40"
+          "bg-[#0D1322] text-[var(--kt-text-muted)] border-emerald-950/40"
         }`}
       >
         {Array.from({ length: lineCount }, (_, i) => (

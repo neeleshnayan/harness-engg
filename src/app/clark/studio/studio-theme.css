@@ -1,0 +1,73 @@
+/**
+ * Krypton Studio theme variables — the ONE place light/dark values differ.
+ *
+ * Components never branch on theme. They style from the KT tokens in theme.ts,
+ * which reference these variables; swapping `data-kt-theme` on the Studio root
+ * swaps every surface at once. (The previous approach — `isLight ? A : B` in
+ * every component — is what let three competing palettes drift apart.)
+ *
+ * Dark is the default and the design reference ("Your Position" artifact).
+ */
+
+[data-kt-theme="dark"] {
+  --kt-bg: #0a0a0b;
+  --kt-surface: #111113;
+  --kt-inset: #0d0d0f;
+  --kt-border: rgb(39 39 42 / 0.7);
+  --kt-border-strong: rgb(63 63 70 / 0.7);
+
+  --kt-text: #f4f4f5;
+  --kt-text-strong: #ffffff;
+  --kt-text-muted: #71717a;
+  --kt-text-dim: #a1a1aa;
+
+  --kt-accent: #34d399;
+  --kt-accent-soft: #6ee7b7;
+  --kt-accent-bg: rgb(16 185 129 / 0.15);
+  --kt-accent-border: rgb(16 185 129 / 0.25);
+
+  --kt-up: #34d399;
+  --kt-down: #fb7185;
+  --kt-warn: #fbbf24;
+
+  --kt-track: rgb(39 39 42 / 0.7);
+  --kt-hover: rgb(24 24 27 / 1);
+}
+
+[data-kt-theme="light"] {
+  --kt-bg: #fafaf9;
+  --kt-surface: #ffffff;
+  --kt-inset: #f5f5f4;
+  --kt-border: rgb(231 229 228 / 1);
+  --kt-border-strong: rgb(214 211 209 / 1);
+
+  --kt-text: #27272a;
+  --kt-text-strong: #18181b;
+  --kt-text-muted: #78716c;
+  --kt-text-dim: #57534e;
+
+  /* darker emerald so it passes contrast on white */
+  --kt-accent: #047857;
+  --kt-accent-soft: #059669;
+  --kt-accent-bg: rgb(5 150 105 / 0.10);
+  --kt-accent-border: rgb(5 150 105 / 0.25);
+
+  --kt-up: #047857;
+  --kt-down: #be123c;
+  --kt-warn: #b45309;
+
+  --kt-track: rgb(231 229 228 / 1);
+  --kt-hover: rgb(245 245 244 / 1);
+}
+
+/* The Studio ground.
+ *
+ * globals.css defaults `--background` to WHITE at :root and body does
+ * `@apply bg-background`, so without painting body here the page shows a white
+ * seam behind overscroll and short pages. `data-kt-theme` is only ever set while
+ * a Studio route is mounted, so this never leaks into the wallet/customer app. */
+html[data-kt-theme],
+html[data-kt-theme] body {
+  background-color: var(--kt-bg);
+  color: var(--kt-text);
+}

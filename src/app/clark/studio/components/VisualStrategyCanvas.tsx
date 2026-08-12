@@ -197,21 +197,21 @@ class QuantConnectNodeStrategy(QCAlgorithm):
   };
 
   return (
-    <div className={`rounded-xl border border-zinc-800 bg-[#090D16] p-5 shadow-2xl ${className}`}>
+    <div className={`rounded-xl border border-[var(--kt-border)] bg-[#090D16] p-5 shadow-2xl ${className}`}>
       {/* Canvas Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800 pb-4 mb-5">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--kt-border)] pb-4 mb-5">
         <div className="flex items-center gap-3">
           <div className="rounded-lg bg-teal-500/10 p-2 border border-teal-500/20 text-teal-400">
             <GitBranch size={18} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-bold text-zinc-100 tracking-tight">VISUAL STRATEGY NODE CANVAS</h3>
+              <h3 className="text-sm font-bold text-[var(--kt-text)] tracking-tight">VISUAL STRATEGY NODE CANVAS</h3>
               <span className="rounded bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 text-[10px] font-semibold text-teal-300">
                 QuantConnect LEAN Compatible
               </span>
             </div>
-            <p className="text-[11px] text-zinc-400">
+            <p className="text-[11px] text-[var(--kt-text-dim)]">
               Drag & configure signal nodes • Auto-translates to Python LEAN algorithm code
             </p>
           </div>
@@ -220,11 +220,11 @@ class QuantConnectNodeStrategy(QCAlgorithm):
         {/* View Mode Toggle & Target Asset */}
         <div className="flex items-center gap-3">
           {/* Node vs Code Toggle */}
-          <div className="flex rounded-lg bg-zinc-900 border border-zinc-800 p-0.5">
+          <div className="flex rounded-lg bg-[var(--kt-surface)] border border-[var(--kt-border)] p-0.5">
             <button
               onClick={() => setViewMode("nodes")}
               className={`flex items-center gap-1.5 px-3 py-1 text-[11px] font-medium rounded-md transition ${
-                viewMode === "nodes" ? "bg-zinc-800 text-teal-300 shadow" : "text-zinc-400 hover:text-zinc-200"
+                viewMode === "nodes" ? "bg-[var(--kt-inset)] text-teal-300 shadow" : "text-[var(--kt-text-dim)] hover:text-[var(--kt-text)]"
               }`}
             >
               <Layers size={13} /> Visual Flow
@@ -232,15 +232,15 @@ class QuantConnectNodeStrategy(QCAlgorithm):
             <button
               onClick={() => setViewMode("code")}
               className={`flex items-center gap-1.5 px-3 py-1 text-[11px] font-medium rounded-md transition ${
-                viewMode === "code" ? "bg-zinc-800 text-teal-300 shadow" : "text-zinc-400 hover:text-zinc-200"
+                viewMode === "code" ? "bg-[var(--kt-inset)] text-teal-300 shadow" : "text-[var(--kt-text-dim)] hover:text-[var(--kt-text)]"
               }`}
             >
               <Code2 size={13} /> Python Code
             </button>
           </div>
 
-          <div className="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/80 px-2.5 py-1 text-xs">
-            <span className="text-zinc-500 font-mono text-[10px]">SYMBOL:</span>
+          <div className="flex items-center gap-1.5 rounded-lg border border-[var(--kt-border)] bg-[var(--kt-surface)] px-2.5 py-1 text-xs">
+            <span className="text-[var(--kt-text-muted)] font-mono text-[10px]">SYMBOL:</span>
             <input
               type="text"
               value={symbol}
@@ -269,7 +269,7 @@ class QuantConnectNodeStrategy(QCAlgorithm):
 
       {/* Main Canvas Area */}
       {viewMode === "nodes" ? (
-        <div className="relative min-h-[300px] rounded-lg border border-zinc-800/80 bg-[#060911] p-5 overflow-x-auto">
+        <div className="relative min-h-[300px] rounded-lg border border-[var(--kt-border)] bg-[#060911] p-5 overflow-x-auto">
           {/* Node Flow Grid */}
           <div className="flex items-center gap-3 min-w-max pb-2">
             {nodes.map((node, index) => (
@@ -292,14 +292,14 @@ class QuantConnectNodeStrategy(QCAlgorithm):
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => setActiveEditingNode(activeEditingNode === node.id ? null : node.id)}
-                          className="text-zinc-400 hover:text-teal-300 p-0.5 transition"
+                          className="text-[var(--kt-text-dim)] hover:text-teal-300 p-0.5 transition"
                           title="Edit Node Parameters"
                         >
                           <Edit3 size={11} />
                         </button>
                         <button
                           onClick={() => removeNode(node.id)}
-                          className="text-zinc-500 hover:text-rose-400 p-0.5 transition"
+                          className="text-[var(--kt-text-muted)] hover:text-[var(--kt-down)] p-0.5 transition"
                           title="Remove Node"
                         >
                           <Trash2 size={11} />
@@ -308,19 +308,19 @@ class QuantConnectNodeStrategy(QCAlgorithm):
                     )}
                   </div>
 
-                  <div className="font-semibold text-xs text-zinc-100 mb-2">{node.name}</div>
+                  <div className="font-semibold text-xs text-[var(--kt-text)] mb-2">{node.name}</div>
 
                   {/* Config Parameters List */}
-                  <div className="space-y-1 text-[10px] font-mono bg-zinc-950/80 p-2 rounded border border-zinc-900">
+                  <div className="space-y-1 text-[10px] font-mono bg-[var(--kt-bg)] p-2 rounded border border-zinc-900">
                     {Object.entries(node.config).map(([k, v]) => (
                       <div key={k} className="flex items-center justify-between">
-                        <span className="text-zinc-400">{k}:</span>
+                        <span className="text-[var(--kt-text-dim)]">{k}:</span>
                         {activeEditingNode === node.id && (node.type === "indicator" || node.type === "risk") ? (
                           <input
                             type="number"
                             value={v}
                             onChange={(e) => updateNodeConfig(node.id, k, parseFloat(e.target.value) || 0)}
-                            className="bg-zinc-900 border border-zinc-700 text-teal-300 text-[10px] w-12 px-1 py-0.5 rounded text-right outline-none font-mono"
+                            className="bg-[var(--kt-surface)] border border-[var(--kt-border)] text-teal-300 text-[10px] w-12 px-1 py-0.5 rounded text-right outline-none font-mono"
                           />
                         ) : (
                           <span className="text-teal-300 font-bold">{String(v)}</span>
@@ -345,13 +345,13 @@ class QuantConnectNodeStrategy(QCAlgorithm):
           <div className="mt-5 flex items-center justify-center gap-3 border-t border-zinc-900 pt-3">
             <button
               onClick={() => addIndicatorNode("indicator")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-teal-300 text-xs border border-zinc-800 transition"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--kt-surface)] hover:bg-[var(--kt-inset)] text-teal-300 text-xs border border-[var(--kt-border)] transition"
             >
               <Plus size={12} /> Add Signal Node
             </button>
             <button
               onClick={() => addIndicatorNode("risk")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-amber-300 text-xs border border-zinc-800 transition"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--kt-surface)] hover:bg-[var(--kt-inset)] text-[var(--kt-warn)] text-xs border border-[var(--kt-border)] transition"
             >
               <Plus size={12} /> Add Risk Guardrail
             </button>
@@ -359,14 +359,14 @@ class QuantConnectNodeStrategy(QCAlgorithm):
         </div>
       ) : (
         /* Python Code Mode */
-        <div className="relative rounded-lg border border-zinc-800 bg-[#060911] p-4 font-mono text-xs text-zinc-300 overflow-x-auto">
-          <div className="flex items-center justify-between pb-3 mb-3 border-b border-zinc-800 text-[11px] text-zinc-400">
+        <div className="relative rounded-lg border border-[var(--kt-border)] bg-[#060911] p-4 font-mono text-xs text-[var(--kt-text-dim)] overflow-x-auto">
+          <div className="flex items-center justify-between pb-3 mb-3 border-b border-[var(--kt-border)] text-[11px] text-[var(--kt-text-dim)]">
             <span>Auto-Generated QuantConnect LEAN Algorithm (`QCAlgorithm`)</span>
             <button
               onClick={handleCopyCode}
-              className="flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition"
+              className="flex items-center gap-1 px-2.5 py-1 rounded bg-[var(--kt-inset)] hover:bg-zinc-700 text-[var(--kt-text)] transition"
             >
-              {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+              {copied ? <Check size={12} className="text-[var(--kt-accent)]" /> : <Copy size={12} />}
               {copied ? "Copied" : "Copy Code"}
             </button>
           </div>
@@ -378,7 +378,7 @@ class QuantConnectNodeStrategy(QCAlgorithm):
 
       {/* Error Message */}
       {errorMessage && (
-        <div className="mt-4 p-3 rounded-lg bg-rose-950/30 border border-rose-800/40 text-xs text-rose-300">
+        <div className="mt-4 p-3 rounded-lg bg-rose-950/30 border border-rose-800/40 text-xs text-[var(--kt-down)]">
           Error: {errorMessage}
         </div>
       )}
@@ -387,34 +387,34 @@ class QuantConnectNodeStrategy(QCAlgorithm):
       {backtestOutput && (
         <div className="mt-5 p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 space-y-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+            <div className="flex items-center gap-2 text-[var(--kt-accent)] font-bold text-xs">
               <CheckCircle2 size={15} />
               VISUAL STRATEGY BACKTEST COMPLETE ({backtestOutput.symbol})
             </div>
-            <span className="text-[10px] text-emerald-500 font-mono font-semibold">
+            <span className="text-[10px] text-[var(--kt-accent)] font-mono font-semibold">
               {backtestOutput.source} • {backtestOutput.n_trades} Trades Executed
             </span>
           </div>
 
           <div className="grid grid-cols-4 gap-3 text-center">
-            <div className="p-2.5 rounded-lg bg-zinc-900/90 border border-zinc-800">
-              <span className="text-[10px] text-zinc-400 block uppercase">Total Return</span>
-              <span className="text-sm font-bold text-emerald-400">
+            <div className="p-2.5 rounded-lg bg-[var(--kt-surface)] border border-[var(--kt-border)]">
+              <span className="text-[10px] text-[var(--kt-text-dim)] block uppercase">Total Return</span>
+              <span className="text-sm font-bold text-[var(--kt-accent)]">
                 +{(backtestOutput.total_return * 100).toFixed(1)}%
               </span>
             </div>
-            <div className="p-2.5 rounded-lg bg-zinc-900/90 border border-zinc-800">
-              <span className="text-[10px] text-zinc-400 block uppercase">Sharpe Ratio</span>
-              <span className="text-sm font-bold text-zinc-100">{backtestOutput.sharpe_ratio}</span>
+            <div className="p-2.5 rounded-lg bg-[var(--kt-surface)] border border-[var(--kt-border)]">
+              <span className="text-[10px] text-[var(--kt-text-dim)] block uppercase">Sharpe Ratio</span>
+              <span className="text-sm font-bold text-[var(--kt-text)]">{backtestOutput.sharpe_ratio}</span>
             </div>
-            <div className="p-2.5 rounded-lg bg-zinc-900/90 border border-zinc-800">
-              <span className="text-[10px] text-zinc-400 block uppercase">Max Drawdown</span>
-              <span className="text-sm font-bold text-rose-400 font-mono">
+            <div className="p-2.5 rounded-lg bg-[var(--kt-surface)] border border-[var(--kt-border)]">
+              <span className="text-[10px] text-[var(--kt-text-dim)] block uppercase">Max Drawdown</span>
+              <span className="text-sm font-bold text-[var(--kt-down)] font-mono">
                 {(backtestOutput.max_drawdown * 100).toFixed(1)}%
               </span>
             </div>
-            <div className="p-2.5 rounded-lg bg-zinc-900/90 border border-zinc-800">
-              <span className="text-[10px] text-zinc-400 block uppercase">Bars Processed</span>
+            <div className="p-2.5 rounded-lg bg-[var(--kt-surface)] border border-[var(--kt-border)]">
+              <span className="text-[10px] text-[var(--kt-text-dim)] block uppercase">Bars Processed</span>
               <span className="text-sm font-bold text-teal-300 font-mono">{backtestOutput.bars}</span>
             </div>
           </div>

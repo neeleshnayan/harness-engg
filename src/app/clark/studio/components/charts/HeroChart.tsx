@@ -25,7 +25,7 @@ export default function HeroChart({ data, height = 400 }: HeroChartProps) {
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
-        textColor: "#a1a1aa", // zinc-400
+        textColor: "var(--kt-text-dim)", // zinc-400
         fontFamily: "Inter, sans-serif",
       },
       grid: {
@@ -38,13 +38,13 @@ export default function HeroChart({ data, height = 400 }: HeroChartProps) {
           color: "rgba(45, 212, 191, 0.4)", // teal
           width: 1,
           style: 3, // dashed
-          labelBackgroundColor: "#2dd4bf",
+          labelBackgroundColor: "var(--kt-accent)",
         },
         horzLine: {
           color: "rgba(45, 212, 191, 0.4)",
           width: 1,
           style: 3,
-          labelBackgroundColor: "#2dd4bf",
+          labelBackgroundColor: "var(--kt-accent)",
         },
       },
       rightPriceScale: {
@@ -74,7 +74,7 @@ export default function HeroChart({ data, height = 400 }: HeroChartProps) {
 
     // Create Area series
     const areaSeries = chart.addAreaSeries({
-      lineColor: "#2dd4bf", // teal-400
+      lineColor: "var(--kt-accent)", // teal-400
       topColor: "rgba(45, 212, 191, 0.4)",
       bottomColor: "rgba(45, 212, 191, 0.0)",
       lineWidth: 2,

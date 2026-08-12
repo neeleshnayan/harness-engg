@@ -53,7 +53,7 @@ export function CreateStrategyModal({ isOpen, onClose, onSuccess, strategies = [
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-zinc-900 border-zinc-800 text-white w-[calc(100%-2rem)] max-w-[425px]">
+      <DialogContent className="bg-[var(--kt-surface)] border-[var(--kt-border)] text-[var(--kt-text-strong)] w-[calc(100%-2rem)] max-w-[425px]">
         <DialogHeader>
           <DialogTitle>New Strategy</DialogTitle>
         </DialogHeader>
@@ -65,7 +65,7 @@ export function CreateStrategyModal({ isOpen, onClose, onSuccess, strategies = [
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Momentum"
-              className="bg-zinc-800 border-zinc-700"
+              className="bg-[var(--kt-inset)] border-[var(--kt-border)]"
             />
           </div>
           <div className="grid gap-2">
@@ -74,29 +74,29 @@ export function CreateStrategyModal({ isOpen, onClose, onSuccess, strategies = [
               id="sparent"
               value={parentId}
               onChange={(e) => setParentId(e.target.value)}
-              className="h-10 rounded-md border border-zinc-700 bg-zinc-800 px-3 text-sm"
+              className="h-10 rounded-md border border-[var(--kt-border)] bg-[var(--kt-inset)] px-3 text-sm"
             >
               <option value="">— none (top-level) —</option>
               {strategies.map((s) => (
                 <option key={s.strategy_id} value={s.strategy_id}>{s.name}</option>
               ))}
             </select>
-            <span className="text-[11px] text-zinc-500">Nest this under a container strategy — the layered cake.</span>
+            <span className="text-[11px] text-[var(--kt-text-muted)]">Nest this under a container strategy — the layered cake.</span>
           </div>
           {error && (
-            <div className="text-red-400 text-sm flex items-center gap-2">
+            <div className="text-[var(--kt-down)] text-sm flex items-center gap-2">
               <AlertCircle size={16} /> {error}
             </div>
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="bg-transparent border-zinc-700 text-zinc-300">
+          <Button variant="outline" onClick={onClose} className="bg-transparent border-[var(--kt-border)] text-[var(--kt-text-dim)]">
             Cancel
           </Button>
           <Button
             onClick={submit}
             disabled={loading}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+            className="bg-gradient-to-r from-blue-600 to-purple-600 text-[var(--kt-text-strong)]"
           >
             {loading && <Loader2 className="animate-spin mr-2" size={16} />}
             {loading ? "Creating..." : "Create"}

@@ -99,25 +99,25 @@ export function RebalanceModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl border-zinc-800 bg-zinc-950/95 text-zinc-100 backdrop-blur-xl">
+      <DialogContent className="max-w-2xl border-[var(--kt-border)] bg-[var(--kt-bg)] text-[var(--kt-text)] backdrop-blur-xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-lg font-semibold text-zinc-100">
+          <DialogTitle className="flex items-center gap-2 text-lg font-semibold text-[var(--kt-text)]">
             <Scale className="text-teal-400" size={20} /> Portfolio Rebalancer & Optimizer
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5 py-2">
           {/* Optimization Strategy Mode */}
-          <div className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3">
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--kt-border)] bg-[var(--kt-surface)] p-3">
             <div>
-              <div className="text-xs font-semibold text-zinc-300">Optimization Model</div>
-              <div className="text-[11px] text-zinc-500">Calculate weights based on historical risk & returns</div>
+              <div className="text-xs font-semibold text-[var(--kt-text-dim)]">Optimization Model</div>
+              <div className="text-[11px] text-[var(--kt-text-muted)]">Calculate weights based on historical risk & returns</div>
             </div>
             <div className="flex gap-2">
               <Button
                 variant={method === "max_sharpe" ? "default" : "outline"}
                 size="sm"
-                className={method === "max_sharpe" ? "bg-teal-600 text-white" : "border-zinc-700 bg-transparent text-zinc-300"}
+                className={method === "max_sharpe" ? "bg-teal-600 text-[var(--kt-text-strong)]" : "border-[var(--kt-border)] bg-transparent text-[var(--kt-text-dim)]"}
                 onClick={() => setMethod("max_sharpe")}
               >
                 <TrendingUp size={14} className="mr-1" /> Max Sharpe
@@ -125,7 +125,7 @@ export function RebalanceModal({
               <Button
                 variant={method === "min_volatility" ? "default" : "outline"}
                 size="sm"
-                className={method === "min_volatility" ? "bg-teal-600 text-white" : "border-zinc-700 bg-transparent text-zinc-300"}
+                className={method === "min_volatility" ? "bg-teal-600 text-[var(--kt-text-strong)]" : "border-[var(--kt-border)] bg-transparent text-[var(--kt-text-dim)]"}
                 onClick={() => setMethod("min_volatility")}
               >
                 <ShieldCheck size={14} className="mr-1" /> Min Risk
@@ -136,16 +136,16 @@ export function RebalanceModal({
           {/* Forecasted Metrics Delta */}
           <div className="grid grid-cols-3 gap-3">
             <div className={`${KT.inset} p-3`}>
-              <span className="text-[10px] uppercase tracking-wider text-zinc-500">Current Sharpe</span>
-              <div className="text-base font-semibold text-zinc-200">{currentSharpe.toFixed(2)}</div>
+              <span className="text-[10px] uppercase tracking-wider text-[var(--kt-text-muted)]">Current Sharpe</span>
+              <div className="text-base font-semibold text-[var(--kt-text)]">{currentSharpe.toFixed(2)}</div>
             </div>
             <div className={`${KT.inset} p-3`}>
-              <span className="text-[10px] uppercase tracking-wider text-zinc-500">Optimized Sharpe</span>
-              <div className="text-base font-semibold text-emerald-400">+{proposedSharpe.toFixed(2)}</div>
+              <span className="text-[10px] uppercase tracking-wider text-[var(--kt-text-muted)]">Optimized Sharpe</span>
+              <div className="text-base font-semibold text-[var(--kt-accent)]">+{proposedSharpe.toFixed(2)}</div>
             </div>
             <div className={`${KT.inset} p-3`}>
-              <span className="text-[10px] uppercase tracking-wider text-zinc-500">Target Total</span>
-              <div className={`text-base font-semibold ${totalAllocated > 100 ? "text-rose-400" : "text-teal-400"}`}>
+              <span className="text-[10px] uppercase tracking-wider text-[var(--kt-text-muted)]">Target Total</span>
+              <div className={`text-base font-semibold ${totalAllocated > 100 ? "text-[var(--kt-down)]" : "text-teal-400"}`}>
                 {totalAllocated}% / 100%
               </div>
             </div>
@@ -153,9 +153,9 @@ export function RebalanceModal({
 
           {/* Strategy Weight Sliders */}
           <div className="space-y-3">
-            <div className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Strategy Weights</div>
+            <div className="text-xs font-semibold text-[var(--kt-text-dim)] uppercase tracking-wider">Strategy Weights</div>
             {deployed.length === 0 ? (
-              <div className="py-6 text-center text-xs text-zinc-500">No deployed strategies available to rebalance.</div>
+              <div className="py-6 text-center text-xs text-[var(--kt-text-muted)]">No deployed strategies available to rebalance.</div>
             ) : (
               deployed.map((s) => {
                 const currentWeight = s.allocation_pct || 0;
@@ -163,11 +163,11 @@ export function RebalanceModal({
                 const estCapital = Math.round((totalNavUsd * newWeight) / 100);
 
                 return (
-                  <div key={s.strategy_id} className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 space-y-2">
+                  <div key={s.strategy_id} className="rounded-lg border border-[var(--kt-border)] bg-[var(--kt-surface)] p-3 space-y-2">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-medium text-zinc-200">{s.name}</span>
+                      <span className="font-medium text-[var(--kt-text)]">{s.name}</span>
                       <div className="flex items-center gap-3 tabular-nums">
-                        <span className="text-zinc-500">Current: {currentWeight}%</span>
+                        <span className="text-[var(--kt-text-muted)]">Current: {currentWeight}%</span>
                         <span className="font-semibold text-teal-400">{newWeight}% (${estCapital.toLocaleString()})</span>
                       </div>
                     </div>
@@ -180,7 +180,7 @@ export function RebalanceModal({
                         step="5"
                         value={newWeight}
                         onChange={(e) => handleWeightChange(s.strategy_id, parseInt(e.target.value))}
-                        className="h-1.5 flex-1 accent-teal-500 cursor-pointer bg-zinc-800 rounded-lg"
+                        className="h-1.5 flex-1 accent-teal-500 cursor-pointer bg-[var(--kt-inset)] rounded-lg"
                       />
                     </div>
                   </div>
@@ -191,11 +191,11 @@ export function RebalanceModal({
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" className="border-zinc-700 bg-transparent text-zinc-300" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" className="border-[var(--kt-border)] bg-transparent text-[var(--kt-text-dim)]" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
-            className="bg-gradient-to-r from-teal-600 to-sky-600 text-white"
+            className="bg-gradient-to-r from-teal-600 to-sky-600 text-[var(--kt-text-strong)]"
             onClick={handleApply}
             disabled={busy || deployed.length === 0}
           >

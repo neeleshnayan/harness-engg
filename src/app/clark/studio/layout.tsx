@@ -1,24 +1,24 @@
 import type { ReactNode } from "react";
-import { KT_BODY_BG } from "./theme";
+import "./studio-theme.css";
+import { StudioThemeProvider, ThemeNoFlashScript } from "./ThemeToggle";
 
 /**
- * Studio is a DARK-ONLY surface (the "Your Position" design system).
+ * Studio shell.
  *
- * The rest of KryptonPay (wallet, customer, business) is light, so we cannot set
- * `dark` on <html> globally. Instead we scope it here:
- *  - `dark` makes the shared CSS variables in globals.css resolve to their dark
- *    values for anything rendered inside Studio.
- *  - the inline body rule kills the white seam: globals.css defaults
- *    `--background` to white at :root and body does `@apply bg-background`, so
- *    without this, overscroll / short pages flash white behind the Studio ground.
- *
- * There is no light/dark toggle by design — do not reintroduce `theme` props.
+ * The rest of KryptonPay (wallet, customer, business) has its own look, so the
+ * Studio theme is scoped here rather than set globally on <html> by the root
+ * layout. `data-kt-theme` drives every KT token via CSS variables; the no-flash
+ * script applies the stored choice before first paint.
  */
 export default function StudioLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="dark" style={{ backgroundColor: KT_BODY_BG, minHeight: "100vh" }}>
-      <style>{`body { background-color: ${KT_BODY_BG}; }`}</style>
-      {children}
-    </div>
+    <>
+      <ThemeNoFlashScript />
+      <StudioThemeProvider>
+        <div className="min-h-screen bg-[var(--kt-bg)] text-[var(--kt-text)]">
+          {children}
+        </div>
+      </StudioThemeProvider>
+    </>
   );
 }

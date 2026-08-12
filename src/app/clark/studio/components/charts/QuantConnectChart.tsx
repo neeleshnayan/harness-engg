@@ -39,7 +39,7 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
   if (data.length === 0) {
     return (
       <div className={`rounded-2xl border font-mono shadow-2xl p-8 text-center text-xs ${
-        "bg-[#090D18]/90 border-emerald-500/20 text-zinc-500"
+        "bg-[var(--kt-surface)]/90 border-emerald-500/20 text-[var(--kt-text-muted)]"
       } ${className || ""}`}>
         No price bars available for symbol {symbol}
       </div>
@@ -55,7 +55,7 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
   return (
     <div
       className={`rounded-2xl border font-mono shadow-2xl space-y-3 p-5 transition-all ${
-        "bg-[#090D18]/90 border-emerald-500/20 backdrop-blur-xl"
+        "bg-[var(--kt-surface)]/90 border-emerald-500/20 backdrop-blur-xl"
       } ${className || ""}`}
     >
       {/* Chart Header Bar */}
@@ -64,29 +64,29 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
       }`}>
         <div className="flex items-center gap-3">
           <span className={`font-extrabold text-sm px-3 py-1 rounded-lg border ${
-            "bg-emerald-950/80 text-emerald-300 border-emerald-700/50"
+            "bg-emerald-950/80 text-[var(--kt-accent)] border-emerald-700/50"
           }`}>
             {symbol}
           </span>
           <div className="flex items-center gap-2 font-bold">
-            <span className={`text-base font-black ${"text-emerald-400"}`}>
+            <span className={`text-base font-black ${"text-[var(--kt-accent)]"}`}>
               ${data[data.length - 1]?.close.toFixed(2)}
             </span>
-            <span className={`text-[10px] ${"text-zinc-500"}`}>
+            <span className={`text-[10px] ${"text-[var(--kt-text-muted)]"}`}>
               TradingView Live Feed
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-2 font-medium">
-          <span className={`text-[10px] uppercase font-bold ${"text-zinc-400"}`}>Indicators:</span>
+          <span className={`text-[10px] uppercase font-bold ${"text-[var(--kt-text-dim)]"}`}>Indicators:</span>
           <span className={`text-[10px] px-2.5 py-0.5 rounded-md border ${
-            "bg-emerald-950/80 text-emerald-300 border-emerald-700/40"
+            "bg-emerald-950/80 text-[var(--kt-accent)] border-emerald-700/40"
           }`}>
             Close Terracotta
           </span>
           <span className={`text-[10px] px-2.5 py-0.5 rounded-md border ${
-            "bg-emerald-950/80 text-emerald-300 border-emerald-700/40"
+            "bg-emerald-950/80 text-[var(--kt-accent)] border-emerald-700/40"
           }`}>
             SMA(20) Sage
           </span>
@@ -102,18 +102,18 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
       <div style={{ width: "100%", height }}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 10, right: 10, bottom: 0, left: -10 }}>
-            <CartesianGrid stroke={"#1e293b"} strokeDasharray="3 3" vertical={false} />
+            <CartesianGrid stroke={"var(--kt-border)"} strokeDasharray="3 3" vertical={false} />
             <XAxis
               dataKey="date"
-              tick={{ fill: "#64748b", fontSize: 10 }}
-              axisLine={{ stroke: "#334155" }}
+              tick={{ fill: "var(--kt-text-muted)", fontSize: 10 }}
+              axisLine={{ stroke: "var(--kt-border-strong)" }}
               tickLine={false}
             />
             <YAxis
               yAxisId="price"
               domain={[minPrice, maxPrice]}
-              tick={{ fill: "#94a3b8", fontSize: 10 }}
-              axisLine={{ stroke: "#334155" }}
+              tick={{ fill: "var(--kt-text-dim)", fontSize: 10 }}
+              axisLine={{ stroke: "var(--kt-border-strong)" }}
               tickLine={false}
               orientation="right"
               tickFormatter={(v) => `$${v}`}
@@ -121,12 +121,12 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
             <YAxis yAxisId="volume" orientation="left" domain={[0, "auto"]} hide />
             <Tooltip
               contentStyle={{
-                background: "#030712",
+                background: "var(--kt-bg)",
                 border: "1px solid #1e293b",
                 borderRadius: 8,
                 fontSize: 11,
                 fontFamily: "monospace",
-                color: "#f8fafc",
+                color: "var(--kt-text)",
               }}
               formatter={(val: any, name: string) => [
                 name === "volume" ? val.toLocaleString() : `$${Number(val).toFixed(2)}`,
@@ -134,13 +134,13 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
               ]}
             />
 
-            <Bar yAxisId="volume" dataKey="volume" fill={"#1e293b"} opacity={0.6} barSize={6} />
+            <Bar yAxisId="volume" dataKey="volume" fill={"var(--kt-border)"} opacity={0.6} barSize={6} />
 
             <Line
               yAxisId="price"
               type="monotone"
               dataKey="close"
-              stroke="#10B981"
+              stroke="var(--kt-accent)"
               strokeWidth={2.4}
               dot={false}
               name="Close Price"
@@ -175,7 +175,7 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
                 y={s.close}
                 r={6}
                 fill="#276749"
-                stroke="#ffffff"
+                stroke="var(--kt-text-strong)"
                 strokeWidth={2}
               />
             ))}
@@ -187,8 +187,8 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className }:
                 x={s.date}
                 y={s.close}
                 r={6}
-                fill="#10B981"
-                stroke="#ffffff"
+                fill="var(--kt-accent)"
+                stroke="var(--kt-text-strong)"
                 strokeWidth={2}
               />
             ))}

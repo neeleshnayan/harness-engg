@@ -40,7 +40,7 @@ export function StrategyPerformanceBar({ strategies, height = 240, className }: 
   if (data.length === 0) {
     return (
       <div
-        className={`flex flex-col items-center justify-center text-xs text-zinc-500 ${className || ""}`}
+        className={`flex flex-col items-center justify-center text-xs text-[var(--kt-text-muted)] ${className || ""}`}
         style={{ height }}
       >
         No deployed strategies
@@ -52,22 +52,22 @@ export function StrategyPerformanceBar({ strategies, height = 240, className }: 
     <div className={className} style={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-          <CartesianGrid stroke="#27272a" strokeDasharray="3 3" vertical={false} />
+          <CartesianGrid stroke="var(--kt-track)" strokeDasharray="3 3" vertical={false} />
           <XAxis
             dataKey="name"
-            tick={{ fill: "#a1a1aa", fontSize: 11 }}
+            tick={{ fill: "var(--kt-text-dim)", fontSize: 11 }}
             tickLine={false}
-            axisLine={{ stroke: "#27272a" }}
+            axisLine={{ stroke: "var(--kt-track)" }}
           />
           <YAxis
-            tick={{ fill: "#71717a", fontSize: 10 }}
+            tick={{ fill: "var(--kt-text-muted)", fontSize: 10 }}
             tickLine={false}
             axisLine={false}
             tickFormatter={(v) => `$${v > 1000 ? (v / 1000).toFixed(1) + "k" : v}`}
             width={60}
           />
           <Tooltip
-            cursor={{ fill: "#27272a", opacity: 0.4 }}
+            cursor={{ fill: "var(--kt-track)", opacity: 0.4 }}
             contentStyle={{
               background: "#09090b",
               border: "1px solid #27272a",
@@ -85,7 +85,7 @@ export function StrategyPerformanceBar({ strategies, height = 240, className }: 
           {/* PnL bar (overlaid or side-by-side, let's do side-by-side by not stacking) */}
           <Bar dataKey="pnl" radius={[4, 4, 0, 0]} barSize={32}>
             {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.pnl >= 0 ? "#34d399" : "#f87171"} />
+              <Cell key={`cell-${index}`} fill={entry.pnl >= 0 ? "#34d399" : "var(--kt-down)"} />
             ))}
           </Bar>
         </BarChart>

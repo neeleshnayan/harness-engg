@@ -44,7 +44,7 @@ import { StrategyPerformanceBar } from "./components/charts/StrategyPerformanceB
 import HeroChart from "./components/charts/HeroChart";
 import { StatusPulse } from "./components/ui/StatusPulse";
 import { StrategyCard } from "./components/ui/StrategyCard";
-import { StudioNav } from "./components/StudioNav";
+import { StudioHeader } from "./components/StudioHeader";
 import { TVPoint } from "./components/TVAreaChart";
 
 /* ---------- formatting helpers ---------- */
@@ -58,10 +58,10 @@ const pct = (n?: number | null, dp = 1) => (n == null ? "0.0%" : `${Number(n).to
 const signed = (n?: number | null) => (n == null ? "—" : `${n >= 0 ? "+" : ""}${money(n)}`);
 
 const STATE_STYLE: Record<string, string> = {
-  deployed: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  deployed: "bg-emerald-500/15 text-[var(--kt-accent)] border-emerald-500/30",
   backtested: "bg-sky-500/15 text-sky-300 border-sky-500/30",
-  draft: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
-  paused: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+  draft: "bg-zinc-500/15 text-[var(--kt-text-dim)] border-zinc-500/30",
+  paused: "bg-amber-500/15 text-[var(--kt-warn)] border-amber-500/30",
 };
 
 /* ---------- small presentational pieces ---------- */
@@ -69,8 +69,8 @@ function Stat({ label, value, sub, accent, rawValue }: { label: string; value: s
   return (
     <div className={`${KT.panel} flex flex-col gap-1 p-3`}>
       <span className={KT.label}>{label}</span>
-      <span className={`tabular-nums text-lg leading-tight font-medium font-mono ${accent || "text-zinc-100"}`}>{value}</span>
-      {sub && <span className="text-[11px] text-zinc-500">{sub}</span>}
+      <span className={`tabular-nums text-lg leading-tight font-medium font-mono ${accent || "text-[var(--kt-text)]"}`}>{value}</span>
+      {sub && <span className="text-[11px] text-[var(--kt-text-muted)]">{sub}</span>}
     </div>
   );
 }
@@ -279,59 +279,39 @@ export default function StrategyStudioPage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="min-h-screen bg-[var(--kt-bg)] text-[var(--kt-text)]">
       {/* top bar */}
-      <div className="sticky top-0 z-10 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur">
-        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-3 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded bg-gradient-to-br from-teal-500 to-sky-600">
-              <TrendingUp size={15} className="text-white" />
-            </div>
-            <div className="leading-tight">
-              <div className="text-sm font-semibold">Krypton Fund · Strategy Studio</div>
-              <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
-                <StatusPulse state={err ? "offline" : lastSync ? "live" : "syncing"} label={err ? "spine unreachable" : "live"} />
-                {lastSync && !err && <span>· synced {lastSync.toLocaleTimeString()}</span>}
-              </div>
-            </div>
-          </div>
-          <div className="order-last w-full md:order-none md:ml-2 md:w-auto">
-            <StudioNav />
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <Link
-              href="/clark"
-              className="flex h-8 items-center gap-1.5 rounded-md border border-zinc-700 px-3 text-sm text-zinc-200 hover:bg-zinc-800"
-            >
-              <MessageSquare size={14} /> Clark
-            </Link>
-            <Button variant="outline" className="h-8 border-zinc-700 bg-transparent text-zinc-200" onClick={() => load()}>
+      <StudioHeader
+        status={
+          <>
+            <StatusPulse
+              state={err ? "offline" : lastSync ? "live" : "syncing"}
+              label={err ? "spine unreachable" : "live"}
+            />
+            {lastSync && !err && <span>· synced {lastSync.toLocaleTimeString()}</span>}
+          </>
+        }
+        actions={
+          <>
+            <button className={`flex h-8 items-center ${KT.btnGhost}`} onClick={() => load()}>
               <RefreshCw size={14} className="mr-1.5" /> Refresh
-            </Button>
-            <Button
-              variant="outline"
-              className="h-8 border-amber-800/80 bg-amber-950/40 text-amber-300 hover:bg-amber-900/50"
-              onClick={() => setSimOpen(true)}
-            >
+            </button>
+            <button className={`flex h-8 items-center ${KT.btnGhost}`} onClick={() => setSimOpen(true)}>
               <ShieldAlert size={14} className="mr-1.5" /> Simulator
-            </Button>
-            <Button
-              variant="outline"
-              className="h-8 border-teal-800/80 bg-teal-950/40 text-teal-300 hover:bg-teal-900/50"
-              onClick={() => setRebalanceOpen(true)}
-            >
+            </button>
+            <button className={`flex h-8 items-center ${KT.btnGhost}`} onClick={() => setRebalanceOpen(true)}>
               <Scale size={14} className="mr-1.5" /> Rebalance
-            </Button>
-            <Button className="h-8 bg-gradient-to-r from-teal-600 to-sky-600 text-white" onClick={() => setCreateOpen(true)}>
+            </button>
+            <button className={`flex h-8 items-center ${KT.btn}`} onClick={() => setCreateOpen(true)}>
               <Plus size={14} className="mr-1.5" /> New strategy
-            </Button>
-          </div>
-        </div>
-      </div>
+            </button>
+          </>
+        }
+      />
 
       <div className="mx-auto max-w-[1400px] px-4 py-4">
         {err && (
-          <div className="mb-4 rounded-lg border border-red-800/50 bg-red-950/30 p-3 text-sm text-red-300">
+          <div className="mb-4 rounded-lg border border-red-800/50 bg-red-950/30 p-3 text-sm text-[var(--kt-down)]">
             {err} — is ClarkHarness running on :8090 and <code>NEXT_PUBLIC_HARNESS_API_URL</code> set?
           </div>
         )}
@@ -339,17 +319,17 @@ export default function StrategyStudioPage() {
         {/* KPI strip with exact un-compacted NAV calculation */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <Stat
-            label="Total Fund NAV"
+            label="Fund NAV"
             value={money(live?.total_nav_usd)}
             rawValue={live?.total_nav_usd}
             sub={`${money(live?.nav_per_unit, 4)}/unit · (${money(live?.breakdown?.positions)} pos + ${money(live?.breakdown?.cash)} cash)`}
-            accent="text-emerald-400 glow-emerald"
+            accent="text-[var(--kt-accent)] glow-emerald"
           />
           <Stat label="Idle Cash" value={money(live?.breakdown?.cash)} rawValue={live?.breakdown?.cash} sub={`${pct(live && live.total_nav_usd ? (live.breakdown.cash / live.total_nav_usd) * 100 : 0)} of NAV`} />
           <Stat label="Deployed Exp." value={money(totalExposure)} rawValue={totalExposure} sub={`${deployedCount} live ${deployedCount === 1 ? "strategy" : "strategies"}`} />
-          <Stat label="Unrealized P&L" value={signed(totalPnl)} rawValue={Math.abs(totalPnl)} sub={totalPnl >= 0 ? "Profit" : "Loss"} accent={totalPnl >= 0 ? "text-emerald-400" : "text-rose-400"} />
+          <Stat label="Unrealized P&L" value={signed(totalPnl)} rawValue={Math.abs(totalPnl)} sub={totalPnl >= 0 ? "Profit" : "Loss"} accent={totalPnl >= 0 ? "text-[var(--kt-accent)]" : "text-[var(--kt-down)]"} />
           <Stat label="LPs" value={String(lps.length)} rawValue={lps.length} sub={`${(live?.units_outstanding || 0).toLocaleString()} units`} />
-          <Stat label="Pending" value={String(pending.length)} rawValue={pending.length} sub="awaiting approval" accent={pending.length ? "text-amber-400" : "text-zinc-100"} />
+          <Stat label="Pending" value={String(pending.length)} rawValue={pending.length} sub="awaiting approval" accent={pending.length ? "text-[var(--kt-warn)]" : "text-[var(--kt-text)]"} />
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -360,10 +340,10 @@ export default function StrategyStudioPage() {
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <Activity size={14} className="text-teal-400" />
                 {/* NAV | Price toggle */}
-                <div className="flex overflow-hidden rounded-md border border-zinc-700">
+                <div className="flex overflow-hidden rounded-md border border-[var(--kt-border)]">
                   <button
                     onClick={() => setChartMode("nav")}
-                    className={`px-2 py-1 text-xs ${chartMode === "nav" ? "bg-teal-600/80 text-white" : "bg-transparent text-zinc-300 hover:bg-zinc-800"}`}
+                    className={`px-2 py-1 text-xs ${chartMode === "nav" ? "bg-teal-600/80 text-[var(--kt-text-strong)]" : "bg-transparent text-[var(--kt-text-dim)] hover:bg-[var(--kt-inset)]"}`}
                   >
                     Fund NAV
                   </button>
@@ -372,19 +352,19 @@ export default function StrategyStudioPage() {
                       setChartMode("price");
                       if (!chartData.length) loadChart(chartSymbol);
                     }}
-                    className={`px-2 py-1 text-xs ${chartMode === "price" ? "bg-teal-600/80 text-white" : "bg-transparent text-zinc-300 hover:bg-zinc-800"}`}
+                    className={`px-2 py-1 text-xs ${chartMode === "price" ? "bg-teal-600/80 text-[var(--kt-text-strong)]" : "bg-transparent text-[var(--kt-text-dim)] hover:bg-[var(--kt-inset)]"}`}
                   >
                     Price
                   </button>
                 </div>
                 {chartMode === "nav" ? (
-                  <span className="text-[11px] text-zinc-500">
+                  <span className="text-[11px] text-[var(--kt-text-muted)]">
                     total NAV · {navHistory.length} strike{navHistory.length === 1 ? "" : "s"}
                   </span>
                 ) : (
                   <>
                     <span className="text-sm font-semibold">{chartSymbol}</span>
-                    <span className="text-[11px] text-zinc-500">
+                    <span className="text-[11px] text-[var(--kt-text-muted)]">
                       daily · {chartMeta?.source || "—"} {chartMeta?.range ? `· ${chartMeta.range}` : ""}
                     </span>
                     <form
@@ -394,16 +374,16 @@ export default function StrategyStudioPage() {
                         if (chartInput.trim()) loadChart(chartInput.trim().toUpperCase());
                       }}
                     >
-                      <div className="flex items-center rounded-md border border-zinc-700 bg-zinc-800/60 px-2">
-                        <Search size={12} className="text-zinc-500" />
+                      <div className="flex items-center rounded-md border border-[var(--kt-border)] bg-[var(--kt-inset)] px-2">
+                        <Search size={12} className="text-[var(--kt-text-muted)]" />
                         <input
                           value={chartInput}
                           onChange={(e) => setChartInput(e.target.value)}
                           placeholder="symbol"
-                          className="w-20 bg-transparent px-1.5 py-1 text-xs uppercase outline-none placeholder:text-zinc-600"
+                          className="w-20 bg-transparent px-1.5 py-1 text-xs uppercase outline-none placeholder:text-[var(--kt-text-muted)]"
                         />
                       </div>
-                      <Button type="submit" variant="outline" className="h-7 border-zinc-700 bg-transparent px-2 text-xs text-zinc-200">
+                      <Button type="submit" variant="outline" className="h-7 border-[var(--kt-border)] bg-transparent px-2 text-xs text-[var(--kt-text)]">
                         Load
                       </Button>
                     </form>
@@ -413,7 +393,7 @@ export default function StrategyStudioPage() {
 
               {chartMode === "nav" ? (
                 navHistory.length === 0 ? (
-                  <div className="flex h-[320px] items-center justify-center text-xs text-zinc-500">
+                  <div className="flex h-[320px] items-center justify-center text-xs text-[var(--kt-text-muted)]">
                     No NAV history struck yet. Strike a NAV to see history.
                   </div>
                 ) : (
@@ -423,9 +403,9 @@ export default function StrategyStudioPage() {
                   />
                 )
               ) : chartErr ? (
-                <div className="flex h-[320px] items-center justify-center text-xs text-red-400">{chartErr}</div>
+                <div className="flex h-[320px] items-center justify-center text-xs text-[var(--kt-down)]">{chartErr}</div>
               ) : chartLoading && !chartData.length ? (
-                <div className="flex h-[320px] items-center justify-center text-zinc-500">
+                <div className="flex h-[320px] items-center justify-center text-[var(--kt-text-muted)]">
                   <Loader2 className="animate-spin text-teal-500" size={18} />
                 </div>
               ) : (
@@ -447,15 +427,15 @@ export default function StrategyStudioPage() {
 
             <div className="mt-8 mb-4">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-zinc-100">Live Deployed Strategies</h2>
-                <span className="text-[11px] text-zinc-500">{liveStrategies.length} active · target vs actual allocation</span>
+                <h2 className="text-lg font-semibold text-[var(--kt-text)]">Live Strategies</h2>
+                <span className="text-[11px] text-[var(--kt-text-muted)]">{liveStrategies.length} active · target vs actual allocation</span>
               </div>
               {loading ? (
-                <div className="flex items-center gap-2 p-6 text-sm text-zinc-500">
+                <div className="flex items-center gap-2 p-6 text-sm text-[var(--kt-text-muted)]">
                   <Loader2 className="animate-spin" size={16} /> Loading…
                 </div>
               ) : liveStrategies.length === 0 ? (
-                <div className={`${KT.panel} p-8 text-center text-sm text-zinc-500`}>
+                <div className={`${KT.panel} p-8 text-center text-sm text-[var(--kt-text-muted)]`}>
                   No live deployed strategies currently active. Draft and backtested strategies are managed in the Strategies tab.
                 </div>
               ) : (
@@ -475,11 +455,11 @@ export default function StrategyStudioPage() {
             <div className={`${KT.panel} p-5 space-y-3`}>
               <h3 className={KT.title}>Positions</h3>
               {positions.length === 0 ? (
-                <div className="py-6 text-center text-sm text-zinc-500">Flat — no open positions.</div>
+                <div className="py-6 text-center text-sm text-[var(--kt-text-muted)]">Flat — no open positions.</div>
               ) : (
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-[10px] uppercase tracking-wide text-zinc-500">
+                    <tr className="text-[10px] uppercase tracking-wide text-[var(--kt-text-muted)]">
                       <th className="px-4 py-1.5 text-left font-medium">Symbol</th>
                       <th className="px-4 py-1.5 text-right font-medium">Qty</th>
                       <th className="px-4 py-1.5 text-right font-medium">Mark</th>
@@ -489,12 +469,12 @@ export default function StrategyStudioPage() {
                   </thead>
                   <tbody className="font-mono">
                     {positions.map((p) => (
-                      <tr key={p.symbol} className="border-t border-zinc-800/60">
+                      <tr key={p.symbol} className="border-t border-[var(--kt-border)]">
                         <td className="px-4 py-1.5 font-sans font-medium">{p.symbol}</td>
-                        <td className="px-4 py-1.5 text-right text-zinc-300">{p.qty}</td>
-                        <td className="px-4 py-1.5 text-right text-zinc-300">{money(p.mark)}</td>
-                        <td className="px-4 py-1.5 text-right text-zinc-100">{money(p.usd_value)}</td>
-                        <td className="px-4 py-1.5 text-right text-zinc-500">
+                        <td className="px-4 py-1.5 text-right text-[var(--kt-text-dim)]">{p.qty}</td>
+                        <td className="px-4 py-1.5 text-right text-[var(--kt-text-dim)]">{money(p.mark)}</td>
+                        <td className="px-4 py-1.5 text-right text-[var(--kt-text)]">{money(p.usd_value)}</td>
+                        <td className="px-4 py-1.5 text-right text-[var(--kt-text-muted)]">
                           {pct(live && live.total_nav_usd ? (p.usd_value / live.total_nav_usd) * 100 : 0)}
                         </td>
                       </tr>
@@ -519,14 +499,14 @@ export default function StrategyStudioPage() {
               <div className="flex items-center justify-between">
                 <h3 className={KT.title}>Pending approvals</h3>
                 {pending.length > 0 && (
-                  <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
+                  <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-[var(--kt-warn)]">
                     {pending.length}
                   </span>
                 )}
               </div>
 
               {pending.length === 0 ? (
-                <div className="py-6 text-center text-sm text-zinc-500">Queue clear.</div>
+                <div className="py-6 text-center text-sm text-[var(--kt-text-muted)]">Queue clear.</div>
               ) : (
                 <div className="divide-y divide-zinc-800/70">
                   {pending.map((o) => {
@@ -535,13 +515,13 @@ export default function StrategyStudioPage() {
                     return (
                       <div key={o.order_id} className="py-3">
                         <div className="flex items-center gap-2">
-                          <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${o.side === "buy" ? "bg-emerald-500/15 text-emerald-300" : "bg-red-500/15 text-red-300"}`}>
+                          <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${o.side === "buy" ? "bg-emerald-500/15 text-[var(--kt-accent)]" : "bg-red-500/15 text-[var(--kt-down)]"}`}>
                             {o.side}
                           </span>
                           <span className="font-mono text-sm">{o.qty} {o.symbol}</span>
-                          <span className="ml-auto font-mono text-xs text-zinc-400">{money(ip.notional_usd)}</span>
+                          <span className="ml-auto font-mono text-xs text-[var(--kt-text-dim)]">{money(ip.notional_usd)}</span>
                         </div>
-                        <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 font-mono text-[10px] text-zinc-500">
+                        <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 font-mono text-[10px] text-[var(--kt-text-muted)]">
                           <span>px {money(ip.quote_price)}</span>
                           <span>cash → {money(ip.cash_after)}</span>
                         </div>
@@ -552,17 +532,17 @@ export default function StrategyStudioPage() {
                               <span className="rounded bg-teal-500/20 px-1 py-0.5 text-[9px] font-semibold uppercase text-teal-300">thesis</span>
                               <span className="min-w-0 truncate text-[11px] font-medium text-teal-200">{ctx.thesis.title}</span>
                             </div>
-                            {ctx.thesis.claim && <p className="mt-1 text-[11px] text-zinc-400">{ctx.thesis.claim}</p>}
+                            {ctx.thesis.claim && <p className="mt-1 text-[11px] text-[var(--kt-text-dim)]">{ctx.thesis.claim}</p>}
                             {ctx.memo?.recommendation && (
                               <p className="mt-1 text-[11px] text-teal-300">▸ {ctx.memo.recommendation}</p>
                             )}
                           </div>
                         ) : o.thesis_id ? null : (
-                          <div className="mt-2 text-[10px] italic text-amber-500/70">discretionary — no thesis</div>
+                          <div className="mt-2 text-[10px] italic text-[var(--kt-warn)]/70">discretionary — no thesis</div>
                         )}
                         <div className="mt-2 flex gap-2">
                           <Button
-                            className="h-7 flex-1 bg-emerald-600 text-white hover:bg-emerald-700 font-bold text-xs"
+                            className="h-7 flex-1 bg-emerald-600 text-[var(--kt-text-strong)] hover:bg-emerald-700 font-bold text-xs"
                             disabled={busyOrder === o.order_id}
                             onClick={() => decide(o, true)}
                           >
@@ -570,7 +550,7 @@ export default function StrategyStudioPage() {
                           </Button>
                           <Button
                             variant="outline"
-                            className="h-7 flex-1 border-zinc-700 bg-transparent text-zinc-300 text-xs"
+                            className="h-7 flex-1 border-[var(--kt-border)] bg-transparent text-[var(--kt-text-dim)] text-xs"
                             disabled={busyOrder === o.order_id}
                             onClick={() => decide(o, false)}
                           >
@@ -591,13 +571,13 @@ export default function StrategyStudioPage() {
             <RiskPanel refreshKey={tick} />
 
             {/* LP book */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40">
-              <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-2.5">
+            <div className="rounded-xl border border-[var(--kt-border)] bg-[var(--kt-surface)]">
+              <div className="flex items-center justify-between border-b border-[var(--kt-border)] px-4 py-2.5">
                 <span className="text-sm font-semibold">LP book</span>
-                <span className="text-[11px] text-zinc-500">{lps.length} investors</span>
+                <span className="text-[11px] text-[var(--kt-text-muted)]">{lps.length} investors</span>
               </div>
               {lps.length === 0 ? (
-                <div className="p-6 text-center text-sm text-zinc-500">No LPs yet.</div>
+                <div className="p-6 text-center text-sm text-[var(--kt-text-muted)]">No LPs yet.</div>
               ) : (
                 <div className="divide-y divide-zinc-800/70">
                   {lps.map((l) => {
@@ -606,9 +586,9 @@ export default function StrategyStudioPage() {
                       <div key={l.lp_id} className="flex items-center gap-3 px-4 py-2">
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-sm">{l.name || l.lp_id}</div>
-                          <div className="font-mono text-[10px] text-zinc-500">{l.units.toLocaleString()} units · {pct(ownership)}</div>
+                          <div className="font-mono text-[10px] text-[var(--kt-text-muted)]">{l.units.toLocaleString()} units · {pct(ownership)}</div>
                         </div>
-                        <div className="text-right font-mono text-sm text-zinc-200">{money(l.value_usd)}</div>
+                        <div className="text-right font-mono text-sm text-[var(--kt-text)]">{money(l.value_usd)}</div>
                       </div>
                     );
                   })}
@@ -616,7 +596,7 @@ export default function StrategyStudioPage() {
               )}
             </div>
 
-            <div className="flex items-center justify-center gap-1 text-[11px] text-zinc-600">
+            <div className="flex items-center justify-center gap-1 text-[11px] text-[var(--kt-text-muted)]">
               <ArrowUpRight size={12} /> spine :8090 · free bars via Yahoo/Alpaca
             </div>
           </div>
