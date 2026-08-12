@@ -64,6 +64,17 @@ refinements before this guards real money:
 - Alarms dedup by a stable `key` — a standing breach raises once, clears once.
 - `GET /fund/risk/monitor` is a **pure read** (no event writes). Only `run()` writes.
 
+## Broker reconciliation — do it as a SIGNAL, never a NAV overwrite (regression guard)
+A prior change made `NavService.compute()` pull live Alpaca equity and return it AS the
+NAV (with a hardcoded `units_outstanding` fallback). That was reverted — it broke the
+event-sourced invariant, made NAV non-deterministic, poisoned the `NAV_STRUCK` log, and
+destroyed the unit ledger. **NAV is folded from the event log ONLY.** Do not reintroduce it.
+The correct feature: a **broker-vs-book reconciliation** read —
+`GET /fund/venue/reconcile` → `{book_nav, broker_equity, delta_usd, delta_pct,
+per_symbol:[{symbol, book_qty, broker_qty, drift}], as_of}`. It COMPARES the two and
+surfaces drift as an observability/risk signal (a large delta is an alarm). It must NOT
+write any event and MUST NOT touch `compute()`/`strike()`. Ships with a test.
+
 ## Next build: Strategy Composer (composition-first)
 See `docs/STRATEGY_COMPOSER_SPEC.md` — spine tasks S1 (weighted membership), S2
 (suggest weights via HRP/optimizer over child return streams), S3 (composite rollup +

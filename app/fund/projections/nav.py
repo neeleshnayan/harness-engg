@@ -73,42 +73,15 @@ class NavService:
         self._db = db or firestore.client()
 
     def compute(self, book: Optional[Book] = None) -> NavSnapshot:
-        """Value the current book without persisting — safe to call any time."""
-        connector = getattr(self._price, "__self__", None)
-        if connector is not None and hasattr(connector, "account_info"):
-            try:
-                info = connector.account_info()
-                if info.get("configured") and "equity" in info:
-                    total_nav = Decimal(str(info["equity"]))
-                    cash_val = Decimal(str(info["cash"]))
-                    positions_val = total_nav - cash_val
-                    raw_pos = connector.positions() if hasattr(connector, "positions") else []
-                    pos_detail = []
-                    for p in raw_pos:
-                        qty_d = Decimal(str(p.qty))
-                        if abs(qty_d) < _EPS:
-                            continue
-                        mark_d = D(self._price(p.symbol))
-                        val_d = qty_d * mark_d
-                        pos_detail.append({
-                            "symbol": p.symbol,
-                            "qty": qty_d,
-                            "mark": mark_d,
-                            "usd_value": val_d,
-                        })
-                    units_out = total_nav if total_nav > _EPS else Decimal("100000.00")
-                    navpu = (total_nav / units_out) if units_out > _EPS else BASE_NAV_PER_UNIT
-                    return NavSnapshot(
-                        ts=datetime.now(timezone.utc).isoformat(),
-                        total_nav_usd=money(total_nav),
-                        units_outstanding=units(units_out),
-                        nav_per_unit=navpu.quantize(_NAVPU_Q),
-                        breakdown={"positions": money(positions_val), "cash": money(cash_val)},
-                        positions=pos_detail,
-                    )
-            except Exception:
-                pass
+        """Value the current book without persisting — safe to call any time.
 
+        NAV is folded from the append-only event log ONLY. The broker (Alpaca)
+        is NEVER the source of truth here: a live-equity read is non-deterministic
+        and would make struck NAV non-reproducible. Broker equity is surfaced
+        separately as a reconciliation/risk signal (broker-vs-book delta), not by
+        overwriting the ledger. See GET /fund/venue/account and the reconciliation
+        task in GEMINI.md.
+        """
         book = book or self._proj.build()
 
         positions_value = Decimal("0")
