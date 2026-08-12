@@ -63,3 +63,8 @@ refinements before this guards real money:
   auto-resumes (human only).
 - Alarms dedup by a stable `key` — a standing breach raises once, clears once.
 - `GET /fund/risk/monitor` is a **pure read** (no event writes). Only `run()` writes.
+
+## Next build: Strategy Composer (composition-first)
+See `docs/STRATEGY_COMPOSER_SPEC.md` — spine tasks S1 (weighted membership), S2
+(suggest weights via HRP/optimizer over child return streams), S3 (composite rollup +
+blended backtest). Build on the existing DAG; add WEIGHTS to the edges. Tests required.
