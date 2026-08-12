@@ -25,28 +25,39 @@ The Studio fragmented into competing looks (Overview = zinc/neutral, Strategies 
 Terracotta Orange with 200+ orange refs, Risk = dark glassmorphism) plus ~30
 decorative components. It reads as several different apps. **Kill the bs.**
 
-**PALETTE DECISION (made — do not re-litigate):** standardize the ENTIRE Studio on
-the artifact **"Krypton Fund — Your Position"**
-(`https://claude.ai/code/artifact/7b347281-b6fb-4827-be14-f4369fcd9381`). The human
-will paste the artifact's source/screenshot to you — **treat it as the exact visual
-spec** (palette, spacing, typography, component style). Apply it uniformly to ALL
-five pages. Concretely:
-- **One design system, one place.** Extract the artifact's tokens into
-  `src/app/clark/studio/theme.ts` (or Tailwind config) and use them everywhere.
-- **Delete the competing palettes.** Remove the **Terracotta Orange** styling from
-  `strategies/page.tsx` (200+ refs) and the **dark-glassmorphism** from
-  `risk/page.tsx`; both must adopt the artifact's system. **Remove every per-page
-  theme switcher / per-page palette.** At most ONE global toggle, applied uniformly.
-- **Consistent shell.** `StudioHeader`, `StudioNav`, `ClarkActionBar`, and cards must
-  look identical on all five pages (Overview / Strategies / Approvals / Theses / Risk).
-- **Restraint.** Drop neon/terminal/glass effects, excessive gradients, and animated
-  numbers. Reserve `font-mono` for numbers/tickers only.
-- **Delete decorative dead shells** not wired to the spine (audit `studio/components/`:
-  `VisualStrategyCanvas`, `QuantConnectChart`, `SentinelRadarFeed`,
-  `EfficientFrontierChart` — remove any that render placeholder UI with no real data
-  source). Keep only components fed by a real endpoint.
-- **Verify visually:** run `npm run dev`, open each of the five pages, confirm they
-  look like one product and match the artifact.
+**PALETTE IS DECIDED AND ENCODED FOR YOU — this is mechanical now, no taste required.**
+The design system is captured in **`src/app/clark/studio/theme.ts`** (the `KT` tokens),
+distilled from the "Krypton Fund — Your Position" artifact:
+> **emerald-on-near-black** · big *light* white numerals · small UPPERCASE mono labels ·
+> thin-bordered rounded cards on a `#0A0A0B` ground · generous whitespace · calm & minimal.
+> Accent color is **emerald** (green), NOT orange, NOT teal. Dark-only.
+
+Apply it by find-and-replace, page by page. **Acceptance is measured by grep** (below):
+- **Strategies page (`strategies/page.tsx`, 200+ orange refs): rip out ALL Terracotta
+  Orange.** Replace every `#D97757` / `orange-*` / cream (`#FAF8F5` etc.) class with the
+  matching `KT.*` token. After: `grep -c "D97757|orange-" strategies/page.tsx` → **0**.
+- **Risk page:** replace ad-hoc zinc/glass with `KT.*` tokens so it matches.
+- **Shared shell** (`StudioHeader`, `StudioNav`, `ClarkActionBar`): style ONLY from `KT.*`.
+  Remove the `theme?: "dark"|"light"` props and all light-mode branches — this is dark-only.
+- **Kill the decoration** (it's INCREASING — 8 files now use these): remove `GlassPanel`
+  wrappers (use `KT.card`/`KT.panel`), remove `AnimatedNumber` (use plain `KT.numberLg`
+  tabular-nums), drop gradients/neon/`StatusPulse` glow. Reserve `font-mono` for numbers
+  and labels only.
+- **Delete decorative dead shells** with no real spine data: audit and remove
+  `VisualStrategyCanvas`, `QuantConnectChart`, `SentinelRadarFeed`, `EfficientFrontierChart`,
+  `HeroChart` if they render placeholders. Keep only components fed by a real endpoint.
+- Set `body` background to `KT_BODY_BG` (`#0A0A0B`) in the layout/globals so no light seam.
+
+**Do NOT add new features or components during this pass.** This is a *subtraction* task.
+
+**Verify (all must pass):**
+```bash
+grep -rc "D97757\|orange-[0-9]" src/app/clark/studio && echo "FAIL: orange remains"  # expect all 0
+grep -rl "GlassPanel\|AnimatedNumber" src/app/clark/studio | wc -l                    # expect 0
+npx tsc --noEmit && npm run build                                                     # 0 errors
+```
+Then `npm run dev`, open all five pages, confirm they read as ONE calm emerald-on-black
+product that resembles the "Your Position" artifact.
 
 ### P2 — Close the RISK and STRATEGIES tabs against real data
 The spine is gaining a full risk engine (kill-switch, continuous monitor, alarms).
