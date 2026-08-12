@@ -21,29 +21,32 @@ The frontend only *reads* the spine at `/api/v1/fund/*` (dev proxy: `/proxy/harn
 
 ## Priorities (in order)
 ### P1 — Simplify the UI to ONE clean system  ⬅ current focus
-The Studio fragmented into competing looks (Terracotta Orange, dark glassmorphism,
-warm-pastel, a "terminal/LEAN" hybrid) with per-page theme switchers and ~30
+The Studio fragmented into competing looks (Overview = zinc/neutral, Strategies =
+Terracotta Orange with 200+ orange refs, Risk = dark glassmorphism) plus ~30
 decorative components. It reads as several different apps. **Kill the bs.**
 
-Design north star: the artifact **"Krypton Fund — Your Position"**
-(`https://claude.ai/code/artifact/7b347281-b6fb-4827-be14-f4369fcd9381`). Open it and
-match its aesthetic — clean, minimal, LP-grade, lots of whitespace, restrained color,
-clear typographic hierarchy. Concretely:
-- **One design system, one place.** Define tokens once (`src/app/clark/studio/theme.ts`
-  or Tailwind config) and use them everywhere. **Remove all per-page theme switchers**
-  and per-page palettes. At most ONE global light/dark toggle, applied uniformly.
+**PALETTE DECISION (made — do not re-litigate):** standardize the ENTIRE Studio on
+the artifact **"Krypton Fund — Your Position"**
+(`https://claude.ai/code/artifact/7b347281-b6fb-4827-be14-f4369fcd9381`). The human
+will paste the artifact's source/screenshot to you — **treat it as the exact visual
+spec** (palette, spacing, typography, component style). Apply it uniformly to ALL
+five pages. Concretely:
+- **One design system, one place.** Extract the artifact's tokens into
+  `src/app/clark/studio/theme.ts` (or Tailwind config) and use them everywhere.
+- **Delete the competing palettes.** Remove the **Terracotta Orange** styling from
+  `strategies/page.tsx` (200+ refs) and the **dark-glassmorphism** from
+  `risk/page.tsx`; both must adopt the artifact's system. **Remove every per-page
+  theme switcher / per-page palette.** At most ONE global toggle, applied uniformly.
 - **Consistent shell.** `StudioHeader`, `StudioNav`, `ClarkActionBar`, and cards must
   look identical on all five pages (Overview / Strategies / Approvals / Theses / Risk).
-- **Restraint.** Drop the neon/terminal/glass effects, excessive gradients, animated
-  numbers, and `font-mono` everywhere. Use it for numbers/tickers only.
-- **Delete decorative dead shells** that aren't wired to the spine. Audit and remove:
-  anything under `studio/components/` that renders placeholder UI with no real data
-  source (candidates: `VisualStrategyCanvas`, `QuantConnectChart`, `SentinelRadarFeed`,
-  `EfficientFrontierChart` if not fed by a real endpoint). Keep only what shows real data.
-- Reuse the clean base that already exists on the **Overview** page (`page.tsx`, the
-  zinc/neutral system) as the reference implementation to standardize on, unless the
-  "Your Position" artifact clearly dictates a different palette — in that case apply
-  that palette *once*, globally.
+- **Restraint.** Drop neon/terminal/glass effects, excessive gradients, and animated
+  numbers. Reserve `font-mono` for numbers/tickers only.
+- **Delete decorative dead shells** not wired to the spine (audit `studio/components/`:
+  `VisualStrategyCanvas`, `QuantConnectChart`, `SentinelRadarFeed`,
+  `EfficientFrontierChart` — remove any that render placeholder UI with no real data
+  source). Keep only components fed by a real endpoint.
+- **Verify visually:** run `npm run dev`, open each of the five pages, confirm they
+  look like one product and match the artifact.
 
 ### P2 — Close the RISK and STRATEGIES tabs against real data
 The spine is gaining a full risk engine (kill-switch, continuous monitor, alarms).
