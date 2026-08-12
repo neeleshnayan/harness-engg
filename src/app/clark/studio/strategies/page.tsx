@@ -53,6 +53,7 @@ import { AllocationDonut } from "../components/charts/AllocationDonut";
 import { EfficientFrontierChart } from "../components/charts/EfficientFrontierChart";
 import { CorrelationMatrix } from "../components/charts/CorrelationMatrix";
 import { QuantConnectChart } from "../components/charts/QuantConnectChart";
+import { VisualStrategyCanvas } from "../components/VisualStrategyCanvas";
 
 /* ---------- formatting ---------- */
 const money = (n?: number | null, dp = 2) =>
@@ -1138,6 +1139,8 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                   ? "bg-[#FAF8F5] border-[#EAE5D9]"
                   : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
               }`}>
+                {/* Interactive Visual Node-Graph Canvas (QuantConnect Code Generator) */}
+                <VisualStrategyCanvas className="mb-6" />
                 {/* QUANTCONNECT LEAN WORKSPACE HEADER */}
                 <div className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${
                   isLight ? "border-[#EAE5D9]" : "border-orange-950/40"
