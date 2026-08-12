@@ -36,7 +36,6 @@ import { RebalanceModal } from "./components/RebalanceModal";
 import { SimulationModal } from "./components/SimulationModal";
 import { SentinelRadarFeed } from "./components/SentinelRadarFeed";
 import { ShieldAlert, Radio, Scale } from "lucide-react";
-import { AuditLogFeed } from "./components/AuditLogFeed";
 import { RiskPanel } from "./components/RiskPanel";
 import { ThesisPanel } from "./components/ThesisPanel";
 import { OrderBlotter } from "./components/OrderBlotter";
@@ -597,9 +596,6 @@ export default function StrategyStudioPage() {
 
             {/* analytical risk cockpit */}
             <RiskPanel refreshKey={tick} />
-
-            {/* spine real-time audit log stream */}
-            <AuditLogFeed events={events} />
 
             {/* LP book */}
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/40">

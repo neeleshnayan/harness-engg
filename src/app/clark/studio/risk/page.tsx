@@ -5,6 +5,7 @@ import { StudioHeader } from "../components/StudioHeader";
 import { ClarkActionBar } from "../components/ClarkActionBar";
 import { GlassPanel } from "../components/ui/GlassPanel";
 import { ConcentrationTreemap } from "../components/charts/ConcentrationTreemap";
+import { AuditLogFeed } from "../components/AuditLogFeed";
 import {
   fundApiClient,
   RiskMonitorResponse,
@@ -12,6 +13,7 @@ import {
   RiskLimitsConfig,
   RiskMonitorPosition,
   RiskMonitorStrategy,
+  SpineEvent,
 } from "@/lib/fund_api";
 import {
   Loader2,
@@ -46,6 +48,7 @@ export default function RiskPage() {
   const [monitor, setMonitor] = useState<RiskMonitorResponse | null>(null);
   const [activeAlerts, setActiveAlerts] = useState<RiskAlarmItem[]>([]);
   const [alertHistory, setAlertHistory] = useState<any[]>([]);
+  const [events, setEvents] = useState<SpineEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [livePolling, setLivePolling] = useState(true);
   const [actionBusy, setActionBusy] = useState(false);
@@ -60,15 +63,17 @@ export default function RiskPage() {
   const load = useCallback(async (isSilent = false) => {
     if (!isSilent) setLoading(true);
     try {
-      const [monRes, alertRes, historyRes] = await Promise.all([
+      const [monRes, alertRes, historyRes, eventsRes] = await Promise.all([
         fundApiClient.getRiskMonitor(),
         fundApiClient.getRiskAlerts().catch(() => ({ active: [] })),
         fundApiClient.getRiskAlertHistory(50).catch(() => ({ history: [] })),
+        fundApiClient.getEvents(100).catch(() => ({ events: [] })),
       ]);
 
       setMonitor(monRes);
       setActiveAlerts(alertRes.active || []);
       setAlertHistory(historyRes.history || []);
+      setEvents(eventsRes.events || []);
 
       if (monRes.limits && !limitsModalOpen) {
         setLimitsForm(monRes.limits);
@@ -604,6 +609,11 @@ export default function RiskPage() {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* IMMUTABLE SPINE EVENT STREAM AUDIT LOG */}
+            <div className="pt-2">
+              <AuditLogFeed events={events} />
             </div>
 
             {/* PER-ASSET RISK TABLE */}
