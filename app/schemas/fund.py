@@ -181,3 +181,22 @@ class RedeemRequest(BaseModel):
         None, gt=0, description="Units to redeem; omit to redeem the full holding"
     )
     actor: str = Field("manager", description="Who recorded the redemption")
+
+
+class RiskRunRequest(BaseModel):
+    actor: str = Field("operator", description="Who triggered the risk monitor run")
+
+
+class RiskLimitsPatchRequest(BaseModel):
+    patch: dict = Field(..., description="Partial risk limits patch")
+    actor: str = Field("operator", description="Who updated risk limits")
+
+
+class RiskHaltRequest(BaseModel):
+    reason: str = Field(..., description="Reason for kill-switch halt")
+    actor: str = Field("operator", description="Who triggered the halt")
+
+
+class RiskResumeRequest(BaseModel):
+    actor: str = Field("operator", description="Who resumed trading (human only)")
+

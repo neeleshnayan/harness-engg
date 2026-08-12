@@ -33,6 +33,7 @@ from app.fund.memo import MemoError, MemoService
 from app.fund.postmortem import PostmortemError, PostmortemService
 from app.fund.reconcile import Reconciler
 from app.fund.riskanalytics import RiskAnalytics
+from app.fund.riskmonitor import RiskControl, RiskMonitor
 from app.fund.simulation import CounterfactualSimulator
 from app.fund.sentinel import SentinelRadar
 from app.fund.strategies import StrategyError, StrategyService
@@ -49,6 +50,10 @@ from app.schemas.fund import (
     PostmortemRequest,
     ProposeOrderRequest,
     RedeemRequest,
+    RiskHaltRequest,
+    RiskLimitsPatchRequest,
+    RiskResumeRequest,
+    RiskRunRequest,
     RiskShockRequest,
     StrategyAllocationRequest,
     StrategyArchiveRequest,
@@ -98,6 +103,9 @@ _postmortem = PostmortemService(store=_store, pricer=_connector.price)
 _attribution = StrategyAttribution(_store)
 _orders = OrdersProjection(_store)
 _reconciler = Reconciler(connector=_connector, store=_store, projection=_projection)
+_control = RiskControl(store=_store)
+_monitor = RiskMonitor(nav_service=_nav, store=_store, pricer=_connector.price,
+                       attribution=_attribution, strategies=_strategies, control=_control)
 from app.fund.pair_arb import PairArbitrageEngine
 from app.fund.macro_regime import MacroRegimeClassifier
 
@@ -773,3 +781,58 @@ def get_strategy_bars(strategy_id: str,
         except BarsError as e:
             result[sym] = {"error": str(e)}
     return {"strategy_id": strategy_id, "assets": assets, "bars": result}
+
+
+# --- risk engine & monitoring ----------------------------------------------
+@router.get("/fund/risk/monitor")
+def get_risk_monitor():
+    """Pure read of the current full risk picture (observability pane)."""
+    return _monitor.assess()
+
+
+@router.get("/fund/risk/alerts")
+def get_risk_alerts():
+    """Active (currently open) risk alarms."""
+    return {"active": _control.active_alarms()}
+
+
+@router.get("/fund/risk/alerts/history")
+def get_risk_alert_history(limit: int = Query(100, ge=1, le=1000)):
+    """Recent alarm events history."""
+    return {"history": _control.alarm_history(limit=limit)}
+
+
+@router.post("/fund/risk/monitor/run")
+def run_risk_monitor(req: RiskRunRequest):
+    """Periodic worker tick / manual run to evaluate alarms and auto-halt if critical breach."""
+    return _monitor.run(actor=req.actor)
+
+
+@router.get("/fund/risk/limits")
+def get_risk_limits():
+    """Current risk limits configuration."""
+    return _control.limits().to_dict()
+
+
+@router.post("/fund/risk/limits")
+def set_risk_limits(req: RiskLimitsPatchRequest):
+    """Patch risk limits configuration."""
+    return _control.set_limits(req.patch, actor=req.actor).to_dict()
+
+
+@router.post("/fund/risk/halt")
+def halt_trading(req: RiskHaltRequest):
+    """Engage trading kill-switch halt."""
+    return _control.halt(reason=req.reason, actor=req.actor)
+
+
+@router.post("/fund/risk/resume")
+def resume_trading(req: RiskResumeRequest):
+    """Resume trading after halt (human only)."""
+    return _control.resume(actor=req.actor)
+
+
+def run_risk_monitor_tick(actor: str = "worker") -> dict:
+    """Worker tick function to execute the risk monitor."""
+    return _monitor.run(actor=actor)
+

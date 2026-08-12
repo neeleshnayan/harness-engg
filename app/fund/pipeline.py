@@ -21,7 +21,8 @@ from app.fund.events import Event, EventStore, EventType
 from app.fund.money import D, f, money
 from app.fund.projections.nav import NavService
 from app.fund.projections.orders import OrdersProjection
-from app.fund.risk import RiskGate
+from app.fund.risk import RiskGate, RiskLimits
+from app.fund.riskmonitor import RiskControl, RiskMonitor
 
 
 class CommandError(Exception):
@@ -39,16 +40,33 @@ class CommandPipeline:
         self._connector = connector
         self._nav = nav_service
         self._store = store or EventStore()
-        self._risk = risk_gate or RiskGate()
+        self._control = RiskControl(self._store)
+        self._explicit_risk_gate = risk_gate
+        self._risk = risk_gate or RiskGate(limits=self._control.limits())
 
     # --- propose -----------------------------------------------------------
     def propose_order(self, order: Order, actor: str) -> dict[str, Any]:
         order_id = str(uuid.uuid4())
 
+        # Risk kill-switch halt check (block BUYs, allow SELLs)
+        if self._control.is_halted() and order.side == Side.BUY:
+            breaches = ["trading halted (risk kill-switch)"]
+            self._store.append(
+                Event(
+                    aggregate_id=order_id,
+                    aggregate_type="order",
+                    type=EventType.ORDER_REJECTED,
+                    payload={**self._order_payload(order), "breaches": breaches},
+                    actor=actor,
+                )
+            )
+            return {"status": "rejected", "order_id": order_id, "breaches": breaches}
+
         venue_check = self._connector.validate(order)
         quote = self._connector.quote(order)
         nav = self._nav.compute()
-        risk = self._risk.check(order, quote.price, nav)
+        gate = self._explicit_risk_gate or RiskGate(limits=self._control.limits())
+        risk = gate.check(order, quote.price, nav)
 
         breaches = (venue_check.errors or []) + (risk.breaches or [])
         if breaches:
@@ -148,6 +166,10 @@ class CommandPipeline:
     def _apply_status(self, order_id: str, order: Order, status, last_filled: float = 0.0):
         if status.state == FillState.FILLED:
             self._emit_fill(order_id, order, status.filled_qty, status.avg_price, status.fees)
+            try:
+                RiskMonitor(nav_service=self._nav, store=self._store, pricer=self._connector.price, control=self._control).run(actor="fill_re-eval")
+            except Exception:
+                pass
             return {"status": "filled", "order_id": order_id,
                     "filled_qty": f(D(status.filled_qty)), "avg_price": f(D(status.avg_price))}
 
