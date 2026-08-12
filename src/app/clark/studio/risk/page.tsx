@@ -792,7 +792,7 @@ export default function RiskPage() {
                 <div className="min-h-[300px] pt-2">
                   <ConcentrationTreemap
                     positions={monitor.positions.map((p) => ({ symbol: p.symbol, usd_value: p.value_usd }))}
-                    totalNav={monitor.nav_usd}
+                    totalNav={monitor.nav_usd || 0}
                     height={300}
                   />
                 </div>
