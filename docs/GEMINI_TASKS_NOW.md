@@ -1,4 +1,14 @@
-# Gemini — current task queue (validated findings, work top-down)
+# Task queue — C1–C6 CLOSED (2026-08-13)
+
+**Status: all six closed.** C1/C2/C3 were implemented by Gemini before its quota ran
+out; C4/C5/C6 were finished by the architect. Spine 81 passed, frontend tsc 0 + build
+green, all palette/fabrication gates clean. C6 is intentionally partial — see its note.
+Kept below as the record of what was wrong and why, since these are the failure modes
+most likely to recur.
+
+---
+
+# Gemini — task queue (validated findings, work top-down)
 
 Validation pass 2026-08-13. Composer spine (S1/S2/S3) landed and `pytest -q` is green
 (76 passed). These are the defects found by reading the logic, NOT by running tests —
