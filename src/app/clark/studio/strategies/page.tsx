@@ -219,8 +219,8 @@ class MultiFactorAlphaStrategy(Strategy):
 };
 
 export default function StrategiesPage() {
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
-  const isLight = theme === "light";
+  const theme = "dark";
+  const isLight = false;
 
   const [strategies, setStrategies] = useState<StrategyView[]>([]);
   const [navUsd, setNavUsd] = useState<number>(0);
@@ -570,32 +570,6 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
     }`}>
       {/* Studio Header */}
       <StudioHeader subtitle="Anthropic Quant Strategy Studio & LEAN Python Environment" theme={theme} />
-
-      {/* Top Header Switcher Container */}
-      <div className="relative">
-        <div className="mx-auto max-w-[1600px] px-6 pt-4 flex justify-end">
-          <button
-            onClick={() => setTheme(isLight ? "dark" : "light")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-mono font-bold transition-all shadow-md cursor-pointer border ${
-              isLight
-                ? "bg-[#F0EBE1] text-[#1E1E1E] border-[#D9D2C5] hover:bg-[#E2DDD2]"
-                : "bg-[#0D1322] text-orange-300 border-orange-500/40 hover:bg-orange-950"
-            }`}
-          >
-            {isLight ? (
-              <>
-                <Sun size={15} className="text-[#D97757]" />
-                <span>Anthropic Warm Pastel Light ☀️</span>
-              </>
-            ) : (
-              <>
-                <Moon size={15} className="text-orange-400" />
-                <span>Anthropic Terracotta Dark 🌙</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
 
       <div className="mx-auto max-w-[1600px] px-6 py-6 space-y-6">
         {/* Clark AI Copilot Action Bar */}

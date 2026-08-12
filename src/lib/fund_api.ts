@@ -357,6 +357,81 @@ export interface SentinelSignal {
   memo_id?: string | null;
 }
 
+export interface RiskAlarmItem {
+  key: string;
+  type: string;
+  severity: 'info' | 'warn' | 'critical' | string;
+  message: string;
+  metric: number;
+  threshold: number;
+  symbol?: string | null;
+  strategy_id?: string | null;
+  ts?: string;
+}
+
+export interface RiskMonitorDrawdown {
+  peak_nav: number;
+  current_nav: number;
+  drawdown_pct: number;
+  max_drawdown_pct: number;
+  limit_pct: number;
+  utilization: number;
+}
+
+export interface RiskMonitorPosition {
+  symbol: string;
+  qty: number;
+  mark: number;
+  value_usd: number;
+  weight_pct: number;
+  unrealized_pnl_pct: number;
+  shock_20_usd: number;
+}
+
+export interface RiskMonitorStrategy {
+  strategy_id: string;
+  name: string;
+  exposure_usd: number;
+  weight_pct: number;
+  pnl_usd: number;
+  limit_pct: number;
+  utilization: number;
+  breach: boolean;
+}
+
+export interface RiskLimitsConfig {
+  max_position_pct: number;
+  min_cash_buffer: number;
+  max_order_notional_pct: number;
+  max_strategy_pct: number;
+  min_cash_pct: number;
+  max_drawdown_pct: number;
+  max_daily_loss_pct: number;
+  underwater_pct: number;
+}
+
+export interface RiskMonitorResponse {
+  nav_usd: number;
+  cash_usd: number;
+  cash_pct: number;
+  gross_exposure_usd: number;
+  gross_exposure_pct: number;
+  halted: boolean;
+  drawdown: RiskMonitorDrawdown;
+  positions: RiskMonitorPosition[];
+  strategies: RiskMonitorStrategy[];
+  limits: RiskLimitsConfig;
+  utilization: {
+    max_position_pct: number;
+    max_strategy_pct: number;
+    min_cash_pct: number;
+    max_drawdown_pct: number;
+  };
+  alarms: RiskAlarmItem[];
+  worst_position: RiskMonitorPosition | null;
+  ts: string;
+}
+
 export const fundApiClient = {
   getNav: async (): Promise<NavResponse> => (await fundApi.get(`${P}/nav`)).data,
 
@@ -510,6 +585,31 @@ export const fundApiClient = {
 
   scanSentinel: async (symbol?: string): Promise<{ status: string; total_signals_scanned: number; newly_drafted_theses: any[]; signals: SentinelSignal[] }> =>
     (await fundApi.post(`${P}/sentinel/scan`, null, { params: { symbol } })).data,
+
+  // --- risk monitor & kill-switch controls ---
+  getRiskMonitor: async (): Promise<RiskMonitorResponse> =>
+    (await fundApi.get(`${P}/risk/monitor`)).data,
+
+  getRiskAlerts: async (): Promise<{ active: RiskAlarmItem[] }> =>
+    (await fundApi.get(`${P}/risk/alerts`)).data,
+
+  getRiskAlertHistory: async (limit = 100): Promise<{ history: SpineEvent[] }> =>
+    (await fundApi.get(`${P}/risk/alerts/history`, { params: { limit } })).data,
+
+  runRiskMonitor: async (actor = 'operator'): Promise<{ raised: RiskAlarmItem[]; cleared: string[]; halted: boolean; active: RiskAlarmItem[] }> =>
+    (await fundApi.post(`${P}/risk/monitor/run`, { actor })).data,
+
+  getRiskLimits: async (): Promise<RiskLimitsConfig> =>
+    (await fundApi.get(`${P}/risk/limits`)).data,
+
+  setRiskLimits: async (patch: Partial<RiskLimitsConfig>, actor = 'operator'): Promise<RiskLimitsConfig> =>
+    (await fundApi.post(`${P}/risk/limits`, { patch, actor })).data,
+
+  haltTrading: async (reason: string, actor = 'operator'): Promise<{ status: string; reason: string; halted: boolean }> =>
+    (await fundApi.post(`${P}/risk/halt`, { reason, actor })).data,
+
+  resumeTrading: async (actor = 'operator'): Promise<{ status: string; halted: boolean }> =>
+    (await fundApi.post(`${P}/risk/resume`, { actor })).data,
 };
 
 export default fundApi;
