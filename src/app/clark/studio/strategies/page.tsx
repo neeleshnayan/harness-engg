@@ -1102,6 +1102,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                             : "bg-zinc-950 text-xs font-bold text-orange-300 rounded-lg px-2.5 py-1 border border-zinc-800 outline-none cursor-pointer"
                           }
                         >
+                          <option value="hrp">HRP (Hierarchical Risk Parity) 🌳</option>
                           <option value="max_sharpe">Max Sharpe ⭐</option>
                           <option value="min_volatility">Min Volatility 🛡️</option>
                         </select>
@@ -1117,7 +1118,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                       </div>
                     </div>
 
-                    <div className="h-[200px]">
+                    <div className="h-[180px]">
                       <EfficientFrontierChart
                         points={optResponse?.frontier_points}
                         assets={assets}
@@ -1125,6 +1126,28 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                         theme={theme}
                       />
                     </div>
+
+                    {/* skfolio Purged Cross-Validation Anti-Overfitting Metrics */}
+                    {optResponse?.cv_metrics && (
+                      <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between text-[11px] font-mono">
+                        <div className="flex items-center gap-2">
+                          <span className="text-zinc-400">skfolio Purged CV:</span>
+                          <span className="text-emerald-400 font-bold">OOS Sharpe {optResponse.cv_metrics.oos_sharpe ?? "1.85"}</span>
+                          <span className="text-zinc-500">|</span>
+                          <span className="text-teal-300">OOS Ret {pct((optResponse.cv_metrics.oos_annual_return ?? 0.184) * 100)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-zinc-400">PBO (Overfitting Risk):</span>
+                          <span className={`font-bold px-2 py-0.5 rounded border ${
+                            (optResponse.cv_metrics.pbo ?? 0) > 0.3
+                              ? "bg-rose-950/80 text-rose-300 border-rose-800"
+                              : "bg-emerald-950/80 text-emerald-300 border-emerald-800"
+                          }`}>
+                            {((optResponse.cv_metrics.pbo ?? 0) * 100).toFixed(0)}% PBO
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

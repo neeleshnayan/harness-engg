@@ -261,11 +261,19 @@ export interface FrontierPoint {
 }
 
 export interface StrategyOptimizeResponse {
+  method?: string;
   weights?: Record<string, number>;
   optimal_weights?: Record<string, number>;
   expected_sharpe?: number;
   frontier_points?: FrontierPoint[];
   correlation?: Record<string, Record<string, number>>;
+  cv_metrics?: {
+    oos_sharpe?: number;
+    oos_annual_return?: number;
+    oos_max_drawdown?: number;
+    pbo?: number;
+    folds?: Array<{ fold: number; is_sharpe: number; oos_sharpe: number; weights: Record<string, number> }>;
+  };
 }
 
 export interface StrategyRiskAsset {
