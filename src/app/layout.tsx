@@ -21,7 +21,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    // suppressHydrationWarning: the Studio's no-flash theme script stamps
+    // `data-kt-theme` on <html> before React hydrates, so the server HTML
+    // intentionally differs from the client on that attribute.
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/Krypton logo.svg" type="image/svg+xml" />
       </head>
