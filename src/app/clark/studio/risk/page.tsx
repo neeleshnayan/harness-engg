@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { StudioHeader } from "../components/StudioHeader";
 import { ClarkActionBar } from "../components/ClarkActionBar";
-import { GlassPanel } from "../components/ui/GlassPanel";
+import { KT } from "../theme";
 import { ConcentrationTreemap } from "../components/charts/ConcentrationTreemap";
 import { AuditLogFeed } from "../components/AuditLogFeed";
 import {
@@ -788,7 +788,8 @@ export default function RiskPage() {
 
             {/* TREEMAP EXPOSURE VISUALIZER */}
             {monitor.positions.length > 0 && (
-              <GlassPanel title="Portfolio Exposure Concentration Treemap" className="border-zinc-800">
+              <div className={`${KT.panel} p-6 space-y-3`}>
+                <h3 className={KT.title}>Portfolio Exposure Concentration Treemap</h3>
                 <div className="min-h-[300px] pt-2">
                   <ConcentrationTreemap
                     positions={monitor.positions.map((p) => ({ symbol: p.symbol, usd_value: p.value_usd }))}
@@ -796,7 +797,7 @@ export default function RiskPage() {
                     height={300}
                   />
                 </div>
-              </GlassPanel>
+              </div>
             )}
           </>
         )}

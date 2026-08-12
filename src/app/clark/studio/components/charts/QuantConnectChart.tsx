@@ -41,7 +41,7 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className, t
   if (data.length === 0) {
     return (
       <div className={`rounded-2xl border font-mono shadow-2xl p-8 text-center text-xs ${
-        isLight ? "bg-[#FAF8F5] border-[#EAE5D9] text-[#78716C]" : "bg-[#090D18]/90 border-orange-500/20 text-zinc-500"
+        isLight ? "bg-[#FAF8F5] border-[#EAE5D9] text-[#78716C]" : "bg-[#090D18]/90 border-emerald-500/20 text-zinc-500"
       } ${className || ""}`}>
         No price bars available for symbol {symbol}
       </div>
@@ -59,23 +59,23 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className, t
       className={`rounded-2xl border font-mono shadow-2xl space-y-3 p-5 transition-all ${
         isLight
           ? "bg-[#FAF8F5] border-[#EAE5D9]"
-          : "bg-[#090D18]/90 border-orange-500/20 backdrop-blur-xl"
+          : "bg-[#090D18]/90 border-emerald-500/20 backdrop-blur-xl"
       } ${className || ""}`}
     >
       {/* Chart Header Bar */}
       <div className={`flex flex-wrap items-center justify-between gap-3 border-b pb-3 text-xs ${
-        isLight ? "border-[#EAE5D9]" : "border-orange-950/40"
+        isLight ? "border-[#EAE5D9]" : "border-emerald-950/40"
       }`}>
         <div className="flex items-center gap-3">
           <span className={`font-extrabold text-sm px-3 py-1 rounded-lg border ${
             isLight
-              ? "bg-[#F0EBE1] text-[#D97757] border-[#D9D2C5]"
-              : "bg-orange-950/80 text-orange-300 border-orange-700/50"
+              ? "bg-[#F0EBE1] text-[#10B981] border-[#D9D2C5]"
+              : "bg-emerald-950/80 text-emerald-300 border-emerald-700/50"
           }`}>
             {symbol}
           </span>
           <div className="flex items-center gap-2 font-bold">
-            <span className={`text-base font-black ${isLight ? "text-[#D97757]" : "text-orange-400"}`}>
+            <span className={`text-base font-black ${isLight ? "text-[#10B981]" : "text-emerald-400"}`}>
               ${data[data.length - 1]?.close.toFixed(2)}
             </span>
             <span className={`text-[10px] ${isLight ? "text-[#78716C]" : "text-zinc-500"}`}>
@@ -87,7 +87,7 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className, t
         <div className="flex items-center gap-2 font-medium">
           <span className={`text-[10px] uppercase font-bold ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Indicators:</span>
           <span className={`text-[10px] px-2.5 py-0.5 rounded-md border ${
-            isLight ? "bg-[#F0EBE1] text-[#D97757] border-[#D9D2C5]" : "bg-orange-950/80 text-orange-300 border-orange-700/40"
+            isLight ? "bg-[#F0EBE1] text-[#10B981] border-[#D9D2C5]" : "bg-emerald-950/80 text-emerald-300 border-emerald-700/40"
           }`}>
             Close Terracotta
           </span>
@@ -146,7 +146,7 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className, t
               yAxisId="price"
               type="monotone"
               dataKey="close"
-              stroke="#D97757"
+              stroke="#10B981"
               strokeWidth={2.4}
               dot={false}
               name="Close Price"
@@ -193,7 +193,7 @@ export function QuantConnectChart({ symbol, barsData, height = 320, className, t
                 x={s.date}
                 y={s.close}
                 r={6}
-                fill="#D97757"
+                fill="#10B981"
                 stroke="#ffffff"
                 strokeWidth={2}
               />

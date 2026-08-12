@@ -23,7 +23,7 @@ export function CorrelationMatrix({ correlation, assets, className, theme = "dar
     );
   }
 
-  // Anthropic Terracotta Orange (#D97757) vs Sage Green (#276749) for correlation intensity
+  // Anthropic Emerald Green (#10B981) vs Sage Green (#276749) for correlation intensity
   const getColor = (val: number) => {
     if (val < 0) {
       return isLight ? `rgba(217, 119, 87, ${Math.abs(val) * 0.85})` : `rgba(249, 115, 22, ${Math.abs(val) * 0.8})`;

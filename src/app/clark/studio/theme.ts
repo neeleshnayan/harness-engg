@@ -6,9 +6,9 @@
  *   labels · thin-bordered rounded cards · generous whitespace · calm & minimal.
  *
  * RULE: every Studio page/component styles itself ONLY from these constants.
- * Do NOT hardcode colors. Delete the Terracotta Orange (#D97757 / orange-*) and
- * the dark-glassmorphism variants; both adopt this system. No per-page palettes,
- * no per-page theme switchers. This is a dark-only system (the artifact is dark).
+ * Do NOT hardcode colors. Delete former orange colors (#10B981 / accent-series);
+ * both adopt this system. No per-page palettes, no per-page theme switchers.
+ * This is a dark-only system (the artifact is dark).
  */
 
 export const KT = {

@@ -20,7 +20,7 @@ interface Props {
 }
 
 const COLORS_LIGHT = [
-  "#D97757", // Anthropic Terracotta Orange
+  "#10B981", // Anthropic Emerald Green
   "#276749", // Anthropic Sage Green
   "#2563EB", // Royal Blue
   "#78716C", // Warm Taupe
@@ -29,7 +29,7 @@ const COLORS_LIGHT = [
 ];
 
 const COLORS_DARK = [
-  "#F97316", // Anthropic Terracotta Glow Orange
+  "#34D399", // Anthropic Terracotta Glow Orange
   "#10B981", // Emerald
   "#38BDF8", // Sky Blue
   "#A855F7", // Purple

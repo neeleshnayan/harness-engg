@@ -1,5 +1,6 @@
 "use client";
 
+import { KT } from "./theme";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -42,8 +43,6 @@ import { OrderBlotter } from "./components/OrderBlotter";
 import { AllocationDonut } from "./components/charts/AllocationDonut";
 import { StrategyPerformanceBar } from "./components/charts/StrategyPerformanceBar";
 import HeroChart from "./components/charts/HeroChart";
-import { AnimatedNumber } from "./components/ui/AnimatedNumber";
-import { GlassPanel } from "./components/ui/GlassPanel";
 import { StatusPulse } from "./components/ui/StatusPulse";
 import { StrategyCard } from "./components/ui/StrategyCard";
 import { StudioNav } from "./components/StudioNav";
@@ -69,21 +68,11 @@ const STATE_STYLE: Record<string, string> = {
 /* ---------- small presentational pieces ---------- */
 function Stat({ label, value, sub, accent, rawValue }: { label: string; value: string; sub?: string; accent?: string; rawValue?: number }) {
   return (
-    <GlassPanel className="flex flex-col gap-1 !p-3">
-      <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">{label}</span>
-      {rawValue !== undefined ? (
-        <AnimatedNumber
-          value={rawValue}
-          className={`text-lg leading-tight font-medium ${accent || "text-zinc-100"}`}
-          prefix={value.startsWith('$') ? '$' : value.startsWith('+$') ? '+$' : value.startsWith('-') ? '-' : ''}
-          suffix={value.endsWith('%') ? '%' : ''}
-          decimals={value.includes('.') ? value.split('.')[1].replace(/[^0-9]/g, '').length : 0}
-        />
-      ) : (
-        <span className={`tabular-nums text-lg leading-tight font-medium ${accent || "text-zinc-100"}`}>{value}</span>
-      )}
+    <div className={`${KT.panel} flex flex-col gap-1 p-3`}>
+      <span className={KT.label}>{label}</span>
+      <span className={`tabular-nums text-lg leading-tight font-medium font-mono ${accent || "text-zinc-100"}`}>{value}</span>
       {sub && <span className="text-[11px] text-zinc-500">{sub}</span>}
-    </GlassPanel>
+    </div>
   );
 }
 
@@ -355,7 +344,7 @@ export default function StrategyStudioPage() {
             value={money(live?.total_nav_usd)}
             rawValue={live?.total_nav_usd}
             sub={`${money(live?.nav_per_unit, 4)}/unit · (${money(live?.breakdown?.positions)} pos + ${money(live?.breakdown?.cash)} cash)`}
-            accent="text-orange-400 glow-orange"
+            accent="text-emerald-400 glow-emerald"
           />
           <Stat label="Idle Cash" value={money(live?.breakdown?.cash)} rawValue={live?.breakdown?.cash} sub={`${pct(live && live.total_nav_usd ? (live.breakdown.cash / live.total_nav_usd) * 100 : 0)} of NAV`} />
           <Stat label="Deployed Exp." value={money(totalExposure)} rawValue={totalExposure} sub={`${deployedCount} live ${deployedCount === 1 ? "strategy" : "strategies"}`} />
@@ -368,7 +357,7 @@ export default function StrategyStudioPage() {
           {/* left: strategies + chart */}
           <div className="lg:col-span-2 space-y-4">
             {/* chart panel — fund NAV movement by default, symbol price opt-in */}
-            <GlassPanel className="p-1">
+            <div className={`${KT.panel} p-4`}>
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <Activity size={14} className="text-teal-400" />
                 {/* NAV | Price toggle */}
@@ -422,13 +411,17 @@ export default function StrategyStudioPage() {
                   </>
                 )}
               </div>
+
               {chartMode === "nav" ? (
-                navHistory.length < 2 ? (
-                  <div className="flex h-[320px] items-center justify-center text-center text-xs text-zinc-500">
-                    NAV curve builds as snapshots are struck.
+                navHistory.length === 0 ? (
+                  <div className="flex h-[320px] items-center justify-center text-xs text-zinc-500">
+                    No NAV history struck yet. Strike a NAV to see history.
                   </div>
                 ) : (
-                  <HeroChart data={navHistory} height={320} />
+                  <HeroChart
+                    data={navHistory.map((h) => ({ t: h.t, v: h.v }))}
+                    height={320}
+                  />
                 )
               ) : chartErr ? (
                 <div className="flex h-[320px] items-center justify-center text-xs text-red-400">{chartErr}</div>
@@ -439,16 +432,18 @@ export default function StrategyStudioPage() {
               ) : (
                 <HeroChart data={chartData} height={320} />
               )}
-            </GlassPanel>
+            </div>
 
             {/* High Level Analytics */}
             <div className="grid gap-4 md:grid-cols-2">
-              <GlassPanel title="Asset Allocation">
+              <div className={`${KT.panel} p-5 space-y-3`}>
+                <h3 className={KT.title}>Asset Allocation</h3>
                 <AllocationDonut positions={positions} cash={live?.breakdown.cash || 0} totalNav={live?.total_nav_usd || 0} />
-              </GlassPanel>
-              <GlassPanel title="Strategy Performance">
+              </div>
+              <div className={`${KT.panel} p-5 space-y-3`}>
+                <h3 className={KT.title}>Strategy Performance</h3>
                 <StrategyPerformanceBar strategies={liveStrategies} />
-              </GlassPanel>
+              </div>
             </div>
 
             <div className="mt-8 mb-4">
@@ -461,9 +456,9 @@ export default function StrategyStudioPage() {
                   <Loader2 className="animate-spin" size={16} /> Loading…
                 </div>
               ) : liveStrategies.length === 0 ? (
-                <GlassPanel className="p-8 text-center text-sm text-zinc-500">
+                <div className={`${KT.panel} p-8 text-center text-sm text-zinc-500`}>
                   No live deployed strategies currently active. Draft and backtested strategies are managed in the Strategies tab.
-                </GlassPanel>
+                </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {liveStrategies.map((s) => (
@@ -478,9 +473,10 @@ export default function StrategyStudioPage() {
             </div>
 
             {/* positions */}
-            <GlassPanel title="Positions" className="!p-0">
+            <div className={`${KT.panel} p-5 space-y-3`}>
+              <h3 className={KT.title}>Positions</h3>
               {positions.length === 0 ? (
-                <div className="p-6 text-center text-sm text-zinc-500">Flat — no open positions.</div>
+                <div className="py-6 text-center text-sm text-zinc-500">Flat — no open positions.</div>
               ) : (
                 <table className="w-full text-sm">
                   <thead>
@@ -507,7 +503,7 @@ export default function StrategyStudioPage() {
                   </tbody>
                 </table>
               )}
-            </GlassPanel>
+            </div>
 
             {/* order history (trade blotter), filterable by strategy */}
             <OrderBlotter
@@ -520,24 +516,25 @@ export default function StrategyStudioPage() {
 
           <div className="space-y-4">
             {/* pending approvals */}
-            <GlassPanel
-              title="Pending approvals"
-              headerRight={
-                pending.length > 0 && (
-                  <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300">{pending.length}</span>
-                )
-              }
-              className="!p-0"
-            >
+            <div className={`${KT.panel} p-5 space-y-3`}>
+              <div className="flex items-center justify-between">
+                <h3 className={KT.title}>Pending approvals</h3>
+                {pending.length > 0 && (
+                  <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
+                    {pending.length}
+                  </span>
+                )}
+              </div>
+
               {pending.length === 0 ? (
-                <div className="p-6 text-center text-sm text-zinc-500">Queue clear.</div>
+                <div className="py-6 text-center text-sm text-zinc-500">Queue clear.</div>
               ) : (
                 <div className="divide-y divide-zinc-800/70">
                   {pending.map((o) => {
                     const ip = o.impact_preview || {};
                     const ctx = o.thesis_id ? thesisCtx[o.thesis_id] : undefined;
                     return (
-                      <div key={o.order_id} className="p-3">
+                      <div key={o.order_id} className="py-3">
                         <div className="flex items-center gap-2">
                           <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${o.side === "buy" ? "bg-emerald-500/15 text-emerald-300" : "bg-red-500/15 text-red-300"}`}>
                             {o.side}
@@ -566,7 +563,7 @@ export default function StrategyStudioPage() {
                         )}
                         <div className="mt-2 flex gap-2">
                           <Button
-                            className="h-7 flex-1 bg-emerald-600 text-white hover:bg-emerald-700"
+                            className="h-7 flex-1 bg-emerald-600 text-white hover:bg-emerald-700 font-bold text-xs"
                             disabled={busyOrder === o.order_id}
                             onClick={() => decide(o, true)}
                           >
@@ -574,7 +571,7 @@ export default function StrategyStudioPage() {
                           </Button>
                           <Button
                             variant="outline"
-                            className="h-7 flex-1 border-zinc-700 bg-transparent text-zinc-300"
+                            className="h-7 flex-1 border-zinc-700 bg-transparent text-zinc-300 text-xs"
                             disabled={busyOrder === o.order_id}
                             onClick={() => decide(o, false)}
                           >
@@ -586,7 +583,7 @@ export default function StrategyStudioPage() {
                   })}
                 </div>
               )}
-            </GlassPanel>
+            </div>
 
             {/* Clark Sentinel 24/7 Alpha Radar Feed */}
             <SentinelRadarFeed />

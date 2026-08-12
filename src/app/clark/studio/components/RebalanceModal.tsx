@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { GlassPanel } from "./ui/GlassPanel";
+import { KT } from "../theme";
 import { fundApiClient, StrategyView } from "@/lib/fund_api";
 import { Sliders, TrendingUp, ShieldCheck, Check, Loader2, Sparkles, Scale } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -135,20 +135,20 @@ export function RebalanceModal({
 
           {/* Forecasted Metrics Delta */}
           <div className="grid grid-cols-3 gap-3">
-            <GlassPanel className="p-3">
+            <div className={`${KT.inset} p-3`}>
               <span className="text-[10px] uppercase tracking-wider text-zinc-500">Current Sharpe</span>
               <div className="text-base font-semibold text-zinc-200">{currentSharpe.toFixed(2)}</div>
-            </GlassPanel>
-            <GlassPanel className="p-3">
+            </div>
+            <div className={`${KT.inset} p-3`}>
               <span className="text-[10px] uppercase tracking-wider text-zinc-500">Optimized Sharpe</span>
               <div className="text-base font-semibold text-emerald-400">+{proposedSharpe.toFixed(2)}</div>
-            </GlassPanel>
-            <GlassPanel className="p-3">
+            </div>
+            <div className={`${KT.inset} p-3`}>
               <span className="text-[10px] uppercase tracking-wider text-zinc-500">Target Total</span>
               <div className={`text-base font-semibold ${totalAllocated > 100 ? "text-rose-400" : "text-teal-400"}`}>
                 {totalAllocated}% / 100%
               </div>
-            </GlassPanel>
+            </div>
           </div>
 
           {/* Strategy Weight Sliders */}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { GlassPanel } from "./ui/GlassPanel";
+import { KT } from "../theme";
 import { SpineEvent } from "@/lib/fund_api";
 import { Activity, ShieldAlert, CheckCircle2, ChevronRight, ChevronDown, UserCheck, Bot } from "lucide-react";
 
@@ -29,7 +29,7 @@ export function AuditLogFeed({ events }: AuditLogFeedProps) {
   };
 
   return (
-    <GlassPanel className="p-4 space-y-3">
+    <div className={`${KT.panel} p-4 space-y-3`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Activity size={16} className="text-teal-400" />
@@ -91,6 +91,6 @@ export function AuditLogFeed({ events }: AuditLogFeedProps) {
           })
         )}
       </div>
-    </GlassPanel>
+    </div>
   );
 }

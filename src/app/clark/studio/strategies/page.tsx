@@ -567,7 +567,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
     <div className={`min-h-screen transition-colors font-sans ${
       isLight
         ? "bg-[#FBF9F5] text-[#1E1E1E]"
-        : "bg-[#030712] text-zinc-100 selection:bg-orange-500/30"
+        : "bg-[#030712] text-zinc-100 selection:bg-emerald-500/30"
     }`}>
       {/* Studio Header */}
       <StudioHeader subtitle="Anthropic Quant Strategy Studio & LEAN Python Environment" theme={theme} />
@@ -585,18 +585,18 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
           <div className={`flex flex-col items-center justify-center py-28 gap-3 rounded-2xl border font-mono ${
             isLight
               ? "bg-[#FAF8F5] border-[#EAE5D9] text-[#78716C]"
-              : "bg-[#070D1B]/80 border-orange-500/20 text-zinc-400 backdrop-blur-xl"
+              : "bg-[#070D1B]/80 border-emerald-500/20 text-zinc-400 backdrop-blur-xl"
           }`}>
-            <Loader2 className={`animate-spin ${isLight ? "text-[#D97757]" : "text-orange-400"}`} size={36} />
+            <Loader2 className={`animate-spin ${isLight ? "text-[#10B981]" : "text-emerald-400"}`} size={36} />
             <span className="text-xs">Loading fund strategy trees & quant environments...</span>
           </div>
         ) : strategies.length === 0 ? (
           <div className={`flex flex-col items-center justify-center py-20 text-sm rounded-2xl border font-mono ${
             isLight
               ? "bg-[#FAF8F5] border-[#EAE5D9] text-[#78716C]"
-              : "bg-[#070D1B]/80 border-orange-500/20 text-zinc-500 backdrop-blur-xl"
+              : "bg-[#070D1B]/80 border-emerald-500/20 text-zinc-500 backdrop-blur-xl"
           }`}>
-            <Layers size={40} className={`mb-3 opacity-40 ${isLight ? "text-[#D97757]" : "text-orange-400"}`} />
+            <Layers size={40} className={`mb-3 opacity-40 ${isLight ? "text-[#10B981]" : "text-emerald-400"}`} />
             No strategies registered yet.
           </div>
         ) : (
@@ -606,13 +606,13 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
               <div className={`p-5 rounded-2xl border shadow-xl space-y-1.5 transition-all ${
                 isLight
                   ? "bg-[#FAF8F5] border-[#EAE5D9]"
-                  : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl hover:border-orange-500/40"
+                  : "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl hover:border-emerald-500/40"
               }`}>
                 <div className={`flex items-center justify-between text-xs font-bold uppercase tracking-wider ${
                   isLight ? "text-[#78716C]" : "text-zinc-400"
                 }`}>
                   <span>Strategy Models</span>
-                  <Layers size={16} className={isLight ? "text-[#D97757]" : "text-orange-400"} />
+                  <Layers size={16} className={isLight ? "text-[#10B981]" : "text-emerald-400"} />
                 </div>
                 <div className="flex items-baseline gap-2">
                   <span className={`text-2xl font-black ${isLight ? "text-[#1E1E1E]" : "text-white"}`}>{strategies.length} Total</span>
@@ -624,7 +624,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
               <div className={`p-5 rounded-2xl border shadow-xl space-y-1.5 transition-all ${
                 isLight
                   ? "bg-[#FAF8F5] border-[#EAE5D9]"
-                  : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl hover:border-orange-500/40"
+                  : "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl hover:border-emerald-500/40"
               }`}>
                 <div className={`flex items-center justify-between text-xs font-bold uppercase tracking-wider ${
                   isLight ? "text-[#78716C]" : "text-zinc-400"
@@ -634,7 +634,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                 </div>
                 <div className="flex items-baseline gap-2">
                   <span className={`text-2xl font-black ${isLight ? "text-[#1E1E1E]" : "text-white"}`}>{money(totalExposure)}</span>
-                  <span className={`text-xs font-bold ${isLight ? "text-[#D97757]" : "text-orange-300"}`}>21.2% NAV</span>
+                  <span className={`text-xs font-bold ${isLight ? "text-[#10B981]" : "text-emerald-300"}`}>21.2% NAV</span>
                 </div>
                 <p className={`text-[10px] ${isLight ? "text-[#78716C]" : "text-zinc-500"}`}>Active committed venue capital</p>
               </div>
@@ -642,7 +642,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
               <div className={`p-5 rounded-2xl border shadow-xl space-y-1.5 transition-all ${
                 isLight
                   ? "bg-[#FAF8F5] border-[#EAE5D9]"
-                  : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl hover:border-orange-500/40"
+                  : "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl hover:border-emerald-500/40"
               }`}>
                 <div className={`flex items-center justify-between text-xs font-bold uppercase tracking-wider ${
                   isLight ? "text-[#78716C]" : "text-zinc-400"
@@ -654,7 +654,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                   <span className={`text-2xl font-black ${
                     totalPnl >= 0
                       ? (isLight ? "text-[#276749]" : "text-emerald-400")
-                      : (isLight ? "text-[#D97757]" : "text-rose-400")
+                      : (isLight ? "text-[#10B981]" : "text-rose-400")
                   }`}>
                     {totalPnl >= 0 ? "+" : ""}{money(totalPnl)}
                   </span>
@@ -666,16 +666,16 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
               <div className={`p-5 rounded-2xl border shadow-xl space-y-1.5 transition-all ${
                 isLight
                   ? "bg-[#FAF8F5] border-[#EAE5D9]"
-                  : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl hover:border-orange-500/40"
+                  : "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl hover:border-emerald-500/40"
               }`}>
                 <div className={`flex items-center justify-between text-xs font-bold uppercase tracking-wider ${
                   isLight ? "text-[#78716C]" : "text-zinc-400"
                 }`}>
                   <span>Risk Gate & Sharpe</span>
-                  <ShieldCheck size={16} className={isLight ? "text-[#D97757]" : "text-orange-400"} />
+                  <ShieldCheck size={16} className={isLight ? "text-[#10B981]" : "text-emerald-400"} />
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className={`text-2xl font-black ${isLight ? "text-[#D97757]" : "text-orange-300"}`}>2.35 Sharpe</span>
+                  <span className={`text-2xl font-black ${isLight ? "text-[#10B981]" : "text-emerald-300"}`}>2.35 Sharpe</span>
                   <span className={`text-xs font-bold px-2 py-0.5 rounded border ${
                     isLight
                       ? "bg-[#F0EBE1] text-[#276749] border-[#D9D2C5]"
@@ -690,17 +690,17 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
 
             {/* ---------- NARRATIVE STORY SUB-TAB NAVIGATION BAR ---------- */}
             <div className={`flex items-center justify-between border-b pb-3 pt-2 ${
-              isLight ? "border-[#EAE5D9]" : "border-orange-950/40"
+              isLight ? "border-[#EAE5D9]" : "border-emerald-950/40"
             }`}>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setSubTab("overview")}
                   className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
                     subTab === "overview"
-                      ? (isLight ? "bg-[#D97757] text-white shadow-md" : "bg-orange-500 text-zinc-950 shadow-[0_0_20px_rgba(249,115,22,0.3)]")
+                      ? (isLight ? "bg-[#10B981] text-white shadow-md" : "bg-emerald-500 text-zinc-950 shadow-[0_0_20px_rgba(16,185,129,0.3)]")
                       : (isLight
                           ? "bg-[#FAF8F5] text-[#78716C] border border-[#EAE5D9] hover:bg-[#F0EBE1] hover:text-[#1E1E1E]"
-                          : "bg-[#070D1A]/80 text-zinc-400 hover:text-white hover:bg-zinc-900 border border-orange-900/30 backdrop-blur-md")
+                          : "bg-[#070D1A]/80 text-zinc-400 hover:text-white hover:bg-zinc-900 border border-emerald-900/30 backdrop-blur-md")
                   }`}
                 >
                   <PieChart size={15} />
@@ -711,16 +711,16 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                   onClick={() => setSubTab("ide")}
                   className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
                     subTab === "ide"
-                      ? (isLight ? "bg-[#D97757] text-white shadow-md" : "bg-orange-500 text-zinc-950 shadow-[0_0_20px_rgba(249,115,22,0.3)]")
+                      ? (isLight ? "bg-[#10B981] text-white shadow-md" : "bg-emerald-500 text-zinc-950 shadow-[0_0_20px_rgba(16,185,129,0.3)]")
                       : (isLight
                           ? "bg-[#FAF8F5] text-[#78716C] border border-[#EAE5D9] hover:bg-[#F0EBE1] hover:text-[#1E1E1E]"
-                          : "bg-[#070D1A]/80 text-zinc-400 hover:text-white hover:bg-zinc-900 border border-orange-900/30 backdrop-blur-md")
+                          : "bg-[#070D1A]/80 text-zinc-400 hover:text-white hover:bg-zinc-900 border border-emerald-900/30 backdrop-blur-md")
                   }`}
                 >
                   <Code2 size={15} />
                   <span>Act II: QuantConnect + TradingView Studio</span>
                   <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded border ${
-                    isLight ? "bg-[#F0EBE1] text-[#D97757] border-[#D9D2C5]" : "bg-orange-950 text-orange-300 border-orange-700/50"
+                    isLight ? "bg-[#F0EBE1] text-[#10B981] border-[#D9D2C5]" : "bg-emerald-950 text-emerald-300 border-emerald-700/50"
                   }`}>
                     HYBRID
                   </span>
@@ -730,10 +730,10 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                   onClick={() => setSubTab("analytics")}
                   className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
                     subTab === "analytics"
-                      ? (isLight ? "bg-[#D97757] text-white shadow-md" : "bg-orange-500 text-zinc-950 shadow-[0_0_20px_rgba(249,115,22,0.3)]")
+                      ? (isLight ? "bg-[#10B981] text-white shadow-md" : "bg-emerald-500 text-zinc-950 shadow-[0_0_20px_rgba(16,185,129,0.3)]")
                       : (isLight
                           ? "bg-[#FAF8F5] text-[#78716C] border border-[#EAE5D9] hover:bg-[#F0EBE1] hover:text-[#1E1E1E]"
-                          : "bg-[#070D1A]/80 text-zinc-400 hover:text-white hover:bg-zinc-900 border border-orange-900/30 backdrop-blur-md")
+                          : "bg-[#070D1A]/80 text-zinc-400 hover:text-white hover:bg-zinc-900 border border-emerald-900/30 backdrop-blur-md")
                   }`}
                 >
                   <BarChart3 size={15} />
@@ -744,8 +744,8 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
               <Button
                 onClick={createSandbox}
                 className={isLight
-                  ? "bg-[#F0EBE1] text-[#D97757] border border-[#D9D2C5] font-bold text-xs h-9 px-4 rounded-xl cursor-pointer hover:bg-[#E2DDD2]"
-                  : "bg-orange-950/80 hover:bg-orange-900/80 border border-orange-500/40 text-orange-300 font-bold text-xs h-9 px-4 rounded-xl cursor-pointer"
+                  ? "bg-[#F0EBE1] text-[#10B981] border border-[#D9D2C5] font-bold text-xs h-9 px-4 rounded-xl cursor-pointer hover:bg-[#E2DDD2]"
+                  : "bg-emerald-950/80 hover:bg-emerald-900/80 border border-emerald-500/40 text-emerald-300 font-bold text-xs h-9 px-4 rounded-xl cursor-pointer"
                 }
               >
                 <Plus size={14} className="mr-1.5" />
@@ -762,10 +762,10 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                 <div className={`rounded-2xl border p-6 shadow-2xl space-y-4 font-mono ${
                   isLight
                     ? "bg-[#FAF8F5] border-[#EAE5D9]"
-                    : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                    : "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl"
                 }`}>
                   <div className={`flex items-center justify-between border-b pb-4 ${
-                    isLight ? "border-[#EAE5D9]" : "border-orange-950/40"
+                    isLight ? "border-[#EAE5D9]" : "border-emerald-950/40"
                   }`}>
                     <div className="flex items-center gap-3">
                       <div className={`p-2.5 rounded-xl border ${
@@ -794,7 +794,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                     <table className="w-full text-left text-xs">
                       <thead>
                         <tr className={`border-b text-[10px] uppercase tracking-wider ${
-                          isLight ? "border-[#EAE5D9] text-[#78716C]" : "border-orange-950/40 text-zinc-400"
+                          isLight ? "border-[#EAE5D9] text-[#78716C]" : "border-emerald-950/40 text-zinc-400"
                         }`}>
                           <th className="pb-3 font-bold">Strategy Name</th>
                           <th className="pb-3 font-bold">State</th>
@@ -818,8 +818,8 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                               key={s.strategy_id}
                               className={`transition-all ${
                                 isSelected
-                                  ? (isLight ? "bg-[#F3EFE6]" : "bg-orange-950/40")
-                                  : (isLight ? "hover:bg-[#F8F4EC]" : "hover:bg-orange-950/30")
+                                  ? (isLight ? "bg-[#F3EFE6]" : "bg-emerald-950/40")
+                                  : (isLight ? "hover:bg-[#F8F4EC]" : "hover:bg-emerald-950/30")
                               }`}
                             >
                               <td className={`py-4 font-bold flex items-center gap-2 ${isLight ? "text-[#1E1E1E]" : "text-white"}`}>
@@ -838,7 +838,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                               <td className="w-[200px]">
                                 <div className="space-y-1">
                                   <div className={`flex justify-between text-[10px] font-mono ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>
-                                    <span>Actual: <strong className={isLight ? "text-[#D97757]" : "text-orange-300"}>{pct(s.actual_pct)}</strong></span>
+                                    <span>Actual: <strong className={isLight ? "text-[#10B981]" : "text-emerald-300"}>{pct(s.actual_pct)}</strong></span>
                                     <span>Target: <strong className={isLight ? "text-[#1E1E1E]" : "text-white"}>{pct(s.allocation_pct)}</strong></span>
                                   </div>
                                   <div className={`relative h-1.5 rounded-full overflow-hidden border ${
@@ -847,8 +847,8 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                                     <div
                                       className={`h-full rounded-full ${
                                         isLight
-                                          ? "bg-[#D97757]"
-                                          : "bg-gradient-to-r from-orange-500 to-amber-400"
+                                          ? "bg-[#10B981]"
+                                          : "bg-gradient-to-r from-emerald-500 to-amber-400"
                                       }`}
                                       style={{ width: `${actual}%` }}
                                     />
@@ -865,7 +865,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                               <td className={`text-right font-bold ${
                                 up
                                   ? (isLight ? "text-[#276749]" : "text-emerald-400")
-                                  : (isLight ? "text-[#D97757]" : "text-rose-400")
+                                  : (isLight ? "text-[#10B981]" : "text-rose-400")
                               }`}>
                                 {up ? "+" : ""}{money(pnl)}
                               </td>
@@ -876,7 +876,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                                     <span
                                       key={sym}
                                       className={`text-[9px] font-bold px-2 py-0.5 rounded border ${
-                                        isLight ? "bg-[#F0EBE1] text-[#D97757] border-[#D9D2C5]" : "bg-orange-950 text-orange-300 border border-orange-700/40"
+                                        isLight ? "bg-[#F0EBE1] text-[#10B981] border-[#D9D2C5]" : "bg-emerald-950 text-emerald-300 border border-emerald-700/40"
                                       }`}
                                     >
                                       {sym}
@@ -893,7 +893,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                                       setSelected(s.strategy_id);
                                       setSubTab("ide");
                                     }}
-                                    className={isLight ? "bg-[#D97757] text-white font-bold text-[11px] h-7 px-2.5 rounded-lg cursor-pointer" : "bg-orange-950 hover:bg-orange-900 text-orange-300 border border-orange-500/40 text-[11px] font-bold h-7 px-2.5 rounded-lg cursor-pointer"}
+                                    className={isLight ? "bg-[#10B981] text-white font-bold text-[11px] h-7 px-2.5 rounded-lg cursor-pointer" : "bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold h-7 px-2.5 rounded-lg cursor-pointer"}
                                   >
                                     <Code2 size={12} className="mr-1" />
                                     Open IDE
@@ -921,14 +921,14 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                 <div className={`rounded-2xl border p-6 shadow-2xl space-y-4 font-mono ${
                   isLight
                     ? "bg-[#FAF8F5] border-[#EAE5D9]"
-                    : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                    : "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl"
                 }`}>
                   <div className={`flex items-center justify-between border-b pb-4 ${
-                    isLight ? "border-[#EAE5D9]" : "border-orange-950/40"
+                    isLight ? "border-[#EAE5D9]" : "border-emerald-950/40"
                   }`}>
                     <div className="flex items-center gap-3">
                       <div className={`p-2.5 rounded-xl border ${
-                        isLight ? "bg-[#F0EBE1] text-[#D97757] border-[#D9D2C5]" : "bg-orange-500/10 text-orange-400 border-orange-500/30"
+                        isLight ? "bg-[#F0EBE1] text-[#10B981] border-[#D9D2C5]" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
                       }`}>
                         <Layers size={20} />
                       </div>
@@ -945,7 +945,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                     <Button
                       size="sm"
                       onClick={createSandbox}
-                      className={isLight ? "bg-[#276749] text-white font-extrabold text-xs h-8 px-4 rounded-xl cursor-pointer" : "bg-gradient-to-r from-orange-500 to-amber-500 text-zinc-950 font-extrabold text-xs h-8 px-4 rounded-xl cursor-pointer"}
+                      className={isLight ? "bg-[#276749] text-white font-extrabold text-xs h-8 px-4 rounded-xl cursor-pointer" : "bg-gradient-to-r from-emerald-500 to-amber-500 text-zinc-950 font-extrabold text-xs h-8 px-4 rounded-xl cursor-pointer"}
                     >
                       <Plus size={14} className="mr-1" /> New Draft Model
                     </Button>
@@ -955,7 +955,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                     <table className="w-full text-left text-xs">
                       <thead>
                         <tr className={`border-b text-[10px] uppercase tracking-wider ${
-                          isLight ? "border-[#EAE5D9] text-[#78716C]" : "border-orange-950/40 text-zinc-400"
+                          isLight ? "border-[#EAE5D9] text-[#78716C]" : "border-emerald-950/40 text-zinc-400"
                         }`}>
                           <th className="pb-3 font-bold">Draft Model Name</th>
                           <th className="pb-3 font-bold">State</th>
@@ -974,8 +974,8 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                               key={s.strategy_id}
                               className={`transition-all ${
                                 isSelected
-                                  ? (isLight ? "bg-[#F3EFE6]" : "bg-orange-950/40")
-                                  : (isLight ? "hover:bg-[#F8F4EC]" : "hover:bg-orange-950/30")
+                                  ? (isLight ? "bg-[#F3EFE6]" : "bg-emerald-950/40")
+                                  : (isLight ? "hover:bg-[#F8F4EC]" : "hover:bg-emerald-950/30")
                               }`}
                             >
                               <td className={`py-4 font-bold flex items-center gap-2 ${isLight ? "text-[#1E1E1E]" : "text-white"}`}>
@@ -991,7 +991,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                                 </span>
                               </td>
 
-                              <td className={`font-mono font-bold ${isLight ? "text-[#D97757]" : "text-orange-300"}`}>{pct(s.allocation_pct)}</td>
+                              <td className={`font-mono font-bold ${isLight ? "text-[#10B981]" : "text-emerald-300"}`}>{pct(s.allocation_pct)}</td>
 
                               <td className={`font-mono font-bold ${isLight ? "text-[#276749]" : "text-emerald-400"}`}>2.52 Sharpe</td>
 
@@ -1001,7 +1001,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                                     <span
                                       key={sym}
                                       className={`text-[9px] font-bold px-2 py-0.5 rounded border ${
-                                        isLight ? "bg-[#F0EBE1] text-[#D97757] border-[#D9D2C5]" : "bg-orange-950 text-orange-300 border border-orange-700/40"
+                                        isLight ? "bg-[#F0EBE1] text-[#10B981] border-[#D9D2C5]" : "bg-emerald-950 text-emerald-300 border border-emerald-700/40"
                                       }`}
                                     >
                                       {sym}
@@ -1016,7 +1016,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                                     size="sm"
                                     onClick={() => deployStrategyCode(s.strategy_id)}
                                     disabled={deployBusy}
-                                    className={isLight ? "bg-[#276749] text-white font-extrabold text-[11px] h-7 px-3 rounded-lg cursor-pointer" : "bg-gradient-to-r from-orange-500 to-amber-500 text-zinc-950 font-extrabold text-[11px] h-7 px-3 rounded-lg shadow-md cursor-pointer"}
+                                    className={isLight ? "bg-[#276749] text-white font-extrabold text-[11px] h-7 px-3 rounded-lg cursor-pointer" : "bg-gradient-to-r from-emerald-500 to-amber-500 text-zinc-950 font-extrabold text-[11px] h-7 px-3 rounded-lg shadow-md cursor-pointer"}
                                   >
                                     <Rocket size={12} className="mr-1" />
                                     Deploy Strategy
@@ -1028,7 +1028,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                                       setSelected(s.strategy_id);
                                       setSubTab("ide");
                                     }}
-                                    className={isLight ? "bg-[#D97757] text-white font-bold text-[11px] h-7 px-2.5 rounded-lg cursor-pointer" : "bg-orange-950 hover:bg-orange-900 text-orange-300 border border-orange-500/40 text-[11px] font-bold h-7 px-2.5 rounded-lg cursor-pointer"}
+                                    className={isLight ? "bg-[#10B981] text-white font-bold text-[11px] h-7 px-2.5 rounded-lg cursor-pointer" : "bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold h-7 px-2.5 rounded-lg cursor-pointer"}
                                   >
                                     <Code2 size={12} className="mr-1" />
                                     Edit Python
@@ -1047,13 +1047,13 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                   {/* Strategy Allocation Donut */}
                   <div className={`lg:col-span-6 rounded-2xl border p-6 shadow-xl ${
-                    isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                    isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl"
                   }`}>
                     <div className={`flex items-center justify-between border-b pb-4 mb-4 font-mono ${
-                      isLight ? "border-[#EAE5D9]" : "border-orange-950/30"
+                      isLight ? "border-[#EAE5D9]" : "border-emerald-950/30"
                     }`}>
                       <div className="flex items-center gap-2">
-                        <PieChart size={18} className={isLight ? "text-[#D97757]" : "text-orange-400"} />
+                        <PieChart size={18} className={isLight ? "text-[#10B981]" : "text-emerald-400"} />
                         <span className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-[#1E1E1E]" : "text-zinc-200"}`}>
                           Fund Target vs Actual Strategy Allocation
                         </span>
@@ -1078,13 +1078,13 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
 
                   {/* Markowitz Efficient Frontier */}
                   <div className={`lg:col-span-6 rounded-2xl border p-6 shadow-xl space-y-4 font-mono ${
-                    isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                    isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl"
                   }`}>
                     <div className={`flex items-center justify-between border-b pb-4 ${
-                      isLight ? "border-[#EAE5D9]" : "border-orange-950/30"
+                      isLight ? "border-[#EAE5D9]" : "border-emerald-950/30"
                     }`}>
                       <div className="flex items-center gap-2">
-                        <Target size={18} className={isLight ? "text-[#D97757]" : "text-orange-400"} />
+                        <Target size={18} className={isLight ? "text-[#10B981]" : "text-emerald-400"} />
                         <div>
                           <span className={`text-sm font-bold uppercase tracking-wider block ${isLight ? "text-[#1E1E1E]" : "text-zinc-200"}`}>
                             PyPortfolioOpt Markowitz Optimizer
@@ -1098,8 +1098,8 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                           value={optMethod}
                           onChange={(e) => setOptMethod(e.target.value as any)}
                           className={isLight
-                            ? "bg-[#F0EBE1] text-xs font-bold text-[#D97757] rounded-lg px-2.5 py-1 border border-[#D9D2C5] outline-none cursor-pointer"
-                            : "bg-zinc-950 text-xs font-bold text-orange-300 rounded-lg px-2.5 py-1 border border-zinc-800 outline-none cursor-pointer"
+                            ? "bg-[#F0EBE1] text-xs font-bold text-[#10B981] rounded-lg px-2.5 py-1 border border-[#D9D2C5] outline-none cursor-pointer"
+                            : "bg-zinc-950 text-xs font-bold text-emerald-300 rounded-lg px-2.5 py-1 border border-zinc-800 outline-none cursor-pointer"
                           }
                         >
                           <option value="hrp">HRP (Hierarchical Risk Parity) 🌳</option>
@@ -1111,7 +1111,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                           size="sm"
                           onClick={runOptimization}
                           disabled={optRunning}
-                          className={isLight ? "bg-[#D97757] text-white font-bold text-xs h-7 px-3 cursor-pointer" : "bg-gradient-to-r from-orange-500 to-amber-500 text-zinc-950 font-bold text-xs h-7 px-3 cursor-pointer"}
+                          className={isLight ? "bg-[#10B981] text-white font-bold text-xs h-7 px-3 cursor-pointer" : "bg-gradient-to-r from-emerald-500 to-amber-500 text-zinc-950 font-bold text-xs h-7 px-3 cursor-pointer"}
                         >
                           {optRunning ? <Loader2 size={12} className="animate-spin" /> : "Optimize"}
                         </Button>
@@ -1160,17 +1160,17 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
               <div className={`rounded-2xl border p-6 shadow-2xl space-y-6 font-mono ${
                 isLight
                   ? "bg-[#FAF8F5] border-[#EAE5D9]"
-                  : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                  : "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl"
               }`}>
                 {/* Interactive Visual Node-Graph Canvas (QuantConnect Code Generator) */}
                 <VisualStrategyCanvas className="mb-6" />
                 {/* QUANTCONNECT LEAN WORKSPACE HEADER */}
                 <div className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${
-                  isLight ? "border-[#EAE5D9]" : "border-orange-950/40"
+                  isLight ? "border-[#EAE5D9]" : "border-emerald-950/40"
                 }`}>
                   <div className="flex items-center gap-3">
                     <div className={`p-2.5 rounded-xl border ${
-                      isLight ? "bg-[#F0EBE1] text-[#D97757] border-[#D9D2C5]" : "bg-orange-500/10 text-orange-400 border-orange-500/30"
+                      isLight ? "bg-[#F0EBE1] text-[#10B981] border-[#D9D2C5]" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
                     }`}>
                       <LineChart size={24} />
                     </div>
@@ -1187,7 +1187,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                         </span>
                       </div>
                       <p className={`text-xs mt-0.5 ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>
-                        TradingView price action & signal markers bound to <strong className={isLight ? "text-[#D97757]" : "text-orange-300"}>{strat.name}</strong> (LEAN Engine Python AST)
+                        TradingView price action & signal markers bound to <strong className={isLight ? "text-[#10B981]" : "text-emerald-300"}>{strat.name}</strong> (LEAN Engine Python AST)
                       </p>
                     </div>
                   </div>
@@ -1204,8 +1204,8 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                           onClick={() => selectPreset(key)}
                           className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
                             active
-                              ? (isLight ? "bg-[#D97757] text-white border-[#CC6B49] shadow-md" : "bg-gradient-to-r from-orange-500 to-amber-500 text-zinc-950 border-orange-400 shadow-md")
-                              : (isLight ? "bg-[#F0EBE1] text-[#78716C] border-[#D9D2C5] hover:text-[#1E1E1E]" : "bg-zinc-950/80 text-zinc-300 border-zinc-800 hover:border-orange-700/50 hover:text-white")
+                              ? (isLight ? "bg-[#10B981] text-white border-[#059669] shadow-md" : "bg-gradient-to-r from-emerald-500 to-amber-500 text-zinc-950 border-emerald-400 shadow-md")
+                              : (isLight ? "bg-[#F0EBE1] text-[#78716C] border-[#D9D2C5] hover:text-[#1E1E1E]" : "bg-zinc-950/80 text-zinc-300 border-zinc-800 hover:border-emerald-700/50 hover:text-white")
                           }`}
                         >
                           {preset.name}
@@ -1221,13 +1221,13 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                   <div className="lg:col-span-3 space-y-4">
                     {/* Watchlist Box */}
                     <div className={`rounded-xl border p-4 space-y-3 ${
-                      isLight ? "bg-[#FAF7F2] border-[#EAE5D9]" : "bg-[#070D1A] border-orange-900/40"
+                      isLight ? "bg-[#FAF7F2] border-[#EAE5D9]" : "bg-[#070D1A] border-emerald-900/40"
                     }`}>
                       <div className={`flex items-center justify-between border-b pb-2 ${
-                        isLight ? "border-[#EAE5D9]" : "border-orange-900/30"
+                        isLight ? "border-[#EAE5D9]" : "border-emerald-900/30"
                       }`}>
                         <span className={`text-xs font-bold uppercase ${isLight ? "text-[#1E1E1E]" : "text-zinc-300"}`}>TradingView Watchlist</span>
-                        <span className={`text-[10px] font-bold ${isLight ? "text-[#D97757]" : "text-orange-400"}`}>{assets.length} Tickers</span>
+                        <span className={`text-[10px] font-bold ${isLight ? "text-[#10B981]" : "text-emerald-400"}`}>{assets.length} Tickers</span>
                       </div>
 
                       <div className="space-y-1.5 max-h-[180px] overflow-y-auto">
@@ -1242,7 +1242,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                               }}
                               className={`w-full flex items-center justify-between py-2 px-3 rounded-lg border text-xs font-bold transition cursor-pointer ${
                                 isTarget
-                                  ? (isLight ? "bg-[#F0EBE1] border-[#D97757] text-[#D97757] shadow-sm" : "bg-orange-950/80 border-orange-500/60 text-orange-300 shadow-md")
+                                  ? (isLight ? "bg-[#F0EBE1] border-[#10B981] text-[#10B981] shadow-sm" : "bg-emerald-950/80 border-emerald-500/60 text-emerald-300 shadow-md")
                                   : (isLight ? "bg-[#FFFFFF] border-[#EAE5D9] text-[#78716C] hover:bg-[#F3EFE6]" : "bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-900")
                               }`}
                             >
@@ -1268,11 +1268,11 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                           onKeyDown={(e) => e.key === "Enter" && addAsset()}
                           placeholder="Scope Ticker e.g. NVDA"
                           className={isLight
-                            ? "bg-[#FFFFFF] border-[#D9D2C5] text-xs font-mono text-[#D97757] h-8"
-                            : "bg-zinc-950 border-zinc-800 text-xs font-mono text-orange-300 h-8"
+                            ? "bg-[#FFFFFF] border-[#D9D2C5] text-xs font-mono text-[#10B981] h-8"
+                            : "bg-zinc-950 border-zinc-800 text-xs font-mono text-emerald-300 h-8"
                           }
                         />
-                        <Button size="sm" onClick={addAsset} disabled={addBusy || !addSym.trim()} className={isLight ? "h-8 px-2.5 bg-[#D97757] text-white cursor-pointer" : "h-8 px-2.5 bg-orange-500 text-zinc-950 cursor-pointer"}>
+                        <Button size="sm" onClick={addAsset} disabled={addBusy || !addSym.trim()} className={isLight ? "h-8 px-2.5 bg-[#10B981] text-white cursor-pointer" : "h-8 px-2.5 bg-emerald-500 text-zinc-950 cursor-pointer"}>
                           <Plus size={14} />
                         </Button>
                       </div>
@@ -1280,10 +1280,10 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
 
                     {/* LEAN Backtest Execution Panel */}
                     <div className={`rounded-xl border p-4 space-y-3 ${
-                      isLight ? "bg-[#FAF7F2] border-[#EAE5D9]" : "bg-[#070D1A] border-orange-900/40"
+                      isLight ? "bg-[#FAF7F2] border-[#EAE5D9]" : "bg-[#070D1A] border-emerald-900/40"
                     }`}>
                       <span className={`text-xs font-bold uppercase block border-b pb-2 ${
-                        isLight ? "text-[#1E1E1E] border-[#EAE5D9]" : "text-zinc-300 border-orange-900/30"
+                        isLight ? "text-[#1E1E1E] border-[#EAE5D9]" : "text-zinc-300 border-emerald-900/30"
                       }`}>
                         LEAN Backtest Engine
                       </span>
@@ -1295,8 +1295,8 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                             value={targetAsset}
                             onChange={(e) => setTargetAsset(e.target.value)}
                             className={isLight
-                              ? "w-full h-8 rounded-lg border border-[#D9D2C5] bg-[#FFFFFF] px-2 text-xs font-bold text-[#D97757] outline-none cursor-pointer"
-                              : "w-full h-8 rounded-lg border border-zinc-800 bg-zinc-950 px-2 text-xs font-bold text-orange-300 outline-none cursor-pointer"
+                              ? "w-full h-8 rounded-lg border border-[#D9D2C5] bg-[#FFFFFF] px-2 text-xs font-bold text-[#10B981] outline-none cursor-pointer"
+                              : "w-full h-8 rounded-lg border border-zinc-800 bg-zinc-950 px-2 text-xs font-bold text-emerald-300 outline-none cursor-pointer"
                             }
                           >
                             {assets.map((sym) => (
@@ -1311,8 +1311,8 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                             value={btLookback}
                             onChange={(e) => setBtLookback(Number(e.target.value))}
                             className={isLight
-                              ? "w-full h-8 rounded-lg border border-[#D9D2C5] bg-[#FFFFFF] px-2 text-xs font-bold text-[#D97757] outline-none cursor-pointer"
-                              : "w-full h-8 rounded-lg border border-zinc-800 bg-zinc-950 px-2 text-xs font-bold text-orange-300 outline-none cursor-pointer"
+                              ? "w-full h-8 rounded-lg border border-[#D9D2C5] bg-[#FFFFFF] px-2 text-xs font-bold text-[#10B981] outline-none cursor-pointer"
+                              : "w-full h-8 rounded-lg border border-zinc-800 bg-zinc-950 px-2 text-xs font-bold text-emerald-300 outline-none cursor-pointer"
                             }
                           >
                             <option value={30}>30 Days</option>
@@ -1327,8 +1327,8 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                             onClick={runPythonBacktest}
                             disabled={btRunning}
                             className={isLight
-                              ? "w-full bg-[#D97757] hover:bg-[#CC6B49] text-white font-extrabold text-xs h-9 rounded-xl shadow-md cursor-pointer"
-                              : "w-full bg-gradient-to-r from-orange-500 to-amber-500 text-zinc-950 font-extrabold text-xs h-9 rounded-xl shadow-lg cursor-pointer"
+                              ? "w-full bg-[#10B981] hover:bg-[#059669] text-white font-extrabold text-xs h-9 rounded-xl shadow-md cursor-pointer"
+                              : "w-full bg-gradient-to-r from-emerald-500 to-amber-500 text-zinc-950 font-extrabold text-xs h-9 rounded-xl shadow-lg cursor-pointer"
                             }
                           >
                             {btRunning ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Play size={14} className="mr-1.5 fill-current" />}
@@ -1340,10 +1340,10 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                             disabled={deployBusy || !selected}
                             className={isLight
                               ? "w-full bg-[#F0EBE1] text-[#276749] border border-[#D9D2C5] font-extrabold text-xs h-9 rounded-xl cursor-pointer"
-                              : "w-full bg-zinc-900 hover:bg-orange-950/80 border border-orange-500/40 text-orange-300 font-extrabold text-xs h-9 rounded-xl cursor-pointer"
+                              : "w-full bg-zinc-900 hover:bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-extrabold text-xs h-9 rounded-xl cursor-pointer"
                             }
                           >
-                            {deployBusy ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Rocket size={14} className="mr-1.5 text-orange-400" />}
+                            {deployBusy ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Rocket size={14} className="mr-1.5 text-emerald-400" />}
                             Deploy [{targetAsset}] Live
                           </Button>
                         </div>
@@ -1364,10 +1364,10 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                     <div className={`p-3.5 rounded-xl border shadow-xl space-y-2 ${
                       isLight
                         ? "bg-[#FAF7F2] border-[#D9D2C5]"
-                        : "bg-[#0D1322] border-orange-500/40 shadow-2xl"
+                        : "bg-[#0D1322] border-emerald-500/40 shadow-2xl"
                     }`}>
                       <div className={`flex items-center gap-2 text-xs font-bold ${
-                        isLight ? "text-[#D97757]" : "text-orange-300"
+                        isLight ? "text-[#10B981]" : "text-emerald-300"
                       }`}>
                         <Bot size={16} className="animate-bounce" />
                         <span>ASK CLARK AI COPILOT TO GENERATE CODE FOR [{targetAsset}]</span>
@@ -1381,7 +1381,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                           placeholder={`e.g. 'Write TSLA channel breakout strategy with 5% stop loss'`}
                           className={isLight
                             ? "bg-[#FFFFFF] border-[#D9D2C5] text-xs font-mono text-[#1E1E1E] placeholder:text-[#A8A29E] flex-1 h-9"
-                            : "bg-zinc-950 border-zinc-800 text-xs font-mono text-white placeholder:text-zinc-500 flex-1 h-9 focus:border-orange-500"
+                            : "bg-zinc-950 border-zinc-800 text-xs font-mono text-white placeholder:text-zinc-500 flex-1 h-9 focus:border-emerald-500"
                           }
                         />
 
@@ -1389,8 +1389,8 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                           onClick={() => generateCodeWithClark()}
                           disabled={aiGenerating || !aiPrompt.trim()}
                           className={isLight
-                            ? "bg-[#D97757] hover:bg-[#CC6B49] text-white font-extrabold text-xs h-9 px-5 rounded-lg shadow-md cursor-pointer"
-                            : "bg-gradient-to-r from-orange-500 to-amber-500 text-zinc-950 font-extrabold text-xs h-9 px-5 rounded-lg shadow-md cursor-pointer"
+                            ? "bg-[#10B981] hover:bg-[#059669] text-white font-extrabold text-xs h-9 px-5 rounded-lg shadow-md cursor-pointer"
+                            : "bg-gradient-to-r from-emerald-500 to-amber-500 text-zinc-950 font-extrabold text-xs h-9 px-5 rounded-lg shadow-md cursor-pointer"
                           }
                         >
                           {aiGenerating ? <Loader2 size={14} className="animate-spin" /> : <><Wand2 size={14} className="mr-1.5" /> Generate Code</>}
@@ -1400,17 +1400,17 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
 
                     {/* QUANTCONNECT PYTHON CODE EDITOR */}
                     <div className={`rounded-xl border overflow-hidden shadow-2xl ${
-                      isLight ? "bg-[#FAF7F2] border-[#EAE5D9]" : "bg-[#040813] border-orange-900/50"
+                      isLight ? "bg-[#FAF7F2] border-[#EAE5D9]" : "bg-[#040813] border-emerald-900/50"
                     }`}>
                       <div className={`flex items-center justify-between px-3 py-2 border-b text-xs ${
-                        isLight ? "bg-[#F3EFE6] border-[#EAE5D9] text-[#78716C]" : "bg-[#080F22] border-orange-900/40 text-zinc-400"
+                        isLight ? "bg-[#F3EFE6] border-[#EAE5D9] text-[#78716C]" : "bg-[#080F22] border-emerald-900/40 text-zinc-400"
                       }`}>
                         <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => setActiveFile("main.py")}
                             className={`flex items-center gap-1.5 px-3 py-1 rounded-t-lg text-xs font-bold transition ${
                               activeFile === "main.py"
-                                ? (isLight ? "bg-[#FAF7F2] text-[#D97757] border-t-2 border-[#D97757]" : "bg-[#03060E] text-orange-300 border-t-2 border-orange-400")
+                                ? (isLight ? "bg-[#FAF7F2] text-[#10B981] border-t-2 border-[#10B981]" : "bg-[#03060E] text-emerald-300 border-t-2 border-emerald-400")
                                 : (isLight ? "text-[#78716C] hover:text-[#1E1E1E]" : "text-zinc-500 hover:text-zinc-300")
                             }`}
                           >
@@ -1421,7 +1421,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                             onClick={() => setActiveFile("indicators.py")}
                             className={`flex items-center gap-1.5 px-3 py-1 rounded-t-lg text-xs font-bold transition ${
                               activeFile === "indicators.py"
-                                ? (isLight ? "bg-[#FAF7F2] text-[#D97757] border-t-2 border-[#D97757]" : "bg-[#03060E] text-orange-300 border-t-2 border-orange-400")
+                                ? (isLight ? "bg-[#FAF7F2] text-[#10B981] border-t-2 border-[#10B981]" : "bg-[#03060E] text-emerald-300 border-t-2 border-emerald-400")
                                 : (isLight ? "text-[#78716C] hover:text-[#1E1E1E]" : "text-zinc-500 hover:text-zinc-300")
                             }`}
                           >
@@ -1456,7 +1456,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                       />
 
                       <div className={`flex items-center justify-between px-4 py-2 border-t text-[10px] ${
-                        isLight ? "bg-[#F3EFE6] border-[#EAE5D9] text-[#78716C]" : "bg-[#080F22] border-orange-900/40 text-zinc-400"
+                        isLight ? "bg-[#F3EFE6] border-[#EAE5D9] text-[#78716C]" : "bg-[#080F22] border-emerald-900/40 text-zinc-400"
                       }`}>
                         <div className="flex items-center gap-3">
                           <div className={`flex items-center gap-1.5 font-bold ${isLight ? "text-[#276749]" : "text-emerald-400"}`}>
@@ -1466,14 +1466,14 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                           <span>Lines: <strong className={isLight ? "text-[#1E1E1E]" : "text-white"}>{pythonCode.split("\n").length}</strong></span>
                         </div>
                         <div>
-                          <span>TradingView Symbol: <strong className={isLight ? "text-[#D97757]" : "text-orange-300"}>{targetAsset}</strong></span>
+                          <span>TradingView Symbol: <strong className={isLight ? "text-[#10B981]" : "text-emerald-300"}>{targetAsset}</strong></span>
                         </div>
                       </div>
                     </div>
 
                     {/* LOWER DRAWER PANEL (TERMINAL vs BACKTEST METRICS) */}
                     <div className={`rounded-xl border p-4 font-mono shadow-inner space-y-3 ${
-                      isLight ? "bg-[#FAF7F2] border-[#EAE5D9]" : "bg-[#03060F] border-orange-900/40"
+                      isLight ? "bg-[#FAF7F2] border-[#EAE5D9]" : "bg-[#03060F] border-emerald-900/40"
                     }`}>
                       <div className={`flex items-center justify-between border-b pb-2 ${
                         isLight ? "border-[#EAE5D9]" : "border-zinc-800"
@@ -1483,7 +1483,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                             onClick={() => setDrawerTab("terminal")}
                             className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
                               drawerTab === "terminal"
-                                ? (isLight ? "bg-[#F0EBE1] text-[#D97757] border border-[#D9D2C5]" : "bg-orange-950 text-orange-300 border border-orange-700/50")
+                                ? (isLight ? "bg-[#F0EBE1] text-[#10B981] border border-[#D9D2C5]" : "bg-emerald-950 text-emerald-300 border border-emerald-700/50")
                                 : "text-zinc-500 hover:text-zinc-300"
                             }`}
                           >
@@ -1493,7 +1493,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                             onClick={() => setDrawerTab("metrics")}
                             className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
                               drawerTab === "metrics"
-                                ? (isLight ? "bg-[#F0EBE1] text-[#D97757] border border-[#D9D2C5]" : "bg-orange-950 text-orange-300 border border-orange-700/50")
+                                ? (isLight ? "bg-[#F0EBE1] text-[#10B981] border border-[#D9D2C5]" : "bg-emerald-950 text-emerald-300 border border-emerald-700/50")
                                 : "text-zinc-500 hover:text-zinc-300"
                             }`}
                           >
@@ -1512,7 +1512,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                                   log.includes("COMPLETED") || log.includes("DEPLOYED")
                                     ? (isLight ? "text-[#276749] font-bold" : "text-emerald-400 font-bold")
                                     : log.includes("Clark AI") || log.includes("Switched")
-                                    ? (isLight ? "text-[#D97757] font-bold" : "text-orange-300 font-bold")
+                                    ? (isLight ? "text-[#10B981] font-bold" : "text-emerald-300 font-bold")
                                     : (isLight ? "text-[#78716C]" : "text-zinc-400")
                                 }
                               >
@@ -1533,13 +1533,13 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                             isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/80 border-zinc-800"
                           }`}>
                             <span className={`text-[10px] block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Sharpe Ratio</span>
-                            <span className={`text-sm font-black ${isLight ? "text-[#D97757]" : "text-orange-300"}`}>{(btResults[0]?.result?.sharpe || 0).toFixed(2)}</span>
+                            <span className={`text-sm font-black ${isLight ? "text-[#10B981]" : "text-emerald-300"}`}>{(btResults[0]?.result?.sharpe || 0).toFixed(2)}</span>
                           </div>
                           <div className={`p-2.5 rounded-lg border text-center ${
                             isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/80 border-zinc-800"
                           }`}>
                             <span className={`text-[10px] block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Max Drawdown</span>
-                            <span className={`text-sm font-black ${isLight ? "text-[#D97757]" : "text-rose-400"}`}>-{pct((btResults[0]?.result?.max_drawdown || 0) * 100)}</span>
+                            <span className={`text-sm font-black ${isLight ? "text-[#10B981]" : "text-rose-400"}`}>-{pct((btResults[0]?.result?.max_drawdown || 0) * 100)}</span>
                           </div>
                           <div className={`p-2.5 rounded-lg border text-center ${
                             isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/80 border-zinc-800"
@@ -1562,49 +1562,49 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 font-mono">
                   <div className={`p-5 rounded-2xl border shadow-xl space-y-1 ${
-                    isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                    isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl"
                   }`}>
                     <span className={`text-xs font-bold block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>ACTIVE STRATEGY</span>
                     <span className={`text-lg font-extrabold ${isLight ? "text-[#1E1E1E]" : "text-white"}`}>{strat.name}</span>
                   </div>
 
                   <div className={`p-5 rounded-2xl border shadow-xl space-y-1 ${
-                    isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                    isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl"
                   }`}>
                     <span className={`text-xs font-bold block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>TARGET SYMBOL</span>
-                    <span className={`text-lg font-extrabold ${isLight ? "text-[#D97757]" : "text-orange-300"}`}>{targetAsset}</span>
+                    <span className={`text-lg font-extrabold ${isLight ? "text-[#10B981]" : "text-emerald-300"}`}>{targetAsset}</span>
                   </div>
 
                   <div className={`p-5 rounded-2xl border shadow-xl space-y-1 ${
-                    isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                    isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl"
                   }`}>
                     <span className={`text-xs font-bold block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>ANNUALIZED RETURN</span>
                     <span className={`text-lg font-extrabold ${isLight ? "text-[#276749]" : "text-emerald-400"}`}>+34.80%</span>
                   </div>
 
                   <div className={`p-5 rounded-2xl border shadow-xl space-y-1 ${
-                    isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                    isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl"
                   }`}>
                     <span className={`text-xs font-bold block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>SHARPE RATIO</span>
-                    <span className={`text-lg font-extrabold ${isLight ? "text-[#D97757]" : "text-orange-300"}`}>2.52</span>
+                    <span className={`text-lg font-extrabold ${isLight ? "text-[#10B981]" : "text-emerald-300"}`}>2.52</span>
                   </div>
                 </div>
 
                 {/* 🔥 INSTITUTIONAL FAMA-FRENCH 5-FACTOR ENGINE */}
                 <div className={`rounded-2xl border p-6 shadow-2xl space-y-4 font-mono ${
-                  isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                  isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl"
                 }`}>
                   <div className={`flex items-center justify-between border-b pb-3 ${
-                    isLight ? "border-[#EAE5D9]" : "border-orange-950/30"
+                    isLight ? "border-[#EAE5D9]" : "border-emerald-950/30"
                   }`}>
                     <div className="flex items-center gap-2">
-                      <Sparkles size={18} className={isLight ? "text-[#D97757]" : "text-orange-400"} />
+                      <Sparkles size={18} className={isLight ? "text-[#10B981]" : "text-emerald-400"} />
                       <h3 className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-[#1E1E1E]" : "text-white"}`}>
                         Fama-French Quantitative Factor Exposure Breakdown
                       </h3>
                     </div>
                     <span className={`text-xs font-bold px-2.5 py-0.5 rounded border ${
-                      isLight ? "bg-[#F0EBE1] text-[#D97757] border-[#D9D2C5]" : "text-orange-300 bg-orange-950/80 border-orange-700/50"
+                      isLight ? "bg-[#F0EBE1] text-[#10B981] border-[#D9D2C5]" : "text-emerald-300 bg-emerald-950/80 border-emerald-700/50"
                     }`}>
                       Alpha Tilt Engine Active
                     </span>
@@ -1625,9 +1625,9 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                       isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/80 border-zinc-800"
                     }`}>
                       <span className={`text-[10px] block font-bold ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Momentum (MOM)</span>
-                      <span className={`text-base font-black ${isLight ? "text-[#D97757]" : "text-orange-300"}`}>+0.84</span>
+                      <span className={`text-base font-black ${isLight ? "text-[#10B981]" : "text-emerald-300"}`}>+0.84</span>
                       <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-1 rounded-full overflow-hidden">
-                        <div className="bg-orange-500 h-full w-[84%]" />
+                        <div className="bg-emerald-500 h-full w-[84%]" />
                       </div>
                     </div>
 
@@ -1645,9 +1645,9 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                       isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/80 border-zinc-800"
                     }`}>
                       <span className={`text-[10px] block font-bold ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Quality (QMJ)</span>
-                      <span className={`text-base font-black ${isLight ? "text-[#D97757]" : "text-orange-400"}`}>+0.65</span>
+                      <span className={`text-base font-black ${isLight ? "text-[#10B981]" : "text-emerald-400"}`}>+0.65</span>
                       <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-1 rounded-full overflow-hidden">
-                        <div className="bg-orange-400 h-full w-[65%]" />
+                        <div className="bg-emerald-400 h-full w-[65%]" />
                       </div>
                     </div>
 
@@ -1665,19 +1665,19 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
 
                 {/* 🔥 1-CLICK HISTORICAL CRASH STRESS TESTER */}
                 <div className={`rounded-2xl border p-6 shadow-2xl space-y-4 font-mono ${
-                  isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                  isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl"
                 }`}>
                   <div className={`flex items-center justify-between border-b pb-3 ${
-                    isLight ? "border-[#EAE5D9]" : "border-orange-950/30"
+                    isLight ? "border-[#EAE5D9]" : "border-emerald-950/30"
                   }`}>
                     <div className="flex items-center gap-2">
-                      <ShieldAlert size={18} className={isLight ? "text-[#D97757]" : "text-rose-400"} />
+                      <ShieldAlert size={18} className={isLight ? "text-[#10B981]" : "text-rose-400"} />
                       <h3 className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-[#1E1E1E]" : "text-white"}`}>
                         1-Click Historical Crash Scenario Stress Tester
                       </h3>
                     </div>
                     <span className={`text-xs font-bold px-2.5 py-0.5 rounded border ${
-                      isLight ? "bg-[#F0EBE1] text-[#D97757] border-[#D9D2C5]" : "text-rose-400 bg-rose-950/80 border-rose-700/50"
+                      isLight ? "bg-[#F0EBE1] text-[#10B981] border-[#D9D2C5]" : "text-rose-400 bg-rose-950/80 border-rose-700/50"
                     }`}>
                       Monte Carlo & Shock Matrix
                     </span>
@@ -1688,7 +1688,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                       onClick={() => setActiveShockScenario("2008 Crisis")}
                       className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         activeShockScenario === "2008 Crisis"
-                          ? (isLight ? "bg-[#D97757] text-white border-[#CC6B49]" : "bg-rose-500 text-zinc-950 border-rose-400 shadow-md")
+                          ? (isLight ? "bg-[#10B981] text-white border-[#059669]" : "bg-rose-500 text-zinc-950 border-rose-400 shadow-md")
                           : (isLight ? "bg-[#FFFFFF] text-[#78716C] border-[#D9D2C5] hover:bg-[#F3EFE6]" : "bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-rose-700/50")
                       }`}
                     >
@@ -1699,7 +1699,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                       onClick={() => setActiveShockScenario("COVID Shock")}
                       className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         activeShockScenario === "COVID Shock"
-                          ? (isLight ? "bg-[#D97757] text-white border-[#CC6B49]" : "bg-rose-500 text-zinc-950 border-rose-400 shadow-md")
+                          ? (isLight ? "bg-[#10B981] text-white border-[#059669]" : "bg-rose-500 text-zinc-950 border-rose-400 shadow-md")
                           : (isLight ? "bg-[#FFFFFF] text-[#78716C] border-[#D9D2C5] hover:bg-[#F3EFE6]" : "bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-rose-700/50")
                       }`}
                     >
@@ -1710,7 +1710,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                       onClick={() => setActiveShockScenario("Rate Hikes")}
                       className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         activeShockScenario === "Rate Hikes"
-                          ? (isLight ? "bg-[#D97757] text-white border-[#CC6B49]" : "bg-rose-500 text-zinc-950 border-rose-400 shadow-md")
+                          ? (isLight ? "bg-[#10B981] text-white border-[#059669]" : "bg-rose-500 text-zinc-950 border-rose-400 shadow-md")
                           : (isLight ? "bg-[#FFFFFF] text-[#78716C] border-[#D9D2C5] hover:bg-[#F3EFE6]" : "bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-rose-700/50")
                       }`}
                     >
@@ -1734,7 +1734,7 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                       isLight ? "bg-[#F3EFE6] border-[#D9D2C5] text-[#2D2B2A]" : "bg-rose-950/30 border-rose-500/40 text-zinc-300"
                     }`}>
                       <div className="flex items-center justify-between font-bold">
-                        <span className={isLight ? "text-[#D97757]" : "text-rose-300"}>STRESS TEST IMPACT FOR [{strat.name.toUpperCase()}]: {activeShockScenario}</span>
+                        <span className={isLight ? "text-[#10B981]" : "text-rose-300"}>STRESS TEST IMPACT FOR [{strat.name.toUpperCase()}]: {activeShockScenario}</span>
                         <span className={isLight ? "text-[#276749]" : "text-emerald-400"}>Pre-Trade Risk Gates PASSING</span>
                       </div>
                       <div className="grid grid-cols-3 gap-3 pt-1">
@@ -1742,13 +1742,13 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
                           isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/60 border-zinc-800"
                         }`}>
                           <span className={`text-[10px] block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Projected $ P&L Impact</span>
-                          <span className={`text-sm font-extrabold ${isLight ? "text-[#D97757]" : "text-rose-400"}`}>-$2,140.50 (-9.8%)</span>
+                          <span className={`text-sm font-extrabold ${isLight ? "text-[#10B981]" : "text-rose-400"}`}>-$2,140.50 (-9.8%)</span>
                         </div>
                         <div className={`p-2.5 rounded-lg border ${
                           isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/60 border-zinc-800"
                         }`}>
                           <span className={`text-[10px] block ${isLight ? "text-[#78716C]" : "text-zinc-400"}`}>Maximum Drawdown</span>
-                          <span className={`text-sm font-extrabold ${isLight ? "text-[#D97757]" : "text-amber-400"}`}>-12.4%</span>
+                          <span className={`text-sm font-extrabold ${isLight ? "text-[#10B981]" : "text-amber-400"}`}>-12.4%</span>
                         </div>
                         <div className={`p-2.5 rounded-lg border ${
                           isLight ? "bg-[#FFFFFF] border-[#EAE5D9]" : "bg-zinc-950/60 border-zinc-800"
@@ -1763,12 +1763,12 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
 
                 {/* Asset Correlation Matrix */}
                 <div className={`rounded-2xl border p-6 shadow-2xl space-y-4 font-mono ${
-                  isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-orange-500/20 backdrop-blur-xl"
+                  isLight ? "bg-[#FAF8F5] border-[#EAE5D9]" : "bg-[#070D1B]/80 border-emerald-500/20 backdrop-blur-xl"
                 }`}>
                   <div className={`flex items-center gap-2 border-b pb-3 ${
-                    isLight ? "border-[#EAE5D9]" : "border-orange-950/30"
+                    isLight ? "border-[#EAE5D9]" : "border-emerald-950/30"
                   }`}>
-                    <BarChart3 size={18} className={isLight ? "text-[#D97757]" : "text-orange-400"} />
+                    <BarChart3 size={18} className={isLight ? "text-[#10B981]" : "text-emerald-400"} />
                     <h3 className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-[#1E1E1E]" : "text-zinc-200"}`}>
                       Asset Pair Return Correlation Matrix
                     </h3>

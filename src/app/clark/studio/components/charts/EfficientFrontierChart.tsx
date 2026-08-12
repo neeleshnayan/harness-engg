@@ -109,8 +109,8 @@ export function EfficientFrontierChart({ points, assets, height = 240, className
           <Scatter
             name="Efficient Frontier"
             data={data}
-            fill={isLight ? "#D97757" : "#F97316"}
-            line={{ stroke: isLight ? "#D97757" : "#F97316", strokeWidth: 2 }}
+            fill={isLight ? "#10B981" : "#34D399"}
+            line={{ stroke: isLight ? "#10B981" : "#34D399", strokeWidth: 2 }}
             shape="circle"
           />
           <Scatter

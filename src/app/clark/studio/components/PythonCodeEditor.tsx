@@ -20,9 +20,9 @@ function highlightPython(code: string, theme: "dark" | "light" = "dark"): string
   // Anthropic Color Tokens
   const commentColor = isLight ? "#78716C" : "#64748B";
   const stringColor = isLight ? "#276749" : "#34D399";
-  const kwColor = isLight ? "#D97757" : "#F97316"; // Anthropic Terracotta / Warm Orange
+  const kwColor = isLight ? "#10B981" : "#34D399"; // Anthropic Terracotta / Emerald Green
   const typeColor = isLight ? "#2563EB" : "#38BDF8";
-  const signalColor = isLight ? "#D97757" : "#FB923C";
+  const signalColor = isLight ? "#10B981" : "#6EE7B7";
   const funcColor = isLight ? "#1E293B" : "#F8FAFC";
   const numColor = isLight ? "#0284C7" : "#38BDF8";
 
@@ -41,7 +41,7 @@ function highlightPython(code: string, theme: "dark" | "light" = "dark"): string
       `<span style="color: ${stringColor}; font-weight: 500;">$1</span>`
     );
 
-    // 3. Keywords (Anthropic Terracotta Orange)
+    // 3. Keywords (Anthropic Emerald Green)
     const keywords = [
       "import", "from", "class", "def", "return", "if", "elif", "else",
       "self", "in", "and", "or", "not", "is", "None", "True", "False",
@@ -136,7 +136,7 @@ export function PythonCodeEditor({
       className={`relative flex border font-mono text-xs transition-all rounded-b-xl shadow-2xl ${
         isLight
           ? "bg-[#FAF7F2] border-[#EAE5D9] text-[#2D2B2A]"
-          : "bg-[#090D18] border-orange-500/20 text-zinc-100 backdrop-blur-xl"
+          : "bg-[#090D18] border-emerald-500/20 text-zinc-100 backdrop-blur-xl"
       }`}
       style={{ height }}
     >
@@ -146,7 +146,7 @@ export function PythonCodeEditor({
         className={`w-12 select-none overflow-hidden text-right pr-3 pt-3 font-mono text-xs leading-[1.625] border-r ${
           isLight
             ? "bg-[#F3EFE6] text-[#A8A29E] border-[#EAE5D9]"
-            : "bg-[#0D1322] text-zinc-600 border-orange-950/40"
+            : "bg-[#0D1322] text-zinc-600 border-emerald-950/40"
         }`}
       >
         {Array.from({ length: lineCount }, (_, i) => (
@@ -174,7 +174,7 @@ export function PythonCodeEditor({
           autoCapitalize="off"
           autoComplete="off"
           autoCorrect="off"
-          className="absolute inset-0 w-full h-full p-3 font-mono text-xs leading-[1.625] bg-transparent text-transparent caret-orange-500 focus:outline-none resize-none whitespace-pre tab-4 selection:bg-orange-500/30 overflow-auto"
+          className="absolute inset-0 w-full h-full p-3 font-mono text-xs leading-[1.625] bg-transparent text-transparent caret-emerald-400 focus:outline-none resize-none whitespace-pre tab-4 selection:bg-emerald-500/30 overflow-auto"
           style={{
             WebkitTextFillColor: "transparent",
           }}
