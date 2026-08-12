@@ -153,6 +153,34 @@ class AlpacaConnector(Connector):
         acct = self._trading().get_account()
         return [Balance(venue=self.name, asset="USD", amount=float(acct.cash))]
 
+    def account_info(self) -> dict[str, Any]:
+        if not (self._key and self._secret):
+            return {
+                "venue": self.name,
+                "configured": False,
+                "mode": "unconfigured",
+                "message": "Alpaca API credentials missing. Set ALPACA_API_KEY and ALPACA_SECRET_KEY in .env",
+            }
+        try:
+            acct = self._trading().get_account()
+            return {
+                "venue": self.name,
+                "configured": True,
+                "mode": "alpaca_paper" if self._paper else "alpaca_live",
+                "portfolio_value": float(acct.portfolio_value),
+                "equity": float(acct.equity),
+                "cash": float(acct.cash),
+                "buying_power": float(acct.buying_power),
+                "currency": getattr(acct, "currency", "USD"),
+                "status": getattr(acct, "status", "ACTIVE"),
+            }
+        except Exception as e:
+            return {
+                "venue": self.name,
+                "configured": True,
+                "error": str(e),
+            }
+
     # --- helpers -----------------------------------------------------------
     @staticmethod
     def _get_by_client_id(trading, client_order_id: str):

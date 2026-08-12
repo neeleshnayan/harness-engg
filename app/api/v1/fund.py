@@ -139,6 +139,18 @@ def post_nav_strike(req: ActorRequest | None = None):
 
 
 # --- reads -----------------------------------------------------------------
+@router.get("/fund/venue/account")
+def get_venue_account():
+    """Live broker account info (Alpaca equity, cash, buying power, positions)."""
+    if hasattr(_connector, "account_info"):
+        return _connector.account_info()
+    return {
+        "venue": getattr(_connector, "name", "paper"),
+        "configured": False,
+        "mode": "paper_mock",
+    }
+
+
 @router.get("/fund/nav")
 def get_nav():
     """Live (unstruck) valuation plus the last struck snapshot."""
