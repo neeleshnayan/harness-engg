@@ -1,20 +1,154 @@
-"""Portfolio optimization via PyPortfolioOpt.
+"""Portfolio optimization via PyPortfolioOpt & skfolio-style Purged Cross Validation.
 
 Calculates optimal weights for a set of scoped assets based on historical data.
-Objectives supported: max_sharpe, min_volatility.
+Methods supported:
+- hrp: Hierarchical Risk Parity (robust, no return estimates required, Lopez de Prado)
+- max_sharpe: Tangency Mean-Variance Optimization
+- min_volatility: Minimum Variance Optimization
+- purged_cv: Purged & Embargoed K-Fold Cross Validation for out-of-sample backtest anti-overfitting
 """
 
+import numpy as np
 import pandas as pd
-from pypfopt import expected_returns, risk_models
+from pypfopt import expected_returns, risk_models, HRPOpt
 from pypfopt.efficient_frontier import EfficientFrontier
 
 from app.fund.marketdata import fetch_daily_bars, BarsError
 
-def optimize_portfolio(symbols: list[str], lookback_days: int = 365, method: str = "max_sharpe") -> dict:
-    """Calculate optimal weights, efficient frontier, and correlation for the given symbols using PyPortfolioOpt."""
+
+def purged_cross_validation(df: pd.DataFrame, method: str = "hrp", n_splits: int = 5, purge_days: int = 5) -> dict:
+    """
+    Perform skfolio-style Purged & Embargoed K-Fold Cross Validation.
+    Prevents backtest lookahead & serial correlation leakage.
+    Returns OOS Sharpe, OOS Return, OOS Max Drawdown, and Probability of Backtest Overfitting (PBO).
+    """
+    if df.empty or len(df) < (n_splits * 10):
+        return {
+            "oos_sharpe": 0.0,
+            "oos_annual_return": 0.0,
+            "oos_max_drawdown": 0.0,
+            "pbo": 0.0,
+            "folds": [],
+        }
+
+    returns_df = df.pct_change().dropna()
+    n_obs = len(returns_df)
+    if n_obs < (n_splits * 5):
+        return {
+            "oos_sharpe": 0.0,
+            "oos_annual_return": 0.0,
+            "oos_max_drawdown": 0.0,
+            "pbo": 0.0,
+            "folds": [],
+        }
+
+    fold_size = n_obs // n_splits
+    oos_returns = []
+    fold_results = []
+    is_sharpes = []
+    oos_sharpes = []
+
+    for k in range(n_splits):
+        test_start = k * fold_size
+        test_end = (k + 1) * fold_size if k < n_splits - 1 else n_obs
+
+        # Mask test period and purge/embargo windows
+        train_mask = np.ones(n_obs, dtype=bool)
+        train_mask[max(0, test_start - purge_days): min(n_obs, test_end + purge_days)] = False
+
+        train_returns = returns_df.iloc[train_mask]
+        test_returns = returns_df.iloc[test_start:test_end]
+
+        if len(train_returns) < 10 or len(test_returns) < 5:
+            continue
+
+        try:
+            if method == "hrp":
+                hrp = HRPOpt(train_returns)
+                w_dict = hrp.optimize()
+                cleaned_weights = {k: float(v) for k, v in w_dict.items()}
+            elif method == "min_volatility":
+                S = risk_models.sample_cov(train_returns, returns_data=True)
+                ef = EfficientFrontier(None, S)
+                ef.min_volatility()
+                cleaned_weights = {k: float(v) for k, v in ef.clean_weights().items()}
+            else:
+                mu = expected_returns.mean_historical_return(train_returns, returns_data=True)
+                S = risk_models.sample_cov(train_returns, returns_data=True)
+                ef = EfficientFrontier(mu, S)
+                ef.max_sharpe()
+                cleaned_weights = {k: float(v) for k, v in ef.clean_weights().items()}
+
+            weights_arr = np.array([cleaned_weights.get(c, 0.0) for c in returns_df.columns])
+
+            # Calculate In-Sample (IS) metrics
+            is_ret = train_returns.values @ weights_arr
+            is_mean = np.mean(is_ret) * 252
+            is_vol = np.std(is_ret) * np.sqrt(252) + 1e-8
+            is_sharpe = float(is_mean / is_vol)
+            is_sharpes.append(is_sharpe)
+
+            # Calculate Out-Of-Sample (OOS) metrics
+            oos_ret = test_returns.values @ weights_arr
+            oos_returns.extend(oos_ret.tolist())
+
+            oos_mean = np.mean(oos_ret) * 252
+            oos_vol = np.std(oos_ret) * np.sqrt(252) + 1e-8
+            oos_sharpe = float(oos_mean / oos_vol)
+            oos_sharpes.append(oos_sharpe)
+
+            fold_results.append({
+                "fold": k + 1,
+                "is_sharpe": round(is_sharpe, 2),
+                "oos_sharpe": round(oos_sharpe, 2),
+                "weights": {c: round(float(cleaned_weights.get(c, 0.0)), 4) for c in returns_df.columns},
+            })
+        except Exception:
+            continue
+
+    if not oos_returns:
+        return {
+            "oos_sharpe": 0.0,
+            "oos_annual_return": 0.0,
+            "oos_max_drawdown": 0.0,
+            "pbo": 0.0,
+            "folds": [],
+        }
+
+    all_oos = np.array(oos_returns)
+    total_mean = np.mean(all_oos) * 252
+    total_vol = np.std(all_oos) * np.sqrt(252) + 1e-8
+    total_sharpe = float(total_mean / total_vol)
+
+    cum = np.cumprod(1 + all_oos)
+    peak = np.maximum.accumulate(cum)
+    dd = (cum - peak) / peak
+    max_dd = float(np.min(dd)) if len(dd) > 0 else 0.0
+
+    # Probability of Backtest Overfitting (PBO): proportion of folds where OOS Sharpe degraded < 0.5 * IS Sharpe
+    degraded = sum(1 for is_s, oos_s in zip(is_sharpes, oos_sharpes) if oos_s < (is_s * 0.5))
+    pbo = float(degraded / len(is_sharpes)) if is_sharpes else 0.0
+
+    return {
+        "oos_sharpe": round(total_sharpe, 2),
+        "oos_annual_return": round(float(total_mean), 4),
+        "oos_max_drawdown": round(max_dd, 4),
+        "pbo": round(pbo, 2),
+        "folds": fold_results,
+    }
+
+
+def optimize_portfolio(symbols: list[str], lookback_days: int = 365, method: str = "hrp") -> dict:
+    """
+    Calculate optimal weights, efficient frontier, correlation, and skfolio-style cross validation.
+    Methods supported:
+    - 'hrp': Hierarchical Risk Parity (Default - robust, no return estimates needed)
+    - 'max_sharpe': Tangency Mean-Variance Optimization
+    - 'min_volatility': Minimum Variance Optimization
+    """
     if not symbols:
-        return {"weights": {}, "frontier_points": [], "correlation": {}}
-        
+        return {"weights": {}, "frontier_points": [], "correlation": {}, "cv_metrics": {}}
+
     prices = {}
     for sym in symbols:
         try:
@@ -25,73 +159,83 @@ def optimize_portfolio(symbols: list[str], lookback_days: int = 365, method: str
             prices[sym] = series
         except BarsError:
             continue
-            
+
     if not prices:
         return {
             "weights": {sym: 1.0 / len(symbols) for sym in symbols},
             "frontier_points": [],
-            "correlation": {}
+            "correlation": {},
+            "cv_metrics": {},
         }
-        
+
     # Build dataframe, ffill and bfill to handle missing data
     df = pd.DataFrame(prices)
     df = df.dropna(how="all").ffill().bfill()
-    
+
     try:
-        # Calculate expected returns and sample covariance matrix
-        mu = expected_returns.mean_historical_return(df)
-        S = risk_models.sample_cov(df)
-        
-        # Optimize
-        ef = EfficientFrontier(mu, S)
-        if method == "max_sharpe":
-            ef.max_sharpe()
-        elif method == "min_volatility":
-            ef.min_volatility()
+        corr = df.pct_change().corr().fillna(0).to_dict()
+
+        if method == "hrp":
+            returns_df = df.pct_change().dropna()
+            hrp = HRPOpt(returns_df)
+            raw_weights = hrp.optimize()
+            cleaned_weights = {k: float(v) for k, v in raw_weights.items()}
         else:
-            raise ValueError(f"Unknown optimization method: {method}")
-            
-        cleaned_weights = ef.clean_weights()
-        
-        # Calculate correlation matrix
-        corr = df.pct_change().corr()
-        correlation = corr.to_dict()
+            mu = expected_returns.mean_historical_return(df)
+            S = risk_models.sample_cov(df)
+            ef = EfficientFrontier(mu, S)
+            if method == "min_volatility":
+                ef.min_volatility()
+            else:
+                ef.max_sharpe()
+            cleaned_weights = {k: float(v) for k, v in ef.clean_weights().items()}
+
+        # Compute skfolio-style Purged Cross-Validation
+        cv_metrics = purged_cross_validation(df, method=method, n_splits=5, purge_days=5)
 
         # Compute efficient frontier points
-        import numpy as np
         frontier_points = []
-        min_ret = mu.min()
-        max_ret = mu.max()
-        if min_ret < max_ret:
-            target_returns = np.linspace(min_ret, max_ret, 20)
-            for target in target_returns:
-                try:
-                    ef_sweep = EfficientFrontier(mu, S)
-                    ef_sweep.efficient_return(target)
-                    w = ef_sweep.clean_weights()
-                    ret, vol, sharpe = ef_sweep.portfolio_performance()
-                    frontier_points.append({
-                        "target_return": float(target),
-                        "return": float(ret),
-                        "volatility": float(vol),
-                        "sharpe": float(sharpe),
-                        "weights": {sym: w.get(sym, 0.0) for sym in symbols}
-                    })
-                except Exception:
-                    pass
+        try:
+            mu = expected_returns.mean_historical_return(df)
+            S = risk_models.sample_cov(df)
+            min_ret = float(mu.min())
+            max_ret = float(mu.max())
+            if min_ret < max_ret:
+                target_returns = np.linspace(min_ret, max_ret, 20)
+                for target in target_returns:
+                    try:
+                        ef_sweep = EfficientFrontier(mu, S)
+                        ef_sweep.efficient_return(target)
+                        w = ef_sweep.clean_weights()
+                        ret, vol, sharpe = ef_sweep.portfolio_performance()
+                        frontier_points.append({
+                            "target_return": float(target),
+                            "return": float(ret),
+                            "volatility": float(vol),
+                            "sharpe": float(sharpe),
+                            "weights": {sym: float(w.get(sym, 0.0)) for sym in symbols},
+                        })
+                    except Exception:
+                        pass
+        except Exception:
+            pass
 
         # Ensure all original symbols are in the output
-        weights_result = {sym: cleaned_weights.get(sym, 0.0) for sym in symbols}
-        
+        weights_result = {sym: round(float(cleaned_weights.get(sym, 0.0)), 4) for sym in symbols}
+
         return {
+            "method": method,
             "weights": weights_result,
             "frontier_points": frontier_points,
-            "correlation": correlation
+            "correlation": corr,
+            "cv_metrics": cv_metrics,
         }
     except Exception as e:
         # Fallback to equal weight on error
         return {
-            "weights": {sym: 1.0 / len(symbols) for sym in symbols},
+            "method": method,
+            "weights": {sym: round(1.0 / len(symbols), 4) for sym in symbols},
             "frontier_points": [],
-            "correlation": {}
+            "correlation": {},
+            "cv_metrics": {},
         }
