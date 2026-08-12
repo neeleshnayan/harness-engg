@@ -16,20 +16,10 @@ interface Props {
   totalNav: number;
   height?: number;
   className?: string;
-  theme?: "dark" | "light";
 }
 
-const COLORS_LIGHT = [
-  "#10B981", // Anthropic Emerald Green
-  "#276749", // Anthropic Sage Green
-  "#2563EB", // Royal Blue
-  "#78716C", // Warm Taupe
-  "#D99B00", // Warm Amber
-  "#6B46C1", // Warm Violet
-];
-
 const COLORS_DARK = [
-  "#34D399", // Anthropic Terracotta Glow Orange
+  "#34D399", // Emerald (KT accent)
   "#10B981", // Emerald
   "#38BDF8", // Sky Blue
   "#A855F7", // Purple
@@ -37,10 +27,9 @@ const COLORS_DARK = [
   "#34D399", // Mint
 ];
 
-export function AllocationDonut({ positions = [], cash = 0, totalNav = 0, height = 240, className, theme = "dark" }: Props) {
-  const isLight = theme === "light";
-  const palette = isLight ? COLORS_LIGHT : COLORS_DARK;
-  const cashColor = isLight ? "#A8A29E" : "#475569";
+export function AllocationDonut({ positions = [], cash = 0, totalNav = 0, height = 240, className }: Props) {
+  const palette = COLORS_DARK;
+  const cashColor = "#475569";
 
   const data = [
     ...(positions || []).map((p) => ({
@@ -66,7 +55,7 @@ export function AllocationDonut({ positions = [], cash = 0, totalNav = 0, height
   if (data.length === 0) {
     return (
       <div
-        className={`flex flex-col items-center justify-center text-xs ${isLight ? "text-[#78716C]" : "text-zinc-500"} ${className || ""}`}
+        className={`flex flex-col items-center justify-center text-xs ${"text-zinc-500"} ${className || ""}`}
         style={{ height }}
       >
         No positions
@@ -98,13 +87,13 @@ export function AllocationDonut({ positions = [], cash = 0, totalNav = 0, height
           <Tooltip
             cursor={false}
             contentStyle={{
-              background: isLight ? "#FFFFFF" : "#030712",
-              border: isLight ? "1px solid #D9D2C5" : "1px solid #1e293b",
+              background: "#030712",
+              border: "1px solid #1e293b",
               borderRadius: 8,
               fontSize: 12,
-              color: isLight ? "#1E1E1E" : "#f4f4f5",
+              color: "#f4f4f5",
             }}
-            itemStyle={{ color: isLight ? "#1E1E1E" : "#f4f4f5" }}
+            itemStyle={{ color: "#f4f4f5" }}
             formatter={(value: number, name: string, props: any) => [
               `${fmtValue(value)} (${props.payload.pct.toFixed(1)}%)`,
               name,

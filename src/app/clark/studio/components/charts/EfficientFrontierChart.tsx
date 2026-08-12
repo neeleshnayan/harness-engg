@@ -19,11 +19,9 @@ interface Props {
   optimalWeights?: Record<string, number>;
   height?: number;
   className?: string;
-  theme?: "dark" | "light";
 }
 
-export function EfficientFrontierChart({ points, assets, height = 240, className, theme = "dark" }: Props) {
-  const isLight = theme === "light";
+export function EfficientFrontierChart({ points, assets, height = 240, className }: Props) {
 
   let activePoints: FrontierPoint[] = points && points.length > 0 ? points : [];
 
@@ -69,14 +67,14 @@ export function EfficientFrontierChart({ points, assets, height = 240, className
     <div className={className} style={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: -10 }}>
-          <CartesianGrid stroke={isLight ? "#EAE5D9" : "#1e293b"} strokeDasharray="3 3" />
+          <CartesianGrid stroke={"#1e293b"} strokeDasharray="3 3" />
           <XAxis
             type="number"
             dataKey="volatility"
             name="Volatility"
             tickFormatter={(v) => `${v}%`}
-            tick={{ fill: isLight ? "#78716C" : "#94a3b8", fontSize: 10 }}
-            axisLine={{ stroke: isLight ? "#D9D2C5" : "#334155" }}
+            tick={{ fill: "#94a3b8", fontSize: 10 }}
+            axisLine={{ stroke: "#334155" }}
             tickLine={false}
             domain={["auto", "auto"]}
           />
@@ -85,8 +83,8 @@ export function EfficientFrontierChart({ points, assets, height = 240, className
             dataKey="return"
             name="Return"
             tickFormatter={(v) => `${v}%`}
-            tick={{ fill: isLight ? "#78716C" : "#94a3b8", fontSize: 10 }}
-            axisLine={{ stroke: isLight ? "#D9D2C5" : "#334155" }}
+            tick={{ fill: "#94a3b8", fontSize: 10 }}
+            axisLine={{ stroke: "#334155" }}
             tickLine={false}
             domain={["auto", "auto"]}
           />
@@ -94,12 +92,12 @@ export function EfficientFrontierChart({ points, assets, height = 240, className
           <Tooltip
             cursor={{ strokeDasharray: "3 3" }}
             contentStyle={{
-              background: isLight ? "#FFFFFF" : "#030712",
-              border: isLight ? "1px solid #D9D2C5" : "1px solid #1e293b",
+              background: "#030712",
+              border: "1px solid #1e293b",
               borderRadius: 8,
               fontSize: 11,
               fontFamily: "monospace",
-              color: isLight ? "#1E1E1E" : "#e2e8f0",
+              color: "#e2e8f0",
             }}
             formatter={(value: number, name: string) => [
               name === "sharpe" ? value.toFixed(2) : `${value.toFixed(2)}%`,
@@ -109,20 +107,20 @@ export function EfficientFrontierChart({ points, assets, height = 240, className
           <Scatter
             name="Efficient Frontier"
             data={data}
-            fill={isLight ? "#10B981" : "#34D399"}
-            line={{ stroke: isLight ? "#10B981" : "#34D399", strokeWidth: 2 }}
+            fill={"#34D399"}
+            line={{ stroke: "#34D399", strokeWidth: 2 }}
             shape="circle"
           />
           <Scatter
             name="Tangency Portfolio (Max Sharpe ⭐)"
             data={[maxSharpePoint]}
-            fill={isLight ? "#276749" : "#10B981"}
+            fill={"#10B981"}
             shape="star"
           />
           <Scatter
             name="Minimum Variance (Min Vol 🛡️)"
             data={[minVolPoint]}
-            fill={isLight ? "#2563EB" : "#38BDF8"}
+            fill={"#38BDF8"}
             shape="diamond"
           />
         </ScatterChart>

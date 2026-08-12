@@ -7,24 +7,22 @@ interface PythonCodeEditorProps {
   onChange: (val: string) => void;
   height?: string;
   readOnly?: boolean;
-  theme?: "dark" | "light";
 }
 
-// Tokenize Python code into syntax-colored spans using Anthropic warm terracotta & slate palette
-function highlightPython(code: string, theme: "dark" | "light" = "dark"): string {
+// Tokenize Python code into syntax-colored spans (dark-only, see theme.ts)
+function highlightPython(code: string): string {
   const escapeHtml = (str: string) =>
     str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-  const isLight = theme === "light";
 
   // Anthropic Color Tokens
-  const commentColor = isLight ? "#78716C" : "#64748B";
-  const stringColor = isLight ? "#276749" : "#34D399";
-  const kwColor = isLight ? "#10B981" : "#34D399"; // Anthropic Terracotta / Emerald Green
-  const typeColor = isLight ? "#2563EB" : "#38BDF8";
-  const signalColor = isLight ? "#10B981" : "#6EE7B7";
-  const funcColor = isLight ? "#1E293B" : "#F8FAFC";
-  const numColor = isLight ? "#0284C7" : "#38BDF8";
+  const commentColor = "#64748B";
+  const stringColor = "#34D399";
+  const kwColor = "#34D399"; // Anthropic Terracotta / Emerald Green
+  const typeColor = "#38BDF8";
+  const signalColor = "#6EE7B7";
+  const funcColor = "#F8FAFC";
+  const numColor = "#38BDF8";
 
   const lines = code.split("\n");
   const highlightedLines = lines.map((line) => {
@@ -102,7 +100,6 @@ export function PythonCodeEditor({
   onChange,
   height = "380px",
   readOnly = false,
-  theme = "dark",
 }: PythonCodeEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
@@ -129,14 +126,11 @@ export function PythonCodeEditor({
     handleScroll();
   }, [value]);
 
-  const isLight = theme === "light";
 
   return (
     <div
       className={`relative flex border font-mono text-xs transition-all rounded-b-xl shadow-2xl ${
-        isLight
-          ? "bg-[#FAF7F2] border-[#EAE5D9] text-[#2D2B2A]"
-          : "bg-[#090D18] border-emerald-500/20 text-zinc-100 backdrop-blur-xl"
+        "bg-[#090D18] border-emerald-500/20 text-zinc-100 backdrop-blur-xl"
       }`}
       style={{ height }}
     >
@@ -144,9 +138,7 @@ export function PythonCodeEditor({
       <div
         ref={gutterRef}
         className={`w-12 select-none overflow-hidden text-right pr-3 pt-3 font-mono text-xs leading-[1.625] border-r ${
-          isLight
-            ? "bg-[#F3EFE6] text-[#A8A29E] border-[#EAE5D9]"
-            : "bg-[#0D1322] text-zinc-600 border-emerald-950/40"
+          "bg-[#0D1322] text-zinc-600 border-emerald-950/40"
         }`}
       >
         {Array.from({ length: lineCount }, (_, i) => (
@@ -160,7 +152,7 @@ export function PythonCodeEditor({
         <pre
           ref={preRef}
           className="absolute inset-0 pointer-events-none overflow-hidden p-3 font-mono text-xs leading-[1.625] whitespace-pre tab-4 m-0 font-medium"
-          dangerouslySetInnerHTML={{ __html: highlightPython(value, theme) }}
+          dangerouslySetInnerHTML={{ __html: highlightPython(value) }}
         />
 
         {/* Foreground Transparent Editable Textarea */}
