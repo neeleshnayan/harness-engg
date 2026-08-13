@@ -3,6 +3,8 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { KT } from "../theme";
 import { StudioHeader } from "../components/StudioHeader";
+import { CreateStrategyModal } from "../components/CreateStrategyModal";
+import { RebalanceModal } from "../components/RebalanceModal";
 import { ClarkActionBar } from "../components/ClarkActionBar";
 import { PythonCodeEditor } from "../components/PythonCodeEditor";
 import { Button } from "@/components/ui/button";
@@ -20,6 +22,7 @@ import {
   Layers,
   Loader2,
   Plus,
+  Scale,
   TrendingUp,
   X,
   Play,
@@ -222,6 +225,8 @@ export default function StrategiesPage() {
 
   const [strategies, setStrategies] = useState<StrategyView[]>([]);
   const [navUsd, setNavUsd] = useState<number>(0);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [rebalanceOpen, setRebalanceOpen] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
@@ -565,7 +570,19 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
  "bg-[var(--kt-bg)] text-[var(--kt-text)] selection:bg-emerald-500/30"
     }`}>
       {/* Studio Header */}
-      <StudioHeader subtitle="Anthropic Quant Strategy Studio & LEAN Python Environment" />
+      <StudioHeader
+        subtitle="Strategies, weights and composition"
+        actions={
+          <>
+            <button className={`flex h-8 items-center ${KT.btnGhost}`} onClick={() => setRebalanceOpen(true)}>
+              <Scale size={14} className="mr-1.5" /> Rebalance
+            </button>
+            <button className={`flex h-8 items-center ${KT.btn}`} onClick={() => setCreateOpen(true)}>
+              <Plus size={14} className="mr-1.5" /> New strategy
+            </button>
+          </>
+        }
+      />
 
       <div className="mx-auto max-w-[1600px] px-6 py-6 space-y-6">
         {/* Clark AI Copilot Action Bar */}
@@ -1723,6 +1740,22 @@ class ${extractedSymbol}BreakoutStrategy(Strategy):
           </>
         )}
       </div>
+
+      {/* Creating and re-sizing strategies are allocation acts, so they live
+          here rather than on the decision surface. */}
+      <CreateStrategyModal
+        isOpen={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onSuccess={() => load()}
+        strategies={strategies}
+      />
+      <RebalanceModal
+        open={rebalanceOpen}
+        onOpenChange={setRebalanceOpen}
+        strategies={strategies}
+        totalNavUsd={navUsd}
+        onSuccess={() => load()}
+      />
     </div>
   );
 }

@@ -17,7 +17,7 @@ import { KT } from "../theme";
  * Shows an honest "unreachable" state rather than implying all-clear when the
  * spine is down — silence must never look like safety.
  */
-export function RiskBar({ pollMs = 5000 }: { pollMs?: number }) {
+export function RiskBar({ pollMs = 30000 }: { pollMs?: number }) {
   const [m, setM] = useState<RiskMonitorResponse | null>(null);
   const [err, setErr] = useState(false);
 

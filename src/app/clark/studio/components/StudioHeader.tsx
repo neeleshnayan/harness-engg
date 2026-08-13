@@ -7,6 +7,7 @@ import { StudioNav } from "./StudioNav";
 import { KT } from "../theme";
 import { ThemeToggle } from "../ThemeToggle";
 import { RiskBar } from "./RiskBar";
+import { PositionTicker } from "./PositionTicker";
 
 interface StudioHeaderProps {
   /** Static strapline, e.g. a page description. */
@@ -60,6 +61,8 @@ export function StudioHeader({ subtitle, status, actions }: StudioHeaderProps) {
       {/* Risk applies to every surface, so it follows the user rather than
           living on a page they must remember to visit. */}
       <RiskBar />
+      {/* what we actually own, live — not a market index reel */}
+      <PositionTicker />
     </div>
   );
 }

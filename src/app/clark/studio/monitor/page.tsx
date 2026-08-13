@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { StudioHeader } from "../components/StudioHeader";
+import { SimulationModal } from "../components/SimulationModal";
 import { ClarkActionBar } from "../components/ClarkActionBar";
 import { KT } from "../theme";
 import { ConcentrationTreemap } from "../components/charts/ConcentrationTreemap";
@@ -59,6 +60,8 @@ export default function RiskPage() {
 
   const [limitsModalOpen, setLimitsModalOpen] = useState(false);
   const [limitsForm, setLimitsForm] = useState<Partial<RiskLimitsConfig>>({});
+
+  const [simOpen, setSimOpen] = useState(false);
 
   const load = useCallback(async (isSilent = false) => {
     if (!isSilent) setLoading(true);
@@ -157,7 +160,14 @@ export default function RiskPage() {
 
   return (
     <div className="min-h-screen bg-[var(--kt-bg)] text-[var(--kt-text)] font-sans selection:bg-[var(--kt-accent-bg)]">
-      <StudioHeader subtitle="Institutional Live Risk Engine — Continuous Surveillance & Kill-Switch Cockpit" />
+      <StudioHeader
+        subtitle="Live NAV, positions, limit breaches and the trading halt"
+        actions={
+          <button className={`flex h-8 items-center ${KT.btnGhost}`} onClick={() => setSimOpen(true)}>
+            <ShieldAlert size={14} className="mr-1.5" /> Stress test
+          </button>
+        }
+      />
 
       <div className="mx-auto max-w-[1600px] space-y-6 px-6 py-6">
         {/* Top Control Bar & Live Status */}
@@ -962,6 +972,9 @@ export default function RiskPage() {
           </form>
         </div>
       )}
+
+      {/* Stress testing shocks live holdings, so it belongs with the live view. */}
+      <SimulationModal open={simOpen} onOpenChange={setSimOpen} onSuccess={() => load(true)} />
     </div>
   );
 }

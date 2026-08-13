@@ -296,15 +296,6 @@ export default function StrategyStudioPage() {
             <button className={`flex h-8 items-center ${KT.btnGhost}`} onClick={() => load()}>
               <RefreshCw size={14} className="mr-1.5" /> Refresh
             </button>
-            <button className={`flex h-8 items-center ${KT.btnGhost}`} onClick={() => setSimOpen(true)}>
-              <ShieldAlert size={14} className="mr-1.5" /> Simulator
-            </button>
-            <button className={`flex h-8 items-center ${KT.btnGhost}`} onClick={() => setRebalanceOpen(true)}>
-              <Scale size={14} className="mr-1.5" /> Rebalance
-            </button>
-            <button className={`flex h-8 items-center ${KT.btn}`} onClick={() => setCreateOpen(true)}>
-              <Plus size={14} className="mr-1.5" /> New strategy
-            </button>
           </>
         }
       />
