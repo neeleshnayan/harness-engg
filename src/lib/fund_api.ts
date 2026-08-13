@@ -410,6 +410,30 @@ export interface RiskLimitsConfig {
   underwater_pct: number;
 }
 
+export interface MarketQuote {
+  symbol: string;
+  price: number | null;
+  prev_close: number | null;
+  prev_close_date?: string | null;
+  change: number | null;
+  change_pct: number | null;
+  /** true when there is no live tick and price falls back to the last close */
+  stale: boolean;
+  ok: boolean;
+  held: boolean;
+  qty?: number;
+  value_usd?: number;
+  weight_pct?: number;
+  unrealized_pnl_pct?: number;
+}
+
+export interface MarketQuotesResponse {
+  quotes: MarketQuote[];
+  held_count: number;
+  watch_count: number;
+  unpriced: string[];
+}
+
 export interface RiskMonitorResponse {
   nav_usd: number;
   cash_usd: number;
@@ -643,6 +667,9 @@ export const fundApiClient = {
     (await fundApi.get(`${P}/strategies/${parentId}/composite`)).data,
 
   // --- risk monitor & kill-switch controls ---
+  getMarketQuotes: async (): Promise<MarketQuotesResponse> =>
+    (await fundApi.get(`${P}/market/quotes`)).data,
+
   getRiskMonitor: async (): Promise<RiskMonitorResponse> =>
     (await fundApi.get(`${P}/risk/monitor`)).data,
 

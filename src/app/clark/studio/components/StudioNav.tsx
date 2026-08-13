@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, ClipboardCheck, History, Sliders } from "lucide-react";
+import { Activity, ClipboardCheck, FlaskConical, History, Sliders } from "lucide-react";
 
 /**
  * Workflow-first navigation (see docs/STUDIO_IA_SPEC.md).
@@ -13,7 +13,10 @@ import { Activity, ClipboardCheck, History, Sliders } from "lucide-react";
  * job, and left things like per-strategy drawdown with an equal claim on two
  * tabs. These four match what the fund actually does, in order:
  *
- *     decide what to own -> size it -> watch it -> answer for it
+ *     decide what to own -> research it -> size it -> watch it -> answer for it
+ *
+ * Lab sits between Decide and Allocate: authoring and testing a strategy is a
+ * distinct job from sizing the book, but it is NOT a place capital moves.
  *
  * Risk is deliberately absent: it applies to all four, so it lives in the
  * always-visible RiskBar instead of being a place you have to visit.
@@ -23,6 +26,8 @@ const TABS = [
     hint: "Theses, memos and approvals awaiting a human" },
   { href: "/clark/studio/allocate", label: "Allocate", icon: Sliders,
     hint: "Strategies, weights and composition" },
+  { href: "/clark/studio/lab", label: "Lab", icon: FlaskConical,
+    hint: "Backtest, optimise and stress a strategy before it carries capital" },
   { href: "/clark/studio/monitor", label: "Monitor", icon: Activity,
     hint: "Live NAV, positions, breaches and the kill-switch" },
   { href: "/clark/studio/review", label: "Review", icon: History,

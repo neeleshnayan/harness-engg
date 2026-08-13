@@ -1,22 +1,25 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Radio } from "lucide-react";
-import { fundApiClient, RiskMonitorPosition } from "@/lib/fund_api";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { fundApiClient, MarketQuote } from "@/lib/fund_api";
 import { KT } from "../theme";
 
 /**
- * Portfolio ticker strip — the fund's own holdings, not a market index reel.
+ * Ticker strip — the fund's own universe, not a market index reel.
  *
- * A Yahoo-style band is only useful here if it shows what we actually own, so
- * every tile is a live position: mark, weight, and unrealized P&L.
+ * Shows what we hold plus what is scoped to a live strategy, so the strip stays
+ * useful before the book holds anything (the previous version rendered only
+ * open positions and so read "No open positions" exactly when you were watching
+ * for an entry).
  *
- * Deliberately NOT a daily change %: the spine stores marks and cost basis, not
- * a previous close, so a "day change" would have to be invented. Unrealized P&L
- * against cost basis is the real number we have, and it is labelled as such.
+ * The day change is a real one: live price against the previous session close
+ * from daily bars. Where a symbol cannot be priced it renders a dash rather
+ * than a flat zero, and a price with no live tick is marked stale rather than
+ * passed off as live.
  */
-export function PositionTicker({ pollMs = 60000 }: { pollMs?: number }) {
-  const [positions, setPositions] = useState<RiskMonitorPosition[] | null>(null);
+export function PositionTicker({ pollMs = 120000 }: { pollMs?: number }) {
+  const [quotes, setQuotes] = useState<MarketQuote[] | null>(null);
   const [err, setErr] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
 
@@ -24,8 +27,8 @@ export function PositionTicker({ pollMs = 60000 }: { pollMs?: number }) {
     let alive = true;
     const load = async () => {
       try {
-        const m = await fundApiClient.getRiskMonitor();
-        if (alive) { setPositions(m.positions ?? []); setErr(false); }
+        const r = await fundApiClient.getMarketQuotes();
+        if (alive) { setQuotes(r.quotes ?? []); setErr(false); }
       } catch {
         if (alive) setErr(true);
       }
@@ -38,46 +41,50 @@ export function PositionTicker({ pollMs = 60000 }: { pollMs?: number }) {
   const nudge = (dir: -1 | 1) =>
     scroller.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
 
-  if (err) {
-    return (
-      <Strip>
-        <span className={`px-4 text-[11px] ${KT.muted}`}>Prices unavailable — fund service unreachable</span>
-      </Strip>
-    );
-  }
-  if (!positions) {
-    return <Strip><span className={`px-4 text-[11px] ${KT.muted}`}>Loading positions…</span></Strip>;
-  }
-  if (positions.length === 0) {
-    return <Strip><span className={`px-4 text-[11px] ${KT.muted}`}>No open positions</span></Strip>;
-  }
+  if (err) return <Strip><Msg>Prices unavailable — fund service unreachable</Msg></Strip>;
+  if (!quotes) return <Strip><Msg>Loading quotes…</Msg></Strip>;
+  if (quotes.length === 0) return <Strip><Msg>No assets held or scoped to a strategy</Msg></Strip>;
 
   return (
     <Strip>
-      <div className="flex shrink-0 items-center gap-1.5 pl-4 pr-3">
-        <Radio size={13} className={KT.accent} />
-        <span className={KT.label}>Portfolio</span>
-      </div>
-
-      <div ref={scroller} className="flex flex-1 gap-6 overflow-x-auto scroll-smooth px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {positions.map((p) => {
-          const pnl = p.unrealized_pnl_pct;
-          const up = (pnl ?? 0) >= 0;
+      <div
+        ref={scroller}
+        className="flex flex-1 gap-5 overflow-x-auto scroll-smooth px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {quotes.map((q) => {
+          const up = (q.change_pct ?? 0) >= 0;
           return (
-            <div key={p.symbol} className="flex shrink-0 flex-col justify-center py-1.5">
-              <div className="flex items-baseline gap-2">
-                <span className="text-[11px] font-semibold tracking-wide">{p.symbol}</span>
-                <span className={`text-[10px] ${KT.muted}`}>{p.weight_pct?.toFixed(1)}%</span>
+            <div key={q.symbol} className="flex shrink-0 flex-col justify-center py-1.5">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-[11px] font-semibold tracking-wide">{q.symbol}</span>
+                {q.held ? (
+                  <span className={`text-[9px] ${KT.accent}`} title="held in the book">
+                    ● {q.weight_pct != null ? `${q.weight_pct.toFixed(1)}%` : "held"}
+                  </span>
+                ) : (
+                  <span className={`text-[9px] ${KT.muted}`} title="scoped to a strategy, not held">
+                    watch
+                  </span>
+                )}
+                {q.stale && (
+                  <span className={`text-[9px] ${KT.muted}`} title="no live tick — last close">
+                    stale
+                  </span>
+                )}
               </div>
               <div className="flex items-baseline gap-2">
                 <span className={`font-mono tabular-nums text-[13px] ${KT.number}`}>
-                  {p.mark?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {q.price != null
+                    ? q.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    : "—"}
                 </span>
-                {pnl != null && (
-                  <span className={`font-mono tabular-nums text-[11px] ${up ? KT.up : KT.down}`}>
-                    {up ? "+" : ""}{pnl.toFixed(2)}%
-                  </span>
-                )}
+                <span className={`font-mono tabular-nums text-[11px] ${
+                  q.change_pct == null ? KT.muted : up ? KT.up : KT.down
+                }`}>
+                  {q.change_pct == null
+                    ? "—"
+                    : `${up ? "+" : ""}${q.change?.toFixed(2)} (${up ? "+" : ""}${q.change_pct.toFixed(2)}%)`}
+                </span>
               </div>
             </div>
           );
@@ -85,11 +92,11 @@ export function PositionTicker({ pollMs = 60000 }: { pollMs?: number }) {
       </div>
 
       <div className="flex shrink-0 items-center gap-0.5 pr-3">
-        <button onClick={() => nudge(-1)} aria-label="Scroll positions left"
+        <button onClick={() => nudge(-1)} aria-label="Scroll quotes left"
                 className={`rounded p-1 ${KT.muted} hover:bg-[var(--kt-inset)]`}>
           <ChevronLeft size={14} />
         </button>
-        <button onClick={() => nudge(1)} aria-label="Scroll positions right"
+        <button onClick={() => nudge(1)} aria-label="Scroll quotes right"
                 className={`rounded p-1 ${KT.muted} hover:bg-[var(--kt-inset)]`}>
           <ChevronRight size={14} />
         </button>
@@ -97,6 +104,10 @@ export function PositionTicker({ pollMs = 60000 }: { pollMs?: number }) {
     </Strip>
   );
 }
+
+const Msg = ({ children }: { children: React.ReactNode }) => (
+  <span className={`px-4 py-2 text-[11px] ${KT.muted}`}>{children}</span>
+);
 
 function Strip({ children }: { children: React.ReactNode }) {
   return (
