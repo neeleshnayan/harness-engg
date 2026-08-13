@@ -509,6 +509,11 @@ def list_strategies():
             **s,
             "exposure_usd": exposure,
             "pnl_usd": a.get("pnl_usd", 0.0),
+            # realized vs unrealized matter for tax and attribution; None (not 0)
+            # when there is no attribution, so the UI shows "—" not a fake zero
+            "realized_pnl_usd": a.get("realized_pnl_usd"),
+            "unrealized_pnl_usd": a.get("unrealized_pnl_usd"),
+            "cost_basis_usd": a.get("cost_basis_usd"),
             "positions": a.get("positions", {}),
             "actual_pct": round(100.0 * exposure / total, 4) if total else 0.0,
         })
