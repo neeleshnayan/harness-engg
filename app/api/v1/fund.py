@@ -80,6 +80,12 @@ router = APIRouter()
 
 # --- spine wiring (single place to swap the venue) -------------------------
 # Alpaca when configured, else the in-Firestore paper venue. Same protocol.
+def _live_price_fn():
+    """Live marks unconditionally — mock mode wants real prices behind fake fills."""
+    from app.fund.marketdata import live_price
+    return live_price
+
+
 def _paper_live_pricer():
     """Live free marks for the paper venue when FUND_LIVE_MARKS is truthy."""
     if os.getenv("FUND_LIVE_MARKS", "false").lower() in ("1", "true", "yes"):
@@ -88,10 +94,22 @@ def _paper_live_pricer():
     return None
 
 
+def _mock_mode() -> bool:
+    return os.getenv("USE_FAKE_FIRESTORE", "").lower() in ("1", "true", "yes")
+
+
+# Mock mode always uses the paper venue, even when Alpaca credentials exist:
+# routing mock fills to the real broker leaves them queued until the market
+# opens, so the book never moves and the point of the mock is lost. Fills are
+# simulated; the prices they fill at are real (live_pricer).
 _connector = (
-    AlpacaConnector()
-    if os.getenv("ALPACA_API_KEY")
-    else PaperConnector(live_pricer=_paper_live_pricer())
+    PaperConnector(live_pricer=_paper_live_pricer() or _live_price_fn())
+    if _mock_mode()
+    else (
+        AlpacaConnector()
+        if os.getenv("ALPACA_API_KEY")
+        else PaperConnector(live_pricer=_paper_live_pricer())
+    )
 )
 _store = EventStore()
 # Snapshotted: without this every read folds the entire event log, which is

@@ -74,11 +74,17 @@ async def _scheduler():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Auto-seed demo state if empty on server start
-    try:
-        seed_if_empty(fund_router._store, fund_router._nav._db)
-    except Exception as e:
-        _log.warning("Auto-seed error (%s) — proceeding with existing state.", e)
+    # Auto-seed demo state if empty on server start.
+    # DISABLE_DEMO_SEED=1 leaves the book empty so it can be built deliberately
+    # — mock mode is more useful mirroring the real fund than showing invented
+    # strategies with fabricated backtest numbers.
+    if os.getenv("DISABLE_DEMO_SEED", "").lower() in ("1", "true", "yes"):
+        _log.warning("DISABLE_DEMO_SEED set — starting with an empty book.")
+    else:
+        try:
+            seed_if_empty(fund_router._store, fund_router._nav._db)
+        except Exception as e:
+            _log.warning("Auto-seed error (%s) — proceeding with existing state.", e)
 
     task = None
     if os.getenv("ENABLE_SCHEDULER", "true").lower() != "false":

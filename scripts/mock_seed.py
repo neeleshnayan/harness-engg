@@ -22,10 +22,19 @@ def call(method, path, body=None):
     req = urllib.request.Request(BASE + path, data=data, method=method,
                                  headers={"Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(req, timeout=90) as r:
+        with urllib.request.urlopen(req, timeout=240) as r:
             return json.loads(r.read().decode())
     except urllib.error.HTTPError as e:
         return {"_error": e.code, "_body": e.read().decode()[:200]}
+
+
+def must(res, what):
+    """Seeding silently over a failed call is how a book ends up describing
+    state it does not have. Stop instead."""
+    if isinstance(res, dict) and res.get("_error"):
+        print(f"FAILED {what}: HTTP {res['_error']} {res.get('_body','')}")
+        raise SystemExit(1)
+    return res
 
 
 def main() -> int:
@@ -39,11 +48,14 @@ def main() -> int:
     print(f"mock book: {book.get('project_id')} / {book.get('env')}\n")
 
     # 1. capital
-    sub = call("POST", "/subscribe", {"lp_id": "rushi", "lp_name": "Rushi",
-                                      "usd_amount": 2000.0, "actor": "operator"})
+    sub = must(call("POST", "/lp/subscriptions",
+                    {"lp_id": "rushi", "lp_name": "Rushi",
+                     "usd_amount": 2000.0, "actor": "operator"}), "subscribe")
     sid = sub.get("subscription_id")
-    if sid:
-        call("POST", f"/subscriptions/{sid}/confirm", {"actor": "operator"})
+    if not sid:
+        print(f"FAILED subscribe: no subscription_id in {sub}")
+        return 1
+    must(call("POST", f"/lp/subscriptions/{sid}/confirm", {"actor": "operator"}), "confirm cash")
     print(f"  funded $2,000  (subscription {str(sid)[:8]})")
 
     # 2. a strategy with a real, tradeable universe
@@ -55,9 +67,13 @@ def main() -> int:
         return 1
     assets = ["INTC", "F", "SOFI", "PLTR"]
     call("POST", f"/strategies/{st_id}/assets", {"symbols": assets, "actor": "rushi"})
-    for sym in assets:
-        call("POST", f"/strategies/{st_id}/backtest/by_symbol",
-             {"symbol": sym, "lookback_days": 365})
+    # one backtest is enough to move the strategy out of draft; four means four
+    # year-long bar fetches and a needlessly slow seed
+    bt = call("POST", f"/strategies/{st_id}/backtest/by_symbol",
+              {"symbol": "INTC", "lookback_days": 365})
+    if "result" in bt:
+        r = bt["result"]
+        print(f"  backtested INTC: return {r['total_return']*100:.1f}% sharpe {r['sharpe']:.2f}")
     call("POST", f"/strategies/{st_id}/state", {"state": "deployed", "actor": "rushi"})
     call("POST", f"/strategies/{st_id}/allocation", {"target_pct": 50.0, "actor": "rushi"})
     print(f"  strategy deployed at 50%  ({st_id[:8]}) — {', '.join(assets)}")
