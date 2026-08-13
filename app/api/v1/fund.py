@@ -9,6 +9,7 @@ The pipeline is wired to the PaperConnector today; swapping in the IBKRConnector
 (Step 2) changes only the construction block below.
 """
 
+import logging
 import os
 from typing import Optional
 
@@ -22,6 +23,8 @@ from app.fund.connectors.base import Order, Side
 from app.fund import tearsheet
 from app.fund.backtest import CostModel, SimpleBacktester, signals_for
 from app.fund.execution import ExecutionHistory, summarise
+_log = logging.getLogger(__name__)
+
 from app.fund.custody import CustodyIngest
 from app.fund.signals import SignalRunner
 from app.fund.marketdata import BarsError, fetch_daily_bars
@@ -193,6 +196,50 @@ def run_settlement() -> dict:
     return _pipeline.poll_open_orders()
 
 
+# --- live fill stream ------------------------------------------------------
+# Kept beside the poller it complements, not hidden in main.py: whether fills
+# arrive by push or by poll is a property of the fund's write path.
+_trade_stream: "TradeStream | None" = None
+
+
+def start_trade_stream():
+    """Subscribe to venue trade updates. Returns the task, or None.
+
+    Refuses on anything but a real, keyed Alpaca connector: the paper/mock
+    connector has no socket to listen to, and pretending otherwise would report
+    a healthy stream that can never deliver anything.
+    """
+    global _trade_stream
+    import asyncio
+
+    key, secret = os.getenv("ALPACA_API_KEY"), os.getenv("ALPACA_SECRET_KEY")
+    if not (key and secret):
+        _log.warning("trade stream: no Alpaca credentials — polling only")
+        return None
+    if _connector.name != "alpaca":
+        _log.warning("trade stream: venue is %r, not alpaca — polling only", _connector.name)
+        return None
+
+    from app.fund.tradestream import TradeStream
+
+    paper = os.getenv("ALPACA_PAPER", "true").lower() not in ("0", "false", "no")
+    _trade_stream = TradeStream(_pipeline, key, secret, paper=paper)
+    return asyncio.create_task(_trade_stream.run())
+
+
+def stop_trade_stream() -> None:
+    if _trade_stream is not None:
+        _trade_stream.stop()
+
+
+def trade_stream_state() -> dict:
+    """What the live stream is doing, for anyone reporting whether it works."""
+    if _trade_stream is None:
+        return {"enabled": False,
+                "reason": "ENABLE_TRADE_STREAM is off — fills arrive by polling"}
+    return _trade_stream.state()
+
+
 def run_reconcile() -> dict:
     """Event book vs. venue truth."""
     return _reconciler.run()
@@ -242,7 +289,10 @@ def get_book_identity():
             "is_production": info.get("env") == "production",
             "venue": venue,
             "orders_are_real": bool(_real_broker()),
-            "seeder_may_run": bool(_mock_mode() and not _real_broker())}
+            "seeder_may_run": bool(_mock_mode() and not _real_broker()),
+            # How fills reach the ledger. A silently dead stream looks exactly
+            # like a quiet market, so its state is reported rather than assumed.
+            "fill_stream": trade_stream_state()}
 
 
 @router.get("/fund/market/quotes")

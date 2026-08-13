@@ -95,13 +95,27 @@ async def lifespan(app: FastAPI):
     task = None
     if os.getenv("ENABLE_SCHEDULER", "true").lower() != "false":
         task = asyncio.create_task(_scheduler())
+
+    # Live fill events. OFF by default: the settlement poller is what the fund
+    # has always run on, and this only removes the delay — it is not load-bearing
+    # until it has proved itself against a real session. Turning it on adds a
+    # second, faster observer; every path it takes is idempotent, so the poller
+    # keeps running underneath as the backstop.
+    stream_task = None
+    if os.getenv("ENABLE_TRADE_STREAM", "false").lower() in ("1", "true", "yes"):
+        stream_task = fund_router.start_trade_stream()
+
     yield
-    if task:
-        task.cancel()
+
+    for t in (stream_task, task):
+        if not t:
+            continue
+        t.cancel()
         try:
-            await task
+            await t
         except asyncio.CancelledError:
             pass
+    fund_router.stop_trade_stream()
 
 
 app = FastAPI(

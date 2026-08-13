@@ -186,12 +186,59 @@ class CommandPipeline:
         return self._apply_status(order_id, order, self._connector.poll(ref),
                                   last_filled=rec["last_filled_qty"])
 
+    def apply_venue_status(self, order_id: str, status) -> dict[str, Any]:
+        """Apply a status the VENUE pushed at us, rather than one we asked for.
+
+        The same path the poller takes, entered from the other end. Keeping them
+        on one code path is the point: a fill must mean the same thing whether we
+        discovered it or were told about it, and two implementations of "what a
+        fill does to the book" would eventually disagree.
+
+        An order we never proposed is reported, never invented into the ledger —
+        somebody trading the same venue account by hand is not this fund's
+        business to record.
+        """
+        try:
+            order, _ = self._load_order(order_id)
+        except CommandError:
+            return {"status": "unknown_order", "order_id": order_id}
+
+        rec = next(
+            (r for r in OrdersProjection(self._store).in_flight()
+             if r["order_id"] == order_id),
+            None,
+        )
+        return self._apply_status(order_id, order, status,
+                                  last_filled=(rec or {}).get("last_filled_qty", 0.0))
+
     def poll_open_orders(self) -> dict[str, Any]:
         """Chase every in-flight order — the settlement worker's tick."""
         results = [self.poll_order(r["order_id"]) for r in OrdersProjection(self._store).in_flight()]
         return {"polled": len(results), "results": results}
 
-    def _emit_fill(self, order_id: str, order: Order, qty, px, fees) -> None:
+    def _terminal_types(self, order_id: str) -> set[str]:
+        """Event types already recorded for this order."""
+        try:
+            return {e.get("type") for e in self._store.by_aggregate(order_id)}
+        except Exception:  # noqa: BLE001 — an unreadable log must not double-book
+            raise
+
+    def _emit_fill(self, order_id: str, order: Order, qty, px, fees) -> bool:
+        """Record the fill. Returns False if it was already recorded.
+
+        Two independent things now observe fills — the settlement poller and the
+        venue's trade-update stream — and they are deliberately redundant: the
+        stream is fast but can drop frames or disconnect, the poller is slow but
+        cannot miss. Redundancy only helps if the second observer is harmless,
+        and a second ORDER_FILLED would double the position in every projection
+        that folds the log.
+
+        So the log itself is the idempotency key. ORDER_FILLED is terminal —
+        exactly one per order — which makes "has this order already filled?" a
+        question the event store can answer without any extra bookkeeping.
+        """
+        if EventType.ORDER_FILLED.value in self._terminal_types(order_id):
+            return False
         self._store.append(Event(
             aggregate_id=order_id, aggregate_type="order", type=EventType.ORDER_FILLED,
             payload={
@@ -200,21 +247,32 @@ class CommandPipeline:
             },
             actor="system",
         ))
+        return True
 
     def _apply_status(self, order_id: str, order: Order, status, last_filled: float = 0.0):
         if status.state == FillState.FILLED:
-            self._emit_fill(order_id, order, status.filled_qty, status.avg_price, status.fees)
-            try:
-                RiskMonitor(nav_service=self._nav, store=self._store, pricer=self._connector.price, control=self._control).run(actor="fill_re-eval")
-            except Exception:
-                pass
-            return {"status": "filled", "order_id": order_id,
+            fresh = self._emit_fill(order_id, order, status.filled_qty, status.avg_price, status.fees)
+            # Re-evaluating risk is only worth it when the book actually moved.
+            # On a duplicate — the stream saw it and the poller followed — the
+            # book is unchanged and this is pure work.
+            if fresh:
+                try:
+                    RiskMonitor(nav_service=self._nav, store=self._store, pricer=self._connector.price, control=self._control).run(actor="fill_re-eval")
+                except Exception:
+                    pass
+            return {"status": "filled", "order_id": order_id, "duplicate": not fresh,
                     "filled_qty": f(D(status.filled_qty)), "avg_price": f(D(status.avg_price))}
 
         if status.state == FillState.FAILED:
+            seen = self._terminal_types(order_id)
             # Book any already-executed portion before recording the failure.
             if status.filled_qty and status.filled_qty > last_filled:
                 self._emit_fill(order_id, order, status.filled_qty, status.avg_price, status.fees)
+            # ORDER_FAILED is terminal too, and the same two observers can both
+            # deliver a cancel or a reject.
+            if EventType.ORDER_FAILED.value in seen:
+                return {"status": "failed", "order_id": order_id, "duplicate": True,
+                        "reason": status.reason}
             self._store.append(Event(
                 aggregate_id=order_id, aggregate_type="order", type=EventType.ORDER_FAILED,
                 payload={"reason": status.reason or "unknown"}, actor="system",
