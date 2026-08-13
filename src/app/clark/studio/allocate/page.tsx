@@ -193,6 +193,7 @@ export default function AllocatePage() {
                     <th className="px-5 py-2 text-right font-normal">Actual</th>
                     <th className="px-5 py-2 text-right font-normal">Drift</th>
                     <th className="px-5 py-2 text-right font-normal">Gross Exposure</th>
+                    <th className="px-5 py-2 text-right font-normal">Cost Basis</th>
                     <th className="px-5 py-2 text-right font-normal">Unrealized</th>
                     <th className="px-5 py-2 text-right font-normal">Realized</th>
                     <th className="px-5 py-2 text-right font-normal">Sharpe</th>
@@ -222,6 +223,7 @@ export default function AllocatePage() {
                           {drift >= 0 ? "+" : ""}{drift.toFixed(1)}%
                         </td>
                         <td className={`px-5 py-3 text-right ${KT.number}`}>{money(s.exposure_usd)}</td>
+                        <td className={`px-5 py-3 text-right ${KT.number}`}>{money(s.cost_basis_usd)}</td>
                         <td className={`px-5 py-3 text-right font-mono tabular-nums ${tone(s.unrealized_pnl_usd)}`}>
                           {signed(s.unrealized_pnl_usd)}
                         </td>

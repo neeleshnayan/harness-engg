@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, ClipboardCheck, FlaskConical, History, Sliders } from "lucide-react";
+import { Activity, ClipboardCheck, FlaskConical, Sliders } from "lucide-react";
 
 /**
  * Workflow-first navigation (see docs/STUDIO_IA_SPEC.md).
@@ -13,10 +13,15 @@ import { Activity, ClipboardCheck, FlaskConical, History, Sliders } from "lucide
  * job, and left things like per-strategy drawdown with an equal claim on two
  * tabs. These four match what the fund actually does, in order:
  *
- *     decide what to own -> research it -> size it -> watch it -> answer for it
+ *     decide what to own -> research it -> size it -> watch it
  *
  * Lab sits between Decide and Allocate: authoring and testing a strategy is a
  * distinct job from sizing the book, but it is NOT a place capital moves.
+ *
+ * Review was retired rather than kept as a thin tab: attribution belongs with
+ * the strategy it describes (Allocate), and the NAV record and audit trail
+ * answer "what has happened to the fund", which is Monitor's question. A
+ * reporting surface earns its own tab once there is history worth reporting.
  *
  * Risk is deliberately absent: it applies to all four, so it lives in the
  * always-visible RiskBar instead of being a place you have to visit.
@@ -30,8 +35,6 @@ const TABS = [
     hint: "Backtest, optimise and stress a strategy before it carries capital" },
   { href: "/clark/studio/monitor", label: "Monitor", icon: Activity,
     hint: "Live NAV, positions, breaches and the kill-switch" },
-  { href: "/clark/studio/review", label: "Review", icon: History,
-    hint: "Attribution, post-mortems and the audit trail" },
 ];
 
 export function StudioNav() {

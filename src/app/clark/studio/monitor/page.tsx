@@ -48,6 +48,10 @@ export default function MonitorPage() {
   const [m, setM] = useState<RiskMonitorResponse | null>(null);
   const [orders, setOrders] = useState<OrderHistoryRow[]>([]);
   const [drift, setDrift] = useState<any>(null);
+  // NAV record and audit trail moved here from Review: both answer "what has
+  // happened to the fund", which is this page's question, not a separate one.
+  const [navHistory, setNavHistory] = useState<{ ts?: string; total_nav_usd: number }[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [simOpen, setSimOpen] = useState(false);
@@ -55,14 +59,18 @@ export default function MonitorPage() {
 
   const load = useCallback(async () => {
     try {
-      const [risk, oh, dr] = await Promise.all([
+      const [risk, oh, dr, nh, ev] = await Promise.all([
         fundApiClient.getRiskMonitor(),
         fundApiClient.getOrderHistory(null, 50).catch(() => ({ orders: [] })),
         fundApiClient.getVenueReconcile().catch(() => null),
+        fundApiClient.getNavHistory(90).catch(() => ({ history: [] })),
+        fundApiClient.getEvents(40).catch(() => ({ events: [] })),
       ]);
       setM(risk);
       setOrders(oh.orders || []);
       setDrift(dr);
+      setNavHistory(nh.history || []);
+      setEvents(ev.events || []);
       setErr(null);
     } catch (e: any) {
       setErr(spineError(e));
@@ -338,10 +346,71 @@ export default function MonitorPage() {
             </ul>
           </div>
         )}
+
+        {/* --- the fund's record --- */}
+        <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className={KT.panel}>
+            <div className={`border-b border-[var(--kt-border)] px-5 py-3 ${KT.label}`}>
+              NAV record
+            </div>
+            {navHistory.length === 0 ? (
+              <div className={`px-5 py-8 text-sm ${KT.muted}`}>
+                No valuations struck yet.
+              </div>
+            ) : (
+              <div className="px-5 py-4">
+                <NavSparkline points={navHistory.map((h) => h.total_nav_usd)} />
+                <div className={`mt-2 flex justify-between text-[11px] ${KT.muted}`}>
+                  <span>{String(navHistory[0]?.ts ?? "").slice(0, 10)}</span>
+                  <span>{navHistory.length} strikes</span>
+                  <span>{String(navHistory[navHistory.length - 1]?.ts ?? "").slice(0, 10)}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className={KT.panel}>
+            <div className={`border-b border-[var(--kt-border)] px-5 py-3 ${KT.label}`}>
+              Audit trail
+            </div>
+            {events.length === 0 ? (
+              <div className={`px-5 py-8 text-sm ${KT.muted}`}>No events recorded.</div>
+            ) : (
+              <ul className="max-h-[240px] divide-y divide-[var(--kt-border)] overflow-y-auto">
+                {events.map((e, i) => (
+                  <li key={e.seq ?? i} className="flex items-baseline gap-3 px-5 py-1.5 text-[11px]">
+                    <span className={`w-10 shrink-0 font-mono ${KT.muted}`}>#{e.seq}</span>
+                    <span className="w-40 shrink-0 truncate font-medium">{e.type}</span>
+                    <span className={`shrink-0 font-mono ${KT.muted}`}>
+                      {String(e.ts ?? "").slice(11, 19)}
+                    </span>
+                    <span className={`truncate ${KT.muted}`}>{e.actor}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
       </div>
 
       <SimulationModal open={simOpen} onOpenChange={setSimOpen} onSuccess={() => load()} />
     </div>
+  );
+}
+
+/** NAV over time — the shape of the record, not a precise chart. */
+function NavSparkline({ points }: { points: number[] }) {
+  if (points.length < 2) return <div className={`text-[11px] ${KT.muted}`}>Not enough strikes to plot.</div>;
+  const lo = Math.min(...points), hi = Math.max(...points), span = hi - lo || 1;
+  const d = points
+    .map((v, i) => `${i ? "L" : "M"}${(i / (points.length - 1)) * 300},${28 - ((v - lo) / span) * 24}`)
+    .join("");
+  const up = points[points.length - 1] >= points[0];
+  return (
+    <svg viewBox="0 0 300 32" className="w-full" style={{ height: 48 }} preserveAspectRatio="none">
+      <path d={d} fill="none" strokeWidth={1.5}
+            stroke={up ? "var(--kt-up)" : "var(--kt-down)"} vectorEffect="non-scaling-stroke" />
+    </svg>
   );
 }
 
