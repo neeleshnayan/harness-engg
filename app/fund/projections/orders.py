@@ -17,37 +17,58 @@ _INFLIGHT = {EventType.ORDER_SUBMITTED.value, EventType.ORDER_PARTIALLY_FILLED.v
 
 
 class OrdersProjection:
-    def __init__(self, store: EventStore | None = None):
+    def __init__(self, store: EventStore | None = None, snapshots: Any = None,
+                 snapshot_every: int = 50):
         self._store = store or EventStore()
+        self._snapshots = snapshots
+        self._snapshot_every = snapshot_every
 
     def _fold(self) -> dict[str, dict[str, Any]]:
-        orders: dict[str, dict[str, Any]] = {}
-        for e in self._store.stream(since_seq=0, limit=100_000):
-            if e.get("aggregate_type") != "order":
-                continue
-            oid = e["aggregate_id"]
-            rec = orders.setdefault(oid, {
-                "order_id": oid, "proposed": None, "venue": None, "venue_ref": None,
-                "last": None, "last_filled_qty": 0.0, "ts": None,
-                "proposed_ts": None, "filled_qty": None, "avg_price": None, "filled_ts": None,
-            })
-            t = e["type"]
-            p = e["payload"]
-            if t == EventType.ORDER_PROPOSED.value:
-                rec["proposed"] = p
-                rec["proposed_ts"] = e.get("ts")
-            elif t == EventType.ORDER_SUBMITTED.value:
-                rec["venue"] = p.get("venue")
-                rec["venue_ref"] = p.get("venue_ref")
-            elif t == EventType.ORDER_PARTIALLY_FILLED.value:
-                rec["last_filled_qty"] = float(p.get("cumulative_qty", 0))
-            elif t == EventType.ORDER_FILLED.value:
-                rec["filled_qty"] = float(p.get("filled_qty", 0) or 0)
-                rec["avg_price"] = float(p.get("avg_price", 0) or 0)
-                rec["filled_ts"] = e.get("ts")
-            rec["last"] = t
-            rec["ts"] = e.get("ts")
-        return orders
+        """Snapshotted when a snapshot store is supplied; the event log stays
+        authoritative either way."""
+        if self._snapshots is None:
+            orders: dict[str, dict[str, Any]] = {}
+            for e in self._store.stream(since_seq=0, limit=100_000):
+                self._apply(orders, e)
+            return orders
+
+        from app.fund.snapshots import SnapshottedFold
+
+        return SnapshottedFold(
+            "orders", self._store, self._snapshots, every=self._snapshot_every
+        ).fold(
+            empty=dict,
+            apply=self._apply,
+            to_state=lambda o: o,
+            from_state=lambda s: dict(s or {}),
+        )
+
+    @staticmethod
+    def _apply(orders: dict[str, dict[str, Any]], e: dict[str, Any]) -> None:
+        if e.get("aggregate_type") != "order":
+            return
+        oid = e["aggregate_id"]
+        rec = orders.setdefault(oid, {
+            "order_id": oid, "proposed": None, "venue": None, "venue_ref": None,
+            "last": None, "last_filled_qty": 0.0, "ts": None,
+            "proposed_ts": None, "filled_qty": None, "avg_price": None, "filled_ts": None,
+        })
+        t = e["type"]
+        p = e["payload"]
+        if t == EventType.ORDER_PROPOSED.value:
+            rec["proposed"] = p
+            rec["proposed_ts"] = e.get("ts")
+        elif t == EventType.ORDER_SUBMITTED.value:
+            rec["venue"] = p.get("venue")
+            rec["venue_ref"] = p.get("venue_ref")
+        elif t == EventType.ORDER_PARTIALLY_FILLED.value:
+            rec["last_filled_qty"] = float(p.get("cumulative_qty", 0))
+        elif t == EventType.ORDER_FILLED.value:
+            rec["filled_qty"] = float(p.get("filled_qty", 0) or 0)
+            rec["avg_price"] = float(p.get("avg_price", 0) or 0)
+            rec["filled_ts"] = e.get("ts")
+        rec["last"] = t
+        rec["ts"] = e.get("ts")
 
     # Terminal/label for a folded order's latest event type.
     _STATUS = {

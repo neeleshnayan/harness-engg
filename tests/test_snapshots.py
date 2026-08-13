@@ -139,3 +139,79 @@ def test_decimals_survive_a_round_trip_exactly():
     assert seq == 1
     assert state["cash"] == Decimal("0.3")
     assert isinstance(state["cash"], Decimal)
+
+
+# --- every snapshotted projection must survive the same two properties -------
+# 1. snapshotted result == full-fold result
+# 2. deleting the snapshot changes nothing but latency
+
+from app.fund.projections.holdings import HoldingsProjection
+from app.fund.projections.orders import OrdersProjection
+from app.fund.projections.strategy import StrategyAttribution
+
+
+def _ledger_events():
+    return [
+        {"aggregate_id": "sub-1", "aggregate_type": "subscription",
+         "type": EventType.SUBSCRIPTION_REQUESTED.value,
+         "payload": {"lp_id": "alice", "lp_name": "Alice", "usd_amount": 1000}},
+        {"aggregate_id": "sub-1", "aggregate_type": "subscription",
+         "type": EventType.UNITS_ISSUED.value,
+         "payload": {"lp_id": "alice", "units": 1000}},
+        {"aggregate_id": "ord-1", "aggregate_type": "order",
+         "type": EventType.ORDER_PROPOSED.value,
+         "payload": {"symbol": "AAPL", "side": "buy", "qty": 5}},
+        {"aggregate_id": "ord-1", "aggregate_type": "order",
+         "type": EventType.ORDER_FILLED.value,
+         "payload": {"symbol": "AAPL", "side": "buy", "filled_qty": 5,
+                     "avg_price": 100, "fees": 0, "strategy_id": "s1"}},
+    ]
+
+
+def test_holdings_snapshot_matches_full_fold():
+    ev = _ledger_events()
+    plain = HoldingsProjection(FakeStore(ev)).build()
+    snapped = HoldingsProjection(FakeStore(ev), snapshots=SnapshotStore(db=FakeDb()),
+                                 snapshot_every=1).build()
+
+    assert snapped["alice"]["units"] == plain["alice"]["units"] == Decimal("1000")
+    assert snapped["alice"]["name"] == "Alice"
+
+
+def test_orders_snapshot_matches_full_fold():
+    ev = _ledger_events()
+    plain = OrdersProjection(FakeStore(ev))._fold()
+    snapped = OrdersProjection(FakeStore(ev), snapshots=SnapshotStore(db=FakeDb()),
+                               snapshot_every=1)._fold()
+
+    assert snapped["ord-1"]["last"] == plain["ord-1"]["last"] == EventType.ORDER_FILLED.value
+    assert snapped["ord-1"]["filled_qty"] == 5.0
+
+
+def test_attribution_snapshot_matches_full_fold():
+    ev = _ledger_events()
+    price = lambda _s: 120.0
+    plain = StrategyAttribution(FakeStore(ev)).with_values(price)
+    snapped = StrategyAttribution(FakeStore(ev), snapshots=SnapshotStore(db=FakeDb()),
+                                  snapshot_every=1).with_values(price)
+
+    assert snapped == plain
+    assert snapped[0]["unrealized_pnl_usd"] == 100.0   # 5 * (120 - 100)
+
+
+def test_incremental_fold_equals_full_fold_after_new_events():
+    """The property that actually matters: snapshot + delta == fold from scratch."""
+    db = FakeDb()
+    ev = _ledger_events()
+    store = FakeStore(ev)
+    proj = HoldingsProjection(store, snapshots=SnapshotStore(db=db), snapshot_every=1)
+    proj.build()                                   # snapshot written
+
+    store.append({"aggregate_id": "sub-2", "aggregate_type": "subscription",
+                  "type": EventType.UNITS_ISSUED.value,
+                  "payload": {"lp_id": "alice", "units": 250}})
+
+    incremental = proj.build()
+    from_scratch = HoldingsProjection(FakeStore(store.stream(limit=1000))).build()
+
+    assert incremental["alice"]["units"] == from_scratch["alice"]["units"] == Decimal("1250")
