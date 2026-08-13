@@ -215,3 +215,19 @@ def test_incremental_fold_equals_full_fold_after_new_events():
     from_scratch = HoldingsProjection(FakeStore(store.stream(limit=1000))).build()
 
     assert incremental["alice"]["units"] == from_scratch["alice"]["units"] == Decimal("1250")
+
+
+def test_first_snapshot_is_taken_immediately_not_after_N_events():
+    """A young book must still snapshot. Waiting for `every` before the FIRST
+    snapshot meant a small log never snapshotted and every read re-folded it —
+    which exhausted the read quota on a project holding ~22 events."""
+    db = FakeDb()
+    store = FakeStore(_events(3))                 # far fewer than `every`
+    proj = PositionsProjection(store, snapshots=SnapshotStore(db=db), snapshot_every=50)
+
+    proj.build()
+    assert "positions" in db.docs, "no snapshot written for a small book"
+
+    reads_before = store.reads
+    proj.build()
+    assert store.reads - reads_before == 0, "second read should fold nothing"

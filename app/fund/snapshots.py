@@ -123,7 +123,14 @@ class SnapshottedFold:
             last_seq = max(last_seq, int(e.get("seq", last_seq)))
             applied += 1
 
-        if self._snapshots is not None and applied >= self._every and last_seq > since:
+        # Take the FIRST snapshot as soon as there is anything to snapshot, then
+        # refresh every N events. Waiting for N before the first one means a
+        # young book never snapshots at all and every read keeps folding the
+        # whole log — which is exactly how a nearly-empty project still burned
+        # through its Firestore read quota.
+        if self._snapshots is not None and last_seq > since and (
+            since == 0 or applied >= self._every
+        ):
             self._snapshots.save(self._name, last_seq, to_state(acc))
 
         return acc

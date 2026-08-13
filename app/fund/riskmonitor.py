@@ -16,6 +16,8 @@ tripped, when, at what value vs. which threshold.
 
 from __future__ import annotations
 
+import time
+
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
@@ -61,23 +63,71 @@ class Alarm:
 class RiskControl:
     """Auditable limits + kill-switch state, folded from the event log."""
 
+    #: seconds a read-path fold may be reused. The trade path never uses it.
+    CACHE_TTL_SECONDS = 5.0
+
     def __init__(self, store: EventStore | None = None):
         self._store = store or EventStore()
+        self._cache: tuple[float, dict[str, Any]] | None = None
+
+    def _fold(self, fresh: bool = False) -> dict[str, Any]:
+        """Fold limits, halt state and alarms in ONE pass.
+
+        These were four separate full-log scans, and ``/fund/risk/monitor`` —
+        polled continuously by the risk bar on every page — paid for all of
+        them on every request. On a nearly-empty project that alone exhausted
+        the Firestore read quota.
+
+        The result is cached briefly for reads. Anything that gates a trade must
+        pass ``fresh=True``: a stale "not halted" could let an order through
+        after the kill switch engaged, which is the one staleness we will not
+        accept.
+        """
+        if not fresh and self._cache is not None:
+            age = time.monotonic() - self._cache[0]
+            if age < self.CACHE_TTL_SECONDS:
+                return self._cache[1]
+
+        limits = RiskLimits()
+        halted = False
+        active: dict[str, dict] = {}
+        history: list[dict] = []
+
+        for e in self._store.stream(since_seq=0, limit=100_000):
+            etype = e.get("type")
+            p = e.get("payload", {}) or {}
+            if etype == EventType.RISK_LIMITS_SET.value:
+                limits = RiskLimits.from_dict(p)
+            elif etype == EventType.TRADING_HALTED.value:
+                halted = True
+            elif etype == EventType.TRADING_RESUMED.value:
+                halted = False
+            elif etype == EventType.RISK_ALARM_RAISED.value:
+                history.append(e)
+                if p.get("key"):
+                    active[p["key"]] = p
+            elif etype == EventType.RISK_ALARM_CLEARED.value:
+                history.append(e)
+                if p.get("key"):
+                    active.pop(p["key"], None)
+
+        state = {"limits": limits, "halted": halted, "active": active, "history": history}
+        self._cache = (time.monotonic(), state)
+        return state
+
+    def _invalidate(self) -> None:
+        self._cache = None
 
     def limits(self) -> RiskLimits:
         """Latest RiskLimitsSet folded over defaults (RiskLimits())."""
-        cur = RiskLimits()
-        for e in self._store.stream(since_seq=0, limit=100_000):
-            if e.get("type") == EventType.RISK_LIMITS_SET.value:
-                p = e.get("payload", {})
-                cur = RiskLimits.from_dict(p)
-        return cur
+        return self._fold()["limits"]
 
     def set_limits(self, patch: dict, actor: str) -> RiskLimits:
         """Emit RISK_LIMITS_SET (merge patch onto current) and return the result."""
         cur_dict = self.limits().to_dict()
         cur_dict.update(patch or {})
         res = RiskLimits.from_dict(cur_dict)
+        self._invalidate()
         self._store.append(
             Event(
                 aggregate_id="fund",
@@ -89,16 +139,13 @@ class RiskControl:
         )
         return res
 
-    def is_halted(self) -> bool:
-        """True if the last of TradingHalted/TradingResumed is a halt."""
-        last_halt = False
-        for e in self._store.stream(since_seq=0, limit=100_000):
-            etype = e.get("type")
-            if etype == EventType.TRADING_HALTED.value:
-                last_halt = True
-            elif etype == EventType.TRADING_RESUMED.value:
-                last_halt = False
-        return last_halt
+    def is_halted(self, fresh: bool = True) -> bool:
+        """True if the last of TradingHalted/TradingResumed is a halt.
+
+        Defaults to a FRESH read: this gates trading, and a stale "not halted"
+        would be the one cache miss that actually costs money.
+        """
+        return self._fold(fresh=fresh)["halted"]
 
     def halt(self, reason: str, actor: str) -> dict:
         """Engage the kill switch (idempotent: no-op if already halted)."""
@@ -113,6 +160,7 @@ class RiskControl:
                 actor=actor,
             )
         )
+        self._invalidate()
         return {"status": "halted", "reason": reason, "halted": True}
 
     def resume(self, actor: str) -> dict:
@@ -128,33 +176,17 @@ class RiskControl:
                 actor=actor,
             )
         )
+        self._invalidate()
         return {"status": "resumed", "halted": False}
 
     def active_alarms(self) -> list[dict]:
         """Currently-open alarms: RISK_ALARM_RAISED not yet followed by a CLEARED
         for the same key, newest first."""
-        active: dict[str, dict] = {}
-        for e in self._store.stream(since_seq=0, limit=100_000):
-            etype = e.get("type")
-            p = e.get("payload", {})
-            if etype == EventType.RISK_ALARM_RAISED.value:
-                k = p.get("key")
-                if k:
-                    active[k] = p
-            elif etype == EventType.RISK_ALARM_CLEARED.value:
-                k = p.get("key")
-                if k:
-                    active.pop(k, None)
-        return list(reversed(list(active.values())))
+        return list(reversed(list(self._fold()["active"].values())))
 
     def alarm_history(self, limit: int = 100) -> list[dict]:
         """Recent alarm events (raised + cleared), newest first — the audit feed."""
-        history = []
-        for e in self._store.stream(since_seq=0, limit=100_000):
-            etype = e.get("type")
-            if etype in (EventType.RISK_ALARM_RAISED.value, EventType.RISK_ALARM_CLEARED.value):
-                history.append(e)
-        return list(reversed(history[-limit:]))
+        return list(reversed(self._fold()["history"][-limit:]))
 
 
 class RiskMonitor:

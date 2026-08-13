@@ -169,6 +169,23 @@ def get_book_identity():
     return {**info, "is_production": info.get("env") == "production"}
 
 
+@router.get("/fund/market/quotes")
+def get_market_quotes():
+    """Live quotes for the fund's universe — everything held, plus assets scoped
+    to a live strategy. Powers the ticker strip, so it stays useful before the
+    book holds anything."""
+    from app.fund import quotes as _quotes
+
+    nav = _nav.compute()
+    positions = [
+        {"symbol": p["symbol"], "qty": f(p["qty"]), "value_usd": f(p["usd_value"]),
+         "weight_pct": round(100.0 * float(p["usd_value"]) / float(nav.total_nav_usd), 4)
+                       if float(nav.total_nav_usd) else 0.0}
+        for p in (nav.positions or [])
+    ]
+    return _quotes.build(positions, _strategies.list())
+
+
 @router.get("/fund/nav")
 def get_nav():
     """Live (unstruck) valuation plus the last struck snapshot."""
