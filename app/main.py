@@ -15,7 +15,7 @@ import pathlib
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
@@ -112,6 +112,39 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(Exception)
+async def _database_error_handler(request: Request, exc: Exception):
+    """Say what actually went wrong.
+
+    A bare 500 sent the UI to "is ClarkHarness running?" — which sends the
+    operator to check a service that is running and a config that is correct,
+    while the real cause (the datastore refusing reads) goes unnamed. These are
+    infrastructure faults, not bugs in the request, so they answer 503 with a
+    cause the interface can show verbatim.
+    """
+    from fastapi.responses import JSONResponse
+
+    name = type(exc).__name__
+    if name in ("ResourceExhausted", "PermissionDenied", "ServiceUnavailable",
+                "DeadlineExceeded", "Unauthenticated"):
+        cause = {
+            "ResourceExhausted": "The fund database is over its read/write quota. "
+                                 "Free-tier quota resets daily; upgrading the plan lifts it.",
+            "PermissionDenied": "The fund database refused access — check the service "
+                                "account's permissions and that Firestore is enabled.",
+            "Unauthenticated": "The fund database rejected our credentials.",
+            "ServiceUnavailable": "The fund database is unreachable.",
+            "DeadlineExceeded": "The fund database did not respond in time.",
+        }[name]
+        _log.error("datastore fault (%s): %s", name, exc)
+        return JSONResponse(
+            status_code=503,
+            content={"detail": cause, "cause": name, "retryable": True},
+        )
+    _log.exception("unhandled error")
+    return JSONResponse(status_code=500, content={"detail": f"{name}: {exc}"})
+
 
 app.include_router(fund_router.router, prefix="/api/v1", tags=["fund"])
 
