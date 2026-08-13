@@ -3,23 +3,36 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CheckSquare, Layers, LayoutDashboard, ShieldAlert, Sliders, Target } from "lucide-react";
-import { KT } from "../theme";
+import { Activity, ClipboardCheck, History, Sliders } from "lucide-react";
 
+/**
+ * Workflow-first navigation (see docs/STUDIO_IA_SPEC.md).
+ *
+ * The Studio used to be organised by system component — Overview / Strategies /
+ * Composer / Approvals / Theses / Risk — which mirrored the code rather than the
+ * job, and left things like per-strategy drawdown with an equal claim on two
+ * tabs. These four match what the fund actually does, in order:
+ *
+ *     decide what to own -> size it -> watch it -> answer for it
+ *
+ * Risk is deliberately absent: it applies to all four, so it lives in the
+ * always-visible RiskBar instead of being a place you have to visit.
+ */
 const TABS = [
-  { href: "/clark/studio", label: "Overview", icon: LayoutDashboard, exact: true },
-  { href: "/clark/studio/strategies", label: "Strategies", icon: Layers },
-  { href: "/clark/studio/compose", label: "Composer", icon: Sliders },
-  { href: "/clark/studio/approvals", label: "Approvals", icon: CheckSquare },
-  { href: "/clark/studio/theses", label: "Theses", icon: Target },
-  { href: "/clark/studio/risk", label: "Risk", icon: ShieldAlert },
+  { href: "/clark/studio", label: "Decide", icon: ClipboardCheck, exact: true,
+    hint: "Theses, memos and approvals awaiting a human" },
+  { href: "/clark/studio/allocate", label: "Allocate", icon: Sliders,
+    hint: "Strategies, weights and composition" },
+  { href: "/clark/studio/monitor", label: "Monitor", icon: Activity,
+    hint: "Live NAV, positions, breaches and the kill-switch" },
+  { href: "/clark/studio/review", label: "Review", icon: History,
+    hint: "Attribution, post-mortems and the audit trail" },
 ];
 
-/** Shared subpage nav for the Strategy Studio cockpit. */
 export function StudioNav() {
   const path = usePathname();
   return (
-    <div className="flex flex-wrap items-center gap-1">
+    <nav className="flex flex-wrap items-center gap-1">
       {TABS.map((t) => {
         const active = t.exact ? path === t.href : path.startsWith(t.href);
         const Icon = t.icon;
@@ -27,9 +40,11 @@ export function StudioNav() {
           <Link
             key={t.href}
             href={t.href}
+            title={t.hint}
+            aria-current={active ? "page" : undefined}
             className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-colors ${
               active
-                ? "bg-emerald-500/15 text-[var(--kt-accent)] border border-emerald-500/30"
+                ? "border border-[var(--kt-accent-border)] bg-[var(--kt-accent-bg)] text-[var(--kt-accent)]"
                 : "border border-transparent text-[var(--kt-text-dim)] hover:bg-[var(--kt-inset)] hover:text-[var(--kt-text)]"
             }`}
           >
@@ -37,6 +52,6 @@ export function StudioNav() {
           </Link>
         );
       })}
-    </div>
+    </nav>
   );
 }

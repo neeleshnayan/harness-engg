@@ -6,6 +6,7 @@ import { MessageSquare, TrendingUp } from "lucide-react";
 import { StudioNav } from "./StudioNav";
 import { KT } from "../theme";
 import { ThemeToggle } from "../ThemeToggle";
+import { RiskBar } from "./RiskBar";
 
 interface StudioHeaderProps {
   /** Static strapline, e.g. a page description. */
@@ -56,6 +57,9 @@ export function StudioHeader({ subtitle, status, actions }: StudioHeaderProps) {
       <div className="mx-auto max-w-[1600px] px-6 pb-2 sm:hidden">
         <StudioNav />
       </div>
+      {/* Risk applies to every surface, so it follows the user rather than
+          living on a page they must remember to visit. */}
+      <RiskBar />
     </div>
   );
 }
