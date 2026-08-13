@@ -28,7 +28,11 @@ def seed_if_empty(store: EventStore, db) -> bool:
             _log.info("Store already contains events — skipping auto-seed.")
             return False
     except Exception as e:
-        _log.warning("Could not check event store status (%s) — proceeding with auto-seed fallback.", e)
+        # Never seed when we cannot prove the store is empty. Seeding on a failed
+        # check could inject demo LPs, cash and strategies into a real book —
+        # the fund's ledger is append-only, so that is not undoable.
+        _log.error("Could not verify the event store is empty (%s) — REFUSING to seed.", e)
+        return False
 
     _log.info("Initializing complete demo-ready fund state...")
 
