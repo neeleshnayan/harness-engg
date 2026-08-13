@@ -48,7 +48,14 @@ export interface StrategyView {
   allocation_pct: number;
   actual_pct?: number;
   exposure_usd?: number;
+  /** Pooled total = realized + unrealized. */
   pnl_usd?: number;
+  /** Locked in by sales (average-cost basis). */
+  realized_pnl_usd?: number;
+  /** Mark-to-market on the open position. */
+  unrealized_pnl_usd?: number;
+  /** Cost basis of the open position. */
+  cost_basis_usd?: number;
   positions?: Record<string, { qty?: number; avg_price?: number }>;
   backtest?: BacktestSummary | null;
   assets?: string[];             // scoped asset universe
