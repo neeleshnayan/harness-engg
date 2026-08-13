@@ -21,43 +21,58 @@ from app.fund.marketdata import BarsError, fetch_daily_bars, live_price
 
 _log = logging.getLogger(__name__)
 
-# symbol -> (session_date, previous_close)
-_prev_close_cache: dict[str, tuple[str, float]] = {}
+# symbol -> (session_date, latest_close, prior_close)
+_prev_close_cache: dict[str, tuple[str, float, float | None]] = {}
 
 
-def _previous_close(symbol: str) -> tuple[float | None, str | None]:
-    """Yesterday's close and its date. Cached — it changes once a day."""
+def _session_closes(symbol: str) -> tuple[float | None, float | None, str | None]:
+    """(latest close, prior close, latest close's date).
+
+    Both are needed because the reference for a day change depends on whether
+    the market is open. Intraday, "previous close" is the last completed
+    session. Once closed, the live price IS that session's close, so comparing
+    the two reports 0.00% — the honest figure after hours is the last session's
+    own move, latest vs prior.
+    """
     cached = _prev_close_cache.get(symbol)
     try:
-        bars = fetch_daily_bars(symbol, lookback_days=7)
+        bars = fetch_daily_bars(symbol, lookback_days=10)
     except BarsError as e:
         _log.debug("no bars for %s: %s", symbol, e)
-        return (cached[1], cached[0]) if cached else (None, None)
+        bars = None
 
     if not bars or not bars.closes:
-        return (cached[1], cached[0]) if cached else (None, None)
+        if cached:
+            return cached[1], cached[2], cached[0]
+        return None, None, None
 
-    # last bar is the most recent completed session
-    close = float(bars.closes[-1])
+    latest = float(bars.closes[-1])
+    prior = float(bars.closes[-2]) if len(bars.closes) > 1 else None
     date = bars.dates[-1] if bars.dates else ""
-    if cached and cached[0] == date:
-        return cached[1], date
-    _prev_close_cache[symbol] = (date, close)
-    return close, date
+    _prev_close_cache[symbol] = (date, latest, prior)
+    return latest, prior, date
 
 
 def quote(symbol: str, held: dict[str, Any] | None = None) -> dict[str, Any]:
-    prev, prev_date = _previous_close(symbol)
+    latest, prior, prev_date = _session_closes(symbol)
     try:
         price = live_price(symbol)
     except Exception:
         price = None
 
-    # if there is no live tick, the last completed close is still honest —
-    # but say so, rather than passing it off as a live price
+    # No live tick: fall back to the last close, and mark it stale rather than
+    # passing it off as live.
     stale = price is None
     if stale:
-        price = prev
+        price = latest
+
+    # Pick the reference the change should be measured against. If the "live"
+    # price is just the last close (market shut), the meaningful figure is that
+    # session's own move, not zero.
+    if latest is not None and price is not None and abs(price - latest) < 1e-9:
+        prev = prior
+    else:
+        prev = latest
 
     change = change_pct = None
     if price is not None and prev not in (None, 0):

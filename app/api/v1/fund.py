@@ -170,20 +170,39 @@ def get_book_identity():
 
 
 @router.get("/fund/market/quotes")
-def get_market_quotes():
+def get_market_quotes(symbols: str | None = Query(None, description="Comma-separated override")):
     """Live quotes for the fund's universe — everything held, plus assets scoped
-    to a live strategy. Powers the ticker strip, so it stays useful before the
-    book holds anything."""
+    to a live strategy.
+
+    Prices come from market data, not the ledger, so an explicit ``symbols`` list
+    is answerable even when the event log is unavailable — that is what keeps the
+    research loop and the ticker alive during a datastore outage. Without it we
+    must read the book to know what the fund cares about; if that read fails we
+    say the universe is unknown rather than implying the fund holds nothing.
+    """
     from app.fund import quotes as _quotes
 
-    nav = _nav.compute()
-    positions = [
-        {"symbol": p["symbol"], "qty": f(p["qty"]), "value_usd": f(p["usd_value"]),
-         "weight_pct": round(100.0 * float(p["usd_value"]) / float(nav.total_nav_usd), 4)
-                       if float(nav.total_nav_usd) else 0.0}
-        for p in (nav.positions or [])
-    ]
-    return _quotes.build(positions, _strategies.list())
+    if symbols:
+        wanted = [s.strip().upper() for s in symbols.split(",") if s.strip()][:24]
+        return _quotes.build([], [{"assets": wanted, "archived": False}])
+
+    try:
+        nav = _nav.compute()
+        positions = [
+            {"symbol": p["symbol"], "qty": f(p["qty"]), "value_usd": f(p["usd_value"]),
+             "weight_pct": round(100.0 * float(p["usd_value"]) / float(nav.total_nav_usd), 4)
+                           if float(nav.total_nav_usd) else 0.0}
+            for p in (nav.positions or [])
+        ]
+        strategies = _strategies.list()
+    except Exception as e:
+        return {"quotes": [], "held_count": 0, "watch_count": 0, "unpriced": [],
+                "universe_known": False,
+                "reason": f"cannot read the fund's universe: {type(e).__name__}"}
+
+    out = _quotes.build(positions, strategies)
+    out["universe_known"] = True
+    return out
 
 
 @router.get("/fund/nav")

@@ -33,9 +33,12 @@ load_dotenv()
 use_fake = os.getenv("USE_FAKE_FIRESTORE", "").lower() in ("1", "true", "yes")
 
 if use_fake:
-    _log.warning("USE_FAKE_FIRESTORE set — using in-memory Firestore.")
+    _log.warning("MOCK MODE — in-memory ledger, real market prices. NOT the fund.")
     from app.core.dev_firestore import install_fake
     install_fake()
+    from app.core import firebase as _fb
+    _fb._active.update({"project_id": "in-memory", "env": "mock",
+                        "service_account": "(none)", "database_id": "(memory)"})
 else:
     try:
         initialize_firebase()

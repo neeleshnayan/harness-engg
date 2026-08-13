@@ -39,6 +39,9 @@ def initialize_firebase() -> None:
         _log.warning("Could not read project_id from %s (%s)", service_account_path, e)
 
     env = os.getenv("FUND_ENV", "staging").strip().lower()
+    if os.getenv("USE_FAKE_FIRESTORE", "").lower() in ("1", "true", "yes"):
+        # An in-memory ledger is never the fund, whatever FUND_ENV claims.
+        env = "mock"
     _active.update({"project_id": project_id, "env": env,
                     "service_account": service_account_path,
                     "database_id": os.getenv("FIRESTORE_DATABASE_ID", "(default)")})
