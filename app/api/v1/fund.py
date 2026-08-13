@@ -655,6 +655,61 @@ def get_bars(symbol: str = Query(..., min_length=1, max_length=12),
             "start": bars.start, "end": bars.end}
 
 
+@router.post("/fund/research/backtest")
+def research_backtest(req: BacktestBySymbolRequest):
+    """Stateless backtest — the research loop, with no strategy registered.
+
+    A tester you must first register a strategy to use is not a tester. Here you
+    pick a symbol, a template and parameters, and get the full result back:
+    equity curve, trade list and statistics, alongside the price series so the
+    two can be drawn on the same axis.
+
+    Touches no event log: research is not fund state. Nothing is persisted until
+    someone decides the idea is worth registering.
+    """
+    try:
+        bars = fetch_daily_bars(req.symbol, lookback_days=req.lookback_days,
+                                start=req.start_date, end=req.end_date)
+    except BarsError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    prices = bars.closes
+    signals = signals_for(
+        req.strategy, prices,
+        fast=req.fast, slow=req.slow,
+        rsi_period=req.rsi_period, rsi_low=req.rsi_low, rsi_high=req.rsi_high,
+        breakout_lookback=req.breakout_lookback,
+        macd_fast=req.macd_fast, macd_slow=req.macd_slow, macd_signal=req.macd_signal,
+        boll_period=req.boll_period, boll_k=req.boll_k,
+        momentum_lookback=req.momentum_lookback,
+        atr_period=req.atr_period, atr_mult=req.atr_mult,
+    )
+    result = SimpleBacktester().run(prices, signals)
+
+    # buy-and-hold over the same window — a strategy that cannot beat simply
+    # owning the thing is not interesting, and that comparison should be
+    # impossible to avoid seeing
+    bh = SimpleBacktester().run(prices, [1.0] * len(prices))
+
+    return {
+        "symbol": bars.symbol,
+        "source": bars.source,
+        "strategy": req.strategy,
+        "params": req.model_dump(exclude_none=True),
+        "result": result.to_dict(),
+        "benchmark": {
+            "label": "buy & hold",
+            "total_return": round(bh.total_return, 6),
+            "sharpe": round(bh.sharpe, 4),
+            "max_drawdown": round(bh.max_drawdown, 6),
+            "equity_curve": [round(e, 6) for e in bh.equity_curve],
+        },
+        "bars": {"closes": prices, "dates": bars.dates,
+                 "start": bars.start, "end": bars.end},
+        "signals": signals,
+    }
+
+
 @router.post("/fund/strategies/{strategy_id}/backtest/by_symbol")
 def run_backtest_by_symbol(strategy_id: str, req: BacktestBySymbolRequest):
     """Fetch real free daily bars for a symbol and run the built-in backtest.
