@@ -1,53 +1,79 @@
 # Krypton Fund — session handoff
 
-Written 2026-08-13, updated at the end of the first live market session.
+Written 2026-08-13, updated at the end of the second live session.
 Everything below was verified at the time of writing, not remembered. Where
 something is unverified it says so.
 
 ---
 
-## 0. Start here tomorrow — exact state
+## 0. Start here — exact state
 
-**The books are aligned.** Local ledger and Alpaca agree position-for-position.
+**The end-to-end path works.** On 2026-08-13 the platform placed, gated,
+approved, filled and reconciled its first two orders through its own flow.
 
 | | |
 |---|---|
 | Ledger | local file `ClarkHarness/.firestore_local_db.json` (NOT Firestore) |
 | Broker | Alpaca paper `PA39CZ4T5WJK`, orders are **real** |
-| Positions | F 24 · INTC 6.7 · SOFI 16 — `in_sync: true` on all three |
-| NAV | ~$2,020–2,028 · NAV/unit ~1.0138 · **+1.38%** since inception |
-| P&L | unrealized ~+$27 · realized $0 · cost basis $1,301 |
-| Open orders at venue | 0 |
-| Live breaches | INTC 34.6% vs 20% cap · Cyclicals 65.4% vs 40% cap |
+| Positions | INTC 6.7 · SOFI 16 · MSFT 0.340051 — `symbols_out_of_sync: 0` |
+| NAV | $2,028.39 · NAV/unit 1.014194 · cash $863.00 |
+| Live breaches | INTC 34.6% vs 20% cap · Mean Reversion 49.1% vs 40% cap |
+| First round-trip | F closed −$0.70 (−0.21%), entry 13.899 → exit 13.87 |
 
-### Resume in three commands
+### Resume
 ```bash
 cd "C:/Users/user/Documents/Krypton Fund/ClarkHarness"
-USE_FAKE_FIRESTORE=1 FUND_REAL_BROKER=1 FUND_LIVE_MARKS=true DISABLE_DEMO_SEED=1   ALPACA_PRICE_TTL=15 ./venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8090
-# do NOT delete .firestore_local_db.json — it holds the aligned book
+bash scripts/run_local.sh          # <- USE THIS, see the warning below
 cd ../KryptonPay && npm run dev
-./venv/Scripts/python.exe scripts/live_monitor.py --interval 120   # optional watch
+./venv/Scripts/python.exe scripts/live_monitor.py --interval 120   # optional
 ```
 
+> **Do not start the spine by hand.** `.env` carries `USE_FAKE_FIRESTORE=0` and
+> `FUND_ENV=production`, because that is the deployed fund's configuration. The
+> local session was safe only because someone exported `USE_FAKE_FIRESTORE=1` in
+> a shell — a setting that existed nowhere on disk. The first restart lost it and
+> the spine came up pointing at the **production ledger**. `run_local.sh` is that
+> setting written down. Do not delete `.firestore_local_db.json`; it is the book.
+
 ### The first thing to do
-The book is **in breach and unbalanced**: 65% sits in one strategy because those
-positions were adopted from the venue, not traded into targets. Two strategies
-hold nothing. Fix it through the real path — **Allocate → Compose a plan →
-Queue orders → Approve** — which is also the end-to-end test that has not yet
-been run through the platform's own order flow.
+The book is still **in breach**: INTC is 34.6% against a 20% cap. The sells that
+clear it are sitting in the signals panel on Monitor — propose, approve, done.
+This is now a two-click operation and no longer needs the rebalance planner.
 
-### What happened in the live session (read this before trusting anything)
-Seven orders filled at the open that the platform **did not place** — leftovers
-from the earlier mock-mode leakage bug, queued the previous day. Our ledger
-correctly held nothing, and the position-level monitor caught the divergence
-within two minutes. They were then **adopted** into the local ledger (7 events,
-idempotent by `client_order_id`, dry run first) and mapped to
-`Mean Reversion — Cyclicals` from its declared universe.
+### What this session proved, and what it exposed
+Two orders went the whole way — `OrderProposed → OrderApproved → OrderSubmitted
+→ OrderFilled`, reconciling to `symbols_out_of_sync: 0` and a $0.01 NAV delta.
+The MSFT buy showed 23c of slippage against its own impact preview ($169.07
+previewed, $169.30 filled), which is real and worth checking against the 2bps
+cost assumption in the backtester before trusting it.
 
-**Lesson worth keeping: NAV drift is a terrible detector for this.** Buying
-converts cash to stock 1:1, so equity barely moved (~$8) while composition
-diverged completely. Position-level comparison caught it instantly. That is why
-`live_monitor.py` diffs positions, not just NAV.
+Five things were found that were quietly wrong:
+
+1. **No signal→order loop existed at all.** Strategies had allocations and
+   universes; nothing ever ran them. Every fill in the book had arrived from
+   elsewhere. `app/fund/signals.py` is the missing link.
+2. **A risk limit prevented de-risking.** The single-order notional cap applied
+   to every order regardless of side, so a position larger than the cap could
+   never be exited — in one order or any number of them. It bit hardest exactly
+   when a position had grown large.
+3. **Dividends were not ingested.** No event type, nothing reading the venue's
+   activities. F pays quarterly; every payment would have appeared only as NAV
+   drift that never resolves.
+4. **A corrupt ledger became an empty one.** A JSON parse error silently reset
+   the store to `{}` and the next save overwrote the damaged file. Total silent
+   loss of the fund's history from a recoverable error.
+5. **Prices were unadjusted.** Alpaca defaults to `adjustment=raw`; every split
+   appeared as a crash and every signal fired on it.
+
+**Lesson worth keeping from the previous session: NAV drift is a terrible
+detector.** Buying converts cash to stock 1:1, so equity barely moves while
+composition diverges completely. That is why `live_monitor.py` diffs positions.
+
+**Lesson from this one: a self-reported health check proves nothing.** The
+settlement poller ran on a 300-second interval for a whole session — a fill sat
+unrecorded for five minutes while every "scheduler: OK" check would have passed.
+The System status panel now derives each row from an artefact the component
+actually produced.
 
 ---
 
@@ -553,3 +579,57 @@ curl -s "localhost:8090/api/v1/fund/market/quotes?symbols=INTC,F,PLTR"
 # repair the book against the broker (DRY RUN — omit --apply)
 ./venv/Scripts/python.exe scripts/reconcile_broker.py
 ```
+
+---
+
+## What is new this session (2026-08-13, second half)
+
+**Backend** — `app/fund/`
+| module | what it is |
+|---|---|
+| `signals.py` | the signal→order loop. Proposes only; holds no approval path, so no change here can make the fund trade by itself. Dry run default, closed-market block, duplicate suppression, per-template parameter translation. |
+| `custody.py` | dividends / interest / splits from the venue's activities, idempotent by Alpaca's activity id. Unmodelled types surfaced, splits refused rather than guessed. |
+| `execution.py` | fills and closed round-trips per strategy, with distribution, streaks, holding periods, long/short split. |
+| `tearsheet.py` | the research metric set: CAGR, Sortino, Calmar, drawdown recovery, benchmark alpha/beta/IR, PSR and the selection penalty. |
+| `backtest.py` | `CostModel` — costs charged on notional traded, applied BEFORE returns are recorded so Sharpe and drawdown are post-cost. A zero cost is never silent. |
+| `marketdata.py` | split/dividend adjusted, OHLCV carried through, intraday timeframes (`1Min`/`5Min`/`15Min`/`1Hour`). |
+
+**Endpoints**: `/signals`, `/signals/run`, `/executions`, `/executions/chart`,
+`/custody/plan`, `/custody/apply`.
+
+**Frontend** — Monitor is the landing page. Nav is Monitor · Allocate · Lab ·
+Risk; Decide is gone (approvals → Monitor, theses/memos → Lab, **not yet
+moved**). New: `SignalsPanel`, `OrderFlow`, `MonitorGraphs`, `HaltControl`,
+`LimitsEditor`, `SystemStatus`, `ExecutionAnalytics`, `ExecutionChart`.
+
+### Known-good verification
+- 324 backend tests, `tsc` clean, no new lint warnings
+- all 18 touched endpoints return 200
+- the two P&L projections (attribution and execution) agree on longs, short
+  covers and cover-then-flip
+
+### Open, in the order I would do them
+1. **Clear the INTC breach** — propose + approve the sells on Monitor.
+2. **Lab migration is half-done.** The nav says Lab holds "theses, memos" but
+   only the label moved; the thesis UI has no home. `createThesis`, `getTheses`,
+   `recordPostmortem` etc. exist in `fund_api.ts` and are unused — that is the
+   client library waiting for this UI, not dead code.
+3. **Replace fill polling with the `trade_updates` websocket.** `TradingStream`
+   is available in alpaca-py 0.43.5. Polling means a fill is invisible for up to
+   an interval; keep the poller as an idempotent backstop.
+4. **Market hours exist only inside the signal runner.** Settlement,
+   reconciliation and NAV striking still run identically at 3am.
+5. **`/compose` is orphaned** — live route, not in the nav, linked only from the
+   Allocate header. Fold in or delete.
+6. **No fee accrual.** Fine for friends & family, but it should be a stated
+   decision rather than an absence.
+7. **Rotate credentials.** The Firebase service account and Alpaca keys were
+   pasted into a chat transcript.
+
+### Things that are deliberately NOT bugs
+- Splits are refused, not applied — Alpaca reports the change in quantity, not
+  the resulting position, and a guessed ratio corrupts the share count.
+- The signals panel does not auto-refresh; evaluating pulls bars for every
+  symbol and would rate-limit the free feed.
+- Resume is as many clicks as halt. Turning risk back on should never be easier
+  than turning it off.
