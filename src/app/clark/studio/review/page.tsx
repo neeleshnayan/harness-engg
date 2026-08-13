@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import { spineError } from "@/lib/spine_error";
 import { StudioHeader } from "../components/StudioHeader";
 import { KT } from "../theme";
 import { fundApiClient, StrategyView } from "@/lib/fund_api";
@@ -40,7 +41,7 @@ export default function ReviewPage() {
       setEvents(ev.events || []);
       setErr(null);
     } catch (e: any) {
-      setErr(e?.message || "Could not reach the fund.");
+      setErr(spineError(e));
     } finally {
       setLoading(false);
     }
@@ -66,7 +67,7 @@ export default function ReviewPage() {
       <div className="mx-auto max-w-[1600px] px-6 py-6">
         {err && (
           <div className={`mb-4 p-3 text-sm ${KT.inset} ${KT.down}`}>
-            {err} — is the fund service running on :8090?
+            {err}
           </div>
         )}
 

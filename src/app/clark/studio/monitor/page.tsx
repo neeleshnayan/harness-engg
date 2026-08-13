@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { spineError } from "@/lib/spine_error";
 import { AlertTriangle, Loader2, ShieldAlert, ShieldCheck } from "lucide-react";
 import { StudioHeader } from "../components/StudioHeader";
 import { SimulationModal } from "../components/SimulationModal";
@@ -64,7 +65,7 @@ export default function MonitorPage() {
       setDrift(dr);
       setErr(null);
     } catch (e: any) {
-      setErr(e?.message || "Could not reach the fund.");
+      setErr(spineError(e));
     } finally {
       setLoading(false);
     }
@@ -108,7 +109,7 @@ export default function MonitorPage() {
       <div className="mx-auto max-w-[1600px] px-6 py-6">
         {err && (
           <div className={`mb-4 p-3 text-sm ${KT.inset} ${KT.down}`}>
-            {err} — is the fund service running on :8090?
+            {err}
           </div>
         )}
 

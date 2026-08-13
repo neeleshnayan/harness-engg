@@ -1,6 +1,7 @@
 "use client";
 
 import { KT } from "./theme";
+import { spineError } from "@/lib/spine_error";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -145,7 +146,7 @@ export default function StrategyStudioPage() {
       setTick((v) => v + 1);
       setErr(null);
     } catch (e: unknown) {
-      const msg = (e as { message?: string })?.message || "Could not reach the fund spine.";
+      const msg = spineError(e);
       if (!soft) setErr(msg);
     } finally {
       setLoading(false);
@@ -303,7 +304,7 @@ export default function StrategyStudioPage() {
       <div className="mx-auto max-w-[1400px] px-4 py-4">
         {err && (
           <div className="mb-4 rounded-lg border border-red-800/50 bg-red-950/30 p-3 text-sm text-[var(--kt-down)]">
-            {err} — is ClarkHarness running on :8090 and <code>NEXT_PUBLIC_HARNESS_API_URL</code> set?
+            {err}
           </div>
         )}
 

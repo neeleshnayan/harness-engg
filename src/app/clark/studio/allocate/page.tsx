@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { spineError } from "@/lib/spine_error";
 import Link from "next/link";
 import { ArrowRight, Loader2, Plus, Scale, Sliders } from "lucide-react";
 import { StudioHeader } from "../components/StudioHeader";
@@ -83,7 +84,7 @@ export default function AllocatePage() {
       setNav(n);
       setErr(null);
     } catch (e: any) {
-      setErr(e?.message || "Could not reach the fund.");
+      setErr(spineError(e));
     } finally {
       setLoading(false);
     }
@@ -133,7 +134,7 @@ export default function AllocatePage() {
       <div className="mx-auto max-w-[1600px] px-6 py-6">
         {err && (
           <div className={`mb-4 p-3 text-sm ${KT.inset} ${KT.down}`}>
-            {err} — is the fund service running on :8090?
+            {err}
           </div>
         )}
 
