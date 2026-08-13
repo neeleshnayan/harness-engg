@@ -27,14 +27,50 @@ class Book:
 
 
 class PositionsProjection:
-    def __init__(self, store: EventStore | None = None):
+    def __init__(self, store: EventStore | None = None, snapshots: Any = None,
+                 snapshot_every: int = 50):
         self._store = store or EventStore()
+        self._snapshots = snapshots
+        # a snapshot costs a write, so only take one once enough new events
+        # have accumulated to pay for it on the next read
+        self._snapshot_every = snapshot_every
 
     def build(self) -> Book:
-        book = Book()
-        for e in self._store.stream(since_seq=0, limit=100_000):
-            self._apply(book, e)
-        return book
+        """Fold the book. With a snapshot store this reads only the events since
+        the last snapshot; without one it folds the whole log exactly as before.
+        The event log stays authoritative — a snapshot is a cache."""
+        if self._snapshots is None:
+            book = Book()
+            for e in self._store.stream(since_seq=0, limit=100_000):
+                self._apply(book, e)
+            return book
+
+        from app.fund.snapshots import SnapshottedFold
+
+        return SnapshottedFold(
+            "positions", self._store, self._snapshots, every=self._snapshot_every
+        ).fold(
+            empty=Book,
+            apply=self._apply,
+            to_state=self._to_state,
+            from_state=self._from_state,
+        )
+
+    @staticmethod
+    def _to_state(book: Book) -> dict[str, Any]:
+        return {
+            "cash": book.cash,
+            "units_outstanding": book.units_outstanding,
+            "positions": book.positions,
+        }
+
+    @staticmethod
+    def _from_state(state: dict[str, Any]) -> Book:
+        return Book(
+            cash=state.get("cash", _ZERO),
+            units_outstanding=state.get("units_outstanding", _ZERO),
+            positions=state.get("positions", {}) or {},
+        )
 
     @staticmethod
     def _apply(book: Book, e: dict[str, Any]) -> None:

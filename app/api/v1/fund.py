@@ -94,7 +94,11 @@ _connector = (
     else PaperConnector(live_pricer=_paper_live_pricer())
 )
 _store = EventStore()
-_projection = PositionsProjection(_store)
+# Snapshotted: without this every read folds the entire event log, which is
+# O(all history) per request and exhausted the Firestore read quota (429).
+from app.fund.snapshots import SnapshotStore
+_snapshots = SnapshotStore()
+_projection = PositionsProjection(_store, snapshots=_snapshots)
 _nav = NavService(pricer=_connector.price, store=_store, projection=_projection)
 _pipeline = CommandPipeline(connector=_connector, nav_service=_nav, store=_store)
 _ledger = LedgerService(nav_service=_nav, store=_store)
