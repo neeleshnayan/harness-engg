@@ -434,6 +434,45 @@ export interface MarketQuotesResponse {
   unpriced: string[];
 }
 
+export interface BacktestTrade {
+  entry_index: number;
+  entry_price: number;
+  exit_index: number;
+  exit_price: number;
+  side: "long" | "short";
+  position: number;
+  pnl_pct: number;
+  bars_held: number;
+}
+
+export interface ResearchResult extends BacktestResult {
+  equity_curve: number[];
+  trades: BacktestTrade[];
+  win_rate: number;
+  avg_win: number;
+  avg_loss: number;
+  profit_factor: number;
+  exposure_pct: number;
+  volatility: number;
+}
+
+export interface ResearchBacktestResponse {
+  symbol: string;
+  source: string;
+  strategy: string;
+  params: Record<string, any>;
+  result: ResearchResult;
+  benchmark: {
+    label: string;
+    total_return: number;
+    sharpe: number;
+    max_drawdown: number;
+    equity_curve: number[];
+  };
+  bars: { closes: number[]; dates: string[] | null; start: string | null; end: string | null };
+  signals: number[];
+}
+
 export interface RiskMonitorResponse {
   nav_usd: number;
   cash_usd: number;
@@ -682,6 +721,10 @@ export const fundApiClient = {
     as_of?: string;
     reason?: string;
   }> => (await fundApi.get(`${P}/venue/reconcile`)).data,
+
+  /** Stateless backtest — registers nothing, touches no event log. */
+  researchBacktest: async (body: BacktestBySymbolBody): Promise<ResearchBacktestResponse> =>
+    (await fundApi.post(`${P}/research/backtest`, body)).data,
 
   getRiskMonitor: async (): Promise<RiskMonitorResponse> =>
     (await fundApi.get(`${P}/risk/monitor`)).data,
