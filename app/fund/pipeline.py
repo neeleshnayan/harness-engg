@@ -42,7 +42,12 @@ class CommandPipeline:
         self._store = store or EventStore()
         self._control = RiskControl(self._store)
         self._explicit_risk_gate = risk_gate
-        self._risk = risk_gate or RiskGate(limits=self._control.limits())
+        # Do NOT read the event log here. This runs at module import, so a
+        # database that is unreachable (or over quota) would take the whole
+        # service down at boot instead of letting it start and report itself
+        # unhealthy. propose_order() reads limits fresh anyway — that is what
+        # makes a limit change take effect without a restart.
+        self._risk = risk_gate or RiskGate(limits=RiskLimits())
 
     # --- propose -----------------------------------------------------------
     def propose_order(self, order: Order, actor: str) -> dict[str, Any]:
