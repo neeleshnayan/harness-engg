@@ -6,6 +6,7 @@ import {
   Tooltip, XAxis, YAxis,
 } from "recharts";
 import { useChartColors } from "../chartColors";
+import { isFlat, navDomain } from "../navDomain";
 import { KT } from "../theme";
 import { IntradayNavSeries, RiskLimitsConfig, RiskMonitorResponse, fundApiClient } from "@/lib/fund_api";
 
@@ -142,7 +143,7 @@ export function MonitorGraphs({ m }: { m: RiskMonitorResponse | null }) {
                 </defs>
                 <XAxis dataKey="ts" tick={{ fill: c.textMuted, fontSize: 9 }}
                        stroke={c.axis} tickLine={false} minTickGap={40} />
-                <YAxis domain={["auto", "auto"]} hide />
+                <YAxis domain={navDomain(trace.map((t) => t.nav))} hide />
                 <Tooltip
                   contentStyle={{ background: c.surface, border: `1px solid ${c.grid}`,
                                   borderRadius: 8, fontSize: 11, color: c.text }}
@@ -157,6 +158,7 @@ export function MonitorGraphs({ m }: { m: RiskMonitorResponse | null }) {
           </div>
         )}
         <p className={`px-4 pb-2 text-[10px] ${KT.muted}`}>
+          {isFlat(trace.map((t) => t.nav)) && "Flat — marks are static, which is a closed market. "}
           In-memory samples, lost on restart — telemetry, not the NAV record.
         </p>
       </div>

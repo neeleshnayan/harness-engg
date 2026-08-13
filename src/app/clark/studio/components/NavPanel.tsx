@@ -6,6 +6,7 @@ import {
 } from "recharts";
 import { spineError } from "@/lib/spine_error";
 import { useChartColors } from "../chartColors";
+import { isFlat, navDomain } from "../navDomain";
 import { KT } from "../theme";
 import { fundApiClient, IntradayNavSeries, NavResponse, StrategyView } from "@/lib/fund_api";
 
@@ -129,6 +130,9 @@ export function NavPanel({ nav, strategies }: {
   const winChangePct = intraday?.change_pct ?? null;
 
   const enoughToPlot = points.length >= MIN_POINTS_FOR_CURVE;
+  // A flat line through the middle of a chart still invites the reader to find
+  // a trend in it, so the caption names it.
+  const flat = isFlat(points.map((p) => p.nav));
   const up = (returnPct ?? 0) >= 0;
 
   return (
@@ -229,7 +233,7 @@ export function NavPanel({ nav, strategies }: {
                 <CartesianGrid stroke={c.grid} vertical={false} />
                 <XAxis dataKey="ts" tick={{ fill: c.textMuted, fontSize: 10 }}
                        stroke={c.axis} tickLine={false} />
-                <YAxis domain={["auto", "auto"]} tick={{ fill: c.textMuted, fontSize: 10 }}
+                <YAxis domain={navDomain(points.map((p) => p.nav))} tick={{ fill: c.textMuted, fontSize: 10 }}
                        stroke={c.axis} tickLine={false} width={64}
                        tickFormatter={(v) => `$${Number(v).toFixed(0)}`} />
                 <Tooltip
@@ -248,6 +252,8 @@ export function NavPanel({ nav, strategies }: {
               </AreaChart>
             </ResponsiveContainer>
             <p className={`mt-1 px-3 text-[11px] ${KT.muted}`}>
+              {flat && "Flat — every mark in this window is identical, which is what "
+                + "a closed market looks like. "}
               {usingIntraday
                 ? `Intraday samples, once a minute, in memory only — telemetry for watching
                    the session, not the NAV record. Lost on restart.`
