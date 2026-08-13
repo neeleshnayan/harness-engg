@@ -6,39 +6,36 @@ import { usePathname } from "next/navigation";
 import { Activity, ClipboardCheck, FlaskConical, ShieldAlert, Sliders } from "lucide-react";
 
 /**
- * Workflow-first navigation (see docs/STUDIO_IA_SPEC.md).
+ * Workflow-first navigation, ordered by how often it is used.
  *
- * The Studio used to be organised by system component — Overview / Strategies /
- * Composer / Approvals / Theses / Risk — which mirrored the code rather than the
- * job, and left things like per-strategy drawdown with an equal claim on two
- * tabs. These four match what the fund actually does, in order:
+ * **Monitor is the landing page.** The Studio used to open on Decide — the
+ * approval queue and nothing else — which made the fund's rarest event the first
+ * thing you saw, while halt state, breaches, fills and drift all sat one click
+ * away. Approvals are now a panel at the top of Monitor, so the common case
+ * ("anything wrong? anything waiting on me?") is answered without navigating and
+ * the rare case still leads the page.
  *
- *     decide what to own -> research it -> size it -> watch it
+ * Decide is gone as a tab rather than kept as a thin one. Its two halves went
+ * where they belong: approvals to Monitor, and the research half — theses,
+ * memos, the case for an idea — to Lab, which is where an idea is worked out
+ * and where the thesis agent will live.
  *
- * Lab sits between Decide and Allocate: authoring and testing a strategy is a
- * distinct job from sizing the book, but it is NOT a place capital moves.
- *
- * Review was retired rather than kept as a thin tab: attribution belongs with
- * the strategy it describes (Allocate), and the NAV record and audit trail
- * answer "what has happened to the fund", which is Monitor's question. A
- * reporting surface earns its own tab once there is history worth reporting.
+ * Allocate owns sizing and per-strategy attribution: important, but not a thing
+ * you check every day.
  *
  * Risk earns a tab of its own — but only the STRUCTURAL half. Limit utilisation
- * and the kill switch stay in the always-visible RiskBar and in Monitor, because
- * they apply to all four tabs and must never be somewhere you have to navigate
- * to. What lives on /risk is the part that is a standing job rather than a
- * glance: correlation, effective bets, tails, market regime and survivability.
- * That is Vishesh's work, and it has no home in a page about today's orders.
+ * and the kill switch stay in the always-visible RiskBar and on Monitor, because
+ * they apply everywhere and must never be somewhere you have to navigate to.
+ * What lives on /risk is the standing job rather than the glance: correlation,
+ * effective bets, tails, market regime and survivability.
  */
 const TABS = [
-  { href: "/clark/studio", label: "Decide", icon: ClipboardCheck, exact: true,
-    hint: "Theses, memos and approvals awaiting a human" },
+  { href: "/clark/studio", label: "Monitor", icon: Activity, exact: true,
+    hint: "Approvals, breaches, NAV, fills and live signals — the five-minute check" },
   { href: "/clark/studio/allocate", label: "Allocate", icon: Sliders,
-    hint: "Strategies, weights and composition" },
+    hint: "Strategies, weights, composition and per-strategy attribution" },
   { href: "/clark/studio/lab", label: "Lab", icon: FlaskConical,
-    hint: "Backtest, optimise and stress a strategy before it carries capital" },
-  { href: "/clark/studio/monitor", label: "Monitor", icon: Activity,
-    hint: "Live NAV, positions, breaches and the kill-switch" },
+    hint: "Research an idea: backtest, theses, memos, and what to promote" },
   { href: "/clark/studio/risk", label: "Risk", icon: ShieldAlert,
     hint: "Diversification, tail risk, market regime and survivability" },
 ];

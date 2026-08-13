@@ -8,6 +8,7 @@ import { StudioHeader } from "../components/StudioHeader";
 import { AllocationModal } from "../components/AllocationModal";
 import { RebalancePanel } from "../components/RebalancePanel";
 import { NavPanel } from "../components/NavPanel";
+import { ExecutionAnalytics } from "../components/ExecutionAnalytics";
 import { KT } from "../theme";
 import { fundApiClient, NavResponse, StrategyView } from "@/lib/fund_api";
 
@@ -71,6 +72,8 @@ export default function AllocatePage() {
   const [err, setErr] = useState<string | null>(null);
 
   const [allocTarget, setAllocTarget] = useState<StrategyView | null>(null);
+  // Which strategy's fills and round-trips are expanded below the table.
+  const [drillInto, setDrillInto] = useState<StrategyView | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -136,28 +139,39 @@ export default function AllocatePage() {
           </div>
         )}
 
-        {/* Is the book where we intended it to be? */}
+        {/* Is the book where we intended it to be?
+            Strictly about INTENT vs REALITY. NAV in dollars, P&L and cash all
+            live in NavPanel directly below, and showing them here as well meant
+            the same three numbers appeared twice on one screen — which trains
+            the eye to skip the strip rather than read it. */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <div className={KT.card}>
-            <div className={KT.label}>Fund NAV</div>
-            <div className={`mt-1 ${KT.numberLg}`}>{money(navUsd)}</div>
-          </div>
           <div className={KT.card}>
             <div className={KT.label}>Allocated (target)</div>
             <div className={`mt-1 ${KT.numberLg}`}>{pct(targetTotal)}</div>
-            <div className={`mt-1 text-[11px] ${KT.muted}`}>{live.length} deployed</div>
+            <div className={`mt-1 text-[11px] ${KT.muted}`}>
+              {live.length} deployed {live.length === 1 ? "strategy" : "strategies"}
+            </div>
           </div>
           <div className={KT.card}>
             <div className={KT.label}>Deployed (actual)</div>
             <div className={`mt-1 ${KT.numberLg}`}>{pct(actualTotal)}</div>
-            <div className={`mt-1 text-[11px] ${worstDrift > 5 ? KT.down : KT.muted}`}>
-              worst drift {pct(worstDrift)}
+            <div className={`mt-1 text-[11px] ${KT.muted}`}>of NAV actually at work</div>
+          </div>
+          <div className={KT.card}>
+            <div className={KT.label}>Worst drift</div>
+            <div className={`mt-1 ${KT.numberLg} ${worstDrift > 5 ? KT.down : ""}`}>
+              {pct(worstDrift)}
+            </div>
+            <div className={`mt-1 text-[11px] ${KT.muted}`}>
+              {worstDrift > 5 ? "a strategy is off its target" : "every strategy near target"}
             </div>
           </div>
           <div className={KT.card}>
-            <div className={KT.label}>Cash</div>
-            <div className={`mt-1 ${KT.numberLg}`}>{money(cashUsd)}</div>
-            <div className={`mt-1 text-[11px] ${KT.muted}`}>{pct(cashPct)} of NAV</div>
+            <div className={KT.label}>Unallocated</div>
+            <div className={`mt-1 ${KT.numberLg}`}>{pct(100 - targetTotal)}</div>
+            <div className={`mt-1 text-[11px] ${KT.muted}`}>
+              target left to assign · {pct(cashPct)} sitting in cash
+            </div>
           </div>
         </div>
 
@@ -235,9 +249,16 @@ export default function AllocatePage() {
                           {s.backtest?.sharpe != null ? s.backtest.sharpe.toFixed(2) : "—"}
                         </td>
                         <td className="px-5 py-3 text-right">
-                          <button onClick={() => setAllocTarget(s)} className={`text-[11px] ${KT.accent} underline underline-offset-2`}>
-                            resize
-                          </button>
+                          <div className="flex items-center justify-end gap-3">
+                            <button
+                              onClick={() => setDrillInto(drillInto?.strategy_id === s.strategy_id ? null : s)}
+                              className={`text-[11px] ${KT.accent} underline underline-offset-2`}>
+                              {drillInto?.strategy_id === s.strategy_id ? "hide trades" : "trades"}
+                            </button>
+                            <button onClick={() => setAllocTarget(s)} className={`text-[11px] ${KT.accent} underline underline-offset-2`}>
+                              resize
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -247,6 +268,14 @@ export default function AllocatePage() {
             </div>
           )}
         </div>
+
+        {drillInto && (
+          <ExecutionAnalytics
+            key={drillInto.strategy_id}
+            strategyId={drillInto.strategy_id}
+            title={`${drillInto.name} — execution history`}
+          />
+        )}
 
         <div id="rebalance" className="scroll-mt-24">
           <RebalancePanel strategies={live} navUsd={navUsd} onCommitted={load} />

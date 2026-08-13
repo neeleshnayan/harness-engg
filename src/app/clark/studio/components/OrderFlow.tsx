@@ -1,0 +1,119 @@
+"use client";
+
+import React, { useMemo, useState } from "react";
+import { Loader2 } from "lucide-react";
+import { KT } from "../theme";
+import { OrderHistoryRow } from "@/lib/fund_api";
+
+/**
+ * Orders, working and settled, in one place behind a toggle.
+ *
+ * These were two stacked panels showing the same rows in the same shape, split
+ * only by status — which made the operator scan two tables to answer one
+ * question ("what happened to my order?") and buried the settled half below the
+ * fold. It is one table now; the toggle is the filter.
+ *
+ * Working leads by default because it is the live question. The counts sit on
+ * the toggle itself, so the half you are NOT looking at still tells you whether
+ * it is worth looking at.
+ */
+
+/** Left the human's hands, not yet terminal. */
+const IN_FLIGHT = new Set(["pending", "approved", "working", "partial"]);
+/** Terminal and bad — these must stay visible rather than blend into "settled". */
+const BAD = new Set(["failed", "rejected", "declined"]);
+
+const STATUS_TONE: Record<string, string> = {
+  filled: KT.up,
+  partial: "text-[var(--kt-warn)]",
+  working: "text-[var(--kt-text-dim)]",
+  approved: "text-[var(--kt-text-dim)]",
+  pending: "text-[var(--kt-warn)]",
+  failed: KT.down,
+  rejected: KT.down,
+  declined: KT.muted,
+};
+
+type Tab = "working" | "settled";
+
+export function OrderFlow({ orders, loading, error, limit = 12 }: {
+  orders: OrderHistoryRow[];
+  loading?: boolean;
+  error?: string | null;
+  limit?: number;
+}) {
+  const [tab, setTab] = useState<Tab>("working");
+
+  const { working, settled } = useMemo(() => ({
+    working: orders.filter((o) => IN_FLIGHT.has(o.status)),
+    settled: orders.filter((o) => !IN_FLIGHT.has(o.status)),
+  }), [orders]);
+
+  // Open on whichever half has something to say: an empty Working tab hiding a
+  // rejection behind a toggle is exactly the failure this panel should avoid.
+  const [touched, setTouched] = useState(false);
+  const active: Tab = touched
+    ? tab
+    : (working.length === 0 && settled.some((o) => BAD.has(o.status)) ? "settled" : tab);
+
+  const rows = (active === "working" ? working : settled).slice(0, limit);
+
+  const pick = (t: Tab) => { setTouched(true); setTab(t); };
+
+  return (
+    <div className={KT.panel}>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--kt-border)] px-5 py-3">
+        <span className={KT.label}>Orders</span>
+        <div className="flex gap-1">
+          {([
+            ["working", "Working", working.length],
+            ["settled", "Settled", settled.length],
+          ] as const).map(([key, label, count]) => (
+            <button key={key} onClick={() => pick(key)}
+                    className={`rounded px-2.5 py-0.5 text-[11px] ${
+                      active === key
+                        ? "bg-[var(--kt-accent-bg)] text-[var(--kt-accent)]"
+                        : `${KT.muted} hover:bg-[var(--kt-hover)]`}`}>
+              {label} <span className="font-mono tabular-nums">{count}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className={`flex items-center gap-2 px-5 py-6 text-sm ${KT.muted}`}>
+          <Loader2 size={14} className="animate-spin" /> Loading…
+        </div>
+      ) : error ? (
+        <div className={`px-5 py-6 text-sm ${KT.sev.warn}`}>
+          Order status unavailable — cannot confirm whether anything is in flight.
+        </div>
+      ) : rows.length === 0 ? (
+        <div className={`px-5 py-6 text-sm ${KT.muted}`}>
+          {active === "working"
+            ? "Nothing in flight — every order has reached a terminal state."
+            : "Nothing settled yet."}
+        </div>
+      ) : (
+        <ul className="divide-y divide-[var(--kt-border)]">
+          {rows.map((o) => (
+            <li key={o.order_id} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-5 py-2.5 text-sm">
+              <span className="font-medium uppercase">{o.side}</span>
+              <span className={KT.number}>{o.qty}</span>
+              <span className="font-semibold">{o.symbol}</span>
+              <span className={`text-[11px] uppercase tracking-wide ${STATUS_TONE[o.status] || KT.muted}`}>
+                {o.status}
+              </span>
+              <span className={`text-[11px] ${KT.muted}`}>
+                filled {o.filled_qty ?? 0} of {o.qty}
+              </span>
+              <span className={`ml-auto font-mono text-[11px] ${KT.muted}`}>
+                {String(o.ts ?? "").slice(0, 19).replace("T", " ")}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}

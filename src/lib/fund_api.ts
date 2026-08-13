@@ -813,8 +813,216 @@ export interface IntradayNavSeries {
   note: string;
 }
 
+/** One fill, exactly as the event log recorded it. */
+export interface ExecutionFill {
+  ts: string | null;
+  seq: number | null;
+  symbol: string;
+  side: string;
+  qty: number;
+  price: number;
+  notional_usd: number;
+  fees_usd: number;
+  order_id: string | null;
+  venue: string | null;
+}
+
+/** A closed round-trip: what a sale (or a cover) actually realized. */
+export interface RoundTrip {
+  symbol: string;
+  side: 'long' | 'short';
+  qty: number;
+  avg_entry_price: number;
+  exit_price: number;
+  /** Quantity-weighted, because a position built over several buys has no
+   *  single entry moment. */
+  avg_entry_ts: string | null;
+  exit_ts: string | null;
+  gross_pnl_usd: number;
+  fees_usd: number;
+  pnl_usd: number;
+  pnl_pct: number;
+  outcome: 'win' | 'loss' | 'breakeven';
+  cost_basis_usd: number;
+}
+
+export interface ExecutionSummary {
+  measurable: boolean;
+  reason?: string;
+  n_round_trips?: number;
+  winners?: number;
+  losers?: number;
+  breakevens?: number;
+  win_rate?: number;
+  loss_rate?: number;
+  breakeven_rate?: number;
+  breakeven_band_pct?: number;
+  total_realized_usd?: number;
+  avg_win_usd?: number;
+  avg_loss_usd?: number;
+  expectancy_usd?: number;
+  payoff_ratio?: number | null;
+  profit_factor?: number | null;
+  best_usd?: number;
+  worst_usd?: number;
+  top_trade_share_of_gross_profit?: number | null;
+  worst_trade_share_of_gross_loss?: number | null;
+  streaks?: {
+    measurable: boolean;
+    reason?: string;
+    longest_win_streak?: number;
+    longest_loss_streak?: number;
+    current_streak?: number;
+    current_streak_kind?: string | null;
+  };
+  holding?: {
+    measurable: boolean;
+    reason?: string;
+    n_timed?: number;
+    avg_days_all?: number | null;
+    avg_days_winners?: number | null;
+    avg_days_losers?: number | null;
+    longest_days?: number;
+  };
+  distribution_pct?: {
+    measurable: boolean;
+    reason?: string;
+    bins?: { from_pct: number; to_pct: number; count: number; sign: 'win' | 'loss' }[];
+    min_pct?: number;
+    max_pct?: number;
+    mean_pct?: number;
+  };
+}
+
+export interface StrategyExecutions {
+  strategy_id: string;
+  measurable: boolean;
+  reason?: string;
+  fills: ExecutionFill[];
+  n_fills: number;
+  round_trips: RoundTrip[];
+  n_round_trips: number;
+  open_positions: Record<string, { qty: number; cost_basis_usd: number }>;
+  summary: ExecutionSummary;
+  by_side?: { all: ExecutionSummary; long: ExecutionSummary; short: ExecutionSummary };
+}
+
+/** What one live strategy wants for one symbol, and why. */
+export interface SignalDecision {
+  strategy_id: string;
+  strategy_name: string;
+  symbol: string;
+  /** null when the strategy could not be evaluated — never a flat 0. */
+  signal: number | null;
+  target_usd: number | null;
+  current_usd: number | null;
+  delta_usd: number | null;
+  action: "buy" | "sell" | "hold" | "skip";
+  reason: string;
+}
+
+/** A sized trade a signal implies, before anyone has proposed it. */
+export interface SignalSizedRow extends SignalDecision {
+  qty?: number;
+  price?: number;
+  dry_run?: boolean;
+  status?: string;
+  order_id?: string;
+  breaches?: string[];
+}
+
+export interface SignalRunResult {
+  dry_run: boolean;
+  /** null when the venue clock was unreachable — NOT the same as closed. */
+  market_open: boolean | null;
+  evaluated: SignalDecision[];
+  proposed: SignalSizedRow[];
+  /** Wanted a trade but could not be sized or was already pending. */
+  suppressed: SignalSizedRow[];
+  /** Sized fine but the risk gate refused it — a result, not an error. */
+  rejected: SignalSizedRow[];
+  counts: { evaluated: number; proposed: number; suppressed: number; rejected: number };
+  note: string;
+}
+
+/** OHLC bars for one symbol with our own fills placed on them. */
+export interface ExecutionChartResponse {
+  symbol: string;
+  source: string;
+  adjusted: boolean;
+  adjustment: string;
+  bars: {
+    dates: string[];
+    open: number[] | null;
+    high: number[] | null;
+    low: number[] | null;
+    close: number[];
+    volume: number[] | null;
+    /** False when the source gives closes only — candles would be fabricated. */
+    has_ohlc: boolean;
+    start: string | null;
+    end: string | null;
+  };
+  fills: {
+    date: string | null;
+    /** A fill outside the fetched window has no bar to sit on. */
+    in_window: boolean;
+    side: string;
+    qty: number;
+    price: number;
+    strategy_id: string;
+    ts: string | null;
+  }[];
+  n_fills_outside_window: number;
+  round_trips: (RoundTrip & { strategy_id: string })[];
+}
+
 export const fundApiClient = {
   getNav: async (): Promise<NavResponse> => (await fundApi.get(`${P}/nav`)).data,
+
+  /** What every live strategy currently wants. Reads bars; writes nothing. */
+  getSignals: async (): Promise<{ decisions: SignalDecision[] }> =>
+    (await fundApi.get(`${P}/signals`, { timeout: 120000 })).data,
+
+  /** Evaluate the strategies and size the trades their signals imply.
+   *
+   *  `dryRun` (default) writes NOTHING — it returns what would be proposed,
+   *  with the share count and price each order would carry. Only pass false to
+   *  actually create proposals, and even then they wait for human approval. */
+  runSignals: async (dryRun = true, actor = "operator"): Promise<SignalRunResult> =>
+    (await fundApi.post(`${P}/signals/run`, { dry_run: dryRun, actor },
+      { timeout: 180000 })).data,
+
+  /** Propose ONE order. Passes the risk gate, then waits for approval. */
+  proposeOrder: async (body: {
+    symbol: string;
+    side: "buy" | "sell";
+    qty: number;
+    venue?: string;
+    strategy_id?: string | null;
+    thesis_id?: string | null;
+    discretionary?: boolean;
+    actor?: string;
+  }): Promise<{ status: string; order_id: string; breaches?: string[]; impact_preview?: Record<string, number> }> =>
+    (await fundApi.post(`${P}/orders/propose`, {
+      venue: "alpaca", actor: "operator", ...body,
+    })).data,
+
+  /** Candles for a symbol with our fills marked. Fills come from the event log. */
+  getExecutionChart: async (
+    symbol: string, strategyId?: string, lookbackDays = 180,
+  ): Promise<ExecutionChartResponse> =>
+    (await fundApi.get(`${P}/executions/chart`, {
+      params: { symbol, ...(strategyId ? { strategy_id: strategyId } : {}), lookback_days: lookbackDays },
+    })).data,
+
+  /** Fills and closed round-trips, folded from the event log. Read-only. */
+  getExecutions: async (strategyId?: string, limit = 500): Promise<
+    StrategyExecutions | { strategies: StrategyExecutions[]; totals: ExecutionSummary }
+  > =>
+    (await fundApi.get(`${P}/executions`, {
+      params: { ...(strategyId ? { strategy_id: strategyId } : {}), limit },
+    })).data,
 
   getNavHistory: async (limit = 90): Promise<{ history: NavSnapshot[] }> =>
     (await fundApi.get(`${P}/nav/history`, { params: { limit } })).data,
@@ -881,7 +1089,17 @@ export const fundApiClient = {
       actor,
     })).data,
 
-  approveOrder: async (orderId: string, approver = 'operator') =>
+  /** Approve and send to the venue. The response carries the OUTCOME —
+   *  'filled' with the qty and price it actually got, or 'working' if the venue
+   *  has it but has not filled it yet. Surface it: an approval that silently
+   *  succeeds leaves the operator with no idea what happened to their order. */
+  approveOrder: async (orderId: string, approver = 'operator'): Promise<{
+    status: 'filled' | 'working' | 'failed' | string;
+    order_id: string;
+    filled_qty?: number;
+    avg_price?: number;
+    reason?: string;
+  }> =>
     (await fundApi.post(`${P}/orders/${orderId}/approve`, { approver })).data,
 
   declineOrder: async (orderId: string, approver = 'operator') =>
@@ -946,6 +1164,13 @@ export const fundApiClient = {
     lookbackDays = 180,
   ): Promise<StrategyBarsResponse> =>
     (await fundApi.get(`${P}/strategies/${strategyId}/bars`, { params: { lookback_days: lookbackDays } })).data,
+
+  /** Which book this spine is reading and writing, and whether orders are real.
+   *  The two facts that decide whether anything else on screen is a rehearsal. */
+  getBookIdentity: async (): Promise<{
+    project_id: string; env: string; is_production: boolean;
+    venue?: string; orders_are_real?: boolean; seeder_may_run?: boolean;
+  }> => (await fundApi.get(`${P}/book`)).data,
 
   getEvents: async (limit = 100, sinceSeq = 0): Promise<{ events: SpineEvent[] }> =>
     (await fundApi.get(`${P}/events`, { params: { limit, since_seq: sinceSeq } })).data,
