@@ -143,3 +143,29 @@ def test_plan_writes_nothing():
         [{"client_order_id": "new", "symbol": "AAPL", "side": "buy", "qty": 1, "price": 300}]
     )
     assert len(store.stream(limit=1000)) == before
+
+
+def test_rerun_does_not_reverse_its_own_reversal():
+    """Regression: reversals are named "<original>__reconciled" and so still
+    carry the adopt prefix. A second run must not treat the reversal as another
+    adoption to reverse — that flips the sign each run and re-adds the shares
+    the first run removed."""
+    store = FakeStore([
+        {"aggregate_id": "alpaca_adopt_AAPL_99985", "aggregate_type": "order",
+         "type": EventType.ORDER_FILLED.value,
+         "payload": {"symbol": "AAPL", "qty": 13, "avg_price": 313.43, "fees": 0},
+         "actor": "system", "ts": "2026-08-09T12:22:55"},
+    ])
+    broker = [{"client_order_id": "real-1", "symbol": "AAPL", "side": "buy",
+               "qty": 13, "price": 313.43}]
+    bf = BrokerBackfill(store=store)
+
+    bf.apply(bf.plan(broker))
+    after_first = _book(store)["AAPL"]
+
+    second = bf.plan(broker)
+    assert second.reversals == [], "re-run must not reverse its own reversal"
+    assert second.replay == []
+    bf.apply(second)
+
+    assert _book(store)["AAPL"] == after_first == Decimal("13")

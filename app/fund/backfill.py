@@ -116,7 +116,12 @@ class BrokerBackfill:
                     venue_of[agg] = payload.get("venue", "")
                 elif etype == EventType.ORDER_FILLED.value:
                     seen.add(agg)
-                    if agg.startswith(ADOPT_PREFIX):
+                    # A reversal is named "<original>__reconciled", so it still
+                    # carries the adopt prefix. Without this guard a second run
+                    # treats the reversal as another adoption to reverse, and
+                    # each run flips the sign again — re-adding the very shares
+                    # the first run removed.
+                    if agg.startswith(ADOPT_PREFIX) and not agg.endswith(REVERSAL_SUFFIX):
                         adopts.append(ev)
             if len(batch) < 1000:
                 break
