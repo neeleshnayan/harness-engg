@@ -44,9 +44,13 @@ class PlannedFill:
     avg_price: Decimal
     reason: str
     ts: str | None = None
+    #: Which strategy this fill is attributed to. None => discretionary, which
+    #: is the honest default: a fill the platform did not originate was not
+    #: chosen by any strategy. Callers may map it from the declared universes.
+    strategy_id: str | None = None
 
     def to_payload(self) -> dict[str, Any]:
-        return {
+        payload = {
             "symbol": self.symbol,
             "side": self.side,
             "filled_qty": f(self.qty),
@@ -55,6 +59,11 @@ class PlannedFill:
             "venue": "alpaca",
             "backfill_reason": self.reason,
         }
+        if self.strategy_id:
+            payload["strategy_id"] = self.strategy_id
+            payload["attribution"] = "mapped from the strategy's declared universe, "
+            payload["attribution"] += "not from an order this platform placed"
+        return payload
 
 
 @dataclass

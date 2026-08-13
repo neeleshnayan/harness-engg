@@ -247,11 +247,19 @@ class RiskMonitor:
         # Positions (per-asset risk)
         book = PositionsProjection(self._store).build()
         positions_list: list[dict[str, Any]] = []
+        unpriced: list[str] = []
         for sym, pos in book.positions.items():
             qty = float(pos["qty"])
             if abs(qty) < 1e-9:
                 continue
-            mark = float(self._price(sym))
+            # A single symbol the feed cannot price must not 500 the entire risk
+            # monitor — the risk bar polls this on every page. Drop the name,
+            # name it, and let the rest of the picture render.
+            try:
+                mark = float(self._price(sym))
+            except Exception:  # noqa: BLE001
+                unpriced.append(sym)
+                continue
             val = qty * mark
             weight_pct = (val / nav_usd * 100.0) if nav_usd > 0 else 0.0
             avg_cost = float(pos.get("avg_price", 0))
@@ -326,10 +334,36 @@ class RiskMonitor:
             "utilization": utilization_map,
             "worst_position": worst_position,
             "history_snaps": history_snaps,
+            "unpriced_symbols": unpriced,
         }
 
         alarms = self.evaluate_alarms(partial_assessment)
         alarm_dicts = [a.to_dict() for a in alarms]
+
+        # Marks served from a failed refresh are reported, never presented as
+        # fresh: a book valued on stale prices is a book whose NAV is a guess.
+        stale_marks: dict[str, float] = {}
+        getter = getattr(self._price, "__self__", None)
+        if getter is not None and hasattr(getter, "stale_marks"):
+            try:
+                stale_marks = getter.stale_marks()
+            except Exception:  # noqa: BLE001
+                stale_marks = {}
+        if unpriced:
+            alarm_dicts.append(Alarm(
+                key="unpriced", type="data_quality", severity="warn",
+                message=(f"no live price for {', '.join(unpriced)} — these positions are "
+                         "EXCLUDED from NAV, exposure and every limit check below"),
+                metric=float(len(unpriced)), threshold=0.0,
+            ).to_dict())
+        if stale_marks:
+            oldest = max(stale_marks.values())
+            alarm_dicts.append(Alarm(
+                key="stale_marks", type="data_quality", severity="warn",
+                message=(f"{len(stale_marks)} mark(s) served from a failed refresh, "
+                         f"oldest {oldest:.0f}s — valuations below are not live"),
+                metric=float(oldest), threshold=0.0,
+            ).to_dict())
 
         return {
             "nav_usd": round(nav_usd, 2),
@@ -345,6 +379,8 @@ class RiskMonitor:
             "utilization": utilization_map,
             "alarms": alarm_dicts,
             "worst_position": worst_position,
+            "unpriced_symbols": unpriced,
+            "stale_marks": stale_marks,
             "ts": datetime.now(timezone.utc).isoformat(),
         }
 

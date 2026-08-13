@@ -41,6 +41,14 @@ class RiskLimits:
     max_daily_loss_pct: float = 0.05        # halt if NAV drops this much vs the last daily strike
     underwater_pct: float = 0.15            # per-name alarm when a position is this far underwater
 
+    # --- structural risk (measured, not counted) ---
+    # A position-count limit cannot see that four names are one bet. These do.
+    min_effective_bets: float = 2.0         # correlation-adjusted independent bets
+    max_avg_correlation: float = 0.75       # mean pairwise correlation across holdings
+    max_strategy_correlation: float = 0.90  # two "different" strategies moving as one
+    max_risk_concentration_pct: float = 0.50  # one name's share of total book RISK
+    max_expected_shortfall_pct: float = 0.05  # 97.5% one-day ES as a fraction of NAV
+
     def to_dict(self) -> dict:
         return {
             "max_position_pct": self.max_position_pct,
@@ -51,6 +59,11 @@ class RiskLimits:
             "max_drawdown_pct": self.max_drawdown_pct,
             "max_daily_loss_pct": self.max_daily_loss_pct,
             "underwater_pct": self.underwater_pct,
+            "min_effective_bets": self.min_effective_bets,
+            "max_avg_correlation": self.max_avg_correlation,
+            "max_strategy_correlation": self.max_strategy_correlation,
+            "max_risk_concentration_pct": self.max_risk_concentration_pct,
+            "max_expected_shortfall_pct": self.max_expected_shortfall_pct,
         }
 
     @classmethod
@@ -105,5 +118,17 @@ class RiskGate:
                     f"buy would drop cash to {float(post_cash):.2f}, below buffer "
                     f"{float(buffer):.2f}"
                 )
+            # The percentage cash floor used to exist only as a post-hoc alarm,
+            # so the book could be traded to zero cash and merely be told about
+            # it afterwards. A floor that only warns after the fact is not a
+            # floor; enforce it where it can still stop the order.
+            min_cash = D(self.limits.min_cash_pct)
+            if nav_usd > 0 and min_cash > 0:
+                required = min_cash * nav_usd
+                if post_cash < required:
+                    breaches.append(
+                        f"buy would drop cash to {float(post_cash / nav_usd):.1%} of NAV "
+                        f"(floor {float(min_cash):.1%}, i.e. {float(required):.2f})"
+                    )
 
         return RiskDecision(ok=not breaches, breaches=breaches)

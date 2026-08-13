@@ -11,3 +11,6 @@ scratch_*
 *.log
 .firestore_local_db.json
 *.db
+
+# Live-session telemetry — machine state, not source.
+logs/

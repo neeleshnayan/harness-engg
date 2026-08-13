@@ -63,6 +63,12 @@ async def _scheduler():
             fund_router.run_settlement()
         except Exception as e:  # noqa: BLE001
             _log.warning("settlement tick failed: %s", e)
+        # Intraday NAV telemetry. Self-throttling and in-memory, so a fast
+        # settle interval cannot flood it and it never touches the event log.
+        try:
+            fund_router.sample_intraday_nav()
+        except Exception as e:  # noqa: BLE001
+            _log.debug("intraday sample skipped: %s", e)
         if since_strike >= strike_every:
             since_strike = 0
             for fn in (fund_router.run_strike, fund_router.run_reconcile):

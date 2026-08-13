@@ -63,6 +63,31 @@ def db():
     (the fund's production project has one called "default"), and the SDK will
     404 looking for "(default)" if that id is not passed through.
     """
+    # USE_FAKE_FIRESTORE means "this process must not touch the real ledger".
+    # The app honours that by swapping the EventStore before anything calls
+    # db(), but a STANDALONE SCRIPT only calls initialize_firebase() — which
+    # happily labelled itself env="mock" while handing back a client wired to
+    # the production project. A repair script run with --apply under that
+    # illusion would write to the real, append-only fund ledger.
+    #
+    # Reaching here in mock mode is therefore a bug, not a fallback: fail loudly
+    # rather than quietly connect to production.
+    # The app installs an in-memory Firestore before importing anything that
+    # calls db(), and that path is legitimate — it reports project "in-memory".
+    # A standalone script does NOT install it, so it reaches here still pointing
+    # at the real project while believing it is in mock mode. That is the case
+    # to stop: it is how a repair script run with --apply writes to the real,
+    # append-only fund ledger.
+    if (os.getenv("USE_FAKE_FIRESTORE", "").lower() in ("1", "true", "yes")
+            and _active.get("project_id") not in (None, "", "in-memory")):
+        raise RuntimeError(
+            "refusing to open a REAL Firestore client while USE_FAKE_FIRESTORE is set — "
+            f"the in-memory store was never installed, so this would reach project "
+            f"{_active.get('project_id')!r}. Run this through the API against a "
+            "mock-mode spine, or unset USE_FAKE_FIRESTORE if you genuinely mean to "
+            "touch the real book."
+        )
+
     from firebase_admin import firestore
     database_id = os.getenv("FIRESTORE_DATABASE_ID", "").strip()
     if database_id and database_id != "(default)":

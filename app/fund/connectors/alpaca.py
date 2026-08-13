@@ -84,6 +84,8 @@ class AlpacaConnector(Connector):
         self._ttl = float(os.getenv("ALPACA_PRICE_TTL", "5")) if price_ttl is None else float(price_ttl)
         self._clock = clock or time.monotonic
         self._pcache: dict[str, tuple[float, float]] = {}
+        #: symbol -> age(s) of the mark we are serving after a failed refresh
+        self._stale: dict[str, float] = {}
 
     # --- lazy SDK clients --------------------------------------------------
     def _trading(self):
@@ -107,10 +109,28 @@ class AlpacaConnector(Connector):
         now = self._clock()
         hit = self._pcache.get(symbol)
         if hit is not None and (now - hit[0]) < self._ttl:
+            self._stale.pop(symbol, None)
             return hit[1]
-        px = self._fetch_price(symbol)
+        try:
+            px = self._fetch_price(symbol)
+        except Exception:  # noqa: BLE001 — a feed blip must not blank the risk page
+            # Fall back to the last price we actually saw, and RECORD that we
+            # did. A transient market-data failure taking down the whole risk
+            # monitor is worse than a mark a few seconds old — but a stale mark
+            # presented as fresh is worse than both, so staleness is tracked and
+            # reported (see stale_marks) rather than silently swallowed.
+            if hit is not None:
+                self._stale[symbol] = round(now - hit[0], 1)
+                return hit[1]
+            raise
+        self._stale.pop(symbol, None)
         self._pcache[symbol] = (now, px)
         return px
+
+    def stale_marks(self) -> dict[str, float]:
+        """Symbols currently being served from a failed refresh, and how many
+        seconds old that mark is. Empty means every mark is fresh."""
+        return dict(self._stale)
 
     def _fetch_price(self, symbol: str) -> float:
         from alpaca.data.requests import StockLatestTradeRequest

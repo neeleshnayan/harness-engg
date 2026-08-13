@@ -35,6 +35,12 @@ from app.fund.memo import MemoError, MemoService
 from app.fund.postmortem import PostmortemError, PostmortemService
 from app.fund.reconcile import Reconciler
 from app.fund.riskanalytics import RiskAnalytics
+from app.core.firebase import active_book as _active_book
+from app.fund.backfill import BrokerBackfill
+from app.fund.intraday import IntradayNav
+from app.fund.rebalance import RebalanceError, RebalanceService
+from app.fund.factors import FactorModel
+from app.fund.riskengine import AdvancedRiskEngine
 from app.fund.riskmonitor import RiskControl, RiskMonitor
 from app.fund.simulation import CounterfactualSimulator
 from app.fund.strategies import StrategyError, StrategyService
@@ -98,17 +104,36 @@ def _mock_mode() -> bool:
     return os.getenv("USE_FAKE_FIRESTORE", "").lower() in ("1", "true", "yes")
 
 
-# Mock mode always uses the paper venue, even when Alpaca credentials exist:
+def _real_broker() -> bool:
+    """Route orders to the real venue even while the ledger is local.
+
+    The two decisions — where state lives, and where orders go — are separate,
+    and conflating them meant you could not do the one thing that actually
+    proves the system works: place real orders and watch them fill, without
+    writing to the production ledger. This flag splits them.
+    """
+    return (os.getenv("FUND_REAL_BROKER", "").lower() in ("1", "true", "yes")
+            and bool(os.getenv("ALPACA_API_KEY")))
+
+
+# Mock mode normally uses the paper venue even when Alpaca credentials exist:
 # routing mock fills to the real broker leaves them queued until the market
 # opens, so the book never moves and the point of the mock is lost. Fills are
 # simulated; the prices they fill at are real (live_pricer).
+#
+# FUND_REAL_BROKER=1 overrides that for live-flow testing: orders go to Alpaca
+# for real, the ledger stays local.
 _connector = (
-    PaperConnector(live_pricer=_paper_live_pricer() or _live_price_fn())
-    if _mock_mode()
+    AlpacaConnector()
+    if _real_broker()
     else (
-        AlpacaConnector()
-        if os.getenv("ALPACA_API_KEY")
-        else PaperConnector(live_pricer=_paper_live_pricer())
+        PaperConnector(live_pricer=_paper_live_pricer() or _live_price_fn())
+        if _mock_mode()
+        else (
+            AlpacaConnector()
+            if os.getenv("ALPACA_API_KEY")
+            else PaperConnector(live_pricer=_paper_live_pricer())
+        )
     )
 )
 _store = EventStore()
@@ -133,10 +158,29 @@ _reconciler = Reconciler(connector=_connector, store=_store, projection=_project
 _control = RiskControl(store=_store)
 _monitor = RiskMonitor(nav_service=_nav, store=_store, pricer=_connector.price,
                        attribution=_attribution, strategies=_strategies, control=_control)
+_riskengine = AdvancedRiskEngine(nav_service=_nav, pricer=_connector.price,
+                                 attribution=_attribution, strategies=_strategies)
+_factor_model = FactorModel()
+_intraday = IntradayNav()
+_rebalance = RebalanceService(nav_service=_nav, pricer=_connector.price,
+                              attribution=_attribution, strategies=_strategies,
+                              pipeline=_pipeline, control=_control,
+                              risk_engine=_riskengine, store=_store)
 _simulator = CounterfactualSimulator(nav_service=_nav, positions_projection=_projection, strategy_service=_strategies)
 
 
 # --- worker hooks (called by endpoints and the scheduled worker) -----------
+def sample_intraday_nav() -> dict:
+    """Record one intraday NAV point. Cheap, in-memory, never an event."""
+    snap = _nav.compute()
+    took = _intraday.sample(
+        nav_usd=float(snap.total_nav_usd),
+        nav_per_unit=float(snap.nav_per_unit) if snap.nav_per_unit is not None else None,
+        cash_usd=float(snap.breakdown.get("cash", 0)),
+    )
+    return {"sampled": took, "n": len(_intraday)}
+
+
 def run_settlement() -> dict:
     """Poll in-flight orders to terminal — the async fill tick."""
     return _pipeline.poll_open_orders()
@@ -184,7 +228,14 @@ def get_book_identity():
         info = active_book()
     except Exception:
         info = {"project_id": "unknown", "env": "unknown"}
-    return {**info, "is_production": info.get("env") == "production"}
+    # Where state lives and where ORDERS go are separate facts, and "mock" must
+    # never hide that real orders are leaving the building. Report both.
+    venue = getattr(_connector, "name", "unknown")
+    return {**info,
+            "is_production": info.get("env") == "production",
+            "venue": venue,
+            "orders_are_real": bool(_real_broker()),
+            "seeder_may_run": bool(_mock_mode() and not _real_broker())}
 
 
 @router.get("/fund/market/quotes")
@@ -1105,6 +1156,360 @@ def get_strategy_bars(strategy_id: str,
 def get_risk_monitor():
     """Pure read of the current full risk picture (observability pane)."""
     return _monitor.assess()
+
+
+@router.get("/fund/risk/advanced")
+def get_risk_advanced(
+    lookback_days: int = Query(250, ge=60, le=1500),
+    include_regime: bool = Query(True),
+    include_historical: bool = Query(True),
+    force: bool = Query(False, description="bypass the 30-minute cache and recompute"),
+):
+    """Correlation, risk contribution, Expected Shortfall, market regime,
+    reverse stress and historical replay — the structural risk view.
+
+    Slower than /risk/monitor because it reads market history; each block
+    degrades independently and reports why rather than returning zeros.
+    """
+    peak = None
+    try:
+        hist = _nav.history(365)
+        vals = [float(h.get("total_nav_usd", 0)) for h in hist if h.get("total_nav_usd")]
+        vals.append(float(_nav.compute().total_nav_usd))
+        peak = max(vals) if vals else None
+    except Exception:  # noqa: BLE001 — peak is an input to reverse stress, not a gate
+        peak = None
+    return _riskengine.view(
+        lookback_days=lookback_days,
+        limits=_control.limits(),
+        peak_nav=peak,
+        include_regime=include_regime,
+        include_historical=include_historical,
+        force=force,
+    )
+
+
+class RiskWhatIfRequest(BaseModel):
+    """Proposed strategy weights as percentages of NAV, keyed by strategy_id."""
+    targets: dict[str, float]
+    lookback_days: int = 250
+
+
+@router.post("/fund/risk/whatif")
+def risk_what_if(req: RiskWhatIfRequest):
+    """Risk mechanics of a proposed allocation vs the current one.
+
+    Read-only: computes what the book WOULD look like. Nothing is written and no
+    order is placed — rebalancing still goes through propose/approve.
+    """
+    return _riskengine.what_if(req.targets, lookback_days=req.lookback_days)
+
+
+class ResearchEvaluateRequest(BaseModel):
+    """A candidate strategy's daily returns (or an equity curve) plus the dates
+    they fall on."""
+    returns: list[float] | None = None
+    equity_curve: list[float] | None = None
+    dates: list[str]
+    allocation_pct: float = 10.0
+
+
+@router.post("/fund/research/evaluate")
+def evaluate_candidate(req: ResearchEvaluateRequest):
+    """The two questions a backtest cannot answer.
+
+    1. Is this alpha, or factor exposure you could buy for nine basis points?
+    2. Does adding it make the FUND better, or is it a duplicate of something
+       already deployed?
+
+    Stateless and read-only — nothing is registered or persisted.
+    """
+    rets = req.returns
+    if rets is None and req.equity_curve:
+        eq = req.equity_curve
+        rets = [(eq[i] / eq[i - 1] - 1.0) if eq[i - 1] else 0.0
+                for i in range(1, len(eq))]
+    if not rets:
+        raise HTTPException(status_code=422,
+                            detail="supply either returns or an equity_curve")
+
+    # An equity curve of N points yields N-1 returns; align the dates to match
+    # rather than silently zipping mismatched series.
+    dates = req.dates
+    if len(dates) == len(rets) + 1:
+        dates = dates[1:]
+    if len(dates) != len(rets):
+        raise HTTPException(
+            status_code=422,
+            detail=f"{len(rets)} returns but {len(req.dates)} dates — cannot align",
+        )
+
+    out: dict = {"n_obs": len(rets)}
+    try:
+        out["factors"] = _factor_model.analyse(rets, dates)
+    except Exception as e:  # noqa: BLE001
+        out["factors"] = {"measurable": False,
+                          "reason": f"factor data unavailable ({type(e).__name__})"}
+    try:
+        out["fit"] = _riskengine.candidate_fit(rets, dates, req.allocation_pct)
+    except Exception as e:  # noqa: BLE001
+        out["fit"] = {"measurable": False,
+                      "reason": f"portfolio fit unavailable ({type(e).__name__})"}
+    return out
+
+
+class ResearchPromoteRequest(BaseModel):
+    """Turn a Lab run into a real strategy and queue it for review."""
+    name: str
+    symbols: list[str]
+    definition: dict
+    backtest: dict | None = None
+    allocation_pct: float = 10.0
+    actor: str = "rushi"
+    note: str | None = None
+
+
+@router.post("/fund/research/promote")
+def promote_candidate(req: ResearchPromoteRequest):
+    """Research -> strategy -> rebalance queue, in one step.
+
+    This is the seam that was missing. Previously a strategy was created as an
+    empty named shell and filled in somewhere else, so the evidence that
+    justified it was never attached to it. Here the definition, the universe and
+    the backtest that earned it arrive together, and the sizing decision goes
+    into the review queue rather than straight to the venue.
+
+    Registers the strategy but does NOT deploy or trade it: a human still
+    approves the rebalance plan.
+    """
+    if not req.symbols:
+        raise HTTPException(status_code=422, detail="a strategy needs at least one symbol")
+
+    st = _strategies.register(req.name, actor=req.actor, definition=req.definition)
+    sid = st["strategy_id"]
+    _strategies.set_assets(sid, [s.upper() for s in req.symbols], actor=req.actor)
+    if req.backtest:
+        _strategies.record_backtest(sid, req.backtest, actor=req.actor)
+        _strategies.set_state(sid, "backtested", actor=req.actor)
+
+    # Keep every existing deployed strategy where it is; add the newcomer.
+    targets: dict[str, float] = {}
+    for s in _strategies.list():
+        if s.get("state") == "deployed" and not s.get("archived"):
+            targets[s["strategy_id"]] = float(s.get("allocation_pct") or 0.0)
+    targets[sid] = float(req.allocation_pct)
+
+    try:
+        plan = _rebalance.propose(
+            targets, actor=req.actor,
+            note=req.note or f"promote '{req.name}' from the Lab at {req.allocation_pct:.0f}%",
+        )
+    except RebalanceError as e:
+        # The strategy is still registered — research is not lost because the
+        # sizing could not be queued. Say exactly that rather than pretending.
+        return {"strategy_id": sid, "queued": False, "reason": str(e)}
+    return {"strategy_id": sid, "queued": True, "plan": plan}
+
+
+@router.get("/fund/nav/intraday")
+def get_intraday_nav(minutes: int = Query(180, ge=5, le=1440)):
+    """Intraday NAV samples for the P&L trace.
+
+    These are NOT struck NAV: they live in memory, vanish on restart and carry
+    ``struck: false``. Use them to watch a session, never to reconcile or report.
+    """
+    # Sample on read too, so a freshly-opened chart has a current point even if
+    # the scheduler tick has not landed yet.
+    sample_intraday_nav()
+    return _intraday.series(minutes=minutes)
+
+
+# --- venue backfill (adopt fills the platform did not originate) ------------
+def _broker_fills_for_backfill() -> list[dict]:
+    """Real filled orders at the venue, in the shape BrokerBackfill expects."""
+    from alpaca.trading.requests import GetOrdersRequest
+    from alpaca.trading.enums import QueryOrderStatus
+
+    client = _connector._trading()  # noqa: SLF001 — same package, deliberate
+    rows = client.get_orders(GetOrdersRequest(status=QueryOrderStatus.ALL, limit=500))
+    out = []
+    for o in rows:
+        if getattr(o, "status", None) is None or o.status.value != "filled":
+            continue
+        out.append({
+            "client_order_id": str(o.client_order_id),
+            "symbol": o.symbol,
+            "side": o.side.value,
+            "qty": float(o.filled_qty or 0),
+            "price": float(o.filled_avg_price or 0),
+        })
+    return out
+
+
+def _symbol_to_strategy() -> dict[str, str]:
+    """Map each symbol to the deployed strategy that DECLARES it.
+
+    Read from the strategies' own universes rather than a hardcoded table, so it
+    cannot drift out of step with the book. A symbol claimed by two strategies is
+    genuinely ambiguous and is left unmapped — guessing would put P&L against a
+    thesis that did not ask for it.
+    """
+    owners: dict[str, list[str]] = {}
+    try:
+        for st in _strategies.list():
+            if st.get("archived") or st.get("state") != "deployed":
+                continue
+            for sym in (st.get("assets") or []):
+                owners.setdefault(str(sym).upper(), []).append(st["strategy_id"])
+    except Exception:  # noqa: BLE001
+        return {}
+    return {sym: ids[0] for sym, ids in owners.items() if len(ids) == 1}
+
+
+def _attribute_plan(plan) -> dict:
+    """Stamp each planned fill with its owning strategy, and report coverage."""
+    mapping = _symbol_to_strategy()
+    mapped, unmapped = {}, []
+    for pf in plan.all_events:
+        sid = mapping.get(str(pf.symbol).upper())
+        if sid:
+            pf.strategy_id = sid
+            mapped[pf.symbol] = sid
+        else:
+            unmapped.append(pf.symbol)
+    return {
+        "mapped": mapped,
+        "unmapped": sorted(set(unmapped)),
+        "note": "attribution is inferred from declared universes; these fills were "
+                "not placed by the platform, so no strategy actually chose them",
+    }
+
+
+class BackfillApplyRequest(BaseModel):
+    actor: str = "reconciliation"
+    confirm: bool = False
+
+
+@router.get("/fund/venue/backfill/plan")
+def plan_venue_backfill():
+    """DRY RUN: which venue fills are missing from our log, and what adopting
+    them would do. Reads both sides, writes nothing."""
+    if not _real_broker():
+        raise HTTPException(status_code=400,
+                            detail="no real broker configured — nothing to back-fill")
+    try:
+        fills = _broker_fills_for_backfill()
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"venue unreadable: {type(e).__name__}: {e}")
+    plan = BrokerBackfill(store=_store).plan(fills)
+    mapping = _attribute_plan(plan)
+    return {"venue_filled_orders": len(fills), "plan": plan.to_dict(),
+            "attribution": mapping,
+            "is_production": bool(_active_book().get("env") == "production")}
+
+
+@router.post("/fund/venue/backfill/apply")
+def apply_venue_backfill(req: BackfillApplyRequest):
+    """Write the missing venue fills into the ledger.
+
+    This is a permanent append to an append-only log, so it is guarded twice:
+    never against the production book from this endpoint, and never without an
+    explicit confirm. Adopted fills carry no strategy_id — nobody's strategy
+    chose them, and pretending otherwise would corrupt attribution.
+    """
+    if _active_book().get("env") == "production":
+        raise HTTPException(
+            status_code=403,
+            detail="refusing to back-fill the PRODUCTION ledger from the API; "
+                   "use scripts/reconcile_broker.py with a dry run first")
+    if not req.confirm:
+        raise HTTPException(status_code=400, detail="pass confirm=true to write")
+    if not _real_broker():
+        raise HTTPException(status_code=400, detail="no real broker configured")
+    fills = _broker_fills_for_backfill()
+    bf = BrokerBackfill(store=_store)
+    plan = bf.plan(fills)
+    mapping = _attribute_plan(plan)
+    result = bf.apply(plan, actor=req.actor)
+    _riskengine.invalidate()
+    return {"applied": result, "attribution": mapping, "plan": plan.to_dict()}
+
+
+# --- rebalance (a reviewable batch, not a button) ---------------------------
+class RebalanceBuildRequest(BaseModel):
+    targets: dict[str, float]
+
+
+class RebalanceProposeRequest(BaseModel):
+    targets: dict[str, float]
+    actor: str
+    note: str | None = None
+
+
+class RebalanceApproveRequest(BaseModel):
+    approver: str
+    allow_self_approval: bool = True
+
+
+class RebalanceDeclineRequest(BaseModel):
+    actor: str
+    reason: str | None = None
+
+
+@router.post("/fund/rebalance/preview")
+def preview_rebalance(req: RebalanceBuildRequest):
+    """The order list a set of targets implies. Writes nothing."""
+    try:
+        return _rebalance.build(req.targets)
+    except RebalanceError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/fund/rebalance/propose")
+def propose_rebalance(req: RebalanceProposeRequest):
+    """Queue a plan for review. Places no orders."""
+    try:
+        return _rebalance.propose(req.targets, actor=req.actor, note=req.note)
+    except RebalanceError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/fund/rebalance/pending")
+def list_pending_rebalances():
+    """Plans awaiting a human, each decorated with what has changed since it
+    was written (price drift, age, halt state)."""
+    return {"pending": _rebalance.pending()}
+
+
+@router.get("/fund/rebalance/history")
+def list_rebalance_history(limit: int = Query(20, ge=1, le=200)):
+    return {"history": _rebalance.history(limit)}
+
+
+@router.get("/fund/rebalance/{plan_id}")
+def get_rebalance(plan_id: str):
+    try:
+        return _rebalance.get(plan_id)
+    except RebalanceError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/fund/rebalance/{plan_id}/approve")
+def approve_rebalance(plan_id: str, req: RebalanceApproveRequest):
+    """Push the plan: re-prices, re-gates every order, reports what happened."""
+    try:
+        return _rebalance.approve(plan_id, approver=req.approver,
+                                  allow_self_approval=req.allow_self_approval)
+    except RebalanceError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/fund/rebalance/{plan_id}/decline")
+def decline_rebalance(plan_id: str, req: RebalanceDeclineRequest):
+    try:
+        return _rebalance.decline(plan_id, actor=req.actor, reason=req.reason)
+    except RebalanceError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/fund/risk/alerts")

@@ -92,6 +92,14 @@ class EventType(str, Enum):
     TRADING_HALTED = "TradingHalted"            # kill switch engaged (drawdown/loss/manual)
     TRADING_RESUMED = "TradingResumed"          # trading re-enabled by a human
 
+    # Rebalance — a BATCH of orders decided as one thing. Event-sourced
+    # separately from the individual orders because the unit of human judgement
+    # is the plan, not the twelve fills it becomes: approving nine buys one at a
+    # time is not the same decision as approving the shape of the book.
+    REBALANCE_PROPOSED = "RebalanceProposed"
+    REBALANCE_APPROVED = "RebalanceApproved"
+    REBALANCE_DECLINED = "RebalanceDeclined"
+
 
 @dataclass
 class Event:
