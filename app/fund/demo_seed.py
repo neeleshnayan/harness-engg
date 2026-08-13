@@ -22,6 +22,19 @@ _log = logging.getLogger("clarkharness.demo_seed")
 
 def seed_if_empty(store: EventStore, db) -> bool:
     """Check if the store is empty; if so, populate complete demo data."""
+    # Demo data must never touch the real fund. The ledger is append-only, so a
+    # seed on the production book cannot be undone — only compensated for.
+    try:
+        from app.core.firebase import active_book, is_production
+        if is_production():
+            _log.warning(
+                "FUND_ENV=production (project=%s) — REFUSING to seed demo data.",
+                active_book().get("project_id"),
+            )
+            return False
+    except Exception:
+        pass
+
     try:
         existing_events = list(store.stream(since_seq=0, limit=1))
         if existing_events:

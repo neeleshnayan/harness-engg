@@ -3,7 +3,10 @@ __pycache__/
 .venv/
 venv/
 .env
-firebase_service_account.json
+# service-account credentials — the production key is a different filename,
+# so match the family, not one exact name
+firebase_service_account*.json
+*-service-account*.json
 scratch_*
 *.log
 .firestore_local_db.json

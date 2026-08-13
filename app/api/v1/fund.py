@@ -154,6 +154,21 @@ def get_venue_account():
     }
 
 
+@router.get("/fund/book")
+def get_book_identity():
+    """Which Firestore project this process is reading and writing.
+
+    The ledger is append-only, so operating against the wrong book is a
+    permanent mistake. This makes the active book checkable from outside.
+    """
+    try:
+        from app.core.firebase import active_book
+        info = active_book()
+    except Exception:
+        info = {"project_id": "unknown", "env": "unknown"}
+    return {**info, "is_production": info.get("env") == "production"}
+
+
 @router.get("/fund/nav")
 def get_nav():
     """Live (unstruck) valuation plus the last struck snapshot."""
