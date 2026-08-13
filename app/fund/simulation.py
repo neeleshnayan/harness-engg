@@ -22,8 +22,14 @@ from app.fund.money import f, D
 BASELINE_CRUDE_OIL = 75.0  # $/bbl baseline
 BASELINE_10Y_YIELD = 4.15  # % baseline
 
-# Factor sensitivity coefficients by asset category/symbol
+# Factor sensitivity coefficients by symbol.
 # Format: (Market Beta, Oil Beta, Rate Duration, VIX Sensitivity)
+#
+# These are HAND-SET MODELLING ASSUMPTIONS, not betas estimated from returns.
+# That is legitimate for scenario analysis — a stress test asks "what if" — but
+# the output must never present them as measured, and any symbol missing here
+# falls back to a generic proxy that is weaker still (see `proxied_symbols` in
+# the result). Estimating these from real return histories is the upgrade path.
 FACTOR_SENSITIVITIES: Dict[str, tuple[float, float, float, float]] = {
     "AAPL": (1.15, -0.15, -0.45, -0.8),
     "MSFT": (1.20, -0.10, -0.50, -0.85),
@@ -34,8 +40,13 @@ FACTOR_SENSITIVITIES: Dict[str, tuple[float, float, float, float]] = {
     "USO": (0.05, 1.00, -0.10, 0.2),
     "BTC/USDT": (1.95, -0.20, -1.10, -1.8),
     "ETH/USDT": (2.15, -0.25, -1.25, -2.0),
+    "GOOG": (1.10, -0.10, -0.40, -0.75),
     "SPY": (1.00, -0.05, -0.30, -0.7),
 }
+
+# Applied to any symbol absent from the table above. Deliberately bland, and
+# always reported via `proxied_symbols` so a caller can see the estimate is soft.
+GENERIC_SENSITIVITIES = (1.0, 0.0, -0.3, -0.5)
 
 PRESET_SCENARIOS: Dict[str, Dict[str, Any]] = {
     "oil_spike": {
@@ -123,6 +134,7 @@ class CounterfactualSimulator:
         position_impacts = []
         total_pnl_shock = 0.0
         total_pos_value_before = 0.0
+        proxied_symbols: List[str] = []
 
         for pos in positions:
             sym = pos.get("symbol", "UNKNOWN")
@@ -131,9 +143,14 @@ class CounterfactualSimulator:
             val_before = float(pos.get("usd_value", qty * mark_before))
             total_pos_value_before += val_before
 
-            # Look up factor sensitivities
+            # Look up factor sensitivities. A symbol we have no betas for gets a
+            # generic proxy — that is a much weaker estimate, so record it and
+            # surface it rather than letting it read like a modelled number.
+            estimated = sym not in FACTOR_SENSITIVITIES
+            if estimated:
+                proxied_symbols.append(sym)
             mkt_beta, oil_beta, dur_sens, vix_sens = FACTOR_SENSITIVITIES.get(
-                sym, (1.0, 0.0, -0.3, -0.5)
+                sym, GENERIC_SENSITIVITIES
             )
 
             # Is crypto?
@@ -238,6 +255,10 @@ class CounterfactualSimulator:
                 "cash_usd": cash_usd,
             },
             "position_impacts": position_impacts,
+            # symbols stress-tested with generic proxy betas rather than
+            # symbol-specific ones — a materially softer estimate
+            "proxied_symbols": sorted(set(proxied_symbols)),
+            "sensitivities_are_assumptions": True,
             "warnings": warnings,
             "hedging_proposals": hedging_proposals,
         }
