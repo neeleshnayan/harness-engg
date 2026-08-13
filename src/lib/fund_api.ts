@@ -670,6 +670,19 @@ export const fundApiClient = {
   getMarketQuotes: async (): Promise<MarketQuotesResponse> =>
     (await fundApi.get(`${P}/market/quotes`)).data,
 
+  /** Broker-vs-book drift. Read-only — writes no events. */
+  getVenueReconcile: async (): Promise<{
+    configured: boolean;
+    book_nav?: number | null;
+    broker_equity?: number | null;
+    delta_usd?: number | null;
+    delta_pct?: number | null;
+    symbols_out_of_sync?: number;
+    per_symbol?: { symbol: string; book_qty: number; broker_qty: number; drift: number; in_sync: boolean }[];
+    as_of?: string;
+    reason?: string;
+  }> => (await fundApi.get(`${P}/venue/reconcile`)).data,
+
   getRiskMonitor: async (): Promise<RiskMonitorResponse> =>
     (await fundApi.get(`${P}/risk/monitor`)).data,
 
