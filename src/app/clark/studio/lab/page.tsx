@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { FlaskConical, Loader2, Play, Trash2 } from "lucide-react";
 import { StudioHeader } from "../components/StudioHeader";
 import { KT } from "../theme";
+import { CandidateVerdict } from "../components/CandidateVerdict";
 import { spineError } from "@/lib/spine_error";
 import { EquityChart } from "./EquityChart";
 import {
@@ -248,6 +249,14 @@ export default function LabPage() {
                 <Stat label="Avg win" value={`${num(r?.avg_win)}%`} tone={KT.up} />
                 <Stat label="Avg loss" value={`${num(r?.avg_loss)}%`} tone={KT.down} />
               </div>
+
+              <CandidateVerdict
+                equityCurve={r?.equity_curve}
+                dates={current.bars.dates ?? undefined}
+                symbol={current.symbol}
+                template={template}
+                params={Object.fromEntries(spec.params.map((p) => [p, params[p]]))}
+              />
 
               {/* what it actually did */}
               <div className={KT.panel}>

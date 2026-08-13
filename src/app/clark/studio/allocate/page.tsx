@@ -5,9 +5,9 @@ import { spineError } from "@/lib/spine_error";
 import Link from "next/link";
 import { ArrowRight, Loader2, Plus, Scale, Sliders } from "lucide-react";
 import { StudioHeader } from "../components/StudioHeader";
-import { CreateStrategyModal } from "../components/CreateStrategyModal";
-import { RebalanceModal } from "../components/RebalanceModal";
 import { AllocationModal } from "../components/AllocationModal";
+import { RebalancePanel } from "../components/RebalancePanel";
+import { NavPanel } from "../components/NavPanel";
 import { KT } from "../theme";
 import { fundApiClient, NavResponse, StrategyView } from "@/lib/fund_api";
 
@@ -70,8 +70,6 @@ export default function AllocatePage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
-  const [createOpen, setCreateOpen] = useState(false);
-  const [rebalanceOpen, setRebalanceOpen] = useState(false);
   const [allocTarget, setAllocTarget] = useState<StrategyView | null>(null);
 
   const load = useCallback(async () => {
@@ -121,12 +119,12 @@ export default function AllocatePage() {
             <Link href="/clark/studio/compose" className={`flex h-8 items-center ${KT.btnGhost}`}>
               <Sliders size={14} className="mr-1.5" /> Composer
             </Link>
-            <button className={`flex h-8 items-center ${KT.btnGhost}`} onClick={() => setRebalanceOpen(true)}>
+            <a href="#rebalance" className={`flex h-8 items-center ${KT.btnGhost}`}>
               <Scale size={14} className="mr-1.5" /> Rebalance
-            </button>
-            <button className={`flex h-8 items-center ${KT.btn}`} onClick={() => setCreateOpen(true)}>
+            </a>
+            <Link href="/clark/studio/lab" className={`flex h-8 items-center ${KT.btn}`}>
               <Plus size={14} className="mr-1.5" /> New strategy
-            </button>
+            </Link>
           </>
         }
       />
@@ -163,14 +161,16 @@ export default function AllocatePage() {
           </div>
         </div>
 
+        <NavPanel nav={nav} strategies={strategies} />
+
         {/* Live book */}
         <div className={`mt-6 ${KT.panel}`}>
           <div className="flex items-center justify-between border-b border-[var(--kt-border)] px-5 py-3">
             <span className={KT.label}>Live allocations</span>
             {worstDrift > 5 && (
-              <button onClick={() => setRebalanceOpen(true)} className={`text-[11px] ${KT.accent} underline underline-offset-2`}>
+              <a href="#rebalance" className={`text-[11px] ${KT.accent} underline underline-offset-2`}>
                 drift over 5% — rebalance
-              </button>
+              </a>
             )}
           </div>
 
@@ -180,7 +180,8 @@ export default function AllocatePage() {
             </div>
           ) : live.length === 0 ? (
             <div className={`px-5 py-10 text-sm ${KT.muted}`}>
-              Nothing deployed. Create a strategy, back it, then deploy it to put capital to work.
+              Nothing deployed. Strategies are born in the <Link href="/clark/studio/lab" className={KT.accent}>Lab</Link> — backtest an idea,
+              check whether it is alpha or beta you already own, then propose it at a weight.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -247,6 +248,10 @@ export default function AllocatePage() {
           )}
         </div>
 
+        <div id="rebalance" className="scroll-mt-24">
+          <RebalancePanel strategies={live} navUsd={navUsd} onCommitted={load} />
+        </div>
+
         {/* Not yet carrying capital */}
         <div className={`mt-6 ${KT.panel}`}>
           <div className={`border-b border-[var(--kt-border)] px-5 py-3 ${KT.label}`}>
@@ -275,19 +280,6 @@ export default function AllocatePage() {
         </div>
       </div>
 
-      <CreateStrategyModal
-        isOpen={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onSuccess={() => load()}
-        strategies={strategies}
-      />
-      <RebalanceModal
-        open={rebalanceOpen}
-        onOpenChange={setRebalanceOpen}
-        strategies={strategies}
-        totalNavUsd={navUsd}
-        onSuccess={() => load()}
-      />
       <AllocationModal
         strategy={allocTarget}
         onClose={() => setAllocTarget(null)}

@@ -540,6 +540,279 @@ export interface ComposeWeightsResponse {
   skipped_members?: string[];
 }
 
+/** Every block degrades independently — `measurable: false` carries a `reason`,
+ *  and MUST render as that reason, never as a zero. */
+export interface Measurable { measurable: boolean; reason?: string }
+
+export interface CorrelationView extends Measurable {
+  symbols: string[];
+  n_positions: number;
+  n_obs: number;
+  window_end: string | null;
+  weights: Record<string, number>;
+  annualised_vol_pct: Record<string, number>;
+  matrix: number[][];
+  pairs: { a: string; b: string; correlation: number }[];
+  avg_pairwise_correlation: number;
+  max_pair: { a: string; b: string; correlation: number } | null;
+  portfolio_vol_pct: number;
+  stressed_vol_pct: number;
+  diversification_ratio: number;
+  effective_bets: number;
+  naive_bets: number;
+  positions_covered_pct: number;
+  excluded: Record<string, string>;
+  interpretation: string[];
+  strategy_overlap?: Measurable & {
+    pairs?: {
+      a: string; a_name: string; b: string; b_name: string;
+      shared_exposure_pct: number; shared_symbols: string[];
+      return_correlation: number | null;
+    }[];
+    worst_pair?: unknown;
+    note?: string;
+  };
+}
+
+export interface RiskContributionRow {
+  symbol: string;
+  capital_weight_pct: number;
+  marginal_contribution: number;
+  component_risk_pct: number;
+  risk_share_pct: number;
+  risk_vs_capital_gap_pct: number;
+}
+
+export interface FactorRow {
+  key: string;
+  label: string;
+  proxy: string;
+  beta: number;
+  std_error: number;
+  t_stat: number;
+  significant: boolean;
+  reads: string;
+}
+
+export interface FactorModelView extends Measurable {
+  n_obs?: number;
+  alpha_annual_pct?: number;
+  alpha_t_stat?: number;
+  alpha_significant?: boolean;
+  r_squared?: number;
+  idiosyncratic_share?: number;
+  factors?: FactorRow[];
+  dominant_factor?: FactorRow;
+  verdict?: string[];
+  caveats?: string[];
+}
+
+export interface FactorMap extends Measurable {
+  symbols?: string[];
+  n_obs?: number;
+  explained_variance?: number[];
+  cumulative_explained?: number;
+  scree?: number[];
+  points?: { symbol: string; weight_pct: number; loadings: number[] }[];
+  interpretation?: string[];
+}
+
+export interface CandidateEvaluation {
+  n_obs: number;
+  factors: FactorModelView;
+  fit: Measurable & {
+    n_obs?: number;
+    allocation_pct?: number;
+    correlation_to_book?: number;
+    per_strategy?: { strategy_id: string; name: string; correlation: number }[];
+    before?: { vol_pct: number; expected_shortfall_usd: number | null; sharpe_annual: number | null };
+    after?: { vol_pct: number; expected_shortfall_usd: number | null; sharpe_annual: number | null };
+    improves_book?: boolean;
+    effect?: "diversifying" | "return-seeking" | "risk-reducing" | "neither";
+    verdict?: string[];
+  };
+}
+
+export interface AdvancedRiskView {
+  factor_model?: FactorModelView;
+  factor_map?: FactorMap;
+  nav_usd: number;
+  /** Cache metadata — cached figures must never be presented as live. */
+  computed_at?: string;
+  cached?: boolean;
+  cache_age_seconds?: number;
+  ttl_seconds?: number;
+  limits: Record<string, number>;
+  alarms: RiskAlarmItem[];
+  headlines: string[];
+  correlation: CorrelationView;
+  risk_contribution: Measurable & {
+    portfolio_vol_pct?: number;
+    contributions?: RiskContributionRow[];
+    largest_risk_contributor?: RiskContributionRow;
+    decomposition_residual?: number;
+  };
+  tail: Measurable & {
+    n_obs?: number;
+    headline?: string;
+    worst_day_pct?: number;
+    worst_day_usd?: number;
+    worst_5day_pct?: number;
+    worst_5day_usd?: number;
+    caveats?: string[];
+    levels?: Record<string, {
+      confidence: number; var_pct: number; expected_shortfall_pct: number;
+      var_usd?: number; expected_shortfall_usd?: number; tail_observations: number;
+    }>;
+  };
+  vol_regime: Measurable & {
+    equal_weighted_vol_pct?: number; ewma_vol_pct?: number;
+    ratio?: number; lambda?: number; verdict?: string;
+  };
+  portfolio_turbulence: Measurable & {
+    latest?: number; percentile?: number; elevated?: boolean; verdict?: string;
+  };
+  regime?: Measurable & {
+    basket?: string[];
+    interpretation?: string[];
+    turbulence?: Measurable & {
+      latest?: number; percentile?: number; recent_20d_percentile?: number;
+      elevated?: boolean; verdict?: string; n_scored_days?: number;
+    };
+    absorption?: Measurable & {
+      current?: number; standardised_shift?: number; threshold?: number;
+      flagged?: boolean; verdict?: string; n_eigenvectors?: number; n_assets?: number;
+    };
+  };
+  reverse_stress: Measurable & {
+    headline?: string; daily_headline?: string;
+    uniform_move_to_halt_pct?: number; loss_to_halt_usd?: number;
+    already_breached?: boolean;
+    single_name?: { symbol: string; exposure_usd: number; move_to_halt_pct: number | null; possible: boolean }[];
+    single_name_note?: string;
+  };
+  historical?: Measurable & {
+    worst_scenario?: HistoricalScenario;
+    scenarios?: HistoricalScenario[];
+    note?: string;
+  };
+  loss_surface: Measurable & {
+    x_correlation?: number[];
+    y_horizon_days?: number[];
+    z_loss_usd?: number[][];
+    measured_correlation?: number | null;
+    tail_multiplier?: number;
+    caveats?: string[];
+    axis_labels?: { x: string; y: string; z: string };
+  };
+}
+
+export interface HistoricalScenario extends Measurable {
+  key: string; label: string; start: string; end: string; note: string;
+  pnl_usd?: number; nav_change_pct?: number; nav_after?: number;
+  coverage_pct?: number; caveat?: string; missing?: string[];
+  worst_name?: { symbol: string; return_pct: number; pnl_usd: number };
+  per_symbol?: { symbol: string; return_pct: number; pnl_usd: number }[];
+}
+
+export interface RiskShape {
+  symbols: string[];
+  weights_pct_of_nav: Record<string, number>;
+  gross_exposure_pct_of_nav: number;
+  effective_bets: number;
+  portfolio_vol_pct: number;
+  stressed_vol_pct: number;
+  expected_shortfall_usd: number | null;
+  expected_shortfall_pct: number | null;
+  largest_risk_contributor?: RiskContributionRow;
+  contributions?: RiskContributionRow[];
+}
+
+export interface RiskWhatIf extends Measurable {
+  nav_usd?: number;
+  before?: RiskShape;
+  after?: RiskShape;
+  deltas?: Record<string, number>;
+  proposed_exposure_usd?: Record<string, number>;
+  proposed_cash_usd?: number;
+  proposed_cash_pct?: number | null;
+  symbols_without_history?: string[];
+  unallocatable?: string[];
+  assumption?: string;
+}
+
+export interface RebalanceOrder {
+  symbol: string;
+  side: "buy" | "sell";
+  qty: number;
+  est_price: number;
+  notional_usd: number;
+  current_usd: number;
+  target_usd: number;
+  strategy_id?: string | null;
+  order_id?: string;
+  breaches?: string[];
+}
+
+export interface RebalanceMechanics {
+  measurable?: boolean;
+  reason?: string;
+  before?: Record<string, number | null>;
+  after?: Record<string, number | null>;
+  deltas?: Record<string, number>;
+}
+
+export interface RebalancePlan {
+  plan_id?: string;
+  status?: "pending_approval" | "approved" | "declined";
+  targets: Record<string, number>;
+  orders: RebalanceOrder[];
+  skipped: { symbol: string; delta_usd: number; reason: string }[];
+  unallocatable: string[];
+  /** Breaches of the DESTINATION against the mandate — things the per-order
+   *  pre-trade gate structurally cannot see. */
+  limit_warnings?: string[];
+  nav_usd: number;
+  cash_after_usd: number;
+  cash_after_pct: number;
+  turnover_usd: number;
+  turnover_pct: number;
+  assumption: string;
+  note?: string | null;
+  mechanics?: RebalanceMechanics | null;
+  proposed_at?: string;
+  proposed_by?: string;
+  /** Decorations computed at read time — what changed while the plan sat. */
+  age_minutes?: number | null;
+  price_drift?: { symbol: string; est_price: number; price_now: number; move_pct: number }[];
+  warnings?: string[];
+  outcome?: RebalanceOutcome;
+}
+
+export interface RebalanceOutcome {
+  status?: string;
+  plan_id: string;
+  approved_at?: string;
+  approved_by?: string;
+  self_approved?: boolean;
+  placed: RebalanceOrder[];
+  rejected: RebalanceOrder[];
+  n_placed: number;
+  n_rejected: number;
+  turnover_usd: number;
+}
+
+export interface IntradayNavSeries {
+  samples: { ts: string; total_nav_usd: number; nav_per_unit: number | null; cash_usd: number | null; struck: boolean }[];
+  n: number;
+  window_minutes: number;
+  change_usd: number | null;
+  change_pct: number | null;
+  from_ts: string | null;
+  to_ts: string | null;
+  note: string;
+}
+
 export const fundApiClient = {
   getNav: async (): Promise<NavResponse> => (await fundApi.get(`${P}/nav`)).data,
 
@@ -728,6 +1001,81 @@ export const fundApiClient = {
 
   getRiskMonitor: async (): Promise<RiskMonitorResponse> =>
     (await fundApi.get(`${P}/risk/monitor`)).data,
+
+  /** Structural risk: correlation, risk contribution, ES, regime, stress.
+   *  Reads market history, so it is slow (seconds) — never poll it tightly. */
+  getRiskAdvanced: async (opts?: {
+    lookbackDays?: number;
+    includeRegime?: boolean;
+    includeHistorical?: boolean;
+    /** Bypass the server's 30-minute cache. Only for an explicit user action. */
+    force?: boolean;
+  }): Promise<AdvancedRiskView> =>
+    (await fundApi.get(`${P}/risk/advanced`, {
+      params: {
+        lookback_days: opts?.lookbackDays ?? 250,
+        include_regime: opts?.includeRegime ?? true,
+        include_historical: opts?.includeHistorical ?? true,
+        force: opts?.force ?? false,
+      },
+      timeout: 180000,
+    })).data,
+
+  /** Read-only: what the book WOULD look like at these strategy targets.
+   *  Places no orders. */
+  riskWhatIf: async (
+    targets: Record<string, number>,
+    lookbackDays = 250,
+  ): Promise<RiskWhatIf> =>
+    (await fundApi.post(`${P}/risk/whatif`,
+      { targets, lookback_days: lookbackDays }, { timeout: 180000 })).data,
+
+  // --- rebalance: a reviewable batch, not a button ---
+  previewRebalance: async (targets: Record<string, number>): Promise<RebalancePlan> =>
+    (await fundApi.post(`${P}/rebalance/preview`, { targets })).data,
+
+  proposeRebalance: async (
+    targets: Record<string, number>, actor: string, note?: string,
+  ): Promise<RebalancePlan> =>
+    (await fundApi.post(`${P}/rebalance/propose`, { targets, actor, note },
+      { timeout: 180000 })).data,
+
+  getPendingRebalances: async (): Promise<{ pending: RebalancePlan[] }> =>
+    (await fundApi.get(`${P}/rebalance/pending`)).data,
+
+  approveRebalance: async (planId: string, approver: string): Promise<RebalanceOutcome> =>
+    (await fundApi.post(`${P}/rebalance/${planId}/approve`, { approver },
+      { timeout: 180000 })).data,
+
+  declineRebalance: async (planId: string, actor: string, reason?: string): Promise<unknown> =>
+    (await fundApi.post(`${P}/rebalance/${planId}/decline`, { actor, reason })).data,
+
+  /** Judge a candidate strategy: is it alpha or factor beta, and does adding it
+   *  improve the fund? Stateless — registers nothing. */
+  evaluateCandidate: async (body: {
+    equity_curve?: number[];
+    returns?: number[];
+    dates: string[];
+    allocation_pct?: number;
+  }): Promise<CandidateEvaluation> =>
+    (await fundApi.post(`${P}/research/evaluate`, body, { timeout: 180000 })).data,
+
+  /** Register a researched strategy WITH its evidence and queue the sizing for
+   *  review. Places no order. */
+  promoteCandidate: async (body: {
+    name: string;
+    symbols: string[];
+    definition: Record<string, unknown>;
+    backtest?: Record<string, unknown>;
+    allocation_pct?: number;
+    actor?: string;
+    note?: string;
+  }): Promise<{ strategy_id: string; queued: boolean; reason?: string; plan?: RebalancePlan }> =>
+    (await fundApi.post(`${P}/research/promote`, body, { timeout: 180000 })).data,
+
+  /** Intraday NAV telemetry. NOT struck NAV — in-memory, lost on restart. */
+  getIntradayNav: async (minutes = 180): Promise<IntradayNavSeries> =>
+    (await fundApi.get(`${P}/nav/intraday`, { params: { minutes } })).data,
 
   getRiskAlerts: async (): Promise<{ active: RiskAlarmItem[] }> =>
     (await fundApi.get(`${P}/risk/alerts`)).data,

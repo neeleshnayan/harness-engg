@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, ClipboardCheck, FlaskConical, Sliders } from "lucide-react";
+import { Activity, ClipboardCheck, FlaskConical, ShieldAlert, Sliders } from "lucide-react";
 
 /**
  * Workflow-first navigation (see docs/STUDIO_IA_SPEC.md).
@@ -23,8 +23,12 @@ import { Activity, ClipboardCheck, FlaskConical, Sliders } from "lucide-react";
  * answer "what has happened to the fund", which is Monitor's question. A
  * reporting surface earns its own tab once there is history worth reporting.
  *
- * Risk is deliberately absent: it applies to all four, so it lives in the
- * always-visible RiskBar instead of being a place you have to visit.
+ * Risk earns a tab of its own — but only the STRUCTURAL half. Limit utilisation
+ * and the kill switch stay in the always-visible RiskBar and in Monitor, because
+ * they apply to all four tabs and must never be somewhere you have to navigate
+ * to. What lives on /risk is the part that is a standing job rather than a
+ * glance: correlation, effective bets, tails, market regime and survivability.
+ * That is Vishesh's work, and it has no home in a page about today's orders.
  */
 const TABS = [
   { href: "/clark/studio", label: "Decide", icon: ClipboardCheck, exact: true,
@@ -35,6 +39,8 @@ const TABS = [
     hint: "Backtest, optimise and stress a strategy before it carries capital" },
   { href: "/clark/studio/monitor", label: "Monitor", icon: Activity,
     hint: "Live NAV, positions, breaches and the kill-switch" },
+  { href: "/clark/studio/risk", label: "Risk", icon: ShieldAlert,
+    hint: "Diversification, tail risk, market regime and survivability" },
 ];
 
 export function StudioNav() {
