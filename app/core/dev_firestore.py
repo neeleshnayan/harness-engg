@@ -8,11 +8,19 @@ without hitting external quota limits.
 from __future__ import annotations
 
 import os
+import shutil
+import time
 import json
 import logging
 from firebase_admin import firestore
 
 logger = logging.getLogger(__name__)
+
+#: How many previous ledgers to keep beside the live one, and how far apart.
+#: 12 x 15 minutes covers about three hours — long enough to notice a problem
+#: and roll back, short enough not to hoard copies of the whole event log.
+_KEEP_BACKUPS = 12
+_BACKUP_INTERVAL_SECONDS = float(os.getenv("LEDGER_BACKUP_INTERVAL_SECONDS", "900"))
 
 _DB_FILEPATH = os.path.join(os.path.dirname(__file__), "../../.firestore_local_db.json")
 
@@ -112,17 +120,82 @@ class _DB:
         self._load()
 
     def _load(self):
-        if os.path.exists(self._filepath):
+        if not os.path.exists(self._filepath):
+            return
+        try:
+            with open(self._filepath, "r", encoding="utf-8") as f:
+                self._store = json.load(f)
+            logger.info("Loaded persistent local Firestore DB from %s", self._filepath)
+            return
+        except Exception as e:
+            # An unreadable ledger must NOT become an empty one. Starting blank
+            # here used to look like a fresh fund, and the very next write
+            # replaced the damaged file with `{}` — turning a recoverable parse
+            # error into total, silent loss of the fund's entire history.
+            #
+            # So: move the bad file aside so nothing can overwrite it, point at
+            # the newest backup if there is one, and refuse to start otherwise.
+            quarantine = f"{self._filepath}.corrupt-{int(time.time())}"
             try:
-                with open(self._filepath, "r", encoding="utf-8") as f:
-                    self._store = json.load(f)
-                logger.info("Loaded persistent local Firestore DB from %s", self._filepath)
-            except Exception as e:
-                logger.warning("Failed to load local Firestore DB: %s", e)
-                self._store = {}
+                os.replace(self._filepath, quarantine)
+            except OSError:
+                quarantine = "(could not be moved aside)"
+            newest = self._newest_backup()
+            raise RuntimeError(
+                f"local ledger at {self._filepath} could not be parsed ({e}). "
+                f"It has been moved to {quarantine} so it cannot be overwritten. "
+                + (f"The newest backup is {newest} — inspect it and copy it into "
+                   "place deliberately." if newest else
+                   "NO backup was found. Do not start the fund against an empty "
+                   "ledger; recover the file first.")
+            ) from e
+
+    def _backup_paths(self) -> list[str]:
+        d = os.path.dirname(self._filepath) or "."
+        base = os.path.basename(self._filepath)
+        try:
+            names = [n for n in os.listdir(d) if n.startswith(base + ".bak")]
+        except OSError:
+            return []
+        return sorted((os.path.join(d, n) for n in names), reverse=True)
+
+    def _newest_backup(self) -> str | None:
+        paths = self._backup_paths()
+        return paths[0] if paths else None
+
+    def _rotate_backup(self):
+        """Keep a small ring of previous ledgers beside the live one.
+
+        The event log is the fund's only record of what it owns and why. One
+        file with no copies is a single delete away from having no fund, so each
+        save first preserves the version it is about to replace.
+        """
+        if not os.path.exists(self._filepath):
+            return
+        # Spaced by time, not by write. Every appended event triggers a save, so
+        # a copy-per-save would fill the whole ring within seconds and leave the
+        # fund with ten near-identical backups covering no useful history.
+        newest = self._newest_backup()
+        if newest is not None:
+            try:
+                if time.time() - os.path.getmtime(newest) < _BACKUP_INTERVAL_SECONDS:
+                    return
+            except OSError:
+                pass
+        try:
+            shutil.copy2(self._filepath, f"{self._filepath}.bak-{int(time.time())}")
+        except OSError as e:
+            logger.warning("Could not write ledger backup: %s", e)
+            return
+        for old in self._backup_paths()[_KEEP_BACKUPS:]:
+            try:
+                os.remove(old)
+            except OSError:
+                pass
 
     def _save(self):
         try:
+            self._rotate_backup()
             tmp = self._filepath + ".tmp"
             with open(tmp, "w", encoding="utf-8") as f:
                 json.dump(self._store, f, indent=2, default=str)

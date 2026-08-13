@@ -156,6 +156,15 @@ def tick() -> dict:
 
     b = broker_snapshot()
     rec["broker"] = {k: v for k, v in b.items() if k != "positions"}
+    if not b.get("ok"):
+        # Losing sight of the broker is the single worst thing that can happen to
+        # a reconciliation monitor: every check below — position alignment, NAV
+        # drift, open orders — silently does not run. Saying nothing here reads
+        # as "aligned, no issues", which is the opposite of the truth.
+        rec["issues"].append(
+            f"BROKER UNREACHABLE ({b.get('error', 'unknown')[:120]}) — position "
+            "alignment, NAV drift and open orders were NOT checked this tick."
+        )
     if b.get("ok"):
         rec["market_open"] = b["market_open"]
         theirs = b["positions"]
@@ -191,11 +200,23 @@ def tick() -> dict:
 
 
 def render(rec: dict) -> str:
+    # An unknown is never rendered as a zero. Three Alpaca timeouts in one
+    # session printed "closed · equity $0.00 (drift $0.00)" — a total loss of
+    # broker visibility dressed up as a perfectly reconciled quiet market.
+    def usd(v) -> str:
+        return "—" if v is None else f"${float(v):,.2f}"
+
+    broker = rec.get("broker") or {}
+    if not broker.get("ok"):
+        session = "broker?"
+    else:
+        session = "OPEN" if rec.get("market_open") else "closed"
+
     head = (f"[{rec['ts']}] "
-            f"{'OPEN' if rec.get('market_open') else 'closed'} · "
+            f"{session} · "
             f"venue={rec.get('venue')} real={rec.get('orders_are_real')} · "
-            f"NAV ${rec.get('nav_usd') or 0:,.2f} vs equity ${(rec.get('broker') or {}).get('equity') or 0:,.2f} "
-            f"(drift ${rec.get('nav_vs_equity_drift', 0):,.2f}) · "
+            f"NAV {usd(rec.get('nav_usd'))} vs equity {usd(broker.get('equity'))} "
+            f"(drift {usd(rec.get('nav_vs_equity_drift'))}) · "
             f"{rec.get('n_positions', 0)} pos · "
             f"halted={rec.get('halted')}")
     lat = "  ".join(f"{p.split('?')[0]}={v['ms']:.0f}ms{'' if v['ok'] else '!'}"

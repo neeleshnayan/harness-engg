@@ -10,6 +10,9 @@ firebase_service_account*.json
 scratch_*
 *.log
 .firestore_local_db.json
+# ...and its rotated backups / quarantined copies. Each is a full copy of the
+# fund's event log, so an unanchored pattern here would commit the whole ledger.
+.firestore_local_db.json.*
 *.db
 
 # Live-session telemetry — machine state, not source.

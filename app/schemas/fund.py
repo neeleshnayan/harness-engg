@@ -159,6 +159,27 @@ class _StrategyParams(BaseModel):
     atr_period: int = Field(14, gt=0, description="ATR window (atr_trail)")
     atr_mult: float = Field(3.0, gt=0, le=10, description="ATR trailing-stop multiple (atr_trail)")
     actor: str = Field("operator", description="Who ran the backtest")
+    slippage_bps: float = Field(
+        2.0, ge=0, le=500,
+        description="Half-spread plus impact paid on each unit of notional traded. "
+                    "The default is a stated assumption for liquid US large-caps, "
+                    "not a measurement — set it to what YOUR fills actually cost. "
+                    "Zero produces a frictionless result, which the response labels "
+                    "as untradeable.",
+    )
+    commission_bps: float = Field(
+        0.0, ge=0, le=500,
+        description="Broker commission on notional traded. Zero at Alpaca for US "
+                    "equities — kept separate from slippage because "
+                    "'commission-free' is not 'free to trade'.",
+    )
+    n_trials: int = Field(
+        1, ge=1, le=100000,
+        description="How many configurations were tried to arrive at this one. "
+                    "Drives the selection penalty: sweep 50 parameter sets and the "
+                    "best will look good by luck alone, so the Sharpe has to clear "
+                    "a higher bar. Leaving this at 1 while sweeping understates it.",
+    )
 
 
 class BacktestRunRequest(_StrategyParams):
@@ -216,3 +237,23 @@ class RiskHaltRequest(BaseModel):
 class RiskResumeRequest(BaseModel):
     actor: str = Field("operator", description="Who resumed trading (human only)")
 
+
+
+class SignalRunRequest(BaseModel):
+    actor: str = Field("signal-runner", description="Who ran the evaluation")
+    dry_run: bool = Field(
+        True,
+        description="True (default) evaluates and reports what WOULD be proposed, "
+                    "writing nothing. False proposes real orders — which still "
+                    "require human approval before they reach the venue.",
+    )
+
+
+class CustodyApplyRequest(BaseModel):
+    after: Optional[str] = Field(None, description="ISO date; only activities after it")
+    actor: str = Field("operator", description="Who ran the ingest")
+    confirm: bool = Field(
+        False,
+        description="Must be true to write. Custody events go to the append-only "
+                    "ledger and cannot be un-appended.",
+    )

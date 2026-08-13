@@ -92,17 +92,38 @@ class RiskGate:
             breaches.append("qty must be positive")
 
         if nav_usd > 0:
-            # Single-order size cap
-            if notional > max_order * nav_usd:
-                breaches.append(
-                    f"order notional {float(notional):.2f} exceeds "
-                    f"{float(max_order):.0%} of NAV ({float(nav_usd):.2f})"
-                )
-            # Resulting single-name concentration (rough: current + this order)
             current = next(
                 (p["usd_value"] for p in nav.positions if p["symbol"] == order.symbol),
                 Decimal("0"),
             )
+
+            # Single-order size cap — on the notional that INCREASES exposure.
+            #
+            # This used to apply to every order regardless of side, which made a
+            # position larger than the cap impossible to exit: a name at 16% of
+            # NAV could not be sold under a 15% order cap, in one order or any
+            # number of them, because each sell was measured against the same
+            # ceiling. A limit meant to stop an oversized deployment was
+            # forbidding de-risking, and it bit hardest exactly when a position
+            # had grown large — which is when you most need to get out.
+            #
+            # So the cap measures the exposure-increasing part only. Closing an
+            # existing long is exempt; selling BEYOND it opens a short, and that
+            # part is a deployment like any other.
+            if order.side == Side.BUY:
+                increasing = notional
+            else:
+                closing = min(notional, max(current, Decimal("0")))
+                increasing = notional - closing
+
+            if increasing > max_order * nav_usd:
+                what = ("order notional" if order.side == Side.BUY
+                        else "the short this sell would open")
+                breaches.append(
+                    f"{what} {float(increasing):.2f} exceeds "
+                    f"{float(max_order):.0%} of NAV ({float(nav_usd):.2f})"
+                )
+            # Resulting single-name concentration (rough: current + this order)
             projected = current + (notional if order.side == Side.BUY else -notional)
             if abs(projected) > max_pos * nav_usd:
                 breaches.append(

@@ -190,6 +190,59 @@ def sharpe_confidence_interval(sharpe: float, n_obs: int,
     }
 
 
+def probabilistic_sharpe_ratio(sharpe: float, n_obs: int,
+                               returns: Sequence[float] | None = None,
+                               target_sharpe: float = 0.0) -> dict[str, Any]:
+    """The probability that the TRUE Sharpe exceeds ``target_sharpe``, given this
+    estimate and the shape of the return distribution (Bailey & López de Prado):
+
+        PSR(SR*) = Z[ (SR - SR*) * sqrt(n - 1)
+                      / sqrt( 1 - g3*SR + (g4 - 1)/4 * SR^2 ) ]
+
+    This is the same machinery as :func:`min_track_record_length`, asked the other
+    way round: minTRL answers "how much more data do I need", PSR answers "with
+    what I already have, how confident can I be at all". A headline Sharpe of 0.4
+    can carry a PSR of 4% — meaning a 96% chance the real edge is zero or worse —
+    and reporting the 0.4 without the 4% is how a coin flip gets deployed.
+
+    Skew and kurtosis matter here and are not decoration: negative skew and fat
+    tails both *lower* the probability for the same Sharpe, which is exactly the
+    correction a strategy that sells tails needs applied to it.
+    """
+    n = int(n_obs)
+    if n < 2:
+        return {"usable": False, "reason": "fewer than 2 observations", "n_obs": n}
+    sr = float(sharpe)
+    g3 = skewness(returns) if returns else 0.0
+    g4 = kurtosis(returns) if returns else 3.0
+    shape = 1.0 - g3 * sr + ((g4 - 1.0) / 4.0) * (sr ** 2)
+    if shape <= 0:
+        # A degenerate moment estimate, not a licence to claim certainty.
+        return {
+            "usable": False,
+            "reason": "return distribution gives a non-positive variance term; "
+                      "PSR is undefined for this sample",
+            "n_obs": n,
+        }
+    z = (sr - float(target_sharpe)) * math.sqrt(n - 1) / math.sqrt(shape)
+    p = _N.cdf(z)
+    return {
+        "usable": True,
+        "psr": round(p, 6),
+        "psr_pct": round(p * 100.0, 3),
+        "sharpe": round(sr, 4),
+        "target_sharpe": float(target_sharpe),
+        "n_obs": n,
+        "skew": round(g3, 4),
+        "kurtosis": round(g4, 4),
+        "beats_target": p >= 0.95,
+        "note": (
+            f"{p * 100.0:.1f}% probability the true Sharpe exceeds "
+            f"{float(target_sharpe):.2f}; anything under 95% is not evidence of an edge"
+        ),
+    }
+
+
 def min_track_record_length(sharpe: float, n_obs: int, returns: Sequence[float] | None = None,
                             target_sharpe: float = 0.0,
                             confidence: float = 0.95) -> dict[str, Any]:

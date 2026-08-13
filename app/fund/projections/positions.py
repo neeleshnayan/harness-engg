@@ -91,6 +91,28 @@ class PositionsProjection:
             book.positions[symbol] = pos
             book.cash -= signed * px + D(p.get("fees", 0))
 
+        elif etype in (EventType.DIVIDEND_RECEIVED.value,
+                       EventType.INTEREST_RECEIVED.value):
+            # Cash the fund earned without trading. It is NOT a subscription:
+            # it changes NAV per unit (it is performance) whereas a subscription
+            # changes NAV and units together and is not.
+            book.cash += D(p.get("usd_amount", p.get("amount", 0)))
+
+        elif etype == EventType.CORPORATE_ACTION_APPLIED.value:
+            # A split changes the share count and the average price by the same
+            # ratio, so the position's VALUE and cost basis are untouched. Only
+            # the units it is expressed in change.
+            symbol = p["symbol"]
+            pos = book.positions.get(symbol)
+            if pos is not None:
+                old_qty, new_qty = D(p["old_qty"]), D(p["new_qty"])
+                if old_qty != 0:
+                    ratio = new_qty / old_qty
+                    if ratio != 0:
+                        pos["avg_price"] = pos["avg_price"] / ratio
+                    pos["qty"] = new_qty
+                    book.positions[symbol] = pos
+
         elif etype == EventType.CASH_CONFIRMED.value:
             book.cash += D(p.get("usd_amount", p.get("amount", 0)))
 

@@ -4,7 +4,8 @@ For each ``strategy_id`` (``None`` → "discretionary") accumulates net position
 per symbol and net invested (signed notional + fees). Valued at current marks:
 
     exposure   = Σ qty × mark
-    realized   = Σ over sales of qty × (price − average cost)   [average-cost basis]
+    realized   = Σ over closes of qty × (price − average cost)   [average-cost basis]
+                 — a sale closing a long, or a buy covering a short (sign flipped)
     unrealized = exposure − cost basis of the open position
     pnl        = realized + unrealized
 
@@ -34,9 +35,10 @@ class StrategyAttribution:
     def _build(self) -> dict[str, dict[str, Any]]:
         """Fold fills into per-strategy positions, cost basis and realized P&L.
 
-        Average-cost accounting: a sale realizes ``qty × (price − average cost)``
-        and retires that share of the basis. What remains in ``cost`` is the basis
-        of the open position, so unrealized P&L is ``mark value − cost``.
+        Average-cost accounting: a close realizes ``qty × (price − average cost)``
+        and retires that share of the basis — a sale against a long, or a buy
+        against a short, where the sign flips. What remains in ``cost`` is the
+        basis of the open position, so unrealized P&L is ``mark value − cost``.
         """
         strats: dict[str, dict[str, Any]] = {}
 
@@ -87,8 +89,25 @@ class StrategyAttribution:
         pos = rec["positions"].setdefault(sym, {"qty": Decimal("0"), "cost": Decimal("0")})
 
         if signed > 0:
-            pos["qty"] += signed
-            pos["cost"] += signed * px + fees
+            buying = signed
+            # A buy against an open SHORT is a cover, and covers realize P&L —
+            # profit when the price fell. Treating every buy as an opening trade
+            # would silently drop the entire realized result of any short.
+            if pos["qty"] < -D("1e-9"):
+                short_qty = -pos["qty"]
+                closing = min(buying, short_qty)
+                avg = -pos["cost"] / short_qty     # cost is negative for a short
+                rec["realized"] += closing * (avg - px) - fees
+                pos["qty"] += closing
+                pos["cost"] += closing * avg
+                remainder = buying - closing
+                if remainder <= D("1e-9"):
+                    return
+                buying = remainder       # the rest opens a long
+                fees = D("0")            # already charged against the cover
+
+            pos["qty"] += buying
+            pos["cost"] += buying * px + fees
         else:
             sold = -signed
             open_qty = pos["qty"]

@@ -19,6 +19,62 @@ from dataclasses import dataclass, field
 from typing import Protocol, Sequence
 
 
+@dataclass(frozen=True)
+class CostModel:
+    """What it costs to trade, as a fraction of the notional turned over.
+
+    A backtest with no costs is not a conservative estimate, it is a different
+    strategy — one that trades for free. The error scales with turnover, so the
+    strategies it flatters most are exactly the ones that trade most.
+
+    Costs are charged on the notional that CHANGES, not on the position held: a
+    move from flat to long costs one unit of turnover, and a flip from long to
+    short costs two, because two units of stock actually change hands.
+
+    ``slippage_bps`` is the half-spread plus impact paid on each unit traded.
+    ``commission_bps`` is broker commission on the same base — zero at Alpaca for
+    US equities, which is why it is separate from slippage rather than folded in:
+    "commission-free" is not "free to trade", and keeping them apart stops one
+    being mistaken for the other.
+
+    Every value here is an ASSUMPTION supplied by the caller. Nothing is
+    estimated from the data, and :attr:`frictionless` exists so a result computed
+    with no costs is labelled as such instead of passing for a tradeable one.
+    """
+
+    slippage_bps: float = 0.0
+    commission_bps: float = 0.0
+
+    @property
+    def per_unit_turnover(self) -> float:
+        """Total cost fraction charged per unit of notional traded."""
+        return (float(self.slippage_bps) + float(self.commission_bps)) / 10_000.0
+
+    @property
+    def frictionless(self) -> bool:
+        return self.per_unit_turnover <= 0.0
+
+    def to_dict(self) -> dict:
+        return {
+            "slippage_bps": float(self.slippage_bps),
+            "commission_bps": float(self.commission_bps),
+            "total_bps_per_unit_turnover": round(self.per_unit_turnover * 10_000.0, 6),
+            "frictionless": self.frictionless,
+            "basis": "charged on notional traded (|Δposition|), not on notional held",
+            "warning": (
+                "NO transaction costs applied — this is not a tradeable result, and "
+                "the faster the strategy trades the more it overstates"
+                if self.frictionless else None
+            ),
+        }
+
+
+#: Deliberately zero, so an unconfigured backtest reports a frictionless result
+#: LOUDLY rather than a plausible-looking one built on an invented spread. The
+#: API supplies a real model; callers that skip it get the warning.
+NO_COSTS = CostModel()
+
+
 @dataclass
 class BacktestResult:
     total_return: float
@@ -41,6 +97,11 @@ class BacktestResult:
     exposure_pct: float = 0.0      # share of bars actually holding a position
     volatility: float = 0.0        # annualised
 
+    # --- what trading cost ------------------------------------------------
+    turnover: float = 0.0          # total units of notional traded
+    total_costs: float = 0.0       # as a fraction of starting equity
+    costs: CostModel = NO_COSTS
+
     def to_dict(self, include_series: bool = True) -> dict:
         d = {
             "total_return": round(self.total_return, 6),
@@ -55,6 +116,11 @@ class BacktestResult:
             "profit_factor": round(self.profit_factor, 4),
             "exposure_pct": round(self.exposure_pct, 4),
             "volatility": round(self.volatility, 6),
+            "turnover": round(self.turnover, 6),
+            "total_costs": round(self.total_costs, 8),
+            # Always present, so a frictionless run is visibly frictionless
+            # rather than merely missing a costs section.
+            "costs": self.costs.to_dict(),
         }
         if include_series:
             d["equity_curve"] = [round(e, 6) for e in self.equity_curve]
@@ -70,9 +136,12 @@ class SimpleBacktester:
     """Vectorless, dependency-free simulation. ``signals[i]`` is the position held
     from bar i to bar i+1; equity compounds bar-returns × position."""
 
+    def __init__(self, costs: CostModel = NO_COSTS):
+        self._costs = costs
+
     def run(self, prices, signals, periods_per_year: int = 252) -> BacktestResult:
         if len(prices) < 2:
-            return BacktestResult(0.0, 0.0, 0.0, 0, 1.0, len(prices))
+            return BacktestResult(0.0, 0.0, 0.0, 0, 1.0, len(prices), costs=self._costs)
 
         equity = 1.0
         curve = [1.0]
@@ -80,6 +149,9 @@ class SimpleBacktester:
         trades = 0
         prev = 0.0
         bars_in_market = 0
+        cost_rate = self._costs.per_unit_turnover
+        turnover = 0.0
+        costs_paid = 0.0
 
         # A "trade" is a run of bars at one non-flat position. Recording entry
         # and exit lets the tester show what was actually done, not just how it
@@ -105,14 +177,18 @@ class SimpleBacktester:
 
         for i in range(len(prices) - 1):
             sig = float(signals[i]) if i < len(signals) else 0.0
-            bar_ret = (prices[i + 1] / prices[i] - 1.0) * sig
-            equity *= (1.0 + bar_ret)
-            curve.append(equity)
-            rets.append(bar_ret)
-            if sig != 0.0:
-                bars_in_market += 1
+            opening = equity
 
+            # The trade is paid for when the position CHANGES, before the bar it
+            # establishes the position for. A flip from long to short turns over
+            # two units, not one, because two units of stock change hands.
             if sig != prev:
+                traded = abs(sig - prev)
+                turnover += traded
+                if cost_rate > 0.0:
+                    charge = equity * traded * cost_rate
+                    equity -= charge
+                    costs_paid += charge
                 trades += 1
                 close_trade(i, float(prices[i]))
                 if sig != 0.0:
@@ -124,6 +200,25 @@ class SimpleBacktester:
                     }
                 prev = sig
 
+            equity *= (1.0 + (prices[i + 1] / prices[i] - 1.0) * sig)
+            curve.append(equity)
+            # The bar return recorded is the NET change in equity, so Sharpe,
+            # volatility and drawdown are all computed after costs. Recording
+            # the gross return here would report a cost-free risk profile
+            # alongside a cost-inclusive total return.
+            rets.append((equity / opening - 1.0) if opening else 0.0)
+            if sig != 0.0:
+                bars_in_market += 1
+
+        # Getting out is not free either. If the strategy finishes holding, the
+        # exit is charged — otherwise a permanently-open position quietly avoids
+        # half its round-trip cost.
+        if prev != 0.0 and cost_rate > 0.0:
+            charge = equity * abs(prev) * cost_rate
+            equity -= charge
+            costs_paid += charge
+            turnover += abs(prev)
+            curve[-1] = equity
         close_trade(len(prices) - 1, float(prices[-1]))
 
         total_return = equity - 1.0
@@ -162,6 +257,9 @@ class SimpleBacktester:
             profit_factor=(gross_win / gross_loss) if gross_loss > 0 else 0.0,
             exposure_pct=(bars_in_market / max(1, len(prices) - 1)) * 100.0,
             volatility=vol,
+            turnover=turnover,
+            total_costs=costs_paid,
+            costs=self._costs,
         )
 
 

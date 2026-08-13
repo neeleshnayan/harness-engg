@@ -52,6 +52,14 @@ class EventType(str, Enum):
     UNITS_BURNED = "UnitsBurned"
     PAYOUT_SENT = "PayoutSent"
 
+    # Custody events — things the BROKER does to the book that we did not order.
+    # Without these the ledger can only ever explain cash and share counts that
+    # our own fills produced, so a dividend or a split shows up as unexplained
+    # drift against the venue and stays there forever.
+    DIVIDEND_RECEIVED = "DividendReceived"       # cash paid on a held position
+    INTEREST_RECEIVED = "InterestReceived"       # interest on idle cash
+    CORPORATE_ACTION_APPLIED = "CorporateActionApplied"   # split / reverse split
+
     # Valuation & reconciliation
     NAV_STRUCK = "NavStruck"
     RECONCILIATION_MISMATCH = "ReconciliationMismatch"

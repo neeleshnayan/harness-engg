@@ -173,6 +173,69 @@ class AlpacaConnector(Connector):
         acct = self._trading().get_account()
         return [Balance(venue=self.name, asset="USD", amount=float(acct.cash))]
 
+    def activities(self, after: str | None = None) -> list[dict[str, Any]]:
+        """Non-trade account activities — dividends, interest, splits.
+
+        These are things the venue does TO the book without us ordering them.
+        Returned raw and unfiltered; interpreting them is the ingester's job, and
+        an activity type we do not recognise must reach it rather than being
+        silently dropped here.
+
+        ``id`` is the venue's own idempotency key and is passed straight through.
+        """
+        # alpaca-py's TradingClient wraps no activities method (only BrokerClient
+        # does, and that is the firm-level API with different credentials), but
+        # the Trading REST endpoint exists — so this goes through the client's
+        # raw GET rather than pulling in a second SDK surface.
+        try:
+            path = "/account/activities"
+            if after:
+                path += f"?after={after}"
+            raw = self._trading().get(path)
+        except Exception as e:  # noqa: BLE001
+            raise RuntimeError(f"could not read account activities: {e}") from e
+
+        def field(a: Any, *names: str):
+            for n in names:
+                v = a.get(n) if isinstance(a, dict) else getattr(a, n, None)
+                if v not in (None, ""):
+                    return v
+            return None
+
+        out: list[dict[str, Any]] = []
+        for a in raw or []:
+            out.append({
+                "id": field(a, "id"),
+                "activity_type": str(field(a, "activity_type") or ""),
+                "symbol": (field(a, "symbol") or None),
+                # Cash activities carry `date`; trade activities carry
+                # `transaction_time`. Take whichever is present rather than
+                # assuming one shape for both.
+                "date": field(a, "date", "transaction_time"),
+                "net_amount": field(a, "net_amount"),
+                "qty": field(a, "qty"),
+                "per_share_amount": field(a, "per_share_amount"),
+                "description": field(a, "description"),
+            })
+        return out
+
+    def market_open(self) -> bool | None:
+        """Is the venue open right now? ``None`` when we could not find out.
+
+        The distinction matters: "closed" is a reason to hold, but "unknown" is
+        not the same as "closed" and must not silently become it — a caller that
+        treats an unreachable clock as a closed market stops trading during an
+        API blip, and one that treats it as open sends orders into the dark. The
+        caller decides; this only reports what it knows.
+
+        Deliberately uncached. It changes at the open and the close, which are
+        precisely the moments a stale answer is wrong.
+        """
+        try:
+            return bool(self._trading().get_clock().is_open)
+        except Exception:  # noqa: BLE001
+            return None
+
     def account_info(self) -> dict[str, Any]:
         if not (self._key and self._secret):
             return {

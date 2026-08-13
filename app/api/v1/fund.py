@@ -19,7 +19,11 @@ from pydantic import BaseModel
 
 from app.fund.connectors.alpaca import AlpacaConnector
 from app.fund.connectors.base import Order, Side
-from app.fund.backtest import SimpleBacktester, signals_for
+from app.fund import tearsheet
+from app.fund.backtest import CostModel, SimpleBacktester, signals_for
+from app.fund.execution import ExecutionHistory, summarise
+from app.fund.custody import CustodyIngest
+from app.fund.signals import SignalRunner
 from app.fund.marketdata import BarsError, fetch_daily_bars
 from app.fund.connectors.paper import PaperConnector
 from app.fund.events import EventStore
@@ -36,6 +40,7 @@ from app.fund.postmortem import PostmortemError, PostmortemService
 from app.fund.reconcile import Reconciler
 from app.fund.riskanalytics import RiskAnalytics
 from app.core.firebase import active_book as _active_book
+from app.core.firebase import is_production
 from app.fund.backfill import BrokerBackfill
 from app.fund.intraday import IntradayNav
 from app.fund.rebalance import RebalanceError, RebalanceService
@@ -49,6 +54,8 @@ from app.schemas.fund import (
     ActorRequest,
     ApprovalRequest,
     BacktestBySymbolRequest,
+    CustodyApplyRequest,
+    SignalRunRequest,
     BacktestResultRequest,
     BacktestRunRequest,
     MemoCreateRequest,
@@ -361,6 +368,161 @@ def get_order_history(strategy_id: str | None = Query(None), limit: int = Query(
             subtree.add(cur)
             stack.extend(kids.get(cur, []))
     return {"orders": _orders.history(strategy_ids=subtree, limit=limit)}
+
+
+@router.get("/fund/executions")
+def get_executions(strategy_id: str | None = Query(None),
+                   limit: int = Query(500, ge=1, le=2000)):
+    """Fills and closed round-trips, folded from the event log.
+
+    The blotter above shows order *lifecycle* rows. This shows what those fills
+    did: each sale matched against the running average cost, with the P&L it
+    realized, so an operator can see when a strategy sold and whether it was
+    right — and see the distribution rather than one pooled number.
+
+    Read-only and derived; it writes nothing and adds no state.
+    """
+    hist = ExecutionHistory(_store)
+    if strategy_id:
+        return hist.for_strategy(strategy_id, limit=limit)
+    rows = hist.all(limit=limit)
+    return {
+        "strategies": rows,
+        "totals": summarise([t for r in rows for t in r.get("round_trips", [])]),
+    }
+
+
+def _signal_runner() -> SignalRunner:
+    conn = _connector
+    return SignalRunner(
+        strategies=_strategies, nav=_nav, pipeline=_pipeline,
+        pricer=conn.price,
+        pending_lookup=lambda: _orders.history(limit=200),
+        market_open=getattr(conn, "market_open", None),
+    )
+
+
+@router.get("/fund/custody/plan")
+def plan_custody(after: str | None = Query(None, description="ISO date; only activities after it")):
+    """What the broker did to the book that our ledger has not recorded.
+
+    Dividends and interest arrive without an order, so nothing in the order path
+    can ever account for them. Left uningested they show up only as NAV drift
+    against broker equity that never resolves.
+
+    Read-only.
+    """
+    try:
+        return CustodyIngest(_connector, _store).plan(after=after)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.post("/fund/custody/apply")
+def apply_custody(req: CustodyApplyRequest):
+    """Append the missing custody events. Idempotent by the venue's activity id.
+
+    Writes to the append-only ledger, so it requires ``confirm=true`` and refuses
+    outright against production — the same guard the venue backfill carries.
+    """
+    if is_production():
+        raise HTTPException(
+            status_code=403,
+            detail="refusing to write custody events against the production book",
+        )
+    if not req.confirm:
+        raise HTTPException(status_code=422, detail="pass confirm=true to write events")
+    try:
+        return CustodyIngest(_connector, _store).apply(after=req.after, actor=req.actor)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.get("/fund/signals")
+def get_signals():
+    """What every live strategy currently wants. Writes nothing, proposes nothing.
+
+    This is the read that was missing: strategies had allocations and universes
+    but no mechanism ever evaluated them, so 'what does the book want to do
+    right now' had no answer.
+    """
+    return {"decisions": [d.to_dict() for d in _signal_runner().evaluate()]}
+
+
+@router.post("/fund/signals/run")
+def run_signals(req: SignalRunRequest):
+    """Evaluate the live strategies and PROPOSE the orders their signals imply.
+
+    Proposals only. Each one passes the venue check and the risk gate and then
+    waits for a human to approve it — there is no path from here to execution,
+    by construction. ``dry_run`` defaults to true, so calling this without
+    arguments shows what would be proposed and touches nothing.
+    """
+    return _signal_runner().run(actor=req.actor, dry_run=req.dry_run)
+
+
+@router.get("/fund/executions/chart")
+def get_execution_chart(symbol: str = Query(..., min_length=1, max_length=12),
+                        strategy_id: str | None = Query(None),
+                        lookback_days: int = Query(180, ge=5, le=2000)):
+    """OHLC bars for a symbol with our own fills placed on them.
+
+    The chart an operator wants when asking "why did it sell there": the candles
+    the decision was made against, and the buy/sell marks that actually
+    happened. Marks come from the event log, never from signals — a signal that
+    did not become a fill is not a trade.
+
+    Fills are snapped to the trading DAY, because the bars are daily. An
+    intraday fill sits on the bar containing it rather than being interpolated
+    between bars.
+    """
+    try:
+        bars = fetch_daily_bars(symbol, lookback_days=lookback_days)
+    except BarsError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    sym = symbol.strip().upper()
+    hist = ExecutionHistory(_store)
+    rows = [hist.for_strategy(strategy_id)] if strategy_id else hist.all()
+
+    dates = bars.dates or []
+    first, last = (dates[0] if dates else None), (dates[-1] if dates else None)
+
+    marks, trips = [], []
+    for r in rows:
+        for f in r.get("fills", []):
+            if (f.get("symbol") or "").upper() != sym:
+                continue
+            day = (f.get("ts") or "")[:10] or None
+            marks.append({
+                "date": day,
+                # An honest flag: a fill outside the fetched window has no bar to
+                # sit on, and silently dropping it would understate the activity.
+                "in_window": bool(day and first and last and first <= day <= last),
+                "side": f.get("side"), "qty": f.get("qty"), "price": f.get("price"),
+                "strategy_id": r.get("strategy_id"), "ts": f.get("ts"),
+            })
+        for t in r.get("round_trips", []):
+            if (t.get("symbol") or "").upper() == sym:
+                trips.append({**t, "strategy_id": r.get("strategy_id")})
+
+    marks.sort(key=lambda m: m.get("ts") or "")
+    return {
+        "symbol": bars.symbol,
+        "source": bars.source,
+        "adjusted": bars.adjusted,
+        "adjustment": bars.adjustment,
+        "bars": {
+            "dates": dates, "open": bars.opens, "high": bars.highs,
+            "low": bars.lows, "close": bars.closes, "volume": bars.volumes,
+            # Close-only sources exist; say so rather than faking flat candles.
+            "has_ohlc": bars.opens is not None,
+            "start": bars.start, "end": bars.end,
+        },
+        "fills": marks,
+        "n_fills_outside_window": sum(1 for m in marks if not m["in_window"]),
+        "round_trips": trips,
+    }
 
 
 @router.get("/fund/orders/{order_id}")
@@ -772,12 +934,16 @@ def research_backtest(req: BacktestBySymbolRequest):
         momentum_lookback=req.momentum_lookback,
         atr_period=req.atr_period, atr_mult=req.atr_mult,
     )
-    result = SimpleBacktester().run(prices, signals)
+    # The SAME cost model runs over both the strategy and its benchmark. Costing
+    # a strategy that trades weekly against a frictionless buy-and-hold would
+    # flatter the benchmark; costing neither flatters the strategy.
+    costs = CostModel(slippage_bps=req.slippage_bps, commission_bps=req.commission_bps)
+    result = SimpleBacktester(costs).run(prices, signals)
 
     # buy-and-hold over the same window — a strategy that cannot beat simply
     # owning the thing is not interesting, and that comparison should be
     # impossible to avoid seeing
-    bh = SimpleBacktester().run(prices, [1.0] * len(prices))
+    bh = SimpleBacktester(costs).run(prices, [1.0] * len(prices))
 
     return {
         "symbol": bars.symbol,
@@ -791,6 +957,29 @@ def research_backtest(req: BacktestBySymbolRequest):
             "sharpe": round(bh.sharpe, 4),
             "max_drawdown": round(bh.max_drawdown, 6),
             "equity_curve": [round(e, 6) for e in bh.equity_curve],
+        },
+        # The full research picture: risk-adjusted ratios, drawdown recovery,
+        # benchmark-relative alpha/beta, and the inference block that says
+        # whether any of it is distinguishable from luck.
+        "tearsheet": tearsheet.build(
+            result.equity_curve,
+            benchmark_curve=bh.equity_curve,
+            benchmark_label="buy & hold",
+            trades=result.trades,
+            signals=signals,
+            n_trials=max(1, int(req.n_trials or 1)),
+        ),
+        "data_quality": {
+            "adjusted": bars.adjusted,
+            "adjustment": bars.adjustment,
+            # Backtesting signals on an unadjusted series measures corporate
+            # actions, not the strategy — so this is a caveat on the result,
+            # not a footnote about the feed.
+            "warning": None if bars.adjusted else (
+                f"{bars.source} returned an UNADJUSTED price series — splits and "
+                "dividends appear as price jumps, and any signal or drawdown "
+                "computed across one is unreliable"
+            ),
         },
         "bars": {"closes": prices, "dates": bars.dates,
                  "start": bars.start, "end": bars.end},

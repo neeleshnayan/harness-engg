@@ -93,3 +93,105 @@ def test_fees_reduce_realized_pnl():
     )
 
     assert row["realized_pnl_usd"] == 250.0     # 300 gross - 50 fees
+
+
+# --------------------------------------------------------------------------
+# Shorts. A buy that covers an open short closes it and realizes P&L, the same
+# way a sale closes a long. Attribution used to treat every buy as an opening
+# trade, which silently dropped the entire realized result of any short.
+# --------------------------------------------------------------------------
+
+def test_cover_at_a_profit_realizes():
+    """Short at 100, cover at 80 — a short makes money when the price falls."""
+    row = _one(
+        [_fill("AAPL", "sell", 10, 100), _fill("AAPL", "buy", 10, 80)],
+        {"AAPL": 999},   # mark is irrelevant once flat
+    )
+
+    assert row["realized_pnl_usd"] == 200.0     # 10 * (100 - 80)
+    assert row["unrealized_pnl_usd"] == 0.0
+    assert row["pnl_usd"] == 200.0
+    assert row["positions"] == {}
+
+
+def test_cover_at_a_loss_realizes():
+    """Short at 100, cover at 130 — the loss must land in realized, not vanish."""
+    row = _one(
+        [_fill("AAPL", "sell", 10, 100), _fill("AAPL", "buy", 10, 130)],
+        {"AAPL": 999},
+    )
+
+    assert row["realized_pnl_usd"] == -300.0    # 10 * (100 - 130)
+    assert row["unrealized_pnl_usd"] == 0.0
+    assert row["pnl_usd"] == -300.0
+
+
+def test_buy_covers_then_flips_long():
+    """One buy of 25 against a short of 10: covers the 10, opens a long of 15."""
+    row = _one(
+        [_fill("AAPL", "sell", 10, 100), _fill("AAPL", "buy", 25, 80)],
+        {"AAPL": 90},
+    )
+
+    assert row["realized_pnl_usd"] == 200.0     # the cover: 10 * (100 - 80)
+    assert row["positions"] == {"AAPL": 15.0}
+    assert row["cost_basis_usd"] == 1200.0      # 15 opened at 80
+    assert row["unrealized_pnl_usd"] == 150.0   # 15 * (90 - 80)
+    assert row["pnl_usd"] == 350.0
+
+
+def test_cover_fees_are_charged_once_not_to_the_new_long():
+    """On a flip the fee belongs to the cover; the opened long must not re-pay it."""
+    row = _one(
+        [_fill("AAPL", "sell", 10, 100), _fill("AAPL", "buy", 25, 80, fees=25)],
+        {"AAPL": 80},
+    )
+
+    assert row["realized_pnl_usd"] == 175.0     # 200 gross - 25 fees
+    assert row["cost_basis_usd"] == 1200.0      # 15 * 80, fee not charged again
+    assert row["unrealized_pnl_usd"] == 0.0
+
+
+def test_partial_cover_leaves_the_rest_short():
+    """Covering 4 of a 10 short realizes only the closed part."""
+    row = _one(
+        [_fill("AAPL", "sell", 10, 100), _fill("AAPL", "buy", 4, 80)],
+        {"AAPL": 80},
+    )
+
+    assert row["realized_pnl_usd"] == 80.0      # 4 * (100 - 80)
+    assert row["positions"] == {"AAPL": -6.0}
+    assert row["unrealized_pnl_usd"] == 120.0   # 6 * (100 - 80), still open
+    assert row["pnl_usd"] == 200.0
+
+
+def test_short_split_still_sums_to_the_pooled_total():
+    events = [
+        _fill("AAPL", "sell", 10, 100), _fill("AAPL", "buy", 6, 90, fees=3),
+        _fill("MSFT", "sell", 5, 400), _fill("MSFT", "buy", 12, 380),
+    ]
+    row = _one(events, {"AAPL": 95, "MSFT": 370})
+
+    assert round(row["realized_pnl_usd"] + row["unrealized_pnl_usd"], 6) == row["pnl_usd"]
+
+
+def test_attribution_and_execution_agree_on_realized_shorts():
+    """The two projections are two views of one book — one realized total.
+
+    This is the reason the fix matters: execution history already closed shorts
+    against the running average, so a divergence here means the same events
+    produce two different realized numbers.
+    """
+    from app.fund.execution import ExecutionHistory
+
+    events = [
+        _fill("AAPL", "sell", 10, 100), _fill("AAPL", "buy", 4, 80, fees=2),
+        _fill("AAPL", "buy", 6, 130),
+        _fill("MSFT", "sell", 8, 400), _fill("MSFT", "buy", 20, 380, fees=5),
+        _fill("MSFT", "sell", 12, 390),
+    ]
+    row = _one(events, {"AAPL": 1, "MSFT": 1})
+    trips = ExecutionHistory(FakeStore(events)).for_strategy("s1")
+
+    assert trips["summary"]["n_round_trips"] == 4
+    assert row["realized_pnl_usd"] == trips["summary"]["total_realized_usd"]

@@ -13,7 +13,9 @@ complete by construction.
 
 from __future__ import annotations
 
+import os
 import uuid
+from datetime import datetime, timezone
 from typing import Any
 
 from app.fund.connectors.base import Connector, FillState, Order, Side, VenueRef
@@ -23,6 +25,13 @@ from app.fund.projections.nav import NavService
 from app.fund.projections.orders import OrdersProjection
 from app.fund.risk import RiskGate, RiskLimits
 from app.fund.riskmonitor import RiskControl, RiskMonitor
+
+
+#: How long a proposed order stays approvable. Past this the price and signal
+#: behind the decision have moved and the impact preview shown at the approval
+#: card is stale. Matches the rebalance planner's window so the two agree about
+#: what "too old to act on" means.
+PROPOSAL_STALE_AFTER_MINUTES = float(os.getenv("PROPOSAL_STALE_AFTER_MINUTES", "120"))
 
 
 class CommandError(Exception):
@@ -107,11 +116,35 @@ class CommandPipeline:
         )
         return {"status": "pending_approval", "order_id": order_id, "impact_preview": preview}
 
+    def risk_gate_for_preview(self) -> RiskGate:
+        """The gate as currently configured, for a read-only what-would-happen check.
+
+        Exposed so a caller can ask the question without proposing: proposing a
+        doomed order writes an ORDER_REJECTED event for a click that never had a
+        chance, and shows the operator a button whose only outcome is failure.
+        Reads limits fresh, exactly as propose_order does.
+        """
+        return self._explicit_risk_gate or RiskGate(limits=self._control.limits())
+
     # --- approve / decline -------------------------------------------------
     def approve_order(self, order_id: str, approver: str) -> dict[str, Any]:
         order, last_type = self._load_order(order_id)
         if last_type != EventType.ORDER_PROPOSED.value:
             raise CommandError(f"order {order_id} is '{last_type}', not awaiting approval")
+
+        # A proposal is a decision made at a moment, against a price and a signal
+        # that were true then. Approving a week-old proposal executes yesterday's
+        # judgement at today's price, and the impact preview shown at the approval
+        # card is stale by exactly as much. Rebalance plans already expire; a
+        # single order had no such limit at all.
+        age = self._proposal_age_minutes(order_id)
+        if age is not None and age > PROPOSAL_STALE_AFTER_MINUTES:
+            raise CommandError(
+                f"order {order_id} was proposed {age:.0f} minutes ago, past the "
+                f"{PROPOSAL_STALE_AFTER_MINUTES}-minute limit — the price and the "
+                "signal behind it have moved. Re-propose it rather than approving "
+                "a stale decision."
+            )
 
         self._store.append(
             Event(
@@ -227,6 +260,29 @@ class CommandPipeline:
             "strategy_id": order.strategy_id,
             "thesis_id": order.thesis_id,
         }
+
+    def _proposal_age_minutes(self, order_id: str) -> float | None:
+        """Minutes since the order was proposed, or None if we cannot tell.
+
+        An unparseable timestamp returns None and the approval proceeds: refusing
+        every approval because a clock format changed would be a worse failure
+        than approving one order a little late.
+        """
+        proposed = next(
+            (e for e in self._store.by_aggregate(order_id)
+             if e["type"] == EventType.ORDER_PROPOSED.value),
+            None,
+        )
+        ts = (proposed or {}).get("ts") or (proposed or {}).get("timestamp")
+        if not ts:
+            return None
+        try:
+            when = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - when).total_seconds() / 60.0
 
     def _load_order(self, order_id: str) -> tuple[Order, str]:
         events = self._store.by_aggregate(order_id)
