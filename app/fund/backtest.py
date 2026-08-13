@@ -15,7 +15,7 @@ this is not the accounting path (that stays Decimal).
 from __future__ import annotations
 
 import statistics
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol, Sequence
 
 
@@ -28,15 +28,38 @@ class BacktestResult:
     final_equity: float
     bars: int
 
-    def to_dict(self) -> dict:
-        return {
+    # --- research detail -------------------------------------------------
+    # The simulation always produced these; it used to discard them, which made
+    # a strategy tester impossible — you cannot show an equity curve, a drawdown
+    # chart or a trade list from summary statistics alone.
+    equity_curve: list[float] = field(default_factory=list)
+    trades: list[dict] = field(default_factory=list)
+    win_rate: float = 0.0
+    avg_win: float = 0.0
+    avg_loss: float = 0.0
+    profit_factor: float = 0.0
+    exposure_pct: float = 0.0      # share of bars actually holding a position
+    volatility: float = 0.0        # annualised
+
+    def to_dict(self, include_series: bool = True) -> dict:
+        d = {
             "total_return": round(self.total_return, 6),
             "sharpe": round(self.sharpe, 4),
             "max_drawdown": round(self.max_drawdown, 6),
             "n_trades": self.n_trades,
             "final_equity": round(self.final_equity, 6),
             "bars": self.bars,
+            "win_rate": round(self.win_rate, 4),
+            "avg_win": round(self.avg_win, 6),
+            "avg_loss": round(self.avg_loss, 6),
+            "profit_factor": round(self.profit_factor, 4),
+            "exposure_pct": round(self.exposure_pct, 4),
+            "volatility": round(self.volatility, 6),
         }
+        if include_series:
+            d["equity_curve"] = [round(e, 6) for e in self.equity_curve]
+            d["trades"] = self.trades
+        return d
 
 
 class Backtester(Protocol):
@@ -56,20 +79,59 @@ class SimpleBacktester:
         rets = []
         trades = 0
         prev = 0.0
+        bars_in_market = 0
+
+        # A "trade" is a run of bars at one non-flat position. Recording entry
+        # and exit lets the tester show what was actually done, not just how it
+        # ended — the difference between a summary and a research tool.
+        open_trade: dict | None = None
+        closed: list[dict] = []
+
+        def close_trade(at_index: int, at_price: float) -> None:
+            nonlocal open_trade
+            if open_trade is None:
+                return
+            entry = open_trade["entry_price"]
+            direction = open_trade["position"]
+            pnl_pct = ((at_price / entry) - 1.0) * direction if entry else 0.0
+            open_trade.update({
+                "exit_index": at_index,
+                "exit_price": round(at_price, 6),
+                "pnl_pct": round(pnl_pct * 100.0, 4),
+                "bars_held": at_index - open_trade["entry_index"],
+            })
+            closed.append(open_trade)
+            open_trade = None
+
         for i in range(len(prices) - 1):
             sig = float(signals[i]) if i < len(signals) else 0.0
             bar_ret = (prices[i + 1] / prices[i] - 1.0) * sig
             equity *= (1.0 + bar_ret)
             curve.append(equity)
             rets.append(bar_ret)
+            if sig != 0.0:
+                bars_in_market += 1
+
             if sig != prev:
                 trades += 1
+                close_trade(i, float(prices[i]))
+                if sig != 0.0:
+                    open_trade = {
+                        "entry_index": i,
+                        "entry_price": round(float(prices[i]), 6),
+                        "position": 1 if sig > 0 else -1,
+                        "side": "long" if sig > 0 else "short",
+                    }
                 prev = sig
+
+        close_trade(len(prices) - 1, float(prices[-1]))
 
         total_return = equity - 1.0
         sharpe = 0.0
+        vol = 0.0
         if len(rets) > 1:
             sd = statistics.pstdev(rets)
+            vol = sd * (periods_per_year ** 0.5)
             if sd > 0:
                 sharpe = (statistics.mean(rets) / sd) * (periods_per_year ** 0.5)
 
@@ -79,7 +141,28 @@ class SimpleBacktester:
             peak = max(peak, e)
             max_dd = min(max_dd, e / peak - 1.0)
 
-        return BacktestResult(total_return, sharpe, max_dd, trades, equity, len(prices))
+        wins = [t["pnl_pct"] for t in closed if t["pnl_pct"] > 0]
+        losses = [t["pnl_pct"] for t in closed if t["pnl_pct"] < 0]
+        gross_win, gross_loss = sum(wins), abs(sum(losses))
+
+        return BacktestResult(
+            total_return=total_return,
+            sharpe=sharpe,
+            max_drawdown=max_dd,
+            n_trades=trades,
+            final_equity=equity,
+            bars=len(prices),
+            equity_curve=curve,
+            trades=closed,
+            win_rate=(len(wins) / len(closed)) if closed else 0.0,
+            avg_win=(gross_win / len(wins)) if wins else 0.0,
+            avg_loss=(-gross_loss / len(losses)) if losses else 0.0,
+            # no losses at all is not "infinitely profitable" — report 0 and let
+            # the caller see n_trades rather than print an inf
+            profit_factor=(gross_win / gross_loss) if gross_loss > 0 else 0.0,
+            exposure_pct=(bars_in_market / max(1, len(prices) - 1)) * 100.0,
+            volatility=vol,
+        )
 
 
 def sma_crossover_signals(prices: Sequence[float], fast: int = 10, slow: int = 30) -> list[float]:
