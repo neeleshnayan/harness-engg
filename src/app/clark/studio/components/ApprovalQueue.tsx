@@ -22,8 +22,13 @@ import { MemoView, PendingOrder, ThesisView, fundApiClient } from "@/lib/fund_ap
 const money = (n?: number | null, dp = 2) =>
   n == null ? "—" : `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
 
-export function ApprovalQueue({ onChanged, refreshSignal = 0, compact = false }: {
+export function ApprovalQueue({ onChanged, refreshSignal = 0, compact = false,
+                                embedded = false }: {
   onChanged?: () => void;
+  /** Render without panel chrome, so a parent can put this and the orders it
+   *  becomes inside ONE frame — the two halves of a single flow, not two
+   *  unrelated boxes that happen to be adjacent. */
+  embedded?: boolean;
   /** Bump this to force an immediate reload — e.g. after something elsewhere on
    *  the page creates a proposal. Without it this panel only refreshed on its
    *  own timer, so proposing an order left the queue reading "nothing awaiting
@@ -131,7 +136,7 @@ export function ApprovalQueue({ onChanged, refreshSignal = 0, compact = false }:
   const n = pending?.length ?? 0;
 
   return (
-    <div className={KT.panel}>
+    <div className={embedded ? "flex h-full flex-col" : KT.panel}>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--kt-border)] px-5 py-3">
         <div>
           <span className={KT.label}>Awaiting your approval</span>

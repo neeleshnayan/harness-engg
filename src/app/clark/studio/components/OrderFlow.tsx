@@ -36,11 +36,13 @@ const STATUS_TONE: Record<string, string> = {
 
 type Tab = "working" | "settled";
 
-export function OrderFlow({ orders, loading, error, limit = 12 }: {
+export function OrderFlow({ orders, loading, error, limit = 12, embedded = false }: {
   orders: OrderHistoryRow[];
   loading?: boolean;
   error?: string | null;
   limit?: number;
+  /** Render without panel chrome — see ApprovalQueue. */
+  embedded?: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("working");
 
@@ -61,7 +63,7 @@ export function OrderFlow({ orders, loading, error, limit = 12 }: {
   const pick = (t: Tab) => { setTouched(true); setTab(t); };
 
   return (
-    <div className={KT.panel}>
+    <div className={embedded ? "flex h-full flex-col" : KT.panel}>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--kt-border)] px-5 py-3">
         <span className={KT.label}>Orders</span>
         <div className="flex gap-1">

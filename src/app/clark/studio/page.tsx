@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  AlertTriangle, Loader2, ShieldAlert, ShieldCheck,
+  AlertTriangle, ArrowRight, ShieldAlert, ShieldCheck,
 } from "lucide-react";
 import { spineError } from "@/lib/spine_error";
 import { StudioHeader } from "./components/StudioHeader";
@@ -171,8 +171,27 @@ export default function MonitorHome() {
               page with metrics and breaches wedged between them, which broke
               the one story an operator is trying to follow. ── */}
         <div ref={queueRef} className="scroll-mt-24 space-y-4">
-          <ApprovalQueue onChanged={bump} refreshSignal={tick} />
-          <OrderFlow orders={orders} loading={loading} error={err} />
+          {/* One frame, two halves: what is waiting on a decision, and what
+              that decision became. They were stacked as separate panels, which
+              read as two unrelated lists rather than the two ends of the same
+              journey — an order leaves the left side and appears on the right. */}
+          <div className={KT.panel}>
+            <div className="flex items-center gap-2 border-b border-[var(--kt-border)] px-5 py-2">
+              <span className={KT.label}>Order flow</span>
+              <span className={`flex items-center gap-1.5 text-[11px] ${KT.muted}`}>
+                your decision <ArrowRight size={11} /> the venue
+              </span>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2">
+              <div className="border-b border-[var(--kt-border)] lg:border-b-0 lg:border-r">
+                <ApprovalQueue onChanged={bump} refreshSignal={tick} embedded />
+              </div>
+              <div>
+                <OrderFlow orders={orders} loading={loading} error={err} embedded />
+              </div>
+            </div>
+          </div>
+
           <SignalsPanel onProposed={showQueue} bookChanged={tick} />
         </div>
 
