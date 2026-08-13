@@ -70,7 +70,8 @@ class NavService:
         self._price = pricer
         self._store = store or EventStore()
         self._proj = projection or PositionsProjection(self._store)
-        self._db = db or firestore.client()
+        from app.core.firebase import db as _fs_db
+        self._db = db or _fs_db()
 
     def compute(self, book: Optional[Book] = None) -> NavSnapshot:
         """Value the current book without persisting — safe to call any time.

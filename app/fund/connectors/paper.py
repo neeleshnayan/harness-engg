@@ -49,7 +49,8 @@ class PaperConnector(Connector):
     name = "paper"
 
     def __init__(self, db=None, prices: dict[str, float] | None = None, live_pricer=None):
-        self._db = db or firestore.client()
+        from app.core.firebase import db as _fs_db
+        self._db = db or _fs_db()
         self._prices = {**_SEED_PRICES, **(prices or {})}
         # Optional callable(symbol)->float|None for live free marks. When set,
         # positions/NAV are marked at real market levels; falls back to the seed

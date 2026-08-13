@@ -3,7 +3,6 @@ import logging
 import os
 
 import firebase_admin
-from firebase_admin import credentials
 
 _log = logging.getLogger(__name__)
 
@@ -41,13 +40,31 @@ def initialize_firebase() -> None:
 
     env = os.getenv("FUND_ENV", "staging").strip().lower()
     _active.update({"project_id": project_id, "env": env,
-                    "service_account": service_account_path})
+                    "service_account": service_account_path,
+                    "database_id": os.getenv("FIRESTORE_DATABASE_ID", "(default)")})
+
+    from firebase_admin import credentials
 
     cred = credentials.Certificate(service_account_path)
     firebase_admin.initialize_app(cred)
 
     banner = "PRODUCTION — REAL MONEY" if env == PRODUCTION else "staging"
     _log.warning("Fund book: project=%s env=%s (%s)", project_id, env, banner)
+
+
+def db():
+    """The Firestore client for the configured database.
+
+    FIRESTORE_DATABASE_ID selects which database to use. It defaults to
+    "(default)", but a project may legitimately have a *named* database instead
+    (the fund's production project has one called "default"), and the SDK will
+    404 looking for "(default)" if that id is not passed through.
+    """
+    from firebase_admin import firestore
+    database_id = os.getenv("FIRESTORE_DATABASE_ID", "").strip()
+    if database_id and database_id != "(default)":
+        return firestore.client(database_id=database_id)
+    return firestore.client()
 
 
 def active_book() -> dict[str, str]:

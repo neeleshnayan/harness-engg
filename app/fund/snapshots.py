@@ -49,8 +49,8 @@ class SnapshotStore:
     def __init__(self, db=None):
         self._db = db
         if self._db is None:
-            from firebase_admin import firestore
-            self._db = firestore.client()
+            from app.core.firebase import db as _fs_db
+            self._db = _fs_db()
 
     def load(self, name: str) -> tuple[int, dict[str, Any]] | None:
         """Returns (covered_seq, state) or None when there is no snapshot."""

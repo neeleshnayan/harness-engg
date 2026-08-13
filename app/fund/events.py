@@ -116,7 +116,8 @@ class EventStore:
     """Append-only writer/reader over ``fund_events``."""
 
     def __init__(self, db=None):
-        self._db = db or firestore.client()
+        from app.core.firebase import db as _fs_db
+        self._db = db or _fs_db()
 
     def append(self, event: Event) -> Event:
         """Assign a global seq + server timestamp and persist. Returns the stored event."""
