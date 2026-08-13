@@ -614,9 +614,13 @@ moved**). New: `SignalsPanel`, `OrderFlow`, `MonitorGraphs`, `HaltControl`,
    only the label moved; the thesis UI has no home. `createThesis`, `getTheses`,
    `recordPostmortem` etc. exist in `fund_api.ts` and are unused — that is the
    client library waiting for this UI, not dead code.
-3. **Replace fill polling with the `trade_updates` websocket.** `TradingStream`
-   is available in alpaca-py 0.43.5. Polling means a fill is invisible for up to
-   an interval; keep the poller as an idempotent backstop.
+3. **Prove the fill stream on a live fill.** `app/fund/tradestream.py` is built
+   and connects (verified against the live venue, holds a 60s idle), but the
+   market was closed when it was written, so **a real fill arriving over the
+   socket is unproven**. Start with `ENABLE_TRADE_STREAM=true bash
+   scripts/run_local.sh`, place one order, and check `fill_stream.applied` on
+   `/fund/book` goes to 1 with the poller reporting `duplicate: true` after.
+   If it misbehaves, turn the flag off — polling is unchanged underneath.
 4. **Market hours exist only inside the signal runner.** Settlement,
    reconciliation and NAV striking still run identically at 3am.
 5. **`/compose` is orphaned** — live route, not in the nav, linked only from the
