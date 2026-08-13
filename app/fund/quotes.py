@@ -69,7 +69,15 @@ def quote(symbol: str, held: dict[str, Any] | None = None) -> dict[str, Any]:
     # Pick the reference the change should be measured against. If the "live"
     # price is just the last close (market shut), the meaningful figure is that
     # session's own move, not zero.
-    if latest is not None and price is not None and abs(price - latest) < 1e-9:
+    # Relative tolerance, not absolute: the live tick and the daily bar come from
+    # different endpoints and agree to cents, not to floating-point bits. An
+    # exact comparison treated 100.95 and 100.949997 as different sources and so
+    # measured the change against itself, reporting +0.00% for everything.
+    same_as_close = (
+        latest is not None and price is not None
+        and (abs(price - latest) / max(abs(latest), 1e-9)) < 1e-4
+    )
+    if same_as_close:
         prev = prior
     else:
         prev = latest
