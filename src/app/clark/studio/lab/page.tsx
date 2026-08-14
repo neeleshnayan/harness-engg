@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { FlaskConical, Loader2, Play, Trash2 } from "lucide-react";
 import { StudioHeader } from "../components/StudioHeader";
 import { KT } from "../theme";
@@ -61,7 +61,14 @@ export default function LabPage() {
   const [active, setActive] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [seq, setSeq] = useState(1);
+  // A ref, not state. `const id = seq; setSeq(s => s + 1)` reads the counter
+  // from the render closure, so two runs fired before React re-renders both
+  // read the same value and both get id 1 — which is exactly the duplicate-key
+  // warning, and worse than a warning: React reuses the DOM node for the
+  // second run, so the results list can show a row that belongs to a different
+  // backtest. A double-click does it, and StrictMode's double-invoke does it
+  // every time in dev. A ref increments synchronously and cannot go stale.
+  const seqRef = useRef(0);
 
   const spec = TEMPLATES.find((t) => t.id === template)!;
   const current = runs.find((r) => r.id === active) ?? runs[0] ?? null;
@@ -73,8 +80,7 @@ export default function LabPage() {
       const body: any = { symbol: symbol.trim().toUpperCase(), strategy: template, lookback_days: lookback };
       spec.params.forEach((p) => { body[p] = params[p]; });
       const res = await fundApiClient.researchBacktest(body);
-      const id = seq;
-      setSeq((s) => s + 1);
+      const id = ++seqRef.current;
       setRuns((r) => [{ ...res, id, ranAt: new Date().toLocaleTimeString() }, ...r].slice(0, 12));
       setActive(id);
     } catch (e: any) {
@@ -82,7 +88,7 @@ export default function LabPage() {
     } finally {
       setBusy(false);
     }
-  }, [symbol, template, lookback, params, spec, seq]);
+  }, [symbol, template, lookback, params, spec]);
 
   // one run on arrival so the page is never an empty shell
   useEffect(() => { run(); /* eslint-disable-next-line */ }, []);
