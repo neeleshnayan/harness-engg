@@ -13,6 +13,8 @@ class ProposeOrderRequest(BaseModel):
     strategy_id: Optional[str] = Field(None, description="Tagging strategy; None => discretionary")
     thesis_id: Optional[str] = Field(None, description="Investment thesis this order acts on")
     discretionary: bool = Field(False, description="Explicitly a discretionary trade (no thesis)")
+    rationale: Optional[str] = Field(None, description="Why this order exists, in the proposer's words. Shown at the approval card.")
+    critique: Optional[str] = Field(None, description="What a sceptic said about it. Shown beside the rationale.")
 
 
 class ThesisCreateRequest(BaseModel):

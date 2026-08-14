@@ -44,6 +44,12 @@ class Order:
     strategy_id: Optional[str] = None
     # The investment thesis this order acts on (None => discretionary trade).
     thesis_id: Optional[str] = None
+    # WHY this order exists, in the proposer's own words, and what a sceptic
+    # said about it. Both ride on the order because the approval card is where
+    # they are read, and reasoning that lives anywhere else is reasoning the
+    # human never sees at the moment they decide.
+    rationale: Optional[str] = None
+    critique: Optional[str] = None
 
 
 @dataclass

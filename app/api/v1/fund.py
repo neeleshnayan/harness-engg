@@ -789,6 +789,8 @@ def propose_order(req: ProposeOrderRequest):
         limit_price=req.limit_price,
         strategy_id=req.strategy_id,
         thesis_id=req.thesis_id,
+        rationale=req.rationale,
+        critique=req.critique,
     )
     return _pipeline.propose_order(order, actor=req.actor)
 

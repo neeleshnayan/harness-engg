@@ -370,6 +370,8 @@ class CommandPipeline:
             "limit_price": order.limit_price,
             "strategy_id": order.strategy_id,
             "thesis_id": order.thesis_id,
+            "rationale": order.rationale,
+            "critique": order.critique,
         }
 
     def _proposal_age_minutes(self, order_id: str) -> float | None:
