@@ -205,12 +205,32 @@ export function ClarkConsole() {
       if (!ledger.ok) suggestions.push("The ledger chain is broken — what do I do?");
     }
 
-    suggestions.push(
+    // Situational suggestions come first — they are derived from what is
+    // actually wrong right now. These are the standing ones, and they exist to
+    // teach the surface: an operator cannot ask for a backtest or a cost
+    // breakdown if nothing ever hints those are questions Clark can answer.
+    //
+    // Rotated rather than listed, because four fixed prompts become furniture
+    // the eye skips after a day. The rotation is keyed to the minute so it is
+    // stable within a session but different across them.
+    const standing = [
       "What is the single riskiest thing about the fund right now?",
       "Walk me through what this book is actually exposed to.",
-    );
+      "Backtest NVDA over the last 6 months with an SMA crossover.",
+      "Are our trading costs running above what the backtests assume?",
+      "What can I still do today without burning a day trade?",
+      "Which position is furthest from where its strategy wants it?",
+      "Does our book agree with the broker right now?",
+      "Do a pass over the fund and tell me anything that deserves attention.",
+      "Compare our INTC position against the concentration limit.",
+      "What did each strategy actually trade today?",
+    ];
+    const offset = Math.floor(Date.now() / 60000) % standing.length;
+    for (let i = 0; i < standing.length; i += 1) {
+      suggestions.push(standing[(offset + i) % standing.length]);
+    }
 
-    setCtx({ lines, suggestions: suggestions.slice(0, 4), at: Date.now() });
+    setCtx({ lines, suggestions: suggestions.slice(0, 5), at: Date.now() });
     setLoadingCtx(false);
   }, []);
 
