@@ -17,6 +17,7 @@ store or a Temporal-backed pipeline without touching callers.
 
 from __future__ import annotations
 
+import time as _time
 import uuid
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
@@ -27,6 +28,14 @@ from firebase_admin import firestore
 
 from app.fund.chain import GENESIS_HASH, event_hash, verify
 from app.fund.money import encode
+
+#: Process-level memo of the full log. Small by construction — the fund has
+#: tens of events, not millions — and the alternative is a Firestore read per
+#: projection per request.
+_STREAM_CACHE: dict[str, tuple[float, list]] = {}
+#: Short enough that another writer's append surfaces quickly, long enough to
+#: collapse the burst of folds a single page render causes.
+_STREAM_TTL_SECONDS = 5.0
 
 EVENTS_COLLECTION = "fund_events"
 _COUNTER_DOC = ("fund_meta", "event_counter")
@@ -62,6 +71,13 @@ class EventType(str, Enum):
     CORPORATE_ACTION_APPLIED = "CorporateActionApplied"   # split / reverse split
 
     # Valuation & reconciliation
+    #: The mandate's fee terms — auditable config, like RiskLimitsSet. An
+    #: explicit zero is a recorded decision; an absence is indistinguishable
+    #: from an oversight.
+    FEE_TERMS_SET = "FeeTermsSet"
+    FEE_ACCRUED = "FeeAccrued"                  # fees owed but not yet paid
+    FEE_CRYSTALLISED = "FeeCrystallised"        # accrued fees become payable
+
     NAV_STRUCK = "NavStruck"
     RECONCILIATION_MISMATCH = "ReconciliationMismatch"
 
@@ -179,6 +195,9 @@ class EventStore:
         # rather than papering over it, which is the behaviour we want: a
         # missing event should be loud.
         self._db.collection(EVENTS_COLLECTION).document(event.event_id).set(sealed)
+        # The writer must always see its own write: a fill hidden behind the
+        # cache would let the idempotency check pass twice.
+        _STREAM_CACHE.clear()
         return event
 
     def verify_chain(self, limit: int = 100_000) -> dict[str, Any]:
@@ -186,20 +205,57 @@ class EventStore:
         return verify(self.stream(limit=limit)).to_dict()
 
     def by_aggregate(self, aggregate_id: str) -> list[dict[str, Any]]:
-        """All events for one aggregate, in order."""
-        q = (
-            self._db.collection(EVENTS_COLLECTION)
-            .where("aggregate_id", "==", aggregate_id)
-            .order_by("seq")
-        )
-        return [d.to_dict() for d in q.stream()]
+        """All events for one aggregate, in order.
+
+        Served from the same memo as stream(). This one is on the trade path —
+        _emit_fill asks "has this order already filled?" on every settlement
+        poll for every in-flight order — so an uncached query here is a
+        Firestore round trip per order per tick.
+
+        The cache is cleared by append(), so a fill recorded a moment ago is
+        always visible to the idempotency check that must see it.
+        """
+        rows = self.stream(limit=1_000_000)
+        return [e for e in rows if e.get("aggregate_id") == str(aggregate_id)]
 
     def stream(self, since_seq: int = 0, limit: int = 200) -> list[dict[str, Any]]:
-        """The global log from ``since_seq`` (exclusive), oldest first — the audit trail."""
-        q = (
-            self._db.collection(EVENTS_COLLECTION)
-            .where("seq", ">", since_seq)
-            .order_by("seq")
-            .limit(limit)
-        )
-        return [d.to_dict() for d in q.stream()]
+        """The global log from ``since_seq`` (exclusive), oldest first — the audit trail.
+
+        Memoised for a few seconds, and that is not an optimisation so much as
+        the thing that makes running on Firestore viable at all.
+
+        Every projection in the system folds by calling this. A single page
+        render asks for NAV, risk, orders, compliance, TCA and the chain, and
+        each of those re-reads the whole log — so one refresh of the cockpit
+        costs several hundred document reads, and a browser tab polling every
+        thirty seconds burns the entire 50,000/day free tier in about an hour.
+        That is what exhausted the quota twice; the read amplification was
+        invisible while the ledger was a local JSON file, where re-folding was
+        free.
+
+        Caching the log rather than each endpoint's response means every
+        projection benefits at once and none of them had to change. Appends
+        from this process invalidate immediately, so a fill is never hidden
+        behind the cache from the writer's point of view; another process's
+        append is visible within the TTL, which is why the scheduler holds a
+        single-writer lease.
+        """
+        now = _time.time()
+        hit = _STREAM_CACHE.get("all")
+        if hit and now - hit[0] < _STREAM_TTL_SECONDS:
+            rows = hit[1]
+        else:
+            q = (
+                self._db.collection(EVENTS_COLLECTION)
+                .where("seq", ">", 0)
+                .order_by("seq")
+            )
+            rows = [d.to_dict() for d in q.stream()]
+            _STREAM_CACHE["all"] = (now, rows)
+
+        out = [e for e in rows if (e.get("seq") or 0) > since_seq]
+        return out[:limit]
+
+    @staticmethod
+    def invalidate_cache() -> None:
+        _STREAM_CACHE.clear()

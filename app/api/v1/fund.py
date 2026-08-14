@@ -270,6 +270,55 @@ def get_venue_account():
     }
 
 
+@router.get("/fund/fees")
+def get_fees():
+    """The mandate's fee terms and what is currently accrued against them.
+
+    ``terms_recorded: false`` is the important one — it means nobody has
+    decided, which reads identically to "we charge nothing" on every screen
+    until someone asks.
+    """
+    from app.fund.fees import FeeLedger
+
+    return FeeLedger(_store).state()
+
+
+class FeeTermsRequest(BaseModel):
+    management_annual_pct: float = 0.0
+    performance_pct: float = 0.0
+    initial_high_water: float = 1.0
+    note: str = ""
+    actor: str = "operator"
+
+
+@router.post("/fund/fees/terms")
+def set_fee_terms(req: FeeTermsRequest):
+    """Record the fee schedule. A zero is a decision and belongs in the log."""
+    from app.fund.fees import FeeLedger, FeeTerms
+
+    terms = FeeTerms(
+        management_annual_pct=req.management_annual_pct,
+        performance_pct=req.performance_pct,
+        initial_high_water=req.initial_high_water,
+        note=req.note,
+    )
+    return FeeLedger(_store).set_terms(terms, actor=req.actor)
+
+
+@router.post("/fund/fees/accrue")
+def accrue_fees(req: ActorRequest | None = None):
+    """Book fees earned since the last accrual. No-op when the terms are zero."""
+    from app.fund.fees import FeeLedger
+
+    nav = _nav.compute()
+    # The gross book, before the liability this call is about to add to.
+    gross = nav.total_nav_usd + FeeLedger(_store).outstanding()
+    return FeeLedger(_store).accrue(
+        gross_nav=gross, units_outstanding=nav.units_outstanding,
+        actor=(req.actor if req else "system"),
+    )
+
+
 @router.get("/fund/ledger/verify")
 def verify_ledger_chain(limit: int = Query(100_000, ge=1)):
     """Walk the hash chain and report the first link that does not hold.

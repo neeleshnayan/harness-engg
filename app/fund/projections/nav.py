@@ -97,16 +97,39 @@ class NavService:
                 {"symbol": symbol, "qty": pos["qty"], "mark": mark, "usd_value": value}
             )
 
-        total = positions_value + book.cash
+        gross = positions_value + book.cash
+
+        # Accrued fees are a LIABILITY, not a future event. A fee is earned
+        # continuously and paid occasionally, so NAV has to carry what is owed
+        # from the moment it is owed — otherwise NAV drifts up all quarter and
+        # drops on payment day, and every unit issued in between is priced
+        # wrong. An investor subscribing the day before a payment would buy
+        # into a liability the price does not show.
+        #
+        # Read defensively: fees must never be able to take NAV down with them.
+        accrued = Decimal("0")
+        try:
+            from app.fund.fees import FeeLedger
+            accrued = FeeLedger(self._store).outstanding()
+        except Exception:  # noqa: BLE001
+            accrued = Decimal("0")
+
+        total = gross - accrued
         units_out = book.units_outstanding
         navpu = (total / units_out) if units_out > _EPS else BASE_NAV_PER_UNIT
+
+        breakdown = {"positions": money(positions_value), "cash": money(book.cash)}
+        if accrued > _EPS:
+            # Only shown when non-zero, but named plainly when it is: a
+            # liability the reader cannot see is one they will assume away.
+            breakdown["accrued_fees"] = money(-accrued)
 
         return NavSnapshot(
             ts=datetime.now(timezone.utc).isoformat(),
             total_nav_usd=money(total),
             units_outstanding=units(units_out),
             nav_per_unit=navpu.quantize(_NAVPU_Q),
-            breakdown={"positions": money(positions_value), "cash": money(book.cash)},
+            breakdown=breakdown,
             positions=positions_detail,
         )
 
