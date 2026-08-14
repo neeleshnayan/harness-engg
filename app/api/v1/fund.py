@@ -270,6 +270,27 @@ def get_venue_account():
     }
 
 
+@router.get("/fund/tca")
+def get_transaction_costs(limit: int = Query(500, ge=1, le=5000)):
+    """What trading actually cost, against what the backtests assumed.
+
+    Folded from the order lifecycle already in the log, so it applies
+    retroactively to every order the fund has placed. Until this is measured,
+    every Sharpe ratio in the system describes an assumption rather than a
+    strategy.
+    """
+    from app.fund.tca import TransactionCosts
+
+    tca = TransactionCosts(_store)
+    rows = tca.costs(limit=limit)
+    from app.fund.tca import summarise
+    return {
+        "summary": summarise(rows),
+        "by_strategy": tca.by_strategy(limit=limit),
+        "orders": [r.to_dict() for r in rows],
+    }
+
+
 @router.get("/fund/session")
 def get_market_session():
     """The venue's session — state, phase, and the countdown to the next change.

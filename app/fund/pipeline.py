@@ -191,6 +191,23 @@ class CommandPipeline:
             )
         )
 
+        # The arrival price: the market as it stood the instant we submitted.
+        #
+        # Without it, the only measurable cost is fill-minus-decision, which
+        # silently blends two very different things — the market drifting while
+        # a human thought about the order, and the cost of actually crossing the
+        # spread. Those have different fixes (approve faster / use a limit
+        # order) so they are worth separating, and they cannot be separated
+        # after the fact.
+        #
+        # Measurement, never a control: a quote failure must not stop a submit
+        # the operator has already approved.
+        arrival = None
+        try:
+            arrival = float(self._connector.quote(order).price)
+        except Exception:  # noqa: BLE001
+            arrival = None
+
         # order_id is the idempotency key -> retries never double-execute.
         ref = self._connector.execute(order, idempotency_key=order_id)
         self._store.append(
@@ -198,7 +215,8 @@ class CommandPipeline:
                 aggregate_id=order_id,
                 aggregate_type="order",
                 type=EventType.ORDER_SUBMITTED,
-                payload={"venue": ref.venue, "venue_ref": ref.ref_id},
+                payload={"venue": ref.venue, "venue_ref": ref.ref_id,
+                         "arrival_price": arrival},
                 actor="system",
             )
         )
