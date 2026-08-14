@@ -270,6 +270,55 @@ def get_venue_account():
     }
 
 
+@router.get("/fund/compliance")
+def get_compliance_status():
+    """The externally-imposed constraints the fund is currently operating under.
+
+    Separate from /fund/risk because these are not the mandate's choices. The
+    day-trade budget in particular is a cliff rather than a slope: the fourth
+    day trade in five sessions restricts a sub-$25k account to closing-only for
+    ninety days, so the number that matters is how many are left, and it has to
+    be visible before an order is proposed rather than at the rejection.
+    """
+    from app.fund.compliance import (
+        PDT_EQUITY_THRESHOLD,
+        PDT_MAX_DAY_TRADES,
+        AccountState,
+        DayTradeLedger,
+    )
+
+    if hasattr(_connector, "account_state"):
+        try:
+            account = _connector.account_state()
+        except Exception as e:  # noqa: BLE001
+            account = AccountState.unknown(str(e))
+    else:
+        account = AccountState.unknown("simulated venue — no brokerage account")
+
+    own = DayTradeLedger(_store).count()
+    broker = account.daytrade_count
+    used = broker if broker is not None else own
+    equity = account.equity
+    # The rule only restricts accounts below the threshold. Unknown equity is
+    # not known to be above it.
+    applies = equity is None or equity < PDT_EQUITY_THRESHOLD
+
+    return {
+        "account": account.to_dict(),
+        "pdt": {
+            "applies": applies,
+            "equity_threshold": PDT_EQUITY_THRESHOLD,
+            "max_day_trades": PDT_MAX_DAY_TRADES,
+            "used": used,
+            "remaining": max(PDT_MAX_DAY_TRADES - 1 - used, 0) if applies else None,
+            "broker_count": broker,
+            "our_count": own,
+            "source": "broker" if broker is not None else "our event log",
+            "diverges": broker is not None and broker != own,
+        },
+    }
+
+
 @router.get("/fund/book")
 def get_book_identity():
     """Which Firestore project this process is reading and writing.

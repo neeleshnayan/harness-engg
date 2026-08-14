@@ -18,6 +18,12 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+from app.fund.compliance import (
+    AccountState,
+    ComplianceDecision,
+    ComplianceGate,
+    DayTradeLedger,
+)
 from app.fund.connectors.base import Connector, FillState, Order, Side, VenueRef
 from app.fund.events import Event, EventStore, EventType
 from app.fund.money import D, f, money
@@ -81,8 +87,13 @@ class CommandPipeline:
         nav = self._nav.compute()
         gate = self._explicit_risk_gate or RiskGate(limits=self._control.limits())
         risk = gate.check(order, quote.price, nav)
+        compliance = self.compliance_check(order)
 
-        breaches = (venue_check.errors or []) + (risk.breaches or [])
+        breaches = (
+            (venue_check.errors or [])
+            + (risk.breaches or [])
+            + (compliance.blocks or [])
+        )
         if breaches:
             self._store.append(
                 Event(
@@ -105,6 +116,11 @@ class CommandPipeline:
             "cash_before": f(cash_before),
             "cash_after": f(money(cash_after)),
         }
+        # Compliance warnings ride along to the approval card. "One day trade
+        # left before the account is flagged" is only useful while there is
+        # still a decision to make about it.
+        if compliance.warnings:
+            preview["compliance_warnings"] = compliance.warnings
         self._store.append(
             Event(
                 aggregate_id=order_id,
@@ -115,6 +131,25 @@ class CommandPipeline:
             )
         )
         return {"status": "pending_approval", "order_id": order_id, "impact_preview": preview}
+
+    def compliance_check(self, order: Order) -> ComplianceDecision:
+        """Rules imposed from outside the mandate — see ``compliance.py``.
+
+        A connector with no ``account_state`` is not a brokerage account: the
+        simulated venue has no regulator and no day-trade counter, so there is
+        nothing to enforce and pretending otherwise would block mock trading on
+        a rule that does not apply to it. A connector that HAS the method but
+        cannot answer is a different case entirely — that falls through to our
+        own day-trade count, folded from the event log, so an unreachable
+        broker degrades to our own books rather than to no check at all.
+        """
+        if not hasattr(self._connector, "account_state"):
+            return ComplianceDecision(ok=True)
+        try:
+            account = self._connector.account_state()
+        except Exception as e:  # noqa: BLE001
+            account = AccountState.unknown(str(e))
+        return ComplianceGate(DayTradeLedger(self._store)).check(order, account)
 
     def risk_gate_for_preview(self) -> RiskGate:
         """The gate as currently configured, for a read-only what-would-happen check.

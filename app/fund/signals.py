@@ -357,21 +357,35 @@ class SignalRunner:
 
     def _would_breach(self, symbol: str, action: str, qty: float,
                       price: float) -> list[str]:
-        """What the risk gate would say, without writing anything.
+        """What the gates would say, without writing anything.
 
-        Returns an empty list when the gate cannot be consulted — an unknown
+        Both gates, not just risk: an order that clears risk but is blocked by
+        the pattern-day-trader rule is exactly as unproposable, and showing it
+        as available is the same failure — a button whose only outcome is a
+        rejection. The compliance gate is pure with respect to the log too, so
+        the dry run stays free of side effects.
+
+        Returns an empty list when a gate cannot be consulted — an unknown
         verdict must not masquerade as a refusal, or a data blip would silently
         hide every proposable trade.
         """
         gate = getattr(self._pipeline, "risk_gate_for_preview", None)
         if gate is None:
             return []
+        probe = Order(venue="preview", symbol=symbol,
+                      side=Side.BUY if action == "buy" else Side.SELL, qty=qty)
+        out: list[str] = []
         try:
-            probe = Order(venue="preview", symbol=symbol,
-                          side=Side.BUY if action == "buy" else Side.SELL, qty=qty)
-            return list(gate().check(probe, price, self._nav.compute()).breaches or [])
+            out += list(gate().check(probe, price, self._nav.compute()).breaches or [])
         except Exception:  # noqa: BLE001
-            return []
+            pass
+        check = getattr(self._pipeline, "compliance_check", None)
+        if check is not None:
+            try:
+                out += list(check(probe).blocks or [])
+            except Exception:  # noqa: BLE001
+                pass
+        return out
 
     def _safe_price(self, symbol: str) -> float | None:
         try:

@@ -49,16 +49,37 @@ else:
 
 from app.api.v1 import fund as fund_router  # noqa: E402
 from app.fund.demo_seed import seed_if_empty  # noqa: E402
+from app.fund.schedule import StrikeWindow  # noqa: E402
+
+
+def _venue_open() -> bool | None:
+    """The venue's session state, or None when it cannot be read.
+
+    A connector with no clock is a simulated venue, which has no session and
+    trades whenever asked — reporting it as open keeps mock mode behaving the
+    way it always has rather than silently freezing NAV history.
+    """
+    probe = getattr(fund_router._connector, "market_open", None)
+    if probe is None:
+        return True
+    try:
+        return probe()
+    except Exception:  # noqa: BLE001
+        return None
 
 
 async def _scheduler():
-    """24×7 deterministic worker: settle fills often; strike NAV + reconcile on the slow cycle."""
+    """Deterministic worker: settle fills often; strike NAV + reconcile on the session."""
     settle_every = int(os.getenv("SETTLE_INTERVAL_SECONDS", "30"))
     strike_every = int(os.getenv("STRIKE_INTERVAL_SECONDS", "1800"))
     since_strike = 0
+    window = StrikeWindow()
     while True:
         await asyncio.sleep(settle_every)
         since_strike += settle_every
+        # Settlement stays unconditional. It is read-mostly, idempotent, and an
+        # order submitted near the bell can fill after it — refusing to poll
+        # while closed would leave that fill unrecorded until the next open.
         try:
             fund_router.run_settlement()
         except Exception as e:  # noqa: BLE001
@@ -71,6 +92,16 @@ async def _scheduler():
             _log.debug("intraday sample skipped: %s", e)
         if since_strike >= strike_every:
             since_strike = 0
+            # Both of these WRITE to the permanent log — a NAV_STRUCK snapshot
+            # and any RECONCILIATION_MISMATCH — and both read prices to do it.
+            # Off-session those prices are the previous close, so an unguarded
+            # tick writes an invented mark and reports a divergence that only
+            # exists because the book was valued twice at the same stale price.
+            decision = window.evaluate(_venue_open())
+            if not decision.strike:
+                _log.debug("skipping strike/reconcile: %s", decision.reason)
+                continue
+            _log.info("strike/reconcile: %s", decision.reason)
             for fn in (fund_router.run_strike, fund_router.run_reconcile):
                 try:
                     fn()

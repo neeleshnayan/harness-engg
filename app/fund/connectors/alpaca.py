@@ -256,6 +256,7 @@ class AlpacaConnector(Connector):
                 "buying_power": float(acct.buying_power),
                 "currency": getattr(acct, "currency", "USD"),
                 "status": getattr(acct, "status", "ACTIVE"),
+                **self._standing(acct).to_dict(),
             }
         except Exception as e:
             return {
@@ -263,6 +264,59 @@ class AlpacaConnector(Connector):
                 "configured": True,
                 "error": str(e),
             }
+
+    def account_state(self) -> "AccountState":
+        """The broker's view of what this account is *allowed* to do.
+
+        Split out from ``account_info`` because the compliance gate needs a
+        typed answer on the trade path, and because the distinction between a
+        flag that is False and a flag we could not read must survive the trip.
+        An unreadable account is ``AccountState.unknown()``, never a set of
+        permissive defaults.
+        """
+        from app.fund.compliance import AccountState
+
+        if not (self._key and self._secret):
+            return AccountState.unknown("Alpaca credentials not configured")
+        try:
+            return self._standing(self._trading().get_account())
+        except Exception as e:  # noqa: BLE001
+            return AccountState.unknown(str(e))
+
+    @staticmethod
+    def _standing(acct: Any) -> "AccountState":
+        """Map an Alpaca account object onto our own flags.
+
+        ``getattr`` with a None default throughout: the SDK has added and
+        renamed account fields between versions, and a missing attribute must
+        read as "unknown" rather than raising and taking the whole account
+        fetch down with it.
+        """
+        from app.fund.compliance import AccountState
+
+        def num(name: str) -> float | None:
+            v = getattr(acct, name, None)
+            return None if v is None else float(v)
+
+        def count(name: str) -> int | None:
+            v = getattr(acct, name, None)
+            return None if v is None else int(v)
+
+        def flag(name: str) -> bool | None:
+            v = getattr(acct, name, None)
+            return None if v is None else bool(v)
+
+        status = getattr(acct, "status", None)
+        return AccountState(
+            known=True,
+            equity=num("equity"),
+            daytrade_count=count("daytrade_count"),
+            pattern_day_trader=flag("pattern_day_trader"),
+            trading_blocked=flag("trading_blocked"),
+            account_blocked=flag("account_blocked"),
+            shorting_enabled=flag("shorting_enabled"),
+            status=None if status is None else str(status),
+        )
 
     # --- helpers -----------------------------------------------------------
     @staticmethod
