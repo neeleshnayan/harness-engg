@@ -115,6 +115,11 @@ export interface PendingOrder {
   qty: number;
   strategy_id?: string | null;
   thesis_id?: string | null;
+  /** Why the proposer says this trade should happen, in their own words. */
+  rationale?: string | null;
+  /** What an independent sceptic said about it. Shown beside the rationale so
+   *  the operator reads the case and the objection together. */
+  critique?: string | null;
   impact_preview?: {
     quote_price?: number;
     notional_usd?: number;

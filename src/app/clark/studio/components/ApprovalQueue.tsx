@@ -225,6 +225,34 @@ export function ApprovalQueue({ onChanged, refreshSignal = 0, compact = false,
                   )}
                 </div>
 
+                {/* The case, and the case against. This is the review loop:
+                    a machine argument the operator reads and overrules, rather
+                    than a machine decision they can only accept. Rendered
+                    before the thesis block because on a proposal that has both,
+                    the reasoning for THIS order is the more specific claim. */}
+                {!compact && (o.rationale || o.critique) && (
+                  <div className="mt-3 space-y-3">
+                    {o.rationale && (
+                      <div>
+                        <div className={KT.label}>Why</div>
+                        <p className={`mt-1.5 text-[12px] leading-relaxed ${KT.body}`}>
+                          {o.rationale}
+                        </p>
+                      </div>
+                    )}
+                    {o.critique && (
+                      <div className="border-l-2 border-[var(--kt-agent-border)] pl-3">
+                        <div className={`${KT.label} !text-[var(--kt-agent)]`}>
+                          Independent review
+                        </div>
+                        <p className={`mt-1.5 text-[12px] leading-relaxed ${KT.body}`}>
+                          {o.critique}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {!compact && (c ? (
                   <div className={`mt-3 p-3 ${KT.inset}`}>
                     <div className="flex items-center gap-1.5">
