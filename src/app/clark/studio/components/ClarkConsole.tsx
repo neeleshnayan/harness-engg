@@ -57,7 +57,7 @@ const CONTEXT_REFRESH_MS = 30_000;
 const STALE_AFTER_MS = 60_000;
 
 /** Width of the docked rail. Also the page's right inset while it is open. */
-const RAIL_W = 380;
+const RAIL_W = 420;
 /** Below this the rail would leave no usable cockpit, so it overlays instead. */
 const PUSH_MIN_WIDTH = 1100;
 const PREF_KEY = "clark.rail.open";
@@ -328,117 +328,147 @@ export function ClarkConsole() {
     return (
       <aside
         style={{ width: RAIL_W }}
-        className="fixed inset-y-0 right-0 z-40 flex max-w-[92vw] flex-col border-l border-[var(--kt-agent-border)] bg-[var(--kt-surface)] shadow-2xl"
+        className="fixed inset-y-0 right-0 z-40 flex max-w-[92vw] flex-col border-l border-[var(--kt-border)] bg-[var(--kt-surface)]"
       >
-      <div className={`flex items-center justify-between border-b border-[var(--kt-border)] px-4 py-3 ${KT.agent.wash}`}>
-        <div className="flex items-center gap-2">
-          <Sparkles size={14} className={KT.agent.text} />
-          <span className={KT.title}>Clark</span>
-          <span className={`text-[10px] ${stale ? KT.sev.warn : KT.muted}`}>
-            {ctx.at === 0
-              ? "reading…"
-              : stale
-                ? `context ${Math.round(age / 1000)}s old`
-                : "sees this screen"}
-          </span>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={loadContext}
-            className={`${KT.agent.btn} !px-2 !py-1`}
-            title="Re-read the book now"
-            disabled={loadingCtx}
-          >
-            <RefreshCw size={12} className={loadingCtx ? "animate-spin" : ""} />
-          </button>
-          <button onClick={() => setOpen(false)} className={`${KT.agent.btn} !px-2 !py-1`} title="Hide the rail (Esc)">
-            <ChevronRight size={14} />
-          </button>
-        </div>
-      </div>
-
-      <div className="border-b border-[var(--kt-border)] px-4 py-1.5">
-        <button
-          onClick={() => setShowCtx((s) => !s)}
-          className={`text-[10px] ${KT.muted} hover:text-[var(--kt-text)]`}
-        >
-          {showCtx ? "▾" : "▸"} What Clark is told ({ctx.lines.length} facts)
-        </button>
-        {showCtx && (
-          <pre className="mt-1.5 max-h-[150px] overflow-auto whitespace-pre-wrap rounded bg-[var(--kt-hover)] p-2 font-mono text-[10px] leading-relaxed">
-            {ctx.lines.length ? ctx.lines.join("\n") : "Nothing readable — the spine did not answer."}
-          </pre>
-        )}
-      </div>
-
-      <div ref={boxRef} className="flex-1 space-y-2.5 overflow-auto px-4 py-3">
-        {msgs.length === 0 && (
-          <div className="space-y-1.5">
-            <div className={`text-xs ${KT.muted}`}>
-              Ask about the book in front of you. The screen stays live behind this.
+        {/* Header — the cockpit's idiom: uppercase mono label, muted second
+            line, generous padding. Not a chat titlebar. */}
+        <div className={`border-b border-[var(--kt-border)] px-6 py-5`}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className={`${KT.label} !text-[var(--kt-agent)]`}>Clark</span>
+                <span className={`h-1 w-1 rounded-full bg-[var(--kt-agent)]`} />
+              </div>
+              <div className={`mt-1.5 text-xs ${KT.muted}`}>
+                {ctx.at === 0
+                  ? "Reading the book…"
+                  : stale
+                    ? `Working from the book as of ${Math.round(age / 1000)}s ago`
+                    : "Sees the same numbers you do"}
+              </div>
             </div>
-            {ctx.suggestions.map((s) => (
+            <div className="flex shrink-0 items-center gap-1">
               <button
-                key={s}
-                onClick={() => ask(s)}
-                className="block w-full rounded-xl border border-[var(--kt-border)] px-3 py-2 text-left text-xs leading-snug transition-colors hover:border-[var(--kt-agent-border)] hover:bg-[var(--kt-hover)]"
+                onClick={loadContext}
+                disabled={loadingCtx}
+                title="Re-read the book"
+                className={`rounded-lg p-1.5 ${KT.muted} transition-colors hover:bg-[var(--kt-hover)] hover:text-[var(--kt-text)]`}
               >
-                {s}
+                <RefreshCw size={13} className={loadingCtx ? "animate-spin" : ""} />
               </button>
-            ))}
+              <button
+                onClick={() => setOpen(false)}
+                title="Hide (Esc)"
+                className={`rounded-lg p-1.5 ${KT.muted} transition-colors hover:bg-[var(--kt-hover)] hover:text-[var(--kt-text)]`}
+              >
+                <ChevronRight size={15} />
+              </button>
+            </div>
           </div>
-        )}
+        </div>
 
-        {msgs.map((m) => (
-          <div key={m.ts + m.role} className={m.role === "you" ? "text-right" : "text-left"}>
-            <div
-              className={`inline-block max-w-[95%] rounded-xl px-3 py-2 text-sm ${
-                m.role === "you"
-                  ? "whitespace-pre-wrap bg-[var(--kt-inset)] text-[var(--kt-text)]"
-                  : "border border-[var(--kt-agent-border)] bg-[var(--kt-agent-bg)] text-left"
-              }`}
-            >
-              {m.role === "clark" ? <ClarkMarkdown text={m.text} /> : m.text}
-              {m.role === "clark" && m.ctxAgeS != null && (
-                <div className={`mt-1 text-[9px] ${KT.muted}`}>
-                  answered from the book as of {m.ctxAgeS}s before this reply
+        {/* Conversation */}
+        <div ref={boxRef} className="flex-1 overflow-auto">
+          {msgs.length === 0 ? (
+            <div>
+              <div className="px-6 pb-3 pt-6">
+                <div className={KT.label}>Ask about this screen</div>
+              </div>
+              {/* Rows, divided — the same shape as every list in the cockpit,
+                  rather than a stack of individually bordered boxes. */}
+              <div className="divide-y divide-[var(--kt-border)] border-y border-[var(--kt-border)]">
+                {ctx.suggestions.map((sg) => (
+                  <button
+                    key={sg}
+                    onClick={() => ask(sg)}
+                    className="block w-full px-6 py-4 text-left text-sm leading-relaxed text-[var(--kt-text-dim)] transition-colors hover:bg-[var(--kt-hover)] hover:text-[var(--kt-text)]"
+                  >
+                    {sg}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-8 px-6 py-6">
+              {msgs.map((m) => (
+                <div key={m.ts + m.role}>
+                  <div
+                    className={`${KT.label} ${m.role === "clark" ? "!text-[var(--kt-agent)]" : ""}`}
+                  >
+                    {m.role === "clark" ? "Clark" : "You"}
+                  </div>
+                  {/* No bubbles. A label and the words, with room to breathe —
+                      which is how every other panel here presents content. */}
+                  <div
+                    className={`mt-2 text-sm leading-relaxed ${
+                      m.role === "you" ? "whitespace-pre-wrap text-[var(--kt-text-dim)]" : ""
+                    }`}
+                  >
+                    {m.role === "clark" ? <ClarkMarkdown text={m.text} /> : m.text}
+                  </div>
+                  {m.role === "clark" && m.ctxAgeS != null && (
+                    <div className={`mt-2 text-[10px] ${KT.muted}`}>
+                      from the book {m.ctxAgeS}s before this reply
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {busy && (
+                <div className="flex items-center gap-2">
+                  <Loader2 size={12} className={`animate-spin ${KT.agent.text}`} />
+                  <span className={`${KT.label} !tracking-normal`}>thinking</span>
                 </div>
               )}
+              {err && <div className={`text-xs ${KT.sev.warn}`}>{err}</div>}
             </div>
-          </div>
-        ))}
-
-        {busy && (
-          <div className={`flex items-center gap-2 text-xs ${KT.muted}`}>
-            <Loader2 size={12} className="animate-spin" /> Thinking…
-          </div>
-        )}
-        {err && <div className={`text-xs ${KT.sev.warn}`}>{err}</div>}
-      </div>
-
-      <div className="border-t border-[var(--kt-border)] p-2.5">
-        <textarea
-          ref={inputRef}
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              ask(q);
-            }
-          }}
-          rows={2}
-          placeholder="Ask about this screen…"
-          className="w-full resize-none rounded-xl border border-[var(--kt-border)] bg-[var(--kt-inset)] px-3 py-2 text-sm outline-none transition-colors focus:border-[var(--kt-agent)]"
-        />
-        <div className={`mt-1 flex items-center justify-between text-[10px] ${KT.muted}`}>
-          <span>Clark advises. It cannot place or approve an order.</span>
-          {msgs.length > 0 && (
-            <button onClick={() => setMsgs([])} className="hover:text-[var(--kt-text)]">
-              <X size={10} className="inline" /> clear
-            </button>
           )}
         </div>
+
+        {/* What Clark was told — available, not shouting. */}
+        <div className="border-t border-[var(--kt-border)] px-6 py-4">
+          <button
+            onClick={() => setShowCtx((v) => !v)}
+            className={`${KT.label} transition-colors hover:text-[var(--kt-text)]`}
+          >
+            {showCtx ? "Hide" : "Show"} what Clark is told · {ctx.lines.length}
+          </button>
+          {showCtx && (
+            <pre className="mt-3 max-h-[160px] overflow-auto whitespace-pre-wrap rounded-xl bg-[var(--kt-inset)] p-3 font-mono text-[10px] leading-relaxed text-[var(--kt-text-dim)]">
+              {ctx.lines.length ? ctx.lines.join("\n") : "Nothing readable — the spine did not answer."}
+            </pre>
+          )}
+        </div>
+
+        {/* Composer */}
+        <div className="border-t border-[var(--kt-border)] px-6 py-5">
+          <textarea
+            ref={inputRef}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                ask(q);
+              }
+            }}
+            rows={2}
+            placeholder="Ask about this screen…"
+            className="w-full resize-none rounded-xl border border-[var(--kt-border)] bg-[var(--kt-inset)] px-3.5 py-2.5 text-sm leading-relaxed outline-none transition-colors placeholder:text-[var(--kt-text-muted)] focus:border-[var(--kt-agent-border)]"
+          />
+          <div className="mt-2.5 flex items-center justify-between">
+            <span className={`text-[10px] ${KT.muted}`}>
+              Advises only — cannot place or approve an order
+            </span>
+            {msgs.length > 0 && (
+              <button
+                onClick={() => setMsgs([])}
+                className={`text-[10px] ${KT.muted} transition-colors hover:text-[var(--kt-text)]`}
+              >
+                clear
+              </button>
+            )}
+          </div>
         </div>
       </aside>
     );

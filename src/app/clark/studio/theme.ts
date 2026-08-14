@@ -50,11 +50,11 @@ export const KT = {
     border: "border-[var(--kt-agent-border)]",
     chip: "rounded-full border border-[var(--kt-agent-border)] bg-[var(--kt-agent-bg)] px-2 py-0.5 text-[11px] text-[var(--kt-agent)]",
     btn: "rounded-lg border border-[var(--kt-agent-border)] bg-[var(--kt-agent-bg)] px-3 py-1.5 text-sm text-[var(--kt-agent)] transition-colors hover:border-[var(--kt-agent)]",
-    // The gradient is deliberately faint. A rail that sits on screen all day
-    // has to recede when it is not being used, so this reads as a tint on the
-    // surface rather than a coloured panel competing with the book.
-    wash: "bg-gradient-to-b from-[var(--kt-agent-glow)] to-transparent",
-    rail: "bg-gradient-to-br from-[var(--kt-agent-glow)] via-transparent to-transparent",
+    // No gradient, deliberately. A wash on a panel that sits on screen all day
+    // is decoration that never stops asking for attention, and the cockpit it
+    // sits beside earns its hierarchy from type and whitespace alone. The rail
+    // is distinguished by its border and its labels, nothing more.
+    wash: "",
   },
 
   // --- holdings / allocation bars ---
