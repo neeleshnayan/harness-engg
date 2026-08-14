@@ -1,64 +1,67 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, MessageSquare, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { ChevronDown, Loader2, RefreshCw, Sparkles, X } from "lucide-react";
 import { KT } from "../theme";
 import { processNaturalLanguageQuery } from "@/lib/agents_api";
 import { fundApiClient } from "@/lib/fund_api";
 
 /**
- * Clark, over the cockpit rather than instead of it.
+ * Clark, docked bottom-right, alongside the cockpit rather than over it.
  *
- * The header used to link to /clark, which navigated away from the very screen
- * the operator wanted to ask about. By the time Clark was open the numbers were
- * gone, so any question had to re-state them from memory — and a question that
- * begins "I think NAV was around two thousand" is one the answer cannot be
- * trusted against.
+ * Two earlier shapes were both wrong. A link to /clark navigated away from the
+ * screen the operator wanted to ask about, so the question had to restate the
+ * numbers from memory. A full-screen modal kept the numbers on screen but
+ * behind a backdrop, so you could see them and not touch them — no clicking
+ * through to a position while asking about it.
  *
- * So this is a slide-over. The book stays on screen behind it, and the question
- * arrives with the fund's actual state attached.
+ * Docked solves both: the cockpit stays fully interactive, so the natural
+ * motion is to look at something, ask about it, act on the answer, without the
+ * assistant ever getting in the way of the second step.
  *
- * Two rules it follows, both inherited from the rest of the harness:
+ * That interactivity creates the one problem this shape has and the modal did
+ * not. A panel that stays open while the operator works accumulates stale
+ * context — the book moves, a fill lands, an alarm clears, and Clark is still
+ * holding what it read when the panel opened. So the context re-reads on a
+ * timer and is stamped with its age, and anything older than a minute says so
+ * rather than being quietly presented as current.
  *
- *   1. **Never send a number we did not read.** The context block is built from
- *      live spine responses. Anything unreadable is sent as "unknown", never as
- *      zero and never omitted — Clark reasoning from a silently missing cash
- *      balance is worse than Clark saying it cannot see one.
+ * Rules carried from the rest of the harness:
  *
- *   2. **Show the operator what Clark was told.** The context is inspectable
- *      before sending. An assistant answering from invisible state is a machine
- *      whose reasoning cannot be checked, which is the opposite of what this
- *      fund is built around.
- *
- * The suggested questions are derived from what is actually happening — a
- * breach, a day-trade budget nearly spent, a closed venue. A static list would
- * suggest asking about a drawdown on a day there isn't one.
+ *   1. Never send a number we did not read. Unreadable values go as "unknown",
+ *      never zero and never omitted — Clark reasoning from a silently missing
+ *      cash balance is worse than Clark saying it cannot see one.
+ *   2. Show the operator what Clark was told. The context is inspectable. An
+ *      assistant answering from invisible state cannot be checked.
  */
 
 type Msg = { role: "you" | "clark"; text: string; ts: number };
-
-/** What Clark is told about the screen. Every field can be "unknown". */
-type Ctx = {
-  lines: string[];
-  suggestions: string[];
-};
+type Ctx = { lines: string[]; suggestions: string[]; at: number };
 
 const val = (n: number | null | undefined, dp = 2, prefix = "") =>
   n == null || !Number.isFinite(n) ? "unknown" : `${prefix}${Number(n).toFixed(dp)}`;
 
+/** How often the open panel re-reads the book. */
+const CONTEXT_REFRESH_MS = 30_000;
+/** Past this, the panel says the context is aging rather than implying it is live. */
+const STALE_AFTER_MS = 60_000;
+
 export function ClarkConsole() {
   const [open, setOpen] = useState(false);
-  const [ctx, setCtx] = useState<Ctx>({ lines: [], suggestions: [] });
+  const [ctx, setCtx] = useState<Ctx>({ lines: [], suggestions: [], at: 0 });
   const [showCtx, setShowCtx] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
+  const [loadingCtx, setLoadingCtx] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [, tick] = useState(0);
   const boxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  /** Read the fund's state fresh each time the panel opens. */
   const loadContext = useCallback(async () => {
+    setLoadingCtx(true);
     const [nav, session, comp, risk, tca, ledger] = await Promise.all([
       fundApiClient.getNav().catch(() => null),
       fundApiClient.getMarketSession().catch(() => null),
@@ -71,7 +74,6 @@ export function ClarkConsole() {
     const lines: string[] = [];
     const suggestions: string[] = [];
 
-    // --- the book -------------------------------------------------------
     const live = nav?.live;
     if (live) {
       lines.push(`NAV $${val(live.total_nav_usd)} · ${val(live.units_outstanding, 0)} units · $${val(live.nav_per_unit, 6)}/unit`);
@@ -84,12 +86,11 @@ export function ClarkConsole() {
       lines.push("NAV: unknown — the spine did not answer");
     }
 
-    // --- venue ----------------------------------------------------------
     if (session) {
-      const mins = session.seconds_to_open ?? session.seconds_to_close;
+      const secs = session.seconds_to_open ?? session.seconds_to_close;
       const verb = session.seconds_to_close != null ? "closes" : "opens";
       lines.push(
-        `Market: ${session.phase}${mins != null ? ` — ${verb} in ${Math.round(mins / 60)} min` : ""}`,
+        `Market: ${session.phase}${secs != null ? ` — ${verb} in ${Math.round(secs / 60)} min` : ""}`,
       );
       if (session.state === "closed") {
         suggestions.push("The market is shut — what should I have ready before the open?");
@@ -98,16 +99,14 @@ export function ClarkConsole() {
       lines.push("Market session: unknown");
     }
 
-    // --- risk -----------------------------------------------------------
     if (risk) {
       lines.push(`Drawdown ${val(risk.drawdown?.drawdown_pct, 2)}% of ${val(risk.drawdown?.limit_pct, 0)}% limit`);
       lines.push(`Cash ${val(risk.cash_pct, 1)}% · gross exposure ${val(risk.gross_exposure_pct, 1)}%`);
       lines.push(`Trading halted: ${risk.halted ? "YES" : "no"}`);
-      // Severity is carried through rather than flattened: "critical" and
-      // "info" are very different instructions to someone deciding what to do
-      // in the next five minutes.
       const alarms = risk.alarms || [];
       if (alarms.length) {
+        // Severity survives: "critical" and "info" are very different
+        // instructions to someone deciding what to do in the next five minutes.
         lines.push(
           `ACTIVE ALARMS: ${alarms
             .map((a) => `[${a.severity}] ${a.message} (${a.metric} vs limit ${a.threshold})`)
@@ -122,29 +121,26 @@ export function ClarkConsole() {
       lines.push("Risk state: unknown — this is NOT an all-clear");
     }
 
-    // --- the cliff ------------------------------------------------------
     if (comp?.pdt?.applies) {
       const { used, max_day_trades, remaining, source } = comp.pdt;
       lines.push(
-        `Day trades ${used}/${max_day_trades} used, ${remaining ?? 0} left before a 90-day closing-only restriction (counted via ${source}). Equity $${val(comp.account?.equity)} is under the $25k PDT threshold.`,
+        `Day trades ${used}/${max_day_trades} used, ${remaining ?? 0} left before a 90-day closing-only restriction (via ${source}). Equity $${val(comp.account?.equity)} is under the $25k PDT threshold.`,
       );
       if ((remaining ?? 0) <= 1) {
         suggestions.push("I have almost no day trades left — what can I still safely do today?");
       }
     }
 
-    // --- execution ------------------------------------------------------
     const v = tca?.summary?.vs_assumption;
     if (v) {
       lines.push(
         `Realised trading cost ${val(v.realised_bps_per_side, 1)}bps/side vs ${val(v.assumed_bps_per_side, 0)}bps assumed, over ${v.sample} fill(s) — too few to be an estimate.`,
       );
       if (v.excess_bps > 1) {
-        suggestions.push("Why are we paying more than the backtest assumed, and what would reduce it?");
+        suggestions.push("Why are we paying more than the backtest assumed?");
       }
     }
 
-    // --- integrity ------------------------------------------------------
     if (ledger) {
       lines.push(
         ledger.ok
@@ -154,24 +150,31 @@ export function ClarkConsole() {
       if (!ledger.ok) suggestions.push("The ledger chain is broken — what do I do?");
     }
 
-    // Always-useful fallbacks, appended so situational ones lead.
     suggestions.push(
-      "Walk me through what this book is actually exposed to.",
       "What is the single riskiest thing about the fund right now?",
+      "Walk me through what this book is actually exposed to.",
     );
 
-    setCtx({ lines, suggestions: suggestions.slice(0, 4) });
+    setCtx({ lines, suggestions: suggestions.slice(0, 4), at: Date.now() });
+    setLoadingCtx(false);
   }, []);
 
+  // Re-read while open. A docked panel outlives the state it was opened with.
   useEffect(() => {
-    if (open) {
-      loadContext();
-      setTimeout(() => inputRef.current?.focus(), 60);
-    }
+    if (!open) return;
+    loadContext();
+    setTimeout(() => inputRef.current?.focus(), 60);
+    const t = setInterval(loadContext, CONTEXT_REFRESH_MS);
+    return () => clearInterval(t);
   }, [open, loadContext]);
 
-  // Cmd/Ctrl-K to open, Escape to close — the panel should be reachable
-  // without moving the mouse off whatever you were reading.
+  // Drives the "read Ns ago" label between refreshes.
+  useEffect(() => {
+    if (!open) return;
+    const t = setInterval(() => tick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [open]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -188,13 +191,19 @@ export function ClarkConsole() {
     boxRef.current?.scrollTo({ top: boxRef.current.scrollHeight, behavior: "smooth" });
   }, [msgs, busy]);
 
+  const age = ctx.at ? Date.now() - ctx.at : 0;
+  const stale = ctx.at > 0 && age > STALE_AFTER_MS;
+
   const contextBlock = useMemo(
     () =>
       ctx.lines.length
-        ? `[Krypton Fund — live state, read from the spine just now]\n${ctx.lines
+        ? `[Krypton Fund — live state, read ${Math.round(age / 1000)}s ago]\n${ctx.lines
             .map((l) => `- ${l}`)
             .join("\n")}\n\nAnswer using ONLY these figures. Where a value says "unknown", say so rather than estimating.`
         : "",
+    // age deliberately excluded: it changes every second and would rebuild the
+    // block constantly. It is read at send time, which is when it matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [ctx.lines],
   );
 
@@ -217,10 +226,8 @@ export function ClarkConsole() {
           (typeof res === "string" ? res : JSON.stringify(res).slice(0, 1200));
         setMsgs((m) => [...m, { role: "clark", text: reply, ts: Date.now() }]);
       } catch {
-        // Named plainly: a copilot that silently fails looks like one that has
-        // nothing to say.
         setErr(
-          "Clark is unreachable — the agents service is not answering. The fund itself is unaffected; this panel is the only thing that is down.",
+          "Clark is unreachable — the agents service is not answering. The fund itself is unaffected; this panel is the only thing down.",
         );
       } finally {
         setBusy(false);
@@ -229,120 +236,151 @@ export function ClarkConsole() {
     [busy, contextBlock],
   );
 
-  return (
-    <>
+  // Rendered into <body>, not where it sits in the tree.
+  //
+  // StudioHeader carries `backdrop-blur-md`, and any ancestor with a
+  // backdrop-filter (or transform, or filter) becomes the containing block for
+  // position:fixed descendants. So the dock anchored to the HEADER rather than
+  // the viewport and sat 266px above the top of the screen — with a computed
+  // style of `bottom: 20px` that looked perfectly correct. A portal is the
+  // reliable fix; moving the component up the tree would only work until
+  // someone adds a blur to whatever contains it next.
+  const mounted = useMounted();
+  const dock = !open ? renderPill() : renderPanel();
+  return mounted ? createPortal(dock, document.body) : null;
+
+  // --- collapsed ----------------------------------------------------------
+  function renderPill() {
+    return (
       <button
         onClick={() => setOpen(true)}
-        className={`flex h-8 items-center gap-1.5 ${KT.btn}`}
         title="Ask Clark about what is on screen (Ctrl/Cmd-K)"
+        className="fixed bottom-5 right-5 z-40 flex h-11 items-center gap-2 rounded-full border border-[var(--kt-accent-border)] bg-[var(--kt-accent-bg)] px-4 text-[13px] font-medium text-[var(--kt-accent)] shadow-lg backdrop-blur transition hover:brightness-110"
       >
-        <MessageSquare size={13} /> Clark
+        <Sparkles size={15} /> Ask Clark
       </button>
+    );
+  }
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          {/* The book stays visible behind — that is the point of an overlay. */}
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
-            onClick={() => setOpen(false)}
-          />
-
-          <aside className="relative flex h-full w-full max-w-[560px] flex-col border-l border-[var(--kt-border)] bg-[var(--kt-bg)] shadow-2xl">
-            <div className="flex items-start justify-between border-b border-[var(--kt-border)] px-5 py-3">
-              <div>
-                <div className={KT.title}>Clark</div>
-                <div className={`mt-0.5 text-[11px] ${KT.muted}`}>
-                  Sees the same numbers you do — asked with the book attached.
-                </div>
-              </div>
-              <button onClick={() => setOpen(false)} className={KT.btn} title="Close (Esc)">
-                <X size={14} />
-              </button>
-            </div>
-
-            {/* What Clark is being told. Inspectable on purpose. */}
-            <div className="border-b border-[var(--kt-border)] px-5 py-2">
-              <button
-                onClick={() => setShowCtx((s) => !s)}
-                className={`text-[11px] ${KT.muted} hover:text-[var(--kt-text)]`}
-              >
-                {showCtx ? "▾" : "▸"} Context sent with every question ({ctx.lines.length} facts)
-              </button>
-              {showCtx && (
-                <pre className="mt-2 max-h-[180px] overflow-auto whitespace-pre-wrap rounded bg-[var(--kt-hover)] p-2 font-mono text-[10px] leading-relaxed">
-                  {ctx.lines.length
-                    ? ctx.lines.join("\n")
-                    : "Nothing readable — the spine did not answer."}
-                </pre>
-              )}
-            </div>
-
-            <div ref={boxRef} className="flex-1 space-y-3 overflow-auto px-5 py-4">
-              {msgs.length === 0 && (
-                <div className="space-y-2">
-                  <div className={`text-[12px] ${KT.muted}`}>
-                    Ask anything about the book in front of you.
-                  </div>
-                  {ctx.suggestions.map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => ask(s)}
-                      className="block w-full rounded border border-[var(--kt-border)] px-3 py-2 text-left text-[12px] hover:bg-[var(--kt-hover)]"
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {msgs.map((m) => (
-                <div
-                  key={m.ts + m.role}
-                  className={m.role === "you" ? "text-right" : "text-left"}
-                >
-                  <div
-                    className={`inline-block max-w-[92%] whitespace-pre-wrap rounded-lg px-3 py-2 text-[12.5px] leading-relaxed ${
-                      m.role === "you"
-                        ? "bg-[var(--kt-accent-bg)] text-[var(--kt-accent)]"
-                        : "border border-[var(--kt-border)]"
-                    }`}
-                  >
-                    {m.text}
-                  </div>
-                </div>
-              ))}
-
-              {busy && (
-                <div className={`flex items-center gap-2 text-[12px] ${KT.muted}`}>
-                  <Loader2 size={13} className="animate-spin" /> Thinking…
-                </div>
-              )}
-              {err && <div className={`text-[12px] ${KT.sev.warn}`}>{err}</div>}
-            </div>
-
-            <div className="border-t border-[var(--kt-border)] p-3">
-              <textarea
-                ref={inputRef}
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    ask(q);
-                  }
-                }}
-                rows={2}
-                placeholder="Ask about this screen…  (Enter to send, Shift-Enter for a new line)"
-                className="w-full resize-none rounded border border-[var(--kt-border)] bg-transparent px-3 py-2 text-[12.5px] outline-none focus:border-[var(--kt-accent)]"
-              />
-              <div className={`mt-1 flex justify-between text-[10px] ${KT.muted}`}>
-                <span>Clark advises. It cannot place or approve an order.</span>
-                <span>Ctrl/Cmd-K</span>
-              </div>
-            </div>
-          </aside>
+  // --- docked -------------------------------------------------------------
+  // No backdrop: the cockpit stays clickable underneath, which is the whole
+  // reason for this shape.
+  function renderPanel() {
+    return (
+      <aside className="fixed bottom-5 right-5 z-40 flex max-h-[min(680px,78vh)] w-[min(410px,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-xl border border-[var(--kt-border)] bg-[var(--kt-bg)] shadow-2xl">
+      <div className="flex items-center justify-between border-b border-[var(--kt-border)] px-4 py-2.5">
+        <div className="flex items-center gap-2">
+          <Sparkles size={14} className="text-[var(--kt-accent)]" />
+          <span className="text-[13px] font-semibold">Clark</span>
+          <span className={`text-[10px] ${stale ? "text-[var(--kt-warn)]" : KT.muted}`}>
+            {ctx.at === 0
+              ? "reading…"
+              : stale
+                ? `context ${Math.round(age / 1000)}s old`
+                : "sees this screen"}
+          </span>
         </div>
-      )}
-    </>
-  );
+        <div className="flex items-center gap-1">
+          <button
+            onClick={loadContext}
+            className={KT.btn}
+            title="Re-read the book now"
+            disabled={loadingCtx}
+          >
+            <RefreshCw size={12} className={loadingCtx ? "animate-spin" : ""} />
+          </button>
+          <button onClick={() => setOpen(false)} className={KT.btn} title="Minimise (Esc)">
+            <ChevronDown size={14} />
+          </button>
+        </div>
+      </div>
+
+      <div className="border-b border-[var(--kt-border)] px-4 py-1.5">
+        <button
+          onClick={() => setShowCtx((s) => !s)}
+          className={`text-[10.5px] ${KT.muted} hover:text-[var(--kt-text)]`}
+        >
+          {showCtx ? "▾" : "▸"} What Clark is told ({ctx.lines.length} facts)
+        </button>
+        {showCtx && (
+          <pre className="mt-1.5 max-h-[150px] overflow-auto whitespace-pre-wrap rounded bg-[var(--kt-hover)] p-2 font-mono text-[9.5px] leading-relaxed">
+            {ctx.lines.length ? ctx.lines.join("\n") : "Nothing readable — the spine did not answer."}
+          </pre>
+        )}
+      </div>
+
+      <div ref={boxRef} className="flex-1 space-y-2.5 overflow-auto px-4 py-3">
+        {msgs.length === 0 && (
+          <div className="space-y-1.5">
+            <div className={`text-[11.5px] ${KT.muted}`}>
+              Ask about the book in front of you. The screen stays live behind this.
+            </div>
+            {ctx.suggestions.map((s) => (
+              <button
+                key={s}
+                onClick={() => ask(s)}
+                className="block w-full rounded border border-[var(--kt-border)] px-2.5 py-1.5 text-left text-[11.5px] leading-snug hover:bg-[var(--kt-hover)]"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {msgs.map((m) => (
+          <div key={m.ts + m.role} className={m.role === "you" ? "text-right" : "text-left"}>
+            <div
+              className={`inline-block max-w-[92%] whitespace-pre-wrap rounded-lg px-2.5 py-1.5 text-[12px] leading-relaxed ${
+                m.role === "you"
+                  ? "bg-[var(--kt-accent-bg)] text-[var(--kt-accent)]"
+                  : "border border-[var(--kt-border)]"
+              }`}
+            >
+              {m.text}
+            </div>
+          </div>
+        ))}
+
+        {busy && (
+          <div className={`flex items-center gap-2 text-[11.5px] ${KT.muted}`}>
+            <Loader2 size={12} className="animate-spin" /> Thinking…
+          </div>
+        )}
+        {err && <div className={`text-[11.5px] ${KT.sev.warn}`}>{err}</div>}
+      </div>
+
+      <div className="border-t border-[var(--kt-border)] p-2.5">
+        <textarea
+          ref={inputRef}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              ask(q);
+            }
+          }}
+          rows={2}
+          placeholder="Ask about this screen…"
+          className="w-full resize-none rounded border border-[var(--kt-border)] bg-transparent px-2.5 py-1.5 text-[12px] outline-none focus:border-[var(--kt-accent)]"
+        />
+        <div className={`mt-1 flex items-center justify-between text-[9.5px] ${KT.muted}`}>
+          <span>Clark advises. It cannot place or approve an order.</span>
+          {msgs.length > 0 && (
+            <button onClick={() => setMsgs([])} className="hover:text-[var(--kt-text)]">
+              <X size={10} className="inline" /> clear
+            </button>
+          )}
+        </div>
+        </div>
+      </aside>
+    );
+  }
+}
+
+/** True once on the client. Portals need a DOM, and SSR has none. */
+function useMounted() {
+  const [m, setM] = useState(false);
+  useEffect(() => setM(true), []);
+  return m;
 }
