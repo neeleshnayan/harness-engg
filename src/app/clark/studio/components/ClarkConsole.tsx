@@ -6,6 +6,7 @@ import { ChevronDown, Loader2, RefreshCw, Sparkles, X } from "lucide-react";
 import { KT } from "../theme";
 import { processNaturalLanguageQuery } from "@/lib/agents_api";
 import { fundApiClient } from "@/lib/fund_api";
+import { ClarkMarkdown } from "./ClarkMarkdown";
 
 /**
  * Clark, docked bottom-right, alongside the cockpit rather than over it.
@@ -36,7 +37,15 @@ import { fundApiClient } from "@/lib/fund_api";
  *      assistant answering from invisible state cannot be checked.
  */
 
-type Msg = { role: "you" | "clark"; text: string; ts: number };
+type Msg = {
+  role: "you" | "clark";
+  text: string;
+  ts: number;
+  /** Seconds old the context was when this answer was produced. Stamped per
+   *  message because a docked panel stays open for a long time and "which
+   *  snapshot was this true of" stops being obvious after the third question. */
+  ctxAgeS?: number;
+};
 type Ctx = { lines: string[]; suggestions: string[]; at: number };
 
 const val = (n: number | null | undefined, dp = 2, prefix = "") =>
@@ -215,6 +224,7 @@ export function ClarkConsole() {
       setQ("");
       setBusy(true);
       setErr(null);
+      const ageAtSend = ctx.at ? Date.now() - ctx.at : 0;
       try {
         const res = await processNaturalLanguageQuery(
           `${contextBlock}\n\nOperator's question: ${question}`,
@@ -224,7 +234,10 @@ export function ClarkConsole() {
           (res?.message as string) ||
           (res?.result as string) ||
           (typeof res === "string" ? res : JSON.stringify(res).slice(0, 1200));
-        setMsgs((m) => [...m, { role: "clark", text: reply, ts: Date.now() }]);
+        setMsgs((m) => [
+          ...m,
+          { role: "clark", text: reply, ts: Date.now(), ctxAgeS: Math.round(ageAtSend / 1000) },
+        ]);
       } catch {
         setErr(
           "Clark is unreachable — the agents service is not answering. The fund itself is unaffected; this panel is the only thing down.",
@@ -330,13 +343,18 @@ export function ClarkConsole() {
         {msgs.map((m) => (
           <div key={m.ts + m.role} className={m.role === "you" ? "text-right" : "text-left"}>
             <div
-              className={`inline-block max-w-[92%] whitespace-pre-wrap rounded-lg px-2.5 py-1.5 text-[12px] leading-relaxed ${
+              className={`inline-block max-w-[95%] rounded-lg px-2.5 py-1.5 text-[12px] ${
                 m.role === "you"
-                  ? "bg-[var(--kt-accent-bg)] text-[var(--kt-accent)]"
-                  : "border border-[var(--kt-border)]"
+                  ? "whitespace-pre-wrap bg-[var(--kt-accent-bg)] text-[var(--kt-accent)]"
+                  : "border border-[var(--kt-border)] text-left"
               }`}
             >
-              {m.text}
+              {m.role === "clark" ? <ClarkMarkdown text={m.text} /> : m.text}
+              {m.role === "clark" && m.ctxAgeS != null && (
+                <div className={`mt-1 text-[9px] ${KT.muted}`}>
+                  answered from the book as of {m.ctxAgeS}s before this reply
+                </div>
+              )}
             </div>
           </div>
         ))}
