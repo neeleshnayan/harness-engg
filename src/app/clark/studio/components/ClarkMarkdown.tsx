@@ -39,7 +39,7 @@ function inline(text: string, keyPrefix: string): React.ReactNode[] {
       out.push(
         <code
           key={`${keyPrefix}c${i}`}
-          className="rounded bg-[var(--kt-hover)] px-1 py-0.5 font-mono text-[11px]"
+          className="rounded bg-[var(--kt-inset)] px-1 py-0.5 font-mono text-[11px]"
         >
           {p.slice(1, -1)}
         </code>,
@@ -92,7 +92,7 @@ export function ClarkMarkdown({ text, className = "" }: Props) {
     const body = table.slice(/^[\s|:-]+$/.test(table[1]) ? 2 : 1).map(cells);
     blocks.push(
       <div key={k} className="my-2 overflow-x-auto">
-        <table className="w-full border-collapse text-[11px]">
+        <table className="w-full border-collapse text-xs">
           <thead>
             <tr>
               {head.map((h, i) => (

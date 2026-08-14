@@ -314,7 +314,7 @@ export function ClarkConsole() {
       <button
         onClick={() => setOpen(true)}
         title="Ask Clark about what is on screen (Ctrl/Cmd-K)"
-        className="fixed bottom-5 right-5 z-40 flex h-11 items-center gap-2 rounded-full border border-[var(--kt-accent-border)] bg-[var(--kt-accent-bg)] px-4 text-[13px] font-medium text-[var(--kt-accent)] shadow-lg backdrop-blur transition hover:brightness-110"
+        className="fixed bottom-5 right-5 z-40 flex h-11 items-center gap-2 rounded-full border border-[var(--kt-agent-border)] bg-[var(--kt-agent-bg)] px-4 text-sm font-medium text-[var(--kt-agent)] shadow-lg backdrop-blur transition hover:border-[var(--kt-agent)]"
       >
         <Sparkles size={15} /> Ask Clark
       </button>
@@ -328,13 +328,13 @@ export function ClarkConsole() {
     return (
       <aside
         style={{ width: RAIL_W }}
-        className="fixed inset-y-0 right-0 z-40 flex max-w-[92vw] flex-col border-l border-[var(--kt-border)] bg-[var(--kt-bg)] shadow-2xl"
+        className="fixed inset-y-0 right-0 z-40 flex max-w-[92vw] flex-col border-l border-[var(--kt-agent-border)] bg-[var(--kt-surface)] shadow-2xl"
       >
-      <div className="flex items-center justify-between border-b border-[var(--kt-border)] px-4 py-2.5">
+      <div className={`flex items-center justify-between border-b border-[var(--kt-border)] px-4 py-3 ${KT.agent.wash}`}>
         <div className="flex items-center gap-2">
-          <Sparkles size={14} className="text-[var(--kt-accent)]" />
-          <span className="text-[13px] font-semibold">Clark</span>
-          <span className={`text-[10px] ${stale ? "text-[var(--kt-warn)]" : KT.muted}`}>
+          <Sparkles size={14} className={KT.agent.text} />
+          <span className={KT.title}>Clark</span>
+          <span className={`text-[10px] ${stale ? KT.sev.warn : KT.muted}`}>
             {ctx.at === 0
               ? "reading…"
               : stale
@@ -345,13 +345,13 @@ export function ClarkConsole() {
         <div className="flex items-center gap-1">
           <button
             onClick={loadContext}
-            className={KT.btn}
+            className={`${KT.agent.btn} !px-2 !py-1`}
             title="Re-read the book now"
             disabled={loadingCtx}
           >
             <RefreshCw size={12} className={loadingCtx ? "animate-spin" : ""} />
           </button>
-          <button onClick={() => setOpen(false)} className={KT.btn} title="Hide the rail (Esc)">
+          <button onClick={() => setOpen(false)} className={`${KT.agent.btn} !px-2 !py-1`} title="Hide the rail (Esc)">
             <ChevronRight size={14} />
           </button>
         </div>
@@ -360,12 +360,12 @@ export function ClarkConsole() {
       <div className="border-b border-[var(--kt-border)] px-4 py-1.5">
         <button
           onClick={() => setShowCtx((s) => !s)}
-          className={`text-[10.5px] ${KT.muted} hover:text-[var(--kt-text)]`}
+          className={`text-[10px] ${KT.muted} hover:text-[var(--kt-text)]`}
         >
           {showCtx ? "▾" : "▸"} What Clark is told ({ctx.lines.length} facts)
         </button>
         {showCtx && (
-          <pre className="mt-1.5 max-h-[150px] overflow-auto whitespace-pre-wrap rounded bg-[var(--kt-hover)] p-2 font-mono text-[9.5px] leading-relaxed">
+          <pre className="mt-1.5 max-h-[150px] overflow-auto whitespace-pre-wrap rounded bg-[var(--kt-hover)] p-2 font-mono text-[10px] leading-relaxed">
             {ctx.lines.length ? ctx.lines.join("\n") : "Nothing readable — the spine did not answer."}
           </pre>
         )}
@@ -374,14 +374,14 @@ export function ClarkConsole() {
       <div ref={boxRef} className="flex-1 space-y-2.5 overflow-auto px-4 py-3">
         {msgs.length === 0 && (
           <div className="space-y-1.5">
-            <div className={`text-[11.5px] ${KT.muted}`}>
+            <div className={`text-xs ${KT.muted}`}>
               Ask about the book in front of you. The screen stays live behind this.
             </div>
             {ctx.suggestions.map((s) => (
               <button
                 key={s}
                 onClick={() => ask(s)}
-                className="block w-full rounded border border-[var(--kt-border)] px-2.5 py-1.5 text-left text-[11.5px] leading-snug hover:bg-[var(--kt-hover)]"
+                className="block w-full rounded-xl border border-[var(--kt-border)] px-3 py-2 text-left text-xs leading-snug transition-colors hover:border-[var(--kt-agent-border)] hover:bg-[var(--kt-hover)]"
               >
                 {s}
               </button>
@@ -392,10 +392,10 @@ export function ClarkConsole() {
         {msgs.map((m) => (
           <div key={m.ts + m.role} className={m.role === "you" ? "text-right" : "text-left"}>
             <div
-              className={`inline-block max-w-[95%] rounded-lg px-2.5 py-1.5 text-[12px] ${
+              className={`inline-block max-w-[95%] rounded-xl px-3 py-2 text-sm ${
                 m.role === "you"
-                  ? "whitespace-pre-wrap bg-[var(--kt-accent-bg)] text-[var(--kt-accent)]"
-                  : "border border-[var(--kt-border)] text-left"
+                  ? "whitespace-pre-wrap bg-[var(--kt-inset)] text-[var(--kt-text)]"
+                  : "border border-[var(--kt-agent-border)] bg-[var(--kt-agent-bg)] text-left"
               }`}
             >
               {m.role === "clark" ? <ClarkMarkdown text={m.text} /> : m.text}
@@ -409,11 +409,11 @@ export function ClarkConsole() {
         ))}
 
         {busy && (
-          <div className={`flex items-center gap-2 text-[11.5px] ${KT.muted}`}>
+          <div className={`flex items-center gap-2 text-xs ${KT.muted}`}>
             <Loader2 size={12} className="animate-spin" /> Thinking…
           </div>
         )}
-        {err && <div className={`text-[11.5px] ${KT.sev.warn}`}>{err}</div>}
+        {err && <div className={`text-xs ${KT.sev.warn}`}>{err}</div>}
       </div>
 
       <div className="border-t border-[var(--kt-border)] p-2.5">
@@ -429,9 +429,9 @@ export function ClarkConsole() {
           }}
           rows={2}
           placeholder="Ask about this screen…"
-          className="w-full resize-none rounded border border-[var(--kt-border)] bg-transparent px-2.5 py-1.5 text-[12px] outline-none focus:border-[var(--kt-accent)]"
+          className="w-full resize-none rounded-xl border border-[var(--kt-border)] bg-[var(--kt-inset)] px-3 py-2 text-sm outline-none transition-colors focus:border-[var(--kt-agent)]"
         />
-        <div className={`mt-1 flex items-center justify-between text-[9.5px] ${KT.muted}`}>
+        <div className={`mt-1 flex items-center justify-between text-[10px] ${KT.muted}`}>
           <span>Clark advises. It cannot place or approve an order.</span>
           {msgs.length > 0 && (
             <button onClick={() => setMsgs([])} className="hover:text-[var(--kt-text)]">

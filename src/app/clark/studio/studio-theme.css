@@ -26,6 +26,21 @@
   --kt-accent-bg: rgb(16 185 129 / 0.15);
   --kt-accent-border: rgb(16 185 129 / 0.25);
 
+  /* --- agent ---------------------------------------------------------
+     A SECOND accent, and the only one. Emerald means "the fund"; violet
+     means "Clark". The distinction is semantic, not decorative: on a screen
+     where the operator is deciding in seconds, a number the fund computed and
+     a sentence a model wrote must not look alike.
+
+     Violet specifically because green, red and amber are all spoken for —
+     up, down and warn — and an agent surface tinted any of those would read
+     as a P&L direction or a severity. Violet carries no such meaning here. */
+  --kt-agent: #a78bfa;
+  --kt-agent-soft: #c4b5fd;
+  --kt-agent-bg: rgb(139 92 246 / 0.13);
+  --kt-agent-border: rgb(139 92 246 / 0.28);
+  --kt-agent-glow: rgb(139 92 246 / 0.10);
+
   --kt-up: #34d399;
   --kt-down: #fb7185;
   --kt-warn: #fbbf24;
@@ -51,6 +66,13 @@
   --kt-accent-soft: #059669;
   --kt-accent-bg: rgb(5 150 105 / 0.10);
   --kt-accent-border: rgb(5 150 105 / 0.25);
+
+  /* darker violet so it passes contrast on white */
+  --kt-agent: #6d28d9;
+  --kt-agent-soft: #7c3aed;
+  --kt-agent-bg: rgb(109 40 217 / 0.08);
+  --kt-agent-border: rgb(109 40 217 / 0.22);
+  --kt-agent-glow: rgb(109 40 217 / 0.06);
 
   --kt-up: #047857;
   --kt-down: #be123c;

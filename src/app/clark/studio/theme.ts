@@ -39,6 +39,24 @@ export const KT = {
   down: "text-[var(--kt-down)]",
   dot: "h-1.5 w-1.5 rounded-full bg-[var(--kt-accent)]",
 
+  // --- agent (violet — the SECOND accent, reserved for Clark) ---
+  // Emerald is the fund. Violet is the machine. Keeping them apart is not
+  // decoration: an operator scanning in seconds must never mistake a sentence
+  // a model wrote for a number the fund computed.
+  agent: {
+    text: "text-[var(--kt-agent)]",
+    soft: "text-[var(--kt-agent-soft)]",
+    bg: "bg-[var(--kt-agent-bg)]",
+    border: "border-[var(--kt-agent-border)]",
+    chip: "rounded-full border border-[var(--kt-agent-border)] bg-[var(--kt-agent-bg)] px-2 py-0.5 text-[11px] text-[var(--kt-agent)]",
+    btn: "rounded-lg border border-[var(--kt-agent-border)] bg-[var(--kt-agent-bg)] px-3 py-1.5 text-sm text-[var(--kt-agent)] transition-colors hover:border-[var(--kt-agent)]",
+    // The gradient is deliberately faint. A rail that sits on screen all day
+    // has to recede when it is not being used, so this reads as a tint on the
+    // surface rather than a coloured panel competing with the book.
+    wash: "bg-gradient-to-b from-[var(--kt-agent-glow)] to-transparent",
+    rail: "bg-gradient-to-br from-[var(--kt-agent-glow)] via-transparent to-transparent",
+  },
+
   // --- holdings / allocation bars ---
   barTrack: "h-1.5 rounded-full bg-[var(--kt-track)] overflow-hidden",
   barFill: "h-full rounded-full bg-[var(--kt-accent)]",
