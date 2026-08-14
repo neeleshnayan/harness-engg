@@ -427,6 +427,59 @@ export interface MarketQuote {
   unrealized_pnl_pct?: number;
 }
 
+/** Realised trading cost. Positive bps always means worse for the fund,
+ *  whichever way the order pointed — otherwise a bad sell would read as a
+ *  saving and net two real costs toward zero. */
+export interface TcaStat {
+  n: number;
+  mean: number | null;
+  median: number | null;
+  worst: number | null;
+  best: number | null;
+}
+
+export interface TcaSummary {
+  orders: number;
+  total_bps: TcaStat;
+  delay_bps: TcaStat;
+  execution_bps: TcaStat;
+  approval_latency_s: TcaStat;
+  realised_cost_usd: number | null;
+  /** How many fills have an arrival price, and so a delay/execution split. */
+  split_available: number;
+  vs_assumption: {
+    assumed_bps_per_side: number;
+    realised_bps_per_side: number;
+    excess_bps: number;
+    sample: number;
+    reliable: boolean;
+  } | null;
+}
+
+export interface TcaOrder {
+  order_id: string;
+  symbol: string;
+  side: string;
+  strategy_id: string | null;
+  qty: number | null;
+  decision_price: number | null;
+  arrival_price: number | null;
+  fill_price: number | null;
+  notional_usd: number | null;
+  total_bps: number | null;
+  delay_bps: number | null;
+  execution_bps: number | null;
+  approval_latency_s: number | null;
+  has_split: boolean;
+  filled_ts: string | null;
+}
+
+export interface TcaResponse {
+  summary: TcaSummary;
+  by_strategy: Record<string, TcaSummary>;
+  orders: TcaOrder[];
+}
+
 /** The venue's session. `is_open` is tri-state on purpose: null means the
  *  clock could not be read, which is NOT the same as closed — one stops
  *  trading during an API blip, the other sends orders into the dark. */
@@ -1215,6 +1268,11 @@ export const fundApiClient = {
     lookbackDays = 180,
   ): Promise<StrategyBarsResponse> =>
     (await fundApi.get(`${P}/strategies/${strategyId}/bars`, { params: { lookback_days: lookbackDays } })).data,
+
+  /** What trading actually cost, folded from the order lifecycle. Applies
+   *  retroactively — every order the fund has ever placed is in here. */
+  getTca: async (limit = 200): Promise<TcaResponse> =>
+    (await fundApi.get(`${P}/tca`, { params: { limit } })).data,
 
   /** The venue's session and the countdown to the next change. Cheap and
    *  cached server-side for 10s, so polling it is fine. */

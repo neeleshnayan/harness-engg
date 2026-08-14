@@ -11,6 +11,7 @@ import { ApprovalQueue } from "./components/ApprovalQueue";
 import { OrderFlow } from "./components/OrderFlow";
 import { SignalsPanel } from "./components/SignalsPanel";
 import { MonitorGraphs } from "./components/MonitorGraphs";
+import { ExecutionQuality } from "./components/ExecutionQuality";
 import { HaltControl } from "./components/HaltControl";
 import { LimitsEditor } from "./components/LimitsEditor";
 import { SystemStatus } from "./components/SystemStatus";
@@ -222,6 +223,13 @@ export default function MonitorHome() {
 
         <div className="mt-4">
           <MonitorGraphs m={m} />
+        </div>
+
+        {/* Sits directly under the P&L graphs on purpose: this is the gap
+            between the return those graphs show and the return the backtests
+            promised. */}
+        <div className="mt-4">
+          <ExecutionQuality refreshSignal={tick} />
         </div>
 
         {/* Breaches as a list — the graphs above show a limit being APPROACHED,
