@@ -249,18 +249,34 @@ export function ClarkConsole() {
   const age = ctx.at ? Date.now() - ctx.at : 0;
   const stale = ctx.at > 0 && age > STALE_AFTER_MS;
 
-  const contextBlock = useMemo(
-    () =>
-      ctx.lines.length
-        ? `[Krypton Fund — live state, read ${Math.round(age / 1000)}s ago]\n${ctx.lines
-            .map((l) => `- ${l}`)
-            .join("\n")}\n\nAnswer using ONLY these figures. Where a value says "unknown", say so rather than estimating.`
-        : "",
-    // age deliberately excluded: it changes every second and would rebuild the
-    // block constantly. It is read at send time, which is when it matters.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ctx.lines],
-  );
+  // Orientation, not a data dump.
+  //
+  // This used to inject every number the panel had read — NAV, positions, cash,
+  // alarms — and instruct Clark to answer from those figures alone. That was
+  // right while Clark had no way to reach the spine. It became actively wrong
+  // the moment it did: the panel's copy is up to 30 seconds stale, so Clark
+  // would get NAV $2,027.60 in the prompt and $2,032.22 from fund_nav() in the
+  // same turn and have to choose. Two sources of truth for the fund's own
+  // numbers is precisely the failure this system exists to prevent.
+  //
+  // So the prompt now carries only what Clark CANNOT fetch — which screen the
+  // operator is on, and what is visibly wrong — and tells it to read the rest.
+  // That also hands most of an 8k window back to tool results.
+  const contextBlock = useMemo(() => {
+    const pick = (prefix: string) => ctx.lines.find((l) => l.startsWith(prefix));
+    return [
+      "[Krypton Fund cockpit — the operator is looking at the Monitor screen.]",
+      pick("Market:") ? `- ${pick("Market:")}` : null,
+      pick("ACTIVE ALARMS") ? `- ${pick("ACTIVE ALARMS")}` : null,
+      "",
+      "Read live figures with your tools (fund_nav, fund_risk, fund_positions,",
+      "fund_compliance and the rest) rather than assuming any number. If a tool",
+      "cannot be reached, say so — never estimate a figure the fund could have",
+      "told you.",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }, [ctx.lines]);
 
   const ask = useCallback(
     async (text: string) => {
