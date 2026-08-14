@@ -18,6 +18,7 @@ class CountingDB:
 
     def __init__(self):
         self.reads = 0
+        self.docs_read = 0
         self.docs: list[dict] = []
         self.counter = {"seq": 0}
 
@@ -53,10 +54,19 @@ class _Ref:
 
 
 class _Query:
+    """Honours the seq filter, so 'how many DOCUMENTS did we pay for' is real.
+
+    A fake that ignores where() would make the incremental read look identical
+    to a full one and the test would prove nothing.
+    """
+
     def __init__(self, db):
         self.db = db
+        self._min_seq = 0
 
-    def where(self, *a, **k):
+    def where(self, field=None, op=None, value=None, *a, **k):
+        if field == "seq" and op == ">":
+            self._min_seq = value
         return self
 
     def order_by(self, *a, **k):
@@ -66,8 +76,12 @@ class _Query:
         return self
 
     def stream(self):
+        rows = [d for d in sorted(self.db.docs, key=lambda x: x.get("seq", 0))
+                if (d.get("seq") or 0) > self._min_seq]
         self.db.reads += 1
-        return [_Snap(d) for d in sorted(self.db.docs, key=lambda x: x.get("seq", 0))]
+        # Firestore bills per document returned, with a minimum of one.
+        self.db.docs_read += max(1, len(rows))
+        return [_Snap(d) for d in rows]
 
 
 class _Coll(_Query):
@@ -185,3 +199,54 @@ def test_by_aggregate_only_returns_that_aggregate(monkeypatch):
     s.append(an_event(1))
     s.append(an_event(2))
     assert [e["aggregate_id"] for e in s.by_aggregate("o2")] == ["o2"]
+
+
+# ------------------------------------------------- incremental, not re-reading
+def test_a_refresh_only_fetches_events_we_do_not_have(monkeypatch):
+    """The whole point. Re-reading all 52 events every few seconds is what
+    blew the free tier; asking only for what is new costs one read."""
+    import app.fund.events as _ev
+
+    s, db = store(monkeypatch)
+    for i in range(1, 21):
+        s.append(an_event(i))
+    s.stream(limit=1000)
+
+    monkeypatch.setattr(_ev, "_STREAM_TTL_SECONDS", 0)   # force a refresh
+    db.docs_read = 0
+    s.stream(limit=1000)
+    assert db.docs_read == 1            # empty incremental result, not 20
+
+
+def test_a_refresh_picks_up_only_the_new_events(monkeypatch):
+    import app.fund.events as _ev
+
+    s, db = store(monkeypatch)
+    for i in range(1, 21):
+        s.append(an_event(i))
+    s.stream(limit=1000)
+
+    # Another writer appends behind our back.
+    db.docs.append({"seq": 21, "aggregate_id": "o21", "type": "OrderProposed",
+                    "payload": {}, "actor": "other", "ts": "2026-08-14T00:00:00+00:00"})
+    monkeypatch.setattr(_ev, "_STREAM_TTL_SECONDS", 0)
+    db.docs_read = 0
+    rows = s.stream(limit=1000)
+    assert db.docs_read == 1            # just the one new event
+    assert len(rows) == 21              # and it is visible
+
+
+def test_a_full_session_of_polling_stays_under_the_free_tier(monkeypatch):
+    """720 refreshes is six hours of polling every 30 seconds."""
+    import app.fund.events as _ev
+
+    s, db = store(monkeypatch)
+    for i in range(1, 53):
+        s.append(an_event(i))
+    s.stream(limit=1000)
+
+    monkeypatch.setattr(_ev, "_STREAM_TTL_SECONDS", 0)
+    db.docs_read = 0
+    for _ in range(720):
+        s.stream(limit=1000)
+    assert db.docs_read == 720          # not 720 * 52 = 37,440

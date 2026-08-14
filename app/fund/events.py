@@ -29,10 +29,12 @@ from firebase_admin import firestore
 from app.fund.chain import GENESIS_HASH, event_hash, verify
 from app.fund.money import encode
 
-#: Process-level memo of the full log. Small by construction — the fund has
-#: tens of events, not millions — and the alternative is a Firestore read per
-#: projection per request.
-_STREAM_CACHE: dict[str, tuple[float, list]] = {}
+#: Memo of the full log, keyed by the database it came from. Keyed rather than
+#: global because projections each construct their own EventStore over the same
+#: db and must share one copy, while two DIFFERENT databases (a test fake and
+#: the real client, or local and production) must never see each other's log.
+#: A global dict made every test inherit the previous one's events.
+_STREAM_CACHE: dict[int, tuple[float, list]] = {}
 #: Short enough that another writer's append surfaces quickly, long enough to
 #: collapse the burst of folds a single page render causes.
 _STREAM_TTL_SECONDS = 5.0
@@ -196,8 +198,18 @@ class EventStore:
         # missing event should be loud.
         self._db.collection(EVENTS_COLLECTION).document(event.event_id).set(sealed)
         # The writer must always see its own write: a fill hidden behind the
-        # cache would let the idempotency check pass twice.
-        _STREAM_CACHE.clear()
+        # cache would let the idempotency check pass twice and double the
+        # position. Appended in place rather than clearing, because clearing
+        # would force a full re-read of the log on the very next fold — the
+        # cost this cache exists to avoid, paid on every single write.
+        # Keyed on presence, not truthiness: a cache that has been populated
+        # and happens to be EMPTY is not the same as one never populated, and
+        # treating them alike let a first append vanish behind a fresh empty
+        # entry until the TTL expired.
+        key = id(self._db)
+        if key in _STREAM_CACHE:
+            checked_at, rows = _STREAM_CACHE[key]
+            _STREAM_CACHE[key] = (checked_at, rows + [sealed])
         return event
 
     def verify_chain(self, limit: int = 100_000) -> dict[str, Any]:
@@ -241,17 +253,33 @@ class EventStore:
         single-writer lease.
         """
         now = _time.time()
-        hit = _STREAM_CACHE.get("all")
-        if hit and now - hit[0] < _STREAM_TTL_SECONDS:
-            rows = hit[1]
-        else:
-            q = (
-                self._db.collection(EVENTS_COLLECTION)
-                .where("seq", ">", 0)
-                .order_by("seq")
-            )
-            rows = [d.to_dict() for d in q.stream()]
-            _STREAM_CACHE["all"] = (now, rows)
+        key = id(self._db)
+        checked_at, rows = _STREAM_CACHE.get(key, (0.0, []))
+
+        if now - checked_at >= _STREAM_TTL_SECONDS:
+            # Incremental, because the log is append-only. Re-reading all of it
+            # every few seconds is what the free tier cannot afford: at 52
+            # events and a 5s refresh that is 37k document reads an hour, which
+            # blows the 50k/day allowance before lunch. Asking only for events
+            # after the highest one we hold costs a single read when nothing
+            # has happened, which is almost always.
+            #
+            # This is only sound because events are immutable and seq is
+            # monotonic — an existing event can never change under us, so there
+            # is nothing to re-read. If that ever stops being true, this cache
+            # stops being correct.
+            top = rows[-1].get("seq", 0) if rows else 0
+            fresh = [
+                d.to_dict() for d in (
+                    self._db.collection(EVENTS_COLLECTION)
+                    .where("seq", ">", top)
+                    .order_by("seq")
+                    .stream()
+                )
+            ]
+            if fresh:
+                rows = rows + fresh
+            _STREAM_CACHE[key] = (now, rows)
 
         out = [e for e in rows if (e.get("seq") or 0) > since_seq]
         return out[:limit]

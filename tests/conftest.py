@@ -63,3 +63,18 @@ def wire():
         risk=RiskAnalytics(nav_service=nav),
         postmortem=PostmortemService(store=store, pricer=conn.price),
     )
+
+
+@pytest.fixture(autouse=True)
+def _clear_event_stream_cache():
+    """The event store memoises the log per database.
+
+    Tests build a fresh fake db per case, but object ids can be reused once one
+    is collected, so a stale entry could otherwise leak from one test into the
+    next as phantom events. Cleared around every test rather than trusted to
+    isolate itself.
+    """
+    from app.fund.events import _STREAM_CACHE
+    _STREAM_CACHE.clear()
+    yield
+    _STREAM_CACHE.clear()
