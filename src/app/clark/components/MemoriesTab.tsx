@@ -252,24 +252,24 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.05 }}
       >
-        <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
+        <Card className="bg-[var(--kt-surface)] border-[var(--kt-border)] backdrop-blur-xl ">
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
                   {memoryType === 'user_interaction' && (
-                    <MessageSquare className="h-4 w-4 text-blue-400" />
+                    <MessageSquare className="h-4 w-4 text-[var(--kt-agent)]" />
                   )}
                   {memoryType === 'portfolio_state' && (
-                    <Database className="h-4 w-4 text-purple-400" />
+                    <Database className="h-4 w-4 text-[var(--kt-agent)]" />
                   )}
                   {(memoryType === 'condensed_persona' || memoryType === 'persona_memory') && (
-                    <User className="h-4 w-4 text-teal-400" />
+                    <User className="h-4 w-4 text-[var(--kt-accent)]" />
                   )}
                   {memoryType === 'session_condensed_summary' && (
-                    <MessageSquare className="h-4 w-4 text-teal-400" />
+                    <MessageSquare className="h-4 w-4 text-[var(--kt-accent)]" />
                   )}
-                  <CardTitle className="text-sm text-white capitalize">
+                  <CardTitle className="text-sm text-[var(--kt-text-strong)] capitalize">
                     {memoryType === 'condensed_persona'
                       ? 'Condensed Persona'
                       : memoryType === 'persona_memory'
@@ -280,12 +280,12 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
                   </CardTitle>
                 </div>
                 {sessionId && (
-                  <CardDescription className="text-xs text-white/50">
+                  <CardDescription className="text-xs text-[var(--kt-text-muted)]">
                     Session: {sessionId.substring(0, 20)}...
                   </CardDescription>
                 )}
               </div>
-              <div className="text-xs text-white/50 flex items-center gap-1">
+              <div className="text-xs text-[var(--kt-text-muted)] flex items-center gap-1">
                 <Clock className="h-3 w-3" />
                 {formatTimestamp(metadata.timestamp || memory.created_at)}
               </div>
@@ -296,16 +296,16 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
               <div className="space-y-3">
                 {metadata.interaction?.user_query && (
                   <div>
-                    <div className="text-xs text-white/60 mb-1">User Query:</div>
-                    <div className="text-sm text-white bg-white/5 p-2 rounded border border-white/10">
+                    <div className="text-xs text-[var(--kt-text-muted)] mb-1">User Query:</div>
+                    <div className="text-sm text-[var(--kt-text-strong)] bg-[var(--kt-inset)] p-2 rounded border border-[var(--kt-border)]">
                       {metadata.interaction.user_query}
                     </div>
                   </div>
                 )}
                 {metadata.interaction?.final_response?.message && (
                   <div>
-                    <div className="text-xs text-white/60 mb-1">Assistant Response:</div>
-                    <div className="text-sm text-white/80 bg-white/5 p-2 rounded border border-white/10">
+                    <div className="text-xs text-[var(--kt-text-muted)] mb-1">Assistant Response:</div>
+                    <div className="text-sm text-[var(--kt-text-dim)] bg-[var(--kt-inset)] p-2 rounded border border-[var(--kt-border)]">
                       {metadata.interaction.final_response.message}
                     </div>
                   </div>
@@ -317,8 +317,8 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
               <div className="space-y-3">
                 {metadata.portfolio_data.query && (
                   <div>
-                    <div className="text-xs text-white/60 mb-1">Query:</div>
-                    <div className="text-sm text-white bg-white/5 p-2 rounded border border-white/10">
+                    <div className="text-xs text-[var(--kt-text-muted)] mb-1">Query:</div>
+                    <div className="text-sm text-[var(--kt-text-strong)] bg-[var(--kt-inset)] p-2 rounded border border-[var(--kt-border)]">
                       {metadata.portfolio_data.query}
                     </div>
                   </div>
@@ -326,9 +326,9 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
                 {metadata.portfolio_data.metrics && (
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     {metadata.portfolio_data.metrics.total_return !== undefined && (
-                      <div className="bg-white/5 p-2 rounded border border-white/10">
-                        <div className="text-white/60">Total Return</div>
-                        <div className={`text-sm font-medium ${metadata.portfolio_data.metrics.total_return >= 0 ? 'text-green-400' : 'text-red-400'
+                      <div className="bg-[var(--kt-inset)] p-2 rounded border border-[var(--kt-border)]">
+                        <div className="text-[var(--kt-text-muted)]">Total Return</div>
+                        <div className={`text-sm font-medium ${metadata.portfolio_data.metrics.total_return >= 0 ? 'text-[var(--kt-up)]' : 'text-[var(--kt-down)]'
                           }`}>
                           {metadata.portfolio_data.metrics.total_return >= 0 ? '+' : ''}
                           {metadata.portfolio_data.metrics.total_return.toFixed(2)}%
@@ -336,17 +336,17 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
                       </div>
                     )}
                     {metadata.portfolio_data.metrics.sharpe_ratio !== undefined && (
-                      <div className="bg-white/5 p-2 rounded border border-white/10">
-                        <div className="text-white/60">Sharpe Ratio</div>
-                        <div className="text-sm font-medium text-white">
+                      <div className="bg-[var(--kt-inset)] p-2 rounded border border-[var(--kt-border)]">
+                        <div className="text-[var(--kt-text-muted)]">Sharpe Ratio</div>
+                        <div className="text-sm font-medium text-[var(--kt-text-strong)]">
                           {metadata.portfolio_data.metrics.sharpe_ratio.toFixed(2)}
                         </div>
                       </div>
                     )}
                     {metadata.portfolio_data.metrics.max_drawdown !== undefined && (
-                      <div className="bg-white/5 p-2 rounded border border-white/10">
-                        <div className="text-white/60">Max Drawdown</div>
-                        <div className="text-sm font-medium text-red-400">
+                      <div className="bg-[var(--kt-inset)] p-2 rounded border border-[var(--kt-border)]">
+                        <div className="text-[var(--kt-text-muted)]">Max Drawdown</div>
+                        <div className="text-sm font-medium text-[var(--kt-down)]">
                           {metadata.portfolio_data.metrics.max_drawdown.toFixed(2)}%
                         </div>
                       </div>
@@ -360,26 +360,26 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
               <div className="space-y-3">
                 {displayMessage ? (
                   <div>
-                    <div className="text-xs text-white/60 mb-1">Persona Summary:</div>
-                    <div className="text-sm text-white/90 bg-white/5 p-3 rounded border border-white/10 leading-relaxed">
+                    <div className="text-xs text-[var(--kt-text-muted)] mb-1">Persona Summary:</div>
+                    <div className="text-sm text-[var(--kt-text)] bg-[var(--kt-inset)] p-3 rounded border border-[var(--kt-border)] leading-relaxed">
                       {displayMessage}
                     </div>
                   </div>
                 ) : (
-                  <div className="text-xs text-white/60 bg-white/5 p-3 rounded border border-white/10">
+                  <div className="text-xs text-[var(--kt-text-muted)] bg-[var(--kt-inset)] p-3 rounded border border-[var(--kt-border)]">
                     No persona summary available.
                   </div>
                 )}
                 {metadata.categories && (
                   <div className="space-y-3 mt-4">
                     {metadata.categories.personal_profile && (
-                      <div className="bg-white/5 p-3 rounded border border-white/10">
-                        <div className="text-xs text-teal-400 font-semibold mb-1 uppercase tracking-wider">Personal Profile</div>
-                        <div className="text-sm text-white/80 mb-2">{metadata.categories.personal_profile.summary}</div>
+                      <div className="bg-[var(--kt-inset)] p-3 rounded border border-[var(--kt-border)]">
+                        <div className="text-xs text-[var(--kt-accent)] font-semibold mb-1 uppercase tracking-wider">Personal Profile</div>
+                        <div className="text-sm text-[var(--kt-text-dim)] mb-2">{metadata.categories.personal_profile.summary}</div>
                         {metadata.categories.personal_profile.traits && metadata.categories.personal_profile.traits.length > 0 && (
                           <div className="flex flex-wrap gap-1">
                             {metadata.categories.personal_profile.traits.map((trait, idx) => (
-                              <span key={idx} className="px-2 py-0.5 bg-teal-900/30 text-teal-300 rounded text-[10px]">
+                              <span key={idx} className="px-2 py-0.5 bg-[var(--kt-inset)] text-[var(--kt-accent)] rounded text-[10px]">
                                 {trait}
                               </span>
                             ))}
@@ -389,19 +389,19 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
                     )}
 
                     {metadata.categories.financial_preferences && (
-                      <div className="bg-white/5 p-3 rounded border border-white/10">
-                        <div className="text-xs text-cyan-400 font-semibold mb-1 uppercase tracking-wider">Financial Preferences</div>
-                        <div className="text-sm text-white/80 mb-2">{metadata.categories.financial_preferences.summary}</div>
+                      <div className="bg-[var(--kt-inset)] p-3 rounded border border-[var(--kt-border)]">
+                        <div className="text-xs text-[var(--kt-agent)] font-semibold mb-1 uppercase tracking-wider">Financial Preferences</div>
+                        <div className="text-sm text-[var(--kt-text-dim)] mb-2">{metadata.categories.financial_preferences.summary}</div>
                         <div className="flex flex-wrap gap-2 items-center">
                           {metadata.categories.financial_preferences.risk_tolerance && (
-                            <span className="text-[10px] text-white/60">
-                              Risk: <span className="text-cyan-300">{metadata.categories.financial_preferences.risk_tolerance}</span>
+                            <span className="text-[10px] text-[var(--kt-text-muted)]">
+                              Risk: <span className="text-[var(--kt-agent)]">{metadata.categories.financial_preferences.risk_tolerance}</span>
                             </span>
                           )}
                           {metadata.categories.financial_preferences.preferred_assets && metadata.categories.financial_preferences.preferred_assets.length > 0 && (
                             <div className="flex flex-wrap gap-1">
                               {metadata.categories.financial_preferences.preferred_assets.map((asset, idx) => (
-                                <span key={idx} className="px-2 py-0.5 bg-cyan-900/30 text-cyan-300 rounded text-[10px]">
+                                <span key={idx} className="px-2 py-0.5 bg-[var(--kt-inset)] text-[var(--kt-agent)] rounded text-[10px]">
                                   {asset}
                                 </span>
                               ))}
@@ -412,13 +412,13 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
                     )}
 
                     {metadata.categories.agent_experience && (
-                      <div className="bg-white/5 p-3 rounded border border-white/10">
-                        <div className="text-xs text-blue-400 font-semibold mb-1 uppercase tracking-wider">Agent Experience</div>
-                        <div className="text-sm text-white/80 mb-2">{metadata.categories.agent_experience.summary}</div>
+                      <div className="bg-[var(--kt-inset)] p-3 rounded border border-[var(--kt-border)]">
+                        <div className="text-xs text-[var(--kt-agent)] font-semibold mb-1 uppercase tracking-wider">Agent Experience</div>
+                        <div className="text-sm text-[var(--kt-text-dim)] mb-2">{metadata.categories.agent_experience.summary}</div>
                         {metadata.categories.agent_experience.agent_patterns && metadata.categories.agent_experience.agent_patterns.length > 0 && (
                           <div className="flex flex-wrap gap-1">
                             {metadata.categories.agent_experience.agent_patterns.map((pattern, idx) => (
-                              <span key={idx} className="px-2 py-0.5 bg-blue-900/30 text-blue-300 rounded text-[10px]">
+                              <span key={idx} className="px-2 py-0.5 bg-[var(--kt-inset)] text-[var(--kt-agent)] rounded text-[10px]">
                                 {pattern}
                               </span>
                             ))}
@@ -428,15 +428,15 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
                     )}
 
                     {metadata.categories.knowledge_base && (
-                      <div className="bg-white/5 p-3 rounded border border-white/10">
-                        <div className="text-xs text-amber-400 font-semibold mb-1 uppercase tracking-wider">Knowledge Base (Concrete Data)</div>
+                      <div className="bg-[var(--kt-inset)] p-3 rounded border border-[var(--kt-border)]">
+                        <div className="text-xs text-[var(--kt-warn)] font-semibold mb-1 uppercase tracking-wider">Knowledge Base (Concrete Data)</div>
 
                         {metadata.categories.knowledge_base.extracted_facts && metadata.categories.knowledge_base.extracted_facts.length > 0 && (
                           <div className="mb-3">
-                            <div className="text-[10px] text-white/50 mb-1">Extracted Facts:</div>
+                            <div className="text-[10px] text-[var(--kt-text-muted)] mb-1">Extracted Facts:</div>
                             <div className="flex flex-wrap gap-1">
                               {metadata.categories.knowledge_base.extracted_facts.map((fact, idx) => (
-                                <span key={idx} className="px-2 py-0.5 bg-amber-900/30 text-amber-300 rounded text-[10px] border border-amber-700/20">
+                                <span key={idx} className="px-2 py-0.5 bg-[var(--kt-warn)]/10 text-[var(--kt-warn)] rounded text-[10px] border border-amber-700/20">
                                   {fact}
                                 </span>
                               ))}
@@ -446,10 +446,10 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
 
                         {metadata.categories.knowledge_base.significant_results && metadata.categories.knowledge_base.significant_results.length > 0 && (
                           <div>
-                            <div className="text-[10px] text-white/50 mb-1">Significant Results:</div>
+                            <div className="text-[10px] text-[var(--kt-text-muted)] mb-1">Significant Results:</div>
                             <div className="flex flex-wrap gap-1">
                               {metadata.categories.knowledge_base.significant_results.map((result, idx) => (
-                                <span key={idx} className="px-2 py-0.5 bg-indigo-900/30 text-indigo-300 rounded text-[10px] border border-indigo-700/20">
+                                <span key={idx} className="px-2 py-0.5 bg-[var(--kt-inset)] text-[var(--kt-agent)] rounded text-[10px] border border-indigo-700/20">
                                   {result}
                                 </span>
                               ))}
@@ -464,11 +464,11 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
                 {metadata.persona_summary && !metadata.categories && (
                   <div className="grid grid-cols-1 gap-2 text-xs mt-2">
                     {metadata.persona_summary.interests && Array.isArray(metadata.persona_summary.interests) && metadata.persona_summary.interests.length > 0 && (
-                      <div className="bg-white/5 p-2 rounded border border-white/10">
-                        <div className="text-white/60 mb-1">Interests:</div>
-                        <div className="text-white/80 flex flex-wrap gap-1">
+                      <div className="bg-[var(--kt-inset)] p-2 rounded border border-[var(--kt-border)]">
+                        <div className="text-[var(--kt-text-muted)] mb-1">Interests:</div>
+                        <div className="text-[var(--kt-text-dim)] flex flex-wrap gap-1">
                           {metadata.persona_summary.interests.map((interest: string, idx: number) => (
-                            <span key={idx} className="px-2 py-0.5 bg-teal-900/30 text-teal-300 rounded text-xs">
+                            <span key={idx} className="px-2 py-0.5 bg-[var(--kt-inset)] text-[var(--kt-accent)] rounded text-xs">
                               {interest}
                             </span>
                           ))}
@@ -476,23 +476,23 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
                       </div>
                     )}
                     {metadata.persona_summary.preferences && (
-                      <div className="bg-white/5 p-2 rounded border border-white/10">
-                        <div className="text-white/60 mb-1">Preferences:</div>
-                        <div className="text-white/80">{metadata.persona_summary.preferences}</div>
+                      <div className="bg-[var(--kt-inset)] p-2 rounded border border-[var(--kt-border)]">
+                        <div className="text-[var(--kt-text-muted)] mb-1">Preferences:</div>
+                        <div className="text-[var(--kt-text-dim)]">{metadata.persona_summary.preferences}</div>
                       </div>
                     )}
                     {metadata.persona_summary.knowledge_level && (
-                      <div className="bg-white/5 p-2 rounded border border-white/10">
-                        <div className="text-white/60 mb-1">Knowledge Level:</div>
-                        <div className="text-white/80">{metadata.persona_summary.knowledge_level}</div>
+                      <div className="bg-[var(--kt-inset)] p-2 rounded border border-[var(--kt-border)]">
+                        <div className="text-[var(--kt-text-muted)] mb-1">Knowledge Level:</div>
+                        <div className="text-[var(--kt-text-dim)]">{metadata.persona_summary.knowledge_level}</div>
                       </div>
                     )}
                     {metadata.persona_summary.goals && Array.isArray(metadata.persona_summary.goals) && metadata.persona_summary.goals.length > 0 && (
-                      <div className="bg-white/5 p-2 rounded border border-white/10">
-                        <div className="text-white/60 mb-1">Goals:</div>
-                        <div className="text-white/80 flex flex-wrap gap-1">
+                      <div className="bg-[var(--kt-inset)] p-2 rounded border border-[var(--kt-border)]">
+                        <div className="text-[var(--kt-text-muted)] mb-1">Goals:</div>
+                        <div className="text-[var(--kt-text-dim)] flex flex-wrap gap-1">
                           {metadata.persona_summary.goals.map((goal: string, idx: number) => (
-                            <span key={idx} className="px-2 py-0.5 bg-cyan-900/30 text-cyan-300 rounded text-xs">
+                            <span key={idx} className="px-2 py-0.5 bg-[var(--kt-inset)] text-[var(--kt-agent)] rounded text-xs">
                               {goal}
                             </span>
                           ))}
@@ -506,14 +506,14 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
 
             {/* Fallback for other memory types */}
             {displayMessage && memoryType !== 'user_interaction' && memoryType !== 'portfolio_state' && memoryType !== 'condensed_persona' && memoryType !== 'persona_memory' && (
-              <div className="text-sm text-white/80 bg-white/5 p-2 rounded border border-white/10">
+              <div className="text-sm text-[var(--kt-text-dim)] bg-[var(--kt-inset)] p-2 rounded border border-[var(--kt-border)]">
                 {displayMessage}
               </div>
             )}
             
             {/* Safety: Never render raw object as JSON */}
             {!displayMessage && memoryType !== 'user_interaction' && memoryType !== 'portfolio_state' && memoryType !== 'condensed_persona' && memoryType !== 'persona_memory' && (
-              <div className="text-xs text-white/60 bg-white/5 p-2 rounded border border-white/10">
+              <div className="text-xs text-[var(--kt-text-muted)] bg-[var(--kt-inset)] p-2 rounded border border-[var(--kt-border)]">
                 Memory content not available for display.
               </div>
             )}
@@ -525,9 +525,9 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
 
   if (!userId) {
     return (
-      <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
+      <Card className="bg-[var(--kt-surface)] border-[var(--kt-border)] backdrop-blur-xl ">
         <CardContent className="p-8 text-center">
-          <p className="text-white/60">
+          <p className="text-[var(--kt-text-muted)]">
             User ID is required to view memories.
           </p>
         </CardContent>
@@ -540,18 +540,18 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
       {/* Header with refresh button */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <Brain className="h-5 w-5 text-teal-400" />
+          <h2 className="text-xl font-bold text-[var(--kt-text-strong)] flex items-center gap-2">
+            <Brain className="h-5 w-5 text-[var(--kt-accent)]" />
             Memories
           </h2>
-          <p className="text-sm text-white/60 mt-1">
+          <p className="text-sm text-[var(--kt-text-muted)] mt-1">
             Explore memories
           </p>
         </div>
         <button
           onClick={fetchMemories}
           disabled={isLoading}
-          className="flex items-center gap-2 px-4 py-2 bg-teal-900/40 hover:bg-teal-800/50 backdrop-blur-sm border border-teal-700/30 text-white rounded-xl transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--kt-surface)] hover:bg-[var(--kt-inset)] backdrop-blur-sm border border-teal-700/30 text-[var(--kt-text-strong)] rounded-xl transition-colors disabled:opacity-50"
         >
           {isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -563,18 +563,18 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
       </div>
 
       {error && (
-        <Card className="bg-red-900/20 border-red-700/30 backdrop-blur-xl">
+        <Card className="bg-[var(--kt-down)]/10 border-red-700/30 backdrop-blur-xl">
           <CardContent className="p-4">
-            <p className="text-red-300 text-sm">{error}</p>
+            <p className="text-[var(--kt-down)] text-sm">{error}</p>
           </CardContent>
         </Card>
       )}
 
       {isLoading && (
-        <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl">
+        <Card className="bg-[var(--kt-surface)] border-[var(--kt-border)] backdrop-blur-xl">
           <CardContent className="p-8 text-center">
-            <Loader2 className="h-8 w-8 text-teal-400 animate-spin mx-auto mb-4" />
-            <p className="text-white/60">Loading memories...</p>
+            <Loader2 className="h-8 w-8 text-[var(--kt-accent)] animate-spin mx-auto mb-4" />
+            <p className="text-[var(--kt-text-muted)]">Loading memories...</p>
           </CardContent>
         </Card>
       )}
@@ -584,18 +584,18 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
           {/* Session condensed memory (current session, from backend) */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <MessageSquare className="h-5 w-5 text-teal-400" />
-              <h3 className="text-lg font-semibold text-white">
+              <MessageSquare className="h-5 w-5 text-[var(--kt-accent)]" />
+              <h3 className="text-lg font-semibold text-[var(--kt-text-strong)]">
                 Session condensed memory
               </h3>
-              <span className="px-2 py-1 bg-teal-900/40 text-teal-300 text-xs rounded-xl border border-teal-700/30">
+              <span className="px-2 py-1 bg-[var(--kt-surface)] text-[var(--kt-accent)] text-xs rounded-xl border border-teal-700/30">
                 {sessionCondensedMemories.length}
               </span>
             </div>
             {sessionCondensedMemories.length === 0 ? (
-              <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl">
+              <Card className="bg-[var(--kt-surface)] border-[var(--kt-border)] backdrop-blur-xl">
                 <CardContent className="p-8 text-center">
-                  <p className="text-white/60">
+                  <p className="text-[var(--kt-text-muted)]">
                     No session condensed memory for this conversation. Send messages in this session to build it, or load a past conversation to restore its memory.
                   </p>
                 </CardContent>
@@ -610,18 +610,18 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
           {/* Condensed Memories (All Sessions) */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <Database className="h-5 w-5 text-purple-400" />
-              <h3 className="text-lg font-semibold text-white">
+              <Database className="h-5 w-5 text-[var(--kt-agent)]" />
+              <h3 className="text-lg font-semibold text-[var(--kt-text-strong)]">
                 Condensed Memories (All Sessions)
               </h3>
-              <span className="px-2 py-1 bg-purple-900/40 text-purple-300 text-xs rounded-xl border border-purple-700/30">
+              <span className="px-2 py-1 bg-[var(--kt-inset)] text-[var(--kt-agent)] text-xs rounded-xl border border-purple-700/30">
                 {condensedMemories.length}
               </span>
             </div>
             {condensedMemories.length === 0 ? (
-              <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl">
+              <Card className="bg-[var(--kt-surface)] border-[var(--kt-border)] backdrop-blur-xl">
                 <CardContent className="p-8 text-center">
-                  <p className="text-white/60">
+                  <p className="text-[var(--kt-text-muted)]">
                     No condensed memories found.
                   </p>
                 </CardContent>
@@ -638,18 +638,18 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
             {/* Persistent Knowledge Base */}
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <Database className="h-5 w-5 text-indigo-400" />
-                <h3 className="text-lg font-semibold text-white">
+                <Database className="h-5 w-5 text-[var(--kt-agent)]" />
+                <h3 className="text-lg font-semibold text-[var(--kt-text-strong)]">
                   Persistent Knowledge Base (Last 5)
                 </h3>
-                <span className="px-2 py-1 bg-indigo-900/40 text-indigo-300 text-xs rounded-xl border border-indigo-700/30">
+                <span className="px-2 py-1 bg-[var(--kt-inset)] text-[var(--kt-agent)] text-xs rounded-xl border border-indigo-700/30">
                   {persistentKB.length}
                 </span>
               </div>
               {persistentKB.length === 0 ? (
-                <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl">
+                <Card className="bg-[var(--kt-surface)] border-[var(--kt-border)] backdrop-blur-xl">
                   <CardContent className="p-8 text-center">
-                    <p className="text-white/60">
+                    <p className="text-[var(--kt-text-muted)]">
                       No persistent knowledge base entries found.
                     </p>
                   </CardContent>
@@ -663,23 +663,23 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
                     >
-                      <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl">
+                      <Card className="bg-[var(--kt-surface)] border-[var(--kt-border)] backdrop-blur-xl">
                         <CardContent className="p-3">
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
                                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                                   entry.type === 'fact' 
-                                    ? 'bg-amber-900/40 text-amber-300 border border-amber-700/30' 
-                                    : 'bg-indigo-900/40 text-indigo-300 border border-indigo-700/30'
+                                    ? 'bg-[var(--kt-warn)]/10 text-[var(--kt-warn)] border border-amber-700/30' 
+                                    : 'bg-[var(--kt-inset)] text-[var(--kt-agent)] border border-indigo-700/30'
                                 }`}>
                                   {entry.type === 'fact' ? 'Fact' : 'Result'}
                                 </span>
-                                <span className="text-xs text-white/50">
+                                <span className="text-xs text-[var(--kt-text-muted)]">
                                   {formatTimestamp(entry.timestamp)}
                                 </span>
                               </div>
-                              <div className="text-sm text-white/90 mt-1">
+                              <div className="text-sm text-[var(--kt-text)] mt-1">
                                 {entry.content}
                               </div>
                             </div>
@@ -695,18 +695,18 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
             {/* Transient Knowledge Base */}
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <Brain className="h-5 w-5 text-amber-400" />
-                <h3 className="text-lg font-semibold text-white">
+                <Brain className="h-5 w-5 text-[var(--kt-warn)]" />
+                <h3 className="text-lg font-semibold text-[var(--kt-text-strong)]">
                   Transient Knowledge Base (Last 5)
                 </h3>
-                <span className="px-2 py-1 bg-amber-900/40 text-amber-300 text-xs rounded-xl border border-amber-700/30">
+                <span className="px-2 py-1 bg-[var(--kt-warn)]/10 text-[var(--kt-warn)] text-xs rounded-xl border border-amber-700/30">
                   {transientKB.length}
                 </span>
               </div>
               {transientKB.length === 0 ? (
-                <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl">
+                <Card className="bg-[var(--kt-surface)] border-[var(--kt-border)] backdrop-blur-xl">
                   <CardContent className="p-8 text-center">
-                    <p className="text-white/60">
+                    <p className="text-[var(--kt-text-muted)]">
                       No transient knowledge base entries found.
                     </p>
                   </CardContent>
@@ -720,23 +720,23 @@ export default function MemoriesTab({ userId, sessionId }: MemoriesTabProps) {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
                     >
-                      <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl">
+                      <Card className="bg-[var(--kt-surface)] border-[var(--kt-border)] backdrop-blur-xl">
                         <CardContent className="p-3">
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
                                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                                   entry.type === 'fact' 
-                                    ? 'bg-amber-900/40 text-amber-300 border border-amber-700/30' 
-                                    : 'bg-indigo-900/40 text-indigo-300 border border-indigo-700/30'
+                                    ? 'bg-[var(--kt-warn)]/10 text-[var(--kt-warn)] border border-amber-700/30' 
+                                    : 'bg-[var(--kt-inset)] text-[var(--kt-agent)] border border-indigo-700/30'
                                 }`}>
                                   {entry.type === 'fact' ? 'Fact' : 'Result'}
                                 </span>
-                                <span className="text-xs text-white/50">
+                                <span className="text-xs text-[var(--kt-text-muted)]">
                                   {formatTimestamp(entry.timestamp)}
                                 </span>
                               </div>
-                              <div className="text-sm text-white/90 mt-1">
+                              <div className="text-sm text-[var(--kt-text)] mt-1">
                                 {entry.content}
                               </div>
                             </div>

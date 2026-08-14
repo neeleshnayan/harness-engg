@@ -19,6 +19,9 @@ import { createAssistantMessage } from './utils/createAssistantMessage'
 import { parseErrorMessage } from '@/lib/parseError'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import PastConversationsTab from './components/PastConversationsTab'
+import { streamAgentQuery, type LogLine, type TraceStep } from '@/lib/agents_stream'
+import LiveTurn from './components/LiveTurn'
+import { ThemeToggle } from './studio/ThemeToggle'
 
 // Dynamically import heavy components to reduce initial bundle size
 const ResultsDisplay = dynamic(() => import('./components/ResultsDisplay'), {
@@ -33,6 +36,15 @@ const DevtoolsOverlay = dynamic(() => import('./components/DevtoolsOverlay'), {
 
 /** Shape of an interrupt from the agents/query API (id may be empty) */
 type InterruptFromApi = { id?: string; name?: string; reason?: Record<string, unknown> }
+
+/** Desktop history sidebar. Declared once because three things need to agree
+ *  on it: the aside's own width, its animation target, and the left offset of
+ *  the docked composer. */
+const SIDEBAR_WIDTH = 260
+
+/** Session log ceiling. Roughly forty turns of a busy conversation; past that
+ *  the oldest lines are the ones least likely to be wanted. */
+const SESSION_LOG_MAX = 800
 
 export default function BacktestPage() {
   const router = useRouter()
@@ -52,6 +64,33 @@ export default function BacktestPage() {
   // Session management for mem0 integration
   const [userId, setUserId] = useState<string>('')
   const [userName, setUserName] = useState<string>('')
+  /** Set on the client only. The server has no idea what time it is where the
+   *  operator is, so rendering a time-of-day greeting during SSR guarantees a
+   *  hydration mismatch; empty until mounted, and the greeting reads as a bare
+   *  "Good ." for one frame otherwise. */
+  const [hourBand, setHourBand] = useState<'' | 'morning' | 'afternoon' | 'evening'>('')
+  const [isWideViewport, setIsWideViewport] = useState(false)
+  /** What Clark is doing right now — cleared the moment the turn commits. */
+  const [liveTrace, setLiveTrace] = useState<TraceStep[]>([])
+  /** The same trace, in a ref, because the commit reads it from inside an async
+   *  handler. `handleSendMessage` closes over `liveTrace` at the render it was
+   *  created in, so by the time the stream finishes that variable still holds
+   *  the empty array the turn started with — the live gutter filled in and the
+   *  committed message got no citations at all. State drives the render; the
+   *  ref is what the handler is allowed to read. */
+  const liveTraceRef = useRef<TraceStep[]>([])
+  const [liveText, setLiveText] = useState('')
+  /** Every event of the session, oldest first, across every turn — not one
+   *  turn's worth. It lives here rather than in the message flow so it keeps
+   *  filling as the conversation goes back and forth, and so closing the
+   *  devtools panel does not throw the history away.
+   *
+   *  Capped: a long session would otherwise grow this without bound and the
+   *  oldest lines are the ones least likely to be wanted. */
+  const [sessionLog, setSessionLog] = useState<LogLine[]>([])
+  const sessionLogRef = useRef<LogLine[]>([])
+  /** Just the turn in flight; folded into the session log when it ends. */
+  const turnLogRef = useRef<LogLine[]>([])
   const [sessionId, setSessionId] = useState<string>('')
   const [userData, setUserData] = useState<any>(null)
   const [walletAddress, setWalletAddress] = useState<string>('')
@@ -72,6 +111,27 @@ export default function BacktestPage() {
   // Track whether we already initialized from a mini-chat expansion so we
   // don't override that state with Firebase last-chat data.
   const initializedFromExpansionRef = useRef(false)
+
+  /** Fold one turn's log into the session's, renumbering so React keys stay
+   *  unique across turns — the stream restarts `seq` at 0 every time. */
+  const appendTurnLog = useCallback((lines: LogLine[], base: LogLine[]) => {
+    const merged = [...base, ...lines.map((l, i) => ({ ...l, seq: base.length + i }))]
+    return merged.length > SESSION_LOG_MAX ? merged.slice(-SESSION_LOG_MAX) : merged
+  }, [])
+
+  /** Turn the finished trace into marks that travel with the message.
+   *  Only completed steps: a tool still in flight has no duration to cite, and
+   *  a mark that says "pending" forever is worse than no mark. */
+  const provenanceFrom = useCallback((steps: TraceStep[]) =>
+    steps
+      .filter((s) => s.endedAt != null)
+      .map((s) => ({
+        id: s.id,
+        tool: s.name,
+        input: s.input,
+        ok: s.ok !== false,
+        ms: s.endedAt != null ? s.endedAt - s.startedAt : undefined,
+      })), [])
 
   const persistLastChat = React.useCallback(
     async (allMessages: ChatMessage[]) => {
@@ -100,6 +160,10 @@ export default function BacktestPage() {
             regulationResult: msg.regulationResult,
             priceHistoryResult: msg.priceHistoryResult,
             balanceResult: msg.balanceResult,
+            // Persisted so a reloaded conversation keeps its citations. An
+            // answer whose provenance vanishes on refresh is an answer you
+            // cannot check tomorrow, which is most of the point.
+            provenance: msg.provenance,
           })),
         }
         // Fire and forget; errors are logged to console only.
@@ -118,6 +182,22 @@ export default function BacktestPage() {
   const txEventsRef = useRef<Map<string, any>>(new Map())
   const txWaitersRef = useRef<Map<string, Array<(event: any | null) => void>>>(new Map())
 
+
+  // Time of day, read on the client where the operator actually is.
+  useEffect(() => {
+    const h = new Date().getHours()
+    setHourBand(h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening')
+  }, [])
+
+  // The sidebar only exists at lg and up (`hidden lg:flex`), so the docked
+  // composer's left offset has to track the breakpoint as well as the toggle.
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)')
+    const sync = () => setIsWideViewport(mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
 
   // Initialize session and user IDs on component mount
   useEffect(() => {
@@ -348,14 +428,35 @@ export default function BacktestPage() {
     setIsLoading(true)
 
     try {
-      const response = await agentsApi.post('/api/v1/agents/query', {
+      // Same streaming path as a typed message — a prompt tile should not be
+      // a second-class way to ask a question.
+      const streamBody = {
         query: routedPrompt,
         user_id: userId,
         username: userName || 'krypton',
-        session_id: sessionId
-      })
-
-      const payload = response.data
+        session_id: sessionId,
+      }
+      let payload: any
+      liveTraceRef.current = []
+      setLiveTrace([])
+      setLiveText('')
+      turnLogRef.current = []
+      try {
+        payload = await streamAgentQuery(streamBody, {
+          onTrace: (steps) => { liveTraceRef.current = steps; setLiveTrace(steps) },
+          onText: setLiveText,
+          onLog: (lines) => {
+            turnLogRef.current = lines
+            setSessionLog(appendTurnLog(lines, sessionLogRef.current))
+          },
+        })
+      } catch (streamErr) {
+        console.warn('[Clark] stream unavailable, falling back to /query:', streamErr)
+        setLiveTrace([])
+        setLiveText('')
+        const response = await agentsApi.post('/api/v1/agents/query', streamBody)
+        payload = response.data
+      }
 
       // Debug: log API response shape (dev only)
       if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
@@ -443,6 +544,9 @@ export default function BacktestPage() {
       const hasKryptonPay = hasKryptonPayInIntent || hasKryptonPayInFlow || hasTransactionData || hasTransactionKeywords
 
       const assistantMessage = createAssistantMessage(payload)
+      if (liveTraceRef.current.length > 0) {
+        assistantMessage.provenance = provenanceFrom(liveTraceRef.current)
+      }
 
 
       // Append Clark's response so ResultsDisplay can render results/backtests/etc.
@@ -463,6 +567,11 @@ export default function BacktestPage() {
       }])
     } finally {
       setIsLoading(false)
+      sessionLogRef.current = appendTurnLog(turnLogRef.current, sessionLogRef.current)
+      setSessionLog(sessionLogRef.current)
+      turnLogRef.current = []
+      setLiveTrace([])
+      setLiveText('')
     }
   }
 
@@ -519,9 +628,33 @@ export default function BacktestPage() {
         requestBody.query = queryText
       }
 
-      const response = await agentsApi.post('/api/v1/agents/query', requestBody)
-
-      const payload = response.data
+      // Stream the turn. The `complete` payload is identical to what
+      // /agents/query returns, so everything below this line is unchanged —
+      // the stream only adds what the operator sees while they wait.
+      //
+      // Falls back to the blocking endpoint on any transport failure: a proxy
+      // that mishandles SSE should cost a progress animation, not the answer.
+      let payload: any
+      liveTraceRef.current = []
+      setLiveTrace([])
+      setLiveText('')
+      turnLogRef.current = []
+      try {
+        payload = await streamAgentQuery(requestBody, {
+          onTrace: (steps) => { liveTraceRef.current = steps; setLiveTrace(steps) },
+          onText: setLiveText,
+          onLog: (lines) => {
+            turnLogRef.current = lines
+            setSessionLog(appendTurnLog(lines, sessionLogRef.current))
+          },
+        })
+      } catch (streamErr) {
+        console.warn('[Clark] stream unavailable, falling back to /query:', streamErr)
+        setLiveTrace([])
+        setLiveText('')
+        const response = await agentsApi.post('/api/v1/agents/query', requestBody)
+        payload = response.data
+      }
 
       // Debug: log API response shape for backtest/technical (dev only)
       if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
@@ -615,6 +748,9 @@ export default function BacktestPage() {
       const hasKryptonPay = hasKryptonPayInIntent || hasKryptonPayInFlow || hasTransactionData || hasTransactionKeywords
 
       const assistantMessage = createAssistantMessage(payload)
+      if (liveTraceRef.current.length > 0) {
+        assistantMessage.provenance = provenanceFrom(liveTraceRef.current)
+      }
 
       // Always append Clark's response; ResultsDisplay will decide what to show,
       // including any transaction status cards for krypton_pay flows.
@@ -638,6 +774,15 @@ export default function BacktestPage() {
     } finally {
       if (interruptResponses?.length) submittingInterruptRef.current = false
       setIsLoading(false)
+      // Fold this turn into the session's log and make it the new base, so the
+      // next turn appends after it instead of replacing it.
+      sessionLogRef.current = appendTurnLog(turnLogRef.current, sessionLogRef.current)
+      setSessionLog(sessionLogRef.current)
+      turnLogRef.current = []
+      // The live view hands off to the committed message; leaving it on screen
+      // would show the same answer twice for a frame.
+      setLiveTrace([])
+      setLiveText('')
       // Process next from queue after state settles
       if (queryQueueRef.current.length > 0) {
         const next = queryQueueRef.current.shift()!
@@ -779,6 +924,9 @@ export default function BacktestPage() {
         },
       }
       const assistantMessage = createAssistantMessage(payload)
+      if (liveTraceRef.current.length > 0) {
+        assistantMessage.provenance = provenanceFrom(liveTraceRef.current)
+      }
       setMessages((prev) => {
         const alreadyRendered = prev.some((m) => {
           const nodes = (m.agentFlow && 'nodes' in (m.agentFlow as any))
@@ -870,6 +1018,21 @@ export default function BacktestPage() {
     !messages.some((m) => m.backtestResult) &&
     !isPromptModalOpen
 
+  /** Nothing has happened yet: no messages, nothing loading. The layout
+   *  centres itself in this state instead of reserving a screen of empty
+   *  feed under the tiles. */
+  const isLanding =
+    showCategoryTiles && messages.length === 0 && !isLoading && !isHistoryLoading
+
+  const firstName = userName ? userName.split(' ')[0] : ''
+  const greeting = !hourBand
+    ? firstName
+      ? `Hello, ${firstName}.`
+      : 'Hello.'
+    : firstName
+      ? `Good ${hourBand}, ${firstName}.`
+      : `Good ${hourBand}.`
+
   const resetClarkSessionState = useCallback(() => {
     shownInterruptIdsRef.current.clear()
     setInterrupts([])
@@ -953,45 +1116,44 @@ export default function BacktestPage() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-[#001C1B] overflow-x-hidden">
+    <div className="min-h-screen w-full bg-[var(--kt-bg)] overflow-x-hidden">
       {/* Navbar */}
-      <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-[#001C1B]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-2 min-h-[4rem]">
-            <div className="flex justify-start w-14 sm:w-16">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-[var(--kt-border)] bg-[var(--kt-bg)]/90 backdrop-blur-md">
+        {/* Full width, not max-w-6xl. This is chrome: it spans the shell, and
+         *  a centred 1152px box inside a viewport that also holds a left
+         *  sidebar put the mark nowhere in particular. Mark left, actions
+         *  right — the bar now has two ends instead of a floating middle. */}
+        <div className="px-4 sm:px-6">
+          <div className="flex items-center justify-between gap-3 py-2.5">
+            <div className="flex min-w-0 items-center gap-2">
               <button
                 type="button"
                 onClick={() => setIsMobileHistoryOpen((open) => !open)}
-                className="lg:hidden flex items-center justify-center text-white w-10 h-10 sm:w-11 sm:h-11 rounded-xl transition-colors hover:bg-white/10 text-white/50 hover:text-white border border-white/10"
+                className="lg:hidden flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--kt-border)] text-[var(--kt-text-muted)] transition-colors hover:bg-[var(--kt-hover)] hover:text-[var(--kt-text)]"
                 title={isMobileHistoryOpen ? 'Hide conversation history' : 'Show conversation history'}
                 aria-expanded={isMobileHistoryOpen}
                 aria-label={isMobileHistoryOpen ? 'Hide conversation history' : 'Show conversation history'}
               >
                 {isMobileHistoryOpen ? (
-                  <PanelLeft className="h-5 w-5" />
+                  <PanelLeft className="h-4 w-4" />
                 ) : (
-                  <PanelRight className="h-5 w-5" />
+                  <PanelRight className="h-4 w-4" />
                 )}
               </button>
+              <img src="/Krypton Clark.svg" alt="Krypton Clark" className="h-7 w-auto" />
             </div>
-            <div className="flex justify-center flex-1">
-              <img
-                src="/Krypton Clark.svg"
-                alt="Krypton Logo"
-                className="h-12 sm:h-16 md:h-20 w-auto drop-shadow-[0_2px_8px_rgba(16,255,180,0.18)]"
-              />
-            </div>
-            <div className="flex justify-end">
+            <div className="flex items-center gap-1">
+              {/* The provider already wraps /clark (see clark/layout.tsx), so
+                  every token here has a light value — only the control was
+                  missing. Same component as the Studio uses, deliberately:
+                  two toggles that set the same key would drift. */}
+              <ThemeToggle />
               <button
                 onClick={() => setShowMenu(!showMenu)}
-                className="flex items-center text-white px-4 py-2 rounded-xl transition-colors font-medium"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--kt-text-muted)] transition-colors hover:bg-[var(--kt-hover)] hover:text-[var(--kt-text)]"
                 aria-label="Open menu"
               >
-                <img
-                  src="/Burger.svg"
-                  alt="Burger"
-                  className="h-6 w-auto drop-shadow-[0_2px_8px_rgba(16,255,180,0.18)]"
-                />
+                <img src="/Burger.svg" alt="" aria-hidden className="h-5 w-auto opacity-80" />
               </button>
             </div>
           </div>
@@ -1007,7 +1169,7 @@ export default function BacktestPage() {
           animate={{ left: isSidebarOpen ? 212 : 16 }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="hidden lg:flex fixed top-2 z-[100] items-center justify-center w-8 h-8 rounded-lg bg-[#001C1B]/80 backdrop-blur-md hover:bg-white/10 text-white/40 hover:text-white transition-colors border border-white/10"
+          className="hidden lg:flex fixed top-2 z-[100] items-center justify-center w-8 h-8 rounded-lg bg-[var(--kt-bg)]/80 backdrop-blur-md hover:bg-[var(--kt-hover)] text-[var(--kt-text-muted)] hover:text-[var(--kt-text-strong)] transition-colors border border-[var(--kt-border)]"
           title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
         >
           {isSidebarOpen ? <PanelLeft className="h-5 w-5" /> : <PanelRight className="h-5 w-5" />}
@@ -1021,7 +1183,7 @@ export default function BacktestPage() {
               animate={{ width: 260, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="hidden lg:flex lg:flex-col lg:w-[260px] lg:flex-shrink-0 lg:pl-4 lg:pr-3 lg:pt-10 lg:pb-10 lg:border-r border-white/10 overflow-hidden relative z-[90] bg-[#001C1B]"
+              className="hidden lg:flex lg:flex-col lg:w-[260px] lg:flex-shrink-0 lg:pl-4 lg:pr-3 lg:pt-6 lg:pb-6 lg:border-r border-[var(--kt-border)] overflow-hidden relative z-[90] bg-[var(--kt-surface)]"
             >
               <PastConversationsTab
                 userId={userId}
@@ -1038,23 +1200,44 @@ export default function BacktestPage() {
           )}
         </AnimatePresence>
 
-        {/* Right: Centered main content (tiles + feed) */}
-        <div className={`flex-1 min-w-0 flex flex-col pt-24 px-4 relative transition-all duration-300 items-center`}>
-          <div className="w-full max-w-6xl min-w-0 relative">
-            {/* Category Tiles - hidden when prompt modal is open so a single card click doesn't fire both modal and tiles */}
+        {/* Right: Centered main content (tiles + feed).
+         *
+         * Two states, not one. On an empty session the feed used to render
+         * anyway at a hard `h-[calc(100vh-10rem)]`, so the tiles sat jammed
+         * under the header with a full screen of reserved-but-empty scroll
+         * area beneath them — the void. Landing centres what little there is
+         * and reserves nothing; the conversation state gets the tall feed. */}
+        <div
+          className={`flex-1 min-w-0 flex flex-col px-6 relative items-center ${
+            isLanding ? "justify-center pb-28 pt-16" : "pt-20"
+          }`}
+        >
+          <div className="w-full max-w-[820px] min-w-0 relative">
             {/* Category Tiles - hidden when prompt modal is open so a single card click doesn't fire both modal and tiles */}
             {showCategoryTiles && (
-              <CategoryTiles
-                categories={categories}
-                selectedCategory={selectedCategory}
-                onCategorySelect={(categoryId) => setSelectedCategory(categoryId || null)}
-                onPromptClick={handlePromptClick}
-                isLoading={isLoading}
-              />
+              <>
+                {isLanding && (
+                  <div className="mb-6">
+                    <h1 className="text-[22px] font-medium tracking-tight text-[var(--kt-text)]">
+                      {greeting}
+                    </h1>
+                    <p className="mt-1 text-sm text-[var(--kt-text-muted)]">
+                      Ask about the fund, or start from one of these.
+                    </p>
+                  </div>
+                )}
+                <CategoryTiles
+                  categories={categories}
+                  selectedCategory={selectedCategory}
+                  onCategorySelect={(categoryId) => setSelectedCategory(categoryId || null)}
+                  onPromptClick={handlePromptClick}
+                  isLoading={isLoading}
+                />
+              </>
             )}
 
             {/* Continuous Feed: scrollable area bounded by navbar (top) and chat input (bottom) */}
-            <div className="mt-12 dark w-full">
+            <div className={`dark w-full ${isLanding ? "hidden" : "mt-12"}`}>
               <div
                 ref={feedRef}
                 className="scrollbar-minimal min-h-[200px] h-[calc(100vh-10rem)] overflow-y-auto scroll-smooth"
@@ -1065,26 +1248,28 @@ export default function BacktestPage() {
                       <div className="w-12 h-12 flex items-center justify-center flex-shrink-0">
                         <img src="/clark process.svg" alt="Clark" className="h-12 w-12 animate-pulse" />
                       </div>
-                      <div className="mt-4 rounded-2xl px-6 py-3 bg-zinc-900/30 border border-zinc-700/40 text-white/80 text-sm">
+                      <div className="mt-4 rounded-2xl px-6 py-3 bg-[var(--kt-inset)] border border-[var(--kt-border)] text-[var(--kt-text-dim)] text-sm">
                         Loading past conversation…
                       </div>
                     </div>
                   ) : (
                     <>
                       {/* Loading with no messages yet: show "Thinking…"; once messages exist, ResultsDisplay shows "Processing your request..." */}
-                      {isLoading && messages.length === 0 && (
-                        <div className="flex gap-2 justify-start items-center py-4">
-                          <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                            <img src="/clark process.svg" alt="Clark" className="h-8 w-8 animate-pulse" />
-                          </div>
-                          <div className="rounded-2xl px-4 py-3 bg-zinc-900/30 border border-zinc-700/40 text-white/80 text-sm">
-                            Thinking…
-                          </div>
-                        </div>
+                      <ResultsDisplay
+                        messages={messages}
+                        isLoading={isLoading && liveTrace.length === 0 && !liveText}
+                        username={userName}
+                      />
+
+                      {/* The live turn sits after the committed history, where
+                          the answer will land — so nothing jumps when the turn
+                          finishes and the real message takes its place. It
+                          replaces the old "Thinking…" pill, which told the
+                          operator only that something was happening. */}
+                      {isLoading && (liveTrace.length > 0 || liveText) && (
+                        <LiveTurn steps={liveTrace} text={liveText} />
                       )}
 
-                      <ResultsDisplay messages={messages} isLoading={isLoading} username={userName} />
-                      {/* When messages exist, loading state is shown inside ResultsDisplay as "Processing your request..." */}
 
                       {/* Show payment confirmation inline at the end of the conversation */}
                       {interrupts && interrupts.length > 0 && (() => {
@@ -1100,51 +1285,51 @@ export default function BacktestPage() {
                             <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
                               <img src="/clark process.svg" alt="Clark" className="h-8 w-8" />
                             </div>
-                            <div className="max-w-[85%] rounded-2xl p-4 bg-zinc-900/40 border border-zinc-700/50 text-white backdrop-blur-sm">
-                              <div className="text-[10px] uppercase tracking-[0.2em] text-white/80 mb-2">
+                            <div className="max-w-[85%] rounded-2xl p-4 bg-[var(--kt-inset)] border border-[var(--kt-border)] text-[var(--kt-text-strong)] backdrop-blur-sm">
+                              <div className="text-[10px] uppercase tracking-[0.2em] text-[var(--kt-text-dim)] mb-2">
                                 Payment confirmation
                               </div>
-                              <p className="text-sm text-white/90 mb-3">
+                              <p className="text-sm text-[var(--kt-text)] mb-3">
                                 Please review and confirm the payment details below.
                               </p>
-                              <div className="bg-zinc-900/60 rounded-lg p-3 border border-zinc-700/40 space-y-2 text-sm">
+                              <div className="bg-[var(--kt-inset)] rounded-lg p-3 border border-[var(--kt-border)] space-y-2 text-sm">
                                 {reason.operation === 'swap_and_transfer' && reason.from_token && (
                                   <div className="flex justify-between items-center">
-                                    <span className="text-white/80">Swap From:</span>
-                                    <span className="text-white font-medium">
+                                    <span className="text-[var(--kt-text-dim)]">Swap From:</span>
+                                    <span className="text-[var(--kt-text-strong)] font-medium">
                                       {reason.from_token}
                                     </span>
                                   </div>
                                 )}
                                 <div className="flex justify-between items-center">
-                                  <span className="text-white/80">Send Amount:</span>
-                                  <span className="text-white font-semibold">
+                                  <span className="text-[var(--kt-text-dim)]">Send Amount:</span>
+                                  <span className="text-[var(--kt-text-strong)] font-semibold">
                                     {reason.received_amount} {toToken}
                                   </span>
                                 </div>
                                 <div className="flex justify-between items-center">
-                                  <span className="text-white/80">To:</span>
-                                  <span className="text-white font-medium">
+                                  <span className="text-[var(--kt-text-dim)]">To:</span>
+                                  <span className="text-[var(--kt-text-strong)] font-medium">
                                     @{reason.receiver_username}
                                   </span>
                                 </div>
                                 <div className="flex justify-between items-center">
-                                  <span className="text-white/80">Operation:</span>
-                                  <span className="text-white font-medium">{operation}</span>
+                                  <span className="text-[var(--kt-text-dim)]">Operation:</span>
+                                  <span className="text-[var(--kt-text-strong)] font-medium">{operation}</span>
                                 </div>
                               </div>
                               <div className="flex gap-3 pt-3 mt-2">
                                 <button
                                   type="button"
                                   onClick={() => handleInterruptReject(paymentInterrupt.id)}
-                                  className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-xl border border-red-700/60 bg-red-900/30 text-red-100 hover:bg-red-900/50 text-sm font-medium transition-colors"
+                                  className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-xl border border-red-700/60 bg-[var(--kt-down)]/10 text-red-100 hover:bg-[var(--kt-down)]/10 text-sm font-medium transition-colors"
                                 >
                                   Cancel
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => handleInterruptApprove(paymentInterrupt.id, reason)}
-                                  className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-sm font-medium transition-colors border border-white/20"
+                                  className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-xl bg-[var(--kt-hover)] hover:bg-white/30 text-[var(--kt-text-strong)] text-sm font-medium transition-colors border border-[var(--kt-border)]"
                                 >
                                   Confirm
                                 </button>
@@ -1173,8 +1358,9 @@ export default function BacktestPage() {
         isLoading={isLoading}
       />
 
-      {/* Chat Input Bar - fixed at bottom */}
+      {/* Chat Input Bar - docked at the bottom of the content area, not the window */}
       <ChatInputBar
+        offsetLeft={isWideViewport && isSidebarOpen ? SIDEBAR_WIDTH : 0}
         inputValue={inputValue}
         setInputValue={setInputValue}
         isLoading={isLoading}
@@ -1206,7 +1392,7 @@ export default function BacktestPage() {
               onClick={() => setIsMobileHistoryOpen(false)}
             />
             <motion.aside
-              className="lg:hidden fixed left-0 top-16 bottom-0 z-50 w-[min(100vw-2.5rem,300px)] max-w-[88vw] bg-[#001C1B] border-r border-white/10 shadow-[8px_0_32px_rgba(0,0,0,0.35)] flex flex-col overflow-hidden"
+              className="lg:hidden fixed left-0 top-16 bottom-0 z-50 w-[min(100vw-2.5rem,300px)] max-w-[88vw] bg-[var(--kt-bg)] border-r border-[var(--kt-border)] shadow-[8px_0_32px_rgba(0,0,0,0.35)] flex flex-col overflow-hidden"
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
@@ -1254,6 +1440,8 @@ export default function BacktestPage() {
         userId={userId}
         userName={userName}
         sessionId={sessionId}
+        sessionLog={sessionLog}
+        isStreaming={isLoading}
         sessionCost={sessionCost}
         overallCost={overallCost}
         messages={messages}

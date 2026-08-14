@@ -6,8 +6,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Category } from '../types'
 
-const promptRowGradient =
-  'linear-gradient(180deg, rgba(255, 255, 255, 0.36) 0%, rgba(161, 207, 211, 0.06) 100%)'
+/**
+ * Tiles and prompt rows used to be painted with
+ * `linear-gradient(180deg, rgba(255,255,255,.36), rgba(161,207,211,.06))` —
+ * a 36% white wash fading into teal. That was designed against a light-ish
+ * surface; on the studio's #0a0a0b page it renders as a milky grey blob with
+ * a green tinge at the bottom, and thirty of them at once is the whole
+ * landing screen.
+ *
+ * They are objects on a plane, so they are drawn the way every other object
+ * in this product is drawn: one surface token, one border, no wash. The
+ * hierarchy comes from the border lifting on hover, not from a gradient
+ * shouting at rest.
+ */
+const tileBase =
+  'rounded-xl border border-[var(--kt-border)] bg-[var(--kt-surface)] ' +
+  'transition-colors duration-150 hover:border-[var(--kt-border-strong)] hover:bg-[var(--kt-hover)]'
 
 function PromptRowWithCopy({
   prompt,
@@ -27,32 +41,26 @@ function PromptRowWithCopy({
     })
   }
   return (
-    <div
-      className="flex items-center gap-2 rounded-xl min-h-[60px] overflow-hidden group touch-manipulation"
-      style={{ background: promptRowGradient }}
-    >
+    <div className={`flex items-center gap-2 min-h-[56px] overflow-hidden group touch-manipulation ${tileBase}`}>
       <button
         type="button"
         onClick={onUse}
         disabled={isLoading}
-        className="flex-1 w-full text-left p-4 rounded-xl transition-all duration-200 text-white disabled:opacity-50 disabled:cursor-not-allowed min-h-[60px] flex items-center"
+        className="flex-1 w-full text-left px-4 py-3 rounded-xl text-[var(--kt-text-dim)] disabled:opacity-50 disabled:cursor-not-allowed min-h-[56px] flex items-center"
       >
-        <div className="flex items-start gap-3 w-full">
-          <span className="text-white/80 font-bold text-sm mt-1 flex-shrink-0">•</span>
-          <span className="flex-1 text-sm sm:text-base group-hover:text-white transition-colors leading-relaxed">
-            {prompt}
-          </span>
-        </div>
+        <span className="flex-1 text-sm leading-relaxed transition-colors group-hover:text-[var(--kt-text)]">
+          {prompt}
+        </span>
       </button>
       <button
         type="button"
         onClick={handleCopy}
         aria-label={copied ? 'Copied' : 'Copy prompt'}
         aria-live="polite"
-        className="flex-shrink-0 p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors mr-1"
+        className="flex-shrink-0 p-2 rounded-lg text-[var(--kt-text-muted)] hover:text-[var(--kt-text)] transition-colors mr-1.5"
       >
         {copied ? (
-          <span className="text-xs text-teal-300 font-medium">Copied!</span>
+          <span className="text-xs text-[var(--kt-accent)] font-medium">Copied</span>
         ) : (
           <Copy className="h-4 w-4" />
         )}
@@ -100,23 +108,17 @@ export default function CategoryTiles({
                       className="cursor-pointer bg-transparent border-none shadow-none p-0 w-full touch-manipulation"
                       onClick={() => onCategorySelect(category.id)}
                     >
-                      <div
-                        className="rounded-xl backdrop-blur-xl min-h-[80px] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg"
-                        style={{
-                          background:
-                            'linear-gradient(180deg, rgba(255, 255, 255, 0.36) 0%, rgba(161, 207, 211, 0.06) 100%)',
-                        }}
-                      >
+                      <div className={`min-h-[80px] active:scale-[0.99] ${tileBase}`}>
                         <CardHeader className="pb-3 pt-3 px-3 h-full flex flex-col justify-center">
-                          <CardTitle className="text-xs font-medium text-zinc-100 flex items-center gap-2 mb-1">
+                          <CardTitle className="text-xs font-medium text-[var(--kt-text)] flex items-center gap-2 mb-1">
                             {category.icon.startsWith('/') ? (
-                              <img src={category.icon} alt={category.title} className="h-4 w-4 flex-shrink-0" />
+                              <img src={category.icon} alt={category.title} className="h-4 w-4 flex-shrink-0 opacity-70" />
                             ) : (
                               <span className="text-base flex-shrink-0">{category.icon}</span>
                             )}
                             <span className="truncate">{category.title}</span>
                           </CardTitle>
-                          <CardDescription className="text-xs text-zinc-400 leading-tight line-clamp-2">
+                          <CardDescription className="text-xs text-[var(--kt-text-muted)] leading-tight line-clamp-2">
                             {category.description}
                           </CardDescription>
                         </CardHeader>
@@ -145,31 +147,32 @@ export default function CategoryTiles({
         </div>
       </div>
 
-      {/* Desktop: Responsive grid */}
-      <div className="hidden sm:grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 w-full max-w-6xl mx-auto">
+      {/* Desktop grid.
+       *
+       * Was `grid-cols-3 md:grid-cols-4 lg:grid-cols-5` inside an 820px reading
+       * column, which gave each tile ~145px and truncated every single title:
+       * "Fund Operatio…", "Strategy & Ba…", "Technical Ana…". Three columns at
+       * this width leaves ~225px of text per tile, which every title clears —
+       * so nothing needs `truncate` any more, and a title that grows a word
+       * later wraps instead of silently losing its ending. */}
+      <div className="hidden w-full sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
         {categories.map((category) => (
           <Card
             key={category.id}
             className="cursor-pointer bg-transparent border-none shadow-none p-0 touch-manipulation"
             onClick={() => onCategorySelect(category.id)}
           >
-            <div
-              className="rounded-xl backdrop-blur-xl min-h-[90px] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg"
-              style={{
-                background:
-                  'linear-gradient(180deg, rgba(255, 255, 255, 0.36) 0%, rgba(161, 207, 211, 0.06) 100%)',
-              }}
-            >
-              <CardHeader className="pb-3 pt-3 px-3 h-full flex flex-col justify-center">
-                <CardTitle className="text-sm font-medium text-zinc-100 flex items-center gap-2 mb-1">
+            <div className={`h-full active:scale-[0.99] ${tileBase}`}>
+              <CardHeader className="flex h-full flex-col justify-start gap-1 px-3.5 py-3">
+                <CardTitle className="flex items-center gap-2 text-[13px] font-medium text-[var(--kt-text)]">
                   {category.icon.startsWith('/') ? (
-                    <img src={category.icon} alt={category.title} className="h-5 w-5 flex-shrink-0" />
+                    <img src={category.icon} alt="" aria-hidden className="h-4 w-4 flex-shrink-0 opacity-60" />
                   ) : (
-                    <span className="text-lg flex-shrink-0">{category.icon}</span>
+                    <span className="text-base flex-shrink-0">{category.icon}</span>
                   )}
-                  <span className="truncate">{category.title}</span>
+                  <span>{category.title}</span>
                 </CardTitle>
-                <CardDescription className="text-xs text-white/60 leading-tight line-clamp-2">
+                <CardDescription className="text-xs leading-snug text-[var(--kt-text-muted)]">
                   {category.description}
                 </CardDescription>
               </CardHeader>
@@ -181,29 +184,29 @@ export default function CategoryTiles({
       {/* Prompts Modal */}
       {selectedCategory && (
         <div
-          className="fixed inset-0 bg-[hsl(var(--brand-bg))]/85 backdrop-blur-md z-50 flex items-end sm:items-center justify-center px-4 pb-28 sm:pb-8 sm:px-4 sm:pt-4"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 px-4 pb-28 backdrop-blur-sm sm:px-4 sm:pb-8 sm:pt-4"
           onClick={() => onCategorySelect('')}
         >
           <Card
-            className="w-full max-w-md sm:max-w-2xl h-[80vh] sm:h-auto sm:max-h-[80vh] bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 shadow-[0_20px_60px_rgba(0,0,0,0.6)] backdrop-blur-xl rounded-2xl border-0"
+            className="w-full max-w-md sm:max-w-2xl h-[80vh] sm:h-auto sm:max-h-[80vh] rounded-2xl border border-[var(--kt-border)] bg-[var(--kt-surface)] shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
             onClick={(e) => e.stopPropagation()}
           >
-            <CardHeader className="border-b border-white/15 p-4 sm:p-6">
+            <CardHeader className="border-b border-[var(--kt-border)] p-4 sm:px-6 sm:py-5">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <CardTitle className="text-base sm:text-lg text-white flex items-center gap-2">
+                  <CardTitle className="text-base text-[var(--kt-text)] flex items-center gap-2">
                     {(() => {
                       const category = categories.find(c => c.id === selectedCategory);
                       const icon = category?.icon;
                       return icon?.startsWith('/') ? (
-                        <img src={icon} alt={category?.title} className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0" />
+                        <img src={icon} alt={category?.title} className="h-5 w-5 flex-shrink-0 opacity-70" />
                       ) : (
-                        <span className="text-xl sm:text-2xl flex-shrink-0">{icon}</span>
+                        <span className="text-xl flex-shrink-0">{icon}</span>
                       );
                     })()}
                     <span className="truncate">{categories.find(c => c.id === selectedCategory)?.title}</span>
                   </CardTitle>
-                  <CardDescription className="text-white/60 mt-1 text-xs sm:text-sm line-clamp-2">
+                  <CardDescription className="text-[var(--kt-text-muted)] mt-1 text-xs sm:text-sm line-clamp-2">
                     {categories.find(c => c.id === selectedCategory)?.description}
                   </CardDescription>
                 </div>
@@ -211,9 +214,9 @@ export default function CategoryTiles({
                   variant="ghost"
                   size="sm"
                   onClick={() => onCategorySelect('')}
-                  className="text-white/70 hover:text-white h-8 w-8 p-0 ml-2 flex-shrink-0 touch-manipulation"
+                  className="text-[var(--kt-text-muted)] hover:text-[var(--kt-text)] hover:bg-[var(--kt-hover)] h-8 w-8 p-0 ml-2 flex-shrink-0 touch-manipulation"
                 >
-                  <img src="/cross.svg" alt="cross" className="h-6 w-6" />
+                  <img src="/cross.svg" alt="Close" className="h-5 w-5 opacity-70" />
                 </Button>
               </div>
             </CardHeader>

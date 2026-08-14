@@ -173,7 +173,7 @@ export default function CandleChart({ candleData, title }: CandleChartProps) {
   return (
     <Card className={chartUi.card}>
       <CardHeader>
-        <CardTitle className="text-white text-lg">
+        <CardTitle className="text-[var(--kt-text-strong)] text-lg">
           {title || `${candleData.symbol} Price Chart`}
         </CardTitle>
         <CardDescription className={`${chartUi.muted} text-sm`}>
@@ -306,7 +306,7 @@ export default function CandleChart({ candleData, title }: CandleChartProps) {
           {/* Tooltip */}
           {hoveredCandle && tooltipPosition && (
             <div
-              className={`fixed z-50 ${chartUi.tooltip} bg-teal-900/95 backdrop-blur-sm p-3 pointer-events-none`}
+              className={`fixed z-50 ${chartUi.tooltip} bg-[var(--kt-inset)] backdrop-blur-sm p-3 pointer-events-none`}
               style={{
                 left: `${tooltipPosition.x + 10}px`,
                 top: `${tooltipPosition.y - 10}px`,
@@ -319,25 +319,25 @@ export default function CandleChart({ candleData, title }: CandleChartProps) {
               <div className="space-y-1">
                 <div className="flex items-center justify-between gap-4">
                   <span className={`text-xs ${chartUi.muted}`}>Open:</span>
-                  <span className="text-white text-xs font-medium">
+                  <span className="text-[var(--kt-text-strong)] text-xs font-medium">
                     {formatAxisValue(hoveredCandle.open)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className={`text-xs ${chartUi.muted}`}>High:</span>
-                  <span className="text-green-400 text-xs font-medium">
+                  <span className="text-[var(--kt-up)] text-xs font-medium">
                     {formatAxisValue(hoveredCandle.high)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className={`text-xs ${chartUi.muted}`}>Low:</span>
-                  <span className="text-red-400 text-xs font-medium">
+                  <span className="text-[var(--kt-down)] text-xs font-medium">
                     {formatAxisValue(hoveredCandle.low)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className={`text-xs ${chartUi.muted}`}>Close:</span>
-                  <span className={`text-xs font-medium ${hoveredCandle.isUp ? 'text-green-400' : 'text-red-400'}`}>
+                  <span className={`text-xs font-medium ${hoveredCandle.isUp ? 'text-[var(--kt-up)]' : 'text-[var(--kt-down)]'}`}>
                     {formatAxisValue(hoveredCandle.close)}
                   </span>
                 </div>

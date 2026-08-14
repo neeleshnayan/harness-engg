@@ -113,45 +113,45 @@ function ProgressStep({
   const isPastStep = stepIndex < currentStep;
   const isCurrentStep = stepIndex === currentStep;
 
-  let bgColor = 'bg-zinc-700';
-  let borderColor = 'border-zinc-600';
-  let textColor = 'text-zinc-500';
+  let bgColor = 'bg-[var(--kt-hover)]';
+  let borderColor = 'border-[var(--kt-border)]';
+  let textColor = 'text-[var(--kt-text-muted)]';
   let icon = null;
 
   if (isFinal && isTerminal) {
     if (isSuccess) {
       bgColor = 'bg-emerald-500';
       borderColor = 'border-emerald-400';
-      textColor = 'text-emerald-400';
-      icon = <Check className="w-3 h-3 text-white" />;
+      textColor = 'text-[var(--kt-up)]';
+      icon = <Check className="w-3 h-3 text-[var(--kt-text-strong)]" />;
     } else if (isError) {
       bgColor = 'bg-red-500';
       borderColor = 'border-red-400';
-      textColor = 'text-red-400';
-      icon = <X className="w-3 h-3 text-white" />;
+      textColor = 'text-[var(--kt-down)]';
+      icon = <X className="w-3 h-3 text-[var(--kt-text-strong)]" />;
     }
   } else if (isPastStep) {
     bgColor = 'bg-emerald-500';
     borderColor = 'border-emerald-400';
-    textColor = 'text-emerald-400';
-    icon = <Check className="w-3 h-3 text-white" />;
+    textColor = 'text-[var(--kt-up)]';
+    icon = <Check className="w-3 h-3 text-[var(--kt-text-strong)]" />;
   } else if (isCurrentStep && !isFinal) {
     if (currentStep === 0) {
       bgColor = 'bg-amber-500';
       borderColor = 'border-amber-400';
-      textColor = 'text-amber-400';
-      icon = <Loader2 className="w-3 h-3 text-white animate-spin" />;
+      textColor = 'text-[var(--kt-warn)]';
+      icon = <Loader2 className="w-3 h-3 text-[var(--kt-text-strong)] animate-spin" />;
     } else {
       bgColor = 'bg-emerald-500';
       borderColor = 'border-emerald-400';
-      textColor = 'text-emerald-400';
-      icon = <Check className="w-3 h-3 text-white" />;
+      textColor = 'text-[var(--kt-up)]';
+      icon = <Check className="w-3 h-3 text-[var(--kt-text-strong)]" />;
     }
   } else if (isFinal && !isTerminal && currentStep >= 1) {
     bgColor = 'bg-amber-500';
     borderColor = 'border-amber-400';
-    textColor = 'text-amber-400';
-    icon = <Loader2 className="w-3 h-3 text-white animate-spin" />;
+    textColor = 'text-[var(--kt-warn)]';
+    icon = <Loader2 className="w-3 h-3 text-[var(--kt-text-strong)] animate-spin" />;
   }
 
   return (
@@ -183,7 +183,7 @@ function ProgressLine({
   isError?: boolean;
   isLeadingToFinal?: boolean;
 }) {
-  let bgColor = 'bg-zinc-700';
+  let bgColor = 'bg-[var(--kt-hover)]';
 
   if (isCompleted) {
     if (isLeadingToFinal && isError) {
@@ -284,24 +284,24 @@ function getStatusBadgeClasses(status: string): { bg: string; text: string } {
     case CircleTransactionState.CONFIRMED:
     case CircleTransactionState.SUCCESS:
     case CircleTransactionState.COMPLETE:
-      return { bg: 'bg-emerald-500/20', text: 'text-emerald-400' };
+      return { bg: 'bg-emerald-500/20', text: 'text-[var(--kt-up)]' };
     case CircleTransactionState.FAILED:
-      return { bg: 'bg-red-500/20', text: 'text-red-400' };
+      return { bg: 'bg-red-500/20', text: 'text-[var(--kt-down)]' };
     case CircleTransactionState.DENIED:
-      return { bg: 'bg-orange-500/20', text: 'text-orange-400' };
+      return { bg: 'bg-orange-500/20', text: 'text-[var(--kt-warn)]' };
     case CircleTransactionState.CANCELLED:
-      return { bg: 'bg-zinc-500/20', text: 'text-zinc-400' };
+      return { bg: 'bg-zinc-500/20', text: 'text-[var(--kt-text-dim)]' };
     case CircleTransactionState.QUEUED:
     case CircleTransactionState.SUBMITTED:
     case CircleTransactionState.CLEARED:
     case CircleTransactionState.CREATED:
-      return { bg: 'bg-blue-500/20', text: 'text-blue-400' };
+      return { bg: 'bg-blue-500/20', text: 'text-[var(--kt-agent)]' };
     case CircleTransactionState.SENT:
-      return { bg: 'bg-amber-500/20', text: 'text-amber-400' };
+      return { bg: 'bg-amber-500/20', text: 'text-[var(--kt-warn)]' };
     case CircleTransactionState.STUCK:
-      return { bg: 'bg-yellow-500/20', text: 'text-yellow-400' };
+      return { bg: 'bg-yellow-500/20', text: 'text-[var(--kt-warn)]' };
     default:
-      return { bg: 'bg-zinc-500/20', text: 'text-zinc-400' };
+      return { bg: 'bg-zinc-500/20', text: 'text-[var(--kt-text-dim)]' };
   }
 }
 
@@ -377,15 +377,15 @@ export default function TransactionConfirmationCard({ username, onClose }: Trans
       <div className="rounded-xl border p-4 border-amber-500/20 bg-amber-500/5 mb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
-            <span className="text-sm font-medium text-zinc-100">
+            <Loader2 className="w-5 h-5 text-[var(--kt-warn)] animate-spin" />
+            <span className="text-sm font-medium text-[var(--kt-text)]">
               Checking transaction status...
             </span>
           </div>
           <button
             onClick={fetchActiveTransactions}
             disabled={loading}
-            className="p-1.5 bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white rounded-lg border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 disabled:opacity-50"
+            className="p-1.5 bg-[var(--kt-hover)] hover:bg-[var(--kt-hover)] text-[var(--kt-text-dim)] hover:text-[var(--kt-text-strong)] rounded-lg border border-[var(--kt-border)] hover:border-[var(--kt-border)] transition-all duration-200 disabled:opacity-50"
             title="Refresh status"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -403,8 +403,8 @@ export default function TransactionConfirmationCard({ username, onClose }: Trans
   const stateLabel = getStateLabel(latestTx.status);
   const badgeClasses = getStatusBadgeClasses(latestTx.status);
 
-  let borderClass = 'border-zinc-700/50';
-  let bgClass = 'bg-zinc-800/30';
+  let borderClass = 'border-[var(--kt-border)]';
+  let bgClass = 'bg-[var(--kt-hover)]';
 
   if (isSuccess) {
     borderClass = 'border-emerald-500/30';
@@ -429,15 +429,15 @@ export default function TransactionConfirmationCard({ username, onClose }: Trans
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className={`
             w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0
-            ${isSuccess ? 'bg-emerald-500/20 text-emerald-400' :
-              isError ? 'bg-red-500/20 text-red-400' :
-              'bg-amber-500/20 text-amber-400'}
+            ${isSuccess ? 'bg-emerald-500/20 text-[var(--kt-up)]' :
+              isError ? 'bg-red-500/20 text-[var(--kt-down)]' :
+              'bg-amber-500/20 text-[var(--kt-warn)]'}
           `}>
             <TransactionTypeIcon txType={latestTx.tx_type} className="w-4 h-4" />
           </div>
           <div className="flex flex-col min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-zinc-100 truncate">
+              <span className="text-sm font-medium text-[var(--kt-text)] truncate">
                 {getTransactionDescription(latestTx)}
               </span>
               <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${badgeClasses.bg} ${badgeClasses.text}`}>
@@ -446,11 +446,11 @@ export default function TransactionConfirmationCard({ username, onClose }: Trans
             </div>
             {latestTx.tx_type === 'swap' && latestTx.from_token && latestTx.to_token && (
               <div className="flex items-center gap-1 mt-0.5">
-                <span className="text-xs px-1.5 py-0.5 rounded bg-zinc-700/50 text-zinc-400">
+                <span className="text-xs px-1.5 py-0.5 rounded bg-[var(--kt-hover)] text-[var(--kt-text-dim)]">
                   {cleanTokenSymbol(latestTx.from_token)}
                 </span>
-                <ArrowRight className="w-3 h-3 text-zinc-500" />
-                <span className="text-xs px-1.5 py-0.5 rounded bg-zinc-700/50 text-zinc-400">
+                <ArrowRight className="w-3 h-3 text-[var(--kt-text-muted)]" />
+                <span className="text-xs px-1.5 py-0.5 rounded bg-[var(--kt-hover)] text-[var(--kt-text-dim)]">
                   {cleanTokenSymbol(latestTx.to_token)}
                 </span>
               </div>
@@ -461,7 +461,7 @@ export default function TransactionConfirmationCard({ username, onClose }: Trans
           <button
             onClick={fetchActiveTransactions}
             disabled={loading}
-            className="p-1.5 bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white rounded-lg border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 disabled:opacity-50"
+            className="p-1.5 bg-[var(--kt-hover)] hover:bg-[var(--kt-hover)] text-[var(--kt-text-dim)] hover:text-[var(--kt-text-strong)] rounded-lg border border-[var(--kt-border)] hover:border-[var(--kt-border)] transition-all duration-200 disabled:opacity-50"
             title="Refresh status"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -469,7 +469,7 @@ export default function TransactionConfirmationCard({ username, onClose }: Trans
           {onClose && (
             <button
               onClick={onClose}
-              className="p-1.5 bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white rounded-lg border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200"
+              className="p-1.5 bg-[var(--kt-hover)] hover:bg-[var(--kt-hover)] text-[var(--kt-text-dim)] hover:text-[var(--kt-text-strong)] rounded-lg border border-[var(--kt-border)] hover:border-[var(--kt-border)] transition-all duration-200"
               title="Close"
             >
               <X className="w-3.5 h-3.5" />
@@ -483,12 +483,12 @@ export default function TransactionConfirmationCard({ username, onClose }: Trans
 
       {/* Transaction Hash Link (if available) */}
       {latestTx.tx_hash && (
-        <div className="mt-3 pt-3 border-t border-white/5">
+        <div className="mt-3 pt-3 border-t border-[var(--kt-border)]">
           <a
             href={`https://sepolia.etherscan.io/tx/${latestTx.tx_hash}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-zinc-500 hover:text-cyan-400 transition-colors font-mono flex items-center gap-1"
+            className="text-xs text-[var(--kt-text-muted)] hover:text-[var(--kt-agent)] transition-colors font-mono flex items-center gap-1"
           >
             <span>{latestTx.tx_hash.slice(0, 8)}...{latestTx.tx_hash.slice(-6)}</span>
             <ArrowRight className="w-3 h-3" />

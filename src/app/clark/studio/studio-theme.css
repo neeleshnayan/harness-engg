@@ -7,24 +7,50 @@
  * every component — is what let three competing palettes drift apart.)
  *
  * Dark is the default and the design reference ("Your Position" artifact).
+ *
+ * --- provenance direction, 2026-08-15 -------------------------------------
+ *
+ * Text now carries a register. A figure the fund MEASURED (folded from the
+ * event log, computed from market history) is set in --kt-text-strong; a
+ * sentence the model ASSERTED is set in --kt-text-dim, one step back. That
+ * distinction used to be carried by --kt-agent on one rail; it now applies to
+ * every number on every screen, which is what this file's own note about
+ * hierarchy coming "from type and space, not from colour" always implied.
+ *
+ * Two deliberate removals came with it:
+ *
+ *   #ffffff -> #e9e7e2. Pure white on near-black is the look every dark
+ *   product defaults into. A warm off-white reads as paper — as a ledger —
+ *   and stops the theme announcing that nobody chose it.
+ *
+ *   Emerald is no longer a chrome colour. It survives ONLY on signed P&L, via
+ *   --kt-up. Buttons, chips, dots and borders are neutral. On a screen whose
+ *   whole point is calm, the one colour that fires should mean "act now"; a
+ *   dashboard glowing green all day teaches the operator to ignore exactly the
+ *   signal that was worth interrupting them for.
  */
 
 [data-kt-theme="dark"] {
-  --kt-bg: #0a0a0b;
-  --kt-surface: #111113;
-  --kt-inset: #0d0d0f;
-  --kt-border: rgb(39 39 42 / 0.7);
-  --kt-border-strong: rgb(63 63 70 / 0.7);
+  /* Blue-black rather than neutral black: it is what makes the warm text
+     opposite it read as warm rather than as slightly wrong. */
+  --kt-bg: #0b0c0e;
+  --kt-surface: #14161a;
+  --kt-inset: #0e1013;
+  --kt-border: rgb(34 37 43 / 1);
+  --kt-border-strong: rgb(52 57 65 / 1);
 
-  --kt-text: #f4f4f5;
-  --kt-text-strong: #ffffff;
-  --kt-text-muted: #71717a;
-  --kt-text-dim: #a1a1aa;
+  --kt-text: #c9ccd1;
+  --kt-text-strong: #e9e7e2;
+  --kt-text-muted: #6c727a;
+  --kt-text-dim: #9ba0a8;
 
-  --kt-accent: #34d399;
-  --kt-accent-soft: #6ee7b7;
-  --kt-accent-bg: rgb(16 185 129 / 0.15);
-  --kt-accent-border: rgb(16 185 129 / 0.25);
+  /* Retained so nothing breaks, and so a deliberate "this is the fund's own
+     accent" use is still possible. It is no longer reached for by default —
+     see the note above. */
+  --kt-accent: #79a98c;
+  --kt-accent-soft: #9cc2ac;
+  --kt-accent-bg: rgb(121 169 140 / 0.10);
+  --kt-accent-border: rgb(121 169 140 / 0.22);
 
   /* --- agent ---------------------------------------------------------
      A SECOND accent, and the only one. Emerald means "the fund"; violet
@@ -41,31 +67,38 @@
   --kt-agent-bg: rgb(129 145 181 / 0.10);
   --kt-agent-border: rgb(129 145 181 / 0.22);
 
-  --kt-up: #34d399;
-  --kt-down: #fb7185;
-  --kt-warn: #fbbf24;
+  /* Desaturated on purpose. These are the only chromatic values left in the
+     dark theme, so they no longer have to shout over an emerald UI to be seen —
+     and a muted green reads as a measurement rather than as applause. */
+  --kt-up: #79a98c;
+  --kt-down: #ce7681;
+  --kt-warn: #c9a227;
 
-  --kt-track: rgb(39 39 42 / 0.7);
-  --kt-hover: rgb(24 24 27 / 1);
+  --kt-track: rgb(34 37 43 / 1);
+  --kt-hover: rgb(24 27 32 / 1);
 }
 
+/* Light is a peer, not an inversion. The registers have to survive the flip:
+   measured text stays the darkest thing on the page, asserted prose sits a
+   step lighter, and apparatus a step lighter again — the same three-step
+   relationship as dark, rebuilt for a white ground rather than negated. */
 [data-kt-theme="light"] {
-  --kt-bg: #fafaf9;
+  --kt-bg: #fafaf8;
   --kt-surface: #ffffff;
-  --kt-inset: #f5f5f4;
-  --kt-border: rgb(231 229 228 / 1);
-  --kt-border-strong: rgb(214 211 209 / 1);
+  --kt-inset: #f3f2ee;
+  --kt-border: rgb(227 225 219 / 1);
+  --kt-border-strong: rgb(207 204 196 / 1);
 
-  --kt-text: #27272a;
-  --kt-text-strong: #18181b;
-  --kt-text-muted: #78716c;
-  --kt-text-dim: #57534e;
+  --kt-text: #33373d;
+  --kt-text-strong: #14161a;
+  --kt-text-muted: #8a8f97;
+  --kt-text-dim: #565b63;
 
-  /* darker emerald so it passes contrast on white */
-  --kt-accent: #047857;
-  --kt-accent-soft: #059669;
-  --kt-accent-bg: rgb(5 150 105 / 0.10);
-  --kt-accent-border: rgb(5 150 105 / 0.25);
+  /* darker so it passes contrast on white; still off the default path */
+  --kt-accent: #2f6b48;
+  --kt-accent-soft: #3f7a57;
+  --kt-accent-bg: rgb(47 107 72 / 0.08);
+  --kt-accent-border: rgb(47 107 72 / 0.22);
 
   /* darker violet so it passes contrast on white */
   --kt-agent: #4a5878;
@@ -73,12 +106,12 @@
   --kt-agent-bg: rgb(74 88 120 / 0.07);
   --kt-agent-border: rgb(74 88 120 / 0.20);
 
-  --kt-up: #047857;
-  --kt-down: #be123c;
-  --kt-warn: #b45309;
+  --kt-up: #2f6b48;
+  --kt-down: #9c3742;
+  --kt-warn: #8a6410;
 
-  --kt-track: rgb(231 229 228 / 1);
-  --kt-hover: rgb(245 245 244 / 1);
+  --kt-track: rgb(227 225 219 / 1);
+  --kt-hover: rgb(243 242 238 / 1);
 }
 
 /* The Studio ground.

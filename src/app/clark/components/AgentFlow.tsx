@@ -25,10 +25,8 @@ function isFlowGraph(flow: AgentFlowGraph | AgentFlowStep[]): flow is AgentFlowG
   return flow && typeof flow === 'object' && 'nodes' in flow && 'edges' in flow
 }
 
-import { TerminalExecutionFlow } from './TerminalExecutionFlow'
 
 export default function AgentFlow({ flow }: AgentFlowProps) {
-  const [viewMode, setViewMode] = useState<'flow' | 'terminal'>('flow')
   const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set())
   const [expandedData, setExpandedData] = useState<Set<string>>(new Set())
   if (!flow) {
@@ -176,7 +174,7 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
   const renderAgentData = (step: AgentFlowStep, data: any) => {
     if (!data || typeof data !== 'object') {
       return (
-        <pre className="text-xs text-zinc-300 bg-zinc-950/50 p-3 rounded border border-zinc-700/50 overflow-x-auto">
+        <pre className="text-xs text-[var(--kt-text-dim)] bg-[var(--kt-inset)] p-3 rounded border border-[var(--kt-border)] overflow-x-auto">
           {JSON.stringify(data, null, 2)}
         </pre>
       )
@@ -192,7 +190,7 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
       return (
         <div className="w-full max-w-full overflow-hidden space-y-3">
           {screenerData.total_found !== undefined && (
-            <div className="text-xs text-zinc-400">
+            <div className="text-xs text-[var(--kt-text-dim)]">
               Found {screenerData.total_found} result{screenerData.total_found !== 1 ? 's' : ''}
             </div>
           )}
@@ -200,18 +198,18 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
             <div className="w-full max-w-full overflow-hidden">
               <div className="space-y-2 max-h-96 overflow-y-auto overflow-x-auto">
                 {results.slice(0, 10).map((item: any, idx: number) => (
-                  <div key={idx} className="bg-zinc-900/50 rounded-lg p-3 border border-zinc-700/30 min-w-0">
+                  <div key={idx} className="bg-[var(--kt-inset)] rounded-lg p-3 border border-[var(--kt-border)] min-w-0">
                     <div className="flex items-start justify-between mb-2 gap-2">
                       <div className="min-w-0 flex-1">
-                        <div className="font-medium text-sm text-white break-words">{item.name || item.symbol}</div>
-                        <div className="text-xs text-zinc-400 break-words">{item.symbol}</div>
+                        <div className="font-medium text-sm text-[var(--kt-text-strong)] break-words">{item.name || item.symbol}</div>
+                        <div className="text-xs text-[var(--kt-text-dim)] break-words">{item.symbol}</div>
                       </div>
                       {item.price !== undefined && (
                         <div className="text-right flex-shrink-0">
-                          <div className="font-semibold text-sm text-white">{formatCurrency(item.price)}</div>
+                          <div className="font-semibold text-sm text-[var(--kt-text-strong)]">{formatCurrency(item.price)}</div>
                           {item.daily_change_percent !== undefined && (
                             <div className={`text-xs flex items-center gap-1 ${
-                              item.daily_change_percent >= 0 ? 'text-green-400' : 'text-red-400'
+                              item.daily_change_percent >= 0 ? 'text-[var(--kt-up)]' : 'text-[var(--kt-down)]'
                             }`}>
                               {item.daily_change_percent >= 0 ? (
                                 <TrendingUp className="h-3 w-3" />
@@ -227,33 +225,33 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       {item.market_cap !== undefined && (
                         <div className="break-words">
-                          <span className="text-zinc-500">Market Cap: </span>
-                          <span className="text-zinc-300">{formatCurrency(item.market_cap)}</span>
+                          <span className="text-[var(--kt-text-muted)]">Market Cap: </span>
+                          <span className="text-[var(--kt-text-dim)]">{formatCurrency(item.market_cap)}</span>
                         </div>
                       )}
                       {item.volume_24h !== undefined && (
                         <div className="break-words">
-                          <span className="text-zinc-500">24h Volume: </span>
-                          <span className="text-zinc-300">{formatCurrency(item.volume_24h)}</span>
+                          <span className="text-[var(--kt-text-muted)]">24h Volume: </span>
+                          <span className="text-[var(--kt-text-dim)]">{formatCurrency(item.volume_24h)}</span>
                         </div>
                       )}
                       {item.rank !== undefined && (
                         <div>
-                          <span className="text-zinc-500">Rank: </span>
-                          <span className="text-zinc-300">#{item.rank}</span>
+                          <span className="text-[var(--kt-text-muted)]">Rank: </span>
+                          <span className="text-[var(--kt-text-dim)]">#{item.rank}</span>
                         </div>
                       )}
                       {item.rsi !== undefined && (
                         <div>
-                          <span className="text-zinc-500">RSI: </span>
-                          <span className="text-zinc-300">{item.rsi.toFixed(2)}</span>
+                          <span className="text-[var(--kt-text-muted)]">RSI: </span>
+                          <span className="text-[var(--kt-text-dim)]">{item.rsi.toFixed(2)}</span>
                         </div>
                       )}
                     </div>
                   </div>
                 ))}
                 {results.length > 10 && (
-                  <div className="text-xs text-zinc-500 text-center py-2">
+                  <div className="text-xs text-[var(--kt-text-muted)] text-center py-2">
                     ... and {results.length - 10} more results
                   </div>
                 )}
@@ -273,25 +271,25 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
       return (
         <div className="w-full max-w-full overflow-hidden space-y-4">
           {backtestData.strategy && (
-            <div className="text-sm font-semibold text-white break-words">
-              Strategy: <span className="text-zinc-300 font-normal">{backtestData.strategy}</span>
+            <div className="text-sm font-semibold text-[var(--kt-text-strong)] break-words">
+              Strategy: <span className="text-[var(--kt-text-dim)] font-normal">{backtestData.strategy}</span>
             </div>
           )}
           {backtestData.start_date && backtestData.end_date && (
-            <div className="text-xs text-zinc-400">
+            <div className="text-xs text-[var(--kt-text-dim)]">
               Period: {new Date(backtestData.start_date).toLocaleDateString()} - {new Date(backtestData.end_date).toLocaleDateString()}
             </div>
           )}
           
           {Object.keys(metrics).length > 0 && (
-            <div className="bg-zinc-900/50 rounded-lg p-3 border border-zinc-700/30 min-w-0">
-              <div className="text-xs font-semibold text-purple-400 mb-2 uppercase">Metrics</div>
+            <div className="bg-[var(--kt-inset)] rounded-lg p-3 border border-[var(--kt-border)] min-w-0">
+              <div className="text-xs font-semibold text-[var(--kt-agent)] mb-2 uppercase">Metrics</div>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 {metrics.total_return !== undefined && (
                   <div className="break-words">
-                    <span className="text-zinc-500">Total Return: </span>
+                    <span className="text-[var(--kt-text-muted)]">Total Return: </span>
                     <span className={`font-medium ${
-                      metrics.total_return >= 0 ? 'text-green-400' : 'text-red-400'
+                      metrics.total_return >= 0 ? 'text-[var(--kt-up)]' : 'text-[var(--kt-down)]'
                     }`}>
                       {formatPercentage(metrics.total_return)}
                     </span>
@@ -299,32 +297,32 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
                 )}
                 {metrics.sharpe_ratio !== undefined && (
                   <div>
-                    <span className="text-zinc-500">Sharpe Ratio: </span>
-                    <span className="text-zinc-300 font-medium">{metrics.sharpe_ratio.toFixed(2)}</span>
+                    <span className="text-[var(--kt-text-muted)]">Sharpe Ratio: </span>
+                    <span className="text-[var(--kt-text-dim)] font-medium">{metrics.sharpe_ratio.toFixed(2)}</span>
                   </div>
                 )}
                 {metrics.max_drawdown !== undefined && (
                   <div className="break-words">
-                    <span className="text-zinc-500">Max Drawdown: </span>
-                    <span className="text-red-400 font-medium">{formatPercentage(metrics.max_drawdown)}</span>
+                    <span className="text-[var(--kt-text-muted)]">Max Drawdown: </span>
+                    <span className="text-[var(--kt-down)] font-medium">{formatPercentage(metrics.max_drawdown)}</span>
                   </div>
                 )}
                 {metrics.volatility !== undefined && (
                   <div className="break-words">
-                    <span className="text-zinc-500">Volatility: </span>
-                    <span className="text-zinc-300 font-medium">{formatPercentage(metrics.volatility)}</span>
+                    <span className="text-[var(--kt-text-muted)]">Volatility: </span>
+                    <span className="text-[var(--kt-text-dim)] font-medium">{formatPercentage(metrics.volatility)}</span>
                   </div>
                 )}
                 {backtestData.initial_capital !== undefined && (
                   <div className="break-words">
-                    <span className="text-zinc-500">Initial Capital: </span>
-                    <span className="text-zinc-300 font-medium">{formatCurrency(backtestData.initial_capital)}</span>
+                    <span className="text-[var(--kt-text-muted)]">Initial Capital: </span>
+                    <span className="text-[var(--kt-text-dim)] font-medium">{formatCurrency(backtestData.initial_capital)}</span>
                   </div>
                 )}
                 {backtestData.final_capital !== undefined && (
                   <div className="break-words">
-                    <span className="text-zinc-500">Final Capital: </span>
-                    <span className="text-zinc-300 font-medium">{formatCurrency(backtestData.final_capital)}</span>
+                    <span className="text-[var(--kt-text-muted)]">Final Capital: </span>
+                    <span className="text-[var(--kt-text-dim)] font-medium">{formatCurrency(backtestData.final_capital)}</span>
                   </div>
                 )}
               </div>
@@ -332,18 +330,18 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
           )}
 
           {allocations.length > 0 && (
-            <div className="bg-zinc-900/50 rounded-lg p-3 border border-zinc-700/30 min-w-0">
-              <div className="text-xs font-semibold text-blue-400 mb-2 uppercase">Allocations</div>
+            <div className="bg-[var(--kt-inset)] rounded-lg p-3 border border-[var(--kt-border)] min-w-0">
+              <div className="text-xs font-semibold text-[var(--kt-agent)] mb-2 uppercase">Allocations</div>
               <div className="w-full max-w-full overflow-hidden">
                 <div className="space-y-2 max-h-96 overflow-y-auto overflow-x-auto">
                   {allocations.map((alloc: any, idx: number) => (
                     <div key={idx} className="flex items-center justify-between text-xs gap-2 min-w-0">
-                      <span className="text-zinc-300 break-words flex-1">{alloc.symbol}</span>
+                      <span className="text-[var(--kt-text-dim)] break-words flex-1">{alloc.symbol}</span>
                       <div className="flex items-center gap-3 flex-shrink-0">
-                        <span className="text-zinc-500">{alloc.allocation_percentage?.toFixed(1)}%</span>
+                        <span className="text-[var(--kt-text-muted)]">{alloc.allocation_percentage?.toFixed(1)}%</span>
                         {alloc.total_return !== undefined && (
                           <span className={`font-medium ${
-                            alloc.total_return >= 0 ? 'text-green-400' : 'text-red-400'
+                            alloc.total_return >= 0 ? 'text-[var(--kt-up)]' : 'text-[var(--kt-down)]'
                           }`}>
                             {formatPercentage(alloc.total_return)}
                           </span>
@@ -369,7 +367,7 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
           <div className="w-full max-w-full overflow-hidden">
             <div className="max-h-96 overflow-y-auto overflow-x-auto">
               <div 
-                className="text-xs text-zinc-300 break-words bg-zinc-900/50 p-3 rounded border border-zinc-700/30 min-w-0"
+                className="text-xs text-[var(--kt-text-dim)] break-words bg-[var(--kt-inset)] p-3 rounded border border-[var(--kt-border)] min-w-0"
                 style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
                 dangerouslySetInnerHTML={{ __html: safe }}
               />
@@ -384,14 +382,14 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
           <div className="w-full max-w-full overflow-hidden">
             <div className="space-y-2 max-h-96 overflow-y-auto overflow-x-auto">
               {results.slice(0, 10).map((item: any, idx: number) => (
-                <div key={idx} className="bg-zinc-900/50 rounded-lg p-3 border border-zinc-700/30 min-w-0">
+                <div key={idx} className="bg-[var(--kt-inset)] rounded-lg p-3 border border-[var(--kt-border)] min-w-0">
                   <div className="flex items-start justify-between mb-1 gap-2">
-                    <div className="font-medium text-sm text-white break-words min-w-0 flex-1">{item.indicator || item.title || item.event}</div>
+                    <div className="font-medium text-sm text-[var(--kt-text-strong)] break-words min-w-0 flex-1">{item.indicator || item.title || item.event}</div>
                     {item.value !== undefined && item.value !== null && (
-                      <div className="text-sm font-semibold text-white flex-shrink-0">{item.value}</div>
+                      <div className="text-sm font-semibold text-[var(--kt-text-strong)] flex-shrink-0">{item.value}</div>
                     )}
                   </div>
-                  <div className="text-xs text-zinc-400 space-y-1">
+                  <div className="text-xs text-[var(--kt-text-dim)] space-y-1">
                     {item.country && <div className="break-words">Country: {item.country}</div>}
                     {item.date && <div>Date: {new Date(item.date).toLocaleDateString()}</div>}
                     {item.category && <div className="break-words">Category: {item.category}</div>}
@@ -402,7 +400,7 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
                 </div>
               ))}
               {results.length > 10 && (
-                <div className="text-xs text-zinc-500 text-center py-2">
+                <div className="text-xs text-[var(--kt-text-muted)] text-center py-2">
                   ... and {results.length - 10} more results
                 </div>
               )}
@@ -420,46 +418,46 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
       return (
         <div className="w-full max-w-full overflow-hidden space-y-3">
           {regData.summary && (
-            <div className="bg-zinc-900/50 rounded-lg p-3 border border-zinc-700/30 min-w-0">
-              <div className="text-xs font-semibold text-orange-400 mb-2 uppercase">Summary</div>
-              <p className="text-xs text-zinc-300 break-words">{regData.summary}</p>
+            <div className="bg-[var(--kt-inset)] rounded-lg p-3 border border-[var(--kt-border)] min-w-0">
+              <div className="text-xs font-semibold text-[var(--kt-warn)] mb-2 uppercase">Summary</div>
+              <p className="text-xs text-[var(--kt-text-dim)] break-words">{regData.summary}</p>
             </div>
           )}
           {regData.topic && (
-            <div className="text-xs text-zinc-400 break-words">
-              Topic: <span className="text-zinc-300">{regData.topic}</span>
+            <div className="text-xs text-[var(--kt-text-dim)] break-words">
+              Topic: <span className="text-[var(--kt-text-dim)]">{regData.topic}</span>
             </div>
           )}
           {regData.jurisdiction && (
-            <div className="text-xs text-zinc-400 break-words">
-              Jurisdiction: <span className="text-zinc-300">{regData.jurisdiction}</span>
+            <div className="text-xs text-[var(--kt-text-dim)] break-words">
+              Jurisdiction: <span className="text-[var(--kt-text-dim)]">{regData.jurisdiction}</span>
             </div>
           )}
           {matches.length > 0 && (
             <div className="w-full max-w-full overflow-hidden">
               <div className="space-y-2 max-h-96 overflow-y-auto overflow-x-auto">
                 {matches.map((match: any, idx: number) => (
-                  <div key={idx} className="bg-zinc-900/50 rounded-lg p-3 border border-zinc-700/30 min-w-0">
+                  <div key={idx} className="bg-[var(--kt-inset)] rounded-lg p-3 border border-[var(--kt-border)] min-w-0">
                     <div className="flex items-start justify-between mb-2 gap-2">
-                      <div className="font-medium text-sm text-white flex-1 break-words min-w-0">{match.title}</div>
+                      <div className="font-medium text-sm text-[var(--kt-text-strong)] flex-1 break-words min-w-0">{match.title}</div>
                       {match.score !== undefined && (
-                        <div className="text-xs text-zinc-500 flex-shrink-0">
+                        <div className="text-xs text-[var(--kt-text-muted)] flex-shrink-0">
                           {(match.score * 100).toFixed(0)}%
                         </div>
                       )}
                     </div>
                     {match.snippet && (
-                      <p className="text-xs text-zinc-400 mb-2 break-words">{match.snippet}</p>
+                      <p className="text-xs text-[var(--kt-text-dim)] mb-2 break-words">{match.snippet}</p>
                     )}
                     {match.jurisdiction && (
-                      <div className="text-xs text-zinc-500 break-words">Jurisdiction: {match.jurisdiction}</div>
+                      <div className="text-xs text-[var(--kt-text-muted)] break-words">Jurisdiction: {match.jurisdiction}</div>
                     )}
                     {match.url && (
                       <a 
                         href={match.url} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="text-xs text-blue-400 hover:text-blue-300 mt-1 inline-block break-all"
+                        className="text-xs text-[var(--kt-agent)] hover:text-[var(--kt-agent)] mt-1 inline-block break-all"
                       >
                         View source →
                       </a>
@@ -480,44 +478,44 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
       
       return (
         <div className="w-full max-w-full overflow-hidden space-y-3">
-          <div className="text-xs text-zinc-400">
+          <div className="text-xs text-[var(--kt-text-dim)]">
             Fetched data for {assetEntries.length} asset{assetEntries.length !== 1 ? 's' : ''}
           </div>
           <div className="w-full max-w-full overflow-hidden">
             <div className="space-y-2 max-h-96 overflow-y-auto overflow-x-auto">
               {assetEntries.map(([symbol, assetData]: [string, any]) => (
-                <div key={symbol} className="bg-zinc-900/50 rounded-lg p-3 border border-zinc-700/30 min-w-0">
-                  <div className="font-medium text-sm text-white mb-2 break-words">{symbol}</div>
+                <div key={symbol} className="bg-[var(--kt-inset)] rounded-lg p-3 border border-[var(--kt-border)] min-w-0">
+                  <div className="font-medium text-sm text-[var(--kt-text-strong)] mb-2 break-words">{symbol}</div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     {assetData.asset_type && (
                       <div className="break-words">
-                        <span className="text-zinc-500">Type: </span>
-                        <span className="text-zinc-300">{assetData.asset_type}</span>
+                        <span className="text-[var(--kt-text-muted)]">Type: </span>
+                        <span className="text-[var(--kt-text-dim)]">{assetData.asset_type}</span>
                       </div>
                     )}
                     {assetData.total_points !== undefined && (
                       <div>
-                        <span className="text-zinc-500">Data Points: </span>
-                        <span className="text-zinc-300">{assetData.total_points}</span>
+                        <span className="text-[var(--kt-text-muted)]">Data Points: </span>
+                        <span className="text-[var(--kt-text-dim)]">{assetData.total_points}</span>
                       </div>
                     )}
                     {assetData.start_date && (
                       <div>
-                        <span className="text-zinc-500">Start: </span>
-                        <span className="text-zinc-300">{new Date(assetData.start_date).toLocaleDateString()}</span>
+                        <span className="text-[var(--kt-text-muted)]">Start: </span>
+                        <span className="text-[var(--kt-text-dim)]">{new Date(assetData.start_date).toLocaleDateString()}</span>
                       </div>
                     )}
                     {assetData.end_date && (
                       <div>
-                        <span className="text-zinc-500">End: </span>
-                        <span className="text-zinc-300">{new Date(assetData.end_date).toLocaleDateString()}</span>
+                        <span className="text-[var(--kt-text-muted)]">End: </span>
+                        <span className="text-[var(--kt-text-dim)]">{new Date(assetData.end_date).toLocaleDateString()}</span>
                       </div>
                     )}
                     {assetData.price_change_pct !== undefined && (
                       <div className="break-words">
-                        <span className="text-zinc-500">Price Change: </span>
+                        <span className="text-[var(--kt-text-muted)]">Price Change: </span>
                         <span className={`font-medium ${
-                          assetData.price_change_pct >= 0 ? 'text-green-400' : 'text-red-400'
+                          assetData.price_change_pct >= 0 ? 'text-[var(--kt-up)]' : 'text-[var(--kt-down)]'
                         }`}>
                           {formatPercentage(assetData.price_change_pct)}
                         </span>
@@ -541,12 +539,12 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
         return (
           <div className="w-full max-w-full overflow-hidden">
             <div className="space-y-2 max-h-96 overflow-y-auto overflow-x-auto">
-              <div className="text-xs text-zinc-400">
+              <div className="text-xs text-[var(--kt-text-dim)]">
                 {dataArray.length} data point{dataArray.length !== 1 ? 's' : ''}
               </div>
               {dataArray.slice(0, 10).map((item: any, idx: number) => (
-                <div key={idx} className="bg-zinc-900/50 rounded-lg p-3 border border-zinc-700/30 min-w-0">
-                  <div className="text-xs text-zinc-300">
+                <div key={idx} className="bg-[var(--kt-inset)] rounded-lg p-3 border border-[var(--kt-border)] min-w-0">
+                  <div className="text-xs text-[var(--kt-text-dim)]">
                     <pre className="whitespace-pre-wrap break-words overflow-x-auto">
                       {JSON.stringify(item, null, 2)}
                     </pre>
@@ -554,7 +552,7 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
                 </div>
               ))}
               {dataArray.length > 10 && (
-                <div className="text-xs text-zinc-500 text-center py-2">
+                <div className="text-xs text-[var(--kt-text-muted)] text-center py-2">
                   ... and {dataArray.length - 10} more results
                 </div>
               )}
@@ -573,39 +571,39 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
       return (
         <div className="w-full max-w-full overflow-hidden space-y-3">
           {context && (
-            <div className="bg-zinc-900/50 rounded-lg p-3 border border-zinc-700/30 min-w-0">
-              <div className="text-xs font-semibold text-blue-400 mb-2 uppercase">Search Context</div>
-              <p className="text-xs text-zinc-300 break-words whitespace-pre-wrap">{context}</p>
+            <div className="bg-[var(--kt-inset)] rounded-lg p-3 border border-[var(--kt-border)] min-w-0">
+              <div className="text-xs font-semibold text-[var(--kt-agent)] mb-2 uppercase">Search Context</div>
+              <p className="text-xs text-[var(--kt-text-dim)] break-words whitespace-pre-wrap">{context}</p>
             </div>
           )}
           {results.length > 0 && (
             <div className="w-full max-w-full overflow-hidden">
               <div className="space-y-2 max-h-96 overflow-y-auto overflow-x-auto">
                 {results.slice(0, 10).map((item: any, idx: number) => (
-                  <div key={idx} className="bg-zinc-900/50 rounded-lg p-3 border border-zinc-700/30 min-w-0">
+                  <div key={idx} className="bg-[var(--kt-inset)] rounded-lg p-3 border border-[var(--kt-border)] min-w-0">
                     {item.title && (
-                      <div className="font-medium text-sm text-white mb-1 break-words">{item.title}</div>
+                      <div className="font-medium text-sm text-[var(--kt-text-strong)] mb-1 break-words">{item.title}</div>
                     )}
                     {item.url && (
                       <a 
                         href={item.url} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="text-xs text-blue-400 hover:text-blue-300 mb-2 inline-block break-all"
+                        className="text-xs text-[var(--kt-agent)] hover:text-[var(--kt-agent)] mb-2 inline-block break-all"
                       >
                         {item.url}
                       </a>
                     )}
                     {item.snippet && (
-                      <p className="text-xs text-zinc-400 break-words">{item.snippet}</p>
+                      <p className="text-xs text-[var(--kt-text-dim)] break-words">{item.snippet}</p>
                     )}
                     {item.description && (
-                      <p className="text-xs text-zinc-400 break-words mt-1">{item.description}</p>
+                      <p className="text-xs text-[var(--kt-text-dim)] break-words mt-1">{item.description}</p>
                     )}
                   </div>
                 ))}
                 {results.length > 10 && (
-                  <div className="text-xs text-zinc-500 text-center py-2">
+                  <div className="text-xs text-[var(--kt-text-muted)] text-center py-2">
                     ... and {results.length - 10} more results
                   </div>
                 )}
@@ -628,7 +626,7 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
     // Fallback: render as formatted JSON
     return (
       <div className="w-full max-w-full overflow-hidden">
-        <pre className="text-xs text-zinc-300 bg-zinc-950/50 p-3 rounded border border-zinc-700/50 overflow-x-auto min-w-0 break-words whitespace-pre-wrap">
+        <pre className="text-xs text-[var(--kt-text-dim)] bg-[var(--kt-inset)] p-3 rounded border border-[var(--kt-border)] overflow-x-auto min-w-0 break-words whitespace-pre-wrap">
           {JSON.stringify(data, null, 2)}
         </pre>
       </div>
@@ -661,19 +659,19 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
           {/* Show latency badge if available */}
           {step.latency_ms !== undefined && step.latency_ms !== null && (
             <motion.div
-              className="flex items-center gap-1 px-2 py-0.5 bg-zinc-700/50 rounded text-xs text-zinc-300"
+              className="flex items-center gap-1 px-2 py-0.5 bg-[var(--kt-hover)] rounded text-xs text-[var(--kt-text-dim)]"
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.2 }}
             >
-              <Zap className="h-3 w-3 text-yellow-400" />
+              <Zap className="h-3 w-3 text-[var(--kt-warn)]" />
               <span className="font-medium">{formatLatency(step.latency_ms)}</span>
             </motion.div>
           )}
           {/* Special badge for finalise agent */}
           {step.id === 'finalise' && (
             <motion.div
-              className="flex items-center gap-1 px-2 py-0.5 bg-orange-500/20 rounded text-xs text-orange-300 border border-orange-500/30"
+              className="flex items-center gap-1 px-2 py-0.5 bg-orange-500/20 rounded text-xs text-[var(--kt-warn)] border border-orange-500/30"
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.2 }}
@@ -684,9 +682,9 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
           )}
           {canExpand && (
             isExpanded ? (
-              <ChevronUp className="h-4 w-4 text-zinc-400 ml-auto" />
+              <ChevronUp className="h-4 w-4 text-[var(--kt-text-dim)] ml-auto" />
             ) : (
-              <ChevronDown className="h-4 w-4 text-zinc-400 ml-auto" />
+              <ChevronDown className="h-4 w-4 text-[var(--kt-text-dim)] ml-auto" />
             )
           )}
         </div>
@@ -695,7 +693,7 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
         <AnimatePresence>
           {isExpanded && hasInputOutput && (
             <motion.div
-              className="ml-4 space-y-2 border-l-2 border-zinc-700 pl-4"
+              className="ml-4 space-y-2 border-l-2 border-[var(--kt-border)] pl-4"
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
@@ -703,88 +701,88 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
             >
             {/* Timing Information */}
             {(step.timestamp_start || step.timestamp_end || step.latency_ms !== undefined) && (
-              <div className="bg-zinc-900/50 rounded-lg p-3">
+              <div className="bg-[var(--kt-inset)] rounded-lg p-3">
                 <div className="flex items-center gap-2 mb-2">
-                  <Clock className="h-3 w-3 text-purple-400" />
-                  <span className="text-xs font-semibold text-purple-400 uppercase">Execution Timing</span>
+                  <Clock className="h-3 w-3 text-[var(--kt-agent)]" />
+                  <span className="text-xs font-semibold text-[var(--kt-agent)] uppercase">Execution Timing</span>
                 </div>
                 <div className="space-y-1 text-xs">
                   {step.timestamp_start && (
                     <div className="flex items-center gap-2">
-                      <span className="text-zinc-500">Start:</span>
-                      <span className="text-zinc-300">{formatTimestamp(step.timestamp_start)}</span>
+                      <span className="text-[var(--kt-text-muted)]">Start:</span>
+                      <span className="text-[var(--kt-text-dim)]">{formatTimestamp(step.timestamp_start)}</span>
                     </div>
                   )}
                   {step.timestamp_end && (
                     <div className="flex items-center gap-2">
-                      <span className="text-zinc-500">End:</span>
-                      <span className="text-zinc-300">{formatTimestamp(step.timestamp_end)}</span>
+                      <span className="text-[var(--kt-text-muted)]">End:</span>
+                      <span className="text-[var(--kt-text-dim)]">{formatTimestamp(step.timestamp_end)}</span>
                     </div>
                   )}
                   {step.latency_ms !== undefined && step.latency_ms !== null && (
                     <div className="flex items-center gap-2">
-                      <Zap className="h-3 w-3 text-yellow-400" />
-                      <span className="text-zinc-500">Latency:</span>
-                      <span className="text-yellow-400 font-medium">{formatLatency(step.latency_ms)}</span>
+                      <Zap className="h-3 w-3 text-[var(--kt-warn)]" />
+                      <span className="text-[var(--kt-text-muted)]">Latency:</span>
+                      <span className="text-[var(--kt-warn)] font-medium">{formatLatency(step.latency_ms)}</span>
                     </div>
                   )}
                 </div>
               </div>
             )}
             {step.input && (
-              <div className="bg-zinc-900/50 rounded-lg p-3">
+              <div className="bg-[var(--kt-inset)] rounded-lg p-3">
                 <div className="flex items-center gap-2 mb-2">
-                  <Code className="h-3 w-3 text-blue-400" />
-                  <span className="text-xs font-semibold text-blue-400 uppercase">Input</span>
+                  <Code className="h-3 w-3 text-[var(--kt-agent)]" />
+                  <span className="text-xs font-semibold text-[var(--kt-agent)] uppercase">Input</span>
                 </div>
-                <p className="text-xs text-zinc-300 whitespace-pre-wrap break-words">{step.input}</p>
+                <p className="text-xs text-[var(--kt-text-dim)] whitespace-pre-wrap break-words">{step.input}</p>
               </div>
             )}
             {step.output && (
-              <div className="bg-zinc-900/50 rounded-lg p-3">
+              <div className="bg-[var(--kt-inset)] rounded-lg p-3">
                 <div className="flex items-center gap-2 mb-2">
-                  <MessageSquare className="h-3 w-3 text-green-400" />
-                  <span className="text-xs font-semibold text-green-400 uppercase">Output</span>
+                  <MessageSquare className="h-3 w-3 text-[var(--kt-up)]" />
+                  <span className="text-xs font-semibold text-[var(--kt-up)] uppercase">Output</span>
                   {step.output.success ? (
-                    <CheckCircle2 className="h-3 w-3 text-green-400 ml-auto" />
+                    <CheckCircle2 className="h-3 w-3 text-[var(--kt-up)] ml-auto" />
                   ) : (
-                    <XCircle className="h-3 w-3 text-red-400 ml-auto" />
+                    <XCircle className="h-3 w-3 text-[var(--kt-down)] ml-auto" />
                   )}
                 </div>
                 <div className="space-y-1">
                   {step.output.message && (
-                    <p className="text-xs text-zinc-300 whitespace-pre-wrap break-words">{step.output.message}</p>
+                    <p className="text-xs text-[var(--kt-text-dim)] whitespace-pre-wrap break-words">{step.output.message}</p>
                   )}
                   {step.output.data_keys && step.output.data_keys.length > 0 && (
                     <div className="mt-2">
-                      <span className="text-xs text-zinc-500">Data keys: </span>
-                      <span className="text-xs text-zinc-400">{step.output.data_keys.join(', ')}</span>
+                      <span className="text-xs text-[var(--kt-text-muted)]">Data keys: </span>
+                      <span className="text-xs text-[var(--kt-text-dim)]">{step.output.data_keys.join(', ')}</span>
                     </div>
                   )}
                   {step.output.has_data && (
-                    <span className="inline-block text-xs text-green-400 mt-1">✓ Has data</span>
+                    <span className="inline-block text-xs text-[var(--kt-up)] mt-1">✓ Has data</span>
                   )}
                 </div>
               </div>
             )}
             {/* Full Data Display */}
             {step.output?.data && (
-              <div className="bg-zinc-900/50 rounded-lg p-3 max-w-full overflow-hidden">
+              <div className="bg-[var(--kt-inset)] rounded-lg p-3 max-w-full overflow-hidden">
                 <div 
                   className="flex items-center gap-2 mb-2 cursor-pointer hover:opacity-80 transition-opacity"
                   onClick={() => toggleDataExpansion(step.id)}
                 >
-                  <Database className="h-3 w-3 text-cyan-400 flex-shrink-0" />
-                  <span className="text-xs font-semibold text-cyan-400 uppercase">Data</span>
+                  <Database className="h-3 w-3 text-[var(--kt-agent)] flex-shrink-0" />
+                  <span className="text-xs font-semibold text-[var(--kt-agent)] uppercase">Data</span>
                   {expandedData.has(step.id) ? (
-                    <ChevronUp className="h-3 w-3 text-zinc-400 ml-auto flex-shrink-0" />
+                    <ChevronUp className="h-3 w-3 text-[var(--kt-text-dim)] ml-auto flex-shrink-0" />
                   ) : (
-                    <ChevronDown className="h-3 w-3 text-zinc-400 ml-auto flex-shrink-0" />
+                    <ChevronDown className="h-3 w-3 text-[var(--kt-text-dim)] ml-auto flex-shrink-0" />
                   )}
                 </div>
                 {/* Data Preview (when collapsed) */}
                 {!expandedData.has(step.id) && (
-                  <div className="text-xs text-zinc-500 mt-1 break-words">
+                  <div className="text-xs text-[var(--kt-text-muted)] mt-1 break-words">
                     {getDataPreview(step, step.output.data)}
                   </div>
                 )}
@@ -813,12 +811,12 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
-        return <CheckCircle2 className="h-4 w-4 text-green-400" />
+        return <CheckCircle2 className="h-4 w-4 text-[var(--kt-up)]" />
       case 'pending':
-        return <Loader2 className="h-4 w-4 text-yellow-400 animate-spin" />
+        return <Loader2 className="h-4 w-4 text-[var(--kt-warn)] animate-spin" />
       case 'error':
       case 'failed':
-        return <XCircle className="h-4 w-4 text-red-400" />
+        return <XCircle className="h-4 w-4 text-[var(--kt-down)]" />
       default:
         return <CheckCircle2 className="h-4 w-4 text-gray-400" />
     }
@@ -833,9 +831,9 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
   const getFlowTypeIcon = () => {
     switch (flowType) {
       case 'parallel':
-        return <GitBranch className="h-4 w-4 text-purple-400" />
+        return <GitBranch className="h-4 w-4 text-[var(--kt-agent)]" />
       case 'sequential':
-        return <GitMerge className="h-4 w-4 text-blue-400" />
+        return <GitMerge className="h-4 w-4 text-[var(--kt-agent)]" />
       default:
         return null
     }
@@ -882,7 +880,7 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
           >
-            <ArrowDown className="h-4 w-4 text-zinc-500" />
+            <ArrowDown className="h-4 w-4 text-[var(--kt-text-muted)]" />
           </motion.div>
         )}
 
@@ -916,7 +914,7 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5 + specializedAgents.length * 0.1 }}
             >
-              <ArrowDown className="h-4 w-4 text-zinc-500" />
+              <ArrowDown className="h-4 w-4 text-[var(--kt-text-muted)]" />
             </motion.div>
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
@@ -950,7 +948,7 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
                 animate={{ opacity: 1 }}
                 transition={{ delay: index * 0.15 + 0.1 }}
               >
-                <ArrowDown className="h-4 w-4 text-zinc-500" />
+                <ArrowDown className="h-4 w-4 text-[var(--kt-text-muted)]" />
               </motion.div>
             )}
           </React.Fragment>
@@ -981,7 +979,7 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
                   animate={{ opacity: 1 }}
                   transition={{ delay: index * 0.1 + 0.15 }}
                 >
-                  <ArrowRight className="h-4 w-4 text-zinc-500" />
+                  <ArrowRight className="h-4 w-4 text-[var(--kt-text-muted)]" />
                 </motion.div>
               )}
             </div>
@@ -992,51 +990,28 @@ export default function AgentFlow({ flow }: AgentFlowProps) {
   }
 
   return (
-    <Card className="w-full bg-zinc-800/30 border-zinc-700/50 backdrop-blur-sm">
+    <Card className="w-full bg-[var(--kt-hover)] border-[var(--kt-border)] backdrop-blur-sm">
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
-        <CardTitle className="text-base text-white flex items-center gap-2">
+        <CardTitle className="text-base text-[var(--kt-text-strong)] flex items-center gap-2">
           {getFlowTypeIcon()}
           <span>{getFlowTypeLabel()}</span>
           {flowType !== 'single' && (
-            <span className="text-xs text-zinc-400 font-normal ml-2">
+            <span className="text-xs text-[var(--kt-text-dim)] font-normal ml-2">
               ({steps.length} agent{steps.length !== 1 ? 's' : ''})
             </span>
           )}
         </CardTitle>
-        <div className="flex items-center gap-1.5 rounded-lg bg-zinc-900/80 p-1 border border-zinc-700/50">
-          <button
-            onClick={() => setViewMode('flow')}
-            className={`px-2.5 py-1 text-xs rounded-md font-medium transition ${
-              viewMode === 'flow'
-                ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30 shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Flow Diagram
-          </button>
-          <button
-            onClick={() => setViewMode('terminal')}
-            className={`px-2.5 py-1 text-xs rounded-md font-medium flex items-center gap-1.5 transition ${
-              viewMode === 'terminal'
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <span>Terminal View</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          </button>
-        </div>
       </CardHeader>
+      {/* The terminal toggle that used to sit here is gone. It replayed a
+          finished flow at an invented 120ms a row while calling itself live,
+          and it duplicated the real event log — which now lives in Devtools →
+          Terminal, accumulates across the whole session, and is written as the
+          calls actually happen. This card does the one thing it is good at:
+          the shape of the flow. */}
       <CardContent>
-        {viewMode === 'terminal' ? (
-          <TerminalExecutionFlow flow={flow} />
-        ) : (
-          <>
-            {flowType === 'parallel' && renderParallelFlow()}
-            {flowType === 'sequential' && renderSequentialFlow()}
-            {flowType === 'single' && renderLinearFlow()}
-          </>
-        )}
+        {flowType === 'parallel' && renderParallelFlow()}
+        {flowType === 'sequential' && renderSequentialFlow()}
+        {flowType === 'single' && renderLinearFlow()}
       </CardContent>
     </Card>
   )

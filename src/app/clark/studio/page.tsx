@@ -106,7 +106,6 @@ export default function MonitorHome() {
   return (
     <div className={KT.page}>
       <StudioHeader
-        subtitle="Everything that needs you, in one screen"
         actions={
           <button className={`flex h-8 items-center ${KT.btnGhost}`} onClick={() => setSimOpen(true)}>
             <ShieldAlert size={14} className="mr-1.5" /> Stress test

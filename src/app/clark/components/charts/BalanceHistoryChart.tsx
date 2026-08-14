@@ -162,7 +162,7 @@ export default function BalanceHistoryChart({
     return (
       <Card className={chartUi.card}>
         <CardHeader>
-          <CardTitle className="text-lg text-white">{title}</CardTitle>
+          <CardTitle className="text-lg text-[var(--kt-text-strong)]">{title}</CardTitle>
           <CardDescription className={chartUi.muted}>
             No balance history data for this period.
           </CardDescription>
@@ -182,7 +182,7 @@ export default function BalanceHistoryChart({
   return (
     <Card className={chartUi.card}>
       <CardHeader>
-        <CardTitle className="text-lg text-white">{title}</CardTitle>
+        <CardTitle className="text-lg text-[var(--kt-text-strong)]">{title}</CardTitle>
         <CardDescription className={chartUi.muted}>
           {isDaily ? 'Daily' : 'Intraday'} balance history
           {username_or_address ? ` · ${username_or_address}` : ''} · {chartData.length} data points · {tokens.length} token{tokens.length !== 1 ? 's' : ''}
@@ -233,7 +233,7 @@ export default function BalanceHistoryChart({
                       {tokens.map(t => (
                         <div key={t} className="flex justify-between items-center gap-4">
                           <span className={chartUi.muted}>{displayToken(t)}</span>
-                          <span className="text-white font-medium tabular-nums">
+                          <span className="text-[var(--kt-text-strong)] font-medium tabular-nums">
                             {formatAxisValue(Number(data[t] ?? 0))}
                           </span>
                         </div>

@@ -47,8 +47,8 @@ export default function AllocationCharts({ allocations, symbol, targetAssets, to
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full mt-4">
       <Card className={chartUi.card}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-white text-base font-semibold">
-            <PieChartIcon className="h-5 w-5 text-teal-400" />
+          <CardTitle className="flex items-center gap-2 text-[var(--kt-text-strong)] text-base font-semibold">
+            <PieChartIcon className="h-5 w-5 text-[var(--kt-accent)]" />
             Portfolio Allocation
           </CardTitle>
           <CardDescription className={chartUi.muted}>
@@ -104,8 +104,8 @@ export default function AllocationCharts({ allocations, symbol, targetAssets, to
 
       <Card className={chartUi.card}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-white text-base font-semibold">
-            <BarChart3 className="h-5 w-5 text-teal-400" />
+          <CardTitle className="flex items-center gap-2 text-[var(--kt-text-strong)] text-base font-semibold">
+            <BarChart3 className="h-5 w-5 text-[var(--kt-accent)]" />
             Asset Performance
           </CardTitle>
           <CardDescription className={chartUi.muted}>

@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Clock, Zap, TrendingUp, Activity, BarChart3, Filter, Brain, Loader2, RefreshCw } from 'lucide-react'
+import { X, Clock, Zap, TrendingUp, Activity, BarChart3, Filter, Brain, Loader2, RefreshCw, Terminal as TerminalIcon } from 'lucide-react'
 import { AgentFlowGraph, AgentFlowStep, ChatMessage } from '../types'
 import AgentFlow from './AgentFlow'
 import MemoriesTab from './MemoriesTab'
+import LiveTerminal from './LiveTerminal'
+import type { LogLine } from '@/lib/agents_stream'
 import agentsApi from '@/lib/agents_api'
 
 interface DevtoolsOverlayProps {
@@ -17,6 +19,11 @@ interface DevtoolsOverlayProps {
   sessionCost?: number
   overallCost?: number
   messages?: ChatMessage[]
+  /** Every event of the session so far, oldest first. Owned by the page so it
+   *  survives this overlay being closed and reopened. */
+  sessionLog?: LogLine[]
+  /** True while a turn is in flight, so the tab can say "live". */
+  isStreaming?: boolean
 }
 
 interface AgentFlowEntry {
@@ -36,10 +43,12 @@ export default function DevtoolsOverlay({
   sessionCost = 0,
   overallCost = 0,
   messages = [],
+  sessionLog = [],
+  isStreaming = false,
 }: DevtoolsOverlayProps) {
   const [selectedQueryIndex, setSelectedQueryIndex] = useState<number | null>(null)
   const [filterType, setFilterType] = useState<'all' | 'single' | 'sequential' | 'parallel'>('all')
-  const [activeTab, setActiveTab] = useState<'agent-flow' | 'memories'>('agent-flow')
+  const [activeTab, setActiveTab] = useState<'agent-flow' | 'terminal' | 'memories'>('agent-flow')
   const [firebaseAgentflows, setFirebaseAgentflows] = useState<AgentFlowEntry[]>([])
   const [isLoadingAgentflows, setIsLoadingAgentflows] = useState(false)
 
@@ -243,47 +252,47 @@ export default function DevtoolsOverlay({
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 32, stiffness: 320 }}
-            className="fixed top-0 right-0 h-full w-full max-w-2xl bg-[#0c1210]/95 backdrop-blur-2xl z-50 overflow-y-auto scrollbar-minimal"
-            style={{ boxShadow: '-4px 0 24px rgba(0,0,0,0.25)' }}
+            className="fixed top-0 right-0 h-full w-full max-w-2xl border-l border-[var(--kt-border)] bg-[var(--kt-surface)] z-50 overflow-y-auto scrollbar-minimal"
+            style={{ boxShadow: '-8px 0 32px rgb(0 0 0 / 0.18)' }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="sticky top-0 z-10 bg-[#0c1210]/90 backdrop-blur-xl border-b border-teal-900/20">
+            <div className="sticky top-0 z-10 bg-[var(--kt-surface)]/95 backdrop-blur-xl border-b border-[var(--kt-border)]">
               <div className="flex items-start justify-between gap-4 px-6 pt-6 pb-4">
                 <div className="min-w-0 flex-1 space-y-1.5">
-                  <h1 className="text-[22px] font-semibold text-white tracking-tight">Devtools</h1>
-                  <p className="text-[13px] text-white/60">
+                  <h1 className="text-[22px] font-semibold text-[var(--kt-text-strong)] tracking-tight">Devtools</h1>
+                  <p className="text-[13px] text-[var(--kt-text-muted)]">
                     <span>
                       Session:{' '}
-                      <span className="font-medium tabular-nums text-white/90">
+                      <span className="font-medium tabular-nums text-[var(--kt-text)]">
                         ${sessionCost.toFixed(4)}
                       </span>
                     </span>
-                    <span className="text-white/35 mx-1">·</span>
+                    <span className="text-[var(--kt-text-muted)] mx-1">·</span>
                     <span>
                       Total:{' '}
-                      <span className="font-medium tabular-nums text-white/90">
+                      <span className="font-medium tabular-nums text-[var(--kt-text)]">
                         ${overallCost.toFixed(4)}
                       </span>
                     </span>
-                    <span className="text-white/35 mx-1">·</span>
+                    <span className="text-[var(--kt-text-muted)] mx-1">·</span>
                     <span className="min-w-0 max-w-full">
                       Name{' '}
-                      <span className="font-mono text-white/70 break-all">
+                      <span className="font-mono text-[var(--kt-text-dim)] break-all">
                         {userName || '—'}
                       </span>
                     </span>
                   </p>
-                  {/* <p className="text-[12px] text-white/45 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                  {/* <p className="text-[12px] text-[var(--kt-text-muted)] flex flex-wrap items-baseline gap-x-4 gap-y-1">
                     <span className="min-w-0 max-w-full">
                       User Name{' '}
-                      <span className="font-mono text-white/70 break-all">
+                      <span className="font-mono text-[var(--kt-text-dim)] break-all">
                         {userName || '—'}
                       </span>
                     </span>
                     <span className="min-w-0 max-w-full">
                       Session Id{' '}
-                      <span className="font-mono text-white/70 break-all">
+                      <span className="font-mono text-[var(--kt-text-dim)] break-all">
                         {sessionId || '—'}
                       </span>
                     </span>
@@ -292,7 +301,7 @@ export default function DevtoolsOverlay({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex items-center justify-center w-9 h-9 rounded-full bg-white/[0.08] hover:bg-white/[0.12] text-white/80 hover:text-white transition-colors shrink-0"
+                  className="flex items-center justify-center w-9 h-9 rounded-full bg-[var(--kt-hover)] hover:bg-[var(--kt-border)] text-[var(--kt-text-dim)] hover:text-[var(--kt-text-strong)] transition-colors shrink-0"
                   aria-label="Close devtools"
                 >
                   <X className="h-4 w-4" />
@@ -300,22 +309,37 @@ export default function DevtoolsOverlay({
               </div>
 
               {/* Tab Navigation - segmented control style */}
-              <div className="flex mx-4 mb-0.5 p-1 rounded-xl bg-teal-950/30 w-fit">
+              <div className="flex mx-4 mb-0.5 p-1 rounded-xl bg-[var(--kt-inset)] w-fit">
                 <button
                   onClick={() => setActiveTab('agent-flow')}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${activeTab === 'agent-flow'
-                      ? 'bg-teal-900/40 text-teal-100 shadow-sm'
-                      : 'text-teal-200/60 hover:text-teal-100/80'
+                      ? 'bg-[var(--kt-surface)] text-[var(--kt-text)] shadow-sm'
+                      : 'text-[var(--kt-text-muted)] hover:text-[var(--kt-text)]'
                     }`}
                 >
                   <BarChart3 className="h-4 w-4" />
                   Agent Flow
                 </button>
                 <button
+                  onClick={() => setActiveTab('terminal')}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${activeTab === 'terminal'
+                      ? 'bg-[var(--kt-surface)] text-[var(--kt-text)] shadow-sm'
+                      : 'text-[var(--kt-text-muted)] hover:text-[var(--kt-text)]'
+                    }`}
+                >
+                  <TerminalIcon className="h-4 w-4" />
+                  Terminal
+                  {sessionLog.length > 0 && (
+                    <span className="font-mono text-[10px] tabular-nums text-[var(--kt-text-muted)]">
+                      {sessionLog.length}
+                    </span>
+                  )}
+                </button>
+                <button
                   onClick={() => setActiveTab('memories')}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${activeTab === 'memories'
-                      ? 'bg-teal-900/40 text-teal-100 shadow-sm'
-                      : 'text-teal-200/60 hover:text-teal-100/80'
+                      ? 'bg-[var(--kt-surface)] text-[var(--kt-text)] shadow-sm'
+                      : 'text-[var(--kt-text-muted)] hover:text-[var(--kt-text)]'
                     }`}
                 >
                   <Brain className="h-4 w-4" />
@@ -328,7 +352,7 @@ export default function DevtoolsOverlay({
               {activeTab === 'agent-flow' && (
                 <>
                   <div className="flex items-center justify-between gap-4 mb-6">
-                    <p className="text-[13px] text-white/50">Recent agent flows from Firebase</p>
+                    <p className="text-[13px] text-[var(--kt-text-muted)]">Recent agent flows from Firebase</p>
                     <button
                       onClick={() => {
                         if (userId) {
@@ -342,7 +366,7 @@ export default function DevtoolsOverlay({
                         }
                       }}
                       disabled={isLoadingAgentflows}
-                      className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-[13px] font-medium text-white/80 transition-colors disabled:opacity-50"
+                      className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[var(--kt-hover)] hover:bg-[var(--kt-border)] text-[13px] font-medium text-[var(--kt-text-dim)] transition-colors disabled:opacity-50"
                     >
                       {isLoadingAgentflows ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                       Refresh
@@ -351,30 +375,30 @@ export default function DevtoolsOverlay({
 
                   {/* Token & Observability Metrics Section */}
                   <div className="mb-6 rounded-2xl bg-[#090E17] border border-emerald-500/20 p-5 shadow-xl">
-                    <div className="flex items-center justify-between mb-4 border-b border-emerald-900/30 pb-3">
+                    <div className="flex items-center justify-between mb-4 border-b border-[var(--kt-up)]/30 pb-3">
                       <div className="flex items-center gap-2">
-                        <Activity className="h-4 w-4 text-emerald-400" />
-                        <h3 className="text-sm font-semibold text-emerald-300 tracking-wide uppercase">Session Token Observability</h3>
+                        <Activity className="h-4 w-4 text-[var(--kt-up)]" />
+                        <h3 className="text-sm font-semibold text-[var(--kt-up)] tracking-wide uppercase">Session Token Observability</h3>
                       </div>
-                      <span className="text-xs font-mono text-emerald-400/80 bg-emerald-950/60 px-2.5 py-0.5 rounded border border-emerald-800/40">
+                      <span className="text-xs font-mono text-[var(--kt-up)]/80 bg-[var(--kt-up)]/10 px-2.5 py-0.5 rounded border border-emerald-800/40">
                         {stats.avgTokensPerSec} tok/s avg speed
                       </span>
                     </div>
 
                     <div className="grid grid-cols-3 gap-3">
-                      <div className="rounded-xl bg-zinc-900/60 p-3.5 border border-zinc-800/60">
-                        <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">Input Tokens (Prompt)</p>
-                        <p className="text-xl font-bold text-sky-400 mt-1 font-mono">{stats.promptTokens.toLocaleString()}</p>
+                      <div className="rounded-xl bg-[var(--kt-inset)] p-3.5 border border-[var(--kt-border)]">
+                        <p className="text-[11px] font-medium text-[var(--kt-text-dim)] uppercase tracking-wider">Input Tokens (Prompt)</p>
+                        <p className="text-xl font-bold text-[var(--kt-agent)] mt-1 font-mono">{stats.promptTokens.toLocaleString()}</p>
                       </div>
 
-                      <div className="rounded-xl bg-zinc-900/60 p-3.5 border border-zinc-800/60">
-                        <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">Output Tokens (Completion)</p>
-                        <p className="text-xl font-bold text-teal-400 mt-1 font-mono">{stats.completionTokens.toLocaleString()}</p>
+                      <div className="rounded-xl bg-[var(--kt-inset)] p-3.5 border border-[var(--kt-border)]">
+                        <p className="text-[11px] font-medium text-[var(--kt-text-dim)] uppercase tracking-wider">Output Tokens (Completion)</p>
+                        <p className="text-xl font-bold text-[var(--kt-accent)] mt-1 font-mono">{stats.completionTokens.toLocaleString()}</p>
                       </div>
 
-                      <div className="rounded-xl bg-zinc-900/60 p-3.5 border border-zinc-800/60">
-                        <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">Total Tokens Processed</p>
-                        <p className="text-xl font-bold text-emerald-400 mt-1 font-mono">{stats.totalTokens.toLocaleString()}</p>
+                      <div className="rounded-xl bg-[var(--kt-inset)] p-3.5 border border-[var(--kt-border)]">
+                        <p className="text-[11px] font-medium text-[var(--kt-text-dim)] uppercase tracking-wider">Total Tokens Processed</p>
+                        <p className="text-xl font-bold text-[var(--kt-up)] mt-1 font-mono">{stats.totalTokens.toLocaleString()}</p>
                       </div>
                     </div>
                   </div>
@@ -383,20 +407,20 @@ export default function DevtoolsOverlay({
                   {queriesWithFlows.length > 0 && (
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
                       {[
-                        { label: 'Queries', value: stats.totalQueries, icon: Activity, color: 'text-emerald-400/90' },
-                        { label: 'Avg latency', value: stats.avgLatency < 1000 ? `${stats.avgLatency.toFixed(0)}ms` : `${(stats.avgLatency / 1000).toFixed(2)}s`, icon: Zap, color: 'text-amber-400/90' },
-                        { label: 'Parallel', value: stats.flowTypeCounts.parallel, icon: BarChart3, color: 'text-sky-400/90' },
-                        { label: 'Sequential', value: stats.flowTypeCounts.sequential, icon: TrendingUp, color: 'text-violet-400/90' },
+                        { label: 'Queries', value: stats.totalQueries, icon: Activity, color: 'text-[var(--kt-up)]/90' },
+                        { label: 'Avg latency', value: stats.avgLatency < 1000 ? `${stats.avgLatency.toFixed(0)}ms` : `${(stats.avgLatency / 1000).toFixed(2)}s`, icon: Zap, color: 'text-[var(--kt-warn)]/90' },
+                        { label: 'Parallel', value: stats.flowTypeCounts.parallel, icon: BarChart3, color: 'text-[var(--kt-agent)]/90' },
+                        { label: 'Sequential', value: stats.flowTypeCounts.sequential, icon: TrendingUp, color: 'text-[var(--kt-agent)]/90' },
                       ].map((item, i) => (
                         <motion.div
                           key={item.label}
                           initial={{ opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: i * 0.04 }}
-                          className="rounded-2xl bg-teal-950/15 p-4 border border-teal-900/20"
+                          className="rounded-2xl bg-[var(--kt-inset)] p-4 border border-[var(--kt-border)]"
                         >
-                          <p className="text-[11px] font-medium uppercase tracking-wider text-white/40 mb-1">{item.label}</p>
-                          <p className="text-lg font-semibold text-white tracking-tight">{item.value}</p>
+                          <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--kt-text-muted)] mb-1">{item.label}</p>
+                          <p className="text-lg font-semibold text-[var(--kt-text-strong)] tracking-tight">{item.value}</p>
                           <item.icon className={`h-5 w-5 mt-2 ${item.color}`} />
                         </motion.div>
                       ))}
@@ -405,13 +429,13 @@ export default function DevtoolsOverlay({
 
                   {/* Filter - pill group */}
                   {queriesWithFlows.length > 0 && (
-                    <div className="flex items-center gap-1.5 mb-5 p-1 rounded-xl bg-teal-950/30 w-fit">
-                      <Filter className="h-3.5 w-3.5 text-white/40 ml-1" />
+                    <div className="flex items-center gap-1.5 mb-5 p-1 rounded-xl bg-[var(--kt-inset)] w-fit">
+                      <Filter className="h-3.5 w-3.5 text-[var(--kt-text-muted)] ml-1" />
                       {(['all', 'single', 'sequential', 'parallel'] as const).map((type) => (
                         <button
                           key={type}
                           onClick={() => setFilterType(type)}
-                          className={`px-3.5 py-2 rounded-lg text-[13px] font-medium transition-all ${filterType === type ? 'bg-teal-900/40 text-teal-100' : 'text-teal-200/55 hover:text-teal-100/75'
+                          className={`px-3.5 py-2 rounded-lg text-[13px] font-medium transition-all ${filterType === type ? 'bg-[var(--kt-surface)] text-[var(--kt-text)]' : 'text-[var(--kt-text-muted)] hover:text-[var(--kt-text)]'
                             }`}
                         >
                           {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -421,14 +445,14 @@ export default function DevtoolsOverlay({
                   )}
 
                   {queriesWithFlows.length === 0 ? (
-                    <div className="rounded-2xl bg-teal-950/15 border border-teal-900/20 p-12 text-center">
-                      <p className="text-[15px] text-white/50 leading-relaxed">
+                    <div className="rounded-2xl bg-[var(--kt-inset)] border border-[var(--kt-border)] p-12 text-center">
+                      <p className="text-[15px] text-[var(--kt-text-muted)] leading-relaxed">
                         No agent flow data yet. Send queries in Clark to see flow graphs here.
                       </p>
                     </div>
                   ) : filteredQueries.length === 0 ? (
-                    <div className="rounded-2xl bg-teal-950/15 border border-teal-900/20 p-12 text-center">
-                      <p className="text-[15px] text-white/50">No queries match the selected filter.</p>
+                    <div className="rounded-2xl bg-[var(--kt-inset)] border border-[var(--kt-border)] p-12 text-center">
+                      <p className="text-[15px] text-[var(--kt-text-muted)]">No queries match the selected filter.</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -446,25 +470,25 @@ export default function DevtoolsOverlay({
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0 }}
                               transition={{ duration: 0.2, delay: index * 0.03 }}
-                              className="rounded-2xl bg-teal-950/15 border border-teal-900/20 overflow-hidden hover:border-teal-800/30 transition-colors"
+                              className="rounded-2xl bg-[var(--kt-inset)] border border-[var(--kt-border)] overflow-hidden hover:border-[var(--kt-border)] transition-colors"
                             >
                               <div className="p-5">
                                 <div className="flex items-start justify-between gap-4">
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                                      <span className="text-[13px] font-semibold text-white/90">Query {originalIndex + 1}</span>
+                                      <span className="text-[13px] font-semibold text-[var(--kt-text)]">Query {originalIndex + 1}</span>
                                       {flowType !== 'single' && (
-                                        <span className="rounded-md bg-white/[0.08] px-2 py-0.5 text-[11px] font-medium text-white/60">
+                                        <span className="rounded-md bg-[var(--kt-hover)] px-2 py-0.5 text-[11px] font-medium text-[var(--kt-text-muted)]">
                                           {flowType === 'parallel' ? 'Parallel' : 'Sequential'}
                                         </span>
                                       )}
                                     </div>
-                                    <p className="text-[14px] text-white/70 leading-snug mb-3 line-clamp-2">{queryData.query}</p>
-                                    <div className="flex items-center gap-4 text-[12px] text-white/45">
+                                    <p className="text-[14px] text-[var(--kt-text-dim)] leading-snug mb-3 line-clamp-2">{queryData.query}</p>
+                                    <div className="flex items-center gap-4 text-[12px] text-[var(--kt-text-muted)]">
                                       <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{queryData.timestamp.toLocaleString()}</span>
                                       {agentCount > 0 && <span>{agentCount} agent{agentCount !== 1 ? 's' : ''}</span>}
                                       {totalLatency !== null && (
-                                        <span className="text-white/55">
+                                        <span className="text-[var(--kt-text-muted)]">
                                           {totalLatency < 1000 ? `${totalLatency.toFixed(0)}ms` : `${(totalLatency / 1000).toFixed(2)}s`}
                                         </span>
                                       )}
@@ -472,14 +496,14 @@ export default function DevtoolsOverlay({
                                   </div>
                                   <button
                                     onClick={() => setSelectedQueryIndex(isExpanded ? null : originalIndex)}
-                                    className="flex-shrink-0 px-4 py-2 rounded-lg bg-white/[0.08] hover:bg-white/[0.12] text-[13px] font-medium text-white/90 transition-colors"
+                                    className="flex-shrink-0 px-4 py-2 rounded-lg bg-[var(--kt-hover)] hover:bg-[var(--kt-border)] text-[13px] font-medium text-[var(--kt-text)] transition-colors"
                                   >
                                     {isExpanded ? 'Hide' : 'Show flow'}
                                   </button>
                                 </div>
                               </div>
                               {isExpanded && queryData.agentFlow && hasFlowContent(queryData.agentFlow) && (
-                                <div className="border-t border-teal-900/20 p-4 bg-teal-950/20">
+                                <div className="border-t border-[var(--kt-border)] p-4 bg-[var(--kt-inset)]">
                                   <AgentFlow flow={queryData.agentFlow} />
                                 </div>
                               )}
@@ -490,6 +514,20 @@ export default function DevtoolsOverlay({
                     </div>
                   )}
                 </>
+              )}
+
+              {/* The session's whole event log, not one turn's. It keeps
+                  accumulating as the conversation goes back and forth, so the
+                  answer to "what did it do three questions ago" is still here.
+                  Turn separators are the only structure it needs. */}
+              {activeTab === 'terminal' && (
+                sessionLog.length === 0 ? (
+                  <p className="px-1 py-10 text-center text-[13px] text-[var(--kt-text-muted)]">
+                    Nothing yet. Ask Clark something and the calls appear here as they run.
+                  </p>
+                ) : (
+                  <LiveTerminal lines={sessionLog} running={isStreaming} defaultOpen tall />
+                )
               )}
 
               {activeTab === 'memories' && <MemoriesTab userId={userId} sessionId={sessionId} />}

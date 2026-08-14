@@ -200,9 +200,9 @@ export default function PastConversationsTab({
 
   if (!userId) {
     return (
-      <Card className="bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80 border-white/15 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
+      <Card className="bg-[var(--kt-surface)] border-[var(--kt-border)] backdrop-blur-xl ">
         <CardContent className="p-8 text-center">
-          <p className="text-white/60">User ID is required to view past conversations.</p>
+          <p className="text-[var(--kt-text-muted)]">User ID is required to view past conversations.</p>
         </CardContent>
       </Card>
     )
@@ -210,7 +210,7 @@ export default function PastConversationsTab({
 
   const actionRowClass =
     // "Ghost" style: no filled background/border by default, just subtle hover feedback.
-    'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-transparent bg-transparent text-left text-sm text-white/80 hover:bg-white/[0.04] hover:text-white hover:border-white/10 transition-colors'
+    'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-transparent bg-transparent text-left text-sm text-[var(--kt-text-dim)] hover:bg-white/[0.04] hover:text-[var(--kt-text-strong)] hover:border-[var(--kt-border)] transition-colors'
 
   return (
     <div className="flex flex-col gap-4">
@@ -230,12 +230,12 @@ export default function PastConversationsTab({
               title="New chat"
               aria-label="New chat"
             >
-              <SquarePen className="h-4 w-4 text-teal-400/90 flex-shrink-0" />
+              <SquarePen className="h-4 w-4 text-[var(--kt-accent)]/90 flex-shrink-0" />
               <span className="font-medium">New Chat</span>
             </button>
           )}
           <Link href="/clark/studio" className={actionRowClass} title="Strategy Studio (admin)" aria-label="Strategy Studio">
-            <LineChart className="h-4 w-4 text-teal-400/90 flex-shrink-0" />
+            <LineChart className="h-4 w-4 text-[var(--kt-accent)]/90 flex-shrink-0" />
             <span className="font-medium">Strategy Studio</span>
           </Link>
           {onOpenDevtools && (
@@ -255,14 +255,14 @@ export default function PastConversationsTab({
 
       <div className="flex flex-col gap-2 min-h-0">
         <div className="flex items-center justify-between gap-2 px-2">
-          <h3 className="text-[11px] font-bold text-white/50 uppercase tracking-[0.15em]">
+          <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--kt-text-muted)]">
             Recents
           </h3>
           <button
             type="button"
             onClick={() => void fetchConversations()}
             disabled={isLoading}
-            className="p-1.5 rounded-lg text-white/45 hover:text-teal-300 hover:bg-white/[0.06] transition-colors disabled:opacity-40 flex-shrink-0"
+            className="p-1.5 rounded-lg text-[var(--kt-text-muted)] hover:text-[var(--kt-accent)] hover:bg-[var(--kt-hover)] transition-colors disabled:opacity-40 flex-shrink-0"
             title="Refresh list"
             aria-label="Refresh conversations"
           >
@@ -271,22 +271,22 @@ export default function PastConversationsTab({
         </div>
 
       {error && (
-        <div className="p-3 rounded-xl bg-red-900/20 border border-red-700/30 backdrop-blur-xl">
-          <p className="text-red-300 text-xs">{error}</p>
+        <div className="p-3 rounded-xl bg-[var(--kt-down)]/10 border border-red-700/30 backdrop-blur-xl">
+          <p className="text-[var(--kt-down)] text-xs">{error}</p>
         </div>
       )}
 
       {isLoading && !displayConversations.length && (
         <div className="p-8 text-center">
-          <Loader2 className="h-6 w-6 text-teal-400 animate-spin mx-auto mb-3" />
-          <p className="text-white/50 text-xs">Loading...</p>
+          <Loader2 className="h-6 w-6 text-[var(--kt-accent)] animate-spin mx-auto mb-3" />
+          <p className="text-[var(--kt-text-muted)] text-xs">Loading...</p>
         </div>
       )}
 
       {!isLoading && !error && displayConversations.length === 0 && (
-        <div className="p-8 text-center rounded-xl bg-white/5 border border-white/5">
-          <p className="text-white/40 text-xs leading-relaxed">No past conversations found.</p>
-        </div>
+        <p className="px-2 py-3 text-xs leading-relaxed text-[var(--kt-text-muted)]">
+          No past conversations yet.
+        </p>
       )}
 
       {displayConversations.length > 0 && (
@@ -333,8 +333,8 @@ export default function PastConversationsTab({
                   }}
                   className={`flex-1 min-w-0 text-left px-2 rounded-xl border transition-all duration-200 ${
                     isActiveRow
-                      ? 'bg-teal-500/10 border-teal-500/25'
-                      : 'border-transparent hover:bg-white/[0.04] active:bg-white/[0.06]'
+                      ? 'bg-[var(--kt-accent)]/10 border-teal-500/25'
+                      : 'border-transparent hover:bg-white/[0.04] active:bg-[var(--kt-hover)]'
                   }`}
                   disabled={loadingConversationId === conv.id}
                 >
@@ -342,7 +342,7 @@ export default function PastConversationsTab({
                     <div className="flex items-start gap-3">
                       <span
                         className={`text-[13px] leading-snug line-clamp-2 transition-colors ${
-                          isActiveRow ? 'text-teal-100/90' : 'text-white/60 group-hover:text-white/90'
+                          isActiveRow ? 'text-[var(--kt-text)]/90' : 'text-[var(--kt-text-muted)] group-hover:text-[var(--kt-text)]'
                         }`}
                       >
                         {conv.title}
@@ -354,7 +354,7 @@ export default function PastConversationsTab({
                   type="button"
                   onClick={(e) => void handleDelete(e, conv)}
                   disabled={deletingId === conv.id}
-                  className="flex-shrink-0 self-center p-2 rounded-lg text-white/30 hover:text-red-300 hover:bg-red-500/10 transition-colors disabled:opacity-40"
+                  className="flex-shrink-0 self-center p-2 rounded-lg text-[var(--kt-text-muted)] hover:text-[var(--kt-down)] hover:bg-red-500/10 transition-colors disabled:opacity-40"
                   title="Delete conversation"
                   aria-label="Delete conversation"
                 >

@@ -236,8 +236,8 @@ export default function DevtoolsPage() {
                   onClick={() => setFilterType(type)}
                   className={`px-3 py-1 rounded-lg text-sm transition-colors ${
                     filterType === type
-                      ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30'
-                      : 'bg-teal-900/30 text-teal-200/70 hover:bg-teal-900/40'
+                      ? 'bg-[var(--kt-accent)]/20 text-[var(--kt-accent)] border border-teal-500/30'
+                      : 'bg-teal-900/30 text-[var(--kt-accent-soft)]/70 hover:bg-teal-900/40'
                   }`}
                 >
                   {type.charAt(0).toUpperCase() + type.slice(1)}

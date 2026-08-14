@@ -2,9 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { MessageSquare, TrendingUp } from "lucide-react";
 import { StudioNav } from "./StudioNav";
-import { KT } from "../theme";
 import { ThemeToggle } from "../ThemeToggle";
 import { RiskBar } from "./RiskBar";
 import { MarketClock } from "./MarketClock";
@@ -30,25 +28,32 @@ interface StudioHeaderProps {
 export function StudioHeader({ subtitle, status, actions }: StudioHeaderProps) {
   return (
     <div className="sticky top-0 z-30 border-b border-[var(--kt-border)] bg-[var(--kt-bg)]/90 text-[var(--kt-text)] backdrop-blur-md">
-      <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-3 px-6 py-3">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--kt-accent-border)] bg-[var(--kt-accent-bg)]">
-            <TrendingUp size={15} className="text-[var(--kt-accent)]" />
+      {/* Identity, then navigation underneath it — not competing for the same
+          line. The strapline is gone: "Everything that needs you, in one
+          screen" is a claim about the product made to someone already using
+          it, and it took the same weight as the fund's own name. */}
+      <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-3 px-6 pt-3 pb-2">
+        <Link href="/clark/studio" className="flex items-center gap-2.5" title="Krypton">
+          <img src="/Krypton Clark.svg" alt="" aria-hidden className="h-6 w-auto" />
+          <span className="text-[15px] font-semibold tracking-tight text-[var(--kt-text-strong)]">
+            K Hedge Fund
+          </span>
+        </Link>
+        {/* Subordinate to the name, on the same line rather than under it.
+            Allocate, Lab and Risk each pass a genuinely descriptive subtitle
+            and would lose something if this were dropped outright; the home
+            page passes none, which is the case that prompted the change. */}
+        {status ? (
+          <div className="flex items-center gap-1.5 text-[11px] text-[var(--kt-text-muted)]">
+            {status}
           </div>
-          <div className="leading-tight">
-            <div className={KT.title}>Krypton Fund · Strategy Studio</div>
-            {status ? (
-              <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-[var(--kt-text-muted)]">
-                {status}
-              </div>
-            ) : (
-              subtitle && <div className={`mt-0.5 ${KT.label}`}>{subtitle}</div>
-            )}
-          </div>
-        </div>
-        <div className="ml-4 hidden sm:block">
-          <StudioNav />
-        </div>
+        ) : (
+          subtitle && (
+            <div className="hidden text-[12px] text-[var(--kt-text-muted)] md:block">
+              {subtitle}
+            </div>
+          )
+        )}
         <div className="ml-auto flex items-center gap-3">
           {/* Almost everything on every surface is downstream of this: a flat
               chart and an empty signals table both read as faults until you
@@ -61,16 +66,9 @@ export function StudioHeader({ subtitle, status, actions }: StudioHeaderProps) {
               memory, and a question that begins "I think NAV was around two
               thousand" is one the answer cannot be checked against. */}
           <ClarkConsole />
-          <Link
-            href="/clark"
-            className={`hidden h-8 items-center gap-1.5 lg:flex ${KT.btn}`}
-            title="Clark's full workspace"
-          >
-            <MessageSquare size={13} /> Full
-          </Link>
         </div>
       </div>
-      <div className="mx-auto max-w-[1600px] px-6 pb-2 sm:hidden">
+      <div className="mx-auto max-w-[1600px] px-6 pb-2">
         <StudioNav />
       </div>
       {/* Risk applies to every surface, so it follows the user rather than

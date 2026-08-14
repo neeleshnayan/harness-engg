@@ -371,15 +371,44 @@
   font-weight: 600;
 }
 
+/* Tokens, not literal white.
+ *
+ * These were `rgb(255 255 255)`, written when Clark only ever ran dark. In
+ * light mode every bold value and every emphasised number rendered white on a
+ * white page — a backtest table where "Total Return", "Sharpe Ratio" and
+ * "+6.77%" were simply not there. Invisible numbers on a fund's screen are
+ * worse than ugly ones. */
 .clark-prose strong {
   font-weight: 600;
-  color: rgb(255 255 255);
+  color: var(--kt-text-strong);
 }
 
+/* The measured register.
+ *
+ * A figure Clark states is either something the fund computed or something it
+ * made up, and prose is unable to show you which. Setting every figure in the
+ * number face — mono, tabular, at full strength against dimmer prose — makes
+ * the two kinds of content visually separable before they are read. It also
+ * means columns of figures line up, which no proportional face manages. */
 .clark-prose .clark-num {
+  font-family: "Cascadia Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-variant-numeric: tabular-nums;
+  font-size: 0.94em;   /* mono runs large next to a humanist sans */
+  letter-spacing: -0.01em;
   font-weight: 500;
-  color: rgb(255 255 255 / 0.98);
+  color: var(--kt-text-strong);
+}
+
+/* Headings and body inherit the same way, so the whole block follows the
+ * active theme rather than assuming one. */
+.clark-prose h2,
+.clark-prose h3 {
+  color: var(--kt-text-strong);
+}
+
+.clark-prose p,
+.clark-prose li {
+  color: var(--kt-text);
 }
 
 /* Minimal scrollbar for chat feed, category tiles, and similar dark UI */

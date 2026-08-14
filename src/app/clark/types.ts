@@ -342,6 +342,22 @@ export interface ChatMessage {
   parameterRequest?: ParameterRequest
   agentFlow?: AgentFlowGraph | AgentFlowStep[]  // Support both old array and new graph format
   metrics?: SessionMetrics
+  /** What Clark actually read to write this, captured from the live stream and
+   *  kept with the message. Without it the citation gutter could only ever
+   *  decorate the turn in flight, and the answer an operator scrolls back to
+   *  next week — the one they most need to check — would carry no provenance
+   *  at all. */
+  provenance?: ProvenanceMark[]
+}
+
+/** One source behind an answer: which tool, what it was asked, how long it
+ *  took. Derived from real stream events; never synthesised. */
+export interface ProvenanceMark {
+  id: string
+  tool: string
+  input?: Record<string, unknown>
+  ok: boolean
+  ms?: number
 }
 
 export interface Category {

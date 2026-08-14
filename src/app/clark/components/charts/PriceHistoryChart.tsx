@@ -104,7 +104,7 @@ export default function PriceHistoryChart({ token, dataPoints, lookbackDays }: P
     return (
       <Card className={chartUi.card}>
         <CardHeader>
-          <CardTitle className="text-lg text-white">Price History - {token}</CardTitle>
+          <CardTitle className="text-lg text-[var(--kt-text-strong)]">Price History - {token}</CardTitle>
           <CardDescription className={chartUi.muted}>
             No price data available
           </CardDescription>
@@ -116,19 +116,19 @@ export default function PriceHistoryChart({ token, dataPoints, lookbackDays }: P
   return (
     <Card className={chartUi.card}>
       <CardHeader>
-        <CardTitle className="text-lg text-white">Price History - {token}</CardTitle>
+        <CardTitle className="text-lg text-[var(--kt-text-strong)]">Price History - {token}</CardTitle>
         <CardDescription className={chartUi.muted}>
           {lookbackDays ? `Last ${lookbackDays} days` : 'Daily price history'} • {chartData.length} data points
         </CardDescription>
         {currentPrice !== null && (
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-semibold text-white">
+            <span className="text-2xl font-semibold text-[var(--kt-text-strong)]">
               {formatAxisValue(currentPrice)}
             </span>
             {priceChange && (
               <span
                 className={`text-sm font-medium ${
-                  priceChange.change >= 0 ? 'text-green-400' : 'text-red-400'
+                  priceChange.change >= 0 ? 'text-[var(--kt-up)]' : 'text-[var(--kt-down)]'
                 }`}
               >
                 {priceChange.change >= 0 ? '+' : ''}
@@ -190,7 +190,7 @@ export default function PriceHistoryChart({ token, dataPoints, lookbackDays }: P
                       <p className={`text-xs font-medium ${chartUi.muted}`}>
                         {formatDate(data.date)}
                       </p>
-                      <p className="text-sm font-semibold text-white">
+                      <p className="text-sm font-semibold text-[var(--kt-text-strong)]">
                         Price: {formatAxisValue(data.price)}
                       </p>
                     </div>

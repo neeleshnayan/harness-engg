@@ -80,13 +80,29 @@ async function proxy(
       throw lastFetchError || new Error('Fetch failed without response');
     }
 
-    const resBody = await res.text();
-    return new NextResponse(resBody, {
+    const contentType = res.headers.get('Content-Type') || 'application/json';
+
+    // Pass the body through instead of buffering it.
+    //
+    // This used to be `await res.text()`, which reads the upstream response to
+    // completion before replying. For JSON that is invisible; for the SSE
+    // endpoint it is fatal — every progress event Clark emits would be held
+    // here until the turn finished and then delivered in one burst, which is
+    // precisely the behaviour streaming exists to remove. Streaming is correct
+    // for both, so there is no content-type branch.
+    const responseHeaders = new Headers({ 'Content-Type': contentType });
+    if (contentType.includes('text/event-stream')) {
+      responseHeaders.set('Cache-Control', 'no-cache, no-transform');
+      // Tells nginx and Railway's edge not to buffer either; without it the
+      // proxy in front of production reintroduces the same problem.
+      responseHeaders.set('X-Accel-Buffering', 'no');
+      responseHeaders.set('Connection', 'keep-alive');
+    }
+
+    return new NextResponse(res.body, {
       status: res.status,
       statusText: res.statusText,
-      headers: {
-        'Content-Type': res.headers.get('Content-Type') || 'application/json',
-      },
+      headers: responseHeaders,
     });
   } catch (e: unknown) {
     clearTimeout(timeoutId);

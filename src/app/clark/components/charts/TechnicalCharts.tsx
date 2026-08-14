@@ -109,7 +109,7 @@ export default function TechnicalCharts({
       ) && (
         <Card className={chartUi.card}>
           <CardHeader>
-            <CardTitle className="text-lg text-white">Moving Averages Analysis</CardTitle>
+            <CardTitle className="text-lg text-[var(--kt-text-strong)]">Moving Averages Analysis</CardTitle>
             <CardDescription className={chartUi.muted}>
               Simple Moving Averages (SMA) for {targetAssets.length > 0 ? targetAssets.join(', ') : 'selected assets'}
             </CardDescription>
@@ -175,7 +175,7 @@ export default function TechnicalCharts({
       {technicalIndicatorsRequested.includes('rsi') && (
         <Card className={chartUi.card}>
           <CardHeader>
-            <CardTitle className="text-lg text-white">Relative Strength Index (RSI)</CardTitle>
+            <CardTitle className="text-lg text-[var(--kt-text-strong)]">Relative Strength Index (RSI)</CardTitle>
             <CardDescription className={chartUi.muted}>
               RSI with overbought (70) and oversold (30) levels for {targetAssets.length > 0 ? targetAssets.join(', ') : 'selected assets'}
             </CardDescription>
@@ -237,7 +237,7 @@ export default function TechnicalCharts({
       {technicalIndicatorsRequested.includes('stochastic_rsi') && (
         <Card className={chartUi.card}>
           <CardHeader>
-            <CardTitle className="text-lg text-white">Stochastic RSI Oscillator</CardTitle>
+            <CardTitle className="text-lg text-[var(--kt-text-strong)]">Stochastic RSI Oscillator</CardTitle>
             <CardDescription className={chartUi.muted}>
               Stochastic RSI %K and %D with overbought (80) and oversold (20) levels for {targetAssets.length > 0 ? targetAssets.join(', ') : 'selected assets'}
             </CardDescription>
@@ -319,7 +319,7 @@ export default function TechnicalCharts({
       {technicalIndicatorsRequested.includes('bollinger_bands') && (
         <Card className={chartUi.card}>
           <CardHeader>
-            <CardTitle className="text-lg text-white">Bollinger Bands Analysis</CardTitle>
+            <CardTitle className="text-lg text-[var(--kt-text-strong)]">Bollinger Bands Analysis</CardTitle>
             <CardDescription className={chartUi.muted}>
               Bollinger Bands (20-period, 2 standard deviations) for volatility analysis of {targetAssets.length > 0 ? targetAssets.join(', ') : 'selected assets'}
             </CardDescription>
@@ -398,7 +398,7 @@ export default function TechnicalCharts({
       {(technicalIndicatorsRequested.includes('super_trend') || technicalIndicatorsRequested.includes('supertrend')) && (
         <Card className={chartUi.card}>
           <CardHeader>
-            <CardTitle className="text-lg text-white">Super Trend Analysis</CardTitle>
+            <CardTitle className="text-lg text-[var(--kt-text-strong)]">Super Trend Analysis</CardTitle>
             <CardDescription className={chartUi.muted}>
               Super Trend indicator (volatility adjusted trend levels) for {targetAssets.length > 0 ? targetAssets.join(', ') : 'selected assets'}.
             </CardDescription>
@@ -453,7 +453,7 @@ export default function TechnicalCharts({
         technicalIndicatorsRequested.includes('adx_minus_dmi')) && (
         <Card className={chartUi.card}>
           <CardHeader>
-            <CardTitle className="text-lg text-white">Average Directional Index (ADX)</CardTitle>
+            <CardTitle className="text-lg text-[var(--kt-text-strong)]">Average Directional Index (ADX)</CardTitle>
             <CardDescription className={chartUi.muted}>
               ADX with +DMI (Positive Directional Movement) and -DMI (Negative Directional Movement) for {targetAssets.length > 0 ? targetAssets.join(', ') : 'selected assets'}.
               ADX measures trend strength, +DMI shows upward momentum, -DMI shows downward momentum.

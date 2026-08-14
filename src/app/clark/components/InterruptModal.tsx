@@ -58,24 +58,24 @@ export default function InterruptModal({ isOpen, interrupts, onApprove, onReject
     confirmLabel: string,
   ) => (
     <Dialog open={isOpen} onOpenChange={() => {}}>
-      <DialogContent className="sm:max-w-md bg-gradient-to-b from-[#1c2f2f]/95 to-[#0b1515]/95 backdrop-blur-xl border border-teal-700/50 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.8)]">
+      <DialogContent className="sm:max-w-md bg-[var(--kt-surface)] backdrop-blur-xl border border-[var(--kt-border)] rounded-2xl shadow-2xl">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold text-teal-200">{title}</DialogTitle>
-          <DialogDescription className="text-teal-300/80 mt-2">{description}</DialogDescription>
+          <DialogTitle className="text-xl font-semibold text-[var(--kt-accent-soft)]">{title}</DialogTitle>
+          <DialogDescription className="text-[var(--kt-accent)]/80 mt-2">{description}</DialogDescription>
         </DialogHeader>
         <div className="mt-4 space-y-4">
-          <div className="bg-teal-900/30 rounded-lg p-4 border border-teal-700/30">
+          <div className="bg-[var(--kt-inset)]/30 rounded-lg p-4 border border-teal-700/30">
             <div className="space-y-3">{body}</div>
           </div>
           <div className="flex gap-3 pt-2">
             <Button
               onClick={() => onReject(active.id)}
               variant="outline"
-              className="flex-1 bg-red-900/20 hover:bg-red-900/40 border-red-700/50 text-red-200 hover:text-red-100"
+              className="flex-1 bg-[var(--kt-down)]/10 hover:bg-[var(--kt-down)]/10 border-red-700/50 text-[var(--kt-down)] hover:text-red-100"
             >
               {isOrder ? 'Decline' : 'Cancel'}
             </Button>
-            <Button onClick={() => onApprove(active.id)} className="flex-1 bg-teal-600 hover:bg-teal-700 text-white">
+            <Button onClick={() => onApprove(active.id)} className="flex-1 bg-teal-600 hover:bg-teal-700 text-[var(--kt-text-strong)]">
               {confirmLabel}
             </Button>
           </div>
@@ -86,8 +86,8 @@ export default function InterruptModal({ isOpen, interrupts, onApprove, onReject
 
   const Row = ({ label, value, strong }: { label: string; value: React.ReactNode; strong?: boolean }) => (
     <div className="flex justify-between items-center">
-      <span className="text-teal-200/80">{label}:</span>
-      <span className={`text-teal-100 ${strong ? 'font-semibold' : 'font-medium'}`}>{value}</span>
+      <span className="text-[var(--kt-accent-soft)]/80">{label}:</span>
+      <span className={`text-[var(--kt-text)] ${strong ? 'font-semibold' : 'font-medium'}`}>{value}</span>
     </div>
   )
 
@@ -101,7 +101,7 @@ export default function InterruptModal({ isOpen, interrupts, onApprove, onReject
         <Row
           label="Order"
           value={
-            <span className={reason.side === 'sell' ? 'text-red-300' : 'text-emerald-300'}>
+            <span className={reason.side === 'sell' ? 'text-[var(--kt-down)]' : 'text-[var(--kt-up)]'}>
               {side} {reason.qty} {reason.symbol}
             </span>
           }

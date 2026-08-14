@@ -113,14 +113,31 @@ export const categories: Category[] = [
     icon: '/backtesting.svg',
     description: 'Run the fund with Clark',
     prompts: [
+      // Clark reaches the spine through typed tools now, so it can chain
+      // reads and reason about what it finds. These are the questions that
+      // were impossible under the old regex router — none of them match a
+      // pattern, and every one needs two or more lookups.
+      'How are we doing today?',
+      'Anything I should be worried about right now?',
+      'Which position is over its concentration limit, and by how much?',
+      'How much would I need to trim to clear that breach?',
+      'How many day trades do I have left before the account gets restricted?',
+      'Can I buy and sell the same name today, or would that cost a day trade?',
+      'Are our trading costs running above what the backtests assume?',
+      'Does our book agree with the broker right now?',
+      'What did each strategy actually trade today?',
+      'Do a pass over the fund and tell me anything that deserves attention.',
+      'Is the market open, and how long until it closes?',
+      'Backtest nvidia over the last 6 months with an SMA crossover',
+      // --- kept for reference; these worked under the old router ---------
       "What's the fund at?",
       'Show me the strategies',
       'What positions do we hold?',
-      'Who are our LPs?',
       "What's pending approval?",
       'Buy 2 AAPL for US Momentum',
       'Sell 1 MSFT',
-      'Deploy the Mega-Cap Tech strategy',
+      // 'Who are our LPs?',
+      // 'Deploy the Mega-Cap Tech strategy',
     ],
   },
   {

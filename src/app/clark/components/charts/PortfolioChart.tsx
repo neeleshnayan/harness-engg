@@ -187,7 +187,7 @@ export default function PortfolioChart({ dataPoints, startDate, endDate, trades 
   return (
     <Card className={chartUi.card}>
       <CardHeader className="pb-4">
-        <CardTitle className="text-lg text-white">Portfolio Performance</CardTitle>
+        <CardTitle className="text-lg text-[var(--kt-text-strong)]">Portfolio Performance</CardTitle>
         <CardDescription className={chartUi.muted}>
           Portfolio value over time from {formatDate(startDate)} to {formatDate(endDate)}
         </CardDescription>

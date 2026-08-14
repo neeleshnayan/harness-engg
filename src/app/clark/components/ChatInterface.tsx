@@ -17,6 +17,12 @@ interface ChatInputBarProps {
   onMoveQueueItem?: (index: number, direction: 'up' | 'down') => void
   /** When true, bar is not fixed to viewport (e.g. inside a dialog) */
   embedded?: boolean
+  /** Width of the docked sidebar, in px, so the fixed bar centres over the
+   *  content area rather than the whole viewport. The bar and the column
+   *  above it are both 820px, but centring one on the window and the other
+   *  on the area right of a 260px sidebar left them 130px out of line —
+   *  visible as the composer sitting off to the left of the conversation. */
+  offsetLeft?: number
 }
 
 const MAX_QUERY_PREVIEW = 52
@@ -34,6 +40,7 @@ export default function ChatInputBar({
   onEditQueueItem,
   onMoveQueueItem,
   embedded = false,
+  offsetLeft = 0,
 }: ChatInputBarProps) {
   const [queueCollapsed, setQueueCollapsed] = useState(false)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
@@ -60,11 +67,20 @@ export default function ChatInputBar({
       className={
         embedded
           ? 'relative z-40 w-full outline-none ring-0'
-          : 'fixed bottom-0 left-0 right-0 z-40 bg-[#001C1B]/80 backdrop-blur-md'
+          : 'fixed bottom-0 left-0 right-0 z-40 bg-[var(--kt-bg)]/80 backdrop-blur-md'
       }
+      // Padding rather than `left`, and deliberately not transitioned. This
+      // offset decides where the composer *is*, not how it looks: a CSS
+      // transition stalls whenever the tab is not compositing, and a stalled
+      // decoration is invisible while a stalled layout leaves the composer
+      // 260px out of line with the conversation above it. It snaps.
+      style={embedded ? undefined : { paddingLeft: offsetLeft }}
     >
+      {/* 820px, not max-w-6xl. The docked bar and the reading column above it
+       *  are one object seen twice; at 1152px against an 820px column the
+       *  composer visibly overhung the conversation on both sides. */}
       <div
-        className={embedded ? 'w-full px-4 py-3 border-0' : 'mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-3 sm:py-4'}
+        className={embedded ? 'w-full px-4 py-3 border-0' : 'mx-auto max-w-[820px] px-6 py-3 sm:py-4'}
         style={embedded ? { border: 'none', boxShadow: 'none' } : undefined}
       >
         <div className="flex flex-col gap-2">
@@ -73,7 +89,7 @@ export default function ChatInputBar({
               <button
                 type="button"
                 onClick={() => setQueueCollapsed(!queueCollapsed)}
-                className="flex items-center gap-1 text-xs font-medium text-white/80 hover:text-white transition-colors"
+                className="flex items-center gap-1 text-xs font-medium text-[var(--kt-text-dim)] hover:text-[var(--kt-text-strong)] transition-colors"
                 aria-expanded={!queueCollapsed}
               >
                 {queueCollapsed ? (
@@ -84,11 +100,11 @@ export default function ChatInputBar({
                 {queueLength} Queued
               </button>
               {!queueCollapsed && (
-                <ul className="scrollbar-minimal mt-1 text-xs text-white/70 list-none space-y-0.5 max-h-24 overflow-y-auto">
+                <ul className="scrollbar-minimal mt-1 text-xs text-[var(--kt-text-dim)] list-none space-y-0.5 max-h-24 overflow-y-auto">
                   {queueQueries.map((query, i) => (
                     <li
                       key={i}
-                      className="flex items-center gap-1.5 group py-0.5 pr-0.5 rounded hover:bg-white/5"
+                      className="flex items-center gap-1.5 group py-0.5 pr-0.5 rounded hover:bg-[var(--kt-inset)]"
                       title={query}
                     >
                       {editingIndex === i ? (
@@ -102,24 +118,24 @@ export default function ChatInputBar({
                               if (e.key === 'Escape') cancelEdit()
                             }}
                             onBlur={saveEdit}
-                            className="flex-1 min-w-0 px-1.5 py-0.5 rounded bg-white/10 border border-white/20 text-white placeholder:text-white/40 text-xs focus:outline-none focus:ring-1 focus:ring-white/30"
+                            className="flex-1 min-w-0 px-1.5 py-0.5 rounded bg-[var(--kt-hover)] border border-[var(--kt-border)] text-[var(--kt-text-strong)] placeholder:text-[var(--kt-text-muted)] text-xs focus:outline-none focus:ring-1 focus:ring-white/30"
                             placeholder="Edit query…"
                             autoFocus
                           />
-                          <button type="button" onClick={cancelEdit} className="text-white/50 hover:text-white p-0.5" aria-label="Cancel edit">×</button>
+                          <button type="button" onClick={cancelEdit} className="text-[var(--kt-text-muted)] hover:text-[var(--kt-text-strong)] p-0.5" aria-label="Cancel edit">×</button>
                         </>
                       ) : (
                         <>
-                          <span className="flex-shrink-0 w-4 text-white/50">{i + 1}.</span>
+                          <span className="flex-shrink-0 w-4 text-[var(--kt-text-muted)]">{i + 1}.</span>
                           <span className="flex-1 min-w-0 truncate">
                             {query.length > MAX_QUERY_PREVIEW ? `${query.slice(0, MAX_QUERY_PREVIEW)}…` : query}
                           </span>
-                          <div className="flex items-center gap-0.5 flex-shrink-0 text-white/40 group-hover:text-white/60">
+                          <div className="flex items-center gap-0.5 flex-shrink-0 text-[var(--kt-text-muted)] group-hover:text-[var(--kt-text-muted)]">
                             {onEditQueueItem && (
                               <button
                                 type="button"
                                 onClick={() => startEdit(i, query)}
-                                className="p-1 rounded-md hover:bg-white/10 hover:text-white/90 transition-colors"
+                                className="p-1 rounded-md hover:bg-[var(--kt-hover)] hover:text-[var(--kt-text)] transition-colors"
                                 aria-label="Edit query"
                                 title="Edit"
                               >
@@ -132,7 +148,7 @@ export default function ChatInputBar({
                                   type="button"
                                   onClick={() => onMoveQueueItem(i, 'up')}
                                   disabled={i === 0}
-                                  className="p-1 rounded-md hover:bg-white/10 hover:text-white/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                  className="p-1 rounded-md hover:bg-[var(--kt-hover)] hover:text-[var(--kt-text)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                                   aria-label="Move up"
                                   title="Move up"
                                 >
@@ -142,7 +158,7 @@ export default function ChatInputBar({
                                   type="button"
                                   onClick={() => onMoveQueueItem(i, 'down')}
                                   disabled={i === queueQueries.length - 1}
-                                  className="p-1 rounded-md hover:bg-white/10 hover:text-white/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                  className="p-1 rounded-md hover:bg-[var(--kt-hover)] hover:text-[var(--kt-text)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                                   aria-label="Move down"
                                   title="Move down"
                                 >
@@ -154,7 +170,7 @@ export default function ChatInputBar({
                               <button
                                 type="button"
                                 onClick={() => onRemoveQueueItem(i)}
-                                className="p-1 rounded-md hover:bg-red-500/20 hover:text-red-400 transition-colors"
+                                className="p-1 rounded-md hover:bg-red-500/20 hover:text-[var(--kt-down)] transition-colors"
                                 aria-label="Remove from queue"
                                 title="Remove from queue"
                               >
@@ -189,9 +205,9 @@ export default function ChatInputBar({
                 rounded-full m-1
                 bg-transparent
                 flex items-center justify-center
-                hover:bg-white/[0.08] active:bg-white/[0.06]
+                hover:bg-[var(--kt-hover)] active:bg-[var(--kt-hover)]
                 transition-colors
-                outline-none focus-visible:bg-white/[0.08]
+                outline-none focus-visible:bg-[var(--kt-hover)]
               "
             >
               <img src="/clark process.svg" alt="" className="h-5 w-5 sm:h-6 sm:w-6 opacity-90" />
@@ -214,8 +230,8 @@ export default function ChatInputBar({
                 bg-transparent
                 border-0
                 text-sm sm:text-base
-                text-white
-                placeholder:text-white/50
+                text-[var(--kt-text-strong)]
+                placeholder:text-[var(--kt-text-muted)]
                 focus:outline-none focus:ring-0 focus:ring-offset-0
                 disabled:opacity-60 disabled:cursor-not-allowed
               "
@@ -231,13 +247,13 @@ export default function ChatInputBar({
                 flex items-center justify-center
                 h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0
                 rounded-r-2xl
-                bg-teal-500/25 hover:bg-teal-500/35 active:bg-teal-500/30
+                bg-[var(--kt-accent)]/25 hover:bg-[var(--kt-accent)]/35 active:bg-[var(--kt-accent)]/30
                 transition-colors
                 outline-none focus-visible:ring-2 focus-visible:ring-teal-400/40 focus-visible:ring-inset
-                disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-white/[0.06]
+                disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-[var(--kt-hover)]
               "
             >
-              <ArrowUp className="h-5 w-5 sm:h-6 sm:w-6 text-white" strokeWidth={2.5} />
+              <ArrowUp className="h-5 w-5 sm:h-6 sm:w-6 text-[var(--kt-text-strong)]" strokeWidth={2.5} />
             </button>
           </div>
         </div>

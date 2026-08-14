@@ -2,13 +2,12 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Area, AreaChart, Bar, BarChart, Cell, ReferenceLine, ResponsiveContainer,
-  Tooltip, XAxis, YAxis,
+  Area, AreaChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { useChartColors } from "../chartColors";
 import { isFlat, navDomain } from "../navDomain";
 import { KT } from "../theme";
-import { IntradayNavSeries, RiskLimitsConfig, RiskMonitorResponse, fundApiClient } from "@/lib/fund_api";
+import { AdvancedRiskView, IntradayNavSeries, RiskLimitsConfig, RiskMonitorResponse, fundApiClient } from "@/lib/fund_api";
 
 /**
  * Three pictures, each answering a question a number cannot.
@@ -30,6 +29,11 @@ const money = (n?: number | null, dp = 0) =>
   n == null ? "—" : `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
 const pct = (n?: number | null, dp = 1) => (n == null ? "—" : `${Number(n).toFixed(dp)}%`);
 
+/** Bar width against a shared scale. Floors at a visible sliver so a genuinely
+ *  tiny share still reads as "present but small" rather than as absent. */
+const barW = (v: number, scale: number) =>
+  `${Math.min(100, Math.max(1.5, (v / (scale || 1)) * 100))}%`;
+
 type Gauge = {
   label: string;
   used: number;        // current value, in the same unit as `limit`
@@ -42,6 +46,7 @@ export function MonitorGraphs({ m }: { m: RiskMonitorResponse | null }) {
   const c = useChartColors();
   const [limits, setLimits] = useState<RiskLimitsConfig | null>(null);
   const [intraday, setIntraday] = useState<IntradayNavSeries | null>(null);
+  const [adv, setAdv] = useState<AdvancedRiskView | null>(null);
 
   const load = useCallback(async () => {
     const [l, i] = await Promise.all([
@@ -57,6 +62,25 @@ export function MonitorGraphs({ m }: { m: RiskMonitorResponse | null }) {
     const t = setInterval(load, 60000);
     return () => clearInterval(t);
   }, [load]);
+
+  // Structural risk on its own, slower clock. It reads a year of market history
+  // and is cached server-side for 30 minutes, so putting it on the 60s loop
+  // would be all cost and no freshness. Fetched separately for a second reason:
+  // it takes seconds on a cold cache, and the two fast panels should not wait
+  // behind it. Failure leaves `adv` null and the panel falls back to capital
+  // weights — a blank panel would be worse than a partial one.
+  useEffect(() => {
+    let alive = true;
+    const pull = () => {
+      fundApiClient
+        .getRiskAdvanced({ includeRegime: false, includeHistorical: false })
+        .then((r) => { if (alive) setAdv(r); })
+        .catch(() => { /* falls back to capital weights */ });
+    };
+    pull();
+    const t = setInterval(pull, 300000);
+    return () => { alive = false; clearInterval(t); };
+  }, []);
 
   // --- 1. session P&L ------------------------------------------------------
   const trace = useMemo(() => {
@@ -100,18 +124,67 @@ export function MonitorGraphs({ m }: { m: RiskMonitorResponse | null }) {
   }, [m, limits]);
 
   // --- 3. book shape -------------------------------------------------------
+  //
+  // This panel used to plot capital weight and a "-20% costs $X" figure, where
+  // the shock was `value * -0.20` per position — the same haircut on every
+  // name, so the total was just 20% of gross exposure restated. Both told you
+  // how *big* the book is. Neither told you what it is exposed to.
+  //
+  // The measured version is more interesting and, in this book, alarming: every
+  // holding is roughly 8% of NAV, so seven near-identical capital bars read as
+  // "evenly spread, nothing to see" — while INTC, on 14% of invested capital,
+  // carries 35% of the book's risk. The engine already computes that. Drawing
+  // capital and risk on the same row is what makes the divergence visible.
   const book = useMemo(() => {
-    const rows = [...(m?.positions ?? [])].sort((a, b) => b.weight_pct - a.weight_pct);
-    return rows.map((p) => ({
-      symbol: p.symbol,
-      weight: p.weight_pct,
-      value: p.value_usd,
-      pnl: p.unrealized_pnl_pct,
-      shock: p.shock_20_usd,
-    }));
-  }, [m]);
+    const rows = [...(m?.positions ?? [])];
+    const byRisk = new Map(
+      (adv?.risk_contribution?.contributions ?? []).map((c) => [c.symbol, c]),
+    );
+    const vols = adv?.correlation?.annualised_vol_pct ?? {};
+    const merged = rows.map((p) => {
+      const rc = byRisk.get(p.symbol);
+      return {
+        symbol: p.symbol,
+        // % of NAV. Cash is in that denominator, so this is the number the
+        // concentration cap is written against and the only one it can be
+        // checked against.
+        navWeight: p.weight_pct,
+        // % of *invested* capital — cash excluded. Risk shares are computed on
+        // this basis, so the two bars must share it or they are not
+        // comparable: INTC reads 8.1% of NAV and 14.0% of capital, and drawing
+        // 8.1% against a 35.3% risk share silently overstates the gap.
+        capitalShare: rc?.capital_weight_pct ?? null,
+        value: p.value_usd,
+        pnl: p.unrealized_pnl_pct,
+        riskShare: rc?.risk_share_pct ?? null,
+        vol: vols[p.symbol] ?? null,
+      };
+    });
+    // Sorted by whichever dimension we can actually see. Once risk shares are
+    // in, ordering by risk puts the name that matters at the top; before then,
+    // capital is all there is.
+    const haveRisk = merged.some((r) => r.riskShare != null);
+    merged.sort((a, b) =>
+      haveRisk
+        ? (b.riskShare ?? -Infinity) - (a.riskShare ?? -Infinity)
+        : b.navWeight - a.navWeight,
+    );
+    return merged;
+  }, [m, adv]);
+
   const capPct = limits?.max_position_pct ? limits.max_position_pct * 100 : null;
-  const totalShock = book.reduce((a, r) => a + (r.shock ?? 0), 0);
+  const haveRisk = book.some((r) => r.riskShare != null);
+  const effBets = adv?.correlation?.measurable ? adv.correlation.effective_bets : null;
+  const topRisk = adv?.risk_contribution?.largest_risk_contributor ?? null;
+  /** Longest bar in the panel, shared by every row and both series. */
+  const scale = useMemo(
+    () => Math.max(
+      1,
+      ...book.map((b) =>
+        Math.max(b.capitalShare ?? b.navWeight, Math.abs(b.riskShare ?? 0))),
+    ),
+    [book],
+  );
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -210,49 +283,101 @@ export function MonitorGraphs({ m }: { m: RiskMonitorResponse | null }) {
       <div className={KT.panel}>
         <div className="flex items-baseline justify-between border-b border-[var(--kt-border)] px-4 py-2.5">
           <span className={KT.label}>Book shape</span>
-          {totalShock !== 0 && (
+          {effBets != null && (
             <span className={`font-mono text-[11px] tabular-nums ${KT.muted}`}>
-              −20% costs {money(Math.abs(totalShock))}
+              {book.length} names · {effBets.toFixed(1)} bets
             </span>
           )}
         </div>
+
         {book.length === 0 ? (
           <div className={`px-4 py-10 text-center text-[12px] ${KT.muted}`}>
             No positions held.
           </div>
         ) : (
-          <div className="h-[150px] w-full px-1 pt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={book} layout="vertical"
-                        margin={{ top: 2, right: 12, bottom: 2, left: 4 }}>
-                <XAxis type="number" tick={{ fill: c.textMuted, fontSize: 9 }}
-                       stroke={c.axis} tickLine={false}
-                       tickFormatter={(v) => `${v}%`} />
-                <YAxis type="category" dataKey="symbol" width={46}
-                       tick={{ fill: c.textMuted, fontSize: 10 }}
-                       stroke={c.axis} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ background: c.surface, border: `1px solid ${c.grid}`,
-                                  borderRadius: 8, fontSize: 11, color: c.text }}
-                  formatter={(v: number, _n, p) => [
-                    `${Number(v).toFixed(1)}% · ${money(p.payload.value)} · ` +
-                    `${p.payload.pnl >= 0 ? "+" : ""}${Number(p.payload.pnl).toFixed(2)}% unreal.`,
-                    "weight",
-                  ]} />
-                {/* The concentration cap, drawn where it actually is. */}
-                {capPct != null && (
-                  <ReferenceLine x={capPct} stroke={c.down} strokeDasharray="3 3"
-                                 label={{ value: `cap ${capPct}%`, position: "top",
-                                          fill: c.down, fontSize: 9 }} />
-                )}
-                <Bar dataKey="weight" radius={[0, 3, 3, 0]}>
-                  {book.map((r, i) => (
-                    <Cell key={i}
-                          fill={capPct != null && r.weight > capPct ? c.down : c.accent} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="px-4 py-3">
+            <div className="mb-2 flex items-center gap-3">
+              <span className={`flex items-center gap-1.5 text-[10px] ${KT.muted}`}>
+                <span className="h-2 w-2 rounded-sm" style={{ background: c.accent }} />
+                capital
+              </span>
+              {haveRisk && (
+                <span className={`flex items-center gap-1.5 text-[10px] ${KT.muted}`}>
+                  <span className="h-2 w-2 rounded-sm" style={{ background: c.warn }} />
+                  risk
+                </span>
+              )}
+            </div>
+
+            <div className="space-y-2.5">
+              {book.map((r) => {
+                // One scale across both bars and every row, so lengths mean
+                // something. Rescaling per row would flatten exactly the
+                // divergence this panel exists to show.
+                const cap = r.capitalShare ?? r.navWeight;
+                const overCap = capPct != null && r.navWeight > capPct;
+                // Negative is real, not an error: a holding that moves against
+                // the rest of the book lowers total risk. Drawn on its own side
+                // rather than as a 1px stub pretending to be small-positive.
+                const diversifier = r.riskShare != null && r.riskShare < 0;
+                const skew = r.riskShare != null && cap > 0 ? r.riskShare / cap : null;
+                const loud = skew != null && skew >= 1.5;
+                return (
+                  <div key={r.symbol}>
+                    <div className="flex items-baseline justify-between gap-2 text-[11px]">
+                      <span className="flex items-baseline gap-1.5 truncate">
+                        <span className={overCap ? KT.down : ""}>{r.symbol}</span>
+                        {r.vol != null && (
+                          <span className={`font-mono text-[10px] tabular-nums ${KT.muted}`}>
+                            vol {pct(r.vol, 0)}
+                          </span>
+                        )}
+                      </span>
+                      <span className="flex-shrink-0 font-mono tabular-nums">
+                        <span className={overCap ? KT.down : KT.muted}>{pct(cap)}</span>
+                        {r.riskShare != null && (
+                          <>
+                            <span className={KT.muted}> → </span>
+                            <span className={diversifier ? KT.up : loud ? KT.sev.warn : KT.muted}>
+                              {pct(r.riskShare)}
+                            </span>
+                          </>
+                        )}
+                      </span>
+                    </div>
+                    <div className="mt-1 space-y-[3px]">
+                      <div className={KT.barTrack}>
+                        <div className="h-full rounded-full"
+                             style={{ width: barW(cap, scale),
+                                      background: overCap ? c.down : c.accent }} />
+                      </div>
+                      {r.riskShare != null && (
+                        <div className={KT.barTrack}>
+                          <div className="h-full rounded-full"
+                               style={{ width: barW(Math.abs(r.riskShare), scale),
+                                        background: diversifier ? c.up : c.warn }} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <p className={`mt-3 text-[10px] leading-relaxed ${KT.muted}`}>
+              {haveRisk && topRisk ? (
+                <>
+                  {topRisk.symbol} is {pct(topRisk.capital_weight_pct)} of invested capital
+                  and {pct(topRisk.risk_share_pct)} of its risk. Equal capital weights are
+                  not equal risk weights — volatility and correlation decide that. Shares
+                  are of invested capital, so cash is excluded; the {capPct != null ? `${pct(capPct, 0)} ` : ""}
+                  concentration cap is measured against NAV instead.
+                </>
+              ) : (
+                <>Capital weight only — the risk decomposition reads a year of market
+                history and is still loading.</>
+              )}
+            </p>
           </div>
         )}
       </div>

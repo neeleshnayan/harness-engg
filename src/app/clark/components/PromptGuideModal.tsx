@@ -15,10 +15,11 @@ export interface PromptGuideModalProps {
   isLoading: boolean
 }
 
-const cardGradient =
-  'linear-gradient(180deg, rgba(255, 255, 255, 0.36) 0%, rgba(161, 207, 211, 0.06) 100%)'
-const promptGradient =
-  'linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(161, 207, 211, 0.06) 100%)'
+/** Same wash, same problem as CategoryTiles — see the note there. One surface,
+ *  one border; hover lifts the border rather than the fill. */
+const rowBase =
+  'rounded-xl border border-[var(--kt-border)] bg-[var(--kt-surface)] ' +
+  'transition-colors duration-150 hover:border-[var(--kt-border-strong)] hover:bg-[var(--kt-hover)]'
 
 function PromptRow({
   prompt,
@@ -43,15 +44,12 @@ function PromptRow({
     onUse()
   }
   return (
-    <div
-      className="group relative flex items-center gap-2 rounded-xl backdrop-blur-sm min-h-[2.75rem] sm:min-h-0 p-0 overflow-hidden"
-      style={{ background: promptGradient }}
-    >
+    <div className={`group relative flex items-center gap-2 min-h-[2.75rem] sm:min-h-0 p-0 overflow-hidden ${rowBase}`}>
       <button
         type="button"
         onClick={handleUse}
         disabled={isLoading}
-        className="flex-1 text-left p-3.5 rounded-xl text-sm text-white/90 hover:text-white disabled:opacity-50 transition-all duration-200 active:scale-[0.98] sm:p-3"
+        className="flex-1 text-left p-3.5 rounded-xl text-sm text-[var(--kt-text-dim)] transition-colors group-hover:text-[var(--kt-text)] disabled:opacity-50 sm:p-3"
       >
         {prompt}
       </button>
@@ -60,10 +58,10 @@ function PromptRow({
         onClick={handleCopy}
         aria-label={copied ? 'Copied' : 'Copy prompt'}
         aria-live="polite"
-        className="flex-shrink-0 p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors mr-1"
+        className="flex-shrink-0 p-2 rounded-lg text-[var(--kt-text-muted)] hover:text-[var(--kt-text-strong)] hover:bg-[var(--kt-hover)] transition-colors mr-1"
       >
         {copied ? (
-          <span className="text-xs text-teal-300 font-medium">Copied!</span>
+          <span className="text-xs text-[var(--kt-accent)] font-medium">Copied!</span>
         ) : (
           <Copy className="h-4 w-4" />
         )}
@@ -91,10 +89,10 @@ export default function PromptGuideModal({
       <DialogContent
         className="
           w-full max-w-md sm:max-w-2xl
-          bg-gradient-to-b from-[#1c2f2f]/80 to-[#0b1515]/80
+          bg-[var(--kt-surface)]
           backdrop-blur-xl
           rounded-2xl
-          shadow-[0_20px_60px_rgba(0,0,0,0.6)]
+          shadow-2xl
           border-none
           flex flex-col
           overflow-hidden
@@ -122,7 +120,7 @@ export default function PromptGuideModal({
         </div>
         {/* Header: "Prompt Guide" top-left (X is top-right via DialogContent) */}
         <div className="flex items-center flex-shrink-0 pt-1 pb-3 sm:pb-4 px-4 sm:px-6">
-          <h2 className="text-lg font-semibold text-white">Prompt Guide</h2>
+          <h2 className="text-lg font-semibold text-[var(--kt-text-strong)]">Prompt Guide</h2>
         </div>
         <DialogTitle className="sr-only">Choose a prompt</DialogTitle>
         <DialogDescription className="sr-only">
@@ -146,19 +144,18 @@ export default function PromptGuideModal({
                     key={category.id}
                     type="button"
                     onClick={() => onSelectCategory(category.id)}
-                    className="w-full text-left p-4 rounded-xl backdrop-blur-sm transition-all duration-200 min-h-[2.75rem] active:scale-[0.98] sm:min-h-0 flex items-center gap-3"
-                    style={{ background: cardGradient }}
+                    className={`w-full text-left p-4 min-h-[2.75rem] active:scale-[0.99] sm:min-h-0 flex items-center gap-3 ${rowBase}`}
                   >
                     {category.icon.startsWith('/') ? (
-                      <img src={category.icon} alt={category.title} className="h-5 w-5 flex-shrink-0" />
+                      <img src={category.icon} alt="" aria-hidden className="h-4 w-4 flex-shrink-0 opacity-60" />
                     ) : (
-                      <span className="text-lg flex-shrink-0">{category.icon}</span>
+                      <span className="text-base flex-shrink-0">{category.icon}</span>
                     )}
                     <div className="min-w-0 flex-1">
-                      <div className="text-white font-medium truncate">{category.title}</div>
-                      <div className="text-xs text-white/60 truncate">{category.description}</div>
+                      <div className="truncate text-sm font-medium text-[var(--kt-text)]">{category.title}</div>
+                      <div className="truncate text-xs text-[var(--kt-text-muted)]">{category.description}</div>
                     </div>
-                    <ChevronRight className="h-5 w-5 flex-shrink-0 text-white/70" aria-hidden />
+                    <ChevronRight className="h-5 w-5 flex-shrink-0 text-[var(--kt-text-dim)]" aria-hidden />
                   </button>
                 ))}
               </div>
@@ -173,11 +170,11 @@ export default function PromptGuideModal({
                     <button
                       type="button"
                       onClick={() => onSelectCategory(null)}
-                      className="flex items-center gap-2 text-white/80 hover:text-white text-sm mb-4 min-h-[2.75rem] -ml-1 pl-1 active:opacity-80 sm:min-h-0 sm:ml-0 sm:pl-0"
+                      className="flex items-center gap-2 text-[var(--kt-text-dim)] hover:text-[var(--kt-text-strong)] text-sm mb-4 min-h-[2.75rem] -ml-1 pl-1 active:opacity-80 sm:min-h-0 sm:ml-0 sm:pl-0"
                     >
                       <span aria-hidden>←</span> Back to categories
                     </button>
-                    <div className="text-white font-medium mb-2">{category.title}</div>
+                    <div className="text-[var(--kt-text-strong)] font-medium mb-2">{category.title}</div>
                     <div className="w-full space-y-2">
                       {category.prompts.map((prompt) => (
                         <PromptRow
