@@ -8,6 +8,7 @@ import { KT } from "../theme";
 import { ThemeToggle } from "../ThemeToggle";
 import { RiskBar } from "./RiskBar";
 import { MarketClock } from "./MarketClock";
+import { ClarkConsole } from "./ClarkConsole";
 import { PositionTicker } from "./PositionTicker";
 
 interface StudioHeaderProps {
@@ -55,8 +56,17 @@ export function StudioHeader({ subtitle, status, actions }: StudioHeaderProps) {
           <MarketClock />
           {actions}
           <ThemeToggle />
-          <Link href="/clark" className={`flex h-8 items-center gap-1.5 ${KT.btn}`}>
-            <MessageSquare size={13} /> Clark Copilot
+          {/* Opens OVER the cockpit rather than navigating to /clark. Asking
+              about a screen you had to leave means restating its numbers from
+              memory, and a question that begins "I think NAV was around two
+              thousand" is one the answer cannot be checked against. */}
+          <ClarkConsole />
+          <Link
+            href="/clark"
+            className={`hidden h-8 items-center gap-1.5 lg:flex ${KT.btn}`}
+            title="Clark's full workspace"
+          >
+            <MessageSquare size={13} /> Full
           </Link>
         </div>
       </div>
