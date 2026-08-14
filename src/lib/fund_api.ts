@@ -427,6 +427,24 @@ export interface MarketQuote {
   unrealized_pnl_pct?: number;
 }
 
+/** The venue's session. `is_open` is tri-state on purpose: null means the
+ *  clock could not be read, which is NOT the same as closed — one stops
+ *  trading during an API blip, the other sends orders into the dark. */
+export interface MarketSessionResponse {
+  state: "open" | "closed" | "unknown";
+  phase: "regular" | "pre-market" | "after-hours" | "closed" | "weekend" | "unknown";
+  note: string;
+  is_open: boolean | null;
+  /** ISO-8601 in market time (America/New_York), so no zone guessing. */
+  now: string | null;
+  next_open: string | null;
+  next_close: string | null;
+  seconds_to_open: number | null;
+  seconds_to_close: number | null;
+  timezone: string;
+  simulated: boolean;
+}
+
 /** The broker's view of what the account is allowed to do. Every field is
  *  nullable because "we could not read it" must stay distinguishable from any
  *  particular value — a null shorting_enabled is not permission. */
@@ -1197,6 +1215,11 @@ export const fundApiClient = {
     lookbackDays = 180,
   ): Promise<StrategyBarsResponse> =>
     (await fundApi.get(`${P}/strategies/${strategyId}/bars`, { params: { lookback_days: lookbackDays } })).data,
+
+  /** The venue's session and the countdown to the next change. Cheap and
+   *  cached server-side for 10s, so polling it is fine. */
+  getMarketSession: async (): Promise<MarketSessionResponse> =>
+    (await fundApi.get(`${P}/session`)).data,
 
   /** Constraints imposed from OUTSIDE the mandate — the broker's and the
    *  regulator's, not ours. Distinct from getRiskMonitor: a risk limit is a

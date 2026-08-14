@@ -7,6 +7,7 @@ import { StudioNav } from "./StudioNav";
 import { KT } from "../theme";
 import { ThemeToggle } from "../ThemeToggle";
 import { RiskBar } from "./RiskBar";
+import { MarketClock } from "./MarketClock";
 import { PositionTicker } from "./PositionTicker";
 
 interface StudioHeaderProps {
@@ -47,7 +48,11 @@ export function StudioHeader({ subtitle, status, actions }: StudioHeaderProps) {
         <div className="ml-4 hidden sm:block">
           <StudioNav />
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-3">
+          {/* Almost everything on every surface is downstream of this: a flat
+              chart and an empty signals table both read as faults until you
+              know the venue is shut. */}
+          <MarketClock />
           {actions}
           <ThemeToggle />
           <Link href="/clark" className={`flex h-8 items-center gap-1.5 ${KT.btn}`}>
