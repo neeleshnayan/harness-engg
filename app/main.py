@@ -190,7 +190,13 @@ app = FastAPI(
     ],
 )
 
-_origins = [o for o in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",") if o]
+# localhost and 127.0.0.1 are the same machine and a different ORIGIN, and the
+# browser does not care that they resolve identically. Allowing only one means
+# the cockpit works or silently fails depending on which the operator typed —
+# every panel reporting "spine unreachable" while curl against the same port
+# answers instantly. Both are listed so that choice stops mattering.
+_DEFAULT_ORIGINS = "http://localhost:3000,http://127.0.0.1:3000"
+_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", _DEFAULT_ORIGINS).split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
