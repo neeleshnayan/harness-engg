@@ -22,10 +22,30 @@ from typing import Any, Callable
 _SNAPSHOT_COLLECTION = "fund_snapshots"
 
 
+#: The marker wrapping a Decimal in stored state.
+#:
+#: NOT ``__dec__``. Firestore reserves any field name matching ``__*__``, at
+#: every level of nesting, and rejects the whole write with INVALID_ARGUMENT.
+#: Because ``save()`` swallows its exception — a snapshot is a cache, so a
+#: failed write is meant to be survivable — every snapshot containing a Decimal
+#: had been failing silently against real Firestore since the day it was
+#: written. Locally it worked, because the dev store is a JSON file with no
+#: reserved names, so the bug was invisible in exactly the environment it was
+#: developed in. The positions projection holds Decimals, so it has never once
+#: been snapshotted in production; it simply re-folded the whole log every time
+#: and was merely slow.
+_DEC = "_decimal_"
+
+#: What the old encoding used. Read-only: existing snapshots must still load,
+#: and a snapshot that fails to decode is silently discarded and re-folded,
+#: which would hide the migration instead of completing it.
+_DEC_LEGACY = "__dec__"
+
+
 def _encode(value: Any) -> Any:
     """Decimals are exact money; store them as strings, never floats."""
     if isinstance(value, Decimal):
-        return {"__dec__": str(value)}
+        return {_DEC: str(value)}
     if isinstance(value, dict):
         return {k: _encode(v) for k, v in value.items()}
     if isinstance(value, list):
@@ -35,8 +55,10 @@ def _encode(value: Any) -> Any:
 
 def _decode(value: Any) -> Any:
     if isinstance(value, dict):
-        if "__dec__" in value and len(value) == 1:
-            return Decimal(value["__dec__"])
+        if len(value) == 1:
+            for marker in (_DEC, _DEC_LEGACY):
+                if marker in value:
+                    return Decimal(value[marker])
         return {k: _decode(v) for k, v in value.items()}
     if isinstance(value, list):
         return [_decode(v) for v in value]

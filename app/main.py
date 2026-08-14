@@ -43,6 +43,27 @@ else:
     try:
         initialize_firebase()
     except Exception as e:
+        # Falling back to a local file is a reasonable thing to do while
+        # developing and a catastrophic thing to do on the real book: the fund
+        # would come up looking healthy, accept orders, and write fills into a
+        # JSON file that no reconciliation, backup or audit trail knows about.
+        # Every event written during the outage would be invisible to the
+        # ledger it is supposed to live in, and the hash chain — whose whole
+        # purpose is to make missing events loud — would be perfectly intact,
+        # because the events were never in that chain to begin with.
+        #
+        # So production refuses to start. An outage that stops the fund is a
+        # problem you find out about immediately; one that silently relocates
+        # the ledger is a problem you find out about at the audit.
+        if os.getenv("FUND_ENV", "").lower() == "production":
+            _log.error("Firebase init failed (%s) and FUND_ENV=production — "
+                       "refusing to start on a local ledger.", e)
+            raise RuntimeError(
+                f"cannot reach the production ledger ({e}). Refusing to fall "
+                f"back to a local file: fills written there would be invisible "
+                f"to reconciliation and to the audit trail. Fix connectivity, "
+                f"or set USE_FAKE_FIRESTORE=1 deliberately to work offline."
+            ) from e
         _log.warning("Firebase init failed (%s) — falling back to local dev Firestore.", e)
         from app.core.dev_firestore import install_fake
         install_fake()
