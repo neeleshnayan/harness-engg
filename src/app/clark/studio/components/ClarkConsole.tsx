@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, Loader2, RefreshCw, Sparkles, X } from "lucide-react";
+import { ChevronRight, Loader2, RefreshCw, Sparkles, X } from "lucide-react";
 import { KT } from "../theme";
 import { processNaturalLanguageQuery } from "@/lib/agents_api";
 import { fundApiClient } from "@/lib/fund_api";
@@ -56,8 +56,17 @@ const CONTEXT_REFRESH_MS = 30_000;
 /** Past this, the panel says the context is aging rather than implying it is live. */
 const STALE_AFTER_MS = 60_000;
 
+/** Width of the docked rail. Also the page's right inset while it is open. */
+const RAIL_W = 380;
+/** Below this the rail would leave no usable cockpit, so it overlays instead. */
+const PUSH_MIN_WIDTH = 1100;
+const PREF_KEY = "clark.rail.open";
+
 export function ClarkConsole() {
-  const [open, setOpen] = useState(false);
+  // Open by default: the point of a rail is that it is simply there, the way a
+  // terminal pane is. Persisted, so a deliberate close is not undone by the
+  // next navigation.
+  const [open, setOpen] = useState(true);
   const [ctx, setCtx] = useState<Ctx>({ lines: [], suggestions: [], at: 0 });
   const [showCtx, setShowCtx] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -68,6 +77,43 @@ export function ClarkConsole() {
   const [, tick] = useState(0);
   const boxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(PREF_KEY);
+      if (saved !== null) setOpen(saved === "1");
+    } catch {
+      /* private mode — the default stands */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(PREF_KEY, open ? "1" : "0");
+    } catch {
+      /* not worth failing the panel over */
+    }
+  }, [open]);
+
+  // Reflow the cockpit beside the rail rather than under it. A persistent
+  // panel that overlaps means the right edge of every page — where the risk
+  // numbers and the theme toggle live — is permanently hidden, and the
+  // operator never sees what they are missing.
+  //
+  // Narrow viewports overlay instead: pushing 380px off a 900px screen leaves
+  // a cockpit too cramped to read, which is worse than a temporary overlap.
+  useEffect(() => {
+    const apply = () => {
+      const push = open && window.innerWidth >= PUSH_MIN_WIDTH;
+      document.body.style.paddingRight = push ? `${RAIL_W}px` : "";
+    };
+    apply();
+    window.addEventListener("resize", apply);
+    return () => {
+      window.removeEventListener("resize", apply);
+      document.body.style.paddingRight = "";
+    };
+  }, [open]);
 
   const loadContext = useCallback(async () => {
     setLoadingCtx(true);
@@ -280,7 +326,10 @@ export function ClarkConsole() {
   // reason for this shape.
   function renderPanel() {
     return (
-      <aside className="fixed bottom-5 right-5 z-40 flex max-h-[min(680px,78vh)] w-[min(410px,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-xl border border-[var(--kt-border)] bg-[var(--kt-bg)] shadow-2xl">
+      <aside
+        style={{ width: RAIL_W }}
+        className="fixed inset-y-0 right-0 z-40 flex max-w-[92vw] flex-col border-l border-[var(--kt-border)] bg-[var(--kt-bg)] shadow-2xl"
+      >
       <div className="flex items-center justify-between border-b border-[var(--kt-border)] px-4 py-2.5">
         <div className="flex items-center gap-2">
           <Sparkles size={14} className="text-[var(--kt-accent)]" />
@@ -302,8 +351,8 @@ export function ClarkConsole() {
           >
             <RefreshCw size={12} className={loadingCtx ? "animate-spin" : ""} />
           </button>
-          <button onClick={() => setOpen(false)} className={KT.btn} title="Minimise (Esc)">
-            <ChevronDown size={14} />
+          <button onClick={() => setOpen(false)} className={KT.btn} title="Hide the rail (Esc)">
+            <ChevronRight size={14} />
           </button>
         </div>
       </div>
