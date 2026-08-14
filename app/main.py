@@ -21,6 +21,18 @@ from fastapi.responses import FileResponse
 
 from app.core.firebase import initialize_firebase
 
+# Without this there is no handler on the root logger and no level set, so
+# Python's default of WARNING applies and every _log.info() in the service is
+# silently discarded. That is how "no strike — market closed", "scheduler lease
+# ACQUIRED" and every settlement warning came to be written, shipped, and never
+# once seen. The scheduler's decisions are the main window into what the
+# deterministic worker is doing between ticks; dropping them leaves the
+# operator inferring behaviour from side effects.
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(levelname)s:     %(name)s | %(message)s",
+)
+
 _log = logging.getLogger("clarkharness")
 
 _WEB_DIR = pathlib.Path(__file__).resolve().parents[1] / "web"
@@ -70,6 +82,7 @@ else:
 
 from app.api.v1 import fund as fund_router  # noqa: E402
 from app.fund.demo_seed import seed_if_empty  # noqa: E402
+from app.fund.lease import SchedulerLease  # noqa: E402
 from app.fund.schedule import StrikeWindow  # noqa: E402
 
 
@@ -92,14 +105,43 @@ def _venue_session():
         return unknown(str(e))
 
 
+#: The running scheduler's lease, so shutdown can hand it back rather than
+#: leaving the next process to wait out the TTL.
+_lease: SchedulerLease | None = None
+
+
 async def _scheduler():
-    """Deterministic worker: settle fills often; strike NAV + reconcile on the session."""
+    """Deterministic worker: settle fills often; strike NAV + reconcile on the session.
+
+    Runs only while holding the scheduler lease. Losing it is not a failure —
+    it means another process is doing this work, which is the point — so the
+    loser goes quiet and keeps asking rather than exiting, and picks the work
+    back up if that process dies.
+    """
     settle_every = int(os.getenv("SETTLE_INTERVAL_SECONDS", "30"))
     strike_every = int(os.getenv("STRIKE_INTERVAL_SECONDS", "1800"))
+    # The lease must outlive several ticks. One that expires between two ticks
+    # of its own holder hands the work back and forth and produces exactly the
+    # double-execution it exists to prevent.
+    global _lease
+    lease = _lease = SchedulerLease(ttl_seconds=max(180, settle_every * 4))
+    _log.info("scheduler identity: %s", lease.owner)
     since_strike = 0
     window = StrikeWindow()
+    was_held = None
     while True:
         await asyncio.sleep(settle_every)
+
+        state = lease.acquire()
+        if state.held != was_held:
+            # Log only on change: at a 20s tick, saying this every time would
+            # bury everything else in the log.
+            _log.info("scheduler lease %s — %s",
+                      "ACQUIRED" if state.held else "NOT HELD", state.reason)
+            was_held = state.held
+        if not state.held:
+            continue
+
         since_strike += settle_every
         # Settlement stays unconditional. It is read-mostly, idempotent, and an
         # order submitted near the bell can fill after it — refusing to poll
@@ -174,6 +216,17 @@ async def lifespan(app: FastAPI):
         except asyncio.CancelledError:
             pass
     fund_router.stop_trade_stream()
+
+    # Hand the lease back rather than leaving the next process to wait out the
+    # TTL. On a redeploy that is the difference between the new container
+    # working immediately and the fund having no scheduler for three minutes.
+    if _lease is not None:
+        try:
+            _lease.release()
+            _log.info("scheduler lease released")
+        except Exception as e:  # noqa: BLE001
+            _log.warning("could not release the scheduler lease (%s) — "
+                         "it will expire on its own", e)
 
 
 app = FastAPI(

@@ -21,10 +21,17 @@ edges of is worse than none:
      They verify as ``unchained``, never as ``valid``. Claiming otherwise would
      be the exact dishonesty this module exists to prevent.
 
-  2. The chain assumes a single writer. Two processes appending concurrently
-     can interleave and produce a genuine break with no tampering involved.
-     The seq counter and the chain tip advance in one transaction, so the
-     window is small, but it is not zero — see the scheduler-lease task.
+  2. A break is not proof of tampering. The seq counter and the chain tip
+     advance together inside one Firestore transaction, which serialises
+     concurrent appends correctly — two processes writing at once is NOT a
+     hazard here, contrary to what this note used to claim.
+
+     The real window is a crash: the event document is written after the
+     transaction commits, so a process that dies in between leaves the tip
+     pointing at an event that does not exist, and the next append chains onto
+     a phantom. verify() reports that as a break, which is the intended
+     behaviour — a missing event should be loud — but the operator reading the
+     break needs to know a crash produces the same signature as an edit.
 """
 
 from __future__ import annotations
