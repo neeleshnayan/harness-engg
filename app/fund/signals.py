@@ -83,7 +83,8 @@ class SignalRunner:
     def __init__(self, strategies, nav, pipeline, pricer: Callable[[str], float],
                  pending_lookup: Callable[[], list[dict]],
                  bars_fetcher=fetch_bars, lookback_days: int = 400,
-                 market_open: Callable[[], bool | None] | None = None):
+                 market_open: Callable[[], bool | None] | None = None,
+                 session: Callable[[], Any] | None = None):
         self._strategies = strategies
         self._nav = nav
         self._pipeline = pipeline
@@ -91,7 +92,11 @@ class SignalRunner:
         self._pending = pending_lookup
         self._fetch = bars_fetcher
         self._lookback_days = lookback_days
+        # ``market_open`` is the older one-bit probe; ``session`` supersedes it
+        # and is preferred when both are supplied. Kept so existing callers and
+        # tests that only have the boolean keep working.
         self._market_open = market_open
+        self._session = session
 
     # ------------------------------------------------------------- evaluate
     def evaluate(self) -> list[SignalDecision]:
@@ -212,15 +217,26 @@ class SignalRunner:
         # queues it to fill on an opening auction nobody reviewed. A dry run is
         # always allowed — looking is free, and this is exactly when an operator
         # wants to see what tomorrow's open would do.
-        open_now = self._market_open() if self._market_open else None
+        session = self._session() if self._session else None
+        open_now = (session.is_open if session is not None
+                    else (self._market_open() if self._market_open else None))
         if not dry_run and open_now is False:
+            # "Closed" on its own reads as a malfunction. Saying which phase and
+            # how long until the open turns a dead end into a wait.
+            note = ("market is CLOSED — nothing proposed. Re-run when it opens, "
+                    "or use dry_run to see what the signals currently want.")
+            if session is not None and session.seconds_to_open:
+                hours = session.seconds_to_open / 3600
+                note = (f"market is CLOSED ({session.phase}) — nothing proposed. "
+                        f"Opens in {hours:.1f}h. Use dry_run to see what the "
+                        f"signals currently want.")
             return {
                 "dry_run": False, "evaluated": [d.to_dict() for d in self.evaluate()],
                 "proposed": [], "suppressed": [], "rejected": [],
                 "counts": {"evaluated": 0, "proposed": 0, "suppressed": 0, "rejected": 0},
                 "market_open": False,
-                "note": "market is CLOSED — nothing proposed. Re-run when it opens, "
-                        "or use dry_run to see what the signals currently want.",
+                "session": session.to_dict() if session else None,
+                "note": note,
             }
 
         decisions = self.evaluate()
@@ -278,6 +294,7 @@ class SignalRunner:
             # None means the clock was unreachable, which is NOT the same as
             # closed — the caller sees the difference.
             "market_open": open_now,
+            "session": session.to_dict() if session else None,
             "evaluated": [d.to_dict() for d in decisions],
             "proposed": proposed,
             "suppressed": suppressed,

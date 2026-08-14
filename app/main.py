@@ -52,20 +52,23 @@ from app.fund.demo_seed import seed_if_empty  # noqa: E402
 from app.fund.schedule import StrikeWindow  # noqa: E402
 
 
-def _venue_open() -> bool | None:
-    """The venue's session state, or None when it cannot be read.
+def _venue_session():
+    """The venue's session, or a simulated stand-in.
 
-    A connector with no clock is a simulated venue, which has no session and
-    trades whenever asked — reporting it as open keeps mock mode behaving the
-    way it always has rather than silently freezing NAV history.
+    A connector with no clock is a simulated venue, which has no exchange
+    session and trades whenever asked — reporting it open keeps mock mode
+    behaving the way it always has rather than silently freezing NAV history.
     """
-    probe = getattr(fund_router._connector, "market_open", None)
+    from app.fund.session import PHASE_REGULAR, MarketSession, STATE_OPEN, unknown
+
+    probe = getattr(fund_router._connector, "session", None)
     if probe is None:
-        return True
+        return MarketSession(state=STATE_OPEN, phase=PHASE_REGULAR,
+                             note="simulated venue — always open")
     try:
         return probe()
-    except Exception:  # noqa: BLE001
-        return None
+    except Exception as e:  # noqa: BLE001
+        return unknown(str(e))
 
 
 async def _scheduler():
@@ -97,11 +100,14 @@ async def _scheduler():
             # Off-session those prices are the previous close, so an unguarded
             # tick writes an invented mark and reports a divergence that only
             # exists because the book was valued twice at the same stale price.
-            decision = window.evaluate(_venue_open())
+            session = _venue_session()
+            decision = window.evaluate(session.is_open)
             if not decision.strike:
-                _log.debug("skipping strike/reconcile: %s", decision.reason)
+                # Named rather than silent: an operator looking at a NAV series
+                # that stopped advancing needs to see that it was a decision.
+                _log.info("no strike — %s (%s)", decision.reason, session.phase)
                 continue
-            _log.info("strike/reconcile: %s", decision.reason)
+            _log.info("strike/reconcile: %s (%s)", decision.reason, session.phase)
             for fn in (fund_router.run_strike, fund_router.run_reconcile):
                 try:
                     fn()

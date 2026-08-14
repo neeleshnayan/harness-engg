@@ -11,7 +11,7 @@ The pipeline is wired to the PaperConnector today; swapping in the IBKRConnector
 
 import logging
 import os
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
@@ -270,6 +270,43 @@ def get_venue_account():
     }
 
 
+@router.get("/fund/session")
+def get_market_session():
+    """The venue's session — state, phase, and the countdown to the next change.
+
+    Polled by the UI, so it carries a short cache. The connector's
+    ``market_open()`` stays deliberately uncached for the trade path, where
+    being a few seconds stale at the bell is a real error; a countdown that is
+    ten seconds behind is not.
+    """
+    from app.fund.session import derive, unknown
+
+    probe = getattr(_connector, "session", None)
+    if probe is None:
+        # A simulated venue has no session. Saying so beats inventing one.
+        return {
+            **unknown("simulated venue — no exchange session").to_dict(),
+            "simulated": True,
+        }
+    return {**_session_cache(probe).to_dict(), "simulated": False}
+
+
+_SESSION_TTL_SECONDS = 10.0
+_session_hit: dict[str, Any] = {"at": 0.0, "value": None}
+
+
+def _session_cache(probe):
+    """Ten-second memo, so UI polling does not become a clock-fetch per client."""
+    import time as _time
+
+    now = _time.time()
+    if _session_hit["value"] is not None and now - _session_hit["at"] < _SESSION_TTL_SECONDS:
+        return _session_hit["value"]
+    value = probe()
+    _session_hit.update({"at": now, "value": value})
+    return value
+
+
 @router.get("/fund/compliance")
 def get_compliance_status():
     """The externally-imposed constraints the fund is currently operating under.
@@ -498,6 +535,9 @@ def _signal_runner() -> SignalRunner:
         pricer=conn.price,
         pending_lookup=lambda: _orders.history(limit=200),
         market_open=getattr(conn, "market_open", None),
+        # Shares the endpoint's ten-second memo, so a signal run and the UI's
+        # session poll do not each cost a clock fetch.
+        session=(lambda: _session_cache(conn.session)) if hasattr(conn, "session") else None,
     )
 
 

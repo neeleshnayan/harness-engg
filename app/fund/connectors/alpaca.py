@@ -236,6 +236,26 @@ class AlpacaConnector(Connector):
         except Exception:  # noqa: BLE001
             return None
 
+    def session(self) -> "MarketSession":
+        """The full session, not just the open/closed bit — see ``session.py``.
+
+        One clock fetch answers every question the scheduler, the signal runner
+        and the operator have, instead of each calling ``market_open()`` and
+        re-deriving the rest badly.
+        """
+        from app.fund.session import derive, unknown
+
+        try:
+            c = self._trading().get_clock()
+        except Exception as e:  # noqa: BLE001
+            return unknown(f"venue clock unreachable: {e}")
+        return derive(
+            is_open=bool(c.is_open),
+            now=getattr(c, "timestamp", None),
+            next_open=getattr(c, "next_open", None),
+            next_close=getattr(c, "next_close", None),
+        )
+
     def account_info(self) -> dict[str, Any]:
         if not (self._key and self._secret):
             return {
