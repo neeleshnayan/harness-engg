@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { spineError } from "@/lib/spine_error";
 import { KT } from "../theme";
-import { ComplianceStatus, SpineEvent, fundApiClient } from "@/lib/fund_api";
+import { ComplianceStatus, LedgerVerification, SpineEvent, fundApiClient } from "@/lib/fund_api";
 
 /**
  * What is actually working, and the event log tailing underneath it.
@@ -45,17 +45,19 @@ export function SystemStatus({ refreshSignal = 0 }: { refreshSignal?: number }) 
   const [drift, setDrift] = useState<{ symbols_out_of_sync?: number } | null>(null);
   const [halted, setHalted] = useState<boolean | null>(null);
   const [compliance, setCompliance] = useState<ComplianceStatus | null>(null);
+  const [ledger, setLedger] = useState<LedgerVerification | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const [b, ev, intr, dr, risk, comp] = await Promise.all([
+      const [b, ev, intr, dr, risk, comp, chain] = await Promise.all([
         fundApiClient.getBookIdentity(),
         fundApiClient.getEvents(40),
         fundApiClient.getIntradayNav(30).catch(() => null),
         fundApiClient.getVenueReconcile().catch(() => null),
         fundApiClient.getRiskMonitor().catch(() => null),
         fundApiClient.getCompliance().catch(() => null),
+        fundApiClient.verifyLedger().catch(() => null),
       ]);
       setBook(b as Record<string, unknown>);
       setEvents(ev.events || []);
@@ -63,6 +65,7 @@ export function SystemStatus({ refreshSignal = 0 }: { refreshSignal?: number }) 
       setDrift(dr);
       setHalted(risk ? risk.halted : null);
       setCompliance(comp);
+      setLedger(chain);
       setErr(null);
     } catch (e: unknown) {
       setErr(spineError(e));
@@ -155,6 +158,30 @@ export function SystemStatus({ refreshSignal = 0 }: { refreshSignal?: number }) 
                  detail: "above $25k — the rule does not restrict this account" });
     }
 
+    // Tamper evidence. "Append-only" is a description of how we write, not a
+    // property anyone outside can check — this row is the check. An unchained
+    // prefix is reported as unproved rather than green, because events written
+    // before the chain existed cannot be verified after the fact and saying
+    // otherwise would be the exact dishonesty the chain exists to prevent.
+    if (ledger) {
+      out.push(
+        !ledger.ok
+          ? { label: "Ledger integrity", level: "bad",
+              detail: `BROKEN at seq ${ledger.first_break?.seq ?? "?"} — ${ledger.first_break?.reason ?? "chain does not hold"}` }
+          : ledger.chained === 0
+            ? { label: "Ledger integrity", level: "warn",
+                detail: `no tamper evidence — all ${ledger.unchained} events predate the chain` }
+            : ledger.unchained > 0
+              ? { label: "Ledger integrity", level: "warn",
+                  detail: `${ledger.chained} chained, ${ledger.unchained} predate the chain (unproved)` }
+              : { label: "Ledger integrity", level: "ok",
+                  detail: `all ${ledger.chained} events chained and verified` },
+      );
+    } else {
+      out.push({ label: "Ledger integrity", level: "unknown",
+                 detail: "chain unreadable — tampering would not be visible" });
+    }
+
     // A silent event log on a live fund is itself a signal.
     if (events && events.length) {
       const newest = events[0]?.ts;
@@ -168,7 +195,7 @@ export function SystemStatus({ refreshSignal = 0 }: { refreshSignal?: number }) 
     }
 
     return out;
-  }, [book, err, intraday, drift, halted, events, compliance]);
+  }, [book, err, intraday, drift, halted, events, compliance, ledger]);
 
   return (
     <div className={KT.panel}>

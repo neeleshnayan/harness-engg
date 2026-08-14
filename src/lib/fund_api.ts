@@ -427,6 +427,24 @@ export interface MarketQuote {
   unrealized_pnl_pct?: number;
 }
 
+/** Tamper evidence over the event log. `unchained` counts events written
+ *  before the chain existed — those are never reported as valid, only as
+ *  unproved, because claiming otherwise would be the dishonesty the chain
+ *  exists to prevent. */
+export interface LedgerVerification {
+  ok: boolean;
+  checked: number;
+  chained: number;
+  unchained: number;
+  first_break: {
+    seq: number | null;
+    event_id: string | null;
+    type: string | null;
+    reason: string;
+  } | null;
+  notes: string[];
+}
+
 /** Realised trading cost. Positive bps always means worse for the fund,
  *  whichever way the order pointed — otherwise a bad sell would read as a
  *  saving and net two real costs toward zero. */
@@ -1268,6 +1286,11 @@ export const fundApiClient = {
     lookbackDays = 180,
   ): Promise<StrategyBarsResponse> =>
     (await fundApi.get(`${P}/strategies/${strategyId}/bars`, { params: { lookback_days: lookbackDays } })).data,
+
+  /** Walk the ledger's hash chain. `ok: false` means an event was altered,
+   *  inserted or removed after it was written. */
+  verifyLedger: async (): Promise<LedgerVerification> =>
+    (await fundApi.get(`${P}/ledger/verify`)).data,
 
   /** What trading actually cost, folded from the order lifecycle. Applies
    *  retroactively — every order the fund has ever placed is in here. */
