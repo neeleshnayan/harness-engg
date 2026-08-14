@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { spineError } from "@/lib/spine_error";
 import { KT } from "../theme";
-import { SpineEvent, fundApiClient } from "@/lib/fund_api";
+import { ComplianceStatus, SpineEvent, fundApiClient } from "@/lib/fund_api";
 
 /**
  * What is actually working, and the event log tailing underneath it.
@@ -44,22 +44,25 @@ export function SystemStatus({ refreshSignal = 0 }: { refreshSignal?: number }) 
   const [intraday, setIntraday] = useState<{ n: number; to_ts: string | null } | null>(null);
   const [drift, setDrift] = useState<{ symbols_out_of_sync?: number } | null>(null);
   const [halted, setHalted] = useState<boolean | null>(null);
+  const [compliance, setCompliance] = useState<ComplianceStatus | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const [b, ev, intr, dr, risk] = await Promise.all([
+      const [b, ev, intr, dr, risk, comp] = await Promise.all([
         fundApiClient.getBookIdentity(),
         fundApiClient.getEvents(40),
         fundApiClient.getIntradayNav(30).catch(() => null),
         fundApiClient.getVenueReconcile().catch(() => null),
         fundApiClient.getRiskMonitor().catch(() => null),
+        fundApiClient.getCompliance().catch(() => null),
       ]);
       setBook(b as Record<string, unknown>);
       setEvents(ev.events || []);
       setIntraday(intr ? { n: intr.n, to_ts: intr.to_ts } : null);
       setDrift(dr);
       setHalted(risk ? risk.halted : null);
+      setCompliance(comp);
       setErr(null);
     } catch (e: unknown) {
       setErr(spineError(e));
@@ -132,6 +135,26 @@ export function SystemStatus({ refreshSignal = 0 }: { refreshSignal?: number }) 
         ? { label: "Trading", level: "bad", detail: "HALTED — buys blocked" }
         : { label: "Trading", level: "ok", detail: "active" });
 
+    // The day-trade budget. Unlike every other row here this one is a cliff:
+    // the fourth day trade in five sessions restricts the account to
+    // closing-only for ninety days, so the useful number is how many are left
+    // — and it has to be readable BEFORE an order is proposed, not at the
+    // rejection. Counted from our own event log when the broker does not
+    // report it, which on the paper venue is always.
+    if (compliance?.pdt?.applies) {
+      const { remaining, used, max_day_trades, source, diverges } = compliance.pdt;
+      const left = remaining ?? 0;
+      out.push({
+        label: "Day-trade budget",
+        level: left <= 0 ? "bad" : left === 1 ? "warn" : "ok",
+        detail: `${used}/${max_day_trades} used · ${left} left before a 90-day`
+          + ` restriction · via ${source}${diverges ? " (counts disagree)" : ""}`,
+      });
+    } else if (compliance && !compliance.pdt.applies) {
+      out.push({ label: "Day-trade budget", level: "ok",
+                 detail: "above $25k — the rule does not restrict this account" });
+    }
+
     // A silent event log on a live fund is itself a signal.
     if (events && events.length) {
       const newest = events[0]?.ts;
@@ -145,7 +168,7 @@ export function SystemStatus({ refreshSignal = 0 }: { refreshSignal?: number }) 
     }
 
     return out;
-  }, [book, err, intraday, drift, halted, events]);
+  }, [book, err, intraday, drift, halted, events, compliance]);
 
   return (
     <div className={KT.panel}>

@@ -427,6 +427,39 @@ export interface MarketQuote {
   unrealized_pnl_pct?: number;
 }
 
+/** The broker's view of what the account is allowed to do. Every field is
+ *  nullable because "we could not read it" must stay distinguishable from any
+ *  particular value — a null shorting_enabled is not permission. */
+export interface ComplianceAccount {
+  known: boolean;
+  equity: number | null;
+  daytrade_count: number | null;
+  pattern_day_trader: boolean | null;
+  trading_blocked: boolean | null;
+  account_blocked: boolean | null;
+  shorting_enabled: boolean | null;
+  status: string | null;
+  error: string | null;
+}
+
+/** The pattern-day-trader budget. A cliff, not a slope: the fourth day trade
+ *  in five sessions restricts a sub-$25k account to closing-only for 90 days,
+ *  so `remaining` is the number that matters. */
+export interface ComplianceStatus {
+  account: ComplianceAccount;
+  pdt: {
+    applies: boolean;
+    equity_threshold: number;
+    max_day_trades: number;
+    used: number;
+    remaining: number | null;
+    broker_count: number | null;
+    our_count: number;
+    source: string;
+    diverges: boolean;
+  };
+}
+
 export interface MarketQuotesResponse {
   quotes: MarketQuote[];
   held_count: number;
@@ -1164,6 +1197,12 @@ export const fundApiClient = {
     lookbackDays = 180,
   ): Promise<StrategyBarsResponse> =>
     (await fundApi.get(`${P}/strategies/${strategyId}/bars`, { params: { lookback_days: lookbackDays } })).data,
+
+  /** Constraints imposed from OUTSIDE the mandate — the broker's and the
+   *  regulator's, not ours. Distinct from getRiskMonitor: a risk limit is a
+   *  number the fund chose and can change; these it cannot. */
+  getCompliance: async (): Promise<ComplianceStatus> =>
+    (await fundApi.get(`${P}/compliance`)).data,
 
   /** Which book this spine is reading and writing, and whether orders are real.
    *  The two facts that decide whether anything else on screen is a rehearsal. */
