@@ -270,6 +270,18 @@ def get_venue_account():
     }
 
 
+@router.get("/fund/ledger/verify")
+def verify_ledger_chain(limit: int = Query(100_000, ge=1)):
+    """Walk the hash chain and report the first link that does not hold.
+
+    Append-only is a description of how we write, not a property an auditor can
+    check. This is the check. A break means an event was altered, inserted or
+    removed after it was written — or, less dramatically, that two processes
+    appended at once (see the scheduler-lease task).
+    """
+    return _store.verify_chain(limit=limit)
+
+
 @router.get("/fund/tca")
 def get_transaction_costs(limit: int = Query(500, ge=1, le=5000)):
     """What trading actually cost, against what the backtests assumed.

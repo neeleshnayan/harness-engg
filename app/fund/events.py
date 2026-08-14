@@ -25,6 +25,7 @@ from typing import Any, Optional
 
 from firebase_admin import firestore
 
+from app.fund.chain import GENESIS_HASH, event_hash, verify
 from app.fund.money import encode
 
 EVENTS_COLLECTION = "fund_events"
@@ -136,23 +137,53 @@ class EventStore:
         self._db = db or _fs_db()
 
     def append(self, event: Event) -> Event:
-        """Assign a global seq + server timestamp and persist. Returns the stored event."""
+        """Assign a global seq + server timestamp and persist. Returns the stored event.
 
+        The chain tip advances inside the same transaction as the seq counter.
+        That pairing is the point: seq ordering and hash linkage are two views
+        of the same ordering, and letting them be assigned by separate writes
+        would allow an event to hold seq N while chaining onto seq N-2.
+
+        The tip is stored on the counter document rather than derived by
+        reading the previous event, which keeps append at zero extra reads.
+        """
         counter_ref = self._db.collection(_COUNTER_DOC[0]).document(_COUNTER_DOC[1])
+
+        # Set before the transaction so the hash covers the real timestamp.
+        event.ts = datetime.now(timezone.utc).isoformat()
+        sealed: dict[str, Any] = {}
 
         @firestore.transactional
         def _txn(txn) -> int:
+            state = {}
             snap = counter_ref.get(transaction=txn)
-            current = (snap.to_dict() or {}).get("seq", 0) if snap.exists else 0
-            nxt = current + 1
-            txn.set(counter_ref, {"seq": nxt}, merge=True)
+            if snap.exists:
+                state = snap.to_dict() or {}
+            nxt = state.get("seq", 0) + 1
+            prev = state.get("tip_hash") or GENESIS_HASH
+
+            body = encode(event.to_dict())
+            body["seq"] = nxt
+            body["prev_hash"] = prev
+            body["hash"] = event_hash(body, prev)
+
+            txn.set(counter_ref, {"seq": nxt, "tip_hash": body["hash"]}, merge=True)
+            sealed.update(body)
             return nxt
 
         event.seq = _txn(self._db.transaction())
-        event.ts = datetime.now(timezone.utc).isoformat()
 
-        self._db.collection(EVENTS_COLLECTION).document(event.event_id).set(encode(event.to_dict()))
+        # If this write fails after the transaction committed, the tip points at
+        # an event that does not exist and the next append chains onto a
+        # phantom. That is a real hole — and verify() reports it as a break
+        # rather than papering over it, which is the behaviour we want: a
+        # missing event should be loud.
+        self._db.collection(EVENTS_COLLECTION).document(event.event_id).set(sealed)
         return event
+
+    def verify_chain(self, limit: int = 100_000) -> dict[str, Any]:
+        """Walk the log and report the first link that does not hold."""
+        return verify(self.stream(limit=limit)).to_dict()
 
     def by_aggregate(self, aggregate_id: str) -> list[dict[str, Any]]:
         """All events for one aggregate, in order."""

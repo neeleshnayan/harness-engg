@@ -30,7 +30,16 @@ def mock_store(monkeypatch):
             return self._data
 
     class DummyTransaction:
-        pass
+        """Writes straight through — enough to run a transaction BODY.
+
+        The previous version had no methods at all, because the fixture also
+        stubbed `firestore.transactional` into something that never called the
+        wrapped function. That meant append()'s transaction was never executed
+        here and the mock silently tested only the seq counter. It now runs the
+        real body, so the hash chain gets exercised too.
+        """
+        def set(self, ref, data, merge=False):
+            ref.set(data, merge=merge)
 
     events_db = {}
     counter_data = {"seq": 0}
@@ -89,13 +98,10 @@ def mock_store(monkeypatch):
         def transaction(self):
             return DummyTransaction()
 
-    def mock_txn(txn):
-        counter_data["seq"] += 1
-        return counter_data["seq"]
-
     mock_db = DummyDB()
     monkeypatch.setattr("firebase_admin.firestore.client", lambda: mock_db)
-    monkeypatch.setattr("app.fund.events.firestore.transactional", lambda f: (lambda txn: mock_txn(txn)))
+    # What the real decorator does: hand the transaction to the body and run it.
+    monkeypatch.setattr("app.fund.events.firestore.transactional", lambda f: f)
     return EventStore(db=mock_db)
 
 
