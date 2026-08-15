@@ -10,6 +10,8 @@
     "analyze": "ANALYZE=true next build"
   },
   "dependencies": {
+    "@assistant-ui/react": "^0.15.14",
+    "@assistant-ui/react-markdown": "^0.14.10",
     "@coinbase/onchainkit": "^0.38.19",
     "@fortawesome/fontawesome-svg-core": "^7.0.0",
     "@fortawesome/free-solid-svg-icons": "^7.0.0",

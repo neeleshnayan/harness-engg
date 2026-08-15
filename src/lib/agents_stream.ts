@@ -24,6 +24,9 @@ export interface TraceStep {
   preview?: string
   /** Arguments the tool was called with, once the model finished writing them. */
   input?: Record<string, unknown>
+  /** The tool's full structured return value, when it fit the stream's size
+   *  cap — what generative tool UIs render. null/undefined = preview only. */
+  result?: unknown
   startedAt: number
   endedAt?: number
 }
@@ -62,7 +65,7 @@ type ServerEvent =
   | { type: 'thinking'; text: string }
   | { type: 'tool_start'; id: string; name: string }
   | { type: 'tool_input'; id: string; name: string; input: Record<string, unknown> }
-  | { type: 'tool_end'; id: string; name: string; ok: boolean; preview: string }
+  | { type: 'tool_end'; id: string; name: string; ok: boolean; preview: string; result?: unknown }
   | { type: 'delta'; text: string }
   | { type: 'complete'; payload: any }
   | { type: 'error'; message: string }
@@ -156,6 +159,7 @@ export async function streamAgentQuery(
         if (step) {
           step.ok = evt.ok
           step.preview = evt.preview
+          step.result = evt.result
           step.endedAt = Date.now()
         } else {
           // A result with no matching start: still worth showing, because a
