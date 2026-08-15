@@ -287,6 +287,19 @@ export interface GeneratedThesisResult {
 /** One strategy's live record against the backtest it was deployed on.
  *  `comparable: false` rows carry the reason instead of a verdict — under 14
  *  live days the spine refuses to annualise noise into a judgement. */
+/** One point of the risk engine's drift record — sparse by design: a point
+ *  accrues per fresh compute, not per clock tick. */
+export interface RiskHistoryPoint {
+  ts: string;
+  nav_usd?: number | null;
+  portfolio_vol_pct?: number | null;
+  stressed_vol_pct?: number | null;
+  effective_bets?: number | null;
+  es975_pct?: number | null;
+  es975_usd?: number | null;
+  move_to_halt_pct?: number | null;
+}
+
 export interface StrategyDivergenceRow {
   strategy_id: string;
   name?: string | null;
@@ -1637,6 +1650,9 @@ export const fundApiClient = {
 
   runRiskMonitor: async (actor = 'operator'): Promise<{ raised: RiskAlarmItem[]; cleared: string[]; halted: boolean; active: RiskAlarmItem[] }> =>
     (await fundApi.post(`${P}/risk/monitor/run`, { actor })).data,
+
+  getRiskHistory: async (limit = 180): Promise<{ points: RiskHistoryPoint[] }> =>
+    (await fundApi.get(`${P}/risk/history`, { params: { limit } })).data,
 
   getRiskLimits: async (): Promise<RiskLimitsConfig> =>
     (await fundApi.get(`${P}/risk/limits`)).data,

@@ -7,7 +7,7 @@ import { StudioHeader } from "../components/StudioHeader";
 import { LossSurface } from "../components/LossSurface";
 import { FactorMap3D } from "../components/FactorMap3D";
 import { KT } from "../theme";
-import { fundApiClient, AdvancedRiskView, FactorRow } from "@/lib/fund_api";
+import { fundApiClient, AdvancedRiskView, FactorRow, RiskHistoryPoint, RiskMonitorResponse } from "@/lib/fund_api";
 
 /**
  * RISK — Vishesh's surface. Structural risk, not position bookkeeping.
@@ -57,6 +57,96 @@ function Panel({ title, subtitle, children, right }: {
       </div>
       {children}
     </section>
+  );
+}
+
+/** The operator is learning this vocabulary — the page should teach it in
+ *  place. Plain sentences, this fund's numbers where possible, no textbook
+ *  hedging. Tap the term to toggle the explanation. */
+const GLOSSARY: Record<string, string> = {
+  "effective-bets":
+    "How many genuinely independent positions this book behaves like. Seven " +
+    "tickers that move together can be one bet; position count only equals " +
+    "bet count when nothing is correlated.",
+  "book-vol":
+    "Annualised volatility of the whole book — the typical size of a year's " +
+    "wobble, not a worst case. The stressed figure is the same book if every " +
+    "correlation snapped to 1, which is roughly what a crisis does.",
+  es:
+    "Expected Shortfall: the AVERAGE loss on the worst 2.5% of days — deeper " +
+    "than VaR, which is only the doorway to the tail. Measured from this " +
+    "book's own return history, not a normal curve.",
+  "move-to-halt":
+    "The uniform fall across every holding that would push NAV to the " +
+    "drawdown halt. The closer to zero, the closer the fund is to being " +
+    "stopped out of its own rules.",
+  "worst-crisis":
+    "Today's exact book pushed through a real historical crisis window, " +
+    "using each holding's actual returns from that period. History, not " +
+    "simulation.",
+  "risk-contribution":
+    "Each name's share of total book volatility (Euler decomposition). " +
+    "Capital weight is what you paid; risk weight is what can hurt you. A " +
+    "negative share means the name hedges the rest of the book.",
+  alpha:
+    "Return not explained by exposures you could buy cheaply as ETFs. A " +
+    "t-stat under 2 means the data cannot yet distinguish it from luck.",
+  turbulence:
+    "How statistically unusual today's cross-market moves are against " +
+    "history, as a percentile. High turbulence = the market behaving " +
+    "abnormally, whatever the headlines say.",
+  absorption:
+    "The share of market variance concentrated in a few driving forces. " +
+    "Rising absorption = markets moving as one = diversification failing " +
+    "exactly when it is needed most.",
+};
+
+function Explain({ term, children }: { term: keyof typeof GLOSSARY; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="cursor-help border-b border-dotted border-[var(--kt-text-muted)] text-left"
+        title={GLOSSARY[term]}
+        aria-expanded={open}
+      >
+        {children}
+      </button>
+      {open && (
+        <span className={`mt-1 block text-[11px] font-normal normal-case tracking-normal ${KT.muted}`}>
+          {GLOSSARY[term]}
+        </span>
+      )}
+    </>
+  );
+}
+
+/** The panel's one-sentence verdict, pinned before any table — a reader who
+ *  only reads the SoWhat lines should leave with the whole picture. */
+function SoWhat({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="border-b border-[var(--kt-border)] bg-[var(--kt-inset)] px-5 py-2.5 text-[13px] text-[var(--kt-text)]">
+      {children}
+    </p>
+  );
+}
+
+/** Tiny inline sparkline — the drift, not the detail. */
+function Spark({ values, width = 160, height = 36 }: { values: number[]; width?: number; height?: number }) {
+  if (values.length < 2) return null;
+  const min = Math.min(...values), max = Math.max(...values);
+  const span = max - min || 1;
+  const pts = values
+    .map((v, i) => `${(i / (values.length - 1)) * width},${height - 3 - ((v - min) / span) * (height - 6)}`)
+    .join(" ");
+  const rising = values[values.length - 1] > values[0];
+  return (
+    <svg width={width} height={height} className="block" aria-hidden>
+      <polyline points={pts} fill="none" strokeWidth={1.5}
+                stroke={rising ? "var(--kt-warn)" : "var(--kt-accent)"} />
+    </svg>
   );
 }
 
@@ -162,13 +252,23 @@ function FactorBars({ rows }: { rows: FactorRow[] }) {
 
 export default function RiskPage() {
   const [v, setV] = useState<AdvancedRiskView | null>(null);
+  const [hist, setHist] = useState<RiskHistoryPoint[]>([]);
+  const [monitor, setMonitor] = useState<RiskMonitorResponse | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async (force = false) => {
     setLoading(true);
     try {
-      setV(await fundApiClient.getRiskAdvanced({ force }));
+      const [adv, h, m] = await Promise.all([
+        fundApiClient.getRiskAdvanced({ force }),
+        fundApiClient.getRiskHistory().catch(() => ({ points: [] })),
+        // Gross exposure, so the trim suggestion can speak in dollars.
+        fundApiClient.getRiskMonitor().catch(() => null),
+      ]);
+      setV(adv);
+      setHist(h.points ?? []);
+      setMonitor(m);
       setErr(null);
     } catch (e: unknown) {
       setErr(spineError(e));
@@ -189,6 +289,46 @@ export default function RiskPage() {
   const rc = v?.risk_contribution;
   const tail = v?.tail;
   const es = tail?.levels?.["0.975"];
+
+  // The survival story's second card: the worst measured crisis replay,
+  // compared against the halt so the card can say the consequence.
+  const scenarios = (v?.historical?.measurable ? v.historical.scenarios ?? [] : [])
+    .filter((s) => s.measurable && s.nav_change_pct != null);
+  const worstCrisis = scenarios.length
+    ? scenarios.reduce((w, s) => ((s.nav_change_pct ?? 0) < (w.nav_change_pct ?? 0) ? s : w))
+    : null;
+  // limits carries FRACTIONS (0.1 = a 10% halt); everything else on this page
+  // speaks percent. Convert once here or the copy reads "the 0% halt".
+  const haltPct = v?.limits?.max_drawdown_pct != null ? v.limits.max_drawdown_pct * 100 : null;
+  const crisisBreachesHalt = worstCrisis != null && haltPct != null
+    && Math.abs(worstCrisis.nav_change_pct ?? 0) > haltPct;
+
+  // Risk hog + first-order trim estimate. Scaling the weight by
+  // (target share / current share) holds marginal risk fixed — an
+  // approximation, and labeled as one; the point is a starting number,
+  // not an order ticket.
+  const hogRows = rc?.measurable
+    ? [...(rc.contributions ?? [])].sort((a, b) => b.risk_share_pct - a.risk_share_pct)
+    : [];
+  const hog = hogRows[0];
+  const equalShare = hogRows.length ? 100 / hogRows.length : null;
+  const hogTrim = hog && equalShare != null && hog.risk_share_pct > equalShare * 1.5
+    ? (() => {
+        const k = equalShare / hog.risk_share_pct;
+        const newW = hog.capital_weight_pct * k;
+        const gross = monitor?.gross_exposure_usd ?? null;
+        const sellUsd = gross != null ? ((hog.capital_weight_pct - newW) / 100) * gross : null;
+        return { newW, sellUsd };
+      })()
+    : null;
+
+  const topPair = corr?.strategy_overlap?.measurable
+    ? (corr.strategy_overlap.pairs ?? [])[0]
+    : null;
+
+  const histVol = hist.map((p) => p.portfolio_vol_pct).filter((x): x is number => x != null);
+  const histBets = hist.map((p) => p.effective_bets).filter((x): x is number => x != null);
+  const histEs = hist.map((p) => p.es975_pct).filter((x): x is number => x != null);
 
   return (
     <div className={KT.page}>
@@ -244,47 +384,110 @@ export default function RiskPage() {
               </div>
             )}
 
-            {/* --- headline structural numbers --- */}
+            {/* --- headline structural numbers, ordered as the survival story:
+                  what halts us, what history would have done, what a bad day
+                  costs, and how diversified we really are. For a fund governed
+                  by a drawdown halt, distance-to-halt IS the number. --- */}
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               <div className={KT.card}>
-                <div className={KT.label}>Effective bets</div>
-                <div className={`mt-1 ${KT.numberLg}`}>
-                  {corr?.measurable ? corr.effective_bets.toFixed(1) : "—"}
+                <div className={KT.label}>
+                  <Explain term="move-to-halt">Move to halt</Explain>
                 </div>
-                <div className={`mt-1 text-[11px] ${KT.muted}`}>
-                  {corr?.measurable ? `from ${corr.n_positions} positions` : "unmeasured"}
-                </div>
-              </div>
-              <div className={KT.card}>
-                <div className={KT.label}>Book volatility</div>
-                <div className={`mt-1 ${KT.numberLg}`}>
-                  {corr?.measurable ? pct(corr.portfolio_vol_pct) : "—"}
-                </div>
-                <div className={`mt-1 text-[11px] ${KT.muted}`}>
-                  {corr?.measurable ? `${pct(corr.stressed_vol_pct)} if correlations → 1` : "unmeasured"}
-                </div>
-              </div>
-              <div className={KT.card}>
-                <div className={KT.label}>Expected shortfall 97.5%</div>
-                <div className={`mt-1 ${KT.numberLg}`}>
-                  {es ? pct(es.expected_shortfall_pct, 2) : "—"}
-                </div>
-                <div className={`mt-1 text-[11px] ${KT.muted}`}>
-                  {es ? `${money(es.expected_shortfall_usd)} on a bad day` : "unmeasured"}
-                </div>
-              </div>
-              <div className={KT.card}>
-                <div className={KT.label}>Move to halt</div>
                 <div className={`mt-1 ${KT.numberLg}`}>
                   {v.reverse_stress?.measurable ? pct(v.reverse_stress.uniform_move_to_halt_pct) : "—"}
                 </div>
                 <div className={`mt-1 text-[11px] ${KT.muted}`}>
                   {v.reverse_stress?.measurable
-                    ? `${money(v.reverse_stress.loss_to_halt_usd)} of loss`
+                    ? `${money(v.reverse_stress.loss_to_halt_usd)} of loss ends the fund's week`
                     : v.reverse_stress?.reason ?? "unmeasured"}
                 </div>
               </div>
+              <div className={KT.card}>
+                <div className={KT.label}>
+                  <Explain term="worst-crisis">Worst crisis replay</Explain>
+                </div>
+                <div className={`mt-1 ${KT.numberLg} ${crisisBreachesHalt ? KT.down : ""}`}>
+                  {worstCrisis ? pct(worstCrisis.nav_change_pct, 1) : "—"}
+                </div>
+                <div className={`mt-1 text-[11px] ${crisisBreachesHalt ? KT.down : KT.muted}`}>
+                  {worstCrisis
+                    ? `${worstCrisis.label}${crisisBreachesHalt ? " — would halt the fund" : " — inside the halt"}`
+                    : "no measurable replay"}
+                </div>
+              </div>
+              <div className={KT.card}>
+                <div className={KT.label}>
+                  <Explain term="es">Expected shortfall 97.5%</Explain>
+                </div>
+                <div className={`mt-1 ${KT.numberLg}`}>
+                  {es ? pct(es.expected_shortfall_pct, 2) : "—"}
+                </div>
+                <div className={`mt-1 text-[11px] ${KT.muted}`}>
+                  {es ? `${money(es.expected_shortfall_usd)} on a bad day — the baseline, not a crisis` : "unmeasured"}
+                </div>
+              </div>
+              <div className={KT.card}>
+                <div className={KT.label}>
+                  <Explain term="effective-bets">Effective bets</Explain>
+                </div>
+                <div className={`mt-1 ${KT.numberLg}`}>
+                  {corr?.measurable ? corr.effective_bets.toFixed(1) : "—"}
+                </div>
+                <div className={`mt-1 text-[11px] ${KT.muted}`}>
+                  {corr?.measurable
+                    ? `from ${corr.n_positions} positions · vol ${pct(corr.portfolio_vol_pct)} (${pct(corr.stressed_vol_pct)} if correlations → 1)`
+                    : "unmeasured"}
+                </div>
+              </div>
             </div>
+
+            {/* --- the drift: a snapshot cannot show risk CREEPING. Points
+                  accrue per fresh compute (book change or cache expiry), so
+                  the series is sparse by design. --- */}
+            <Panel
+              title="Risk over time"
+              subtitle="One point per fresh engine compute — drift you would otherwise only meet at a breach"
+            >
+              {hist.length < 2 ? (
+                <div className={`px-5 py-5 text-[12px] ${KT.muted}`}>
+                  History accumulates as the engine recomputes — after a fill, or when
+                  the half-hour cache expires. Come back once the book has lived a little.
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-8 px-5 py-4">
+                  {histVol.length >= 2 && (
+                    <div>
+                      <div className={KT.label}>Book vol</div>
+                      <Spark values={histVol} />
+                      <div className={`font-mono text-[11px] tabular-nums ${KT.muted}`}>
+                        {pct(histVol[0])} → {pct(histVol[histVol.length - 1])}
+                      </div>
+                    </div>
+                  )}
+                  {histBets.length >= 2 && (
+                    <div>
+                      <div className={KT.label}>Effective bets</div>
+                      <Spark values={histBets} />
+                      <div className={`font-mono text-[11px] tabular-nums ${KT.muted}`}>
+                        {histBets[0].toFixed(1)} → {histBets[histBets.length - 1].toFixed(1)}
+                      </div>
+                    </div>
+                  )}
+                  {histEs.length >= 2 && (
+                    <div>
+                      <div className={KT.label}>ES 97.5%</div>
+                      <Spark values={histEs} />
+                      <div className={`font-mono text-[11px] tabular-nums ${KT.muted}`}>
+                        {pct(histEs[0], 2)} → {pct(histEs[histEs.length - 1], 2)}
+                      </div>
+                    </div>
+                  )}
+                  <div className={`self-end pb-1 text-[11px] ${KT.muted}`}>
+                    {hist.length} points since {String(hist[0]?.ts ?? "").slice(0, 10)}
+                  </div>
+                </div>
+              )}
+            </Panel>
 
             {/* --- the surface --- */}
             <Panel
@@ -306,9 +509,12 @@ export default function RiskPage() {
                   <NotMeasurable reason={v.factor_model?.reason} />
                 ) : (
                   <>
+                    {(v.factor_model.verdict ?? []).slice(2, 3).map((l, i) => (
+                      <SoWhat key={i}>{l}</SoWhat>
+                    ))}
                     <div className="grid grid-cols-3 gap-3 px-5 pt-4">
                       <div>
-                        <div className={KT.label}>Alpha (ann.)</div>
+                        <div className={KT.label}><Explain term="alpha">Alpha (ann.)</Explain></div>
                         <div className={`mt-1 font-mono text-lg font-light ${
                           v.factor_model.alpha_significant
                             ? ((v.factor_model.alpha_annual_pct ?? 0) > 0 ? KT.up : KT.down)
@@ -363,6 +569,19 @@ export default function RiskPage() {
                 {!rc?.measurable ? (
                   <NotMeasurable reason={rc?.reason} />
                 ) : (
+                  <>
+                  {hog && (
+                    <SoWhat>
+                      <Explain term="risk-contribution">{hog.symbol}</Explain>{" "}
+                      holds {pct(hog.risk_share_pct)} of book risk on {pct(hog.capital_weight_pct)} of
+                      capital — to first order, the book is a {hog.symbol} bet.
+                      {hogTrim && (
+                        <> Trimming it to ≈{pct(hogTrim.newW)} of invested capital
+                        {hogTrim.sellUsd != null && <> (≈{money(hogTrim.sellUsd)} sale)</>} would
+                        bring it near equal risk — first-order estimate, correlations held fixed.</>
+                      )}
+                    </SoWhat>
+                  )}
                   <div className="px-5 py-3">
                     <table className="w-full text-sm">
                       <thead>
@@ -397,6 +616,7 @@ export default function RiskPage() {
                       risk share means the name is hedging the rest of the book.
                     </p>
                   </div>
+                  </>
                 )}
               </Panel>
 
@@ -421,6 +641,15 @@ export default function RiskPage() {
               {!corr?.strategy_overlap?.measurable ? (
                 <NotMeasurable reason={corr?.strategy_overlap?.reason} />
               ) : (
+                <>
+                {topPair && (topPair.return_correlation ?? 0) > 0.5 && (
+                  <SoWhat>
+                    {topPair.a_name} and {topPair.b_name} move together
+                    ({topPair.return_correlation?.toFixed(2)}) with {topPair.shared_exposure_pct.toFixed(0)}%
+                    shared symbols — different tickers, same bet. Diversifying across
+                    strategies only counts when their returns disagree.
+                  </SoWhat>
+                )}
                 <ul className="divide-y divide-[var(--kt-border)]">
                   {(corr.strategy_overlap.pairs ?? []).map((p) => (
                     <li key={`${p.a}-${p.b}`} className="flex flex-wrap items-baseline gap-x-3 px-5 py-3 text-sm">
@@ -439,6 +668,7 @@ export default function RiskPage() {
                     </li>
                   ))}
                 </ul>
+                </>
               )}
             </Panel>
 
@@ -450,6 +680,15 @@ export default function RiskPage() {
               {!v.historical?.measurable ? (
                 <NotMeasurable reason={v.historical?.reason} />
               ) : (
+                <>
+                {worstCrisis && haltPct != null && (
+                  <SoWhat>
+                    A {worstCrisis.label} repeat ({pct(worstCrisis.nav_change_pct, 1)}) would{" "}
+                    {crisisBreachesHalt
+                      ? `blow through the ${pct(haltPct, 0)} halt — the fund would be stopped mid-crisis and take the loss, not avoid it`
+                      : `stay inside the ${pct(haltPct, 0)} halt — painful, but the fund keeps trading`}.
+                  </SoWhat>
+                )}
                 <ul className="divide-y divide-[var(--kt-border)]">
                   {(v.historical.scenarios ?? []).map((s) => (
                     <li key={s.key} className="px-5 py-3 text-sm">
@@ -476,6 +715,7 @@ export default function RiskPage() {
                     </li>
                   ))}
                 </ul>
+                </>
               )}
             </Panel>
 
@@ -488,10 +728,18 @@ export default function RiskPage() {
                 {!v.regime?.measurable ? (
                   <NotMeasurable reason={v.regime?.reason} />
                 ) : (
+                  <>
+                  <SoWhat>
+                    {v.regime.turbulence?.elevated || v.regime.absorption?.flagged
+                      ? "The market itself is behaving abnormally — assume your " +
+                        (corr?.measurable ? corr.effective_bets.toFixed(1) : "few") +
+                        " effective bets are fewer than they look until this clears."
+                      : "Markets look ordinary right now — the diversification this book has should hold as measured."}
+                  </SoWhat>
                   <div className="space-y-3 px-5 py-4 text-sm">
                     <div>
                       <div className="flex items-baseline justify-between">
-                        <span className={KT.label}>Turbulence</span>
+                        <span className={KT.label}><Explain term="turbulence">Turbulence</Explain></span>
                         <span className={`font-mono tabular-nums ${
                           v.regime.turbulence?.elevated ? KT.down : KT.muted}`}>
                           {v.regime.turbulence?.percentile != null
@@ -504,7 +752,7 @@ export default function RiskPage() {
                     </div>
                     <div className="border-t border-[var(--kt-border)] pt-3">
                       <div className="flex items-baseline justify-between">
-                        <span className={KT.label}>Absorption ratio</span>
+                        <span className={KT.label}><Explain term="absorption">Absorption ratio</Explain></span>
                         <span className={`font-mono tabular-nums ${
                           v.regime.absorption?.flagged ? KT.down : KT.muted}`}>
                           {v.regime.absorption?.current != null
@@ -523,6 +771,7 @@ export default function RiskPage() {
                       </p>
                     ))}
                   </div>
+                  </>
                 )}
               </Panel>
 
