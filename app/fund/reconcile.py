@@ -89,6 +89,26 @@ class Reconciler:
         }
 
     def run(self, actor: str = "system") -> dict[str, Any]:
+        # Refuse to reconcile against a venue that cannot independently
+        # persist positions. The in-memory paper connector forgets its book on
+        # every restart, so "the venue holds nothing" is a description of the
+        # process's age, not a discrepancy — yet a spine accidentally started
+        # in mock mode ran this hourly and appended a ReconciliationMismatch
+        # for every real holding to the permanent ledger (seq 119-141 of the
+        # local book are exactly that). A mismatch event must mean the BROKER
+        # disagrees, or the audit trail trains its readers to ignore it.
+        info = {}
+        if hasattr(self._connector, "account_info"):
+            try:
+                info = self._connector.account_info() or {}
+            except Exception as e:  # broker unreachable — skip, never fake zeros
+                return {"checked": 0, "mismatches": [],
+                        "skipped": f"broker unreachable: {e}"}
+        if not info.get("configured"):
+            return {"checked": 0, "mismatches": [],
+                    "skipped": "venue does not persist positions independently "
+                               "— nothing real to reconcile against"}
+
         book = self._proj.build()
         venue = {p.symbol: D(p.qty) for p in self._connector.positions()}
         symbols = set(book.positions) | set(venue)

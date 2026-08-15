@@ -107,6 +107,50 @@ def test_unconfigured_broker_is_honest_not_zeros():
     assert store.appended == []
 
 
+def test_scheduled_run_skips_ephemeral_venue():
+    """A venue that forgets its positions on restart cannot contradict the book.
+
+    A spine accidentally started in mock mode ran the hourly reconcile against
+    the in-memory paper connector and appended a false ReconciliationMismatch
+    for every real holding (seq 119-141 of the local book). run() must skip a
+    venue that is not independently persistent, and skip means writing NOTHING.
+    """
+    book = {"AAPL": {"qty": Decimal("10")}}
+
+    # Connector with no account_info at all (the paper connector's shape).
+    class _Ephemeral:
+        def positions(self):
+            return []
+    store = _RecordingStore()
+    r = Reconciler(connector=_Ephemeral(), store=store, projection=_Proj(book))
+    out = r.run()
+    assert out["mismatches"] == []
+    assert "skipped" in out
+    assert store.appended == []
+
+    # Explicitly unconfigured broker: same refusal.
+    r, store = _reconciler({"configured": False, "message": "creds missing"},
+                           [], book)
+    out = r.run()
+    assert out["mismatches"] == []
+    assert "skipped" in out
+    assert store.appended == []
+
+
+def test_scheduled_run_still_writes_on_real_divergence():
+    """The guard must not neuter the check: a configured broker that really
+    disagrees still produces the mismatch event."""
+    info = {"configured": True, "equity": 100000.0, "cash": 0.0}
+    book = {"AAPL": {"qty": Decimal("10")}}
+    r, store = _reconciler(info, [_Pos("AAPL", Decimal("8"))], book)
+
+    out = r.run()
+
+    assert len(out["mismatches"]) == 1
+    assert out["mismatches"][0]["symbol"] == "AAPL"
+    assert len(store.appended) == 1
+
+
 def test_per_symbol_drift_flags_out_of_sync():
     info = {"configured": True, "equity": 100000.0, "cash": 0.0}
     book = {"AAPL": {"qty": Decimal("10")}, "MSFT": {"qty": Decimal("5")}}

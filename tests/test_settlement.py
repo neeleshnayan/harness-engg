@@ -29,6 +29,10 @@ class FakeAsync:
     def poll(self, ref): return self.seq.pop(0) if self.seq else ExecStatus(state=FillState.PENDING)
     def positions(self): return self.pos
     def balances(self): return [Balance("fake", "USD", 0.0)]
+    # This stub plays a REAL venue with its own persistent book, so it must say
+    # so: Reconciler.run() now refuses to write mismatch events against a venue
+    # that cannot independently persist positions (the mock-mode footgun).
+    def account_info(self): return {"configured": True, "equity": 0.0}
 
 
 def build(store):

@@ -148,6 +148,34 @@ class NavService:
         self._db.collection(NAV_SNAPSHOTS).document(snap.ts).set(snap.to_dict())
         return snap
 
+    def since_inception(self, snap: Optional[NavSnapshot] = None) -> dict[str, Any]:
+        """Cumulative P&L: NAV against net external cash, plus the per-unit return.
+
+        Two figures because they answer different questions. The dollar figure
+        is NAV minus everything LPs put in, plus everything paid back out —
+        what the fund has actually made. The per-unit figure is flow-proof:
+        what a dollar at inception is worth now, unchanged by a later
+        subscription landing at a different unit price. Both fold from the
+        event log; the broker is not consulted.
+        """
+        snap = snap or self.compute()
+        subscribed = Decimal("0")
+        paid_out = Decimal("0")
+        for e in self._store.stream(since_seq=0, limit=100_000):
+            t = e.get("type")
+            p = e.get("payload") or {}
+            if t == EventType.CASH_CONFIRMED.value:
+                subscribed += D(p.get("usd_amount") or 0)
+            elif t == EventType.PAYOUT_SENT.value:
+                paid_out += D(p.get("usd_amount") or 0)
+        pnl = snap.total_nav_usd - subscribed + paid_out
+        return {
+            "subscribed_usd": f(money(subscribed)),
+            "paid_out_usd": f(money(paid_out)),
+            "pnl_usd": f(money(pnl)),
+            "return_pct": f((snap.nav_per_unit / BASE_NAV_PER_UNIT - 1) * 100),
+        }
+
     def latest(self) -> Optional[dict[str, Any]]:
         q = (
             self._db.collection(NAV_SNAPSHOTS)

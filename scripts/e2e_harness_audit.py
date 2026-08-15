@@ -142,9 +142,10 @@ def run_audit():
     try:
         res = http_get("/api/v1/fund/events")
         events = res.get("events", [])
+        # The endpoint returns the tail newest-first, so seq must strictly DECREASE.
         is_seq_monotonic = True
         for i in range(1, len(events)):
-            if events[i].get("seq", 0) <= events[i-1].get("seq", 0):
+            if events[i].get("seq", 0) >= events[i-1].get("seq", 0):
                 is_seq_monotonic = False
                 break
         log_result("10. Event Spine Sequence Monotonicity", is_seq_monotonic, f"Audited {len(events)} total events in spine")

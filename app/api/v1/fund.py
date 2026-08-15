@@ -505,8 +505,17 @@ def get_market_quotes(symbols: str | None = Query(None, description="Comma-separ
 
 @router.get("/fund/nav")
 def get_nav():
-    """Live (unstruck) valuation plus the last struck snapshot."""
-    return {"live": _nav.compute().to_dict(), "last_struck": _nav.latest()}
+    """Live (unstruck) valuation, the last struck snapshot, and the
+    since-inception score — NAV against net external cash, and the
+    flow-proof per-unit return. NAV alone answers "what is it worth";
+    this answers "has it made anything", which is the first question
+    every operator and LP actually asks."""
+    snap = _nav.compute()
+    return {
+        "live": snap.to_dict(),
+        "last_struck": _nav.latest(),
+        "since_inception": _nav.since_inception(snap),
+    }
 
 
 @router.get("/fund/nav/history")
@@ -558,8 +567,17 @@ def get_lp(lp_id: str):
 
 @router.get("/fund/events")
 def get_events(since_seq: int = Query(0, ge=0), limit: int = Query(200, ge=1, le=1000)):
-    """The audit trail — the global event log from ``since_seq`` (exclusive)."""
-    return {"events": _store.stream(since_seq=since_seq, limit=limit)}
+    """The audit trail, newest first — the TAIL of the log, not its head.
+
+    This route used to be declared twice in this file, and FastAPI keeps the
+    first: a dead twin below promised "newest first" while callers actually
+    received the oldest ``limit`` events in ascending order. Every live feed
+    therefore rendered the bootstrap sequence and computed staleness from a
+    two-day-old event while fresh ones went unshown. One route now, doing
+    what the dead one said.
+    """
+    raw = _store.stream(since_seq=since_seq, limit=100_000)
+    return {"events": list(reversed(raw[-limit:]))}
 
 
 @router.get("/fund/orders/pending")
@@ -756,14 +774,6 @@ def get_order(order_id: str):
     if not events:
         raise HTTPException(status_code=404, detail=f"unknown order {order_id}")
     return {"order_id": order_id, "events": events}
-
-
-@router.get("/fund/events")
-def get_events(limit: int = Query(100, ge=1, le=1000), since_seq: int = Query(0, ge=0)):
-    """Immutable fund audit event log, newest first — powers the live audit feed."""
-    raw = _store.stream(since_seq=since_seq, limit=limit)
-    raw.sort(key=lambda e: e.get("seq") or 0, reverse=True)
-    return {"events": raw}
 
 
 # --- order writes ----------------------------------------------------------

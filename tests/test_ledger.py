@@ -38,6 +38,44 @@ def test_subscription_does_not_dilute_existing_lps(wire):
     assert vals["bob"]["value_usd"] == pytest.approx(620, abs=0.01)
 
 
+def test_since_inception_counts_gains_not_flows(wire):
+    """The inception score must move on P&L and stay still on flows.
+
+    A subscription that shows up as 'profit' — or a redemption as 'loss' —
+    would make the headline number a lie the moment a second LP arrives.
+    """
+    subscribe(wire, "alice", 1_000)
+
+    # No trades yet: worth exactly what was put in.
+    s = wire.nav.since_inception()
+    assert s["subscribed_usd"] == pytest.approx(1_000)
+    assert s["pnl_usd"] == pytest.approx(0)
+    assert s["return_pct"] == pytest.approx(0)
+
+    # Deploy and mark up: 4 AAPL @200 -> 260 is +$240 on $1,000, i.e. +24%.
+    res = wire.pipe_open.propose_order(Order("paper", "AAPL", Side.BUY, 4), actor="rushi")
+    wire.pipe_open.approve_order(res["order_id"], approver="rushi")
+    wire.conn._prices["AAPL"] = 260.0
+
+    s = wire.nav.since_inception()
+    assert s["pnl_usd"] == pytest.approx(240, abs=0.01)
+    assert s["return_pct"] == pytest.approx(24, abs=0.01)
+
+    # New money is not profit: dollars and per-unit both unchanged.
+    subscribe(wire, "bob", 500)
+    s = wire.nav.since_inception()
+    assert s["subscribed_usd"] == pytest.approx(1_500)
+    assert s["pnl_usd"] == pytest.approx(240, abs=0.01)
+    assert s["return_pct"] == pytest.approx(24, abs=0.01)
+
+    # Money paid back out is not a loss.
+    r = wire.ledger.request_redemption(lp_id="bob", actor="mgr")
+    wire.ledger.confirm_redemption(r["redemption_id"], actor="mgr")
+    s = wire.nav.since_inception()
+    assert s["paid_out_usd"] == pytest.approx(500, abs=0.01)
+    assert s["pnl_usd"] == pytest.approx(240, abs=0.01)
+
+
 def test_full_redemption_is_nav_neutral(wire):
     subscribe(wire, "alice", 1_000)
     subscribe(wire, "bob", 500)
