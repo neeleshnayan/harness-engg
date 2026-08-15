@@ -166,6 +166,113 @@ export interface MemoView {
   author?: string | null;
 }
 
+export type ThesisDirection = 'LONG' | 'SHORT';
+
+export type DataSourceType =
+  | 'sec_edgar'
+  | 'investor_relations'
+  | 'google_news'
+  | 'reddit'
+  | 'hacker_news'
+  | 'github'
+  | 'google_trends'
+  | 'fred_macro';
+
+export interface FactMetric {
+  metric_type: string;
+  segment?: string | null;
+  value?: number | null;
+  unit?: string | null;
+  raw_text: string;
+  source: DataSourceType;
+  source_url?: string | null;
+  recency_days?: number | null;
+}
+
+export interface EvidenceItem {
+  source: DataSourceType;
+  source_label: string;
+  title: string;
+  snippet: string;
+  url?: string | null;
+  published_at?: string | null;
+  recency_days: number;
+  weight: number;
+  sentiment: 'bullish' | 'bearish' | 'neutral';
+  is_management_mention: boolean;
+  metrics?: FactMetric[];
+}
+
+export interface DiscoveredTheme {
+  theme_id: string;
+  title: string;
+  keywords: string[];
+  score: number;
+  frequency: number;
+  recency_score: number;
+  management_mentions: number;
+  summary: string;
+  evidence: EvidenceItem[];
+  metrics: FactMetric[];
+}
+
+export interface BullDriver {
+  driver_number: number;
+  theme_title: string;
+  driver_statement: string;
+  evidence_snippets: string[];
+  key_metrics: string[];
+}
+
+export interface BearRisk {
+  risk_number: number;
+  risk_title: string;
+  risk_statement: string;
+  counter_argument?: string | null;
+  evidence_snippets: string[];
+}
+
+export interface Catalyst {
+  event_name: string;
+  timeframe: string;
+  expected_impact: string;
+  source_ref?: string | null;
+}
+
+export interface InvalidationCondition {
+  condition: string;
+  trigger_metric?: string | null;
+  threshold?: string | null;
+}
+
+export interface DataSourceStatus {
+  source: DataSourceType;
+  name: string;
+  status: 'healthy' | 'degraded' | 'offline';
+  item_count: number;
+  latency_ms: number;
+  message?: string | null;
+}
+
+export interface GeneratedThesisResult {
+  thesis_id?: string | null;
+  ticker: string;
+  company_name: string;
+  direction: ThesisDirection;
+  title: string;
+  executive_summary: string;
+  top_themes: DiscoveredTheme[];
+  bull_case: BullDriver[];
+  bear_case: BearRisk[];
+  catalysts: Catalyst[];
+  invalidation_conditions: InvalidationCondition[];
+  sources_summary: Record<string, number>;
+  data_sources_status: DataSourceStatus[];
+  raw_evidence_count: number;
+  generated_at: string;
+  markdown_output: string;
+}
+
 export interface RiskScenario {
   label: string;
   symbol?: string | null;
@@ -1258,6 +1365,31 @@ export const fundApiClient = {
     body: { verdict: Postmortem['verdict']; what_happened?: string; lessons?: string[]; actor?: string },
   ): Promise<ThesisView> =>
     (await fundApi.post(`${P}/theses/${thesisId}/postmortem`, { actor: 'operator', ...body })).data,
+
+  // --- Automatic Theme Discovery & Thesis Generator (MVP #2) ---
+  generateThesis: async (
+    query: string,
+    direction?: 'LONG' | 'SHORT'
+  ): Promise<GeneratedThesisResult> =>
+    (await fundApi.post(`${P}/theses/generate`, { query, direction })).data,
+
+  createThesisFromGeneration: async (
+    generatedThesis: GeneratedThesisResult,
+    targetExposurePct = 5.0,
+    horizon = '3-6 months',
+    actor = 'operator'
+  ): Promise<{ thesis: ThesisView; memo: MemoView; message: string }> =>
+    (
+      await fundApi.post(`${P}/theses/from-generation`, {
+        generated_thesis: generatedThesis,
+        target_exposure_pct: targetExposurePct,
+        horizon,
+        actor,
+      })
+    ).data,
+
+  getThesisDataSourcesStatus: async (): Promise<{ sources: DataSourceStatus[] }> =>
+    (await fundApi.get(`${P}/theses/sources/status`)).data,
 
   // --- memos (the written case for a trade) ---
   getMemo: async (memoId: string): Promise<MemoView> =>

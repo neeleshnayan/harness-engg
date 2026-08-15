@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, ClipboardCheck, FlaskConical, ShieldAlert, Sliders } from "lucide-react";
+import { Activity, BookOpen, ClipboardCheck, FlaskConical, ShieldAlert, Sliders } from "lucide-react";
 
 /**
  * Workflow-first navigation, ordered by how often it is used.
@@ -15,19 +15,15 @@ import { Activity, ClipboardCheck, FlaskConical, ShieldAlert, Sliders } from "lu
  * ("anything wrong? anything waiting on me?") is answered without navigating and
  * the rare case still leads the page.
  *
- * Decide is gone as a tab rather than kept as a thin one. Its two halves went
- * where they belong: approvals to Monitor, and the research half — theses,
- * memos, the case for an idea — to Lab, which is where an idea is worked out
- * and where the thesis agent will live.
- *
  * Allocate owns sizing and per-strategy attribution: important, but not a thing
  * you check every day.
  *
- * Risk earns a tab of its own — but only the STRUCTURAL half. Limit utilisation
- * and the kill switch stay in the always-visible RiskBar and on Monitor, because
- * they apply everywhere and must never be somewhere you have to navigate to.
- * What lives on /risk is the standing job rather than the glance: correlation,
- * effective bets, tails, market regime and survivability.
+ * Lab owns strategy backtesting and candidate verification.
+ *
+ * Risk owns structural portfolio risk: correlation, effective bets, tails, regime.
+ *
+ * Thesis owns automatic theme discovery, multi-source research intelligence,
+ * and deterministic bull/bear thesis generation.
  */
 const TABS = [
   { href: "/clark/studio", label: "Monitor", icon: Activity, exact: true,
@@ -35,9 +31,11 @@ const TABS = [
   { href: "/clark/studio/allocate", label: "Allocate", icon: Sliders,
     hint: "Strategies, weights, composition and per-strategy attribution" },
   { href: "/clark/studio/lab", label: "Lab", icon: FlaskConical,
-    hint: "Research an idea: backtest, theses, memos, and what to promote" },
+    hint: "Research an idea: backtest, templates, and what to promote" },
   { href: "/clark/studio/risk", label: "Risk", icon: ShieldAlert,
     hint: "Diversification, tail risk, market regime and survivability" },
+  { href: "/clark/studio/thesis", label: "Thesis", icon: BookOpen,
+    hint: "Automatic theme discovery & investment thesis generator" },
 ];
 
 export function StudioNav() {
