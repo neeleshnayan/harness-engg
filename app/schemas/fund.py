@@ -259,3 +259,16 @@ class CustodyApplyRequest(BaseModel):
         description="Must be true to write. Custody events go to the append-only "
                     "ledger and cannot be un-appended.",
     )
+
+
+class ThesisGenerateRequest(BaseModel):
+    query: str = Field(..., description="Query prompt, e.g. 'Create thesis Long NVDA' or 'Short TSLA'")
+    direction: Optional[Literal["LONG", "SHORT"]] = Field(None, description="Optional direction override")
+
+
+class ThesisPromoteRequest(BaseModel):
+    generated_thesis: dict = Field(..., description="The GeneratedThesisResult payload")
+    target_exposure_pct: float = Field(5.0, description="Target % NAV exposure")
+    horizon: str = Field("3-6 months", description="Holding horizon")
+    actor: str = Field("operator", description="Who promoted the thesis")
+

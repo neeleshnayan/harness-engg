@@ -84,11 +84,14 @@ from app.schemas.fund import (
     ThesisCreateRequest,
     ThesisStatusRequest,
     ThesisUpdateRequest,
+    ThesisGenerateRequest,
+    ThesisPromoteRequest,
     StrategyOptimizeRequest,
     StrategyMemberRequest,
     StrategyMemberWeightsRequest,
     StrategyComposeWeightsRequest,
 )
+from app.fund.thesis_generator.service import ThesisGeneratorService
 
 from app.fund.optimization import optimize_portfolio, optimize_return_streams
 
@@ -159,6 +162,7 @@ _holdings = HoldingsProjection(_store, snapshots=_snapshots)
 _strategies = StrategyService(store=_store)
 _theses = ThesisService(store=_store)
 _memos = MemoService(store=_store)
+_thesis_generator = ThesisGeneratorService(store=_store, thesis_service=_theses, memo_service=_memos)
 _risk = RiskAnalytics(nav_service=_nav)
 _postmortem = PostmortemService(store=_store, pricer=_connector.price)
 _attribution = StrategyAttribution(_store, snapshots=_snapshots)
@@ -880,6 +884,43 @@ def confirm_redemption(redemption_id: str, req: ActorRequest):
 
 
 # --- theses (the versioned investment idea a trade references) --------------
+# --- Automatic Theme Discovery & Thesis Generator (MVP #2) (must precede {thesis_id}) ---
+@router.post("/fund/theses/generate")
+def generate_thesis(req: ThesisGenerateRequest):
+    """Automatically discover key themes, narratives, and generate an investment thesis."""
+    try:
+        res = _thesis_generator.generate_thesis(req.query, direction_override=req.direction)
+        return res.model_dump()
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@router.post("/fund/theses/from-generation")
+def promote_generated_thesis(req: ThesisPromoteRequest):
+    """Promotes a generated thesis into the fund spine (creating Thesis + initial Memo)."""
+    try:
+        from app.fund.thesis_generator.models import GeneratedThesisResult
+        parsed_res = GeneratedThesisResult(**req.generated_thesis)
+        return _thesis_generator.promote_to_fund(
+            parsed_res,
+            actor=req.actor,
+            target_exposure_pct=req.target_exposure_pct,
+            horizon=req.horizon,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@router.get("/fund/theses/sources/status")
+def get_thesis_sources_status():
+    """Reports real-time connectivity and health of integrated research data sources."""
+    try:
+        statuses = _thesis_generator.get_data_sources_status()
+        return {"sources": [s.model_dump() for s in statuses]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/fund/theses")
 def create_thesis(req: ThesisCreateRequest):
     body = req.model_dump()
@@ -942,6 +983,7 @@ def get_postmortem(thesis_id: str):
     if pm is None:
         raise HTTPException(status_code=404, detail=f"no post-mortem for thesis {thesis_id}")
     return pm
+
 
 
 # --- memos (the written case for a trade, drafted against a thesis) ---------
