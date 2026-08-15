@@ -38,10 +38,31 @@ interface ConversationListItem {
   id: string
   sessionId: string
   title: string
+  /** ISO timestamp of the last save, when the backend provides it. */
+  updatedAt?: string
   // Present only for the active/live conversation row (already in memory on the client).
   messages?: ChatMessage[]
   sessionCondensedMemory?: unknown[]
   sessionCondensedSummary?: string
+}
+
+/** Legacy docs fell back to summary-style titles ("The user requested…").
+ *  Backend now humanizes them too; this covers rows from older cache/paths. */
+const humanizeTitle = (title: string): string => {
+  const s = title.replace(/^the user (requested|asked|wanted|wants|is asking)( (for|to|about|a|the|whether|who|what|how))?\s*/i, '').trim()
+  return s ? s[0].toUpperCase() + s.slice(1) : title
+}
+
+/** "3h ago" — enough to tell four same-titled test sessions apart. */
+const relativeTime = (iso?: string): string | null => {
+  if (!iso) return null
+  const t = new Date(iso).getTime()
+  if (!Number.isFinite(t)) return null
+  const s = Math.max(0, (Date.now() - t) / 1000)
+  if (s < 90) return 'just now'
+  if (s < 3600) return `${Math.round(s / 60)}m ago`
+  if (s < 86400) return `${Math.round(s / 3600)}h ago`
+  return `${Math.round(s / 86400)}d ago`
 }
 
 export default function PastConversationsTab({
@@ -69,16 +90,25 @@ export default function PastConversationsTab({
   const mapApiConversations = (rawConversations: any[]): ConversationListItem[] => {
     const items: ConversationListItem[] = []
 
+    const seenSessions = new Set<string>()
     rawConversations.forEach((conv, index) => {
       if (!conv) return
       const sessionId: string = conv.session_id || ''
+      // Legacy saves created several docs per session; one row per session,
+      // first (newest, backend sorts descending) wins.
+      const key = sessionId || String(conv.id ?? index)
+      if (seenSessions.has(key)) return
+      seenSessions.add(key)
       const title: string =
-        typeof conv.title === 'string' && conv.title.trim() ? conv.title : 'Conversation'
+        typeof conv.title === 'string' && conv.title.trim()
+          ? humanizeTitle(conv.title)
+          : 'Conversation'
 
       items.push({
         id: String(conv.id ?? `${sessionId || 'conv'}_${index}`),
         sessionId,
         title,
+        updatedAt: typeof conv.updated_at === 'string' ? conv.updated_at : undefined,
       })
     })
 
@@ -348,6 +378,11 @@ export default function PastConversationsTab({
                         {conv.title}
                       </span>
                     </div>
+                    {relativeTime(conv.updatedAt) && (
+                      <div className="mt-0.5 font-mono text-[10px] text-[var(--kt-text-muted)]/70">
+                        {relativeTime(conv.updatedAt)}
+                      </div>
+                    )}
                   </div>
                 </button>
                 <button
