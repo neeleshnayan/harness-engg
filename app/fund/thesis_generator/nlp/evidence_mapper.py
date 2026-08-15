@@ -9,7 +9,6 @@ from app.fund.thesis_generator.models import (
     Direction,
     DiscoveredTheme,
     EvidenceItem,
-    FactMetric,
     InvalidationCondition,
 )
 from app.fund.thesis_generator.tickers_data import get_profile_for_ticker

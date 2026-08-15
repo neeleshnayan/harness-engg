@@ -5,7 +5,6 @@ from __future__ import annotations
 import collections
 import math
 import re
-from typing import Optional
 
 
 # Custom financial & English stopwords

@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 from typing import Optional
 
 from app.fund.thesis_generator.collectors.base import BaseCollector
-from app.fund.thesis_generator.models import DataSourceType, EvidenceItem, FactMetric
+from app.fund.thesis_generator.models import DataSourceType, EvidenceItem
 
 _log = logging.getLogger("clarkharness.thesis.news")
 

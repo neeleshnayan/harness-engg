@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import concurrent.futures
 import logging
-from typing import Optional
 
 from app.fund.thesis_generator.collectors.base import BaseCollector
 from app.fund.thesis_generator.collectors.github import GitHubCollector
