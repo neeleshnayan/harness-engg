@@ -94,9 +94,14 @@ export function ExecutionQuality({ refreshSignal = 0 }: { refreshSignal?: number
             <Stat label="Median cost" value={bps(s.total_bps.median)} />
             <Stat label="Worst fill" value={bps(s.total_bps.worst)}
                   tone={(s.total_bps.worst ?? 0) > 0 ? "down" : undefined} />
-            <Stat label="Paid so far"
+            {/* "Paid so far: $-0.77" read as an apology — a negative cost is
+                money the fills GAVE us. Name the direction instead of asking
+                the reader to parse a signed dollar figure. */}
+            <Stat label="Net cost so far"
                   value={s.realised_cost_usd == null ? "—"
-                    : `$${s.realised_cost_usd.toFixed(2)}`} />
+                    : s.realised_cost_usd < 0
+                      ? `−$${Math.abs(s.realised_cost_usd).toFixed(2)} in our favor`
+                      : `$${s.realised_cost_usd.toFixed(2)}`} />
           </div>
 
           {/* The split only exists for orders placed after arrival-price

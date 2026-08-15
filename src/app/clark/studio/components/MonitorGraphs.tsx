@@ -7,7 +7,10 @@ import {
 import { useChartColors } from "../chartColors";
 import { isFlat, navDomain } from "../navDomain";
 import { KT } from "../theme";
-import { AdvancedRiskView, IntradayNavSeries, RiskLimitsConfig, RiskMonitorResponse, fundApiClient } from "@/lib/fund_api";
+import {
+  AdvancedRiskView, IntradayNavSeries, NavSnapshot, RiskLimitsConfig,
+  RiskMonitorResponse, fundApiClient,
+} from "@/lib/fund_api";
 
 /**
  * Three pictures, each answering a question a number cannot.
@@ -46,15 +49,20 @@ export function MonitorGraphs({ m }: { m: RiskMonitorResponse | null }) {
   const c = useChartColors();
   const [limits, setLimits] = useState<RiskLimitsConfig | null>(null);
   const [intraday, setIntraday] = useState<IntradayNavSeries | null>(null);
+  const [struck, setStruck] = useState<NavSnapshot[]>([]);
   const [adv, setAdv] = useState<AdvancedRiskView | null>(null);
 
   const load = useCallback(async () => {
-    const [l, i] = await Promise.all([
+    const [l, i, h] = await Promise.all([
       fundApiClient.getRiskLimits().catch(() => null),
       fundApiClient.getIntradayNav(360).catch(() => null),
+      // Struck NAVs from the ledger — the fallback picture for when the
+      // market is shut and the in-memory intraday trace is a flat line.
+      fundApiClient.getNavHistory(30).catch(() => null),
     ]);
     setLimits(l);
     setIntraday(i);
+    setStruck(h?.history ?? []);
   }, []);
 
   useEffect(() => {
@@ -87,7 +95,24 @@ export function MonitorGraphs({ m }: { m: RiskMonitorResponse | null }) {
     const s = intraday?.samples ?? [];
     return s.map((p) => ({ ts: p.ts.slice(11, 16), nav: p.total_nav_usd }));
   }, [intraday]);
-  const change = intraday?.change_usd ?? null;
+
+  // The market is shut two days out of seven, and a flat line with an apology
+  // was this panel's face for all of them. When the intraday trace has nothing
+  // to say, fall back to the struck NAVs from the ledger — a coarser picture,
+  // but a real one, and clearly labelled as the different thing it is.
+  const daily = useMemo(
+    () => struck
+      .filter((h) => h.ts && h.total_nav_usd != null)
+      .map((h) => ({ ts: String(h.ts).slice(5, 10), nav: h.total_nav_usd })),
+    [struck],
+  );
+  const intradayLive = trace.length >= 3 && !isFlat(trace.map((t) => t.nav));
+  const useDaily = !intradayLive && daily.length >= 2;
+  const shown = useDaily ? daily : trace;
+
+  const change = useDaily
+    ? (daily.length >= 2 ? daily[daily.length - 1].nav - daily[daily.length - 2].nav : null)
+    : (intraday?.change_usd ?? null);
   const up = (change ?? 0) >= 0;
 
   // --- 2. limit headroom ---------------------------------------------------
@@ -188,17 +213,18 @@ export function MonitorGraphs({ m }: { m: RiskMonitorResponse | null }) {
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-      {/* 1 — session P&L */}
+      {/* 1 — session P&L, or NAV by day when the session has nothing to show */}
       <div className={KT.panel}>
         <div className="flex items-baseline justify-between border-b border-[var(--kt-border)] px-4 py-2.5">
-          <span className={KT.label}>Session P&amp;L</span>
+          <span className={KT.label}>{useDaily ? "NAV by day" : "Session P&L"}</span>
           {change != null && (
             <span className={`font-mono text-[12px] tabular-nums ${up ? KT.up : KT.down}`}>
               {up ? "+" : "−"}{money(Math.abs(change), 2)}
+              {useDaily && <span className={KT.muted}> last strike</span>}
             </span>
           )}
         </div>
-        {trace.length < 3 ? (
+        {shown.length < (useDaily ? 2 : 3) ? (
           <div className={`px-4 py-10 text-center text-[12px] ${KT.muted}`}>
             {trace.length === 0
               ? "No intraday samples yet — the spine samples once a minute."
@@ -207,7 +233,7 @@ export function MonitorGraphs({ m }: { m: RiskMonitorResponse | null }) {
         ) : (
           <div className="h-[132px] w-full px-1 pt-2">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={trace} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+              <AreaChart data={shown} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
                 <defs>
                   <linearGradient id="monNav" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor={up ? c.up : c.down} stopOpacity={0.3} />
@@ -216,13 +242,13 @@ export function MonitorGraphs({ m }: { m: RiskMonitorResponse | null }) {
                 </defs>
                 <XAxis dataKey="ts" tick={{ fill: c.textMuted, fontSize: 9 }}
                        stroke={c.axis} tickLine={false} minTickGap={40} />
-                <YAxis domain={navDomain(trace.map((t) => t.nav))} hide />
+                <YAxis domain={navDomain(shown.map((t) => t.nav))} hide />
                 <Tooltip
                   contentStyle={{ background: c.surface, border: `1px solid ${c.grid}`,
                                   borderRadius: 8, fontSize: 11, color: c.text }}
                   formatter={(v: number) => [money(v, 2), "NAV"]} />
-                {trace[0] && (
-                  <ReferenceLine y={trace[0].nav} stroke={c.textMuted} strokeDasharray="3 3" />
+                {shown[0] && (
+                  <ReferenceLine y={shown[0].nav} stroke={c.textMuted} strokeDasharray="3 3" />
                 )}
                 <Area type="monotone" dataKey="nav" stroke={up ? c.up : c.down}
                       strokeWidth={1.75} fill="url(#monNav)" dot={false} />
@@ -231,8 +257,12 @@ export function MonitorGraphs({ m }: { m: RiskMonitorResponse | null }) {
           </div>
         )}
         <p className={`px-4 pb-2 text-[10px] ${KT.muted}`}>
-          {isFlat(trace.map((t) => t.nav)) && "Flat — marks are static, which is a closed market. "}
-          In-memory samples, lost on restart — telemetry, not the NAV record.
+          {useDaily
+            ? "Struck NAVs from the ledger — the intraday trace is flat (closed market), so this shows the record instead."
+            : <>
+                {isFlat(trace.map((t) => t.nav)) && "Flat — marks are static, which is a closed market. "}
+                In-memory samples, lost on restart — telemetry, not the NAV record.
+              </>}
         </p>
       </div>
 

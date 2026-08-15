@@ -98,6 +98,14 @@ export interface NavSnapshot {
 export interface NavResponse {
   live: NavSnapshot;
   last_struck: NavSnapshot | null;
+  /** NAV against net external cash — "has it made anything", not just "what
+   *  is it worth". `return_pct` is per-unit and therefore flow-proof. */
+  since_inception?: {
+    subscribed_usd: number;
+    paid_out_usd: number;
+    pnl_usd: number;
+    return_pct: number;
+  };
 }
 
 export interface LpView {

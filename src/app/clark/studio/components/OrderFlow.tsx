@@ -36,13 +36,17 @@ const STATUS_TONE: Record<string, string> = {
 
 type Tab = "working" | "settled";
 
-export function OrderFlow({ orders, loading, error, limit = 12, embedded = false }: {
+export function OrderFlow({ orders, loading, error, limit = 12, embedded = false,
+                            marketOpen = null }: {
   orders: OrderHistoryRow[];
   loading?: boolean;
   error?: string | null;
   limit?: number;
   /** Render without panel chrome — see ApprovalQueue. */
   embedded?: boolean;
+  /** Venue session state, if the caller knows it — decides whether an old
+   *  working order is news or just a shut market. null = unknown. */
+  marketOpen?: boolean | null;
 }) {
   const [tab, setTab] = useState<Tab>("working");
 
@@ -109,6 +113,23 @@ export function OrderFlow({ orders, loading, error, limit = 12, embedded = false
               <span className={`text-[11px] ${KT.muted}`}>
                 filled {o.filled_qty ?? 0} of {o.qty}
               </span>
+              {/* Age turns a stale working order from a mystery into a verdict:
+                  27h on a shut market is a non-event; 20 minutes unfilled on an
+                  open one is the thing this list exists to surface. */}
+              {IN_FLIGHT.has(o.status) && o.ts && (() => {
+                const ageMs = Date.now() - new Date(o.ts).getTime();
+                const stale = marketOpen === true && ageMs > 15 * 60_000;
+                const age = ageMs < 3600_000
+                  ? `${Math.max(1, Math.round(ageMs / 60_000))}m`
+                  : `${Math.round(ageMs / 3600_000)}h`;
+                return (
+                  <span className={`text-[11px] ${stale ? "text-[var(--kt-warn)]" : KT.muted}`}>
+                    {age} in flight
+                    {marketOpen === false && " · market closed"}
+                    {stale && " · unfilled on an open market"}
+                  </span>
+                );
+              })()}
               <span className={`ml-auto font-mono text-[11px] ${KT.muted}`}>
                 {String(o.ts ?? "").slice(0, 19).replace("T", " ")}
               </span>
