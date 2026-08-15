@@ -23,11 +23,14 @@ is down is dangerous.
 
 from __future__ import annotations
 
+import logging
 import time
 from datetime import datetime, timezone
 from typing import Any, Callable
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 from app.fund import riskmetrics
 from app.fund.correlation import CorrelationAnalytics, DEFAULT_LOOKBACK_DAYS, aligned_returns
@@ -174,6 +177,27 @@ class AdvancedRiskEngine:
         out["cached"] = False
         out["cache_age_seconds"] = 0.0
         self._view_cache[key] = (time.monotonic(), fp, out)
+
+        # One compact point per fresh compute, so the page can show risk
+        # DRIFTING instead of only where it stands. Deduped inside the sink;
+        # failure costs a chart point, never the compute.
+        if corr.get("measurable"):
+            try:
+                from app.fund.riskhistory import RiskHistory
+
+                es = (out.get("tail", {}).get("levels") or {}).get("0.975") or {}
+                rs = out.get("reverse_stress") or {}
+                RiskHistory().append({
+                    "nav_usd": out["nav_usd"],
+                    "portfolio_vol_pct": corr.get("portfolio_vol_pct"),
+                    "stressed_vol_pct": corr.get("stressed_vol_pct"),
+                    "effective_bets": corr.get("effective_bets"),
+                    "es975_pct": es.get("expected_shortfall_pct"),
+                    "es975_usd": es.get("expected_shortfall_usd"),
+                    "move_to_halt_pct": rs.get("uniform_move_to_halt_pct"),
+                }, fingerprint=fp)
+            except Exception as e:  # noqa: BLE001
+                logger.warning("risk history point not stored: %s", e)
         return out
 
     # --- what-if ------------------------------------------------------------

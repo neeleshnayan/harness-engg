@@ -1670,6 +1670,17 @@ def get_risk_advanced(
     )
 
 
+@router.get("/fund/risk/history")
+def get_risk_history(limit: int = Query(180, ge=2, le=1000)):
+    """The risk view's time dimension: one compact point per fresh engine
+    compute (book vol, effective bets, ES, move-to-halt), oldest first.
+    Sparse by design — points accrue when the book changes or the cache
+    expires, not on a clock. Telemetry, never the event log."""
+    from app.fund.riskhistory import RiskHistory
+
+    return {"points": RiskHistory().recent(limit=limit)}
+
+
 class RiskWhatIfRequest(BaseModel):
     """Proposed strategy weights as percentages of NAV, keyed by strategy_id."""
     targets: dict[str, float]
