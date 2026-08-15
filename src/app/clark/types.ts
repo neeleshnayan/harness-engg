@@ -348,6 +348,11 @@ export interface ChatMessage {
    *  next week — the one they most need to check — would carry no provenance
    *  at all. */
   provenance?: ProvenanceMark[]
+  /** Full structured returns of renderable tools, kept with the message so
+   *  the answer's charts (backtest equity curve, price series, NAV card)
+   *  survive scroll-back and reload — same rule as provenance: a component
+   *  only the live turn could draw would be decoration, not a record. */
+  toolResults?: { id: string; tool: string; result?: unknown }[]
 }
 
 /** One source behind an answer: which tool, what it was asked, how long it

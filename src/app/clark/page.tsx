@@ -168,6 +168,25 @@ export default function BacktestPage() {
         ms: s.endedAt != null ? s.endedAt - s.startedAt : undefined,
       })), [])
 
+  /** Renderable tool payloads that travel with the message (charts survive
+   *  scroll-back and reload). Whitelisted tools only, and a per-message size
+   *  budget so persisted chats cannot balloon past storage limits. */
+  const toolResultsFrom = useCallback((steps: TraceStep[]) => {
+    const RENDERABLE = new Set(['fund_backtest', 'market_bars', 'market_indicator', 'crypto_screen', 'fund_nav'])
+    const out: { id: string; tool: string; result?: unknown }[] = []
+    let budget = 150_000 // chars of JSON across the whole message
+    for (const s of steps) {
+      if (s.endedAt == null || s.result == null || !RENDERABLE.has(s.name)) continue
+      try {
+        const size = JSON.stringify(s.result).length
+        if (size > budget) continue
+        budget -= size
+        out.push({ id: s.id, tool: s.name, result: s.result })
+      } catch { /* unserializable result: skip, the preview mark remains */ }
+    }
+    return out.length ? out : undefined
+  }, [])
+
   const persistLastChat = React.useCallback(
     async (allMessages: ChatMessage[]) => {
       if (!userId) return
@@ -581,6 +600,7 @@ export default function BacktestPage() {
       const assistantMessage = createAssistantMessage(payload)
       if (liveTraceRef.current.length > 0) {
         assistantMessage.provenance = provenanceFrom(liveTraceRef.current)
+        assistantMessage.toolResults = toolResultsFrom(liveTraceRef.current)
       }
 
 
@@ -811,6 +831,7 @@ export default function BacktestPage() {
       const assistantMessage = createAssistantMessage(payload)
       if (liveTraceRef.current.length > 0) {
         assistantMessage.provenance = provenanceFrom(liveTraceRef.current)
+        assistantMessage.toolResults = toolResultsFrom(liveTraceRef.current)
       }
 
       // Always append Clark's response; ResultsDisplay will decide what to show,
@@ -987,6 +1008,7 @@ export default function BacktestPage() {
       const assistantMessage = createAssistantMessage(payload)
       if (liveTraceRef.current.length > 0) {
         assistantMessage.provenance = provenanceFrom(liveTraceRef.current)
+        assistantMessage.toolResults = toolResultsFrom(liveTraceRef.current)
       }
       setMessages((prev) => {
         const alreadyRendered = prev.some((m) => {

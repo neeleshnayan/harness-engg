@@ -12,6 +12,7 @@ import { stripReasoningFromMessage } from '../utils/createAssistantMessage'
 import { markdownToHtml } from '../utils/markdown'
 import CitationGutter from './CitationGutter'
 import FeedbackBar from './FeedbackBar'
+import { ToolResultBlocks } from './ToolResultPanels'
 import TransactionStatus, { InlineTransactionData } from './TransactionStatus'
 
 // Dynamically import heavy chart components to reduce initial bundle size
@@ -1095,7 +1096,18 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                   )
                 })()}
 
-                {/* Render only backtest results */}
+                {/* The answer's receipts, rendered: full results of the typed
+                    tools (backtest equity curve, price/indicator series, NAV
+                    card), stored with the message so they survive scroll-back.
+                    This is what replaced the old skill-payload charts when
+                    fund_backtest superseded the regex backtest skill. */}
+                {message.toolResults && (
+                  <div className="ml-10 max-w-[85%]">
+                    <ToolResultBlocks results={message.toolResults} />
+                  </div>
+                )}
+
+                {/* Render only backtest results (legacy skill payload path) */}
                 {renderBacktest(message)}
 
                 {/* Render price history chart */}
