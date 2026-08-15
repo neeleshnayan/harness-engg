@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowRight, Loader2, Plus, Scale, Sliders } from "lucide-react";
 import { StudioHeader } from "../components/StudioHeader";
 import { AllocationModal } from "../components/AllocationModal";
+import { DivergencePanel } from "../components/DivergencePanel";
 import { RebalancePanel } from "../components/RebalancePanel";
 import { NavPanel } from "../components/NavPanel";
 import { ExecutionAnalytics } from "../components/ExecutionAnalytics";
@@ -276,6 +277,14 @@ export default function AllocatePage() {
             title={`${drillInto.name} — execution history`}
           />
         )}
+
+        {/* The promise each live strategy was allocated capital ON, against
+            what it is delivering — the question this page's weights should be
+            re-answered by. Shared with Monitor: same panel, same honesty about
+            youth ("1.7 of 14 live days"). */}
+        <div className="mt-6">
+          <DivergencePanel />
+        </div>
 
         <div id="rebalance" className="scroll-mt-24">
           <RebalancePanel strategies={live} navUsd={navUsd} onCommitted={load} />
