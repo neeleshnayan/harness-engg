@@ -39,7 +39,7 @@ cost of "unknown" and one of "nothing" are not the same claim.
 from __future__ import annotations
 
 import statistics
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Optional
 

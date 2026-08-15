@@ -98,6 +98,17 @@ def quote(symbol: str, held: dict[str, Any] | None = None) -> dict[str, Any]:
         "ok": price is not None,
         "held": bool(held),
     }
+    # Second-source telemetry: when the two free feeds have both answered for
+    # this symbol, say how far apart they were. A wide gap means one of them is
+    # wrong, and the operator should learn that from the strip, not from a NAV
+    # mark that quietly moved.
+    try:
+        from app.fund.marketdata import cross_checks
+        cc = cross_checks().get(symbol)
+        if cc:
+            row["cross_check_bps"] = cc["divergence_bps"]
+    except Exception:  # noqa: BLE001 — telemetry must never break a quote
+        pass
     if held:
         row.update({
             "qty": held.get("qty"),

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import time
 
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
 

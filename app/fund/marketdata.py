@@ -343,17 +343,59 @@ def fetch_daily_bars(symbol: str, lookback_days: int = 365,
 _QUOTE_CACHE: dict[str, tuple[float, float]] = {}
 _QUOTE_TTL_S = 300.0
 
+#: Last cross-source comparison per symbol: (primary, secondary, bps, epoch).
+#: Kept so /quotes can surface "the two feeds disagree" instead of the fund
+#: finding out via a bad mark. Telemetry, not the NAV record.
+_CROSS_CHECK: dict[str, tuple[float, float, float, float]] = {}
+
+#: Two closes for the same day should agree to rounding. Wider than this and
+#: one of the feeds is stale or wrong — worth a warning, not worth guessing
+#: which. 50bps is far outside normal close-vs-close noise.
+CROSS_SOURCE_WARN_BPS = 50.0
+
+
+def _from_stooq_quote(symbol: str) -> float | None:
+    """Last close from stooq's CSV quote endpoint. US equities are `aapl.us`.
+
+    Deliberately minimal: one row, one number. Stooq is the second opinion,
+    not a bars provider — history stays with Alpaca/Yahoo.
+    """
+    import csv
+    import io as _io
+    import urllib.request
+
+    url = f"https://stooq.com/q/l/?s={symbol.lower()}.us&f=sd2t2ohlcv&h&e=csv"
+    try:
+        with urllib.request.urlopen(url, timeout=6) as r:
+            rows = list(csv.DictReader(_io.TextIOWrapper(r, encoding="utf-8")))
+        close = float(rows[0]["Close"])
+        # Stooq answers unknown tickers with N/D rows that float() rejects,
+        # and occasionally with zeros — a zero mark would zero a position.
+        return close if close > 0 else None
+    except Exception:  # noqa: BLE001
+        return None
+
 
 def live_price(symbol: str) -> float | None:
     """Latest free mark for a symbol (most-recent daily close), cached ~5min.
 
-    Returns None on any failure so callers can fall back to a seed price. Lets
-    the paper venue mark positions at real market levels without a paid feed —
-    'paper execution, live marks'. When Alpaca is configured the venue uses its
-    own live marks instead and this path is unused.
+    Two independent sources: Yahoo primary, stooq fallback. One feed was a
+    single point of failure for every mark in NAV — a Yahoo outage didn't
+    degrade the fund's pricing, it removed it. On a fresh Yahoo fetch the
+    stooq figure is also pulled once and compared; a gap wider than
+    CROSS_SOURCE_WARN_BPS is logged and kept in _CROSS_CHECK for /quotes to
+    surface. The primary is still used — the point of a second source is to
+    KNOW the feeds disagree, not to silently average two numbers into one
+    that neither feed reported.
+
+    Returns None only when both fail, so callers can fall back to a seed
+    price. When Alpaca is configured the venue uses its own live marks and
+    this path is unused.
     """
+    import logging
     import time
 
+    log = logging.getLogger(__name__)
     symbol = (symbol or "").strip().upper()
     if not symbol.isalnum() or len(symbol) > 6:
         return None
@@ -361,10 +403,36 @@ def live_price(symbol: str) -> float | None:
     hit = _QUOTE_CACHE.get(symbol)
     if hit and now - hit[1] < _QUOTE_TTL_S:
         return hit[0]
+
+    px: float | None = None
     try:
-        bars = _from_yahoo(symbol, lookback_days=5)
-        px = bars.closes[-1]
-        _QUOTE_CACHE[symbol] = (px, now)
-        return px
+        px = _from_yahoo(symbol, lookback_days=5).closes[-1]
     except Exception:  # noqa: BLE001
-        return None
+        px = None
+
+    second = _from_stooq_quote(symbol)
+
+    if px is not None and second is not None and px > 0:
+        bps = abs(px - second) / px * 10_000.0
+        _CROSS_CHECK[symbol] = (px, second, bps, now)
+        if bps > CROSS_SOURCE_WARN_BPS:
+            log.warning(
+                "mark cross-check %s: yahoo %.4f vs stooq %.4f (%.1f bps apart) — "
+                "using primary, but one of these is wrong",
+                symbol, px, second, bps,
+            )
+    elif px is None and second is not None:
+        log.warning("mark fallback %s: yahoo unavailable, using stooq %.4f", symbol, second)
+        px = second
+
+    if px is not None:
+        _QUOTE_CACHE[symbol] = (px, now)
+    return px
+
+
+def cross_checks() -> dict[str, dict[str, float]]:
+    """The latest primary-vs-secondary comparison per symbol, for /quotes."""
+    return {
+        s: {"primary": p, "secondary": sec, "divergence_bps": round(bps, 2), "at_epoch": at}
+        for s, (p, sec, bps, at) in _CROSS_CHECK.items()
+    }

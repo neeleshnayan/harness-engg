@@ -365,7 +365,7 @@ def get_market_session():
     being a few seconds stale at the bell is a real error; a countdown that is
     ten seconds behind is not.
     """
-    from app.fund.session import derive, unknown
+    from app.fund.session import unknown
 
     probe = getattr(_connector, "session", None)
     if probe is None:
@@ -1104,6 +1104,23 @@ def list_strategies():
             r["rolled_actual_pct"] = round(100.0 * re_ / total, 4) if total else 0.0
 
     return {"nav_usd": total, "strategies": rows, "discretionary": attr.get("discretionary")}
+
+
+@router.get("/fund/strategies/divergence")
+def get_strategy_divergence():
+    """Live performance vs the backtest each strategy was deployed on.
+
+    The number the watcher's brief always promised: "a strategy that has not
+    resembled its backtest for a fortnight". Rows under 14 live days say so
+    rather than annualising two days of noise into a verdict.
+    """
+    from app.fund.divergence import compare
+
+    return compare(
+        _store,
+        _strategies.list(),
+        _attribution.with_values(_live_price_fn()),
+    )
 
 
 @router.get("/fund/strategies/{strategy_id}")

@@ -14,8 +14,6 @@ from __future__ import annotations
 
 import uuid
 
-from firebase_admin import firestore
-
 from app.fund.connectors.base import (
     Balance,
     Connector,

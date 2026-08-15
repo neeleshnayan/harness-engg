@@ -124,6 +124,11 @@ class OrdersProjection:
                 # the moment they decide is reasoning that did not happen.
                 "rationale": p.get("rationale"),
                 "critique": p.get("critique"),
+                # The order type is part of what is being approved. A limit at
+                # $101 and a market order are different risks wearing the same
+                # symbol and quantity; an approval card that hides which one it
+                # is asks the operator to sign a blank.
+                "limit_price": p.get("limit_price"),
                 "impact_preview": p.get("impact_preview"), "ts": rec["ts"],
             })
         return sorted(out, key=lambda r: r["ts"] or "")

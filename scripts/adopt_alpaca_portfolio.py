@@ -13,7 +13,6 @@ initialize_firebase() # Ensure Firebase is initialized
 from app.fund.connectors.alpaca import AlpacaConnector
 from app.fund.events import EventStore, Event, EventType
 from app.fund.money import D
-from decimal import Decimal
 
 async def main():
     if not os.getenv("ALPACA_API_KEY") or not os.getenv("ALPACA_SECRET_KEY"):

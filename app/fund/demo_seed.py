@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from app.fund.events import Event, EventStore, EventType
-from app.fund.money import D, f, money, units
+from app.fund.money import D, f
 from app.fund.projections.nav import NAV_SNAPSHOTS
 from app.fund.strategies import StrategyService
 
