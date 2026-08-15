@@ -105,7 +105,10 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm"
+      // The blur carries the depth; the dim stays light. A heavy black wash plus
+      // a soft shadow said "above the page" twice — frosting the page under a
+      // lightly dimmed veil says it once, and the panel's border does the rest.
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-6 backdrop-blur-xl"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -117,8 +120,8 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
         aria-modal="true"
         aria-label="Account menu"
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[360px] rounded-2xl border p-4 shadow-[0_24px_48px_-12px_rgb(0_0_0_/_0.45)] outline-none"
-        style={{ background: c.surface, borderColor: c.border }}
+        className="w-full max-w-[360px] rounded-2xl border p-4 shadow-[0_16px_48px_rgb(0_0_0_/_0.35)] outline-none"
+        style={{ background: c.surface, borderColor: c.borderStrong }}
       >
         {/* Close sits at the top right, where a dialog's close belongs. It was
             at the bottom centre, under Sign Out — so the quickest path out of

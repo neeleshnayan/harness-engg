@@ -109,6 +109,9 @@ export interface LpView {
 }
 
 export interface PendingOrder {
+  /** Present on limit orders; null/absent means market. Part of what is
+   *  approved, so the card must show it. */
+  limit_price?: number | null;
   order_id: string;
   symbol: string;
   side: 'buy' | 'sell';
@@ -271,6 +274,35 @@ export interface GeneratedThesisResult {
   raw_evidence_count: number;
   generated_at: string;
   markdown_output: string;
+}
+
+/** One strategy's live record against the backtest it was deployed on.
+ *  `comparable: false` rows carry the reason instead of a verdict — under 14
+ *  live days the spine refuses to annualise noise into a judgement. */
+export interface StrategyDivergenceRow {
+  strategy_id: string;
+  name?: string | null;
+  state: string;
+  comparable: boolean;
+  reason?: string | null;
+  backtest_annual_return_pct?: number | null;
+  backtest_vol_pct?: number;
+  live_days?: number;
+  live_pnl_usd?: number;
+  live_cost_basis_usd?: number;
+  live_return_pct?: number;
+  live_annual_return_pct?: number;
+  gap_pp?: number;
+  band_pp?: number;
+  diverging?: boolean;
+}
+
+export interface StrategyDivergence {
+  rows: StrategyDivergenceRow[];
+  n_deployed: number;
+  n_comparable: number;
+  n_diverging: number;
+  note: string;
 }
 
 export interface RiskScenario {
@@ -1232,6 +1264,9 @@ export const fundApiClient = {
     symbol: string;
     side: "buy" | "sell";
     qty: number;
+    /** Omit for market. The backend has carried this end-to-end (paper and
+     *  Alpaca both honour it); the surfaces just never offered it. */
+    limit_price?: number | null;
     venue?: string;
     strategy_id?: string | null;
     thesis_id?: string | null;
@@ -1503,6 +1538,10 @@ export const fundApiClient = {
   /** Stateless backtest — registers nothing, touches no event log. */
   researchBacktest: async (body: BacktestBySymbolBody): Promise<ResearchBacktestResponse> =>
     (await fundApi.post(`${P}/research/backtest`, body)).data,
+
+/** Live performance vs the backtest each deployed strategy shipped with. */
+  getStrategyDivergence: async (): Promise<StrategyDivergence> =>
+    (await fundApi.get(`${P}/strategies/divergence`)).data,
 
   getRiskMonitor: async (): Promise<RiskMonitorResponse> =>
     (await fundApi.get(`${P}/risk/monitor`)).data,

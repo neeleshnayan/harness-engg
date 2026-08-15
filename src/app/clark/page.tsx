@@ -46,6 +46,10 @@ const SIDEBAR_WIDTH = 260
  *  the oldest lines are the ones least likely to be wanted. */
 const SESSION_LOG_MAX = 800
 
+/** Where the under-the-hood log lives between reloads. Per-tab (sessionStorage),
+ *  one fixed key — see the restore effect for why it is not per-session-id. */
+const TERMINAL_LOG_KEY = 'clark-terminal-log'
+
 export default function BacktestPage() {
   const router = useRouter()
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -92,6 +96,36 @@ export default function BacktestPage() {
   /** Just the turn in flight; folded into the session log when it ends. */
   const turnLogRef = useRef<LogLine[]>([])
   const [sessionId, setSessionId] = useState<string>('')
+
+  // The log survives a reload but not a new conversation. The key is fixed and
+  // per-tab, NOT per-session-id: every page load mints a fresh sessionId (see
+  // the init effect below), so a session-keyed entry could never be found
+  // again — the first version of this was keyed that way and restored nothing.
+  // Instead F5 keeps the log because sessionStorage is per-tab, and "New Chat"
+  // clears it explicitly in resetClarkSessionState, which is the one moment
+  // the operator has said "this is a different conversation now".
+  //
+  // Deliberately NOT localStorage — a fund operator's tool-call history, with
+  // argument values, should not outlive the tab that produced it.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(TERMINAL_LOG_KEY)
+      if (raw) {
+        const lines = JSON.parse(raw) as LogLine[]
+        if (Array.isArray(lines) && lines.length > 0) {
+          sessionLogRef.current = lines
+          setSessionLog(lines)
+        }
+      }
+    } catch { /* a corrupt entry costs the history, never the page */ }
+  }, [])
+
+  useEffect(() => {
+    if (sessionLog.length === 0) return
+    try {
+      sessionStorage.setItem(TERMINAL_LOG_KEY, JSON.stringify(sessionLog))
+    } catch { /* quota exceeded: keep running, drop persistence */ }
+  }, [sessionLog])
   const [userData, setUserData] = useState<any>(null)
   const [walletAddress, setWalletAddress] = useState<string>('')
 
@@ -1034,6 +1068,11 @@ export default function BacktestPage() {
       : `Good ${hourBand}.`
 
   const resetClarkSessionState = useCallback(() => {
+    // New conversation — the persisted terminal log belongs to the old one.
+    sessionLogRef.current = []
+    turnLogRef.current = []
+    setSessionLog([])
+    try { sessionStorage.removeItem(TERMINAL_LOG_KEY) } catch { /* nothing to clear */ }
     shownInterruptIdsRef.current.clear()
     setInterrupts([])
     setIsInterruptModalOpen(false)

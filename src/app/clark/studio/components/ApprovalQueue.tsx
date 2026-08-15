@@ -215,6 +215,12 @@ export function ApprovalQueue({ onChanged, refreshSignal = 0, compact = false,
                   <span className="text-base font-semibold uppercase">{o.side}</span>
                   <span className={KT.numberLg}>{o.qty}</span>
                   <span className="text-base font-semibold">{o.symbol}</span>
+                  {/* Which order type is being signed. A market order fills at
+                      whatever the book says next; a limit caps it. Different
+                      risks, same symbol — the card must say which. */}
+                  <span className={`font-mono text-[11px] ${KT.muted}`}>
+                    {o.limit_price != null ? `limit ${money(o.limit_price)}` : "market"}
+                  </span>
                   {ip.notional_usd != null && (
                     <span className={`text-sm ${KT.muted}`}>
                       ≈ {money(ip.notional_usd)}

@@ -279,7 +279,7 @@ export default function MonitorHome() {
           <span>·</span>
           <Link href="/clark/studio/risk" className={KT.accent}>structural risk</Link>
           <span>·</span>
-          <Link href="/clark/studio/lab" className={KT.accent}>research &amp; theses</Link>
+          <Link href="/clark/studio/research" className={KT.accent}>research &amp; theses</Link>
         </div>
       </div>
 

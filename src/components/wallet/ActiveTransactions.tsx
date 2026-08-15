@@ -307,18 +307,18 @@ function StepNode({
   return (
     <div className="flex flex-col items-center gap-2">
       <div className={`w-10 h-10 rounded-full flex items-center justify-center border-[3px] transition-all duration-300 ${active
-        ? (error ? 'bg-red-500 border-red-500 text-white' : 'bg-emerald-500 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]')
-        : 'bg-zinc-800 border-zinc-700 text-zinc-500'
+        ? (error ? 'bg-red-500 border-red-500 text-[var(--kt-text-strong,#e9e7e2)]' : 'bg-emerald-500 border-emerald-500 text-[var(--kt-text-strong,#e9e7e2)] shadow-[0_0_15px_rgba(16,185,129,0.4)]')
+        : 'bg-[var(--kt-hover,#181b20)] border-zinc-700 text-[var(--kt-text-muted,#6c727a)]'
         }`}>
         {active ? (
           error ? <X className="w-5 h-5 stroke-[3]" /> : <Check className="w-5 h-5 stroke-[3]" />
         ) : loading ? (
           <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
         ) : (
-          <div className="w-2 h-2 rounded-full bg-zinc-600" />
+          <div className="w-2 h-2 rounded-full bg-[var(--kt-border-strong,#343941)]" />
         )}
       </div>
-      <span className={`text-[11px] font-semibold ${active ? (error ? 'text-red-500' : 'text-white') : 'text-zinc-500'}`}>{label}</span>
+      <span className={`text-[11px] font-semibold ${active ? (error ? 'text-red-500' : 'text-[var(--kt-text-strong,#e9e7e2)]') : 'text-[var(--kt-text-muted,#6c727a)]'}`}>{label}</span>
     </div>
   );
 }
@@ -339,7 +339,7 @@ function TransactionProgressTracker({ tx }: { tx: ActiveTransaction }) {
     <div className="w-full mt-6 mb-8">
       {/* Desktop: single-line 4-step track */}
       <div className="hidden sm:block px-6 relative">
-        <div className="absolute top-[22px] left-[15%] right-[15%] h-[2px] bg-zinc-700/50 -z-0">
+        <div className="absolute top-[22px] left-[15%] right-[15%] h-[2px] bg-[var(--kt-track,#22252b)] -z-0">
           <div
             className={`h-full transition-all duration-500 ease-out ${isError ? 'bg-red-500' : 'bg-emerald-500'}`}
             style={{ width: getProgressWidth(currentStep, maxStep) }}
@@ -389,7 +389,7 @@ function TransactionProgressTracker({ tx }: { tx: ActiveTransaction }) {
       {/* Mobile: linear vertical flow for unambiguous execution order */}
       <div className="sm:hidden px-2 relative">
         <div className="relative pt-1">
-          <div className="absolute left-[12%] right-[12%] top-[15px] h-[2px] bg-zinc-700/60" />
+          <div className="absolute left-[12%] right-[12%] top-[15px] h-[2px] bg-[var(--kt-track,#22252b)]" />
           <div
             className={`absolute left-[12%] top-[15px] h-[2px] transition-all duration-500 ease-out ${isError ? 'bg-red-500' : 'bg-emerald-500'}`}
             style={{ width: `${Math.min(Math.max((currentStep / maxStep) * 76, 0), 76)}%` }}
@@ -397,43 +397,43 @@ function TransactionProgressTracker({ tx }: { tx: ActiveTransaction }) {
 
           <div className={`relative z-10 grid ${isSwapAndTransfer ? 'grid-cols-4' : 'grid-cols-3'} gap-1 text-center`}>
             <div className="flex flex-col items-center gap-1">
-              <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${currentStep >= 0 ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-500'}`}>
+              <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${currentStep >= 0 ? 'bg-emerald-500 border-emerald-500 text-[var(--kt-text-strong,#e9e7e2)]' : 'bg-[var(--kt-surface,#14161a)] border-zinc-700 text-[var(--kt-text-muted,#6c727a)]'}`}>
                 <Check className="w-3.5 h-3.5 stroke-[3]" />
               </div>
-              <span className={`text-[10px] font-semibold ${currentStep >= 0 ? 'text-white' : 'text-zinc-500'}`}>Queued</span>
+              <span className={`text-[10px] font-semibold ${currentStep >= 0 ? 'text-[var(--kt-text-strong,#e9e7e2)]' : 'text-[var(--kt-text-muted,#6c727a)]'}`}>Queued</span>
             </div>
 
             <div className="flex flex-col items-center gap-1">
-              <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${currentStep >= 1 ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-500'}`}>
-                {currentStep >= 1 ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : currentStep === 0 && !isError ? <Loader2 className="w-3 h-3 animate-spin text-emerald-500" /> : <div className="w-1.5 h-1.5 rounded-full bg-zinc-600" />}
+              <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${currentStep >= 1 ? 'bg-emerald-500 border-emerald-500 text-[var(--kt-text-strong,#e9e7e2)]' : 'bg-[var(--kt-surface,#14161a)] border-zinc-700 text-[var(--kt-text-muted,#6c727a)]'}`}>
+                {currentStep >= 1 ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : currentStep === 0 && !isError ? <Loader2 className="w-3 h-3 animate-spin text-emerald-500" /> : <div className="w-1.5 h-1.5 rounded-full bg-[var(--kt-border-strong,#343941)]" />}
               </div>
-              <span className={`text-[10px] font-semibold ${currentStep >= 1 ? 'text-white' : 'text-zinc-500'}`}>Submitted</span>
+              <span className={`text-[10px] font-semibold ${currentStep >= 1 ? 'text-[var(--kt-text-strong,#e9e7e2)]' : 'text-[var(--kt-text-muted,#6c727a)]'}`}>Submitted</span>
             </div>
 
             {isSwapAndTransfer ? (
               <>
                 <div className="flex flex-col items-center gap-1">
-                  <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${currentStep >= 2 ? (isError ? 'bg-red-500 border-red-500 text-white' : 'bg-emerald-500 border-emerald-500 text-white') : 'bg-zinc-900 border-zinc-700 text-zinc-500'}`}>
-                    {currentStep >= 2 ? (isError ? <X className="w-3.5 h-3.5 stroke-[3]" /> : <Check className="w-3.5 h-3.5 stroke-[3]" />) : currentStep === 1 && !isError ? <Loader2 className="w-3 h-3 animate-spin text-emerald-500" /> : <div className="w-1.5 h-1.5 rounded-full bg-zinc-600" />}
+                  <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${currentStep >= 2 ? (isError ? 'bg-red-500 border-red-500 text-[var(--kt-text-strong,#e9e7e2)]' : 'bg-emerald-500 border-emerald-500 text-[var(--kt-text-strong,#e9e7e2)]') : 'bg-[var(--kt-surface,#14161a)] border-zinc-700 text-[var(--kt-text-muted,#6c727a)]'}`}>
+                    {currentStep >= 2 ? (isError ? <X className="w-3.5 h-3.5 stroke-[3]" /> : <Check className="w-3.5 h-3.5 stroke-[3]" />) : currentStep === 1 && !isError ? <Loader2 className="w-3 h-3 animate-spin text-emerald-500" /> : <div className="w-1.5 h-1.5 rounded-full bg-[var(--kt-border-strong,#343941)]" />}
                   </div>
-                  <span className={`text-[10px] font-semibold ${currentStep >= 2 ? (isError ? 'text-red-400' : 'text-white') : 'text-zinc-500'}`}>Swapped</span>
+                  <span className={`text-[10px] font-semibold ${currentStep >= 2 ? (isError ? 'text-red-400' : 'text-[var(--kt-text-strong,#e9e7e2)]') : 'text-[var(--kt-text-muted,#6c727a)]'}`}>Swapped</span>
                 </div>
 
                 <div className="flex flex-col items-center gap-1">
-                  <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${currentStep >= 3 ? (isError ? 'bg-red-500 border-red-500 text-white' : 'bg-emerald-500 border-emerald-500 text-white') : 'bg-zinc-900 border-zinc-700 text-zinc-500'}`}>
-                    {currentStep >= 3 ? (isError ? <X className="w-3.5 h-3.5 stroke-[3]" /> : <Check className="w-3.5 h-3.5 stroke-[3]" />) : currentStep === 2 && !isError ? <Loader2 className="w-3 h-3 animate-spin text-emerald-500" /> : <div className="w-1.5 h-1.5 rounded-full bg-zinc-600" />}
+                  <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${currentStep >= 3 ? (isError ? 'bg-red-500 border-red-500 text-[var(--kt-text-strong,#e9e7e2)]' : 'bg-emerald-500 border-emerald-500 text-[var(--kt-text-strong,#e9e7e2)]') : 'bg-[var(--kt-surface,#14161a)] border-zinc-700 text-[var(--kt-text-muted,#6c727a)]'}`}>
+                    {currentStep >= 3 ? (isError ? <X className="w-3.5 h-3.5 stroke-[3]" /> : <Check className="w-3.5 h-3.5 stroke-[3]" />) : currentStep === 2 && !isError ? <Loader2 className="w-3 h-3 animate-spin text-emerald-500" /> : <div className="w-1.5 h-1.5 rounded-full bg-[var(--kt-border-strong,#343941)]" />}
                   </div>
-                  <span className={`text-[10px] font-semibold ${currentStep >= 3 ? (isError ? 'text-red-400' : 'text-white') : 'text-zinc-500'}`}>
+                  <span className={`text-[10px] font-semibold ${currentStep >= 3 ? (isError ? 'text-red-400' : 'text-[var(--kt-text-strong,#e9e7e2)]') : 'text-[var(--kt-text-muted,#6c727a)]'}`}>
                     {currentStep >= 3 && isError ? getFinalStepLabel(tx.status) : 'Completed'}
                   </span>
                 </div>
               </>
             ) : (
               <div className="flex flex-col items-center gap-1">
-                <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${currentStep >= 2 ? (isError ? 'bg-red-500 border-red-500 text-white' : 'bg-emerald-500 border-emerald-500 text-white') : 'bg-zinc-900 border-zinc-700 text-zinc-500'}`}>
-                  {currentStep >= 2 ? (isError ? <X className="w-3.5 h-3.5 stroke-[3]" /> : <Check className="w-3.5 h-3.5 stroke-[3]" />) : currentStep === 1 && !isError ? <Loader2 className="w-3 h-3 animate-spin text-emerald-500" /> : <div className="w-1.5 h-1.5 rounded-full bg-zinc-600" />}
+                <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${currentStep >= 2 ? (isError ? 'bg-red-500 border-red-500 text-[var(--kt-text-strong,#e9e7e2)]' : 'bg-emerald-500 border-emerald-500 text-[var(--kt-text-strong,#e9e7e2)]') : 'bg-[var(--kt-surface,#14161a)] border-zinc-700 text-[var(--kt-text-muted,#6c727a)]'}`}>
+                  {currentStep >= 2 ? (isError ? <X className="w-3.5 h-3.5 stroke-[3]" /> : <Check className="w-3.5 h-3.5 stroke-[3]" />) : currentStep === 1 && !isError ? <Loader2 className="w-3 h-3 animate-spin text-emerald-500" /> : <div className="w-1.5 h-1.5 rounded-full bg-[var(--kt-border-strong,#343941)]" />}
                 </div>
-                <span className={`text-[10px] font-semibold ${currentStep >= 2 ? (isError ? 'text-red-400' : 'text-white') : 'text-zinc-500'}`}>
+                <span className={`text-[10px] font-semibold ${currentStep >= 2 ? (isError ? 'text-red-400' : 'text-[var(--kt-text-strong,#e9e7e2)]') : 'text-[var(--kt-text-muted,#6c727a)]'}`}>
                   {currentStep >= 2 && isError ? getFinalStepLabel(tx.status) : 'Completed'}
                 </span>
               </div>
@@ -465,33 +465,33 @@ function TransactionCard({ tx, nowTs, currentUsername }: { tx: ActiveTransaction
   const staleWarning = isNonTerminalStale(tx, nowTs);
 
   return (
-    <div className="w-full bg-zinc-900/55 backdrop-blur-md rounded-[24px] border border-white/10 p-5 mb-4 shadow-xl shadow-black/20">
+    <div className="w-full bg-[var(--kt-inset,#0e1013)] backdrop-blur-md rounded-[24px] border border-[var(--kt-border,#22252b)] p-5 mb-4 shadow-xl shadow-black/20">
       {/* Header */}
       <div className="flex items-start justify-between mb-2 gap-3">
         <div className="flex items-start gap-3 min-w-0 flex-1 pr-2">
           <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center mt-0.5 shrink-0">
-            {tx.tx_type === 'swap' ? <ArrowLeftRight className="w-5 h-5 text-white" /> : <ArrowUp className="w-5 h-5 text-white" />}
+            {tx.tx_type === 'swap' ? <ArrowLeftRight className="w-5 h-5 text-[var(--kt-text-strong,#e9e7e2)]" /> : <ArrowUp className="w-5 h-5 text-[var(--kt-text-strong,#e9e7e2)]" />}
           </div>
           <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-            <span className="text-base sm:text-lg font-bold text-white tracking-tight truncate max-w-full">{phaseCopy.title}</span>
-            <span className="text-xs sm:text-sm text-zinc-300 truncate max-w-full">{phaseCopy.subtitle}</span>
+            <span className="text-base sm:text-lg font-bold text-[var(--kt-text-strong,#e9e7e2)] tracking-tight truncate max-w-full">{phaseCopy.title}</span>
+            <span className="text-xs sm:text-sm text-[var(--kt-text-dim,#9ba0a8)] truncate max-w-full">{phaseCopy.subtitle}</span>
           </div>
         </div>
         <div className="flex flex-col items-end gap-2 shrink-0">
-          <div className="h-10 rounded-xl border border-white/20 bg-white/8 backdrop-blur-md px-3 inline-flex items-center gap-2 shadow-[0_4px_14px_rgba(0,0,0,0.14)]">
-            <div className="w-6 h-6 rounded-md bg-white/8 border border-white/20 flex items-center justify-center">
-              {isError ? <X className="w-3.5 h-3.5 text-red-300" /> : isFinished ? <Check className="w-3.5 h-3.5 text-zinc-100" /> : <RefreshCw className="w-3.5 h-3.5 animate-spin text-zinc-100" />}
+          <div className="h-10 rounded-xl border border-[var(--kt-border-strong,#343941)] bg-[var(--kt-hover,#181b20)] backdrop-blur-md px-3 inline-flex items-center gap-2 shadow-[0_4px_14px_rgba(0,0,0,0.14)]">
+            <div className="w-6 h-6 rounded-md bg-[var(--kt-hover,#181b20)] border border-[var(--kt-border-strong,#343941)] flex items-center justify-center">
+              {isError ? <X className="w-3.5 h-3.5 text-red-300" /> : isFinished ? <Check className="w-3.5 h-3.5 text-[var(--kt-text,#c9ccd1)]" /> : <RefreshCw className="w-3.5 h-3.5 animate-spin text-[var(--kt-text,#c9ccd1)]" />}
             </div>
-            <span className={`text-xs font-medium tabular-nums ${isError ? 'text-red-200' : 'text-zinc-100'}`}>
+            <span className={`text-xs font-medium tabular-nums ${isError ? 'text-red-200' : 'text-[var(--kt-text,#c9ccd1)]'}`}>
               {createdAtMs ? formatElapsed(elapsedMs) : '--'}
             </span>
           </div>
         </div>
       </div>
 
-      <div className="mb-1 flex items-center justify-between text-[10px] sm:text-xs text-zinc-400">
+      <div className="mb-1 flex items-center justify-between text-[10px] sm:text-xs text-[var(--kt-text-dim,#9ba0a8)]">
         <span className="truncate max-w-[70%]">{description}</span>
-        <span className={`${isError ? 'text-red-300' : 'text-zinc-400'}`}>Step {Math.min(step + 1, totalSteps)}/{totalSteps}</span>
+        <span className={`${isError ? 'text-red-300' : 'text-[var(--kt-text-dim,#9ba0a8)]'}`}>Step {Math.min(step + 1, totalSteps)}/{totalSteps}</span>
       </div>
       {staleWarning && (
         <div className="mb-2 text-[10px] sm:text-xs text-amber-300">
@@ -504,12 +504,12 @@ function TransactionCard({ tx, nowTs, currentUsername }: { tx: ActiveTransaction
 
       {/* Hash */}
       {tx.tx_hash && (
-        <div className="pt-3 border-t border-white/10 flex items-center gap-2">
+        <div className="pt-3 border-t border-[var(--kt-border,#22252b)] flex items-center gap-2">
           <a
             href={`https://sepolia.etherscan.io/tx/${tx.tx_hash}`}
             target="_blank"
             rel="noreferrer"
-            className="text-[11px] text-zinc-400 font-mono hover:text-white transition-colors flex items-center gap-1 group"
+            className="text-[11px] text-[var(--kt-text-dim,#9ba0a8)] font-mono hover:text-[var(--kt-text-strong,#e9e7e2)] transition-colors flex items-center gap-1 group"
           >
             {tx.tx_hash.slice(0, 10)}...{tx.tx_hash.slice(-8)}
             <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
@@ -759,11 +759,11 @@ export default function ActiveTransactions({ username, className = '', onAllTran
     <div className={`${className}`}>
       {showHeader && (
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-zinc-400 tracking-wide uppercase">
+          <h3 className="text-sm font-medium text-[var(--kt-text-dim,#9ba0a8)] tracking-wide uppercase">
             Active Transactions
           </h3>
           {loading && (
-            <Loader2 className="w-3 h-3 text-zinc-500 animate-spin" />
+            <Loader2 className="w-3 h-3 text-[var(--kt-text-muted,#6c727a)] animate-spin" />
           )}
         </div>
       )}
