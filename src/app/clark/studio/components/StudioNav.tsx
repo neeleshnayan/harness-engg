@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, BookOpen, FlaskConical, Library, ShieldAlert, Sliders } from "lucide-react";
+import { Activity, BookOpen, FlaskConical, ShieldAlert, Sliders } from "lucide-react";
 
 /**
  * Workflow-first navigation, ordered by how often it is used.
@@ -36,8 +36,6 @@ const TABS = [
     hint: "Diversification, tail risk, market regime and survivability" },
   { href: "/clark/studio/thesis", label: "Thesis", icon: BookOpen,
     hint: "Automatic theme discovery & investment thesis generator" },
-  { href: "/clark/studio/research", label: "Research", icon: Library,
-    hint: "Theses, memos and postmortems — the recorded why behind the trades" },
 ];
 
 export function StudioNav() {
