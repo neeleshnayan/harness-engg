@@ -12,6 +12,7 @@ import { getAuth, signOut } from 'firebase/auth'
 import { getFirebaseApp } from '@/lib/firebaseClient'
 import HamburgerMenu from '@/components/wallet/HamburgerMenu'
 import { ChatMessage } from './types'
+import { sendFeedback, marksToSources } from './components/FeedbackBar'
 import { categories } from './constants'
 import CategoryTiles from './components/CategoryTiles'
 import ChatInputBar from './components/ChatInterface'
@@ -640,6 +641,32 @@ export default function BacktestPage() {
       }
 
     if (!interruptResponses) {
+      // Implicit failure signal: asking essentially the same question again
+      // right after an answer is what reaching for a retry button looks like
+      // in a chat. Detected by token overlap with the PREVIOUS user turn and
+      // filed against that turn's answer — no click required, and a wrong
+      // detection costs nothing because candidates are human-reviewed before
+      // any of them becomes a test.
+      try {
+        const prev = [...messages].reverse()
+        const prevUser = prev.find((m) => m.type === 'user')
+        const prevAnswer = prev.find((m) => m.type === 'assistant' && m.content)
+        if (prevUser?.content && prevAnswer) {
+          const tok = (s: string) => new Set(s.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2))
+          const a = tok(prevUser.content); const b = tok(queryText)
+          const inter = [...a].filter((w) => b.has(w)).length
+          const overlap = inter / Math.max(1, Math.min(a.size, b.size))
+          if (a.size >= 3 && overlap >= 0.6) {
+            void sendFeedback({
+              verdict: 'rephrased',
+              query: prevUser.content,
+              answer: (prevAnswer.content || '').slice(0, 8000),
+              sources: marksToSources(prevAnswer.provenance),
+              session_id: sessionId,
+            })
+          }
+        }
+      } catch { /* telemetry must never break a send */ }
       setMessages(prev => [...prev, userMessage])
       if (!overrideQuery) setInputValue('')
     }

@@ -11,6 +11,7 @@ import { formatCurrency, formatPercentage, formatDate, formatNumber, formatTimes
 import { stripReasoningFromMessage } from '../utils/createAssistantMessage'
 import { markdownToHtml } from '../utils/markdown'
 import CitationGutter from './CitationGutter'
+import FeedbackBar from './FeedbackBar'
 import TransactionStatus, { InlineTransactionData } from './TransactionStatus'
 
 // Dynamically import heavy chart components to reduce initial bundle size
@@ -1256,6 +1257,24 @@ export default function ResultsDisplay({ messages, isLoading, username }: Result
                     in Devtools, where the log accumulates across the session
                     instead of restarting per message. The conversation keeps
                     its citations and nothing else. */}
+                {/* The learning loop's intake: one vote per answer, carrying
+                    the question it answered and the sources it actually read. */}
+                {message.content && (() => {
+                  const prevUser = messages
+                    .slice(0, index)
+                    .reverse()
+                    .find((m) => m.type === 'user')
+                  if (!prevUser?.content) return null
+                  return (
+                    <div className="ml-10">
+                      <FeedbackBar
+                        query={prevUser.content}
+                        answer={stripReasoningFromMessage(message.content)}
+                        marks={message.provenance}
+                      />
+                    </div>
+                  )
+                })()}
               </>
             )
           })()}
