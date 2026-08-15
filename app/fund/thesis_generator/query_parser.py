@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.fund.thesis_generator.models import Direction
 

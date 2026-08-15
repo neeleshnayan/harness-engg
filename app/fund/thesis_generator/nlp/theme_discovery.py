@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import collections
 import logging
+from typing import Optional
 
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from app.fund.thesis_generator.models import Direction, EvidenceItem
+from app.fund.thesis_generator.nlp.keyword_extractor import KeywordExtractor
 from app.fund.thesis_generator.tickers_data import get_profile_for_ticker
 
 _log = logging.getLogger("clarkharness.thesis.themes")

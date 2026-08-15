@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import urllib.request
-from typing import Optional
+from typing import Any, Optional
 
 from app.fund.thesis_generator.collectors.base import BaseCollector
 from app.fund.thesis_generator.models import DataSourceType, EvidenceItem, FactMetric

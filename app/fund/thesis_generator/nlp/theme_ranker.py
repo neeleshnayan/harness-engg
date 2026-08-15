@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from typing import Optional
 
 from app.fund.thesis_generator.models import DiscoveredTheme, FactMetric
 from app.fund.thesis_generator.nlp.theme_discovery import DiscoveredCluster

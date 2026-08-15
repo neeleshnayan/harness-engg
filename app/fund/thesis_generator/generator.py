@@ -8,6 +8,7 @@ from jinja2 import Template
 from app.fund.thesis_generator.models import (
     DataSourceStatus,
     Direction,
+    DiscoveredTheme,
     EvidenceItem,
     GeneratedThesisResult,
 )
