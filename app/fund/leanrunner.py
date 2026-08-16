@@ -72,6 +72,36 @@ def _clean_parameters(parameters: Optional[dict[str, Any]]) -> dict[str, str]:
     return out
 
 
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _clean_holdout(holdout: Optional[dict[str, str]]) -> Optional[dict[str, str]]:
+    """Validate the two windows, and refuse a test window that starts before
+    training ends — an overlap would leak the answer into the exam."""
+    if not holdout:
+        return None
+    keys = ("train_start", "train_end", "test_start", "test_end")
+    out = {}
+    for k in keys:
+        v = str(holdout.get(k) or "").strip()
+        if not _DATE_RE.match(v):
+            raise LeanError(f"holdout {k} must be YYYY-MM-DD, got {v!r}")
+        out[k] = v
+    if out["train_end"] < out["train_start"] or out["test_end"] < out["test_start"]:
+        raise LeanError("holdout windows must end after they start")
+    if out["test_start"] < out["train_end"]:
+        raise LeanError(
+            "the test window starts before training ends — overlapping windows "
+            "leak the answer into the exam, so the result would mean nothing")
+    return out
+
+
+def _window_of(job: dict[str, Any]) -> Optional[list[str]]:
+    """The dates a run actually covered, per the engine's own equity curve."""
+    dates = ((job.get("result") or {}).get("equity_dates")) or []
+    return [dates[0], dates[-1]] if len(dates) >= 2 else None
+
+
 def _sweep_point(params: dict[str, str], job: dict[str, Any]) -> dict[str, Any]:
     """One grid point, flattened to what a comparison needs."""
     res = job.get("result") or {}
@@ -216,7 +246,8 @@ class LeanRunner:
     # --- sweeps --------------------------------------------------------------
 
     def submit_sweep(self, algorithm: str,
-                     grid: dict[str, list[Any]]) -> dict[str, Any]:
+                     grid: dict[str, list[Any]],
+                     holdout: Optional[dict[str, str]] = None) -> dict[str, Any]:
         """Run one algorithm across a grid of parameters.
 
         The question a single backtest cannot answer. One good parameter set
@@ -246,18 +277,22 @@ class LeanRunner:
                 f"this runs in one go — each point is a full engine run, so a "
                 f"large grid costs minutes. Narrow the grid.")
 
+        holdout = _clean_holdout(holdout)
         sweep_id = uuid.uuid4().hex[:12]
         sweep = {
             "sweep_id": sweep_id, "algorithm": algorithm, "grid": clean,
             "state": "running", "submitted_at": _now(), "finished_at": None,
-            "total": len(combos), "completed": 0,
+            # +1 for the held-out run of the winner.
+            "total": len(combos) + (1 if holdout else 0), "completed": 0,
             "points": [], "error": None,
+            "holdout": dict(holdout) if holdout else None,
+            "holdout_result": None,
         }
         with self._lock:
             self._sweeps[sweep_id] = sweep
         threading.Thread(target=self._run_sweep, args=(sweep_id, combos),
                          daemon=True).start()
-        return {"sweep_id": sweep_id, "state": "running", "total": len(combos)}
+        return {"sweep_id": sweep_id, "state": "running", "total": sweep["total"]}
 
     def sweep(self, sweep_id: str) -> dict[str, Any]:
         with self._lock:
@@ -267,32 +302,89 @@ class LeanRunner:
                             f"a restart; re-run")
         return dict(s)
 
+    def _run_point(self, algorithm: str, params: dict[str, str]) -> dict[str, Any]:
+        """One engine run, waited out. Sequential on purpose: each point is a
+        full container, and running the grid in parallel would have them
+        fighting for the same cores — same wall time, different failures."""
+        job_id = self.submit_backtest(algorithm, params)["job_id"]
+        deadline = time.monotonic() + JOB_TIMEOUT_S + 60
+        while time.monotonic() < deadline:
+            j = self.job(job_id)
+            if j["state"] in ("done", "failed"):
+                return j
+            time.sleep(1.0)
+        return {"state": "failed", "error": "point outlasted its deadline"}
+
     def _run_sweep(self, sweep_id: str, combos: list[dict[str, str]]) -> None:
         sweep = self._sweeps[sweep_id]
+        holdout = sweep.get("holdout")
         try:
             for params in combos:
-                job_id = self.submit_backtest(sweep["algorithm"], params)["job_id"]
-                # Sequential on purpose: each point is a full engine container,
-                # and running the grid in parallel would have them fighting for
-                # the same cores — the wall time is the same, the failures are
-                # not.
-                deadline = time.monotonic() + JOB_TIMEOUT_S + 60
-                while time.monotonic() < deadline:
-                    j = self.job(job_id)
-                    if j["state"] in ("done", "failed"):
-                        break
-                    time.sleep(1.0)
-                else:
-                    j = {"state": "failed", "error": "point outlasted its deadline"}
-                sweep["points"].append(_sweep_point(params, j))
+                run_params = dict(params)
+                if holdout:
+                    run_params["start"] = holdout["train_start"]
+                    run_params["end"] = holdout["train_end"]
+                j = self._run_point(sweep["algorithm"], run_params)
+                point = _sweep_point(params, j)
+                point["window"] = _window_of(j)
+                sweep["points"].append(point)
                 sweep["completed"] = len(sweep["points"])
+
+            sweep["summary"] = _sweep_summary(sweep["points"])
+            if holdout:
+                sweep["holdout_result"] = self._run_holdout(sweep, holdout)
+                sweep["completed"] = sweep["total"]
             sweep["state"] = "done"
         except Exception as e:  # noqa: BLE001
             sweep["state"] = "failed"
             sweep["error"] = f"{type(e).__name__}: {e}"[:400]
         finally:
             sweep["finished_at"] = _now()
-            sweep["summary"] = _sweep_summary(sweep["points"])
+            sweep.setdefault("summary", _sweep_summary(sweep["points"]))
+
+    def _run_holdout(self, sweep: dict[str, Any],
+                     holdout: dict[str, str]) -> dict[str, Any]:
+        """Run the grid's winner on data it was NOT chosen on.
+
+        This is the only test that can catch the fit. Choosing the best of
+        twenty-four settings on one window guarantees a good number on that
+        window — the question is whether it survives contact with data that had
+        no vote in its selection. A strategy that halves out of sample was
+        fitted; one that holds up has earned a second look.
+        """
+        best = (sweep.get("summary") or {}).get("best")
+        if not best:
+            return {"state": "skipped",
+                    "reason": "no point scored on the training window"}
+        params = dict(best["parameters"])
+        j = self._run_point(sweep["algorithm"],
+                            {**params, "start": holdout["test_start"],
+                             "end": holdout["test_end"]})
+        point = _sweep_point(params, j)
+        point["window"] = _window_of(j)
+
+        train_window = next((p.get("window") for p in sweep["points"]
+                             if p.get("parameters") == params and p.get("window")), None)
+        # The guard that keeps this honest. If the algorithm ignores the start
+        # and end parameters, both runs cover the SAME dates and the "held-out"
+        # number is just the training number again — a validation that validates
+        # nothing, which is worse than no validation at all because it reassures.
+        honoured = bool(train_window and point["window"]
+                        and train_window != point["window"])
+        return {
+            "state": "done" if j.get("state") == "done" else "failed",
+            "parameters": params,
+            "train": {"window": train_window,
+                      "return_pct": best.get("total_return_pct"),
+                      "sharpe": best.get("sharpe")},
+            "test": {"window": point["window"],
+                     "return_pct": point.get("total_return_pct"),
+                     "sharpe": point.get("sharpe"),
+                     "psr_pct": point.get("psr_pct"),
+                     "total_orders": point.get("total_orders")},
+            "dates_honoured": honoured,
+            "error": point.get("error"),
+        }
 
     # --- the engine run ------------------------------------------------------
 

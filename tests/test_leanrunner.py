@@ -396,3 +396,111 @@ def test_failed_points_do_not_poison_the_summary(tmp_path):
     assert s["state"] == "done"
     assert all(p["state"] == "failed" for p in s["points"])
     assert s["summary"]["scored"] == 0
+
+
+# --- holdout: the only test that catches the fit ----------------------------
+
+#: Fake docker that honours start/end by reporting a DIFFERENT equity window
+#: per run, and scores by `fast`. Lets a test prove the winner was re-run on
+#: dates it was not chosen on.
+FAKE_WINDOWED = r"""
+import json, sys
+res = next(a.rsplit(":", 1)[0] for a in sys.argv if a.endswith(":/Results"))
+params = {}
+if "--parameters" in sys.argv:
+    for pair in sys.argv[sys.argv.index("--parameters") + 1].split(","):
+        k, _, v = pair.partition(":")
+        params[k] = v
+fast = float(params.get("fast", 0))
+start, end = params.get("start", "2025-01-01"), params.get("end", "2025-06-30")
+# Out of sample the edge collapses: the fit does not survive new data.
+ret = fast if start.startswith("2025") else fast / 10.0
+json.dump({
+    "statistics": {"Net Profit": "%s%%" % ret, "Sharpe Ratio": "1.0",
+                   "Drawdown": "5.0%", "Total Orders": "4"},
+    "charts": {"Strategy Equity": {"series": {"Equity": {"values": [
+        [__import__("calendar").timegm(__import__("time").strptime(start, "%Y-%m-%d")), 1000.0],
+        [__import__("calendar").timegm(__import__("time").strptime(end, "%Y-%m-%d")), 1000.0 + ret],
+    ]}}}},
+}, open(res + "/SmokeAlgo.json", "w"))
+"""
+
+#: Same, but IGNORES start/end — every run covers identical dates. This is the
+#: algorithm that makes a holdout meaningless without anyone noticing.
+FAKE_IGNORES_DATES = FAKE_WINDOWED.replace(
+    'start, end = params.get("start", "2025-01-01"), params.get("end", "2025-06-30")',
+    'start, end = "2025-01-01", "2025-06-30"')
+
+HOLDOUT = {"train_start": "2025-01-01", "train_end": "2025-06-30",
+           "test_start": "2026-01-01", "test_end": "2026-06-30"}
+
+
+def test_the_winner_is_re_run_on_dates_it_was_not_chosen_on(tmp_path):
+    r = _runner(tmp_path, FAKE_WINDOWED)
+    r.save_algorithm("smoke", ALGO)
+    sub = r.submit_sweep("smoke", {"fast": ["5", "30"]}, holdout=HOLDOUT)
+    assert sub["total"] == 3          # two grid points plus the held-out run
+    s = _wait_sweep(r, sub["sweep_id"])
+    h = s["holdout_result"]
+    assert h["state"] == "done"
+    assert h["parameters"] == {"fast": "30"}          # the grid's winner
+    assert h["train"]["return_pct"] == 30.0
+    assert h["test"]["return_pct"] == 3.0             # collapses out of sample
+    assert h["train"]["window"] != h["test"]["window"]
+    assert h["dates_honoured"] is True
+
+
+def test_an_algorithm_that_ignores_the_window_is_caught(tmp_path):
+    """A 'validation' that silently re-ran the training window is worse than
+    none, because it reassures. The runs must cover different dates."""
+    r = _runner(tmp_path, FAKE_IGNORES_DATES)
+    r.save_algorithm("smoke", ALGO)
+    s = _wait_sweep(r, r.submit_sweep("smoke", {"fast": ["5", "30"]},
+                                      holdout=HOLDOUT)["sweep_id"])
+    h = s["holdout_result"]
+    assert h["dates_honoured"] is False
+    assert h["train"]["window"] == h["test"]["window"]
+
+
+def test_overlapping_windows_are_refused(tmp_path):
+    r = _runner(tmp_path, FAKE_WINDOWED)
+    r.save_algorithm("smoke", ALGO)
+    with pytest.raises(LeanError, match="leak the answer"):
+        r.submit_sweep("smoke", {"fast": ["5"]}, holdout={
+            "train_start": "2025-01-01", "train_end": "2025-12-31",
+            "test_start": "2025-06-01", "test_end": "2026-06-30"})
+
+
+def test_malformed_holdout_dates_are_refused(tmp_path):
+    r = _runner(tmp_path, FAKE_WINDOWED)
+    r.save_algorithm("smoke", ALGO)
+    with pytest.raises(LeanError, match="YYYY-MM-DD"):
+        r.submit_sweep("smoke", {"fast": ["5"]}, holdout={
+            "train_start": "jan 2025", "train_end": "2025-12-31",
+            "test_start": "2026-01-01", "test_end": "2026-06-30"})
+
+
+def test_backwards_window_is_refused(tmp_path):
+    r = _runner(tmp_path, FAKE_WINDOWED)
+    r.save_algorithm("smoke", ALGO)
+    with pytest.raises(LeanError, match="end after they start"):
+        r.submit_sweep("smoke", {"fast": ["5"]}, holdout={
+            "train_start": "2025-12-31", "train_end": "2025-01-01",
+            "test_start": "2026-01-01", "test_end": "2026-06-30"})
+
+
+def test_a_sweep_without_holdout_still_works(tmp_path):
+    r = _runner(tmp_path, FAKE_WINDOWED)
+    r.save_algorithm("smoke", ALGO)
+    s = _wait_sweep(r, r.submit_sweep("smoke", {"fast": ["5", "30"]})["sweep_id"])
+    assert s["state"] == "done"
+    assert s["holdout_result"] is None
+    assert s["summary"]["scored"] == 2
+
+
+def test_holdout_skipped_when_nothing_scored(tmp_path):
+    r = _runner(tmp_path, FAKE_FAIL)
+    r.save_algorithm("smoke", ALGO)
+    s = _wait_sweep(r, r.submit_sweep("smoke", {"fast": ["5"]},
+                                      holdout=HOLDOUT)["sweep_id"])
+    assert s["holdout_result"]["state"] == "skipped"

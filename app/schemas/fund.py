@@ -40,6 +40,12 @@ class LeanSweepRequest(BaseModel):
     algorithm: str = Field(..., description="A saved algorithm's name")
     grid: Dict[str, List[str]] = Field(
         ..., description='e.g. {"fast": ["10","20"], "slow": ["50","100"]}')
+    holdout: Optional[Dict[str, str]] = Field(
+        None,
+        description="train_start/train_end/test_start/test_end (YYYY-MM-DD). "
+                    "The grid is run on the training window and the winner is "
+                    "then run on the test window it was not chosen on. The "
+                    "algorithm must read start/end via get_parameter.")
 
 
 class ExternalSignalRequest(BaseModel):

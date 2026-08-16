@@ -871,7 +871,7 @@ def lean_submit_sweep(req: LeanSweepRequest):
     """
     from app.fund.leanrunner import LeanError
     try:
-        return _lean().submit_sweep(req.algorithm, req.grid)
+        return _lean().submit_sweep(req.algorithm, req.grid, req.holdout)
     except LeanError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
