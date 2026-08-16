@@ -15,7 +15,7 @@ from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel
 
 from app.fund.connectors.alpaca import AlpacaConnector
@@ -1294,12 +1294,23 @@ def run_backtest(strategy_id: str, req: BacktestRunRequest):
 @router.get("/fund/marketdata/bars")
 def get_bars(symbol: str = Query(..., min_length=1, max_length=12),
              lookback_days: int = Query(180, gt=1, le=2000),
-             start_date: str | None = Query(None), end_date: str | None = Query(None)):
-    """Free daily bars for a symbol (crypto→CoinGecko, else Alpaca/Yahoo) — for charts."""
+             start_date: str | None = Query(None), end_date: str | None = Query(None),
+             format: str = Query("json", pattern="^(json|csv)$")):
+    """Free daily bars for a symbol (crypto→CoinGecko, else Alpaca/Yahoo).
+
+    ``format=csv`` streams one ``date,close`` line per bar — the shape LEAN's
+    remote-file reader expects: it iterates LINES as data points, so a JSON
+    blob reads as exactly one bar (the smoke test processed 1 data point of a
+    155-bar history before this existed).
+    """
     try:
         bars = fetch_daily_bars(symbol, lookback_days=lookback_days, start=start_date, end=end_date)
     except BarsError as e:
         raise HTTPException(status_code=422, detail=str(e))
+    if format == "csv":
+        dates = bars.dates or []
+        lines = "\n".join(f"{d},{c}" for d, c in zip(dates, bars.closes))
+        return Response(content=lines, media_type="text/csv")
     return {"symbol": bars.symbol, "source": bars.source,
             "closes": bars.closes, "dates": bars.dates,
             "start": bars.start, "end": bars.end}
