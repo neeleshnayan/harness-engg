@@ -3,6 +3,7 @@
 import React from "react";
 import { StudioHeader } from "../components/StudioHeader";
 import { LeanLab } from "../components/LeanLab";
+import { HuntingGround } from "../components/HuntingGround";
 
 /**
  * LAB — the strategy desk.
@@ -29,6 +30,9 @@ export default function LabPage() {
     <div className="bg-[var(--kt-bg)] text-[var(--kt-text)] min-h-screen">
       <StudioHeader subtitle="Write a strategy, run it on the engine of record — nothing here is registered or persisted" />
       <div className="mx-auto max-w-[1600px] px-6 pb-10">
+        {/* Where to look, before what to test. The fund's whole book sits
+            outside this list, which is the argument for putting it first. */}
+        <HuntingGround />
         <LeanLab />
       </div>
     </div>

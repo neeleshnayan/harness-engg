@@ -35,6 +35,19 @@ export interface LeanRunResult {
   orders?: LeanOrder[];
   statistics?: Record<string, string>;
   robustness?: LeanRobustness | null;
+  capacity?: LeanCapacity | null;
+}
+
+export interface LeanCapacity {
+  symbol?: string;
+  adv_usd?: number | null;
+  capacity_usd?: number | null;
+  participation?: number;
+  thin_market?: boolean;
+  below_big_fund_floor?: boolean;
+  verdict?: string;
+  assumption?: string;
+  reason?: string;
 }
 
 export interface LeanRobustness {
@@ -179,6 +192,69 @@ function Robustness({ rb }: { rb: LeanRobustness }) {
   );
 }
 
+const money = (n?: number | null) =>
+  n == null ? "—"
+    : n >= 1e9 ? `$${(n / 1e9).toFixed(1)}bn`
+    : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}m`
+    : `$${(n / 1e3).toFixed(0)}k`;
+
+/**
+ * How much money this could ever hold — and why a small answer is good news.
+ *
+ * The instinct on seeing a low number is that something is wrong. Here it is
+ * usually the opposite: a strategy with $400k of capacity is invisible to a
+ * multi-billion fund, and that is the only structural protection a fund this
+ * size has. A capacity in the billions means the opposite — everyone can be
+ * here, and something other than size has to be protecting the edge.
+ */
+function Capacity({ cap }: { cap: LeanCapacity }) {
+  if (cap.capacity_usd == null) {
+    return (
+      <div className={`${KT.panel} px-5 py-3`}>
+        <span className={KT.label}>Capacity</span>
+        <p className={`mt-1 text-[11px] ${KT.muted}`}>{cap.reason ?? "not estimated"}</p>
+      </div>
+    );
+  }
+  const good = cap.below_big_fund_floor && !cap.thin_market;
+  return (
+    <div className={KT.panel}>
+      <div className="border-b border-[var(--kt-border)] px-5 py-3">
+        <span className={KT.label}>How much money could this hold?</span>
+      </div>
+      <div className="grid grid-cols-1 gap-4 px-5 py-4 sm:grid-cols-3">
+        <div>
+          <div className={KT.label}>Capacity</div>
+          <div className={`mt-1 font-mono tabular-nums text-xl font-light ${good ? KT.up : ""}`}>
+            {money(cap.capacity_usd)}
+          </div>
+          <div className={`mt-1 text-[10px] ${KT.muted}`}>{cap.symbol}</div>
+        </div>
+        <div>
+          <div className={KT.label}>Daily volume</div>
+          <div className="mt-1 font-mono tabular-nums text-xl font-light">
+            {money(cap.adv_usd)}
+          </div>
+          <div className={`mt-1 text-[10px] ${KT.muted}`}>median dollar ADV</div>
+        </div>
+        <div>
+          <div className={KT.label}>Our headroom</div>
+          <div className="mt-1 font-mono tabular-nums text-xl font-light">
+            {cap.capacity_usd ? `${((2026.86 / cap.capacity_usd) * 100).toFixed(4)}%` : "—"}
+          </div>
+          <div className={`mt-1 text-[10px] ${KT.muted}`}>of capacity used at current NAV</div>
+        </div>
+      </div>
+      {cap.verdict && (
+        <p className={`px-5 pb-3 text-[11px] ${good ? KT.up : KT.muted}`}>{cap.verdict}</p>
+      )}
+      {cap.assumption && (
+        <p className={`px-5 pb-4 text-[10px] ${KT.muted}`}>{cap.assumption}</p>
+      )}
+    </div>
+  );
+}
+
 export function LeanResults({
   result,
   algorithm,
@@ -270,6 +346,9 @@ export function LeanResults({
 
       {/* --- can it be believed, before it is worth owning --- */}
       {r.robustness && <Robustness rb={r.robustness} />}
+
+      {/* --- how much money it could ever hold --- */}
+      {r.capacity && <Capacity cap={r.capacity} />}
 
       {/* --- is it worth owning: alpha vs beta, and the fit with the book --- */}
       {curve.length >= 2 && dates.length >= 2 && (

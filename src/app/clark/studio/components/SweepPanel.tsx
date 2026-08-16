@@ -75,6 +75,97 @@ const f2 = (n?: number | null) => (n == null ? "—" : n.toFixed(2));
 const win = (w?: string[] | null) => (w && w.length === 2 ? `${w[0]} → ${w[1]}` : "—");
 
 /**
+ * The bar, applied — and the reason this is a panel rather than a badge.
+ *
+ * The gate returns SENTENCES, not a score, because a score invites
+ * negotiation: 0.61 is nearly 0.65. "The edge did not survive data it was not
+ * chosen on" does not negotiate. So the failures are rendered verbatim and in
+ * full, never summarised to a count and never softened — summarising them here
+ * would undo the whole reason the gate returns prose.
+ *
+ * A pass is deliberately worded as "worth a human look", which is a much
+ * weaker claim than "deploy it", and the button does not offer to deploy
+ * anything.
+ */
+function GateVerdict({ sweepId, algorithm }: { sweepId: string; algorithm: string }) {
+  const [verdict, setVerdict] = useState<{
+    passed?: boolean; failures?: string[]; verdict?: string;
+    gate_version?: string; parameters?: Record<string, string>;
+  } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const judge = useCallback(async () => {
+    setBusy(true); setErr(null); setVerdict(null);
+    try {
+      const started = (await fundApi.post(`/api/v1/fund/lean/gate/${sweepId}`, {})).data;
+      const jobId = started.verify_job_id;
+      // The winner is re-run in full: the sweep's own rows are trimmed for
+      // comparison and carry no costs disclosure, benchmark or capacity, which
+      // is most of what the bar is about.
+      for (let i = 0; i < 60; i++) {
+        await new Promise((r) => setTimeout(r, 3000));
+        const j = (await fundApi.get(`/api/v1/fund/lean/backtests/${jobId}`)).data;
+        if (j.state === "failed") throw new Error(`verification failed: ${j.error}`);
+        if (j.state === "done") {
+          setVerdict((await fundApi.post(
+            `/api/v1/fund/lean/gate/judge/${jobId}?sweep_id=${sweepId}`, {})).data);
+          return;
+        }
+      }
+      setErr("verification still running — the verdict is not ready");
+    } catch (e: unknown) {
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setErr(detail ?? String(e));
+    } finally {
+      setBusy(false);
+    }
+  }, [sweepId]);
+
+  return (
+    <div className="border-t border-[var(--kt-border)] px-5 py-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <div>
+          <span className={KT.label}>The bar</span>
+          <div className={`mt-1 text-[11px] ${KT.muted}`}>
+            Fixed before the result was known, and applied identically to
+            everything.
+          </div>
+        </div>
+        <button onClick={judge} disabled={busy}
+                className={`ml-auto flex h-9 items-center gap-1.5 ${KT.btnGhost} disabled:opacity-40`}>
+          {busy ? <Loader2 size={14} className="animate-spin" /> : null}
+          {busy ? "Verifying the winner…" : `Judge ${algorithm}`}
+        </button>
+      </div>
+
+      {err && <div className={`mt-3 text-[11px] ${KT.down}`}>{err}</div>}
+
+      {verdict && (
+        <div className="mt-3">
+          <div className={`font-mono text-[13px] ${verdict.passed ? KT.up : KT.down}`}>
+            {verdict.passed ? "CLEARS THE BAR" : "FAILS THE BAR"}
+            <span className={`ml-3 text-[10px] ${KT.muted}`}>{verdict.gate_version}</span>
+          </div>
+          {(verdict.failures?.length ?? 0) > 0 && (
+            <ul className="mt-2 space-y-1.5">
+              {verdict.failures!.map((f, i) => (
+                <li key={i} className={`text-[11px] ${KT.down}`}>— {f}</li>
+              ))}
+            </ul>
+          )}
+          <p className={`mt-2 text-[10px] ${KT.muted}`}>
+            {verdict.passed
+              ? "Clearing the bar means worth a human look. It is not a recommendation to deploy, and nothing here places an order."
+              : "Every criterion is checked, so this is the whole picture rather than the first objection."}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * Did the winner survive data it was not chosen on?
  *
  * Picking the best of N settings on one window guarantees a good number on
@@ -310,6 +401,10 @@ export function SweepPanel({ algorithm, disabled }: { algorithm: string; disable
             </p>
           )}
         </div>
+      )}
+
+      {sweep?.state === "done" && (
+        <GateVerdict sweepId={sweep.sweep_id} algorithm={algorithm} />
       )}
 
       {sweep?.holdout_result && <Holdout h={sweep.holdout_result} />}
