@@ -274,3 +274,125 @@ def test_unparsable_statistics_are_unknown_not_zero():
     from app.fund.leanrunner import _robustness
     rb = _robustness({"Probabilistic Sharpe Ratio": "n/a"}, [], [], [])
     assert rb["psr_pct"] is None
+
+
+# --- sweeps: is the good cell an island or a plateau? -----------------------
+
+#: Fake docker that ECHOES the parameter it was given into the return, so a
+#: test can prove each grid point actually reached the engine with its own
+#: values — the failure this guards is a sweep where every point silently ran
+#: identical parameters and the grid looked flat for the wrong reason.
+FAKE_PARAMS = r"""
+import json, sys
+res = next(a.rsplit(":", 1)[0] for a in sys.argv if a.endswith(":/Results"))
+params = {}
+if "--parameters" in sys.argv:
+    raw = sys.argv[sys.argv.index("--parameters") + 1]
+    for pair in raw.split(","):
+        k, _, v = pair.partition(":")
+        params[k] = v
+fast = float(params.get("fast", 0))
+json.dump({
+    "statistics": {"Net Profit": "%s%%" % fast, "Sharpe Ratio": "1.0",
+                   "Drawdown": "5.0%", "Total Orders": "4",
+                   "Probabilistic Sharpe Ratio": "60.0%"},
+    "charts": {"Strategy Equity": {"series": {"Equity": {"values":
+        [[1, 1000.0], [2, 1000.0 + fast]]}}}},
+}, open(res + "/SmokeAlgo.json", "w"))
+"""
+
+
+def _wait_sweep(r: LeanRunner, sweep_id: str, timeout=60.0) -> dict:
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        s = r.sweep(sweep_id)
+        if s["state"] in ("done", "failed"):
+            return s
+        time.sleep(0.05)
+    raise AssertionError("sweep never finished")
+
+
+def test_each_grid_point_runs_with_its_own_parameters(tmp_path):
+    r = _runner(tmp_path, FAKE_PARAMS)
+    r.save_algorithm("smoke", ALGO)
+    sub = r.submit_sweep("smoke", {"fast": ["5", "10", "20"]})
+    assert sub["total"] == 3
+    s = _wait_sweep(r, sub["sweep_id"])
+    assert s["state"] == "done"
+    got = {p["parameters"]["fast"]: p["total_return_pct"] for p in s["points"]}
+    assert got == {"5": 5.0, "10": 10.0, "20": 20.0}
+
+
+def test_grid_is_the_cartesian_product(tmp_path):
+    r = _runner(tmp_path, FAKE_PARAMS)
+    r.save_algorithm("smoke", ALGO)
+    sub = r.submit_sweep("smoke", {"fast": ["5", "10"], "slow": ["50", "100"]})
+    assert sub["total"] == 4
+    s = _wait_sweep(r, sub["sweep_id"])
+    combos = {(p["parameters"]["fast"], p["parameters"]["slow"]) for p in s["points"]}
+    assert combos == {("5", "50"), ("5", "100"), ("10", "50"), ("10", "100")}
+
+
+def test_summary_reports_the_neighbourhood_not_just_the_winner(tmp_path):
+    """Reporting only the best cell is how a fit gets promoted. The gap between
+    best and median is the signature the operator needs to see."""
+    r = _runner(tmp_path, FAKE_PARAMS)
+    r.save_algorithm("smoke", ALGO)
+    s = _wait_sweep(r, r.submit_sweep("smoke", {"fast": ["1", "2", "30"]})["sweep_id"])
+    summary = s["summary"]
+    assert summary["scored"] == 3
+    assert summary["best_return_pct"] == 30.0
+    assert summary["median_return_pct"] == 2.0
+    assert summary["worst_return_pct"] == 1.0
+    assert summary["best_minus_median_pct"] == 28.0   # an island, not a plateau
+    assert summary["best"]["parameters"]["fast"] == "30"
+    assert summary["positive_share"] == 1.0
+
+
+def test_a_grid_bigger_than_the_cap_is_refused_with_the_reason(tmp_path):
+    r = _runner(tmp_path, FAKE_PARAMS)
+    r.save_algorithm("smoke", ALGO)
+    with pytest.raises(LeanError, match="Narrow the grid"):
+        r.submit_sweep("smoke", {"a": [str(i) for i in range(5)],
+                                 "b": [str(i) for i in range(6)]})
+
+
+def test_parameter_values_cannot_smuggle_a_separator(tmp_path):
+    """LEAN packs the whole grid point into one comma-separated flag, so a
+    value containing ',' or ':' would silently become other parameters."""
+    r = _runner(tmp_path, FAKE_PARAMS)
+    r.save_algorithm("smoke", ALGO)
+    with pytest.raises(LeanError, match="cannot contain"):
+        r.submit_sweep("smoke", {"fast": ["10,slow:99"]})
+
+
+def test_bad_parameter_name_is_refused(tmp_path):
+    r = _runner(tmp_path, FAKE_PARAMS)
+    r.save_algorithm("smoke", ALGO)
+    with pytest.raises(LeanError, match="bad parameter name"):
+        r.submit_sweep("smoke", {"fast period": ["10"]})
+
+
+def test_empty_grid_is_refused(tmp_path):
+    r = _runner(tmp_path, FAKE_PARAMS)
+    r.save_algorithm("smoke", ALGO)
+    with pytest.raises(LeanError, match="no parameters"):
+        r.submit_sweep("smoke", {})
+    with pytest.raises(LeanError, match="no values"):
+        r.submit_sweep("smoke", {"fast": []})
+
+
+def test_unknown_sweep_says_sweeps_do_not_survive_restart(tmp_path):
+    r = _runner(tmp_path, FAKE_PARAMS)
+    with pytest.raises(LeanError, match="re-run"):
+        r.sweep("nope")
+
+
+def test_failed_points_do_not_poison_the_summary(tmp_path):
+    """A point that failed is not a zero-return point — it is unscored."""
+    r = _runner(tmp_path, FAKE_FAIL)
+    r.save_algorithm("smoke", ALGO)
+    s = _wait_sweep(r, r.submit_sweep("smoke", {"fast": ["5", "10"]})["sweep_id"])
+    assert s["state"] == "done"
+    assert all(p["state"] == "failed" for p in s["points"])
+    assert s["summary"]["scored"] == 0

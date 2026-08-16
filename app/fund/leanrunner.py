@@ -17,6 +17,7 @@ reach the venue (no keys).
 
 from __future__ import annotations
 
+import itertools
 import json
 import logging
 import os
@@ -39,8 +40,84 @@ _CLASS_RE = re.compile(r"class\s+(\w+)\s*\(\s*QCAlgorithm\s*\)")
 _NAME_RE = re.compile(r"^[a-z0-9_\-]{1,64}$")
 
 
+#: Each sweep point is a full engine container (~10s), so a grid is minutes,
+#: not seconds. The cap is a guard against a five-parameter grid nobody meant
+#: to ask for.
+MAX_SWEEP_POINTS = int(os.getenv("LEAN_MAX_SWEEP_POINTS", "24"))
+
+_PARAM_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_\-]{0,31}$")
+
+
 class LeanError(Exception):
     pass
+
+
+def _param_value(v: Any) -> str:
+    """LEAN packs the grid point into one comma-separated flag, so a value
+    containing a comma or colon would silently split into other parameters."""
+    s = str(v).strip()
+    if not s:
+        raise LeanError("empty parameter value")
+    if "," in s or ":" in s:
+        raise LeanError(f"parameter value {s!r} cannot contain ',' or ':'")
+    return s
+
+
+def _clean_parameters(parameters: Optional[dict[str, Any]]) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for k, v in (parameters or {}).items():
+        if not _PARAM_KEY_RE.match(str(k)):
+            raise LeanError(f"bad parameter name {k!r}")
+        out[str(k)] = _param_value(v)
+    return out
+
+
+def _sweep_point(params: dict[str, str], job: dict[str, Any]) -> dict[str, Any]:
+    """One grid point, flattened to what a comparison needs."""
+    res = job.get("result") or {}
+    rb = res.get("robustness") or {}
+    return {
+        "parameters": dict(params),
+        "state": job.get("state"),
+        "error": job.get("error"),
+        "total_return_pct": res.get("total_return_pct"),
+        "sharpe": res.get("sharpe"),
+        "max_drawdown_pct": res.get("max_drawdown_pct"),
+        "psr_pct": rb.get("psr_pct"),
+        "total_orders": rb.get("total_orders"),
+    }
+
+
+def _sweep_summary(points: list[dict[str, Any]]) -> dict[str, Any]:
+    """Island or plateau — the only question a sweep exists to answer.
+
+    A grid where one cell shines and its neighbours lose is a fit to this
+    particular history. A grid where most of the neighbourhood works may hold
+    something real. Reporting only the best cell hides exactly this, and the
+    best cell is the one an operator will otherwise reach for.
+    """
+    scored = [p for p in points
+              if p.get("state") == "done" and p.get("total_return_pct") is not None]
+    if not scored:
+        return {"scored": 0}
+    returns = sorted(p["total_return_pct"] for p in scored)
+    mid = len(returns) // 2
+    median = (returns[mid] if len(returns) % 2
+              else (returns[mid - 1] + returns[mid]) / 2)
+    best = max(scored, key=lambda p: p["total_return_pct"])
+    positive = sum(1 for r in returns if r > 0)
+    return {
+        "scored": len(scored),
+        "failed": len(points) - len(scored),
+        "best": best,
+        "best_return_pct": round(returns[-1], 2),
+        "median_return_pct": round(median, 2),
+        "worst_return_pct": round(returns[0], 2),
+        "positive_share": round(positive / len(returns), 3),
+        # The best point standing far above the median is the signature of a
+        # fit: the neighbourhood does not support it.
+        "best_minus_median_pct": round(returns[-1] - median, 2),
+    }
 
 
 def _now() -> str:
@@ -62,6 +139,7 @@ class LeanRunner:
         # Injectable for tests: replaces ["docker"] with a fake executable.
         self._docker = docker_cmd or ["docker"]
         self._jobs: dict[str, dict[str, Any]] = {}
+        self._sweeps: dict[str, dict[str, Any]] = {}
         self._lock = threading.Lock()
 
     # --- algorithms ---------------------------------------------------------
@@ -100,16 +178,19 @@ class LeanRunner:
 
     # --- jobs ----------------------------------------------------------------
 
-    def submit_backtest(self, algorithm: str) -> dict[str, Any]:
+    def submit_backtest(self, algorithm: str,
+                        parameters: Optional[dict[str, Any]] = None) -> dict[str, Any]:
         algo = self.get_algorithm(algorithm)  # raises on unknown
         m = _CLASS_RE.search(algo["code"])
         if not m:
             raise LeanError("algorithm lost its QCAlgorithm class")
+        parameters = _clean_parameters(parameters)
         job_id = uuid.uuid4().hex[:12]
         job = {
             "job_id": job_id, "algorithm": algorithm, "class_name": m.group(1),
             "state": "queued", "submitted_at": _now(),
             "started_at": None, "finished_at": None,
+            "parameters": parameters,
             "error": None, "result": None, "log_tail": [],
         }
         with self._lock:
@@ -131,6 +212,87 @@ class LeanRunner:
                 for j in sorted(self._jobs.values(),
                                 key=lambda x: x["submitted_at"], reverse=True)
             ]
+
+    # --- sweeps --------------------------------------------------------------
+
+    def submit_sweep(self, algorithm: str,
+                     grid: dict[str, list[Any]]) -> dict[str, Any]:
+        """Run one algorithm across a grid of parameters.
+
+        The question a single backtest cannot answer. One good parameter set
+        proves nothing — the neighbourhood is what matters. If the winner sits
+        alone among losers it is a fit to this history; if its neighbours are
+        also decent, there may be something there. Reading one number tells
+        you which of those you have only by luck.
+        """
+        self.get_algorithm(algorithm)  # raises on unknown
+        if not grid:
+            raise LeanError("no parameters to sweep")
+        clean: dict[str, list[str]] = {}
+        for key, values in grid.items():
+            if not _PARAM_KEY_RE.match(str(key)):
+                raise LeanError(f"bad parameter name {key!r}")
+            vals = [_param_value(v) for v in (values or [])]
+            if not vals:
+                raise LeanError(f"parameter {key!r} has no values to try")
+            clean[str(key)] = vals
+
+        names = list(clean)
+        combos = [dict(zip(names, vals))
+                  for vals in itertools.product(*(clean[n] for n in names))]
+        if len(combos) > MAX_SWEEP_POINTS:
+            raise LeanError(
+                f"{len(combos)} combinations is more than the {MAX_SWEEP_POINTS} "
+                f"this runs in one go — each point is a full engine run, so a "
+                f"large grid costs minutes. Narrow the grid.")
+
+        sweep_id = uuid.uuid4().hex[:12]
+        sweep = {
+            "sweep_id": sweep_id, "algorithm": algorithm, "grid": clean,
+            "state": "running", "submitted_at": _now(), "finished_at": None,
+            "total": len(combos), "completed": 0,
+            "points": [], "error": None,
+        }
+        with self._lock:
+            self._sweeps[sweep_id] = sweep
+        threading.Thread(target=self._run_sweep, args=(sweep_id, combos),
+                         daemon=True).start()
+        return {"sweep_id": sweep_id, "state": "running", "total": len(combos)}
+
+    def sweep(self, sweep_id: str) -> dict[str, Any]:
+        with self._lock:
+            s = self._sweeps.get(sweep_id)
+        if s is None:
+            raise LeanError(f"unknown sweep {sweep_id!r} — sweeps do not survive "
+                            f"a restart; re-run")
+        return dict(s)
+
+    def _run_sweep(self, sweep_id: str, combos: list[dict[str, str]]) -> None:
+        sweep = self._sweeps[sweep_id]
+        try:
+            for params in combos:
+                job_id = self.submit_backtest(sweep["algorithm"], params)["job_id"]
+                # Sequential on purpose: each point is a full engine container,
+                # and running the grid in parallel would have them fighting for
+                # the same cores — the wall time is the same, the failures are
+                # not.
+                deadline = time.monotonic() + JOB_TIMEOUT_S + 60
+                while time.monotonic() < deadline:
+                    j = self.job(job_id)
+                    if j["state"] in ("done", "failed"):
+                        break
+                    time.sleep(1.0)
+                else:
+                    j = {"state": "failed", "error": "point outlasted its deadline"}
+                sweep["points"].append(_sweep_point(params, j))
+                sweep["completed"] = len(sweep["points"])
+            sweep["state"] = "done"
+        except Exception as e:  # noqa: BLE001
+            sweep["state"] = "failed"
+            sweep["error"] = f"{type(e).__name__}: {e}"[:400]
+        finally:
+            sweep["finished_at"] = _now()
+            sweep["summary"] = _sweep_summary(sweep["points"])
 
     # --- the engine run ------------------------------------------------------
 
@@ -154,6 +316,13 @@ class LeanRunner:
             "--results-destination-folder", "/Results",
             "--close-automatically", "true",
         ]
+        # LEAN takes the whole grid point in ONE --parameters flag, comma
+        # separated. Repeating the flag silently keeps only the first pair —
+        # which would run a sweep where every point had the same slow period
+        # and nobody would know.
+        if job.get("parameters"):
+            cmd += ["--parameters",
+                    ",".join(f"{k}:{v}" for k, v in job["parameters"].items())]
         job["state"] = "running"
         job["started_at"] = _now()
         t0 = time.monotonic()

@@ -68,6 +68,7 @@ from app.schemas.fund import (
     ExternalSignalRequest,
     LeanAlgorithmRequest,
     LeanBacktestRequest,
+    LeanSweepRequest,
     ProposeOrderRequest,
     RedeemRequest,
     RiskHaltRequest,
@@ -856,7 +857,30 @@ def lean_submit_backtest(req: LeanBacktestRequest):
     """Run a saved algorithm through the engine. Async: poll the job."""
     from app.fund.leanrunner import LeanError
     try:
-        return _lean().submit_backtest(req.algorithm)
+        return _lean().submit_backtest(req.algorithm, req.parameters)
+    except LeanError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/fund/lean/sweeps")
+def lean_submit_sweep(req: LeanSweepRequest):
+    """Run an algorithm across a parameter grid. Async: poll the sweep.
+
+    Answers the question a single backtest cannot: is the good result a
+    plateau or an island?
+    """
+    from app.fund.leanrunner import LeanError
+    try:
+        return _lean().submit_sweep(req.algorithm, req.grid)
+    except LeanError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/fund/lean/sweeps/{sweep_id}")
+def lean_get_sweep(sweep_id: str):
+    from app.fund.leanrunner import LeanError
+    try:
+        return _lean().sweep(sweep_id)
     except LeanError as e:
         raise HTTPException(status_code=404, detail=str(e))
 

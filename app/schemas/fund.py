@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -28,6 +28,18 @@ class LeanAlgorithmRequest(BaseModel):
 
 class LeanBacktestRequest(BaseModel):
     algorithm: str = Field(..., description="A saved algorithm's name")
+    parameters: Optional[Dict[str, str]] = Field(
+        None, description="Values for self.get_parameter(...) in the algorithm")
+
+
+class LeanSweepRequest(BaseModel):
+    """A grid of parameter values to run the algorithm across.
+
+    One good parameter set proves nothing; the neighbourhood is the evidence.
+    """
+    algorithm: str = Field(..., description="A saved algorithm's name")
+    grid: Dict[str, List[str]] = Field(
+        ..., description='e.g. {"fast": ["10","20"], "slow": ["50","100"]}')
 
 
 class ExternalSignalRequest(BaseModel):
