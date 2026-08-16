@@ -1016,6 +1016,27 @@ def factory_history(algorithm: str | None = Query(None), limit: int = Query(50, 
     return {"scoreboard": f.scoreboard(), "candidates": f.history(algorithm, limit)}
 
 
+@router.get("/fund/risk/throttle")
+def risk_throttle():
+    """How much of normal gross the regime justifies right now.
+
+    Reduction only: this can lower gross and never raise it. Coming back up is
+    a human decision, because an all-clear from a model is not the same thing
+    as an opportunity.
+    """
+    from app.fund.throttle import target_gross
+    try:
+        from app.fund.regime import RegimeAnalytics
+        regime = RegimeAnalytics().market()
+    except Exception as e:  # noqa: BLE001
+        # An unreachable regime must NOT read as a fragile one: target_gross
+        # treats unmeasurable as full gross, so a data outage cannot quietly
+        # become a trading decision.
+        logger.warning("regime unavailable for throttle: %s", e)
+        regime = {}
+    return target_gross(regime)
+
+
 @router.get("/fund/health")
 def fund_health():
     """Is the system well — not merely up.
