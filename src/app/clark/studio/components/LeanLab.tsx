@@ -6,6 +6,7 @@ import { FileCode2, Loader2, Play, Plus, Save, Sparkles } from "lucide-react";
 import { python } from "@codemirror/lang-python";
 import { KT } from "../theme";
 import { LeanResults, LeanRunResult } from "./LeanResults";
+import { SweepPanel } from "./SweepPanel";
 import { fundApi } from "@/lib/fund_api";
 import agentsApi from "@/lib/agents_api";
 
@@ -67,18 +68,23 @@ const STARTERS: { id: string; label: string; hint: string; code: string }[] = [
 
 class MyAlgorithm(QCAlgorithm):
     def initialize(self):
-        self.set_start_date(2025, 6, 1)
+        self.set_start_date(2025, 1, 1)
         self.set_cash(2000)
+        # Read tunables as parameters so the Lab can sweep them. get_parameter
+        # returns None when unset, hence the defaults — a plain Run still works.
+        fast = int(self.get_parameter("fast") or 20)
+        slow = int(self.get_parameter("slow") or 60)
         self.sym = self.add_data(SpineBars, "SPY", Resolution.DAILY).symbol
-        self.sma = self.sma(self.sym, 20)
+        self.fast = self.sma(self.sym, fast)
+        self.slow = self.sma(self.sym, slow)
 
     def on_data(self, data: Slice):
-        if self.sym not in data or not self.sma.is_ready:
+        if self.sym not in data or not self.slow.is_ready:
             return
-        price = data[self.sym].value
-        if price > self.sma.current.value and not self.portfolio[self.sym].invested:
-            self.set_holdings(self.sym, 0.95)
-        elif price < self.sma.current.value and self.portfolio[self.sym].invested:
+        if self.fast.current.value > self.slow.current.value:
+            if not self.portfolio[self.sym].invested:
+                self.set_holdings(self.sym, 0.95)
+        elif self.portfolio[self.sym].invested:
             self.liquidate(self.sym)
 `,
   },
@@ -448,6 +454,14 @@ export function LeanLab() {
       {job?.state === "done" && r && (
         <LeanResults result={r} algorithm={job.algorithm ?? name}
                      wallSeconds={job.wall_seconds} />
+      )}
+
+      {/* The sweep needs a SAVED algorithm — it runs the copy on disk many
+          times over, so it is offered once there is one to run. */}
+      {loadedName && (
+        <div className="px-5 pb-5">
+          <SweepPanel algorithm={loadedName} disabled={busy !== null} />
+        </div>
       )}
 
       {/* ---------------- run history: research is comparison --------------- */}
