@@ -66,6 +66,8 @@ from app.schemas.fund import (
     MemoUpdateRequest,
     PostmortemRequest,
     ExternalSignalRequest,
+    LeanAlgorithmRequest,
+    LeanBacktestRequest,
     ProposeOrderRequest,
     RedeemRequest,
     RiskHaltRequest,
@@ -808,6 +810,69 @@ def propose_order(req: ProposeOrderRequest):
         critique=req.critique,
     )
     return _pipeline.propose_order(order, actor=req.actor)
+
+
+# --- LEAN orchestration ------------------------------------------------------
+# The engine as a harness service: algorithms live in the workspace, backtests
+# run as async Docker jobs, results come back in the fund's vocabulary. Lazy
+# singleton — the workspace dir is created on first use, not at import.
+_leanrunner = None
+
+
+def _lean():
+    global _leanrunner
+    if _leanrunner is None:
+        from app.fund.leanrunner import LeanRunner
+        _leanrunner = LeanRunner()
+    return _leanrunner
+
+
+@router.post("/fund/lean/algorithms")
+def lean_save_algorithm(req: LeanAlgorithmRequest):
+    """Save (or overwrite) a LEAN algorithm — the Lab IDE's save button."""
+    from app.fund.leanrunner import LeanError
+    try:
+        return _lean().save_algorithm(req.name, req.code)
+    except LeanError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@router.get("/fund/lean/algorithms")
+def lean_list_algorithms():
+    return {"algorithms": _lean().list_algorithms()}
+
+
+@router.get("/fund/lean/algorithms/{name}")
+def lean_get_algorithm(name: str):
+    from app.fund.leanrunner import LeanError
+    try:
+        return _lean().get_algorithm(name)
+    except LeanError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/fund/lean/backtests")
+def lean_submit_backtest(req: LeanBacktestRequest):
+    """Run a saved algorithm through the engine. Async: poll the job."""
+    from app.fund.leanrunner import LeanError
+    try:
+        return _lean().submit_backtest(req.algorithm)
+    except LeanError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/fund/lean/backtests")
+def lean_list_backtests():
+    return {"jobs": _lean().jobs()}
+
+
+@router.get("/fund/lean/backtests/{job_id}")
+def lean_get_backtest(job_id: str):
+    from app.fund.leanrunner import LeanError
+    try:
+        return _lean().job(job_id)
+    except LeanError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.post("/fund/signals/external")

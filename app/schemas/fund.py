@@ -17,6 +17,19 @@ class ProposeOrderRequest(BaseModel):
     critique: Optional[str] = Field(None, description="What a sceptic said about it. Shown beside the rationale.")
 
 
+class LeanAlgorithmRequest(BaseModel):
+    """A LEAN algorithm from the Lab IDE. Arbitrary Python that will RUN —
+    inside the engine container, read-only mount, no credentials, killed on
+    timeout. The container is the sandbox."""
+    name: str = Field(..., description="lowercase, digits, _ or - (max 64)")
+    code: str = Field(..., min_length=30, max_length=200_000,
+                      description="Python source containing class X(QCAlgorithm)")
+
+
+class LeanBacktestRequest(BaseModel):
+    algorithm: str = Field(..., description="A saved algorithm's name")
+
+
 class ExternalSignalRequest(BaseModel):
     """A signal from an external engine (LEAN). Propose-only by construction:
     the engine's ambitions end at the approval queue, same trust model as
