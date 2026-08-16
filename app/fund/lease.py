@@ -86,7 +86,23 @@ class LeaseState:
 
 
 class SchedulerLease:
-    """A TTL lease over the deterministic worker, held in one Firestore doc."""
+    """A TTL lease over the deterministic worker, held in one Firestore doc.
+
+    ``FUND_STORE=postgres`` returns a PostgresSchedulerLease instead, by the
+    same ``__new__`` dispatch the event store uses: the lease travels with the
+    ledger, because a lease in a database the fund is no longer reading is a
+    dependency it cannot afford and does not need.
+    """
+
+    def __new__(cls, db=None, ttl_seconds: int = DEFAULT_TTL_SECONDS,
+                owner: str | None = None, doc: str = LEASE_DOC):
+        if db is None:
+            import os
+            if (os.getenv("FUND_STORE", "") or "").strip().lower() == "postgres":
+                from app.fund.pglease import PostgresSchedulerLease
+                return PostgresSchedulerLease(
+                    ttl_seconds=ttl_seconds, owner=owner, doc=doc)
+        return super().__new__(cls)
 
     def __init__(self, db=None, ttl_seconds: int = DEFAULT_TTL_SECONDS,
                  owner: str | None = None, doc: str = LEASE_DOC):
