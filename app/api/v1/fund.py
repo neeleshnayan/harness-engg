@@ -68,6 +68,7 @@ from app.schemas.fund import (
     ExternalSignalRequest,
     LeanAlgorithmRequest,
     LeanBacktestRequest,
+    LeanLiveRequest,
     LeanSweepRequest,
     ProposeOrderRequest,
     RedeemRequest,
@@ -874,6 +875,36 @@ def lean_submit_sweep(req: LeanSweepRequest):
         return _lean().submit_sweep(req.algorithm, req.grid, req.holdout)
     except LeanError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/fund/lean/live")
+def lean_start_live(req: LeanLiveRequest):
+    """Start a supervised live LEAN session.
+
+    The signal token is read from the environment here and never crosses this
+    API in either direction — the caller names a strategy, not a credential.
+    """
+    from app.fund.leanrunner import LeanError
+    token = os.getenv("EXTERNAL_SIGNAL_TOKEN", "")
+    try:
+        return _lean().start_live(req.algorithm, req.strategy_id or "",
+                                  token, req.qty)
+    except LeanError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/fund/lean/live")
+def lean_list_live():
+    return {"sessions": _lean().live_sessions()}
+
+
+@router.delete("/fund/lean/live/{session_id}")
+def lean_stop_live(session_id: str):
+    from app.fund.leanrunner import LeanError
+    try:
+        return _lean().stop_live(session_id)
+    except LeanError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.get("/fund/lean/sweeps/{sweep_id}")

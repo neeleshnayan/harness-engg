@@ -504,3 +504,75 @@ def test_holdout_skipped_when_nothing_scored(tmp_path):
     s = _wait_sweep(r, r.submit_sweep("smoke", {"fast": ["5"]},
                                       holdout=HOLDOUT)["sweep_id"])
     assert s["holdout_result"]["state"] == "skipped"
+
+
+# --- live sessions: LEAN proposes, never executes ---------------------------
+
+LIVE_ALGO = """
+from AlgorithmImports import *
+class LiveAlgo(QCAlgorithm):
+    def initialize(self):
+        self.sym = self.add_data(SpineBars, "GLD", Resolution.DAILY).symbol
+        self.set_benchmark(self.sym)
+"""
+
+#: Fake docker for live sessions. `run` blocks the way a live container does;
+#: `kill` must return at once, or stop_live() waits on its own kill command.
+FAKE_LIVE = r"""
+import sys, time
+if "kill" in sys.argv[:2]:
+    sys.exit(0)
+time.sleep(60)
+"""
+
+
+def test_live_requires_a_benchmark_on_the_custom_symbol(tmp_path):
+    """Without it LEAN adds a SPY minute subscription that live-paper's stub
+    data queue cannot serve, and the session dies at startup with an error
+    about LiveDataQueue rather than about the algorithm."""
+    r = _runner(tmp_path, FAKE_LIVE)
+    r.save_algorithm("nobench", ALGO)          # ALGO has no set_benchmark
+    with pytest.raises(LeanError, match="set_benchmark"):
+        r.start_live("nobench")
+
+
+def test_only_one_live_session_at_a_time(tmp_path):
+    r = _runner(tmp_path, FAKE_LIVE)
+    r.save_algorithm("live", LIVE_ALGO)
+    r.start_live("live")
+    time.sleep(0.3)
+    with pytest.raises(LeanError, match="already running"):
+        r.start_live("live")
+
+
+def test_the_signal_token_never_leaves_the_runner(tmp_path):
+    """The session dict is returned over the API, so it carries whether a
+    token was configured, never the token."""
+    r = _runner(tmp_path, FAKE_LIVE)
+    r.save_algorithm("live", LIVE_ALGO)
+    out = r.start_live("live", strategy_id="strat-1", signal_token="SECRET-TOKEN")
+    assert out["signal_configured"] is True
+    session = r.live_session(out["session_id"])
+    assert "SECRET-TOKEN" not in json.dumps(session)
+
+
+def test_an_unconfigured_session_says_so(tmp_path):
+    r = _runner(tmp_path, FAKE_LIVE)
+    r.save_algorithm("live", LIVE_ALGO)
+    out = r.start_live("live")
+    assert out["signal_configured"] is False
+
+
+def test_stopping_a_session_marks_it_stopped(tmp_path):
+    r = _runner(tmp_path, FAKE_LIVE)
+    r.save_algorithm("live", LIVE_ALGO)
+    sid = r.start_live("live")["session_id"]
+    time.sleep(0.3)
+    assert r.stop_live(sid)["state"] == "stopped"
+    assert r.live_session(sid)["state"] == "stopped"
+
+
+def test_unknown_live_session_is_an_error(tmp_path):
+    r = _runner(tmp_path, FAKE_LIVE)
+    with pytest.raises(LeanError, match="unknown live session"):
+        r.live_session("nope")

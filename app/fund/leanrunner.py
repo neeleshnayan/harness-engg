@@ -170,6 +170,7 @@ class LeanRunner:
         self._docker = docker_cmd or ["docker"]
         self._jobs: dict[str, dict[str, Any]] = {}
         self._sweeps: dict[str, dict[str, Any]] = {}
+        self._live: dict[str, dict[str, Any]] = {}
         self._lock = threading.Lock()
 
     # --- algorithms ---------------------------------------------------------
@@ -242,6 +243,128 @@ class LeanRunner:
                 for j in sorted(self._jobs.values(),
                                 key=lambda x: x["submitted_at"], reverse=True)
             ]
+
+    # --- live sessions -------------------------------------------------------
+
+    def start_live(self, algorithm: str, strategy_id: str = "",
+                   signal_token: str = "", qty: float = 0.1) -> dict[str, Any]:
+        """Run an algorithm in LEAN's live-paper environment, supervised.
+
+        LEAN proposes, never executes — the same rule that governs Clark. The
+        container gets a signal token and a strategy id and nothing else: no
+        venue credentials, no broker keys. Its entire reach is a POST to the
+        spine's token-gated intake, where the proposal joins the approval queue
+        behind the risk and compliance gates. The human click stays the only
+        path to the venue.
+
+        Two things worth knowing before relying on this:
+
+        * The algorithm MUST set its benchmark to its own custom symbol. LEAN
+          otherwise adds a SPY minute subscription of its own accord, and
+          live-paper's stub data queue cannot serve it — the run dies with
+          "LiveDataQueue has not implemented live data" before a single bar of
+          the fund's own data arrives.
+        * On daily bars this is a once-a-day event, not a ticking feed. Live
+          mode buys supervision and state that survives the day, not latency.
+        """
+        algo = self.get_algorithm(algorithm)
+        m = _CLASS_RE.search(algo["code"])
+        if not m:
+            raise LeanError("algorithm lost its QCAlgorithm class")
+        if "set_benchmark" not in algo["code"]:
+            raise LeanError(
+                "live mode needs `self.set_benchmark(<your custom symbol>)` — "
+                "without it LEAN subscribes to SPY minute bars, which the "
+                "live-paper data queue cannot serve, and the session dies at "
+                "startup")
+        with self._lock:
+            running = [s for s in self._live.values() if s["state"] == "running"]
+        if running:
+            raise LeanError(
+                f"a live session is already running ({running[0]['algorithm']}); "
+                f"stop it before starting another")
+
+        session_id = uuid.uuid4().hex[:12]
+        session = {
+            "session_id": session_id, "algorithm": algorithm,
+            "class_name": m.group(1), "state": "starting",
+            "started_at": _now(), "stopped_at": None,
+            "container": f"lean-live-{session_id}",
+            "strategy_id": strategy_id,
+            # Never the token itself: this dict is returned over the API.
+            "signal_configured": bool(strategy_id and signal_token),
+            "error": None, "log_tail": [],
+        }
+        with self._lock:
+            self._live[session_id] = session
+        threading.Thread(target=self._run_live,
+                         args=(session_id, signal_token, qty), daemon=True).start()
+        return {"session_id": session_id, "state": "starting",
+                "signal_configured": session["signal_configured"]}
+
+    def live_sessions(self) -> list[dict[str, Any]]:
+        with self._lock:
+            return [dict(s) for s in sorted(self._live.values(),
+                                            key=lambda x: x["started_at"],
+                                            reverse=True)]
+
+    def live_session(self, session_id: str) -> dict[str, Any]:
+        with self._lock:
+            s = self._live.get(session_id)
+        if s is None:
+            raise LeanError(f"unknown live session {session_id!r}")
+        return dict(s)
+
+    def stop_live(self, session_id: str) -> dict[str, Any]:
+        s = self.live_session(session_id)
+        subprocess.run(self._docker + ["kill", s["container"]],
+                       capture_output=True, timeout=60)
+        with self._lock:
+            self._live[session_id]["state"] = "stopped"
+            self._live[session_id]["stopped_at"] = _now()
+        return {"session_id": session_id, "state": "stopped"}
+
+    def _run_live(self, session_id: str, signal_token: str, qty: float) -> None:
+        session = self._live[session_id]
+        algo_dir = (self._ws / "algorithms" / session["algorithm"]).resolve()
+        res_dir = (self._ws / "results" / f"live-{session_id}").resolve()
+        res_dir.mkdir(parents=True, exist_ok=True)
+
+        cmd = self._docker + [
+            "run", "--rm", "--name", session["container"],
+            "--add-host=host.docker.internal:host-gateway",
+            "-v", f"{algo_dir}:/Algorithm:ro",
+            "-v", f"{res_dir}:/Results",
+            "-e", f"SIGNAL_TOKEN={signal_token}",
+            "-e", f"STRATEGY_ID={session['strategy_id']}",
+            "-e", f"SIGNAL_QTY={qty}",
+            IMAGE,
+            "--environment", "live-paper",
+            "--algorithm-language", "Python",
+            "--algorithm-type-name", session["class_name"],
+            "--algorithm-location", "/Algorithm/main.py",
+            "--results-destination-folder", "/Results",
+        ]
+        session["state"] = "running"
+        try:
+            # No timeout: a live session runs until it is stopped. That is the
+            # difference between this and a backtest, and the reason the job
+            # timeout must not be reused here.
+            proc = subprocess.run(cmd, capture_output=True, text=True)
+            session["log_tail"] = (proc.stdout or "").splitlines()[-40:]
+            if proc.returncode != 0 and session["state"] != "stopped":
+                session["state"] = "failed"
+                session["error"] = (
+                    (proc.stderr or "").strip().splitlines() or ["engine exited nonzero"]
+                )[-1][:400]
+            elif session["state"] != "stopped":
+                session["state"] = "ended"
+        except Exception as e:  # noqa: BLE001
+            session["state"] = "failed"
+            session["error"] = f"{type(e).__name__}: {e}"[:400]
+        finally:
+            if session["stopped_at"] is None:
+                session["stopped_at"] = _now()
 
     # --- sweeps --------------------------------------------------------------
 

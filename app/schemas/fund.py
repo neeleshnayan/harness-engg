@@ -32,6 +32,19 @@ class LeanBacktestRequest(BaseModel):
         None, description="Values for self.get_parameter(...) in the algorithm")
 
 
+class LeanLiveRequest(BaseModel):
+    """Start a live LEAN session. Propose-only: no credential crosses this API.
+
+    The signal token is read server-side from the environment; the caller names
+    a saved algorithm and the strategy its proposals belong to.
+    """
+    algorithm: str = Field(..., description="A saved algorithm's name")
+    strategy_id: Optional[str] = Field(
+        None, description="Registered strategy the proposals are attributed to")
+    qty: float = Field(0.1, gt=0, le=1_000_000,
+                       description="Quantity carried on each proposal")
+
+
 class LeanSweepRequest(BaseModel):
     """A grid of parameter values to run the algorithm across.
 
