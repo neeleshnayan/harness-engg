@@ -25,7 +25,6 @@ const CodeMirror = dynamic(() => import("@uiw/react-codemirror"), {
 });
 
 const TEMPLATE = `from AlgorithmImports import *
-import json
 import urllib.request
 
 SPINE = "http://host.docker.internal:8090/api/v1/fund"
@@ -33,25 +32,23 @@ SPINE = "http://host.docker.internal:8090/api/v1/fund"
 
 class SpineBars(PythonData):
     """Daily bars from the fund's own market-data layer — the engine judges
-    the market on the same closes the fund marks its book with."""
+    the market on the same closes the fund marks its book with. CSV, one
+    line per bar: LEAN's reader iterates lines as data points."""
 
     def get_source(self, config, date, is_live):
-        url = f"{SPINE}/marketdata/bars?symbol={config.symbol.value}&lookback_days=400"
+        url = f"{SPINE}/marketdata/bars?symbol={config.symbol.value}&lookback_days=700&format=csv"
         return SubscriptionDataSource(url, SubscriptionTransportMedium.REMOTE_FILE)
 
     def reader(self, config, line, date, is_live):
-        if not line.strip().startswith("{"):
+        try:
+            ds, close = line.strip().split(",")
+            bar = SpineBars()
+            bar.symbol = config.symbol
+            bar.time = datetime.strptime(ds, "%Y-%m-%d")
+            bar.value = float(close)
+            return bar
+        except (ValueError, AttributeError):
             return None
-        d = json.loads(line)
-        wanted = date.strftime("%Y-%m-%d")
-        for ds, close in zip(d.get("dates") or [], d.get("closes") or []):
-            if ds == wanted:
-                bar = SpineBars()
-                bar.symbol = config.symbol
-                bar.time = datetime.strptime(ds, "%Y-%m-%d")
-                bar.value = float(close)
-                return bar
-        return None
 
 
 class MyAlgorithm(QCAlgorithm):
