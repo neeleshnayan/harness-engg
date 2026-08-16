@@ -943,6 +943,70 @@ def lean_stop_live(session_id: str):
         raise HTTPException(status_code=404, detail=str(e))
 
 
+@router.get("/fund/lean/gate")
+def lean_gate_criteria():
+    """The bar a candidate must clear, published so it can be argued with.
+
+    Served separately from any result on purpose: a threshold you can only see
+    next to a number you already like is not a threshold.
+    """
+    from app.fund.gate import CRITERIA, GATE_VERSION
+    return {"gate_version": GATE_VERSION, "criteria": CRITERIA}
+
+
+@router.post("/fund/lean/gate/{sweep_id}")
+def lean_gate_sweep(sweep_id: str):
+    """Judge a finished sweep against the bar.
+
+    Takes a SWEEP rather than a single backtest because most of the bar is
+    about evidence a single run cannot provide: whether the winner survived
+    data it was not chosen on, and how wrong we can be about costs. Judging
+    one backtest would mean waiving exactly the criteria that matter.
+    """
+    from app.fund.gate import evaluate
+    from app.fund.leanrunner import LeanError
+    try:
+        sweep = _lean().sweep(sweep_id)
+    except LeanError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    if sweep.get("state") != "done":
+        raise HTTPException(status_code=409,
+                            detail=f"sweep is {sweep.get('state')} — judge it when it finishes")
+
+    holdout = sweep.get("holdout_result")
+    best = (sweep.get("summary") or {}).get("best") or {}
+    params = best.get("parameters") or {}
+    # Re-run the winner so the verdict is judged on a full result — the sweep's
+    # own rows are trimmed to what a comparison needs and carry no costs
+    # disclosure, benchmark or capacity.
+    job = _lean().submit_backtest(sweep["algorithm"], params)
+    return {"sweep_id": sweep_id, "algorithm": sweep["algorithm"],
+            "winner": params, "verify_job_id": job["job_id"],
+            "note": "poll the job, then POST /fund/lean/gate/judge with it",
+            "holdout_available": bool(holdout)}
+
+
+@router.post("/fund/lean/gate/judge/{job_id}")
+def lean_gate_judge(job_id: str, sweep_id: str = Query(...)):
+    """Apply the bar to a finished verification run plus its sweep."""
+    from app.fund.gate import evaluate
+    from app.fund.leanrunner import LeanError
+    try:
+        job = _lean().job(job_id)
+        sweep = _lean().sweep(sweep_id)
+    except LeanError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    if job.get("state") != "done":
+        raise HTTPException(status_code=409, detail=f"job is {job.get('state')}")
+    return {
+        "algorithm": job.get("algorithm"),
+        "parameters": job.get("parameters"),
+        **evaluate(job.get("result") or {},
+                   sweep.get("holdout_result"),
+                   sweep.get("summary")),
+    }
+
+
 @router.get("/fund/lean/sweeps/{sweep_id}")
 def lean_get_sweep(sweep_id: str):
     from app.fund.leanrunner import LeanError
