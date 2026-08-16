@@ -17,6 +17,7 @@ store or a Temporal-backed pipeline without touching callers.
 
 from __future__ import annotations
 
+import os
 import time as _time
 import uuid
 from dataclasses import dataclass, field, asdict
@@ -147,8 +148,33 @@ class Event:
         return d
 
 
+def store_backend() -> str:
+    """Which store the fund is running on: ``postgres`` or ``firestore``."""
+    return (os.getenv("FUND_STORE", "firestore") or "firestore").strip().lower()
+
+
 class EventStore:
-    """Append-only writer/reader over ``fund_events``."""
+    """Append-only writer/reader over ``fund_events``.
+
+    Firestore by default; ``FUND_STORE=postgres`` returns a PostgresEventStore
+    instead.
+
+    The switch lives in ``__new__`` rather than in a factory function called by
+    every caller, and that is a deliberate trade. ``EventStore()`` is
+    constructed in twenty-six places across twenty-two modules — including two
+    owned by another engineer — and a rename would have put a mechanical diff
+    through all of them to express one configuration decision. Returning a
+    different object from ``__new__`` keeps every call site honest and
+    unchanged; Python skips ``__init__`` when ``__new__`` returns something
+    that is not an instance of the class, which is exactly what should happen
+    here since the Postgres store has already initialised itself.
+    """
+
+    def __new__(cls, db=None):
+        if db is None and store_backend() == "postgres":
+            from app.fund.pgstore import PostgresEventStore
+            return PostgresEventStore()
+        return super().__new__(cls)
 
     def __init__(self, db=None):
         from app.core.firebase import db as _fs_db

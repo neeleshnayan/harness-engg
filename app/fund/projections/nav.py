@@ -17,6 +17,7 @@ phase 2). Each ``NavStruck`` is appended to the event log and mirrored to
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -27,6 +28,8 @@ from firebase_admin import firestore
 from app.fund.events import Event, EventStore, EventType
 from app.fund.money import D, f, money, units
 from app.fund.projections.positions import Book, PositionsProjection
+
+logger = logging.getLogger(__name__)
 
 NAV_SNAPSHOTS = "fund_nav_snapshots"
 BASE_NAV_PER_UNIT = Decimal("1.00")
@@ -70,8 +73,20 @@ class NavService:
         self._price = pricer
         self._store = store or EventStore()
         self._proj = projection or PositionsProjection(self._store)
+        # Obtained lazily. NAV FOLDS from the event log and needs no database
+        # of its own; this handle exists only for the nav_snapshots collection,
+        # which strike() writes and the history readers read. Taking it in the
+        # constructor made every read-only fold require a live Firestore —
+        # which, once the log moved to Postgres, meant computing NAV still
+        # failed on a Firestore outage it no longer depended on.
+        self._db_override = db
+
+    @property
+    def _db(self):
+        if self._db_override is not None:
+            return self._db_override
         from app.core.firebase import db as _fs_db
-        self._db = db or _fs_db()
+        return _fs_db()
 
     def compute(self, book: Optional[Book] = None) -> NavSnapshot:
         """Value the current book without persisting — safe to call any time.
@@ -145,7 +160,15 @@ class NavService:
                 actor=actor,
             )
         )
-        self._db.collection(NAV_SNAPSHOTS).document(snap.ts).set(snap.to_dict())
+        # Best effort, and only a cache. The fact is already in the event log
+        # above; this collection is a convenience copy that predates the log
+        # being cheap to read. A failure here must not fail a strike, or an
+        # outage in a cache would stop the fund marking its own book.
+        try:
+            self._db.collection(NAV_SNAPSHOTS).document(snap.ts).set(snap.to_dict())
+        except Exception as e:  # noqa: BLE001
+            logger.warning("nav snapshot cache write failed (the strike itself "
+                           "is recorded in the event log): %s", e)
         return snap
 
     def since_inception(self, snap: Optional[NavSnapshot] = None) -> dict[str, Any]:
@@ -177,20 +200,29 @@ class NavService:
         }
 
     def latest(self) -> Optional[dict[str, Any]]:
-        q = (
-            self._db.collection(NAV_SNAPSHOTS)
-            .order_by("ts", direction=firestore.Query.DESCENDING)
-            .limit(1)
-            .stream()
-        )
-        return next((d.to_dict() for d in q), None)
+        struck = self._struck(limit=1)
+        return struck[-1] if struck else None
 
     def history(self, limit: int = 90) -> list[dict[str, Any]]:
         """Recent struck snapshots, oldest first — for value/NAV trend charts."""
-        q = (
-            self._db.collection(NAV_SNAPSHOTS)
-            .order_by("ts", direction=firestore.Query.DESCENDING)
-            .limit(limit)
-            .stream()
-        )
-        return list(reversed([d.to_dict() for d in q]))
+        return self._struck(limit=limit)
+
+    def _struck(self, limit: int) -> list[dict[str, Any]]:
+        """Struck snapshots, folded from the event log, oldest first.
+
+        These used to be read from the nav_snapshots collection, which is a
+        SECOND copy of something strike() already wrote to the log as a
+        NAV_STRUCK event. Two copies of one fact is one too many: the
+        collection could be missing a strike the log has, and the page would
+        show a stale NAV that nothing in the system could explain.
+
+        Reading the log instead also means the NAV endpoint stops depending on
+        Firestore entirely — which is what made it fail while the event log had
+        already moved to Postgres and was perfectly healthy.
+        """
+        rows = [
+            e.get("payload") or {}
+            for e in self._store.stream(since_seq=0, limit=100_000)
+            if e.get("type") == EventType.NAV_STRUCK.value
+        ]
+        return rows[-limit:] if limit else rows
