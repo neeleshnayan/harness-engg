@@ -171,6 +171,8 @@ class LeanRunner:
                 job["state"] = "done" if job["result"] else "failed"
                 if not job["result"]:
                     job["error"] = "engine finished but wrote no parsable results"
+                else:
+                    self._add_benchmark(job["result"])
         except subprocess.TimeoutExpired:
             job["state"] = "failed"
             job["error"] = f"timed out after {JOB_TIMEOUT_S:.0f}s — engine killed"
@@ -182,6 +184,51 @@ class LeanRunner:
         finally:
             job["finished_at"] = _now()
             job["wall_seconds"] = round(time.monotonic() - t0, 1)
+
+    # --- benchmark -----------------------------------------------------------
+
+    @staticmethod
+    def _add_benchmark(result: dict[str, Any]) -> None:
+        """Buy & hold for the traded symbol, from the fund's own bars.
+
+        LEAN's own Benchmark series is unusable for these algorithms: the data
+        is a custom type, so the engine emits zeros rather than a comparison.
+        Rather than drop the question, it is answered on the same closes the
+        fund marks its book with — the identical feed the algorithm traded, so
+        the comparison is like-for-like rather than two vendors disagreeing.
+
+        Best-effort by design: if the bars cannot be fetched, the benchmark
+        stays absent. An absent comparison is honest; an invented one is not.
+        """
+        if result.get("benchmark_curve"):
+            return  # the engine produced a real one
+        dates = result.get("equity_dates") or []
+        orders = result.get("orders") or []
+        equity = result.get("equity_curve") or []
+        if len(dates) < 2 or not orders or not equity:
+            return
+        symbols = [o["symbol"] for o in orders if o.get("symbol")]
+        if not symbols:
+            return
+        symbol = max(set(symbols), key=symbols.count)
+        try:
+            from app.fund.marketdata import fetch_daily_bars
+            bars = fetch_daily_bars(symbol, start=dates[0], end=dates[-1])
+        except Exception as e:  # noqa: BLE001
+            logger.info("benchmark unavailable for %s: %s", symbol, e)
+            return
+        closes = list(bars.closes or [])
+        if len(closes) < 2 or not closes[0]:
+            return
+        # Normalised to the strategy's starting equity so the two curves are
+        # readable on one axis: same money, different decisions.
+        start_equity = equity[0]
+        curve = [round(start_equity * (c / closes[0]), 2) for c in closes]
+        result["benchmark_curve"] = curve
+        result["benchmark_dates"] = list(bars.dates or [])
+        result["benchmark_return_pct"] = _total_return(curve)
+        result["benchmark_symbol"] = symbol
+        result["benchmark_source"] = getattr(bars, "source", None)
 
     # --- results -------------------------------------------------------------
 
@@ -219,18 +266,15 @@ class LeanRunner:
             except ValueError:
                 return None
 
-        equity: list[float] = []
         charts = best.get("charts") or best.get("Charts") or {}
-        se = charts.get("Strategy Equity") or {}
-        series = (se.get("series") or se.get("Series") or {})
-        eq = series.get("Equity") or {}
-        for pt in (eq.get("values") or eq.get("Values") or []):
-            # points arrive as [ts, open, high, low, close] or [ts, value]
-            if isinstance(pt, (list, tuple)) and len(pt) >= 2:
-                equity.append(float(pt[-1]))
-        if len(equity) > 400:
-            step = len(equity) / 400
-            equity = [equity[int(i * step)] for i in range(399)] + [equity[-1]]
+        equity, dates = _curve(charts, "Strategy Equity", "Equity")
+        bench, _ = _curve(charts, "Benchmark", "Benchmark")
+
+        # The dates travel WITH the curve. Downstream, "is this alpha or beta"
+        # regresses the curve against factor returns by date — an equity series
+        # with no dates cannot be evaluated, only admired.
+        equity, dates = _downsample2(equity, dates, 400)
+        bench, _ = _downsample2(bench, [], 400) if _usable(bench) else ([], [])
 
         return {
             "engine": "lean",
@@ -240,5 +284,101 @@ class LeanRunner:
             "max_drawdown_pct": _pct("Drawdown"),
             "total_trades": _pct("Total Orders") or _pct("Total Trades"),
             "equity_curve": equity,
+            "equity_dates": dates,
+            # Buy & hold, from the engine's own benchmark series. A strategy
+            # that cannot beat owning the thing is not interesting, and that
+            # comparison should be impossible to skip.
+            "benchmark_curve": bench,
+            "benchmark_return_pct": _total_return(bench),
+            "orders": _orders(best),
             "raw_files": sorted(p.name for p in res_dir.glob("*")),
         }
+
+
+def _curve(charts: dict, chart: str, series: str) -> tuple[list[float], list[str]]:
+    """One chart series as (values, ISO dates).
+
+    LEAN points arrive as ``[unix_ts, value]`` or ``[unix_ts, o, h, l, c]``;
+    the last element is the value in both shapes.
+    """
+    c = charts.get(chart) or {}
+    ser = c.get("series") or c.get("Series") or {}
+    s = ser.get(series) or {}
+    values: list[float] = []
+    dates: list[str] = []
+    for pt in (s.get("values") or s.get("Values") or []):
+        if not isinstance(pt, (list, tuple)) or len(pt) < 2:
+            continue
+        # Both or neither: appending the value first and letting the date
+        # conversion raise would leave the two lists a different length, and
+        # the downsampler drops dates entirely when they fall out of step —
+        # so one unconvertible timestamp would silently cost every date.
+        try:
+            value = float(pt[-1])
+            date = datetime.fromtimestamp(
+                float(pt[0]), tz=timezone.utc).date().isoformat()
+        except (ValueError, TypeError, OSError, OverflowError):
+            continue
+        values.append(value)
+        dates.append(date)
+    return values, dates
+
+
+def _downsample2(values: list[float], dates: list[str],
+                 cap: int) -> tuple[list[float], list[str]]:
+    """Thin a series to `cap` points, keeping values and dates in step.
+
+    Endpoints are always kept: the first and last points are the two the
+    reader actually reasons about.
+    """
+    n = len(values)
+    if n <= cap:
+        return values, dates
+    step = n / cap
+    idx = [int(i * step) for i in range(cap - 1)] + [n - 1]
+    return ([values[i] for i in idx],
+            [dates[i] for i in idx] if len(dates) == n else [])
+
+
+def _total_return(curve: list[float]) -> Optional[float]:
+    if len(curve) < 2 or not curve[0]:
+        return None
+    return round((curve[-1] / curve[0] - 1.0) * 100.0, 2)
+
+
+def _usable(curve: list[float]) -> bool:
+    """Is this series a measurement, or the engine's shrug?
+
+    LEAN cannot benchmark an algorithm whose data is a custom type it does not
+    recognise — it emits a series of zeros rather than an error. Plotting that
+    flatline beside the strategy and labelling it "buy & hold" would invent a
+    comparison the engine never made. An unknown is not a zero.
+    """
+    return len(curve) >= 2 and any(v != 0.0 for v in curve)
+
+
+def _orders(doc: dict) -> list[dict[str, Any]]:
+    """Filled orders, in the fund's vocabulary.
+
+    LEAN keys orders by id and encodes direction as 0=buy, 1=sell and
+    status 3=filled. Only fills are reported: an order that never filled
+    changed nothing and belongs in the log, not the trade list.
+    """
+    raw = doc.get("orders") or doc.get("Orders") or {}
+    if isinstance(raw, dict):
+        raw = list(raw.values())
+    out: list[dict[str, Any]] = []
+    for o in raw:
+        if not isinstance(o, dict) or o.get("status") not in (3, "Filled", "filled"):
+            continue
+        sym = o.get("symbol")
+        out.append({
+            "time": o.get("lastFillTime") or o.get("time"),
+            "symbol": (sym or {}).get("value") if isinstance(sym, dict) else sym,
+            "side": "sell" if o.get("direction") in (1, "Sell", "sell") else "buy",
+            "qty": o.get("quantity"),
+            "price": o.get("price"),
+            "value": o.get("value"),
+        })
+    out.sort(key=lambda x: str(x.get("time") or ""))
+    return out
