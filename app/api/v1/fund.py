@@ -943,6 +943,51 @@ def lean_stop_live(session_id: str):
         raise HTTPException(status_code=404, detail=str(e))
 
 
+_universe_cache = None
+
+
+def _universe():
+    global _universe_cache
+    if _universe_cache is None:
+        from app.fund.events import store_backend
+        if store_backend() != "postgres":
+            return None
+        from app.fund.universe import Universe
+        _universe_cache = Universe()
+    return _universe_cache
+
+
+@router.get("/fund/universe/hunting-ground")
+def universe_hunting_ground(
+    turnover_pct: float = Query(5.0, gt=0, le=100),
+    participation: float = Query(0.01, gt=0, le=1),
+    min_capacity: float = Query(100_000.0, ge=0),
+    max_capacity: float = Query(50_000_000.0, gt=0),
+    limit: int = Query(200, ge=1, le=2000),
+):
+    """Names inside the band where being small is an advantage.
+
+    The upper bound is the interesting one: names above it are excluded not for
+    being bad but for being available to everyone, which is a different and far
+    more useful reason to pass on something.
+    """
+    u = _universe()
+    if u is None:
+        raise HTTPException(status_code=503,
+                            detail="the universe lives in Postgres; run with FUND_STORE=postgres")
+    return u.hunting_ground(turnover_pct=turnover_pct, participation=participation,
+                            min_capacity=min_capacity, max_capacity=max_capacity,
+                            limit=limit)
+
+
+@router.get("/fund/universe/stats")
+def universe_stats():
+    u = _universe()
+    if u is None:
+        raise HTTPException(status_code=503, detail="universe needs FUND_STORE=postgres")
+    return u.stats()
+
+
 @router.get("/fund/lean/gate")
 def lean_gate_criteria():
     """The bar a candidate must clear, published so it can be argued with.
