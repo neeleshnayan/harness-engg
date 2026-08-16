@@ -126,6 +126,78 @@ def _verdict(capacity: float, adv: float) -> str:
             "check that something else does.")
 
 
+#: A reference large fund, and the position it would want. Used only to ask
+#: "could they even build this", never to model anyone in particular.
+BIG_FUND_AUM_USD = 5_000_000_000.0
+BIG_FUND_POSITION_PCT = 0.005          # 50bps — small for them, still $25m
+
+#: More than this many days of buying to establish a position and the name is
+#: effectively closed to that fund: the build itself moves the price, and the
+#: exit is worse.
+DAYS_TO_BUILD_CLOSED = 3.0
+
+#: How aggressively a LARGE fund participates while building, which is nothing
+#: like our own 1%. Our participation assumption exists to keep us
+#: impact-free; theirs is a decision to accept impact in exchange for getting
+#: in at all, and desks routinely take 10-20% of a day's volume over a build.
+#:
+#: Using our 1% to judge THEIR access is what made the first version of this
+#: report every name as closed, including JBHT — which a $5bn fund can build
+#: in under a session.
+BIG_FUND_BUILD_PARTICIPATION = 0.15
+
+
+def days_to_build(adv_usd: Optional[float], position_usd: float,
+                  participation: float = DEFAULT_PARTICIPATION) -> Optional[float]:
+    """Sessions of buying needed to establish a position at a polite pace.
+
+    The honest measure of whether a name is available to a given size, and a
+    DIFFERENT question from capacity. Capacity asks how much money a strategy
+    can run at some turnover; this asks whether a fund can get into the name at
+    all. They diverge sharply: at 5% daily turnover a $250m-ADV name reports
+    only $50m of "capacity", which reads as small — yet a $5bn fund can hold it
+    comfortably, because building a $25m position there takes ten sessions at
+    1% participation, not months.
+
+    Conflating the two is how a screen ends up calling JBHT a name big funds
+    cannot trade.
+    """
+    if not adv_usd or adv_usd <= 0 or position_usd <= 0:
+        return None
+    return round(position_usd / (participation * adv_usd), 2)
+
+
+def closed_to_big_funds(adv_usd: Optional[float],
+                        aum_usd: float = BIG_FUND_AUM_USD,
+                        position_pct: float = BIG_FUND_POSITION_PCT,
+                        participation: float = BIG_FUND_BUILD_PARTICIPATION) -> dict[str, Any]:
+    """Could a large fund even build a position here?
+
+    This is the moat claim, and it rests on ADV against POSITION SIZE — not on
+    turnover. A fund's minimum sensible position is a floor set by its own
+    size: below it, a winner does not move the fund's return enough to justify
+    the research, so the name is ignored no matter how good it is.
+    """
+    position = aum_usd * position_pct
+    days = days_to_build(adv_usd, position, participation)
+    if days is None:
+        return {"closed": None, "reason": "no volume data"}
+    closed = days > DAYS_TO_BUILD_CLOSED
+    return {
+        "closed": closed,
+        "reference_aum_usd": aum_usd,
+        "reference_position_usd": position,
+        "days_to_build": days,
+        "reason": (f"a ${aum_usd/1e9:.0f}bn fund taking a {position_pct:.2%} "
+                   f"position (${position:,.0f}) would need {days:.1f} sessions "
+                   f"at {participation:.0%} of volume — "
+                   + ("the build itself moves the price, so the name is "
+                      "effectively closed to them and open to us"
+                      if closed else
+                      "comfortably buildable, so they can be here too")),
+    }
+
+
 def headroom(capacity_usd: Optional[float], nav_usd: float) -> dict[str, Any]:
     """How much of the available capacity this fund is actually using.
 

@@ -209,17 +209,42 @@ class Universe:
                     (adv_lo, adv_hi, limit))
                 rows = cur.fetchall()
 
-        names = [{
-            "symbol": r[0], "exchange": r[1],
-            "adv_usd": float(r[2]), "median_close": float(r[3]),
-            "bars_seen": r[4],
-            "capacity_usd": round(participation * float(r[2]) / t, 2),
-        } for r in rows]
+        from app.fund.capacity import closed_to_big_funds
+
+        names = []
+        for r in rows:
+            adv = float(r[2])
+            # NOT our participation. Ours keeps us impact-free; a large fund
+            # building a position accepts impact to get in at all, and judging
+            # their access by our caution reported every name as closed.
+            big = closed_to_big_funds(adv)
+            names.append({
+                "symbol": r[0], "exchange": r[1],
+                "adv_usd": adv, "median_close": float(r[3]),
+                "bars_seen": r[4],
+                "capacity_usd": round(participation * adv / t, 2),
+                # The moat claim, kept SEPARATE from capacity. Capacity is a
+                # property of a strategy at a turnover; this is whether a large
+                # fund could build a position at all. At 5% turnover the
+                # capacity band happily admits S&P names — JBHT reports $50m of
+                # "capacity" and is perfectly available to a $5bn fund — so
+                # reporting only capacity invites exactly the wrong conclusion.
+                "closed_to_big_funds": big.get("closed"),
+                "big_fund_days_to_build": big.get("days_to_build"),
+            })
+        closed = [n for n in names if n["closed_to_big_funds"]]
         return {
             "turnover_pct": turnover_pct, "participation": participation,
             "capacity_band_usd": [min_capacity, max_capacity],
             "adv_band_usd": [round(adv_lo, 2), round(adv_hi, 2)],
-            "count": len(names), "names": names,
+            "count": len(names),
+            "closed_to_big_funds_count": len(closed),
+            "caveat": ("capacity is a property of a strategy at this turnover; "
+                       "closed_to_big_funds is a property of the NAME. Only the "
+                       "second is the structural edge — at high turnover the "
+                       "capacity band admits large caps a big fund can hold "
+                       "comfortably"),
+            "names": names,
         }
 
     def stats(self) -> dict[str, Any]:
