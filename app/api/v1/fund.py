@@ -100,6 +100,8 @@ from app.fund.thesis_generator.service import ThesisGeneratorService
 
 from app.fund.optimization import optimize_portfolio, optimize_return_streams
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 # --- spine wiring (single place to swap the venue) -------------------------
@@ -831,6 +833,27 @@ def propose_order(req: ProposeOrderRequest):
 # The engine as a harness service: algorithms live in the workspace, backtests
 # run as async Docker jobs, results come back in the fund's vocabulary. Lazy
 # singleton — the workspace dir is created on first use, not at import.
+_bars_archive = None
+
+
+def _barstore():
+    """The point-in-time bar archive, or None when there is nowhere to put it.
+
+    Postgres-only by design: the archive's value is that a first observation is
+    never overwritten, which needs a real primary key and a transaction. There
+    is no Firestore fallback because a half-kept archive is worse than none —
+    it would answer as_of queries with gaps it could not describe.
+    """
+    global _bars_archive
+    if _bars_archive is None:
+        from app.fund.events import store_backend
+        if store_backend() != "postgres":
+            return None
+        from app.fund.barstore import BarStore
+        _bars_archive = BarStore()
+    return _bars_archive
+
+
 _leanrunner = None
 
 
@@ -1363,6 +1386,10 @@ def run_backtest(strategy_id: str, req: BacktestRunRequest):
 def get_bars(symbol: str = Query(..., min_length=1, max_length=12),
              lookback_days: int = Query(180, gt=1, le=2000),
              start_date: str | None = Query(None), end_date: str | None = Query(None),
+             as_of: str | None = Query(
+                 None, pattern=r"^\d{4}-\d{2}-\d{2}$",
+                 description="Serve the series as it was KNOWN on this date, "
+                             "from the point-in-time archive"),
              format: str = Query("json", pattern="^(json|csv)$")):
     """Free daily bars for a symbol (crypto→CoinGecko, else Alpaca/Yahoo).
 
@@ -1371,10 +1398,46 @@ def get_bars(symbol: str = Query(..., min_length=1, max_length=12),
     blob reads as exactly one bar (the smoke test processed 1 data point of a
     155-bar history before this existed).
     """
+    # Point-in-time: serve what was KNOWN on as_of, from the archive, rather
+    # than what the vendor says today. A backtest handed today's view of 2025
+    # is not a simulation of a decision — the closes are adjusted for splits
+    # that had not happened, and any correction the vendor has since made is
+    # baked in.
+    if as_of:
+        store = _barstore()
+        if store is None:
+            raise HTTPException(
+                status_code=503,
+                detail="point-in-time bars need the Postgres archive; "
+                       "run with FUND_STORE=postgres")
+        pit = store.as_of(symbol, as_of, start=start_date)
+        if not pit["dates"]:
+            raise HTTPException(
+                status_code=404,
+                detail=f"nothing archived for {symbol} on or before {as_of} — "
+                       f"the archive only knows what it has seen, and it had "
+                       f"not seen this. Fetch it live first.")
+        if format == "csv":
+            lines = "\n".join(f"{d},{c}" for d, c in zip(pit["dates"], pit["closes"]))
+            return Response(content=lines, media_type="text/csv")
+        return pit
+
     try:
         bars = fetch_daily_bars(symbol, lookback_days=lookback_days, start=start_date, end=end_date)
     except BarsError as e:
         raise HTTPException(status_code=422, detail=str(e))
+
+    # Every live fetch feeds the archive. First observation wins; a vendor
+    # disagreeing with what it served before is logged as a restatement, never
+    # applied. Best effort — a failing archive must not take down market data.
+    store = _barstore()
+    if store is not None:
+        try:
+            store.archive(bars.symbol, bars.dates or [], bars.closes or [],
+                          bars.source or "unknown")
+        except Exception as e:  # noqa: BLE001
+            logger.warning("bar archive write failed for %s: %s", symbol, e)
+
     if format == "csv":
         dates = bars.dates or []
         lines = "\n".join(f"{d},{c}" for d, c in zip(dates, bars.closes))
