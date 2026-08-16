@@ -2,11 +2,12 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { FileCode2, Loader2, Play, Plus, Save } from "lucide-react";
+import { FileCode2, Loader2, Play, Plus, Save, Sparkles } from "lucide-react";
 import { python } from "@codemirror/lang-python";
 import { KT } from "../theme";
-import { Stat } from "./Stat";
+import { LeanResults, LeanRunResult } from "./LeanResults";
 import { fundApi } from "@/lib/fund_api";
+import agentsApi from "@/lib/agents_api";
 
 /**
  * The Lab's LEAN desk: a strategy library and an IDE over the real engine.
@@ -136,14 +137,7 @@ interface LeanJob {
   error?: string | null;
   wall_seconds?: number;
   log_tail?: string[];
-  result?: {
-    total_return_pct?: number | null;
-    sharpe?: number | null;
-    max_drawdown_pct?: number | null;
-    total_trades?: number | null;
-    equity_curve?: number[];
-    statistics?: Record<string, string>;
-  } | null;
+  result?: LeanRunResult | null;
 }
 
 interface SavedAlgo {
@@ -154,23 +148,6 @@ interface SavedAlgo {
 }
 
 const pctf = (n?: number | null) => (n == null ? "—" : `${n.toFixed(1)}%`);
-const numf = (n?: number | null) => (n == null ? "—" : n.toFixed(2));
-
-function EquitySpark({ curve }: { curve: number[] }) {
-  if (curve.length < 2) return null;
-  const min = Math.min(...curve), max = Math.max(...curve), span = max - min || 1;
-  const w = 640, h = 120;
-  const pts = curve
-    .map((v, i) => `${(i / (curve.length - 1)) * w},${h - 4 - ((v - min) / span) * (h - 8)}`)
-    .join(" ");
-  const up = curve[curve.length - 1] >= curve[0];
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="h-[120px] w-full">
-      <polyline points={pts} fill="none" strokeWidth={1.5} vectorEffect="non-scaling-stroke"
-                stroke={up ? "var(--kt-up)" : "var(--kt-down)"} />
-    </svg>
-  );
-}
 
 export function LeanLab() {
   const [code, setCode] = useState(STARTERS[0].code);
@@ -180,10 +157,12 @@ export function LeanLab() {
   const [savedCode, setSavedCode] = useState<string | null>(null);
   const [job, setJob] = useState<LeanJob | null>(null);
   const [history, setHistory] = useState<LeanJob[]>([]);
-  const [busy, setBusy] = useState<"save" | "run" | null>(null);
+  const [busy, setBusy] = useState<"save" | "run" | "author" | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [ask, setAsk] = useState("");
+  const [warnings, setWarnings] = useState<string[]>([]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
@@ -224,6 +203,38 @@ export function LeanLab() {
     setErr(null);
     setNote(null);
   }, []);
+
+  /** Describe it; Clark writes the file; you read and tweak it. A draft, not
+   *  an answer — nothing is saved or run until the operator says so. */
+  const author = useCallback(async () => {
+    const description = ask.trim();
+    if (!description) return;
+    setErr(null);
+    setNote(null);
+    setWarnings([]);
+    setBusy("author");
+    try {
+      const d = (await agentsApi.post("/api/v1/agents/lean/author", { description })).data;
+      if (d.error) {
+        setErr(d.error);
+        return;
+      }
+      setCode(d.code);
+      setSavedCode(null);      // a draft is unsaved by definition
+      setLoadedName(null);
+      if (d.name) setName(d.name);
+      setWarnings(d.warnings ?? []);
+      setNote(
+        (d.warnings?.length ?? 0) > 0
+          ? "Draft written — read the notes below before running."
+          : "Draft written — read it, tweak it, then Run.",
+      );
+    } catch (e: unknown) {
+      setErr(detailOf(e));
+    } finally {
+      setBusy(null);
+    }
+  }, [ask]);
 
   const save = useCallback(async () => {
     setErr(null);
@@ -278,7 +289,6 @@ export function LeanLab() {
 
   const r = job?.result;
   const dirty = savedCode !== null && savedCode !== code;
-  const stats = r?.statistics ?? {};
 
   return (
     <div className={`mt-6 ${KT.panel}`}>
@@ -312,6 +322,40 @@ export function LeanLab() {
           </button>
         </div>
       </div>
+
+      {/* ---------------- ask Clark for the code ---------------- */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-[var(--kt-border)] px-5 py-3">
+        <Sparkles size={13} className={`shrink-0 ${KT.agent.text}`} />
+        <input
+          value={ask}
+          onChange={(e) => setAsk(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); author(); } }}
+          placeholder="Describe a strategy — e.g. buy GLD when it crosses above its 100-day SMA, sell below"
+          className={`min-w-[240px] flex-1 ${KT.input}`}
+          aria-label="Describe the strategy for Clark to write"
+        />
+        <button onClick={author} disabled={busy !== null || !ask.trim()}
+                className={`flex h-9 items-center gap-1.5 ${KT.agent.btn} disabled:opacity-40`}>
+          {busy === "author" ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+          {busy === "author" ? "Writing…" : "Ask Clark"}
+        </button>
+      </div>
+
+      {warnings.length > 0 && (
+        <div className="border-b border-[var(--kt-border)] px-5 py-3">
+          <div className={KT.label}>Read before running</div>
+          <ul className="mt-1.5 space-y-1">
+            {warnings.map((w, i) => (
+              <li key={i} className="text-[11px] text-[var(--kt-warn)]">— {w}</li>
+            ))}
+          </ul>
+          <p className={`mt-2 text-[10px] ${KT.muted}`}>
+            Clark wrote this; the engine has not seen it yet. These are problems
+            that would surface at run time as errors that read like engine
+            faults rather than code faults.
+          </p>
+        </div>
+      )}
 
       {/* ---------------- library + editor ---------------- */}
       <div className="grid grid-cols-1 border-b border-[var(--kt-border)] lg:grid-cols-[220px_1fr]">
@@ -396,53 +440,10 @@ export function LeanLab() {
         </div>
       )}
 
-      {/* ---------------- results: the same cards the lab above uses ---------- */}
+      {/* ---------------- results ---------------- */}
       {job?.state === "done" && r && (
-        <div className="px-5 py-4">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <Stat label="Total return" value={pctf(r.total_return_pct)}
-                  sub={`${job.wall_seconds ?? "—"}s wall`}
-                  tone={(r.total_return_pct ?? 0) >= 0 ? KT.up : KT.down} />
-            <Stat label="Sharpe" value={numf(r.sharpe)} sub="LEAN statistic" />
-            <Stat label="Max drawdown" value={pctf(r.max_drawdown_pct)} tone={KT.down} sub="peak to trough" />
-            <Stat label="Orders" value={r.total_trades != null ? String(r.total_trades) : "—"}
-                  sub={r.total_trades ? "filled by the engine" : "signal-only — it never traded"} />
-          </div>
-
-          {r.equity_curve && r.equity_curve.length >= 2 ? (
-            <div className="mt-4">
-              <div className={KT.label}>Equity</div>
-              <EquitySpark curve={r.equity_curve} />
-            </div>
-          ) : (
-            <p className={`mt-3 text-[11px] ${KT.muted}`}>
-              No equity curve — the algorithm never took a position, so there is
-              nothing to plot. That is a result, not a failure.
-            </p>
-          )}
-
-          {Object.keys(stats).length > 0 && (
-            <details className="mt-4">
-              <summary className={`cursor-pointer text-[11px] ${KT.muted}`}>
-                All {Object.keys(stats).length} LEAN statistics
-              </summary>
-              <div className="mt-2 grid grid-cols-2 gap-x-8 gap-y-1 sm:grid-cols-3">
-                {Object.entries(stats).map(([k, v]) => (
-                  <div key={k} className="flex items-baseline justify-between gap-2 text-[11px]">
-                    <span className={KT.muted}>{k}</span>
-                    <span className="font-mono tabular-nums">{String(v)}</span>
-                  </div>
-                ))}
-              </div>
-            </details>
-          )}
-
-          <p className={`mt-3 text-[10px] ${KT.muted}`}>
-            LEAN engine statistics, verbatim. Nothing here is registered or
-            persisted to the fund — promotion to a strategy is a separate,
-            deliberate step.
-          </p>
-        </div>
+        <LeanResults result={r} algorithm={job.algorithm ?? name}
+                     wallSeconds={job.wall_seconds} />
       )}
 
       {/* ---------------- run history: research is comparison --------------- */}
