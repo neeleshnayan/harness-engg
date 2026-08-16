@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { FlaskConical, Loader2, Play, Trash2 } from "lucide-react";
 import { StudioHeader } from "../components/StudioHeader";
+import { LeanLab } from "../components/LeanLab";
 import { KT } from "../theme";
 import { CandidateVerdict } from "../components/CandidateVerdict";
 import { spineError } from "@/lib/spine_error";
@@ -324,6 +325,9 @@ function Stat({ label, value, sub, tone }: { label: string; value: string; sub?:
         {value}
       </div>
       {sub && <div className={`mt-1 text-[10px] ${KT.muted}`}>{sub}</div>}
+      <div className="mx-auto max-w-[1600px] px-6 pb-10">
+        <LeanLab />
+      </div>
     </div>
   );
 }

@@ -11,7 +11,7 @@ const HARNESS_BASE_URL =
     ? '/proxy/harness'
     : (process.env.NEXT_PUBLIC_HARNESS_API_URL || 'http://127.0.0.1:8090');
 
-const fundApi = axios.create({
+export const fundApi = axios.create({
   baseURL: HARNESS_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 60000,

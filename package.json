@@ -12,6 +12,7 @@
   "dependencies": {
     "@assistant-ui/react": "^0.15.14",
     "@assistant-ui/react-markdown": "^0.14.10",
+    "@codemirror/lang-python": "^6.2.1",
     "@coinbase/onchainkit": "^0.38.19",
     "@fortawesome/fontawesome-svg-core": "^7.0.0",
     "@fortawesome/free-solid-svg-icons": "^7.0.0",
@@ -26,6 +27,7 @@
     "@radix-ui/react-switch": "^1.2.5",
     "@sumsub/websdk-react": "^2.3.19",
     "@tanstack/react-query": "^5.90.2",
+    "@uiw/react-codemirror": "^4.25.11",
     "alchemy-sdk": "^3.6.3",
     "axios": "^1.10.0",
     "class-variance-authority": "^0.7.1",
