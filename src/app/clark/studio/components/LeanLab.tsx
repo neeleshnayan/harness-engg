@@ -366,7 +366,7 @@ export function LeanLab() {
               Nothing saved yet.
             </div>
           ) : (
-            <ul className="mt-2 max-h-[190px] overflow-y-auto">
+            <ul className="mt-2 max-h-[380px] overflow-y-auto">
               {library.map((a) => (
                 <li key={a.name}>
                   <button
@@ -406,7 +406,11 @@ export function LeanLab() {
             onChange={setCode}
             extensions={[python()]}
             theme="dark"
-            height="420px"
+            // Tall enough to hold a whole algorithm without scrolling: the
+            // SpineBars boilerplate alone is ~25 lines, so a short pane meant
+            // the strategy — the only part anyone edits — was always below the
+            // fold.
+            height="640px"
             basicSetup={{ lineNumbers: true, foldGutter: false }}
           />
         </div>
