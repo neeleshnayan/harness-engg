@@ -155,10 +155,23 @@ _connector = (
     )
 )
 _store = EventStore()
-# Snapshotted: without this every read folds the entire event log, which is
-# O(all history) per request and exhausted the Firestore read quota (429).
-from app.fund.snapshots import SnapshotStore
-_snapshots = SnapshotStore()
+# Snapshotted on Firestore: without it every read folds the entire event log,
+# which is O(all history) per request and exhausted the read quota (429).
+#
+# NOT snapshotted on Postgres, deliberately. The snapshot store is a cache
+# whose only justification was that reading the log was expensive; folding 155
+# events out of Postgres takes 40 milliseconds, so the cache buys nothing and
+# costs a write every fifty events. Worse, it kept the read path anchored to
+# Firestore after the ledger had left: with the quota exhausted, every snapshot
+# read failed through gRPC retries and a single NAV request took FIFTY-SEVEN
+# SECONDS — long enough that Clark's own tools timed out and reported the fund
+# unreachable while Postgres sat there answering in milliseconds.
+from app.fund.events import store_backend
+if store_backend() == "postgres":
+    _snapshots = None
+else:
+    from app.fund.snapshots import SnapshotStore
+    _snapshots = SnapshotStore()
 _projection = PositionsProjection(_store, snapshots=_snapshots)
 _nav = NavService(pricer=_connector.price, store=_store, projection=_projection)
 _pipeline = CommandPipeline(connector=_connector, nav_service=_nav, store=_store)
