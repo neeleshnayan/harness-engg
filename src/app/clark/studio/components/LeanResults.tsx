@@ -42,9 +42,17 @@ export interface LeanRobustness {
   total_orders?: number | null;
   win_rate_pct?: number | null;
   total_fees?: number | null;
-  fees_are_zero?: boolean;
   turnover_pct?: number | null;
   periods?: { from: string; to: string; return_pct: number }[];
+  costs?: LeanCostDisclosure | null;
+}
+
+export interface LeanCostDisclosure {
+  slippage_modelled?: boolean;
+  fee_model_set?: boolean;
+  commission_paid?: number | null;
+  unpriced?: boolean;
+  note?: string;
 }
 
 export interface LeanOrder {
@@ -113,11 +121,11 @@ function Robustness({ rb }: { rb: LeanRobustness }) {
 
         <div>
           <div className={KT.label}>Trading costs</div>
-          <div className={`mt-1 font-mono tabular-nums text-xl font-light ${rb.fees_are_zero ? "text-[var(--kt-warn)]" : ""}`}>
-            {rb.total_fees == null ? "—" : `$${rb.total_fees.toFixed(2)}`}
+          <div className={`mt-1 font-mono tabular-nums text-xl font-light ${rb.costs?.unpriced ? "text-[var(--kt-warn)]" : ""}`}>
+            {rb.costs?.unpriced ? "unpriced" : rb.costs?.slippage_modelled ? "modelled" : "—"}
           </div>
           <div className={`mt-1 text-[10px] ${KT.muted}`}>
-            {rb.turnover_pct != null ? `${rb.turnover_pct.toFixed(1)}% turnover` : "fees charged"}
+            {rb.turnover_pct != null ? `${rb.turnover_pct.toFixed(1)}% turnover` : "spread + commission"}
           </div>
         </div>
       </div>
@@ -126,13 +134,23 @@ function Robustness({ rb }: { rb: LeanRobustness }) {
         <div className={`px-5 pb-3 text-[11px] ${verdict.tone}`}>{verdict.text}</div>
       )}
 
-      {rb.fees_are_zero && (
+      {rb.costs?.unpriced && (
         <div className={`px-5 pb-3 text-[11px] text-[var(--kt-warn)]`}>
-          This run traded for free. The fund&apos;s own bars carry no fee model, so
-          the engine charged nothing — the live version of this strategy will
-          earn less than the curve above, and the more it trades the wider that
-          gap gets.
+          This run was never priced — no slippage model, so every fill happened
+          at the close. The live version will earn less than the curve above,
+          and the more it trades the wider that gap gets. Add
+          <code> sec.set_slippage_model(ConstantSlippageModel(0.0005))</code> and
+          run it again.
         </div>
+      )}
+      {rb.costs?.slippage_modelled && (
+        <p className={`px-5 pb-3 text-[10px] ${KT.muted}`}>
+          Costs are modelled: fills cross the spread. Commission is
+          ${(rb.costs.commission_paid ?? 0).toFixed(2)} because Alpaca charges
+          none on US equities — that zero is correct, not missing. Sweep the
+          <code> slip</code> parameter to find the cost at which this edge stops
+          paying.
+        </p>
       )}
 
       {periods.length > 0 && (

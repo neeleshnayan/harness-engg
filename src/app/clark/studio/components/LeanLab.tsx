@@ -86,7 +86,23 @@ class MyAlgorithm(QCAlgorithm):
         # returns None when unset, hence the defaults — a plain Run still works.
         fast = int(self.get_parameter("fast") or 20)
         slow = int(self.get_parameter("slow") or 60)
-        self.sym = self.add_data(SpineBars, "SPY", Resolution.DAILY).symbol
+
+        sec = self.add_data(SpineBars, "SPY", Resolution.DAILY)
+        self.sym = sec.symbol
+        self.set_benchmark(self.sym)
+        # Costs are ON by default, and the default is not zero. Alpaca charges
+        # no commission on US equities, so the fee really is 0 — the cost that
+        # bites is the SPREAD: you buy at the ask and sell at the bid. 5bps is
+        # a conservative half-spread for liquid names at this size.
+        #
+        # Both are parameters so the sweep can answer the question that
+        # actually matters: not "what does trading cost" but "at what cost does
+        # this edge disappear". Sweep slip and watch where the return crosses
+        # zero.
+        sec.set_fee_model(ConstantFeeModel(float(self.get_parameter("fee") or 0)))
+        sec.set_slippage_model(
+            ConstantSlippageModel(float(self.get_parameter("slip") or 0.0005)))
+
         self.fast = self.sma(self.sym, fast)
         self.slow = self.sma(self.sym, slow)
 
