@@ -957,6 +957,23 @@ def _universe():
     return _universe_cache
 
 
+@router.get("/fund/health")
+def fund_health():
+    """Is the system well — not merely up.
+
+    Every check does the REAL operation and times it, because a liveness ping
+    returned 200 through every outage this fund has had: the sixty-second NAV,
+    the exhausted Firestore quota, the allocation that 500'd without reaching
+    the log. The service was up throughout all of them.
+    """
+    from app.fund.health import report
+    out = report(nav_service=_nav, connector=_connector, runner=_lean())
+    # 200 even when degraded: this endpoint's job is to be READ, and a
+    # monitoring tool that cannot parse the body because the status code made
+    # it give up has learned nothing.
+    return out
+
+
 @router.get("/fund/universe/hunting-ground")
 def universe_hunting_ground(
     turnover_pct: float = Query(5.0, gt=0, le=100),
