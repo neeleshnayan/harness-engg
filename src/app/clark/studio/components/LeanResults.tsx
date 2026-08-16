@@ -34,6 +34,17 @@ export interface LeanRunResult {
   benchmark_source?: string | null;
   orders?: LeanOrder[];
   statistics?: Record<string, string>;
+  robustness?: LeanRobustness | null;
+}
+
+export interface LeanRobustness {
+  psr_pct?: number | null;
+  total_orders?: number | null;
+  win_rate_pct?: number | null;
+  total_fees?: number | null;
+  fees_are_zero?: boolean;
+  turnover_pct?: number | null;
+  periods?: { from: string; to: string; return_pct: number }[];
 }
 
 export interface LeanOrder {
@@ -47,6 +58,108 @@ export interface LeanOrder {
 
 const pctf = (n?: number | null) => (n == null ? "—" : `${n.toFixed(1)}%`);
 const numf = (n?: number | null) => (n == null ? "—" : n.toFixed(2));
+
+/**
+ * The question that comes BEFORE "is it worth owning".
+ *
+ * A backtest states its return with identical confidence whether it rests on
+ * five trades or five hundred, which is how a lucky streak gets promoted to a
+ * strategy. Everything here is measured by the engine, not asserted by us.
+ */
+function Robustness({ rb }: { rb: LeanRobustness }) {
+  const psr = rb.psr_pct;
+  const periods = rb.periods ?? [];
+  const positive = periods.filter((p) => p.return_pct > 0).length;
+
+  // Probabilistic Sharpe Ratio: the probability the TRUE Sharpe beats zero,
+  // adjusted for skew, kurtosis and how much history there is. Below ~50% the
+  // observed Sharpe is not distinguishable from luck.
+  const verdict =
+    psr == null ? null
+      : psr >= 95 ? { text: "The Sharpe is very unlikely to be luck.", tone: KT.up }
+      : psr >= 50 ? { text: "The Sharpe is more likely real than not, but not settled.", tone: "text-[var(--kt-warn)]" }
+      : { text: "The Sharpe is NOT distinguishable from luck on this much history.", tone: KT.down };
+
+  return (
+    <div className={KT.panel}>
+      <div className="border-b border-[var(--kt-border)] px-5 py-3">
+        <span className={KT.label}>Can this be believed?</span>
+        <div className={`mt-1 text-[11px] ${KT.muted}`}>
+          Before asking whether a strategy is good, ask whether the result is a
+          measurement or a coincidence.
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-x-8 gap-y-4 px-5 py-4 sm:grid-cols-3">
+        <div>
+          <div className={KT.label}>Confidence the edge is real</div>
+          <div className={`mt-1 font-mono tabular-nums text-xl font-light ${verdict?.tone ?? ""}`}>
+            {psr == null ? "—" : `${psr.toFixed(1)}%`}
+          </div>
+          <div className={`mt-1 text-[10px] ${KT.muted}`}>
+            probabilistic Sharpe — LEAN&apos;s own statistic
+          </div>
+        </div>
+
+        <div>
+          <div className={KT.label}>Evidence</div>
+          <div className="mt-1 font-mono tabular-nums text-xl font-light">
+            {rb.total_orders ?? "—"}
+          </div>
+          <div className={`mt-1 text-[10px] ${KT.muted}`}>
+            fills{rb.win_rate_pct != null ? ` · ${rb.win_rate_pct.toFixed(0)}% won` : ""}
+          </div>
+        </div>
+
+        <div>
+          <div className={KT.label}>Trading costs</div>
+          <div className={`mt-1 font-mono tabular-nums text-xl font-light ${rb.fees_are_zero ? "text-[var(--kt-warn)]" : ""}`}>
+            {rb.total_fees == null ? "—" : `$${rb.total_fees.toFixed(2)}`}
+          </div>
+          <div className={`mt-1 text-[10px] ${KT.muted}`}>
+            {rb.turnover_pct != null ? `${rb.turnover_pct.toFixed(1)}% turnover` : "fees charged"}
+          </div>
+        </div>
+      </div>
+
+      {verdict && (
+        <div className={`px-5 pb-3 text-[11px] ${verdict.tone}`}>{verdict.text}</div>
+      )}
+
+      {rb.fees_are_zero && (
+        <div className={`px-5 pb-3 text-[11px] text-[var(--kt-warn)]`}>
+          This run traded for free. The fund&apos;s own bars carry no fee model, so
+          the engine charged nothing — the live version of this strategy will
+          earn less than the curve above, and the more it trades the wider that
+          gap gets.
+        </div>
+      )}
+
+      {periods.length > 0 && (
+        <div className="border-t border-[var(--kt-border)] px-5 py-3">
+          <div className={KT.label}>Did it work throughout?</div>
+          <div className="mt-2 space-y-1">
+            {periods.map((p, i) => (
+              <div key={i} className="flex items-baseline gap-3 text-[11px]">
+                <span className={KT.muted}>{p.from} → {p.to}</span>
+                <span className={`ml-auto font-mono tabular-nums ${p.return_pct >= 0 ? KT.up : KT.down}`}>
+                  {p.return_pct >= 0 ? "+" : ""}{p.return_pct.toFixed(2)}%
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className={`mt-2 text-[10px] ${KT.muted}`}>
+            {positive === periods.length
+              ? "Positive in every stretch of the window."
+              : positive <= 1
+                ? "Nearly all of the result came from one stretch — that is a single event, not a repeatable edge."
+                : "Mixed across the window; the result is not evenly earned."}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function LeanResults({
   result,
@@ -136,6 +249,9 @@ export function LeanResults({
           nothing to plot. That is a result, not a failure.
         </p>
       )}
+
+      {/* --- can it be believed, before it is worth owning --- */}
+      {r.robustness && <Robustness rb={r.robustness} />}
 
       {/* --- is it worth owning: alpha vs beta, and the fit with the book --- */}
       {curve.length >= 2 && dates.length >= 2 && (
