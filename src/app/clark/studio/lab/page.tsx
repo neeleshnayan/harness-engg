@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { FlaskConical, Loader2, Play, Trash2 } from "lucide-react";
 import { StudioHeader } from "../components/StudioHeader";
 import { LeanLab } from "../components/LeanLab";
+import { Stat } from "../components/Stat";
 import { KT } from "../theme";
 import { CandidateVerdict } from "../components/CandidateVerdict";
 import { spineError } from "@/lib/spine_error";
@@ -313,21 +314,13 @@ export default function LabPage() {
           )}
         </div>
       </div>
-    </div>
-  );
-}
 
-function Stat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: string }) {
-  return (
-    <div className={KT.card}>
-      <div className={KT.label}>{label}</div>
-      <div className={`mt-1 font-mono tabular-nums text-xl font-light ${tone || "text-[var(--kt-text-strong)]"}`}>
-        {value}
-      </div>
-      {sub && <div className={`mt-1 text-[10px] ${KT.muted}`}>{sub}</div>}
+      {/* The in-process backtester above is the fast loop; the engine of record
+          is its own desk — one lab, page level, below the research grid. */}
       <div className="mx-auto max-w-[1600px] px-6 pb-10">
         <LeanLab />
       </div>
     </div>
   );
 }
+
