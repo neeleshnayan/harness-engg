@@ -66,9 +66,21 @@ const STARTERS: { id: string; label: string; hint: string; code: string }[] = [
     hint: "trades — produces real return, Sharpe and drawdown",
     code: `${SPINE_BARS}
 
+def _date(raw, fallback):
+    """A YYYY-MM-DD parameter, or the default. Lets the Lab hand the algorithm
+    a training window and then a held-out one it was not chosen on."""
+    if raw:
+        y, m, d = (int(p) for p in str(raw).split("-"))
+        return y, m, d
+    return fallback
+
+
 class MyAlgorithm(QCAlgorithm):
     def initialize(self):
-        self.set_start_date(2025, 1, 1)
+        self.set_start_date(*_date(self.get_parameter("start"), (2025, 1, 1)))
+        end = self.get_parameter("end")
+        if end:
+            self.set_end_date(*_date(end, None))
         self.set_cash(2000)
         # Read tunables as parameters so the Lab can sweep them. get_parameter
         # returns None when unset, hence the defaults — a plain Run still works.

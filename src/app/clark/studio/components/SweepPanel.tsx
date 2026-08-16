@@ -42,6 +42,24 @@ export interface SweepSummary {
   best_minus_median_pct?: number;
 }
 
+interface HoldoutSide {
+  window?: string[] | null;
+  return_pct?: number | null;
+  sharpe?: number | null;
+  psr_pct?: number | null;
+  total_orders?: number | null;
+}
+
+interface HoldoutResult {
+  state: string;
+  reason?: string;
+  parameters?: Record<string, string>;
+  train?: HoldoutSide;
+  test?: HoldoutSide;
+  dates_honoured?: boolean;
+  error?: string | null;
+}
+
 interface Sweep {
   sweep_id: string;
   state: string;
@@ -50,9 +68,71 @@ interface Sweep {
   error?: string | null;
   points: SweepPoint[];
   summary?: SweepSummary;
+  holdout_result?: HoldoutResult | null;
 }
 
 const f2 = (n?: number | null) => (n == null ? "—" : n.toFixed(2));
+const win = (w?: string[] | null) => (w && w.length === 2 ? `${w[0]} → ${w[1]}` : "—");
+
+/**
+ * Did the winner survive data it was not chosen on?
+ *
+ * Picking the best of N settings on one window guarantees a good number on
+ * that window; the only question that matters is whether it holds anywhere
+ * else. This is the panel that kills strategies, which is the point of it.
+ */
+function Holdout({ h }: { h: HoldoutResult }) {
+  if (h.state === "skipped") {
+    return (
+      <div className={`border-t border-[var(--kt-border)] px-5 py-3 text-[11px] ${KT.muted}`}>
+        No held-out test — {h.reason}.
+      </div>
+    );
+  }
+
+  const tr = h.train?.return_pct;
+  const te = h.test?.return_pct;
+  const kept = tr != null && te != null && tr !== 0 ? te / tr : null;
+
+  const verdict =
+    h.dates_honoured === false
+      ? { text: "Both runs covered the SAME dates, so this is not a held-out test at all — the algorithm ignored the start and end parameters. Read them with self.get_parameter(\"start\") before trusting anything here.", tone: KT.down }
+      : kept == null ? null
+      : kept >= 0.7 ? { text: "The edge largely survived data it was not chosen on. That is the strongest evidence this page can offer.", tone: KT.up }
+      : kept >= 0.3 ? { text: "The edge weakened materially out of sample — some of the training result was fit to that window.", tone: "text-[var(--kt-warn)]" }
+      : { text: "The edge did not survive. The training number was a fit to that window, and the honest expectation is the out-of-sample one.", tone: KT.down };
+
+  return (
+    <div className="border-t border-[var(--kt-border)] px-5 py-4">
+      <div className={KT.label}>Held-out test</div>
+      <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className={KT.inset + " p-3"}>
+          <div className={`text-[10px] ${KT.muted}`}>chosen on {win(h.train?.window)}</div>
+          <div className={`mt-1 font-mono tabular-nums text-xl font-light ${(tr ?? 0) >= 0 ? KT.up : KT.down}`}>
+            {tr == null ? "—" : `${f2(tr)}%`}
+          </div>
+          <div className={`mt-1 text-[10px] ${KT.muted}`}>in sample · sharpe {f2(h.train?.sharpe)}</div>
+        </div>
+        <div className={KT.inset + " p-3"}>
+          <div className={`text-[10px] ${KT.muted}`}>tested on {win(h.test?.window)}</div>
+          <div className={`mt-1 font-mono tabular-nums text-xl font-light ${(te ?? 0) >= 0 ? KT.up : KT.down}`}>
+            {te == null ? "—" : `${f2(te)}%`}
+          </div>
+          <div className={`mt-1 text-[10px] ${KT.muted}`}>
+            out of sample · sharpe {f2(h.test?.sharpe)} · {h.test?.total_orders ?? "—"} fills
+          </div>
+        </div>
+      </div>
+      {h.error && <div className={`mt-2 text-[11px] ${KT.down}`}>{h.error}</div>}
+      {verdict && <p className={`mt-3 text-[11px] ${verdict.tone}`}>{verdict.text}</p>}
+      {h.parameters && (
+        <p className={`mt-1 text-[10px] ${KT.muted}`}>
+          settings carried over unchanged: {Object.entries(h.parameters).map(([k, v]) => `${k}=${v}`).join(", ")}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function SweepPanel({ algorithm, disabled }: { algorithm: string; disabled?: boolean }) {
   const [rows, setRows] = useState([
@@ -62,6 +142,11 @@ export function SweepPanel({ algorithm, disabled }: { algorithm: string; disable
   const [sweep, setSweep] = useState<Sweep | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [useHoldout, setUseHoldout] = useState(true);
+  const [hold, setHold] = useState({
+    train_start: "2025-01-01", train_end: "2026-02-28",
+    test_start: "2026-03-01", test_end: "2026-08-14",
+  });
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
@@ -85,7 +170,9 @@ export function SweepPanel({ algorithm, disabled }: { algorithm: string; disable
         const values = r.values.split(",").map((v) => v.trim()).filter(Boolean);
         if (name && values.length) grid[name] = values;
       }
-      const sub = (await fundApi.post("/api/v1/fund/lean/sweeps", { algorithm, grid })).data;
+      const sub = (await fundApi.post("/api/v1/fund/lean/sweeps", {
+        algorithm, grid, holdout: useHoldout ? hold : null,
+      })).data;
       pollRef.current = setInterval(async () => {
         try {
           const s = (await fundApi.get(`/api/v1/fund/lean/sweeps/${sub.sweep_id}`)).data as Sweep;
@@ -101,7 +188,7 @@ export function SweepPanel({ algorithm, disabled }: { algorithm: string; disable
       setErr(detail ?? String(e));
       setBusy(false);
     }
-  }, [algorithm, rows]);
+  }, [algorithm, rows, useHoldout, hold]);
 
   const summary = sweep?.summary;
   const done = points.filter((p) => p.state === "done" && p.total_return_pct != null);
@@ -161,6 +248,38 @@ export function SweepPanel({ algorithm, disabled }: { algorithm: string; disable
         </p>
       </div>
 
+      {/* --- hold out a window the winner was not chosen on --- */}
+      <div className="border-t border-[var(--kt-border)] px-5 py-3">
+        <label className="flex items-center gap-2 text-[11px]">
+          <input type="checkbox" checked={useHoldout}
+                 onChange={(e) => setUseHoldout(e.target.checked)}
+                 className="accent-[var(--kt-accent)]" />
+          <span className={KT.label}>Test on held-out data</span>
+        </label>
+        <p className={`mt-1 text-[10px] ${KT.muted}`}>
+          Choosing the best of {combos} settings on one window guarantees a good
+          number on that window. The winner is re-run on a later window that had
+          no vote in its selection — the only test that catches a fit. Your
+          algorithm must read <code>start</code> and <code>end</code> parameters.
+        </p>
+        {useHoldout && (
+          <div className="mt-2 flex flex-wrap gap-4">
+            {([["train_start", "train from"], ["train_end", "to"],
+               ["test_start", "test from"], ["test_end", "to"]] as const).map(([k, label]) => (
+              <div key={k} className="flex items-center gap-2">
+                <span className={`text-[10px] ${KT.muted}`}>{label}</span>
+                <input
+                  value={hold[k]}
+                  onChange={(e) => setHold((v) => ({ ...v, [k]: e.target.value }))}
+                  className={`w-32 ${KT.input} py-1`} placeholder="YYYY-MM-DD"
+                  aria-label={`${label} date`}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {err && <div className={`px-5 pb-3 text-sm ${KT.down}`}>{err}</div>}
       {sweep?.state === "failed" && (
         <div className={`px-5 pb-3 text-sm ${KT.down}`}>Sweep failed: {sweep.error}</div>
@@ -192,6 +311,8 @@ export function SweepPanel({ algorithm, disabled }: { algorithm: string; disable
           )}
         </div>
       )}
+
+      {sweep?.holdout_result && <Holdout h={sweep.holdout_result} />}
 
       {twoD && (
         <div className="overflow-x-auto border-t border-[var(--kt-border)] px-5 py-4">
