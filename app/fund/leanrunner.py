@@ -291,8 +291,70 @@ class LeanRunner:
             "benchmark_curve": bench,
             "benchmark_return_pct": _total_return(bench),
             "orders": _orders(best),
+            "robustness": _robustness(stats, equity, dates, _orders(best)),
             "raw_files": sorted(p.name for p in res_dir.glob("*")),
         }
+
+
+def _robustness(stats: dict, equity: list[float], dates: list[str],
+                orders: list[dict]) -> dict[str, Any]:
+    """Can this result be believed? Measured, never assumed.
+
+    A backtest reports its return with the same confidence whether it rests on
+    five trades or five hundred, which is how a lucky streak gets promoted. The
+    three questions that separate a result from a coincidence:
+
+    - Is the Sharpe distinguishable from luck? LEAN already computes the
+      Probabilistic Sharpe Ratio — the probability the true Sharpe beats zero,
+      adjusted for skew, kurtosis and sample length. It was buried in the
+      statistics fold; it belongs at the front.
+    - Did it work throughout, or in one stretch? A strategy that made
+      everything in one month is a different animal from one that ground it out.
+    - What did trading cost? See ``fees_are_zero``.
+    """
+    def _num(key: str) -> Optional[float]:
+        v = stats.get(key)
+        if v is None:
+            return None
+        try:
+            return float(str(v).replace("%", "").replace("$", "").replace(",", ""))
+        except ValueError:
+            return None
+
+    fees = _num("Total Fees")
+    out: dict[str, Any] = {
+        "psr_pct": _num("Probabilistic Sharpe Ratio"),
+        "total_orders": int(_num("Total Orders") or len(orders)),
+        "win_rate_pct": _num("Win Rate"),
+        "total_fees": fees,
+        # Custom data carries no fee model, so the engine charges nothing. Every
+        # result here is therefore a NO-COST backtest, which flatters turnover.
+        # Stated rather than corrected: inventing a commission would be a made-up
+        # number, and the operator can judge the gap themselves.
+        "fees_are_zero": fees == 0.0 and len(orders) > 0,
+        "turnover_pct": _num("Portfolio Turnover"),
+        "periods": _periods(equity, dates),
+    }
+    return out
+
+
+def _periods(equity: list[float], dates: list[str], n: int = 3) -> list[dict[str, Any]]:
+    """Return within each equal slice of the window — was it consistent?"""
+    if len(equity) < n * 2 or len(dates) != len(equity):
+        return []
+    out: list[dict[str, Any]] = []
+    size = len(equity) // n
+    for i in range(n):
+        lo = i * size
+        hi = (i + 1) * size if i < n - 1 else len(equity) - 1
+        start, end = equity[lo], equity[hi]
+        if not start:
+            continue
+        out.append({
+            "from": dates[lo], "to": dates[hi],
+            "return_pct": round((end / start - 1.0) * 100.0, 2),
+        })
+    return out
 
 
 def _curve(charts: dict, chart: str, series: str) -> tuple[list[float], list[str]]:

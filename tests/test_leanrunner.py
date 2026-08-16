@@ -212,3 +212,65 @@ def test_benchmark_normalises_to_the_strategys_starting_equity(monkeypatch):
     assert res["benchmark_symbol"] == "SPY"
     assert res["benchmark_curve"] == [2000.0, 2200.0, 2400.0]
     assert res["benchmark_return_pct"] == pytest.approx(20.0)
+
+
+# --- robustness: can the result be believed? --------------------------------
+
+def _equity_charts(values):
+    return {"Strategy Equity": {"series": {"Equity": {"values": values}}}}
+
+
+def test_probabilistic_sharpe_is_surfaced():
+    """LEAN computes it; it was buried in the statistics fold. It is the one
+    number that says whether a Sharpe is distinguishable from luck."""
+    from app.fund.leanrunner import _robustness
+    rb = _robustness({"Probabilistic Sharpe Ratio": "1.969%", "Total Orders": "41"},
+                     [], [], [])
+    assert rb["psr_pct"] == pytest.approx(1.969)
+    assert rb["total_orders"] == 41
+
+
+def test_zero_fees_with_fills_is_flagged_as_a_no_cost_backtest():
+    """Custom data carries no fee model, so every run here trades for free —
+    which flatters turnover. Stated, never silently 'corrected'."""
+    from app.fund.leanrunner import _robustness
+    rb = _robustness({"Total Fees": "$0.00"}, [], [], [{"symbol": "SPY"}])
+    assert rb["total_fees"] == 0.0
+    assert rb["fees_are_zero"] is True
+
+
+def test_no_fills_is_not_a_free_lunch_claim():
+    """An algorithm that never traded paid nothing because it did nothing —
+    that is not the same statement as 'trading was free'."""
+    from app.fund.leanrunner import _robustness
+    rb = _robustness({"Total Fees": "$0.00"}, [], [], [])
+    assert rb["fees_are_zero"] is False
+
+
+def test_periods_split_the_window_and_expose_one_lucky_stretch():
+    from app.fund.leanrunner import _periods
+    equity = [100.0] * 10 + [100.0] * 10 + [float(100 + i * 10) for i in range(10)]
+    dates = [f"2025-01-{i + 1:02d}" for i in range(30)]
+    periods = _periods(equity, dates, n=3)
+    assert len(periods) == 3
+    assert periods[0]["return_pct"] == 0.0
+    assert periods[1]["return_pct"] == 0.0
+    assert periods[2]["return_pct"] > 0     # all of it came from the last third
+    assert periods[0]["from"] == "2025-01-01"
+
+
+def test_periods_absent_when_dates_do_not_match_the_curve():
+    """No dates means no honest period labels — say nothing rather than guess."""
+    from app.fund.leanrunner import _periods
+    assert _periods([1.0] * 30, [], n=3) == []
+
+
+def test_periods_absent_on_a_curve_too_short_to_split():
+    from app.fund.leanrunner import _periods
+    assert _periods([1.0, 2.0], ["2025-01-01", "2025-01-02"], n=3) == []
+
+
+def test_unparsable_statistics_are_unknown_not_zero():
+    from app.fund.leanrunner import _robustness
+    rb = _robustness({"Probabilistic Sharpe Ratio": "n/a"}, [], [], [])
+    assert rb["psr_pct"] is None
