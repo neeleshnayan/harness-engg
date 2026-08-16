@@ -37,6 +37,7 @@ from typing import Any, Optional
 
 from app.fund.chain import GENESIS_HASH, event_hash, verify
 from app.fund.events import Event, EventType
+from app.fund.money import encode
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +125,19 @@ class PostgresEventStore:
                 last_seq, prev = (row[0], row[1]) if row else (0, GENESIS_HASH)
                 nxt = last_seq + 1
 
-                body = event.to_dict()
+                # encode() FIRST, exactly as the Firestore store does. Two
+                # reasons, and the second is the dangerous one.
+                #
+                # Money in this codebase is Decimal, and json.dumps cannot
+                # serialize it — set_allocation appended a Decimal payload and
+                # the whole call died with a 500 that never reached the log.
+                #
+                # And the hash is computed over this body. Hashing unencoded
+                # Decimals would produce a different digest than Firestore
+                # would have produced for the identical event, so the two
+                # stores would silently disagree about the same history — a
+                # chain that verifies in one place and breaks in the other.
+                body = encode(event.to_dict())
                 body["seq"] = nxt
                 body["prev_hash"] = prev
                 body["hash"] = event_hash(body, prev)

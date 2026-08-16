@@ -187,3 +187,27 @@ def test_append_raw_is_idempotent(store):
     store.append_raw(sealed)
     store.append_raw(sealed)
     assert len([r for r in store.by_aggregate(agg) if r["seq"] == seq]) == 1
+
+
+def test_decimal_payloads_are_encoded_before_hashing(store):
+    """Money is Decimal here, and json.dumps cannot serialise it.
+
+    set_allocation appended a Decimal payload and the call died with a 500 that
+    never reached the log — the strategy stayed at its old allocation while the
+    caller believed it had changed.
+
+    The hash matters as much as the crash: the Firestore store hashes the
+    ENCODED body, so hashing raw Decimals would make the two stores disagree
+    about the digest of an identical event.
+    """
+    from decimal import Decimal
+    from app.fund.chain import event_hash
+    agg = f"t-{uuid.uuid4().hex[:8]}"
+    ev = store.append(_ev(agg, {"target_pct": Decimal("2.5"),
+                                "nested": {"usd": Decimal("1234.56")}}))
+    row = [r for r in store.by_aggregate(agg) if r["seq"] == ev.seq][0]
+    # Decimals land as strings, the way Firestore stored them.
+    assert row["payload"]["target_pct"] == "2.5"
+    assert row["payload"]["nested"]["usd"] == "1234.56"
+    # And the stored hash still describes what came back.
+    assert event_hash(row, row["prev_hash"]) == row["hash"]
