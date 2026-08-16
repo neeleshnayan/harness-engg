@@ -118,6 +118,61 @@ def _sweep_point(params: dict[str, str], job: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def breakeven_cost(points: list[dict[str, Any]], param: str = "slip") -> dict[str, Any]:
+    """The trading cost at which this edge stops paying.
+
+    A backtest reports its return at ONE cost assumption, and the number is
+    only as good as that assumption. The useful question is not "what does
+    trading cost" — nobody knows to a basis point — but "how wrong could I be
+    about costs before this stops working". A strategy that survives 50bps is
+    robust; one that dies at 3bps was never an edge, it was a rounding error
+    with good marketing.
+
+    Reads a sweep over a cost parameter and finds where return crosses zero,
+    by linear interpolation between the two points that straddle it. Returns
+    None when the grid never crosses — and says which side it stayed on,
+    because "still profitable at every cost tested" and "unprofitable even for
+    free" are opposite findings that a bare None would hide.
+    """
+    scored = []
+    for p in points:
+        if p.get("state") != "done" or p.get("total_return_pct") is None:
+            continue
+        raw = (p.get("parameters") or {}).get(param)
+        if raw is None:
+            continue
+        try:
+            scored.append((float(raw), float(p["total_return_pct"])))
+        except (TypeError, ValueError):
+            continue
+    if len(scored) < 2:
+        return {"parameter": param, "breakeven": None,
+                "reason": "need at least two priced points to interpolate"}
+
+    scored.sort(key=lambda x: x[0])
+    for (c0, r0), (c1, r1) in zip(scored, scored[1:]):
+        if (r0 > 0) != (r1 > 0):
+            # Linear between the straddling points. The curve is not truly
+            # linear, but over a basis-point-wide bracket the error is far
+            # smaller than the uncertainty in the cost estimate itself.
+            span = r0 - r1
+            crossing = c0 if span == 0 else c0 + (c1 - c0) * (r0 / span)
+            return {"parameter": param,
+                    "breakeven": round(crossing, 6),
+                    "breakeven_bps": round(crossing * 10_000, 1),
+                    "bracket": [c0, c1],
+                    "reason": "return crosses zero between these costs"}
+
+    always_positive = all(r > 0 for _, r in scored)
+    return {
+        "parameter": param, "breakeven": None,
+        "tested_range": [scored[0][0], scored[-1][0]],
+        "reason": ("still profitable at every cost tested — raise the range to "
+                   "find the limit" if always_positive else
+                   "unprofitable at every cost tested, including the cheapest"),
+    }
+
+
 def _sweep_summary(points: list[dict[str, Any]]) -> dict[str, Any]:
     """Island or plateau — the only question a sweep exists to answer.
 
@@ -147,6 +202,12 @@ def _sweep_summary(points: list[dict[str, Any]]) -> dict[str, Any]:
         # The best point standing far above the median is the signature of a
         # fit: the neighbourhood does not support it.
         "best_minus_median_pct": round(returns[-1] - median, 2),
+        # Present only when the grid actually swept a cost parameter, so an
+        # ordinary parameter sweep is not decorated with a field about costs it
+        # never varied.
+        **({"breakeven_cost": be}
+           if (be := breakeven_cost(points)).get("breakeven") is not None
+           or "tested_range" in be else {}),
     }
 
 
@@ -557,6 +618,7 @@ class LeanRunner:
                     job["error"] = "engine finished but wrote no parsable results"
                 else:
                     self._add_benchmark(job["result"])
+                    self._add_cost_disclosure(job)
         except subprocess.TimeoutExpired:
             job["state"] = "failed"
             job["error"] = f"timed out after {JOB_TIMEOUT_S:.0f}s — engine killed"
@@ -568,6 +630,17 @@ class LeanRunner:
         finally:
             job["finished_at"] = _now()
             job["wall_seconds"] = round(time.monotonic() - t0, 1)
+
+    def _add_cost_disclosure(self, job: dict[str, Any]) -> None:
+        """Record whether the run that just finished was actually priced."""
+        result = job.get("result") or {}
+        rb = result.setdefault("robustness", {})
+        try:
+            code = self.get_algorithm(job["algorithm"])["code"]
+        except Exception:  # noqa: BLE001
+            return
+        rb["costs"] = cost_disclosure(
+            code, rb.get("total_fees"), rb.get("total_orders") or 0)
 
     # --- benchmark -----------------------------------------------------------
 
@@ -711,15 +784,49 @@ def _robustness(stats: dict, equity: list[float], dates: list[str],
         "total_orders": int(_num("Total Orders") or len(orders)),
         "win_rate_pct": _num("Win Rate"),
         "total_fees": fees,
-        # Custom data carries no fee model, so the engine charges nothing. Every
-        # result here is therefore a NO-COST backtest, which flatters turnover.
-        # Stated rather than corrected: inventing a commission would be a made-up
-        # number, and the operator can judge the gap themselves.
-        "fees_are_zero": fees == 0.0 and len(orders) > 0,
+        # Zero fees is the CORRECT answer for this fund: Alpaca charges no
+        # commission on US equities. The cost that actually bites is the
+        # spread, which is a slippage model, not a fee — so "fees are zero" on
+        # its own says nothing about whether the run was priced. Whether costs
+        # were modelled is decided by reading the algorithm (see
+        # _cost_disclosure), because a warning that fires on every single run
+        # is one an operator learns to scroll past.
         "turnover_pct": _num("Portfolio Turnover"),
         "periods": _periods(equity, dates),
     }
     return out
+
+
+_SLIPPAGE_RE = re.compile(r"set_slippage_model\s*\(")
+_FEE_RE = re.compile(r"set_fee_model\s*\(")
+_ZERO_SLIP_RE = re.compile(r"ConstantSlippageModel\s*\(\s*0(?:\.0*)?\s*\)")
+
+
+def cost_disclosure(code: str, fees: Optional[float],
+                    orders: int) -> dict[str, Any]:
+    """Was this backtest priced, and how would the operator know?
+
+    Read from the algorithm's own source rather than inferred from the
+    statistics, because the statistics cannot tell the two zero-cost cases
+    apart: a fund whose broker genuinely charges no commission, and a backtest
+    that forgot to model the spread. Those look identical in Total Fees and
+    are opposite findings.
+    """
+    slipped = bool(_SLIPPAGE_RE.search(code or ""))
+    explicit_zero = bool(_ZERO_SLIP_RE.search(code or ""))
+    modelled = slipped and not explicit_zero
+    return {
+        "slippage_modelled": modelled,
+        "fee_model_set": bool(_FEE_RE.search(code or "")),
+        "commission_paid": fees,
+        # The only case worth shouting about: it traded, and nothing priced it.
+        "unpriced": orders > 0 and not modelled and not (fees or 0) > 0,
+        "note": ("costs modelled" if modelled else
+                 "slippage explicitly zeroed — this run assumes free fills"
+                 if explicit_zero else
+                 "no slippage model: fills happen at the close, so this "
+                 "overstates every strategy that trades often"),
+    }
 
 
 def _periods(equity: list[float], dates: list[str], n: int = 3) -> list[dict[str, Any]]:

@@ -230,21 +230,40 @@ def test_probabilistic_sharpe_is_surfaced():
     assert rb["total_orders"] == 41
 
 
-def test_zero_fees_with_fills_is_flagged_as_a_no_cost_backtest():
-    """Custom data carries no fee model, so every run here trades for free —
-    which flatters turnover. Stated, never silently 'corrected'."""
-    from app.fund.leanrunner import _robustness
-    rb = _robustness({"Total Fees": "$0.00"}, [], [], [{"symbol": "SPY"}])
-    assert rb["total_fees"] == 0.0
-    assert rb["fees_are_zero"] is True
+def test_an_unpriced_run_that_traded_is_flagged():
+    """No slippage model and it traded: the result overstates, and loudly."""
+    from app.fund.leanrunner import cost_disclosure
+    d = cost_disclosure("class X(QCAlgorithm): pass", 0.0, 41)
+    assert d["slippage_modelled"] is False
+    assert d["unpriced"] is True
+    assert "overstates" in d["note"]
 
 
-def test_no_fills_is_not_a_free_lunch_claim():
+def test_no_fills_is_not_an_unpriced_claim():
     """An algorithm that never traded paid nothing because it did nothing —
-    that is not the same statement as 'trading was free'."""
-    from app.fund.leanrunner import _robustness
-    rb = _robustness({"Total Fees": "$0.00"}, [], [], [])
-    assert rb["fees_are_zero"] is False
+    a different statement from 'trading was free'."""
+    from app.fund.leanrunner import cost_disclosure
+    assert cost_disclosure("class X(QCAlgorithm): pass", 0.0, 0)["unpriced"] is False
+
+
+def test_zero_commission_with_slippage_modelled_is_NOT_unpriced():
+    """The case that made the old flag cry wolf: Alpaca genuinely charges no
+    commission, so zero fees is correct — the spread is priced separately."""
+    from app.fund.leanrunner import cost_disclosure
+    code = "sec.set_slippage_model(ConstantSlippageModel(0.0005))"
+    d = cost_disclosure(code, 0.0, 41)
+    assert d["slippage_modelled"] is True
+    assert d["unpriced"] is False
+    assert d["note"] == "costs modelled"
+
+
+def test_explicitly_zeroed_slippage_is_called_out():
+    """Setting the model to zero is not the same as pricing the run, and the
+    source looks identical to a priced one at a glance."""
+    from app.fund.leanrunner import cost_disclosure
+    d = cost_disclosure("sec.set_slippage_model(ConstantSlippageModel(0))", 0.0, 41)
+    assert d["slippage_modelled"] is False
+    assert "explicitly zeroed" in d["note"]
 
 
 def test_periods_split_the_window_and_expose_one_lucky_stretch():
@@ -576,3 +595,68 @@ def test_unknown_live_session_is_an_error(tmp_path):
     r = _runner(tmp_path, FAKE_LIVE)
     with pytest.raises(LeanError, match="unknown live session"):
         r.live_session("nope")
+
+
+# --- breakeven cost: how wrong can we be about costs? -----------------------
+
+def _pt(slip, ret, state="done"):
+    return {"parameters": {"slip": str(slip)}, "state": state,
+            "total_return_pct": ret}
+
+
+def test_breakeven_is_interpolated_between_the_straddling_points():
+    from app.fund.leanrunner import breakeven_cost
+    # Profitable at 0 and 5bps, loses money at 10bps.
+    out = breakeven_cost([_pt(0.0, 4.0), _pt(0.0005, 2.0), _pt(0.001, -2.0)])
+    assert out["breakeven"] is not None
+    assert 0.0005 < out["breakeven"] < 0.001
+    assert out["bracket"] == [0.0005, 0.001]
+    assert 5.0 < out["breakeven_bps"] < 10.0
+
+
+def test_a_strategy_that_survives_every_cost_says_so():
+    """None is ambiguous on its own — 'never crossed' has two opposite
+    meanings and the operator needs to know which."""
+    from app.fund.leanrunner import breakeven_cost
+    out = breakeven_cost([_pt(0.0, 8.0), _pt(0.002, 5.0), _pt(0.01, 3.0)])
+    assert out["breakeven"] is None
+    assert "still profitable at every cost" in out["reason"]
+    assert out["tested_range"] == [0.0, 0.01]
+
+
+def test_a_strategy_that_loses_even_for_free_says_so():
+    from app.fund.leanrunner import breakeven_cost
+    out = breakeven_cost([_pt(0.0, -1.0), _pt(0.001, -3.0)])
+    assert out["breakeven"] is None
+    assert "including the cheapest" in out["reason"]
+
+
+def test_failed_and_unpriced_points_are_ignored():
+    from app.fund.leanrunner import breakeven_cost
+    pts = [_pt(0.0, 4.0), _pt(0.001, None, state="failed"),
+           {"parameters": {"fast": "10"}, "state": "done", "total_return_pct": 9.9},
+           _pt(0.002, -2.0)]
+    out = breakeven_cost(pts)
+    assert out["bracket"] == [0.0, 0.002]
+
+
+def test_a_single_point_cannot_be_interpolated():
+    from app.fund.leanrunner import breakeven_cost
+    out = breakeven_cost([_pt(0.0, 4.0)])
+    assert out["breakeven"] is None
+    assert "at least two" in out["reason"]
+
+
+def test_an_ordinary_sweep_is_not_decorated_with_cost_findings():
+    """A grid over fast/slow never varied a cost, so a breakeven field would be
+    an answer to a question nobody asked."""
+    from app.fund.leanrunner import _sweep_summary
+    pts = [{"parameters": {"fast": "10"}, "state": "done", "total_return_pct": 4.0},
+           {"parameters": {"fast": "20"}, "state": "done", "total_return_pct": 6.0}]
+    assert "breakeven_cost" not in _sweep_summary(pts)
+
+
+def test_a_cost_sweep_reports_breakeven_in_the_summary():
+    from app.fund.leanrunner import _sweep_summary
+    s = _sweep_summary([_pt(0.0, 4.0), _pt(0.0005, 2.0), _pt(0.001, -2.0)])
+    assert s["breakeven_cost"]["breakeven_bps"] is not None
