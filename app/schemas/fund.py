@@ -17,6 +17,21 @@ class ProposeOrderRequest(BaseModel):
     critique: Optional[str] = Field(None, description="What a sceptic said about it. Shown beside the rationale.")
 
 
+class ExternalSignalRequest(BaseModel):
+    """A signal from an external engine (LEAN). Propose-only by construction:
+    the engine's ambitions end at the approval queue, same trust model as
+    Clark. The token keeps localhost neighbours from proposing trades."""
+    token: str = Field(..., description="Shared secret (EXTERNAL_SIGNAL_TOKEN)")
+    source: str = Field(..., description="Engine name, e.g. 'lean'")
+    symbol: str
+    side: Literal["buy", "sell"]
+    qty: float = Field(..., gt=0)
+    strategy_id: str = Field(..., description="A REGISTERED strategy — unattributed engine signals are not accepted")
+    reason: str = Field(..., min_length=8, description="The algorithm's own stated reason, shown at the approval card")
+    algo_id: Optional[str] = Field(None, description="Which algorithm inside the engine")
+    limit_price: Optional[float] = Field(None, description="None => market order")
+
+
 class ThesisCreateRequest(BaseModel):
     title: str = Field(..., description="Short name for the idea")
     claim: Optional[str] = Field(None, description="The falsifiable claim, e.g. 'AAPL revisions improve over 3-6mo'")

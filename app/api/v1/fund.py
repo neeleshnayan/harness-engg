@@ -65,6 +65,7 @@ from app.schemas.fund import (
     MemoFinalizeRequest,
     MemoUpdateRequest,
     PostmortemRequest,
+    ExternalSignalRequest,
     ProposeOrderRequest,
     RedeemRequest,
     RiskHaltRequest,
@@ -807,6 +808,48 @@ def propose_order(req: ProposeOrderRequest):
         critique=req.critique,
     )
     return _pipeline.propose_order(order, actor=req.actor)
+
+
+@router.post("/fund/signals/external")
+def external_signal(req: ExternalSignalRequest):
+    """Signal intake for external engines (LEAN in Docker, later EC2).
+
+    Propose-only by construction: whatever the engine wants, it lands in the
+    approval queue behind the same risk and compliance gates as every other
+    proposal, and a human click remains the only path to the venue. An engine
+    with a brokerage attached would bypass all of that — so no engine gets
+    one; it gets this endpoint instead.
+
+    Token-gated (EXTERNAL_SIGNAL_TOKEN): 503 when unset — absent config reads
+    as OFF, never as open. The strategy must already be registered, because an
+    engine signal nobody can attribute is a trade nobody can post-mortem.
+    """
+    import hmac
+
+    expected = os.getenv("EXTERNAL_SIGNAL_TOKEN", "").strip()
+    if not expected:
+        raise HTTPException(status_code=503,
+                            detail="external signals disabled (EXTERNAL_SIGNAL_TOKEN unset)")
+    if not hmac.compare_digest(req.token.strip(), expected):
+        raise HTTPException(status_code=403, detail="bad signal token")
+    try:
+        _strategies.get(req.strategy_id)
+    except StrategyError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"unknown strategy {req.strategy_id!r} — register the engine's "
+                   "algorithm as a strategy first, so its trades are attributable",
+        )
+    order = Order(
+        venue="paper",
+        symbol=req.symbol.upper().strip(),
+        side=Side(req.side),
+        qty=req.qty,
+        limit_price=req.limit_price,
+        strategy_id=req.strategy_id,
+        rationale=f"[{req.source}:{req.algo_id or 'algo'}] {req.reason}",
+    )
+    return _pipeline.propose_order(order, actor=f"external:{req.source}")
 
 
 @router.post("/fund/orders/{order_id}/approve")
