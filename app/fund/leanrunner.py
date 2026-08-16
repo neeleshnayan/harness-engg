@@ -619,6 +619,7 @@ class LeanRunner:
                 else:
                     self._add_benchmark(job["result"])
                     self._add_cost_disclosure(job)
+                    self._add_capacity(job["result"])
         except subprocess.TimeoutExpired:
             job["state"] = "failed"
             job["error"] = f"timed out after {JOB_TIMEOUT_S:.0f}s — engine killed"
@@ -630,6 +631,31 @@ class LeanRunner:
         finally:
             job["finished_at"] = _now()
             job["wall_seconds"] = round(time.monotonic() - t0, 1)
+
+    @staticmethod
+    def _add_capacity(result: dict[str, Any]) -> None:
+        """How much money this could hold — the number a small fund needs most.
+
+        Uses the symbol the strategy actually traded, and the engine's own
+        turnover figure, so this is a property of the STRATEGY rather than of
+        the ticker. Best effort: no volume, no estimate, and it says so instead
+        of inventing a ceiling nobody checked.
+        """
+        orders = result.get("orders") or []
+        rb = result.get("robustness") or {}
+        symbols = [o["symbol"] for o in orders if o.get("symbol")]
+        if not symbols:
+            return
+        symbol = max(set(symbols), key=symbols.count)
+        try:
+            from app.fund.capacity import estimate
+            from app.fund.marketdata import fetch_daily_bars
+            bars = fetch_daily_bars(symbol, lookback_days=120)
+            result["capacity"] = estimate(
+                symbol, list(bars.closes or []), list(bars.volumes or []),
+                rb.get("turnover_pct"))
+        except Exception as e:  # noqa: BLE001
+            logger.info("capacity estimate unavailable for %s: %s", symbol, e)
 
     def _add_cost_disclosure(self, job: dict[str, Any]) -> None:
         """Record whether the run that just finished was actually priced."""
