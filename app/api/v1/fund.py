@@ -11,7 +11,7 @@ The pipeline is wired to the PaperConnector today; swapping in the IBKRConnector
 
 import logging
 import os
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -955,6 +955,65 @@ def _universe():
         from app.fund.universe import Universe
         _universe_cache = Universe()
     return _universe_cache
+
+
+_factory_cache = None
+
+
+def _factory():
+    global _factory_cache
+    if _factory_cache is None:
+        from app.fund.events import store_backend
+        if store_backend() != "postgres":
+            return None
+        from app.fund.factory import CandidateFactory
+        _factory_cache = CandidateFactory(runner=_lean())
+    return _factory_cache
+
+
+class CandidateRequest(BaseModel):
+    algorithm: str
+    grid: Dict[str, List[str]]
+    holdout: Optional[Dict[str, str]] = None
+
+
+@router.post("/fund/factory/candidates")
+def factory_submit(req: CandidateRequest):
+    """Send a candidate down the belt: sweep, hold out, verify, judge.
+
+    Returns immediately with an id. The belt ends at a VERDICT and goes no
+    further — what happens to something that clears the bar stays a human
+    decision, because a factory that could deploy its own output would be a
+    fund with nobody accountable for its positions.
+    """
+    f = _factory()
+    if f is None:
+        raise HTTPException(status_code=503, detail="the factory needs FUND_STORE=postgres")
+    from app.fund.leanrunner import LeanError
+    try:
+        return f.submit(req.algorithm, req.grid, req.holdout)
+    except LeanError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/fund/factory/candidates/{candidate_id}")
+def factory_get(candidate_id: str):
+    f = _factory()
+    if f is None:
+        raise HTTPException(status_code=503, detail="the factory needs FUND_STORE=postgres")
+    out = f.get(candidate_id)
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"unknown candidate {candidate_id!r}")
+    return out
+
+
+@router.get("/fund/factory/candidates")
+def factory_history(algorithm: str | None = Query(None), limit: int = Query(50, ge=1, le=500)):
+    """What has already been tried, and why it died."""
+    f = _factory()
+    if f is None:
+        raise HTTPException(status_code=503, detail="the factory needs FUND_STORE=postgres")
+    return {"scoreboard": f.scoreboard(), "candidates": f.history(algorithm, limit)}
 
 
 @router.get("/fund/health")
