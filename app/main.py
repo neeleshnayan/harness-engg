@@ -81,6 +81,7 @@ else:
         install_fake()
 
 from app.api.v1 import fund as fund_router  # noqa: E402
+from app.fund import heartbeat
 from app.fund.demo_seed import seed_if_empty  # noqa: E402
 from app.fund.lease import SchedulerLease  # noqa: E402
 from app.fund.schedule import StrikeWindow  # noqa: E402
@@ -148,6 +149,7 @@ async def _scheduler():
         # while closed would leave that fill unrecorded until the next open.
         try:
             fund_router.run_settlement()
+            heartbeat.beat("settlement")
         except Exception as e:  # noqa: BLE001
             _log.warning("settlement tick failed: %s", e)
         # Intraday NAV telemetry. Self-throttling and in-memory, so a fast
@@ -173,8 +175,31 @@ async def _scheduler():
         # event: a copy must never be able to disturb what it is copying.
         try:
             fund_router.run_snapshot()
+            heartbeat.beat("snapshot")
         except Exception as e:  # noqa: BLE001
             _log.warning("snapshot skipped: %s", e)
+        # The kill switches. RiskMonitor.run() is the ONLY code that raises
+        # alarms and trips the drawdown and daily-loss halts, and until now it
+        # had ZERO callers — reachable from an endpoint nothing hit and from one
+        # post-fill path swallowing its own exceptions. So the documented
+        # "kill switches that will act without asking" would not have acted: a
+        # position could have held for 21 days with the -10% halt never once
+        # evaluated. Same class of bug as the snapshot two blocks up, which is
+        # why that comment about the unplugged smoke alarm is still there.
+        try:
+            fund_router.run_risk_monitor_tick(actor="worker")
+            heartbeat.beat("risk_monitor")
+        except Exception as e:  # noqa: BLE001
+            _log.warning("risk monitor tick failed: %s", e)
+        # The pre-committed exits. Evaluates every committed rule against current
+        # marks and, for one that fires, appends EXIT_RULE_TRIGGERED and raises a
+        # closing SELL into the approval queue with the rule quoted. It never
+        # closes anything: the pre-trade gate still runs and a human still clicks.
+        try:
+            fund_router.run_exit_check_tick(actor="worker")
+            heartbeat.beat("exit_check")
+        except Exception as e:  # noqa: BLE001
+            _log.warning("exit check tick failed: %s", e)
         if since_strike >= strike_every:
             since_strike = 0
             # Both of these WRITE to the permanent log — a NAV_STRUCK snapshot
@@ -188,6 +213,11 @@ async def _scheduler():
                 # Named rather than silent: an operator looking at a NAV series
                 # that stopped advancing needs to see that it was a decision.
                 _log.info("no strike — %s (%s)", decision.reason, session.phase)
+                # Beat anyway, with the reason. A deliberate no-strike is the job
+                # WORKING; leaving it silent would make "market closed" read
+                # identical to "the strike loop died", which is the exact
+                # ambiguity this heartbeat exists to remove.
+                heartbeat.beat("nav_strike", note=f"no strike — {decision.reason}")
                 continue
             _log.info("strike/reconcile: %s (%s)", decision.reason, session.phase)
             for fn in (fund_router.run_strike, fund_router.run_reconcile):
@@ -195,6 +225,7 @@ async def _scheduler():
                     fn()
                 except Exception as e:  # noqa: BLE001
                     _log.warning("%s failed: %s", fn.__name__, e)
+            heartbeat.beat("nav_strike", note=decision.reason)
 
 
 @asynccontextmanager

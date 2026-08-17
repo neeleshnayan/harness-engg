@@ -174,6 +174,31 @@ def _module(mod: str, name: str) -> Callable[[], Any]:
     return read
 
 
+def _wired(job: str) -> Callable[[], Any]:
+    """Reads whether a scheduled job is actually TICKING, not what it is set to.
+
+    The generalisation that closes the hole this register was built for. Drift
+    detection caught a threshold whose value no longer matched its reason; it could
+    not have caught the risk monitor, whose value was fine and whose CALLER did not
+    exist. A control that is correctly configured and unreachable is the same class
+    of lie as a threshold that silently moved - the fund believes something about
+    itself that is not true - so wiring is registered exactly like a value.
+
+    Returns True/False rather than the tick time: the registered expectation is
+    "this is wired and running", and drift means it stopped.
+    """
+    def read() -> Any:
+        from app.fund import heartbeat
+        st = heartbeat.status(job)
+        if st.get("ok") is None:
+            # Unobserved is not False. Another process may hold the scheduler
+            # lease, so claiming it is broken would be as wrong as claiming it is
+            # fine. Raising makes the register report it UNVERIFIED.
+            raise RuntimeError(st.get("note") or f"{job} liveness unknown")
+        return bool(st["ok"])
+    return read
+
+
 def registry() -> list[Judgement]:
     """Every number we chose, with the terms on which it can be overturned.
 
@@ -213,17 +238,26 @@ def registry() -> list[Judgement]:
         Judgement(
             "min_walkforward_folds",
             where="app/fund/gate.py CRITERIA", basis="measured",
-            expected=2, read=_gate("min_walkforward_folds"),
-            why="Not a preference. Two is what ~30 months of history can supply "
-                "for a 21-day hold once a test leg is sized from the strategy's "
-                "own clock. v2 asked for 3, which nothing but a fast rule could "
-                "ever satisfy — an unsatisfiable criterion fails everything while "
-                "looking like rigour.",
-            falsified_by="Buy more history. This number is a measurement OF THE "
-                         "DATA, so it should rise the moment the data allows, and "
-                         "if it does not rise then something else is binding and "
-                         "we have misdiagnosed the constraint.",
-            review_trigger="history extended beyond 2024-02-26",
+            expected=4, read=_gate("min_walkforward_folds"),
+            why="Four, with a STRICT majority of three required. Chosen with the "
+                "majority rule rather than separately, because the two only mean "
+                "something together: P(walk-forward leg passes) for noise vs a "
+                "p=0.7 edge is 75%/91% at 1-of-2 (discrimination 1.21 — nearly "
+                "uninformative), 31%/65% at 3-of-4 (2.09), and 6%/24% at 4-of-4 "
+                "(3.84, but a gate that can only say no). 3-of-4 is the balance "
+                "our ~30 months supports, since the v3 fold geometry yields 4 "
+                "folds at a 21-day hold. Registered as MEASURED because the fold "
+                "count is a fact about the data; the majority rule on top of it "
+                "is the judgement.",
+            falsified_by="Two ways, and the first already happened. (1) The value "
+                         "moves without the arithmetic moving — v3 set this to 2 "
+                         "and the register flagged the drift, which is how the "
+                         "loosening was caught. (2) Buy more history: this is a "
+                         "measurement OF THE DATA and should rise when the data "
+                         "allows. If it does not, something else is binding and we "
+                         "have misdiagnosed the constraint.",
+            review_trigger="null audit gains a walk-forward leg, so the real "
+                           "false-positive rate replaces the arithmetic above",
             review_by="2026-10-15"),
         Judgement(
             "MIN_TRAIN_RETURN_PCT",
@@ -305,6 +339,38 @@ def registry() -> list[Judgement]:
             review_trigger="operator revisits the mandate, or the limit is "
                            "approached (currently 3.3% utilised)",
             review_by="2027-01-01"),
+        Judgement(
+            "risk_monitor_is_wired",
+            where="app/main.py::_scheduler -> run_risk_monitor_tick",
+            basis="measured", expected=True, read=_wired("risk_monitor"),
+            why="RiskMonitor.run() is the ONLY code that raises alarms and trips "
+                "the -10% drawdown and -4% daily-loss halts. It had ZERO callers: "
+                "reachable from an endpoint nothing hit, and from one post-fill "
+                "path that swallowed its own exceptions. The framework document "
+                "said 'kill switches that will act without asking' - they would "
+                "not have acted, because nothing asked them to. Found by outside "
+                "review, not by this system.",
+            falsified_by="This entry reading False or UNVERIFIED. That is the "
+                         "point: the kill switches are only real while the tick "
+                         "runs, and an absence of alarms is evidence of calm ONLY "
+                         "if something was looking.",
+            review_trigger="continuous - checked on every digest",
+            review_by="2026-12-31"),
+        Judgement(
+            "exit_check_is_wired",
+            where="app/main.py::_scheduler -> run_exit_check_tick",
+            basis="measured", expected=True, read=_wired("exit_check"),
+            why="EXIT_RULE_TRIGGERED was emitted by NO code in the repository. "
+                "The commitment event, the evaluation and all three event types "
+                "existed and nothing joined them, so a fired rule produced "
+                "nothing. The $500 sleeve's primary falsification condition - 'an "
+                "exit fires and no proposal appears in the queue' - was therefore "
+                "guaranteed true before a single order was placed.",
+            falsified_by="This entry reading False or UNVERIFIED, or a fired rule "
+                         "appearing in the log with no order_id beside it. Either "
+                         "means the pre-committed exit is once again a document.",
+            review_trigger="continuous - checked on every digest",
+            review_by="2026-12-31"),
         Judgement(
             "sleeve_stop_sigma_multiple",
             where="docs/SLEEVE_500_FRAMEWORK.md §1, §5a", basis="judged",

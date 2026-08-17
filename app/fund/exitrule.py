@@ -178,7 +178,20 @@ class ExitRules:
                 # A later commitment on the same key SUPERSEDES the earlier one.
                 # The old one stays in the log — that is the point — but only the
                 # current one governs, and the history of revisions is readable.
+                # Note this also CLEARS `triggered`: re-committing a rule is a
+                # fresh commitment, and it should be able to fire again.
                 rules[key] = {**p, "superseded": key in rules}
+            elif t == EventType.EXIT_RULE_TRIGGERED.value:
+                key = (p.get("strategy_id"), p.get("symbol"), p.get("kind"))
+                if key in rules:
+                    # Idempotency for `enforce()`. Without this the tick would
+                    # raise a fresh closing proposal every 30 seconds for as long
+                    # as the condition held, burying the approval queue under
+                    # hundreds of copies of one decision — which is how a control
+                    # that works becomes a control the operator turns off.
+                    rules[key] = {**rules[key],
+                                  "triggered_at": p.get("at"),
+                                  "triggered_order_id": p.get("order_id")}
             elif t == EventType.EXIT_RULE_OVERRIDDEN.value:
                 key = (p.get("strategy_id"), p.get("symbol"), p.get("kind"))
                 if key in rules:
@@ -216,6 +229,136 @@ class ExitRules:
             "unevaluable": unevaluable,
             "note": _note(fired, holding, unevaluable),
         }
+
+
+    def enforce(self, positions: list[dict[str, Any]], *, pipeline: Any,
+                actor: str = "worker",
+                strategy_id: Optional[str] = None) -> dict[str, Any]:
+        """Act on fired rules: append the event, raise a closing proposal.
+
+        This is the method whose absence made the rest of this module a document.
+        Every piece existed — the commitment, the evaluation, the three event
+        types — and nothing joined them, so `EXIT_RULE_TRIGGERED` was emitted by
+        no code in the repository and a fired rule produced exactly nothing. The
+        framework document claimed the rule "is evaluated on every mark and puts a
+        closing proposal in the approval queue". Both halves were false.
+
+        What it does NOT do, and must never do, is close the position. It raises a
+        SELL through the ordinary proposal path, which means the pre-trade gate
+        still runs and a human still clicks. The machine's whole job is to make the
+        pre-committed exit unmissable.
+
+        Two rules keep it honest:
+
+        * **The trigger is appended UNCONDITIONALLY, whatever the proposal did.**
+          The proposal is attempted first and its failure is caught, so the log
+          records that the condition fired even when no order could be raised —
+          halted trading, an unreachable venue, no position quantity. What must
+          never happen is the append being skipped on failure, which would lose
+          the trigger precisely when something was already wrong. (In the log this
+          reads as OrderProposed then ExitRuleTriggered; the order_id on the
+          trigger is None when nothing could be raised, and that is the signal to
+          look.)
+        * **Already-triggered rules are skipped**, so the tick does not re-raise
+          the same decision every 30 seconds.
+        """
+        from app.fund.connectors.base import Order, Side
+        from app.fund.events import Event, EventType
+
+        checked = self.check(positions, strategy_id)
+        qty_by_symbol = {p.get("symbol"): p.get("qty") or p.get("quantity")
+                         for p in (positions or [])}
+        raised, skipped, failed = [], [], []
+
+        for rule in checked["fired"]:
+            key = (rule.get("strategy_id"), rule.get("symbol"), rule.get("kind"))
+            if rule.get("triggered_at"):
+                skipped.append({**rule, "why_skipped": (
+                    f"already triggered at {rule['triggered_at']}; a second "
+                    f"proposal would be a duplicate of one decision")})
+                continue
+            if rule.get("overridden_at"):
+                skipped.append({**rule, "why_skipped": (
+                    f"deliberately overridden at {rule['overridden_at']} with a "
+                    f"recorded reason: {rule.get('override_reason')}")})
+                continue
+
+            symbol = rule.get("symbol")
+            qty = qty_by_symbol.get(symbol)
+            reason = rule.get("reason") or "exit condition met"
+
+            at = datetime.now(timezone.utc).isoformat()
+            order_id = None
+            proposal: dict[str, Any] = {}
+            if not qty:
+                # No quantity means no closable position. Recorded as a trigger
+                # anyway: the condition DID fire, and a silent skip here would
+                # leave the operator believing the rule never fired.
+                failed.append({**rule, "error": (
+                    f"exit fired for {symbol} but no position quantity was "
+                    f"available, so no closing order could be sized")})
+            else:
+                try:
+                    proposal = pipeline.propose_order(
+                        Order(venue="paper", symbol=symbol, side=Side.SELL,
+                              qty=abs(float(qty)),
+                              strategy_id=rule.get("strategy_id"),
+                              rationale=(
+                                  f"PRE-COMMITTED EXIT FIRED. {reason}. This rule "
+                                  f"was recorded on "
+                                  f"{str(rule.get('set_at'))[:10]}, before the "
+                                  f"position existed, precisely so this decision "
+                                  f"would not be made by someone holding it."),
+                              critique=(
+                                  "Closing here is the commitment, not a view. If "
+                                  "you keep the position, that is allowed and it "
+                                  "will be recorded as an override with your "
+                                  "reason — silent overrides are the one thing "
+                                  "this mechanism exists to prevent.")),
+                        actor=actor)
+                    order_id = proposal.get("order_id")
+                except Exception as e:  # noqa: BLE001
+                    failed.append({**rule, "error": f"{type(e).__name__}: {e}"})
+
+            self._store.append(Event(
+                aggregate_id=str(rule.get("strategy_id") or "fund"),
+                aggregate_type="strategy",
+                type=EventType.EXIT_RULE_TRIGGERED,
+                payload={"strategy_id": rule.get("strategy_id"),
+                         "symbol": symbol, "kind": rule.get("kind"),
+                         "reason": reason, "at": at, "order_id": order_id,
+                         "proposal_status": proposal.get("status")},
+                actor=actor))
+            if order_id:
+                raised.append({**rule, "order_id": order_id,
+                               "proposal_status": proposal.get("status")})
+
+        return {
+            "raised": raised, "skipped": skipped, "failed": failed,
+            "holding": checked["holding"],
+            "unevaluable": checked["unevaluable"],
+            "note": _enforce_note(raised, skipped, failed, checked),
+        }
+
+
+def _enforce_note(raised: list, skipped: list, failed: list,
+                  checked: dict) -> str:
+    bits = []
+    if raised:
+        bits.append(f"{len(raised)} closing proposal(s) raised and waiting on a "
+                    f"human click")
+    if failed:
+        bits.append(f"{len(failed)} exit(s) fired but could NOT be turned into a "
+                    f"proposal — this is the worst state and needs attention")
+    if skipped:
+        bits.append(f"{len(skipped)} already handled")
+    if checked.get("unevaluable"):
+        bits.append(f"{len(checked['unevaluable'])} could not be checked — not "
+                    f"the same as fine")
+    if not bits:
+        bits.append(f"no exit fired; {len(checked.get('holding') or [])} rule(s) "
+                    f"holding")
+    return "; ".join(bits)
 
 
 def _note(fired: list, holding: list, unevaluable: list) -> str:

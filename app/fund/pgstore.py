@@ -88,10 +88,27 @@ class PostgresEventStore:
     by_aggregate, verify_chain.
     """
 
+    #: How long to keep trying to reach Postgres AT CONSTRUCTION. Deliberately
+    #: bounded and deliberately applied only here, not to every query.
+    #:
+    #: The spine died on startup with a ConnectionTimeout against a Postgres that
+    #: had come up three minutes earlier — it lost a boot race and stayed dead,
+    #: because the store connects during __init__ and an exception there takes the
+    #: whole process with it.
+    #:
+    #: Retrying every query would have "fixed" that too, and would have been the
+    #: wrong fix: a real outage would then present as slowness, queries would
+    #: silently take twenty seconds, and the health check would report a fund that
+    #: was fine. A boot race and an outage deserve different answers. This retries
+    #: the handshake only; once the process is up, a failed connection still fails
+    #: loudly and immediately.
+    STARTUP_RETRY_SECONDS = float(os.getenv("FUND_PG_STARTUP_RETRY_SECONDS", "30"))
+    STARTUP_RETRY_DELAY = 1.0
+
     def __init__(self, dsn_str: Optional[str] = None, pool: Any = None):
         self._dsn = dsn_str or dsn()
         self._pool = pool
-        self.ensure_schema()
+        self.ensure_schema(retry_seconds=self.STARTUP_RETRY_SECONDS)
 
     # --- plumbing -----------------------------------------------------------
 
@@ -101,11 +118,45 @@ class PostgresEventStore:
             return self._pool.connection()
         return psycopg.connect(self._dsn, autocommit=False)
 
-    def ensure_schema(self) -> None:
-        with self._connect() as conn:
-            with conn.cursor() as cur:
-                cur.execute(SCHEMA)
-            conn.commit()
+    def ensure_schema(self, retry_seconds: float = 0.0) -> None:
+        """Create the schema, optionally waiting for Postgres to accept us.
+
+        ``retry_seconds`` of 0 means one attempt and a raised exception, which is
+        the correct behaviour everywhere except process start.
+        """
+        import time as _time
+
+        deadline = _time.monotonic() + max(0.0, retry_seconds)
+        attempt = 0
+        while True:
+            attempt += 1
+            try:
+                with self._connect() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(SCHEMA)
+                    conn.commit()
+                if attempt > 1:
+                    logger.info(
+                        "postgres reachable on attempt %d — the boot race was "
+                        "waited out rather than crashed on", attempt)
+                return
+            except Exception as e:  # noqa: BLE001
+                remaining = deadline - _time.monotonic()
+                if remaining <= 0:
+                    # Out of patience. Raise the ORIGINAL failure rather than a
+                    # summary of it: "could not connect after 30s" would hide
+                    # whether this was a wrong password, a wrong port, or an
+                    # absent server, and those need different fixes.
+                    if attempt > 1:
+                        logger.error(
+                            "postgres unreachable after %d attempts over %.0fs; "
+                            "raising the underlying error", attempt,
+                            max(0.0, retry_seconds))
+                    raise
+                logger.warning(
+                    "postgres not ready (attempt %d, %.0fs left): %s",
+                    attempt, remaining, e)
+                _time.sleep(min(self.STARTUP_RETRY_DELAY, remaining))
 
     # --- writes -------------------------------------------------------------
 

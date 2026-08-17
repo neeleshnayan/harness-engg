@@ -1259,6 +1259,19 @@ def research_map(turnover_pct: float = Query(1.0, gt=0, le=100)):
     return build(o, universe=u, hunting_ground_size=size, adv_band=adv_band)
 
 
+@router.get("/fund/liveness")
+def scheduled_job_liveness():
+    """Which periodic jobs have actually run, and which are overdue.
+
+    Exists because the harness could not previously tell a control that reported
+    nothing from a control that never ran. The risk monitor - the only code that
+    trips the drawdown and daily-loss halts - had zero callers, and its silence
+    was indistinguishable from a calm book.
+    """
+    from app.fund import heartbeat
+    return heartbeat.report()
+
+
 @router.get("/fund/judgement")
 def judgement_register(today: str | None = Query(None)):
     """The thresholds we chose ourselves, and what would show we chose wrong.
@@ -2949,4 +2962,29 @@ def resume_trading(req: RiskResumeRequest):
 def run_risk_monitor_tick(actor: str = "worker") -> dict:
     """Worker tick function to execute the risk monitor."""
     return _monitor.run(actor=actor)
+
+
+def run_exit_check_tick(actor: str = "worker") -> dict:
+    """Worker tick: evaluate pre-committed exits and raise closing proposals.
+
+    The missing link. Every piece of the exit mechanism existed - the commitment
+    event, the evaluation, the three event types - and nothing joined them, so
+    EXIT_RULE_TRIGGERED was emitted by no code anywhere and a fired rule produced
+    nothing at all. Called from the scheduler so a rule fires whether or not
+    anybody is looking, which is the entire point of having committed to it early.
+
+    Raises SELL proposals through the ordinary pipeline. The pre-trade gate still
+    runs; a human still clicks. Nothing here closes a position.
+    """
+    from app.fund.exitrule import ExitRules
+    try:
+        positions = (_monitor.assess() or {}).get("positions") or []
+    except Exception as e:  # noqa: BLE001
+        # Marks unavailable is NOT "no exits fired". Reported as such, because a
+        # tick that silently sees zero positions would look identical to a calm
+        # book and would let every committed stop go unevaluated in silence.
+        logger.warning("exit check tick: marks unavailable, exits UNEVALUATED: %s", e)
+        return {"raised": [], "skipped": [], "failed": [],
+                "note": f"marks unavailable, so no exit rule was checked: {e}"}
+    return ExitRules(_store).enforce(positions, pipeline=_pipeline, actor=actor)
 

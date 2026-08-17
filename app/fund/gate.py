@@ -66,7 +66,49 @@ from typing import Any, Optional
 #: strategy too slow for the available history is NOT TESTABLE, and v3 reports
 #: that separately from failing. Marking it failed would repeat the exact error
 #: this gate spent a week removing — reading an absence of evidence as evidence.
-GATE_VERSION = "v3"
+#:
+#: v3 -> v4 (2026-08-18). **v3 was a LOOSENING, and it was not noticed at the
+#: time.** It was written and committed with a message about rigour. An outside
+#: review found it; the arithmetic below is why it was wrong.
+#:
+#: Dropping `min_walkforward_folds` 3 -> 2 while leaving the retained share at
+#: 0.5, compared with `<`, meant a strategy passed by keeping its edge in **1 of
+#: 2** folds. One of two is not a majority, and the comment directly above the
+#: criterion claimed it was. Worse than loose, it was close to uninformative —
+#: P(pass) for the walk-forward leg alone, by rule:
+#:
+#:     rule       noise p=.5   edge p=.7   strong p=.85   discrimination
+#:     1 of 2          75.0%       91.0%          97.7%       1.21   <- v3
+#:     2 of 2          25.0%       49.0%          72.2%       1.96
+#:     3 of 4          31.2%       65.2%          89.0%       2.09   <- v4
+#:     4 of 4           6.2%       24.0%          52.2%       3.84
+#:
+#: v3's discrimination ratio of 1.21 means the test barely told a real edge from
+#: noise. Gate v1's measured failure — passing nulls ~50% of the time — is what
+#: started this whole calibration, and v3 was plausibly WORSE than v1 on the
+#: criterion that had replaced PSR as the load-bearing one. It was also the sole
+#: birth condition for the unfunded alpha sleeve.
+#:
+#: The fix is not a threshold tweak, because the fold count and the majority rule
+#: have to be chosen together. `4 of 4` discriminates best but passes a genuine
+#: p=0.7 edge only 24% of the time — a gate that can only ever say no, which
+#: would make the declared-beta sleeve the terminal state of the design rather
+#: than a stepping stone. `3 of 4` is the balance our history actually supports:
+#: the fold geometry from v3 gives 4 folds at a 21-day hold.
+#:
+#: So v4 sets `min_walkforward_folds` to 4 and requires a STRICT majority, in
+#: integer arithmetic (`retained * 2 <= measurable` fails), so the off-by-one
+#: cannot recur. The honest cost: holds of 42 days or more now return NOT
+#: TESTABLE, because 30 months cannot supply 4 folds for them. That is the true
+#: state of our evidence rather than a verdict about those strategies.
+#:
+#: Two things this does NOT do, recorded so they are not mistaken for done:
+#: `scripts/null_audit.py` has no walk-forward leg, so it cannot yet measure this
+#: rule's real false-positive rate — the 31.2% above is arithmetic under an
+#: independence assumption the overlapping train legs violate. And the gate's
+#: POWER against a plausible edge has never been measured at all; only against
+#: noise and against perfect foresight.
+GATE_VERSION = "v4"
 
 #: The bar. Deliberately data, not code branches: it can be printed, argued
 #: about on its own merits, and diffed when it changes.
@@ -88,9 +130,11 @@ CRITERIA: dict[str, Any] = {
     # Out of sample it must keep most of what it showed in sample.
     "min_holdout_retention": 0.5,
     # NEW in v2: one holdout is one draw. A strategy must keep its edge in a
-    # MAJORITY of independent folds, which is the property a lucky window cannot
-    # supply and the reason this replaces "raise the PSR floor" as the real test.
-    "min_walkforward_folds": 2,
+    # STRICT majority of independent folds, which is the property a lucky window
+    # cannot supply and the reason this replaces "raise the PSR floor" as the real
+    # test. Four folds, three required — see the v3 -> v4 note above for why the
+    # number of folds and the majority rule have to be chosen together.
+    "min_walkforward_folds": 4,
     "min_walkforward_folds_retained_share": 0.5,
     "require_walkforward": True,
     # A test leg must contain roughly this many of the strategy's own decisions.
@@ -102,6 +146,25 @@ CRITERIA: dict[str, Any] = {
     "min_capacity_usd": 100_000.0,
     # NEW in v2: and it must have been estimated. Same hole as breakeven.
     "require_capacity_measured": True,
+}
+
+#: Kept so a stored v3 verdict stays interpretable. v3 is the LOOSENING described
+#: above; it is preserved exactly so old verdicts can be re-read against the bar
+#: they were actually judged by, not against v4's.
+CRITERIA_V3: dict[str, Any] = {
+    "min_psr_pct": 65.0,
+    "min_orders": 20,
+    "must_beat_benchmark": True,
+    "min_breakeven_bps": 10.0,
+    "require_breakeven_measured": True,
+    "min_holdout_retention": 0.5,
+    "min_walkforward_folds": 2,
+    "min_walkforward_folds_retained_share": 0.5,
+    "require_walkforward": True,
+    "require_priced": True,
+    "min_capacity_usd": 100_000.0,
+    "require_capacity_measured": True,
+    "min_decisions_per_test_leg": 4,
 }
 
 #: Kept so a stored v2 verdict stays interpretable, on the same reasoning as v1.
@@ -327,11 +390,17 @@ def evaluate(result: dict[str, Any],
                 f"did not run, which is not the same as passing it")
         else:
             share = (retained or 0) / measurable
-            if share < c["min_walkforward_folds_retained_share"]:
+            checks["walkforward_retained_share"] = round(share, 3)
+            # STRICT majority, in integer arithmetic, deliberately not a float
+            # share compared with `<`. v3 tested `share < 0.5`, which PASSES 1 of
+            # 2 — and 1 of 2 is not a majority, while the comment above the
+            # criterion claimed it was. Integer arithmetic here so the off-by-one
+            # cannot come back: `retained * 2 <= measurable` fails 1/2, 2/4 and
+            # 2/5, and passes 2/2, 3/4 and 3/5.
+            if (retained or 0) * 2 <= measurable:
                 failures.append(
                     f"kept its edge in only {retained} of {measurable} "
-                    f"independent folds ({share:.0%}), under the "
-                    f"{c['min_walkforward_folds_retained_share']:.0%} floor — "
+                    f"independent folds ({share:.0%}) — not a majority, which is "
                     f"consistent with a lucky window rather than an edge")
 
     return {

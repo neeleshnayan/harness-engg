@@ -42,7 +42,7 @@ def test_a_clean_candidate_passes():
     out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
                    walkforward=GOOD_WALKFORWARD)
     assert out["passed"] is True, out["failures"]
-    assert out["gate_version"] == "v3"
+    assert out["gate_version"] == "v4"
     # Passing is not deployment, and the wording says so.
     assert "different claim from" in out["verdict"]
 
@@ -233,10 +233,10 @@ def test_the_version_records_which_bar_was_applied():
     verdict has to say which one it cleared — otherwise re-reading old passes
     under today's criteria silently rewrites history."""
     from app.fund.gate import CRITERIA_V1, GATE_VERSION
-    assert GATE_VERSION == "v3"
+    assert GATE_VERSION == "v4"
     out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
                    walkforward=GOOD_WALKFORWARD)
-    assert out["gate_version"] == "v3"
+    assert out["gate_version"] == "v4"
     # v1 is kept intact so an old verdict remains interpretable.
     assert CRITERIA_V1["min_psr_pct"] == 50.0
     # v1 must state what it did NOT require, not merely omit it: `evaluate`
@@ -308,16 +308,67 @@ def test_a_strategy_too_slow_for_our_history_is_untestable_not_failed():
     assert "consistent with a lucky window" not in joined
 
 
-def test_the_fold_requirement_dropped_because_three_was_unsatisfiable():
-    """3 folds could not be met by anything but a fast rule, and an unsatisfiable
-    criterion fails everything while looking like rigour."""
-    from app.fund.gate import CRITERIA, CRITERIA_V2
-    assert CRITERIA["min_walkforward_folds"] == 2
+def test_v3_was_a_loosening_and_v4_reverses_it():
+    """These two tests previously asserted the BUG.
+
+    v3 dropped the fold requirement to 2 and left the retained share at 0.5
+    compared with `<`, so 1 of 2 folds passed — and 1 of 2 is not a majority. The
+    tests here asserted that as correct behaviour, which is why the suite stayed
+    green through a regression: a test can only catch what it was not written to
+    bless.
+
+    v4 requires 4 folds and a strict majority. Both prior versions are preserved
+    whole so old verdicts remain readable against the bar they actually cleared.
+    """
+    from app.fund.gate import CRITERIA, CRITERIA_V2, CRITERIA_V3
+    assert CRITERIA["min_walkforward_folds"] == 4
+    assert CRITERIA_V3["min_walkforward_folds"] == 2, "v3 must stay readable as it was"
     assert CRITERIA_V2["min_walkforward_folds"] == 3, "v2 must stay readable as it was"
+    # Kept COMPLETE, not partial: evaluate() MERGES a supplied dict over current
+    # defaults, so a partial historical copy would silently inherit v4 values.
+    assert set(CRITERIA_V3) == set(CRITERIA)
 
 
-def test_two_retained_folds_of_two_now_clears_the_consistency_test():
+def test_one_retained_fold_of_two_is_not_a_majority():
+    """The exact regression. 1 of 2 passed under v3."""
+    out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
+                   walkforward={"folds_measurable": 2, "folds_retained": 1,
+                                "median_retention": 0.8})
+    assert out["passed"] is False
+
+
+def test_two_of_two_no_longer_suffices_because_two_folds_is_not_a_test():
+    """Not a majority failure — an insufficient-evidence failure.
+
+    2 of 2 IS a strict majority, so this must be rejected for the other reason:
+    two folds cannot discriminate. The distinction matters because the two
+    failures call for different responses — a faster rule or more history, versus
+    a better strategy.
+    """
     out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
                    walkforward={"folds_measurable": 2, "folds_retained": 2,
                                 "median_retention": 0.8})
-    assert out["passed"] is True, out["failures"]
+    assert out["passed"] is False
+    joined = " ".join(out["failures"])
+    assert "below the 4 required" in joined
+    assert "not a majority" not in joined
+
+
+def test_the_majority_rule_is_integer_arithmetic_not_a_float_share():
+    """A float share compared with `<` is how the off-by-one got in.
+
+    `retained * 2 <= measurable` fails 1/2, 2/4 and 2/5; passes 2/2, 3/4, 3/5.
+    Checked at 4 measurable folds, where v4 has enough evidence to judge.
+    """
+    def fold_rejected(measurable, retained):
+        out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
+                       walkforward={"folds_measurable": measurable,
+                                    "folds_retained": retained,
+                                    "median_retention": 0.8})
+        return any("not a majority" in f for f in out["failures"])
+
+    assert fold_rejected(4, 2) is True      # exactly half is NOT a majority
+    assert fold_rejected(4, 3) is False
+    assert fold_rejected(4, 4) is False
+    assert fold_rejected(5, 2) is True
+    assert fold_rejected(5, 3) is False
