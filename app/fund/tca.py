@@ -51,7 +51,10 @@ BPS = 10_000.0
 #: the number the Sharpe ratios were computed with. Kept in sync by eye rather
 #: than imported, because backtest.CostModel is a default and callers override
 #: it; this is the figure the fund's own backtests were actually run at.
-ASSUMED_COST_BPS_PER_SIDE = 2.0
+#: Kept only so an old import does not break. The live number is
+#: costassumption.DEFAULT_SLIPPAGE_BPS, which the backtests also read —
+#: two copies of one belief is how they drifted apart in the first place.
+from app.fund.costassumption import DEFAULT_SLIPPAGE_BPS as ASSUMED_COST_BPS_PER_SIDE
 
 
 def _ts(raw: Any) -> Optional[datetime]:
@@ -233,19 +236,16 @@ def summarise(rows: list[OrderCost]) -> dict[str, Any]:
     usd = [r.total_usd for r in rows if r.total_usd is not None]
 
     mean_total = statistics.fmean(total) if total else None
-    verdict = None
-    if mean_total is not None:
-        excess = mean_total - ASSUMED_COST_BPS_PER_SIDE
-        verdict = {
-            "assumed_bps_per_side": ASSUMED_COST_BPS_PER_SIDE,
-            "realised_bps_per_side": round(mean_total, 2),
-            "excess_bps": round(excess, 2),
-            # The honest reading: with a handful of fills this is an
-            # observation, not an estimate. Naming the sample size beside the
-            # number is what stops it being quoted as if it were one.
-            "sample": len(total),
-            "reliable": len(total) >= 20,
-        }
+    # Graded against the SAME number the backtests charge. These were two
+    # separate constants that disagreed — LEAN priced 5bps a side while this
+    # compared to 2 — so "we are over assumption" was meaningless, because
+    # there were two assumptions. A comparison against a number no backtest
+    # uses validates nothing, which is the entire point of measuring.
+    from app.fund.costassumption import compare
+    # None when nothing has filled, deliberately preserved: the alternative is
+    # a verdict block whose numbers are all None, which reads like a
+    # measurement of zero to anything scanning for a field rather than a shape.
+    verdict = compare(mean_total, len(total)) if mean_total is not None else None
 
     return {
         "orders": len(rows),

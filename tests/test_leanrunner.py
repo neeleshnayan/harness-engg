@@ -679,3 +679,22 @@ def test_sweep_points_skip_the_network_backed_extras(tmp_path):
     # A standalone run still gets them: that is the result a human reads.
     _wait(r, r.submit_backtest("smoke")["job_id"])
     assert "capacity" in calls and "benchmark" in calls
+
+
+def test_the_fund_cost_assumption_is_injected_into_every_run(tmp_path):
+    """The backtest must charge the same number TCA grades fills against.
+    Two copies of one belief is how 2bps and 5bps drifted apart."""
+    from app.fund.costassumption import slippage_fraction
+    r = _runner(tmp_path, FAKE_PARAMS)
+    r.save_algorithm("smoke", ALGO)
+    job_id = r.submit_backtest("smoke")["job_id"]
+    assert r.job(job_id)["parameters"]["slip"] == str(slippage_fraction())
+
+
+def test_an_explicit_slip_is_never_overridden(tmp_path):
+    """A cost sweep is the one case that must vary it — overriding would make
+    breakeven_cost measure the same point repeatedly."""
+    r = _runner(tmp_path, FAKE_PARAMS)
+    r.save_algorithm("smoke", ALGO)
+    job_id = r.submit_backtest("smoke", {"slip": "0.002"})["job_id"]
+    assert r.job(job_id)["parameters"]["slip"] == "0.002"

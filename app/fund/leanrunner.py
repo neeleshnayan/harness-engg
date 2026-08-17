@@ -286,6 +286,18 @@ class LeanRunner:
         if not m:
             raise LeanError("algorithm lost its QCAlgorithm class")
         parameters = _clean_parameters(parameters)
+        # The fund's cost assumption travels WITH the run, so the number the
+        # backtest charges is the same one TCA grades realised fills against.
+        # The algorithm's own `or 0.0005` stays as a fallback for anyone
+        # running the file outside the harness, but it is no longer the source
+        # of truth — two copies of one belief is exactly how the old 2bps and
+        # 5bps managed to disagree.
+        #
+        # An explicit slip is never overridden: a cost SWEEP is the one case
+        # that must vary it, and that is the whole point of breakeven_cost.
+        if "slip" not in parameters:
+            from app.fund.costassumption import slippage_fraction
+            parameters["slip"] = _param_value(slippage_fraction())
         job_id = uuid.uuid4().hex[:12]
         job = {
             "job_id": job_id, "algorithm": algorithm, "class_name": m.group(1),
