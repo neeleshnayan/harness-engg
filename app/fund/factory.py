@@ -82,8 +82,16 @@ class CandidateFactory:
     # --- the belt -----------------------------------------------------------
 
     def submit(self, algorithm: str, grid: dict[str, list[str]],
-               holdout: Optional[dict[str, str]] = None) -> dict[str, Any]:
-        """Start a candidate down the belt. Returns immediately with an id."""
+               holdout: Optional[dict[str, str]] = None,
+               observation_ids: Optional[list[str]] = None) -> dict[str, Any]:
+        """Start a candidate down the belt. Returns immediately with an id.
+
+        ``observation_ids`` records WHAT PROMPTED this — the filing sentences a
+        human read before forming the hypothesis. Optional, because a candidate
+        can come from anywhere, but the link cannot be reconstructed later: it
+        exists only at the moment someone decides to test something, and
+        without it no report can ever say which kinds of reading pay.
+        """
         self._lean().get_algorithm(algorithm)      # fail fast on a typo
         candidate_id = uuid.uuid4().hex[:12]
         with self._connect() as conn:
@@ -95,9 +103,21 @@ class CandidateFactory:
                     (candidate_id, algorithm, json.dumps(grid),
                      json.dumps(holdout) if holdout else None))
             conn.commit()
+        linked = 0
+        if observation_ids:
+            try:
+                from app.fund.provenance import Provenance
+                linked = Provenance(self._dsn).link(
+                    candidate_id, observation_ids).get("linked", 0)
+            except Exception as e:  # noqa: BLE001
+                # A broken trail must not stop the research. The candidate is
+                # worth running either way; what is lost is the ability to ask
+                # later which observations led here.
+                logger.warning("could not link sources for %s: %s", candidate_id, e)
         threading.Thread(target=self._run, args=(candidate_id, algorithm, grid,
                                                  holdout), daemon=True).start()
-        return {"candidate_id": candidate_id, "state": "running"}
+        return {"candidate_id": candidate_id, "state": "running",
+                "sources_linked": linked}
 
     def _run(self, candidate_id: str, algorithm: str,
              grid: dict[str, list[str]], holdout: Optional[dict[str, str]]) -> None:

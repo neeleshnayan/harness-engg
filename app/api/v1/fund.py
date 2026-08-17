@@ -1000,6 +1000,9 @@ class CandidateRequest(BaseModel):
     algorithm: str
     grid: Dict[str, List[str]]
     holdout: Optional[Dict[str, str]] = None
+    #: Observations that prompted this hypothesis. Recorded now because the
+    #: link exists only at the moment someone decides to test something.
+    observation_ids: Optional[List[str]] = None
 
 
 @router.post("/fund/factory/candidates")
@@ -1016,7 +1019,7 @@ def factory_submit(req: CandidateRequest):
         raise HTTPException(status_code=503, detail="the factory needs FUND_STORE=postgres")
     from app.fund.leanrunner import LeanError
     try:
-        return f.submit(req.algorithm, req.grid, req.holdout)
+        return f.submit(req.algorithm, req.grid, req.holdout, req.observation_ids)
     except LeanError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -1076,6 +1079,65 @@ def research_read(req: ObservationSweepRequest):
     from app.fund.observations import sweep
     return sweep([t.upper() for t in req.tickers], forms=tuple(req.forms),
                  since=req.since, per_ticker=req.per_ticker, store=o)
+
+
+_provenance_cache = None
+
+
+def _provenance():
+    global _provenance_cache
+    if _provenance_cache is None:
+        from app.fund.events import store_backend
+        if store_backend() != "postgres":
+            return None
+        from app.fund.provenance import Provenance
+        _provenance_cache = Provenance()
+    return _provenance_cache
+
+
+class ReviewRequest(BaseModel):
+    outcome: str
+    note: Optional[str] = None
+    actor: str = "operator"
+
+
+@router.post("/fund/research/observations/{observation_id}/review")
+def research_review(observation_id: str, req: ReviewRequest):
+    """Record that a human saw this and decided something.
+
+    A dismissal and an unread look identical in behaviour, so a dismissal has
+    to be declared. An inferred exclusion hardens silently into a blind spot; a
+    declared one can be revisited.
+    """
+    p = _provenance()
+    if p is None:
+        raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
+    try:
+        return p.review(observation_id, req.outcome, req.note, req.actor)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/fund/research/yield")
+def research_yield():
+    """Which kinds of observation actually lead anywhere.
+
+    The report that settles whether a big category is signal or an artifact of
+    how we extract — a question no amount of arranging the map can answer.
+    """
+    p = _provenance()
+    if p is None:
+        raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
+    return {**p.yield_by_category(), "unreviewed": p.unreviewed(limit=25)}
+
+
+@router.get("/fund/factory/candidates/{candidate_id}/trail")
+def factory_trail(candidate_id: str):
+    """What prompted this candidate — the audit trail, backwards."""
+    p = _provenance()
+    if p is None:
+        raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
+    return {"candidate_id": candidate_id, "sources": p.trail(candidate_id)}
 
 
 @router.get("/fund/research/map")
