@@ -29,16 +29,35 @@ class RiskLimits:
     Fractions are of NAV unless noted. Defaults here are deliberately
     capital-preservation-first (a Friends-&-Family PoC posture): small single-name
     caps, a real cash floor, and a hard drawdown kill-switch.
+
+    **A default may never be looser than the mandate in force.** `RiskControl`
+    folds the latest RISK_LIMITS_SET *over these defaults*, so the defaults are
+    what governs whenever that event is absent — an empty log, a fresh deployment,
+    or a restore from a snapshot taken before the limits were set. Three of these
+    were looser than the running fund (drawdown 0.15 vs 0.10, daily loss 0.05 vs
+    0.04, order cap 0.25 vs 0.15), which meant a restore could have widened the
+    drawdown kill switch by half without anyone deciding to. That is the one
+    forbidden move — a quiet loosening — arriving by accident rather than by
+    argument, which is worse, because nobody would have been asked.
+
+    Found by the judgement register (`app/fund/judgement.py`), which reads limits
+    as they are IN FORCE and compares them against what was written down.
+    `test_no_default_is_looser_than_the_mandate` now guards it permanently, and it
+    is the test rather than this paragraph that will still be true next year.
+
+    Left deliberately unchanged: `min_cash_pct` defaults to 0.10 against 0.05 in
+    force. It is a FLOOR, so the higher default is the safer one, and a missing
+    event should fail toward more cash, not less.
     """
     # --- pre-trade gate (hard reject before human approval) ---
     max_position_pct: float = 0.20          # no single name > 20% of NAV
     min_cash_buffer: float = 0.0            # keep at least this much USD idle (absolute)
-    max_order_notional_pct: float = 0.25    # a single order may deploy <= 25% of NAV
+    max_order_notional_pct: float = 0.15    # a single order may deploy <= 15% of NAV
     max_strategy_pct: float = 0.40          # no single strategy > 40% of NAV
     # --- continuous monitor (alarms + kill switch) ---
     min_cash_pct: float = 0.10              # cash floor as a fraction of NAV (alarm below)
-    max_drawdown_pct: float = 0.15          # halt trading if NAV falls this far from its peak
-    max_daily_loss_pct: float = 0.05        # halt if NAV drops this much vs the last daily strike
+    max_drawdown_pct: float = 0.10          # halt trading if NAV falls this far from its peak
+    max_daily_loss_pct: float = 0.04        # halt if NAV drops this much vs the last daily strike
     underwater_pct: float = 0.15            # per-name alarm when a position is this far underwater
 
     # --- structural risk (measured, not counted) ---

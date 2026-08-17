@@ -1259,6 +1259,20 @@ def research_map(turnover_pct: float = Query(1.0, gt=0, le=100)):
     return build(o, universe=u, hunting_ground_size=size, adv_band=adv_band)
 
 
+@router.get("/fund/judgement")
+def judgement_register(today: str | None = Query(None)):
+    """The thresholds we chose ourselves, and what would show we chose wrong.
+
+    Every number here decides verdicts. Six of them are judged rather than
+    measured, which is defensible only while it is visible — so the register reads
+    each value from the running fund rather than restating it, and reports drift
+    between the number in force and the reason on file.
+    """
+    from app.fund import judgement
+    judgement.use_control(_control)
+    return judgement.review(today)
+
+
 @router.get("/fund/digest")
 def morning_digest(since_hours: float = Query(24.0, gt=0, le=168)):
     """The morning read: what was read, what was judged, what needs a click.
@@ -1308,11 +1322,22 @@ def morning_digest(since_hours: float = Query(24.0, gt=0, le=168)):
     except Exception as e:  # noqa: BLE001
         logger.info("digest: deployed strategies unavailable: %s", e)
 
+    # Our own thresholds, resolved here for the same reason NAV is: the digest
+    # reads facts, it does not go and find them.
+    knobs = None
+    try:
+        from app.fund import judgement
+        judgement.use_control(_control)
+        knobs = judgement.review()
+    except Exception as e:  # noqa: BLE001
+        logger.info("digest: judgement register unavailable: %s", e)
+
     from app.fund.digest import build as build_digest
     return build_digest(store=_store, observations=o, factory=f,
                         universe=_universe(), nav=nav_block,
                         approvals=approvals, adv_band=adv_band,
-                        deployed=deployed, since_hours=since_hours)
+                        deployed=deployed, since_hours=since_hours,
+                        knobs=knobs)
 
 
 @router.get("/fund/research/observations")

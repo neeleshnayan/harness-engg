@@ -51,7 +51,7 @@ def build(store: Any = None, observations: Any = None, factory: Any = None,
           universe: Any = None, runner: Any = None, provenance: Any = None,
           nav: Any = None, approvals: Any = None,
           adv_band: Optional[tuple] = None, deployed: Any = None,
-          since_hours: float = 24.0) -> dict[str, Any]:
+          since_hours: float = 24.0, knobs: Any = None) -> dict[str, Any]:
     """Assemble the morning read. Every section degrades to a stated absence.
 
     Each block is wrapped: one unavailable subsystem must not blank the page.
@@ -69,6 +69,7 @@ def build(store: Any = None, observations: Any = None, factory: Any = None,
         ("judged", lambda: _judged(factory, since)),
         ("needs_you", lambda: _needs_you(factory, observations, provenance,
                                          approvals, deployed)),
+        ("our_own_knobs", lambda: _our_own_knobs(knobs)),
     ):
         try:
             out[name] = fn()
@@ -77,6 +78,37 @@ def build(store: Any = None, observations: Any = None, factory: Any = None,
             out[name] = {"unavailable": f"{type(e).__name__}: {e}"[:200]}
     out["headline"] = _headline(out)
     return out
+
+
+def _our_own_knobs(knobs: Any = None) -> dict[str, Any]:
+    """The thresholds WE chose, and whether any has drifted from its reason.
+
+    In the digest rather than only on an endpoint because a register nobody opens
+    is not a feedback loop, it is a document. Deliberately terse: this section is
+    silent when the numbers match their reasons, and speaks only when one has
+    moved, gone unreadable, or come due — so it costs nothing to keep reading it
+    every morning.
+
+    The review arrives already computed, for the same reason NAV and approvals do:
+    the digest is a reading order over facts, not a second place that knows how to
+    establish them. Written the other way first, and it reached into the process's
+    risk store — which made three unrelated digest tests fail against whatever
+    limits happened to be in force. A section that changes the headline depending
+    on ambient state is not a section, it is a coupling.
+    """
+    if knobs is None:
+        return {"unavailable": "the judgement register was not supplied, so no "
+                               "claim is made about whether our own thresholds "
+                               "still match their reasons"}
+    r = knobs() if callable(knobs) else knobs
+    return {
+        "registered": r["count"],
+        "judged": r["by_basis"].get("judged", 0),
+        "drifted": [d["key"] for d in r["drifted"]],
+        "unreadable": [u["key"] for u in r["unreadable"]],
+        "due_for_review": [d["key"] for d in r["due_for_review"]],
+        "note": r["note"],
+    }
 
 
 def _health(store: Any, nav: Any) -> dict[str, Any]:
@@ -283,6 +315,15 @@ def _headline(out: dict[str, Any]) -> str:
     if health.get("chain_ok") is False:
         return ("THE EVENT CHAIN DOES NOT VERIFY — stop and investigate before "
                 "trusting any number on this page")
+    # Ranked immediately after a broken chain, and above anything asking for a
+    # click, on the same reasoning: both undermine trust in the numbers rather
+    # than adding to the to-do list. A drifted threshold means verdicts are being
+    # issued under a rule whose written reason describes a different rule.
+    knobs = out.get("our_own_knobs") or {}
+    if knobs.get("drifted"):
+        return (f"{len(knobs['drifted'])} threshold(s) DRIFTED from the reason on "
+                f"file ({', '.join(knobs['drifted'])}) — every verdict since is "
+                f"being judged by a rule nobody has justified")
     judged = out.get("judged") or {}
     needs = out.get("needs_you") or {}
     read = out.get("read") or {}
