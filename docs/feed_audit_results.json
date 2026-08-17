@@ -1,0 +1,54 @@
+{
+ "window": [
+  "2025-01-01",
+  "2026-08-14"
+ ],
+ "compared": [
+  {
+   "ticker": "DEI",
+   "shared_days": 405,
+   "median_abs_dev_pct": 5.2587,
+   "worst_abs_dev_pct": 8.6878,
+   "spine_return_pct": -31.82,
+   "vendor_return_pct": -37.71,
+   "return_gap_pct_pts": 5.89
+  },
+  {
+   "ticker": "CRAI",
+   "shared_days": 405,
+   "median_abs_dev_pct": 1.0357,
+   "worst_abs_dev_pct": 1.8009,
+   "spine_return_pct": -6.41,
+   "vendor_return_pct": -8.09,
+   "return_gap_pct_pts": 1.68
+  },
+  {
+   "ticker": "TRN",
+   "shared_days": 405,
+   "median_abs_dev_pct": 2.886,
+   "worst_abs_dev_pct": 6.8272,
+   "spine_return_pct": -9.48,
+   "vendor_return_pct": -15.65,
+   "return_gap_pct_pts": 6.17
+  },
+  {
+   "ticker": "NTCT",
+   "shared_days": 405,
+   "median_abs_dev_pct": 0.0,
+   "worst_abs_dev_pct": 0.0388,
+   "spine_return_pct": 84.0,
+   "vendor_return_pct": 84.0,
+   "return_gap_pct_pts": 0.0
+  },
+  {
+   "ticker": "UGI",
+   "shared_days": 405,
+   "median_abs_dev_pct": 3.0335,
+   "worst_abs_dev_pct": 6.1605,
+   "spine_return_pct": 33.27,
+   "vendor_return_pct": 25.07,
+   "return_gap_pct_pts": 8.2
+  }
+ ],
+ "skipped": []
+}

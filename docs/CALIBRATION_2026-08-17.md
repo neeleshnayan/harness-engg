@@ -105,6 +105,42 @@ without the evidence would have made the gate unclearable, which is the same
 pathology as passing noise arrived at from the other side, and it would have
 looked like rigour.
 
+## The feed audit: the third leg, and it clears the feed
+
+Every verdict rests on one price series nobody had checked. A missed split looks
+like a crash; price-return where total-return is needed looks like persistent
+underperformance in every dividend payer. Neither announces itself.
+
+Five names compared against an independent vendor over 405 shared sessions:
+
+| ticker | spine | vendor | gap | dividend profile |
+|---|---|---|---|---|
+| UGI | +33.3% | +25.1% | **+8.20pp** | high-yield utility |
+| TRN | −9.5% | −15.7% | +6.17pp | industrial payer |
+| DEI | −31.8% | −37.7% | +5.89pp | REIT |
+| CRAI | −6.4% | −8.1% | +1.68pp | small dividend |
+| NTCT | +84.0% | +84.0% | **+0.00pp** | pays no dividend |
+
+The gap scales monotonically with dividend yield and is **exactly zero** for the
+one non-payer — 0.000% median deviation across 405 days. That ordering is the
+diagnosis: **the spine's series is TOTAL return; the vendor's `adjusted=true` is
+split-only.**
+
+**The feed is not wrong.** Total return is the correct convention for a long-only
+backtest, because a holder does receive the dividends. And NTCT agreeing to three
+decimal places over 405 sessions independently validates split handling and date
+alignment, which is the check this audit was actually for.
+
+Two consequences worth carrying forward:
+
+- **Never mix the conventions.** Any future cross-vendor comparison must convert
+  one side, or it will manufacture a 6-8 point disagreement out of nothing.
+- **The survivorship haircut was measured on the vendor's price-return bars**, so
+  it understated the vanished names and therefore overstated the bias. See the
+  correction in `SURVIVORSHIP_2026-08-17.md`.
+
+Reproduce: `python scripts/feed_audit.py DEI,CRAI,TRN,NTCT,UGI`
+
 ## What this does not establish
 
 The audit bounds the gate from **one side only**. It shows v1 was leaky; it

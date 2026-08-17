@@ -79,6 +79,30 @@ understated here.
 points from future benchmarks would turn an estimate resting on two unverified
 assumptions into a fact.
 
+## Correction: the haircut is conservative
+
+The feed audit (see `CALIBRATION_2026-08-17.md`) established that the vendor's
+`adjusted=true` bars are **split-only — price return**, while the spine's series
+is total return. The vanished names above were measured on the vendor's bars, so
+their returns **exclude dividends** while the +60.88% they are compared against
+includes them.
+
+The comparison is therefore not like-for-like, and the error runs in a known
+direction: the vanished names earned *more* than +12.1% on a total-return basis,
+which makes the true haircut **smaller** than −6.9 points. On the observed
+dividend gaps for this kind of name (roughly 2 to 8 points over the window,
+scaling with yield) and a 14.1% band weight, the correction is on the order of
+half a point — so approximately **−6.3pp rather than −6.9pp**.
+
+That is an order-of-magnitude statement, not a revision: re-deriving it properly
+means re-measuring 26 names on a total-return basis, and the vendor does not serve
+one. What matters is that the bias was **overstated, not understated**, so the
+conclusion is unaffected and the number remains an upper bound on the flattery.
+
+Recorded rather than quietly re-run, because the mistake is instructive: two
+sources that both call a field "adjusted close" meant different things by it, and
+nothing in either payload said so.
+
 ## What is now possible
 
 As-of membership exists (`app/fund/asof.py`), so a backtest can ask "who was in
