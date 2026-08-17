@@ -141,6 +141,73 @@ Two consequences worth carrying forward:
 
 Reproduce: `python scripts/feed_audit.py DEI,CRAI,TRN,NTCT,UGI`
 
+## The oracle audit: v2 was unclearable, and here is why
+
+The other side of the calibration, and it found something worse than a strict bar.
+
+`oracle_calibration_only` ranks names by returns that have not happened yet.
+At `foresight=1.0` it has perfect foreknowledge — it returned **+170.6% with a
+Sharpe of 3.68 and PSR 97.2%** against a +14.8% benchmark on a single 2025 run, so
+the instrument works.
+
+**It failed gate v2.** Not on PSR, not on the benchmark — on the walk-forward
+criterion, "kept its edge in only 0 of 4 independent folds (0%)".
+
+The measured folds:
+
+| train (12 months) | test (3 months) | raw ratio |
+|---|---|---|
+| +302.3% | +8.85% | **0.029** |
+| +212.1% | +4.27% | 0.020 |
+| +137.3% | +3.36% | 0.025 |
+| +176.5% | +6.36% | 0.036 |
+
+Retention was dividing a **12-month cumulative return by a 3-month one**. That
+ratio measures the length of the windows, not the persistence of an edge, and
+compounding makes the longer window enormously larger. Perfect foreknowledge
+scored 0.03 against a 0.5 floor.
+
+It hid because the single-window holdout's test leg is 7.5 months long, giving a
+ratio of 1.48 — so the holdout passed while every fold failed, and the folds were
+new.
+
+**Fixed: retention now compares annualised rates.** Both legs are converted to an
+annual rate before the ratio, so the number answers "did the edge persist" rather
+than "which window was longer". Window lengths are required for this; when they
+are absent the basis is reported as `cumulative` and flagged indicative, because a
+rate computed over an assumed duration is a fabricated number and this one decides
+verdicts.
+
+**And that was necessary but NOT sufficient.** Re-scored on rates, the same folds
+give 0.09 to 0.16 — perfect foresight still fails. The remaining cause is
+structural: a 91-day test leg gives a 63-day-hold strategy roughly **one
+rebalance**. One decision is not a test of a selection rule, and its annualised
+rate is noise.
+
+So the honest state of the bar:
+
+- v1 passed noise half the time (measured).
+- v2 closes those leaks but **cannot currently be cleared by anything**, including
+  a strategy that knows the future.
+- The binding constraint is not strictness, it is **history**: ~30 months cannot
+  supply three independent test legs that are each long enough for a 63-day-hold
+  strategy. That is arithmetic, not taste.
+
+Four options, and this is a design decision rather than a bug fix:
+
+1. **Fewer, longer folds** — 2 folds with ~6-month test legs fit, at the cost of
+   less independent evidence.
+2. **Test faster strategies** — a 21-day hold gets 4+ decisions in a 91-day leg,
+   so the existing folds would work for that family and not for slow ones.
+3. **A different consistency test** — e.g. rolling Sharpe stability, which does not
+   need a train/test ratio at all.
+4. **More history** — the free tier stops at ~2 years; this is the paid-data
+   argument, and the first one with a number attached.
+
+Until one is chosen, **no candidate can pass**, and any "FAILED" verdict carrying
+the walk-forward reason should be read as "not yet testable" rather than "not good
+enough".
+
 ## What this does not establish
 
 The audit bounds the gate from **one side only**. It shows v1 was leaky; it

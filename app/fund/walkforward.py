@@ -17,6 +17,14 @@ and then "testing" per fold leaks the answer into every exam — the folds would
 differ in dates while sharing a selection made with full hindsight, which looks
 like validation and is not.
 
+Retention compares RATES, not cumulative returns, and that distinction is not a
+refinement — it is the difference between a working criterion and one nothing can
+pass. Measured with a strategy that reads future prices: 12-month train legs
+returned +137% to +302% while their 3-month test legs returned +3% to +9%, so the
+raw ratio was 0.02 to 0.04 against a 0.5 floor. Perfect foreknowledge scored 0.03.
+A ratio of cumulative returns over unequal windows measures the length of the
+windows, and compounding makes the longer one enormously larger.
+
 Three ways a fold can fail to produce a number, all kept distinct from zero:
 
   * the test leg placed NO ORDERS — it was never examined (usually warm-up
@@ -93,6 +101,14 @@ def folds(start: str, end: str, train_days: int = 252,
     return out
 
 
+def _span_days(start: str, end: str) -> Optional[int]:
+    """Calendar days a window covers, for annualising its return."""
+    try:
+        return max(1, (_d(end) - _d(start)).days)
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def window_for(end: str, min_folds: int, train_days: int = 252,
                test_days: int = 63, floor: Optional[str] = None) -> list[dict[str, str]]:
     """Folds ending at ``end``, reaching back far enough to fit ``min_folds``.
@@ -127,15 +143,43 @@ def window_for(end: str, min_folds: int, train_days: int = 252,
                  test_days=test_days, max_folds=max(min_folds, 6))
 
 
+def _annualise(total_pct: Optional[float], days: Optional[int]) -> Optional[float]:
+    """A cumulative return expressed as an annual rate.
+
+    Load-bearing. Without it retention divides a 12-month return by a 3-month one
+    and reports the ratio as decay: measured, a perfect-foresight strategy scored
+    0.03 against a 0.5 floor purely because its test leg was a quarter as long.
+
+    Returns None rather than guessing when the window length is unknown — a rate
+    computed over an assumed duration is a fabricated number, and this one decides
+    verdicts.
+    """
+    if total_pct is None or not days or days <= 0:
+        return None
+    growth = 1.0 + total_pct / 100.0
+    if growth <= 0:
+        # A total loss has no meaningful annual rate; -100% annualised is still
+        # -100% and the root would be complex.
+        return -100.0
+    return (growth ** (365.0 / days) - 1.0) * 100.0
+
+
 def retention(train_return: Optional[float],
               test_return: Optional[float],
-              test_orders: Optional[int]) -> dict[str, Any]:
-    """One fold's retention, or a stated reason there isn't one.
+              test_orders: Optional[int],
+              train_days: Optional[int] = None,
+              test_days: Optional[int] = None) -> dict[str, Any]:
+    """One fold's retention as a ratio of RATES, or a stated reason there isn't one.
 
-    Never returns a number it cannot justify. The three undefined cases are
-    named rather than collapsed to zero, because each implies a different next
-    action: give it warm-up, re-run it, or stop asking about retention on a
-    strategy that did not make money to retain.
+    Never returns a number it cannot justify. The undefined cases are named rather
+    than collapsed to zero, because each implies a different next action: give it
+    warm-up, re-run it, or stop asking about retention on a strategy that did not
+    make money to retain.
+
+    When window lengths are supplied both legs are annualised first, so the ratio
+    measures whether the EDGE persisted rather than how long each window was.
+    Without them it falls back to raw cumulative returns and says so, because a
+    silent fallback here is how the criterion became unpassable.
     """
     if test_orders == 0:
         return {"retention": None, "measurable": False,
@@ -159,8 +203,17 @@ def retention(train_return: Optional[float],
                           f"the {MIN_TRAIN_RETURN_PCT}% needed for a ratio to "
                           f"mean anything — retention against a near-zero "
                           f"denominator explodes and passes trivially"}
+    tr_rate = _annualise(train_return, train_days)
+    te_rate = _annualise(test_return, test_days)
+    if tr_rate is not None and te_rate is not None and tr_rate > 0:
+        return {"retention": te_rate / tr_rate, "measurable": True,
+                "basis": "annualised", "train_annual_pct": round(tr_rate, 2),
+                "test_annual_pct": round(te_rate, 2), "reason": None}
     return {"retention": test_return / train_return, "measurable": True,
-            "reason": None}
+            "basis": "cumulative",
+            "reason": ("window lengths were not supplied, so this compares "
+                       "cumulative returns over possibly unequal periods — "
+                       "treat it as indicative only")}
 
 
 class WalkForward:
@@ -201,7 +254,9 @@ class WalkForward:
             train = ho.get("train") or {}
             test = ho.get("test") or {}
             ret = retention(train.get("return_pct"), test.get("return_pct"),
-                            test.get("total_orders"))
+                            test.get("total_orders"),
+                            train_days=_span_days(f["train_start"], f["train_end"]),
+                            test_days=_span_days(f["test_start"], f["test_end"]))
             results.append({
                 "fold": i, **f,
                 "state": ho.get("state") or (sweep or {}).get("state"),

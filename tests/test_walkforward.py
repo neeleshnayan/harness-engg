@@ -153,3 +153,36 @@ def test_calendar_rounding_slack_is_present():
     for end in ("2026-08-14", "2026-06-30", "2026-03-31"):
         w = window_for(end, min_folds=3, floor="2023-01-01")
         assert len(w) >= 3, f"{end} produced only {len(w)} folds"
+
+
+def test_retention_compares_rates_not_unequal_windows():
+    """The bug that made gate v2 unpassable by anything, with the real numbers.
+
+    Measured with a strategy that reads future prices: a 12-month train leg
+    returned +302.3% while its 3-month test leg returned +8.85%. The raw ratio is
+    0.029 against a 0.5 floor — so perfect foreknowledge "lost 97% of its edge".
+    A ratio of cumulative returns over unequal windows measures the windows.
+    """
+    raw = retention(302.3, 8.846, 40)
+    assert raw["retention"] < 0.05
+    assert raw["basis"] == "cumulative"
+
+    ann = retention(302.3, 8.846, 40, train_days=365, test_days=91)
+    assert ann["basis"] == "annualised"
+    assert ann["retention"] > raw["retention"] * 4, "annualising must move this a lot"
+    assert ann["test_annual_pct"] > 35
+
+
+def test_missing_window_lengths_say_so_rather_than_assume_a_duration():
+    """A rate computed over an assumed duration is a fabricated number, and this
+    one decides verdicts."""
+    out = retention(20.0, 12.0, 30)
+    assert out["basis"] == "cumulative"
+    assert "unequal periods" in out["reason"]
+
+
+def test_a_total_loss_annualises_without_blowing_up():
+    """-100% has no real root; it must stay -100% rather than raise."""
+    out = retention(50.0, -100.0, 30, train_days=365, test_days=91)
+    assert out["measurable"] is True
+    assert out["retention"] < 0
