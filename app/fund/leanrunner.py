@@ -46,17 +46,37 @@ _NAME_RE = re.compile(r"^[a-z0-9_\-]{1,64}$")
 #: to ask for.
 MAX_SWEEP_POINTS = int(os.getenv("LEAN_MAX_SWEEP_POINTS", "24"))
 
-#: How many engine containers may run at once, fund-wide. This machine has
-#: 15.2 GB and a sweep stacked against a factory batch already killed a holdout
-#: run outright with `WinError 1455: the paging file is too small` — the run did
-#: not slow down, it vanished, and the gate correctly refused to score a crash.
-#: Serialising is the honest trade: a queue is slower, an OOM is a lost result.
-MAX_CONCURRENT_CONTAINERS = int(os.getenv("LEAN_MAX_CONCURRENT", "1"))
+#: How many engine containers may run at once, fund-wide.
+#:
+#: This was 1, and the reason on file was `WinError 1455: the paging file is too
+#: small` — a sweep stacked against a factory batch killed a holdout run outright.
+#: That crash was real. The DIAGNOSIS was wrong, and it cost this fund a lot of
+#: wall clock.
+#:
+#: Measured 2026-08-17 on a live sweep point: a LEAN container uses **~450 MiB**,
+#: against a cap that reserved **3 GiB**. Three stacked containers therefore
+#: reserved 9 GiB on a 15.2 GB host with ~10 GB already committed, and the host
+#: refused — not because LEAN wanted the memory, but because we had promised it on
+#: LEAN's behalf. The fix is the cap, not the concurrency.
+#:
+#: The machine is a 12-core / 24-thread Ryzen 9 7900X that was running one
+#: container at a few percent of one core. Sized from FREE RAM rather than cores,
+#: which is the binding resource: 4 slots at a 1 GiB cap is 4 GiB against ~5 GB
+#: free, leaving headroom for the spine, Postgres and the dev server. Cores are
+#: not the constraint and neither is the GPU — LEAN is single-threaded .NET per
+#: backtest and has no GPU path at all.
+MAX_CONCURRENT_CONTAINERS = int(os.getenv("LEAN_MAX_CONCURRENT", "4"))
 
 #: Hard ceiling per container. Without it one runaway algorithm can exhaust the
 #: host and take unrelated runs down with it — the failure is never contained to
 #: the job that caused it.
-CONTAINER_MEMORY = os.getenv("LEAN_CONTAINER_MEMORY", "3g")
+#:
+#: 1 GiB is ~2.2x the observed peak (450 MiB), which is headroom for a heavier
+#: universe without reserving memory nothing asks for. If a genuinely larger
+#: backtest OOMs at this cap it will fail loudly and in isolation, which is the
+#: behaviour this ceiling exists to produce — and is a far better failure than the
+#: silent host-wide crash the old 3 GiB reservation caused.
+CONTAINER_MEMORY = os.getenv("LEAN_CONTAINER_MEMORY", "1g")
 
 #: Backtests and sweeps queue against this. Live sessions deliberately do NOT:
 #: a live session holds its container for the whole session, so letting it draw
@@ -650,7 +670,25 @@ class LeanRunner:
         sweep = self._sweeps[sweep_id]
         holdout = sweep.get("holdout")
         try:
-            for params in combos:
+            # Grid points run CONCURRENTLY, bounded by _ENGINE_SLOTS.
+            #
+            # They were serial, and that serialisation — not the hardware — was the
+            # real ceiling on this fund's research throughput. A candidate is a
+            # sweep per walk-forward fold, so 6 grid points across 4 folds is 24
+            # strictly sequential engine runs, every one of them independent, on a
+            # 12-core machine using about one core. Raising the container limit
+            # alone would have changed nothing, because the belt never asked for a
+            # second slot.
+            #
+            # The semaphore still governs how many containers exist at once; this
+            # only stops the code from queuing behind itself. Points are appended
+            # under a lock and the summary is computed after the join, so ordering
+            # of `points` is completion order rather than grid order — which was
+            # already true of nothing that reads it, since _sweep_summary selects
+            # by score.
+            lock = threading.Lock()
+
+            def _one(params: dict[str, str]) -> None:
                 run_params = dict(params)
                 if holdout:
                     run_params["start"] = holdout["train_start"]
@@ -658,11 +696,24 @@ class LeanRunner:
                 j = self._run_point(sweep["algorithm"], run_params)
                 point = _sweep_point(params, j)
                 point["window"] = _window_of(j)
-                sweep["points"].append(point)
-                sweep["completed"] = len(sweep["points"])
-                # After each point, so a restart keeps the grid computed so far
-                # rather than discarding twenty minutes of engine time.
-                self._mirror_sweep(sweep)
+                with lock:
+                    sweep["points"].append(point)
+                    sweep["completed"] = len(sweep["points"])
+                    # After each point, so a restart keeps the grid computed so
+                    # far rather than discarding twenty minutes of engine time.
+                    self._mirror_sweep(sweep)
+
+            workers = max(1, min(MAX_CONCURRENT_CONTAINERS, len(combos)))
+            if workers == 1:
+                for params in combos:
+                    _one(params)
+            else:
+                from concurrent.futures import ThreadPoolExecutor
+                with ThreadPoolExecutor(max_workers=workers,
+                                        thread_name_prefix="sweep") as pool:
+                    # list() forces every future, so an exception in any point
+                    # surfaces here rather than being swallowed by the pool.
+                    list(pool.map(_one, combos))
 
             sweep["summary"] = _sweep_summary(sweep["points"])
             if holdout:

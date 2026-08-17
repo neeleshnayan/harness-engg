@@ -2,6 +2,7 @@
 
 import json
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -952,15 +953,133 @@ def test_queue_time_is_not_charged_to_the_engine_timeout(tmp_path):
 
     r = _runner(tmp_path, FAKE_OK)
     r.save_algorithm("smoke", ALGO)
-    # Hold the only slot, then confirm a fresh job sits in `queued`.
-    lr._ENGINE_SLOTS.acquire()
+    # Hold EVERY slot, then confirm a fresh job sits in `queued`.
+    #
+    # This used to acquire one, which was the same thing back when the pool was a
+    # semaphore of one. It stopped testing anything the moment concurrency rose to
+    # 4 — the job simply took a free slot and ran. Written against the configured
+    # width so it keeps testing the queueing behaviour at any concurrency.
+    held = 0
     try:
+        for _ in range(lr.MAX_CONCURRENT_CONTAINERS):
+            lr._ENGINE_SLOTS.acquire()
+            held += 1
         job_id = r.submit_backtest("smoke")["job_id"]
         time.sleep(0.4)
         assert r.job(job_id)["state"] == "queued"
     finally:
-        lr._ENGINE_SLOTS.release()
+        for _ in range(held):
+            lr._ENGINE_SLOTS.release()
     job = _wait(r, job_id)
     assert job["state"] == "done"
     # wall_seconds measures the engine, not the wait.
     assert job["wall_seconds"] < 30
+
+
+#: A fake engine that records overlap: each run stamps its start and end, so a
+#: test can prove two containers were alive at the same instant rather than
+#: inferring concurrency from a stopwatch.
+FAKE_OVERLAP = r"""
+import json, os, sys, time
+res = next(a.rsplit(":", 1)[0] for a in sys.argv if a.endswith(":/Results"))
+root = os.path.dirname(res)   # ws/results
+t0 = time.time()
+time.sleep(0.35)
+t1 = time.time()
+# One file per run. Four processes appending to a SHARED file raced on Windows
+# and silently dropped a line, so the harness lost a write and it looked exactly
+# like the runner losing a grid point.
+with open(os.path.join(root, "span-%d.json" % os.getpid()), "w") as fh:
+    json.dump([t0, t1], fh)
+json.dump({
+    "statistics": {"Net Profit": "12.5%", "Sharpe Ratio": "1.4",
+                   "Drawdown": "8.0%", "Total Orders": "6"},
+    "charts": {"Strategy Equity": {"series": {"Equity": {"values":
+        [[1, 1000.0], [2, 1050.0], [3, 1125.0]]}}}},
+}, open(res + "/SmokeAlgo.json", "w"))
+print("engine ok")
+"""
+
+
+def _spans(tmp_path: Path) -> list[tuple[float, float]]:
+    d = tmp_path / "ws" / "results"
+    return [tuple(json.loads(f.read_text())) for f in sorted(d.glob("span-*.json"))]
+
+
+def _max_overlap(spans: list[tuple[float, float]]) -> int:
+    """How many runs were alive at once, at the busiest instant."""
+    edges = [(a, 1) for a, _ in spans] + [(b, -1) for _, b in spans]
+    edges.sort()
+    cur = best = 0
+    for _, d in edges:
+        cur += d
+        best = max(best, cur)
+    return best
+
+
+def test_grid_points_actually_run_concurrently(tmp_path, monkeypatch):
+    """The change that mattered, and the one a semaphore alone could not deliver.
+
+    Sweep points were run in a plain `for` loop, so a candidate's 6 grid points
+    across 4 walk-forward folds were 24 STRICTLY SEQUENTIAL engine runs — every
+    one of them independent — on a 12-core machine using about one core. Raising
+    MAX_CONCURRENT_CONTAINERS changed nothing, because the belt never asked for a
+    second slot.
+
+    Proven by overlap rather than by elapsed time: a stopwatch would pass on a
+    fast machine even if the runs were serial.
+    """
+    import app.fund.leanrunner as lr
+
+    r = _runner(tmp_path, FAKE_OVERLAP)
+    r.save_algorithm("smoke", ALGO)
+    sid = r.submit_sweep("smoke", {"fast": ["2", "3", "4", "5"]})["sweep_id"]
+    sweep = _wait_sweep(r, sid)
+
+    assert sweep["state"] == "done"
+    assert len(sweep["points"]) == 4, "a point went missing under concurrency"
+    spans = _spans(tmp_path)
+    assert len(spans) == 4
+    assert _max_overlap(spans) > 1, (
+        "grid points ran one at a time — the sweep is still serialised behind "
+        "itself and extra container slots buy nothing")
+    assert _max_overlap(spans) <= lr.MAX_CONCURRENT_CONTAINERS, (
+        "more containers were alive than the semaphore permits")
+
+
+def test_concurrency_never_exceeds_the_configured_slots(tmp_path, monkeypatch):
+    """The cap is what keeps a wide grid from exhausting the host.
+
+    The original WinError 1455 was a 3 GiB RESERVATION per container stacking on a
+    15.2 GB host, not LEAN's real ~450 MiB appetite — but the ceiling still has to
+    hold, or the fix would have traded a diagnosed crash for an undiagnosed one.
+    """
+    import app.fund.leanrunner as lr
+
+    monkeypatch.setattr(lr, "MAX_CONCURRENT_CONTAINERS", 2)
+    monkeypatch.setattr(lr, "_ENGINE_SLOTS", threading.BoundedSemaphore(2))
+    r = _runner(tmp_path, FAKE_OVERLAP)
+    r.save_algorithm("smoke", ALGO)
+    sid = r.submit_sweep("smoke", {"fast": ["2", "3", "4", "5", "6", "7"]})["sweep_id"]
+    sweep = _wait_sweep(r, sid)
+
+    assert sweep["state"] == "done"
+    assert len(sweep["points"]) == 6
+    assert _max_overlap(_spans(tmp_path)) <= 2
+
+
+def test_every_point_is_still_recorded_when_one_of_them_fails(tmp_path):
+    """Concurrency must not lose a result, and must not hide a failure.
+
+    Points are appended under a lock; the summary is computed after the join. A
+    dropped point would silently shrink the grid the winner was chosen from.
+    """
+    r = _runner(tmp_path, FAKE_OK)
+    r.save_algorithm("smoke", ALGO)
+    sid = r.submit_sweep("smoke", {"fast": ["2", "3", "4", "5", "6"]})["sweep_id"]
+    sweep = _wait_sweep(r, sid)
+    assert sweep["state"] == "done"
+    assert len(sweep["points"]) == 5
+    assert sweep["completed"] == sweep["total"]
+    params = sorted(p["parameters"]["fast"] for p in sweep["points"])
+    assert params == ["2", "3", "4", "5", "6"], "a grid point was lost"
