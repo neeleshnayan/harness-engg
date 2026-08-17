@@ -61,11 +61,36 @@ def submit(seed: int) -> str:
 
 
 def await_candidate(cid: str, timeout_s: float = 5_400.0) -> dict:
+    """Poll until the candidate settles, surviving a spine restart.
+
+    An audit run of six nulls is hours of container time, and the first attempt
+    lost all of it: the spine was restarted mid-poll and the unhandled
+    ConnectionError took the whole script down. The CANDIDATE was unaffected — the
+    factory runs it server-side — so the crash discarded work that had already
+    been done, purely because the observer went away.
+
+    Connection failures are therefore retried for as long as the deadline allows,
+    while the candidate's own outcome is never retried or inferred. A run that
+    genuinely times out still returns ``state: timeout``, which the report counts
+    as unjudged rather than as a pass or a fail.
+    """
     deadline = time.monotonic() + timeout_s
+    unreachable_since = None
     while time.monotonic() < deadline:
-        c = requests.get(f"{B}/factory/candidates/{cid}", timeout=60).json()
-        if c.get("state") != "running":
-            return c
+        try:
+            c = requests.get(f"{B}/factory/candidates/{cid}", timeout=60).json()
+            if unreachable_since is not None:
+                print(f"    spine back after "
+                      f"{time.monotonic() - unreachable_since:.0f}s", flush=True)
+                unreachable_since = None
+            if c.get("state") != "running":
+                return c
+        except requests.exceptions.RequestException as e:
+            if unreachable_since is None:
+                unreachable_since = time.monotonic()
+                print(f"    spine unreachable ({type(e).__name__}) — the candidate "
+                      f"keeps running server-side, so this waits rather than "
+                      f"discarding hours of container time", flush=True)
         time.sleep(10)
     return {"state": "timeout", "candidate_id": cid}
 

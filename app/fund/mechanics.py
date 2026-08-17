@@ -114,10 +114,16 @@ EVOLUTION_LADDER = [
      "detail": "sleeve_beta_500 pre-registered; sleeve_alpha_500 constituted at "
                "$0, admitted only by passing the gate and retired if it cannot "
                "beat its beta sibling net of costs. Neither is funded yet."},
-    {"rung": "Population search", "status": "blocked",
-     "detail": "Blocked on hardware, not design: one LEAN container on 15.2 GB, "
-               "~20 engine runs per candidate. A population of 50 across 20 "
-               "generations is ~230 hours. A vectorised pre-screen is the unlock."},
+    {"rung": "Population search", "status": "partial",
+     "detail": "UNBLOCKED 2026-08-17, and not cheap. The vectorised sieve "
+               "(app/fund/prescreen.py) evaluates an organism in ~1ms on the same "
+               "bars, kills 56.6% of a real grid, and drops a 1,000-organism "
+               "search from 233 to 101 LEAN-hours. One generation of 50 goes from "
+               "11.7h to 5.1h — an overnight run. Measured false-negative rate "
+               "1.0%, which is what licenses putting it in front of the belt. "
+               "Still 'partial': the sieve's SIGNAL path has never been compared "
+               "against LEAN on the same spec, so it is trusted to reject and "
+               "never to approve."},
     {"rung": "Specialisation by domain", "status": "not started",
      "detail": "Nothing yet gives a lineage its own universe or horizon to "
                "specialise into."},
@@ -268,6 +274,74 @@ def _timeline(events: Any, candidates: Any) -> dict[str, Any]:
     }
 
 
+#: The story, in beats. Charts show state; a narrative shows CAUSATION, and
+#: causation is the only part of this that transfers to whoever reads it next.
+#:
+#: Every beat carries the evidence that produced it, so the arc cannot drift into
+#: mythology. If a beat's number changes, the beat is wrong and must be rewritten —
+#: which is the same contract the judgement register applies to thresholds.
+ARC = [
+    {"beat": 1, "at": "before", "title": "It began as a place to run backtests",
+     "body": "A candidate went in, a Sharpe came out, and a good number was taken "
+             "as good news. Nothing in the loop was trying to fool us, so nothing "
+             "in the loop was built to notice if something did.",
+     "evidence": "gate v1: PSR floor 50%, no walk-forward, two criteria that "
+                 "passed by never having been measured"},
+    {"beat": 2, "at": "the first shock",
+     "title": "Then we fed it pure noise, and it said yes",
+     "body": "Random-entry strategies — no information in them by construction — "
+             "were sent down the same belt. Three of them cleared the bar. That is "
+             "the moment the fund stopped trusting its own instrument, and every "
+             "mechanism since exists because of it.",
+     "evidence": "3 of 8 judged nulls passed. ~50% false-positive rate under v1"},
+    {"beat": 3, "at": "the mirror",
+     "title": "So we asked something that could see the future",
+     "body": "An oracle with perfect foreknowledge was run through the belt to "
+             "bound the gate from ABOVE. It failed. A gate that rejects perfect "
+             "foresight is not strict, it is broken — and both faults turned out "
+             "to be ours: a retention ratio dividing a year by a quarter, and a "
+             "test leg giving a slow rule exactly one decision.",
+     "evidence": "oracle rejected by v2; retention now annualised, folds sized "
+                 "from the strategy's own clock"},
+    {"beat": 4, "at": "the quiet failure",
+     "title": "The fix was a loosening, and nobody noticed",
+     "body": "v3 dropped the fold requirement and left a comparison as '<', so one "
+             "fold in two counted as a majority. Its ability to tell a real edge "
+             "from noise fell to 1.21 — near a coin. It shipped with a commit "
+             "message about rigour, and the test suite stayed green because two "
+             "tests had been written to assert the very thing that broke.",
+     "evidence": "discrimination 1.21; found by outside review, not by us"},
+    {"beat": 5, "at": "the audit",
+     "title": "Then we measured what the gate can actually see",
+     "body": "v4 requires four folds and a strict majority in integer arithmetic. "
+             "Measured from both sides and against an adversary — which promptly "
+             "killed a replacement statistic that had looked 50% better. The "
+             "honest result is uncomfortable: this instrument can confirm strong "
+             "edges and cannot resolve modest ones, and that is a fact about our "
+             "30 months of history rather than about the code.",
+     "evidence": "2.9% false positives; 22.8% power at Sharpe 1.0; 80% power "
+                 "unreachable at any Sharpe on this history"},
+    {"beat": 6, "at": "the other kind of blindness",
+     "title": "Meanwhile the controls were not plugged in",
+     "body": "The kill switches, the pre-committed exits — written, tested, "
+             "documented, and connected to nothing. Silence from a control that "
+             "never runs is indistinguishable from silence from a calm market. "
+             "That is now the thing the harness checks about itself first.",
+     "evidence": "RiskMonitor.run() had zero callers; EXIT_RULE_TRIGGERED was "
+                 "emitted by no code in the repository"},
+    {"beat": 7, "at": "now",
+     "title": "And now it can breed",
+     "body": "A vectorised sieve evaluates an organism in about a millisecond on "
+             "the same bars, so the 95% that were never going to survive stop "
+             "costing container time. Population search went from a fortnight to "
+             "an overnight run. What is still missing is inheritance: nothing yet "
+             "makes a new candidate out of two survivors, so this is selection "
+             "with variation and not yet evolution.",
+     "evidence": "1ms per organism; 56.6% killed; 233 -> 101 LEAN-hours; 1.0% "
+                 "false-negative rate"},
+]
+
+
 def build(candidates: Any = None, strategies: Any = None,
           observations: Any = None, approvals: Any = None,
           exits: Any = None, events: Any = None,
@@ -287,6 +361,11 @@ def build(candidates: Any = None, strategies: Any = None,
                               "current": gate_version}),
         ("ladder", lambda: {"rungs": EVOLUTION_LADDER,
                             "note": _ladder_note()}),
+        ("arc", lambda: {"beats": ARC,
+                         "note": "Seven beats, each carrying the evidence that "
+                                 "produced it. If a number here changes, the beat "
+                                 "is wrong and gets rewritten — an arc that "
+                                 "outlives its evidence is mythology."}),
         ("timeline", lambda: _timeline(events, candidates)),
         ("waiting_on_you", lambda: _waiting(approvals, exits)),
     ):

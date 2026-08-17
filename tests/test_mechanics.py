@@ -126,10 +126,34 @@ def test_every_failure_sentence_maps_to_a_named_cause():
 def test_the_unbuilt_rungs_stay_unlit():
     out = build(candidates=CANDIDATES, strategies=STRATEGIES)
     by = {r["rung"]: r["status"] for r in out["ladder"]["rungs"]}
-    assert by["Population search"] == "blocked"
     assert by["Specialisation by domain"] == "not started"
     assert by["Selection by a calibrated gate"] == "running"
     assert "phylogeny we do not have" in out["ladder"]["note"]
+
+    # Population search moved blocked -> partial when the vectorised sieve landed.
+    # It must NOT read "running": the sieve's signal path has never been compared
+    # against LEAN on the same spec, so it is trusted to reject and never to
+    # approve, and 101 LEAN-hours for a full search is unblocked rather than cheap.
+    pop = by["Population search"]
+    assert pop == "partial", f"population search is {pop!r}"
+    detail = next(r["detail"] for r in out["ladder"]["rungs"]
+                  if r["rung"] == "Population search")
+    assert "never been compared against LEAN" in detail
+    assert "not cheap" in detail
+
+
+def test_the_arc_carries_evidence_on_every_beat():
+    """A beat without a number behind it is mythology, and drifts like it."""
+    out = build(candidates=CANDIDATES, strategies=STRATEGIES)
+    beats = out["arc"]["beats"]
+    assert len(beats) >= 7
+    for b in beats:
+        assert b["title"].strip() and b["body"].strip()
+        assert b["evidence"].strip(), f"beat {b['beat']} has no evidence"
+    # The arc must end where the fund actually is, not where it hopes to be.
+    last = beats[-1]
+    assert last["at"] == "now"
+    assert "not yet evolution" in last["body"]
 
 
 def test_the_timeline_uses_utc_for_both_streams():
