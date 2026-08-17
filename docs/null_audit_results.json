@@ -1,0 +1,155 @@
+{
+ "seeds": [
+  21,
+  22,
+  23,
+  24,
+  25,
+  26
+ ],
+ "grid": {
+  "top_n": [
+   "3",
+   "5"
+  ],
+  "hold_days": [
+   "21",
+   "63"
+  ]
+ },
+ "holdout": {
+  "train_start": "2025-01-01",
+  "train_end": "2025-12-31",
+  "test_start": "2026-01-01",
+  "test_end": "2026-08-14"
+ },
+ "results": [
+  {
+   "seed": 21,
+   "candidate_id": "b61da24d93cd",
+   "state": "done",
+   "passed": false,
+   "failures": [
+    "probabilistic Sharpe 58.851% is below 65.0% \u2014 the edge is not distinguishable from luck on this much history",
+    "cost robustness was never measured (no cost sweep was run) \u2014 a candidate that was not cost-swept has not shown it survives being wrong about costs",
+    "NOT TESTABLE on the history available: 1 fold(s) fit; a 63-day hold needs a 252-day test leg to make 4 decisions, and the available history does not supply 4 of them \u2014 this strategy is NOT TESTABLE here, which is not the same as failing. This is not a judgement about the strategy \u2014 it says the fund cannot yet examine a rule this slow, and the answer is a faster rule or more history, not a different threshold"
+   ],
+   "winner": {
+    "seed": "21",
+    "top_n": "5",
+    "hold_days": "63"
+   },
+   "wf_measurable": null,
+   "wf_retained": null,
+   "wf_not_testable": false,
+   "wf_note": ""
+  },
+  {
+   "seed": 22,
+   "candidate_id": "4f7455799f72",
+   "state": "done",
+   "passed": false,
+   "failures": [
+    "probabilistic Sharpe 60.899% is below 65.0% \u2014 the edge is not distinguishable from luck on this much history",
+    "cost robustness was never measured (no cost sweep was run) \u2014 a candidate that was not cost-swept has not shown it survives being wrong about costs",
+    "NOT TESTABLE on the history available: 1 fold(s) fit; a 63-day hold needs a 252-day test leg to make 4 decisions, and the available history does not supply 4 of them \u2014 this strategy is NOT TESTABLE here, which is not the same as failing. This is not a judgement about the strategy \u2014 it says the fund cannot yet examine a rule this slow, and the answer is a faster rule or more history, not a different threshold"
+   ],
+   "winner": {
+    "seed": "22",
+    "top_n": "5",
+    "hold_days": "63"
+   },
+   "wf_measurable": null,
+   "wf_retained": null,
+   "wf_not_testable": false,
+   "wf_note": ""
+  },
+  {
+   "seed": 23,
+   "candidate_id": "e5dfbfc9d6a4",
+   "state": "done",
+   "passed": false,
+   "failures": [
+    "probabilistic Sharpe 12.141% is below 65.0% \u2014 the edge is not distinguishable from luck on this much history",
+    "returns 20.585% against 60.88% for simply owning it: an expensive way to hold the underlying",
+    "cost robustness was never measured (no cost sweep was run) \u2014 a candidate that was not cost-swept has not shown it survives being wrong about costs",
+    "NOT TESTABLE on the history available: 1 fold(s) fit; a 63-day hold needs a 252-day test leg to make 4 decisions, and the available history does not supply 4 of them \u2014 this strategy is NOT TESTABLE here, which is not the same as failing. This is not a judgement about the strategy \u2014 it says the fund cannot yet examine a rule this slow, and the answer is a faster rule or more history, not a different threshold"
+   ],
+   "winner": {
+    "seed": "23",
+    "top_n": "3",
+    "hold_days": "63"
+   },
+   "wf_measurable": null,
+   "wf_retained": null,
+   "wf_not_testable": false,
+   "wf_note": ""
+  },
+  {
+   "seed": 24,
+   "candidate_id": "e1905ac5737e",
+   "state": "done",
+   "passed": false,
+   "failures": [
+    "probabilistic Sharpe 23.238% is below 65.0% \u2014 the edge is not distinguishable from luck on this much history",
+    "returns 44.307% against 60.88% for simply owning it: an expensive way to hold the underlying",
+    "kept only -46526% of its edge out of sample; 50% is the floor",
+    "cost robustness was never measured (no cost sweep was run) \u2014 a candidate that was not cost-swept has not shown it survives being wrong about costs",
+    "NOT TESTABLE on the history available: 1 fold(s) fit; a 63-day hold needs a 252-day test leg to make 4 decisions, and the available history does not supply 4 of them \u2014 this strategy is NOT TESTABLE here, which is not the same as failing. This is not a judgement about the strategy \u2014 it says the fund cannot yet examine a rule this slow, and the answer is a faster rule or more history, not a different threshold"
+   ],
+   "winner": {
+    "seed": "24",
+    "top_n": "3",
+    "hold_days": "63"
+   },
+   "wf_measurable": null,
+   "wf_retained": null,
+   "wf_not_testable": false,
+   "wf_note": ""
+  },
+  {
+   "seed": 25,
+   "candidate_id": "084e00af8117",
+   "state": "done",
+   "passed": false,
+   "failures": [
+    "cost robustness was never measured (no cost sweep was run) \u2014 a candidate that was not cost-swept has not shown it survives being wrong about costs",
+    "NOT TESTABLE on the history available: 1 fold(s) fit; a 63-day hold needs a 252-day test leg to make 4 decisions, and the available history does not supply 4 of them \u2014 this strategy is NOT TESTABLE here, which is not the same as failing. This is not a judgement about the strategy \u2014 it says the fund cannot yet examine a rule this slow, and the answer is a faster rule or more history, not a different threshold"
+   ],
+   "winner": {
+    "seed": "25",
+    "top_n": "5",
+    "hold_days": "63"
+   },
+   "wf_measurable": null,
+   "wf_retained": null,
+   "wf_not_testable": false,
+   "wf_note": ""
+  },
+  {
+   "seed": 26,
+   "candidate_id": "a42940a8c893",
+   "state": "done",
+   "passed": false,
+   "failures": [
+    "probabilistic Sharpe 43.934% is below 65.0% \u2014 the edge is not distinguishable from luck on this much history",
+    "cost robustness was never measured (no cost sweep was run) \u2014 a candidate that was not cost-swept has not shown it survives being wrong about costs",
+    "NOT TESTABLE on the history available: 1 fold(s) fit; a 63-day hold needs a 252-day test leg to make 4 decisions, and the available history does not supply 4 of them \u2014 this strategy is NOT TESTABLE here, which is not the same as failing. This is not a judgement about the strategy \u2014 it says the fund cannot yet examine a rule this slow, and the answer is a faster rule or more history, not a different threshold"
+   ],
+   "winner": {
+    "seed": "26",
+    "top_n": "5",
+    "hold_days": "63"
+   },
+   "wf_measurable": null,
+   "wf_retained": null,
+   "wf_not_testable": false,
+   "wf_note": ""
+  }
+ ],
+ "judged": 6,
+ "passes": 0,
+ "false_positive_rate": 0.0,
+ "walkforward_reached": 0,
+ "walkforward_not_testable": 0
+}

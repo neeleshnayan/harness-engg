@@ -29,6 +29,11 @@ import time
 import requests
 from dotenv import load_dotenv
 
+# The preflight imports the fund's own fold geometry rather than reimplementing it,
+# so the audit and the gate cannot disagree about what is testable. That needs the
+# repo root importable — every other script under scripts/ does the same.
+sys.path.insert(0, ".")
+
 load_dotenv()
 
 B = "http://127.0.0.1:8090/api/v1/fund"
@@ -40,7 +45,22 @@ SEEDS = [int(x) for x in (sys.argv[1].split(",") if len(sys.argv) > 1
 #: pressure is identical. Seed is held fixed within a candidate: it identifies
 #: the null, and varying it inside the grid would let the sweep pick the luckiest
 #: coin rather than the best setting.
-GRID = {"top_n": ["3", "5"], "hold_days": ["21", "63"]}
+#: Holds are all TESTABLE on our history, and that is the whole point of the
+#: change. The first v4 run used ["21", "63"] and produced a completely useless
+#: result: every one of the six nulls came back NOT TESTABLE, because under v4 a
+#: 63-day hold needs a 252-day test leg times four folds and ~30 months cannot
+#: supply that. The audit reported "0% false positive rate" while its own
+#: walk-forward block said "NO null reached a walk-forward result, so this audit
+#: says NOTHING about the load-bearing criterion".
+#:
+#: The 0% was real and measured the rules UPSTREAM of walk-forward — PSR, the
+#: benchmark comparison, the cost-sweep requirement. It was not the number the
+#: audit exists to produce.
+#:
+#: From the fold-geometry table in gate.py: a 5-day hold fits 6 folds, 10 fits 6,
+#: 21 fits exactly 4 — which is v4's minimum. 42 fits 2 and 63 fits 1, so both are
+#: unjudgeable here and belong in an audit only when there is more history.
+GRID = {"top_n": ["3", "5"], "hold_days": ["5", "10", "21"]}
 HOLDOUT = {"train_start": "2025-01-01", "train_end": "2025-12-31",
            "test_start": "2026-01-01", "test_end": "2026-08-14"}
 
@@ -95,7 +115,56 @@ def await_candidate(cid: str, timeout_s: float = 5_400.0) -> dict:
     return {"state": "timeout", "candidate_id": cid}
 
 
+def preflight() -> None:
+    """Refuse to run if the grid cannot reach the criterion being audited.
+
+    The first v4 run burned container time to produce "0% false positive rate"
+    alongside its own admission that no null had reached the walk-forward leg. The
+    number was true and answered a different question than the one asked.
+
+    A two-hour measurement that CANNOT produce its headline result should fail in
+    the first second, not the last. So every hold in the grid is checked against
+    the same fold geometry the gate uses, and a hold that cannot yield
+    `min_walkforward_folds` aborts the run with the arithmetic shown.
+    """
+    from datetime import date
+
+    from app.fund.factory import WALKFORWARD_HISTORY_FLOOR
+    from app.fund.gate import CRITERIA, GATE_VERSION
+    from app.fund.walkforward import window_for_strategy
+
+    need = int(CRITERIA.get("min_walkforward_folds") or 0)
+    today = date.today().isoformat()
+    print(f"preflight against gate {GATE_VERSION}: needs {need} measurable folds",
+          flush=True)
+    bad = []
+    for h in sorted({int(x) for x in GRID.get("hold_days", [])}):
+        w = window_for_strategy(today, hold_days=h, min_folds=need,
+                                floor=WALKFORWARD_HISTORY_FLOOR)
+        fits = len(w["folds"])
+        mark = "ok" if w["enough"] else "NOT TESTABLE"
+        print(f"  hold {h:>3}d -> {fits} fold(s) of {w['test_days']}d   {mark}",
+              flush=True)
+        if not w["enough"]:
+            bad.append((h, fits, w["test_days"]))
+    if bad:
+        detail = "; ".join(f"{h}-day hold fits {f} fold(s) of {t}d"
+                           for h, f, t in bad)
+        raise SystemExit(
+            f"\nABORTING before spending container time.\n\n"
+            f"These holds cannot be judged on the history available ({detail}), so "
+            f"every null carrying them would return NOT TESTABLE and the audit "
+            f"would report a false-positive rate for the criteria UPSTREAM of "
+            f"walk-forward while saying nothing about walk-forward itself.\n\n"
+            f"That is exactly what the previous run did. Either narrow GRID's "
+            f"hold_days to values that fit, or buy history — do not lower the "
+            f"gate to make the audit runnable, which would be calibrating the "
+            f"instrument to the measurement.")
+    print("  all holds are judgeable on this history\n", flush=True)
+
+
 def main() -> None:
+    preflight()
     results = []
     for seed in SEEDS:
         print(f"\n=== null seed {seed} ===", flush=True)
