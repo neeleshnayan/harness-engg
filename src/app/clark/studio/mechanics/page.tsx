@@ -100,6 +100,7 @@ export default function MechanicsPage() {
 
         {m && (
           <>
+            <Arc m={m} />
             <Funnel m={m} />
             <Timeline m={m} />
             <Pressure m={m} />
@@ -111,6 +112,86 @@ export default function MechanicsPage() {
         )}
       </div>
     </>
+  );
+}
+
+/* ------------------------------------------------------------------- arc --- */
+
+/**
+ * The story, first, before any chart.
+ *
+ * A dashboard tells you the state. It cannot tell you WHY the state is what it is,
+ * and the why is the only part that survives being handed to someone else. Each
+ * beat carries the measurement that produced it, so the narrative cannot quietly
+ * become folklore: if a number moves, the beat is wrong and gets rewritten.
+ *
+ * Beats reveal on scroll rather than all at once — the arc is a sequence, and
+ * showing it as a wall of text throws away the one thing it has over the charts.
+ */
+function Arc({ m }: { m: MechanicsView }) {
+  const beats = m.arc?.beats ?? [];
+  const [open, setOpen] = useState<number | null>(beats.length ? beats[beats.length - 1].beat : null);
+  if (!beats.length) return null;
+
+  return (
+    <section className="mb-12">
+      <SectionHead
+        title="How it got here"
+        lede="Seven beats. Every serious change to this machine was forced by something measured, not chosen — so the story is the evidence in order."
+      />
+      <ol className="relative space-y-0">
+        {/* the spine */}
+        <span
+          aria-hidden
+          className="absolute bottom-4 left-[0.42rem] top-3 w-px bg-[var(--kt-border)]"
+        />
+        {beats.map((b) => {
+          const isOpen = open === b.beat;
+          const isNow = b.at === "now";
+          return (
+            <li key={b.beat} className="relative pb-4 pl-8">
+              <span
+                className={`absolute left-0 top-2.5 h-[0.85rem] w-[0.85rem] rounded-full border-2 transition-colors ${
+                  isNow
+                    ? "border-[var(--kt-accent)] bg-[var(--kt-accent)]"
+                    : isOpen
+                      ? "border-[var(--kt-accent)] bg-[var(--kt-bg)]"
+                      : "border-[var(--kt-border-strong)] bg-[var(--kt-bg)]"
+                }`}
+              />
+              <button
+                type="button"
+                onClick={() => setOpen(isOpen ? null : b.beat)}
+                aria-expanded={isOpen}
+                className="w-full text-left"
+              >
+                <span className="flex flex-wrap items-baseline gap-2">
+                  <span className={`font-mono text-[10px] uppercase tracking-[0.14em] ${KT.muted}`}>
+                    {b.at}
+                  </span>
+                  <span
+                    className={`text-[15px] font-medium leading-snug ${
+                      isNow ? KT.accent : ""
+                    }`}
+                  >
+                    {b.title}
+                  </span>
+                </span>
+              </button>
+              {isOpen && (
+                <div className="mt-2">
+                  <p className="max-w-2xl text-sm leading-relaxed">{b.body}</p>
+                  <p className="mt-2 border-l-2 border-[var(--kt-border-strong)] pl-3 font-mono text-[10px] leading-relaxed text-[var(--kt-text-muted)]">
+                    {b.evidence}
+                  </p>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+      <p className={`mt-1 pl-8 text-xs italic ${KT.muted}`}>{m.arc?.note}</p>
+    </section>
   );
 }
 

@@ -844,6 +844,15 @@ export interface MechanicsView {
     rungs: { rung: string; status: string; detail: string }[];
     note: string;
   };
+  /** The story in beats. Charts show state; the arc shows CAUSATION, which is the
+   *  only part that transfers to whoever reads this next. Every beat carries the
+   *  evidence that produced it — an arc that outlives its evidence is mythology. */
+  arc: {
+    beats: {
+      beat: number; at: string; title: string; body: string; evidence: string;
+    }[];
+    note: string;
+  };
   /** Two streams on one UTC axis: chain-verifiable events, and dated build marks
    *  describing machinery changes the log cannot know about. */
   timeline: {
