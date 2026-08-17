@@ -4,6 +4,7 @@ import React from "react";
 import { StudioHeader } from "../components/StudioHeader";
 import { LeanLab } from "../components/LeanLab";
 import { HuntingGround } from "../components/HuntingGround";
+import { ResearchMap } from "../components/ResearchMap";
 
 /**
  * LAB — the strategy desk.
@@ -30,6 +31,10 @@ export default function LabPage() {
     <div className="bg-[var(--kt-bg)] text-[var(--kt-text)] min-h-screen">
       <StudioHeader subtitle="Write a strategy, run it on the engine of record — nothing here is registered or persisted" />
       <div className="mx-auto max-w-[1600px] px-6 pb-10">
+        {/* The map first, deliberately. A lazy reader trusts whatever is at
+            the top, so the top must be the view that shows what is MISSING —
+            not the one that ranks what happens to be present. */}
+        <ResearchMap />
         {/* Where to look, before what to test. The fund's whole book sits
             outside this list, which is the argument for putting it first. */}
         <HuntingGround />
