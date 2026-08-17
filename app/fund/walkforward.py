@@ -37,6 +37,7 @@ Three ways a fold can fail to produce a number, all kept distinct from zero:
 
 from __future__ import annotations
 
+import ast
 import logging
 from datetime import date, timedelta
 from statistics import median
@@ -99,6 +100,85 @@ def folds(start: str, end: str, train_days: int = 252,
                     "test_end": test_end.isoformat()})
         train_start = train_start + timedelta(days=cal(step))
     return out
+
+
+#: How many of a strategy's own decisions a test leg must contain before it is a
+#: test rather than a single draw. Four is a judgement, labelled as one: it is the
+#: point where one lucky trade stops dominating the leg's return, and it is not
+#: derived from any measurement here.
+DECISIONS_PER_TEST_LEG = 4
+
+
+def declared_hold_days(code: Optional[str], grid: Optional[dict] = None,
+                       default: int = 21) -> dict[str, Any]:
+    """A strategy's holding period, from its source or its grid.
+
+    Needed because the walk-forward test leg has to be long enough for the
+    strategy's OWN clock. Measured: our ~30 months of history supports 6 folds for
+    a 5-day hold, 4 for a 21-day hold, and ONE for a 63-day hold — so the same
+    fold geometry is generous for a fast rule and meaningless for a slow one.
+
+    Read the same way the benchmark reads UNIVERSE: statically from a module-level
+    constant, because the engine has exited by the time results are judged. Falls
+    back to the largest value in the grid, then to a default that is REPORTED as
+    assumed — a test leg sized from a guessed holding period would look rigorous
+    while measuring nothing.
+    """
+    if code:
+        try:
+            tree = ast.parse(code)
+            for node in tree.body:
+                if not isinstance(node, ast.Assign):
+                    continue
+                if "HOLD_DAYS" not in [t.id for t in node.targets
+                                       if isinstance(t, ast.Name)]:
+                    continue
+                if isinstance(node.value, ast.Constant) and isinstance(
+                        node.value.value, int):
+                    return {"hold_days": node.value.value, "source": "declared"}
+        except SyntaxError:
+            pass
+    for key in ("hold_days", "period", "slow"):
+        vals = (grid or {}).get(key)
+        if vals:
+            try:
+                return {"hold_days": max(int(v) for v in vals),
+                        "source": f"grid:{key}"}
+            except (TypeError, ValueError):
+                continue
+    return {"hold_days": default, "source": "assumed",
+            "note": (f"no HOLD_DAYS constant and nothing holding-period-shaped in "
+                     f"the grid, so the test leg was sized on an assumed "
+                     f"{default}-day hold — declare HOLD_DAYS to make this exact")}
+
+
+def window_for_strategy(end: str, hold_days: int, min_folds: int,
+                        train_days: int = 252,
+                        floor: Optional[str] = None) -> dict[str, Any]:
+    """Folds whose test legs are long enough for THIS strategy to act several times.
+
+    Returns the folds AND, when the history cannot supply ``min_folds`` of them,
+    says so — because a slow strategy on short history is UNTESTABLE, which is a
+    different verdict from failed. Reporting it as failed is the same error as
+    reading a no-trade holdout as a lost edge.
+    """
+    test_days = max(1, hold_days * DECISIONS_PER_TEST_LEG)
+    w = window_for(end, min_folds=min_folds, train_days=train_days,
+                   test_days=test_days, floor=floor)
+    return {
+        "folds": w,
+        "test_days": test_days,
+        "hold_days": hold_days,
+        "enough": len(w) >= min_folds,
+        "note": (f"{len(w)} fold(s) fit; a {hold_days}-day hold needs a "
+                 f"{test_days}-day test leg to make "
+                 f"{DECISIONS_PER_TEST_LEG} decisions, and the available history "
+                 f"does not supply {min_folds} of them — this strategy is NOT "
+                 f"TESTABLE here, which is not the same as failing"
+                 if len(w) < min_folds else
+                 f"{len(w)} fold(s), each a {test_days}-day test leg giving the "
+                 f"{hold_days}-day hold about {DECISIONS_PER_TEST_LEG} decisions"),
+    }
 
 
 def _span_days(start: str, end: str) -> Optional[int]:

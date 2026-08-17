@@ -186,20 +186,38 @@ class CandidateFactory:
             return None
         try:
             from app.fund.gate import CRITERIA
-            from app.fund.walkforward import WalkForward, window_for
+            from app.fund.walkforward import (WalkForward, declared_hold_days,
+                                              window_for_strategy)
 
-            need = int(CRITERIA.get("min_walkforward_folds") or 3)
-            # Sized from what the GATE asks for, not from the caller's holdout.
+            need = int(CRITERIA.get("min_walkforward_folds") or 2)
+            # Sized from what the GATE asks for AND from the strategy's own clock.
             # Deriving it from the holdout fit two folds against a three-fold
-            # requirement, so every candidate failed for a reason that described
-            # our arithmetic instead of the strategy.
-            window = window_for(holdout["test_end"], min_folds=need,
-                                floor=WALKFORWARD_HISTORY_FLOOR)
-            if len(window) < need:
-                logger.info("walk-forward: history supports %d fold(s), the gate "
-                            "asks for %d", len(window), need)
-            return WalkForward(runner=self._lean()).evaluate(
-                algorithm, grid, window)
+            # requirement; deriving the LEG from a fixed calendar window gave a
+            # 63-day-hold strategy one rebalance per test, which perfect
+            # foreknowledge could not pass.
+            code = None
+            try:
+                code = self._lean().get_algorithm(algorithm)["code"]
+            except Exception:  # noqa: BLE001
+                pass
+            hold = declared_hold_days(code, grid)
+            plan = window_for_strategy(holdout["test_end"], hold["hold_days"],
+                                       min_folds=need,
+                                       floor=WALKFORWARD_HISTORY_FLOOR)
+            if not plan["enough"]:
+                # Untestable is a verdict of its own; the gate must not read it as
+                # a failure of the strategy.
+                logger.info("walk-forward not testable for %s: %s",
+                            algorithm, plan["note"])
+                return {"not_testable": True, "note": plan["note"],
+                        "hold_days": hold["hold_days"],
+                        "hold_days_source": hold["source"],
+                        "folds_measurable": 0, "folds_retained": 0}
+            out = WalkForward(runner=self._lean()).evaluate(
+                algorithm, grid, plan["folds"])
+            out["hold_days"] = hold["hold_days"]
+            out["hold_days_source"] = hold["source"]
+            return out
         except Exception as e:  # noqa: BLE001
             logger.warning("walk-forward unavailable for %s: %s", algorithm, e)
             return None

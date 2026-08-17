@@ -45,7 +45,28 @@ from typing import Any, Optional
 #: arms race against luck and loses, because luck scales with dispersion. What
 #: noise cannot fake is CONSISTENCY ACROSS INDEPENDENT WINDOWS, so v2 requires a
 #: walk-forward result and treats its absence as a failure like any other.
-GATE_VERSION = "v2"
+#:
+#: v2 -> v3 (2026-08-18), forced by the other half of the calibration. An oracle
+#: with PERFECT FOREKNOWLEDGE failed v2, on two counts that were both ours rather
+#: than its:
+#:
+#:   1. Retention divided a 12-month cumulative return by a 3-month one, so
+#:      perfect foresight "kept 3% of its edge". Fixed by annualising both legs.
+#:   2. Even annualised it failed, because a 91-day test leg gives a 63-day-hold
+#:      strategy ONE rebalance. One decision is not a test of a selection rule.
+#:
+#: So v3 makes the fold geometry conditional on the strategy's own clock: a test
+#: leg must contain about four of its decisions. Measured against our ~30 months,
+#: that supports 6 folds for a 5-day hold, 4 for 21 days, and ONE for 63 days.
+#: `min_walkforward_folds` therefore drops 3 -> 2, because 3 was unsatisfiable for
+#: anything but fast rules and an unsatisfiable criterion fails everything while
+#: looking like rigour.
+#:
+#: And the honest consequence, which is a finding rather than a threshold: a
+#: strategy too slow for the available history is NOT TESTABLE, and v3 reports
+#: that separately from failing. Marking it failed would repeat the exact error
+#: this gate spent a week removing — reading an absence of evidence as evidence.
+GATE_VERSION = "v3"
 
 #: The bar. Deliberately data, not code branches: it can be printed, argued
 #: about on its own merits, and diffed when it changes.
@@ -69,15 +90,35 @@ CRITERIA: dict[str, Any] = {
     # NEW in v2: one holdout is one draw. A strategy must keep its edge in a
     # MAJORITY of independent folds, which is the property a lucky window cannot
     # supply and the reason this replaces "raise the PSR floor" as the real test.
-    "min_walkforward_folds": 3,
+    "min_walkforward_folds": 2,
     "min_walkforward_folds_retained_share": 0.5,
     "require_walkforward": True,
+    # A test leg must contain roughly this many of the strategy's own decisions.
+    # Sized from its holding period, not from a fixed calendar window.
+    "min_decisions_per_test_leg": 4,
     # A backtest nobody priced is not evidence.
     "require_priced": True,
     # Capacity has to be worth the operational effort of running it.
     "min_capacity_usd": 100_000.0,
     # NEW in v2: and it must have been estimated. Same hole as breakeven.
     "require_capacity_measured": True,
+}
+
+#: Kept so a stored v2 verdict stays interpretable, on the same reasoning as v1.
+CRITERIA_V2: dict[str, Any] = {
+    "min_psr_pct": 65.0,
+    "min_orders": 20,
+    "must_beat_benchmark": True,
+    "min_breakeven_bps": 10.0,
+    "require_breakeven_measured": True,
+    "min_holdout_retention": 0.5,
+    "min_walkforward_folds": 3,
+    "min_walkforward_folds_retained_share": 0.5,
+    "require_walkforward": True,
+    "require_priced": True,
+    "min_capacity_usd": 100_000.0,
+    "require_capacity_measured": True,
+    "min_decisions_per_test_leg": 0,
 }
 
 #: Kept so a stored v1 verdict stays interpretable. A verdict records the bar it
@@ -267,6 +308,16 @@ def evaluate(result: dict[str, Any],
             failures.append("no walk-forward test — a single held-out window is "
                             "one draw, and random strategies cleared the old "
                             "single-window bar about half the time")
+        elif wf.get("not_testable"):
+            # A separate verdict, not a failure. A slow strategy on short history
+            # has not been examined, and calling that a failure is the same error
+            # as reading a no-trade holdout as a lost edge.
+            checks["not_testable"] = True
+            failures.append(
+                f"NOT TESTABLE on the history available: {wf.get('note')}. This "
+                f"is not a judgement about the strategy — it says the fund cannot "
+                f"yet examine a rule this slow, and the answer is a faster rule or "
+                f"more history, not a different threshold")
         elif (measurable or 0) < c["min_walkforward_folds"]:
             # Distinct from failing it. Too few measurable folds means the test
             # did not happen, which is not the same as happening and going badly.

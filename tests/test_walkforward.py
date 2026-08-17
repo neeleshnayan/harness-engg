@@ -186,3 +186,39 @@ def test_a_total_loss_annualises_without_blowing_up():
     out = retention(50.0, -100.0, 30, train_days=365, test_days=91)
     assert out["measurable"] is True
     assert out["retention"] < 0
+
+
+# --- v3: the fold geometry follows the strategy's own clock -------------------
+
+def test_the_holding_period_is_read_from_the_source_then_the_grid():
+    """Same pattern as the benchmark reading UNIVERSE: statically, because the
+    engine has exited by the time results are judged."""
+    from app.fund.walkforward import declared_hold_days
+    assert declared_hold_days("HOLD_DAYS = 42")["hold_days"] == 42
+    assert declared_hold_days("HOLD_DAYS = 42")["source"] == "declared"
+    got = declared_hold_days(None, {"hold_days": ["21", "63"]})
+    assert got["hold_days"] == 63, "the SLOWEST setting decides the leg length"
+    assert got["source"] == "grid:hold_days"
+
+
+def test_an_assumed_holding_period_is_reported_as_assumed():
+    """A test leg sized from a guessed hold would look rigorous while measuring
+    nothing, so the guess is labelled."""
+    from app.fund.walkforward import declared_hold_days
+    got = declared_hold_days(None, {"fast": ["3"]})
+    assert got["source"] == "assumed"
+    assert "declare HOLD_DAYS" in got["note"]
+
+
+def test_a_fast_rule_gets_folds_and_a_slow_one_is_told_it_is_untestable():
+    """The measured asymmetry: ~30 months supports 6 folds for a 5-day hold and
+    one for a 63-day hold."""
+    from app.fund.walkforward import window_for_strategy
+    fast = window_for_strategy("2026-08-14", 5, min_folds=2, floor="2024-02-26")
+    slow = window_for_strategy("2026-08-14", 63, min_folds=2, floor="2024-02-26")
+    assert fast["enough"] is True
+    assert len(fast["folds"]) >= 2
+    assert slow["enough"] is False
+    assert "NOT TESTABLE" in slow["note"]
+    # The leg scales with the hold: four decisions each.
+    assert slow["test_days"] == 63 * 4

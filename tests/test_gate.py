@@ -42,7 +42,7 @@ def test_a_clean_candidate_passes():
     out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
                    walkforward=GOOD_WALKFORWARD)
     assert out["passed"] is True, out["failures"]
-    assert out["gate_version"] == "v2"
+    assert out["gate_version"] == "v3"
     # Passing is not deployment, and the wording says so.
     assert "different claim from" in out["verdict"]
 
@@ -233,10 +233,10 @@ def test_the_version_records_which_bar_was_applied():
     verdict has to say which one it cleared — otherwise re-reading old passes
     under today's criteria silently rewrites history."""
     from app.fund.gate import CRITERIA_V1, GATE_VERSION
-    assert GATE_VERSION == "v2"
+    assert GATE_VERSION == "v3"
     out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
                    walkforward=GOOD_WALKFORWARD)
-    assert out["gate_version"] == "v2"
+    assert out["gate_version"] == "v3"
     # v1 is kept intact so an old verdict remains interpretable.
     assert CRITERIA_V1["min_psr_pct"] == 50.0
     # v1 must state what it did NOT require, not merely omit it: `evaluate`
@@ -283,3 +283,41 @@ def test_a_strategy_silent_in_BOTH_legs_still_points_at_warm_up():
     out = evaluate(_good_result(), ho, GOOD_SWEEP, walkforward=GOOD_WALKFORWARD)
     joined = " ".join(out["failures"])
     assert "never warmed up" in joined
+
+
+# --- v3: untestable is not the same as failed --------------------------------
+
+def test_a_strategy_too_slow_for_our_history_is_untestable_not_failed():
+    """An oracle with perfect foreknowledge failed v2 because a 91-day test leg
+    gave its 63-day hold ONE rebalance. Measured against ~30 months of history, a
+    5-day hold supports 6 folds and a 63-day hold supports one — so the same fold
+    geometry is generous for a fast rule and meaningless for a slow one.
+
+    Marking the slow one FAILED would repeat the error this gate spent a week
+    removing: reading an absence of evidence as evidence."""
+    out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
+                   walkforward={"not_testable": True,
+                                "note": "a 63-day hold needs a 252-day test leg",
+                                "folds_measurable": 0, "folds_retained": 0})
+    assert out["passed"] is False
+    assert out["checks"]["not_testable"] is True
+    joined = " ".join(out["failures"])
+    assert "NOT TESTABLE" in joined
+    assert "not a judgement about the strategy" in joined
+    # And it must NOT be described as having lost or failed a consistency test.
+    assert "consistent with a lucky window" not in joined
+
+
+def test_the_fold_requirement_dropped_because_three_was_unsatisfiable():
+    """3 folds could not be met by anything but a fast rule, and an unsatisfiable
+    criterion fails everything while looking like rigour."""
+    from app.fund.gate import CRITERIA, CRITERIA_V2
+    assert CRITERIA["min_walkforward_folds"] == 2
+    assert CRITERIA_V2["min_walkforward_folds"] == 3, "v2 must stay readable as it was"
+
+
+def test_two_retained_folds_of_two_now_clears_the_consistency_test():
+    out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
+                   walkforward={"folds_measurable": 2, "folds_retained": 2,
+                                "median_retention": 0.8})
+    assert out["passed"] is True, out["failures"]
