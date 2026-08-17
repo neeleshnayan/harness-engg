@@ -1,0 +1,118 @@
+"""Walk-forward: one holdout is one draw, and an unmeasurable fold is not a zero.
+
+The property under test throughout: a fold that could not produce a retention
+figure must say why, and must never contribute a number to the distribution.
+Collapsing "never traded", "crashed" and "lost money in training" into 0% would
+make a strategy nobody examined look identical to one that was examined and
+failed — and would let a thin result pass for a robust one.
+"""
+
+import pytest
+
+from app.fund.walkforward import (RETENTION_FLOOR, folds, retention, summarise)
+
+
+def test_folds_do_not_overlap_their_test_legs():
+    """Overlapping tests count the same days twice, so one lucky patch would
+    look like several independent successes."""
+    w = folds("2024-01-01", "2026-08-14", train_days=252, test_days=63)
+    assert len(w) >= 2
+    for a, b in zip(w, w[1:]):
+        assert a["test_end"] <= b["test_start"]
+    for f in w:
+        assert f["train_end"] < f["test_start"], "training must end before the exam"
+
+
+def test_folds_never_run_past_the_data():
+    w = folds("2025-01-01", "2025-12-31", train_days=252, test_days=63)
+    assert all(f["test_end"] <= "2025-12-31" for f in w)
+
+
+def test_a_fold_that_placed_no_trades_is_not_zero_retention():
+    """Warm-up starvation produces a flat zero that looks exactly like a lost
+    edge. The gate learned this the hard way; the folds must not relearn it."""
+    out = retention(train_return=20.0, test_return=0.0, test_orders=0)
+    assert out["retention"] is None
+    assert out["measurable"] is False
+    assert "no trades" in out["reason"]
+
+
+def test_a_negative_training_leg_has_no_retention_to_measure():
+    """test/train with a negative denominator inverts sign: a fold that lost
+    money in BOTH legs would report positive retention and read as a success."""
+    out = retention(train_return=-10.0, test_return=-5.0, test_orders=12)
+    assert out["retention"] is None
+    assert "no edge to retain" in out["reason"]
+
+
+def test_a_missing_return_is_unmeasured_not_zero():
+    out = retention(train_return=20.0, test_return=None, test_orders=8)
+    assert out["retention"] is None
+    assert "unmeasured" in out["reason"]
+
+
+def test_a_real_fold_measures_the_ratio():
+    out = retention(train_return=20.0, test_return=12.0, test_orders=30)
+    assert out["measurable"] is True
+    assert out["retention"] == pytest.approx(0.6)
+
+
+def _fold(ret, measurable=True, reason=None):
+    return {"retention": ret, "measurable": measurable, "reason": reason}
+
+
+def test_the_summary_reports_its_own_denominator():
+    """A median over two folds when four were attempted is a different claim
+    from a median over four, and hiding that is how thin passes for robust."""
+    out = summarise([_fold(0.8), _fold(0.6),
+                     _fold(None, False, "the test leg placed no trades"),
+                     _fold(None, False, "unmeasured")])
+    assert out["folds_attempted"] == 4
+    assert out["folds_measurable"] == 2
+    assert out["folds_unmeasurable"] == 2
+    assert "could not be measured" in out["verdict"]
+
+
+def test_consistent_retention_across_folds_is_said_plainly():
+    out = summarise([_fold(0.9), _fold(0.7), _fold(0.6)])
+    assert out["folds_retained"] == 3
+    assert out["median_retention"] == pytest.approx(0.7)
+    assert "all 3" in out["verdict"]
+
+
+def test_one_good_fold_among_bad_ones_is_called_inconsistent():
+    """This is precisely what a single flattering window looks like from the
+    inside, and the reason a one-window verdict is weak evidence."""
+    out = summarise([_fold(1.2), _fold(0.1), _fold(-0.3), _fold(0.05)])
+    assert out["folds_retained"] == 1
+    assert "inconsistent" in out["verdict"]
+
+
+def test_no_measurable_fold_is_an_absence_of_evidence():
+    out = summarise([_fold(None, False, "the test leg placed no trades"),
+                     _fold(None, False, "the test leg placed no trades")])
+    assert out["median_retention"] is None
+    assert out["folds_retained"] == 0
+    assert "absence of evidence" in out["verdict"]
+
+
+def test_the_floor_matches_the_gate():
+    """A per-fold bar different from the gate's would make the two disagree
+    about the same strategy."""
+    from app.fund.gate import CRITERIA
+    assert RETENTION_FLOOR == CRITERIA["min_holdout_retention"]
+
+
+def test_a_near_zero_training_edge_has_no_meaningful_retention():
+    """From the null audit: a random strategy trained at +3.7%, tested at +50.5%,
+    and reported "kept 1379% of its edge" — clearing a 50% floor on a denominator
+    too small to divide by. A tiny positive edge is as unusable as a negative one.
+    """
+    from app.fund.walkforward import MIN_TRAIN_RETURN_PCT
+    out = retention(train_return=3.66, test_return=50.5, test_orders=40)
+    assert out["retention"] is None
+    assert out["measurable"] is False
+    assert "near-zero denominator" in out["reason"]
+    # A judgement, not a measurement: below this an "edge" sits under the
+    # benchmark and inside single-name noise, so its persistence means nothing.
+    assert MIN_TRAIN_RETURN_PCT == 5.0

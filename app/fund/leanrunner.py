@@ -17,6 +17,7 @@ reach the venue (no keys).
 
 from __future__ import annotations
 
+import ast
 import itertools
 import json
 import logging
@@ -44,6 +45,23 @@ _NAME_RE = re.compile(r"^[a-z0-9_\-]{1,64}$")
 #: not seconds. The cap is a guard against a five-parameter grid nobody meant
 #: to ask for.
 MAX_SWEEP_POINTS = int(os.getenv("LEAN_MAX_SWEEP_POINTS", "24"))
+
+#: How many engine containers may run at once, fund-wide. This machine has
+#: 15.2 GB and a sweep stacked against a factory batch already killed a holdout
+#: run outright with `WinError 1455: the paging file is too small` — the run did
+#: not slow down, it vanished, and the gate correctly refused to score a crash.
+#: Serialising is the honest trade: a queue is slower, an OOM is a lost result.
+MAX_CONCURRENT_CONTAINERS = int(os.getenv("LEAN_MAX_CONCURRENT", "1"))
+
+#: Hard ceiling per container. Without it one runaway algorithm can exhaust the
+#: host and take unrelated runs down with it — the failure is never contained to
+#: the job that caused it.
+CONTAINER_MEMORY = os.getenv("LEAN_CONTAINER_MEMORY", "3g")
+
+#: Backtests and sweeps queue against this. Live sessions deliberately do NOT:
+#: a live session holds its container for the whole session, so letting it draw
+#: from the same pool would starve research for the rest of the day.
+_ENGINE_SLOTS = threading.BoundedSemaphore(MAX_CONCURRENT_CONTAINERS)
 
 _PARAM_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_\-]{0,31}$")
 
@@ -233,6 +251,48 @@ class LeanRunner:
         self._sweeps: dict[str, dict[str, Any]] = {}
         self._live: dict[str, dict[str, Any]] = {}
         self._lock = threading.Lock()
+        # Durable mirror, built on first use so a runner with no database (every
+        # test) behaves exactly as before.
+        self._store: Any = None
+        self._store_tried = False
+
+    # --- durable mirror ------------------------------------------------------
+
+    def _durable(self):
+        """The Postgres mirror, or None. Resolved once."""
+        if self._store_tried:
+            return self._store
+        self._store_tried = True
+        try:
+            from app.fund.leanstore import LeanStore, enabled
+            if enabled():
+                self._store = LeanStore()
+        except Exception as e:  # noqa: BLE001
+            logger.info("LEAN runs will not be persisted: %s", e)
+            self._store = None
+        return self._store
+
+    def _mirror_job(self, job: dict[str, Any]) -> None:
+        """Best-effort. A failed mirror must never fail the run it describes —
+        losing the copy of a result is a far smaller harm than losing the
+        result, so this swallows and logs rather than raising into the worker."""
+        st = self._durable()
+        if st is None:
+            return
+        try:
+            st.save_job(job)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("could not persist job %s: %s", job.get("job_id"), e)
+
+    def _mirror_sweep(self, sweep: dict[str, Any]) -> None:
+        st = self._durable()
+        if st is None:
+            return
+        try:
+            st.save_sweep(sweep)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("could not persist sweep %s: %s",
+                           sweep.get("sweep_id"), e)
 
     # --- algorithms ---------------------------------------------------------
 
@@ -309,23 +369,72 @@ class LeanRunner:
         }
         with self._lock:
             self._jobs[job_id] = job
+        self._mirror_job(job)
         threading.Thread(target=self._run, args=(job_id,), daemon=True).start()
         return {"job_id": job_id, "state": "queued"}
 
     def job(self, job_id: str) -> dict[str, Any]:
         with self._lock:
             j = self._jobs.get(job_id)
-        if j is None:
-            raise LeanError(f"unknown job {job_id!r} — jobs do not survive a restart; re-run")
-        return dict(j)
+        if j is not None:
+            return dict(j)
+        st = self._durable()
+        if st is not None:
+            restored = st.job(job_id)
+            if restored is not None:
+                return restored
+        raise LeanError(f"unknown job {job_id!r} — no record of it, in memory "
+                        f"or in the ledger")
 
     def jobs(self) -> list[dict[str, Any]]:
+        """This process's jobs first, then anything older from the mirror.
+
+        Merged rather than served from one or the other: the in-memory copies are
+        live and complete, while the mirror knows about runs from before the last
+        restart. Showing only memory makes the Lab look empty after a restart;
+        showing only the mirror loses whatever is still in flight.
+        """
         with self._lock:
-            return [
+            live = [
                 {k: v for k, v in j.items() if k != "result"}
                 for j in sorted(self._jobs.values(),
                                 key=lambda x: x["submitted_at"], reverse=True)
             ]
+        st = self._durable()
+        if st is None:
+            return live
+        try:
+            known = {j["job_id"] for j in live}
+            older = [j for j in st.recent_jobs(limit=50)
+                     if j["job_id"] not in known]
+        except Exception as e:  # noqa: BLE001
+            logger.warning("could not read persisted jobs: %s", e)
+            return live
+        for j in older:
+            j["restored"] = True
+        return live + older
+
+    def sweeps(self) -> list[dict[str, Any]]:
+        """Sweep history, same merge as ``jobs``."""
+        with self._lock:
+            live = [
+                {k: v for k, v in s.items() if k not in ("points",)}
+                for s in sorted(self._sweeps.values(),
+                                key=lambda x: x["submitted_at"], reverse=True)
+            ]
+        st = self._durable()
+        if st is None:
+            return live
+        try:
+            known = {s["sweep_id"] for s in live}
+            older = [s for s in st.recent_sweeps(limit=25)
+                     if s["sweep_id"] not in known]
+        except Exception as e:  # noqa: BLE001
+            logger.warning("could not read persisted sweeps: %s", e)
+            return live
+        for s in older:
+            s["restored"] = True
+        return live + older
 
     # --- live sessions -------------------------------------------------------
 
@@ -496,6 +605,7 @@ class LeanRunner:
         }
         with self._lock:
             self._sweeps[sweep_id] = sweep
+        self._mirror_sweep(sweep)
         threading.Thread(target=self._run_sweep, args=(sweep_id, combos),
                          daemon=True).start()
         return {"sweep_id": sweep_id, "state": "running", "total": sweep["total"]}
@@ -503,10 +613,25 @@ class LeanRunner:
     def sweep(self, sweep_id: str) -> dict[str, Any]:
         with self._lock:
             s = self._sweeps.get(sweep_id)
-        if s is None:
-            raise LeanError(f"unknown sweep {sweep_id!r} — sweeps do not survive "
-                            f"a restart; re-run")
-        return dict(s)
+        if s is not None:
+            return dict(s)
+        st = self._durable()
+        if st is not None:
+            restored = st.sweep(sweep_id)
+            if restored is not None:
+                # A sweep reloaded mid-flight is NOT still running: the thread
+                # that drove it died with the process. Reporting "running"
+                # would leave a poller waiting on work nobody is doing.
+                if restored.get("state") == "running":
+                    restored["state"] = "interrupted"
+                    restored["error"] = (
+                        "the process restarted while this sweep was running, so "
+                        f"it stopped after {restored.get('completed') or 0} of "
+                        f"{restored.get('total')} points — the points it did "
+                        f"finish are below; re-run for the rest")
+                return restored
+        raise LeanError(f"unknown sweep {sweep_id!r} — no record of it, in "
+                        f"memory or in the ledger")
 
     def _run_point(self, algorithm: str, params: dict[str, str]) -> dict[str, Any]:
         """One engine run, waited out. Sequential on purpose: each point is a
@@ -535,6 +660,9 @@ class LeanRunner:
                 point["window"] = _window_of(j)
                 sweep["points"].append(point)
                 sweep["completed"] = len(sweep["points"])
+                # After each point, so a restart keeps the grid computed so far
+                # rather than discarding twenty minutes of engine time.
+                self._mirror_sweep(sweep)
 
             sweep["summary"] = _sweep_summary(sweep["points"])
             if holdout:
@@ -547,6 +675,7 @@ class LeanRunner:
         finally:
             sweep["finished_at"] = _now()
             sweep.setdefault("summary", _sweep_summary(sweep["points"]))
+            self._mirror_sweep(sweep)
 
     def _run_holdout(self, sweep: dict[str, Any],
                      holdout: dict[str, str]) -> dict[str, Any]:
@@ -603,6 +732,7 @@ class LeanRunner:
 
         cmd = self._docker + [
             "run", "--rm", "--name", container,
+            "--memory", CONTAINER_MEMORY,
             "--add-host=host.docker.internal:host-gateway",
             "-v", f"{algo_dir}:/Algorithm:ro",
             "-v", f"{res_dir}:/Results",
@@ -621,6 +751,16 @@ class LeanRunner:
         if job.get("parameters"):
             cmd += ["--parameters",
                     ",".join(f"{k}:{v}" for k, v in job["parameters"].items())]
+        # Wait for a slot BEFORE claiming to run and before starting the clock.
+        # A queued job that reported "running" would look hung, and counting
+        # queue time against JOB_TIMEOUT_S would kill honest runs for the crime
+        # of being second in line.
+        waited_for_slot = time.monotonic()
+        _ENGINE_SLOTS.acquire()
+        queued_s = round(time.monotonic() - waited_for_slot, 1)
+        if queued_s > 1:
+            job["queued_seconds"] = queued_s
+            logger.info("job %s waited %.0fs for an engine slot", job_id, queued_s)
         job["state"] = "running"
         job["started_at"] = _now()
         t0 = time.monotonic()
@@ -635,14 +775,23 @@ class LeanRunner:
                 job["error"] = ((proc.stderr or "").strip().splitlines() or ["engine exited nonzero"])[-1][:400]
             else:
                 job["result"] = self._parse_results(res_dir)
-                job["state"] = "done" if job["result"] else "failed"
                 if not job["result"]:
+                    job["state"] = "failed"
                     job["error"] = "engine finished but wrote no parsable results"
-                elif job.get("enrich", True):
-                    # Network-backed extras, skipped for sweep points.
-                    self._add_benchmark(job["result"])
-                    self._add_cost_disclosure(job)
-                    self._add_capacity(job["result"])
+                else:
+                    if job.get("enrich", True):
+                        # Network-backed extras, skipped for sweep points.
+                        self._add_benchmark(job["result"], self._source_or_none(job))
+                        self._add_cost_disclosure(job)
+                        self._add_capacity(job["result"])
+                    # Published LAST, deliberately. `state` is the signal every
+                    # caller polls on, so marking the job done before enrichment
+                    # finishes exposes a half-built result: the gate, arriving
+                    # the instant the flag flips, would find no benchmark and no
+                    # costs disclosure and fail the candidate for missing
+                    # evidence that was seconds away. A verdict that depends on
+                    # who polled first is not a verdict.
+                    job["state"] = "done"
         except subprocess.TimeoutExpired:
             job["state"] = "failed"
             job["error"] = f"timed out after {JOB_TIMEOUT_S:.0f}s — engine killed"
@@ -652,8 +801,13 @@ class LeanRunner:
             job["state"] = "failed"
             job["error"] = f"{type(e).__name__}: {e}"[:400]
         finally:
+            _ENGINE_SLOTS.release()
             job["finished_at"] = _now()
             job["wall_seconds"] = round(time.monotonic() - t0, 1)
+            # Mirrored once, at the end, with the result attached. Writing on
+            # every intermediate transition would put a database round-trip
+            # inside the engine loop for states nobody reads back.
+            self._mirror_job(job)
 
     @staticmethod
     def _add_capacity(result: dict[str, Any]) -> None:
@@ -693,9 +847,16 @@ class LeanRunner:
 
     # --- benchmark -----------------------------------------------------------
 
+    def _source_or_none(self, job: dict[str, Any]) -> Optional[str]:
+        try:
+            return self.get_algorithm(job["algorithm"])["code"]
+        except Exception:  # noqa: BLE001
+            return None
+
     @staticmethod
-    def _add_benchmark(result: dict[str, Any]) -> None:
-        """Buy & hold for the traded symbol, from the fund's own bars.
+    def _add_benchmark(result: dict[str, Any],
+                       code: Optional[str] = None) -> None:
+        """Buy & hold of what the strategy could have held, from the fund's own bars.
 
         LEAN's own Benchmark series is unusable for these algorithms: the data
         is a custom type, so the engine emits zeros rather than a comparison.
@@ -706,35 +867,131 @@ class LeanRunner:
         Best-effort by design: if the bars cannot be fetched, the benchmark
         stays absent. An absent comparison is honest; an invented one is not.
         """
-        if result.get("benchmark_curve"):
-            return  # the engine produced a real one
+        # Whether to trust the engine's own series. Deferring to it blindly is
+        # how a fund ends up measured against a bar that is not a bar:
+        #
+        #   * for custom data types LEAN emits a full-length curve of ZEROS,
+        #     and that curve is truthy, so a bare `if benchmark_curve` accepts
+        #     it and every profitable strategy "beats the market";
+        #   * where it does emit prices, it zero-PADS the leading days before
+        #     the subscription starts, and a return computed off a zero base is
+        #     not a number anyone should see;
+        #   * it tracks whatever single symbol set_benchmark named, which for a
+        #     strategy that CHOOSES among names is one arbitrary constituent.
+        #
+        # So trust it only when it is strictly positive throughout AND the
+        # strategy traded a single name. Otherwise recompute below from the
+        # fund's own bars, which is like-for-like anyway: the same closes the
+        # algorithm traded, rather than two vendors disagreeing.
+        engine_curve = result.get("benchmark_curve") or []
+        traded_syms = {o["symbol"] for o in (result.get("orders") or [])
+                       if o.get("symbol")}
+        if engine_curve:
+            usable = all(isinstance(v, (int, float)) and v > 0
+                         for v in engine_curve)
+            if usable and len(traded_syms) <= 1:
+                return
+            logger.info("discarding engine benchmark (%d points, %d distinct, "
+                        "%d symbols traded): %s", len(engine_curve),
+                        len(set(engine_curve)), len(traded_syms),
+                        "zero-padded or non-positive" if not usable
+                        else "single-constituent bar for a multi-name strategy")
+            result.pop("benchmark_curve", None)
+            result.pop("benchmark_return_pct", None)
+            result.pop("benchmark_dates", None)
         dates = result.get("equity_dates") or []
         orders = result.get("orders") or []
         equity = result.get("equity_curve") or []
         if len(dates) < 2 or not orders or not equity:
             return
-        symbols = [o["symbol"] for o in orders if o.get("symbol")]
-        if not symbols:
+        # WHAT to hold as the bar. Prefer the universe the strategy declared
+        # over the names it actually bought, because those answer different
+        # questions. A selection rule only ever buys the names it liked, so
+        # benchmarking against those asks "did you time your favourites well"
+        # when the decision under test was "were these the right names to pick
+        # at all" — and it quietly grades the rule on a curve it drew itself.
+        declared = _declared_universe(code)
+        traded = sorted({o["symbol"] for o in orders if o.get("symbol")})
+        basis = "declared_universe" if declared else "traded_symbols"
+        wanted = declared or traded
+        if not wanted:
             return
-        symbol = max(set(symbols), key=symbols.count)
-        try:
-            from app.fund.marketdata import fetch_daily_bars
-            bars = fetch_daily_bars(symbol, start=dates[0], end=dates[-1])
-        except Exception as e:  # noqa: BLE001
-            logger.info("benchmark unavailable for %s: %s", symbol, e)
+
+        # The right bar depends on the SHAPE of the strategy, and getting this
+        # wrong quietly rigs the gate.
+        #
+        # A timing strategy on one name should be measured against holding that
+        # name — the question is whether the timing added anything.
+        #
+        # A strategy that CHOOSES among several names must not be measured
+        # against whichever one it traded most. That comparison is close to
+        # meaningless: it flatters a selector that happened to avoid the worst
+        # name and punishes one that happened to trade the best. The honest bar
+        # is holding the whole basket in equal weight, which is what a
+        # non-selective investor with the same universe would have done.
+        from app.fund.marketdata import fetch_daily_bars
+
+        series: list[list[float]] = []
+        used: list[str] = []
+        ref_dates: list[str] = []
+        for sym in wanted:
+            try:
+                bars = fetch_daily_bars(sym, start=dates[0], end=dates[-1])
+            except Exception as e:  # noqa: BLE001
+                logger.info("benchmark leg unavailable for %s: %s", sym, e)
+                continue
+            closes = list(bars.closes or [])
+            if len(closes) < 2 or not closes[0]:
+                continue
+            series.append([c / closes[0] for c in closes])
+            used.append(sym)
+            if len(bars.dates or []) > len(ref_dates):
+                ref_dates = list(bars.dates or [])
+        if not series:
             return
-        closes = list(bars.closes or [])
-        if len(closes) < 2 or not closes[0]:
+
+        # How much of the intended bar actually resolved. A "basket" built from
+        # 2 of 20 names is not that basket, and reporting it as one would let a
+        # strategy be graded against an accidental sub-portfolio — which is the
+        # same failure as the single-constituent bar, arrived at by data gaps
+        # instead of by configuration. Refuse below a majority, and state the
+        # fraction either way so a thin bar is never mistaken for a full one.
+        if len(used) * 2 < len(wanted):
+            logger.info("benchmark refused: only %d of %d legs resolved",
+                        len(used), len(wanted))
+            result["benchmark_unavailable"] = (
+                f"only {len(used)} of {len(wanted)} names in the bar had usable "
+                f"bars — too thin to stand for the universe, so no comparison "
+                f"is reported rather than a misleading one")
             return
-        # Normalised to the strategy's starting equity so the two curves are
-        # readable on one axis: same money, different decisions.
+
+        # Legs can differ in length when a name has a gap. Truncate to the
+        # shortest rather than pad: a padded leg would be a made-up price.
+        n = min(len(x) for x in series)
         start_equity = equity[0]
-        curve = [round(start_equity * (c / closes[0]), 2) for c in closes]
+        curve = [round(start_equity * sum(x[i] for x in series) / len(series), 2)
+                 for i in range(n)]
+
         result["benchmark_curve"] = curve
-        result["benchmark_dates"] = list(bars.dates or [])
+        result["benchmark_dates"] = ref_dates[:n]
         result["benchmark_return_pct"] = _total_return(curve)
-        result["benchmark_symbol"] = symbol
-        result["benchmark_source"] = getattr(bars, "source", None)
+        result["benchmark_symbol"] = (used[0] if len(used) == 1
+                                      else f"equal-weight {'/'.join(used)}")
+        result["benchmark_basket"] = used
+        result["benchmark_kind"] = "single" if len(used) == 1 else "equal_weight_basket"
+        result["benchmark_basis"] = basis
+        result["benchmark_legs"] = {"used": len(used), "wanted": len(wanted)}
+        if len(used) < len(wanted):
+            result.setdefault("benchmark_caveat", (
+                f"{len(used)} of {len(wanted)} names had usable bars; the bar is "
+                f"the equal-weight basket of those that did"))
+        if basis == "traded_symbols" and len(traded) > 1:
+            # Say so rather than let a favourable bar pass as the honest one.
+            result["benchmark_caveat"] = (
+                "measured against the names this strategy traded, not the "
+                "universe it chose from — the algorithm declares no UNIVERSE, "
+                "so the bar excludes names the rule never bought")
+        result["benchmark_source"] = "fund bars"
 
     # --- results -------------------------------------------------------------
 
@@ -958,6 +1215,37 @@ def _usable(curve: list[float]) -> bool:
     """
     return len(curve) >= 2 and any(v != 0.0 for v in curve)
 
+
+
+def _declared_universe(code: Optional[str]) -> list[str]:
+    """The tickers an algorithm says it chooses among, read from its source.
+
+    Read statically rather than asked of the running algorithm: the engine has
+    exited by the time results are enriched, and re-running it to ask a
+    question about its inputs would double every backtest.
+
+    Deliberately narrow — a module-level `UNIVERSE` of plain strings and nothing
+    else. A cleverer parser would start guessing, and a guessed benchmark is
+    the exact failure this is meant to prevent.
+    """
+    if not code:
+        return []
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return []
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        names = [t.id for t in node.targets if isinstance(t, ast.Name)]
+        if "UNIVERSE" not in names:
+            continue
+        if not isinstance(node.value, (ast.List, ast.Tuple)):
+            return []
+        out = [e.value for e in node.value.elts
+               if isinstance(e, ast.Constant) and isinstance(e.value, str)]
+        return sorted(set(out))
+    return []
 
 def _orders(doc: dict) -> list[dict[str, Any]]:
     """Filled orders, in the fund's vocabulary.

@@ -44,9 +44,19 @@ DOMINANCE_WARN = 0.5
 
 
 def build(observations: Any, universe: Any = None,
-          hunting_ground_size: Optional[int] = None) -> dict[str, Any]:
-    """The terrain: what has been read, what it said, and where nothing is."""
-    coverage = observations.coverage()
+          hunting_ground_size: Optional[int] = None,
+          adv_band: Optional[tuple[float, float]] = None) -> dict[str, Any]:
+    """The terrain: what has been read, what it said, and where nothing is.
+
+    ``adv_band`` makes the extent measure the ground the fund CLAIMS to fish in
+    rather than the whole market. Without it the headline was 84 of 5,196 names —
+    a denominator of every listed company, which reading a thousand mega-caps
+    would move and which reading forty band names would barely touch. The band
+    figure has the opposite property, which is why it belongs on the face of the
+    map.
+    """
+    coverage = (observations.coverage(adv_lo=adv_band[0], adv_hi=adv_band[1])
+                if adv_band else observations.coverage())
     rows = observations.recent(limit=2000)
 
     by_cat: dict[str, dict[str, Any]] = {
@@ -115,20 +125,39 @@ def _extent(coverage: dict[str, Any], universe: Any,
 
     pct = (round(read_tickers / candidates * 100, 3)
            if candidates else None)
+    # Band coverage LEADS when it is available. Whole-market coverage answers
+    # "how much of the market have we read", which is not the fund's question:
+    # the thesis says the edge lives in one ADV band, so the number that measures
+    # progress is coverage OF THAT BAND. Both are reported, because the gap
+    # between them is itself the finding — 84 names read of which one was in the
+    # tested universe is breadth aimed at the wrong population.
+    band = coverage.get("band") or {"measured": False}
     return {
         "filings_read": int(coverage.get("filings_read") or 0),
         "observations": int(coverage.get("observations") or 0),
         "tickers_read": read_tickers,
         "tickers_available": candidates,
         "coverage_pct": pct,
+        "band": band,
+        "headline": ("band" if band.get("measured") else "market"),
         "last_read_at": coverage.get("last_extracted_at"),
-        "note": (
-            f"read {read_tickers} of {candidates:,} names ({pct}%) — the rest of "
-            f"the map is unexplored, and nothing about the observations we do "
-            f"have tells us what is out there"
-            if candidates and read_tickers < candidates * 0.5 else
-            f"read {read_tickers} names"),
+        "note": _extent_note(read_tickers, candidates, pct, band),
     }
+
+
+def _extent_note(read_tickers: int, candidates: Optional[int],
+                 pct: Optional[float], band: dict[str, Any]) -> str:
+    """One sentence, leading with whichever denominator is the fund's own."""
+    if band.get("measured") and band.get("names_in_band"):
+        return (f"{band['names_read']} of {band['names_in_band']:,} names in the "
+                f"capacity band read ({band.get('coverage_pct')}%) — this is the "
+                f"ground the thesis claims. {read_tickers} names have been read "
+                f"in total, so the difference is reading that does not bear on it")
+    if candidates and read_tickers < candidates * 0.5:
+        return (f"read {read_tickers} of {candidates:,} names ({pct}%) — the rest "
+                f"of the map is unexplored, and nothing about the observations we "
+                f"do have tells us what is out there")
+    return f"read {read_tickers} names"
 
 
 def _projection(regions: list[dict[str, Any]], total: int) -> dict[str, Any]:

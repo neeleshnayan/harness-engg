@@ -30,6 +30,21 @@ json.dump({
 print("engine ok")
 """
 
+#: Same as FAKE_OK, but also dumps its own argv beside the results so a test can
+#: assert on the flags the container was actually given.
+FAKE_RECORDING = r"""
+import json, sys
+res = next(a.rsplit(":", 1)[0] for a in sys.argv if a.endswith(":/Results"))
+json.dump(sys.argv, open(res + "/argv.json", "w"))
+json.dump({
+    "statistics": {"Net Profit": "12.5%", "Sharpe Ratio": "1.4",
+                   "Drawdown": "8.0%", "Total Orders": "6"},
+    "charts": {"Strategy Equity": {"series": {"Equity": {"values":
+        [[1, 1000.0], [2, 1050.0], [3, 1125.0]]}}}},
+}, open(res + "/SmokeAlgo.json", "w"))
+print("engine ok")
+"""
+
 FAKE_FAIL = r"""
 import sys
 sys.stderr.write("Algorithm.Initialize() blew up: division by zero\n")
@@ -42,6 +57,12 @@ def _runner(tmp_path: Path, fake_script: str) -> LeanRunner:
     script.write_text(fake_script, encoding="utf-8")
     return LeanRunner(workspace=tmp_path / "ws",
                       docker_cmd=[sys.executable, str(script)])
+
+
+def _docker_argv(tmp_path: Path, job_id: str) -> list[str]:
+    """The argv the fake engine was invoked with, for flag assertions."""
+    return json.loads(
+        (tmp_path / "ws" / "results" / job_id / "argv.json").read_text())
 
 
 def _wait(r: LeanRunner, job_id: str, timeout=15.0) -> dict:
@@ -92,9 +113,12 @@ def test_engine_failure_is_a_failed_job_with_the_real_error(tmp_path):
     assert "division by zero" in j["error"]
 
 
-def test_unknown_job_says_jobs_do_not_survive_restart(tmp_path):
+def test_an_unknown_job_says_there_is_no_record_of_it(tmp_path):
+    """Jobs are now mirrored to Postgres, so "does not survive a restart" is no
+    longer true and must not be what an operator is told. The honest message is
+    that nothing knows about this id — in memory OR in the ledger."""
     r = _runner(tmp_path, FAKE_OK)
-    with pytest.raises(LeanError, match="re-run"):
+    with pytest.raises(LeanError, match="no record of it"):
         r.job("nope")
 
 
@@ -207,9 +231,16 @@ def test_benchmark_normalises_to_the_strategys_starting_equity(monkeypatch):
            "orders": [{"symbol": "SPY"}, {"symbol": "SPY"}, {"symbol": "QQQ"}],
            "benchmark_curve": []}
     LeanRunner._add_benchmark(res)
-    # Most-traded symbol wins, and the curve starts where the strategy started
-    # so both are readable on one axis: same money, different decisions.
-    assert res["benchmark_symbol"] == "SPY"
+    # The curve starts where the strategy started so both are readable on one
+    # axis: same money, different decisions.
+    #
+    # CONTRACT CHANGED (deliberately): this used to pick the MOST-TRADED symbol
+    # and measure against that alone. For a strategy that trades several names
+    # that bar is close to meaningless — it flatters a rule that dodged the
+    # worst name and punishes one that held the best — so a multi-name strategy
+    # is now measured against the equal-weight basket of what it could hold.
+    assert res["benchmark_kind"] == "equal_weight_basket"
+    assert res["benchmark_basket"] == ["QQQ", "SPY"]
     assert res["benchmark_curve"] == [2000.0, 2200.0, 2400.0]
     assert res["benchmark_return_pct"] == pytest.approx(20.0)
 
@@ -401,10 +432,39 @@ def test_empty_grid_is_refused(tmp_path):
         r.submit_sweep("smoke", {"fast": []})
 
 
-def test_unknown_sweep_says_sweeps_do_not_survive_restart(tmp_path):
+def test_an_unknown_sweep_says_there_is_no_record_of_it(tmp_path):
     r = _runner(tmp_path, FAKE_PARAMS)
-    with pytest.raises(LeanError, match="re-run"):
+    with pytest.raises(LeanError, match="no record of it"):
         r.sweep("nope")
+
+
+def test_a_runner_without_a_database_behaves_exactly_as_before(tmp_path):
+    """Persistence is optional. Every test constructs a runner with no store, so
+    if the mirror were required rather than best-effort, the whole suite would be
+    exercising a different object from the one that runs in production."""
+    r = _runner(tmp_path, FAKE_OK)
+    r.save_algorithm("smoke", ALGO)
+    job = _wait(r, r.submit_backtest("smoke")["job_id"])
+    assert job["state"] == "done"
+    assert r._durable() is None
+
+
+def test_a_restored_sweep_is_not_reported_as_still_running(tmp_path):
+    """The thread driving a sweep dies with the process. A sweep reloaded from
+    the mirror mid-flight must not claim to be running, or a poller waits
+    forever on work nobody is doing."""
+    r = _runner(tmp_path, FAKE_PARAMS)
+
+    class FakeStore:
+        def sweep(self, sweep_id):
+            return {"sweep_id": sweep_id, "state": "running", "completed": 3,
+                    "total": 10, "points": [], "restored": True}
+
+    r._store = FakeStore()          # type: ignore
+    r._store_tried = True
+    out = r.sweep("half-done")
+    assert out["state"] == "interrupted"
+    assert "3 of 10" in out["error"]
 
 
 def test_failed_points_do_not_poison_the_summary(tmp_path):
@@ -671,7 +731,7 @@ def test_sweep_points_skip_the_network_backed_extras(tmp_path):
     r.save_algorithm("smoke", ALGO)
     calls = []
     r._add_capacity = lambda result: calls.append("capacity")      # type: ignore
-    r._add_benchmark = lambda result: calls.append("benchmark")    # type: ignore
+    r._add_benchmark = lambda result, code=None: calls.append("benchmark")  # type: ignore
 
     _wait_sweep(r, r.submit_sweep("smoke", {"fast": ["5", "10"]})["sweep_id"])
     assert calls == []
@@ -698,3 +758,209 @@ def test_an_explicit_slip_is_never_overridden(tmp_path):
     r.save_algorithm("smoke", ALGO)
     job_id = r.submit_backtest("smoke", {"slip": "0.002"})["job_id"]
     assert r.job(job_id)["parameters"]["slip"] == "0.002"
+
+
+def test_a_flat_engine_benchmark_is_discarded_rather_than_believed(tmp_path):
+    """LEAN emits a full-length curve of ZEROS for custom data types, and that
+    curve is truthy. Believing it measures the fund against a 0% bar, which
+    every profitable strategy clears — a silently flattering benchmark, which is
+    worse than no benchmark at all."""
+    r = _runner(tmp_path, FAKE_PARAMS)
+    result = {
+        "benchmark_curve": [0.0] * 5,
+        "benchmark_return_pct": 0.0,
+        "equity_dates": ["2024-01-02", "2024-01-03"],
+        "equity_curve": [1000.0, 1010.0],
+        "orders": [{"symbol": "ZZZZ_NOT_A_TICKER"}],
+    }
+    r._add_benchmark(result)
+    assert "benchmark_return_pct" not in result, "a 0% bar was believed"
+    assert not result.get("benchmark_curve")
+
+
+def test_a_zero_padded_engine_benchmark_is_discarded(tmp_path):
+    """Where LEAN does emit prices it zero-pads the days before the
+    subscription starts. A return computed off a zero base is not a number."""
+    r = _runner(tmp_path, FAKE_PARAMS)
+    result = {
+        "benchmark_curve": [0.0, 0.0, 23.1, 23.4],
+        "equity_dates": ["2024-01-02", "2024-01-05"],
+        "equity_curve": [1000.0, 1010.0],
+        "orders": [{"symbol": "ZZZZ_NOT_A_TICKER"}],
+    }
+    r._add_benchmark(result)
+    assert not result.get("benchmark_curve")
+
+
+def test_a_single_constituent_engine_benchmark_is_refused_for_a_basket(monkeypatch):
+    """set_benchmark names one symbol. For a strategy that CHOOSES among names
+    that is one arbitrary constituent, which flatters a rule that dodged the
+    worst name and punishes one that held the best."""
+    import app.fund.marketdata as md
+
+    class Bars:
+        closes = [50.0, 55.0]
+        dates = ["2024-01-02", "2024-01-04"]
+        source = "test"
+
+    monkeypatch.setattr(md, "fetch_daily_bars", lambda *a, **k: Bars())
+    result = {
+        "benchmark_curve": [10.0, 11.0, 12.0],          # strictly positive
+        "equity_dates": ["2024-01-02", "2024-01-04"],
+        "equity_curve": [1000.0, 1010.0],
+        "orders": [{"symbol": "AAA"}, {"symbol": "BBB"}],
+    }
+    LeanRunner._add_benchmark(result)
+    assert result["benchmark_kind"] == "equal_weight_basket"
+    assert result["benchmark_basket"] == ["AAA", "BBB"]
+    assert result["benchmark_return_pct"] == pytest.approx(10.0)
+
+
+def test_a_bar_missing_most_of_its_universe_is_refused(monkeypatch):
+    """A 'basket' built from 2 of 20 names is not that basket. Reporting it as
+    one grades the strategy against an accidental sub-portfolio."""
+    import app.fund.marketdata as md
+
+    class Bars:
+        closes = [50.0, 55.0]
+        dates = ["2024-01-02", "2024-01-04"]
+        source = "test"
+
+    def only_aaa(symbol, *a, **k):
+        if symbol != "AAA":
+            raise RuntimeError("no bars")
+        return Bars()
+
+    monkeypatch.setattr(md, "fetch_daily_bars", only_aaa)
+    result = {
+        "equity_dates": ["2024-01-02", "2024-01-04"],
+        "equity_curve": [1000.0, 1010.0],
+        "orders": [{"symbol": s} for s in ("AAA", "BBB", "CCC", "DDD", "EEE")],
+    }
+    LeanRunner._add_benchmark(result)
+    assert "benchmark_return_pct" not in result
+    assert "1 of 5" in result["benchmark_unavailable"]
+
+
+def test_a_usable_single_name_engine_benchmark_is_kept(tmp_path):
+    """The rule must not throw away a benchmark that IS the right question:
+    one name traded, strictly positive series."""
+    r = _runner(tmp_path, FAKE_PARAMS)
+    curve = [10.0, 11.0, 12.0]
+    result = {
+        "benchmark_curve": list(curve),
+        "benchmark_return_pct": 20.0,
+        "equity_dates": ["2024-01-02", "2024-01-04"],
+        "equity_curve": [1000.0, 1010.0],
+        "orders": [{"symbol": "AAA"}],
+    }
+    r._add_benchmark(result)
+    assert result["benchmark_curve"] == curve
+    assert result["benchmark_return_pct"] == 20.0
+
+
+def test_the_declared_universe_is_read_narrowly():
+    """A cleverer parser would start guessing, and a guessed benchmark is the
+    exact failure this exists to prevent."""
+    from app.fund.leanrunner import _declared_universe
+    assert _declared_universe('UNIVERSE = ["BBB", "AAA", "AAA"]') == ["AAA", "BBB"]
+    assert _declared_universe(None) == []
+    assert _declared_universe("def (") == []            # unparseable
+    assert _declared_universe("UNIVERSE = [1, 2]") == []  # not tickers
+    assert _declared_universe("OTHER = ['AAA']") == []
+    assert _declared_universe("UNIVERSE = load()") == []  # computed, unknowable
+
+
+def test_a_job_is_not_done_until_its_result_is_whole(tmp_path):
+    """`state` is what every caller polls on, so flipping it before enrichment
+    finishes publishes a half-built result. The gate, arriving the instant the
+    flag flips, would find no benchmark and no costs disclosure and fail the
+    candidate for missing evidence that was seconds away. A verdict that depends
+    on who polled first is not a verdict."""
+    r = _runner(tmp_path, FAKE_PARAMS)
+    r.save_algorithm("smoke", ALGO)
+
+    seen_state_during_enrichment = []
+
+    def slow_benchmark(result, code=None):
+        # Whatever a poller can observe while enrichment is still running must
+        # NOT say "done".
+        seen_state_during_enrichment.append(r.job(job_id)["state"])
+        result["benchmark_return_pct"] = 1.0
+
+    r._add_benchmark = slow_benchmark                                # type: ignore
+    job_id = r.submit_backtest("smoke")["job_id"]
+    job = _wait(r, job_id)
+
+    assert seen_state_during_enrichment == ["running"], seen_state_during_enrichment
+    # And once done, the enriched field is there for the first caller who looks.
+    assert job["result"]["benchmark_return_pct"] == 1.0
+
+
+def test_engine_containers_do_not_stack(tmp_path, monkeypatch):
+    """15.2 GB is the ceiling and a stacked sweep already killed a holdout run
+    outright (`WinError 1455`). The run did not slow down, it vanished — so the
+    cap is not a performance knob, it is the difference between a queue and a
+    lost result."""
+    import app.fund.leanrunner as lr
+
+    r = _runner(tmp_path, FAKE_OK)
+    r.save_algorithm("smoke", ALGO)
+
+    concurrent = {"now": 0, "peak": 0}
+    real_run = lr.subprocess.run
+
+    def counting_run(cmd, *a, **k):
+        concurrent["now"] += 1
+        concurrent["peak"] = max(concurrent["peak"], concurrent["now"])
+        try:
+            time.sleep(0.15)          # long enough for the others to pile up
+            return real_run(cmd, *a, **k)
+        finally:
+            concurrent["now"] -= 1
+
+    monkeypatch.setattr(lr.subprocess, "run", counting_run)
+
+    ids = [r.submit_backtest("smoke")["job_id"] for _ in range(4)]
+    for job_id in ids:
+        _wait(r, job_id)
+
+    assert concurrent["peak"] <= lr.MAX_CONCURRENT_CONTAINERS, (
+        f"peaked at {concurrent['peak']} containers")
+    # And every job still finished — the cap queues work, it does not drop it.
+    assert all(r.job(i)["state"] == "done" for i in ids)
+
+
+def test_a_container_is_given_a_memory_ceiling(tmp_path):
+    """Without one, a runaway algorithm exhausts the host and takes unrelated
+    runs down with it — the failure is never contained to its cause."""
+    import app.fund.leanrunner as lr
+
+    r = _runner(tmp_path, FAKE_RECORDING)
+    r.save_algorithm("smoke", ALGO)
+    job_id = r.submit_backtest("smoke")["job_id"]
+    _wait(r, job_id)
+    args = _docker_argv(tmp_path, job_id)
+    assert "--memory" in args, args
+    assert args[args.index("--memory") + 1] == lr.CONTAINER_MEMORY
+
+
+def test_queue_time_is_not_charged_to_the_engine_timeout(tmp_path):
+    """A job held behind another must not be killed for being second in line,
+    and must not report `running` while it waits."""
+    import app.fund.leanrunner as lr
+
+    r = _runner(tmp_path, FAKE_OK)
+    r.save_algorithm("smoke", ALGO)
+    # Hold the only slot, then confirm a fresh job sits in `queued`.
+    lr._ENGINE_SLOTS.acquire()
+    try:
+        job_id = r.submit_backtest("smoke")["job_id"]
+        time.sleep(0.4)
+        assert r.job(job_id)["state"] == "queued"
+    finally:
+        lr._ENGINE_SLOTS.release()
+    job = _wait(r, job_id)
+    assert job["state"] == "done"
+    # wall_seconds measures the engine, not the wait.
+    assert job["wall_seconds"] < 30

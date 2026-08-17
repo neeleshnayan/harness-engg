@@ -113,10 +113,57 @@ class _Txn:
         ref.set(data, merge=merge)
 
 
+class _Batch:
+    """A deferred set of writes, flushed to disk ONCE on commit.
+
+    Added because the durability snapshot called `db.batch()` and this shim did
+    not have it — so the fund's only second copy of the event log had never
+    worked. The scheduler was the missing half; this was the other half, and
+    "built but never scheduled" turned out to be "built, never scheduled, and
+    broken".
+
+    Batching matters here beyond API compatibility. `_Doc.set` saves the whole
+    store on every document, so pushing five hundred events one at a time would
+    rewrite the entire ledger file five hundred times — and each of those writes
+    rotates a backup. Queue the writes, apply them together, save once.
+    """
+
+    def __init__(self, db):
+        self._db = db
+        self._writes: list[tuple] = []
+
+    def set(self, ref, data, merge=False):
+        self._writes.append((ref, dict(data), merge))
+        return self
+
+    def delete(self, ref):
+        self._writes.append((ref, None, False))
+        return self
+
+    def commit(self):
+        # Applied against the in-memory store with saving suppressed, then
+        # persisted once. If the save fails the exception propagates: a batch
+        # that silently half-committed would leave the snapshot watermark
+        # claiming events that are not on disk.
+        self._db._suspend_save = True
+        try:
+            for ref, data, merge in self._writes:
+                if data is None:
+                    ref.delete()
+                else:
+                    ref.set(data, merge=merge)
+        finally:
+            self._db._suspend_save = False
+        self._db._save()
+        applied, self._writes = len(self._writes), []
+        return applied
+
+
 class _DB:
     def __init__(self, filepath: str = _DB_FILEPATH):
         self._filepath = filepath
         self._store: dict[str, dict] = {}
+        self._suspend_save = False
         self._load()
 
     def _load(self):
@@ -194,6 +241,10 @@ class _DB:
                 pass
 
     def _save(self):
+        # Suppressed mid-batch so one commit is one file write rather than one
+        # per document — see _Batch.commit.
+        if getattr(self, "_suspend_save", False):
+            return
         try:
             self._rotate_backup()
             tmp = self._filepath + ".tmp"
@@ -208,6 +259,9 @@ class _DB:
 
     def transaction(self):
         return _Txn()
+
+    def batch(self):
+        return _Batch(self)
 
 
 class _QueryConst:

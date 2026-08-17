@@ -145,13 +145,49 @@ class CandidateFactory:
                 return self._finish(candidate_id,
                                     error=f"verification run {job.get('state')}: {job.get('error')}")
 
+            # Gate v2 asks for consistency across independent windows, so the
+            # belt has to produce it. Shipping the criterion without the
+            # evidence would make the gate unclearable — which is the same
+            # pathology as a gate that passes noise, arrived at from the other
+            # side, and it would look like rigour while being a bug.
+            #
+            # Expensive and deliberately so: one grid per fold. That cost IS the
+            # finding from the null audit — a single window is cheap and a
+            # coin flip cleared it half the time.
+            walk = self._walkforward(algorithm, grid, holdout)
+
             verdict = evaluate(job.get("result") or {},
                                sweep.get("holdout_result"),
-                               sweep.get("summary"))
+                               sweep.get("summary"),
+                               walkforward=walk)
             self._finish(candidate_id, verdict=verdict, winner=params)
         except Exception as e:  # noqa: BLE001
             logger.warning("candidate %s failed: %s", candidate_id, e)
             self._finish(candidate_id, error=f"{type(e).__name__}: {e}"[:400])
+
+    def _walkforward(self, algorithm: str, grid: dict[str, list[str]],
+                     holdout: Optional[dict[str, str]]) -> Optional[dict[str, Any]]:
+        """Walk-forward folds over the same history the holdout came from.
+
+        Returns None when folds cannot be built rather than an empty result: the
+        gate treats a missing walk-forward as a failure, and handing it an empty
+        dict would let "we could not test this" read as "it was tested and had
+        no folds".
+        """
+        if not holdout:
+            return None
+        try:
+            from app.fund.walkforward import WalkForward, folds
+            window = folds(holdout["train_start"], holdout["test_end"])
+            if len(window) < 2:
+                logger.info("walk-forward skipped: only %d fold(s) fit the "
+                            "available history", len(window))
+                return None
+            return WalkForward(runner=self._lean()).evaluate(
+                algorithm, grid, window)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("walk-forward unavailable for %s: %s", algorithm, e)
+            return None
 
     @staticmethod
     def _await(fetch, timeout_s: float = 3_600.0, poll_s: float = 2.0) -> dict[str, Any]:

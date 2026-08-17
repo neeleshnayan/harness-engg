@@ -1,0 +1,24 @@
+{
+ "as_of": "2025-01-01",
+ "listed_then": 5546,
+ "vanished_cs": 852,
+ "sample": {
+  "sampled": 105,
+  "in_band": 27,
+  "with_return": 26,
+  "unmeasured": 1
+ },
+ "vanished_band_return": {
+  "mean_pct": 12.083,
+  "sd": 44.154,
+  "se": 8.659,
+  "n": 26
+ },
+ "band_today": 1330,
+ "est_band_vanished": 219.1,
+ "vanish_rate": 0.1414,
+ "survivor_only_pct": 60.88,
+ "adjusted_pct": 53.979,
+ "haircut_pct_pts": -6.901,
+ "haircut_sampling_ci95": 2.4
+}

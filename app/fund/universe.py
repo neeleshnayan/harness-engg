@@ -88,9 +88,16 @@ class Universe:
         return psycopg.connect(self._dsn, autocommit=False)
 
     def _ensure_schema(self) -> None:
+        # The reference table is created here too, because the screen now JOINS
+        # it: a Universe that can be constructed but whose every read fails on a
+        # missing relation is not a working object. Whoever owns the refresh is a
+        # separate question from whether the table exists.
+        from app.fund.tickerref import SCHEMA as REFERENCE_SCHEMA
+
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(SCHEMA)
+                cur.execute(REFERENCE_SCHEMA)
             conn.commit()
 
     # --- building -----------------------------------------------------------
@@ -190,7 +197,8 @@ class Universe:
                        participation: float = 0.01,
                        min_capacity: float = 100_000.0,
                        max_capacity: float = 50_000_000.0,
-                       limit: int = 200) -> dict[str, Any]:
+                       limit: int = 200,
+                       operating_only: bool = True) -> dict[str, Any]:
         """Names inside the band where our size is an advantage.
 
         Capacity is computed at a REFERENCE turnover rather than stored,
@@ -210,20 +218,59 @@ class Universe:
         adv_lo = min_capacity * t / participation
         adv_hi = max_capacity * t / participation
 
+        from app.fund.tickerref import OPERATING_TYPES
+
         with self._connect() as conn:
             with conn.cursor() as cur:
+                # An EMPTY reference table means "we have no identity data",
+                # NOT "nothing here is a business". Filtering on it anyway
+                # returns an empty screen on any install that has not run the
+                # refresh — a silent, total failure that looks like a finding.
+                # So the filter switches itself off and says so.
+                cur.execute("SELECT count(*) FROM fund_ticker_reference")
+                have_reference = int(cur.fetchone()[0] or 0)
+                if operating_only and not have_reference:
+                    operating_only = False
+                    no_reference = True
+                else:
+                    no_reference = False
+
+                # LEFT JOIN, and the operating filter is an EXISTS rather
+                # than a NOT NULL: a name absent from the reference table is
+                # unclassified, not confirmed-non-operating, and the two must
+                # not collapse. If the reference refresh was partial, excluding
+                # unknowns silently shrinks the ground; including them silently
+                # re-admits ETFs. Excluding is the safer error for a screen
+                # whose entire claim is "these are businesses", and the response
+                # says how many were dropped so the choice is visible.
                 cur.execute(
-                    """
-                    SELECT symbol, exchange, adv_usd, median_close, bars_seen
-                    FROM fund_universe
-                    WHERE adv_usd BETWEEN %s AND %s
-                    ORDER BY adv_usd DESC
+                    f"""
+                    SELECT u.symbol, u.exchange, u.adv_usd, u.median_close,
+                           u.bars_seen, r.name, r.type, r.cik
+                    FROM fund_universe u
+                    LEFT JOIN fund_ticker_reference r ON r.ticker = u.symbol
+                    WHERE u.adv_usd BETWEEN %s AND %s
+                    {"AND r.type = ANY(%s)" if operating_only else ""}
+                    ORDER BY u.adv_usd DESC
                     LIMIT %s
                     """,
-                    (adv_lo, adv_hi, limit))
+                    ((adv_lo, adv_hi, list(OPERATING_TYPES), limit)
+                     if operating_only else (adv_lo, adv_hi, limit)))
                 rows = cur.fetchall()
+                # What the filter cost, measured rather than described.
+                cur.execute(
+                    """
+                    SELECT count(*) FILTER (WHERE r.ticker IS NULL) AS unclassified,
+                           count(*) FILTER (WHERE r.type IS NOT NULL
+                                            AND NOT (r.type = ANY(%s))) AS not_operating
+                    FROM fund_universe u
+                    LEFT JOIN fund_ticker_reference r ON r.ticker = u.symbol
+                    WHERE u.adv_usd BETWEEN %s AND %s
+                    """, (list(OPERATING_TYPES), adv_lo, adv_hi))
+                unclassified, not_operating = cur.fetchone()
 
         from app.fund.capacity import closed_to_big_funds
+        from app.fund.tickerref import OPERATING_TYPES
 
         names = []
         for r in rows:
@@ -234,6 +281,8 @@ class Universe:
             big = closed_to_big_funds(adv)
             names.append({
                 "symbol": r[0], "exchange": r[1],
+                # Identity, so the screen shows a business rather than a symbol.
+                "name": r[5], "security_type": r[6], "cik": r[7],
                 "adv_usd": adv, "median_close": float(r[3]),
                 "bars_seen": r[4],
                 "capacity_usd": round(participation * adv / t, 2),
@@ -259,6 +308,29 @@ class Universe:
             "adv_band_usd": [round(adv_lo, 2), round(adv_hi, 2)],
             "count": len(names),
             "closed_to_big_funds_count": len(closed),
+            "operating_only": operating_only,
+            "identity_source": ("polygon reference data" if have_reference
+                                else "none — ticker identity has never been pulled"),
+            "excluded": {
+                "not_operating": int(not_operating or 0),
+                "unclassified": int(unclassified or 0),
+                "note": (f"{int(unclassified or 0)} names excluded for not "
+                         f"appearing in the operating-company reference "
+                         f"({' / '.join(OPERATING_TYPES)}). Most are ETFs, funds "
+                         f"and warrants, which issue units on demand — 'a big "
+                         f"fund cannot build a position' is meaningless for "
+                         f"them. The rest are genuinely unclassified and are "
+                         f"excluded as unknown rather than assumed to be "
+                         f"businesses, so this count is an upper bound on what "
+                         f"a complete reference would drop"
+                         if operating_only else
+                         "the ticker reference table is EMPTY, so no identity "
+                         "filter could be applied — this list mixes businesses "
+                         "with ETFs and warrants. Run a reference refresh"
+                         if no_reference else
+                         "no identity filter applied — this list mixes "
+                         "businesses with ETFs and warrants"),
+            },
             "caveat": ("capacity is a property of a strategy at this turnover; "
                        "closed_to_big_funds is a property of the NAME. Only the "
                        "second is the structural edge — at high turnover the "

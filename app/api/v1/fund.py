@@ -11,6 +11,7 @@ The pipeline is wired to the PaperConnector today; swapping in the IBKRConnector
 
 import logging
 import os
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -297,6 +298,90 @@ def run_universe_refresh() -> dict:
     out = u.refresh()
     logger.info("universe refreshed: %s", out)
     return out
+
+
+#: How often durability is pushed to Firestore. Hourly: the snapshot exists so
+#: that losing this machine costs at most an hour of events, and pushing more
+#: often buys little while pushing less often quietly widens that window.
+SNAPSHOT_EVERY_MINUTES = float(os.getenv("FUND_SNAPSHOT_EVERY_MINUTES", "60"))
+
+
+def run_snapshot() -> dict:
+    """Push new events to Firestore if the last push has aged out.
+
+    The snapshot was BUILT and never SCHEDULED, which is the worst of the three
+    possible states: an unscheduled backup still answers when you ask it, still
+    reports a watermark, and is quietly describing a durability guarantee the
+    fund does not have. A backup nobody runs is a story about a backup.
+
+    Same shape as the universe tick — checks the clock first and is almost
+    always a no-op, because this runs every thirty seconds. Failures are logged
+    and dropped: the snapshot is a copy, and a copy that cannot be written must
+    never be able to disturb the ledger it is copying.
+    """
+    if store_backend() != "postgres":
+        return {"skipped": "the snapshot copies FROM postgres"}
+    try:
+        from app.fund.snapshot_firestore import FirestoreSnapshotter
+        snap = FirestoreSnapshotter(pg_store=_store)
+        st = snap.status()
+        last = st.get("last_run_at")
+        if last:
+            age_min = (datetime.now(timezone.utc)
+                       - datetime.fromisoformat(last)).total_seconds() / 60.0
+            if age_min < SNAPSHOT_EVERY_MINUTES:
+                return {"skipped": "recent", "age_minutes": round(age_min, 1),
+                        **st}
+        if not st.get("behind_by"):
+            return {"skipped": "nothing new to snapshot", **st}
+        logger.info("snapshot starting — %s events behind", st.get("behind_by"))
+        out = snap.run()
+        logger.info("snapshot pushed: %s", out)
+        return out
+    except Exception as e:  # noqa: BLE001
+        logger.warning("snapshot skipped: %s", e)
+        return {"skipped": f"{type(e).__name__}: {e}"[:200]}
+
+
+@router.post("/fund/snapshot/run")
+def snapshot_run(dry_run: bool = Query(False)):
+    """Push durability now, ignoring the hourly clock.
+
+    Exists because the snapshot can only be exercised in-process: opening a real
+    Firestore client from a script is refused while the fake store is installed,
+    and rightly so. Without a trigger the only way to check that durability
+    works was to wait for the interval — which is how it went unnoticed that it
+    did not work at all.
+
+    Copies events; writes nothing to the ledger and moves no money.
+    """
+    if store_backend() != "postgres":
+        raise HTTPException(status_code=503,
+                            detail="the snapshot copies FROM postgres")
+    from app.fund.snapshot_firestore import FirestoreSnapshotter
+    try:
+        return FirestoreSnapshotter(pg_store=_store).run(dry_run=dry_run)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}"[:300])
+
+
+@router.get("/fund/snapshot/status")
+def snapshot_status():
+    """How far behind durability is, and when it last succeeded.
+
+    Surfaced because "behind by N events" is the actual recovery-point objective,
+    and a number nobody can read is a number nobody checks.
+    """
+    if store_backend() != "postgres":
+        raise HTTPException(status_code=503,
+                            detail="the snapshot copies FROM postgres")
+    from app.fund.snapshot_firestore import FirestoreSnapshotter
+    try:
+        st = FirestoreSnapshotter(pg_store=_store).status()
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=503, detail=f"{type(e).__name__}: {e}")
+    st["every_minutes"] = SNAPSHOT_EVERY_MINUTES
+    return st
 
 
 @router.post("/fund/nav/strike")
@@ -1163,7 +1248,53 @@ def research_map(turnover_pct: float = Query(1.0, gt=0, le=100)):
             size = u.hunting_ground_count(turnover_pct=turnover_pct)
         except Exception as e:  # noqa: BLE001
             logger.info("hunting ground size unavailable for the map: %s", e)
-    return build(o, universe=u, hunting_ground_size=size)
+    # The band the screen itself uses, derived the same way rather than restated:
+    # capacity = participation * adv / turnover, inverted to bound ADV. Two
+    # copies of this arithmetic would drift, and the map would then report
+    # coverage of a band nobody screens.
+    t = turnover_pct / 100.0
+    adv_band = (BAND_MIN_CAPACITY * t / BAND_PARTICIPATION,
+                BAND_MAX_CAPACITY * t / BAND_PARTICIPATION)
+    return build(o, universe=u, hunting_ground_size=size, adv_band=adv_band)
+
+
+@router.get("/fund/digest")
+def morning_digest(since_hours: float = Query(24.0, gt=0, le=168)):
+    """The morning read: what was read, what was judged, what needs a click.
+
+    Exists because the loop was built and not lived in — 376 observations carried
+    exactly one review, made by the person testing the review button. The missing
+    piece was never another surface; it was a reason to come back tomorrow.
+
+    Assembled from resolved facts rather than subsystem handles: NAV and the
+    approval count are computed here and passed in, so the digest cannot become a
+    second place that knows how to value the book or where approvals live.
+    """
+    o = _observations()
+    f = _factory()
+    nav_block = None
+    try:
+        nav_block = _nav.compute().to_dict()
+    except Exception as e:  # noqa: BLE001
+        logger.info("digest: NAV unavailable: %s", e)
+    approvals = None
+    try:
+        approvals = {"pending_count": len(_orders.pending() or [])}
+    except Exception as e:  # noqa: BLE001
+        logger.info("digest: approval queue unavailable: %s", e)
+
+    # The same band arithmetic as the screen and the map, from the same
+    # constants — three copies would drift and each surface would then be honest
+    # about a different market.
+    t = 1.0 / 100.0
+    adv_band = (BAND_MIN_CAPACITY * t / BAND_PARTICIPATION,
+                BAND_MAX_CAPACITY * t / BAND_PARTICIPATION)
+
+    from app.fund.digest import build as build_digest
+    return build_digest(store=_store, observations=o, factory=f,
+                        universe=_universe(), nav=nav_block,
+                        approvals=approvals, adv_band=adv_band,
+                        since_hours=since_hours)
 
 
 @router.get("/fund/research/observations")
@@ -1175,7 +1306,8 @@ def research_observations(ticker: str | None = Query(None),
     if o is None:
         raise HTTPException(status_code=503, detail="research needs FUND_STORE=postgres")
     return {"coverage": o.coverage(),
-            "observations": o.recent(ticker=ticker, category=category, limit=limit)}
+            "observations": o.recent(ticker=ticker, category=category,
+                                     limit=limit)}
 
 
 @router.get("/fund/risk/throttle")
@@ -1216,6 +1348,15 @@ def fund_health():
     return out
 
 
+#: The capacity band the fund screens, in ONE place. The hunting ground, the
+#: map's coverage denominator and any as-of rebuild all have to mean the same
+#: band — three copies of this arithmetic would drift apart and each surface
+#: would then be honest about a different market.
+BAND_PARTICIPATION = 0.01
+BAND_MIN_CAPACITY = 400_000.0
+BAND_MAX_CAPACITY = 5_000_000.0
+
+
 @router.get("/fund/universe/hunting-ground")
 def universe_hunting_ground(
     turnover_pct: float = Query(5.0, gt=0, le=100),
@@ -1223,6 +1364,7 @@ def universe_hunting_ground(
     min_capacity: float = Query(100_000.0, ge=0),
     max_capacity: float = Query(50_000_000.0, gt=0),
     limit: int = Query(200, ge=1, le=2000),
+    operating_only: bool = Query(True),
 ):
     """Names inside the band where being small is an advantage.
 
@@ -1236,7 +1378,7 @@ def universe_hunting_ground(
                             detail="the universe lives in Postgres; run with FUND_STORE=postgres")
     return u.hunting_ground(turnover_pct=turnover_pct, participation=participation,
                             min_capacity=min_capacity, max_capacity=max_capacity,
-                            limit=limit)
+                            limit=limit, operating_only=operating_only)
 
 
 @router.get("/fund/universe/stats")
@@ -1309,6 +1451,12 @@ def lean_gate_judge(job_id: str, sweep_id: str = Query(...)):
                    sweep.get("holdout_result"),
                    sweep.get("summary")),
     }
+
+
+@router.get("/fund/lean/sweeps")
+def lean_list_sweeps():
+    """Sweep history, including runs from before the last restart."""
+    return {"sweeps": _lean().sweeps()}
 
 
 @router.get("/fund/lean/sweeps/{sweep_id}")

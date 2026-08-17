@@ -132,9 +132,15 @@ class Observations:
         return psycopg.connect(self._dsn, autocommit=False)
 
     def _ensure_schema(self) -> None:
+        # The reviews table is owned by provenance, but `recent()` now joins it
+        # to report what a human already decided. Created here too, so reading
+        # observations never depends on whether anything has reviewed one yet.
+        from app.fund.provenance import SCHEMA as PROVENANCE_SCHEMA
+
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(SCHEMA)
+                cur.execute(PROVENANCE_SCHEMA)
             conn.commit()
 
     # --- extraction ---------------------------------------------------------
@@ -217,27 +223,62 @@ class Observations:
                limit: int = 50) -> list[dict[str, Any]]:
         where, params = [], []
         if ticker:
-            where.append("ticker = %s")
+            where.append("o.ticker = %s")
             params.append(ticker.upper())
         if category:
-            where.append("category = %s")
+            where.append("o.category = %s")
             params.append(category.lower())
         clause = ("WHERE " + " AND ".join(where)) if where else ""
         params.append(limit)
         with self._connect() as conn:
             with conn.cursor() as cur:
+                # observation_id is not decoration: it is the handle every
+                # downstream action needs. Without it a reader can see an
+                # observation but cannot record a judgement about it or attach it
+                # to a candidate — which is why the provenance report had nothing
+                # to work with and could never answer whether a category pays.
+                # The loop was unclosable, and this column is the reason.
                 cur.execute(
-                    "SELECT ticker, form, filed, url, category, observation, "
-                    "       quote, truncated, extracted_at "
-                    f"FROM fund_observations {clause} "
-                    "ORDER BY filed DESC, extracted_at DESC LIMIT %s", params)
+                    "SELECT o.ticker, o.form, o.filed, o.url, o.category, "
+                    "       o.observation, o.quote, o.truncated, o.extracted_at, "
+                    "       o.observation_id, r.outcome "
+                    "FROM fund_observations o "
+                    "LEFT JOIN fund_observation_reviews r "
+                    "       ON r.observation_id = o.observation_id "
+                    f"{clause} "
+                    "ORDER BY o.filed DESC, o.extracted_at DESC LIMIT %s", params)
                 rows = cur.fetchall()
         return [{
             "ticker": r[0], "form": r[1], "filed": r[2].isoformat(),
             "url": r[3], "category": r[4], "observation": r[5],
             "quote": r[6], "read_partial_filing": r[7],
             "extracted_at": r[8].isoformat(),
+            "observation_id": r[9],
+            # What a human already decided about this, so the UI can show a
+            # judgement rather than asking for it twice.
+            "reviewed": r[10],
         } for r in rows]
+
+    def since(self, when: datetime) -> list[dict[str, Any]]:
+        """Observations extracted after a moment in time.
+
+        By EXTRACTION time, not filing date: the digest asks "what did the
+        machine read while I was asleep", and a filing published last quarter
+        that we only read last night is overnight news to this fund. Sorting on
+        `filed` would answer a different question and quietly report nothing.
+        """
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT observation_id, ticker, form, filed, url, category, "
+                    "       observation, quote, extracted_at "
+                    "FROM fund_observations WHERE extracted_at >= %s "
+                    "ORDER BY extracted_at DESC", (when,))
+                rows = cur.fetchall()
+        return [{"observation_id": r[0], "ticker": r[1], "form": r[2],
+                 "filed": r[3].isoformat(), "url": r[4], "category": r[5],
+                 "observation": r[6], "quote": r[7],
+                 "extracted_at": r[8].isoformat()} for r in rows]
 
     def seen_accessions(self, ticker: str) -> set[str]:
         """Filings already read, so a sweep does not pay for them twice."""
@@ -247,7 +288,22 @@ class Observations:
                             "WHERE ticker = %s", (ticker.upper(),))
                 return {r[0] for r in cur.fetchall()}
 
-    def coverage(self) -> dict[str, Any]:
+    def coverage(self, adv_lo: Optional[float] = None,
+                 adv_hi: Optional[float] = None) -> dict[str, Any]:
+        """How much has been read — against the market, and against OUR band.
+
+        Whole-market coverage was the headline and it flattered us in the most
+        misleading direction available: it made the denominator every listed
+        company, when the fund's entire thesis is that its edge lives in one
+        narrow ADV band. Reading a thousand mega-caps would move that number and
+        mean nothing. Reading forty band names would barely move it and be the
+        whole job.
+
+        So band coverage is reported alongside, with its own denominator. When
+        the band bounds are not supplied the band figures are absent rather than
+        guessed — a coverage ratio computed against an assumed band would be a
+        number about nothing.
+        """
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -258,11 +314,73 @@ class Observations:
                 cur.execute("SELECT category, count(*) FROM fund_observations "
                             "GROUP BY category ORDER BY count(*) DESC")
                 by_cat = dict(cur.fetchall())
+
+                band: dict[str, Any] = {
+                    "measured": False,
+                    "note": ("band coverage needs the ADV bounds to have a "
+                             "denominator; without them it is not reported "
+                             "rather than assumed"),
+                }
+                if adv_lo is not None and adv_hi is not None:
+                    # Operating companies only, matching the hunting ground: the
+                    # band's own definition excludes ETFs, so counting them in
+                    # the denominator would understate coverage of the ground we
+                    # actually fish.
+                    cur.execute("""
+                        SELECT count(*) FROM fund_universe u
+                        JOIN fund_ticker_reference r ON r.ticker = u.symbol
+                        WHERE u.adv_usd BETWEEN %s AND %s
+                          AND r.type = ANY(%s)
+                    """, (adv_lo, adv_hi, list(_OPERATING_TYPES())))
+                    band_total = int(cur.fetchone()[0] or 0)
+                    cur.execute("""
+                        SELECT count(DISTINCT o.ticker) FROM fund_observations o
+                        JOIN fund_universe u ON u.symbol = o.ticker
+                        JOIN fund_ticker_reference r ON r.ticker = o.ticker
+                        WHERE u.adv_usd BETWEEN %s AND %s
+                          AND r.type = ANY(%s)
+                    """, (adv_lo, adv_hi, list(_OPERATING_TYPES())))
+                    band_read = int(cur.fetchone()[0] or 0)
+                    band = {
+                        "measured": True,
+                        "adv_band_usd": [adv_lo, adv_hi],
+                        "names_in_band": band_total,
+                        "names_read": band_read,
+                        "coverage_pct": (round(100.0 * band_read / band_total, 2)
+                                         if band_total else None),
+                        "note": _band_note(band_read, band_total, int(tickers or 0)),
+                    }
         return {"observations": int(n or 0), "tickers": int(tickers or 0),
                 "filings_read": int(filings or 0),
                 "last_extracted_at": last.isoformat() if last else None,
-                "by_category": by_cat}
+                "by_category": by_cat,
+                "band": band}
 
+
+
+def _OPERATING_TYPES():
+    from app.fund.tickerref import OPERATING_TYPES
+    return OPERATING_TYPES
+
+
+def _band_note(read: int, total: int, read_anywhere: int) -> str:
+    """Says plainly whether the reading went where the edge is claimed.
+
+    The gap between these two numbers was the finding that prompted this: 84
+    names read, of which one was in the tested universe. Breadth across the wrong
+    population is not coverage, and a single percentage hid that completely.
+    """
+    if not total:
+        return ("no band names are measured yet, so there is no denominator — "
+                "refresh the universe before reading this as coverage")
+    if read == 0:
+        return (f"none of the {total} band names have been read, while "
+                f"{read_anywhere} names have been read elsewhere — the reading "
+                f"is not going where the edge is claimed to be")
+    off_band = max(0, read_anywhere - read)
+    return (f"{read} of {total} band names read ({100.0 * read / total:.1f}%); "
+            f"{off_band} of the names read are outside the band and do not bear "
+            f"on the thesis")
 
 def _user_prompt(doc: dict[str, Any], text: str) -> str:
     head = (f"{doc.get('ticker')} {doc.get('form')} filed {doc.get('filed')}."

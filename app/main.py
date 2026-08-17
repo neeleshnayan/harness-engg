@@ -167,6 +167,14 @@ async def _scheduler():
             fund_router.run_universe_refresh()
         except Exception as e:  # noqa: BLE001
             _log.warning("universe refresh skipped: %s", e)
+        # Durability. Built long before it was scheduled, which meant the fund
+        # had a backup in the same sense that an unplugged smoke alarm is a
+        # smoke alarm. Self-throttling like the universe tick, and it writes no
+        # event: a copy must never be able to disturb what it is copying.
+        try:
+            fund_router.run_snapshot()
+        except Exception as e:  # noqa: BLE001
+            _log.warning("snapshot skipped: %s", e)
         if since_strike >= strike_every:
             since_strike = 0
             # Both of these WRITE to the permanent log — a NAV_STRUCK snapshot

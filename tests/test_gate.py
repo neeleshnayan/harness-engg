@@ -31,11 +31,18 @@ GOOD_HOLDOUT = {"state": "done", "dates_honoured": True,
                 "train": {"return_pct": 20.0}, "test": {"return_pct": 16.0}}
 GOOD_SWEEP = {"breakeven_cost": {"breakeven_bps": 25.0}}
 
+#: v2 requires consistency across independent folds, so a candidate that clears
+#: the bar has to carry a walk-forward result. Under v1 a single lucky window was
+#: enough, which is exactly what the null audit exploited.
+GOOD_WALKFORWARD = {"folds_attempted": 4, "folds_measurable": 4,
+                    "folds_retained": 3, "median_retention": 0.72}
+
 
 def test_a_clean_candidate_passes():
-    out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP)
+    out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
+                   walkforward=GOOD_WALKFORWARD)
     assert out["passed"] is True, out["failures"]
-    assert out["gate_version"] == "v1"
+    assert out["gate_version"] == "v2"
     # Passing is not deployment, and the wording says so.
     assert "different claim from" in out["verdict"]
 
@@ -115,4 +122,130 @@ def test_the_bar_is_data_and_can_be_tightened():
     assert tighter["passed"] is False
     assert tighter["criteria"]["min_psr_pct"] == 95.0
     # and the default is untouched by that call
-    assert CRITERIA["min_psr_pct"] == 50.0
+    # v2 raised this from 50%: measured nulls reached ~57% on this history, so
+    # the old floor sat inside the noise it was meant to exclude.
+    assert CRITERIA["min_psr_pct"] == 65.0
+
+
+def test_a_holdout_that_placed_no_trades_is_not_read_as_a_lost_edge():
+    """Zero orders in the test window is the ABSENCE of a result, not a 0%
+    result. A strategy needing 180 days of history cannot fill its window
+    inside a shorter test run started cold, so it trades nothing and scores a
+    flat zero that looks identical to an edge that evaporated. Both fail — but
+    saying the wrong one condemns strategies nobody actually examined, and
+    sounds like evidence while doing it."""
+    ho = {"state": "done", "dates_honoured": True,
+          "train": {"return_pct": 20.0},
+          "test": {"return_pct": 0.0, "total_orders": 0}}
+    out = evaluate(_good_result(), ho, GOOD_SWEEP)
+    assert out["passed"] is False
+    assert any("no trades at all" in f for f in out["failures"]), out["failures"]
+    # The misleading sentence must NOT also appear.
+    assert not any("of its edge out of sample" in f for f in out["failures"])
+    assert out["checks"]["holdout_retention"] is None
+
+
+def test_a_holdout_that_traded_and_lost_its_edge_still_says_so():
+    """The fix must not swallow the real finding it sits next to."""
+    ho = {"state": "done", "dates_honoured": True,
+          "train": {"return_pct": 20.0},
+          "test": {"return_pct": 1.0, "total_orders": 12}}
+    out = evaluate(_good_result(), ho, GOOD_SWEEP)
+    assert any("out of sample" in f for f in out["failures"]), out["failures"]
+    assert not any("no trades at all" in f for f in out["failures"])
+
+
+# --- v2: the holes the null audit found -------------------------------------
+#
+# Random-entry strategies passed gate v1 about half the time. These pin the three
+# specific leaks so they cannot reopen quietly.
+
+def test_an_unmeasured_cost_robustness_fails_rather_than_passes():
+    """v1 wrote `if be_bps is not None and be_bps < floor`, so a candidate that
+    was never cost-swept SATISFIED the cost-robustness bar by never being tested
+    against it. In a gate whose doctrine is that missing evidence fails, that was
+    the doctrine inverted."""
+    out = evaluate(_good_result(), GOOD_HOLDOUT,
+                   {"breakeven_cost": {"breakeven_bps": None,
+                                       "reason": "no cost sweep was run"}},
+                   walkforward=GOOD_WALKFORWARD)
+    assert out["passed"] is False
+    assert any("never measured" in f for f in out["failures"]), out["failures"]
+
+
+def test_profitable_beyond_the_tested_range_is_not_treated_as_unmeasured():
+    """"Still profitable at every cost tested" IS an answer. Failing it would
+    punish the most robust possible result for not having a crossing point."""
+    out = evaluate(_good_result(), GOOD_HOLDOUT,
+                   {"breakeven_cost": {
+                       "breakeven_bps": None,
+                       "reason": "still profitable at every cost tested — raise "
+                                 "the range to find the limit"}},
+                   walkforward=GOOD_WALKFORWARD)
+    assert out["passed"] is True, out["failures"]
+    assert out["checks"]["breakeven_bps"] == "beyond the tested range"
+
+
+def test_an_unestimated_capacity_fails():
+    """The same inverted criterion in a second place: an unmeasured capacity is
+    not an adequate capacity, and a strategy whose ceiling nobody knows cannot
+    be sized."""
+    r = _good_result()
+    r["capacity"] = {}
+    out = evaluate(r, GOOD_HOLDOUT, GOOD_SWEEP, walkforward=GOOD_WALKFORWARD)
+    assert out["passed"] is False
+    assert any("never estimated" in f for f in out["failures"]), out["failures"]
+
+
+def test_a_missing_walkforward_fails():
+    """One holdout is one draw. This is the criterion that replaces raising the
+    PSR floor, because luck scales with dispersion and a threshold race against
+    it cannot be won."""
+    out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP)
+    assert out["passed"] is False
+    assert any("no walk-forward" in f for f in out["failures"]), out["failures"]
+
+
+def test_inconsistent_retention_across_folds_fails():
+    """What a lucky window looks like from the inside: it works once."""
+    out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
+                   walkforward={"folds_measurable": 4, "folds_retained": 1,
+                                "median_retention": 0.1})
+    assert out["passed"] is False
+    assert any("only 1 of 4" in f for f in out["failures"]), out["failures"]
+
+
+def test_too_few_measurable_folds_is_not_the_same_as_failing_them():
+    """A consistency test that did not run has not been passed. Saying "failed"
+    here would report an absence of evidence as evidence."""
+    out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
+                   walkforward={"folds_measurable": 1, "folds_retained": 1,
+                                "median_retention": 0.9})
+    assert out["passed"] is False
+    assert any("did not run" in f for f in out["failures"]), out["failures"]
+
+
+def test_the_version_records_which_bar_was_applied():
+    """A candidate approved under v1 has not been approved under v2, and a stored
+    verdict has to say which one it cleared — otherwise re-reading old passes
+    under today's criteria silently rewrites history."""
+    from app.fund.gate import CRITERIA_V1, GATE_VERSION
+    assert GATE_VERSION == "v2"
+    out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
+                   walkforward=GOOD_WALKFORWARD)
+    assert out["gate_version"] == "v2"
+    # v1 is kept intact so an old verdict remains interpretable.
+    assert CRITERIA_V1["min_psr_pct"] == 50.0
+    # v1 must state what it did NOT require, not merely omit it: `evaluate`
+    # merges a criteria dict over the current defaults, so an omitted key would
+    # inherit v2's demand and make a v1 re-judgement impossible.
+    assert CRITERIA_V1["require_walkforward"] is False
+
+
+def test_v1_criteria_still_pass_a_v1_candidate():
+    """Judging an old candidate against the old bar must still work — the point
+    of versioning is that history is not rewritten."""
+    from app.fund.gate import CRITERIA_V1
+    out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
+                   criteria=CRITERIA_V1)
+    assert out["passed"] is True, out["failures"]

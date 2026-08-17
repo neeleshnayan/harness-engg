@@ -17,4 +17,8 @@ scratch_*
 
 # Live-session telemetry — machine state, not source.
 logs/
-lean_workspace/
+# Engine OUTPUT only. The algorithms are source and are versioned: every
+# research note in docs/ says "reproduce with this script", and that sentence is
+# false if the algorithm the script runs is not in the repo. Results are 87MB of
+# regenerable JSON; the algorithms are 76KB of the actual research.
+lean_workspace/results/

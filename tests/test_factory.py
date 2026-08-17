@@ -33,10 +33,17 @@ class FakeRunner:
         return {"name": name, "code": "class X(QCAlgorithm): pass"}
 
     def submit_sweep(self, algorithm, grid, holdout=None):
+        # Walk-forward folds arrive here too, one sweep per fold. Recorded so a
+        # test can assert the belt actually ran them rather than trusting it.
+        self.sweeps_requested = getattr(self, "sweeps_requested", 0) + 1
         return {"sweep_id": "sw1"}
 
     def sweep(self, sweep_id):
-        summary = ({"best": {"parameters": {"fast": "10"}}} if self.scored else {})
+        # A cost sweep result is part of what v2 requires: never cost-swept is
+        # not the same as robust to costs, and v1 could not tell them apart.
+        summary = ({"best": {"parameters": {"fast": "10"}},
+                    "breakeven_cost": {"breakeven_bps": 25.0}}
+                   if self.scored else {})
         return {"state": self.sweep_state, "algorithm": "a", "summary": summary,
                 "holdout_result": {"state": "done", "dates_honoured": True,
                                    "train": {"return_pct": 20.0},
@@ -101,12 +108,38 @@ def test_a_failing_candidate_is_killed_with_its_reasons():
 
 
 def test_a_passing_candidate_is_recorded_as_passed():
+    """Gate v2 requires walk-forward evidence, so the belt has to supply it.
+
+    CONTRACT CHANGED (deliberately, 2026-08-17): under v1 this candidate passed
+    on a single held-out window. A null audit then showed random strategies
+    clearing that bar half the time, so v2 asks for consistency across
+    independent folds — and a holdout has to be present for the belt to build
+    them from.
+    """
+    r = FakeRunner(passing=True)
+    f = _factory(r)
+    cid = f.submit("algo", {"fast": ["10"]},
+                   holdout={"train_start": "2024-01-01",
+                            "train_end": "2024-12-31",
+                            "test_start": "2025-01-01",
+                            "test_end": "2026-08-14"})["candidate_id"]
+    row = _settle(f, cid)
+    assert row["passed"] is True, row["failures"]
+    assert row["failures"] == []
+    assert row["winner"] == {"fast": "10"}
+    # More than one sweep: the grid, plus one per walk-forward fold.
+    assert r.sweeps_requested > 1, "the belt never ran the folds"
+
+
+def test_a_candidate_with_no_holdout_cannot_clear_v2():
+    """No holdout means no folds can be built, and gate v2 treats a missing
+    walk-forward as a failure rather than a waiver — the whole point of the
+    change is that untested is not the same as passed."""
     f = _factory(FakeRunner(passing=True))
     cid = f.submit("algo", {"fast": ["10"]})["candidate_id"]
     row = _settle(f, cid)
-    assert row["passed"] is True
-    assert row["failures"] == []
-    assert row["winner"] == {"fast": "10"}
+    assert row["passed"] is False
+    assert any("walk-forward" in x for x in row["failures"]), row["failures"]
 
 
 def test_the_winner_is_re_run_in_full_before_judgement():
