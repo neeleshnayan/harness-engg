@@ -1041,6 +1041,55 @@ def factory_history(algorithm: str | None = Query(None), limit: int = Query(50, 
     return {"scoreboard": f.scoreboard(), "candidates": f.history(algorithm, limit)}
 
 
+_observations_cache = None
+
+
+def _observations():
+    global _observations_cache
+    if _observations_cache is None:
+        from app.fund.events import store_backend
+        if store_backend() != "postgres":
+            return None
+        from app.fund.observations import Observations
+        _observations_cache = Observations()
+    return _observations_cache
+
+
+class ObservationSweepRequest(BaseModel):
+    tickers: List[str]
+    forms: List[str] = ["10-Q", "8-K"]
+    since: Optional[str] = None
+    per_ticker: int = 2
+
+
+@router.post("/fund/research/read")
+def research_read(req: ObservationSweepRequest):
+    """Read filings across names and store what survives verification.
+
+    Returns OBSERVATIONS, not trade ideas: checkable statements each carrying a
+    verbatim quote that was matched against the filing before storage. Turning
+    one into a position is a separate step a person takes, in the open.
+    """
+    o = _observations()
+    if o is None:
+        raise HTTPException(status_code=503, detail="research needs FUND_STORE=postgres")
+    from app.fund.observations import sweep
+    return sweep([t.upper() for t in req.tickers], forms=tuple(req.forms),
+                 since=req.since, per_ticker=req.per_ticker, store=o)
+
+
+@router.get("/fund/research/observations")
+def research_observations(ticker: str | None = Query(None),
+                          category: str | None = Query(None),
+                          limit: int = Query(50, ge=1, le=500)):
+    """What the filings said, with the quote that proves it."""
+    o = _observations()
+    if o is None:
+        raise HTTPException(status_code=503, detail="research needs FUND_STORE=postgres")
+    return {"coverage": o.coverage(),
+            "observations": o.recent(ticker=ticker, category=category, limit=limit)}
+
+
 @router.get("/fund/risk/throttle")
 def risk_throttle():
     """How much of normal gross the regime justifies right now.
