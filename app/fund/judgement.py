@@ -306,6 +306,41 @@ def registry() -> list[Judgement]:
                            "approached (currently 3.3% utilised)",
             review_by="2027-01-01"),
         Judgement(
+            "sleeve_stop_sigma_multiple",
+            where="docs/SLEEVE_500_FRAMEWORK.md §1, §5a", basis="judged",
+            expected=1.5,
+            why="The $500 sleeve's loss stop is set at 1.5x the instrument's "
+                "measured 21-day sigma. Chosen so the stop fires roughly 1 time in "
+                "7 over the holding window: often enough that the exit machinery "
+                "genuinely gets exercised, rarely enough that firing is not the "
+                "expected outcome. No reader is wired because the commitment is "
+                "deliberately FROZEN as a percent per instrument — a rule quoting "
+                "sigma could be relitigated by recomputing sigma, which is the "
+                "lever the mechanism exists to remove.",
+            falsified_by="Count how often the stop actually fires across sleeves. "
+                         "Far above ~15% and 1.5 is inside the noise, so the exits "
+                         "are meaningless and we will invent reasons for them. Far "
+                         "below and the machinery completes its whole test without "
+                         "ever having been exercised — which fails the objective "
+                         "while looking like success.",
+            review_trigger="4 sleeve cycles completed",
+            review_by="2026-11-15"),
+        Judgement(
+            "sleeve_horizon_days",
+            where="docs/SLEEVE_500_FRAMEWORK.md §1", basis="judged",
+            expected=21,
+            why="21 calendar days to the time exit. Long enough for fills, marks, "
+                "TCA and at least two written reviews; short enough that the loop "
+                "closes while attention is still on it. It sets the sigma window "
+                "in 5a, so the stop distances all descend from this number.",
+            falsified_by="If the loop has NOT completed all eight measured steps "
+                         "within 21 days, the horizon is too short and the "
+                         "conclusion 'the machinery works' would be unsupported. "
+                         "If it completes in a week with time idle, it is longer "
+                         "than the test needs and delays the next iteration.",
+            review_trigger="first sleeve cycle completes",
+            review_by="2026-10-01"),
+        Judgement(
             "MAX_CONCURRENT_CONTAINERS",
             where="app/fund/leanrunner.py", basis="external", expected=1,
             read=_module("app.fund.leanrunner", "MAX_CONCURRENT_CONTAINERS"),
