@@ -43,6 +43,13 @@ class MyAlgorithm(QCAlgorithm):
         slow = int(self.get_parameter("slow") or 30)
         self.f = self.sma(self.sym, fast)
         self.s = self.sma(self.sym, slow)
+        # Warm-up, sized from the slow moving average. Without it the algorithm starts
+        # every run with an empty indicator and cannot trade until it has filled
+        # — so a test window shorter than the lookback places ZERO orders and
+        # scores a flat 0%, which the gate used to report as "kept 0% of its edge
+        # out of sample". That sentence was false, and this strategy is the one it
+        # was said about.
+        self.set_warm_up(slow + 5, Resolution.DAILY)
 
     def on_data(self, data: Slice):
         if self.sym not in data or not self.s.is_ready:

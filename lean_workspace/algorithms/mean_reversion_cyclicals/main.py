@@ -43,6 +43,13 @@ class MyAlgorithm(QCAlgorithm):
         self.low = int(self.get_parameter("low") or 30)
         self.high = int(self.get_parameter("high") or 70)
         self.r = self.rsi(self.sym, period)
+        # Warm-up, sized from the RSI window. Without it the algorithm starts
+        # every run with an empty indicator and cannot trade until it has filled
+        # — so a test window shorter than the lookback places ZERO orders and
+        # scores a flat 0%, which the gate used to report as "kept 0% of its edge
+        # out of sample". That sentence was false, and this strategy is the one it
+        # was said about.
+        self.set_warm_up(period + 5, Resolution.DAILY)
 
     def on_data(self, data: Slice):
         if self.sym not in data or not self.r.is_ready:

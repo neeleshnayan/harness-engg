@@ -43,6 +43,12 @@ class MyAlgorithm(QCAlgorithm):
         s = int(self.get_parameter("slow") or 26)
         sig = int(self.get_parameter("signal") or 9)
         self.m = self.macd(self.sym, f, s, sig, MovingAverageType.EXPONENTIAL)
+        # Warm-up sized from the MACD's real requirement: the slow EMA needs `s`
+        # bars, and the signal line then needs `sig` more on top of it. Without
+        # this the algorithm cannot trade until it has filled — so a test window
+        # shorter than that places ZERO orders and scores a flat 0%, which the
+        # gate used to report as a lost edge rather than an unexamined strategy.
+        self.set_warm_up(s + sig + 5, Resolution.DAILY)
 
     def on_data(self, data: Slice):
         if self.sym not in data or not self.m.is_ready:

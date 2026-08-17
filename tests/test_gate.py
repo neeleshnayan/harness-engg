@@ -140,6 +140,9 @@ def test_a_holdout_that_placed_no_trades_is_not_read_as_a_lost_edge():
     out = evaluate(_good_result(), ho, GOOD_SWEEP)
     assert out["passed"] is False
     assert any("no trades at all" in f for f in out["failures"]), out["failures"]
+    # The train leg DID trade here, so the honest reading is that the rule never
+    # met its entry condition — not that it lacked warm-up.
+    assert any("never met its own entry condition" in f for f in out["failures"])
     # The misleading sentence must NOT also appear.
     assert not any("of its edge out of sample" in f for f in out["failures"])
     assert out["checks"]["holdout_retention"] is None
@@ -249,3 +252,34 @@ def test_v1_criteria_still_pass_a_v1_candidate():
     out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
                    criteria=CRITERIA_V1)
     assert out["passed"] is True, out["failures"]
+
+
+def test_a_silent_signal_is_not_reported_as_missing_warm_up():
+    """Measured on the real book: the INTC mean-reversion traded in-sample, then
+    placed zero orders across 226 fully warmed-up 2026 sessions because its RSI
+    never crossed the entry threshold. The old message told us to add warm-up it
+    already had, which sends the reader to fix the wrong thing.
+
+    The distinction is decision-relevant, not cosmetic: a rule that does not act
+    is not managing the position it is credited with — the position is an inert
+    static long wearing a strategy's name."""
+    ho = {"state": "done", "dates_honoured": True,
+          "train": {"return_pct": 64.56},
+          "test": {"return_pct": 0.0, "total_orders": 0}}
+    out = evaluate(_good_result(), ho, GOOD_SWEEP, walkforward=GOOD_WALKFORWARD)
+    joined = " ".join(out["failures"])
+    assert "never met its own entry condition" in joined
+    assert "not managing the position" in joined
+    assert "warm-up" not in joined.replace("about warm-up", "")
+
+
+def test_a_strategy_silent_in_BOTH_legs_still_points_at_warm_up():
+    """When neither leg traded, starvation really is the likely cause and the
+    message must still say so — the fix must not overcorrect into never
+    mentioning it."""
+    ho = {"state": "done", "dates_honoured": True,
+          "train": {"return_pct": None},
+          "test": {"return_pct": 0.0, "total_orders": 0}}
+    out = evaluate(_good_result(), ho, GOOD_SWEEP, walkforward=GOOD_WALKFORWARD)
+    joined = " ".join(out["failures"])
+    assert "never warmed up" in joined

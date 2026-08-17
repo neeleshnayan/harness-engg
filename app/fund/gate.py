@@ -158,6 +158,7 @@ def evaluate(result: dict[str, Any],
     # --- survives data it was not chosen on -------------------------------
     retention = None
     no_holdout_trades = False
+    trained_ok = False
     if holdout and holdout.get("state") == "done":
         if holdout.get("dates_honoured") is False:
             failures.append("the held-out test ran the SAME dates twice — the "
@@ -175,15 +176,35 @@ def evaluate(result: dict[str, Any],
             # never actually examined — and, worse, sound like evidence.
             if test.get("total_orders") == 0:
                 no_holdout_trades = True
+                # Two very different causes, and asserting the wrong one sends the
+                # reader to fix the wrong thing. If the TRAIN leg traded, the rule
+                # is demonstrably capable of firing and simply did not in the test
+                # window — which is a fact about the signal, not about warm-up.
+                # Measured: the INTC mean-reversion traded in-sample and then
+                # placed zero orders across 226 warmed-up 2026 sessions, because
+                # its RSI never crossed the entry threshold. The old message told
+                # us to add warm-up it already had.
+                trained_ok = bool(tr and (holdout.get("train") or {})
+                                  .get("return_pct") is not None)
             elif tr and te is not None:
                 retention = te / tr if tr else None
     checks["holdout_retention"] = retention
     if no_holdout_trades:
-        failures.append("the held-out test placed no trades at all, so it says "
-                        "nothing either way — usually the algorithm needs more "
-                        "history than the test window gives it, so it never "
-                        "warmed up. Give it warm-up and re-run before believing "
-                        "any out-of-sample number")
+        if trained_ok:
+            failures.append(
+                "the held-out test placed no trades at all, while the training "
+                "leg did trade — so the rule can fire and simply never met its "
+                "own entry condition in this window. That is a fact about the "
+                "signal, not about warm-up, and it is not evidence about the "
+                "edge either way: a strategy that does not act is not managing "
+                "the position it is credited with")
+        else:
+            failures.append(
+                "the held-out test placed no trades at all and neither did the "
+                "training leg, so nothing here says anything either way — the "
+                "usual cause is an algorithm needing more history than the "
+                "window gives it, so it never warmed up. Check warm-up and "
+                "re-run before believing any out-of-sample number")
     elif retention is None:
         failures.append("no held-out test — choosing the best of N settings "
                         "guarantees a good number on the window you chose them on")

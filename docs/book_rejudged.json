@@ -1,0 +1,89 @@
+{
+ "holdout": {
+  "train_start": "2025-01-01",
+  "train_end": "2025-12-31",
+  "test_start": "2026-01-01",
+  "test_end": "2026-08-14"
+ },
+ "results": [
+  {
+   "algorithm": "mean_reversion_cyclicals",
+   "position": "INTC",
+   "candidate_id": "36cfd8239f2a",
+   "state": "done",
+   "passed_v2": false,
+   "failures_v2": [
+    "only 2 fills; 20 is the minimum before a Sharpe describes a strategy rather than an anecdote",
+    "probabilistic Sharpe 31.057% is below 65.0% \u2014 the edge is not distinguishable from luck on this much history",
+    "returns 64.561% against 411.22% for simply owning it: an expensive way to hold the underlying",
+    "the held-out test placed no trades at all, so it says nothing either way \u2014 usually the algorithm needs more history than the test window gives it, so it never warmed up. Give it warm-up and re-run before believing any out-of-sample number",
+    "cost robustness was never measured (no cost sweep was run) \u2014 a candidate that was not cost-swept has not shown it survives being wrong about costs",
+    "only 0 fold(s) could be measured, below the 3 required \u2014 the consistency test did not run, which is not the same as passing it"
+   ],
+   "winner": {
+    "period": "14"
+   },
+   "return_pct": null,
+   "benchmark_pct": null,
+   "psr_pct": null,
+   "orders": null,
+   "holdout_retention": null,
+   "wf_measurable": null,
+   "wf_retained": null,
+   "wf_median": null,
+   "capacity_usd": null
+  },
+  {
+   "algorithm": "momentum_large_cap_tech",
+   "position": "NVDA",
+   "candidate_id": "a6848dde38b8",
+   "state": "done",
+   "passed_v2": false,
+   "failures_v2": [
+    "only 13 fills; 20 is the minimum before a Sharpe describes a strategy rather than an anecdote",
+    "probabilistic Sharpe 16.993% is below 65.0% \u2014 the edge is not distinguishable from luck on this much history",
+    "returns 29.973% against 67.92% for simply owning it: an expensive way to hold the underlying",
+    "kept only 14% of its edge out of sample; 50% is the floor",
+    "cost robustness was never measured (no cost sweep was run) \u2014 a candidate that was not cost-swept has not shown it survives being wrong about costs",
+    "kept its edge in only 0 of 4 independent folds (0%), under the 50% floor \u2014 consistent with a lucky window rather than an edge"
+   ],
+   "winner": {
+    "slow": "50"
+   },
+   "return_pct": null,
+   "benchmark_pct": null,
+   "psr_pct": null,
+   "orders": null,
+   "holdout_retention": null,
+   "wf_measurable": null,
+   "wf_retained": null,
+   "wf_median": null,
+   "capacity_usd": null
+  },
+  {
+   "algorithm": "trend_sector_commodity",
+   "position": "SPY",
+   "candidate_id": "6f0ac252c6bf",
+   "state": "done",
+   "passed_v2": false,
+   "failures_v2": [
+    "probabilistic Sharpe 2.983% is below 65.0% \u2014 the edge is not distinguishable from luck on this much history",
+    "returns 9.743% against 34.74% for simply owning it: an expensive way to hold the underlying",
+    "cost robustness was never measured (no cost sweep was run) \u2014 a candidate that was not cost-swept has not shown it survives being wrong about costs",
+    "only 2 fold(s) could be measured, below the 3 required \u2014 the consistency test did not run, which is not the same as passing it"
+   ],
+   "winner": {
+    "slow": "26"
+   },
+   "return_pct": null,
+   "benchmark_pct": null,
+   "psr_pct": null,
+   "orders": null,
+   "holdout_retention": null,
+   "wf_measurable": null,
+   "wf_retained": null,
+   "wf_median": null,
+   "capacity_usd": null
+  }
+ ]
+}
