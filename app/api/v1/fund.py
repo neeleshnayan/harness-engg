@@ -1259,6 +1259,46 @@ def research_map(turnover_pct: float = Query(1.0, gt=0, le=100)):
     return build(o, universe=u, hunting_ground_size=size, adv_band=adv_band)
 
 
+@router.get("/fund/mechanics")
+def fund_mechanics():
+    """How a hunch becomes a position, what dies on the way, and when.
+
+    Read as selection, because that is what the machinery does: a candidate is a
+    GRID (variation), the gate kills (selection), strategies carry parent/child
+    and member weights (composition), and the gate ITSELF has four generations.
+
+    Facts are resolved here and passed in, on the same reasoning as the digest:
+    the view is a reading over the machinery, never a second place that knows how
+    to run it. Every block degrades to a stated absence.
+    """
+    from app.fund import mechanics
+    from app.fund.gate import GATE_VERSION
+
+    def _try(fn, label):
+        try:
+            return fn()
+        except Exception as e:  # noqa: BLE001
+            logger.info("mechanics: %s unavailable: %s", label, e)
+            return None
+
+    obs = None
+    o = _observations()
+    if o is not None:
+        obs = _try(lambda: o.coverage(), "observations")
+
+    return mechanics.build(
+        candidates=_try(lambda: factory_history(None, 500), "candidates"),
+        strategies=_try(lambda: list_strategies(), "strategies"),
+        observations=obs,
+        approvals=_try(lambda: {"pending": _orders.pending() or []}, "approvals"),
+        exits=_try(lambda: check_exit_rules(None), "exits"),
+        # Newest-first from the tail, which is what /fund/events returns. The
+        # timeline sorts ascending itself rather than trusting the order.
+        events=_try(lambda: get_events(since_seq=0, limit=1000), "events"),
+        gate_version=GATE_VERSION,
+    )
+
+
 @router.get("/fund/doctrine")
 def operating_doctrine():
     """The seven-stage workflow, with each stage's status read LIVE where possible.
