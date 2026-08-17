@@ -114,6 +114,16 @@ class EventType(str, Enum):
 
     # Risk monitoring & controls — continuous surveillance + the kill switch.
     # Alarms are events so the audit trail shows exactly what tripped and when.
+    # Pre-committed exits. In the log rather than a config table for one reason:
+    # a rule in a document can be edited by the person it constrains and nobody
+    # would know. Here it can only be superseded, and the supersession is visible.
+    # The OVERRIDDEN event matters as much as the other two — an exit that can be
+    # ignored without a trace is not an exit, it is a story about why this time
+    # is different.
+    EXIT_RULE_SET = "ExitRuleSet"               # committed before the position exists
+    EXIT_RULE_TRIGGERED = "ExitRuleTriggered"   # fired; a closing proposal was raised
+    EXIT_RULE_OVERRIDDEN = "ExitRuleOverridden" # fired and kept anyway, with a reason
+
     RISK_LIMITS_SET = "RiskLimitsSet"           # the mandate's limits (auditable config)
     RISK_ALARM_RAISED = "RiskAlarmRaised"       # a limit/adverse-move breach opened
     RISK_ALARM_CLEARED = "RiskAlarmCleared"     # a breach resolved

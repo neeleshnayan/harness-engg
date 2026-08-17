@@ -1328,6 +1328,97 @@ def research_observations(ticker: str | None = Query(None),
                                      limit=limit)}
 
 
+class ExitRuleRequest(BaseModel):
+    """One pre-committed exit. Submitted BEFORE the position exists."""
+    strategy_id: str
+    kind: str
+    symbol: Optional[str] = None
+    threshold_pct: Optional[float] = None
+    on_date: Optional[str] = None
+    note: str = ""
+    actor: str = "operator"
+
+
+class ExitOverrideRequest(BaseModel):
+    strategy_id: str
+    kind: str
+    symbol: Optional[str] = None
+    reason: str
+    actor: str = "operator"
+
+
+@router.post("/fund/exits")
+def set_exit_rule(req: ExitRuleRequest):
+    """Commit an exit rule to the event log.
+
+    Recorded as an event rather than stored as config for one reason: a rule in a
+    table can be edited by the person it constrains and nobody would know. In the
+    append-only log it can only be superseded, and the supersession is visible.
+
+    Writes an event and moves no money.
+    """
+    from app.fund.events import Event, EventType
+    from app.fund.exitrule import ExitRuleError, build as build_rule
+    try:
+        rule = build_rule(req.strategy_id, req.kind,
+                          threshold_pct=req.threshold_pct, on_date=req.on_date,
+                          note=req.note, symbol=req.symbol)
+    except ExitRuleError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    # Keyed on the strategy so the commitment, any supersession and any override
+    # all land on the same aggregate and read as one history.
+    _store.append(Event(req.strategy_id, "strategy", EventType.EXIT_RULE_SET,
+                        rule, req.actor))
+    return rule
+
+
+@router.get("/fund/exits")
+def list_exit_rules(strategy_id: str | None = Query(None)):
+    """Active exit commitments, folded from the log."""
+    from app.fund.exitrule import ExitRules
+    return {"rules": ExitRules(_store).active(strategy_id)}
+
+
+@router.get("/fund/exits/check")
+def check_exit_rules(strategy_id: str | None = Query(None)):
+    """Evaluate every committed exit against current marks.
+
+    Reports fired, holding and unevaluable SEPARATELY. "Could not check" is not
+    "fine", and a digest that merged them would let an unmarked position read as
+    being in good standing.
+    """
+    from app.fund.exitrule import ExitRules
+    try:
+        positions = (_monitor.assess() or {}).get("positions") or []
+    except Exception as e:  # noqa: BLE001
+        logger.info("exit check: marks unavailable: %s", e)
+        positions = []
+    return ExitRules(_store).check(positions, strategy_id)
+
+
+@router.post("/fund/exits/override")
+def override_exit_rule(req: ExitOverrideRequest):
+    """Record that a fired exit was deliberately not taken.
+
+    Overrides are allowed; silent ones are not. An exit that can be ignored
+    without a trace is not an exit, it is a story about why this time is
+    different — and the reason this is a required field is to make that story
+    expensive to tell.
+    """
+    from app.fund.events import Event, EventType
+    if not (req.reason or "").strip():
+        raise HTTPException(
+            status_code=422,
+            detail="an override needs a reason — that is the entire point of "
+                   "recording it")
+    payload = {"strategy_id": req.strategy_id, "kind": req.kind,
+               "symbol": req.symbol, "reason": req.reason,
+               "at": datetime.now(timezone.utc).isoformat(), "actor": req.actor}
+    _store.append(Event(req.strategy_id, "strategy",
+                        EventType.EXIT_RULE_OVERRIDDEN, payload, req.actor))
+    return payload
+
+
 @router.get("/fund/risk/throttle")
 def risk_throttle():
     """How much of normal gross the regime justifies right now.
