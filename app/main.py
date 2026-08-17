@@ -156,6 +156,17 @@ async def _scheduler():
             fund_router.sample_intraday_nav()
         except Exception as e:  # noqa: BLE001
             _log.debug("intraday sample skipped: %s", e)
+        # The universe screen, re-measured when it goes stale. Almost always a
+        # no-op — it checks the age first and only spends the 50 seconds when
+        # actually due, which it has to, because this tick runs every 30s.
+        #
+        # Under the lease with everything else, so one process measures rather
+        # than three racing. And it writes no event: the universe is a
+        # measurement of the market, not a fact about the fund.
+        try:
+            fund_router.run_universe_refresh()
+        except Exception as e:  # noqa: BLE001
+            _log.warning("universe refresh skipped: %s", e)
         if since_strike >= strike_every:
             since_strike = 0
             # Both of these WRITE to the permanent log — a NAV_STRUCK snapshot

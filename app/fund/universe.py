@@ -60,6 +60,20 @@ LOOKBACK_DAYS = 90
 #: the hunting ground on the strength of its IPO week.
 MIN_BARS = 30
 
+#: Past this the screen is reported as stale. A trading week is the sensible
+#: horizon: a name's typical volume rarely moves band-to-band inside one, but a
+#: delisting or a liquidity collapse over a week absolutely can.
+STALE_AFTER_HOURS = float(os.getenv("UNIVERSE_STALE_HOURS", "168"))
+
+#: How often the scheduler re-measures. Daily, because the refresh is 50
+#: seconds of work and the alternative is remembering to do it.
+REFRESH_EVERY_HOURS = float(os.getenv("UNIVERSE_REFRESH_HOURS", "24"))
+
+
+def needs_refresh(age_hours: Optional[float]) -> bool:
+    """Never measured, or older than the refresh interval."""
+    return age_hours is None or age_hours >= REFRESH_EVERY_HOURS
+
 
 class Universe:
     """What we can trade, and how much of it the market can absorb."""
@@ -234,6 +248,12 @@ class Universe:
             })
         closed = [n for n in names if n["closed_to_big_funds"]]
         return {
+            # Staleness travels WITH the results, not in a separate stats call
+            # nobody makes. Liquidity moves, listings appear and delistings
+            # leave tickers in the screen that cannot be bought — and a stale
+            # screen is worse than none precisely because it still looks
+            # authoritative.
+            **self.freshness(),
             "turnover_pct": turnover_pct, "participation": participation,
             "capacity_band_usd": [min_capacity, max_capacity],
             "adv_band_usd": [round(adv_lo, 2), round(adv_hi, 2)],
@@ -245,6 +265,34 @@ class Universe:
                        "capacity band admits large caps a big fund can hold "
                        "comfortably"),
             "names": names,
+        }
+
+    def freshness(self) -> dict[str, Any]:
+        """How old the measurements are, and whether to trust them.
+
+        Returned alongside every screen. The failure mode this guards is the
+        same one an unscheduled backup has: the thing still answers, still
+        looks authoritative, and is quietly describing a market that has moved.
+        """
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT max(refreshed_at), count(*) FROM fund_universe")
+                refreshed, n = cur.fetchone()
+        if not refreshed or not n:
+            return {"refreshed_at": None, "age_hours": None, "stale": True,
+                    "freshness_note": "the universe has never been measured — "
+                                      "run a refresh before trusting a screen"}
+        age_h = (datetime.now(timezone.utc) - refreshed).total_seconds() / 3600.0
+        stale = age_h > STALE_AFTER_HOURS
+        return {
+            "refreshed_at": refreshed.isoformat(),
+            "age_hours": round(age_h, 1),
+            "stale": stale,
+            "freshness_note": (
+                f"volumes are {age_h:.0f} hours old, past the {STALE_AFTER_HOURS}h "
+                f"limit — names may have drifted out of the band, and a delisted "
+                f"ticker would still be listed here" if stale else
+                f"measured {age_h:.1f} hours ago"),
         }
 
     def stats(self) -> dict[str, Any]:

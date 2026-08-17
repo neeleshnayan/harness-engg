@@ -274,6 +274,31 @@ def run_strike() -> dict:
     return _nav.strike().to_dict()
 
 
+def run_universe_refresh() -> dict:
+    """Re-measure the tradable universe if it has gone stale.
+
+    Cheap to call and mostly a no-op: it checks the age first and only spends
+    the 50 seconds when the screen is actually due. That matters because the
+    scheduler ticks every thirty seconds and this must not become a minute of
+    work per tick.
+
+    Touches no event log and holds no fund state — the universe is a
+    measurement of the market, not a fact about the fund — so a failure here
+    is logged and dropped rather than allowed near the ledger.
+    """
+    u = _universe()
+    if u is None:
+        return {"skipped": "universe needs FUND_STORE=postgres"}
+    from app.fund.universe import needs_refresh
+    fresh = u.freshness()
+    if not needs_refresh(fresh.get("age_hours")):
+        return {"skipped": "still fresh", **fresh}
+    logger.info("universe refresh starting (age %sh)", fresh.get("age_hours"))
+    out = u.refresh()
+    logger.info("universe refreshed: %s", out)
+    return out
+
+
 @router.post("/fund/nav/strike")
 def post_nav_strike(req: ActorRequest | None = None):
     """Manually strike and persist a NAV snapshot into Firestore."""
