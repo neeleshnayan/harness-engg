@@ -760,6 +760,120 @@ export interface ResearchBacktestResponse {
   signals: number[];
 }
 
+/** One candidate, read as an organism: its variants, verdict and cause of death. */
+export interface MechanicsCandidate {
+  candidate_id: string;
+  algorithm: string;
+  state: string;
+  /** null = not yet judged. Distinct from false, which is a verdict. */
+  passed: boolean | null;
+  /** Product of the grid — the population the sweep actually explored. */
+  variants: number;
+  grid: Record<string, string[]>;
+  winner: unknown;
+  causes: string[];
+  failures: string[];
+  finished_at?: string | null;
+  /** Nulls and oracles measure the GATE. Counting them in a survival rate
+   *  corrupts it in both directions, so they are flagged and filtered. */
+  is_calibration: boolean;
+}
+
+export interface MechanicsView {
+  gate_version: string;
+  funnel: {
+    steps: {
+      step: string;
+      /** null = UNCOUNTED (subsystem unavailable), never zero. */
+      count: number | null;
+      what: string;
+      absent_note?: string | null;
+    }[];
+    killed?: number | null;
+    note?: string;
+    honest_note?: string;
+    /** Nulls and oracles, reported SEPARATELY. A null passing is a measured leak
+     *  in the gate, not a discovery — averaging instruments in with research
+     *  attempts corrupts the survival rate in both directions. */
+    calibration?: {
+      submitted: number;
+      judged: number;
+      passed: number;
+      note: string;
+      caveat: string;
+    };
+  };
+  selection_pressure: {
+    causes: { cause: string; count: number; share_pct: number | null }[];
+    total_failures: number;
+    judged: number;
+    distinct_causes: number;
+    note: string;
+  };
+  cohort: {
+    candidates: MechanicsCandidate[];
+    calibration_count: number;
+    note: string;
+  };
+  lineage: {
+    nodes: {
+      strategy_id: string;
+      name: string;
+      state: string;
+      depth: number;
+      parent_id?: string | null;
+      is_container: boolean;
+      members: unknown[];
+      children: unknown[];
+      assets: string[];
+    }[];
+    containers: number;
+    note: string;
+  };
+  selector: {
+    generations: {
+      version: string;
+      /** null on the current generation — it has not died of anything yet. */
+      died_of: string | null;
+      evidence: string;
+      metric: string;
+    }[];
+    current: string;
+  };
+  ladder: {
+    rungs: { rung: string; status: string; detail: string }[];
+    note: string;
+  };
+  /** Two streams on one UTC axis: chain-verifiable events, and dated build marks
+   *  describing machinery changes the log cannot know about. */
+  timeline: {
+    days: { day: string; events: number; verdicts: number; builds: number }[];
+    marks: {
+      at: string; day: string; seq?: number; type: string;
+      phase: string; meaning: string; subject?: string | null;
+      reason?: string | null; verifiable: boolean;
+    }[];
+    verdicts: {
+      at: string; day: string; algorithm: string; candidate_id: string;
+      passed: boolean | null; causes: string[]; is_calibration: boolean;
+    }[];
+    builds: { at: string; phase: string; label: string; detail: string }[];
+    phases: Record<string, number>;
+    window: { first: string | null; last: string | null; days: number };
+    note: string;
+    caveat: string;
+  };
+  waiting_on_you: {
+    items: {
+      kind: string; symbol?: string | null; side?: string | null;
+      qty?: number | null; strategy_id?: string | null;
+      rationale?: string | null; why_here: string;
+    }[];
+    count: number;
+    note: string;
+  };
+}
+
 /** One stage of the operating doctrine.
  *
  *  `status` has three values and the third is load-bearing: "unknown" means the
@@ -1728,6 +1842,13 @@ export const fundApiClient = {
    *  it. The canon is ClarkHarness/docs/FUND_GENESIS.md. */
   getDoctrine: async (): Promise<DoctrineReview> =>
     (await fundApi.get(`${P}/doctrine`)).data,
+
+  /** How a hunch becomes a position, what dies on the way, and when.
+   *
+   *  Reads several subsystems server-side (candidates, strategies, the event log),
+   *  so it is seconds rather than milliseconds — poll it loosely, never tightly. */
+  getMechanics: async (): Promise<MechanicsView> =>
+    (await fundApi.get(`${P}/mechanics`)).data,
 
   /** Which scheduled jobs actually ran. `ok: null` means NOT YET OBSERVED, which
    *  is neither healthy nor broken — another process may hold the lease. */
