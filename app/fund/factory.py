@@ -252,6 +252,63 @@ class CandidateFactory:
                      error, candidate_id))
             conn.commit()
 
+    #: A candidate takes ~20 minutes through the belt. Anything still `running`
+    #: after this cannot be: the thread that would finish it is in-process, so it
+    #: died with whatever restarted the spine. Generous, because the cost of
+    #: waiting is nothing and the cost of orphaning a live run is a wasted hour.
+    ORPHAN_AFTER_HOURS = 3.0
+
+    def reconcile_orphans(self, max_age_hours: Optional[float] = None
+                          ) -> dict[str, Any]:
+        """Close out candidates whose runner died, WITHOUT inventing a verdict.
+
+        The row lives in Postgres; the thread that finishes it does not. So every
+        spine restart leaves any in-flight candidate stuck in `running` forever —
+        and it stays in the scoreboard as neither judged nor failed, quietly
+        subtracting from the judged count and making the survival rate wrong.
+        Three of them had accumulated before this existed.
+
+        The new state is `orphaned`, and that word is doing real work. It is NOT
+        `failed`: a run that was interrupted produced no evidence, and recording it
+        as a failure would mean the fund had learned something from a restart. It
+        is not `done` either. It is the same distinction the gate draws between a
+        strategy that lost and a strategy that was never examined — an interrupted
+        run is an absence, and absences are never scored.
+        """
+        ceiling = self.ORPHAN_AFTER_HOURS if max_age_hours is None else max_age_hours
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE fund_candidates
+                       SET state = 'orphaned', finished_at = now(),
+                           error = %s
+                     WHERE state = 'running'
+                       AND started_at < now() - (%s * INTERVAL '1 hour')
+                 RETURNING candidate_id, algorithm, started_at
+                    """,
+                    ("the runner died before this could be judged — most likely the "
+                     "spine restarted. NOT a failure and NOT a result: an "
+                     "interrupted run produced no evidence, and re-running it is "
+                     "the only way to learn anything from it",
+                     ceiling))
+                rows = cur.fetchall() or []
+            conn.commit()
+        out = [{"candidate_id": r[0], "algorithm": r[1],
+                "started_at": r[2].isoformat() if r[2] else None} for r in rows]
+        if out:
+            logger.warning(
+                "reconciled %d orphaned candidate(s) older than %.1fh: %s",
+                len(out), ceiling, ", ".join(r["candidate_id"] for r in out))
+        return {
+            "orphaned": out, "count": len(out), "ceiling_hours": ceiling,
+            "note": (f"{len(out)} candidate(s) had been stuck 'running' since "
+                     f"their runner died. Marked ORPHANED, which is neither passed "
+                     f"nor failed — re-run them to learn anything"
+                     if out else
+                     "no candidate has been running longer than the ceiling"),
+        }
+
     # --- memory -------------------------------------------------------------
 
     def get(self, candidate_id: str) -> Optional[dict[str, Any]]:
@@ -293,15 +350,27 @@ class CandidateFactory:
                 cur.execute(
                     "SELECT count(*) FILTER (WHERE state='done'), "
                     "       count(*) FILTER (WHERE passed), "
-                    "       count(*) FILTER (WHERE state='failed'), count(*) "
+                    "       count(*) FILTER (WHERE state='failed'), "
+                    "       count(*) FILTER (WHERE state='orphaned'), "
+                    "       count(*) FILTER (WHERE state='running'), count(*) "
                     "FROM fund_candidates")
-                done, passed, failed, total = cur.fetchone()
+                done, passed, failed, orphaned, running, total = cur.fetchone()
         judged = int(done or 0)
         return {
             "submitted": int(total or 0), "judged": judged,
             "passed": int(passed or 0), "killed": judged - int(passed or 0),
             "errored": int(failed or 0),
+            # Reported rather than folded into anything. An interrupted run is an
+            # absence: counting it as judged would invent a verdict, and counting
+            # it as killed would credit the gate with a decision it never made.
+            "orphaned": int(orphaned or 0),
+            "running": int(running or 0),
             "note": ("a low pass rate is the factory working: the bar exists to "
                      "kill things cheaply, and a gate that passes most of what "
                      "it sees is not a gate"),
+            "absence_note": (
+                f"{int(orphaned or 0)} orphaned and {int(running or 0)} still in "
+                f"flight, both EXCLUDED from judged. An interrupted run produced no "
+                f"evidence — scoring it either way would be inventing one."
+                if (orphaned or running) else None),
         }

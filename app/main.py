@@ -200,6 +200,14 @@ async def _scheduler():
             heartbeat.beat("exit_check")
         except Exception as e:  # noqa: BLE001
             _log.warning("exit check tick failed: %s", e)
+        # Candidates whose runner died with a previous process. Their rows say
+        # `running` and nothing will ever finish them, so they sat in the
+        # scoreboard as neither judged nor failed and quietly made the survival
+        # rate wrong. Marked `orphaned` — an absence, never a verdict.
+        try:
+            fund_router.run_factory_reconcile_tick()
+        except Exception as e:  # noqa: BLE001
+            _log.warning("factory reconcile tick failed: %s", e)
         if since_strike >= strike_every:
             since_strike = 0
             # Both of these WRITE to the permanent log — a NAV_STRUCK snapshot

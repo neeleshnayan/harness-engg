@@ -1259,6 +1259,22 @@ def research_map(turnover_pct: float = Query(1.0, gt=0, le=100)):
     return build(o, universe=u, hunting_ground_size=size, adv_band=adv_band)
 
 
+@router.post("/fund/factory/reconcile")
+def factory_reconcile(max_age_hours: float | None = Query(None, gt=0)):
+    """Close out candidates whose runner died, without inventing a verdict.
+
+    A candidate row lives in Postgres; the thread that finishes it does not. Every
+    spine restart therefore left any in-flight candidate stuck in `running`
+    forever, silently subtracting from the judged count. They become `orphaned`,
+    which is neither passed nor failed - an interrupted run produced no evidence.
+    """
+    f = _factory()
+    if f is None:
+        raise HTTPException(status_code=503,
+                            detail="the factory needs FUND_STORE=postgres")
+    return f.reconcile_orphans(max_age_hours)
+
+
 @router.get("/fund/mechanics")
 def fund_mechanics():
     """How a hunch becomes a position, what dies on the way, and when.
@@ -3016,6 +3032,18 @@ def resume_trading(req: RiskResumeRequest):
 def run_risk_monitor_tick(actor: str = "worker") -> dict:
     """Worker tick function to execute the risk monitor."""
     return _monitor.run(actor=actor)
+
+
+def run_factory_reconcile_tick() -> dict:
+    """Worker tick: orphan candidates whose runner died.
+
+    Cheap (one indexed UPDATE) and self-throttling by the age ceiling, so it can
+    ride the ordinary scheduler tick rather than needing its own schedule.
+    """
+    f = _factory()
+    if f is None:
+        return {"orphaned": [], "count": 0, "note": "factory unavailable"}
+    return f.reconcile_orphans()
 
 
 def run_exit_check_tick(actor: str = "worker") -> dict:
