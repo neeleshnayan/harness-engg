@@ -22,12 +22,20 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
+
+#: Earliest date with bars in this fund's feed. Folds are not built before it —
+#: reaching further back is harmless (a fold with no bars places no trades and is
+#: reported unmeasurable) but spends engine time on runs that cannot speak.
+#: Widen as history accumulates; the number is a property of the data, not a
+#: preference.
+WALKFORWARD_HISTORY_FLOOR = os.getenv("FUND_HISTORY_FLOOR", "2024-02-26")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS fund_candidates (
@@ -177,12 +185,19 @@ class CandidateFactory:
         if not holdout:
             return None
         try:
-            from app.fund.walkforward import WalkForward, folds
-            window = folds(holdout["train_start"], holdout["test_end"])
-            if len(window) < 2:
-                logger.info("walk-forward skipped: only %d fold(s) fit the "
-                            "available history", len(window))
-                return None
+            from app.fund.gate import CRITERIA
+            from app.fund.walkforward import WalkForward, window_for
+
+            need = int(CRITERIA.get("min_walkforward_folds") or 3)
+            # Sized from what the GATE asks for, not from the caller's holdout.
+            # Deriving it from the holdout fit two folds against a three-fold
+            # requirement, so every candidate failed for a reason that described
+            # our arithmetic instead of the strategy.
+            window = window_for(holdout["test_end"], min_folds=need,
+                                floor=WALKFORWARD_HISTORY_FLOOR)
+            if len(window) < need:
+                logger.info("walk-forward: history supports %d fold(s), the gate "
+                            "asks for %d", len(window), need)
             return WalkForward(runner=self._lean()).evaluate(
                 algorithm, grid, window)
         except Exception as e:  # noqa: BLE001

@@ -9,7 +9,8 @@ failed — and would let a thin result pass for a robust one.
 
 import pytest
 
-from app.fund.walkforward import (RETENTION_FLOOR, folds, retention, summarise)
+from app.fund.walkforward import (RETENTION_FLOOR, folds, retention,
+                                  summarise, window_for)
 
 
 def test_folds_do_not_overlap_their_test_legs():
@@ -116,3 +117,39 @@ def test_a_near_zero_training_edge_has_no_meaningful_retention():
     # A judgement, not a measurement: below this an "edge" sits under the
     # benchmark and inside single-name noise, so its persistence means nothing.
     assert MIN_TRAIN_RETURN_PCT == 5.0
+
+
+def test_the_window_fits_the_number_of_folds_the_gate_demands():
+    """The bug this closes made gate v2 unclearable by anything.
+
+    Folds were sized from the CALLER'S holdout. The audits used 2025-01-01 to
+    2026-08-14, which fits two folds, while the gate asks for three — so every
+    candidate failed with "the consistency test did not run" regardless of
+    quality, and the sentence described our arithmetic rather than the strategy.
+    """
+    from app.fund.gate import CRITERIA
+    need = CRITERIA["min_walkforward_folds"]
+    w = window_for("2026-08-14", min_folds=need, floor="2024-02-26")
+    assert len(w) >= need, f"only {len(w)} folds for a {need}-fold requirement"
+
+
+def test_the_window_never_runs_past_its_end():
+    w = window_for("2026-08-14", min_folds=3, floor="2024-02-26")
+    assert all(f["test_end"] <= "2026-08-14" for f in w)
+
+
+def test_the_window_respects_the_history_floor():
+    """Reaching before the first bar is not harmful — such a fold places no
+    trades and is reported unmeasurable — but it spends engine time on runs that
+    cannot say anything."""
+    w = window_for("2026-08-14", min_folds=3, floor="2025-06-01")
+    assert all(f["train_start"] >= "2025-06-01" for f in w)
+
+
+def test_calendar_rounding_slack_is_present():
+    """Without a step of slack the last fold overshot by ONE DAY and silently
+    produced K-1 folds — the trading-to-calendar conversion rounds down at every
+    term, so the naive reach-back is always a little short."""
+    for end in ("2026-08-14", "2026-06-30", "2026-03-31"):
+        w = window_for(end, min_folds=3, floor="2023-01-01")
+        assert len(w) >= 3, f"{end} produced only {len(w)} folds"

@@ -93,6 +93,40 @@ def folds(start: str, end: str, train_days: int = 252,
     return out
 
 
+def window_for(end: str, min_folds: int, train_days: int = 252,
+               test_days: int = 63, floor: Optional[str] = None) -> list[dict[str, str]]:
+    """Folds ending at ``end``, reaching back far enough to fit ``min_folds``.
+
+    Exists because sizing the window from a CALLER'S holdout silently made the
+    gate unclearable. The audits used a 2025-01-01 to 2026-08-14 holdout, which
+    fits exactly two folds, while the gate asks for three — so every candidate
+    failed with "the consistency test did not run" no matter how good it was, and
+    the failure described our arithmetic rather than the strategy.
+
+    A window is therefore derived from what the TEST needs, not from what one
+    train/test split happened to use: reach back
+    ``train + test + (min_folds - 1) * step`` trading days, converted to calendar
+    days at 252/365.
+
+    ``floor`` caps the reach-back at the earliest date with data. Reaching past it
+    is not harmful — folds with no bars place no trades and are reported
+    unmeasurable rather than failed — but it wastes engine time on runs that
+    cannot say anything.
+    """
+    cal = lambda d: int(d * 365 / 252)  # noqa: E731
+    # K folds need train + test + (K-1) steps of room. One extra step is added as
+    # slack: the trading-to-calendar conversion rounds down at every term, and
+    # without it the last fold's test leg overshot the window by a single day and
+    # silently produced K-1 folds — which read as "the history cannot support this
+    # test" when the real cause was arithmetic.
+    need = train_days + test_days * (min_folds + 1)
+    start = _d(end) - timedelta(days=cal(need))
+    if floor and start < _d(floor):
+        start = _d(floor)
+    return folds(start.isoformat(), end, train_days=train_days,
+                 test_days=test_days, max_folds=max(min_folds, 6))
+
+
 def retention(train_return: Optional[float],
               test_return: Optional[float],
               test_orders: Optional[int]) -> dict[str, Any]:
