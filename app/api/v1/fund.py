@@ -11,6 +11,7 @@ The pipeline is wired to the PaperConnector today; swapping in the IBKRConnector
 
 import logging
 import os
+import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -1290,11 +1291,28 @@ def morning_digest(since_hours: float = Query(24.0, gt=0, le=168)):
     adv_band = (BAND_MIN_CAPACITY * t / BAND_PARTICIPATION,
                 BAND_MAX_CAPACITY * t / BAND_PARTICIPATION)
 
+    # Which algorithms the fund is actually holding, so a failing DEPLOYED
+    # strategy can be told apart from a failing research candidate. Slugged from
+    # the strategy name because that is the convention the workspace already
+    # follows ("Momentum · Large Cap Tech" -> momentum_large_cap_tech); a missed
+    # match costs a digest line, never a wrong one.
+    deployed: set[str] = set()
+    try:
+        for st in _strategies.list():
+            if str(st.get("state") or "").lower() != "deployed":
+                continue
+            slug = re.sub(r"[^a-z0-9]+", "_",
+                          str(st.get("name") or "").lower()).strip("_")
+            if slug:
+                deployed.add(slug)
+    except Exception as e:  # noqa: BLE001
+        logger.info("digest: deployed strategies unavailable: %s", e)
+
     from app.fund.digest import build as build_digest
     return build_digest(store=_store, observations=o, factory=f,
                         universe=_universe(), nav=nav_block,
                         approvals=approvals, adv_band=adv_band,
-                        since_hours=since_hours)
+                        deployed=deployed, since_hours=since_hours)
 
 
 @router.get("/fund/research/observations")

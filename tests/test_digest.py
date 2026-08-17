@@ -139,3 +139,32 @@ def test_a_real_candidate_alongside_a_null_still_asks_for_the_human():
     assert out["needs_you"]["count"] == 1
     assert out["judged"]["candidates"] == 1
     assert out["judged"]["calibration_runs"] == 1
+
+
+def test_a_failing_DEPLOYED_strategy_needs_a_human():
+    """The digest reported "nothing needs a decision today" on the exact morning
+    three deployed strategies failed the gate. A passing candidate is an
+    opportunity; a failing deployed one is live money governed by something that
+    just did not survive its own test, and it outranks everything else on the
+    page."""
+    out = build(observations=FakeObs([]),
+                factory=FakeFactory([
+                    {"candidate_id": "c1", "algorithm": "momentum_large_cap_tech",
+                     "passed": False, "failures": ["an expensive way to hold it"],
+                     "finished_at": datetime.now(timezone.utc).isoformat()},
+                ]),
+                deployed={"momentum_large_cap_tech"})
+    assert out["needs_you"]["count"] == 1
+    item = out["needs_you"]["items"][0]
+    assert item["kind"] == "deployed_strategy_failed"
+    assert "nothing here changes a position" in item["why_you"]
+    assert "DEPLOYED strategy(s) failed" in out["headline"]
+
+
+def test_a_failing_RESEARCH_candidate_asks_for_nothing():
+    """Research is supposed to fail. Only live money makes a failure a decision."""
+    out = build(observations=FakeObs([]),
+                factory=FakeFactory([_cand(False, ["died honestly"])]),
+                deployed={"something_else"})
+    assert out["needs_you"]["count"] == 0
+    assert "died" in out["headline"]

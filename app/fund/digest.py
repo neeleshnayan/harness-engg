@@ -50,7 +50,7 @@ def _now() -> datetime:
 def build(store: Any = None, observations: Any = None, factory: Any = None,
           universe: Any = None, runner: Any = None, provenance: Any = None,
           nav: Any = None, approvals: Any = None,
-          adv_band: Optional[tuple] = None,
+          adv_band: Optional[tuple] = None, deployed: Any = None,
           since_hours: float = 24.0) -> dict[str, Any]:
     """Assemble the morning read. Every section degrades to a stated absence.
 
@@ -68,7 +68,7 @@ def build(store: Any = None, observations: Any = None, factory: Any = None,
         ("read", lambda: _read(observations, universe, since, adv_band)),
         ("judged", lambda: _judged(factory, since)),
         ("needs_you", lambda: _needs_you(factory, observations, provenance,
-                                         approvals)),
+                                         approvals, deployed)),
     ):
         try:
             out[name] = fn()
@@ -170,7 +170,7 @@ def _judged(factory: Any, since: datetime) -> dict[str, Any]:
 
 
 def _needs_you(factory: Any, observations: Any, provenance: Any,
-               approvals: Any) -> dict[str, Any]:
+               approvals: Any, deployed: Any = None) -> dict[str, Any]:
     """The only section that asks for anything. Kept short on purpose.
 
     A list of forty things is a list nobody works through, and the fund's whole
@@ -178,6 +178,8 @@ def _needs_you(factory: Any, observations: Any, provenance: Any,
     genuinely need a decision.
     """
     items: list[dict[str, Any]] = []
+    live = set(deployed or ())
+    seen_failing: set[str] = set()
     if factory is not None:
         try:
             for r in (factory.history(limit=50) if hasattr(factory, "history") else []):
@@ -186,6 +188,25 @@ def _needs_you(factory: Any, observations: Any, provenance: Any,
                     # not an opportunity. Asking a human to review it would put
                     # a random strategy on the same page as a real proposal.
                     continue
+                algo = str(r.get("algorithm") or "")
+                # A strategy the fund is ACTUALLY HOLDING that fails the bar is
+                # the most decision-shaped thing this page can contain, and the
+                # digest used to report "nothing needs a decision" on exactly the
+                # morning three of them failed. A passing candidate is an
+                # opportunity; a failing deployed one is live money governed by
+                # something that just did not survive its own test.
+                if (r.get("passed") is False and algo in live
+                        and algo not in seen_failing):
+                    seen_failing.add(algo)
+                    items.append({
+                        "kind": "deployed_strategy_failed",
+                        "what": f"{algo} is DEPLOYED and failed the gate "
+                                f"({r.get('candidate_id')})",
+                        "why_you": "the fund holds a position on this. Keeping "
+                                   "it, flattening it, or keeping the exposure "
+                                   "without the strategy are all your call — "
+                                   "nothing here changes a position",
+                    })
                 if r.get("passed") is True:
                     items.append({
                         "kind": "candidate_passed",
@@ -265,6 +286,11 @@ def _headline(out: dict[str, Any]) -> str:
     judged = out.get("judged") or {}
     needs = out.get("needs_you") or {}
     read = out.get("read") or {}
+    failing_live = [i for i in (needs.get("items") or [])
+                    if i.get("kind") == "deployed_strategy_failed"]
+    if failing_live:
+        return (f"{len(failing_live)} DEPLOYED strategy(s) failed the gate — the "
+                f"fund holds positions on them")
     if needs.get("count"):
         return f"{needs['count']} item(s) need your decision today"
     if judged.get("passed"):
