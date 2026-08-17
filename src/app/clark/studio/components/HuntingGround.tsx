@@ -24,6 +24,11 @@ import { fundApi } from "@/lib/fund_api";
 
 interface Name {
   symbol: string;
+  /** What the business IS. A screen of bare tickers reads as a list; the same
+   *  rows with names on them read as territory you can actually judge. */
+  name?: string | null;
+  security_type?: string | null;
+  cik?: string | null;
   exchange?: string | null;
   adv_usd: number;
   median_close: number;
@@ -35,6 +40,8 @@ interface Name {
 interface Ground {
   count: number;
   closed_to_big_funds_count?: number;
+  identity_source?: string;
+  excluded?: { not_operating?: number; unclassified?: number; note?: string };
   turnover_pct: number;
   capacity_band_usd: number[];
   caveat?: string;
@@ -110,11 +117,23 @@ export function HuntingGround({ onPick }: { onPick?: (symbol: string) => void })
 
       {data && (
         <>
+          {/* "N of N" was a lie of omission: `count` is the length of the PAGE
+              we asked for, not the size of the band, so a 100-row request always
+              reported "100 of 100" and made a screen look exhaustive when it was
+              showing the top slice of thousands. Say what the number is. */}
           <div className={`px-5 pt-3 text-[11px] ${KT.muted}`}>
-            {data.closed_to_big_funds_count ?? 0} of {data.count} in the capacity
-            band are genuinely closed to a $5bn fund at {data.turnover_pct}% daily
-            turnover.
+            {data.closed_to_big_funds_count ?? 0} of the {data.count} shown here
+            are genuinely closed to a $5bn fund at {data.turnover_pct}% daily
+            turnover — this is the most liquid slice of the band, not all of it.
           </div>
+          {data.excluded?.note && (
+            <p className={`px-5 pt-1 text-[10px] ${KT.muted}`}>
+              <span className="font-mono text-[9px] uppercase tracking-wider">
+                identity
+              </span>{" "}
+              {data.excluded.note}
+            </p>
+          )}
           {data.caveat && (
             <p className={`px-5 pt-1 text-[10px] ${KT.muted}`}>{data.caveat}</p>
           )}
@@ -123,6 +142,7 @@ export function HuntingGround({ onPick }: { onPick?: (symbol: string) => void })
               <thead className="sticky top-0 bg-[var(--kt-surface)]">
                 <tr className={KT.label}>
                   <th className="px-3 py-1 text-left font-normal">Symbol</th>
+                  <th className="px-3 py-1 text-left font-normal">Business</th>
                   <th className="px-3 py-1 text-right font-normal">ADV</th>
                   <th className="px-3 py-1 text-right font-normal">Price</th>
                   <th className="px-3 py-1 text-right font-normal">Capacity</th>
@@ -136,6 +156,13 @@ export function HuntingGround({ onPick }: { onPick?: (symbol: string) => void })
                       className={`border-t border-[var(--kt-border)] ${
                         onPick ? "cursor-pointer hover:bg-[var(--kt-hover)]" : ""}`}>
                     <td className="px-3 py-1.5 font-semibold">{n.symbol}</td>
+                    <td className={`max-w-[260px] truncate px-3 py-1.5 ${KT.muted}`}
+                        title={n.name ?? undefined}>
+                      {n.name ?? "—"}
+                      {n.security_type === "ADRC" && (
+                        <span className={`ml-1.5 ${KT.chip}`}>ADR</span>
+                      )}
+                    </td>
                     <td className={`px-3 py-1.5 text-right ${KT.number}`}>{usd(n.adv_usd)}</td>
                     <td className={`px-3 py-1.5 text-right ${KT.number}`}>
                       {n.median_close?.toFixed(2)}

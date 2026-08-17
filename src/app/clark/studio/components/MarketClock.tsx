@@ -54,7 +54,19 @@ const LABEL: Record<MarketSessionResponse["phase"], string> = {
   unknown: "Clock unreachable",
 };
 
+/** What to call it. `simulated` overrides phase: the spine keeps "no session
+ *  because the venue is simulated" distinct from "the venue did not answer" all
+ *  the way through, and collapsing them at the last step throws that away. */
+function labelOf(s: MarketSessionResponse): string {
+  return s.simulated ? "Simulated venue" : LABEL[s.phase];
+}
+
 function toneOf(s: MarketSessionResponse): Tone {
+  // A simulated venue is not a fault. It has no exchange session to report, and
+  // painting it the same red as "we cannot reach the clock" tells the operator
+  // something is broken when nothing is — while hiding the real breakage behind
+  // an indicator that already looks broken all the time.
+  if (s.simulated) return "shut";
   if (s.state === "unknown") return "unknown";
   if (s.state === "open") return "open";
   return s.phase === "pre-market" || s.phase === "after-hours" ? "edge" : "shut";
@@ -117,7 +129,7 @@ export function MarketClock() {
     if (err || !session) return null;
     const elapsed = (Date.now() - fetchedAt) / 1000;
     const tone = toneOf(session);
-    const label = LABEL[session.phase] ?? "Unknown";
+    const label = labelOf(session) ?? "Unknown";
 
     // Only one of these is ever set — open counts to the close, closed to the
     // open. Subtracting the elapsed time is what makes it tick between polls.

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useState } from "react";
 import { StudioHeader } from "../components/StudioHeader";
 import { LeanLab } from "../components/LeanLab";
 import { HuntingGround } from "../components/HuntingGround";
@@ -26,7 +26,26 @@ import { ResearchMap } from "../components/ResearchMap";
  * read the analytics.
  */
 
+/** What the reader carried down from the map. Held here rather than inside
+ *  either component, because it is the handoff BETWEEN them — and the
+ *  observation ids are what let a candidate started from a filing be traced
+ *  back to the sentence that prompted it. */
+interface Brief {
+  ticker: string;
+  observationIds: string[];
+}
+
 export default function LabPage() {
+  const [brief, setBrief] = useState<Brief | null>(null);
+  const labRef = useRef<HTMLDivElement | null>(null);
+
+  const takeToLab = (ticker: string, observationIds?: string[]) => {
+    setBrief({ ticker, observationIds: observationIds ?? [] });
+    // Move the reader to the desk. Setting state without scrolling leaves the
+    // handoff invisible below the fold, which reads as the button doing nothing.
+    labRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <div className="bg-[var(--kt-bg)] text-[var(--kt-text)] min-h-screen">
       <StudioHeader subtitle="Write a strategy, run it on the engine of record — nothing here is registered or persisted" />
@@ -34,11 +53,13 @@ export default function LabPage() {
         {/* The map first, deliberately. A lazy reader trusts whatever is at
             the top, so the top must be the view that shows what is MISSING —
             not the one that ranks what happens to be present. */}
-        <ResearchMap />
+        <ResearchMap onPick={takeToLab} />
         {/* Where to look, before what to test. The fund's whole book sits
             outside this list, which is the argument for putting it first. */}
-        <HuntingGround />
-        <LeanLab />
+        <HuntingGround onPick={(symbol) => takeToLab(symbol)} />
+        <div ref={labRef}>
+          <LeanLab brief={brief} onClearBrief={() => setBrief(null)} />
+        </div>
       </div>
     </div>
   );

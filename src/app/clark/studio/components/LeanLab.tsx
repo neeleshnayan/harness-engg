@@ -183,7 +183,15 @@ interface SavedAlgo {
 
 const pctf = (n?: number | null) => (n == null ? "—" : `${n.toFixed(1)}%`);
 
-export function LeanLab() {
+export function LeanLab({
+  brief,
+  onClearBrief,
+}: {
+  /** A name the reader carried down from the map, with the observation ids that
+   *  prompted it. Optional: the Lab is fully usable without one. */
+  brief?: { ticker: string; observationIds: string[] } | null;
+  onClearBrief?: () => void;
+} = {}) {
   const [code, setCode] = useState(STARTERS[0].code);
   const [name, setName] = useState("my_algorithm");
   const [library, setLibrary] = useState<SavedAlgo[]>([]);
@@ -196,6 +204,14 @@ export function LeanLab() {
   const [note, setNote] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [ask, setAsk] = useState("");
+
+  // Arriving with a name should leave the reader one keystroke from a strategy,
+  // not staring at an empty box wondering what the map wanted. Seeded, never
+  // forced: the text stays editable and an in-progress question is not clobbered.
+  useEffect(() => {
+    if (!brief?.ticker) return;
+    setAsk((prev) => (prev.trim() ? prev : `a strategy on ${brief.ticker}`));
+  }, [brief?.ticker]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -356,6 +372,24 @@ export function LeanLab() {
           </button>
         </div>
       </div>
+
+      {brief?.ticker && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-[var(--kt-border)] bg-[var(--kt-accent-bg)] px-5 py-2.5">
+          <span className={KT.label}>From the map</span>
+          <span className="font-mono text-[12px] font-semibold">{brief.ticker}</span>
+          <span className={`text-[11px] ${KT.muted}`}>
+            {brief.observationIds.length > 0
+              ? `${brief.observationIds.length} observation${
+                  brief.observationIds.length === 1 ? "" : "s"
+                } attached — a candidate submitted through the factory carries them, so its verdict can be traced back to the filing`
+              : "no observations attached — this name came from the screen, not from a filing"}
+          </span>
+          <button onClick={onClearBrief}
+                  className={`ml-auto h-7 ${KT.btnGhost} px-2 text-[11px]`}>
+            Clear
+          </button>
+        </div>
+      )}
 
       {/* ---------------- ask Clark for the code ---------------- */}
       <div className="flex flex-wrap items-center gap-2 border-b border-[var(--kt-border)] px-5 py-3">
