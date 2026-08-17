@@ -1078,6 +1078,32 @@ def research_read(req: ObservationSweepRequest):
                  since=req.since, per_ticker=req.per_ticker, store=o)
 
 
+@router.get("/fund/research/map")
+def research_map(turnover_pct: float = Query(1.0, gt=0, le=100)):
+    """The terrain: what has been read, what it said, and where nothing is.
+
+    The default view, deliberately. A ranked list would answer "what should I
+    look at" while quietly hiding what it flattened; this answers "what does
+    the ground look like", including the regions holding nothing — which is the
+    one thing a list can never say.
+    """
+    o = _observations()
+    if o is None:
+        raise HTTPException(status_code=503, detail="research needs FUND_STORE=postgres")
+    from app.fund.researchmap import build
+    u = _universe()
+    size = None
+    if u is not None:
+        try:
+            # The TRUE count, not the length of a limited page — using the page
+            # size would have reported "3 of 2,000" for a band holding 5,557,
+            # flattering our coverage on the one view built to be honest.
+            size = u.hunting_ground_count(turnover_pct=turnover_pct)
+        except Exception as e:  # noqa: BLE001
+            logger.info("hunting ground size unavailable for the map: %s", e)
+    return build(o, universe=u, hunting_ground_size=size)
+
+
 @router.get("/fund/research/observations")
 def research_observations(ticker: str | None = Query(None),
                           category: str | None = Query(None),

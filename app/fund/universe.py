@@ -295,6 +295,30 @@ class Universe:
                 f"measured {age_h:.1f} hours ago"),
         }
 
+    def hunting_ground_count(self, turnover_pct: float = 5.0,
+                             participation: float = 0.01,
+                             min_capacity: float = 100_000.0,
+                             max_capacity: float = 50_000_000.0) -> int:
+        """How many names are in the band — the TRUE count, not a page of them.
+
+        Separate from hunting_ground() on purpose. That method takes a limit
+        because nobody wants five thousand rows, and using the length of a
+        limited page as a denominator would report "3 of 2,000" when the real
+        answer is "3 of 5,557" — understating the unexplored territory, which
+        is precisely the dishonesty the map exists to prevent.
+        """
+        t = turnover_pct / 100.0
+        if t <= 0:
+            raise ValueError("turnover must be positive")
+        adv_lo = min_capacity * t / participation
+        adv_hi = max_capacity * t / participation
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT count(*) FROM fund_universe WHERE adv_usd BETWEEN %s AND %s",
+                    (adv_lo, adv_hi))
+                return int(cur.fetchone()[0])
+
     def stats(self) -> dict[str, Any]:
         with self._connect() as conn:
             with conn.cursor() as cur:
