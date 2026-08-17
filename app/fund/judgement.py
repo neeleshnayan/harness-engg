@@ -255,10 +255,54 @@ def registry() -> list[Judgement]:
                          "loosening was caught. (2) Buy more history: this is a "
                          "measurement OF THE DATA and should rise when the data "
                          "allows. If it does not, something else is binding and we "
-                         "have misdiagnosed the constraint.",
-            review_trigger="null audit gains a walk-forward leg, so the real "
-                           "false-positive rate replaces the arithmetic above",
+                         "have misdiagnosed the constraint. KNOWN DEFECT, measured "
+                         "2026-08-18: this is a FIXED floor while the number of "
+                         "available folds grows with history, so a null can end up "
+                         "with a handful of measurable folds and win a majority of "
+                         "that small subset. Simulated false-positive rate rises "
+                         "2.9% -> 12.5% between 30 months and 5 years of data. It "
+                         "must be made to scale BEFORE any new history is trusted, "
+                         "or a data purchase loosens the gate silently.",
+            review_trigger="ANY extension of history past 2024-02-26 — this is a "
+                           "blocking review, not a periodic one",
             review_by="2026-10-15"),
+        Judgement(
+            "gate_walkforward_false_positive_pct",
+            where="docs/GATE_CALIBRATION_2026-08-18.md; "
+                  "scripts/gate_power_audit.py", basis="measured",
+            expected=2.9,
+            why="Gate v4's walk-forward leg passes pure noise 2.9% of the time on "
+                "our 630 sessions, over 4,000 draws. This is the number gate v1's "
+                "~50% failure started the whole calibration to find, and no reader "
+                "is wired because it is the output of a simulation rather than a "
+                "constant — re-run the script to re-measure it.",
+            falsified_by="Re-running the audit and getting a materially different "
+                         "figure, or — the real test — giving null_audit.py a "
+                         "walk-forward leg and finding the REAL belt disagrees with "
+                         "this model. A model of the gate's statistics is not a run "
+                         "of the gate, and only the second one settles it.",
+            review_trigger="null_audit.py gains a walk-forward leg",
+            review_by="2026-11-15"),
+        Judgement(
+            "gate_walkforward_power_at_sharpe_1",
+            where="docs/GATE_CALIBRATION_2026-08-18.md", basis="measured",
+            expected=22.8,
+            why="A genuinely good Sharpe-1.0 strategy clears the walk-forward leg "
+                "22.8% of the time on 30 months of history, and 80% power is "
+                "unreachable at any Sharpe up to 2.0. An UPPER BOUND: the "
+                "synthetic edge never decays. Registered because it bounds what "
+                "this fund can learn — at this resolution only strong edges are "
+                "confirmable, so hunting modest ones yields NOT TESTABLE rather "
+                "than knowledge, and the alpha sleeve's rarity is a measured "
+                "property of the instrument rather than a broken pipeline.",
+            falsified_by="More history: power rises to 84.7% at Sharpe 1.5 with 10 "
+                         "years. If a data purchase does NOT move this, the "
+                         "constraint was never history and the diagnosis is wrong. "
+                         "Also falsified by any dashboard or report that renders "
+                         "NOT TESTABLE as a rejection — at Sharpe 0.6 that is 71% "
+                         "of real strategies being described as failures.",
+            review_trigger="any extension of history, or a cost-aware re-run",
+            review_by="2026-11-15"),
         Judgement(
             "MIN_TRAIN_RETURN_PCT",
             where="app/fund/walkforward.py", basis="judged",
