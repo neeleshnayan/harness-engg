@@ -111,6 +111,11 @@ def test_unreachable_postgres_refuses_rather_than_assuming_solitude():
 
 
 def test_dispatch_selects_postgres_when_configured(monkeypatch):
+    """Guarded like its siblings: constructing the lease OPENS a connection, so
+    without the skip this hangs for the connect timeout and then fails on a
+    machine with no Postgres — reporting a dispatch bug that is really a
+    missing container."""
+    _lease("guard-check")          # skips cleanly when Postgres is unreachable
     monkeypatch.setenv("FUND_STORE", "postgres")
     from app.fund.lease import SchedulerLease
     from app.fund.pglease import PostgresSchedulerLease

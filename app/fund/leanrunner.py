@@ -271,7 +271,16 @@ class LeanRunner:
     # --- jobs ----------------------------------------------------------------
 
     def submit_backtest(self, algorithm: str,
-                        parameters: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+                        parameters: Optional[dict[str, Any]] = None,
+                        enrich: bool = True) -> dict[str, Any]:
+        """Run one backtest.
+
+        ``enrich`` controls the extras that cost a NETWORK call — the buy-and-
+        hold benchmark and the capacity estimate. Sweep points set it False:
+        twenty-four grid points would otherwise make twenty-four fetches for
+        numbers the comparison never reads, which is slow in production and
+        was enough to make the suite flaky under load.
+        """
         algo = self.get_algorithm(algorithm)  # raises on unknown
         m = _CLASS_RE.search(algo["code"])
         if not m:
@@ -283,6 +292,7 @@ class LeanRunner:
             "state": "queued", "submitted_at": _now(),
             "started_at": None, "finished_at": None,
             "parameters": parameters,
+            "enrich": enrich,
             "error": None, "result": None, "log_tail": [],
         }
         with self._lock:
@@ -490,7 +500,7 @@ class LeanRunner:
         """One engine run, waited out. Sequential on purpose: each point is a
         full container, and running the grid in parallel would have them
         fighting for the same cores — same wall time, different failures."""
-        job_id = self.submit_backtest(algorithm, params)["job_id"]
+        job_id = self.submit_backtest(algorithm, params, enrich=False)["job_id"]
         deadline = time.monotonic() + JOB_TIMEOUT_S + 60
         while time.monotonic() < deadline:
             j = self.job(job_id)
@@ -616,7 +626,8 @@ class LeanRunner:
                 job["state"] = "done" if job["result"] else "failed"
                 if not job["result"]:
                     job["error"] = "engine finished but wrote no parsable results"
-                else:
+                elif job.get("enrich", True):
+                    # Network-backed extras, skipped for sweep points.
                     self._add_benchmark(job["result"])
                     self._add_cost_disclosure(job)
                     self._add_capacity(job["result"])

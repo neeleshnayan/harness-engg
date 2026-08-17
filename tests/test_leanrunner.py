@@ -660,3 +660,22 @@ def test_a_cost_sweep_reports_breakeven_in_the_summary():
     from app.fund.leanrunner import _sweep_summary
     s = _sweep_summary([_pt(0.0, 4.0), _pt(0.0005, 2.0), _pt(0.001, -2.0)])
     assert s["breakeven_cost"]["breakeven_bps"] is not None
+
+
+def test_sweep_points_skip_the_network_backed_extras(tmp_path):
+    """Capacity and the benchmark each cost a live fetch, and a sweep never
+    reads either — the grid rows carry neither. Twenty-four points meant
+    twenty-four fetches for numbers nobody looks at, which slowed real sweeps
+    and made the suite flaky under load."""
+    r = _runner(tmp_path, FAKE_PARAMS)
+    r.save_algorithm("smoke", ALGO)
+    calls = []
+    r._add_capacity = lambda result: calls.append("capacity")      # type: ignore
+    r._add_benchmark = lambda result: calls.append("benchmark")    # type: ignore
+
+    _wait_sweep(r, r.submit_sweep("smoke", {"fast": ["5", "10"]})["sweep_id"])
+    assert calls == []
+
+    # A standalone run still gets them: that is the result a human reads.
+    _wait(r, r.submit_backtest("smoke")["job_id"])
+    assert "capacity" in calls and "benchmark" in calls
