@@ -760,6 +760,60 @@ export interface ResearchBacktestResponse {
   signals: number[];
 }
 
+/** One stage of the operating doctrine.
+ *
+ *  `status` has three values and the third is load-bearing: "unknown" means the
+ *  system could not tell, which is neither "holds" nor "gap". Collapsing it into
+ *  either would be the absence-is-zero error the doctrine exists to prevent.
+ *
+ *  `basis` says how much the status is worth — "measured" is read from the live
+ *  system, "attested" is a human claim with no automatic reading available.
+ */
+export interface DoctrineStage {
+  n: number;
+  title: string;
+  ask: string;
+  why: string;
+  /** The specific incident that earned this stage. A rule with no incident
+   *  behind it is a preference, and decays like one. */
+  earned_by: string;
+  mechanism: string;
+  status: 'holds' | 'gap' | 'unknown';
+  basis: 'measured' | 'attested';
+  detail?: string;
+}
+
+export interface DoctrineReview {
+  /** Path to the canonical copy. If page and repo disagree, the repo wins. */
+  canon: string;
+  stages: DoctrineStage[];
+  absence_doctrine: { this: string; is_never: string; because: string }[];
+  invariants: string[];
+  /** Stage numbers currently failing. */
+  gaps: number[];
+  /** Stage numbers whose status could not be read. */
+  unknown: number[];
+  measured_count: number;
+  note: string;
+}
+
+export interface LivenessJob {
+  job: string;
+  /** null = not yet observed in the serving process. Not healthy, not broken. */
+  ok: boolean | null;
+  budget_seconds?: number | null;
+  at?: string;
+  age_seconds?: number;
+  note?: string;
+}
+
+export interface LivenessReport {
+  jobs: LivenessJob[];
+  stale: string[];
+  unobserved: string[];
+  note: string;
+}
+
 export interface RiskMonitorResponse {
   nav_usd: number;
   cash_usd: number;
@@ -1665,6 +1719,20 @@ export const fundApiClient = {
 
   resumeTrading: async (actor = 'operator'): Promise<{ status: string; halted: boolean }> =>
     (await fundApi.post(`${P}/risk/resume`, { actor })).data,
+
+  /** The seven-stage operating doctrine, with each stage's status read LIVE.
+   *
+   *  Status is READ, never restated in the client. A doctrine view that carried
+   *  its own copy of "stage 02: holds" would reproduce the exact failure stage 02
+   *  exists because of — a control documented as operating while nothing called
+   *  it. The canon is ClarkHarness/docs/FUND_GENESIS.md. */
+  getDoctrine: async (): Promise<DoctrineReview> =>
+    (await fundApi.get(`${P}/doctrine`)).data,
+
+  /** Which scheduled jobs actually ran. `ok: null` means NOT YET OBSERVED, which
+   *  is neither healthy nor broken — another process may hold the lease. */
+  getLiveness: async (): Promise<LivenessReport> =>
+    (await fundApi.get(`${P}/liveness`)).data,
 };
 
 export default fundApi;

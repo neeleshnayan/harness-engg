@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, BookOpen, FlaskConical, ShieldAlert, Sliders } from "lucide-react";
+import { Activity, BookOpen, FlaskConical, ScrollText, ShieldAlert, Sliders } from "lucide-react";
 
 /**
  * Workflow-first navigation, ordered by how often it is used.
@@ -24,6 +24,11 @@ import { Activity, BookOpen, FlaskConical, ShieldAlert, Sliders } from "lucide-r
  *
  * Thesis owns automatic theme discovery, multi-source research intelligence,
  * and deterministic bull/bear thesis generation.
+ *
+ * Doctrine is last on purpose. It is the workflow itself — consulted while
+ * building, not part of the five-minute operational check — but it is IN the nav
+ * rather than in a document because a workflow nobody can see violated is a
+ * workflow nobody follows. Its stage statuses are read live, never hardcoded.
  */
 const TABS = [
   { href: "/clark/studio", label: "Monitor", icon: Activity, exact: true,
@@ -36,6 +41,8 @@ const TABS = [
     hint: "Diversification, tail risk, market regime and survivability" },
   { href: "/clark/studio/thesis", label: "Thesis", icon: BookOpen,
     hint: "Automatic theme discovery & investment thesis generator" },
+  { href: "/clark/studio/doctrine", label: "Doctrine", icon: ScrollText,
+    hint: "Fund Genesis — the seven-stage workflow, with each stage's status read live" },
 ];
 
 export function StudioNav() {
