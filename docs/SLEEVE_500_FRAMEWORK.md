@@ -99,14 +99,27 @@ That last one is the gap.
 
 ## 3. The exit machinery — built since this document was first written
 
-When this was drafted there was **no exit machinery at all**: no stop, no
-take-profit, no time-exit, nothing holding us to a pre-registered rule.
-`underwater_pct` raised an alarm and then waited for a human who was, by then, a
-human with a position. That was the one piece blocking "managed end to end" from
-being a true description.
+> **CORRECTION 2026-08-18.** An earlier revision of this section claimed the exit
+> rule "is evaluated on every mark" and that a fired rule "puts a closing order in
+> the approval queue". ~~Both halves were false.~~ `EXIT_RULE_TRIGGERED` was
+> emitted by no code in the repository; `ExitRules.check()` was a pure read
+> reachable only from an endpoint nothing called. The mechanism was verified by
+> calling it *by hand*, and that was read as the loop being closed.
+>
+> The consequence was worse than a wrong sentence: §1's primary falsification
+> condition — "an exit fires and no closing proposal appears in the queue" — was
+> **guaranteed true** before a single order existed. The test could not have been
+> passed.
+>
+> Now genuinely wired (`ExitRules.enforce()`, ticked from `main.py::_scheduler`)
+> and verified *unattended*: seq 170 `ExitRuleSet` → 171 `OrderProposed` → 172
+> `ExitRuleTriggered`, chain 172/172, with nobody calling an endpoint. The
+> struck-through claim is left visible rather than edited away, so the record shows
+> what we believed and when. See `docs/FUND_GENESIS.md` stage 02.
 
-It exists now (`app/fund/exitrule.py`), and was verified live — chain 165→168, one
-rule fired with its reason quoted, one holding, one override recorded:
+The mechanism exists (`app/fund/exitrule.py`) and behaves as follows — three events
+verified live, one rule fired with its reason quoted, one holding, one override
+recorded:
 
 1. **The rule is an event** (`EXIT_RULE_SET`), recorded at deployment. That single
    choice is what makes it a commitment: a rule in a document can be edited by the
@@ -147,12 +160,21 @@ Two smaller gaps, still open:
 | Exit | Pre-registered rule fires → proposal | `exitrule.py`, event log | **yes — built since §3** |
 | Review | Weekly written note, kept whatever the outcome | this repo | yes, by habit |
 
-**All eight steps are now instrumented.** The exit was the missing one, and it was
-also the step where discipline is hardest and most valuable — which is why it was
-built before any order rather than after the first one. Deploying first and
-building the exit afterwards would have meant the first exit decision was made by a
-human holding a position, which is precisely the failure mode the pre-registration
-exists to prevent.
+> **CORRECTION 2026-08-18.** This table previously read
+> ~~"All eight steps are now instrumented"~~ on the strength of the exit mechanism
+> existing. Existing and being *wired* are different claims, and only the second one
+> licenses that sentence. Two rows were wrong at once: `Exit` was unreachable, and
+> `Monitor` depended on `RiskMonitor.run()`, which had **zero callers** — so the
+> documented −10% drawdown and −4% daily-loss halts would not have fired either.
+> Both are scheduled now, with a heartbeat so a *missing* tick is visible as an
+> absence rather than as silence (`GET /fund/liveness`).
+
+**All eight steps are instrumented and, as of 2026-08-18, actually scheduled.** The
+exit was the last one, and it is also the step where discipline is hardest and most
+valuable — which is why it was built before any order rather than after the first
+one. Deploying first and building the exit afterwards would have meant the first
+exit decision was made by a human holding a position, which is precisely the
+failure mode the pre-registration exists to prevent.
 
 The weakest remaining row is **Review**, marked "yes, by habit" — meaning nothing
 enforces it, and a missed week is one of the four falsification conditions in §1.

@@ -204,6 +204,19 @@ CRITERIA_V1: dict[str, Any] = {
     "require_walkforward": False,
     "require_breakeven_measured": False,
     "require_capacity_measured": False,
+    # Added 2026-08-18. The comment above stated the principle correctly and this
+    # dict then fell behind it: these three keys arrived with v2/v3 and were never
+    # backfilled here, so `set(CRITERIA_V1) != set(CRITERIA)` and a v1 verdict
+    # re-read today would have inherited v4's fold geometry — 4 folds, a strict
+    # majority, 4 decisions per test leg — none of which v1 had any concept of.
+    #
+    # Zero rather than absent, for the same reason `require_walkforward: False` is
+    # written out: v1's bar has to be describable in full, including the parts it
+    # did not ask about. Found by the doctrine surface's own stage-07 check on the
+    # day it was built, which is the best possible advertisement for the check.
+    "min_walkforward_folds": 0,
+    "min_walkforward_folds_retained_share": 0.0,
+    "min_decisions_per_test_leg": 0,
 }
 
 

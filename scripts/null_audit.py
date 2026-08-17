@@ -84,11 +84,25 @@ def main() -> None:
         print(f"  candidate {cid} running ...", flush=True)
         c = await_candidate(cid)
         passed = c.get("passed")
+        # The walk-forward leg, recorded per null. The BELT has always run it —
+        # factory.py calls _walkforward for every candidate — this script simply
+        # never wrote it down, so no null audit has ever reported the behaviour of
+        # the criterion that replaced PSR as the load-bearing one. An outside
+        # review read that as "null_audit has no walk-forward leg", which was the
+        # right smell from slightly the wrong evidence: the leg runs, nobody
+        # recorded it, and the audit had not been re-run since it existed.
+        wf = c.get("walkforward") or {}
         results.append({"seed": seed, "candidate_id": cid,
                         "state": c.get("state"), "passed": passed,
                         "failures": c.get("failures"),
-                        "winner": c.get("winner")})
-        print(f"  state={c.get('state')} passed={passed}", flush=True)
+                        "winner": c.get("winner"),
+                        "wf_measurable": wf.get("folds_measurable"),
+                        "wf_retained": wf.get("folds_retained"),
+                        "wf_not_testable": bool(wf.get("not_testable")),
+                        "wf_note": (wf.get("note") or "")[:160]})
+        print(f"  state={c.get('state')} passed={passed} "
+              f"walkforward={wf.get('folds_retained')}/{wf.get('folds_measurable')}"
+              f"{' NOT-TESTABLE' if wf.get('not_testable') else ''}", flush=True)
         for f in (c.get("failures") or []):
             print(f"    - {f}", flush=True)
 
@@ -134,12 +148,47 @@ def main() -> None:
     for crit, n in fired.most_common():
         print(f"    {n:2d}x {crit}", flush=True)
 
+    # What the walk-forward leg actually did. If every null died upstream of it,
+    # this audit says nothing about the criterion the gate leans on hardest.
+    reached = [r for r in judged if r.get("wf_measurable") is not None]
+    nt = [r for r in reached if r.get("wf_not_testable")]
+    print("", flush=True)
+    print("  the walk-forward leg on these nulls:", flush=True)
+    if not reached:
+        print("    NO null reached a walk-forward result, so this audit says "
+              "NOTHING about the load-bearing criterion — it measured the rules "
+              "upstream of it.", flush=True)
+    else:
+        print(f"    {len(reached)} reached it; {len(nt)} came back NOT TESTABLE "
+              f"(which is not a failure)", flush=True)
+        for r in reached:
+            print(f"      seed {r['seed']}: retained {r.get('wf_retained')} of "
+                  f"{r.get('wf_measurable')} measurable folds", flush=True)
+
+    # The honest bound. A handful of nulls cannot resolve a small rate, and
+    # "0 of 6 passed, so the rate is 0%" is the absence-is-zero error wearing a
+    # statistic. One-sided 95% upper bound given zero observed passes.
+    n = len(judged)
+    if not passes and n:
+        upper = (1.0 - 0.05 ** (1.0 / n)) * 100.0
+        print("", flush=True)
+        print(f"  BOUND, stated rather than implied: 0 of {n} nulls passed, so the "
+              f"true rate is under {upper:.0f}% at 95% confidence. That is the "
+              f"resolution {n} LEAN runs buys — NOT a claim of zero. Bounding it "
+              f"under 10% needs about 29 clean nulls.", flush=True)
+        print("  The PRECISE estimate lives in scripts/gate_power_audit.py (2.9% "
+              "over 4,000 draws). This run checks what that simulation cannot "
+              "see: whether the REAL belt leaks — look-ahead in the feed, a cost "
+              "model that does not bite, survivorship doing the work.", flush=True)
+
     out = "docs/null_audit_results.json"
     with open(out, "w") as fh:
         json.dump({"seeds": SEEDS, "grid": GRID, "holdout": HOLDOUT,
                    "results": results,
                    "judged": len(judged), "passes": len(passes),
-                   "false_positive_rate": rate}, fh, indent=1)
+                   "false_positive_rate": rate,
+                   "walkforward_reached": len(reached),
+                   "walkforward_not_testable": len(nt)}, fh, indent=1)
     print(f"\n  written to {out}", flush=True)
 
 

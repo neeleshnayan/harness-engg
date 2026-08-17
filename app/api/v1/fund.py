@@ -1259,6 +1259,20 @@ def research_map(turnover_pct: float = Query(1.0, gt=0, le=100)):
     return build(o, universe=u, hunting_ground_size=size, adv_band=adv_band)
 
 
+@router.get("/fund/doctrine")
+def operating_doctrine():
+    """The seven-stage workflow, with each stage's status read LIVE where possible.
+
+    docs/FUND_GENESIS.md is canonical. This endpoint exists so the workflow can be
+    a surface rather than a page, and status is READ rather than restated - a
+    doctrine view that hardcoded "stage 02: HOLDS" would reproduce the exact
+    failure stage 02 exists because of.
+    """
+    from app.fund import doctrine, judgement
+    judgement.use_control(_control)
+    return doctrine.review()
+
+
 @router.get("/fund/liveness")
 def scheduled_job_liveness():
     """Which periodic jobs have actually run, and which are overdue.
