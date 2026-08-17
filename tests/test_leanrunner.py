@@ -1083,3 +1083,91 @@ def test_every_point_is_still_recorded_when_one_of_them_fails(tmp_path):
     assert sweep["completed"] == sweep["total"]
     params = sorted(p["parameters"]["fast"] for p in sweep["points"])
     assert params == ["2", "3", "4", "5", "6"], "a grid point was lost"
+
+
+# --- results retention ------------------------------------------------------
+#
+# Engine output grew without bound: 501 directories, 188 MB, and nothing ever
+# removed one. The parsed result is mirrored to Postgres, so a settled job's
+# directory is debug material rather than the record — but deleting one somebody
+# needed costs a debugging session, so every safety property gets a test.
+
+def _mk_result_dir(r: LeanRunner, name: str, age_days: float) -> Path:
+    import os
+    d = r._ws / "results" / name
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "out.json").write_text("{}", encoding="utf-8")
+    when = time.time() - age_days * 86400.0
+    os.utime(d, (when, when))
+    return d
+
+
+def test_prune_removes_only_what_is_past_the_window(tmp_path):
+    r = _runner(tmp_path, FAKE_OK)
+    old = _mk_result_dir(r, "old-job", age_days=5)
+    fresh = _mk_result_dir(r, "fresh-job", age_days=0.1)
+    out = r.prune_results(max_age_days=1, keep_newest=0)
+    assert out["removed"] == 1
+    assert not old.exists()
+    assert fresh.exists(), "a directory inside the retention window was deleted"
+
+
+def test_prune_never_touches_a_queued_or_running_job(tmp_path):
+    """Whatever its age. A job still writing is not a stale result."""
+    r = _runner(tmp_path, FAKE_OK)
+    d = _mk_result_dir(r, "busy-job", age_days=99)
+    r._jobs["busy-job"] = {"state": "running"}
+    out = r.prune_results(max_age_days=1, keep_newest=0)
+    assert d.exists(), "deleted the output of a running job"
+    assert out["skipped_in_use"] == 1
+    assert out["removed"] == 0
+
+
+def test_prune_never_touches_a_live_session(tmp_path):
+    """A live session holds its directory for the whole session."""
+    r = _runner(tmp_path, FAKE_OK)
+    d = _mk_result_dir(r, "live-abc123", age_days=99)
+    out = r.prune_results(max_age_days=1, keep_newest=0)
+    assert d.exists(), "deleted a live session's directory"
+    assert out["removed"] == 0
+
+
+def test_the_newest_survive_regardless_of_age(tmp_path):
+    """Age alone is the wrong rule.
+
+    After an idle week EVERY directory is stale, and a fresh failure would have
+    its evidence swept before anyone read it.
+    """
+    r = _runner(tmp_path, FAKE_OK)
+    dirs = [_mk_result_dir(r, f"job-{i}", age_days=10 + i) for i in range(6)]
+    out = r.prune_results(max_age_days=1, keep_newest=3)
+    surviving = [d for d in dirs if d.exists()]
+    assert len(surviving) == 3
+    assert out["removed"] == 3
+    # The three kept must be the NEWEST three, which are the lowest ages.
+    assert sorted(d.name for d in surviving) == ["job-0", "job-1", "job-2"]
+
+
+def test_prune_reports_what_it_reclaimed_rather_than_logging_silently(tmp_path):
+    import os
+    r = _runner(tmp_path, FAKE_OK)
+    for i in range(3):
+        d = _mk_result_dir(r, f"j{i}", age_days=9)
+        (d / "big.bin").write_bytes(b"x" * 200_000)
+        # Backdate AGAIN: writing into the directory reset its mtime, so the
+        # first version of this test aged the directory and then un-aged it.
+        when = time.time() - 9 * 86400.0
+        os.utime(d, (when, when))
+    out = r.prune_results(max_age_days=1, keep_newest=0)
+    assert out["removed"] == 3
+    assert out["reclaimed_mb"] > 0.3
+    assert "reclaimed" in out["note"]
+
+
+def test_prune_on_a_missing_results_dir_is_not_an_error(tmp_path):
+    r = _runner(tmp_path, FAKE_OK)
+    import shutil
+    shutil.rmtree(r._ws / "results")
+    out = r.prune_results()
+    assert out["removed"] == 0
+    assert "no results dir" in out["note"]

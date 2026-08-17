@@ -60,23 +60,43 @@ MAX_SWEEP_POINTS = int(os.getenv("LEAN_MAX_SWEEP_POINTS", "24"))
 #: LEAN's behalf. The fix is the cap, not the concurrency.
 #:
 #: The machine is a 12-core / 24-thread Ryzen 9 7900X that was running one
-#: container at a few percent of one core. Sized from FREE RAM rather than cores,
-#: which is the binding resource: 4 slots at a 1 GiB cap is 4 GiB against ~5 GB
-#: free, leaving headroom for the spine, Postgres and the dev server. Cores are
-#: not the constraint and neither is the GPU — LEAN is single-threaded .NET per
-#: backtest and has no GPU path at all.
-MAX_CONCURRENT_CONTAINERS = int(os.getenv("LEAN_MAX_CONCURRENT", "4"))
+#: container at a few percent of one core. Cores are not the constraint, and
+#: neither is the GPU — LEAN is single-threaded .NET per backtest with no GPU path.
+#:
+#: MEASURED A/B against the real engine (`scripts/parallelism_bench.py`, results in
+#: docs/parallelism_bench.json), same sweep serialised then concurrent:
+#:
+#:     slots   points   serial   concurrent   speedup   peak containers seen
+#:       4        4      141.0s      44.0s     3.20x    4
+#:       8        8      286.1s      54.0s     5.30x    8
+#:
+#: 8 is faster in absolute terms and is NOT the shipped default, deliberately. It
+#: only fit because actual usage was ~459 MiB rather than the 1 GiB cap: eight caps
+#: is 8 GiB against ~5 GB free, so it worked by relying on Docker not committing
+#: the reservation — which is precisely the assumption that produced WinError 1455
+#: the first time. The sizing rule has to be `slots x cap <= free RAM`, holding
+#: even if every container claimed its ceiling.
+#:
+#: So 6 slots at a 768 MiB cap = 4.5 GiB worst case, inside ~5 GB free, and it
+#: captures most of a gain measured between 3.2x and 5.3x. Raise it with
+#: LEAN_MAX_CONCURRENT once there is more RAM, not once it "seems fine".
+MAX_CONCURRENT_CONTAINERS = int(os.getenv("LEAN_MAX_CONCURRENT", "6"))
 
 #: Hard ceiling per container. Without it one runaway algorithm can exhaust the
 #: host and take unrelated runs down with it — the failure is never contained to
 #: the job that caused it.
 #:
-#: 1 GiB is ~2.2x the observed peak (450 MiB), which is headroom for a heavier
-#: universe without reserving memory nothing asks for. If a genuinely larger
-#: backtest OOMs at this cap it will fail loudly and in isolation, which is the
-#: behaviour this ceiling exists to produce — and is a far better failure than the
-#: silent host-wide crash the old 3 GiB reservation caused.
-CONTAINER_MEMORY = os.getenv("LEAN_CONTAINER_MEMORY", "1g")
+#: 768 MiB is ~1.7x the highest peak observed across the benchmark arms (459 MiB at
+#: 8-way concurrency, 398 MiB at 1-way — it does creep up under load). Chosen with
+#: the slot count rather than separately, because only the PRODUCT has to fit free
+#: RAM: 6 x 768 MiB = 4.5 GiB.
+#:
+#: If a genuinely heavier universe OOMs at this cap it fails loudly and in
+#: isolation, which is what this ceiling is for, and is a far better failure than
+#: the silent host-wide crash the old 3 GiB reservation caused. That is the trade
+#: being made: a contained failure we will see, instead of an uncontained one we
+#: misdiagnosed for a week.
+CONTAINER_MEMORY = os.getenv("LEAN_CONTAINER_MEMORY", "768m")
 
 #: Backtests and sweeps queue against this. Live sessions deliberately do NOT:
 #: a live session holds its container for the whole session, so letting it draw
@@ -665,6 +685,95 @@ class LeanRunner:
                 return j
             time.sleep(1.0)
         return {"state": "failed", "error": "point outlasted its deadline"}
+
+    #: How long an engine's raw output is kept on disk. Every backtest writes a
+    #: results directory and nothing ever removed one, so 501 of them had
+    #: accumulated to 188 MB — unbounded growth on the one resource this machine is
+    #: already short of. The parsed result is mirrored to Postgres, so after a job
+    #: settles the directory is debug material rather than the record.
+    #: 1 day, not 3. MEASURED age distribution when this was written: 175 dirs
+    #: under 6h, 263 more within a day, 63 within two — roughly 440 directories and
+    #: 165 MB PER DAY of active research. A 3-day window would therefore cap steady
+    #: state near half a gigabyte, which is not a retention policy so much as a
+    #: slower leak. A failure gets debugged the same day it happens, and the parsed
+    #: result is in Postgres either way.
+    RESULTS_RETENTION_DAYS = float(os.getenv("LEAN_RESULTS_RETENTION_DAYS", "1"))
+
+    #: Kept regardless of age, newest first. Age alone is the wrong rule on its own:
+    #: after an idle week every directory is stale and a fresh failure would have
+    #: its evidence swept before anyone read it.
+    RESULTS_KEEP_NEWEST = int(os.getenv("LEAN_RESULTS_KEEP_NEWEST", "40"))
+
+    def prune_results(self, max_age_days: Optional[float] = None,
+                      keep_newest: Optional[int] = None) -> dict[str, Any]:
+        """Delete engine output that is neither recent nor in use.
+
+        Deliberately conservative on all three axes, because the cost of deleting
+        a directory someone needed is a lost debugging session and the cost of
+        keeping one is a few megabytes:
+
+          * a job that is queued or running is NEVER touched, whatever its age
+          * live-session directories are never touched — a live session holds its
+            directory for the whole session
+          * the newest N survive regardless of age
+
+        Returns what it removed and what it reclaimed rather than logging silently,
+        so a sweep that deletes far more than expected is visible.
+        """
+        import shutil
+
+        age = self.RESULTS_RETENTION_DAYS if max_age_days is None else max_age_days
+        keep = self.RESULTS_KEEP_NEWEST if keep_newest is None else keep_newest
+        root = self._ws / "results"
+        if not root.exists():
+            return {"removed": 0, "reclaimed_mb": 0.0, "note": "no results dir"}
+
+        # In-flight work, by id. A directory is named for its job or session.
+        busy = set()
+        for jid, j in list(self._jobs.items()):
+            if j.get("state") in ("queued", "running"):
+                busy.add(jid)
+        for sid in list(getattr(self, "_live", {}) or {}):
+            busy.add(f"live-{sid}")
+
+        try:
+            dirs = [p for p in root.iterdir() if p.is_dir()]
+        except OSError as e:
+            return {"removed": 0, "reclaimed_mb": 0.0,
+                    "note": f"could not list results: {e}"}
+        dirs.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+
+        cutoff = time.time() - age * 86400.0
+        removed, bytes_freed, skipped_busy = 0, 0, 0
+        for i, p in enumerate(dirs):
+            if i < keep:
+                continue
+            if p.name in busy or p.name.startswith("live-"):
+                skipped_busy += 1
+                continue
+            try:
+                if p.stat().st_mtime >= cutoff:
+                    continue
+                size = sum(f.stat().st_size for f in p.rglob("*") if f.is_file())
+                shutil.rmtree(p)
+                removed += 1
+                bytes_freed += size
+            except OSError as e:  # noqa: PERF203
+                logger.info("could not prune %s: %s", p.name, e)
+
+        mb = round(bytes_freed / (1024 * 1024), 1)
+        if removed:
+            logger.info("pruned %d engine result dir(s), reclaimed %.1f MB "
+                        "(kept newest %d, retention %.1fd)", removed, mb, keep, age)
+        return {
+            "removed": removed, "reclaimed_mb": mb, "kept_newest": keep,
+            "retention_days": age, "skipped_in_use": skipped_busy,
+            "remaining": len(dirs) - removed,
+            "note": (f"removed {removed} dir(s), reclaimed {mb} MB; "
+                     f"{len(dirs) - removed} remain"
+                     if removed else
+                     f"nothing older than {age:.1f}d outside the newest {keep}"),
+        }
 
     def _run_sweep(self, sweep_id: str, combos: list[dict[str, str]]) -> None:
         sweep = self._sweeps[sweep_id]

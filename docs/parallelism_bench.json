@@ -1,0 +1,26 @@
+{
+ "serial": {
+  "concurrency": 1,
+  "points": 6,
+  "state": "done",
+  "wall_seconds": 214.1,
+  "points_completed": 6,
+  "peak_concurrent_containers": 1,
+  "peak_container_mib": 428.2,
+  "median_container_mib": 378.2,
+  "samples": 73
+ },
+ "concurrent": {
+  "concurrency": 6,
+  "points": 6,
+  "state": "done",
+  "wall_seconds": 49.0,
+  "points_completed": 6,
+  "peak_concurrent_containers": 6,
+  "peak_container_mib": 461.5,
+  "median_container_mib": 370.9,
+  "samples": 15
+ },
+ "speedup": 4.369,
+ "ideal": 6
+}

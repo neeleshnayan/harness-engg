@@ -208,6 +208,14 @@ async def _scheduler():
             fund_router.run_factory_reconcile_tick()
         except Exception as e:  # noqa: BLE001
             _log.warning("factory reconcile tick failed: %s", e)
+        # Engine output older than the retention window. Cheap: it lists one
+        # directory and returns immediately when nothing is due. Unbounded growth
+        # on disk is the same class of problem as the unbounded `running` rows
+        # above — nothing was wrong with any single write, and nothing removed them.
+        try:
+            fund_router.run_results_prune_tick()
+        except Exception as e:  # noqa: BLE001
+            _log.warning("results prune tick failed: %s", e)
         if since_strike >= strike_every:
             since_strike = 0
             # Both of these WRITE to the permanent log — a NAV_STRUCK snapshot

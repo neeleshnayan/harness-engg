@@ -239,6 +239,7 @@ def _timeline(events: Any, candidates: Any) -> dict[str, Any]:
             "algorithm": c.get("algorithm"),
             "candidate_id": c.get("candidate_id"),
             "passed": c.get("passed"),
+            "gate_version": c.get("gate_version"),
             "causes": sorted({_cause(f) for f in (c.get("failures") or [])}),
             "is_calibration": str(c.get("algorithm") or "").startswith(
                 ("null_", "oracle_")),
@@ -408,6 +409,10 @@ def _funnel(observations: Any, candidates: Any, strategies: Any) -> dict[str, An
     research = [c for c in rows
                 if not str(c.get("algorithm") or "").startswith(("null_", "oracle_"))]
     calib = [c for c in rows if c not in research]
+    leak_versions: Counter = Counter()
+    for c in calib:
+        if c.get("passed") is True:
+            leak_versions[str(c.get("gate_version") or "unrecorded")] += 1
     r_judged = [c for c in research if c.get("passed") is not None]
     r_passed = [c for c in research if c.get("passed") is True]
     variants = 0
@@ -463,11 +468,13 @@ def _funnel(observations: Any, candidates: Any, strategies: Any) -> dict[str, An
                 "from the funnel above because averaging an instrument in with a "
                 "research attempt corrupts the rate in both directions."),
             "caveat": (
-                "A stored verdict does not currently record WHICH gate version "
-                "judged it, so these passes cannot be attributed to a version from "
-                "the data alone — only dated. gate.py exists to make that "
-                "attribution possible and the candidate record does not carry it "
-                "through, which is a real gap."),
+                "RESOLVED 2026-08-17. This previously said a stored verdict does "
+                "not record which gate version judged it. It always did — the "
+                "verdict column was written from day one and never SELECTed, so "
+                "nothing could read it back. Every leak below is now attributable "
+                "to the generation that let it through, from the record rather "
+                "than from its date."),
+            "by_gate_version": dict(leak_versions),
         },
     }
 
@@ -519,6 +526,11 @@ def _cohort(candidates: Any) -> dict[str, Any]:
             "algorithm": c.get("algorithm"),
             "state": c.get("state"),
             "passed": c.get("passed"),
+            # Which generation of the gate judged this. The single most useful
+            # column for reading the cohort as evolution rather than as a list:
+            # a verdict is only meaningful against the bar it actually faced.
+            "gate_version": c.get("gate_version"),
+            "walkforward": c.get("walkforward"),
             "variants": variants,
             "grid": {k: list(v or []) for k, v in grid.items()},
             "winner": c.get("winner"),

@@ -332,16 +332,46 @@ class CandidateFactory:
             with conn.cursor() as cur:
                 cur.execute(
                     "SELECT candidate_id, algorithm, grid, holdout, state, passed, "
-                    "       failures, winner, error, started_at, finished_at "
+                    "       failures, winner, error, started_at, finished_at, "
+                    "       verdict "
                     f"FROM fund_candidates {where}", params)
                 rows = cur.fetchall()
-        return [{
-            "candidate_id": r[0], "algorithm": r[1], "grid": r[2],
-            "holdout": r[3], "state": r[4], "passed": r[5],
-            "failures": r[6], "winner": r[7], "error": r[8],
-            "started_at": r[9].isoformat() if r[9] else None,
-            "finished_at": r[10].isoformat() if r[10] else None,
-        } for r in rows]
+        out = []
+        for r in rows:
+            # The verdict was WRITTEN to this column from the first day and never
+            # SELECTed, so nothing could read it back. Two consequences, both of
+            # which were found downstream and misdiagnosed there:
+            #
+            #   * the null audit recorded `walkforward=None/None` while the same
+            #     candidate's failure text said "1 of 4 independent folds" — the
+            #     leg had run and the structured capture was reading a key no
+            #     endpoint returned.
+            #   * the mechanics view reported that a stored verdict "does not
+            #     record which gate version judged it". It does. GATE_VERSION is
+            #     in here, and has been all along.
+            #
+            # Hoisted to the top level as well as left nested, because the fold
+            # counts and the gate version are the two things every reader wants
+            # and neither should require knowing the verdict's shape.
+            v = r[11] or {}
+            checks = (v.get("checks") or {}) if isinstance(v, dict) else {}
+            out.append({
+                "candidate_id": r[0], "algorithm": r[1], "grid": r[2],
+                "holdout": r[3], "state": r[4], "passed": r[5],
+                "failures": r[6], "winner": r[7], "error": r[8],
+                "started_at": r[9].isoformat() if r[9] else None,
+                "finished_at": r[10].isoformat() if r[10] else None,
+                "verdict": v or None,
+                "gate_version": v.get("gate_version") if isinstance(v, dict) else None,
+                "walkforward": {
+                    "folds_measurable": checks.get("walkforward_folds_measurable"),
+                    "folds_retained": checks.get("walkforward_folds_retained"),
+                    "median_retention": checks.get("walkforward_median_retention"),
+                    "retained_share": checks.get("walkforward_retained_share"),
+                    "not_testable": checks.get("not_testable"),
+                } if checks else None,
+            })
+        return out
 
     def scoreboard(self) -> dict[str, Any]:
         """How the factory is doing — kills are the product, not the waste."""

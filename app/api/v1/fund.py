@@ -3034,6 +3034,17 @@ def run_risk_monitor_tick(actor: str = "worker") -> dict:
     return _monitor.run(actor=actor)
 
 
+def run_results_prune_tick() -> dict:
+    """Worker tick: delete engine output that is neither recent nor in use.
+
+    Every backtest writes a results directory and nothing ever removed one, so 501
+    had accumulated to 188 MB on a machine already short of disk and RAM. The
+    parsed result is mirrored to Postgres, so a settled job's directory is debug
+    material rather than the record.
+    """
+    return _lean().prune_results()
+
+
 def run_factory_reconcile_tick() -> dict:
     """Worker tick: orphan candidates whose runner died.
 

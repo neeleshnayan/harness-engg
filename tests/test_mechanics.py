@@ -64,9 +64,28 @@ def test_the_leak_is_reported_separately_and_named_a_leak():
     assert cal["submitted"] == 2 and cal["passed"] == 2
     assert "leak" in cal["note"].lower()
     assert "not attempts to make money" in cal["note"]
-    # And it must not claim to know WHICH gate version leaked, because a stored
-    # verdict does not currently record one.
-    assert "does not currently record" in cal["caveat"]
+    # It must now ATTRIBUTE each leak to the generation that let it through. The
+    # verdict column carried gate_version from day one and was never SELECTed, so
+    # this used to read "a stored verdict does not record which version judged it"
+    # — a gap that existed only in the reader.
+    assert "RESOLVED" in cal["caveat"]
+    assert cal["by_gate_version"] == {"unrecorded": 2}, cal["by_gate_version"]
+
+
+def test_a_leak_is_attributed_to_the_gate_generation_that_let_it_through():
+    """Reading the cohort as evolution needs the bar each verdict actually faced.
+
+    Live at the time of writing: all three nulls that ever passed were judged
+    under v1, which is the generation the calibration effort then replaced.
+    """
+    rows = list(CANDIDATES["candidates"])
+    rows[0] = {**rows[0], "gate_version": "v1"}
+    rows[1] = {**rows[1], "gate_version": "v1"}
+    out = build(candidates={**CANDIDATES, "candidates": rows},
+                strategies=STRATEGIES)
+    assert out["funnel"]["calibration"]["by_gate_version"] == {"v1": 2}
+    cohort = {c["algorithm"]: c for c in out["cohort"]["candidates"]}
+    assert cohort["null_random_smallcap"]["gate_version"] == "v1"
 
 
 def test_deployed_is_not_presented_as_downstream_of_survived():
