@@ -40,6 +40,10 @@ _FIELDS = (
     "title", "assets", "strategy_id", "owner", "claim", "horizon",
     "entry_rationale", "key_risks", "invalidation_conditions",
     "target_exposure_pct", "review_cadence", "evidence_ids", "memo_ids",
+    # Research belongs with the investment idea it supports.  Keeping this on
+    # the thesis lets the recommendation endpoint prove which backtest it used
+    # instead of accepting an untraceable client-side number.
+    "direction", "backtest",
 )
 
 

@@ -329,5 +329,20 @@ class ThesisPromoteRequest(BaseModel):
     generated_thesis: dict = Field(..., description="The GeneratedThesisResult payload")
     target_exposure_pct: float = Field(5.0, description="Target % NAV exposure")
     horizon: str = Field("3-6 months", description="Holding horizon")
+    backtest: Optional[dict] = Field(
+        None,
+        description="Optional research backtest returned by /research/backtest. "
+                    "Stored on the thesis and required before a trade recommendation.",
+    )
     actor: str = Field("operator", description="Who promoted the thesis")
 
+
+class ThesisRecommendationRequest(BaseModel):
+    """Turn a reviewed thesis into a sized, human-gated trade proposal.
+
+    ``create_proposal`` is deliberately false by default.  A recommendation is
+    research; only an explicit second action writes a pending order, and that
+    order still cannot reach the venue without approval.
+    """
+    create_proposal: bool = False
+    actor: str = Field("operator", description="Who requested the recommendation")
