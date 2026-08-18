@@ -1818,6 +1818,15 @@ def get_thesis(thesis_id: str):
         raise HTTPException(status_code=404, detail=str(e))
 
 
+@router.delete("/fund/theses/{thesis_id}")
+def delete_thesis(thesis_id: str, req: ActorRequest):
+    """Archive an unused thesis from the Studio while retaining the audit log."""
+    try:
+        return _theses.archive(thesis_id, actor=req.actor)
+    except ThesisError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
 @router.post("/fund/theses/{thesis_id}")
 def update_thesis(thesis_id: str, req: ThesisUpdateRequest):
     try:

@@ -41,3 +41,14 @@ def test_recommendation_refuses_an_unbacktested_thesis(wire):
     }, actor="clark")
     with pytest.raises(RecommendationError, match="attach a backtest"):
         build_thesis_trade_recommendation(thesis["thesis_id"], thesis, mark=200.0, nav_usd=10_000.0)
+
+
+def test_archiving_hides_an_unused_thesis_but_preserves_its_audit_record(wire):
+    theses = ThesisService(wire.store)
+    thesis = theses.create({"title": "Discarded AAPL"}, actor="clark")
+
+    archived = theses.archive(thesis["thesis_id"], actor="operator")
+
+    assert archived["archived"] is True
+    assert theses.list() == []
+    assert theses.get(thesis["thesis_id"])["title"] == "Discarded AAPL"

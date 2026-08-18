@@ -82,6 +82,23 @@ class ThesisService:
         )
         return self.get(thesis_id)
 
+    def archive(self, thesis_id: str, actor: str) -> dict[str, Any]:
+        """Hide an unused thesis without erasing its audit history.
+
+        An order can refer to a thesis for years, so deleting its events would
+        make the order and its post-mortem unverifiable.  Archive is the safe
+        user-facing delete: it disappears from the Studio list but remains
+        available to audit reads.  A thesis with an order is deliberately not
+        archivable because it still provides that order's stated rationale.
+        """
+        thesis = self._require(thesis_id)
+        if thesis.get("order_ids"):
+            raise ThesisError("cannot delete a thesis with linked orders; retain it for the trade audit")
+        if thesis.get("archived"):
+            return thesis
+        self._store.append(Event(thesis_id, "thesis", EventType.THESIS_ARCHIVED, {}, actor))
+        return self.get(thesis_id)
+
     def get(self, thesis_id: str) -> dict[str, Any]:
         rec = ThesisRegistry(self._store).get(thesis_id)
         if rec is None:
@@ -112,7 +129,8 @@ class ThesisRegistry:
             p = e.get("payload", {}) or {}
             if etype == EventType.THESIS_CREATED.value:
                 rec = {"thesis_id": aid, "status": ThesisStatus.DRAFT.value,
-                       "order_ids": [], "memo_ids": [], "has_postmortem": False}
+                       "order_ids": [], "memo_ids": [], "has_postmortem": False,
+                       "archived": False, "created_at": e.get("ts")}
                 rec.update({k: p.get(k) for k in _FIELDS})
                 rec["memo_ids"] = rec.get("memo_ids") or []
                 out[aid] = rec
@@ -120,6 +138,8 @@ class ThesisRegistry:
                 out[aid].update({k: v for k, v in p.items() if v is not None})
             elif etype == EventType.THESIS_STATUS_CHANGED.value and aid in out:
                 out[aid]["status"] = p["status"]
+            elif etype == EventType.THESIS_ARCHIVED.value and aid in out:
+                out[aid]["archived"] = True
             elif etype == EventType.ORDER_PROPOSED.value:
                 tid = p.get("thesis_id")
                 if tid in out:
@@ -138,4 +158,4 @@ class ThesisRegistry:
         return self._build().get(thesis_id)
 
     def list(self) -> list[dict[str, Any]]:
-        return list(self._build().values())
+        return [t for t in self._build().values() if not t.get("archived")]
