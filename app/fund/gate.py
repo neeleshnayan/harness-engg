@@ -46,6 +46,16 @@ from typing import Any, Optional
 #: noise cannot fake is CONSISTENCY ACROSS INDEPENDENT WINDOWS, so v2 requires a
 #: walk-forward result and treats its absence as a failure like any other.
 #:
+#: MEASURED CORRECTION (2026-08-17, docs/GATE_CALIBRATION_2026-08-18.md section 7):
+#: that last sentence is the intent and NOT what mostly happens. Splitting
+#: rejections by mode, a null is rejected 89.6% of the time because too few folds
+#: were MEASURABLE — its training legs cannot clear MIN_TRAIN_RETURN_PCT — and only
+#: 7.1% of the time by actually failing the majority. The consistency test usually
+#: never runs. The false-positive rate is real; it is delivered by an EVIDENCE
+#: requirement with a persistence test attached, which is a weaker claim than this
+#: paragraph makes and is the true one. Kept rather than rewritten because the
+#: intent still explains the design.
+#:
 #: v2 -> v3 (2026-08-18), forced by the other half of the calibration. An oracle
 #: with PERFECT FOREKNOWLEDGE failed v2, on two counts that were both ours rather
 #: than its:
@@ -102,12 +112,17 @@ from typing import Any, Optional
 #: TESTABLE, because 30 months cannot supply 4 folds for them. That is the true
 #: state of our evidence rather than a verdict about those strategies.
 #:
-#: Two things this does NOT do, recorded so they are not mistaken for done:
-#: `scripts/null_audit.py` has no walk-forward leg, so it cannot yet measure this
-#: rule's real false-positive rate — the 31.2% above is arithmetic under an
-#: independence assumption the overlapping train legs violate. And the gate's
-#: POWER against a plausible edge has never been measured at all; only against
-#: noise and against perfect foresight.
+#: Two things this did NOT do when v4 shipped. Both are now done, and the results
+#: are recorded here rather than left as open TODOs that quietly become folklore:
+#:
+#:   * The real false-positive rate. `scripts/null_audit.py` DOES send every
+#:     candidate through the walk-forward leg — the factory always ran it — but the
+#:     script never recorded the outcome, and had not been re-run since the leg
+#:     existed. It records it now. A live v4 run is in flight.
+#:   * POWER against a plausible edge, which had never been measured at all.
+#:     Simulated at 4,000 draws per level: 2.9% false positives, and only 22.8%
+#:     power at Sharpe 1.0, with 80% power unreachable at any Sharpe on ~30 months
+#:     of history. See docs/GATE_CALIBRATION_2026-08-18.md.
 GATE_VERSION = "v4"
 
 #: The bar. Deliberately data, not code branches: it can be printed, argued

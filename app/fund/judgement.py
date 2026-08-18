@@ -311,13 +311,27 @@ def registry() -> list[Judgement]:
             why="Retention is a ratio, and a ratio against a near-zero "
                 "denominator is arithmetic noise. Set to 2.0 first, then raised "
                 "to 5.0 after noticing 2.0 did not exclude the 3.66% case that "
-                "motivated it. Raised on principle, not on evidence.",
-            falsified_by="Collect the train-leg returns of every fold judged so "
-                         "far and plot retention against them. If retention is "
-                         "stable well below 5%, the floor is discarding usable "
-                         "folds. If it explodes above 5%, the floor is too low.",
-            review_trigger="30 folds measured with train returns recorded",
-            review_by="2026-11-01"),
+                "motivated it. Raised on principle, not on evidence.\n\n"
+                "MEASURED 2026-08-17: this is doing far more work than its stated "
+                "job. Splitting the gate's rejections by mode, a NULL is rejected "
+                "89.6% of the time because too few folds were MEASURABLE — its "
+                "training legs cannot clear this floor — and only 7.1% of the time "
+                "by failing the persistence test. This threshold, not the "
+                "walk-forward majority, is the fund's main noise filter. It was "
+                "introduced to stop one ratio exploding and has quietly become "
+                "load-bearing, which is defensible but was never CHOSEN.",
+            falsified_by="The 70% starvation rate at Sharpe 0.6 is the falsifier "
+                         "already on the table: the same threshold discarding real "
+                         "candidates at a rate nobody decided on. Settle it by "
+                         "collecting train-leg returns across judged folds and "
+                         "plotting retention against them — if retention is stable "
+                         "well below 5%, the floor is destroying usable folds; if "
+                         "it explodes above 5%, the floor is too low. Either "
+                         "answer beats the current position, which is that a "
+                         "narrow bug fix became the primary filter by accident.",
+            review_trigger="BEFORE the next gate version — this must not be "
+                           "inherited unexamined into a v5",
+            review_by="2026-10-01"),
         Judgement(
             "min_holdout_retention",
             where="app/fund/gate.py CRITERIA", basis="judged",

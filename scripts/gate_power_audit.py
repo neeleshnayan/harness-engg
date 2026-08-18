@@ -236,6 +236,53 @@ def history_sweep(draws: int, vol: float, seed: int, test_days: int) -> None:
     print("  review trigger recorded against it in app/fund/judgement.py.")
 
 
+def rejection_modes(draws: int, vol: float, seed: int, test_days: int) -> None:
+    """WHY the leg rejects: starved of evidence, or genuinely failed to persist?
+
+    Not a detail. The gate's stated doctrine is that "what noise cannot fake is
+    CONSISTENCY ACROSS INDEPENDENT WINDOWS" — and this breakdown shows that at pure
+    noise the consistency test mostly NEVER RUNS. A null is rejected because fewer
+    than `min_walkforward_folds` of its folds were MEASURABLE, since a null's
+    training leg rarely clears MIN_TRAIN_RETURN_PCT.
+
+    Both are honest rejections and the per-candidate message already distinguishes
+    them ("only 3 fold(s) could be measured, below the 4 required" is not the same
+    sentence as "kept its edge in only 1 of 4"). What was wrong was the AGGREGATE
+    story: crediting the false-positive rate to a persistence test that, most of
+    the time, did not happen.
+    """
+    print()
+    print("REJECTION MODES — is the leg testing persistence, or requiring evidence?")
+    print(f"{'Sharpe':>7}{'pass':>8}{'starved':>10}{'failed maj':>12}"
+          f"{'mean measurable':>17}")
+    for sh in (0.0, 0.4, 0.6, 1.0, 1.5, 2.0):
+        rng = random.Random(seed + 7 + int(sh * 1000))
+        passed = starved = failed = 0
+        meas = 0
+        for _ in range(draws):
+            r = one_draw(sh, vol, rng, test_days)
+            meas += r["measurable"]
+            if r["passed"]:
+                passed += 1
+            elif r["not_enough_folds"]:
+                starved += 1
+            else:
+                failed += 1
+        print(f"{sh:>7.1f}{100.0 * passed / draws:>7.1f}%"
+              f"{100.0 * starved / draws:>9.1f}%{100.0 * failed / draws:>11.1f}%"
+              f"{meas / draws:>17.2f}")
+    print("  'starved'    = under min_walkforward_folds were MEASURABLE, so the")
+    print("                 consistency test never ran.")
+    print("  'failed maj' = it ran, and the edge did not persist in a majority.")
+    print()
+    print("  Read the Sharpe-0 row carefully. Noise is rejected overwhelmingly by")
+    print("  STARVATION, not by failing to persist — so the false-positive rate is")
+    print("  delivered by MIN_TRAIN_RETURN_PCT plus the fold-count floor, and the")
+    print("  walk-forward leg is primarily an EVIDENCE requirement with a")
+    print("  persistence test attached. That is a weaker claim than the gate's own")
+    print("  docstring makes, and it is the true one.")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--draws", type=int, default=2000)
@@ -246,6 +293,8 @@ def main() -> int:
                     help="also run the lucky-window adversary")
     ap.add_argument("--history", action="store_true",
                     help="also sweep how power changes with more history")
+    ap.add_argument("--modes", action="store_true",
+                    help="also break down WHY the leg rejects")
     a = ap.parse_args()
 
     test_days = a.hold_days * DECISIONS_PER_TEST_LEG
@@ -290,6 +339,8 @@ def main() -> int:
         adversary(max(500, a.draws // 2), a.vol, a.seed, test_days)
     if a.history:
         history_sweep(max(500, a.draws // 2), a.vol, a.seed, test_days)
+    if a.modes:
+        rejection_modes(a.draws, a.vol, a.seed, test_days)
     return 0
 
 

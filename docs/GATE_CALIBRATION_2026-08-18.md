@@ -154,3 +154,68 @@ beyond 2024-02-26" — it must be honoured before any new data is trusted.
   LEAN, real prices, real costs — has still never produced a v4 false-positive
   rate. This measurement is a model of the gate's statistics, not a run of the
   gate. Both are worth having and they are not the same thing.
+
+---
+
+## 7. Which criterion is actually doing the work
+
+*Added later the same day, after a live null audit rejected a candidate with
+"only 3 fold(s) could be measured" rather than for failing to persist. Nothing
+above is edited; this is a new measurement of the same instrument.*
+
+Reproduce with:
+
+```bash
+venv/Scripts/python.exe scripts/gate_power_audit.py --draws 3000 --modes
+```
+
+The gate's stated doctrine is that **"what noise cannot fake is CONSISTENCY ACROSS
+INDEPENDENT WINDOWS"**. Splitting the rejections by mode shows that at pure noise
+the consistency test mostly *never runs*:
+
+| true Sharpe | passes | **starved** | failed majority | mean measurable folds |
+|---|---|---|---|---|
+| **0.0 (noise)** | 3.3% | **89.6%** | 7.1% | 1.46 |
+| 0.4 | 8.3% | 78.4% | 13.4% | 2.12 |
+| 0.6 | 11.4% | 70.4% | 18.1% | 2.45 |
+| 1.0 | 21.5% | 53.6% | 24.9% | 2.98 |
+| 1.5 | 37.9% | 29.9% | 32.2% | 3.53 |
+| 2.0 | 51.6% | 13.2% | 35.1% | 3.81 |
+
+- **starved** — fewer than `min_walkforward_folds` were *measurable*, so the
+  consistency test never ran
+- **failed majority** — it ran, and the edge did not persist in a majority
+
+**A null gets 1.46 measurable folds out of 4.** Its training legs rarely clear
+`MIN_TRAIN_RETURN_PCT = 5.0`, because a null makes no money by construction. So the
+2.9% false-positive rate is delivered overwhelmingly by an **evidence threshold**,
+and only marginally by the persistence test.
+
+### What this does and does not change
+
+**It does not make the false-positive rate wrong.** 2.9% stands, and every
+per-candidate message was already precise — *"only 3 fold(s) could be measured,
+below the 4 required — the consistency test did not run, which is not the same as
+passing it"* is a different sentence from *"kept its edge in only 1 of 4"*, and the
+gate has always emitted the right one.
+
+**What was wrong was the aggregate story.** Crediting the FPR to a consistency test
+that, for nine nulls in ten, did not happen. The honest characterisation is that
+v4's walk-forward leg is **primarily an evidence requirement with a persistence
+test attached** — and the two are not interchangeable, because they fail for
+different reasons and are fixed by different things. Starvation is fixed by more
+history; failed persistence is fixed by a better strategy.
+
+### The consequence worth acting on
+
+This is the same phenomenon as the NOT TESTABLE result and as the 22.8% power
+figure, seen from a third angle: **`MIN_TRAIN_RETURN_PCT` is load-bearing far
+beyond its stated job.** It was introduced to stop a retention ratio exploding
+against a near-zero denominator — a real and narrow bug — and it has quietly become
+the fund's main noise filter.
+
+That is not obviously wrong. A rule that only judges strategies which made money in
+training is defensible. But it was never *chosen*, and a 70% starvation rate at
+Sharpe 0.6 means the same threshold is discarding real candidates at a rate nobody
+decided on. It is registered in `app/fund/judgement.py` with this measurement
+attached, and it should be reviewed before the next gate version rather than after.
