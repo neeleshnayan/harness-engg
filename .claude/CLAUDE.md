@@ -82,6 +82,25 @@ the CTO appends that section verbatim when resolving the dispatch. Memory
 round-trips through the CTO by design — continuity without write access, so the
 governance chain and Abhishek's surfaces stay structurally protected.
 
+## Dispatch and placement (quota-era rules, agreed 2026-08-20)
+
+**No agent runs without an explicit trigger from the CEO or the CTO.** No
+cadences, no schedules, no self-starting seats. A seat runs when a state change
+demands it (a fill, an alarm, a fired exit, an artifact awaiting review, a
+registered review trigger) AND a human dispatches it — or when the CEO asks.
+An idle seat costs zero and that is a feature. One sub-agent in flight at a
+time; briefs are batched (an adversary reviewing three artifacts costs barely
+more than one).
+
+Placement, per seat: mechanism/pm/quant/adversary/validator/riskofficer run on
+**Opus**; the analyst SPLITS — survey/scan phases on the local 4090 (qwen,
+checkable outputs only), thesis judgement on Opus (built lazily, first time the
+seat runs hot). Validator's simulations and quant's belt runs are local compute
+it invokes for free. The adversary and anything near the approval chain are
+NEVER downgraded and never local. Haiku is reserved for rigid, checkable chores.
+The CTO chair is Fable by the CEO's decision; its discipline (targeted tests,
+tailed outputs, no redundant restarts) is the largest single cost lever.
+
 ## The working protocol
 
 1. **Every artifact is falsifiable or it is rejected.** A proposal states what would
