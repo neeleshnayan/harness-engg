@@ -1,7 +1,12 @@
 # RESEARCH MEMO — SAREPTA THERAPEUTICS (SRPT)
 
-**Author: analyst agent (first dispatch), 2026-08-20. Status: under blind
-adversarial review — a draft until the verdict, per protocol. Last price $19.40
+**Author: analyst agent (first dispatch), 2026-08-20.
+Status: KILLED by adversarial review on five independent grounds — see
+docs/reviews/ADVERSARY_SRPT_2026-08-20.md. The SAID layer verified flawlessly;
+the INFER layer died: the "re-rate" was sector beta (Aug-19 residual +0.06%),
+the valuation base was ~31% non-recurring/zero-margin, and the thesis trips its
+own invalidation condition at guidance midpoint. Revivable on the six conditions
+in the verdict, the sharpest being the Q3 ELEVIDYS print vs $75M. Last price $19.40
 (2026-08-19, split/div-adjusted, via harness marketdata). $ADV(60d) ~$56.6M.
 Note: SRPT is not in the current 200-name hunting-ground snapshot; this is a
 candidate memo, not a claim it passes the universe gate.**

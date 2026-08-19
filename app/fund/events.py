@@ -125,6 +125,7 @@ class EventType(str, Enum):
     DESK_REQUESTED = "DeskRequested"
     DESK_DISPATCHED = "DeskDispatched"
     DESK_REQUEST_RESOLVED = "DeskRequestResolved"
+    DESK_RECOMMENDATION_DECIDED = "DeskRecommendationDecided"
 
     EXIT_RULE_SET = "ExitRuleSet"               # committed before the position exists
     EXIT_RULE_TRIGGERED = "ExitRuleTriggered"   # fired; a closing proposal was raised

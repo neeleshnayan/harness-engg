@@ -261,10 +261,17 @@ def _activity(store: Any) -> dict[str, dict[str, Any]]:
     return out
 
 
-def view(store: Any) -> dict[str, Any]:
+def view(store: Any, deskstore: Any = None) -> dict[str, Any]:
     artifacts = _artifacts()
     reqs = _requests(store)
     activity = _activity(store)
+    runs, open_recs = [], []
+    if deskstore is not None:
+        try:
+            runs = deskstore.runs(limit=25)
+            open_recs = deskstore.open_recommendations()
+        except Exception as e:  # noqa: BLE001
+            logger.info("desk runs unavailable: %s", e)
     open_reqs = [r for r in reqs if r["status"] == "open"]
     killed = [a for a in artifacts if a["status"] == "killed"]
     return {
@@ -285,6 +292,10 @@ def view(store: Any) -> dict[str, Any]:
         ],
         "artifacts": artifacts,
         "requests": reqs,
+        # The flight recorder: every dispatch whole, and every recommendation
+        # with the seat that made it - attribution is the point.
+        "runs": runs,
+        "open_recommendations": open_recs,
         "open_requests": len(open_reqs),
         "kills": len(killed),
         "execution_note": (

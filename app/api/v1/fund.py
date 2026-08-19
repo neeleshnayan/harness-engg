@@ -1291,7 +1291,7 @@ def research_desk():
     agents. That honesty line is carried in the payload so the UI renders it.
     """
     from app.fund import desk
-    return desk.view(_store)
+    return desk.view(_store, deskstore=_deskstore())
 
 
 @router.post("/fund/desk/requests")
@@ -1374,6 +1374,95 @@ def desk_resolve(request_id: str, req: DeskResolve):
                         type=EventType.DESK_REQUEST_RESOLVED,
                         payload=payload, actor=req.actor))
     return payload
+
+
+_deskstore_cache = None
+
+
+def _deskstore():
+    global _deskstore_cache
+    if _deskstore_cache is None:
+        from app.fund.events import store_backend
+        if store_backend() != "postgres":
+            return None
+        from app.fund.deskstore import DeskStore
+        _deskstore_cache = DeskStore()
+    return _deskstore_cache
+
+
+class AgentRunRecord(BaseModel):
+    """One agent dispatch, recorded whole. CTO writes this at resolve time."""
+    run_id: str
+    seat: str
+    task: str
+    output: str
+    model: Optional[str] = None
+    tokens: Optional[int] = None
+    tool_uses: Optional[int] = None
+    dispatched_at: Optional[str] = None
+    artifact_path: Optional[str] = None
+    verdict: Optional[str] = None
+    recommendations: Optional[list[dict]] = None
+    meta: Optional[dict] = None
+
+
+@router.post("/fund/desk/runs")
+def record_agent_run(req: AgentRunRecord):
+    """Store an agent run whole - the desk's flight recorder."""
+    ds = _deskstore()
+    if ds is None:
+        raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
+    return ds.record_run(**req.model_dump())
+
+
+@router.get("/fund/desk/runs")
+def list_agent_runs(seat: str | None = Query(None),
+                    limit: int = Query(50, ge=1, le=500)):
+    ds = _deskstore()
+    if ds is None:
+        raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
+    return {"runs": ds.runs(seat=seat, limit=limit)}
+
+
+@router.get("/fund/desk/runs/{run_id}")
+def get_agent_run(run_id: str):
+    ds = _deskstore()
+    if ds is None:
+        raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
+    got = ds.run(run_id)
+    if got is None:
+        raise HTTPException(status_code=404, detail=f"no run {run_id}")
+    return got
+
+
+class RecDecision(BaseModel):
+    status: str          # accepted | rejected | staged | done
+    actor: str = "ceo"
+    note: str = ""
+
+
+@router.post("/fund/desk/runs/{run_id}/recommendations/{rec_id}")
+def decide_recommendation(run_id: str, rec_id: int, req: RecDecision):
+    """A decision on an agent's recommendation - state in the table, the
+    decision itself on the event log. Both, and they must agree."""
+    ds = _deskstore()
+    if ds is None:
+        raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
+    from app.fund.events import Event, EventType
+    try:
+        hit = ds.decide_recommendation(run_id, rec_id, req.status, req.actor,
+                                       req.note)
+    except (KeyError, ValueError) as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    _store.append(Event(aggregate_id=run_id, aggregate_type="desk_run",
+                        type=EventType.DESK_RECOMMENDATION_DECIDED,
+                        payload={"run_id": run_id, "rec_id": rec_id,
+                                 "status": req.status, "note": req.note,
+                                 "text": hit.get("text"),
+                                 "seat": hit.get("seat"),
+                                 "at": datetime.now(timezone.utc).isoformat()},
+                        actor=req.actor))
+    return hit
 
 
 @router.get("/fund/mechanics")
