@@ -43,10 +43,13 @@ a deliberate, versioned step this firm has not taken.
 | `mechanism` | Proposes edges with a named counterparty and claim type | A falsifiable proposal |
 | `analyst` | Builds evidence-grounded theses from the filings corpus, market data, and the web | A thesis memo with verbatim evidence and invalidation conditions |
 | `pm` | Owns the book analytically: mandate check, exceptions, exit coverage, TCA | A decision memo with small, separate, clickable recommendations |
+| `quant` | Translates approved proposals/theses into LEAN algorithms and runs the belt | An implementation + the gate's verdict, failures verbatim |
 | `adversary` | Tries to kill any artifact, blind to its author's reasoning | KILL / SURVIVES / CANNOT TELL, with citations |
 | `validator` | Audits the fund's own instruments — gate, audits, registers | Measurements with method and confidence |
 
-Five seats, each by demonstrated need (the rule that grew the roster from three):
+Six seats, each by demonstrated need (the rule that grew the roster from three):
+`quant` was seated 2026-08-20 because the proposal→implementation step was the
+CTO's personal bottleneck — every candidate so far was hand-written by the CTO.
 `analyst` was seated 2026-08-20 because the 863-observation filings corpus had
 zero consumers; `pm` the same day because the $500 sleeve FILLING made "flow to
 manage" true — gross at ~83% against a throttle asking for ~77%, three deployed
@@ -58,6 +61,12 @@ The PM chain, stated precisely because it is where the invariant lives: the PM
 recommends → the CEO accepts → the CTO stages through the ordinary propose path
 (pre-trade gate runs) → the CEO clicks approve. The PM "runs the portfolio" the
 way a real PM runs one under a mandate: by owning the judgement, not the button.
+
+| `riskofficer` | Supervises the auto-approval policy: audits every auto-approval after the fact, attacks the envelope, recommends version changes | An audit finding or an envelope-change recommendation, with the approval events cited |
+
+`riskofficer` was seated 2026-08-20, the same decision that created the policy it
+supervises: an execution path without an adversarial supervisor is the unwired
+kill switch pattern in a new costume.
 
 ## Tools and memory per seat
 
@@ -89,14 +98,31 @@ governance chain and Abhishek's surfaces stay structurally protected.
 5. **Agents never:** propose orders, click approvals, write to the event log, tune
    thresholds, or touch Abhishek's thesis surfaces (`app/fund/thesis_generator/**`,
    `src/app/clark/studio/thesis/**`, his types in `fund_api.ts`).
+6. **Agents never write code, with ONE versioned exception (2026-08-20):** `quant`
+   may Write/Edit inside `ClarkHarness/lean_workspace/algorithms/**` only — the
+   directory that is already the sandbox (read-only container mount, no
+   credentials, engine killed on timeout, output judged by the gate). Buy/sell
+   logic INSIDE a backtest is the quant's job; a live order is nobody's. The
+   written reason: the proposal→implementation step was the CTO bottleneck, and
+   the sandbox boundary means the exception widens capability without widening
+   trust.
 
 ## Non-negotiables (inherited from the harness, binding on every agent)
 
 - Never fabricate or hardcode a financial number, timestamp, or win-rate. An absent
   number is reported absent. Absence is never zero.
 - NAV folds from the event log only; broker equity is a comparison, never the truth.
-- The machine proposes; the human clicks. The moment an agent path executes a trade,
-  every claim this system makes about itself stops being true.
+- Execution happens only inside a DETERMINISTIC, VERSIONED auto-approval policy
+  whose envelope the humans govern (app/fund/autopolicy.py). AMENDED 2026-08-20 by
+  CEO decision from the original "the machine proposes; the human clicks" — written
+  reason: an agentic fund's human belongs at the policy level, not the per-order
+  level, and the controls this invariant was protecting are now measured, ticking,
+  and heartbeat-monitored. v1 envelope: exit-rule-triggered SELLs only, fresh, with
+  liveness proven, on the paper venue. Everything outside the envelope still waits
+  for the CEO's click. The envelope widens only by a versioned change with a
+  written reason — and per-order approval by an LLM is permanently out: the
+  per-trade decision stays deterministic code; agents supervise the policy, never
+  operate it.
 - A threshold moves only by a versioned change with a written reason — in either
   direction. Quiet loosening is the one forbidden move.
 - Findings docs are never edited — a re-measurement gets a new section or a new file
