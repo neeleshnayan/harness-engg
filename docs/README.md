@@ -47,7 +47,8 @@ their dates, never edited.
 
 | doc | status | what it measured |
 |---|---|---|
-| [GATE_CALIBRATION_2026-08-18.md](GATE_CALIBRATION_2026-08-18.md) | **finding** | Gate v4's false-positive rate (**2.9%**) and its power (**22.8%** at Sharpe 1.0, 80% unreachable on our history). Also records a better statistic that was proposed, measured, and **rejected** by an adversary. |
+| [MIN_TRAIN_RETURN_REVIEW_2026-08-20.md](MIN_TRAIN_RETURN_REVIEW_2026-08-20.md) | **finding** | The train-return floor on the REAL belt (83 sweeps): 0 of 57 null folds ever hit it, its written derivation cites a case that never occurred (train was +10.171%, not +3.66%), and the bug it was built for is still live at gate.py:322 (raw te/tr, sign-inverts on a negative train leg). Also falsifies GATE_CALIBRATION's 2.9% null rate on the belt (25%, CI 8.5–65.1%) and blocks v5 round 3 on two model defects. |
+| [GATE_CALIBRATION_2026-08-18.md](GATE_CALIBRATION_2026-08-18.md) | **finding — §7 aggregate falsified on the belt, see MIN_TRAIN_RETURN_REVIEW_2026-08-20** | Gate v4's false-positive rate (**2.9%**) and its power (**22.8%** at Sharpe 1.0, 80% unreachable on our history). Also records a better statistic that was proposed, measured, and **rejected** by an adversary. |
 | [CALIBRATION_2026-08-17.md](CALIBRATION_2026-08-17.md) | finding | The first calibration: nulls cleared gate v1 about half the time, and an oracle with perfect foresight failed v2. |
 | [SURVIVORSHIP_2026-08-17.md](SURVIVORSHIP_2026-08-17.md) | finding | Survivorship priced at about −6.3pp. The vanished names *gained*, mostly through acquisition. |
 | [RESEARCH_XS_MOMENTUM_2026-08-17.md](RESEARCH_XS_MOMENTUM_2026-08-17.md) | finding | Cross-sectional momentum in the capacity band — the research write-up. |
