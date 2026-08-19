@@ -1,9 +1,14 @@
 # Gate v5 design — beta-adjusted alpha, paired-Sharpe premia
 
-**Status: DESIGN under adversarial review. Not implemented. The previous sketch
-(in BENCHMARK_BLIND_WALKFORWARD_2026-08-18.md) was KILLED by adversarial review on
-2026-08-19; this is the redesign, built around each demonstrated kill. Every table
-reproduces from `scripts/gate_v5_audit.py` with the command shown above it.**
+**Status: KILLED, round 2 — see docs/reviews/ADVERSARY_GATE_V5_2026-08-19.md.
+The premia rule's 0.0% null rows were an artifact of zero-idio-vol nulls: with any
+tracking noise the strict Sharpe comparison is a per-fold coin flip (~30% false
+pass), all-cash passes 68% in falling markets, and the main table measured a floor
+the doc did not adopt. Round 3 must add a significance margin to the paired
+comparison, define falling-market and degenerate-Sharpe behaviour, and regenerate
+every table at the adopted floor with realistic nulls. The previous sketch (in
+BENCHMARK_BLIND_WALKFORWARD_2026-08-18.md) was round 1's kill; each round is
+narrowing the design against demonstrations, which is the process working.**
 
 ## What the kill demonstrated
 

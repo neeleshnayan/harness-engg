@@ -208,6 +208,15 @@ async def _scheduler():
             fund_router.run_factory_reconcile_tick()
         except Exception as e:  # noqa: BLE001
             _log.warning("factory reconcile tick failed: %s", e)
+        # Stale proposals. Approval already refuses them; this keeps the queue
+        # honest BETWEEN refusals. The one time it mattered, the stale proposal
+        # was a take-profit on a position that had since fallen 8% - the guard
+        # protected the trade, and this tick protects the operator from a queue
+        # of buttons that can only error.
+        try:
+            fund_router.run_proposal_expiry_tick()
+        except Exception as e:  # noqa: BLE001
+            _log.warning("proposal expiry tick failed: %s", e)
         # Engine output older than the retention window. Cheap: it lists one
         # directory and returns immediately when nothing is due. Unbounded growth
         # on disk is the same class of problem as the unbounded `running` rows

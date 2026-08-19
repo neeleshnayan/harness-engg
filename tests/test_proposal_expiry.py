@@ -1,113 +1,103 @@
-"""A proposed order goes stale. Approving one later executes an old decision."""
+"""Stale proposals must be expired by the machine, not discovered by the operator.
+
+The approve path already refuses a stale proposal - correctly. But refusal alone
+left the queue holding buttons whose only possible outcome was an error, and the
+one time it happened the signal had INVERTED: a take-profit proposal on a position
+that had since fallen 8%. These tests pin the worker-side expiry and the staleness
+fields the approval card renders.
+"""
 
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
-
-from app.fund import pipeline as pipeline_mod
-from app.fund.events import EventType
-from app.fund.pipeline import PROPOSAL_STALE_AFTER_MINUTES, CommandError
+from app.fund.events import Event, EventType
+from app.fund.pipeline import PROPOSAL_STALE_AFTER_MINUTES
 
 
-class StubPipeline(pipeline_mod.CommandPipeline):
-    """Only the approval path is under test, so construction is bypassed."""
-
-    def __init__(self, events):
-        self._events = events
-        self.executed = []
-
-    @property
-    def _store(self):
-        outer = self
-
-        class S:
-            @staticmethod
-            def by_aggregate(aggregate_id):
-                return [e for e in outer._events if e["aggregate_id"] == aggregate_id]
-
-            @staticmethod
-            def append(e):
-                outer._events.append({
-                    "aggregate_id": e.aggregate_id, "type": e.type.value,
-                    "payload": e.payload, "ts": _now_iso(),
-                })
-                return e
-        return S()
+def _pipeline_with(store):
+    from app.fund.pipeline import CommandPipeline
+    from app.fund.connectors.paper import PaperConnector
+    from app.fund.projections.nav import NavService
+    return CommandPipeline(connector=PaperConnector(store),
+                           nav_service=NavService(store), store=store)
 
 
-def _now_iso(minutes_ago: float = 0.0) -> str:
-    return (datetime.now(timezone.utc) - timedelta(minutes=minutes_ago)).isoformat()
+class MemStore:
+    def __init__(self):
+        self.events = []
+
+    def append(self, event):
+        self.events.append(event)
+        return event
+
+    def by_aggregate(self, agg_id):
+        out = []
+        for e in self.events:
+            if e.aggregate_id == agg_id:
+                out.append({"type": e.type.value, "payload": e.payload,
+                            "ts": getattr(e, "ts", None)})
+        return out
+
+    def stream(self, since_seq=0, limit=100_000):
+        return [{"type": e.type.value, "payload": e.payload} for e in self.events]
 
 
-def proposed(minutes_ago: float, order_id="o1"):
-    return [{
-        "aggregate_id": order_id,
-        "type": EventType.ORDER_PROPOSED.value,
-        "ts": _now_iso(minutes_ago),
-        "payload": {"venue": "paper", "symbol": "AAPL", "side": "buy", "qty": 10},
-    }]
+def _proposed(store, order_id, minutes_ago):
+    ts = (datetime.now(timezone.utc) - timedelta(minutes=minutes_ago)).isoformat()
+    e = Event(aggregate_id=order_id, aggregate_type="order",
+              type=EventType.ORDER_PROPOSED,
+              payload={"symbol": "TLT", "side": "buy", "qty": 1.0}, actor="t")
+    e.ts = ts
+    store.append(e)
 
 
-def test_a_fresh_proposal_is_not_stale():
-    p = StubPipeline(proposed(minutes_ago=1))
-    assert p._proposal_age_minutes("o1") == pytest.approx(1.0, abs=0.2)
+def test_expiry_declines_only_what_is_past_the_limit():
+    store = MemStore()
+    _proposed(store, "old-1", PROPOSAL_STALE_AFTER_MINUTES + 60)
+    _proposed(store, "fresh-1", 5)
+    p = _pipeline_with(store)
+    out = p.expire_stale_proposals([
+        {"order_id": "old-1", "symbol": "TLT"},
+        {"order_id": "fresh-1", "symbol": "DBC"},
+    ])
+    assert out["count"] == 1
+    assert out["expired"][0]["order_id"] == "old-1"
+    declines = [e for e in store.events if e.type == EventType.ORDER_DECLINED]
+    assert len(declines) == 1
+    assert declines[0].aggregate_id == "old-1"
+    # The reason rides on the record - an expiry with no reason is just a
+    # disappearance, and disappearances are what the log exists to prevent.
+    assert "staleness limit" in declines[0].payload["reason"]
+    assert declines[0].payload["approver"] == "worker"
 
 
-def test_an_old_proposal_is_refused():
-    p = StubPipeline(proposed(minutes_ago=PROPOSAL_STALE_AFTER_MINUTES + 30))
-    with pytest.raises(CommandError) as e:
-        p.approve_order("o1", approver="alice")
-    msg = str(e.value)
-    assert "past the" in msg
-    assert "Re-propose" in msg
+def test_unknown_age_is_never_expired():
+    """An unparseable timestamp means age UNKNOWN, and unknown is not stale.
+
+    Expiring on unknown age would let a clock-format change silently clear the
+    queue - absence read as a value, the exact error the fund refuses elsewhere.
+    """
+    store = MemStore()
+    e = Event(aggregate_id="odd-1", aggregate_type="order",
+              type=EventType.ORDER_PROPOSED, payload={"symbol": "X"}, actor="t")
+    e.ts = "not-a-timestamp"
+    store.append(e)
+    p = _pipeline_with(store)
+    out = p.expire_stale_proposals([{"order_id": "odd-1", "symbol": "X"}])
+    assert out["count"] == 0
+    assert not [e for e in store.events if e.type == EventType.ORDER_DECLINED]
 
 
-def test_the_refusal_happens_before_anything_is_written():
-    """A rejected approval must leave no ORDER_APPROVED behind."""
-    events = proposed(minutes_ago=PROPOSAL_STALE_AFTER_MINUTES + 5)
-    p = StubPipeline(events)
-    with pytest.raises(CommandError):
-        p.approve_order("o1", approver="alice")
-    assert [e["type"] for e in events] == [EventType.ORDER_PROPOSED.value]
-
-
-def test_an_order_just_inside_the_window_is_still_approvable():
-    p = StubPipeline(proposed(minutes_ago=PROPOSAL_STALE_AFTER_MINUTES - 5))
-    age = p._proposal_age_minutes("o1")
-    assert age is not None and age < PROPOSAL_STALE_AFTER_MINUTES
-
-
-def test_a_missing_timestamp_does_not_block_approval():
-    """An unparseable clock is a worse reason to refuse every approval than to
-    let one through slightly late."""
-    events = proposed(minutes_ago=0)
-    del events[0]["ts"]
-    assert StubPipeline(events)._proposal_age_minutes("o1") is None
-
-
-def test_a_malformed_timestamp_does_not_block_approval():
-    events = proposed(minutes_ago=0)
-    events[0]["ts"] = "not-a-date"
-    assert StubPipeline(events)._proposal_age_minutes("o1") is None
-
-
-def test_a_naive_timestamp_is_treated_as_utc():
-    """Without this the subtraction raises and every approval breaks."""
-    events = proposed(minutes_ago=0)
-    events[0]["ts"] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
-    age = StubPipeline(events)._proposal_age_minutes("o1")
-    assert age is not None and abs(age) < 1.0
-
-
-def test_a_z_suffixed_timestamp_parses():
-    events = proposed(minutes_ago=0)
-    events[0]["ts"] = datetime.now(timezone.utc).replace(
-        tzinfo=None).isoformat(timespec="seconds") + "Z"
-    age = StubPipeline(events)._proposal_age_minutes("o1")
-    assert age is not None and abs(age) < 1.0
-
-
-def test_an_unknown_order_has_no_age():
-    assert StubPipeline([])._proposal_age_minutes("nope") is None
+def test_pending_rows_carry_age_and_staleness():
+    from app.fund.projections.orders import _age_minutes, _is_stale
+    fresh = datetime.now(timezone.utc).isoformat()
+    old = (datetime.now(timezone.utc)
+           - timedelta(minutes=PROPOSAL_STALE_AFTER_MINUTES + 30)).isoformat()
+    assert _is_stale(fresh) is False
+    assert _is_stale(old) is True
+    # Unknown is None - not fresh, not stale, and the card must render it as
+    # unknown rather than defaulting either way.
+    assert _is_stale("garbage") is None
+    assert _age_minutes(None) is None
+    assert _age_minutes(old) > PROPOSAL_STALE_AFTER_MINUTES

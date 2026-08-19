@@ -130,6 +130,12 @@ class OrdersProjection:
                 # is asks the operator to sign a blank.
                 "limit_price": p.get("limit_price"),
                 "impact_preview": p.get("impact_preview"), "ts": rec["ts"],
+                # Age and staleness, computed here so the approval card can say
+                # "expiring soon" or "stale" instead of showing an approve button
+                # whose only possible outcome is an error. None when the
+                # timestamp cannot be parsed — unknown age is not zero age.
+                "age_minutes": _age_minutes(rec["ts"]),
+                "stale": _is_stale(rec["ts"]),
             })
         return sorted(out, key=lambda r: r["ts"] or "")
 
@@ -146,3 +152,22 @@ class OrdersProjection:
                 "last_filled_qty": rec["last_filled_qty"],
             })
         return out
+
+def _age_minutes(ts: str | None) -> float | None:
+    if not ts:
+        return None
+    from datetime import datetime, timezone
+    try:
+        t = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        if t.tzinfo is None:
+            t = t.replace(tzinfo=timezone.utc)
+        return round((datetime.now(timezone.utc) - t).total_seconds() / 60.0, 1)
+    except ValueError:
+        return None
+
+
+def _is_stale(ts: str | None) -> bool | None:
+    """None means could-not-tell, which is not the same as fresh."""
+    from app.fund.pipeline import PROPOSAL_STALE_AFTER_MINUTES
+    age = _age_minutes(ts)
+    return None if age is None else age > PROPOSAL_STALE_AFTER_MINUTES

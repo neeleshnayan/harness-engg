@@ -344,6 +344,56 @@ class CommandPipeline:
 
         return {"status": "working", "order_id": order_id}  # PENDING
 
+    def expire_stale_proposals(self, pending: list[dict[str, Any]],
+                               max_age_minutes: float | None = None
+                               ) -> dict[str, Any]:
+        """Decline proposals too old to approve, so the queue never holds a trap.
+
+        The approve path already refuses a stale proposal — correctly: approving a
+        46-hour-old proposal executes yesterday's judgement at today's price. But
+        refusal alone left the QUEUE in a broken state: the operator saw approve
+        buttons whose only possible outcome was an error, and the one time it
+        happened the underlying signal had actually inverted (a take-profit
+        proposal on a position that had since fallen to -8%). A guard that only
+        fires at the moment of approval protects the trade and abandons the
+        operator.
+
+        So expiry is a scheduled behaviour: anything past the limit is DECLINED by
+        the worker with the reason on the record. Exit-rule-sourced proposals are
+        deliberately NOT re-raised here — the exit tick re-evaluates its rules
+        against FRESH marks every cycle anyway, so a still-true condition
+        re-proposes itself within a tick, and a no-longer-true condition (the
+        INTC case) correctly stays silent.
+        """
+        limit = (PROPOSAL_STALE_AFTER_MINUTES if max_age_minutes is None
+                 else max_age_minutes)
+        expired = []
+        for row in pending or []:
+            oid = row.get("order_id")
+            if not oid:
+                continue
+            age = self._proposal_age_minutes(oid)
+            if age is None or age <= limit:
+                continue
+            self._store.append(Event(
+                aggregate_id=oid,
+                aggregate_type="order",
+                type=EventType.ORDER_DECLINED,
+                payload={"approver": "worker",
+                         "reason": (f"expired: proposed {age:.0f} minutes ago, "
+                                    f"past the {limit:.0f}-minute staleness "
+                                    f"limit. The price and signal behind it have "
+                                    f"moved; a fresh proposal must be made "
+                                    f"against fresh marks")},
+                actor="worker"))
+            expired.append({"order_id": oid, "symbol": row.get("symbol"),
+                            "age_minutes": round(age, 1)})
+        return {"expired": expired, "count": len(expired),
+                "limit_minutes": limit,
+                "note": (f"{len(expired)} stale proposal(s) declined by the "
+                         f"worker, reason on the record"
+                         if expired else "nothing past the staleness limit")}
+
     def decline_order(self, order_id: str, approver: str) -> dict[str, Any]:
         _, last_type = self._load_order(order_id)
         if last_type != EventType.ORDER_PROPOSED.value:

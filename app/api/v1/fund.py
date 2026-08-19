@@ -1275,6 +1275,72 @@ def factory_reconcile(max_age_hours: float | None = Query(None, gt=0)):
     return f.reconcile_orphans(max_age_hours)
 
 
+class DeskRequest(BaseModel):
+    """The operator asking the bench for work. Human-initiated, always."""
+    kind: str            # proposal | attack | audit
+    subject: str         # what to propose on / attack / audit
+    note: str = ""
+    actor: str = "operator"
+
+
+@router.get("/fund/desk")
+def research_desk():
+    """The firm's bench, its artifact chain, and its open requests.
+
+    The spine records requests and reads artifacts from docs/; it does not run
+    agents. That honesty line is carried in the payload so the UI renders it.
+    """
+    from app.fund import desk
+    return desk.view(_store)
+
+
+@router.post("/fund/desk/requests")
+def desk_request(req: DeskRequest):
+    """Record a work request for the bench. Writes an event and moves no money."""
+    from app.fund import desk as desk_mod
+    from app.fund.events import Event, EventType
+    kind = (req.kind or "").strip().lower()
+    if kind not in desk_mod.REQUEST_KINDS:
+        raise HTTPException(status_code=422,
+                            detail=f"kind must be one of "
+                                   f"{sorted(desk_mod.REQUEST_KINDS)}")
+    if not (req.subject or "").strip():
+        raise HTTPException(status_code=422,
+                            detail="a request needs a subject - 'do research' is "
+                                   "not an ask the bench can act on")
+    import uuid
+    payload = {"request_id": str(uuid.uuid4()), "kind": kind,
+               "serves": desk_mod.REQUEST_KINDS[kind],
+               "subject": req.subject.strip(), "note": req.note or "",
+               "at": datetime.now(timezone.utc).isoformat(),
+               "actor": req.actor}
+    _store.append(Event(aggregate_id=payload["request_id"],
+                        aggregate_type="desk_request",
+                        type=EventType.DESK_REQUESTED,
+                        payload=payload, actor=req.actor))
+    return payload
+
+
+class DeskResolve(BaseModel):
+    resolution: str
+    actor: str = "cto"
+
+
+@router.post("/fund/desk/requests/{request_id}/resolve")
+def desk_resolve(request_id: str, req: DeskResolve):
+    """Mark a request served, with the artifact that served it named."""
+    from app.fund.events import Event, EventType
+    if not (req.resolution or "").strip():
+        raise HTTPException(status_code=422,
+                            detail="name the artifact that served this request")
+    payload = {"request_id": request_id, "resolution": req.resolution.strip(),
+               "at": datetime.now(timezone.utc).isoformat(), "actor": req.actor}
+    _store.append(Event(aggregate_id=request_id, aggregate_type="desk_request",
+                        type=EventType.DESK_REQUEST_RESOLVED,
+                        payload=payload, actor=req.actor))
+    return payload
+
+
 @router.get("/fund/mechanics")
 def fund_mechanics():
     """How a hunch becomes a position, what dies on the way, and when.
@@ -3043,6 +3109,22 @@ def run_results_prune_tick() -> dict:
     material rather than the record.
     """
     return _lean().prune_results()
+
+
+def run_proposal_expiry_tick() -> dict:
+    """Worker tick: decline proposals past the staleness limit, reason on record.
+
+    The approve path already refuses stale proposals; this keeps the QUEUE honest
+    between refusals, so the operator never faces a button whose only outcome is
+    an error. Exit-sourced proposals re-raise themselves from fresh marks on the
+    exit tick if their condition still holds.
+    """
+    try:
+        pending = _orders.pending() or []
+    except Exception as e:  # noqa: BLE001
+        logger.info("proposal expiry tick: queue unreadable: %s", e)
+        return {"expired": [], "count": 0, "note": f"queue unreadable: {e}"}
+    return _pipeline.expire_stale_proposals(pending)
 
 
 def run_factory_reconcile_tick() -> dict:

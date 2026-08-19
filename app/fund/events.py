@@ -120,6 +120,11 @@ class EventType(str, Enum):
     # The OVERRIDDEN event matters as much as the other two — an exit that can be
     # ignored without a trace is not an exit, it is a story about why this time
     # is different.
+    # research desk — the operator asking the firm's bench for work. Recorded as
+    # events so a clicked request is a durable fact, never a forgotten toast.
+    DESK_REQUESTED = "DeskRequested"
+    DESK_REQUEST_RESOLVED = "DeskRequestResolved"
+
     EXIT_RULE_SET = "ExitRuleSet"               # committed before the position exists
     EXIT_RULE_TRIGGERED = "ExitRuleTriggered"   # fired; a closing proposal was raised
     EXIT_RULE_OVERRIDDEN = "ExitRuleOverridden" # fired and kept anyway, with a reason
