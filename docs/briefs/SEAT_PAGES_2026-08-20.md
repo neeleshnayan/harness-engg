@@ -66,6 +66,45 @@ payloads is correct and preferred; inventing a metric is not.
 - No hardcoded financial numbers, timestamps, or rates anywhere. Absence is
   never zero.
 
+## The collaboration model each page encodes (CEO direction, same day)
+
+A seat page is not a dashboard about an agent; it is the CEO's working surface
+WITH that agent. Layout mirrors the loop, top to bottom:
+
+1. **The seat's asks of the CEO** — its open recommendations, decidable in
+   place (Accept/Reject, as on /desk). What needs the human, first.
+2. **The CEO's asks of the seat** — the request composer pre-filled with this
+   seat's kind, so "ask the pm to re-review" is one field and one click.
+3. **The evidence** — runs with reasoning expanders, artifacts with verdicts,
+   chatter threads by trace_id. Why the seat believes what it asks.
+4. **The track record** — the lane-native metrics table above. Whether to keep
+   trusting it.
+
+So each page reads as: decide → ask → inspect → calibrate trust.
+
+## Charts: keep / retire / add (one rule decides)
+
+**The rule: a chart stays only if it informs a specific click or dispatch.**
+A number without a decision attached is retired, not restyled.
+
+KEEP (relocated where noted): the Mechanics funnel and causes-of-death (move
+into the quant page — it is that lane's native metric); the gate-lineage
+timeline (quant page); Risk's six measured modules stay on /risk — the
+riskofficer page LINKS to them as its evidence base, never duplicates; NAV +
+approval queue + strategy-wants stay on Monitor (with the new provenance
+chips); the Desk artifact chain (filtered per seat on seat pages).
+
+RETIRE: Lab's map/hunting-ground panels (already slated in c91d5c07 — they are
+mechanism-agent inputs via API now); Mechanics as a standalone tab (its four
+views disperse to the seats that own them); any duplicate rendering of the
+same number on two tabs.
+
+ADD: the PM decision funnel (made → accepted → staged → done); the adversary
+kill board; the trace timeline (chatter replay: request → dispatch → run →
+verdict → decision as one horizontal thread — the cross-seat view and the
+audit view in one); a per-seat dispatch-economics sparkline (tokens/dispatch
+over time); provenance chips everywhere an action is suggested.
+
 ## Provenance labels (added same day — found by the CEO, live)
 
 The CEO read Monitor's "What the strategies want" panel and could not tell
