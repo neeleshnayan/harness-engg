@@ -1281,6 +1281,11 @@ class DeskRequest(BaseModel):
     subject: str         # what to propose on / attack / audit
     note: str = ""
     actor: str = "operator"
+    # The chatter thread. Usually absent here — a request BIRTHS a trace and
+    # the trace_id defaults to the request_id. Passed explicitly only when
+    # this request continues an existing chain (e.g. an adversary attack on
+    # a thesis keeps the thesis's trace).
+    trace_id: Optional[str] = None
 
 
 @router.get("/fund/desk")
@@ -1309,9 +1314,11 @@ def desk_request(req: DeskRequest):
                             detail="a request needs a subject - 'do research' is "
                                    "not an ask the bench can act on")
     import uuid
-    payload = {"request_id": str(uuid.uuid4()), "kind": kind,
+    rid = str(uuid.uuid4())
+    payload = {"request_id": rid, "kind": kind,
                "serves": desk_mod.REQUEST_KINDS[kind],
                "subject": req.subject.strip(), "note": req.note or "",
+               "trace_id": (req.trace_id or "").strip() or rid,
                "at": datetime.now(timezone.utc).isoformat(),
                "actor": req.actor}
     _store.append(Event(aggregate_id=payload["request_id"],
@@ -1327,6 +1334,7 @@ class DeskDispatch(BaseModel):
     task: str
     request_id: Optional[str] = None
     actor: str = "cto"
+    trace_id: Optional[str] = None
 
 
 @router.post("/fund/desk/dispatch")
@@ -1345,9 +1353,13 @@ def desk_dispatch(req: DeskDispatch):
     if not (req.task or "").strip():
         raise HTTPException(status_code=422, detail="name the task")
     import uuid
-    payload = {"task_id": req.request_id or str(uuid.uuid4()),
+    tid = req.request_id or str(uuid.uuid4())
+    payload = {"task_id": tid,
                "seat": req.seat, "task": req.task.strip(),
                "request_id": req.request_id,
+               # A dispatch continues the request's trace when there is one;
+               # a CTO-initiated dispatch with no request births its own.
+               "trace_id": (req.trace_id or "").strip() or tid,
                "at": datetime.now(timezone.utc).isoformat(), "actor": req.actor}
     _store.append(Event(aggregate_id=payload["task_id"],
                         aggregate_type="desk_request",
@@ -1359,6 +1371,7 @@ def desk_dispatch(req: DeskDispatch):
 class DeskResolve(BaseModel):
     resolution: str
     actor: str = "cto"
+    trace_id: Optional[str] = None
 
 
 @router.post("/fund/desk/requests/{request_id}/resolve")
@@ -1369,6 +1382,7 @@ def desk_resolve(request_id: str, req: DeskResolve):
         raise HTTPException(status_code=422,
                             detail="name the artifact that served this request")
     payload = {"request_id": request_id, "resolution": req.resolution.strip(),
+               "trace_id": (req.trace_id or "").strip() or request_id,
                "at": datetime.now(timezone.utc).isoformat(), "actor": req.actor}
     _store.append(Event(aggregate_id=request_id, aggregate_type="desk_request",
                         type=EventType.DESK_REQUEST_RESOLVED,
@@ -1402,6 +1416,11 @@ class AgentRunRecord(BaseModel):
     dispatched_at: Optional[str] = None
     artifact_path: Optional[str] = None
     verdict: Optional[str] = None
+    # The distilled why: 3-6 bullets, written at resolve, rendered on the desk.
+    reasoning: Optional[str] = None
+    # The chatter thread this run belongs to — the desk request's trace_id,
+    # carried verbatim so the whole chain replays from one id.
+    trace_id: Optional[str] = None
     recommendations: Optional[list[dict]] = None
     meta: Optional[dict] = None
 
@@ -1460,6 +1479,7 @@ def decide_recommendation(run_id: str, rec_id: int, req: RecDecision):
                                  "status": req.status, "note": req.note,
                                  "text": hit.get("text"),
                                  "seat": hit.get("seat"),
+                                 "trace_id": hit.get("trace_id"),
                                  "at": datetime.now(timezone.utc).isoformat()},
                         actor=req.actor))
     return hit

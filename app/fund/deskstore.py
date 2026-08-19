@@ -44,12 +44,18 @@ CREATE TABLE IF NOT EXISTS fund_agent_runs (
     resolved_at     TIMESTAMPTZ DEFAULT now(),
     artifact_path   TEXT,
     verdict         TEXT,
+    reasoning       TEXT,
     output          TEXT,
+    trace_id        TEXT,
     recommendations JSONB DEFAULT '[]'::jsonb,
     meta            JSONB DEFAULT '{}'::jsonb
 );
 CREATE INDEX IF NOT EXISTS fund_agent_runs_seat_idx
     ON fund_agent_runs (seat, resolved_at DESC);
+ALTER TABLE fund_agent_runs ADD COLUMN IF NOT EXISTS reasoning TEXT;
+ALTER TABLE fund_agent_runs ADD COLUMN IF NOT EXISTS trace_id TEXT;
+CREATE INDEX IF NOT EXISTS fund_agent_runs_trace_idx
+    ON fund_agent_runs (trace_id);
 """
 
 #: Statuses a recommendation moves through. `open` -> CEO decides -> `accepted`
@@ -82,12 +88,21 @@ class DeskStore:
                    dispatched_at: Optional[str] = None,
                    artifact_path: Optional[str] = None,
                    verdict: Optional[str] = None,
+                   reasoning: Optional[str] = None,
+                   trace_id: Optional[str] = None,
                    recommendations: Optional[list[dict]] = None,
                    meta: Optional[dict] = None) -> dict[str, Any]:
-        """One dispatch, stored whole. Recommendations get ids and open status."""
+        """One dispatch, stored whole. Recommendations get ids and open status.
+
+        trace_id is the chatter thread: born at the desk request (or minted at
+        dispatch), carried verbatim onto the run, its recommendations, and the
+        decision events — so one id filters the whole conversation between
+        desks out of SQL and the event log.
+        """
         recs = []
         for i, r in enumerate(recommendations or [], 1):
             recs.append({"rec_id": i, "seat": seat, "status": "open",
+                         "trace_id": trace_id,
                          "text": str(r.get("text") or r).strip(),
                          "kind": r.get("kind") if isinstance(r, dict) else None})
         with self._connect() as conn:
@@ -96,27 +111,31 @@ class DeskStore:
                     """
                     INSERT INTO fund_agent_runs
                         (run_id, seat, task, model, tokens, tool_uses,
-                         dispatched_at, artifact_path, verdict, output,
-                         recommendations, meta)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                         dispatched_at, artifact_path, verdict, reasoning,
+                         output, trace_id, recommendations, meta)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                     ON CONFLICT (run_id) DO UPDATE SET
                         output = EXCLUDED.output,
                         artifact_path = EXCLUDED.artifact_path,
                         verdict = EXCLUDED.verdict,
+                        reasoning = EXCLUDED.reasoning,
                         tokens = EXCLUDED.tokens,
+                        trace_id = COALESCE(EXCLUDED.trace_id,
+                                            fund_agent_runs.trace_id),
                         recommendations = EXCLUDED.recommendations,
                         meta = EXCLUDED.meta
                     """,
                     (run_id, seat, task, model, tokens, tool_uses,
-                     dispatched_at, artifact_path, verdict, output,
-                     json.dumps(recs), json.dumps(meta or {})))
+                     dispatched_at, artifact_path, verdict, reasoning, output,
+                     trace_id, json.dumps(recs), json.dumps(meta or {})))
             conn.commit()
         return {"run_id": run_id, "recommendations": len(recs)}
 
     def runs(self, seat: Optional[str] = None, limit: int = 50,
              with_output: bool = False) -> list[dict[str, Any]]:
         cols = ("run_id, seat, task, model, tokens, tool_uses, dispatched_at, "
-                "resolved_at, artifact_path, verdict, recommendations"
+                "resolved_at, artifact_path, verdict, reasoning, trace_id, "
+                "recommendations"
                 + (", output" if with_output else ""))
         where, params = "", ()
         if seat:
@@ -134,9 +153,15 @@ class DeskStore:
                  "dispatched_at": r[6].isoformat() if r[6] else None,
                  "resolved_at": r[7].isoformat() if r[7] else None,
                  "artifact_path": r[8], "verdict": r[9],
-                 "recommendations": r[10] or []}
+                 # The distilled WHY - 3-6 bullets the CTO writes at resolve,
+                 # rendered in the UI so a decision's reasoning is readable
+                 # without opening the full artifact. The full output stays
+                 # below it for the audit.
+                 "reasoning": r[10],
+                 "trace_id": r[11],
+                 "recommendations": r[12] or []}
             if with_output:
-                d["output"] = r[11]
+                d["output"] = r[13]
             out.append(d)
         return out
 
@@ -191,5 +216,7 @@ class DeskStore:
                 if r.get("status") in ("open", "accepted", "staged"):
                     out.append({**r, "run_id": run["run_id"],
                                 "task": run["task"],
+                                "trace_id": r.get("trace_id")
+                                            or run.get("trace_id"),
                                 "artifact_path": run["artifact_path"]})
         return out
