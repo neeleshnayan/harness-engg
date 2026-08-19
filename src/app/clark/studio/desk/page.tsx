@@ -121,6 +121,7 @@ export default function DeskPage() {
                     <option value="proposal">proposal — mechanism</option>
                     <option value="thesis">thesis — analyst</option>
                     <option value="portfolio_review">portfolio review — pm</option>
+                    <option value="implement">implement — quant</option>
                     <option value="attack">attack — adversary</option>
                     <option value="audit">audit — validator</option>
                     <option value="build">build — cto</option>
