@@ -1321,6 +1321,41 @@ def desk_request(req: DeskRequest):
     return payload
 
 
+class DeskDispatch(BaseModel):
+    """The CTO recording that a seat has been put to work. CTO-only by protocol."""
+    seat: str
+    task: str
+    request_id: Optional[str] = None
+    actor: str = "cto"
+
+
+@router.post("/fund/desk/dispatch")
+def desk_dispatch(req: DeskDispatch):
+    """Record a dispatch so the desk can show what each seat is doing.
+
+    The spine cannot watch an agent think; this records the truthful envelope -
+    dispatched at T, delivered at T2 - and the UI renders exactly that.
+    """
+    from app.fund import desk as desk_mod
+    from app.fund.events import Event, EventType
+    seats = set(desk_mod.REQUEST_KINDS.values())
+    if req.seat not in seats:
+        raise HTTPException(status_code=422,
+                            detail=f"seat must be one of {sorted(seats)}")
+    if not (req.task or "").strip():
+        raise HTTPException(status_code=422, detail="name the task")
+    import uuid
+    payload = {"task_id": req.request_id or str(uuid.uuid4()),
+               "seat": req.seat, "task": req.task.strip(),
+               "request_id": req.request_id,
+               "at": datetime.now(timezone.utc).isoformat(), "actor": req.actor}
+    _store.append(Event(aggregate_id=payload["task_id"],
+                        aggregate_type="desk_request",
+                        type=EventType.DESK_DISPATCHED,
+                        payload=payload, actor=req.actor))
+    return payload
+
+
 class DeskResolve(BaseModel):
     resolution: str
     actor: str = "cto"

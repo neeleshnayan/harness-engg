@@ -41,6 +41,23 @@ ROSTER = [
                        "parameter sweeps; zero passed. A proposal that cannot "
                        "say who is on the other side and why they keep paying "
                        "is rejected before it costs a container."},
+    {"agent": "analyst",
+     "lane": "Builds evidence-grounded theses from the filings corpus, market "
+             "data, and the open web",
+     "emits": "a thesis memo with verbatim evidence and invalidation conditions",
+     "exists_because": "The fund read 863 observations from 201 tickers' filings "
+                       "and nothing ever consumed one. A corpus nobody reads is "
+                       "a cost, not an asset."},
+    {"agent": "pm",
+     "lane": "Owns the book analytically: mandate check, exceptions, exit "
+             "coverage, TCA against the fills",
+     "emits": "a decision memo with small, separate, clickable recommendations",
+     "exists_because": "Seated the day the $500 sleeve filled: gross at ~83% "
+                       "against a throttle asking for ~77%, three deployed "
+                       "strategies failing the gate, and the trim decision open "
+                       "- a book with real questions and nobody asking them "
+                       "daily. Recommends only; the CEO accepts, the CTO "
+                       "stages, the CEO clicks."},
     {"agent": "adversary",
      "lane": "Tries to kill any artifact, blind to its author's reasoning",
      "emits": "KILL / SURVIVES / CANNOT TELL, with citations and repro",
@@ -63,8 +80,15 @@ ROSTER = [
 #: Request kinds the desk accepts, mapped to the seat that serves them.
 REQUEST_KINDS = {
     "proposal": "mechanism",
+    "thesis": "analyst",
+    "portfolio_review": "pm",
     "attack": "adversary",
     "audit": "validator",
+    # Build work is the CTO's lane, queued here so that engineering asks flow
+    # through the same durable, visible queue as research asks - everything
+    # gates through the CEO and the CTO, and a queue with a side channel is
+    # not a queue.
+    "build": "cto",
 }
 
 _STATUS_RE = re.compile(r"Status:\s*(KILLED|SURVIVES|under adversarial review"
@@ -157,13 +181,68 @@ def _requests(store: Any) -> list[dict[str, Any]]:
     return sorted(rows.values(), key=lambda r: r.get("at") or "", reverse=True)
 
 
+def _activity(store: Any) -> dict[str, dict[str, Any]]:
+    """What each seat is doing RIGHT NOW, folded from dispatch/resolve events.
+
+    The spine cannot see a Claude agent thinking; what it can see is the CTO
+    session recording "dispatched X to seat Y" and "Y delivered Z". That is the
+    truthful resolution available, and the UI renders exactly it - a spinner
+    pretending to watch the agent's cursor would be theatre.
+
+    A dispatch with no matching resolution is WORKING. Resolution clears it and
+    becomes last_delivered. A seat with neither is idle - and idle is a real
+    state, not a gap: a bench seat that is never idle is a bottleneck.
+    """
+    from app.fund.events import EventType
+
+    open_by_task: dict[str, dict[str, Any]] = {}
+    seats: dict[str, dict[str, Any]] = {}
+    for e in store.stream(since_seq=0, limit=100_000):
+        t = e.get("type") if isinstance(e, dict) else getattr(e, "type", None)
+        t = getattr(t, "value", t)
+        p = (e.get("payload") if isinstance(e, dict)
+             else getattr(e, "payload", None)) or {}
+        if t == EventType.DESK_DISPATCHED.value:
+            tid, seat = p.get("task_id"), p.get("seat")
+            if tid and seat:
+                open_by_task[tid] = p
+                seats.setdefault(seat, {})["working_on"] = p
+        elif t == EventType.DESK_REQUEST_RESOLVED.value:
+            tid = p.get("request_id")
+            d = open_by_task.pop(tid, None)
+            if d:
+                seat = d["seat"]
+                row = seats.setdefault(seat, {})
+                if (row.get("working_on") or {}).get("task_id") == tid:
+                    row.pop("working_on", None)
+                row["last_delivered"] = {"task": d.get("task"),
+                                         "artifact": p.get("resolution"),
+                                         "at": p.get("at")}
+    out = {}
+    for seat in list(REQUEST_KINDS.values()):
+        row = seats.get(seat, {})
+        w = row.get("working_on")
+        out[seat] = {
+            "status": "working" if w else "idle",
+            "task": (w or {}).get("task"),
+            "since": (w or {}).get("at"),
+            "last_delivered": row.get("last_delivered"),
+        }
+    return out
+
+
 def view(store: Any) -> dict[str, Any]:
     artifacts = _artifacts()
     reqs = _requests(store)
+    activity = _activity(store)
     open_reqs = [r for r in reqs if r["status"] == "open"]
     killed = [a for a in artifacts if a["status"] == "killed"]
     return {
-        "roster": ROSTER,
+        "roster": [{**r, "activity": activity.get(r["agent"],
+                                             {"status": "idle", "task": None,
+                                              "since": None,
+                                              "last_delivered": None})}
+                   for r in ROSTER],
         "protocol": [
             "every artifact is falsifiable or it is rejected",
             "nothing an agent claims is acted on until verified against the "

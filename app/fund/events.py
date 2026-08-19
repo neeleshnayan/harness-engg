@@ -123,6 +123,7 @@ class EventType(str, Enum):
     # research desk — the operator asking the firm's bench for work. Recorded as
     # events so a clicked request is a durable fact, never a forgotten toast.
     DESK_REQUESTED = "DeskRequested"
+    DESK_DISPATCHED = "DeskDispatched"
     DESK_REQUEST_RESOLVED = "DeskRequestResolved"
 
     EXIT_RULE_SET = "ExitRuleSet"               # committed before the position exists

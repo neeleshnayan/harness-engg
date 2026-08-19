@@ -26,9 +26,12 @@ class MemStore:
 def test_the_view_reads_real_artifacts_and_pairs_them_with_verdicts():
     """Runs against the actual docs/ tree — the files ARE the state."""
     v = desk.view(MemStore())
-    assert len(v["roster"]) == 3
-    assert {r["agent"] for r in v["roster"]} == {"mechanism", "adversary",
-                                                 "validator"}
+    assert len(v["roster"]) == 5
+    assert {r["agent"] for r in v["roster"]} == {"mechanism", "analyst", "pm",
+                                                 "adversary", "validator"}
+    # Every seat carries its justification - a role with no measured reason is
+    # ceremony, and the roster rule says it should not exist.
+    assert all(r["exists_because"].strip() for r in v["roster"])
     # Both known artifacts are on the desk and both were killed with a review
     # on file. If this fails after adding artifacts, the pairing broke — check
     # the "Artifact attacked:" line in the review.
