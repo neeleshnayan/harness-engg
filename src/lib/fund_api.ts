@@ -760,6 +760,18 @@ export interface ResearchBacktestResponse {
   signals: number[];
 }
 
+/** One structured recommendation from an agent run, with attribution. */
+export interface DeskRecommendation {
+  rec_id: number;
+  seat: string;
+  status: 'open' | 'accepted' | 'rejected' | 'staged' | 'done';
+  text: string;
+  kind?: string | null;
+  decided_by?: string;
+  decided_at?: string;
+  note?: string;
+}
+
 /** The research desk: the firm's bench, artifact chain, and work queue. */
 export interface DeskView {
   roster: {
@@ -788,6 +800,23 @@ export interface DeskView {
     note?: string; at?: string; status: 'open' | 'resolved';
     resolution?: string;
   }[];
+  /** The flight recorder: every dispatch stored whole in Postgres. */
+  runs: {
+    run_id: string; seat: string; task: string; model?: string | null;
+    tokens?: number | null; tool_uses?: number | null;
+    dispatched_at?: string | null; resolved_at?: string | null;
+    artifact_path?: string | null; verdict?: string | null;
+    /** The distilled WHY — bullets written at resolve, one per line. */
+    reasoning?: string | null;
+    /** The chatter thread this run belongs to — one id replays the chain. */
+    trace_id?: string | null;
+    recommendations: DeskRecommendation[];
+  }[];
+  /** Every recommendation awaiting a decision, seat attribution attached. */
+  open_recommendations: (DeskRecommendation & {
+    run_id: string; task: string; artifact_path?: string | null;
+    trace_id?: string | null;
+  })[];
   open_requests: number;
   kills: number;
   /** The honesty line: the spine records requests; it does not run agents. */
@@ -1894,6 +1923,11 @@ export const fundApiClient = {
   /** The firm's bench and artifact chain. Reads docs/ + the event log. */
   getDesk: async (): Promise<DeskView> =>
     (await fundApi.get(`${P}/desk`)).data,
+
+  /** Decide one agent recommendation (CEO): accepted | rejected. */
+  decideRecommendation: async (runId: string, recId: number,
+                               body: { status: string; actor?: string; note?: string }) =>
+    (await fundApi.post(`${P}/desk/runs/${runId}/recommendations/${recId}`, body)).data,
 
   /** Record a work request for the bench — a durable event, not a toast. */
   postDeskRequest: async (body: { kind: string; subject: string; note?: string }) =>

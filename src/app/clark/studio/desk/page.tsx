@@ -177,6 +177,32 @@ export default function DeskPage() {
               </section>
             )}
 
+            {/* recommendations awaiting decisions — attribution is the point */}
+            {d.open_recommendations?.length > 0 && (
+              <section className="mb-8">
+                <p className={`${KT.label} mb-2`}>
+                  Recommendations awaiting your decision
+                </p>
+                <div className="space-y-1.5">
+                  {d.open_recommendations.map((r) => (
+                    <RecRow key={`${r.run_id}-${r.rec_id}`} r={r} onDecide={load} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* the flight recorder */}
+            {d.runs?.length > 0 && (
+              <section className="mb-8">
+                <p className={`${KT.label} mb-2`}>Run log (stored whole in Postgres)</p>
+                <div className="space-y-1">
+                  {d.runs.map((run) => (
+                    <RunRow key={run.run_id} run={run} />
+                  ))}
+                </div>
+              </section>
+            )}
+
             {/* 2 — the artifact chain */}
             <section className="mb-8">
               <div className="mb-3 flex items-baseline justify-between gap-2">
@@ -306,5 +332,97 @@ export default function DeskPage() {
         )}
       </div>
     </>
+  );
+}
+
+function RecRow({ r, onDecide }: {
+  r: DeskView["open_recommendations"][number];
+  onDecide: () => Promise<void> | void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const decide = async (status: "accepted" | "rejected") => {
+    setBusy(true);
+    try {
+      await fundApiClient.decideRecommendation(r.run_id, r.rec_id, { status, actor: "ceo" });
+      await onDecide();
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className={`${KT.card} flex flex-wrap items-center gap-3 p-3`}>
+      {/* the attribution chip — which agent's judgement this is */}
+      <span className="rounded-full border border-[var(--kt-accent-border)] bg-[var(--kt-accent-bg)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--kt-accent)]">
+        {r.seat} · rec {r.rec_id}
+      </span>
+      <span className="min-w-0 flex-1 text-sm leading-snug">{r.text}</span>
+      {r.status === "open" ? (
+        <span className="flex shrink-0 gap-2">
+          <button type="button" disabled={busy} onClick={() => decide("accepted")}
+            className={`${KT.btn} px-2 py-1 text-xs disabled:opacity-40`}>
+            Accept
+          </button>
+          <button type="button" disabled={busy} onClick={() => decide("rejected")}
+            className="rounded-lg border border-[var(--kt-border)] px-2 py-1 text-xs text-[var(--kt-text-dim)] hover:border-[var(--kt-down)] hover:text-[var(--kt-down)] disabled:opacity-40">
+            Reject
+          </button>
+        </span>
+      ) : (
+        <span className={`font-mono text-[10px] uppercase tracking-[0.1em] ${r.status === "staged" ? "text-[var(--kt-warn)]" : KT.muted}`}>
+          {r.status}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function RunRow({ run }: { run: DeskView["runs"][number] }) {
+  const [open, setOpen] = useState(false);
+  const bullets = (run.reasoning || "")
+    .split("\n")
+    .map((l) => l.replace(/^[-*•]\s*/, "").trim())
+    .filter(Boolean);
+  return (
+    <div className={`${KT.card} p-3 text-xs`}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full flex-wrap items-baseline gap-x-3 gap-y-1 text-left"
+      >
+        <span className="font-mono text-[var(--kt-accent)]">{run.seat}</span>
+        <span className="min-w-0 flex-1 truncate">{run.task}</span>
+        {run.verdict && (
+          <span className={`font-mono text-[10px] uppercase ${run.verdict === "KILL" || run.verdict === "KILLED" ? "text-[var(--kt-down)]" : KT.muted}`}>
+            {run.verdict}
+          </span>
+        )}
+        {run.tokens != null && (
+          <span className={`font-mono text-[10px] tabular-nums ${KT.muted}`}>
+            {(run.tokens / 1000).toFixed(0)}k tok
+          </span>
+        )}
+        <span className={`font-mono text-[10px] ${KT.muted}`}>
+          {bullets.length ? (open ? "− why" : "+ why") : ""}
+        </span>
+      </button>
+      {open && bullets.length > 0 && (
+        <ul className="mt-2 space-y-1 border-t border-[var(--kt-border)] pt-2">
+          {bullets.map((b, i) => (
+            <li key={i} className="flex gap-2 leading-relaxed">
+              <span className="text-[var(--kt-accent)]">·</span>
+              <span>{b}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {open && (run.artifact_path || run.trace_id) && (
+        <p className={`mt-1.5 font-mono text-[10px] ${KT.muted}`}>
+          {run.artifact_path && <>full record: {run.artifact_path} · </>}
+          Postgres run {run.run_id}
+          {run.trace_id && <> · trace {run.trace_id.slice(0, 8)}</>}
+        </p>
+      )}
+    </div>
   );
 }
