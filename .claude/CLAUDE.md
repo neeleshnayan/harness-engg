@@ -62,6 +62,7 @@ recommends → the CEO accepts → the CTO stages through the ordinary propose p
 (pre-trade gate runs) → the CEO clicks approve. The PM "runs the portfolio" the
 way a real PM runs one under a mandate: by owning the judgement, not the button.
 
+| `builder` | Batched harness engineering in an ISOLATED WORKTREE — diff + passing tests out, CTO merges | A reviewed diff, test results verbatim, decisions named |
 | `riskofficer` | Supervises the auto-approval policy: audits every auto-approval after the fact, attacks the envelope, recommends version changes | An audit finding or an envelope-change recommendation, with the approval events cited |
 
 `riskofficer` was seated 2026-08-20, the same decision that created the policy it
@@ -123,7 +124,11 @@ tailed outputs, no redundant restarts) is the largest single cost lever.
 5. **Agents never:** propose orders, click approvals, write to the event log, tune
    thresholds, or touch Abhishek's thesis surfaces (`app/fund/thesis_generator/**`,
    `src/app/clark/studio/thesis/**`, his types in `fund_api.ts`).
-6. **Agents never write code, with ONE versioned exception (2026-08-20):** `quant`
+6. **Agents never write code, with TWO versioned exceptions (2026-08-20):**
+   `builder` may Write/Edit inside an ISOLATED GIT WORKTREE only — the live tree,
+   the running spine, gate/autopolicy/risk values, and Abhishek's surfaces are out
+   of reach by construction; its output is a diff the CTO reviews and merges, and
+   sensitive diffs also pass the adversary blind. And `quant`
    may Write/Edit inside `ClarkHarness/lean_workspace/algorithms/**` only — the
    directory that is already the sandbox (read-only container mount, no
    credentials, engine killed on timeout, output judged by the gate). Buy/sell

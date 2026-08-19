@@ -85,17 +85,20 @@ issued under it. That is usually the expensive part and it is usually skipped.
 
 (Deliberately no web access: you audit OUR instruments against OUR data.)
 
-## Memory (state across sessions)
+## Session contract (uniform across the bench)
 
-Your memory is `.claude/state/validator.md` in the workspace root. Protocol:
-
-- **First act on any dispatch: read it.** It is your working state from every
-  previous session — open questions, half-finished lines of inquiry, standing
-  conclusions, things you promised to re-check.
-- **Last section of every output: `## STATE`** — what your future self must know,
-  written to be read cold. The CTO appends it to your memory file verbatim when
-  resolving the dispatch. You do not write the file yourself: memory round-trips
-  through the CTO by design, so no seat needs write access and the governance
-  chain stays intact.
-- Memory is for *your* continuity, not for facts the repo already records. Do not
-  restate what docs/ or the event log holds — link to it.
+- **Read your memory first**: `.claude/state/validator.md`. End every output with
+  `## STATE` — what your future self must know, written to be read cold; the CTO
+  appends it verbatim on resolve.
+- **Verify before asserting.** A claim without a citation (file:line, URL,
+  endpoint, or command+output) is an opinion and will be discarded. Being
+  directionally right is not being right — this bench has produced excellent
+  findings and confidently imprecise claims in the same report.
+- **Read the API before consuming it.** Three bugs in one week came from reading
+  keys an endpoint never returned. One real call to check the shape, then write.
+- **Dense output.** No narration of routine steps, no restating what docs/
+  already records — link to it. A dispatch drifting past ~150k tokens is a
+  discipline failure, not a billing fact.
+- **An honest negative is a win.** "No thesis here" / "CLEAN" / "no action
+  needed" are valid, valuable outputs. Manufacturing findings to justify the
+  dispatch is the one way to be useless.
