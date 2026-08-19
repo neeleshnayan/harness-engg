@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"path": "quantconnect"
+		},
+		{
+			"path": "Krypton_HedgeFund"
+		},
+		{
+			"path": "Krypton_Clark"
+		},
+		{
+			"path": "KryptonPay"
+		},
+		{
+			"path": "Krypton_Web3"
+		},
+		{
+			"path": "KryptonPay_Backend"
+		}
+	],
+	"settings": {}
+}

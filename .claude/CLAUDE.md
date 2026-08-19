@@ -24,21 +24,54 @@ with the benchmark-blindness fix (see docs/BENCHMARK_BLIND_WALKFORWARD_2026-08-1
 
 | Owner | Owns |
 |---|---|
-| **Operator** (human) | Risk appetite, fund identity, security selection, every approval click, every threshold change |
-| **CTO** (main session) | Architecture, the roster, verification of agent claims, what gets built next |
+| **CEO** (human) | Risk appetite, fund identity, security selection, every approval click, every threshold change. Everything gates through the CEO and the CTO — no agent output reaches money without both. |
+| **CTO** (main session) | Architecture, the roster, verification of agent claims, dispatching the bench, staging accepted recommendations through the ordinary propose path, what gets built next |
 | **Agents** (below) | Falsifiable artifacts in their lane. Nothing else. |
+
+### Who runs the agents (stated so nobody assumes autonomy)
+
+Agents are Claude sub-agents dispatched by the CTO session. Definitions live in
+`.claude/agents/`; execution is Claude. The spine runs none of them. When no
+session is live, nothing thinks — desk requests queue as durable events until the
+CTO is live to dispatch. Overnight autonomy would be scheduled sessions, which is
+a deliberate, versioned step this firm has not taken.
 
 ## The bench
 
 | Agent | Lane | Emits |
 |---|---|---|
 | `mechanism` | Proposes edges with a named counterparty and claim type | A falsifiable proposal |
+| `analyst` | Builds evidence-grounded theses from the filings corpus, market data, and the web | A thesis memo with verbatim evidence and invalidation conditions |
+| `pm` | Owns the book analytically: mandate check, exceptions, exit coverage, TCA | A decision memo with small, separate, clickable recommendations |
 | `adversary` | Tries to kill any artifact, blind to its author's reasoning | KILL / SURVIVES / CANNOT TELL, with citations |
 | `validator` | Audits the fund's own instruments — gate, audits, registers | Measurements with method and confidence |
 
-Deliberately three, not six. Risk, Execution, and Scribe roles get created when there
-is flow to manage — a role with nothing to do decays into ceremony. The roster grows
-by demonstrated need, never by org-chart symmetry.
+Five seats, each by demonstrated need (the rule that grew the roster from three):
+`analyst` was seated 2026-08-20 because the 863-observation filings corpus had
+zero consumers; `pm` the same day because the $500 sleeve FILLING made "flow to
+manage" true — gross at ~83% against a throttle asking for ~77%, three deployed
+strategies failing the gate, the trim decision open. Execution and Scribe remain
+uncreated: still nothing for them to do. The roster grows by demonstrated need,
+never by org-chart symmetry.
+
+The PM chain, stated precisely because it is where the invariant lives: the PM
+recommends → the CEO accepts → the CTO stages through the ordinary propose path
+(pre-trade gate runs) → the CEO clicks approve. The PM "runs the portfolio" the
+way a real PM runs one under a mandate: by owning the judgement, not the button.
+
+## Tools and memory per seat
+
+Each seat's tools match its job, not a default: `mechanism`, `analyst` and
+`adversary` carry web access (counterparty stories, prior art, and an artifact's
+claims about the world get checked against the world — always with URLs);
+`pm` and `validator` are deliberately local-only (their truth is the spine and
+the log; web colour is their failure mode). No seat carries Write or Edit.
+
+Each seat has a memory file at `.claude/state/<seat>.md`. Protocol: the seat
+reads it first on every dispatch; every output ends with a `## STATE` section;
+the CTO appends that section verbatim when resolving the dispatch. Memory
+round-trips through the CTO by design — continuity without write access, so the
+governance chain and Abhishek's surfaces stay structurally protected.
 
 ## The working protocol
 

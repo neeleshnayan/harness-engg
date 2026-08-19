@@ -1,0 +1,27 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "quantconnect",
+			"path": "quantconnect"
+		},
+		{
+			"name": "Krypton_Clark",
+			"path": "Krypton_Clark"
+		},
+		{
+			"name": "KryptonPay",
+			"path": "KryptonPay"
+		},
+		{
+			"name": "SmartToken",
+			"path": "KryptonPay/SmartToken"
+		},
+		{
+			"path": "../../../.openclaw/workspace"
+		}
+	],
+	"settings": {}
+}
