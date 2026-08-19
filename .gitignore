@@ -1,0 +1,7 @@
+# This repo tracks ONLY the firm level: .claude/ (constitution, agents) and
+# top-level docs. The project repos — ClarkHarness, KryptonPay, Krypton_Clark —
+# are their own git repositories with their own histories; tracking them here
+# as embedded repos would create the two-places-to-disagree problem the
+# harness spends so much effort avoiding.
+/*/
+!.claude/
