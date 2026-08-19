@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, BookOpen, Dna, FlaskConical, ShieldAlert, Sliders } from "lucide-react";
+import { Activity, BookOpen, Dna, FlaskConical, ShieldAlert, Sliders, Swords } from "lucide-react";
 
 /**
  * Workflow-first navigation, ordered by how often it is used.
@@ -44,6 +44,8 @@ const TABS = [
     hint: "Automatic theme discovery & investment thesis generator" },
   { href: "/clark/studio/mechanics", label: "Mechanics", icon: Dna,
     hint: "How a hunch becomes a position: variation, selection, what died, and when" },
+  { href: "/clark/studio/desk", label: "Desk", icon: Swords,
+    hint: "The firm that builds the fund: request work, see the artifact chain and its kills" },
 ];
 
 export function StudioNav() {

@@ -760,6 +760,31 @@ export interface ResearchBacktestResponse {
   signals: number[];
 }
 
+/** The research desk: the firm's bench, artifact chain, and work queue. */
+export interface DeskView {
+  roster: { agent: string; lane: string; emits: string; exists_because: string }[];
+  protocol: string[];
+  artifacts: {
+    kind: string;
+    path: string;
+    title: string;
+    status: 'killed' | 'survives' | 'under_review';
+    review: { review_path: string; review_title: string; verdict: string | null } | null;
+    /** Present when NO review is on file — unreviewed is not surviving. */
+    note: string | null;
+  }[];
+  requests: {
+    request_id: string; kind: string; serves: string; subject: string;
+    note?: string; at?: string; status: 'open' | 'resolved';
+    resolution?: string;
+  }[];
+  open_requests: number;
+  kills: number;
+  /** The honesty line: the spine records requests; it does not run agents. */
+  execution_note: string;
+  note: string;
+}
+
 /** One candidate, read as an organism: its variants, verdict and cause of death. */
 export interface MechanicsCandidate {
   candidate_id: string;
@@ -1856,6 +1881,14 @@ export const fundApiClient = {
    *
    *  Reads several subsystems server-side (candidates, strategies, the event log),
    *  so it is seconds rather than milliseconds — poll it loosely, never tightly. */
+  /** The firm's bench and artifact chain. Reads docs/ + the event log. */
+  getDesk: async (): Promise<DeskView> =>
+    (await fundApi.get(`${P}/desk`)).data,
+
+  /** Record a work request for the bench — a durable event, not a toast. */
+  postDeskRequest: async (body: { kind: string; subject: string; note?: string }) =>
+    (await fundApi.post(`${P}/desk/requests`, body)).data,
+
   getMechanics: async (): Promise<MechanicsView> =>
     (await fundApi.get(`${P}/mechanics`)).data,
 
