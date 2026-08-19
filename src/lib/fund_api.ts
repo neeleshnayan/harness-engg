@@ -762,7 +762,17 @@ export interface ResearchBacktestResponse {
 
 /** The research desk: the firm's bench, artifact chain, and work queue. */
 export interface DeskView {
-  roster: { agent: string; lane: string; emits: string; exists_because: string }[];
+  roster: {
+    agent: string; lane: string; emits: string; exists_because: string;
+    /** Live per-seat activity, folded from dispatch/resolve events. The spine
+     *  cannot watch an agent think; this is the truthful envelope. */
+    activity: {
+      status: 'working' | 'idle';
+      task: string | null;
+      since: string | null;
+      last_delivered: { task: string; artifact: string; at: string } | null;
+    };
+  }[];
   protocol: string[];
   artifacts: {
     kind: string;

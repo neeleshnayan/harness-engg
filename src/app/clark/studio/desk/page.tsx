@@ -119,8 +119,11 @@ export default function DeskPage() {
                     className={KT.input}
                   >
                     <option value="proposal">proposal — mechanism</option>
+                    <option value="thesis">thesis — analyst</option>
+                    <option value="portfolio_review">portfolio review — pm</option>
                     <option value="attack">attack — adversary</option>
                     <option value="audit">audit — validator</option>
+                    <option value="build">build — cto</option>
                   </select>
                 </label>
                 <label className="flex min-w-[16rem] flex-1 flex-col gap-1">
@@ -234,9 +237,40 @@ export default function DeskPage() {
               <div className="grid gap-3 md:grid-cols-3">
                 {d.roster.map((r) => (
                   <div key={r.agent} className={`${KT.card} p-4`}>
-                    <p className="font-mono text-sm text-[var(--kt-accent)]">
-                      {r.agent}
-                    </p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-mono text-sm text-[var(--kt-accent)]">
+                        {r.agent}
+                      </p>
+                      <span
+                        className={`flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] ${
+                          r.activity.status === "working"
+                            ? "text-[var(--kt-warn)]"
+                            : KT.muted
+                        }`}
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${
+                            r.activity.status === "working"
+                              ? "animate-pulse bg-[var(--kt-warn)]"
+                              : "bg-[var(--kt-border-strong)]"
+                          }`}
+                        />
+                        {r.activity.status}
+                      </span>
+                    </div>
+                    {r.activity.status === "working" && r.activity.task && (
+                      <p className="mt-1.5 rounded bg-[var(--kt-inset)] px-2 py-1 text-xs leading-snug">
+                        {r.activity.task}
+                      </p>
+                    )}
+                    {r.activity.last_delivered && (
+                      <p className={`mt-1.5 text-[11px] ${KT.muted}`}>
+                        last delivered:{" "}
+                        <span className="font-mono">
+                          {r.activity.last_delivered.artifact}
+                        </span>
+                      </p>
+                    )}
                     <p className="mt-1.5 text-xs leading-relaxed">{r.lane}</p>
                     <p className={`mt-2 font-mono text-[10px] uppercase tracking-[0.1em] ${KT.muted}`}>
                       emits
