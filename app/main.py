@@ -217,6 +217,15 @@ async def _scheduler():
             fund_router.run_proposal_expiry_tick()
         except Exception as e:  # noqa: BLE001
             _log.warning("proposal expiry tick failed: %s", e)
+        # The auto-approval envelope (CEO amendment 2026-08-20): deterministic,
+        # versioned, v1 = exit-rule SELLs only, and only while the heartbeats
+        # above prove the controls are alive. Runs AFTER the exit tick that
+        # raises such proposals, so a fired stop can close in the same cycle.
+        try:
+            fund_router.run_autopolicy_tick()
+            heartbeat.beat("auto_policy")
+        except Exception as e:  # noqa: BLE001
+            _log.warning("autopolicy tick failed: %s", e)
         # Engine output older than the retention window. Cheap: it lists one
         # directory and returns immediately when nothing is due. Unbounded growth
         # on disk is the same class of problem as the unbounded `running` rows

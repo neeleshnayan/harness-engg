@@ -190,6 +190,19 @@ code.
 1. **The machine proposes; the human clicks.** No automated path executes. The
    moment an agent path completes a trade, every claim this system makes about
    itself stops being true.
+
+   > **AMENDED 2026-08-20, CEO decision, in the open.** Execution now happens
+   > inside a deterministic, versioned auto-approval policy
+   > (`app/fund/autopolicy.py`, v1: exit-rule-triggered SELLs only, fresh,
+   > liveness-proven, paper venue). The written reason: the human belongs at the
+   > policy level, not the per-order level, and the controls this invariant
+   > protected are now measured, ticking, and heartbeat-monitored. The property
+   > this stage protects survives in stronger form: the per-trade decision is
+   > CODE — deterministic, testable, calibrated — never an LLM; agents supervise
+   > the policy (riskofficer seat) and cannot operate it; everything outside the
+   > envelope still waits for the CEO. The original text above is kept, struck
+   > by amendment rather than edited away, so the record shows what we believed
+   > and when.
 2. **The builder does not select securities.** Analysis of measured properties —
    shortlists, correlations, sizing arithmetic — yes. The instrument choice and
    the click stay with the operator.

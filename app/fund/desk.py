@@ -58,6 +58,16 @@ ROSTER = [
                        "- a book with real questions and nobody asking them "
                        "daily. Recommends only; the CEO accepts, the CTO "
                        "stages, the CEO clicks."},
+    {"agent": "quant",
+     "lane": "Translates approved proposals and theses into LEAN algorithms and "
+             "runs them down the belt",
+     "emits": "an implementation + the gate's verdict, failures verbatim",
+     "exists_because": "The proposal-to-implementation step was the CTO's "
+                       "personal bottleneck - every candidate so far was "
+                       "hand-written by the CTO. Carries the firm's ONE scoped "
+                       "code exception: Write/Edit inside "
+                       "lean_workspace/algorithms/** only, which is already the "
+                       "sandbox. Buy/sell inside backtests; never live orders."},
     {"agent": "adversary",
      "lane": "Tries to kill any artifact, blind to its author's reasoning",
      "emits": "KILL / SURVIVES / CANNOT TELL, with citations and repro",
@@ -66,6 +76,16 @@ ROSTER = [
                        "'improvement' that looked 50% better on its headline. "
                        "It has since killed two v5 designs in a row, each with "
                        "runnable demonstrations."},
+    {"agent": "riskofficer",
+     "lane": "Supervises the auto-approval policy: audits every auto-approval "
+             "after the fact, attacks the envelope, recommends version changes",
+     "emits": "audit findings with event seqs cited, or an envelope "
+              "recommendation with the demonstration attached",
+     "exists_because": "Seated 2026-08-20 by the same CEO decision that created "
+                       "the auto-approval policy: an execution path without an "
+                       "adversarial supervisor is the unwired kill switch "
+                       "pattern in a new costume. Already flagged envelope v1's "
+                       "weakest check at hiring (marker provenance)."},
     {"agent": "validator",
      "lane": "Audits the fund's own instruments — the gate, the audits, the "
              "registers",
@@ -82,8 +102,10 @@ REQUEST_KINDS = {
     "proposal": "mechanism",
     "thesis": "analyst",
     "portfolio_review": "pm",
+    "implement": "quant",
     "attack": "adversary",
     "audit": "validator",
+    "policy_audit": "riskofficer",
     # Build work is the CTO's lane, queued here so that engineering asks flow
     # through the same durable, visible queue as research asks - everything
     # gates through the CEO and the CTO, and a queue with a side channel is

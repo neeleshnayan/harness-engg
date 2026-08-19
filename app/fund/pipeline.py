@@ -162,7 +162,9 @@ class CommandPipeline:
         return self._explicit_risk_gate or RiskGate(limits=self._control.limits())
 
     # --- approve / decline -------------------------------------------------
-    def approve_order(self, order_id: str, approver: str) -> dict[str, Any]:
+    def approve_order(self, order_id: str, approver: str,
+                      policy_evaluation: dict[str, Any] | None = None
+                      ) -> dict[str, Any]:
         order, last_type = self._load_order(order_id)
         if last_type != EventType.ORDER_PROPOSED.value:
             raise CommandError(f"order {order_id} is '{last_type}', not awaiting approval")
@@ -186,7 +188,13 @@ class CommandPipeline:
                 aggregate_id=order_id,
                 aggregate_type="order",
                 type=EventType.ORDER_APPROVED,
-                payload={"approver": approver},
+                # When the approver is the auto-policy, the FULL check-by-check
+                # evaluation rides on the approval event, so the risk officer
+                # audits decisions rather than summaries and the log answers
+                # "why did this execute" forever.
+                payload={"approver": approver,
+                         **({"policy_evaluation": policy_evaluation}
+                            if policy_evaluation else {})},
                 actor=approver,
             )
         )

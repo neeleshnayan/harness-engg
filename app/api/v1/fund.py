@@ -3146,6 +3146,29 @@ def run_results_prune_tick() -> dict:
     return _lean().prune_results()
 
 
+def run_autopolicy_tick() -> dict:
+    """Worker tick: auto-approve what the deterministic envelope covers.
+
+    v1 envelope: exit-rule-triggered SELLs only, and only while the controls are
+    demonstrably alive. Everything else waits for the CEO exactly as before. See
+    app/fund/autopolicy.py for the amendment this implements and its reasoning.
+    """
+    from app.fund import autopolicy, heartbeat
+    try:
+        pending = _orders.pending() or []
+    except Exception as e:  # noqa: BLE001
+        logger.info("autopolicy tick: queue unreadable: %s", e)
+        return {"approved": [], "skipped": [], "failed": [],
+                "note": f"queue unreadable: {e}"}
+    if not pending:
+        return {"approved": [], "skipped": [], "failed": [],
+                "policy_version": autopolicy.AUTOPOLICY_VERSION,
+                "note": "queue empty"}
+    hb = {j["job"]: j for j in heartbeat.report()["jobs"]}
+    return autopolicy.run(_pipeline, pending,
+                          halted=_control.is_halted(), heartbeats=hb)
+
+
 def run_proposal_expiry_tick() -> dict:
     """Worker tick: decline proposals past the staleness limit, reason on record.
 

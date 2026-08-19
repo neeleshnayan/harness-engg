@@ -45,6 +45,7 @@ BUDGETS_SECONDS: dict[str, float] = {
     "settlement": 300.0,
     "risk_monitor": 300.0,
     "exit_check": 300.0,
+    "auto_policy": 300.0,
     "snapshot": 7200.0,
     "nav_strike": 5400.0,
 }
