@@ -76,6 +76,14 @@ ROSTER = [
                        "'improvement' that looked 50% better on its headline. "
                        "It has since killed two v5 designs in a row, each with "
                        "runnable demonstrations."},
+    {"agent": "builder",
+     "lane": "Batched harness engineering in an isolated worktree - diff + "
+             "passing tests out, CTO merges",
+     "emits": "a reviewed diff, test results verbatim, decisions named",
+     "exists_because": "Every serious bug this fund made was HARNESS code - so "
+                       "this seat gets throughput without trust: it never "
+                       "touches the live tree, thresholds, or the approval "
+                       "path, and nothing it writes runs before human review."},
     {"agent": "riskofficer",
      "lane": "Supervises the auto-approval policy: audits every auto-approval "
              "after the fact, attacks the envelope, recommends version changes",
@@ -110,7 +118,7 @@ REQUEST_KINDS = {
     # through the same durable, visible queue as research asks - everything
     # gates through the CEO and the CTO, and a queue with a side channel is
     # not a queue.
-    "build": "cto",
+    "build": "builder",
 }
 
 _STATUS_RE = re.compile(r"Status:\s*(KILLED|SURVIVES|under adversarial review"
