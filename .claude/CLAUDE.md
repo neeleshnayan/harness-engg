@@ -92,8 +92,14 @@ An idle seat costs zero and that is a feature. One sub-agent in flight at a
 time; briefs are batched (an adversary reviewing three artifacts costs barely
 more than one).
 
-Placement, per seat: mechanism/pm/quant/adversary/validator/riskofficer run on
-**Opus**; the analyst SPLITS — survey/scan phases on the local 4090 (qwen,
+Placement, per seat: mechanism/pm/adversary/validator/riskofficer run on
+**Opus**; `quant` is HYBRID — the local 4090 (qwen3.8) drafts the LEAN
+algorithm, Opus reviews it against the known trap list (look-ahead, warm-up,
+declared constants, parameter plumbing), the belt judges as always; the split is
+confirmed or reverted by diffing both paths on the first real dispatch. Safe to
+trial there because quant's output is machine-verified downstream — errors reach
+the gate, not money; the guarded risk is a false negative (a good idea killed by
+a bad translation). The analyst SPLITS — survey/scan phases on the local 4090 (qwen,
 checkable outputs only), thesis judgement on Opus (built lazily, first time the
 seat runs hot). Validator's simulations and quant's belt runs are local compute
 it invokes for free. The adversary and anything near the approval chain are
