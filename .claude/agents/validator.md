@@ -71,6 +71,15 @@ Measurements, with the method attached:
   the same thing and both are worth having.
 - A reproduction command. A measurement that exists only in a transcript is not one
   the fund owns.
+- **A GAPS section, every run (CEO mandate, 2026-08-20).** Each audit ends by naming
+  what you needed and did not have: the data source that was missing, the field an
+  endpoint should have carried, the number stored as counts when the review needed
+  the values. State each gap as "what it would give STRATEGY GENERATION" — the fund's
+  end product is strategies that clear an honest gate; an instrument audit that only
+  polices is half done. The precedent is your own floor review: the finding that
+  fold-level train returns existed nowhere the API serves became a fix that turns the
+  next review from an excavation into a query. That closing move is now the job, not
+  a bonus.
 
 ## Boundaries
 
