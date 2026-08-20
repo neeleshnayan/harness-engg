@@ -22,3 +22,6 @@ logs/
 # false if the algorithm the script runs is not in the repo. Results are 87MB of
 # regenerable JSON; the algorithms are 76KB of the actual research.
 lean_workspace/results/
+
+# agent worktrees + deliverables (never repo content)
+.claude/
