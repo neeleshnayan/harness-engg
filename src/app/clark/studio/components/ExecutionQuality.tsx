@@ -87,13 +87,27 @@ export function ExecutionQuality({ refreshSignal = 0 }: { refreshSignal?: number
           No fills yet — nothing to measure. Cost is computed from the order
           lifecycle, so it appears as soon as the first order settles.
         </div>
+      ) : !s.informative?.measurable ? (
+        // Fills exist, but none on a venue that can measure cost. Rendering
+        // the all-venue stats here would quote the paper venue's structural
+        // zeros as a cost measurement (COO triage #2 Batch B, CEO-accepted).
+        <div className={`px-5 py-6 text-sm ${KT.sev.warn}`}>
+          {s.informative?.reason ??
+            "No fills on a venue that can measure execution cost."}
+          {" "}({s.orders} fill{s.orders === 1 ? "" : "s"} on record, none
+          informative.)
+        </div>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-x-6 gap-y-2 px-5 py-3 sm:grid-cols-4">
-            <Stat label="Fills measured" value={String(s.orders)} />
-            <Stat label="Median cost" value={bps(s.total_bps.median)} />
-            <Stat label="Worst fill" value={bps(s.total_bps.worst)}
-                  tone={(s.total_bps.worst ?? 0) > 0 ? "down" : undefined} />
+            {/* Informative fills ONLY: the paper venue fills at its own
+                quote, so every paper fill reads 0.00bps by construction and
+                drags the headline toward "we trade for free". */}
+            <Stat label="Informative fills"
+                  value={`${s.informative.orders} of ${s.orders}`} />
+            <Stat label="Median cost" value={bps(s.informative.total_bps.median)} />
+            <Stat label="Worst fill" value={bps(s.informative.total_bps.worst)}
+                  tone={(s.informative.total_bps.worst ?? 0) > 0 ? "down" : undefined} />
             {/* "Paid so far: $-0.77" read as an apology — a negative cost is
                 money the fills GAVE us. Name the direction instead of asking
                 the reader to parse a signed dollar figure. */}
@@ -103,6 +117,12 @@ export function ExecutionQuality({ refreshSignal = 0 }: { refreshSignal?: number
                       ? `−$${Math.abs(s.realised_cost_usd).toFixed(2)} in our favor`
                       : `$${s.realised_cost_usd.toFixed(2)}`} />
           </div>
+          <div className={`px-5 pb-2 text-[10px] ${KT.muted}`}>
+            Counting {s.informative.venues_counted.join(", ") || "no venue"} ·
+            excluding {s.informative.excluded_orders} paper-venue fill
+            {s.informative.excluded_orders === 1 ? "" : "s"} (a paper fill's
+            slippage is zero by construction, not by skill).
+          </div>
 
           {/* The split only exists for orders placed after arrival-price
               capture. Saying so beats showing an empty pair of numbers. */}
@@ -110,8 +130,8 @@ export function ExecutionQuality({ refreshSignal = 0 }: { refreshSignal?: number
             <div className="grid grid-cols-2 gap-x-6 border-t border-[var(--kt-border)] px-5 py-3">
               <Stat label="Delay — market moved while deciding"
                     value={bps(s.delay_bps.mean)} />
-              <Stat label="Execution — cost of crossing"
-                    value={bps(s.execution_bps.mean)} />
+              <Stat label="Execution — cost of crossing (informative venues)"
+                    value={bps(s.informative.execution_bps.mean)} />
             </div>
           ) : (
             <div className={`border-t border-[var(--kt-border)] px-5 py-2 text-[11px] ${KT.muted}`}>

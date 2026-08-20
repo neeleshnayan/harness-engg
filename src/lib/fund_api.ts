@@ -640,6 +640,19 @@ export interface TcaSummary {
     sample: number;
     reliable: boolean;
   } | null;
+  /** Fills that can actually measure cost — paper-venue fills excluded (they
+   *  fill at their own quote, so their slippage is identically zero at any
+   *  sample size). The stats a cost panel should quote. */
+  informative?: {
+    orders: number;
+    venues_counted: string[];
+    venues_excluded: string[];
+    excluded_orders: number;
+    total_bps: TcaStat;
+    execution_bps: TcaStat;
+    measurable: boolean;
+    reason: string | null;
+  };
 }
 
 export interface TcaOrder {
