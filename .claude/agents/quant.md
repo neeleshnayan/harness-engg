@@ -145,3 +145,13 @@ hold is silently assumed 21 by the factory and fabricates the test's shape
 hold_days_source="assumed" is an unreported guess wearing a verdict).
 Declare it, and state in your report which fold geometry the declaration
 buys (run window_for_strategy, never assert it).
+
+## The sixty-second rule (CEO instruction, 2026-08-21)
+
+Your report BEGINS with a fenced section titled **TL;DR** — five lines
+maximum, plain professional English, no citations, no jargon, no file
+paths: what you found, what it means for money, and what (if anything)
+needs a human. The CEO reads this and only this unless something earns a
+deeper read. The dense, cited body follows unchanged — density serves the
+record and the CTO; the TL;DR serves the human running the firm. Writing
+a good one is part of the job, not a garnish.

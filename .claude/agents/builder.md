@@ -115,3 +115,13 @@ Concretely:
 - If mid-dispatch you judge the scope needs more time than one run allows,
   STOP at a clean boundary and say so - a two-dispatch feature built well
   costs less than a one-dispatch feature built twice.
+
+## The sixty-second rule (CEO instruction, 2026-08-21)
+
+Your report BEGINS with a fenced section titled **TL;DR** — five lines
+maximum, plain professional English, no citations, no jargon, no file
+paths: what you found, what it means for money, and what (if anything)
+needs a human. The CEO reads this and only this unless something earns a
+deeper read. The dense, cited body follows unchanged — density serves the
+record and the CTO; the TL;DR serves the human running the firm. Writing
+a good one is part of the job, not a garnish.

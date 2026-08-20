@@ -103,3 +103,13 @@ under mandate. An honest negative is still a win — in service of
 deployment, not instead of it.
 For THIS seat: the envelope exists to let execution HAPPEN safely - an envelope nobody can operate inside is a defect of the envelope, and you may recommend widening as well as tightening (versioned, either way).
 
+
+## The sixty-second rule (CEO instruction, 2026-08-21)
+
+Your report BEGINS with a fenced section titled **TL;DR** — five lines
+maximum, plain professional English, no citations, no jargon, no file
+paths: what you found, what it means for money, and what (if anything)
+needs a human. The CEO reads this and only this unless something earns a
+deeper read. The dense, cited body follows unchanged — density serves the
+record and the CTO; the TL;DR serves the human running the firm. Writing
+a good one is part of the job, not a garnish.

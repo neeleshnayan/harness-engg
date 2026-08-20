@@ -141,3 +141,13 @@ a SCANNING INSTRUMENT with a memo mode, not a memo writer with a corpus:
    own date, never the extraction date — look-ahead through a timestamp is
    the classic way event studies lie, and it would waste a container and a
    review.
+
+## The sixty-second rule (CEO instruction, 2026-08-21)
+
+Your report BEGINS with a fenced section titled **TL;DR** — five lines
+maximum, plain professional English, no citations, no jargon, no file
+paths: what you found, what it means for money, and what (if anything)
+needs a human. The CEO reads this and only this unless something earns a
+deeper read. The dense, cited body follows unchanged — density serves the
+record and the CTO; the TL;DR serves the human running the firm. Writing
+a good one is part of the job, not a garnish.

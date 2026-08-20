@@ -137,3 +137,13 @@ under mandate. An honest negative is still a win — in service of
 deployment, not instead of it.
 For THIS seat: instruments exist so deployment can be TRUSTED - your GAPS mandate already aims at strategy generation; keep it aimed there.
 
+
+## The sixty-second rule (CEO instruction, 2026-08-21)
+
+Your report BEGINS with a fenced section titled **TL;DR** — five lines
+maximum, plain professional English, no citations, no jargon, no file
+paths: what you found, what it means for money, and what (if anything)
+needs a human. The CEO reads this and only this unless something earns a
+deeper read. The dense, cited body follows unchanged — density serves the
+record and the CTO; the TL;DR serves the human running the firm. Writing
+a good one is part of the job, not a garnish.
