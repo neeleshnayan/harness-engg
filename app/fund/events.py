@@ -171,6 +171,15 @@ class EventType(str, Enum):
     # loss you cannot measure.
     LOSS_REFERENCE_REBASED = "LossReferenceRebased"
 
+    # The DRAWDOWN peak's twin (2026-08-21, CEO-accepted PM sleeve-v2 R1). The
+    # drawdown rule measures from the trailing-365d high, so a peak inflated by
+    # a bad mark caps the fund's risk capacity for a YEAR. Same shape as the
+    # loss rebase: it moves the point the rule measures FROM, once, in the log,
+    # with a mandatory reason — and it may only ever LOWER the reference. A
+    # later genuine high raises it again, so a rebase can shorten a phantom's
+    # shadow but can never hide a real peak.
+    DRAWDOWN_REFERENCE_REBASED = "DrawdownReferenceRebased"
+
     # Rebalance — a BATCH of orders decided as one thing. Event-sourced
     # separately from the individual orders because the unit of human judgement
     # is the plan, not the twelve fills it becomes: approving nine buys one at a

@@ -142,6 +142,82 @@ def _minutes_since(iso: str | None, now: datetime | None = None) -> float | None
     return (n - t).total_seconds() / 60.0
 
 
+def effective_peak(history_snaps: list[dict[str, Any]] | None,
+                   nav_usd: float,
+                   rebase: dict[str, Any] | None) -> dict[str, Any]:
+    """The peak the drawdown rule measures from, and where it came from.
+
+    Pure, so the direction rule is testable without a NAV service.
+
+    With no rebase this is exactly what it always was: the trailing-365d high,
+    including current NAV. With a rebase it is
+
+        max(rebased value, every NAV observed AT OR AFTER the rebase, current NAV)
+
+    which is the sentence "the rebase is a FLOOR on the peak, and a later
+    genuine high still raises it" written as arithmetic. Two properties follow
+    and both are tested:
+
+      * a rebase can only ever LOWER the peak — the `>= current_peak` refusal
+        in ``rebase_drawdown_reference`` enforces the input side, and the max()
+        above means even an accepted rebase cannot lower it below what has
+        happened SINCE;
+      * a rebase can never HIDE a real new high, because post-rebase
+        observations and current NAV are both in the max.
+
+    A rebase with no usable timestamp is IGNORED rather than applied to the
+    whole series: without knowing when it was struck, "observations after it"
+    is unanswerable, and applying it anyway would silently erase real history.
+    """
+    series: list[tuple[str, float]] = []
+    for s in (history_snaps or []):
+        v = s.get("total_nav_usd")
+        if v is None:
+            continue
+        try:
+            series.append((str(s.get("ts") or ""), float(v)))
+        except (TypeError, ValueError):
+            continue
+    unrebased = max([v for _, v in series] + [nav_usd])
+
+    ref_val: float | None = None
+    ref_at: str | None = None
+    if rebase:
+        try:
+            r = float(rebase.get("nav_usd"))
+        except (TypeError, ValueError):
+            r = 0.0
+        if r > 0 and rebase.get("at"):
+            ref_val, ref_at = r, str(rebase["at"])
+
+    if ref_val is None:
+        return {"peak_nav": unrebased, "unrebased_peak_nav": unrebased,
+                "basis": "trailing_365d", "rebase": None,
+                "note": ("the trailing-365-day high, including current NAV — "
+                         "the drawdown reference has never been rebased")}
+
+    post = [v for ts, v in series if ts >= (ref_at or "")]
+    peak = max([ref_val, *post, nav_usd])
+    basis = ("rebased" if peak == ref_val
+             else "post_rebase_high" if post and peak == max(post)
+             else "current_nav")
+    return {
+        "peak_nav": peak,
+        "unrebased_peak_nav": unrebased,
+        "basis": basis,
+        "rebase": {"nav_usd": ref_val, "at": ref_at,
+                   "reason": rebase.get("reason"),
+                   "actor": rebase.get("actor"),
+                   "previous_peak_usd": rebase.get("previous_peak_usd")},
+        "note": (
+            f"measured from a reference rebased to ${ref_val:,.2f} on "
+            f"{ref_at} (the un-rebased trailing high is ${unrebased:,.2f})"
+            if basis == "rebased" else
+            f"a genuine high of ${peak:,.2f} since the rebase to "
+            f"${ref_val:,.2f} has raised the reference back"),
+    }
+
+
 def evaluate_autoresume(*, halt_class: str | None,
                         halted_at: str | None,
                         halt_alarm: dict[str, Any] | None,
@@ -316,6 +392,7 @@ class RiskControl:
         halt_alarm: dict[str, Any] | None = None
         halt_ack: dict[str, Any] | None = None
         loss_reference: dict[str, Any] | None = None
+        drawdown_reference: dict[str, Any] | None = None
         active: dict[str, dict] = {}
         history: list[dict] = []
 
@@ -359,6 +436,11 @@ class RiskControl:
             elif etype == EventType.LOSS_REFERENCE_REBASED.value:
                 loss_reference = {**p, "at": p.get("at") or e.get("ts"),
                                   "actor": e.get("actor")}
+            elif etype == EventType.DRAWDOWN_REFERENCE_REBASED.value:
+                # Last one wins. Each rebase is a fresh statement about where
+                # the peak is measured from; they do not compose.
+                drawdown_reference = {**p, "at": p.get("at") or e.get("ts"),
+                                      "actor": e.get("actor")}
             elif etype == EventType.RISK_ALARM_RAISED.value:
                 history.append(e)
                 if p.get("key"):
@@ -373,6 +455,7 @@ class RiskControl:
                  "halt_alarm": halt_alarm if halted else None,
                  "halt_ack": halt_ack if halted else None,
                  "loss_reference": loss_reference,
+                 "drawdown_reference": drawdown_reference,
                  "active": active, "history": history}
         self._cache = (time.monotonic(), state)
         return state
@@ -600,6 +683,88 @@ class RiskControl:
         self._invalidate()
         return {"status": "rebased", **payload, "actor": actor}
 
+    # --- acknowledge-and-rebase, the DRAWDOWN twin --------------------------
+    def drawdown_reference(self) -> dict[str, Any] | None:
+        """The rebased drawdown reference, or None if it has never been moved.
+
+        None means "no rebase has happened", NOT "the peak is zero": with no
+        rebase the drawdown rule falls back to the trailing-365d high, and the
+        caller must be able to tell those two states apart.
+        """
+        return self._fold()["drawdown_reference"]
+
+    def drawdown_rebase_token(self, current_peak: float | None = None) -> str:
+        """An 8-char digest of the peak a drawdown rebase would replace."""
+        import hashlib
+        cur = self._fold()["drawdown_reference"]
+        raw = (f"{None if current_peak is None else round(float(current_peak), 2)}"
+               f"|{(cur or {}).get('nav_usd')}|{(cur or {}).get('at')}")
+        return hashlib.sha256(raw.encode()).hexdigest()[:8]
+
+    def rebase_drawdown_reference(self, new_peak: float, current_peak: float,
+                                  reason: str, actor: str) -> dict:
+        """Lower the peak the drawdown rule measures from. CEO-only.
+
+        The defect this exists for (PM sleeve-v2 R1, CEO-accepted 2026-08-21):
+        `assess()` takes the trailing-365d MAX of NAV history as the peak, and
+        the fund's $2,036.35 high includes the phantom-fill era. A peak
+        inflated by a bad mark caps risk capacity for a YEAR — the drawdown
+        limit ends up measured against money the fund never had.
+
+        Exactly like the loss rebase, and for the same reasons: it changes no
+        threshold (the limit stays where the register says), it moves the point
+        the limit is measured FROM, once, in the log, with a mandatory reason.
+
+        THE DIRECTION IS ENFORCED. A rebase may only LOWER the reference:
+
+          * ``new_peak >= current_peak`` is REFUSED. Raising the peak would
+            manufacture a drawdown out of nothing, which is a way to halt the
+            fund by typing, and — worse — a way to make a future real drawdown
+            look smaller by having pre-inflated the denominator.
+          * ``new_peak < current NAV`` is REFUSED as a probable typo: the
+            effective peak is floored at current NAV anyway, so such a rebase
+            would be recorded, change nothing, and read as if it had.
+
+        And it can never HIDE a real peak: ``effective_peak`` (below) is the
+        max of the rebased value, every NAV observed AFTER the rebase, and
+        current NAV. A later genuine high raises it straight back.
+        """
+        reason = (reason or "").strip()
+        if not reason:
+            raise ValueError(
+                "rebasing the drawdown reference requires a written reason — "
+                "the peak moves in the log and the log has to say why")
+        if self._fold()["halted"] and self._fold()["halt_class"] == HALT_INTEGRITY:
+            raise ValueError(
+                "an INTEGRITY halt is open: the fund cannot currently measure "
+                "itself, so no NAV figure is a number to rebase a peak onto. "
+                "Fix the integrity fault and resume first.")
+        try:
+            new = float(new_peak)
+            cur = float(current_peak)
+        except (TypeError, ValueError) as e:
+            raise ValueError("the rebase peak must be a number") from e
+        if not (new > 0):
+            raise ValueError(
+                f"refusing to rebase the drawdown reference onto {new_peak!r} — "
+                "a non-positive peak makes every future drawdown unmeasurable")
+        if new >= cur:
+            raise ValueError(
+                f"refusing to rebase the drawdown peak from ${cur:,.2f} to "
+                f"${new:,.2f}: a rebase may only LOWER the reference. Raising "
+                f"it would manufacture a drawdown out of nothing and would make "
+                f"a future real one look smaller.")
+        payload = {"nav_usd": round(new, 2),
+                   "previous_peak_usd": round(cur, 2),
+                   "reason": reason,
+                   "at": datetime.now(timezone.utc).isoformat()}
+        self._store.append(Event(
+            aggregate_id="fund", aggregate_type="fund",
+            type=EventType.DRAWDOWN_REFERENCE_REBASED, payload=payload,
+            actor=actor))
+        self._invalidate()
+        return {"status": "rebased", **payload, "actor": actor}
+
     def active_alarms(self) -> list[dict]:
         """Currently-open alarms: RISK_ALARM_RAISED not yet followed by a CLEARED
         for the same key, newest first."""
@@ -647,9 +812,15 @@ class RiskMonitor:
         history_snaps = self._nav.history(365)
         nav_series = [float(s.get("total_nav_usd", 0)) for s in history_snaps if s.get("total_nav_usd") is not None]
         nav_series.append(nav_usd)
-        peak_nav = max(nav_series) if nav_series else nav_usd
+        peak = effective_peak(history_snaps, nav_usd,
+                              self._control.drawdown_reference())
+        peak_nav = peak["peak_nav"]
         drawdown_pct = ((peak_nav - nav_usd) / peak_nav * 100.0) if peak_nav > 0 else 0.0
 
+        # The historical worst, over the FULL series and deliberately NOT
+        # rebased. A rebase moves the point the LIVE control measures from; it
+        # does not edit what happened. Erasing a real past drawdown from the
+        # record would be the one forbidden move wearing a repair's clothes.
         running_peak = 0.0
         max_drawdown_pct = 0.0
         for n in nav_series:
@@ -670,6 +841,14 @@ class RiskMonitor:
             "max_drawdown_pct": round(max_drawdown_pct, 4),
             "limit_pct": round(limit_pct, 4),
             "utilization": round(dd_utilization, 4),
+            # WHERE the peak came from, so the panel can say it rather than
+            # showing a number that quietly stopped meaning "the 365d high".
+            "peak_basis": peak["basis"],
+            "peak_note": peak["note"],
+            "unrebased_peak_nav": round(peak["unrebased_peak_nav"], 2),
+            "rebase": peak["rebase"],
+            "rebase_token": self._control.drawdown_rebase_token(
+                peak["unrebased_peak_nav"]),
         }
 
         # Positions (per-asset risk)

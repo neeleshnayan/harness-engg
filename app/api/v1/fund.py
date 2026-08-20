@@ -74,6 +74,7 @@ from app.schemas.fund import (
     LeanSweepRequest,
     ProposeOrderRequest,
     RedeemRequest,
+    DrawdownRebaseRequest,
     HaltAcknowledgeRequest,
     LossRebaseRequest,
     RiskHaltRequest,
@@ -3423,6 +3424,44 @@ def halt_trading(req: RiskHaltRequest):
     from app.fund.riskmonitor import HALT_MANUAL
     return _control.halt(reason=req.reason, actor=req.actor,
                          halt_class=req.halt_class or HALT_MANUAL)
+
+
+@router.post("/fund/risk/drawdown-reference/rebase")
+def rebase_drawdown_reference(req: DrawdownRebaseRequest):
+    """Lower the peak the drawdown rule measures from (CEO-accepted PM R1).
+
+    The defect: `assess()` takes the trailing-365d MAX of NAV history as the
+    peak, and the fund's $2,036.35 high includes the phantom-fill era — so a
+    bad mark caps risk capacity for a YEAR. This moves the reference, once, in
+    the log, with a mandatory reason. It moves no threshold.
+
+    On the approval channel, and REFUSED during an integrity halt, exactly like
+    the loss rebase. The direction is enforced in RiskControl: a rebase may
+    only LOWER the reference, and `effective_peak` floors the live peak at any
+    genuine high observed since — so it can shorten a phantom's shadow and can
+    never hide a real peak.
+    """
+    assessment = _monitor.assess()
+    dd = assessment.get("drawdown") or {}
+    current_peak = dd.get("unrebased_peak_nav", dd.get("peak_nav"))
+    token = _control.drawdown_rebase_token(current_peak)
+    approver = _guard_approval("drawdown_reference_rebase", token, req.approver,
+                               req.confirm, req.instruction, APPROVAL_ALLOWLIST)
+    nav_now = float(assessment.get("nav_usd") or 0.0)
+    if req.nav_usd < nav_now:
+        raise HTTPException(
+            status_code=409,
+            detail=(f"refusing to rebase the drawdown peak to "
+                    f"${req.nav_usd:,.2f}: that is below current NAV of "
+                    f"${nav_now:,.2f}, so the effective peak would be floored "
+                    f"at NAV and the rebase would be recorded having changed "
+                    f"nothing. Did you mean a figure at or above current NAV?"))
+    try:
+        return _control.rebase_drawdown_reference(
+            new_peak=req.nav_usd, current_peak=float(current_peak or 0.0),
+            reason=req.reason, actor=approver)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
 
 
 @router.post("/fund/risk/halt/acknowledge")
