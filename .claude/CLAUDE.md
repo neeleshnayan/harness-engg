@@ -64,6 +64,15 @@ way a real PM runs one under a mandate: by owning the judgement, not the button.
 
 | `builder` | Batched harness engineering in an ISOLATED WORKTREE — diff + passing tests out, CTO merges | A reviewed diff, test results verbatim, decisions named |
 | `riskofficer` | Supervises the auto-approval policy: audits every auto-approval after the fact, attacks the envelope, recommends version changes | An audit finding or an envelope-change recommendation, with the approval events cited |
+| `coo` | The market veteran who triages the CEO's desk: batches every open item, checks each against the constitution and mandate, ranks by money, endorses or objects | ONE batched decision memo with per-item recommended dispositions — the CEO decides batches, not items |
+
+`coo` was seated 2026-08-20 by demonstrated need: the CEO's desk carried ~20
+open recommendations across four runs in one day and said so ("I can stop
+being overwhelmed"). The COO's signoff is an ENDORSEMENT, never a decision —
+the click stays the CEO's, always. Delegating a CATEGORY of items to
+auto-accept-on-COO-endorsement would be a versioned policy change with a
+written reason (the autopolicy pattern at governance level), and has not been
+taken.
 
 `riskofficer` was seated 2026-08-20, the same decision that created the policy it
 supervises: an execution path without an adversarial supervisor is the unwired
@@ -93,8 +102,8 @@ An idle seat costs zero and that is a feature. One sub-agent in flight at a
 time; briefs are batched (an adversary reviewing three artifacts costs barely
 more than one).
 
-Placement, per seat: mechanism/pm/adversary/validator/riskofficer run on
-**Opus**; `quant` is HYBRID — the local 4090 (qwen3.8) drafts the LEAN
+Placement, per seat: mechanism/pm/adversary/validator/riskofficer/coo run on
+**Opus** (the coo is judgement near governance — never downgraded, never local); `quant` is HYBRID — the local 4090 (qwen3.8) drafts the LEAN
 algorithm, Opus reviews it against the known trap list (look-ahead, warm-up,
 declared constants, parameter plumbing), the belt judges as always; the split is
 confirmed or reverted by diffing both paths on the first real dispatch. Safe to
