@@ -91,3 +91,31 @@ its urgency — that IS the job.
   are on the CEO desk page. One correction for your next read: the desk UI now
   has a "Requests between desks" section with CEO approval — approved asks
   show on the CTO desk as "trigger it".
+
+## 2026-08-20 — triage #2 (desk_load=73), CTO append of the seat's STATE + note
+
+[The seat's full STATE is embedded in docs/coo/TRIAGE2_2026-08-20.md and the
+run record run-coo-2; headline items copied here for cold reads:]
+- desk_load counted open+accepted+staged: 73 -> 10 truly open (3.65x). FIXED
+  by the CTO at resolve (status=="open" only; rows with no status count).
+  Next dispatch: recompute the true count FIRST before accepting a triage
+  was due.
+- SELF-REVERSAL, the seat working: founding r6 deferred sleeve falsification
+  D5 expecting the 4 fills to reach the TCA bar - all were paper-venue,
+  execution_bps -0.0 by construction. STANDING RULE: never count a paper
+  fill toward any cost or execution bar, ever, at any sample size.
+- Halt arithmetic, exact: reference = last strike with UTC date < today; at
+  00:00Z it rolls to the 08-20 close ($1,884.55) vs NAV $1,884.98 = +0.02%,
+  clears free; early resume re-halts within a tick. The rebase control is
+  for trading INSIDE the day you lost - objected to spending it on a wait.
+- Verified: GET /fund/autopolicy 404 (envelope v3 unreadable); CLAUDE.md
+  still documents v2 (stale, not loosening); ExecutionQuality.tsx reads the
+  diluted top-level TCA summary; judgement due() has no acknowledged concept
+  (min_effective_bets reads due:True permanently while drawdown > 3% - a
+  light that never goes out stops being read; WATCH).
+- money_at_stake: write-path only; 0 of 73 legacy recs carry it; this seat
+  populates it in every run record and pushes others to.
+- [CTO note, 2026-08-21]: three claims verified line-exact before acting;
+  the desk_load fix landed same-hour with the incident in the test
+  docstring (live 73 -> 16, due False). Batches A/C/D/E/F/G await the CEO.
+  Memo filed verbatim as docs/coo/TRIAGE2_2026-08-20.md (run-coo-2).
