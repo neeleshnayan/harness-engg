@@ -85,6 +85,175 @@ def classify_halt_cause(alarm_type: str | None) -> str:
     return _HALT_CLASS_BY_ALARM.get((alarm_type or "").strip().lower(), HALT_MANUAL)
 
 
+# --- loss-halt auto-resume (2026-08-21, CEO-approved: "approved yes") --------
+#
+# A LOSS halt reopens without a second human click when ALL FOUR of these hold,
+# evaluated on the monitor tick:
+#
+#   1. the CEO ACKNOWLEDGED this halt (HaltAcknowledged, guard-protected)
+#   2. the TRIGGERING alarm no longer evaluates true on current arithmetic
+#   3. no other CRITICAL alarm is active
+#   4. the cool-down below has passed since the acknowledgement
+#
+# INTEGRITY and MANUAL halts NEVER auto-resume, and a halt with NO CLASS is
+# treated as integrity — pre-classes halts predate this policy entirely and a
+# policy that reopened them would be acting on a darkness nobody classified.
+#
+# The design's centre of gravity: the human decision is condition 1 and it is
+# not optional. This does not remove the human from the loop; it removes the
+# SECOND click — the one that only ever said "yes, still" about a decision
+# already made.
+
+#: Condition 4's value. JUDGED, and tied to a cadence rather than to a round
+#: human number: the scheduler strikes NAV every STRIKE_INTERVAL_SECONDS
+#: (default 1800 = 30 minutes, app/main.py) while the monitor ticks every ~30
+#: seconds. Without a cool-down a metric oscillating around the daily-loss line
+#: could halt and reopen ~120 times an hour, and every cycle pays spread.
+#: Thirty minutes is ONE FULL STRIKE INTERVAL, which means the fund must stay
+#: clear of the line long enough for at least one FRESH NAV strike to land
+#: between the CEO's acknowledgement and the reopening — so the reopening is
+#: corroborated by a new measurement, not by the same one that cleared.
+#:
+#: Measured FROM THE ACKNOWLEDGEMENT, not from the halt. Timing it from the
+#: halt would let an acknowledgement arriving 40 minutes in reopen instantly;
+#: the cool-down's job is "the human decided, and then the market kept agreeing
+#: for half an hour".
+#:
+#: REVIEW TRIGGER: if STRIKE_INTERVAL_SECONDS changes, this number's basis is
+#: gone and it must be re-derived. Registered in the judgement register.
+LOSS_HALT_AUTORESUME_COOLDOWN_MINUTES = 30.0
+
+
+def _minutes_since(iso: str | None, now: datetime | None = None) -> float | None:
+    """Minutes between an ISO timestamp and now, or None when untellable.
+
+    None, never 0: an unparseable acknowledgement time must fail the cool-down,
+    and a 0 would pass it the instant the cool-down were ever set to 0.
+    """
+    if not iso:
+        return None
+    try:
+        t = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    if t.tzinfo is None:
+        t = t.replace(tzinfo=timezone.utc)
+    n = now or datetime.now(timezone.utc)
+    return (n - t).total_seconds() / 60.0
+
+
+def evaluate_autoresume(*, halt_class: str | None,
+                        halted_at: str | None,
+                        halt_alarm: dict[str, Any] | None,
+                        acknowledgement: dict[str, Any] | None,
+                        current_alarms: list[dict[str, Any]],
+                        now: datetime | None = None,
+                        cooldown_minutes: float = LOSS_HALT_AUTORESUME_COOLDOWN_MINUTES,
+                        ) -> dict[str, Any]:
+    """Should this halt reopen without a second click? Pure; four conditions.
+
+    Returns ``{"resume": bool, "conditions": [...], "reason": str}`` where each
+    condition carries the VALUE it was evaluated on, not just a boolean. The
+    caller puts that list straight onto the TradingResumed event: an
+    auto-resume nobody can audit is an auto-resume that never should have
+    happened.
+
+    ``current_alarms`` is the alarm list AS OF THIS TICK — dicts with `type`,
+    `key`, `severity`. It must be the freshly evaluated set, not the stored
+    active set, because condition 2 asks about CURRENT arithmetic.
+
+    Every unknown fails closed. There is no branch in this function that
+    resumes on an absence.
+    """
+    conds: list[dict[str, Any]] = []
+
+    def cond(name: str, ok: bool, detail: str, **values: Any) -> None:
+        conds.append({"condition": name, "ok": bool(ok), "detail": detail,
+                      **values})
+
+    # Condition 0 — the class gate. Not one of the four; it decides whether the
+    # four are even asked. A halt with NO class is treated as INTEGRITY:
+    # pre-classes halts predate this policy, and reopening a darkness nobody
+    # classified is precisely the move the class system exists to prevent.
+    eligible = halt_class == HALT_LOSS
+    cond("class_is_loss", eligible,
+         f"halt_class={halt_class!r}; only a LOSS halt may auto-resume. "
+         + ("" if eligible else
+            "INTEGRITY and MANUAL never do, and an unclassified halt is "
+            "treated as integrity."),
+         halt_class=halt_class)
+
+    # 1 — acknowledged by the CEO, for THIS halt.
+    ack_at = (acknowledgement or {}).get("at")
+    ack_matches = bool(acknowledgement) and (
+        str((acknowledgement or {}).get("halted_at") or "") == str(halted_at or ""))
+    cond("ceo_acknowledged", ack_matches,
+         ("acknowledged by "
+          f"{(acknowledgement or {}).get('actor')!r} at {ack_at}: "
+          f"{(acknowledgement or {}).get('note')!r}")
+         if ack_matches else
+         "no HaltAcknowledged event names this halt — the CEO has not stated "
+         "they have seen it, and an unseen halt does not reopen itself",
+         acknowledged_at=ack_at,
+         acknowledged_by=(acknowledgement or {}).get("actor"),
+         note=(acknowledgement or {}).get("note"))
+
+    # 2 — the TRIGGERING alarm is no longer true on current arithmetic.
+    trigger_type = (halt_alarm or {}).get("type")
+    trigger_key = (halt_alarm or {}).get("key")
+    live_keys = {a.get("key") for a in current_alarms}
+    live_types = {a.get("type") for a in current_alarms}
+    if not trigger_type:
+        cond("trigger_cleared", False,
+             "this halt did not record which alarm tripped it, so whether that "
+             "alarm is still true cannot be evaluated. Fails closed — the "
+             "reason string is free text and parsing it would be provenance "
+             "by wording.",
+             trigger_alarm=None)
+    else:
+        still = (trigger_key in live_keys) if trigger_key else (trigger_type in live_types)
+        cond("trigger_cleared", not still,
+             (f"{trigger_type!r} no longer evaluates true"
+              if not still else
+              f"{trigger_type!r} is STILL true on current arithmetic"),
+             trigger_alarm=trigger_type, trigger_key=trigger_key)
+
+    # 3 — nothing else critical is open. The triggering alarm is excluded so
+    # this condition says something condition 2 does not.
+    others = [a for a in current_alarms
+              if a.get("severity") == "critical"
+              and a.get("key") != trigger_key]
+    cond("no_other_critical_alarm", not others,
+         "no other critical alarm is active" if not others else
+         "other critical alarms are active: "
+         + ", ".join(sorted(str(a.get("key")) for a in others)),
+         other_critical=sorted(str(a.get("key")) for a in others))
+
+    # 4 — the cool-down, from the acknowledgement.
+    mins = _minutes_since(ack_at, now) if ack_matches else None
+    passed = mins is not None and mins >= cooldown_minutes
+    cond("cooldown_elapsed", passed,
+         (f"{mins:.1f} min since the acknowledgement against a "
+          f"{cooldown_minutes:.0f} min cool-down")
+         if mins is not None else
+         "no usable acknowledgement time, so the cool-down cannot be shown to "
+         "have passed",
+         minutes_since_acknowledgement=(None if mins is None else round(mins, 2)),
+         cooldown_minutes=cooldown_minutes)
+
+    resume = all(c["ok"] for c in conds)
+    failed = [c["condition"] for c in conds if not c["ok"]]
+    return {
+        "resume": resume,
+        "conditions": conds,
+        "cooldown_minutes": cooldown_minutes,
+        "reason": ("all four conditions hold; the halt reopens under the "
+                   "CEO-approved loss auto-resume policy"
+                   if resume else
+                   "held: " + ", ".join(failed)),
+    }
+
+
 @dataclass
 class Alarm:
     """One breach. `key` (e.g. 'drawdown' or 'concentration:AAPL') dedups across
@@ -144,6 +313,8 @@ class RiskControl:
         halt_class: str | None = None
         halt_reason: str | None = None
         halted_at: str | None = None
+        halt_alarm: dict[str, Any] | None = None
+        halt_ack: dict[str, Any] | None = None
         loss_reference: dict[str, Any] | None = None
         active: dict[str, dict] = {}
         history: list[dict] = []
@@ -162,9 +333,29 @@ class RiskControl:
                 halt_class = p.get("halt_class")
                 halt_reason = p.get("reason")
                 halted_at = e.get("ts")
+                # WHICH alarm tripped it, where the halter knew. Absent on
+                # every halt recorded before 2026-08-21 and on every manual
+                # one — and an absent trigger is a trigger the auto-resume
+                # policy cannot evaluate, so it fails closed rather than
+                # guessing from the reason prose.
+                halt_alarm = ({"type": p.get("alarm_type"),
+                               "key": p.get("alarm_key")}
+                              if p.get("alarm_type") else None)
+                # A NEW halt voids any earlier acknowledgement: the CEO
+                # acknowledged the last dark, not this one.
+                halt_ack = None
             elif etype == EventType.TRADING_RESUMED.value:
                 halted = False
                 halt_class = halt_reason = halted_at = None
+                halt_alarm = halt_ack = None
+            elif etype == EventType.HALT_ACKNOWLEDGED.value:
+                # Only counts for the halt it names. An acknowledgement whose
+                # halted_at does not match the open halt is a stale click and
+                # is folded away rather than applied to a darkness the CEO
+                # has not seen.
+                if halted and str(p.get("halted_at") or "") == str(halted_at or ""):
+                    halt_ack = {**p, "at": p.get("at") or e.get("ts"),
+                                "actor": e.get("actor")}
             elif etype == EventType.LOSS_REFERENCE_REBASED.value:
                 loss_reference = {**p, "at": p.get("at") or e.get("ts"),
                                   "actor": e.get("actor")}
@@ -179,6 +370,8 @@ class RiskControl:
 
         state = {"limits": limits, "halted": halted, "halt_class": halt_class,
                  "halt_reason": halt_reason, "halted_at": halted_at,
+                 "halt_alarm": halt_alarm if halted else None,
+                 "halt_ack": halt_ack if halted else None,
                  "loss_reference": loss_reference,
                  "active": active, "history": history}
         self._cache = (time.monotonic(), state)
@@ -217,30 +410,46 @@ class RiskControl:
         return self._fold(fresh=fresh)["halted"]
 
     def halt(self, reason: str, actor: str,
-             halt_class: str = HALT_MANUAL) -> dict:
+             halt_class: str = HALT_MANUAL,
+             alarm_type: str | None = None,
+             alarm_key: str | None = None) -> dict:
         """Engage the kill switch (idempotent: no-op if already halted).
 
         ``halt_class`` says which KIND of dark this is (see HALT_CLASSES). It
         defaults to manual because a caller that does not know the cause has,
         by definition, not measured one.
+
+        ``alarm_type``/``alarm_key`` name the alarm that tripped it, where the
+        caller knows. Added 2026-08-21 for the loss-halt auto-resume policy,
+        whose second condition is "the TRIGGERING alarm no longer evaluates
+        true" — a question that cannot be asked of a halt that never recorded
+        which alarm it was. Absent on every historical halt and on every manual
+        one, and an absent trigger makes the policy fail closed rather than
+        parse the reason prose (a free-text field is not provenance; the same
+        rule faces.ts follows about actor strings).
         """
         if halt_class not in HALT_CLASSES:
             halt_class = HALT_MANUAL
         if self.is_halted():
             return {"status": "already_halted", "reason": reason, "halted": True,
                     "halt_class": self.halt_class()}
+        payload: dict[str, Any] = {"reason": reason, "halt_class": halt_class}
+        if alarm_type:
+            payload["alarm_type"] = alarm_type
+            if alarm_key:
+                payload["alarm_key"] = alarm_key
         self._store.append(
             Event(
                 aggregate_id="fund",
                 aggregate_type="fund",
                 type=EventType.TRADING_HALTED,
-                payload={"reason": reason, "halt_class": halt_class},
+                payload=payload,
                 actor=actor,
             )
         )
         self._invalidate()
         return {"status": "halted", "reason": reason, "halted": True,
-                "halt_class": halt_class}
+                "halt_class": halt_class, "alarm_type": alarm_type}
 
     def halt_class(self) -> str | None:
         """The class of the OPEN halt, or None when not halted / unclassified."""
@@ -254,8 +463,15 @@ class RiskControl:
                 "halt_reason": st["halt_reason"] if st["halted"] else None,
                 "halted_at": st["halted_at"] if st["halted"] else None}
 
-    def resume(self, actor: str) -> dict:
-        """Re-enable trading (human only). Both halt classes resume manually."""
+    def resume(self, actor: str, audit: dict[str, Any] | None = None) -> dict:
+        """Re-enable trading. Every class resumes manually; only a LOSS halt
+        may ALSO be resumed by the auto-resume policy, which passes ``audit``.
+
+        ``audit`` is the four conditions with their EVALUATED VALUES, not a
+        verdict word. An auto-resume nobody can reconstruct is an auto-resume
+        that never should have happened — the same reason an auto-APPROVAL
+        carries its full check-by-check evaluation onto the approval event.
+        """
         if not self.is_halted():
             return {"status": "not_halted", "halted": False}
         self._store.append(
@@ -263,12 +479,72 @@ class RiskControl:
                 aggregate_id="fund",
                 aggregate_type="fund",
                 type=EventType.TRADING_RESUMED,
-                payload={},
+                payload=({"auto_resume": audit} if audit else {}),
                 actor=actor,
             )
         )
         self._invalidate()
         return {"status": "resumed", "halted": False}
+
+    # --- acknowledge (any class; a precondition, never an action) -----------
+    def halt_acknowledgement(self) -> dict[str, Any] | None:
+        """The CEO's acknowledgement of the CURRENTLY OPEN halt, or None.
+
+        None means "this darkness has not been acknowledged" — it never means
+        "acknowledged with no detail". An acknowledgement of a PREVIOUS halt is
+        folded away by ``_fold``: the CEO saw that one, not this one.
+        """
+        return self._fold()["halt_ack"]
+
+    def halt_alarm(self) -> dict[str, Any] | None:
+        """Which alarm tripped the open halt, or None when it was not recorded."""
+        return self._fold()["halt_alarm"]
+
+    def halt_ack_token(self) -> str:
+        """An 8-char digest of the halt an acknowledgement would name.
+
+        The approval-channel guard needs something to echo, and a halt has no
+        id. The token IS the halt: its class, when it engaged, and its reason.
+        Echoing it proves the clicker read THIS halt — an acknowledgement typed
+        against a screen showing yesterday's darkness no longer matches.
+        """
+        import hashlib
+        st = self._fold()
+        raw = (f"{st['halted']}|{st['halt_class']}|{st['halted_at']}|"
+               f"{st['halt_reason']}")
+        return hashlib.sha256(raw.encode()).hexdigest()[:8]
+
+    def acknowledge_halt(self, actor: str, note: str) -> dict:
+        """Record that the CEO has SEEN the open halt. Changes nothing else.
+
+        Deliberately separable from the rebase (the brief's words: "recordable
+        without rebasing"). Acknowledging is not accepting a loss and is not
+        reopening: it moves no reference, re-arms no path, and by itself
+        resumes nothing. It is condition (1) of four, and on its own it is
+        worth exactly one sentence in the log.
+
+        The note is MANDATORY for the same reason the rebase's reason is: this
+        is a control whose whole purpose is to be hard to use casually.
+        """
+        note = (note or "").strip()
+        if not note:
+            raise ValueError(
+                "acknowledging a halt requires a written note — the log records "
+                "that you saw it, and it has to say what you saw")
+        st = self._fold(fresh=True)
+        if not st["halted"]:
+            raise ValueError("trading is not halted — there is nothing to "
+                             "acknowledge")
+        payload = {"halt_class": st["halt_class"],
+                   "halted_at": st["halted_at"],
+                   "halt_reason": st["halt_reason"],
+                   "note": note,
+                   "at": datetime.now(timezone.utc).isoformat()}
+        self._store.append(Event(
+            aggregate_id="fund", aggregate_type="fund",
+            type=EventType.HALT_ACKNOWLEDGED, payload=payload, actor=actor))
+        self._invalidate()
+        return {"status": "acknowledged", **payload, "actor": actor}
 
     # --- acknowledge-and-rebase (loss class only) ---------------------------
     def loss_reference(self) -> dict[str, Any] | None:
@@ -551,6 +827,15 @@ class RiskMonitor:
             "halted_at": halt_state.get("halted_at"),
             "loss_reference": self._loss_reference_report(nav_usd),
             "rebase_token": self.rebase_token(nav_usd),
+            # The halt's acknowledgement state, for the panel that offers the
+            # control. `halt_acknowledgement: null` means UNACKNOWLEDGED, never
+            # "acknowledged with no detail"; `halt_alarm: null` means the halt
+            # never recorded which alarm tripped it, which is why the
+            # auto-resume policy will not evaluate it (fails closed).
+            "halt_acknowledgement": self._control.halt_acknowledgement(),
+            "halt_alarm": self._control.halt_alarm(),
+            "halt_ack_token": self._control.halt_ack_token(),
+            "autoresume_cooldown_minutes": LOSS_HALT_AUTORESUME_COOLDOWN_MINUTES,
             "drawdown": drawdown,
             "positions": positions_list,
             "strategies": strategies_list,
@@ -793,9 +1078,18 @@ class RiskMonitor:
     def run(self, actor: str = "monitor") -> dict[str, Any]:
         """The periodic tick: assess -> diff against active alarms -> emit
         RISK_ALARM_RAISED for new breaches, RISK_ALARM_CLEARED for resolved ones
-        (dedup by Alarm.key) -> AUTO-HALT on any critical drawdown/daily_loss alarm.
-        Returns {"raised": [...], "cleared": [...], "halted": bool, "active": [...]}.
-        Never raises a duplicate for a standing breach; never auto-resumes.
+        (dedup by Alarm.key) -> AUTO-HALT on any critical drawdown/daily_loss alarm
+        -> for a LOSS halt only, evaluate the four-condition auto-resume policy.
+        Returns {"raised": [...], "cleared": [...], "halted": bool,
+        "active": [...], "autoresume": {...}|None}.
+        Never raises a duplicate for a standing breach.
+
+        AMENDED 2026-08-21 (CEO-approved, "approved yes"): this used to say
+        "never auto-resumes". It now does, for a LOSS halt the CEO has
+        acknowledged, whose triggering alarm has cleared, with no other
+        critical alarm open, after a versioned cool-down — see
+        ``evaluate_autoresume``. INTEGRITY, MANUAL and unclassified halts still
+        never do.
         """
         assessment = self.assess()
         current_alarms = self.evaluate_alarms(assessment)
@@ -847,12 +1141,34 @@ class RiskMonitor:
             (a for a in current_alarms if a.severity == "critical" and a.type in ("drawdown", "daily_loss")),
             None,
         )
+        auto_halted = False
         if critical_halt_alarm and not self._control.is_halted():
             self._control.halt(
                 reason=f"Auto-halt: {critical_halt_alarm.message}",
                 actor="monitor",
                 halt_class=classify_halt_cause(critical_halt_alarm.type),
+                alarm_type=critical_halt_alarm.type,
+                alarm_key=critical_halt_alarm.key,
             )
+            auto_halted = True
+
+        # Loss-halt auto-resume (CEO-approved 2026-08-21). Evaluated LAST, on
+        # the alarm set this tick just computed, and never in the same tick
+        # that halted: a halt and a reopening in one pass would mean the tick
+        # disagreed with itself.
+        autoresume = None
+        if not auto_halted and self._control.is_halted():
+            st = self._control._fold(fresh=True)
+            autoresume = evaluate_autoresume(
+                halt_class=st["halt_class"],
+                halted_at=st["halted_at"],
+                halt_alarm=st["halt_alarm"],
+                acknowledgement=st["halt_ack"],
+                current_alarms=[a.to_dict() for a in current_alarms],
+            )
+            if autoresume["resume"]:
+                self._control.resume(actor="auto-resume-loss-v1",
+                                     audit=autoresume)
 
         return {
             "raised": raised_alarms,
@@ -860,4 +1176,7 @@ class RiskMonitor:
             "halted": self._control.is_halted(),
             "halt_class": self._control.halt_class(),
             "active": self._control.active_alarms(),
+            # Present on every tick where a halt was open, so a reader can see
+            # WHY it stayed shut, not only that it did.
+            "autoresume": autoresume,
         }

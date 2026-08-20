@@ -286,6 +286,17 @@ def _gate(key: str) -> Callable[[], Any]:
     return read
 
 
+def _autoresume_cooldown() -> Any:
+    """The loss-halt auto-resume cool-down, read from where it lives.
+
+    Read rather than restated: a register entry that carries its own copy of
+    the number cannot detect the number moving, which is the one thing the
+    register exists to do.
+    """
+    from app.fund.riskmonitor import LOSS_HALT_AUTORESUME_COOLDOWN_MINUTES
+    return LOSS_HALT_AUTORESUME_COOLDOWN_MINUTES
+
+
 def _limit(key: str) -> Callable[[], Any]:
     """Read a risk limit as it is IN FORCE, not as `RiskLimits()` defaults it.
 
@@ -604,6 +615,37 @@ def registry() -> list[Judgement]:
                            "moving the limit toward the loss would be the "
                            "quiet loosening this entry exists to catch.)",
             review_by="2027-01-01"),
+        Judgement(
+            "loss_halt_autoresume_cooldown_minutes",
+            where="app/fund/riskmonitor.py::LOSS_HALT_AUTORESUME_COOLDOWN_MINUTES",
+            basis="judged", expected=30.0,
+            read=lambda: _autoresume_cooldown(),
+            why="Condition (4) of the loss-halt auto-resume policy (CEO-"
+                "approved 2026-08-21, 'approved yes'). Tied to a CADENCE, not "
+                "to a round human number: the scheduler strikes NAV every "
+                "STRIKE_INTERVAL_SECONDS (default 1800s = 30 min, app/main.py) "
+                "while the monitor ticks every ~30s. With no cool-down a "
+                "metric oscillating around the daily-loss line could halt and "
+                "reopen ~120 times an hour and every cycle pays spread. Thirty "
+                "minutes is ONE FULL STRIKE INTERVAL, so at least one FRESH "
+                "NAV strike must land between the CEO's acknowledgement and "
+                "the reopening — the reopening is corroborated by a new "
+                "measurement rather than by the same one that cleared. "
+                "Measured FROM THE ACKNOWLEDGEMENT, not from the halt: timing "
+                "from the halt would let an acknowledgement arriving 40 "
+                "minutes in reopen instantly.",
+            falsified_by="A halt that auto-resumes and re-halts on the same "
+                         "cause inside one session (too short), or a loss halt "
+                         "sitting acknowledged-and-clear for hours while the "
+                         "book is fine and the fund is out of the market (too "
+                         "long). Both are countable off TradingHalted / "
+                         "TradingResumed pairs in the log; neither has happened "
+                         "yet, because the policy has never fired.",
+            review_trigger="STRIKE_INTERVAL_SECONDS changes — this number's "
+                           "entire basis is that it equals one strike interval, "
+                           "so it must be re-derived rather than left; or the "
+                           "first time the policy actually fires",
+            review_by="2026-12-01"),
         Judgement(
             "risk_monitor_is_wired",
             where="app/main.py::_scheduler -> run_risk_monitor_tick",

@@ -74,6 +74,7 @@ from app.schemas.fund import (
     LeanSweepRequest,
     ProposeOrderRequest,
     RedeemRequest,
+    HaltAcknowledgeRequest,
     LossRebaseRequest,
     RiskHaltRequest,
     RiskLimitsPatchRequest,
@@ -3422,6 +3423,29 @@ def halt_trading(req: RiskHaltRequest):
     from app.fund.riskmonitor import HALT_MANUAL
     return _control.halt(reason=req.reason, actor=req.actor,
                          halt_class=req.halt_class or HALT_MANUAL)
+
+
+@router.post("/fund/risk/halt/acknowledge")
+def acknowledge_halt(req: HaltAcknowledgeRequest):
+    """Record that the CEO has SEEN the open halt. Reopens nothing by itself.
+
+    On the approval channel (allowlist, confirm echo, via-cto citation) because
+    it is a precondition for an execution path reopening — condition (1) of the
+    four the loss-halt auto-resume policy evaluates on the monitor tick. It is
+    NOT a resume and NOT a rebase: it moves no number and re-arms no path, and
+    a halt whose other three conditions never hold stays shut forever with this
+    acknowledgement sitting harmlessly in the log.
+
+    Any class may be acknowledged — seeing an integrity halt is worth
+    recording. Only a LOSS halt's acknowledgement feeds the auto-resume policy.
+    """
+    token = _control.halt_ack_token()
+    approver = _guard_approval("halt_acknowledge", token, req.approver,
+                               req.confirm, req.instruction, APPROVAL_ALLOWLIST)
+    try:
+        return _control.acknowledge_halt(actor=approver, note=req.note)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
 
 
 @router.post("/fund/risk/loss-reference/rebase")

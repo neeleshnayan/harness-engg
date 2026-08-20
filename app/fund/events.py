@@ -152,7 +152,16 @@ class EventType(str, Enum):
     RISK_ALARM_RAISED = "RiskAlarmRaised"       # a limit/adverse-move breach opened
     RISK_ALARM_CLEARED = "RiskAlarmCleared"     # a breach resolved
     TRADING_HALTED = "TradingHalted"            # kill switch engaged (drawdown/loss/manual)
-    TRADING_RESUMED = "TradingResumed"          # trading re-enabled by a human
+    TRADING_RESUMED = "TradingResumed"          # trading re-enabled by a human or, for a
+                                                # LOSS halt only, by the auto-resume policy
+
+    # Halt acknowledgement (2026-08-21, CEO-approved): the CEO states, in the
+    # log, that they have SEEN a specific halt. Distinct from resuming and
+    # distinct from rebasing the loss reference — an acknowledgement changes no
+    # number and re-arms nothing by itself; it is condition (1) of four for the
+    # loss-halt auto-resume policy. Recorded against the halt it names, so an
+    # acknowledgement cannot outlive the halt it was given for.
+    HALT_ACKNOWLEDGED = "HaltAcknowledged"
 
     # Acknowledge-and-rebase (2026-08-20, CEO-blessed): the daily-loss reference
     # moved deliberately to current NAV, with a written reason. A circuit

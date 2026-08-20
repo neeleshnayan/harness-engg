@@ -329,6 +329,29 @@ class LossRebaseRequest(BaseModel):
                          "log and the log has to say why")
 
 
+class HaltAcknowledgeRequest(BaseModel):
+    """Acknowledge a halt — CEO-only, on the approval channel, and it ACTS ON
+    NOTHING.
+
+    Recording that you have SEEN a halt is deliberately separable from
+    reopening it and from rebasing the loss reference: it moves no number and
+    re-arms no path. It is condition (1) of four for the loss-halt auto-resume
+    policy, and on its own it is worth one sentence in the log.
+
+    The echo is ``halt_ack_token`` from GET /fund/risk/monitor, a digest of the
+    halt itself — so an acknowledgement typed against a screen showing a
+    different darkness is refused rather than applied to this one.
+    """
+    approver: str = Field(..., description="Who is acknowledging the halt")
+    confirm: Optional[str] = Field(
+        None, description="The halt_ack_token from GET /fund/risk/monitor")
+    instruction: Optional[str] = Field(
+        None, description="For 'neelesh-via-cto' only: the CEO's instruction, verbatim")
+    note: str = Field(
+        ..., description="MANDATORY — what you saw. The log records that you "
+                         "looked, and it has to say at what")
+
+
 class RiskResumeRequest(BaseModel):
     actor: str = Field("operator", description="Who resumed trading (human only)")
 
