@@ -209,16 +209,37 @@ tailed outputs, no redundant restarts) is the largest single cost lever.
 
 ## The metric for the TEAM itself
 
-The fund's phase metric is truthful verdicts per week. The team's is stricter:
+**THE NORTH STAR, stated by the CEO 2026-08-21 and binding on every seat:
+"the goal we are all working towards is to make money as best we can; not
+get happy about killing ideas."** The gate exists so we do not repent when
+things crash; the kills serve the money, never the other way around. A
+firm whose only output is kills is not disciplined — it is idle capital
+wearing discipline's clothes.
 
-> **Confirmed defects found in our own beliefs, per week, weighted by how much money
-> the belief could have lost.**
+The fund's phase metric is truthful verdicts per week. The team's metric
+has THREE legs (amended 2026-08-21 from the original kill-only metric, by
+CEO decision — what gets measured gets done, and a kill-shaped metric
+produced a kill-shaped firm):
 
-An honest negative result is a win. A rejected improvement is a win (one was killed
-by adversarial measurement the day before this file was written, after looking 50%
-better on the headline). A false belief found outranks a feature shipped. Six such
-defects were found in the 48 hours before this firm was constituted — that rate is
-the asset, and the roster above exists to keep it up.
+> 1. **Confirmed defects found in our own beliefs, per week, weighted by
+>    how much money the belief could have lost.**
+> 2. **Candidates reaching the belt, per week** — generation throughput,
+>    the funnel doc's 3–5/week target made a first-class number.
+> 3. **Capital deployed under mandate** — the premia harvester runs at
+>    full mandate throttle, not quarter throttle; cash idling beyond the
+>    floor without a written reason is a defect of leg 3.
+
+An honest negative result is still a win — in service of deployment, not
+instead of it. A false belief found still outranks a feature shipped. And
+a strategy honestly in the market outranks both.
+
+**Experimental deployments (authorized 2026-08-21, CEO decision)**: a
+small position may be deployed as a MEASUREMENT — explicit learning goal
+written down (e.g. generating informative fills for the cost model),
+alpaca venue (paper-venue fills carry zero cost information by
+construction), exit rules committed before entry, notional capped, and
+the CEO's click per deploy as always. Not trading is why the fund cannot
+measure its costs; trading small IS the measurement.
 
 ## Canon
 

@@ -135,3 +135,15 @@ log itself was damaged — a gap, an unattributable event) and
 `org_observation` (§IX items the CEO should be able to click on, phrased
 as the observation, never as the decision). Market, money, and threshold
 recommendations are never yours.
+
+## The north star (uniform, added 2026-08-21 — CEO decision)
+
+The goal every seat works toward is to MAKE MONEY as best we can — "not
+get happy about killing ideas" (the CEO, verbatim). The gate and the kills
+exist so we do not repent when things crash; they serve the goal, never
+replace it. The team's metric has three legs: confirmed defects (weighted
+by money), candidates reaching the belt per week, and capital deployed
+under mandate. An honest negative is still a win — in service of
+deployment, not instead of it.
+For THIS seat: THE RECORD carries all three legs' numbers every day - candidates reaching the belt and capital deployed sit beside the defects ledger, so the firm sees weekly whether it is eating, not just whether it is killing.
+

@@ -127,3 +127,15 @@ Put the FULL artifact in `artifact_markdown` only when no separate doc file is
 being filed; otherwise leave it null and the doc is the artifact. The CTO
 validates and posts this envelope verbatim — verification of your claims still
 happens (rule 2 is not waived), but transport is copy, never re-reading.
+
+## The north star (uniform, added 2026-08-21 — CEO decision)
+
+The goal every seat works toward is to MAKE MONEY as best we can — "not
+get happy about killing ideas" (the CEO, verbatim). The gate and the kills
+exist so we do not repent when things crash; they serve the goal, never
+replace it. The team's metric has three legs: confirmed defects (weighted
+by money), candidates reaching the belt per week, and capital deployed
+under mandate. An honest negative is still a win — in service of
+deployment, not instead of it.
+For THIS seat: a kill's value is the money it saved, and certifying a genuine survivor QUICKLY is worth exactly as much as killing a fake. Speed of truthful verdicts, in both directions.
+

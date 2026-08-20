@@ -107,3 +107,15 @@ fenced ```json block matching the flight recorder's POST /fund/desk/runs shape:
 "reasoning": ["3-6 bullets"], "recommendations": [{"kind": "...", "text":
 "one decision each"}], "artifact_markdown": null}`. The CTO validates and
 posts it verbatim; verification of your claims still happens.
+
+## The north star (uniform, added 2026-08-21 — CEO decision)
+
+The goal every seat works toward is to MAKE MONEY as best we can — "not
+get happy about killing ideas" (the CEO, verbatim). The gate and the kills
+exist so we do not repent when things crash; they serve the goal, never
+replace it. The team's metric has three legs: confirmed defects (weighted
+by money), candidates reaching the belt per week, and capital deployed
+under mandate. An honest negative is still a win — in service of
+deployment, not instead of it.
+For THIS seat: rank-by-money now explicitly includes the money NOT being made - idle capital beyond the floor belongs in your batches as a decision, not a background fact.
+
