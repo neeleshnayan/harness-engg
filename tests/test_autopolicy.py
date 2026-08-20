@@ -29,6 +29,8 @@ CTX_OK = {
     "position_opened_at": "2026-08-19T18:20:54+00:00",
     "mark_move_vs_strike_pct": 0.4,
     "notional_pct_of_nav": 12.5,
+    # v3 (R5): the rule's own strategy holds at least what the order sells.
+    "rule_strategy_holding_qty": 3.0,
 }
 
 
@@ -50,9 +52,9 @@ def _eval(order=None, ctx=CTX_OK, **kw):
 def test_a_fresh_corroborated_exit_sell_is_approved_with_every_check_recorded():
     v = _eval()
     assert v["approve"] is True, v["checks"]
-    assert v["policy_version"] == AUTOPOLICY_VERSION == "v2"
+    assert v["policy_version"] == AUTOPOLICY_VERSION == "v3"
     assert all(c["ok"] is True for c in v["checks"])
-    assert len(v["checks"]) >= 10  # the audit trail is the product
+    assert len(v["checks"]) >= 11  # the audit trail is the product
 
 
 def test_a_buy_never_qualifies():
@@ -143,7 +145,34 @@ def test_a_missing_context_fails_every_v2_check_closed():
     assert v["approve"] is False
     failed = {c["check"] for c in v["checks"] if c["ok"] is not True}
     assert {"exit_trigger_linked", "rule_predates_position",
-            "mark_corroborated", "notional_within_cap"} <= failed
+            "mark_corroborated", "notional_within_cap",
+            "rule_owner_holds_position"} <= failed
+
+
+# ---------------------------------------------------------------- v3 pins ----
+
+def test_a_rule_cannot_close_another_strategys_position():
+    """R5, the first live fire's other lesson (audit F2b): the machinery-test
+    rule liquidated a position held by a DIFFERENT strategy. The rule's own
+    strategy held zero GLD — this check would have declined it."""
+    v = _eval(ctx={**CTX_OK, "rule_strategy_holding_qty": 0.0})
+    assert v["approve"] is False
+    own = [c for c in v["checks"] if c["check"] == "rule_owner_holds_position"][0]
+    assert own["ok"] is False and "does not hold" in own["detail"]
+
+
+def test_an_undeterminable_holding_fails_closed():
+    v = _eval(ctx={**CTX_OK, "rule_strategy_holding_qty": None})
+    assert v["approve"] is False
+
+
+def test_a_partial_holding_caps_rather_than_transfers():
+    """Selling 1.0 when the rule's strategy holds 0.5 is half a close of its
+    own position and half a close of someone else's."""
+    v = _eval(_order(qty=1.0), ctx={**CTX_OK, "rule_strategy_holding_qty": 0.5})
+    assert v["approve"] is False
+    v2 = _eval(_order(qty=0.5), ctx={**CTX_OK, "rule_strategy_holding_qty": 0.5})
+    assert v2["approve"] is True, v2["checks"]
 
 
 # ------------------------------------------------------------------- run ----

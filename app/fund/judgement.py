@@ -408,7 +408,12 @@ def registry() -> list[Judgement]:
                          "one. Listed here so that a quiet loosening is visible "
                          "as drift rather than passing as a technical adjustment.",
             review_trigger="operator revisits the mandate, or the limit is "
-                           "approached (currently 3.3% utilised)",
+                           "approached. (REVIEWED 2026-08-20 at 77.5% utilised "
+                           "after the phantom-price incident: WATCHED, "
+                           "UNCHANGED by CEO batch decision — the drawdown is "
+                           "an incident artifact, not a mandate change, and "
+                           "moving the limit toward the loss would be the "
+                           "quiet loosening this entry exists to catch.)",
             review_by="2027-01-01"),
         Judgement(
             "risk_monitor_is_wired",
@@ -479,15 +484,26 @@ def registry() -> list[Judgement]:
             review_by="2026-10-01"),
         Judgement(
             "MAX_CONCURRENT_CONTAINERS",
-            where="app/fund/leanrunner.py", basis="external", expected=1,
+            where="app/fund/leanrunner.py", basis="measured", expected=6,
             read=_module("app.fund.leanrunner", "MAX_CONCURRENT_CONTAINERS"),
-            why="Not a choice. Stacked LEAN containers died with WinError 1455 "
-                "on a 15.2 GB machine. One slot is what the hardware supports.",
-            falsified_by="More RAM. This is the ceiling that makes population "
-                         "search infeasible — ~1,000 candidates is ~230 hours "
-                         "here — so it bounds the design space, not just the "
-                         "schedule.",
-            review_trigger="machine changes, or a vectorised pre-screen lands",
+            why="RE-REGISTERED 2026-08-20 after the COO's founding triage "
+                "caught the register at 1 while the code ran 6 — a quiet "
+                "loosening in form, though the reasoning existed: the sizing "
+                "rule is slots x per-container cap <= free RAM even if every "
+                "container claims its ceiling. 6 slots x 768 MiB = 4.5 GiB "
+                "inside ~5 GB free, capturing a measured 3.2-5.3x throughput "
+                "gain (leanrunner.py:70-83). The original entry ('one slot is "
+                "what the hardware supports') predated the per-container cap; "
+                "the lesson kept: the value and its register entry moved "
+                "separately, which is exactly what the register exists to "
+                "catch — and did.",
+            falsified_by="A WinError 1455 (or any host-memory kill) at 6 slots "
+                         "with the 768 MiB cap enforced — that would mean the "
+                         "sizing rule's 'free RAM' input was wrong. Also "
+                         "falsified by the cap being raised without this "
+                         "entry moving.",
+            review_trigger="machine changes, the per-container cap changes, or "
+                           "a vectorised pre-screen lands",
             review_by="2026-12-01"),
         Judgement(
             "WALKFORWARD_HISTORY_FLOOR",

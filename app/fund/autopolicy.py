@@ -75,7 +75,21 @@ logger = logging.getLogger(__name__)
 #:
 #: R5 (rule's owner strategy must own the position) is NOT in v2 — the CEO has
 #: not decided it; the recommendation stays open on run-riskofficer-1.
-AUTOPOLICY_VERSION = "v2"
+#:
+#: v2 -> v3 (2026-08-20, same day — CEO batch-yes on the COO's founding triage,
+#: batch B): adds R5 as `rule_owner_holds_position` — the auto-approved
+#: quantity must not exceed what the TRIGGERING RULE'S OWN STRATEGY holds in
+#: the symbol, folded from the fill events' strategy_id. This is the check
+#: that would have stopped the machinery-test rule liquidating ANOTHER
+#: strategy's GLD (audit F2b): the test strategy held zero GLD. Blast radius
+#: today is $0 (only the sleeve's rules can pass rule_predates_position, and
+#: the sleeve owns its positions) — adopted as structure, not as an emergency,
+#: exactly as the COO scoped it. v3 also fixes a v2 gatherer defect found
+#: during this change: ORDER_FILLED payloads carry `filled_qty`, not `qty`, so
+#: v2's position_opened_at never resolved and rule_predates_position failed
+#: closed on EVERYTHING — over-tight (the sleeve's legitimate auto-path was
+#: dead), never loose, but wrong, and now tested.
+AUTOPOLICY_VERSION = "v3"
 
 #: Marker the exit tick stamps into rationales it generates. Kept in v2 as a
 #: cheap first filter; the authoritative provenance is exit_trigger_linked.
@@ -189,6 +203,25 @@ def evaluate(order: dict[str, Any], *, halted: bool,
               ("" if ok else " — a move this size is either a data fault or a "
                              "crash, and both deserve the human's eyes"))
 
+    # R5 (v3): the rule's own strategy must hold what the order sells. A rule
+    # registered under one strategy_id must never liquidate another strategy's
+    # position — which is literally what the first live fire did.
+    held = ctx.get("rule_strategy_holding_qty")
+    try:
+        oqty = float(order.get("qty") or 0.0)
+    except (TypeError, ValueError):
+        oqty = None
+    if held is None or oqty is None:
+        check("rule_owner_holds_position", False,
+              f"the triggering rule's strategy holding could not be determined "
+              f"(held={held!r}) — an unownable close does not self-execute")
+    else:
+        ok = oqty <= held + 1e-9
+        check("rule_owner_holds_position", ok,
+              f"order qty {oqty} vs {held} held by the rule's own strategy" +
+              ("" if ok else " — the rule would be closing a position its "
+                             "strategy does not hold"))
+
     # R7: the blast radius, governed.
     npct = ctx.get("notional_pct_of_nav")
     if npct is None:
@@ -249,6 +282,8 @@ def context_for(store: Any, order: dict[str, Any],
     struck_nav: Optional[float] = None
     opened_at: Optional[str] = None
     qty_running = 0.0
+    #: (strategy_id) -> signed qty held in THIS order's symbol, from fills.
+    qty_by_strategy: dict[Any, float] = {}
 
     try:
         for e in store.stream(since_seq=0, limit=100_000):
@@ -270,12 +305,17 @@ def context_for(store: Any, order: dict[str, Any],
                 if p.get("total_nav_usd") is not None:
                     struck_nav = float(p["total_nav_usd"])
             elif t == EventType.ORDER_FILLED.value and p.get("symbol") == symbol:
-                q = float(p.get("qty") or 0.0)
+                # v3 fix: fill payloads carry `filled_qty` (v2 read `qty`,
+                # which does not exist — position_opened_at never resolved and
+                # every order failed the pre-commitment check closed).
+                q = float(p.get("filled_qty") or p.get("qty") or 0.0)
                 signed = q if str(p.get("side") or "").lower() == "buy" else -q
                 was_flat = abs(qty_running) < 1e-9
                 qty_running += signed
                 if was_flat and abs(qty_running) >= 1e-9:
                     opened_at = str(p.get("at") or ts or "")
+                sid = p.get("strategy_id")
+                qty_by_strategy[sid] = qty_by_strategy.get(sid, 0.0) + signed
     except Exception as e:  # noqa: BLE001 — absent fields fail closed downstream
         logger.warning("autopolicy context gather failed for %s: %s", oid, e)
         return ctx
@@ -286,6 +326,9 @@ def context_for(store: Any, order: dict[str, Any],
         key = (trigger.get("strategy_id"), trigger.get("symbol"),
                trigger.get("kind"))
         ctx["rule_set_at"] = rule_sets.get(key)
+        # R5: what the rule's OWN strategy holds in this symbol, from fills.
+        ctx["rule_strategy_holding_qty"] = max(
+            0.0, qty_by_strategy.get(trigger.get("strategy_id"), 0.0))
     ctx["position_opened_at"] = opened_at
 
     mark = None
