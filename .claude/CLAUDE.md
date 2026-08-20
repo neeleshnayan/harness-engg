@@ -68,7 +68,9 @@ way a real PM runs one under a mandate: by owning the judgement, not the button.
 
 `coo` was seated 2026-08-20 by demonstrated need: the CEO's desk carried ~20
 open recommendations across four runs in one day and said so ("I can stop
-being overwhelmed"). The COO's signoff is an ENDORSEMENT, never a decision —
+being overwhelmed"). The seat carries the name **Vishesh** and sits in the
+floor's executive row (CEO decision, same day); the bench seats wear their
+model's name — "· Opus" — the way the CTO chair wears Fable's. The COO's signoff is an ENDORSEMENT, never a decision —
 the click stays the CEO's, always. Delegating a CATEGORY of items to
 auto-accept-on-COO-endorsement would be a versioned policy change with a
 written reason (the autopolicy pattern at governance level), and has not been
