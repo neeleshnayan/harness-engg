@@ -40,7 +40,24 @@ _SEED_PRICES = {
     "USDC": 1.0,
     "USD": 1.0,
 }
-_DEFAULT_PRICE = 100.0
+
+
+class PriceUnavailable(ValueError):
+    """No real price exists for this symbol right now.
+
+    A ValueError subclass so existing per-symbol guards (correlation, risk
+    monitor) catch it and degrade to a NAMED absence. It replaces the
+    `_DEFAULT_PRICE = 100.0` fallback removed 2026-08-20 after the fund's
+    first auto-approval fired on it: a transient feed miss on GLD returned
+    the fabricated $100.00, the risk monitor marked a +2.9% position as
+    "down -75.14%", the machinery-test 25% loss rule fired, the auto-policy
+    approved the exit (every envelope check passed — the input was the lie),
+    the fill executed at the same $100.00, and the real $133 ledger loss
+    tripped the daily-loss halt. Every control worked; the price was
+    fabricated. "An absent number is reported absent" is the fund's first
+    non-negotiable, and a hardcoded default price violates it at the exact
+    point every mark in the system is born.
+    """
 
 
 class PaperConnector(Connector):
@@ -51,8 +68,9 @@ class PaperConnector(Connector):
         self._db = db or _fs_db()
         self._prices = {**_SEED_PRICES, **(prices or {})}
         # Optional callable(symbol)->float|None for live free marks. When set,
-        # positions/NAV are marked at real market levels; falls back to the seed
-        # price on any miss. Off by default so tests stay deterministic.
+        # positions/NAV are marked at real market levels. A miss FALLS BACK to
+        # an explicitly seeded price only — a seed is a chosen number; a
+        # catch-all default was a fabricated one, and it cost real (paper) money.
         self._live_pricer = live_pricer
 
     # --- pricing -----------------------------------------------------------
@@ -64,7 +82,12 @@ class PaperConnector(Connector):
                     return float(px)
             except Exception:  # noqa: BLE001 — never let pricing take the venue down
                 pass
-        return self._prices.get(symbol.upper(), _DEFAULT_PRICE)
+        seeded = self._prices.get(symbol.upper())
+        if seeded is not None:
+            return seeded
+        raise PriceUnavailable(
+            f"no price available for {symbol} — the paper venue refuses to "
+            f"fabricate one (a $100.00 default here once sold a real position)")
 
     def quote(self, order: Order) -> Quote:
         px = order.limit_price or self.price(order.symbol)
@@ -86,7 +109,24 @@ class PaperConnector(Connector):
             # Replay: return the same handle, do NOT place a second order.
             return VenueRef(venue=self.name, ref_id=existing.to_dict()["ref_id"])
 
-        px = self.quote(order).price
+        try:
+            px = self.quote(order).price
+        except PriceUnavailable as e:
+            # An order must NEVER fill at a number nobody quoted. The order
+            # fails, the book is untouched, and the reason is on the record —
+            # a failed order is recoverable; a fill at a fabricated price is a
+            # realised loss (measured: -$133.21, 2026-08-20).
+            ref_id = str(uuid.uuid4())
+            record = {
+                "ref_id": ref_id, "symbol": order.symbol,
+                "side": order.side.value, "qty": order.qty,
+                "avg_price": None, "fees": 0.0,
+                "state": FillState.FAILED.value, "reason": str(e),
+            }
+            ref_doc.set(record)
+            self._db.collection(_ORDERS).document(ref_id).set(record)
+            return VenueRef(venue=self.name, ref_id=ref_id)
+
         ref_id = str(uuid.uuid4())
         record = {
             "ref_id": ref_id,
@@ -113,9 +153,10 @@ class PaperConnector(Connector):
             return ExecStatus(state=FillState.FAILED, reason="unknown ref")
         return ExecStatus(
             state=FillState(rec["state"]),
-            filled_qty=rec["qty"],
+            filled_qty=rec["qty"] if rec["state"] == FillState.FILLED.value else 0.0,
             avg_price=rec["avg_price"],
             fees=rec["fees"],
+            reason=rec.get("reason"),
         )
 
     # --- venue truth (for the reconciler) ----------------------------------

@@ -133,11 +133,22 @@ class StrategyAttribution:
             exposure = Decimal("0")
             open_cost = Decimal("0")
             positions = {}
+            unmarked: list[str] = []
             for symbol, pos in rec["positions"].items():
                 qty = pos["qty"]
                 if abs(qty) < D("1e-9"):
                     continue
-                mark = D(pricer(symbol))
+                try:
+                    mark = D(pricer(symbol))
+                except ValueError:
+                    # PriceUnavailable (a ValueError): the symbol has no real
+                    # mark right now. Named absence — the row must not silently
+                    # value the position at a number nobody quoted, and must
+                    # not read as "no position" either.
+                    unmarked.append(symbol)
+                    positions[symbol] = f(qty)
+                    open_cost += pos["cost"]
+                    continue
                 exposure += qty * mark
                 open_cost += pos["cost"]
                 positions[symbol] = f(qty)
@@ -155,5 +166,8 @@ class StrategyAttribution:
                 "unrealized_pnl_usd": f(money(unrealized)),
                 "cost_basis_usd": f(money(open_cost)),
                 "positions": positions,
+                # Symbols held but unpriceable right now — their value is
+                # ABSENT from exposure/unrealized above, not zero.
+                "unmarked_symbols": unmarked,
             })
         return sorted(out, key=lambda r: r["exposure_usd"], reverse=True)
