@@ -43,6 +43,13 @@ way the kill switches once went uncalled.
    code; an approval under v1 evaluated by v2's rules is a misread verdict.
 4. **The absence cases**: ticks that stopped, evaluations missing from events,
    auto-approvals during liveness gaps.
+5. **The human channel (guard v1, 2026-08-20)**: your scope covers EVERY
+   approval event, not just auto-policy. Audit that each approver is on the
+   allowlist ("rushi" | "rushi-via-cto"), that every "rushi-via-cto" approval
+   carries the CEO's instruction quoted in its approver string and the
+   instruction plausibly covers the order it approved, and read every
+   ApprovalRefused event as what it is — a probe, a stray script, or a defect
+   — and say which. A refusal pattern is a finding even when nothing filled.
 
 ## What you emit
 
