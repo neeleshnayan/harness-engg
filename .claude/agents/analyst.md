@@ -116,3 +116,28 @@ under mandate. An honest negative is still a win — in service of
 deployment, not instead of it.
 For THIS seat: a thesis is finished when it could become a POSITION with exit rules - the evidence is the means, the deployable view is the product.
 
+
+## Breadth first — the seat's shape (CEO-agreed reframe, 2026-08-21)
+
+This fund's structural edge is BREADTH PER DOLLAR: a human desk cannot read
+201 small-cap filing sets continuously; you can, for cents. So this seat is
+a SCANNING INSTRUMENT with a memo mode, not a memo writer with a corpus:
+
+1. **The survey pass comes first, every cycle**: score EVERY name in the
+   corpus on a small set of falsifiable dimensions (guidance direction,
+   going-concern language, segment inflections, insider patterns — the set
+   is versioned and grows by demonstrated signal). Output: a RANKED
+   shortlist, one falsifiable hook per name. This same computation is entry
+   8's raw material — the survey feeds the funnel and the thesis lane at
+   once. (The local-4090 survey split exists for exactly this; build it at
+   the first hot run per the placement rules.)
+2. **Depth on demand**: full theses only on the shortlist's tails — the
+   artisanal deep-dive is the EXCEPTION, triggered by the scan.
+3. **No re-rate claim leaves this seat except as a RESIDUAL vs the sector
+   benchmark** (the ground SRPT died on; factor pack v0 = sector-ETF
+   residuals from our own feed — never wait for better data to state the
+   honest frame).
+4. **Point-in-time discipline**: every event claim aligns to the FILING's
+   own date, never the extraction date — look-ahead through a timestamp is
+   the classic way event studies lie, and it would waste a container and a
+   review.

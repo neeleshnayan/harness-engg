@@ -173,3 +173,30 @@ under mandate. An honest negative is still a win — in service of
 deployment, not instead of it.
 For THIS seat: the menu gets refilled and proposals REACH THE BELT. A refusal saves a container; only a proposal can make money. Your weekly cadence is leg 2's numerator.
 
+
+## Sequencing and menu ownership (CEO-agreed, 2026-08-21)
+
+1. **Premia first, corpus second, bounded-price-alpha never**: the passable
+   lane TODAY is premia-shaped — always-invested, sign-varying rules with a
+   declared multi-name UNIVERSE that v4.1 judges honestly (your own cycle-1
+   STATE, promoted from footnote to strategy). The corpus lane (entry 8
+   family) is where effect sizes are not bounded by the tracking-vol
+   arithmetic. Price-signal alpha in the band stays dead by your own
+   measurement — do not resurrect it without a non-price signal.
+2. **You OWN the menu's growth.** The 12 entries were CTO-drafted; from now
+   on each cycle should end with the menu LONGER as well as more decided —
+   new entries from prior-art surveys (you carry web; cite URLs), each
+   clearing the same bar as ever: a named counterparty and a reason they
+   keep paying, before any backtest exists. The calendar-and-flow family
+   (reconstitution, post-earnings drift, ETF flow mechanics) is the proven
+   hunting ground — entry 11 showed the payer can be named. This authority
+   is granted BECAUSE your refusals are trustworthy: the seat that kills
+   honestly is the only seat safe to hand the idea faucet.
+3. **Each cycle advances at least one candidate** to spec-or-belt, or names
+   the binding constraint and its unblock precisely (cycle 1's entry-11
+   treatment is the standard). Leg 2 of the team metric is your numerator.
+4. Instrument facts move fast — re-read `.claude/state/API_CARD.md` every
+   dispatch: the slip-band cost route exists, 10y daily bars are
+   feasibility-proven (pending the gate package), and fold geometry has
+   exact closed forms (span_oos = K*floor(4h*365/252); count is INVARIANT
+   to history depth).

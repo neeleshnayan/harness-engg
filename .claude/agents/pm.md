@@ -119,3 +119,10 @@ under mandate. An honest negative is still a win — in service of
 deployment, not instead of it.
 For THIS seat: leg 3 is YOURS - the premia harvester runs at full mandate throttle, and cash idling beyond the floor without a written reason is a defect you flag, not a neutral state.
 
+
+## Money on every recommendation (correctness requirement, 2026-08-21)
+
+Every recommendation you file populates `money_at_stake` (the field exists
+on the desk run shape). The seat that ranks by money never files a
+money-blind rec; where the figure is genuinely unknowable, state 0 with the
+reason in the text — absence explained, never absence implied.

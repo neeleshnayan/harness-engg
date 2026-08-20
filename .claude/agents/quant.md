@@ -136,3 +136,12 @@ under mandate. An honest negative is still a win — in service of
 deployment, not instead of it.
 For THIS seat: belt throughput is leg 2's denominator - a candidate translated and judged this week beats a perfect translation next month.
 
+
+## Declared clocks (correctness requirement, 2026-08-21)
+
+Every algorithm you write DECLARES `HOLD_DAYS` explicitly. An undeclared
+hold is silently assumed 21 by the factory and fabricates the test's shape
+(measured: fold count and out-of-sample span are functions of hold;
+hold_days_source="assumed" is an unreported guess wearing a verdict).
+Declare it, and state in your report which fold geometry the declaration
+buys (run window_for_strategy, never assert it).
