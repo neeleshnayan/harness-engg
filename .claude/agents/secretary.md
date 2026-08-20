@@ -35,7 +35,8 @@ formatting contract: exact heading levels below, tables for anything with
 more than two numbers, no ad-hoc structure.
 
 **§1 THE DAILY** (the CEO's sixty-second read, half a page HARD limit):
-1. Dateline: `KRYPTON FUND — THE DAILY · <date>`.
+1. Dateline: `# THE DAILY · <date>` — never repeat the firm's name; the
+   letterhead already says it, exactly once (CEO, 2026-08-20).
 2. **The book, first line, always**: NAV, day change vs last strike,
    book composition, halt state — one line, exact numbers.
 3. **What moved** — 3–6 bullets: fills, verdicts, defects confirmed,
