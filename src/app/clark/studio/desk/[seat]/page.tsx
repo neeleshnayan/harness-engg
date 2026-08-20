@@ -9,8 +9,10 @@ import { KT } from "../../theme";
 import { StudioNav } from "../../components/StudioNav";
 import { RiskBar } from "../../components/RiskBar";
 import {
-  Metric, RecRow, RunRow, SectionHead, TraceFlow, WindowNote,
+  Metric, ProductionShelf, RecRow, RunRow, SectionHead, WindowNote,
 } from "../components";
+import { MemoThread } from "../MemoThread";
+import { SeatFace } from "../SeatFace";
 import { LaneTrackRecord } from "../laneViews";
 import {
   ASSUMED_INPUT_SHARE,
@@ -24,6 +26,7 @@ import {
   fmtTokens,
   fmtUsd,
   isSeat,
+  productionShelf,
   tokenStats,
   traceThreads,
 } from "../seatLib";
@@ -38,12 +41,16 @@ import {
  *      What needs the human comes first, always.
  *   2. YOUR ASK OF THE SEAT — the request composer, pre-filled with this seat's
  *      kind, so "ask the pm to re-review" is one field and one click.
- *   3. THE EVIDENCE — runs with their reasoning, artifacts, and the chatter
- *      threads that replay a chain. Why the seat believes what it asks.
- *   4. THE TRACK RECORD — the lane-native measure. Whether to keep trusting it.
+ *   3. THE PRODUCTION SHELF — what this desk has produced, across time, as memo
+ *      spines. The CEO's question ("what is each desk producing?") answered
+ *      before the machinery of how it produced it.
+ *   4. THE EVIDENCE — runs with their reasoning, and the memo threads that
+ *      replay a chain. Why the seat believes what it asks.
+ *   5. THE TRACK RECORD — the lane-native measure. Whether to keep trusting it.
  *
- * So the page reads: decide -> ask -> inspect -> calibrate trust. The decision
- * controls sit next to the evidence that justifies them, never on another tab.
+ * So the page reads: decide -> ask -> see the output -> inspect -> calibrate
+ * trust. The decision controls sit next to the evidence that justifies them,
+ * never on another tab.
  *
  * Everything is read from the spine. A seat that has never been dispatched says
  * so — "an idle seat costs zero and that is a feature" — rather than rendering
@@ -108,33 +115,61 @@ function Seat({ seat }: { seat: SeatId }) {
   );
 
   const neverDispatched = runs != null && seatRuns.length === 0 && !dispatches.dispatches;
+  // What this desk produced, across time. Run-anchored (see productionShelf):
+  // the spine has no author field, so a shelf built any other way would credit
+  // the wrong desk.
+  const shelf = useMemo(
+    () => productionShelf(seatRuns, desk?.artifacts ?? []),
+    [seatRuns, desk],
+  );
 
   return (
     <>
       <RiskBar />
       <div className={KT.container}>
-        <header className="mb-7 flex flex-wrap items-start justify-between gap-3">
-          <div>
+        <header className="mb-7 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+          <div className="min-w-0 flex-1">
             <Link href="/clark/studio/desk"
                   className={`flex items-center gap-1.5 text-xs ${KT.muted} hover:text-[var(--kt-text)]`}>
-              <ArrowLeft size={12} /> the office
+              <ArrowLeft size={12} /> the floor
             </Link>
-            <h1 className="mt-1 flex items-center gap-3 text-2xl font-medium tracking-tight">
-              <span className="font-mono text-[var(--kt-accent)]">{seat}</span>
-              <SeatStatus roster={roster} />
-            </h1>
-            <p className="mt-1 max-w-2xl text-sm leading-relaxed">
-              {roster?.lane ?? (deskErr
-                ? "Lane unreadable — the spine is unreachable, so the roster it defines cannot be shown."
-                : "…")}
-            </p>
-            {roster && (
-              <p className={`mt-1 text-xs ${KT.muted}`}>
-                emits: {roster.emits}
-              </p>
-            )}
+            {/* The seat's face at desk scale — the same drawing it wears on the
+                floor, on every memo card and on its recommendation chips. It is
+                the largest thing on the page because walking into a colleague's
+                office should feel like meeting them. */}
+            <div className="mt-2 flex items-start gap-4">
+              {/* Not decorative here: this is the one place the face is the
+                  subject rather than a marker, so it carries its own name and
+                  role for assistive tech and on hover. */}
+              <span className="text-[var(--kt-text-dim)]">
+                <SeatFace actor={seat} size={64} />
+              </span>
+              <div className="min-w-0">
+                <h1 className="flex flex-wrap items-center gap-3 text-2xl font-medium tracking-tight">
+                  <span className="font-mono text-[var(--kt-text-strong)]">{seat}</span>
+                  <SeatStatus roster={roster} />
+                </h1>
+                <p className="mt-1 max-w-2xl text-sm leading-relaxed">
+                  {roster?.lane ?? (deskErr
+                    ? "Lane unreadable — the spine is unreachable, so the roster it defines cannot be shown."
+                    : "…")}
+                </p>
+                {roster && (
+                  <p className={`mt-1 text-xs ${KT.muted}`}>
+                    emits: {roster.emits}
+                  </p>
+                )}
+                {/* The face's own `role` string is NOT rendered here: the lane
+                    above is the spine's, and a second sentence saying nearly
+                    the same thing is a second thing to drift. It lives only in
+                    the face's tooltip, where nothing else is competing. */}
+                <LastDelivered roster={roster} />
+              </div>
+            </div>
           </div>
-          <StudioNav />
+          <div className="shrink-0">
+            <StudioNav />
+          </div>
         </header>
 
         {(deskErr || runsErr) && (
@@ -235,7 +270,30 @@ function Seat({ seat }: { seat: SeatId }) {
         {/* -------------------------------------------------- 2. you ask it --- */}
         <AskSeat seat={seat} onSent={load} executionNote={desk?.execution_note} />
 
-        {/* --------------------------------------------------- 3. the evidence */}
+        {/* ------------------------------------------ 3. the production shelf */}
+        <section className="mb-8">
+          <SectionHead
+            title="What this desk has produced"
+            lede="Every delivery in time order, newest first — the date, the document, the verdict where one was stamped. A run that filed nothing appears saying so."
+          />
+          {runs == null ? (
+            <p className={`text-sm ${KT.muted}`}>Reading the flight recorder…</p>
+          ) : (
+            <ProductionShelf
+              items={shelf}
+              emptyNote="Nothing filed. This desk has no runs in the flight recorder — which is an absence of dispatches, not an absence of output."
+            />
+          )}
+          {desk == null && runs != null && seatRuns.length > 0 && (
+            <p className={`mt-2 text-[11px] ${KT.sev.warn}`}>
+              The artifact fold could not be read, so these spines carry the
+              run&apos;s task rather than the document&apos;s own title, and no
+              status rule.
+            </p>
+          )}
+        </section>
+
+        {/* --------------------------------------------------- 4. the evidence */}
         <section className="mb-8">
           <SectionHead
             title="The evidence"
@@ -257,12 +315,12 @@ function Seat({ seat }: { seat: SeatId }) {
         {threads.length > 0 && (
           <section className="mb-8">
             <SectionHead
-              title="Chatter threads"
-              lede="One trace id replays a chain: the ask, the dispatch, the run and its verdict, then the decisions. Threads here are filtered to this seat."
+              title="Memo threads"
+              lede="One trace id replays a chain, memo by memo: the ask, the dispatch, the delivery and its verdict, then the decisions. Threads here are filtered to this seat."
             />
-            <div className="space-y-2">
+            <div className="space-y-3">
               {threads.slice(0, 8).map((t) => (
-                <TraceFlow key={t.traceId} t={t} dense />
+                <MemoThread key={t.traceId} t={t} dense />
               ))}
             </div>
             {events != null && (
@@ -271,7 +329,7 @@ function Seat({ seat }: { seat: SeatId }) {
           </section>
         )}
 
-        {/* ------------------------------------------------ 4. track record --- */}
+        {/* ------------------------------------------------ 5. track record --- */}
         <LaneTrackRecord seat={seat} runs={seatRuns} desk={desk} events={events ?? []} />
       </div>
     </>
@@ -280,6 +338,13 @@ function Seat({ seat }: { seat: SeatId }) {
 
 /* ---------------------------------------------------------------- pieces -- */
 
+/** The status word beside the seat's name.
+ *
+ * Only the WORD is set in tracked uppercase; what was last delivered is a
+ * separate, sentence-cased line. It used to be concatenated into the same
+ * letterspaced run, which turned an artifact path into 90 characters of
+ * uppercase mono shouting across the header and buried the one word — working
+ * or idle — the reader came for. */
 function SeatStatus({ roster }: { roster: DeskView["roster"][number] | null }) {
   if (!roster) return null;
   const a = roster.activity;
@@ -289,15 +354,28 @@ function SeatStatus({ roster }: { roster: DeskView["roster"][number] | null }) {
         a.status === "working" ? "text-[var(--kt-warn)]" : KT.muted
       }`}
     >
+      {/* kt-breathe, not animate-pulse: the Tailwind utility ignores
+          prefers-reduced-motion, so a reader who asked the OS for no animation
+          got one anyway. The class drops the motion and keeps the marker. */}
       <span className={`h-1.5 w-1.5 rounded-full ${
-        a.status === "working" ? "animate-pulse bg-[var(--kt-warn)]" : "bg-[var(--kt-border-strong)]"
+        a.status === "working" ? "kt-breathe bg-[var(--kt-warn)]" : "bg-[var(--kt-border-strong)]"
       }`} />
       {a.status}
       {a.status === "working" && a.since && <> since {fmtAt(a.since)}</>}
-      {a.status === "idle" && a.last_delivered && (
-        <> · last delivered {a.last_delivered.artifact}</>
-      )}
     </span>
+  );
+}
+
+/** What the seat last filed, in its own words — one quiet line under the lane,
+ *  not a suffix on the status chip. */
+function LastDelivered({ roster }: { roster: DeskView["roster"][number] | null }) {
+  const d = roster?.activity.last_delivered;
+  if (!d) return null;
+  return (
+    <p className={`mt-1 line-clamp-2 text-xs ${KT.muted}`} title={d.artifact}>
+      last delivered <span className="text-[var(--kt-text-dim)]">{d.task}</span>
+      {d.at ? <span className="font-mono text-[10px]"> · {d.at.slice(0, 10)}</span> : null}
+    </p>
   );
 }
 

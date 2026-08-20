@@ -1,18 +1,19 @@
 "use client";
 
 import React, { useState } from "react";
-import Link from "next/link";
 import { fundApiClient, DeskView } from "@/lib/fund_api";
 import { KT } from "../theme";
 import { ProvenanceChip } from "../components/Provenance";
+import { VerdictStamp } from "./MemoThread";
 import {
   DeskRun,
-  TraceThread,
+  ShelfItem,
   fmtAt,
   fmtTokens,
   fmtUsd,
   estimateCostUsd,
   isAbsent,
+  verdictStamp,
   Absent,
 } from "./seatLib";
 
@@ -192,77 +193,70 @@ export function RunRow({ run, showSeat = true }: { run: DeskRun; showSeat?: bool
   );
 }
 
-/* --------------------------------------------------------------- traces --- */
-
-const NODE_GLYPH: Record<string, string> = {
-  request: "ask",
-  dispatch: "dispatch",
-  run: "run",
-  decision: "decision",
-};
+/* ----------------------------------------------------- production shelf --- */
 
 /**
- * One chatter thread as a directed flow: ask → dispatch → run(verdict) →
- * decision. Nodes carry actor and timestamp; the edges ARE the trace id.
+ * What a desk produced, across time — memo spines on a shelf, newest first.
  *
- * This is the CEO's "chatter flow, recreatable" and the audit view in one
- * drawing — which is the point: an audit that is a different picture from the
- * working view gets read once.
+ * The metaphor is literal: each row is the SPINE of a filed document, so the
+ * eye runs down dates and titles the way it runs down a shelf. The left rule
+ * carries the artifact's status (killed / survives / under review) and is the
+ * only colour on the row; a run that filed nothing gets a dim rule and says so,
+ * because "delivered, filed nothing" and "produced nothing" are different facts
+ * about the record.
+ *
+ * TraceFlow used to live here. It was replaced by MemoThread (2026-08-20 brief)
+ * and deleted rather than left importable — a second, prettier rendering of the
+ * same trace is exactly how the audit view and the working view start to
+ * disagree.
  */
-export function TraceFlow({ t, dense = false }: { t: TraceThread; dense?: boolean }) {
+export function ProductionShelf({ items, emptyNote }: {
+  items: ShelfItem[];
+  emptyNote: string;
+}) {
+  if (!items.length) return <p className={`text-sm ${KT.muted}`}>{emptyNote}</p>;
   return (
-    <div className={`${KT.card} p-3`}>
-      <div className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className={`font-mono text-[10px] ${KT.muted}`}>
-          trace {t.traceId.slice(0, 8)}
-        </span>
-        {t.synthetic && (
-          <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--kt-warn)]"
-                title="No trace_id was recorded on this item; it is shown as its own chain rather than merged into someone else's.">
-            untraced
-          </span>
-        )}
-        {t.seats.map((s) => (
-          <Link key={s} href={`/clark/studio/desk/${s}`}
-                className={`font-mono text-[10px] ${KT.accent} hover:underline`}>
-            {s}
-          </Link>
-        ))}
-        <span className={`ml-auto font-mono text-[10px] tabular-nums ${KT.muted}`}>
-          {fmtAt(t.first)} → {fmtAt(t.last)}
-        </span>
-      </div>
-      <ol className="flex flex-wrap items-stretch gap-1.5">
-        {t.nodes.map((n, i) => (
-          <React.Fragment key={i}>
-            {i > 0 && (
-              <li aria-hidden className={`self-center font-mono text-xs ${KT.muted}`}>→</li>
+    <ol className="space-y-1.5">
+      {items.map((s) => {
+        const stamp = verdictStamp(s.verdict);
+        const rule =
+          s.status === "killed" ? "border-l-[var(--kt-down)]"
+            : s.status === "survives" ? "border-l-[var(--kt-accent)]"
+              : s.status === "under_review" ? "border-l-[var(--kt-warn)]"
+                : "border-l-[var(--kt-border-strong)]";
+        return (
+          <li key={s.runId} className={`${KT.inset} border-l-2 ${rule} px-3 py-2`}>
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <span className={`w-[5.5rem] shrink-0 font-mono text-[10px] tabular-nums ${KT.muted}`}>
+                {s.at ? s.at.slice(0, 10) : "undated"}
+              </span>
+              <span className="min-w-0 flex-1 text-[13px] leading-snug">{s.title}</span>
+              {s.kind && (
+                <span className={`font-mono text-[10px] uppercase tracking-[0.1em] ${KT.muted}`}>
+                  {s.kind}
+                </span>
+              )}
+              {stamp && <VerdictStamp verdict={stamp} tone={stamp === "KILL" ? "kill" : "neutral"} />}
+            </div>
+            <p className={`mt-1 font-mono text-[10px] ${KT.muted}`}>
+              {s.path ?? "no artifact path recorded on this run — delivered, but nothing filed"}
+              {s.titleFrom === "task" && s.path && (
+                <span
+                  title="The desk's artifact fold does not carry this path, so the spine cannot supply the document's own title. What is shown is the run's task."
+                >
+                  {" · title from the run"}
+                </span>
+              )}
+            </p>
+            {/* A verdict too long to stamp prints verbatim rather than being
+                compressed into a word the seat did not say. */}
+            {s.verdict && !stamp && (
+              <p className={`mt-1 text-[11px] leading-relaxed ${KT.body}`}>{s.verdict}</p>
             )}
-            <li className={`${KT.inset} min-w-[8rem] max-w-[18rem] flex-1 p-2`}>
-              <p className={`font-mono text-[9px] uppercase tracking-[0.12em] ${
-                n.kind === "run" ? KT.accent : KT.muted}`}>
-                {NODE_GLYPH[n.kind]}
-                {n.seat ? ` · ${n.seat}` : ""}
-              </p>
-              <p className={`mt-1 leading-snug ${dense ? "line-clamp-2 text-[11px]" : "text-xs"}`}>
-                {n.label}
-              </p>
-              {n.verdict && (
-                <p className="mt-1 font-mono text-[10px] uppercase text-[var(--kt-text-dim)]">
-                  {n.verdict}
-                </p>
-              )}
-              {n.status && (
-                <p className={`mt-1 font-mono text-[10px] uppercase ${KT.muted}`}>{n.status}</p>
-              )}
-              <p className={`mt-1 font-mono text-[9px] tabular-nums ${KT.muted}`}>
-                {n.actor ? `${n.actor} · ` : ""}{fmtAt(n.at)}
-              </p>
-            </li>
-          </React.Fragment>
-        ))}
-      </ol>
-    </div>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, Check, Loader2, X } from "lucide-react";
 import { spineError } from "@/lib/spine_error";
 import { KT } from "../theme";
+import { memoParts } from "../memo";
 import { ProvenanceChip, provenanceOfRationale } from "./Provenance";
 import { MemoView, PendingOrder, ThesisView, fundApiClient } from "@/lib/fund_api";
 
@@ -23,30 +24,9 @@ import { MemoView, PendingOrder, ThesisView, fundApiClient } from "@/lib/fund_ap
 const money = (n?: number | null, dp = 2) =>
   n == null ? "—" : `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
 
-/**
- * Read a staged order's rationale as a MEMO: the seat's marker and ticket id
- * peel off into chrome, the first sentence becomes the headline the CEO reads
- * standing up, and the remainder waits behind one expander. CEO direction
- * 2026-08-20: "think the PM is submitting a memo to the CEO — a high level
- * view, expandable to dig deep as needed."
- */
-function memoParts(rationale?: string | null): {
-  ticket: string | null; headline: string; rest: string;
-} {
-  let text = (rationale || "").trim();
-  // strip the provenance marker — the chip already renders it
-  text = text.replace(/^\[[^\]]+\]\s*/, "");
-  const ticketMatch = /^([A-Z]\d+):\s*/.exec(text);
-  const ticket = ticketMatch ? ticketMatch[1] : null;
-  if (ticketMatch) text = text.slice(ticketMatch[0].length);
-  const firstStop = text.search(/(?<=[.!?])\s/);
-  if (firstStop === -1) return { ticket, headline: text, rest: "" };
-  return {
-    ticket,
-    headline: text.slice(0, firstStop).trim(),
-    rest: text.slice(firstStop).trim(),
-  };
-}
+/* `memoParts` moved to ../memo.ts (2026-08-20): the office's memo threads need
+   the identical headline rule, and a second copy would drift. Behaviour
+   unchanged — the function was moved verbatim and is now covered by tests. */
 
 export function ApprovalQueue({ onChanged, refreshSignal = 0, compact = false,
                                 embedded = false }: {

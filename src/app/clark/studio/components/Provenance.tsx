@@ -2,6 +2,7 @@
 
 import React from "react";
 import { KT } from "../theme";
+import { SeatFace } from "../desk/SeatFace";
 
 /**
  * Who is suggesting this action?
@@ -55,6 +56,11 @@ export function ProvenanceChip({
         title={title ?? "A seat's judgement — an agent recommended this"}
         className={`${base} border-[var(--kt-agent-border)] bg-[var(--kt-agent-bg)] text-[var(--kt-agent)]`}
       >
+        {/* The seat's face, the same drawing it has on the floor and on every
+            memo — a recommendation is a colleague asking, and the chip should
+            say which colleague before it says anything else. Decorative: the
+            name is right beside it. */}
+        <SeatFace actor={seat} size={14} decorative />
         agent — {seat ?? "unnamed seat"}
         {recId != null && <> · rec {recId}</>}
       </span>

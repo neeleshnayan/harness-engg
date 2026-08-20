@@ -114,6 +114,36 @@
   --kt-hover: rgb(243 242 238 / 1);
 }
 
+/* --- the floor breathes ----------------------------------------------------
+ *
+ * A desk that is WORKING pulses, slowly, the way a room tells you someone is
+ * at it. Three rules it obeys:
+ *
+ *   1. Slow and shallow. 4s, and the opacity floor is 0.45 — a marker that
+ *      blinks is an alarm, and this is not one. (Tailwind's `animate-pulse` is
+ *      2s down to 0.5 and, more importantly, ignores the media query below.)
+ *   2. `prefers-reduced-motion` removes the MOTION, never the INFORMATION. The
+ *      dot stays fully drawn and the status word beside it is unchanged, so a
+ *      reader who cannot use animation loses nothing but the animation.
+ *   3. Scoped to `html[data-kt-theme]`, like everything else in this file, so
+ *      it cannot leak into the wallet app.
+ */
+@keyframes kt-breathe {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+html[data-kt-theme] .kt-breathe {
+  animation: kt-breathe 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-kt-theme] .kt-breathe {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 /* The Studio ground.
  *
  * globals.css defaults `--background` to WHITE at :root and body does

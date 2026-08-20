@@ -17,8 +17,10 @@ import { StudioNav } from "../components/StudioNav";
 import { RiskBar } from "../components/RiskBar";
 import { Arc, Ladder } from "../components/mechanics/MechanicsViews";
 import {
-  Metric, RecRow, RunRow, SectionHead, TraceFlow, WindowNote,
+  Metric, ProductionShelf, RecRow, RunRow, SectionHead, WindowNote,
 } from "./components";
+import { MemoThread } from "./MemoThread";
+import { SeatFace } from "./SeatFace";
 import {
   DayFold,
   FeedItem,
@@ -29,6 +31,7 @@ import {
   fmtUsd,
   foldDay,
   isSeat,
+  productionShelf,
   traceThreads,
   wireFeed,
 } from "./seatLib";
@@ -137,6 +140,14 @@ export default function DeskPage() {
 
   const feed = useMemo(() => wireFeed(evs, runs, 25), [evs, runs]);
 
+  // The floor's shelf for the day in view: every desk's deliveries, in time
+  // order. Same runs the strip counts — the shelf is a rendering of them, not a
+  // second source that could disagree about what was filed.
+  const dayShelf = useMemo(
+    () => productionShelf(fold?.runs ?? [], d?.artifacts ?? []),
+    [fold, d],
+  );
+
   return (
     <>
       <RiskBar />
@@ -162,41 +173,13 @@ export default function DeskPage() {
 
         {d && (
           <>
-            {/* --------------------------------------- the office, live: who */}
+            {/* --------------------------------------------------- the floor */}
             <section className="mb-8">
               <p className={`${KT.label} mb-3 flex items-center gap-2`}>
-                <Users size={12} /> The office — live
+                <Users size={12} /> The floor — live
               </p>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                {d.roster.map((r) => {
-                  const working = r.activity.status === "working";
-                  const inner = (
-                    <>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-mono text-sm text-[var(--kt-accent)]">{r.agent}</span>
-                        <span className={`flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] ${working ? "text-[var(--kt-warn)]" : KT.muted}`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${working ? "animate-pulse bg-[var(--kt-warn)]" : "bg-[var(--kt-border-strong)]"}`} />
-                          {r.activity.status}
-                        </span>
-                      </div>
-                      <p className={`mt-1 line-clamp-2 text-[11px] leading-snug ${working ? "" : KT.muted}`}>
-                        {working && r.activity.task
-                          ? r.activity.task
-                          : r.activity.last_delivered
-                            ? <>last: <span className="font-mono">{r.activity.last_delivered.artifact}</span></>
-                            : r.lane}
-                      </p>
-                    </>
-                  );
-                  return isSeat(r.agent) ? (
-                    <Link key={r.agent} href={`/clark/studio/desk/${r.agent}`}
-                          className={`${KT.card} ${KT.cardHover} block p-3`}>
-                      {inner}
-                    </Link>
-                  ) : (
-                    <div key={r.agent} className={`${KT.card} p-3`}>{inner}</div>
-                  );
-                })}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {d.roster.map((r) => <Desk key={r.agent} r={r} />)}
               </div>
             </section>
 
@@ -358,19 +341,49 @@ export default function DeskPage() {
                 </div>
 
                 {fold && <ProductivityStrip fold={fold} />}
-                {events != null && (
-                  <WindowNote events={events.length} capped={events.length >= 1000} />
+
+                {/* The floor AS OF the day in view. Only when scrubbed back:
+                    today's floor is the live one at the top of the page, and
+                    drawing it twice would invite the reader to compare two
+                    renderings of the same thing. */}
+                {!isLive && fold && (
+                  <div className="mb-5">
+                    <p className={`${KT.label} mb-2`}>The floor on {shownDay}</p>
+                    <FloorAsOf roster={d.roster} fold={fold} />
+                  </div>
+                )}
+
+                {/* What the floor PRODUCED on the day in view — the shelf, one
+                    spine per delivery. Sits above the threads because "what came
+                    out" is the question a manager asks before "how it went". */}
+                {fold && (
+                  <div className="mt-5">
+                    <p className={`${KT.label} mb-2`}>
+                      {isLive ? "Filed today" : `Filed on ${shownDay}`}
+                    </p>
+                    <ProductionShelf
+                      items={dayShelf}
+                      emptyNote="Nothing was filed on this day."
+                    />
+                  </div>
                 )}
 
                 {dayThreads.length > 0 && (
-                  <div className="mt-4 space-y-2">
+                  <div className="mt-5 space-y-3">
                     <p className={`${KT.label} mb-1`}>
-                      {isLive ? "Chains alive today" : `Chains alive on ${shownDay}`}
+                      {isLive ? "Memo threads alive today" : `Memo threads alive on ${shownDay}`}
                     </p>
                     {dayThreads.slice(0, 6).map((t) => (
-                      <TraceFlow key={t.traceId} t={t} />
+                      <MemoThread key={t.traceId} t={t} />
                     ))}
                   </div>
+                )}
+
+                {/* The window this whole section can see, stated last, once —
+                    a day older than the oldest event read is a day this view
+                    CANNOT SEE, not a quiet day. */}
+                {events != null && (
+                  <WindowNote events={events.length} capped={events.length >= 1000} />
                 )}
               </section>
             )}
@@ -489,6 +502,143 @@ export default function DeskPage() {
   );
 }
 
+/**
+ * ONE DESK on the floor.
+ *
+ * The CEO's ask, verbatim: "a human type org where you have desks and you can
+ * see what each desk is doing". So the card is a desk, not a row in a table —
+ * the face first (a face is how a human indexes a colleague), then the name,
+ * then the one line of what this desk is doing or last produced.
+ *
+ * Two honesty rules survive the re-skin:
+ *   - A WORKING desk breathes (kt-breathe, which honours prefers-reduced-motion
+ *     by dropping the motion and keeping the marker). An idle desk rests, and
+ *     idle is not a fault: "an idle seat costs zero and that is a feature".
+ *   - The line under the name is the spine's own `activity`, in priority order
+ *     — the live task, else the last thing filed, else the lane. It never
+ *     invents a status; a roster entry the route whitelist does not know
+ *     (`isSeat`) renders as a desk you cannot walk into rather than a dead link.
+ */
+/** The file name off a path, for a desk card that has one line to spend. The
+ *  full path stays in the title attribute — shortened, never dropped. */
+const fileName = (p: string): string => p.split(/[\\/]/).pop() || p;
+
+function Desk({ r }: { r: DeskView["roster"][number] }) {
+  const working = r.activity.status === "working";
+  const inner = (
+    <>
+      <div className="flex items-start gap-3">
+        <span className={working ? "text-[var(--kt-text-strong)]" : "text-[var(--kt-text-muted)]"}>
+          <SeatFace actor={r.agent} size={42} decorative />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-mono text-sm text-[var(--kt-text-strong)]">{r.agent}</p>
+          <p className={`mt-1 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] ${
+            working ? "text-[var(--kt-warn)]" : KT.muted}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${
+              working ? "kt-breathe bg-[var(--kt-warn)]" : "bg-[var(--kt-border-strong)]"}`} />
+            {r.activity.status}
+          </p>
+        </div>
+      </div>
+      {/* What this desk is doing, in the reader's words. The last delivery is
+          shown by its TASK, not by its file path: a path is an address, and a
+          floor plan that reads as a list of addresses is not a floor. The path
+          is still there, as the second line, in the file name only. */}
+      {working && r.activity.task ? (
+        <p className={`mt-3 line-clamp-3 text-[12px] leading-relaxed ${KT.body}`}>
+          {r.activity.task}
+        </p>
+      ) : r.activity.last_delivered ? (
+        <div className="mt-3">
+          <p className={`line-clamp-2 text-[12px] leading-relaxed ${KT.muted}`}>
+            {r.activity.last_delivered.task}
+          </p>
+          <p className={`mt-1 truncate font-mono text-[10px] ${KT.muted}`}
+             title={r.activity.last_delivered.artifact}>
+            {fileName(r.activity.last_delivered.artifact)}
+            {r.activity.last_delivered.at ? ` · ${r.activity.last_delivered.at.slice(0, 10)}` : ""}
+          </p>
+        </div>
+      ) : (
+        <p className={`mt-3 line-clamp-3 text-[12px] leading-relaxed ${KT.muted}`}>{r.lane}</p>
+      )}
+    </>
+  );
+  return isSeat(r.agent) ? (
+    <Link key={r.agent} href={`/clark/studio/desk/${r.agent}`}
+          className={`${KT.card} ${KT.cardHover} block p-4`}>
+      {inner}
+    </Link>
+  ) : (
+    <div key={r.agent} className={`${KT.card} p-4`}
+         title="Not a seat with its own page — the route whitelist does not carry this agent.">
+      {inner}
+    </div>
+  );
+}
+
+/**
+ * The floor as it stood on a past day.
+ *
+ * The spine's `roster.activity` is a LIVE fold — it has no history, so a past
+ * day's floor cannot be read from it. What CAN be read is what each desk did
+ * that day: the runs it resolved and whether it appears among the day's
+ * dispatched seats. That is what this renders, and the wording keeps the three
+ * cases apart, because on a dashboard they look identical and mean opposite
+ * things:
+ *
+ *   filed something · dispatched but nothing resolved · no record at all
+ *
+ * The third is NOT "did nothing": the events endpoint caps at 1000 rows, and
+ * the WindowNote under this section says so.
+ */
+function FloorAsOf({ roster, fold }: { roster: DeskView["roster"]; fold: DayFold }) {
+  const bySeat = new Map<string, DayFold["runs"]>();
+  for (const r of fold.runs) {
+    const list = bySeat.get(r.seat) ?? [];
+    list.push(r);
+    bySeat.set(r.seat, list);
+  }
+  return (
+    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      {roster.map((r) => {
+        const ran = bySeat.get(r.agent) ?? [];
+        const touched = fold.seats.includes(r.agent);
+        const body = (
+          <>
+            <div className="flex items-center gap-2.5">
+              <span className={ran.length ? "text-[var(--kt-text-strong)]" : "text-[var(--kt-text-muted)]"}>
+                <SeatFace actor={r.agent} size={26} decorative />
+              </span>
+              <span className="truncate font-mono text-xs">{r.agent}</span>
+              <span className={`ml-auto font-mono text-[10px] tabular-nums ${KT.muted}`}>
+                {ran.length ? `${ran.length} filed` : touched ? "dispatched" : "—"}
+              </span>
+            </div>
+            <p className={`mt-1.5 line-clamp-2 text-[11px] leading-relaxed ${
+              ran.length ? KT.body : KT.muted}`}>
+              {ran.length
+                ? ran[0].task
+                : touched
+                  ? "dispatched, but no run resolved on this day"
+                  : "no dispatch and no delivery on this day, in the events read"}
+            </p>
+          </>
+        );
+        return isSeat(r.agent) ? (
+          <Link key={r.agent} href={`/clark/studio/desk/${r.agent}`}
+                className={`${KT.inset} ${KT.cardHover} block p-3`}>
+            {body}
+          </Link>
+        ) : (
+          <div key={r.agent} className={`${KT.inset} p-3`}>{body}</div>
+        );
+      })}
+    </div>
+  );
+}
+
 /** One interaction on the wire. Reads as a sentence: who did what to whom —
  *  "ceo asked pm: …", "cto dispatched adversary: …", "pm delivered: … KILL",
  *  "ceo accepted rec 4: …". The seat name is a door into its office. */
@@ -501,10 +651,14 @@ function WireRow({ f }: { f: FeedItem }) {
   const who = f.kind === "run" ? f.seat : f.actor || "?";
   const target = f.kind === "run" ? null : f.seat;
   return (
-    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-3 py-2 text-xs">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-2 text-xs">
       <span className={`w-24 shrink-0 font-mono text-[10px] tabular-nums ${KT.muted}`}>
         {fmtAt(f.at)}
       </span>
+      {/* The same face this actor wears on the floor and on every memo. An
+          actor with no face on file draws the dashed "unknown" head rather
+          than borrowing someone else's — see faces.ts. */}
+      <SeatFace actor={who} size={18} decorative />
       <span className="font-mono text-[11px]">{who}</span>
       <span className={`font-mono text-[10px] uppercase tracking-[0.1em] ${
         f.kind === "decision" ? "text-[var(--kt-accent)]" : KT.muted}`}>
@@ -513,11 +667,15 @@ function WireRow({ f }: { f: FeedItem }) {
       {target && (
         isSeat(target) ? (
           <Link href={`/clark/studio/desk/${target}`}
-                className={`font-mono text-[11px] ${KT.accent} hover:underline`}>
+                className={`inline-flex items-center gap-1.5 font-mono text-[11px] ${KT.accent} hover:underline`}>
+            <SeatFace actor={target} size={18} decorative />
             {target}
           </Link>
         ) : (
-          <span className="font-mono text-[11px]">{target}</span>
+          <span className="inline-flex items-center gap-1.5 font-mono text-[11px]">
+            <SeatFace actor={target} size={18} decorative />
+            {target}
+          </span>
         )
       )}
       <span className="min-w-0 flex-1 truncate">{f.label}</span>
@@ -552,18 +710,20 @@ function ProductivityStrip({ fold }: { fold: DayFold }) {
               sub="blend estimate — see a seat page for the price table" />
       <div className="min-w-[10rem]">
         <p className={KT.label}>seats active</p>
-        <p className="mt-1 flex flex-wrap gap-1.5">
+        <p className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
           {fold.seats.length === 0 ? (
             <span className={`text-sm ${KT.muted}`}>—</span>
           ) : (
             fold.seats.map((s) => (
               isSeat(s) ? (
                 <Link key={s} href={`/clark/studio/desk/${s}`}
-                      className={`font-mono text-[11px] ${KT.accent} hover:underline`}>
-                  {s}
+                      className={`inline-flex items-center gap-1.5 font-mono text-[11px] ${KT.accent} hover:underline`}>
+                  <SeatFace actor={s} size={18} decorative /> {s}
                 </Link>
               ) : (
-                <span key={s} className={`font-mono text-[11px] ${KT.muted}`}>{s}</span>
+                <span key={s} className={`inline-flex items-center gap-1.5 font-mono text-[11px] ${KT.muted}`}>
+                  <SeatFace actor={s} size={18} decorative /> {s}
+                </span>
               )
             ))
           )}

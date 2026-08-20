@@ -458,6 +458,25 @@ export function isKillVerdict(verdict: string | null | undefined): boolean {
   return v.startsWith("KILL") || v.startsWith("KILLED") || v.startsWith("FAIL");
 }
 
+/** The three verdicts the bench actually stamps, and nothing else.
+ *
+ * A memo thread stamps a verdict the way a clerk stamps a file — which only
+ * works for a verdict that IS one word. Several real verdicts are sentences
+ * ("POLICY CORRECT, WORLD FALSE; FIX INCOMPLETE (F1)…"), and compressing one of
+ * those into a stamp would assert a cleaner finding than the seat delivered. So
+ * this returns null for anything it does not recognise, and the card renders the
+ * verdict verbatim instead. Recognition is on the OPENING word only, the same
+ * rule `isKillVerdict` uses — a verdict that merely mentions "kill" is not one.
+ */
+export function verdictStamp(verdict: string | null | undefined): "KILL" | "SURVIVES" | "CANNOT TELL" | null {
+  const v = (verdict || "").trim().toUpperCase();
+  if (!v) return null;
+  if (v.startsWith("KILL") || v.startsWith("FAIL")) return "KILL";
+  if (v.startsWith("SURVIVE")) return "SURVIVES";
+  if (v.startsWith("CANNOT TELL")) return "CANNOT TELL";
+  return null;
+}
+
 export function foldDay(events: SpineEvent[], runs: DeskRun[], day: string): DayFold {
   const on = (ts: string | null | undefined) => dayKey(ts) === day;
   const dayEvents = events.filter((e) => on(e.ts));
@@ -611,6 +630,101 @@ export function artifactsForRuns(runs: DeskRun[], artifacts: DeskArtifact[]): De
   return artifacts.filter(
     (a) => paths.has(a.path) || (a.review ? paths.has(a.review.review_path) : false),
   );
+}
+
+/* ------------------------------------------------- the production shelf --- */
+
+/** One thing a desk produced, on a date. The spine has no "artifact authored
+ *  by seat X" field, so a shelf entry is anchored to a RUN — the only record
+ *  that ties a seat to a delivery — and enriched from the artifact fold when the
+ *  run named a path that the fold also carries. */
+export interface ShelfItem {
+  runId: string;
+  /** resolved_at; null when the flight recorder never recorded one. */
+  at: string | null;
+  /** The artifact's own title where the fold has it, else the run's task. */
+  title: string;
+  /** Which of those two the title came from — the page says so rather than
+   *  passing a task off as a filed document title. */
+  titleFrom: "artifact" | "task";
+  /** null = this run filed no artifact path. Rendered as "no artifact filed",
+   *  never as an empty spine. */
+  path: string | null;
+  /** Present only when `path` matched something in the desk's artifact fold. */
+  kind: string | null;
+  status: string | null;
+  /** The run's verdict, else the artifact's review verdict. Null is null. */
+  verdict: string | null;
+}
+
+/**
+ * What one desk produced, in time order — the CEO's "what each desk is
+ * producing (across time)".
+ *
+ * Deliberately run-anchored. Matching artifacts to a seat any other way would
+ * require an author field that `GET /fund/desk` does not return (see
+ * `artifactsForRuns`), and a shelf that guessed authorship would credit the
+ * wrong desk. A run that filed nothing still appears, marked as having filed
+ * nothing: a delivery with no artifact is a fact about the record, not a gap to
+ * hide.
+ */
+export function productionShelf(runs: DeskRun[], artifacts: DeskArtifact[]): ShelfItem[] {
+  // Two indexes, because the fold stores an adversarial REVIEW under the
+  // artifact it reviewed rather than as an artifact of its own. Indexing only
+  // by `artifact.path` would leave every review the adversary ever filed
+  // looking like a document the fold has never heard of — the same asymmetry
+  // `artifactsForRuns` already has to work around.
+  const byPath = new Map<string, DeskArtifact>();
+  const byReviewPath = new Map<string, DeskArtifact>();
+  for (const a of artifacts) {
+    byPath.set(a.path.replace(/\\/g, "/"), a);
+    if (a.review?.review_path) {
+      byReviewPath.set(a.review.review_path.replace(/\\/g, "/"), a);
+    }
+  }
+
+  const items = runs.map((r): ShelfItem => {
+    const path = (r.artifact_path || "").replace(/\\/g, "/") || null;
+    const art = path ? byPath.get(path) ?? null : null;
+    const reviewed = path && !art ? byReviewPath.get(path) ?? null : null;
+
+    if (reviewed) {
+      // A review's title and verdict are its own; the killed/survives status
+      // belongs to the document it reviewed, not to the review, so it is not
+      // copied across.
+      return {
+        runId: r.run_id,
+        at: r.resolved_at ?? r.dispatched_at ?? null,
+        title: reviewed.review!.review_title || r.task,
+        titleFrom: reviewed.review!.review_title ? "artifact" : "task",
+        path,
+        kind: "review",
+        status: null,
+        verdict: r.verdict ?? reviewed.review!.verdict ?? null,
+      };
+    }
+
+    return {
+      runId: r.run_id,
+      at: r.resolved_at ?? r.dispatched_at ?? null,
+      title: art?.title || r.task,
+      titleFrom: art?.title ? "artifact" : "task",
+      path,
+      kind: art?.kind ?? null,
+      status: art?.status ?? null,
+      verdict: r.verdict ?? art?.review?.verdict ?? null,
+    };
+  });
+
+  // Newest first; undated entries sort last rather than to the top, where an
+  // empty timestamp would otherwise read as "just now".
+  items.sort((a, b) => {
+    if (!a.at && !b.at) return 0;
+    if (!a.at) return 1;
+    if (!b.at) return -1;
+    return b.at.localeCompare(a.at);
+  });
+  return items;
 }
 
 /* ------------------------------------------------------------ formatting -- */
