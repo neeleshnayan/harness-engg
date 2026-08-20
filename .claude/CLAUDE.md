@@ -156,9 +156,14 @@ tailed outputs, no redundant restarts) is the largest single cost lever.
   CEO decision from the original "the machine proposes; the human clicks" — written
   reason: an agentic fund's human belongs at the policy level, not the per-order
   level, and the controls this invariant was protecting are now measured, ticking,
-  and heartbeat-monitored. v1 envelope: exit-rule-triggered SELLs only, fresh, with
-  liveness proven, on the paper venue. Everything outside the envelope still waits
-  for the CEO's click. The envelope widens only by a versioned change with a
+  and heartbeat-monitored. v2 envelope (2026-08-20, CEO-accepted riskofficer
+  recommendations after v1's first live fire executed on a fabricated mark):
+  exit-rule-triggered SELLs only, fresh, liveness proven, on the paper venue —
+  AND the trigger event must name the exact order (the marker string alone is
+  forgeable), the rule must demonstrably predate the position, the mark must
+  agree with the fund's own last struck mark within a versioned bound, and the
+  notional is capped. All fail closed. Everything outside the envelope still
+  waits for the CEO's click. The envelope widens only by a versioned change with a
   written reason — and per-order approval by an LLM is permanently out: the
   per-trade decision stays deterministic code; agents supervise the policy, never
   operate it.
