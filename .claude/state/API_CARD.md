@@ -57,10 +57,20 @@ Base URL: `http://127.0.0.1:8090/api/v1`
 1. `lookback_days`, not `days` (mechanism, cycle 1).
 2. `filled_qty`, not `qty`, on fill payloads (autopolicy v2 post-mortem).
 3. An absent number is reported absent — absence is never zero (constitution).
-4. Costs: `app/fund/costassumption.py` currently applies ONE global
-   5bps/side slippage constant validated on ten small-cap fills — it
-   overcharges mega-liquid ETFs 3–5× (defect D2, measurement queued). Say so
-   when cost arithmetic decides your conclusion.
+4. Costs: `app/fund/costassumption.py` applies ONE global 5bps/side
+   slippage constant (defect D2 — confirmed). CORRECTED 2026-08-20
+   (validator audit): the "ten fills" behind it are five ETF, three
+   mega-cap, two small/mid — NOT "ten small-cap fills" — measured
+   decision→fill (includes ~9 min mean approval latency), and dropping two
+   partial-fill outliers moves 5.95 → 3.34 bps. The "3–5× ETF overcharge"
+   figure has no measurement behind it. Say so when cost arithmetic
+   decides your conclusion.
+6. **The PAPER venue cannot measure cost, ever**: `paper.py:116` fills at
+   its own quote — the same call `pipeline.py:215` records as
+   arrival_price, so execution slippage is identically zero at any sample
+   size. Only alpaca-venue fills carry information (8 exist, ≤2 per
+   instrument). Never treat `/fund/tca`'s realised-vs-assumed verdict as a
+   cost measurement until its leg comparison is fixed.
 5. Deep history: asking `fetch_daily_bars` for MORE than 10 years without
    explicit `start`/`end` maps to Yahoo `range=max`, which silently returns
    MONTHLY bars from a function named fetch_DAILY_bars (SPY: 404 bars,
