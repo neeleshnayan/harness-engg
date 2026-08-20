@@ -11,6 +11,8 @@ import { RebalancePanel } from "../components/RebalancePanel";
 import { NavPanel } from "../components/NavPanel";
 import { ExecutionAnalytics } from "../components/ExecutionAnalytics";
 import { KT } from "../theme";
+import { money, pct, signedMoney } from "../format";
+import { archivedStillHolding, cashPctOfNav, foldBook, isHolding } from "./bookFold";
 import { fundApiClient, NavResponse, StrategyView } from "@/lib/fund_api";
 
 /**
@@ -23,13 +25,22 @@ import { fundApiClient, NavResponse, StrategyView } from "@/lib/fund_api";
  *
  * Every figure comes from the spine. Where the spine has no answer, the cell
  * shows "—" rather than a zero that would read like a measurement.
+ *
+ * Two defects fixed here on 2026-08-20, both found by RUNNING the page rather
+ * than reading it:
+ *
+ *   C1 — the false zero. The headline totals were folded over
+ *        `state === "deployed"` only, so three PAUSED strategies holding 43.1%
+ *        of NAV rendered as "0.0% of NAV actually at work". State is a label
+ *        now, never a filter; the arithmetic lives in ./bookFold.ts with tests.
+ *
+ *   C3 — the healthy empty book. `Promise.all` meant one dead endpoint
+ *        rejected both, `strategies` stayed `[]` and `nav` stayed null, and the
+ *        page rendered a calm, fully-populated 0.0% / $0 fund. It is
+ *        `Promise.allSettled` now, each source's failure is stated
+ *        separately, and an unread number renders "—", never 0.
  */
 
-const money = (n?: number | null, dp = 2) =>
-  n == null ? "—" : `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
-const pct = (n?: number | null, dp = 1) => (n == null ? "—" : `${Number(n).toFixed(dp)}%`);
-const signed = (n?: number | null) =>
-  n == null ? "—" : `${n >= 0 ? "+" : ""}${money(n)}`;
 const tone = (n?: number | null) => (n == null ? KT.muted : n >= 0 ? KT.up : KT.down);
 
 const STATE_TONE: Record<string, string> = {
@@ -48,71 +59,102 @@ function Badge({ state }: { state?: string }) {
   );
 }
 
-/** Target vs actual weight, with the gap made visible rather than inferred. */
-function DriftBar({ target, actual }: { target: number; actual: number }) {
-  const max = Math.max(target, actual, 1);
+/** Target vs actual weight, with the gap made visible rather than inferred.
+ *
+ *  Both inputs are nullable: an unreported weight draws NO bar and no marker
+ *  rather than a bar pinned at zero, which would read as a measured flat
+ *  position. A drawn zero-length bar is a claim; blank is the absence. */
+function DriftBar({ target, actual }: { target?: number | null; actual?: number | null }) {
+  if (target == null && actual == null) {
+    return (
+      <div className={`w-full min-w-[120px] text-[10px] ${KT.muted}`}>
+        no weights reported
+      </div>
+    );
+  }
+  const max = Math.max(target ?? 0, actual ?? 0, 1);
   return (
     <div className="w-full min-w-[120px]">
       <div className={`${KT.barTrack} relative`}>
-        <div className={KT.barFill} style={{ width: `${Math.min(100, (actual / max) * 100)}%` }} />
+        {actual != null && (
+          <div className={KT.barFill} style={{ width: `${Math.min(100, (actual / max) * 100)}%` }} />
+        )}
         {/* target marker — where the allocation is supposed to sit */}
-        <div
-          className="absolute top-[-2px] h-[10px] w-[2px] bg-[var(--kt-text-dim)]"
-          style={{ left: `${Math.min(100, (target / max) * 100)}%` }}
-          title={`target ${target.toFixed(1)}%`}
-        />
+        {target != null && (
+          <div
+            className="absolute top-[-2px] h-[10px] w-[2px] bg-[var(--kt-text-dim)]"
+            style={{ left: `${Math.min(100, (target / max) * 100)}%` }}
+            title={`target ${target.toFixed(1)}%`}
+          />
+        )}
       </div>
     </div>
   );
 }
 
 export default function AllocatePage() {
-  const [strategies, setStrategies] = useState<StrategyView[]>([]);
+  // `null` = the strategy list has not been read. Distinct from `[]`, which is
+  // the fund genuinely running nothing (C3: those two rendered identically).
+  const [strategies, setStrategies] = useState<StrategyView[] | null>(null);
   const [nav, setNav] = useState<NavResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
+  const [stratErr, setStratErr] = useState<string | null>(null);
+  const [navErr, setNavErr] = useState<string | null>(null);
 
   const [allocTarget, setAllocTarget] = useState<StrategyView | null>(null);
   // Which strategy's fills and round-trips are expanded below the table.
   const [drillInto, setDrillInto] = useState<StrategyView | null>(null);
 
+  // C3: allSettled, not all. Two independent questions ("what does the fund
+  // own?" and "what is it worth?") were sharing one failure: a dead NAV
+  // endpoint blanked the strategy table too, and the page then rendered a
+  // complete, healthy, empty book. Each source now fails on its own and says
+  // which one failed.
   const load = useCallback(async () => {
-    try {
-      const [s, n] = await Promise.all([
-        fundApiClient.getStrategies(),
-        fundApiClient.getNav(),
-      ]);
-      setStrategies(s.strategies || []);
-      setNav(n);
-      setErr(null);
-    } catch (e: any) {
-      setErr(spineError(e));
-    } finally {
-      setLoading(false);
+    const [s, n] = await Promise.allSettled([
+      fundApiClient.getStrategies(),
+      fundApiClient.getNav(),
+    ]);
+    if (s.status === "fulfilled") {
+      setStrategies(s.value.strategies || []);
+      setStratErr(null);
+    } else {
+      setStrategies(null);          // unknown, never an empty book
+      setStratErr(spineError(s.reason));
     }
+    if (n.status === "fulfilled") {
+      setNav(n.value);
+      setNavErr(null);
+    } else {
+      setNav(null);
+      setNavErr(spineError(n.reason));
+    }
+    setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  const navUsd = nav?.live?.total_nav_usd ?? 0;
-  const cashUsd = nav?.live?.breakdown?.cash ?? 0;
+  // Nulls survive all the way to the render. `?? 0` here was the whole of C3:
+  // it turned "the spine did not answer" into "the fund holds nothing".
+  const navUsd = nav?.live?.total_nav_usd ?? null;
+  const cashUsd = nav?.live?.breakdown?.cash ?? null;
 
-  const live = useMemo(
-    () => strategies.filter((s) => !s.archived && s.state === "deployed"),
+  const fold = useMemo(() => foldBook(strategies ?? []), [strategies]);
+  const orphanedHoldings = useMemo(
+    () => archivedStillHolding(strategies ?? []),
     [strategies],
   );
-  const bench = useMemo(
-    () => strategies.filter((s) => !s.archived && s.state !== "deployed"),
-    [strategies],
-  );
 
-  const targetTotal = live.reduce((a, s) => a + (s.allocation_pct ?? 0), 0);
-  const actualTotal = live.reduce((a, s) => a + (s.actual_pct ?? 0), 0);
-  const cashPct = navUsd > 0 ? (cashUsd / navUsd) * 100 : 0;
-  const worstDrift = live.reduce((w, s) => {
-    const d = Math.abs((s.actual_pct ?? 0) - (s.allocation_pct ?? 0));
-    return d > w ? d : w;
-  }, 0);
+  const { book, bench } = fold;
+  const targetTotal = fold.target.value;
+  const actualTotal = fold.actual.value;
+  const cashPct = cashPctOfNav(cashUsd, navUsd);
+  const worstDrift = fold.worstDrift;
+  const driftOverLimit = worstDrift != null && worstDrift > 5;
+  // Every strategy whose dollars are live while its state says it is not
+  // trading. Zero is the ordinary case; non-zero is the C1 condition and gets
+  // said out loud rather than folded into a total.
+  const pausedHolders = fold.holdingWhileNotDeployed;
 
   return (
     <div className={KT.page}>
@@ -134,9 +176,46 @@ export default function AllocatePage() {
       />
 
       <div className="mx-auto max-w-[1600px] px-6 py-6">
-        {err && (
+        {/* C3: each source names itself. "Could not read the fund" and "could
+            not price the fund" send the reader to different places. */}
+        {(stratErr || navErr) && (
           <div className={`mb-4 p-3 text-sm ${KT.inset} ${KT.down}`}>
-            {err}
+            <div className="font-medium">
+              {stratErr && navErr
+                ? "Cannot read the book or its value"
+                : stratErr
+                  ? "Cannot read the strategy list"
+                  : "Cannot read NAV"}
+            </div>
+            <div className={`mt-0.5 ${KT.muted}`}>{stratErr || navErr}</div>
+            <div className="mt-1 text-[11px]">
+              This is not an empty book. What the fund holds is unknown from here —
+              every figure below that depends on the missing source shows “—”.
+            </div>
+          </div>
+        )}
+
+        {/* The C1 sentence. A pause stops a strategy TRADING; it does not sell
+            its positions, and for three weeks this page said otherwise. */}
+        {pausedHolders.length > 0 && (
+          <div className={`mb-4 p-3 text-sm ${KT.inset} border-l-2 border-l-[var(--kt-warn)]`}>
+            <span className={KT.sev.warn}>
+              {pausedHolders.length} {pausedHolders.length === 1 ? "strategy is" : "strategies are"} paused
+              but still holding
+            </span>{" "}
+            — {pct(fold.actual.value)} of NAV sits in positions no strategy is managing.
+            Pausing halts new orders; it does not close anything. These are counted in
+            every total on this page and listed in the book below.
+          </div>
+        )}
+
+        {orphanedHoldings.length > 0 && (
+          <div className={`mb-4 p-3 text-sm ${KT.inset} ${KT.down}`}>
+            {orphanedHoldings.length} ARCHIVED{" "}
+            {orphanedHoldings.length === 1 ? "strategy still reports" : "strategies still report"}{" "}
+            exposure. Archiving is supposed to mean the position is gone — this is a
+            contradiction in the spine, not a rounding artefact, and the totals below
+            EXCLUDE it.
           </div>
         )}
 
@@ -150,39 +229,57 @@ export default function AllocatePage() {
             <div className={KT.label}>Allocated (target)</div>
             <div className={`mt-1 ${KT.numberLg}`}>{pct(targetTotal)}</div>
             <div className={`mt-1 text-[11px] ${KT.muted}`}>
-              {live.length} deployed {live.length === 1 ? "strategy" : "strategies"}
+              {strategies === null
+                ? "strategy list unreadable"
+                : `across ${fold.all.length} live ${fold.all.length === 1 ? "strategy" : "strategies"}`}
             </div>
           </div>
           <div className={KT.card}>
-            <div className={KT.label}>Deployed (actual)</div>
+            {/* Renamed from "Deployed (actual)": the figure was never about the
+                deployed state, and the label was half of why the false zero
+                read as plausible. */}
+            <div className={KT.label}>At work (actual)</div>
             <div className={`mt-1 ${KT.numberLg}`}>{pct(actualTotal)}</div>
-            <div className={`mt-1 text-[11px] ${KT.muted}`}>of NAV actually at work</div>
+            <div className={`mt-1 text-[11px] ${KT.muted}`}>
+              {strategies === null
+                ? "unknown — the strategy list did not load"
+                : pausedHolders.length > 0
+                  ? `of NAV in positions · ${pausedHolders.length} paused, still held`
+                  : "of NAV actually at work, whatever the state says"}
+            </div>
           </div>
           <div className={KT.card}>
             <div className={KT.label}>Worst drift</div>
-            <div className={`mt-1 ${KT.numberLg} ${worstDrift > 5 ? KT.down : ""}`}>
+            <div className={`mt-1 ${KT.numberLg} ${driftOverLimit ? KT.down : ""}`}>
               {pct(worstDrift)}
             </div>
             <div className={`mt-1 text-[11px] ${KT.muted}`}>
-              {worstDrift > 5 ? "a strategy is off its target" : "every strategy near target"}
+              {worstDrift == null
+                ? "no strategy reported both a target and an actual"
+                : driftOverLimit
+                  ? "a strategy is off its target"
+                  : "every strategy near target"}
             </div>
           </div>
           <div className={KT.card}>
             <div className={KT.label}>Unallocated</div>
-            <div className={`mt-1 ${KT.numberLg}`}>{pct(100 - targetTotal)}</div>
+            <div className={`mt-1 ${KT.numberLg}`}>
+              {targetTotal == null ? "—" : pct(100 - targetTotal)}
+            </div>
             <div className={`mt-1 text-[11px] ${KT.muted}`}>
               target left to assign · {pct(cashPct)} sitting in cash
             </div>
           </div>
         </div>
 
-        <NavPanel nav={nav} strategies={strategies} />
+        <NavPanel nav={nav} strategies={strategies ?? []} />
 
-        {/* Live book */}
+        {/* The book: everything DEPLOYED or HOLDING. Membership follows the
+            positions, not the state string — see bookFold.ts (defect C1). */}
         <div className={`mt-6 ${KT.panel}`}>
           <div className="flex items-center justify-between border-b border-[var(--kt-border)] px-5 py-3">
-            <span className={KT.label}>Live allocations</span>
-            {worstDrift > 5 && (
+            <span className={KT.label}>The book · deployed or holding</span>
+            {driftOverLimit && (
               <a href="#rebalance" className={`text-[11px] ${KT.accent} underline underline-offset-2`}>
                 drift over 5% — rebalance
               </a>
@@ -193,9 +290,17 @@ export default function AllocatePage() {
             <div className={`flex items-center gap-2 px-5 py-10 text-sm ${KT.muted}`}>
               <Loader2 size={14} className="animate-spin" /> Loading…
             </div>
-          ) : live.length === 0 ? (
+          ) : strategies === null ? (
+            // C3: the dead-spine case. Previously indistinguishable from the
+            // cheerful "nothing deployed yet" below.
+            <div className={`px-5 py-10 text-sm ${KT.sev.warn}`}>
+              The strategy list could not be read, so what the fund holds is unknown —
+              not nothing. Positions may be open. Check the venue directly before acting
+              on this screen.
+            </div>
+          ) : book.length === 0 ? (
             <div className={`px-5 py-10 text-sm ${KT.muted}`}>
-              Nothing deployed. Strategies are born in the <Link href="/clark/studio/lab" className={KT.accent}>Lab</Link> — backtest an idea,
+              Nothing deployed and nothing held. Strategies are born in the <Link href="/clark/studio/lab" className={KT.accent}>Lab</Link> — backtest an idea,
               check whether it is alpha or beta you already own, then propose it at a weight.
             </div>
           ) : (
@@ -217,34 +322,48 @@ export default function AllocatePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {live.map((s) => {
-                    const target = s.allocation_pct ?? 0;
-                    const actual = s.actual_pct ?? 0;
-                    const drift = actual - target;
+                  {book.map((s) => {
+                    // An absent weight stays absent. `?? 0` here would have
+                    // drawn a strategy at zero target and zero actual as if
+                    // that had been measured — the row-level twin of C1.
+                    const target = s.allocation_pct;
+                    const actual = s.actual_pct;
+                    const drift =
+                      target != null && actual != null ? actual - target : null;
+                    const unmanaged = s.state !== "deployed" && isHolding(s);
                     return (
                       <tr key={s.strategy_id} className="border-b border-[var(--kt-border)] last:border-0">
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{s.name}</span>
                             <Badge state={s.state} />
+                            {/* The state badge alone reads as bookkeeping. This
+                                says what the state MEANS for money at risk. */}
+                            {unmanaged && (
+                              <span className={`text-[10px] uppercase tracking-wide ${KT.sev.warn}`}>
+                                holding · not managed
+                              </span>
+                            )}
                           </div>
                           <div className={`mt-0.5 text-[11px] ${KT.muted}`}>
                             {s.assets?.length ? s.assets.join(" · ") : "no assets scoped"}
                           </div>
                         </td>
-                        <td className="px-5 py-3"><DriftBar target={target} actual={actual} /></td>
+                        <td className="px-5 py-3">
+                          <DriftBar target={target} actual={actual} />
+                        </td>
                         <td className={`px-5 py-3 text-right ${KT.number}`}>{pct(target)}</td>
                         <td className={`px-5 py-3 text-right ${KT.number}`}>{pct(actual)}</td>
-                        <td className={`px-5 py-3 text-right font-mono tabular-nums ${Math.abs(drift) > 5 ? KT.down : KT.muted}`}>
-                          {drift >= 0 ? "+" : ""}{drift.toFixed(1)}%
+                        <td className={`px-5 py-3 text-right font-mono tabular-nums ${drift != null && Math.abs(drift) > 5 ? KT.down : KT.muted}`}>
+                          {drift == null ? "—" : `${drift >= 0 ? "+" : ""}${drift.toFixed(1)}%`}
                         </td>
                         <td className={`px-5 py-3 text-right ${KT.number}`}>{money(s.exposure_usd)}</td>
                         <td className={`px-5 py-3 text-right ${KT.number}`}>{money(s.cost_basis_usd)}</td>
                         <td className={`px-5 py-3 text-right font-mono tabular-nums ${tone(s.unrealized_pnl_usd)}`}>
-                          {signed(s.unrealized_pnl_usd)}
+                          {signedMoney(s.unrealized_pnl_usd)}
                         </td>
                         <td className={`px-5 py-3 text-right font-mono tabular-nums ${tone(s.realized_pnl_usd)}`}>
-                          {signed(s.realized_pnl_usd)}
+                          {signedMoney(s.realized_pnl_usd)}
                         </td>
                         <td className={`px-5 py-3 text-right ${KT.number}`}>
                           {s.backtest?.sharpe != null ? s.backtest.sharpe.toFixed(2) : "—"}
@@ -287,7 +406,10 @@ export default function AllocatePage() {
         </div>
 
         <div id="rebalance" className="scroll-mt-24">
-          <RebalancePanel strategies={live} navUsd={navUsd} onCommitted={load} />
+          {/* The book, not the deployed subset: a rebalance that cannot see the
+              paused holdings would propose weights against 57% of the fund and
+              call it 100%. */}
+          <RebalancePanel strategies={book} navUsd={navUsd} onCommitted={load} />
         </div>
 
         {/* Not yet carrying capital */}
@@ -295,7 +417,11 @@ export default function AllocatePage() {
           <div className={`border-b border-[var(--kt-border)] px-5 py-3 ${KT.label}`}>
             Bench · not carrying capital
           </div>
-          {bench.length === 0 ? (
+          {strategies === null ? (
+            <div className={`px-5 py-8 text-sm ${KT.sev.warn}`}>
+              Unreadable — the bench is unknown, not empty.
+            </div>
+          ) : bench.length === 0 ? (
             <div className={`px-5 py-8 text-sm ${KT.muted}`}>Nothing on the bench.</div>
           ) : (
             <ul className="divide-y divide-[var(--kt-border)]">

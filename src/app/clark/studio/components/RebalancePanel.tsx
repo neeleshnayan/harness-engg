@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { spineError } from "@/lib/spine_error";
 import { KT } from "../theme";
+import { money, pct } from "../format";
 import {
   fundApiClient,
   RebalancePlan,
@@ -35,9 +36,10 @@ import {
  * bypasses the pre-trade gate.
  */
 
-const money = (n?: number | null, dp = 0) =>
-  n == null ? "—" : `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
-const pct = (n?: number | null, dp = 1) => (n == null ? "—" : `${Number(n).toFixed(dp)}%`);
+// Formatters: ../format.ts (2026-08-20 consolidation). This file's retired
+// `money` defaulted to ZERO decimals, so every call site here passes 0
+// explicitly — the shared default is 2 and the rendering must not change.
+const money0 = (n?: number | null) => money(n, 0);
 
 /** Lower is better for risk; higher is better for diversification. */
 function Delta({ from, to, unit = "", betterWhen }: {
@@ -89,7 +91,7 @@ function OrderList({ orders, title }: { orders: RebalancePlan["orders"]; title?:
             <span className={`font-mono tabular-nums text-[11px] ${KT.muted}`}>
               @ ${o.est_price}
             </span>
-            <span className="ml-auto font-mono tabular-nums">{money(o.notional_usd)}</span>
+            <span className="ml-auto font-mono tabular-nums">{money0(o.notional_usd)}</span>
             {o.breaches?.length ? (
               <span className={`w-full text-[11px] ${KT.down}`}>{o.breaches.join("; ")}</span>
             ) : null}
@@ -130,7 +132,7 @@ function PlanCard({ plan, onDone }: { plan: RebalancePlan; onDone: () => void })
         {open ? <ChevronDown size={14} className={KT.muted} /> : <ChevronRight size={14} className={KT.muted} />}
         <span className="text-sm font-medium">
           {plan.orders.length} order{plan.orders.length === 1 ? "" : "s"} ·{" "}
-          {money(plan.turnover_usd)} turnover
+          {money0(plan.turnover_usd)} turnover
         </span>
         <span className={`text-[11px] ${KT.muted}`}>
           by {plan.proposed_by}
@@ -174,7 +176,7 @@ function PlanCard({ plan, onDone }: { plan: RebalancePlan; onDone: () => void })
               <Mechanic label="Book volatility" from={m.before.portfolio_vol_pct} to={m.after.portfolio_vol_pct}
                         unit="pp" betterWhen="lower" format={(n) => pct(n)} />
               <Mechanic label="Expected shortfall" from={m.before.expected_shortfall_usd}
-                        to={m.after.expected_shortfall_usd} betterWhen="lower" format={(n) => money(n)} />
+                        to={m.after.expected_shortfall_usd} betterWhen="lower" format={(n) => money0(n)} />
               <Mechanic label="Gross exposure" from={m.before.gross_exposure_pct_of_nav}
                         to={m.after.gross_exposure_pct_of_nav} unit="pp" betterWhen="lower" format={(n) => pct(n)} />
             </div>
@@ -186,7 +188,7 @@ function PlanCard({ plan, onDone }: { plan: RebalancePlan; onDone: () => void })
           )}
 
           <div className={`border-t border-[var(--kt-border)] px-5 py-2 text-[11px] ${KT.muted}`}>
-            Cash after {pct(plan.cash_after_pct)} ({money(plan.cash_after_usd)}). Approving
+            Cash after {pct(plan.cash_after_pct)} ({money0(plan.cash_after_usd)}). Approving
             re-prices and re-gates every order — sizes may differ from those shown.
           </div>
 
@@ -212,7 +214,9 @@ function PlanCard({ plan, onDone }: { plan: RebalancePlan; onDone: () => void })
 
 export function RebalancePanel({ strategies, navUsd, onCommitted }: {
   strategies: StrategyView[];
-  navUsd: number;
+  /** null = NAV could not be read. The dollar previews below render "—" for it
+   *  rather than sizing a proposed trade against a NAV of zero (defect C3). */
+  navUsd: number | null;
   onCommitted: () => void;
 }) {
   const [composing, setComposing] = useState(false);
@@ -349,7 +353,9 @@ export function RebalancePanel({ strategies, navUsd, onCommitted }: {
                          aria-label={`${s.name} target percent`} />
                   <div className={`mt-1 flex justify-between text-[11px] ${KT.muted}`}>
                     <span>was {pct(initial[s.strategy_id])} · {pct(s.actual_pct)} actual</span>
-                    <span className="font-mono">{money((navUsd * t) / 100)}</span>
+                    <span className="font-mono">
+                      {money0(navUsd == null ? null : (navUsd * t) / 100)}
+                    </span>
                   </div>
                 </div>
               );
@@ -365,7 +371,8 @@ export function RebalancePanel({ strategies, navUsd, onCommitted }: {
               <div className="mt-1 flex items-baseline justify-between text-sm">
                 <span className={KT.label}>Implied cash</span>
                 <span className={`font-mono tabular-nums ${impliedCash < 5 ? KT.down : KT.muted}`}>
-                  {pct(impliedCash)} · {money((navUsd * impliedCash) / 100)}
+                  {pct(impliedCash)} ·{" "}
+                  {money0(navUsd == null ? null : (navUsd * impliedCash) / 100)}
                 </span>
               </div>
               {totalTarget > 100 && (
@@ -438,7 +445,7 @@ export function RebalancePanel({ strategies, navUsd, onCommitted }: {
                           unit="pp" betterWhen="lower" format={(n) => pct(n)}
                           note="The crisis case, where diversification stops working." />
                 <Mechanic label="Expected shortfall 97.5%" from={before?.expected_shortfall_usd}
-                          to={after?.expected_shortfall_usd} betterWhen="lower" format={(n) => money(n)}
+                          to={after?.expected_shortfall_usd} betterWhen="lower" format={(n) => money0(n)}
                           note="Average loss on the worst 2.5% of days, from this book's own returns." />
                 <Mechanic label="Gross exposure" from={before?.gross_exposure_pct_of_nav}
                           to={after?.gross_exposure_pct_of_nav} unit="pp" betterWhen="lower" format={(n) => pct(n)} />
