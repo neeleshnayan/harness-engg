@@ -812,6 +812,35 @@ export interface DeskLoad {
   note: string;
 }
 
+/** One seat's day, as the spine rolls it up. Every nullable field below is
+ *  nullable for a reason a reader can act on:
+ *   - `runs_today: null`      the recorder could not be read (block.readable false)
+ *   - `tokens_today: null`    no run today recorded a token figure
+ *   - `tokens_partial: true`  SOME did — the sum is a floor, render it with "≥"
+ *  `tokens_by_model` exists so the price table can stay in the UI: a blended
+ *  dollar figure computed spine-side would need a second copy of it. */
+export interface SeatTelemetryRow {
+  running_now: boolean;
+  running_task: string | null;
+  running_since: string | null;
+  runs_today: number | null;
+  tokens_today: number | null;
+  tokens_partial: boolean;
+  runs_missing_tokens: number | null;
+  tokens_by_model: Record<string, number>;
+  last_run_at: string | null;
+}
+
+export interface SeatTelemetryBlock {
+  /** The UTC day the counts cover. */
+  day: string;
+  /** False = the flight recorder could not be read. Every figure in `seats` is
+   *  then null, and the surface must say "unknown", never "quiet". */
+  readable: boolean;
+  seats: Record<string, SeatTelemetryRow>;
+  note: string;
+}
+
 /** The research desk: the firm's bench, artifact chain, and work queue. */
 export interface DeskView {
   roster: {
@@ -872,6 +901,14 @@ export interface DeskView {
   /** Optional: absent on a spine that predates the counter, in which case the
    *  chip renders nothing rather than a fabricated zero. */
   desk_load?: DeskLoad;
+  /** Per-seat: running now, runs today, tokens today (CEO ask, 2026-08-21).
+   *
+   *  Rolled up SPINE-SIDE from a UTC day window, deliberately: `runs` above is
+   *  capped at the 25 most recent across all seats, so a per-seat day count
+   *  folded from it would be a floor wearing a count's clothes. Optional —
+   *  absent on a spine that predates the rollup, and the surface says so
+   *  rather than folding the capped list. */
+  seat_telemetry?: SeatTelemetryBlock;
   kills: number;
   /** The honesty line: the spine records requests; it does not run agents. */
   execution_note: string;

@@ -155,3 +155,227 @@ html[data-kt-theme] body {
   background-color: var(--kt-bg);
   color: var(--kt-text);
 }
+
+/* ===========================================================================
+ * THE FLOOR — the 2.5D lobby (/clark/studio/desk/floor, behind
+ * NEXT_PUBLIC_STUDIO_FLOOR=1). CDO spec, Deliverable B.
+ *
+ * CSS 3D transforms and inline SVG. NO three.js, no WebGL, no new dependency:
+ * ~12 desks and ≤20 pulses sit far below WebGL's break-even, and a DOM room
+ * keeps the house's absence SENTENCES, text selection and native screen-reader
+ * access — which a canvas would silently drop.
+ *
+ * Every value below is a --kt-* token or a geometric constant (criterion 7: no
+ * hardcoded hex on this surface). The geometry constants match floorPlan.ts:
+ * the plane is 100x100 ROOM UNITS rendered at 8.8px per unit.
+ *
+ * Two rules the whole block obeys:
+ *
+ *   1. NOTHING MOVES THAT DID NOT HAPPEN. The only animation here is
+ *      `kt-floor-travel`, and it is only ever attached to an element the page
+ *      minted from a real spine event carrying a real `data-event-id`. There is
+ *      no idle animation, no ambient shimmer, no "alive" loop. A still room is
+ *      information: the log is still.
+ *   2. `prefers-reduced-motion` removes MOTION, never INFORMATION. Under the
+ *      query every animation and transition on this surface resolves to `none`
+ *      (criterion 2: `document.getAnimations()` must come back empty), the wires
+ *      render as DASHED AISLES, and each wire's count chip appears carrying the
+ *      same traffic the dots were carrying. The `data-event-id` wrappers stay in
+ *      the DOM in BOTH modes, so the replay count is the same number either way.
+ * ======================================================================== */
+
+html[data-kt-theme] .kt-floor-stage {
+  position: relative;
+  overflow: hidden;
+  height: 520px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1rem;
+  border: 1px solid var(--kt-border);
+  background-color: var(--kt-bg);
+}
+
+/* The one place the room is scaled to the viewport. Kept OFF the camera
+   transform so the camera stays exactly the dimetric pair floorPlan.ts
+   declares — a scale smuggled into the camera is how a "fixed camera" quietly
+   becomes a zoomable one.
+
+   The number is measured, not chosen: a square of side S turned 45° in-plane
+   projects to S·√2 of screen width, so the 760px plane needs 1075px and the
+   Studio's content column (max-w-1200 less padding, less the Clark rail) gives
+   about 900. So the plane is 640px and the desktop scale is 1: 640·√2 = 905,
+   which fits without clipping the venue door (the far corner, and the first
+   thing the stage cut off at the audit's first size) AND leaves the 10px desk
+   plaques at their real size. Scaling the room down scales the type down with
+   it, and a floor plan nobody can read is decoration. */
+html[data-kt-theme] .kt-floor-scale {
+  transform: none;
+  transform-origin: center center;
+}
+
+@media (max-width: 1180px) {
+  html[data-kt-theme] .kt-floor-scale { transform: scale(0.72); }
+}
+@media (max-width: 860px) {
+  html[data-kt-theme] .kt-floor-scale { transform: scale(0.52); }
+}
+
+/* The room plane. The camera is FIXED and orthographic: no `perspective`, so a
+   desk at the back wall is drawn the same size as one at the front — and the
+   back wall is where the approvals are. */
+html[data-kt-theme] .kt-floor-plane {
+  position: relative;
+  width: 640px;
+  height: 640px;
+  transform-style: preserve-3d;
+  transform: rotateX(58deg) rotateZ(-45deg);
+  background-color: var(--kt-surface);
+  border: 1px solid var(--kt-border-strong);
+  transition: opacity 250ms ease, filter 250ms ease;
+}
+
+/* Halt dims the room ONE STEP. Not off: a halted fund is still readable, and
+   an unreadable one is a different fact with its own rendering below. */
+html[data-kt-theme] .kt-floor-stage[data-room="halted"] .kt-floor-plane {
+  opacity: 0.74;
+}
+
+/* Dead spine: UNLIT. The page renders zero lamps, zero pulses and zero chips
+   alongside this (see floorPlan.roomState) — unknown is not idle, and a calm
+   floor over an unreachable spine is the same lie as a zero over an absent
+   number. */
+html[data-kt-theme] .kt-floor-stage[data-room="dead"] .kt-floor-plane {
+  opacity: 0.24;
+}
+
+/* Any element BETWEEN the plane and its furniture.
+ *
+ * The furniture sits inside a semantic <nav> (criterion 5: the keyboard walks
+ * the org chart). A plain wrapper FLATTENS the 3D context, and a flattened
+ * context applies a child's rotateX in 2D — measured: the desks' rendered quad
+ * came back 68x15 against a 68x55 card, i.e. the billboard's rotateZ was
+ * undoing the in-plane spin while its rotateX silently became a vertical
+ * squash. The room looked almost right, which is why it needed measuring.
+ */
+html[data-kt-theme] .kt-floor-layer {
+  transform-style: preserve-3d;
+  position: absolute;
+  inset: 0;
+}
+
+/* The SVG layer: the floor grid, the corridor, the wires. */
+html[data-kt-theme] .kt-floor-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* One piece of furniture. Billboarded — stood back up to face the camera, which
+   is what makes the room 2.5D rather than 3D text nobody can read at 58°. */
+html[data-kt-theme] .kt-floor-spot {
+  position: absolute;
+  /* translateZ FIRST, in the plane's own frame: furniture STANDS ON the floor.
+     Without it the cards are coplanar with the SVG layer, and coplanar elements
+     in a preserve-3d context sort unpredictably — measured: hovering a lit desk
+     hit the lamp pool drawn under it (elementFromPoint returned the <circle>),
+     so the desk detail never opened. Lifting them 30px also gives the room its
+     2.5D read: a floor you look across, with things standing on it. */
+  transform: translate(-50%, -50%) translateZ(30px) rotateZ(45deg) rotateX(-58deg);
+  transform-origin: center center;
+  transform-style: preserve-3d;
+}
+
+/* The zoom into a desk: 250ms, and it plays WHILE the router navigates rather
+   than delaying it. The floor must add zero latency to the click (criterion 1),
+   so this is a transition on the way out, never a gate in front of the link. */
+html[data-kt-theme] .kt-floor-plane[data-zooming="1"] {
+  transform: rotateX(58deg) rotateZ(-45deg) scale(1.14);
+}
+
+/* A lamp over a WORKING seat. `kt-breathe` above already drops its motion and
+   keeps the marker under the media query; nothing is redefined here. */
+html[data-kt-theme] .kt-floor-lamp {
+  border-radius: 9999px;
+  background-color: var(--kt-warn);
+}
+
+/* --- traffic ------------------------------------------------------------- */
+
+/* The wrapper that CARRIES the event id. Zero-sized and always present, in both
+   motion modes, so `document.querySelectorAll('[data-event-id]')` returns the
+   same count whether or not the reader can use animation. */
+html[data-kt-theme] .kt-floor-pulse-wrap {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+/* The travelling dot. `--kt-wire-dx/dy` are set inline, per pulse, in pixels
+   from the wire's own endpoints — so the keyframes below are shared and the
+   geometry is never duplicated in CSS. */
+html[data-kt-theme] .kt-floor-pulse {
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background-color: var(--kt-text-strong);
+  animation: kt-floor-travel 2600ms cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes kt-floor-travel {
+  0%   { transform: translate3d(0, 0, 0); opacity: 0; }
+  10%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% {
+    transform: translate3d(var(--kt-wire-dx, 0px), var(--kt-wire-dy, 0px), 0);
+    opacity: 0;
+  }
+}
+
+/* The wire the dot runs along. --kt-text-muted rather than a border token: a
+   wire is a statement about the record, and at border weight it disappeared
+   into the floorboards. */
+html[data-kt-theme] .kt-floor-wire {
+  stroke: var(--kt-text-muted);
+  fill: none;
+}
+
+/* The count chip that REPLACES the dots under reduced motion. Hidden by
+   default — in animated mode the dots carry the traffic and a chip beside them
+   would say the same thing twice. */
+html[data-kt-theme] .kt-floor-wire-chip {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Criterion 2. Every animation and transition on this surface, off — so
+     `document.getAnimations()` comes back empty — and the information the
+     motion was carrying moves to the aisle's dash pattern and its count chip. */
+  html[data-kt-theme] .kt-floor-plane,
+  html[data-kt-theme] .kt-floor-spot,
+  html[data-kt-theme] .kt-floor-stage,
+  html[data-kt-theme] .kt-floor-scale {
+    transition: none;
+  }
+  html[data-kt-theme] .kt-floor-pulse {
+    animation: none;
+    display: none;
+  }
+  /* The aisle a pulse would have travelled, drawn as a dashed lane. */
+  html[data-kt-theme] .kt-floor-wire[data-traffic="1"] {
+    stroke-dasharray: 3 2.4;
+    stroke: var(--kt-text-dim);
+  }
+  html[data-kt-theme] .kt-floor-wire-chip {
+    display: inline-flex;
+  }
+  /* The zoom is instant: the class still lands, it just does not travel. */
+  html[data-kt-theme] .kt-floor-plane[data-zooming="1"] {
+    transform: rotateX(58deg) rotateZ(-45deg);
+  }
+}
