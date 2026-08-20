@@ -89,7 +89,8 @@ export function Floor({
             {/* Furniture, emitted in TAB ORDER (exec row → bench in
                 constitution order → fixtures). Visual position comes from the
                 inline percentages; the keyboard reads the org chart. */}
-            <nav aria-label="The floor — every desk in the firm">
+            <nav className="kt-floor-layer"
+                 aria-label="The floor — every desk in the firm">
               {spots.map((s) => (
                 <Spot
                   key={s.id}

@@ -249,6 +249,21 @@ html[data-kt-theme] .kt-floor-stage[data-room="dead"] .kt-floor-plane {
   opacity: 0.24;
 }
 
+/* Any element BETWEEN the plane and its furniture.
+ *
+ * The furniture sits inside a semantic <nav> (criterion 5: the keyboard walks
+ * the org chart). A plain wrapper FLATTENS the 3D context, and a flattened
+ * context applies a child's rotateX in 2D — measured: the desks' rendered quad
+ * came back 68x15 against a 68x55 card, i.e. the billboard's rotateZ was
+ * undoing the in-plane spin while its rotateX silently became a vertical
+ * squash. The room looked almost right, which is why it needed measuring.
+ */
+html[data-kt-theme] .kt-floor-layer {
+  transform-style: preserve-3d;
+  position: absolute;
+  inset: 0;
+}
+
 /* The SVG layer: the floor grid, the corridor, the wires. */
 html[data-kt-theme] .kt-floor-svg {
   position: absolute;
@@ -262,7 +277,13 @@ html[data-kt-theme] .kt-floor-svg {
    is what makes the room 2.5D rather than 3D text nobody can read at 58°. */
 html[data-kt-theme] .kt-floor-spot {
   position: absolute;
-  transform: translate(-50%, -50%) rotateZ(45deg) rotateX(-58deg);
+  /* translateZ FIRST, in the plane's own frame: furniture STANDS ON the floor.
+     Without it the cards are coplanar with the SVG layer, and coplanar elements
+     in a preserve-3d context sort unpredictably — measured: hovering a lit desk
+     hit the lamp pool drawn under it (elementFromPoint returned the <circle>),
+     so the desk detail never opened. Lifting them 30px also gives the room its
+     2.5D read: a floor you look across, with things standing on it. */
+  transform: translate(-50%, -50%) translateZ(30px) rotateZ(45deg) rotateX(-58deg);
   transform-origin: center center;
   transform-style: preserve-3d;
 }
