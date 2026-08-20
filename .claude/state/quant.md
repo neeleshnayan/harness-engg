@@ -54,11 +54,17 @@ STANDING JUDGEMENT CALLS I MADE (inherit or overturn deliberately)
   PASS-FAVOURABLE and must be declared every time. The $2k number is the DEPLOYMENT
   answer; the $100k number is the answer about the IDEA.
 - Month-end = last WEEKDAY by calendar; holidays skip the month (2 in 1380 sessions).
-- HYBRID: ollama needed `ollama serve` started by hand (left running). qwen3.8
+- HYBRID: ollama is INSTALLED but NOT SERVING by default. Binary at
+  C:\Users\user\AppData\Local\Programs\Ollama\ollama, qwen3.8:latest present.
+  Start it by hand (`ollama serve`, backgrounded) and expect it to die with the
+  dispatch — mine was killed at session end. Budget ~15s to start + ~40s to
+  draft. Verify with: curl -s -m 5 http://127.0.0.1:11434/api/tags (rc=7 means
+  not up). [Seat-issued correction, 2026-08-21: the original line claimed the
+  server was left running; re-verified dead after session end.] qwen3.8
   drafted in 36.5s and the draft was discarded — last CALENDAR day month-end,
   nonexistent set_slippage/set_fee, a guaranteed zero-order failure in a bare
-  except. Reviewing cost more than writing. Recommendation: point the local model
-  at sub-functions, not whole algorithms.
+  except. Reviewing cost more than writing. Recommendation: point the local
+  model at sub-functions, not whole algorithms.
 
 - [CTO note at resolve, 2026-08-21]: candidates and file verified; algorithm
   committed; report filed verbatim-in-substance as
