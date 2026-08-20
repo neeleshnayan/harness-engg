@@ -19,7 +19,15 @@ import { KT } from "../theme";
 type Sweeps = Awaited<ReturnType<typeof fundApiClient.getLeanSweeps>>["sweeps"];
 type Algos = Awaited<ReturnType<typeof fundApiClient.getLeanAlgorithms>>["algorithms"];
 
-const pct = (n?: number | null) => (n == null ? "—" : `${n > 0 ? "+" : ""}${n}%`);
+/** Belt returns, VERBATIM — signed, and deliberately NOT rounded.
+ *
+ *  Kept local rather than folded into ../format.ts's `pct` in the 2026-08-20
+ *  consolidation, and renamed so nobody swaps the shared one in by eye: this
+ *  prints the sweep's own number exactly as the belt reported it, to whatever
+ *  precision it carries. `pct` would round to one decimal and drop the leading
+ *  "+", which on a page whose whole job is comparing fold results would be a
+ *  silent change to the evidence. */
+const pctVerbatim = (n?: number | null) => (n == null ? "—" : `${n > 0 ? "+" : ""}${n}%`);
 
 export function BeltWorkspace() {
   const [sweeps, setSweeps] = useState<Sweeps | null>(null);
@@ -143,11 +151,11 @@ export function BeltWorkspace() {
                                   {s.completed ?? "—"}/{s.total ?? "—"}
                                 </td>
                                 <td className="py-1.5 pr-4">
-                                  {pct(s.summary?.best?.total_return_pct)}
+                                  {pctVerbatim(s.summary?.best?.total_return_pct)}
                                 </td>
                                 <td className="py-1.5 pr-4">
                                   {h?.train || h?.test
-                                    ? `${pct(h?.train?.return_pct)} → ${pct(h?.test?.return_pct)}`
+                                    ? `${pctVerbatim(h?.train?.return_pct)} → ${pctVerbatim(h?.test?.return_pct)}`
                                     : "no holdout recorded"}
                                 </td>
                                 <td className="py-1.5">

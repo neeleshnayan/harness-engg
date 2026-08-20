@@ -15,6 +15,10 @@
 
 import React from 'react'
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+// The Studio's formatters. A chat panel and the Studio panel showing the same
+// NAV must format it identically — that is the whole reason this import
+// crosses out of /studio (2026-08-20 consolidation).
+import { money } from '../studio/format'
 
 const c = {
   surface: 'var(--kt-surface, #14161a)',
@@ -25,9 +29,6 @@ const c = {
   up: 'var(--kt-up, #79a98c)',
   down: 'var(--kt-down, #ce7681)',
 }
-
-const money = (n?: number | null, dp = 2) =>
-  n == null ? '—' : `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })}`
 
 export function Panel({ title, right, children }: {
   title: string; right?: React.ReactNode; children: React.ReactNode
