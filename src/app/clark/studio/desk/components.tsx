@@ -16,6 +16,9 @@ import {
   verdictStamp,
   Absent,
 } from "./seatLib";
+import {
+  SeatTelemetry, costLabel, telemetryNote, tokensLabel,
+} from "./deskTelemetry";
 
 /**
  * The desk's shared rendering vocabulary.
@@ -316,6 +319,100 @@ export function CooTriageChip({ load }: { load?: DeskView["desk_load"] }) {
         </span>
       )}
     </span>
+  );
+}
+
+/* ------------------------------------------------------- desk telemetry --- */
+
+/**
+ * "Is it running, how often today, at what token cost" — the CEO's three
+ * figures, rendered identically on the 2D bench card and in the 3D floor's
+ * desk detail.
+ *
+ * ONE component for both surfaces, deliberately: two renderings of the same
+ * three numbers is how a reader ends up trusting whichever one is prettier, and
+ * these three in particular are the ones the CEO will compare across surfaces.
+ *
+ * Three rules it keeps:
+ *   1. An ABSENT figure renders as its sentence, never as a dash the eye reads
+ *      as zero and never as a chip that is simply missing.
+ *   2. A token sum missing a run's figure renders with "≥" and the caveat is in
+ *      the title, which is also where the price-table provenance lives.
+ *   3. RUNNING is a word, not only a dot. The dot has been on the card for a
+ *      while and the CEO still had to ask whether seats were running — a marker
+ *      you only notice when you were already looking is not an answer.
+ */
+export function SeatTelemetryChips({ t, compact = false }: {
+  t: SeatTelemetry; compact?: boolean;
+}) {
+  const note = telemetryNote(t);
+  const runs = t.runsToday;
+  const toks = t.tokensToday;
+
+  const gap: Absent | null =
+    isAbsent(runs) ? runs : isAbsent(toks) ? (toks as Absent) : null;
+
+  return (
+    <div className="mt-2 space-y-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span
+          title={t.runningNow && t.runningTask ? t.runningTask : "No dispatch is open for this seat."}
+          className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] ${
+            t.runningNow
+              ? "border-[var(--kt-warn)] text-[var(--kt-warn)]"
+              : `border-[var(--kt-border)] ${KT.muted}`
+          }`}
+        >
+          <span className={`h-1.5 w-1.5 rounded-full ${
+            t.runningNow ? "kt-breathe bg-[var(--kt-warn)]" : "bg-[var(--kt-border-strong)]"}`} />
+          {t.runningNow ? "running now" : "not running"}
+        </span>
+
+        {typeof runs === "number" ? (
+          <span title={note}
+                className={`inline-flex items-center gap-1 rounded-full border border-[var(--kt-border)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] ${KT.muted}`}>
+            <span className="tabular-nums text-[var(--kt-text)]">{runs}</span>
+            run{runs === 1 ? "" : "s"} today
+          </span>
+        ) : null}
+
+        {typeof toks === "number" ? (
+          <span title={note}
+                className={`inline-flex items-center gap-1 rounded-full border border-[var(--kt-border)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] ${KT.muted}`}>
+            <span className="tabular-nums text-[var(--kt-text)]">{tokensLabel(t)}</span>
+            tok
+            {t.costUsdToday != null && (
+              <span className="tabular-nums">· {costLabel(t)}</span>
+            )}
+          </span>
+        ) : null}
+        {/* The absence, ON THE CARD, as a dashed chip whose title is the full
+            sentence. `compact` exists because the first version rendered the
+            paragraph on all nine desks: nine identical five-line explanations
+            of ONE gap, which buried the seat cards the reader came for. What
+            must be true on every card is that the reader can see the figure is
+            NOT MEASURED rather than zero — and that survives here. The page
+            states the sentence in full, once, beneath the floor. */}
+        {compact && gap && (
+          <span
+            title={`${gap.what} — not measured: ${gap.needs}.`}
+            className={`inline-flex items-center rounded-full border border-dashed border-[var(--kt-border-strong)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] ${KT.muted}`}
+          >
+            runs / tokens — not measured
+          </span>
+        )}
+      </div>
+
+      {/* Full sentences, on the roomier surface (the floor's desk detail). */}
+      {!compact && gap && (
+        <p className={`text-[11px] leading-relaxed ${KT.muted}`}>
+          {gap.what} — not measured: {gap.needs}.
+        </p>
+      )}
+      {!compact && !gap && note && (
+        <p className={`text-[11px] leading-relaxed ${KT.muted}`}>{note}</p>
+      )}
+    </div>
   );
 }
 

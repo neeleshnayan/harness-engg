@@ -9,7 +9,8 @@ import {
 import { KT } from "../../theme";
 import { StudioHeader } from "../../components/StudioHeader";
 import { RISK_UNREACHABLE_SENTENCE } from "../../components/RiskBar";
-import { SectionHead } from "../components";
+import { SeatTelemetryChips, SectionHead } from "../components";
+import { seatTelemetry } from "../deskTelemetry";
 import { Floor } from "./Floor";
 import { floorEnabled, roomState } from "./floorPlan";
 
@@ -140,6 +141,28 @@ export default function FloorPage() {
                   : RISK_UNREACHABLE_SENTENCE
               }
               pulseLimit={PULSE_LIMIT}
+              // The SAME three figures the 2D bench cards show, from the same
+              // module — the CEO will compare the two surfaces, and two
+              // renderings of one number is how a reader learns to trust
+              // whichever is prettier. Only DESKS get them: a machine has no
+              // runs, and a zero beside the caged auto-policy would read as a
+              // measurement of something nobody measures.
+              renderSeatDetail={(spot) =>
+                spot.kind === "machine" || spot.kind === "door" ? (
+                  <p className={`mt-2 text-xs ${KT.muted}`}>
+                    A fixture, not a seat — nothing dispatches it and nothing
+                    counts its runs.
+                  </p>
+                ) : spot.id === "ceo" || spot.id === "cto" ? (
+                  <p className={`mt-2 text-xs ${KT.muted}`}>
+                    A human, not a dispatched seat — the spine cannot count a
+                    person&apos;s runs, and a zero here would be a lie about a
+                    colleague.
+                  </p>
+                ) : (
+                  <SeatTelemetryChips t={seatTelemetry(desk, spot.id)} />
+                )
+              }
             />
 
             <section className="mt-8">

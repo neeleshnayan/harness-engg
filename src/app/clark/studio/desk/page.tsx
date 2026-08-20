@@ -16,8 +16,10 @@ import { KT } from "../theme";
 import { StudioHeader } from "../components/StudioHeader";
 import { faceFor } from "./faces";
 import {
-  Metric, ProductionShelf, RecRow, RunRow, SectionHead, WindowNote,
+  Metric, ProductionShelf, RecRow, RunRow, SeatTelemetryChips, SectionHead,
+  WindowNote,
 } from "./components";
+import { SeatTelemetry, seatTelemetry } from "./deskTelemetry";
 import { MemoThread } from "./MemoThread";
 import { SeatFace } from "./SeatFace";
 import { floorEnabled } from "./floor/floorPlan";
@@ -221,6 +223,11 @@ export default function DeskPage() {
                     <span className={`block text-[11px] ${KT.muted}`}>
                       COO · Opus — your desk, triaged into batch decisions
                     </span>
+                    {/* The COO is a dispatched seat like the bench, so it
+                        carries the same three figures. The two humans beside it
+                        do not: the spine cannot count a human's runs, and
+                        drawing them zero would be a lie about a colleague. */}
+                    <SeatTelemetryChips t={seatTelemetry(d, "coo")} compact />
                   </span>
                 </Link>
                 <Link href="/clark/studio/desk/cto"
@@ -237,8 +244,22 @@ export default function DeskPage() {
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {d.roster
                   .filter((r) => r.agent !== "coo")   // the coo sits in the exec row
-                  .map((r) => <Desk key={r.agent} r={r} />)}
+                  .map((r) => <Desk key={r.agent} r={r} t={seatTelemetry(d, r.agent)} />)}
               </div>
+              {/* The telemetry block's honesty line, once, under the floor —
+                  rather than repeated on nine cards. Both branches are stated:
+                  the "no rollup" case is the one a reader would otherwise read
+                  as a quiet firm, so it gets the longer sentence. */}
+              <p className={`mt-2 text-[11px] italic leading-relaxed ${KT.muted}`}>
+                {d.seat_telemetry
+                  ? d.seat_telemetry.note
+                  : "This spine does not return per-seat telemetry yet (`seat_telemetry` " +
+                    "on GET /fund/desk), so no seat's run count or token cost for today " +
+                    "is on screen. Running-now still comes from the roster. The counts " +
+                    "are NOT folded from the run list above: it carries the 25 most " +
+                    "recent runs across all seats, so a per-seat day count taken from it " +
+                    "would be a floor wearing a count's clothes."}
+              </p>
             </section>
 
             {/* -------------------------------------- the wire: what, as it happens */}
@@ -610,7 +631,7 @@ export default function DeskPage() {
  *  full path stays in the title attribute — shortened, never dropped. */
 const fileName = (p: string): string => p.split(/[\\/]/).pop() || p;
 
-function Desk({ r }: { r: DeskView["roster"][number] }) {
+function Desk({ r, t }: { r: DeskView["roster"][number]; t: SeatTelemetry }) {
   const working = r.activity.status === "working";
   const inner = (
     <>
@@ -657,6 +678,8 @@ function Desk({ r }: { r: DeskView["roster"][number] }) {
       ) : (
         <p className={`mt-3 line-clamp-3 text-[12px] leading-relaxed ${KT.muted}`}>{r.lane}</p>
       )}
+      {/* Running now / runs today / tokens today (CEO ask, 2026-08-21). */}
+      <SeatTelemetryChips t={t} compact />
     </>
   );
   return isSeat(r.agent) ? (
