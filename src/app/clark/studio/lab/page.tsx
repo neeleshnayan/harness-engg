@@ -1,10 +1,8 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React from "react";
 import { StudioHeader } from "../components/StudioHeader";
 import { LeanLab } from "../components/LeanLab";
-import { HuntingGround } from "../components/HuntingGround";
-import { ResearchMap } from "../components/ResearchMap";
 
 /**
  * LAB — the strategy desk.
@@ -24,42 +22,22 @@ import { ResearchMap } from "../components/ResearchMap";
  * had nowhere to go. Code has no such ceiling, and it is the same code that
  * runs in the engine of record. So: write it (or have Clark write it), run it,
  * read the analytics.
+ *
+ * ONE surface, now (CEO direction, request c91d5c07, 2026-08-20). The research
+ * map and the hunting ground were retired from this page: they answered "where
+ * should we look", which is the MECHANISM seat's question, and that seat reads
+ * the same endpoints (`/fund/research/map`, `/fund/universe/hunting-ground`)
+ * directly through the API. A panel that exists so a human can do an agent's
+ * first step is a panel that gets skimmed and trusted; the Lab is now only the
+ * place where an idea is written and run.
  */
 
-/** What the reader carried down from the map. Held here rather than inside
- *  either component, because it is the handoff BETWEEN them — and the
- *  observation ids are what let a candidate started from a filing be traced
- *  back to the sentence that prompted it. */
-interface Brief {
-  ticker: string;
-  observationIds: string[];
-}
-
 export default function LabPage() {
-  const [brief, setBrief] = useState<Brief | null>(null);
-  const labRef = useRef<HTMLDivElement | null>(null);
-
-  const takeToLab = (ticker: string, observationIds?: string[]) => {
-    setBrief({ ticker, observationIds: observationIds ?? [] });
-    // Move the reader to the desk. Setting state without scrolling leaves the
-    // handoff invisible below the fold, which reads as the button doing nothing.
-    labRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
   return (
     <div className="bg-[var(--kt-bg)] text-[var(--kt-text)] min-h-screen">
       <StudioHeader subtitle="Write a strategy, run it on the engine of record — nothing here is registered or persisted" />
       <div className="mx-auto max-w-[1600px] px-6 pb-10">
-        {/* The map first, deliberately. A lazy reader trusts whatever is at
-            the top, so the top must be the view that shows what is MISSING —
-            not the one that ranks what happens to be present. */}
-        <ResearchMap onPick={takeToLab} />
-        {/* Where to look, before what to test. The fund's whole book sits
-            outside this list, which is the argument for putting it first. */}
-        <HuntingGround onPick={(symbol) => takeToLab(symbol)} />
-        <div ref={labRef}>
-          <LeanLab brief={brief} onClearBrief={() => setBrief(null)} />
-        </div>
+        <LeanLab />
       </div>
     </div>
   );

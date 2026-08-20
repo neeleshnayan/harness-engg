@@ -3,10 +3,11 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, BookOpen, Dna, FlaskConical, ShieldAlert, Sliders, Swords } from "lucide-react";
+import { Activity, BookOpen, FlaskConical, Sliders, Swords } from "lucide-react";
 
 /**
- * Workflow-first navigation, ordered by how often it is used.
+ * Workflow-first navigation — FIVE tabs, down from seven (CEO direction,
+ * request c91d5c07, 2026-08-20).
  *
  * **Monitor is the landing page.** The Studio used to open on Decide — the
  * approval queue and nothing else — which made the fund's rarest event the first
@@ -15,37 +16,41 @@ import { Activity, BookOpen, Dna, FlaskConical, ShieldAlert, Sliders, Swords } f
  * ("anything wrong? anything waiting on me?") is answered without navigating and
  * the rare case still leads the page.
  *
+ * Desk is second now, not last: it became the OFFICE — the firm day by day, one
+ * page per seat, and the place work is asked for. It is where a manager starts.
+ *
  * Allocate owns sizing and per-strategy attribution: important, but not a thing
  * you check every day.
  *
  * Lab owns strategy backtesting and candidate verification.
  *
- * Risk owns structural portfolio risk: correlation, effective bets, tails, regime.
- *
  * Thesis owns automatic theme discovery, multi-source research intelligence,
  * and deterministic bull/bear thesis generation.
  *
- * Mechanics is last on purpose: it is the one surface you open to understand the
- * SYSTEM rather than to operate it — the pipeline from hunch to position, what
- * died on the way, and how the machinery itself has changed over time. Every
- * number on it is read from the spine, and the parts of the evolutionary design
- * that do not exist yet are rendered unlit rather than implied.
+ * What left the bar, and why it did not leave the product:
+ *   * MECHANICS — retired as a tab. Its funnel, causes of death, gate lineage
+ *     and cohort now render on the quant's seat page (the lane that submits to
+ *     the belt); its story and ladder render on the Desk. The rule: a chart
+ *     stays only if it informs a specific click or dispatch, and Mechanics was
+ *     a tab you read rather than acted on. /clark/studio/mechanics redirects.
+ *   * RISK — the /risk page is untouched and still owns the six measured
+ *     modules; it is reached from the always-on risk strip at the top of every
+ *     page (which is where a breach is actually noticed), from Monitor, and
+ *     from the riskofficer seat page that cites it as evidence. Kept out of the
+ *     bar because the five tabs are the five workflows; risk follows the reader
+ *     everywhere instead of waiting in a tab.
  */
 const TABS = [
   { href: "/clark/studio", label: "Monitor", icon: Activity, exact: true,
     hint: "Approvals, breaches, NAV, fills and live signals — the five-minute check" },
+  { href: "/clark/studio/desk", label: "Desk", icon: Swords,
+    hint: "The office: the firm day by day, one page per seat, request work, artifact chain and kills" },
   { href: "/clark/studio/allocate", label: "Allocate", icon: Sliders,
     hint: "Strategies, weights, composition and per-strategy attribution" },
   { href: "/clark/studio/lab", label: "Lab", icon: FlaskConical,
-    hint: "Research an idea: backtest, templates, and what to promote" },
-  { href: "/clark/studio/risk", label: "Risk", icon: ShieldAlert,
-    hint: "Diversification, tail risk, market regime and survivability" },
+    hint: "Research an idea: write a strategy, run it on the engine of record" },
   { href: "/clark/studio/thesis", label: "Thesis", icon: BookOpen,
     hint: "Automatic theme discovery & investment thesis generator" },
-  { href: "/clark/studio/mechanics", label: "Mechanics", icon: Dna,
-    hint: "How a hunch becomes a position: variation, selection, what died, and when" },
-  { href: "/clark/studio/desk", label: "Desk", icon: Swords,
-    hint: "The firm that builds the fund: request work, see the artifact chain and its kills" },
 ];
 
 export function StudioNav() {
