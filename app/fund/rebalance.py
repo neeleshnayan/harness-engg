@@ -39,9 +39,29 @@ MIN_TRADE_USD = 5.0
 #: are not the prices you would trade at. Not a hard block — a stated warning.
 STALE_AFTER_MINUTES = 120
 
+#: Share-count tolerance when comparing a strategy's attributed position against
+#: the authoritative fold. Both sides are Decimal folds of the same integers and
+#: fractional-share fills carry six decimals, so anything above this is a real
+#: disagreement, not arithmetic.
+ATTRIBUTION_TOLERANCE_QTY = 1e-6
+
 
 class RebalanceError(Exception):
     """Raised when a plan cannot be built or acted on."""
+
+
+class AttributionMismatch(RebalanceError):
+    """Per-strategy attribution disagrees with the authoritative position fold.
+
+    Refused rather than warned. Measured incident (2026-08-20): a GLD BUY at
+    402.18 tagged to one strategy and the matching SELL at 100.00 tagged to
+    another left a phantom +0.424471 long and a phantom −0.424471 short that
+    net to zero in the book and never net out per strategy. A preview targeting
+    the phantom-long strategy at 20% produced a **$376.84 BUY into a symbol the
+    fund holds none of**, with ``current_usd: 0.0`` and zero warnings — the
+    only tell on the page was a zero. See
+    docs/AUDIT_R6_D2_ATTRIBUTION_2026-08-20.md ITEM 3.
+    """
 
 
 def _now() -> str:
@@ -66,10 +86,84 @@ class RebalanceService:
         return getattr(connector, "name", "paper") or "paper"
 
     # --- building -----------------------------------------------------------
+    def _authoritative_qty(self) -> dict[str, float]:
+        """Symbol -> share count from the fold NAV itself uses.
+
+        Unreadable is not "empty": if the fold cannot be read the guard has no
+        reference and must say so rather than wave every strategy through.
+        """
+        book = self._nav.book()          # raises if the fold is unreadable
+        out: dict[str, float] = {}
+        for sym, pos in (book.positions or {}).items():
+            try:
+                out[str(sym).upper()] = float(pos["qty"])
+            except (TypeError, ValueError, KeyError):
+                continue
+        return out
+
+    def _check_attribution(self, rows: list[dict[str, Any]]) -> None:
+        """Refuse any strategy whose attributed position the book cannot back.
+
+        Two conditions, both of which the phantom breaks and neither of which a
+        correctly-tagged book can. For every symbol a strategy claims:
+
+          * the book must hold the symbol in the SAME DIRECTION — a strategy
+            cannot be long what the fund is flat or short;
+          * the strategy's share count must not EXCEED the book's — a strategy
+            cannot own more of a symbol than the fund holds.
+
+        Two strategies splitting one holding pass both. A mistagged fill fails
+        on the first, and it fails for both sides of the pair, which is the
+        point: the general fix catches every future mistag, not this one.
+        """
+        book_qty = self._authoritative_qty()
+        problems: list[str] = []
+        for row in rows:
+            sid = row.get("strategy_id")
+            for sym, qty in (row.get("positions") or {}).items():
+                symbol = str(sym).upper()
+                try:
+                    q = float(qty)
+                except (TypeError, ValueError):
+                    continue
+                if abs(q) <= ATTRIBUTION_TOLERANCE_QTY:
+                    continue
+                held = book_qty.get(symbol, 0.0)
+                if abs(held) <= ATTRIBUTION_TOLERANCE_QTY:
+                    problems.append(
+                        f"{sid} is attributed {q:+.6f} {symbol} but the fund holds "
+                        f"none — a fill was tagged to a strategy that did not trade it"
+                    )
+                elif (q > 0) != (held > 0):
+                    problems.append(
+                        f"{sid} is attributed {q:+.6f} {symbol} against a book "
+                        f"position of {held:+.6f} — opposite directions"
+                    )
+                elif abs(q) > abs(held) + ATTRIBUTION_TOLERANCE_QTY:
+                    problems.append(
+                        f"{sid} is attributed {q:+.6f} {symbol} but the fund holds "
+                        f"only {held:+.6f} in total"
+                    )
+        if problems:
+            raise AttributionMismatch(
+                "per-strategy attribution disagrees with the fund's own position "
+                "fold, so a plan built from it would size orders against holdings "
+                "that do not exist: " + "; ".join(sorted(problems))
+                + ". Correct the attribution with a StrategyAttributionCorrected "
+                  "event (the log stays append-only) and rebuild."
+            )
+
     def _composition(self) -> dict[str, dict[str, float]]:
-        """Current USD exposure per strategy per symbol."""
+        """Current USD exposure per strategy per symbol.
+
+        Guarded: this is the read that turns a mistagged fill into money (see
+        ``AttributionMismatch``), so the disagreement is checked here rather
+        than at the one call site that happens to have caused an incident.
+        """
+        rows = self._attr.with_values(self._price)
+        self._check_attribution(rows)
         comp: dict[str, dict[str, float]] = {}
-        for row in self._attr.with_values(self._price):
+        for row in rows:
             sid, vals = row.get("strategy_id"), {}
             for sym, qty in (row.get("positions") or {}).items():
                 try:
@@ -94,6 +188,7 @@ class RebalanceService:
         if nav <= 0:
             raise RebalanceError("NAV is zero — nothing to rebalance")
 
+        self._refuse_archived(targets)
         comp = self._composition()
 
         # A strategy that has never traded has no composition to scale — but it
@@ -222,6 +317,39 @@ class RebalanceService:
                    "across its declared universe" if assumed else "")
             ),
         }
+
+    def _refuse_archived(self, targets: dict[str, float]) -> None:
+        """An archived strategy is not a rebalance target.
+
+        Archive was cosmetic: the flag was folded, rendered, and enforced by
+        nothing, so a strategy retired this morning was still an accepted
+        target this afternoon (same audit, ITEM 3(b)). A zero target is allowed
+        — winding an archived strategy DOWN is exactly what archiving means.
+
+        The registry being unreadable is not "nothing is archived": the check
+        cannot be made, so the plan is refused rather than built blind.
+        """
+        wanted = {sid for sid, t in (targets or {}).items() if t}
+        if not wanted:
+            return
+        try:
+            registry = list(self._strategies.list())
+        except Exception as e:  # noqa: BLE001
+            raise RebalanceError(
+                "the strategy registry could not be read, so whether these "
+                f"targets are archived is UNKNOWN ({type(e).__name__}) — refusing "
+                "to build a plan on an unchecked target list"
+            ) from e
+        archived = sorted(
+            s.get("strategy_id") for s in registry
+            if s.get("strategy_id") in wanted and s.get("archived")
+        )
+        if archived:
+            raise RebalanceError(
+                "archived strategies cannot be given a non-zero target: "
+                + ", ".join(f"{self._strategy_name(sid)} ({sid})" for sid in archived)
+                + " — unarchive it, or target it at 0% to wind it down"
+            )
 
     def _declared_assets(self, sid: str) -> list[str]:
         """The universe a strategy scopes, whether or not it has traded it."""

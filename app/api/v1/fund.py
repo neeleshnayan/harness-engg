@@ -74,6 +74,7 @@ from app.schemas.fund import (
     LeanSweepRequest,
     ProposeOrderRequest,
     RedeemRequest,
+    LossRebaseRequest,
     RiskHaltRequest,
     RiskLimitsPatchRequest,
     RiskResumeRequest,
@@ -3315,7 +3316,33 @@ def set_risk_limits(req: RiskLimitsPatchRequest):
 @router.post("/fund/risk/halt")
 def halt_trading(req: RiskHaltRequest):
     """Engage trading kill-switch halt."""
-    return _control.halt(reason=req.reason, actor=req.actor)
+    from app.fund.riskmonitor import HALT_MANUAL
+    return _control.halt(reason=req.reason, actor=req.actor,
+                         halt_class=req.halt_class or HALT_MANUAL)
+
+
+@router.post("/fund/risk/loss-reference/rebase")
+def rebase_loss_reference(req: LossRebaseRequest):
+    """Acknowledge a loss and move the daily-loss reference to current NAV.
+
+    The reopening procedure for a LOSS-class halt (CEO-blessed 2026-08-20).
+    Moves no threshold — the limit stays where the register says it is; this
+    moves the point it is measured from, once, in the log, with a reason.
+
+    On the approval channel exactly like an order approval, because it is an
+    approval: it re-arms an execution path the fund deliberately closed.
+    Refused while an INTEGRITY halt is open — rebasing onto a NAV we do not
+    trust would launder a bad mark into the fund's own reference.
+    """
+    token = _monitor.rebase_token()
+    approver = _guard_approval("loss_reference_rebase", token, req.approver,
+                               req.confirm, req.instruction, APPROVAL_ALLOWLIST)
+    nav_usd = float(_nav.compute(stale_ok=True).total_nav_usd)
+    try:
+        return _control.rebase_loss_reference(nav_usd=nav_usd, reason=req.reason,
+                                              actor=approver)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
 
 
 @router.post("/fund/risk/resume")

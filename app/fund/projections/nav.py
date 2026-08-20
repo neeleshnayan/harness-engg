@@ -221,6 +221,18 @@ class NavService:
             unpriced_symbols=unpriced_symbols,
         )
 
+    def book(self) -> Book:
+        """The authoritative folded book — positions, cash, units.
+
+        Public because NAV is no longer its only consumer. The rebalance
+        attribution guard cross-checks per-strategy attribution against THIS
+        fold (docs/AUDIT_R6_D2_ATTRIBUTION_2026-08-20.md ITEM 3): attribution
+        keys on a fill's ``strategy_id`` and a mistagged fill therefore leaves
+        two strategy ledgers permanently wrong while this fold — which keys on
+        nothing but symbol — stays right. When the two disagree, this one wins.
+        """
+        return self._proj.build()
+
     def strike(self, actor: str = "system") -> NavSnapshot:
         """Strike and persist a NAV — the scheduled valuation moment."""
         snap = self.compute()

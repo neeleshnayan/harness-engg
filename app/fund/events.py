@@ -93,6 +93,15 @@ class EventType(str, Enum):
     STRATEGY_ARCHIVED = "StrategyArchived"
     STRATEGY_ASSETS_SET = "StrategyAssetsSet"   # the universe of symbols a strategy scopes
     # Many-to-many composition (a strategy can compose into multiple parents).
+    # A mistagged fill is corrected by a COMPENSATING EVENT, never by editing
+    # the log. Attribution keys on the fill's strategy_id, so a fill tagged to
+    # the wrong strategy leaves two ledgers permanently wrong (the log is right
+    # — the index into it is not). This event moves quantity, cost basis and
+    # realised P&L between two strategy ledgers, with a written reason that the
+    # fold REQUIRES: a correction nobody explained is indistinguishable from a
+    # correction nobody authorised.
+    STRATEGY_ATTRIBUTION_CORRECTED = "StrategyAttributionCorrected"
+
     STRATEGY_ADDED_TO_PARENT = "StrategyAddedToParent"
     STRATEGY_REMOVED_FROM_PARENT = "StrategyRemovedFromParent"
     STRATEGY_MEMBERSHIP_WEIGHTED = "StrategyMembershipWeighted"
@@ -144,6 +153,14 @@ class EventType(str, Enum):
     RISK_ALARM_CLEARED = "RiskAlarmCleared"     # a breach resolved
     TRADING_HALTED = "TradingHalted"            # kill switch engaged (drawdown/loss/manual)
     TRADING_RESUMED = "TradingResumed"          # trading re-enabled by a human
+
+    # Acknowledge-and-rebase (2026-08-20, CEO-blessed): the daily-loss reference
+    # moved deliberately to current NAV, with a written reason. A circuit
+    # breaker you can only reopen by waiting for midnight is a circuit breaker
+    # that gets bypassed; one you can reopen by SAYING SO in the log is a
+    # decision. Refused while an integrity halt is open — you cannot accept a
+    # loss you cannot measure.
+    LOSS_REFERENCE_REBASED = "LossReferenceRebased"
 
     # Rebalance — a BATCH of orders decided as one thing. Event-sourced
     # separately from the individual orders because the unit of human judgement

@@ -303,6 +303,30 @@ class RiskLimitsPatchRequest(BaseModel):
 class RiskHaltRequest(BaseModel):
     reason: str = Field(..., description="Reason for kill-switch halt")
     actor: str = Field("operator", description="Who triggered the halt")
+    halt_class: Optional[str] = Field(
+        None, description="integrity | loss | manual. Which KIND of dark this "
+                          "is: integrity = the fund cannot measure itself; "
+                          "loss = it measured and does not like the answer. "
+                          "Defaults to manual — a caller that does not know "
+                          "the cause has not measured one.")
+
+
+class LossRebaseRequest(BaseModel):
+    """Acknowledge-and-rebase — a CEO-only action on the approval channel.
+
+    Same guard as an order approval (allowlist, confirm echo, via-cto
+    citation). The echo is the ``rebase_token`` from GET /fund/risk/monitor,
+    which changes whenever the state it describes changes, so a confirm read
+    off a stale screen is refused rather than applied to a book that moved.
+    """
+    approver: str = Field(..., description="Who is acknowledging the loss")
+    confirm: Optional[str] = Field(
+        None, description="The rebase_token from GET /fund/risk/monitor")
+    instruction: Optional[str] = Field(
+        None, description="For 'neelesh-via-cto' only: the CEO's instruction, verbatim")
+    reason: str = Field(
+        ..., description="MANDATORY written reason — the reference moves in the "
+                         "log and the log has to say why")
 
 
 class RiskResumeRequest(BaseModel):

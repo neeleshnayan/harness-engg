@@ -37,9 +37,27 @@ class FakeStore:
         return [e for e in self.events if e["seq"] > since_seq][:limit]
 
 
+class FakeBook:
+    def __init__(self, positions):
+        self.positions = {
+            s: {"qty": Decimal(str(q)), "avg_price": Decimal("1")}
+            for s, q in (positions or {}).items()
+        }
+        self.cash = Decimal("0")
+        self.units_outstanding = Decimal("0")
+
+
 class FakeNav:
-    def __init__(self, nav=2000.0):
+    """``book()`` is the authoritative position fold the attribution guard checks
+    against; by default it AGREES with the attribution rows, because a healthy
+    book is the case every other test in this file is about."""
+
+    def __init__(self, nav=2000.0, book=None):
         self.nav = nav
+        self._book = FakeBook(book or {})
+
+    def book(self):
+        return self._book
 
     def compute(self):
         class S:
@@ -126,8 +144,14 @@ def make_service(**kw):
     pipeline = kw.pop("pipeline", FakePipeline())
     control = kw.pop("control", FakeControl())
     strategies = kw.pop("strategies", FakeStrategies())
+    book = kw.pop("book", None)
+    if book is None:                       # the book the rows add up to
+        book = {}
+        for r in rows:
+            for sym, q in (r.get("positions") or {}).items():
+                book[sym.upper()] = book.get(sym.upper(), 0.0) + float(q)
     svc = RebalanceService(
-        nav_service=FakeNav(kw.pop("nav", 2000.0)),
+        nav_service=FakeNav(kw.pop("nav", 2000.0), book=book),
         pricer=pricer,
         attribution=FakeAttribution(rows),
         strategies=strategies,
