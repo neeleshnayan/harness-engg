@@ -74,7 +74,11 @@ model's name — "· Opus" — the way the CTO chair wears Fable's. The COO's si
 the click stays the CEO's, always. Delegating a CATEGORY of items to
 auto-accept-on-COO-endorsement would be a versioned policy change with a
 written reason (the autopolicy pattern at governance level), and has not been
-taken.
+taken. AMENDED 2026-08-21 (CEO): **a batch acceptance CASCADES** — when the
+CEO accepts a COO batch, the CTO executes the underlying items and marks
+them done; the CEO never re-decides item by item. And before executing any
+acceptance sweep, the CTO VALIDATES each item once against the record —
+already-actioned items are marked done with the citation, never re-executed.
 
 `riskofficer` was seated 2026-08-20, the same decision that created the policy it
 supervises: an execution path without an adversarial supervisor is the unwired
@@ -191,13 +195,16 @@ tailed outputs, no redundant restarts) is the largest single cost lever.
   CEO decision from the original "the machine proposes; the human clicks" — written
   reason: an agentic fund's human belongs at the policy level, not the per-order
   level, and the controls this invariant was protecting are now measured, ticking,
-  and heartbeat-monitored. v2 envelope (2026-08-20, CEO-accepted riskofficer
-  recommendations after v1's first live fire executed on a fabricated mark):
-  exit-rule-triggered SELLs only, fresh, liveness proven, on the paper venue —
-  AND the trigger event must name the exact order (the marker string alone is
-  forgeable), the rule must demonstrably predate the position, the mark must
-  agree with the fund's own last struck mark within a versioned bound, and the
-  notional is capped. All fail closed. Everything outside the envelope still
+  and heartbeat-monitored. v3 envelope (2026-08-20, CEO-authorized;
+  supersedes v2 — this text corrected 2026-08-21 after the COO's triage
+  caught it stale: a doc drift, not a loosening, since v3 is strictly
+  tighter): exit-rule-triggered SELLs only, fresh, liveness proven, on the
+  paper venue — AND the trigger event must name the exact order (the marker
+  string alone is forgeable), the rule must demonstrably predate the
+  position, the mark must agree with the fund's own last struck mark within
+  a versioned bound, the notional is capped, and the rule's own strategy
+  must hold the quantity it sells (v3's addition, from the phantom-fill
+  post-mortem). All fail closed. Everything outside the envelope still
   waits for the CEO's click. The envelope widens only by a versioned change with a
   written reason — and per-order approval by an LLM is permanently out: the
   per-trade decision stays deterministic code; agents supervise the policy, never
