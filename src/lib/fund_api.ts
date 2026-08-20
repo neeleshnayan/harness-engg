@@ -799,6 +799,13 @@ export interface DeskView {
     request_id: string; kind: string; serves: string; subject: string;
     note?: string; at?: string; status: 'open' | 'resolved';
     resolution?: string;
+    /** Who asked (ceo / cto). Present on every DESK_REQUESTED payload; typed
+     *  here because the office view attributes each day's asks to a person. */
+    actor?: string;
+    /** The chatter thread this request birthed — a request's id doubles as its
+     *  trace id unless it continues an existing chain. */
+    trace_id?: string;
+    resolved_at?: string;
   }[];
   /** The flight recorder: every dispatch stored whole in Postgres. */
   runs: {
@@ -1923,6 +1930,26 @@ export const fundApiClient = {
   /** The firm's bench and artifact chain. Reads docs/ + the event log. */
   getDesk: async (): Promise<DeskView> =>
     (await fundApi.get(`${P}/desk`)).data,
+
+  /** The filings corpus the analyst seat reads from, with its coverage.
+   *
+   *  Read live rather than restated: the corpus size ("863 observations") is
+   *  quoted in three documents and would be stale in all of them the next time
+   *  extraction runs. Only `coverage` is typed here — the rows themselves are
+   *  the analyst's working material, not this page's. */
+  getObservationsCoverage: async (): Promise<{
+    coverage: {
+      observations: number; tickers: number; filings_read: number;
+      last_extracted_at?: string | null;
+      by_category?: Record<string, number>;
+    };
+  }> => (await fundApi.get(`${P}/research/observations`, { params: { limit: 1 } })).data,
+
+  /** The flight recorder for ONE seat — the desk payload caps its own run list
+   *  at 25 across all seats, which is too few to compute a seat's track record
+   *  from. Same rows, filtered server-side: GET /fund/desk/runs?seat=&limit=. */
+  getDeskRuns: async (seat: string, limit = 200): Promise<{ runs: DeskView['runs'] }> =>
+    (await fundApi.get(`${P}/desk/runs`, { params: { seat, limit } })).data,
 
   /** Decide one agent recommendation (CEO): accepted | rejected. */
   decideRecommendation: async (runId: string, recId: number,
