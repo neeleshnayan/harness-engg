@@ -282,7 +282,63 @@ def _activity(store: Any) -> dict[str, dict[str, Any]]:
     return out
 
 
-def view(store: Any, deskstore: Any = None) -> dict[str, Any]:
+#: The CEO's standing triage rule (2026-08-20, CEO instruction, registered as
+#: a dispatch trigger): when OPEN items on the CEO's desk exceed this, a COO
+#: triage dispatch is DUE. Registered here so the count and the rule live in
+#: one place — the count crossing it is a SIGNAL for the CTO to dispatch, and
+#: nothing in this module or the spine dispatches anything. The ignition keys
+#: stay human; this is the dashboard light, not the starter motor.
+COO_TRIAGE_THRESHOLD = 20
+
+
+def desk_load(open_recommendations: list[dict[str, Any]],
+              pending_orders: Any, open_requests: Any) -> dict[str, Any]:
+    """How many things are actually waiting for the CEO, and whether that is
+    past the COO triage trigger.
+
+    "Open items" is defined exactly, because a number whose definition drifts
+    is worse than no number: open recommendations + pending orders + requests
+    awaiting approval. Each component that cannot be counted is reported as
+    None and named in ``unreadable`` — the total then carries ``complete:
+    false``, because a partial count that reads like a full one is how a desk
+    under the trigger looks quiet.
+    """
+    def _count(x) -> Optional[int]:
+        if x is None:
+            return None
+        try:
+            return int(x if isinstance(x, int) else len(x))
+        except (TypeError, ValueError):
+            return None
+
+    parts = {
+        "open_recommendations": _count(open_recommendations),
+        "pending_orders": _count(pending_orders),
+        "requests_awaiting_approval": _count(open_requests),
+    }
+    unreadable = sorted(k for k, v in parts.items() if v is None)
+    total = sum(v for v in parts.values() if v is not None)
+    return {
+        "total": total,
+        "complete": not unreadable,
+        "unreadable": unreadable,
+        "components": parts,
+        "threshold": COO_TRIAGE_THRESHOLD,
+        "coo_triage_due": total > COO_TRIAGE_THRESHOLD,
+        "note": (
+            f"{total} open item(s) on the CEO's desk against a triage trigger of "
+            f"{COO_TRIAGE_THRESHOLD}"
+            + (f" — {', '.join(unreadable)} could not be counted, so the real "
+               "total is at least this" if unreadable else "")
+            + (". A COO triage dispatch is DUE; the CTO fires it when a session "
+               "is live — crossing this line triggers nothing by itself."
+               if total > COO_TRIAGE_THRESHOLD else ".")
+        ),
+    }
+
+
+def view(store: Any, deskstore: Any = None,
+         pending_orders: Any = None) -> dict[str, Any]:
     artifacts = _artifacts()
     reqs = _requests(store)
     activity = _activity(store)
@@ -318,6 +374,9 @@ def view(store: Any, deskstore: Any = None) -> dict[str, Any]:
         "runs": runs,
         "open_recommendations": open_recs,
         "open_requests": len(open_reqs),
+        # The COO triage counter (CEO's standing rule, >20 open items). Rendered
+        # as a chip on the CEO desk and the CTO console; it signals, never fires.
+        "desk_load": desk_load(open_recs, pending_orders, open_reqs),
         "kills": len(killed),
         "execution_note": (
             "The spine records requests; it does not run agents. Requests are "

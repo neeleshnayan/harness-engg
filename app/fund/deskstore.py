@@ -65,6 +65,29 @@ CREATE INDEX IF NOT EXISTS fund_agent_runs_trace_idx
 REC_STATUSES = ("open", "accepted", "rejected", "staged", "done")
 
 
+def _money_at_stake(r: Any) -> Optional[float]:
+    """The dollars a recommendation moves, if the seat stated one.
+
+    Returns None for anything that is not a finite number the seat put there
+    ON PURPOSE. Never parsed out of the text: prose contains dollar figures
+    that are evidence, not stakes ("a $376.84 BUY" is the SIZE OF A BUG in one
+    recommendation and the size of the ask in another), and a ranking built on
+    that would be confidently wrong rather than honestly blank.
+    """
+    if not isinstance(r, dict):
+        return None
+    raw = r.get("money_at_stake")
+    if raw is None or isinstance(raw, bool):
+        return None
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        return None
+    if v != v or v in (float("inf"), float("-inf")):   # NaN / inf
+        return None
+    return round(v, 2)
+
+
 class DeskStore:
     def __init__(self, dsn: Optional[str] = None):
         from app.fund.pgstore import dsn as default_dsn
@@ -104,7 +127,15 @@ class DeskStore:
             recs.append({"rec_id": i, "seat": seat, "status": "open",
                          "trace_id": trace_id,
                          "text": str(r.get("text") or r).strip(),
-                         "kind": r.get("kind") if isinstance(r, dict) else None})
+                         "kind": r.get("kind") if isinstance(r, dict) else None,
+                         # OPTIONAL. 47 of 47 open recommendations carried no
+                         # dollar figure, so the CEO's desk ranked its queue by
+                         # arrival order while claiming to rank by money
+                         # (builder dispatch 3). None means the seat did not
+                         # state a figure — it does NOT mean $0, and the desk
+                         # ranks absent-last and says the gap out loud rather
+                         # than scraping a number out of prose.
+                         "money_at_stake": _money_at_stake(r)})
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(

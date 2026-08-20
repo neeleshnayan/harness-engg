@@ -484,6 +484,11 @@ def get_transaction_costs(limit: int = Query(500, ge=1, le=5000)):
     return {
         "summary": summarise(rows),
         "by_strategy": tca.by_strategy(limit=limit),
+        # Per-instrument and per-venue cuts. The venue cut exists because one
+        # venue in this fund cannot measure execution cost at all, and averaging
+        # it in is how "cheaper than modelled" got onto a panel.
+        "by_symbol": tca.by_symbol(limit=limit),
+        "by_venue": tca.by_venue(limit=limit),
         "orders": [r.to_dict() for r in rows],
     }
 
@@ -1297,7 +1302,15 @@ def research_desk():
     agents. That honesty line is carried in the payload so the UI renders it.
     """
     from app.fund import desk
-    return desk.view(_store, deskstore=_deskstore())
+    # Pending orders are part of the CEO's open-item count (the COO triage
+    # trigger), and unreadable pending orders make the count INCOMPLETE rather
+    # than smaller — desk_load says which component it could not read.
+    pending = None
+    try:
+        pending = _orders.pending()
+    except Exception as e:  # noqa: BLE001
+        logger.info("desk load: pending orders unreadable: %s", e)
+    return desk.view(_store, deskstore=_deskstore(), pending_orders=pending)
 
 
 @router.post("/fund/desk/requests")
@@ -1446,6 +1459,10 @@ class AgentRunRecord(BaseModel):
     # The chatter thread this run belongs to — the desk request's trace_id,
     # carried verbatim so the whole chain replays from one id.
     trace_id: Optional[str] = None
+    # Each recommendation is {kind, text, money_at_stake?}. `money_at_stake` is
+    # an OPTIONAL float: the dollars this recommendation moves, stated by the
+    # seat. Absent means the seat did not state one — never zero — and the
+    # desk ranks absent-last and prints the gap.
     recommendations: Optional[list[dict]] = None
     meta: Optional[dict] = None
 
@@ -1588,7 +1605,45 @@ def judgement_register(today: str | None = Query(None)):
     """
     from app.fund import judgement
     judgement.use_control(_control)
+    judgement.use_metrics(_judgement_metrics)
     return judgement.review(today)
+
+
+def _judgement_metrics() -> dict[str, Any]:
+    """The live metric namespace machine-checkable review triggers read.
+
+    Deliberately small and deliberately CHEAP relative to the alternative: one
+    `assess()` per register read, not one per entry. `risk_advanced.*` is NOT
+    in here — that view computes a covariance matrix over 174 observations, and
+    a register that recomputes it on every poll would be switched off. Entries
+    wanting an advanced-risk trigger keep prose until there is a cached view to
+    read; that is a stated gap, not an oversight.
+
+    An unreadable metric is ABSENT from this dict, never zero — TriggerSpec
+    reports a missing key as UNCHECKED, which is the honest reading.
+    """
+    out: dict[str, Any] = {}
+    try:
+        a = _monitor.assess()
+    except Exception as e:  # noqa: BLE001
+        logger.info("judgement metrics: risk monitor unreadable: %s", e)
+        return out
+    dd = a.get("drawdown") or {}
+    for src, dst in (("drawdown_pct", "risk_monitor.drawdown_pct"),
+                     ("max_drawdown_pct", "risk_monitor.max_drawdown_pct"),
+                     ("peak_nav", "risk_monitor.peak_nav")):
+        if dd.get(src) is not None:
+            out[dst] = dd[src]
+    if dd.get("utilization") is not None:
+        out["risk_monitor.drawdown_utilization_pct"] = dd["utilization"] * 100.0
+    for src, dst in (("nav_usd", "risk_monitor.nav_usd"),
+                     ("cash_pct", "risk_monitor.cash_pct"),
+                     ("gross_exposure_pct", "risk_monitor.gross_exposure_pct")):
+        if a.get(src) is not None:
+            out[dst] = a[src]
+    out["risk_monitor.open_alarms"] = len(a.get("alarms") or [])
+    out["risk_monitor.halted"] = 1.0 if a.get("halted") else 0.0
+    return out
 
 
 @router.get("/fund/digest")

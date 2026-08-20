@@ -308,6 +308,14 @@ class CommandPipeline:
             payload={
                 "symbol": order.symbol, "side": order.side.value, "strategy_id": order.strategy_id,
                 "filled_qty": D(qty), "avg_price": D(px or 0), "fees": D(fees or 0),
+                # The venue, on the FILL. It was only ever on OrderSubmitted, so
+                # any consumer that folds fills alone — and TCA's own "is this
+                # fill informative?" test is one — had to join two events to
+                # answer "which venue priced this?". The paper venue fills at
+                # its own quote and can therefore never measure execution cost
+                # (validator 8b863152), which makes venue a property the fill
+                # must carry rather than one a reader has to look up.
+                "venue": order.venue,
             },
             actor="system",
         ))
