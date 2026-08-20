@@ -190,6 +190,27 @@ def _compound(xs, block: int) -> list[float]:
     return out
 
 
+VR_MAX = 2.0  # variance-ratio ceiling for a certifiable premia stream
+
+
+def _vr21(xs) -> float:
+    """Variance ratio: 21-day-aggregated variance vs 21x the daily variance.
+
+    iid streams sit near 1. A persistent wander (AR(1) rho=.98 has VR ~ 19)
+    can realise a decade of Sharpe ~1 from a zero-mean process — and a
+    realisation that genuinely delivered cannot be rejected by ANY
+    backward-looking performance statistic. The honest verdict for such a
+    stream is CANNOT TELL, not PASS: the guard refuses to certify what the
+    instrument cannot distinguish from luck-with-momentum. (In the
+    measurement below a refusal counts as a non-pass.)
+    """
+    vd = _vol_p(xs, 252.0)
+    if vd <= 1e-12:
+        return float("inf")
+    vc = _vol_p(_compound(xs, 21), 252.0 / 21)
+    return (vc / vd) ** 2
+
+
 def _sharpe(rets, a, b) -> float:
     xs = rets[a:b]
     n = len(xs)
@@ -355,7 +376,11 @@ def rule_premia_r3(strat, bench, n, *, floor=0.0, scale=False, margin=0.5,
 
 def rule_premia_r4(strat, bench, n, *, floor=0.0, scale=False, margin=2.0,
                    drops=(), rho=MPPM_RHO, two_scale=True) -> bool:
-    """Round 4: vol-matched paired MPPM. THREE legs, all required:
+    """Round 4: vol-matched paired MPPM. FOUR legs, all required:
+      0. the structure guard: the strategy stream's 21-day variance ratio
+         must sit under VR_MAX — a high-persistence stream's realised edge
+         is indistinguishable from a zero-mean wander that got lucky, so
+         the verdict is CANNOT TELL (a non-pass here), never PASS;
       1. majority of measurable per-fold test-leg comparisons (daily scale);
       2. full-history daily-scale comparison above the margin — a rare loss
          cannot dodge the full sample: if it happened at all, the CRRA
@@ -364,6 +389,8 @@ def rule_premia_r4(strat, bench, n, *, floor=0.0, scale=False, margin=2.0,
          horizon where autocorrelation shows up in the vol that matching
          must respect (daily MPPM is structurally blind to it).
     """
+    if two_scale and _vr21(strat[:n]) > VR_MAX:
+        return False
     folds = _folds(n)
     meas = ret = 0
     for j, (t0, t1, t2) in enumerate(folds):

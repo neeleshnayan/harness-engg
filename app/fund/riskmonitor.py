@@ -203,7 +203,7 @@ class RiskMonitor:
         self._control = control or RiskControl(self._store)
 
     def assess(self) -> dict[str, Any]:
-        """The full current risk picture — Rushi's single pane of glass."""
+        """The full current risk picture — the CEO's single pane of glass."""
         limits_obj = self._control.limits()
         limits_dict = limits_obj.to_dict()
 

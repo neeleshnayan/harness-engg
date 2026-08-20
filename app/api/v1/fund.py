@@ -1983,7 +1983,7 @@ def external_signal(req: ExternalSignalRequest):
 # script, a replayed command, a probing seat) and approval without
 # ATTRIBUTION. Three checks, all fail-closed, approvals only (declines are
 # reversible and stay open):
-#   1. allowlist — only "rushi" (the CEO's own click) and "rushi-via-cto"
+#   1. allowlist — only "neelesh" (the CEO's own click) and "neelesh-via-cto"
 #      (the CTO executing an EXPLICIT CEO instruction) may approve;
 #   2. echo — the request must repeat the first 8 chars of the id it
 #      approves: nothing can approve what it has not read;
@@ -1991,8 +1991,12 @@ def external_signal(req: ExternalSignalRequest):
 #      verbatim; the quote lands in the approval event for the riskofficer.
 # A refused approval is RECORDED as an ApprovalRefused event: a probe becomes
 # a finding, not a fill. Widening this allowlist is a versioned change.
-APPROVAL_ALLOWLIST = {"rushi", "rushi-via-cto"}
-DESK_APPROVAL_ALLOWLIST = {"ceo", "rushi", "rushi-via-cto"}
+# v1.1 (2026-08-20, CEO instruction "rushi is out of the picture; your ceo is
+# neelesh"): the approval identity migrated rushi -> neelesh. Historical
+# events keep the rushi actor they were recorded with; the name can no longer
+# approve anything.
+APPROVAL_ALLOWLIST = {"neelesh", "neelesh-via-cto"}
+DESK_APPROVAL_ALLOWLIST = {"ceo", "neelesh", "neelesh-via-cto"}
 
 
 def _guard_approval(kind: str, target_id: str, approver: str,
@@ -2009,7 +2013,7 @@ def _guard_approval(kind: str, target_id: str, approver: str,
     elif (confirm or "").strip() != want:
         reason = (f"confirm echo missing or wrong: approving this {kind} "
                   f"requires confirm='{want}' (the first 8 chars of its id)")
-    elif who == "rushi-via-cto" and not (instruction or "").strip():
+    elif who == "neelesh-via-cto" and not (instruction or "").strip():
         reason = ("a via-cto approval must quote the CEO's explicit "
                   "instruction verbatim in 'instruction'")
     if reason:
@@ -2021,8 +2025,8 @@ def _guard_approval(kind: str, target_id: str, approver: str,
                      "at": datetime.now(timezone.utc).isoformat()},
             actor=approver or "unknown"))
         raise HTTPException(status_code=403, detail=f"approval refused: {reason}")
-    if who == "rushi-via-cto":
-        return f"rushi-via-cto [{(instruction or '').strip()}]"
+    if who == "neelesh-via-cto":
+        return f"neelesh-via-cto [{(instruction or '').strip()}]"
     return approver
 
 
@@ -3027,7 +3031,7 @@ class ResearchPromoteRequest(BaseModel):
     definition: dict
     backtest: dict | None = None
     allocation_pct: float = 10.0
-    actor: str = "rushi"
+    actor: str = "neelesh"
     note: str | None = None
 
 

@@ -263,7 +263,7 @@ class ApprovalRequest(BaseModel):
                           "deliberate echo that makes accidental approval "
                           "impossible. Required to APPROVE, ignored on decline.")
     instruction: Optional[str] = Field(
-        None, description="For approver 'rushi-via-cto' only: the CEO's "
+        None, description="For approver 'neelesh-via-cto' only: the CEO's "
                           "explicit instruction, quoted verbatim. Recorded in "
                           "the approval event.")
 

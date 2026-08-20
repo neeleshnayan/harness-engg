@@ -64,32 +64,32 @@ def test_free_text_cto_cannot_approve(store):
 
 
 def test_missing_echo_is_refused(store):
-    detail, _ = _refused(store, approver="rushi")
+    detail, _ = _refused(store, approver="neelesh")
     assert "confirm" in detail
 
 
 def test_wrong_echo_is_refused(store):
-    detail, _ = _refused(store, approver="rushi", confirm="deadbeef")
+    detail, _ = _refused(store, approver="neelesh", confirm="deadbeef")
     assert "confirm" in detail
 
 
 def test_via_cto_without_citation_is_refused(store):
-    detail, _ = _refused(store, approver="rushi-via-cto", confirm=OID[:8])
+    detail, _ = _refused(store, approver="neelesh-via-cto", confirm=OID[:8])
     assert "instruction" in detail
 
 
 def test_the_ceo_click_passes_clean(store):
-    out = api._guard_approval("order", OID, "rushi", OID[:8], None,
+    out = api._guard_approval("order", OID, "neelesh", OID[:8], None,
                               api.APPROVAL_ALLOWLIST)
-    assert out == "rushi"
+    assert out == "neelesh"
     assert store.events == []  # a clean approval records no refusal
 
 
 def test_via_cto_passes_only_with_the_quote_attached(store):
-    out = api._guard_approval("order", OID, "rushi-via-cto", OID[:8],
+    out = api._guard_approval("order", OID, "neelesh-via-cto", OID[:8],
                               "good to approve my tickets",
                               api.APPROVAL_ALLOWLIST)
-    assert out == "rushi-via-cto [good to approve my tickets]"
+    assert out == "neelesh-via-cto [good to approve my tickets]"
     assert store.events == []
 
 
@@ -100,9 +100,9 @@ def test_desk_allowlist_admits_the_ui_ceo_actor(store):
 
 
 def test_case_is_normalised_but_attribution_is_preserved(store):
-    out = api._guard_approval("order", OID, "Rushi", OID[:8], None,
+    out = api._guard_approval("order", OID, "Neelesh", OID[:8], None,
                               api.APPROVAL_ALLOWLIST)
-    assert out == "Rushi"
+    assert out == "Neelesh"
 
 
 def test_a_refused_probe_does_not_hide_the_pending_order():
