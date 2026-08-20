@@ -31,12 +31,15 @@ _ORDERS = "fund_paper_orders"     # idempotency_key -> submitted order + fill
 _BOOK = "fund_paper_book"         # venue truth: positions + cash (for reconciliation)
 _BOOK_DOC = "current"
 
-# Seed marks for the paper venue. Phase 2 replaces this with a real oracle.
+# The ONLY module-level seeds are definitional pegs. The equity seeds that
+# used to live here (AAPL 220, MSFT 430, SPY 560, NVDA 120) were removed
+# 2026-08-20 by the riskofficer's first audit (F1): during the phantom-price
+# incident the SAME feed miss served SPY at the seed 560.0 (true 769) and NVDA
+# at 120.0 (true 218) — proven to four decimals from the underwater alarms'
+# metrics against cost bases. A stale chosen number is a fabricated mark with
+# better manners; for a mark, "someone typed it in phase 1" is not a defence.
+# Tests that need deterministic prices pass them explicitly via `prices=`.
 _SEED_PRICES = {
-    "AAPL": 220.0,
-    "MSFT": 430.0,
-    "SPY": 560.0,
-    "NVDA": 120.0,
     "USDC": 1.0,
     "USD": 1.0,
 }

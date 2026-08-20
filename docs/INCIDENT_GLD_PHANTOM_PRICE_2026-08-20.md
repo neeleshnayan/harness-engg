@@ -103,3 +103,38 @@ discipline (phase-1 scaffolding, "Phase 2 replaces this with a real oracle").
    on it). Fix with the mark-sanity work.
 4. **R4** (retire the machinery-test rule) — the CEO's open decision; the
    rule's GLD position is gone, so its remaining risk is re-acquisition.
+
+---
+
+## §2 — CORRECTIONS from the riskofficer's audit (same day; new section, never edit)
+
+The seat's first audit (run-riskofficer-1, trace-incident-gld-phantom) measured
+three claims in this document against the log and corrected them:
+
+1. **The halt did NOT catch it "within seconds".** Fill: seq 258 at
+   08:01:27.147Z. First `TradingHalted`: seq 265 at **08:16:08.932Z** —
+   **14 minutes 41 seconds later**. Structurally the halt can never gate the
+   first bad fill (the loss that trips it is realized by that fill); it
+   protects the second. Why it took ~29 monitor ticks is an open measurement
+   (audit F4). The CEO's 08:33:34 manual resume was re-halted by the monitor
+   8.6 seconds later — correct behaviour, and the auto-policy was armed for
+   those 8.6 seconds.
+2. **The −$133.21 is NAV destroyed vs the true mark**
+   (0.424471 × (413.84 − 100.00)), not "realized ledger loss" — that is
+   −$128.28 vs cost basis (0.424471 × (402.18 − 100.00)). Both quantities are
+   real; this doc's label was wrong. Reconciles exactly: 2011.81 × 6.6214% =
+   133.21; 2011.81 − 133.21 = 1878.60 = live NAV.
+3. **The root-cause fix was incomplete.** `_SEED_PRICES` still served
+   fabricated marks in the SAME incident: SPY at the seed 560.0 (true 769.06,
+   seq 250: 28.0742% underwater vs basis 778.58 → implied 559.9999) and NVDA
+   at the seed 120.0 (true 217.56, seq 253 → implied 120.0001). GLD was only
+   special because it carried an armed loss rule. Equity seeds removed the
+   same day (audit R2); USD/USDC pegs remain — definitional, not marks.
+
+The audit also found the envelope's stated premise was false for this order
+(the "pre-committed" rule was set 2026-08-17, three days AFTER the position
+opened 2026-08-14, under a different strategy_id) and that the exit marker is
+forgeable through the unauthenticated propose endpoint (demonstrated offline
+against evaluate(), bounded by the risk gate to ~15% NAV per order). Envelope
+v2 recommendations R1–R8 are on the desk as decidable rows on
+run-riskofficer-1.

@@ -38,7 +38,10 @@ def wire():
     """Fresh, isolated spine wiring for one test."""
     _DB._store.clear()
     store = EventStore()
-    conn = PaperConnector(prices={"AAPL": 200.0})
+    # Deterministic test prices live HERE, explicitly — the module-level equity
+    # seeds were removed 2026-08-20 (riskofficer F1: a stale seed is a
+    # fabricated mark; SPY served at 560 vs a true 769 during the incident).
+    conn = PaperConnector(prices={"AAPL": 200.0, "MSFT": 430.0})
     proj = PositionsProjection(store)
     nav = NavService(pricer=conn.price, store=store, projection=proj)
     holdings = HoldingsProjection(store)
