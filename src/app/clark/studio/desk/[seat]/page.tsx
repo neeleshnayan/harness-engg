@@ -6,8 +6,7 @@ import { notFound, useParams } from "next/navigation";
 import { AlertTriangle, ArrowLeft, Send } from "lucide-react";
 import { fundApiClient, DeskView, SpineEvent } from "@/lib/fund_api";
 import { KT } from "../../theme";
-import { StudioNav } from "../../components/StudioNav";
-import { RiskBar } from "../../components/RiskBar";
+import { StudioHeader } from "../../components/StudioHeader";
 import {
   Metric, ProductionShelf, RecRow, RunRow, SectionHead, WindowNote,
 } from "../components";
@@ -128,8 +127,10 @@ function Seat({ seat }: { seat: SeatId }) {
   );
 
   return (
-    <>
-      <RiskBar />
+    <div className="min-h-screen bg-[var(--kt-bg)] text-[var(--kt-text)]">
+      {/* the ONE Studio shell — theme, nav, risk bar; forking it is how the
+          desk pages ended up in a different mode from the rest of the Studio */}
+      <StudioHeader subtitle="A seat's office — decide, ask, inspect, calibrate trust" />
       <div className={KT.container}>
         <header className="mb-7 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
           <div className="min-w-0 flex-1">
@@ -170,9 +171,6 @@ function Seat({ seat }: { seat: SeatId }) {
                 <LastDelivered roster={roster} />
               </div>
             </div>
-          </div>
-          <div className="shrink-0">
-            <StudioNav />
           </div>
         </header>
 
@@ -354,7 +352,7 @@ function Seat({ seat }: { seat: SeatId }) {
         {/* ------------------------------------------------ 5. track record --- */}
         <LaneTrackRecord seat={seat} runs={seatRuns} desk={desk} events={events ?? []} />
       </div>
-    </>
+    </div>
   );
 }
 

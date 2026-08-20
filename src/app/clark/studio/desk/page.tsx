@@ -11,11 +11,10 @@ import {
   Swords,
   Users,
 } from "lucide-react";
-import { fundApiClient, DeskView, MechanicsView, SpineEvent } from "@/lib/fund_api";
+import { fundApiClient, DeskView, SpineEvent } from "@/lib/fund_api";
 import { KT } from "../theme";
-import { StudioNav } from "../components/StudioNav";
-import { RiskBar } from "../components/RiskBar";
-import { Arc, Ladder } from "../components/mechanics/MechanicsViews";
+import { StudioHeader } from "../components/StudioHeader";
+import { faceFor } from "./faces";
 import {
   Metric, ProductionShelf, RecRow, RunRow, SectionHead, WindowNote,
 } from "./components";
@@ -66,7 +65,6 @@ const STATUS_CHIP: Record<string, string> = {
 export default function DeskPage() {
   const [d, setD] = useState<DeskView | null>(null);
   const [events, setEvents] = useState<SpineEvent[] | null>(null);
-  const [mech, setMech] = useState<MechanicsView | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [eventsErr, setEventsErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -76,18 +74,14 @@ export default function DeskPage() {
   const [day, setDay] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [desk, ev, m] = await Promise.allSettled([
+    const [desk, ev] = await Promise.allSettled([
       fundApiClient.getDesk(),
       fundApiClient.getEvents(1000, 0),
-      fundApiClient.getMechanics(),
     ]);
     if (desk.status === "fulfilled") { setD(desk.value); setErr(null); }
     else setErr(desk.reason instanceof Error ? desk.reason.message : "unreachable");
     if (ev.status === "fulfilled") { setEvents(ev.value.events || []); setEventsErr(null); }
     else setEventsErr(ev.reason instanceof Error ? ev.reason.message : "unreachable");
-    // Mechanics is the slow read (it walks several subsystems); the office
-    // survives without it and says so.
-    setMech(m.status === "fulfilled" ? m.value : null);
   }, []);
 
   useEffect(() => {
@@ -149,18 +143,20 @@ export default function DeskPage() {
   );
 
   return (
-    <>
-      <RiskBar />
+    <div className="min-h-screen bg-[var(--kt-bg)] text-[var(--kt-text)]">
+      {/* The ONE Studio shell — theme toggle, nav, risk bar and all. The desk
+          previously rolled its own header, which dropped the ThemeToggle and
+          the themed background: the office rendered in a different mode from
+          every other page (found by the CEO, live). Forking the shell is how
+          that class of drift happens; this page no longer does. */}
+      <StudioHeader subtitle="The office — the firm live, one desk per seat, every past day reviewable" />
       <div className={KT.container}>
-        <header className="mb-7 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className={KT.label}>Krypton Fund · The office</p>
-            <h1 className="mt-1 flex items-center gap-2 text-2xl font-medium tracking-tight">
-              <Swords size={22} className={KT.accent} />
-              The firm that builds the fund
-            </h1>
-          </div>
-          <StudioNav />
+        <header className="mb-7">
+          <p className={KT.label}>Krypton Fund · The office</p>
+          <h1 className="mt-1 flex items-center gap-2 text-2xl font-medium tracking-tight">
+            <Swords size={22} className={KT.accent} />
+            The firm that builds the fund
+          </h1>
         </header>
 
         {err && (
@@ -178,6 +174,31 @@ export default function DeskPage() {
               <p className={`${KT.label} mb-3 flex items-center gap-2`}>
                 <Users size={12} /> The floor — live
               </p>
+              {/* The top row is the humans: hierarchy reads top-down
+                  (CEO → COO → CTO → bench). No working/idle badge — humans are
+                  not dispatched. CEO ask 2026-08-20: names on, clickable. */}
+              <div className="mb-3 grid gap-3 sm:grid-cols-2">
+                <Link href="/clark/studio/desk/ceo"
+                      className={`${KT.card} ${KT.cardHover} flex items-center gap-3 p-3`}>
+                  <SeatFace actor="ceo" size={42} />
+                  <span>
+                    <span className="block font-medium">Neelesh</span>
+                    <span className={`block text-[11px] ${KT.muted}`}>
+                      CEO — everything awaiting your click, in one place
+                    </span>
+                  </span>
+                </Link>
+                <Link href="/clark/studio/desk/cto"
+                      className={`${KT.card} ${KT.cardHover} flex items-center gap-3 p-3`}>
+                  <SeatFace actor="cto" size={42} />
+                  <span>
+                    <span className="block font-medium">Fable</span>
+                    <span className={`block text-[11px] ${KT.muted}`}>
+                      CTO — the build and dispatch queue, and what it costs
+                    </span>
+                  </span>
+                </Link>
+              </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {d.roster.map((r) => <Desk key={r.agent} r={r} />)}
               </div>
@@ -252,32 +273,23 @@ export default function DeskPage() {
               </p>
             </section>
 
-            {/* open requests */}
-            {d.requests.filter((r) => r.status === "open").length > 0 && (
+            {/* ------------------------------- requests: who is asking for whom
+                The chain (constitution amendment, 2026-08-20): a seat or human
+                FILES an ask → the CEO APPROVES it → the CTO TRIGGERS the
+                dispatch. Approval is recorded as an event and is never itself
+                a trigger. Requests already blessed render as "approved —
+                awaiting the CTO"; open ones carry the Approve control. */}
+            {d.requests.filter((r) => r.status !== "resolved").length > 0 && (
               <section className="mb-8">
-                <p className={`${KT.label} mb-2`}>
-                  Waiting for the CTO session ({d.open_requests})
-                </p>
+                <SectionHead
+                  title="Requests between desks"
+                  lede="Who wants to call whom, and for what. Approving records your blessing on the log and hands the ask to the CTO to trigger — it runs nothing by itself."
+                />
                 <div className="space-y-1.5">
                   {d.requests
-                    .filter((r) => r.status === "open")
+                    .filter((r) => r.status !== "resolved")
                     .map((r) => (
-                      <div key={r.request_id} className={`${KT.card} p-3 text-sm`}>
-                        <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--kt-warn)]">
-                          {r.kind} → {isSeat(r.serves)
-                            ? <Link href={`/clark/studio/desk/${r.serves}`} className="hover:underline">{r.serves}</Link>
-                            : r.serves}
-                        </span>
-                        <span className="ml-3">{r.subject}</span>
-                        {r.actor && (
-                          <span className={`ml-2 font-mono text-[10px] ${KT.muted}`}>
-                            asked by {r.actor}{r.at ? ` · ${fmtAt(r.at)}` : ""}
-                          </span>
-                        )}
-                        {r.note && (
-                          <p className={`mt-1 text-xs ${KT.muted}`}>{r.note}</p>
-                        )}
-                      </div>
+                      <RequestRow key={r.request_id} r={r} onChanged={load} />
                     ))}
                 </div>
               </section>
@@ -481,25 +493,17 @@ export default function DeskPage() {
               </ol>
             </section>
 
-            {/* How the machine got here — moved from the Mechanics tab, which
-                no longer exists. The story and the ladder are about the FIRM,
-                so they live in the office; the belt's charts moved to quant. */}
-            {mech && (
-              <section className="mb-4">
-                <Arc m={mech} />
-                <Ladder m={mech} />
-              </section>
-            )}
-            {!mech && (
-              <p className={`mb-8 text-xs ${KT.muted}`}>
-                The machinery view (GET /fund/mechanics) could not be read — its
-                sections are absent from this page rather than drawn empty.
-              </p>
-            )}
+            {/* "How it got here" (the Arc + Ladder from Mechanics) was retired
+                from this page 2026-08-20 by CEO decision — it read as stale on
+                a live surface, and the firm's origin story is Doctrine's job
+                (/clark/studio/doctrine, the design audit's reference page).
+                Removing it also dropped the slow /fund/mechanics fetch from
+                the office's 10-second poll. The belt-native views stay on the
+                quant's page, where they inform dispatches. */}
           </>
         )}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -636,6 +640,60 @@ function FloorAsOf({ roster, fold }: { roster: DeskView["roster"]; fold: DayFold
           <div key={r.agent} className={`${KT.inset} p-3`}>{body}</div>
         );
       })}
+    </div>
+  );
+}
+
+/** One ask between desks: FROM requester TO the seat it calls, with the CEO's
+ *  approve control while it is open, and its blessing state once given. The
+ *  approve posts an event — it triggers nothing, and the row says so. */
+function RequestRow({ r, onChanged }: {
+  r: DeskView["requests"][number];
+  onChanged: () => Promise<void> | void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const approve = async () => {
+    setBusy(true);
+    try {
+      await fundApiClient.approveDeskRequest(r.request_id, { actor: "ceo" });
+      await onChanged();
+    } finally {
+      setBusy(false);
+    }
+  };
+  const requester = (r.actor || "").trim();
+  return (
+    <div className={`${KT.card} flex flex-wrap items-center gap-x-3 gap-y-1.5 p-3 text-sm`}>
+      <span className="flex shrink-0 items-center gap-1.5 font-mono text-[11px]">
+        <SeatFace actor={requester} size={18} decorative />
+        {faceFor(requester)?.label ?? (requester || "unattributed")}
+      </span>
+      <span className={`font-mono text-[10px] uppercase tracking-[0.1em] ${KT.muted}`}>
+        asks
+      </span>
+      <span className="flex shrink-0 items-center gap-1.5 font-mono text-[11px]">
+        <SeatFace actor={r.serves} size={18} decorative />
+        {isSeat(r.serves)
+          ? <Link href={`/clark/studio/desk/${r.serves}`} className={`${KT.accent} hover:underline`}>{r.serves}</Link>
+          : r.serves}
+      </span>
+      <span className="min-w-0 flex-1 text-[13px] leading-snug">{r.subject}</span>
+      {r.at && (
+        <span className={`font-mono text-[10px] tabular-nums ${KT.muted}`}>{fmtAt(r.at)}</span>
+      )}
+      {r.status === "open" ? (
+        <button type="button" disabled={busy} onClick={approve}
+                className={`${KT.btn} shrink-0 px-2 py-1 text-xs disabled:opacity-40`}>
+          {busy ? "Recording…" : "Approve for dispatch"}
+        </button>
+      ) : (
+        <span className="shrink-0 rounded-full border border-[var(--kt-accent-border)] bg-[var(--kt-accent-bg)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--kt-accent)]">
+          approved — awaiting the CTO&apos;s trigger
+        </span>
+      )}
+      {r.note && (
+        <p className={`w-full text-xs ${KT.muted}`}>{r.note}</p>
+      )}
     </div>
   );
 }

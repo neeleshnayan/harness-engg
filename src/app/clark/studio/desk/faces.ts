@@ -135,13 +135,13 @@ export const FACES: Readonly<Record<string, FaceSpec>> = Object.freeze({
   },
 
   ceo: {
-    id: "ceo", label: "ceo", kind: "human",
-    role: "risk appetite, identity, and every approval click",
+    id: "ceo", label: "Neelesh", kind: "human",
+    role: "CEO — risk appetite, identity, and every approval click",
     head: "round", eyes: "dots", mouth: "smile", feature: "tie",
   },
   cto: {
-    id: "cto", label: "cto", kind: "human",
-    role: "architecture, dispatch, and verification of every agent claim",
+    id: "cto", label: "Fable", kind: "human",
+    role: "CTO — architecture, dispatch, and verification of every agent claim",
     head: "oval", eyes: "dots", mouth: "flat", feature: "headset",
   },
   operator: {
@@ -185,6 +185,13 @@ const ALIASES: ReadonlyArray<{ re: RegExp; id: string }> = [
   { re: /^auto-policy-v\d+$/, id: "auto-policy" },
   { re: /^claude:[a-z0-9_-]+$/i, id: "clark" },
   { re: /^claude$/i, id: "clark" },
+  // The CEO's operator handle on the venue log (every human approval click to
+  // date is actor `rushi`). Same person as `ceo`, so the SAME spec object —
+  // aliasing one human to their own face is truthful; a second face would be
+  // the lie the uniqueness rule exists to prevent.
+  { re: /^rushi$/, id: "ceo" },
+  { re: /^neelesh$/, id: "ceo" },
+  { re: /^fable$/, id: "cto" },
 ];
 
 /**

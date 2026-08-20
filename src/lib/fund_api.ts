@@ -117,6 +117,9 @@ export interface LpView {
 }
 
 export interface PendingOrder {
+  /** Minutes since the proposal was made, server-computed. Proposals expire at
+   *  120 — the CEO desk renders the countdown so a ticket never dies unseen. */
+  age_minutes?: number | null;
   /** Present on limit orders; null/absent means market. Part of what is
    *  approved, so the card must show it. */
   limit_price?: number | null;
@@ -797,8 +800,12 @@ export interface DeskView {
   }[];
   requests: {
     request_id: string; kind: string; serves: string; subject: string;
-    note?: string; at?: string; status: 'open' | 'resolved';
+    note?: string; at?: string;
+    status: 'open' | 'approved' | 'resolved';
     resolution?: string;
+    /** CEO endorsement of a queued ask (seat-filed or human-filed) — the
+     *  middle hop of seat files → CEO approves → CTO triggers. */
+    approved_by?: string; approved_at?: string;
     /** Who asked (ceo / cto). Present on every DESK_REQUESTED payload; typed
      *  here because the office view attributes each day's asks to a person. */
     actor?: string;
@@ -1977,6 +1984,10 @@ export const fundApiClient = {
   /** One algorithm's source, verbatim. The field is `code`. */
   getLeanAlgorithm: async (name: string): Promise<{ name: string; code: string }> =>
     (await fundApi.get(`${P}/lean/algorithms/${encodeURIComponent(name)}`)).data,
+
+  /** CEO endorsement of a queued desk request — approval, never a trigger. */
+  approveDeskRequest: async (requestId: string, body?: { actor?: string; note?: string }) =>
+    (await fundApi.post(`${P}/desk/requests/${requestId}/approve`, body ?? {})).data,
 
   /** Decide one agent recommendation (CEO): accepted | rejected. */
   decideRecommendation: async (runId: string, recId: number,

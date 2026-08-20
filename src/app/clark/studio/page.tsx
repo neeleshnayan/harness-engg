@@ -281,7 +281,8 @@ export default function MonitorHome() {
               the spine's job is limits, exits and the ledger, never ideas.
               The /fund/signals endpoint remains for the API surface; this
               panel is gone so no reader mistakes the harness for a signal
-              source again. Restore = re-add <SignalsPanel/>. */}
+              source again. The component file was deleted in the 2026-08-20
+              dead-code sweep (CEO decision) — restore from git history. */}
         </div>
 
         {/* ── STATE: what the fund is, right now. ── */}
