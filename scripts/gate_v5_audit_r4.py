@@ -125,14 +125,14 @@ def _beta(strat, bench, a, b) -> float:
     return cov / var
 
 
-def _mppm(xs, rho: float = MPPM_RHO) -> float | None:
+def _mppm(xs, rho: float, periods: float = 252.0) -> float | None:
     """Manipulation-proof measure, %/yr: (1/((1-rho)dt)) ln E[(1+r)^(1-rho)].
 
     A window containing ruin (1+r <= 0 after levering) returns -100 — the
     CRRA verdict on ruin is terminal, which is the point of the measure.
     """
     n = len(xs)
-    if n < 20:
+    if n < 10:
         return None
     acc = 0.0
     for r in xs:
@@ -140,24 +140,54 @@ def _mppm(xs, rho: float = MPPM_RHO) -> float | None:
         if g <= 0.0:
             return -100.0
         acc += g ** (1.0 - rho)
-    return math.log(acc / n) * (252.0 / (1.0 - rho)) * 100.0
+    return math.log(acc / n) * (periods / (1.0 - rho)) * 100.0
 
 
-def _paired_mppm(strat, bench, a, b) -> float | None:
+def _vol_p(xs, periods: float) -> float:
+    n = len(xs)
+    if n < 2:
+        return 0.0
+    mu = sum(xs) / n
+    return math.sqrt(sum((x - mu) ** 2 for x in xs) / n * periods)
+
+
+def _paired_mppm(strat, bench, a, b, rho: float = MPPM_RHO,
+                 agg: int = 1) -> float | None:
     """MPPM(strat levered to bench's realised vol) - MPPM(bench), %/yr.
 
     Vol-matching enforces 'risk-adjusted' by construction: an insurance
     seller's rare losses are levered up with its premium, so the CRRA
-    penalty prices exactly the tail its Sharpe hides.
+    penalty prices exactly the tail its Sharpe hides. Because both legs are
+    at the same vol, the Gaussian variance penalty CANCELS in the pair —
+    raising rho raises only the skew/tail discrimination.
+
+    ``agg`` > 1 compounds non-overlapping agg-day blocks first and measures
+    at that horizon. Daily MPPM is blind to autocorrelation (a slow wander
+    has tiny daily vol and levers into a fake trend); at a 21-day horizon
+    the wander's variance shows up in the vol that matching must respect.
     """
     s, m = strat[a:b], bench[a:b]
-    vs, vm = _vol_ann(s), _vol_ann(m)
+    if agg > 1:
+        s = _compound(s, agg)
+        m = _compound(m, agg)
+    periods = 252.0 / agg
+    vs, vm = _vol_p(s, periods), _vol_p(m, periods)
     lever = MAX_LEVER if vs <= 1e-9 else min(MAX_LEVER, vm / vs)
-    ts = _mppm([lever * x for x in s])
-    tm = _mppm(m)
+    ts = _mppm([lever * x for x in s], rho, periods)
+    tm = _mppm(m, rho, periods)
     if ts is None or tm is None:
         return None
     return ts - tm
+
+
+def _compound(xs, block: int) -> list[float]:
+    out = []
+    for i in range(0, len(xs) - block + 1, block):
+        acc = 1.0
+        for r in xs[i:i + block]:
+            acc *= (1.0 + r)
+        out.append(acc - 1.0)
+    return out
 
 
 def _sharpe(rets, a, b) -> float:
@@ -179,10 +209,13 @@ def _folds(n):
     return out
 
 
+_SHARE = [MEASURABLE_SHARE]  # mutable so --share can sweep it
+
+
 def _need(n_folds: int, scale: bool) -> int:
     if not scale:
         return FIXED_NEED
-    return max(FIXED_NEED, math.ceil(MEASURABLE_SHARE * n_folds))
+    return max(FIXED_NEED, math.ceil(_SHARE[0] * n_folds))
 
 
 # --- process makers ----------------------------------------------------------
@@ -321,17 +354,22 @@ def rule_premia_r3(strat, bench, n, *, floor=0.0, scale=False, margin=0.5,
 
 
 def rule_premia_r4(strat, bench, n, *, floor=0.0, scale=False, margin=2.0,
-                   drops=()) -> bool:
-    """Round 4: vol-matched paired MPPM. Majority of measurable per-fold
-    test-leg comparisons AND a full-history comparison above the margin
-    (%/yr). The full-sample guard is what a rare loss cannot dodge — if it
-    happened at all in the history, the CRRA average carries it."""
+                   drops=(), rho=MPPM_RHO, two_scale=True) -> bool:
+    """Round 4: vol-matched paired MPPM. THREE legs, all required:
+      1. majority of measurable per-fold test-leg comparisons (daily scale);
+      2. full-history daily-scale comparison above the margin — a rare loss
+         cannot dodge the full sample: if it happened at all, the CRRA
+         average carries it;
+      3. full-history 21-day-aggregated comparison above the margin — the
+         horizon where autocorrelation shows up in the vol that matching
+         must respect (daily MPPM is structurally blind to it).
+    """
     folds = _folds(n)
     meas = ret = 0
     for j, (t0, t1, t2) in enumerate(folds):
         if j < len(drops) and drops[j]:
             continue
-        d = _paired_mppm(strat, bench, t1, t2)
+        d = _paired_mppm(strat, bench, t1, t2, rho)
         if d is None:
             continue
         meas += 1
@@ -339,8 +377,14 @@ def rule_premia_r4(strat, bench, n, *, floor=0.0, scale=False, margin=2.0,
             ret += 1
     if not (meas >= _need(len(folds), scale) and ret * 2 > meas):
         return False
-    full = _paired_mppm(strat, bench, 0, n)
-    return full is not None and full > margin
+    full = _paired_mppm(strat, bench, 0, n, rho)
+    if full is None or full <= margin:
+        return False
+    if two_scale:
+        coarse = _paired_mppm(strat, bench, 0, n, rho, agg=21)
+        if coarse is None or coarse <= margin:
+            return False
+    return True
 
 
 RULES = {"v4_raw": rule_v4_raw, "v5_alpha": rule_v5_alpha,
@@ -360,7 +404,7 @@ def _select(bench, maker, rng, k_grid: int) -> list[float]:
 
 
 def _run_cell(rule, maker, args, n, seed_tag, *, floor, scale, margin,
-              k_grid, dropout) -> float:
+              k_grid, dropout, extra=None) -> float:
     rng = random.Random(args.seed + zlib.crc32(seed_tag.encode()))
     n_folds = len(_folds(n))
     hits = 0
@@ -369,7 +413,7 @@ def _run_cell(rule, maker, args, n, seed_tag, *, floor, scale, margin,
         strat = _select(bench, maker, rng, k_grid)
         drops = [rng.random() < dropout for _ in range(n_folds)]
         hits += rule(strat, bench, n, floor=floor, scale=scale, margin=margin,
-                     drops=drops)
+                     drops=drops, **(extra or {}))
     return 100.0 * hits / args.draws
 
 
@@ -392,7 +436,17 @@ def main() -> int:
     ap.add_argument("--n", type=int, default=630)
     ap.add_argument("--alpha-floor", type=float, default=2.0)
     ap.add_argument("--premia-margin", type=float, default=2.0,
-                    help="%%/yr on the paired MPPM (both legs of the rule)")
+                    help="%%/yr on the paired MPPM (all legs of the rule)")
+    ap.add_argument("--rho", type=float, default=MPPM_RHO,
+                    help="CRRA risk aversion for the MPPM")
+    ap.add_argument("--no-two-scale", action="store_true",
+                    help="drop the 21-day-aggregated full-sample leg")
+    ap.add_argument("--rho-sweep", action="store_true")
+    ap.add_argument("--share", type=float, default=MEASURABLE_SHARE,
+                    help="scaled floor: measurable >= ceil(share*available). "
+                         "Must sit below (1 - dropout) or judgeability halves "
+                         "on the binomial knife-edge.")
+    ap.add_argument("--share-sweep", action="store_true")
     ap.add_argument("--dropout", type=float, default=BELT_DROPOUT,
                     help="exogenous unmeasurable-fold rate (belt: 0.208)")
     ap.add_argument("--scale-folds", action="store_true")
@@ -402,15 +456,39 @@ def main() -> int:
     ap.add_argument("--class-table", action="store_true")
     ap.add_argument("--blindness", action="store_true")
     args = ap.parse_args()
+    _SHARE[0] = args.share
     k_grid = 1 if args.no_select else K_GRID
 
     hdr = (f"r4 audit | mktSharpe {args.market_sharpe} | vol {args.vol:.0%} | "
            f"n {args.n} ({len(_folds(args.n))} folds) | draws {args.draws} | "
            f"grid {'off' if k_grid == 1 else f'max-of-{k_grid}'} | "
            f"folds {'scaled' if args.scale_folds else f'fixed {FIXED_NEED}'} | "
-           f"dropout {args.dropout:.1%} | mppm rho {MPPM_RHO} | "
+           f"dropout {args.dropout:.1%} | mppm rho {args.rho} | "
+           f"two-scale {'off' if args.no_two_scale else 'on'} | "
            f"premia margin {args.premia_margin}%/yr")
     print(hdr)
+    prem_extra = {"rho": args.rho, "two_scale": not args.no_two_scale}
+
+    if args.rho_sweep:
+        cols = ("sv_300_15_b0", "sv_300_15_b1", "null_ar1_.98",
+                "premia_defensive")
+        print(f"{'rho':>6}" + "".join(f"{c:>18}" for c in cols)
+              + f"   (premia_r4, margin {args.premia_margin}, "
+              + f"two-scale {'off' if args.no_two_scale else 'on'})")
+        for rho in (3.0, 5.0, 8.0):
+            cells = []
+            for cname in cols:
+                maker = next(p[1] for p in PROCESSES if p[0] == cname)
+                cells.append(_run_cell(
+                    rule_premia_r4, maker, args, args.n, f"rho{rho}{cname}",
+                    floor=0.0, scale=args.scale_folds,
+                    margin=args.premia_margin, k_grid=k_grid,
+                    dropout=args.dropout,
+                    extra={"rho": rho, "two_scale": not args.no_two_scale}))
+            print(f"{rho:>6.1f}" + "".join(f"{c:>17.1f}%" for c in cells))
+        print("the Gaussian penalty cancels in the vol-matched pair, so rho")
+        print("moves only skew/tail discrimination; pick it in the open.")
+        return 0
 
     if args.blindness:
         print(f"{'(p, L)':>14}{'P(0 events, n days)':>22}"
@@ -435,10 +513,40 @@ def main() -> int:
                 cells.append(_run_cell(rule_premia_r4, maker, args, args.n,
                                        f"m{m}{cname}", floor=0.0,
                                        scale=args.scale_folds, margin=m,
-                                       k_grid=k_grid, dropout=args.dropout))
+                                       k_grid=k_grid, dropout=args.dropout,
+                                       extra=prem_extra))
             print(f"{m:>8.1f}" + "".join(f"{c:>17.1f}%" for c in cells))
         print("pick the margin in the open: every null column at or below the")
         print("FP budget with premia_defensive keeping a usable TP.")
+        return 0
+
+    if args.share_sweep:
+        nulls = [p for p in PROCESSES if p[3] is False and not p[2]]
+        spec_a = next(p[1] for p in PROCESSES if p[0] == "alpha_S1.0")
+        prem = next(p[1] for p in PROCESSES if p[0] == "premia_defensive")
+        print(f"{'share':>7}{'need':>6}{'null FPR (alpha)':>18}"
+              f"{'alphaS1 TP':>12}{'premia TP':>11}   "
+              f"(n {args.n}, scaled floor, dropout {args.dropout:.1%})")
+        for share in (0.5, 0.6, 0.75):
+            _SHARE[0] = share
+            need = _need(len(_folds(args.n)), True)
+            fpr = sum(_run_cell(rule_v5_alpha, p[1], args, args.n,
+                                f"s{share}{p[0]}", floor=args.alpha_floor,
+                                scale=True, margin=0.0, k_grid=k_grid,
+                                dropout=args.dropout)
+                      for p in nulls) / len(nulls)
+            tp_a = _run_cell(rule_v5_alpha, spec_a, args, args.n,
+                             f"s{share}a", floor=args.alpha_floor, scale=True,
+                             margin=0.0, k_grid=k_grid, dropout=args.dropout)
+            tp_p = _run_cell(rule_premia_r4, prem, args, args.n,
+                             f"s{share}p", floor=0.0, scale=True,
+                             margin=args.premia_margin, k_grid=k_grid,
+                             dropout=args.dropout, extra=prem_extra)
+            print(f"{share:>7.2f}{need:>6}{fpr:>17.1f}%{tp_a:>11.1f}%"
+                  f"{tp_p:>10.1f}%")
+        _SHARE[0] = args.share
+        print("the share must sit BELOW (1 - dropout): at 0.75 vs a 20.8%")
+        print("dropout the floor rides the binomial knife-edge and halves TP.")
         return 0
 
     if args.history_sweep:
@@ -497,7 +605,9 @@ def main() -> int:
             row[rname] = _run_cell(rule, maker, args, args.n, name + rname,
                                    floor=floor, scale=args.scale_folds,
                                    margin=margin, k_grid=k_grid,
-                                   dropout=args.dropout)
+                                   dropout=args.dropout,
+                                   extra=(prem_extra if rname == "premia_r4"
+                                          else None))
         for r in ("premia_r3", "premia_r4"):
             if ok_p is True:
                 agg[r]["tp"].append(row[r])
