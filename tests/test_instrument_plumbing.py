@@ -215,6 +215,19 @@ class TestDeskLoad:
         assert desk_mod.desk_load([{}] * 20, [], []) ["coo_triage_due"] is False
         assert desk_mod.desk_load([{}] * 21, [], []) ["coo_triage_due"] is True
 
+    def test_decided_recommendations_do_not_count_toward_the_ceo_load(self):
+        """Measured on the counter's first live day: it read 73 against 10
+        truly open — the upstream feed includes accepted+staged (the UI
+        renders those as 'decided, awaiting execution'), and the trigger
+        fired a COO triage at 3.65x the real load, whose own memo found the
+        miscount (triage #2, 2026-08-20). A row with NO status still counts:
+        dropping a malformed row would hide work."""
+        rows = ([{"status": "open"}] * 4 + [{"status": "accepted"}] * 40
+                + [{"status": "staged"}] * 20 + [{}] * 2)
+        load = desk_mod.desk_load(rows, [], [])
+        assert load["components"]["open_recommendations"] == 6
+        assert load["coo_triage_due"] is False
+
     def test_an_uncountable_component_makes_the_total_incomplete(self):
         """A partial count that reads like a full one is how a desk over the
         trigger looks quiet."""
@@ -246,6 +259,8 @@ class TestDeskLoad:
                     called.add(f.id)
                 elif isinstance(f, ast.Attribute):
                     called.add(f.attr)
-        # Counting, formatting and sorting only. No append, no post, no run.
+        # Counting, filtering, formatting and sorting only. No append, no
+        # post, no run. ("get" reads a row's status for the decided-rows
+        # filter — a read, not an action.)
         assert called <= {"_count", "int", "len", "sum", "sorted", "join",
-                          "values", "items", "isinstance"}, called
+                          "values", "items", "isinstance", "get"}, called

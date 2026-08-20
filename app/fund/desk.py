@@ -311,6 +311,19 @@ def desk_load(open_recommendations: list[dict[str, Any]],
         except (TypeError, ValueError):
             return None
 
+    if isinstance(open_recommendations, list):
+        # The upstream `open_recommendations` feed includes accepted+staged
+        # rows (the UI needs them to render "decided, awaiting execution");
+        # the CEO's triage trigger counts only what still AWAITS the CEO.
+        # Measured on this counter's first live day: it read 73 against 10
+        # truly open — 3.65x the real load — and fired a triage whose own
+        # memo found the miscount (COO triage #2, 2026-08-20). Same defect
+        # class as CDO D4, one layer down.
+        # A row with NO status counts toward load (dropping a malformed row
+        # would hide work); a row explicitly decided does not.
+        open_recommendations = [r for r in open_recommendations
+                                if r.get("status") in (None, "open")]
+
     parts = {
         "open_recommendations": _count(open_recommendations),
         "pending_orders": _count(pending_orders),
