@@ -80,6 +80,20 @@ taken.
 supervises: an execution path without an adversarial supervisor is the unwired
 kill switch pattern in a new costume.
 
+| `secretary` | Documents each day from the record at EoD: one short memo (the CEO's sixty-second read) + one detailed record, filed to docs/archives/YYYY-MM-DD.md | Two memos in one dated artifact, every claim cited to the log |
+
+`secretary` was seated 2026-08-20 (CEO decision — the Scribe seat's "still
+nothing for them to do" condition ended the day the firm shipped a guard,
+merged a dispatch, ran two audits, auditioned a CDO and filled four tickets,
+and no human could have reconstructed it without an hour in the log). The
+seat carries the name **Donna**. It runs at END OF DAY on the CTO's trigger —
+standing CEO authorization, not a schedule: when no session is live, nothing
+thinks, and the day is documented by the next live session instead. Donna
+documents and never decides; her one steering output is the factual "awaits
+the CEO" list. First runs on Opus; a downgrade trial (the quant pattern —
+cheap model drafts, judged against an Opus run) is allowed once the memo
+template is stable, because a bad summary misleads the CEO quietly.
+
 ## Tools and memory per seat
 
 Each seat's tools match its job, not a default: `mechanism`, `analyst` and
