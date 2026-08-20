@@ -89,7 +89,8 @@ function Seat({ seat }: { seat: SeatId }) {
   }, [load]);
 
   const roster = desk?.roster?.find((r) => r.agent === seat) ?? null;
-  const seatRuns = runs ?? [];
+  // Memoised: `?? []` is a fresh array each render, and the folds below key off it.
+  const seatRuns = useMemo(() => runs ?? [], [runs]);
   const stats = useMemo(() => tokenStats(seatRuns), [seatRuns]);
   const dispatches = useMemo(
     () => dispatchStats(events ?? [], seat), [events, seat],

@@ -107,8 +107,10 @@ export default function DeskPage() {
     }
   };
 
-  const runs = d?.runs ?? [];
-  const evs = events ?? [];
+  // Memoised because `?? []` mints a new array every render, which would make
+  // every fold below recompute on every keystroke in the composer.
+  const runs = useMemo(() => d?.runs ?? [], [d]);
+  const evs = useMemo(() => events ?? [], [events]);
   const days = useMemo(() => activeDays(evs, runs), [evs, runs]);
   const today = dayKey(new Date().toISOString());
   const shownDay = day ?? days[0] ?? today;
