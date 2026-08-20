@@ -80,6 +80,20 @@ Status: WAITING ON P1 (P1 alone may justify one container run). Owner at
 revival: quant, from the spec as written — one free parameter, fixed by the
 flow's timing, no sweep.
 
+Status note, 2026-08-21 (quant dispatch #1, run-quant-entry11): **BELT-
+TESTED — three fails at slip {1,3,5}bps, and the band does not flip on
+cost.** The candidate beats the basket at every slip; the excess dies at
+5.92bps/side — inside the fund's cost measurement error — and 2-of-4 fold
+persistence matches the spec's own F4 falsifier. At $2k NAV the rule is
+inexpressible in whole shares (measured: lot rounding exceeds the effect).
+Sharpened revival conditions: (1) realised SPY/TLT execution cost
+measured BELOW ~5.9bps/side — only the CEO-authorized experimental
+alpaca-venue path can produce it; (2) a fractional-share or larger-NAV
+expression; (3) fold persistence re-read after gate v5's
+benchmark-relative criteria land (two of today's three failure sentences
+are instrument artifacts for this shape). Full report:
+docs/research/QUANT_ENTRY11_2026-08-21.md.
+
 Status note, 2026-08-20 (validator audit 8b863152): **P1 as originally
 conceived is REFUSED, structurally** — the paper venue fills at its own
 quote, so realised cost is unmeasurable from our fills at any sample size
