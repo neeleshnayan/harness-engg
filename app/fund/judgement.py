@@ -309,28 +309,41 @@ def registry() -> list[Judgement]:
             expected=5.0,
             read=_module("app.fund.walkforward", "MIN_TRAIN_RETURN_PCT"),
             why="Retention is a ratio, and a ratio against a near-zero "
-                "denominator is arithmetic noise. Set to 2.0 first, then raised "
-                "to 5.0 after noticing 2.0 did not exclude the 3.66% case that "
-                "motivated it. Raised on principle, not on evidence.\n\n"
-                "MEASURED 2026-08-17: this is doing far more work than its stated "
-                "job. Splitting the gate's rejections by mode, a NULL is rejected "
-                "89.6% of the time because too few folds were MEASURABLE — its "
-                "training legs cannot clear this floor — and only 7.1% of the time "
-                "by failing the persistence test. This threshold, not the "
-                "walk-forward majority, is the fund's main noise filter. It was "
-                "introduced to stop one ratio exploding and has quietly become "
-                "load-bearing, which is defensible but was never CHOSEN.",
-            falsified_by="The 70% starvation rate at Sharpe 0.6 is the falsifier "
-                         "already on the table: the same threshold discarding real "
-                         "candidates at a rate nobody decided on. Settle it by "
-                         "collecting train-leg returns across judged folds and "
-                         "plotting retention against them — if retention is stable "
-                         "well below 5%, the floor is destroying usable folds; if "
-                         "it explodes above 5%, the floor is too low. Either "
-                         "answer beats the current position, which is that a "
-                         "narrow bug fix became the primary filter by accident.",
-            review_trigger="BEFORE the next gate version — this must not be "
-                           "inherited unexamined into a v5",
+                "denominator is arithmetic noise. Basis stays JUDGED and now "
+                "honestly UNDEMONSTRATED: the review below found the written "
+                "derivation was false.\n\n"
+                "CORRECTED 2026-08-20 (validator, first real-belt execution of "
+                "the falsifier below — docs/MIN_TRAIN_RETURN_REVIEW_2026-08-20"
+                ".md): the 'motivating +3.66% case' NEVER OCCURRED. The real "
+                "sweep (420a94db2621) trained at +10.171% and tested at "
+                "+140.219%; the 3.66% was back-solved from the wrong numerator. "
+                "No floor of 2, 5, or 10 excludes the real shape, so the "
+                "2.0->5.0 derivation is void. On 83 real belt sweeps the floor "
+                "has NEVER removed a null fold (0 of 57) and has never changed "
+                "a verdict (counterfactual floors 0/2/5/10 identical). The "
+                "earlier MEASURED 2026-08-17 claim that this is the fund's "
+                "main noise filter (89.6% starvation) was a property of a "
+                "driftless, no-grid-max simulation and is FALSE on the belt. "
+                "KEPT on the raw scale regardless: it is the only guard against "
+                "the one demonstrated real explosion (train +0.03% -> ratio "
+                "231) that strict-positive alone would miss — and as of v4.1 "
+                "it finally applies to the holdout leg too (gate.py), where "
+                "the original bug actually lived.",
+            falsified_by="Executed 2026-08-20 — the falsifier as originally "
+                         "written ('collect train-leg returns across judged "
+                         "folds and plot retention against them') was run on "
+                         "83 real sweeps: retention is not unstable below 5% "
+                         "(n=0 folds there); it is unstable at train legs of "
+                         "10-20%, ABOVE the floor, because the instability is "
+                         "the annualised short test leg in the NUMERATOR. "
+                         "Next falsifier: a fresh null audit whose generator "
+                         "carries market drift and grid-max selection — if its "
+                         "nulls still never land under the floor, the floor is "
+                         "confirmed inert and survives only as the explosion "
+                         "guard.",
+            review_trigger="BEFORE gate v5 lands — v5's floor-sweep tables "
+                           "must be regenerated with a drifted, grid-max null "
+                           "first (blocking finding of the 2026-08-20 review)",
             review_by="2026-10-01"),
         Judgement(
             "min_holdout_retention",

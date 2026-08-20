@@ -42,7 +42,7 @@ def test_a_clean_candidate_passes():
     out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
                    walkforward=GOOD_WALKFORWARD)
     assert out["passed"] is True, out["failures"]
-    assert out["gate_version"] == "v4"
+    assert out["gate_version"] == "v4.1"
     # Passing is not deployment, and the wording says so.
     assert "different claim from" in out["verdict"]
 
@@ -92,6 +92,43 @@ def test_an_edge_that_collapses_out_of_sample_fails():
     ho = {**GOOD_HOLDOUT, "test": {"return_pct": 1.0}}   # kept 5%
     out = evaluate(_good_result(), ho, GOOD_SWEEP)
     assert any("out of sample" in f for f in out["failures"])
+
+
+def test_a_double_loss_holdout_cannot_pass_as_retained_edge():
+    """v4.1. The raw `te / tr` this closed scored train −10% / test −8% as
+    retention 0.80 — "kept 80% of its edge" for a strategy that lost money in
+    both legs — and PASSED. Found by the validator's real-belt floor review."""
+    ho = {**GOOD_HOLDOUT, "train": {"return_pct": -10.0},
+          "test": {"return_pct": -8.0}}
+    out = evaluate(_good_result(), ho, GOOD_SWEEP, walkforward=GOOD_WALKFORWARD)
+    assert out["passed"] is False
+    assert out["checks"]["holdout_retention"] is None
+    assert any("no edge to retain" in f for f in out["failures"]), out["failures"]
+
+
+def test_a_near_zero_train_leg_cannot_explode_the_holdout_ratio():
+    """v4.1. A real belt fold: train +0.03% / test +6.94% scored retention 231
+    under the raw ratio and passed. Strictly positive is not enough — the
+    MIN_TRAIN_RETURN_PCT floor now applies to the holdout leg too."""
+    ho = {**GOOD_HOLDOUT, "train": {"return_pct": 0.03},
+          "test": {"return_pct": 6.94}}
+    out = evaluate(_good_result(), ho, GOOD_SWEEP, walkforward=GOOD_WALKFORWARD)
+    assert out["passed"] is False
+    assert out["checks"]["holdout_retention"] is None
+    assert any("explodes" in f for f in out["failures"]), out["failures"]
+
+
+def test_holdout_retention_annualises_when_windows_are_known():
+    """v4.1. With leg windows supplied the ratio compares RATES, so a short
+    lucky test leg is no longer divided by a year-long train leg raw."""
+    ho = {"state": "done", "dates_honoured": True,
+          "train": {"return_pct": 20.0,
+                    "window": ["2024-01-01", "2024-12-31"]},
+          "test": {"return_pct": 16.0,
+                   "window": ["2025-01-01", "2025-12-31"]}}
+    out = evaluate(_good_result(), ho, GOOD_SWEEP, walkforward=GOOD_WALKFORWARD)
+    assert out["passed"] is True, out["failures"]
+    assert out["checks"]["holdout_retention_basis"] == "annualised"
 
 
 def test_fragility_to_costs_fails():
@@ -233,10 +270,10 @@ def test_the_version_records_which_bar_was_applied():
     verdict has to say which one it cleared — otherwise re-reading old passes
     under today's criteria silently rewrites history."""
     from app.fund.gate import CRITERIA_V1, GATE_VERSION
-    assert GATE_VERSION == "v4"
+    assert GATE_VERSION == "v4.1"
     out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
                    walkforward=GOOD_WALKFORWARD)
-    assert out["gate_version"] == "v4"
+    assert out["gate_version"] == "v4.1"
     # v1 is kept intact so an old verdict remains interpretable.
     assert CRITERIA_V1["min_psr_pct"] == 50.0
     # v1 must state what it did NOT require, not merely omit it: `evaluate`

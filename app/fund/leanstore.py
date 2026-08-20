@@ -207,17 +207,22 @@ class LeanStore:
                 for r in rows]
 
     def recent_sweeps(self, limit: int = 25) -> list[dict[str, Any]]:
+        # holdout_result is included since 2026-08-20: the validator's floor
+        # review needed every sweep's train/test legs and found them reachable
+        # only one detail-GET at a time, by ids the list mostly did not return.
+        # An instrument audit should be a query, not an excavation.
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     "SELECT sweep_id, algorithm, state, total, completed, "
-                    "       summary, submitted_at "
+                    "       summary, submitted_at, holdout_result "
                     "FROM fund_lean_sweeps ORDER BY submitted_at DESC LIMIT %s",
                     (limit,))
                 rows = cur.fetchall()
         return [{"sweep_id": r[0], "algorithm": r[1], "state": r[2],
                  "total": r[3], "completed": r[4], "summary": r[5],
-                 "submitted_at": _iso(r[6])} for r in rows]
+                 "submitted_at": _iso(r[6]), "holdout_result": r[7]}
+                for r in rows]
 
 
 def _js(v: Any) -> Optional[str]:

@@ -219,3 +219,30 @@ training is defensible. But it was never *chosen*, and a 70% starvation rate at
 Sharpe 0.6 means the same threshold is discarding real candidates at a rate nobody
 decided on. It is registered in `app/fund/judgement.py` with this measurement
 attached, and it should be reviewed before the next gate version rather than after.
+
+---
+
+## §9 — CORRECTION (2026-08-20): the §7 mode-split does not hold on the real belt
+
+Added per the never-edit rule; §7 stands above as written, and this section
+records its falsification. §7's claim — that a null is rejected 89.6% of the
+time by fold starvation, making `MIN_TRAIN_RETURN_PCT` the fund's main noise
+filter — was a property of the simulation's null generator, not of the belt.
+Measured on all 83 real belt sweeps (docs/MIN_TRAIN_RETURN_REVIEW_2026-08-20.md):
+
+- **0 of 57 null sweeps** landed in the floor's band (0, 5.0). Null grid-point
+  train legs average **+22.0%** (sd 28.3%, n=224) because the market rose and
+  the sweep reports a **maximum over surviving grid points** — two things the
+  simulation's driftless, single-draw null omits, both pushing loose.
+- Real belt null walk-forward pass rate: **2/8 = 25%** (Clopper-Pearson 95% CI
+  8.5%–65.1%), against the simulated 2.9%. The CI excludes the simulation.
+- The belt's actual starvation modes are engine timeouts (10 folds) and
+  no-trade test legs (5 folds), which the stored fold count cannot distinguish
+  from a floor rejection.
+
+Consequence for this doc's 2.9% FPR headline: it is a statement about the
+model, not the belt, and must not be quoted as the fund's operating
+false-positive rate. The 22.8%-power figure is unaffected in direction but
+carries the same generator caveat. Any regenerated table must model market
+drift and grid-max selection before its rows are quoted (blocking requirement
+on gate v5 round 3).

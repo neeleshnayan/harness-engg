@@ -52,17 +52,22 @@ logger = logging.getLogger(__name__)
 RETENTION_FLOOR = 0.5
 
 #: A training return below this makes the retention RATIO meaningless, in exactly
-#: the way a negative one does. The failure is real and was observed: a null in
-#: the calibration audit trained at +3.66% and tested at +50.5%, reporting that
-#: it "kept 1379% of its edge" while a criterion asking for 50% waved it through.
+#: the way a negative one does.
 #:
-#: The THRESHOLD, unlike the failure, is a judgement and is labelled as one. 5%
-#: over a training year is the point below which an "edge" sits under the
-#: equal-weight benchmark this fund measures against (+14.8% in 2025) and inside
-#: the noise of a single small-cap's daily moves — so there is nothing whose
-#: persistence is worth asking about. It is not derived from the audit; picking a
-#: number just large enough to catch one example would be fitting the instrument
-#: to its first reading.
+#: PROVENANCE CORRECTED 2026-08-20 (docs/MIN_TRAIN_RETURN_REVIEW_2026-08-20.md):
+#: the "motivating case" earlier recorded here — a null training at +3.66% and
+#: testing at +50.5% — never occurred. The real sweep trained at +10.171% and
+#: tested at +140.219%; the 3.66% was back-solved from the wrong numerator. No
+#: floor of 2, 5, or 10 excludes the real shape, and on 83 real belt sweeps this
+#: floor has never removed a null fold. It is kept because it is the only guard
+#: against the one demonstrated real explosion (train +0.03% -> raw ratio 231)
+#: that a strict-positive check alone would miss.
+#:
+#: The THRESHOLD is a judgement and is labelled as one. 5% over a training year
+#: is the point below which an "edge" sits under the equal-weight benchmark this
+#: fund measures against (+14.8% in 2025) and inside the noise of a single
+#: small-cap's daily moves — so there is nothing whose persistence is worth
+#: asking about.
 MIN_TRAIN_RETURN_PCT = 5.0
 
 
@@ -275,9 +280,11 @@ def retention(train_return: Optional[float],
                           f"no edge to retain, and a ratio against a negative "
                           f"denominator would report a loss as a triumph"}
     if train_return < MIN_TRAIN_RETURN_PCT:
-        # The failure mode this closes, from the null audit: train +3.7%, test
-        # +50.5%, "retention 1379%" — a criterion asking for 50% waved through by
-        # a denominator too small to divide by.
+        # The failure mode this closes, measured on the real belt: train +0.03%,
+        # test +6.94%, raw ratio 231 — a criterion asking for 50% waved through
+        # by a denominator too small to divide by. (An earlier comment here
+        # cited a +3.7%/+50.5% case; that case never occurred — see
+        # docs/MIN_TRAIN_RETURN_REVIEW_2026-08-20.md.)
         return {"retention": None, "measurable": False,
                 "reason": f"the train leg made only {train_return:.2f}%, under "
                           f"the {MIN_TRAIN_RETURN_PCT}% needed for a ratio to "

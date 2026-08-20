@@ -467,7 +467,10 @@ class LeanRunner:
             return live
         try:
             known = {s["sweep_id"] for s in live}
-            older = [s for s in st.recent_sweeps(limit=25)
+            # limit=200 (was 25): the durable store held 84 sweeps while the
+            # list served 25, so most of the belt's history was unreachable
+            # except by per-id GETs — see docs/MIN_TRAIN_RETURN_REVIEW.
+            older = [s for s in st.recent_sweeps(limit=200)
                      if s["sweep_id"] not in known]
         except Exception as e:  # noqa: BLE001
             logger.warning("could not read persisted sweeps: %s", e)

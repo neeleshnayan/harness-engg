@@ -21,6 +21,25 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+
+def _window_days(window: Any) -> Optional[int]:
+    """Calendar days a leg actually covered, from its [first, last] dates.
+
+    Feeds annualisation in the holdout retention. Returns None rather than
+    guessing when the window is absent or malformed — retention() then falls
+    back to cumulative returns AND SAYS SO, which is the honest degradation.
+    """
+    if not window or len(window) < 2:
+        return None
+    try:
+        from datetime import date
+        a = date.fromisoformat(str(window[0])[:10])
+        b = date.fromisoformat(str(window[1])[:10])
+    except ValueError:
+        return None
+    return (b - a).days or None
+
+
 #: Bump when a threshold changes, so a stored verdict says which bar it cleared.
 #: A candidate approved under v1 has not been approved under v2.
 #:
@@ -123,7 +142,19 @@ from typing import Any, Optional
 #:     Simulated at 4,000 draws per level: 2.9% false positives, and only 22.8%
 #:     power at Sharpe 1.0, with 80% power unreachable at any Sharpe on ~30 months
 #:     of history. See docs/GATE_CALIBRATION_2026-08-18.md.
-GATE_VERSION = "v4"
+#:
+#: v4.1 (2026-08-20, written reason): the single-window holdout retention was a
+#: raw `te / tr` guarded only by `if tr` — so a NEGATIVE train leg inverted the
+#: sign (train −10% / test −8% passed as "kept 80% of its edge") and a near-zero
+#: positive one exploded the ratio (a real fold: train +0.03% → ratio 231). The
+#: walk-forward leg had carried the full discipline — strict-positive guard,
+#: MIN_TRAIN_RETURN_PCT floor, annualisation — since it shipped; the holdout leg
+#: was simply never given it. Found by the validator's first real-belt execution
+#: of the floor register's falsifier (docs/MIN_TRAIN_RETURN_REVIEW_2026-08-20.md),
+#: latent on every verdict issued to date (all five negative-retention candidates
+#: failed the criterion anyway). The holdout leg now calls the SAME
+#: walkforward.retention() the folds use. No threshold moved.
+GATE_VERSION = "v4.1"
 
 #: The bar. Deliberately data, not code branches: it can be printed, argued
 #: about on its own merits, and diffed when it changes.
@@ -289,6 +320,7 @@ def evaluate(result: dict[str, Any],
 
     # --- survives data it was not chosen on -------------------------------
     retention = None
+    retention_reason = None
     no_holdout_trades = False
     trained_ok = False
     if holdout and holdout.get("state") == "done":
@@ -318,8 +350,21 @@ def evaluate(result: dict[str, Any],
                 # us to add warm-up it already had.
                 trained_ok = bool(tr and (holdout.get("train") or {})
                                   .get("return_pct") is not None)
-            elif tr and te is not None:
-                retention = te / tr if tr else None
+            elif tr is not None and te is not None:
+                # v4.1: the SAME discipline the walk-forward folds carry —
+                # strict-positive denominator, the MIN_TRAIN_RETURN_PCT floor,
+                # and annualisation over each leg's actual window. The raw
+                # `te / tr` this replaces inverted the sign on a negative
+                # train leg and exploded on a near-zero one; see the version
+                # note above GATE_VERSION.
+                from app.fund.walkforward import retention as _leg_retention
+                r = _leg_retention(
+                    tr, te, test.get("total_orders"),
+                    _window_days((holdout.get("train") or {}).get("window")),
+                    _window_days(test.get("window")))
+                retention = r.get("retention")
+                retention_reason = r.get("reason")
+                checks["holdout_retention_basis"] = r.get("basis")
     checks["holdout_retention"] = retention
     if no_holdout_trades:
         if trained_ok:
@@ -338,8 +383,16 @@ def evaluate(result: dict[str, Any],
                 "window gives it, so it never warmed up. Check warm-up and "
                 "re-run before believing any out-of-sample number")
     elif retention is None:
-        failures.append("no held-out test — choosing the best of N settings "
-                        "guarantees a good number on the window you chose them on")
+        if retention_reason:
+            # The holdout RAN; the ratio is unmeasurable for a stated reason
+            # (negative or sub-floor train leg). Collapsing this into "no
+            # held-out test" sent the reader to re-run a test that had run.
+            failures.append(f"the held-out retention could not be measured: "
+                            f"{retention_reason}")
+        else:
+            failures.append("no held-out test — choosing the best of N settings "
+                            "guarantees a good number on the window you chose "
+                            "them on")
     elif retention < c["min_holdout_retention"]:
         failures.append(f"kept only {retention:.0%} of its edge out of sample; "
                         f"{c['min_holdout_retention']:.0%} is the floor")
