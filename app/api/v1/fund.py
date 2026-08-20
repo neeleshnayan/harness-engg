@@ -3274,8 +3274,14 @@ def run_autopolicy_tick() -> dict:
                 "policy_version": autopolicy.AUTOPOLICY_VERSION,
                 "note": "queue empty"}
     hb = {j["job"]: j for j in heartbeat.report()["jobs"]}
-    return autopolicy.run(_pipeline, pending,
-                          halted=_control.is_halted(), heartbeats=hb)
+    # v2: each candidate order gets its context gathered from the event log
+    # (trigger linkage, rule pre-commitment, mark corroboration vs the last
+    # strike, notional vs struck NAV). A failing gatherer yields an absent
+    # context, which evaluate() fails closed on.
+    return autopolicy.run(
+        _pipeline, pending, halted=_control.is_halted(), heartbeats=hb,
+        context_fn=lambda row: autopolicy.context_for(_store, row,
+                                                      _connector.price))
 
 
 def run_proposal_expiry_tick() -> dict:

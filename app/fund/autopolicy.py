@@ -46,18 +46,58 @@ event payload, so the risk officer audits decisions, not summaries.
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 logger = logging.getLogger(__name__)
 
 #: Bumped only with a written reason. An approval made under v1 was made under
 #: v1's envelope, and the payload says so forever.
-AUTOPOLICY_VERSION = "v1"
+#:
+#: v1 -> v2 (2026-08-20, CEO-accepted riskofficer recommendations R1/R3/R4/R7
+#: after the policy's first live fire executed on a fabricated mark —
+#: docs/AUDIT_AUTOPOLICY_V1_FIRST_FIRE_2026-08-20.md). v1 verified everything
+#: about the ORDER and nothing about the NUMBER or the RULE. v2 adds four
+#: checks, none loosening, all fail-closed, all derived from the fund's own
+#: event log:
+#:
+#:   * exit_trigger_linked  (R3): the marker string is forgeable free text;
+#:     the EXIT_RULE_TRIGGERED event is not — only ExitRules.enforce() writes
+#:     it. The order must be named by such an event, not merely worded like one.
+#:   * rule_predates_position (R4): v1's stated premise ("a stop committed to
+#:     BEFORE the position existed") was false for its first fire — the rule
+#:     was set three days after the position opened, by a test harness. Now
+#:     tested, not asserted.
+#:   * mark_corroborated (R1): the triggering mark must agree with the fund's
+#:     own last STRUCK mark within a versioned bound. GLD's true mark sat in
+#:     the log 29m46s before the phantom; nothing consulted it.
+#:   * notional_within_cap (R7): v1 bounded no size at all. The machine's blast
+#:     radius is now an explicitly governed number.
+#:
+#: R5 (rule's owner strategy must own the position) is NOT in v2 — the CEO has
+#: not decided it; the recommendation stays open on run-riskofficer-1.
+AUTOPOLICY_VERSION = "v2"
 
-#: Marker the exit tick stamps into rationales it generates. The policy matches
-#: on the ORDER's provenance, not its wording: the authoritative signal is the
-#: actor + the marker together.
+#: Marker the exit tick stamps into rationales it generates. Kept in v2 as a
+#: cheap first filter; the authoritative provenance is exit_trigger_linked.
 EXIT_MARKER = "PRE-COMMITTED EXIT FIRED"
+
+#: R1's bound: the largest disagreement between the mark an exit fired on and
+#: the fund's own last struck mark that the policy will still act on, in
+#: percent. JUDGED, with the reason written: the phantom read 75.8% off the
+#: strike made half an hour earlier; a genuine single-name crash can exceed
+#: 30% — and when it does, the exit PROPOSAL still stands and a HUMAN clicks
+#: it. Exceeding the bound never blocks the trade; it only removes the
+#: machine's mandate to take it unattended. Failing closed on an
+#: uncorroboratable mark is the entire lesson of the incident.
+MAX_MARK_MOVE_VS_STRIKE_PCT = 30.0
+
+#: R7's ceiling: max auto-approved order notional as a percent of last struck
+#: NAV. JUDGED: set equal to the risk gate's max_position_pct (20%) because an
+#: exit can never legitimately exceed one maximum-sized position — so the cap
+#: bounds the blast radius to one position without ever disqualifying a
+#: legitimate full-position close (the sleeve's TLT is ~12.5%). Tightening it
+#: is a versioned change the CEO may make at any time.
+MAX_AUTO_NOTIONAL_PCT = 20.0
 
 #: Jobs that must be demonstrably alive before the policy may act. If the fund
 #: cannot prove its own controls are ticking, it has no business executing
@@ -73,12 +113,25 @@ MAX_AGE_MINUTES = 10.0
 
 def evaluate(order: dict[str, Any], *, halted: bool,
              heartbeats: dict[str, Any],
-             age_minutes: Optional[float]) -> dict[str, Any]:
+             age_minutes: Optional[float],
+             context: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     """One order against the envelope. Deterministic; returns every check.
 
     The result is APPROVE only when every check passes. Any check that cannot be
     evaluated fails closed — an absence is never a yes.
+
+    ``context`` carries the v2 inputs, gathered from the event log and the
+    pricer by ``context_for``:
+      trigger_order_id     — order_id on the matching EXIT_RULE_TRIGGERED event
+      trigger_symbol       — symbol on that event
+      rule_set_at          — when the firing rule was committed (event ts)
+      position_opened_at   — ts of the fill that opened the current position
+      mark_move_vs_strike_pct — |current mark / last struck mark − 1| × 100
+      notional_pct_of_nav  — order notional as % of last struck NAV
+    A missing context, or any missing field, fails the corresponding check —
+    the policy never widens because the gatherer broke.
     """
+    ctx = context or {}
     checks: list[dict[str, Any]] = []
 
     def check(name: str, ok: Optional[bool], detail: str) -> None:
@@ -86,13 +139,65 @@ def evaluate(order: dict[str, Any], *, halted: bool,
 
     side = str(order.get("side") or "").lower()
     check("side_is_sell", side == "sell",
-          f"side={side!r}; v1 auto-approves risk-reducing closes only")
+          f"side={side!r}; the policy auto-approves risk-reducing closes only")
 
     rationale = str(order.get("rationale") or "")
     is_exit = EXIT_MARKER in rationale
     check("exit_rule_provenance", is_exit,
           "order carries the exit-tick marker" if is_exit else
-          "not raised by a pre-committed exit rule — outside the v1 envelope")
+          "not raised by a pre-committed exit rule — outside the envelope")
+
+    # R3: the marker is a string anyone can type; the trigger EVENT is written
+    # only by ExitRules.enforce(). Both forged orders from the audit fail here.
+    oid = str(order.get("order_id") or "")
+    linked = (bool(oid)
+              and ctx.get("trigger_order_id") == oid
+              and ctx.get("trigger_symbol") == order.get("symbol"))
+    check("exit_trigger_linked", linked,
+          "an EXIT_RULE_TRIGGERED event names this exact order" if linked else
+          "no EXIT_RULE_TRIGGERED event names this order — a marker without "
+          "its event is wording, not provenance; fails closed")
+
+    # R4: pre-commitment is tested, not asserted. The policy's own doctrine —
+    # "a stop committed to BEFORE the position existed" — declined its first
+    # live fire retroactively (rule set 08-17, position opened 08-14).
+    set_at, opened_at = ctx.get("rule_set_at"), ctx.get("position_opened_at")
+    if not set_at or not opened_at:
+        check("rule_predates_position", False,
+              f"rule set_at={set_at!r}, position opened_at={opened_at!r} — "
+              f"undeterminable is not pre-committed; fails closed")
+    else:
+        ok = str(set_at) < str(opened_at)
+        check("rule_predates_position", ok,
+              f"rule committed {set_at} vs position opened {opened_at}" +
+              ("" if ok else " — the rule was set AGAINST an existing "
+                             "position, which is the psychology pre-commitment "
+                             "exists to defeat"))
+
+    # R1: the number itself, corroborated against the fund's own last strike.
+    move = ctx.get("mark_move_vs_strike_pct")
+    if move is None:
+        check("mark_corroborated", False,
+              "the triggering mark could not be compared to the last struck "
+              "mark — an uncorroboratable number does not self-execute; the "
+              "proposal waits for a human")
+    else:
+        ok = move <= MAX_MARK_MOVE_VS_STRIKE_PCT
+        check("mark_corroborated", ok,
+              f"mark is {move:.1f}% from the last struck mark against a "
+              f"{MAX_MARK_MOVE_VS_STRIKE_PCT:.0f}% bound" +
+              ("" if ok else " — a move this size is either a data fault or a "
+                             "crash, and both deserve the human's eyes"))
+
+    # R7: the blast radius, governed.
+    npct = ctx.get("notional_pct_of_nav")
+    if npct is None:
+        check("notional_within_cap", False,
+              "order notional vs NAV could not be computed; fails closed")
+    else:
+        check("notional_within_cap", npct <= MAX_AUTO_NOTIONAL_PCT,
+              f"notional is {npct:.1f}% of last struck NAV against a "
+              f"{MAX_AUTO_NOTIONAL_PCT:.0f}% auto ceiling")
 
     check("not_halted", not halted,
           "kill switch engaged — nothing executes" if halted else
@@ -125,8 +230,86 @@ def evaluate(order: dict[str, Any], *, halted: bool,
     }
 
 
+def context_for(store: Any, order: dict[str, Any],
+                pricer: Optional[Callable[[str], float]]) -> dict[str, Any]:
+    """Gather the v2 inputs for one order from the event log and the pricer.
+
+    One pass over the log; every failure degrades to an ABSENT field, which
+    evaluate() fails closed on. The gatherer can only narrow the envelope by
+    breaking, never widen it.
+    """
+    from app.fund.events import EventType
+
+    oid = str(order.get("order_id") or "")
+    symbol = order.get("symbol")
+    ctx: dict[str, Any] = {}
+    trigger = None
+    rule_sets: dict[tuple, str] = {}      # (strategy_id,symbol,kind) -> last set ts
+    struck_marks: dict[str, float] = {}
+    struck_nav: Optional[float] = None
+    opened_at: Optional[str] = None
+    qty_running = 0.0
+
+    try:
+        for e in store.stream(since_seq=0, limit=100_000):
+            t = e.get("type") if isinstance(e, dict) else getattr(e, "type", None)
+            t = getattr(t, "value", t)
+            p = (e.get("payload") if isinstance(e, dict)
+                 else getattr(e, "payload", None)) or {}
+            ts = e.get("ts") if isinstance(e, dict) else getattr(e, "ts", None)
+            if t == EventType.EXIT_RULE_SET.value:
+                key = (p.get("strategy_id"), p.get("symbol"), p.get("kind"))
+                rule_sets[key] = str(p.get("at") or ts or "")
+            elif t == EventType.EXIT_RULE_TRIGGERED.value and p.get("order_id") == oid:
+                trigger = {**p, "ts": ts}
+            elif t == EventType.NAV_STRUCK.value:
+                rows = p.get("positions") or []
+                if rows:
+                    struck_marks = {r["symbol"]: float(r["mark"]) for r in rows
+                                    if r.get("symbol") and r.get("mark") is not None}
+                if p.get("total_nav_usd") is not None:
+                    struck_nav = float(p["total_nav_usd"])
+            elif t == EventType.ORDER_FILLED.value and p.get("symbol") == symbol:
+                q = float(p.get("qty") or 0.0)
+                signed = q if str(p.get("side") or "").lower() == "buy" else -q
+                was_flat = abs(qty_running) < 1e-9
+                qty_running += signed
+                if was_flat and abs(qty_running) >= 1e-9:
+                    opened_at = str(p.get("at") or ts or "")
+    except Exception as e:  # noqa: BLE001 — absent fields fail closed downstream
+        logger.warning("autopolicy context gather failed for %s: %s", oid, e)
+        return ctx
+
+    if trigger:
+        ctx["trigger_order_id"] = trigger.get("order_id")
+        ctx["trigger_symbol"] = trigger.get("symbol")
+        key = (trigger.get("strategy_id"), trigger.get("symbol"),
+               trigger.get("kind"))
+        ctx["rule_set_at"] = rule_sets.get(key)
+    ctx["position_opened_at"] = opened_at
+
+    mark = None
+    if pricer is not None and symbol:
+        try:
+            mark = float(pricer(symbol))
+        except Exception:  # noqa: BLE001 — unpriceable -> absent -> fails closed
+            mark = None
+    strike = struck_marks.get(symbol) if symbol else None
+    if mark is not None and strike:
+        ctx["mark_move_vs_strike_pct"] = abs(mark / strike - 1.0) * 100.0
+    if mark is not None and struck_nav:
+        try:
+            qty = float(order.get("qty") or 0.0)
+            ctx["notional_pct_of_nav"] = abs(qty * mark) / struck_nav * 100.0
+        except Exception:  # noqa: BLE001
+            pass
+    return ctx
+
+
 def run(pipeline: Any, pending: list[dict[str, Any]], *, halted: bool,
-        heartbeats: dict[str, Any]) -> dict[str, Any]:
+        heartbeats: dict[str, Any],
+        context_fn: Optional[Callable[[dict[str, Any]], dict[str, Any]]] = None
+        ) -> dict[str, Any]:
     """Scan the queue and approve what the envelope covers. Everything is logged.
 
     Approval goes through the ORDINARY pipeline.approve_order path — the same
@@ -139,8 +322,13 @@ def run(pipeline: Any, pending: list[dict[str, Any]], *, halted: bool,
         oid = row.get("order_id")
         if not oid:
             continue
+        try:
+            ctx = context_fn(row) if context_fn is not None else None
+        except Exception as e:  # noqa: BLE001 — a broken gatherer fails closed
+            logger.warning("autopolicy context_fn failed for %s: %s", oid, e)
+            ctx = None
         verdict = evaluate(row, halted=halted, heartbeats=heartbeats,
-                           age_minutes=row.get("age_minutes"))
+                           age_minutes=row.get("age_minutes"), context=ctx)
         if not verdict["approve"]:
             skipped.append({"order_id": oid, "symbol": row.get("symbol"),
                             "failed_checks": [c["check"] for c in
