@@ -23,6 +23,31 @@ import { MemoView, PendingOrder, ThesisView, fundApiClient } from "@/lib/fund_ap
 const money = (n?: number | null, dp = 2) =>
   n == null ? "—" : `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
 
+/**
+ * Read a staged order's rationale as a MEMO: the seat's marker and ticket id
+ * peel off into chrome, the first sentence becomes the headline the CEO reads
+ * standing up, and the remainder waits behind one expander. CEO direction
+ * 2026-08-20: "think the PM is submitting a memo to the CEO — a high level
+ * view, expandable to dig deep as needed."
+ */
+function memoParts(rationale?: string | null): {
+  ticket: string | null; headline: string; rest: string;
+} {
+  let text = (rationale || "").trim();
+  // strip the provenance marker — the chip already renders it
+  text = text.replace(/^\[[^\]]+\]\s*/, "");
+  const ticketMatch = /^([A-Z]\d+):\s*/.exec(text);
+  const ticket = ticketMatch ? ticketMatch[1] : null;
+  if (ticketMatch) text = text.slice(ticketMatch[0].length);
+  const firstStop = text.search(/(?<=[.!?])\s/);
+  if (firstStop === -1) return { ticket, headline: text, rest: "" };
+  return {
+    ticket,
+    headline: text.slice(0, firstStop).trim(),
+    rest: text.slice(firstStop).trim(),
+  };
+}
+
 export function ApprovalQueue({ onChanged, refreshSignal = 0, compact = false,
                                 embedded = false }: {
   onChanged?: () => void;
@@ -51,6 +76,8 @@ export function ApprovalQueue({ onChanged, refreshSignal = 0, compact = false,
     symbol: string;
     side: string;
   }>>({});
+  // Which memos are open. The headline is always readable; the depth waits.
+  const [open, setOpen] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     try {
@@ -232,82 +259,101 @@ export function ApprovalQueue({ onChanged, refreshSignal = 0, compact = false,
                   )}
                 </div>
 
-                {/* The case, and the case against. This is the review loop:
-                    a machine argument the operator reads and overrules, rather
-                    than a machine decision they can only accept. Rendered
-                    before the thesis block because on a proposal that has both,
-                    the reasoning for THIS order is the more specific claim. */}
-                {/* WHO is suggesting this order. An approval card is the last
-                    surface before money moves, so it must say whether the case
-                    below was written by a seat or computed by a committed exit
-                    rule — and say "unattributed" when the payload proves
-                    neither. Defaulting an unmarked rationale to "deterministic"
-                    would launder a model's suggestion into arithmetic. */}
-                <div className="mt-2">
-                  {(() => {
-                    const p = provenanceOfRationale(o.rationale);
-                    return (
-                      <ProvenanceChip kind={p.kind} source={p.source} seat={p.seat}
-                                      recId={p.recId} />
-                    );
-                  })()}
-                </div>
-
-                {!compact && (o.rationale || o.critique) && (
-                  <div className="mt-3 space-y-3">
-                    {o.rationale && (
-                      <div>
-                        <div className={KT.label}>Why</div>
-                        <p className={`mt-1.5 text-[12px] leading-relaxed ${KT.body}`}>
-                          {o.rationale}
-                        </p>
+                {/* The memo, headline first. The approval card is the last
+                    surface before money moves, so it reads the way a memo to
+                    the CEO reads: who is asking (the provenance chip), the one
+                    sentence that carries the decision, the numbers that change,
+                    and everything else behind one expander. An unmarked
+                    rationale renders "unattributed" — never "deterministic". */}
+                {(() => {
+                  const p = provenanceOfRationale(o.rationale);
+                  const m = memoParts(o.rationale);
+                  const isOpen = !!open[o.order_id];
+                  const hasDepth = !!(m.rest || o.critique || c || !compact);
+                  return (
+                    <>
+                      <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                        <ProvenanceChip kind={p.kind} source={p.source} seat={p.seat}
+                                        recId={p.recId} />
+                        {m.ticket && (
+                          <span className={`font-mono text-[10px] uppercase tracking-[0.1em] ${KT.muted}`}>
+                            ticket {m.ticket}
+                          </span>
+                        )}
                       </div>
-                    )}
-                    {o.critique && (
-                      <div className="border-l-2 border-[var(--kt-agent-border)] pl-3">
-                        <div className={`${KT.label} !text-[var(--kt-agent)]`}>
-                          Independent review
+                      {m.headline && (
+                        <p className="mt-2 text-[13px] font-medium leading-snug">
+                          {m.headline}
+                        </p>
+                      )}
+                      {ip.cash_before != null && ip.cash_after != null && (
+                        <div className={`mt-2 flex flex-wrap gap-x-6 gap-y-1 text-[12px] ${KT.muted}`}>
+                          <span>NAV {money(ip.nav_before)}</span>
+                          <span>cash {money(ip.cash_before)} → {money(ip.cash_after)}</span>
+                          {ip.quote_price != null && <span>quote {money(ip.quote_price)}</span>}
                         </div>
-                        <p className={`mt-1.5 text-[12px] leading-relaxed ${KT.body}`}>
-                          {o.critique}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
+                      )}
+                      {hasDepth && (
+                        <button
+                          type="button"
+                          onClick={() => setOpen((s) => ({ ...s, [o.order_id]: !isOpen }))}
+                          aria-expanded={isOpen}
+                          className={`mt-2 text-[11px] ${KT.accent} underline-offset-2 hover:underline`}
+                        >
+                          {isOpen ? "− close the memo" : "+ read the full memo"}
+                        </button>
+                      )}
 
-                {!compact && (c ? (
-                  <div className={`mt-3 p-3 ${KT.inset}`}>
-                    <div className="flex items-center gap-1.5">
-                      <span className={KT.chip}>thesis</span>
-                      <span className="text-[12px] font-medium">{c.thesis.title}</span>
-                    </div>
-                    {c.thesis.claim && <p className={`mt-1.5 text-[12px] ${KT.body}`}>{c.thesis.claim}</p>}
-                    {c.memo?.recommendation && (
-                      <p className="mt-1.5 text-[12px] font-medium">▸ {c.memo.recommendation}</p>
-                    )}
-                    {!!c.thesis.invalidation_conditions?.length && (
-                      <div className="mt-2">
-                        <div className={KT.label}>Invalidated if</div>
-                        <ul className={`mt-1 space-y-0.5 text-[11px] ${KT.muted}`}>
-                          {c.thesis.invalidation_conditions.map((x, i) => <li key={i}>· {x}</li>)}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className={`mt-3 p-3 text-[12px] ${KT.inset} ${KT.sev.warn}`}>
-                    No thesis attached — there is no stated case for this trade.
-                  </div>
-                ))}
-
-                {ip.cash_before != null && ip.cash_after != null && (
-                  <div className={`mt-3 flex flex-wrap gap-x-6 gap-y-1 text-[12px] ${KT.muted}`}>
-                    <span>NAV {money(ip.nav_before)}</span>
-                    <span>cash {money(ip.cash_before)} → {money(ip.cash_after)}</span>
-                    {ip.quote_price != null && <span>quote {money(ip.quote_price)}</span>}
-                  </div>
-                )}
+                      {isOpen && !compact && (
+                        <div className="mt-3 space-y-3 border-t border-[var(--kt-border)] pt-3">
+                          {(m.rest || m.headline) && (
+                            <div>
+                              <div className={KT.label}>The case, in full</div>
+                              <p className={`mt-1.5 text-[12px] leading-relaxed ${KT.body}`}>
+                                {m.rest || m.headline}
+                              </p>
+                            </div>
+                          )}
+                          {o.critique && (
+                            <div className="border-l-2 border-[var(--kt-agent-border)] pl-3">
+                              <div className={`${KT.label} !text-[var(--kt-agent)]`}>
+                                Independent review
+                              </div>
+                              <p className={`mt-1.5 text-[12px] leading-relaxed ${KT.body}`}>
+                                {o.critique}
+                              </p>
+                            </div>
+                          )}
+                          {c ? (
+                            <div className={`p-3 ${KT.inset}`}>
+                              <div className="flex items-center gap-1.5">
+                                <span className={KT.chip}>thesis</span>
+                                <span className="text-[12px] font-medium">{c.thesis.title}</span>
+                              </div>
+                              {c.thesis.claim && <p className={`mt-1.5 text-[12px] ${KT.body}`}>{c.thesis.claim}</p>}
+                              {c.memo?.recommendation && (
+                                <p className="mt-1.5 text-[12px] font-medium">▸ {c.memo.recommendation}</p>
+                              )}
+                              {!!c.thesis.invalidation_conditions?.length && (
+                                <div className="mt-2">
+                                  <div className={KT.label}>Invalidated if</div>
+                                  <ul className={`mt-1 space-y-0.5 text-[11px] ${KT.muted}`}>
+                                    {c.thesis.invalidation_conditions.map((x, i) => <li key={i}>· {x}</li>)}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className={`p-3 text-[12px] ${KT.inset} ${KT.sev.warn}`}>
+                              No thesis attached — there is no stated case for
+                              this trade beyond the memo above.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
 
                 <div className="mt-4 flex gap-2">
                   <button
