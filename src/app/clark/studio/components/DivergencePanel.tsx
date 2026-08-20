@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { KT } from "../theme";
+import { pct } from "../format";
 import { StrategyDivergence, fundApiClient } from "@/lib/fund_api";
 
 /**
@@ -19,7 +20,7 @@ import { StrategyDivergence, fundApiClient } from "@/lib/fund_api";
  * what?
  */
 
-const pct = (n?: number | null, dp = 1) => (n == null ? "—" : `${Number(n).toFixed(dp)}%`);
+// `pct` moved to ../format.ts (2026-08-20); same body, same default of 1.
 
 export function DivergencePanel({ refreshSignal = 0 }: { refreshSignal?: number }) {
   const [d, setD] = useState<StrategyDivergence | null>(null);

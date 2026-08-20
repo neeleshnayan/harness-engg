@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { ArrowRight, Loader2, Scale } from "lucide-react";
 import { spineError } from "@/lib/spine_error";
 import { KT } from "../theme";
+import { money, pct } from "../format";
 import { fundApiClient, CandidateEvaluation } from "@/lib/fund_api";
 
 /**
@@ -25,9 +26,9 @@ import { fundApiClient, CandidateEvaluation } from "@/lib/fund_api";
  * sizing goes into the rebalance queue for review rather than to the venue.
  */
 
-const pct = (n?: number | null, dp = 1) => (n == null ? "—" : `${Number(n).toFixed(dp)}%`);
-const money = (n?: number | null) =>
-  n == null ? "—" : `$${Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+// Formatters moved to ../format.ts (2026-08-20). The retired `money` here took
+// no `dp` and rendered whole dollars, so its call sites bind `money0`.
+const money0 = (n?: number | null) => money(n, 0);
 
 const EFFECT_COPY: Record<string, { label: string; tone: string }> = {
   diversifying: { label: "Diversifying", tone: KT.up },
@@ -224,13 +225,13 @@ export function CandidateVerdict({ equityCurve, dates, symbol, template, params,
                   <div className="flex items-baseline gap-2">
                     <span className={`w-24 ${KT.label}`}>Book ES</span>
                     <span className={`font-mono tabular-nums ${KT.muted}`}>
-                      {money(fit.before?.expected_shortfall_usd)}
+                      {money0(fit.before?.expected_shortfall_usd)}
                     </span>
                     <span className={KT.muted}>→</span>
                     <span className={`font-mono tabular-nums ${
                       (fit.after?.expected_shortfall_usd ?? 0) > (fit.before?.expected_shortfall_usd ?? 0)
                         ? KT.down : KT.up}`}>
-                      {money(fit.after?.expected_shortfall_usd)}
+                      {money0(fit.after?.expected_shortfall_usd)}
                     </span>
                   </div>
                 </div>

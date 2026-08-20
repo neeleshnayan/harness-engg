@@ -7,6 +7,7 @@ import { StudioHeader } from "../components/StudioHeader";
 import { LossSurface } from "../components/LossSurface";
 import { FactorMap3D } from "../components/FactorMap3D";
 import { KT } from "../theme";
+import { money, pct } from "../format";
 import { fundApiClient, AdvancedRiskView, FactorRow, RiskHistoryPoint, RiskMonitorResponse } from "@/lib/fund_api";
 
 /**
@@ -26,9 +27,11 @@ import { fundApiClient, AdvancedRiskView, FactorRow, RiskHistoryPoint, RiskMonit
  * on a risk screen a false all-clear is the most expensive bug available.
  */
 
-const money = (n?: number | null, dp = 0) =>
-  n == null ? "—" : `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
-const pct = (n?: number | null, dp = 1) => (n == null ? "—" : `${Number(n).toFixed(dp)}%`);
+// Formatters moved to ../format.ts (2026-08-20). This page's retired `money`
+// defaulted to ZERO decimals — whole dollars are the right unit for stress
+// losses — so every call site binds `money0` rather than inheriting the shared
+// default of 2. Rendering is unchanged to the character.
+const money0 = (n?: number | null) => money(n, 0);
 
 /** Cached numbers must always announce their age. */
 const fmtAge = (s?: number) => {
@@ -398,7 +401,7 @@ export default function RiskPage() {
                 </div>
                 <div className={`mt-1 text-[11px] ${KT.muted}`}>
                   {v.reverse_stress?.measurable
-                    ? `${money(v.reverse_stress.loss_to_halt_usd)} of loss ends the fund's week`
+                    ? `${money0(v.reverse_stress.loss_to_halt_usd)} of loss ends the fund's week`
                     : v.reverse_stress?.reason ?? "unmeasured"}
                 </div>
               </div>
@@ -423,7 +426,7 @@ export default function RiskPage() {
                   {es ? pct(es.expected_shortfall_pct, 2) : "—"}
                 </div>
                 <div className={`mt-1 text-[11px] ${KT.muted}`}>
-                  {es ? `${money(es.expected_shortfall_usd)} on a bad day — the baseline, not a crisis` : "unmeasured"}
+                  {es ? `${money0(es.expected_shortfall_usd)} on a bad day — the baseline, not a crisis` : "unmeasured"}
                 </div>
               </div>
               <div className={KT.card}>
@@ -577,7 +580,7 @@ export default function RiskPage() {
                       capital — to first order, the book is a {hog.symbol} bet.
                       {hogTrim && (
                         <> Trimming it to ≈{pct(hogTrim.newW)} of invested capital
-                        {hogTrim.sellUsd != null && <> (≈{money(hogTrim.sellUsd)} sale)</>} would
+                        {hogTrim.sellUsd != null && <> (≈{money0(hogTrim.sellUsd)} sale)</>} would
                         bring it near equal risk — first-order estimate, correlations held fixed.</>
                       )}
                     </SoWhat>
@@ -703,7 +706,7 @@ export default function RiskPage() {
                               {pct(s.nav_change_pct, 1)}
                             </span>
                             <span className={`w-20 text-right font-mono tabular-nums ${KT.down}`}>
-                              {money(s.pnl_usd)}
+                              {money0(s.pnl_usd)}
                             </span>
                           </div>
                           <div className={`mt-1 text-[11px] ${KT.muted}`}>
@@ -793,8 +796,8 @@ export default function RiskPage() {
                       ))}
                     </div>
                     <div className={`text-[11px] ${KT.muted}`}>
-                      Worst observed day {pct(tail.worst_day_pct, 2)} ({money(tail.worst_day_usd)}),
-                      worst 5-day {pct(tail.worst_5day_pct, 2)} ({money(tail.worst_5day_usd)}).
+                      Worst observed day {pct(tail.worst_day_pct, 2)} ({money0(tail.worst_day_usd)}),
+                      worst 5-day {pct(tail.worst_5day_pct, 2)} ({money0(tail.worst_5day_usd)}).
                     </div>
                     {v.vol_regime?.measurable && (
                       <div className={`border-t border-[var(--kt-border)] pt-3 text-[11px] ${KT.muted}`}>

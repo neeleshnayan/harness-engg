@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { FileCode2, Loader2, Play, Plus, Save, Sparkles } from "lucide-react";
 import { python } from "@codemirror/lang-python";
 import { KT } from "../theme";
+import { pct } from "../format";
 import { LeanResults, LeanRunResult } from "./LeanResults";
 import { SweepPanel } from "./SweepPanel";
 import { fundApi } from "@/lib/fund_api";
@@ -181,7 +182,7 @@ interface SavedAlgo {
   modified_at?: string;
 }
 
-const pctf = (n?: number | null) => (n == null ? "—" : `${n.toFixed(1)}%`);
+// `pctf` was `pct(n, 1)` under another name — retired to ../format.ts.
 
 export function LeanLab({
   brief,
@@ -536,7 +537,7 @@ export function LeanLab({
                 <span className="font-semibold">{h.algorithm}</span>
                 <span className={KT.muted}>{h.state}</span>
                 <span className={`ml-auto font-mono ${(h.result?.total_return_pct ?? 0) >= 0 ? KT.up : KT.down}`}>
-                  {pctf(h.result?.total_return_pct)}
+                  {pct(h.result?.total_return_pct)}
                 </span>
                 <span className={`w-16 text-right font-mono ${KT.muted}`}>{h.wall_seconds ?? "—"}s</span>
               </li>

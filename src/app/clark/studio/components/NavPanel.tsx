@@ -8,6 +8,7 @@ import { spineError } from "@/lib/spine_error";
 import { useChartColors } from "../chartColors";
 import { isFlat, navDomain } from "../navDomain";
 import { KT } from "../theme";
+import { money, signedMoney, signedPct } from "../format";
 import { fundApiClient, IntradayNavSeries, NavResponse, StrategyView } from "@/lib/fund_api";
 
 /**
@@ -27,12 +28,11 @@ import { fundApiClient, IntradayNavSeries, NavResponse, StrategyView } from "@/l
  * drawing a two-point line and calling it a track record.
  */
 
-const money = (n?: number | null, dp = 2) =>
-  n == null ? "—" : `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
-const signed = (n?: number | null, dp = 2) =>
-  n == null ? "—" : `${n >= 0 ? "+" : "−"}$${Math.abs(Number(n)).toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
-const pctSigned = (n?: number | null, dp = 2) =>
-  n == null ? "—" : `${n >= 0 ? "+" : ""}${Number(n).toFixed(dp)}%`;
+// money / signedMoney / signedPct moved to ../format.ts (2026-08-20). The three
+// bodies were byte-identical to the copies in ExecutionAnalytics; same
+// defaults, so nothing here renders differently.
+const signed = signedMoney;
+const pctSigned = signedPct;
 
 //: Two points is a line, not a curve. Below this we state the fact instead.
 const MIN_POINTS_FOR_CURVE = 3;

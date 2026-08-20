@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, Check, Loader2, X } from "lucide-react";
 import { spineError } from "@/lib/spine_error";
 import { KT } from "../theme";
+import { money } from "../format";
 import { memoParts } from "../memo";
 import { ProvenanceChip, provenanceOfRationale } from "./Provenance";
 import { MemoView, PendingOrder, ThesisView, fundApiClient } from "@/lib/fund_api";
@@ -21,8 +22,10 @@ import { MemoView, PendingOrder, ThesisView, fundApiClient } from "@/lib/fund_ap
  * difference decides whether someone walks away from a trade that is waiting.
  */
 
-const money = (n?: number | null, dp = 2) =>
-  n == null ? "—" : `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
+/* `money` moved to ../format.ts (2026-08-20 dead-code sweep, second pass) —
+   same body, same default of 2, so nothing on this surface renders
+   differently. Ten identical copies of it existed; the copies had already
+   drifted in their defaults, which is the drift this import removes. */
 
 /* `memoParts` moved to ../memo.ts (2026-08-20): the office's memo threads need
    the identical headline rule, and a second copy would drift. Behaviour

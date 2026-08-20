@@ -2,6 +2,7 @@
 
 import React from "react";
 import { KT } from "../theme";
+import { moneyCompact, pct } from "../format";
 import { Stat } from "./Stat";
 import { CandidateVerdict } from "./CandidateVerdict";
 import { EquityChart } from "../lab/EquityChart";
@@ -77,7 +78,7 @@ export interface LeanOrder {
   value?: number | null;
 }
 
-const pctf = (n?: number | null) => (n == null ? "—" : `${n.toFixed(1)}%`);
+// `pctf` was `pct(n, 1)` under another name — retired to ../format.ts.
 const numf = (n?: number | null) => (n == null ? "—" : n.toFixed(2));
 
 /**
@@ -192,11 +193,10 @@ function Robustness({ rb }: { rb: LeanRobustness }) {
   );
 }
 
-const money = (n?: number | null) =>
-  n == null ? "—"
-    : n >= 1e9 ? `$${(n / 1e9).toFixed(1)}bn`
-    : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}m`
-    : `$${(n / 1e3).toFixed(0)}k`;
+// This file's abbreviating `money` moved to ../format.ts as `moneyCompact`
+// (2026-08-20) — renamed on the way out, because it was the ONE `money` in the
+// Studio that was lossy, and a lossy formatter sharing a name with the one the
+// book's dollars go through is an accident waiting for a copy-paste.
 
 /**
  * How much money this could ever hold — and why a small answer is good news.
@@ -226,14 +226,14 @@ function Capacity({ cap }: { cap: LeanCapacity }) {
         <div>
           <div className={KT.label}>Capacity</div>
           <div className={`mt-1 font-mono tabular-nums text-xl font-light ${good ? KT.up : ""}`}>
-            {money(cap.capacity_usd)}
+            {moneyCompact(cap.capacity_usd)}
           </div>
           <div className={`mt-1 text-[10px] ${KT.muted}`}>{cap.symbol}</div>
         </div>
         <div>
           <div className={KT.label}>Daily volume</div>
           <div className="mt-1 font-mono tabular-nums text-xl font-light">
-            {money(cap.adv_usd)}
+            {moneyCompact(cap.adv_usd)}
           </div>
           <div className={`mt-1 text-[10px] ${KT.muted}`}>median dollar ADV</div>
         </div>
@@ -287,10 +287,10 @@ export function LeanResults({
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Stat
           label="Total return"
-          value={pctf(r.total_return_pct)}
+          value={pct(r.total_return_pct)}
           sub={
             r.benchmark_return_pct != null
-              ? `buy & hold ${pctf(r.benchmark_return_pct)}`
+              ? `buy & hold ${pct(r.benchmark_return_pct)}`
               : "no benchmark available"
           }
           tone={(r.total_return_pct ?? 0) >= 0 ? KT.up : KT.down}
@@ -298,7 +298,7 @@ export function LeanResults({
         <Stat label="Sharpe" value={numf(r.sharpe)} sub="LEAN statistic" />
         <Stat
           label="Max drawdown"
-          value={pctf(r.max_drawdown_pct)}
+          value={pct(r.max_drawdown_pct)}
           sub="peak to trough"
           tone={KT.down}
         />

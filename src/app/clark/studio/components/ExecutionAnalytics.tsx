@@ -7,6 +7,7 @@ import {
 import { spineError } from "@/lib/spine_error";
 import { useChartColors } from "../chartColors";
 import { KT } from "../theme";
+import { money, pctFromFraction, signedMoney, signedPct } from "../format";
 import { ExecutionSummary, RoundTrip, StrategyExecutions, fundApiClient } from "@/lib/fund_api";
 import { ExecutionChart } from "./ExecutionChart";
 
@@ -26,14 +27,14 @@ import { ExecutionChart } from "./ExecutionChart";
  *     closed round-trips — a 0% win rate from zero trades is not a fact
  */
 
-const money = (n?: number | null, dp = 2) =>
-  n == null ? "—" : `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
-const signed = (n?: number | null, dp = 2) =>
-  n == null ? "—" : `${n >= 0 ? "+" : "−"}$${Math.abs(Number(n)).toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
-const pct = (n?: number | null, dp = 1) =>
-  n == null ? "—" : `${(Number(n) * 100).toFixed(dp)}%`;
-const pctSigned = (n?: number | null, dp = 2) =>
-  n == null ? "—" : `${n >= 0 ? "+" : ""}${Number(n).toFixed(dp)}%`;
+// Formatters moved to ../format.ts (2026-08-20). NOTE the `pct` here: this
+// file's figures (win rate, top-trade share) arrive as FRACTIONS of one, so it
+// binds `pctFromFraction`, not the shared `pct`. That distinction was invisible
+// while every file kept its own copy — importing the wrong one understates a
+// win rate by 100×, and format.test.ts asserts the two disagree.
+const signed = signedMoney;
+const pct = pctFromFraction;
+const pctSigned = signedPct;
 const when = (ts?: string | null) =>
   !ts ? "—" : ts.replace("T", " ").slice(0, 16);
 

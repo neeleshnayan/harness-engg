@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { KT } from "../theme";
+import { UNSETTLED } from "../orderCounts";
 import { OrderHistoryRow } from "@/lib/fund_api";
 
 /**
@@ -18,8 +19,12 @@ import { OrderHistoryRow } from "@/lib/fund_api";
  * it is worth looking at.
  */
 
-/** Left the human's hands, not yet terminal. */
-const IN_FLIGHT = new Set(["pending", "approved", "working", "partial"]);
+/** Left the human's hands, not yet terminal. This panel's "working" tab
+ *  includes `pending` (the operator wants their own un-approved ticket in the
+ *  same list), so it binds UNSETTLED — the set that MonitorVerdict's narrower
+ *  `inFlightCount` deliberately does not use. Both live in ../orderCounts.ts so
+ *  the difference is one file's decision rather than two files' accident. */
+const IN_FLIGHT = UNSETTLED;
 /** Terminal and bad — these must stay visible rather than blend into "settled". */
 const BAD = new Set(["failed", "rejected", "declined"]);
 
@@ -38,7 +43,11 @@ type Tab = "working" | "settled";
 
 export function OrderFlow({ orders, loading, error, limit = 12, embedded = false,
                             marketOpen = null }: {
-  orders: OrderHistoryRow[];
+  /** null = the order history could not be read (defect C2). The `error` prop
+   *  did not cover this: Monitor catches the order fetch on its own, so `error`
+   *  stayed null while `orders` arrived as `[]` and this panel printed
+   *  "Nothing in flight — every order has reached a terminal state." */
+  orders: OrderHistoryRow[] | null;
   loading?: boolean;
   error?: string | null;
   limit?: number;
@@ -50,9 +59,10 @@ export function OrderFlow({ orders, loading, error, limit = 12, embedded = false
 }) {
   const [tab, setTab] = useState<Tab>("working");
 
+  const unreadable = orders === null;
   const { working, settled } = useMemo(() => ({
-    working: orders.filter((o) => IN_FLIGHT.has(o.status)),
-    settled: orders.filter((o) => !IN_FLIGHT.has(o.status)),
+    working: (orders ?? []).filter((o) => IN_FLIGHT.has(o.status)),
+    settled: (orders ?? []).filter((o) => !IN_FLIGHT.has(o.status)),
   }), [orders]);
 
   // Open on whichever half has something to say: an empty Working tab hiding a
@@ -80,7 +90,8 @@ export function OrderFlow({ orders, loading, error, limit = 12, embedded = false
                       active === key
                         ? "bg-[var(--kt-accent-bg)] text-[var(--kt-accent)]"
                         : `${KT.muted} hover:bg-[var(--kt-hover)]`}`}>
-              {label} <span className="font-mono tabular-nums">{count}</span>
+              {label}{" "}
+              <span className="font-mono tabular-nums">{unreadable ? "—" : count}</span>
             </button>
           ))}
         </div>
@@ -90,9 +101,10 @@ export function OrderFlow({ orders, loading, error, limit = 12, embedded = false
         <div className={`flex items-center gap-2 px-5 py-6 text-sm ${KT.muted}`}>
           <Loader2 size={14} className="animate-spin" /> Loading…
         </div>
-      ) : error ? (
+      ) : error || unreadable ? (
         <div className={`px-5 py-6 text-sm ${KT.sev.warn}`}>
-          Order status unavailable — cannot confirm whether anything is in flight.
+          Order history unreadable — cannot confirm whether anything is in flight.
+          Orders may be working at the venue. Check the broker directly.
         </div>
       ) : rows.length === 0 ? (
         <div className={`px-5 py-6 text-sm ${KT.muted}`}>
