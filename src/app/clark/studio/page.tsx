@@ -18,6 +18,8 @@ import { LimitsEditor } from "./components/LimitsEditor";
 import { SystemStatus } from "./components/SystemStatus";
 import { SimulationModal } from "./components/SimulationModal";
 import { KT } from "./theme";
+import { money, pct } from "./format";
+import { hasRecentFailure, inFlightCount, settledCount } from "./orderCounts";
 import {
   ComplianceStatus, MarketSessionResponse, NavResponse, OrderHistoryRow,
   PendingOrder, RiskMonitorResponse, fundApiClient,
@@ -47,13 +49,17 @@ import {
  * an unreadable spine says so rather than showing an all-clear.
  */
 
-const money = (n?: number | null, dp = 2) =>
-  n == null ? "—" : `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
-const pct = (n?: number | null, dp = 2) => (n == null ? "—" : `${Number(n).toFixed(dp)}%`);
+// Formatters: ./format.ts (2026-08-20 consolidation). This page's retired
+// `pct` defaulted to TWO decimals rather than the house one, so its three
+// bare call sites now pass 2 explicitly and render unchanged.
+const pct2 = (n?: number | null) => pct(n, 2);
 
 export default function MonitorHome() {
   const [m, setM] = useState<RiskMonitorResponse | null>(null);
-  const [orders, setOrders] = useState<OrderHistoryRow[]>([]);
+  // C2: `null` = the order history could not be read. It used to fall back to
+  // `[]`, and an empty array is indistinguishable from a quiet venue — the
+  // verdict line then said "nothing in flight" about orders it had never seen.
+  const [orders, setOrders] = useState<OrderHistoryRow[] | null>(null);
   const [drift, setDrift] = useState<Awaited<ReturnType<typeof fundApiClient.getVenueReconcile>> | null>(null);
   const [pending, setPending] = useState<PendingOrder[] | null>(null);
   const [compliance, setCompliance] = useState<ComplianceStatus | null>(null);
@@ -74,7 +80,8 @@ export default function MonitorHome() {
     try {
       const [risk, oh, dr, pq, comp, sess, nv] = await Promise.all([
         fundApiClient.getRiskMonitor(),
-        fundApiClient.getOrderHistory(null, 50).catch(() => ({ orders: [] })),
+        // C2: null on failure, NOT an empty order book.
+        fundApiClient.getOrderHistory(null, 50).catch(() => null),
         fundApiClient.getVenueReconcile().catch(() => null),
         fundApiClient.getPending().catch(() => null),
         fundApiClient.getCompliance().catch(() => null),
@@ -82,7 +89,7 @@ export default function MonitorHome() {
         fundApiClient.getNav().catch(() => null),
       ]);
       setM(risk);
-      setOrders(oh.orders || []);
+      setOrders(oh ? oh.orders || [] : null);   // null = unreadable, not empty
       setDrift(dr);
       setPending(pq ? pq.pending : null);   // null = unreadable, not empty
       setCompliance(comp);
@@ -92,6 +99,7 @@ export default function MonitorHome() {
       setErr(null);
     } catch (e: unknown) {
       setM(null);              // unknown, never an implied all-clear
+      setOrders(null);         // ditto: no order book is claimed
       setErr(spineError(e));
     } finally {
       setLoading(false);
@@ -127,27 +135,27 @@ export default function MonitorHome() {
   // means our positions and the broker's have diverged.
   const outOfSync = (drift?.symbols_out_of_sync ?? 0) > 0;
 
-  // Order-flow bookkeeping for the fold decision and the summary row.
-  const workingCount = useMemo(
-    () => orders.filter((o) => ["approved", "working", "partial"].includes(o.status)).length,
-    [orders],
-  );
-  const settledCount = useMemo(
-    () => orders.filter((o) => !["pending", "approved", "working", "partial"].includes(o.status)).length,
-    [orders],
-  );
-  const recentBad = useMemo(
-    () => orders.some((o) =>
-      ["failed", "rejected"].includes(o.status) && o.ts != null
-      && Date.now() - new Date(o.ts).getTime() < 24 * 3600_000),
-    [orders],
-  );
+  // Order-flow bookkeeping for the fold decision and the summary row. Each is
+  // null when the history is unreadable — a count of 0 derived from an unread
+  // list is the same lie MonitorVerdict used to tell (C2). The status sets and
+  // the null discipline live in ./orderCounts.ts, under test, so this page and
+  // the two components below cannot disagree about what "in flight" means.
+  const workingCount = useMemo(() => inFlightCount(orders), [orders]);
+  const settled = useMemo(() => settledCount(orders), [orders]);
+  // null = cannot tell. Not a reason to expand on its own, but `orders === null`
+  // below is — so the "unreadable" sentence is never hidden behind a fold.
+  const recentBad = useMemo(() => hasRecentFailure(orders, Date.now()), [orders]);
   // Expanded when something needs eyes: a decision waiting, a fresh failure,
   // or fills that could land any second because the venue is open. A quiet
   // queue on a shut market folds to one line so the fund's state — not its
   // empty in-tray — is what fills the first screen.
+  // An unreadable history opens the panel too: the reader should SEE the
+  // "cannot confirm" sentence rather than have it hidden behind a fold.
   const flowShouldOpen =
-    (pending?.length ?? 0) > 0 || recentBad || (session?.is_open === true && workingCount > 0);
+    (pending?.length ?? 0) > 0
+    || recentBad === true
+    || orders === null
+    || (session?.is_open === true && (workingCount ?? 0) > 0);
   const flowExpanded = flowOpen ?? flowShouldOpen;
 
   return (
@@ -255,7 +263,10 @@ export default function MonitorHome() {
                 // hides layout, never information.
                 <span className={`font-mono text-[11px] tabular-nums ${KT.muted}`}>
                   {pending === null ? "queue unreadable" : `${pending.length} awaiting you`}
-                  {" · "}{workingCount} working · {settledCount} settled
+                  {" · "}
+                  {orders === null
+                    ? "order history unreadable"
+                    : `${workingCount} working · ${settled} settled`}
                 </span>
               )}
             </button>
@@ -294,12 +305,12 @@ export default function MonitorHome() {
           <div className={KT.card}>
             <div className={KT.label}>Gross exposure</div>
             <div className={`mt-1 ${KT.numberLg}`}>{money(m?.gross_exposure_usd)}</div>
-            <div className={`mt-1 text-[11px] ${KT.muted}`}>{pct(m?.gross_exposure_pct)} of NAV</div>
+            <div className={`mt-1 text-[11px] ${KT.muted}`}>{pct2(m?.gross_exposure_pct)} of NAV</div>
           </div>
           <div className={KT.card}>
             <div className={KT.label}>Cash</div>
             <div className={`mt-1 ${KT.numberLg}`}>{money(m?.cash_usd)}</div>
-            <div className={`mt-1 text-[11px] ${KT.muted}`}>{pct(m?.cash_pct)} of NAV</div>
+            <div className={`mt-1 text-[11px] ${KT.muted}`}>{pct2(m?.cash_pct)} of NAV</div>
           </div>
           {/* Since inception replaces the drawdown card that used to sit here:
               drawdown already lives in the header's RiskBar and the headroom
@@ -318,7 +329,7 @@ export default function MonitorHome() {
                   {money(Math.abs(nav.since_inception.pnl_usd))}
                 </div>
                 <div className={`mt-1 text-[11px] ${KT.muted}`}>
-                  {pct(nav.since_inception.return_pct)} per unit
+                  {pct2(nav.since_inception.return_pct)} per unit
                   · on {money(nav.since_inception.subscribed_usd, 0)} in
                 </div>
               </>

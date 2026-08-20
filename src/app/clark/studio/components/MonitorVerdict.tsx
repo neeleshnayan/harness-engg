@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { KT } from "../theme";
+import { inFlightCount } from "../orderCounts";
 import {
   ComplianceStatus, MarketSessionResponse, OrderHistoryRow, PendingOrder,
 } from "@/lib/fund_api";
@@ -19,15 +20,21 @@ import {
  * Every segment is nullable. A segment whose source failed says "unreadable"
  * in warn tone rather than vanishing — a missing chip reads as "nothing to
  * report", which is exactly the false all-clear this studio refuses to give.
+ *
+ * DEFECT C2, fixed 2026-08-20: `orders` used to arrive as `OrderHistoryRow[]`,
+ * with the caller catching a failed fetch into `[]`. The in-flight segment then
+ * counted zero rows and printed "nothing in flight" — a positive operational
+ * all-clear assembled from an order history nobody had managed to read. It is
+ * `OrderHistoryRow[] | null` now, and the null branch says so in warn tone,
+ * exactly like the four segments beside it that already got this right.
  */
-
-const IN_FLIGHT = new Set(["approved", "working", "partial"]);
 
 export function MonitorVerdict({
   pending, orders, compliance, session, driftCount, lastLoaded, onJumpToQueue,
 }: {
   pending: PendingOrder[] | null;
-  orders: OrderHistoryRow[];
+  /** null = the order history could not be read. NOT an empty book. */
+  orders: OrderHistoryRow[] | null;
   compliance: ComplianceStatus | null;
   session: MarketSessionResponse | null;
   /** symbols_out_of_sync from the reconciler; null = reconciler unreachable. */
@@ -43,7 +50,10 @@ export function MonitorVerdict({
     return () => clearInterval(t);
   }, []);
 
-  const working = orders.filter((o) => IN_FLIGHT.has(o.status)).length;
+  // null = unknown. Counted in ../orderCounts.ts, where a test asserts that
+  // `null` does not collapse to `0` — `orders?.filter(...).length ?? 0` would
+  // quietly rebuild the very defect this signature change exists to remove.
+  const working = inFlightCount(orders);
   const marketShut = session ? session.is_open === false : null;
 
   const seg: React.ReactNode[] = [];
@@ -63,15 +73,20 @@ export function MonitorVerdict({
   }
 
   // 2 — in flight, with the context that decides whether it is news.
+  //     "unreadable" and "nothing" are different sentences (C2).
   seg.push(
-    <span key="w">
-      {working === 0 ? "nothing in flight" : (
-        <>
-          <span className="font-mono tabular-nums">{working}</span> working
-          {marketShut === true && <span className={KT.muted}> (market closed)</span>}
-        </>
-      )}
-    </span>,
+    orders === null ? (
+      <span key="w" className={KT.sev.warn}>order history unreadable</span>
+    ) : (
+      <span key="w">
+        {working === 0 ? "nothing in flight" : (
+          <>
+            <span className="font-mono tabular-nums">{working}</span> working
+            {marketShut === true && <span className={KT.muted}> (market closed)</span>}
+          </>
+        )}
+      </span>
+    ),
   );
 
   // 3 — the cliff. One more day trade than budgeted restricts the account for

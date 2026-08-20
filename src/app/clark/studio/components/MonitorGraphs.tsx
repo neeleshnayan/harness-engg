@@ -7,6 +7,7 @@ import {
 import { useChartColors } from "../chartColors";
 import { isFlat, navDomain } from "../navDomain";
 import { KT } from "../theme";
+import { money, pct } from "../format";
 import {
   AdvancedRiskView, IntradayNavSeries, NavSnapshot, RiskLimitsConfig,
   RiskMonitorResponse, fundApiClient,
@@ -28,9 +29,10 @@ import {
  * invents a threshold.
  */
 
-const money = (n?: number | null, dp = 0) =>
-  n == null ? "—" : `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
-const pct = (n?: number | null, dp = 1) => (n == null ? "—" : `${Number(n).toFixed(dp)}%`);
+// Formatters moved to ../format.ts (2026-08-20). This file's retired `money`
+// defaulted to 0 decimals, but BOTH of its call sites already passed 2
+// explicitly — so the default was dead and the shared default of 2 changes
+// nothing here. `pct` matched the house default of 1 already.
 
 /** Bar width against a shared scale. Floors at a visible sliver so a genuinely
  *  tiny share still reads as "present but small" rather than as absent. */
@@ -320,7 +322,17 @@ export function MonitorGraphs({ m }: { m: RiskMonitorResponse | null }) {
           )}
         </div>
 
-        {book.length === 0 ? (
+        {/* C6 (found 2026-08-20 by running Monitor against a dead spine, while
+            fixing C2; same defect class, different panel). `book` is derived
+            from `m?.positions ?? []`, so an unreadable risk monitor produced an
+            empty array and this panel reported "No positions held" — a
+            statement about the fund's book made without reading it. The fund
+            held 43% of NAV at the time. Unknown says unknown. */}
+        {m === null ? (
+          <div className={`px-4 py-10 text-center text-[12px] ${KT.sev.warn}`}>
+            Positions unreadable — the book&apos;s shape is unknown, not flat.
+          </div>
+        ) : book.length === 0 ? (
           <div className={`px-4 py-10 text-center text-[12px] ${KT.muted}`}>
             No positions held.
           </div>
