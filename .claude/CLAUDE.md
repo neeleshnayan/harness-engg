@@ -95,7 +95,13 @@ governance chain and Abhishek's surfaces stay structurally protected.
 ## Dispatch and placement (quota-era rules, agreed 2026-08-20)
 
 **No agent runs without an explicit trigger from the CEO or the CTO.** No
-cadences, no schedules, no self-starting seats. A seat runs when a state change
+cadences, no schedules, no self-starting seats. AMENDED 2026-08-20 (CEO
+decision, "that design looks good"): **a seat MAY file a dispatch request into
+the durable desk queue, tagged with its own name** — "pm requests quant:
+implement the survivor" is hierarchy made real — but a seat-filed request is
+an ASK, never a trigger: it sits in the queue until a human fires it, exactly
+like a CEO-typed one. The org chart gains edges; the ignition keys stay human,
+which is what keeps the cost ceiling structural rather than hopeful. A seat runs when a state change
 demands it (a fill, an alarm, a fired exit, an artifact awaiting review, a
 registered review trigger) AND a human dispatches it — or when the CEO asks.
 An idle seat costs zero and that is a feature. One sub-agent in flight at a
