@@ -275,4 +275,48 @@ export function WindowNote({ events, capped }: { events: number; capped: boolean
   );
 }
 
+/**
+ * The COO triage chip: how loaded the CEO's desk is, against the registered
+ * trigger.
+ *
+ * The CEO's standing rule (2026-08-20) is a COO triage dispatch when open items
+ * pass 20. The rule existed and nothing counted, so "am I over the line?" was a
+ * question only a manual tally could answer.
+ *
+ * Three states and they are all different facts:
+ *   - absent load     → renders nothing. A spine that does not report the count
+ *                       has not reported a low one.
+ *   - incomplete      → the total is a FLOOR and says which part it could not
+ *                       count. A desk over the line must not look under it
+ *                       because a component was unreadable.
+ *   - over the line   → "COO triage due". A SIGNAL for the CTO to dispatch;
+ *                       this chip fires nothing and neither does the spine.
+ */
+export function CooTriageChip({ load }: { load?: DeskView["desk_load"] }) {
+  if (!load) return null;
+  const over = load.coo_triage_due;
+  return (
+    <span
+      title={load.note}
+      className={`ml-2 inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] ${
+        over
+          ? "border-[var(--kt-warn)] text-[var(--kt-warn)]"
+          : `border-[var(--kt-border)] ${KT.muted}`
+      }`}
+    >
+      <span className="tabular-nums">
+        {load.total}
+        {!load.complete && "+"}
+      </span>
+      <span>/ {load.threshold} open</span>
+      {over && <span>· COO triage due</span>}
+      {!load.complete && (
+        <span title={`could not count: ${load.unreadable.join(", ")}`}>
+          · partial
+        </span>
+      )}
+    </span>
+  );
+}
+
 export { ProvenanceChip };

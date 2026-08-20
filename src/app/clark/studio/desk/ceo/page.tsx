@@ -15,8 +15,9 @@ import { RecRow } from "../components";
 import { fmtAt } from "../seatLib";
 import {
   DeskItem, cooMemos, decisionVelocity, moneyGap, orderItems, rankDeskItems,
-  recItems,
+  recItems, splitDeskItems,
 } from "../execDesk";
+import { CooTriageChip } from "../components";
 
 /**
  * The CEO's desk — everything awaiting Neelesh's click, in one place.
@@ -82,12 +83,18 @@ export default function CeoDeskPage() {
     ]),
     [pending, desk],
   );
-  const gap = useMemo(() => moneyGap(ranked), [ranked]);
+  /* Two queues, not one list (CDO D4). "Awaiting your decision" is the CEO's
+     actual work; "decided, awaiting execution" is a promise the firm has made
+     and not yet kept. Counting them together meant a desk where everything had
+     been decided read exactly like one where nothing had. */
+  const split = useMemo(() => splitDeskItems(ranked), [ranked]);
+  const gap = useMemo(() => moneyGap(split.awaitingDecision), [split]);
   const memos = useMemo(() => cooMemos(desk?.runs ?? [], memoParts), [desk]);
   const velocity = useMemo(() => decisionVelocity(events, new Date()), [events]);
 
-  const orders = ranked.filter((i) => i.kind === "order");
-  const recItemsRanked = ranked.filter((i) => i.kind === "recommendation");
+  const orders = split.awaitingDecision.filter((i) => i.kind === "order");
+  const recItemsRanked = split.awaitingDecision.filter((i) => i.kind === "recommendation");
+  const decidedItems = split.awaitingExecution;
   const halted = risk?.halted === true;
 
   return (
@@ -99,6 +106,22 @@ export default function CeoDeskPage() {
           <div>
             <p className={KT.label}>Krypton Fund · the corner office</p>
             <h1 className="text-2xl font-medium tracking-tight">Neelesh · CEO</h1>
+            {/* The headline count: ONLY what awaits a decision. Anything already
+                decided is reported beside it, not inside it. */}
+            <p className={`mt-1 text-sm ${KT.body}`}>
+              <span className="font-mono tabular-nums text-[var(--kt-text-strong)]">
+                {desk === null ? "unknown" : split.awaitingDecision.length}
+              </span>{" "}
+              awaiting your decision
+              {desk !== null && decidedItems.length > 0 && (
+                <span className={KT.muted}>
+                  {" · "}
+                  <span className="font-mono tabular-nums">{decidedItems.length}</span>{" "}
+                  decided, awaiting execution
+                </span>
+              )}
+              <CooTriageChip load={desk?.desk_load} />
+            </p>
             <p className={`mt-0.5 text-xs ${KT.muted}`}>
               decisions recorded{" "}
               <span className="font-mono tabular-nums">
@@ -276,10 +299,10 @@ export default function CeoDeskPage() {
                 <span className={KT.sev.warn}>
                   {gap.unpriced} of {gap.priced + gap.unpriced} items carry no money figure
                 </span>{" "}
-                — recommendations have no such field on <code>GET /fund/desk</code>, so they
-                are ranked on the two remaining keys rather than on a number read out of
-                their prose. Reversibility is derived from each item&apos;s kind and shown
-                beside it.
+                — <code>money_at_stake</code> is optional on a recommendation and these
+                seats stated none, so they are ranked on the two remaining keys rather than
+                on a number read out of their prose. Reversibility is derived from each
+                item&apos;s kind and shown beside it.
               </>
             )}
           </p>
@@ -296,6 +319,46 @@ export default function CeoDeskPage() {
             ))}
           </div>
         </section>
+
+        {/* ── 4 · DECIDED, AWAITING EXECUTION ──────────────────────────────
+            Still on the desk, deliberately: a decision that never executes is a
+            decision that did not happen, and the CEO is the only person who can
+            see that it has stalled. NOT counted in the headline — it is not work
+            to do, it is work owed. */}
+        {desk !== null && decidedItems.length > 0 && (
+          <section className="mb-8">
+            <p className={`${KT.label} mb-2`}>
+              Decided, awaiting execution ({decidedItems.length})
+            </p>
+            <p className={`mb-2 text-xs leading-relaxed ${KT.muted}`}>
+              You decided these; they are the CTO&apos;s to stage through the ordinary
+              propose path. They are listed so a decision cannot go quiet — but they
+              are not counted above, because nothing here is waiting on you.
+            </p>
+            <div className="space-y-1.5">
+              {decidedItems.map((item) => (
+                <div key={item.key} className={`${KT.card} p-3`}>
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span className={`font-mono text-[10px] uppercase tracking-[0.1em] ${KT.accent}`}>
+                      {item.rec?.status}
+                    </span>
+                    <span className="min-w-0 flex-1 text-[13px] leading-snug">
+                      {item.rec?.text}
+                    </span>
+                    <span className={`font-mono text-[10px] ${KT.muted}`}>
+                      {item.rec?.seat}
+                    </span>
+                  </div>
+                  <p className={`mt-0.5 font-mono text-[10px] ${KT.muted}`}>
+                    {item.rec?.decided_by
+                      ? `decided by ${item.rec.decided_by}${item.rec.decided_at ? ` · ${fmtAt(item.rec.decided_at)}` : ""}`
+                      : "decided — the decision event recorded no actor"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <p className={`text-[11px] italic leading-relaxed ${KT.muted}`}>
           Folded from {events?.length ?? 0} spine events

@@ -103,6 +103,19 @@ export interface BookFold {
   exposureUsd: Folded;
   /** Largest |actual − target| across `book`; null when no row carried both. */
   worstDrift: number | null;
+  /**
+   * Sum of `actual_pct` over EVERY strategy, archived included — the fund's
+   * true exposure (CDO D2).
+   *
+   * `actual` above excludes archived rows, which is right for "what is the
+   * book supposed to be" and WRONG for the hero number: while an archived
+   * strategy still held exposure, AT WORK rendered 0.0% directly above a
+   * banner saying archived strategies still held positions. Dollars at work
+   * are dollars at work whatever flag sits on the row that carries them.
+   */
+  actualIncludingArchived: Folded;
+  /** The archived rows' contribution, so the caveat can name its own size. */
+  archivedActual: Folded;
 }
 
 /**
@@ -138,6 +151,11 @@ export function foldBook(strategies: StrategyView[]): BookFold {
     actual: foldField(all, (s) => s.actual_pct),
     exposureUsd: foldField(all, (s) => s.exposure_usd),
     worstDrift,
+    actualIncludingArchived: foldField(strategies, (s) => s.actual_pct),
+    archivedActual: foldField(
+      strategies.filter((s) => s.archived),
+      (s) => s.actual_pct,
+    ),
   };
 }
 

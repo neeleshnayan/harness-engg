@@ -231,23 +231,48 @@ export default function DeskPage() {
             </section>
 
             {/* -------------------------------------- the wire: what, as it happens */}
-            {feed.length > 0 && (
-              <section className="mb-8">
-                <SectionHead
-                  title="The wire"
-                  lede="Every interaction between the desks, newest first — the ask, the dispatch, the delivery, the decision. Click a seat to walk into its office. Refreshes every 10 seconds."
-                />
+            {/* The section renders ALWAYS (CDO D10). It used to disappear
+                entirely when `feed` was empty, which made "the log could not be
+                read" and "nothing has happened yet" render identically: as
+                nothing at all. Those are different facts and the second one is
+                reassuring, so the first must never be able to wear it. */}
+            <section className="mb-8">
+              <SectionHead
+                title="The wire"
+                lede="Every interaction between the desks, newest first — the ask, the dispatch, the delivery, the decision. Click a seat to walk into its office. Refreshes every 10 seconds."
+              />
+              {feed.length > 0 ? (
                 <div className={`${KT.card} divide-y divide-[var(--kt-border)] p-0`}>
                   {feed.map((f, i) => <WireRow key={`${f.traceId}-${f.kind}-${f.at}-${i}`} f={f} />)}
                 </div>
-                {eventsErr && (
-                  <p className={`mt-2 text-xs ${KT.sev.warn}`}>
-                    The event log could not be read ({eventsErr}) — the wire shows
-                    only the flight recorder until it returns.
+              ) : eventsErr ? (
+                <div className={`${KT.card} p-4`}>
+                  <p className={`text-sm ${KT.sev.warn}`}>
+                    The wire could not be read ({eventsErr}).
                   </p>
-                )}
-              </section>
-            )}
+                  <p className={`mt-1 text-xs ${KT.muted}`}>
+                    This is an absence, not an empty desk — interactions may have
+                    happened that this panel cannot currently see.
+                  </p>
+                </div>
+              ) : (
+                <div className={`${KT.card} p-4`}>
+                  <p className={`text-sm ${KT.muted}`}>
+                    No interactions recorded yet.
+                  </p>
+                  <p className={`mt-1 text-xs ${KT.muted}`}>
+                    The wire is readable and empty — the desks have not spoken to
+                    each other since the log begins.
+                  </p>
+                </div>
+              )}
+              {feed.length > 0 && eventsErr && (
+                <p className={`mt-2 text-xs ${KT.sev.warn}`}>
+                  The event log could not be read ({eventsErr}) — the wire shows
+                  only the flight recorder until it returns.
+                </p>
+              )}
+            </section>
 
             {/* ------------------------------------------------- request work */}
             <section className={`${KT.card} mb-8 border-[var(--kt-accent-border)]`}>
@@ -321,19 +346,39 @@ export default function DeskPage() {
               </section>
             )}
 
-            {/* recommendations awaiting decisions — attribution is the point */}
-            {d.open_recommendations?.length > 0 && (
-              <section className="mb-8">
-                <p className={`${KT.label} mb-2`}>
-                  Recommendations awaiting your decision
-                </p>
-                <div className="space-y-1.5">
-                  {d.open_recommendations.map((r) => (
-                    <RecRow key={`${r.run_id}-${r.rec_id}`} r={r} onDecide={load} />
-                  ))}
-                </div>
-              </section>
-            )}
+            {/* Recommendations, SPLIT (CDO D4). `/fund/desk` returns open,
+                accepted and staged under one key, so this heading counted
+                decisions the CEO had already made as decisions they still owed.
+                The headline counts only the undecided ones. */}
+            {d.open_recommendations?.length > 0 && (() => {
+              const undecided = d.open_recommendations.filter((r) => r.status === "open");
+              const decided = d.open_recommendations.filter((r) => r.status !== "open");
+              return (
+                <section className="mb-8">
+                  <p className={`${KT.label} mb-2`}>
+                    Recommendations awaiting your decision ({undecided.length})
+                    {decided.length > 0 && (
+                      <span className={`ml-2 font-normal normal-case tracking-normal ${KT.muted}`}>
+                        · {decided.length} decided, awaiting execution
+                      </span>
+                    )}
+                  </p>
+                  <div className="space-y-1.5">
+                    {undecided.map((r) => (
+                      <RecRow key={`${r.run_id}-${r.rec_id}`} r={r} onDecide={load} />
+                    ))}
+                  </div>
+                  {decided.length > 0 && (
+                    <div className="mt-4 space-y-1.5">
+                      <p className={`${KT.label} mb-2`}>Decided, awaiting execution</p>
+                      {decided.map((r) => (
+                        <RecRow key={`${r.run_id}-${r.rec_id}`} r={r} onDecide={load} />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              );
+            })()}
 
             {/* ------------------- rewind: any past day, as reviewable as today */}
             {days.length > 0 && (

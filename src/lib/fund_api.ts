@@ -773,6 +773,30 @@ export interface DeskRecommendation {
   decided_by?: string;
   decided_at?: string;
   note?: string;
+  /** Dollars this recommendation moves, as STATED by the seat that filed it.
+   *  `null` / absent means the seat stated none — never zero. The desk ranks
+   *  absent-last and prints how many rows it could not price. */
+  money_at_stake?: number | null;
+}
+
+/** The COO triage counter: how many open items sit on the CEO's desk.
+ *
+ *  `complete: false` with a populated `unreadable` means the total is a FLOOR —
+ *  a component could not be counted, so a quiet desk may not be quiet. */
+export interface DeskLoad {
+  total: number;
+  complete: boolean;
+  unreadable: string[];
+  components: {
+    open_recommendations: number | null;
+    pending_orders: number | null;
+    requests_awaiting_approval: number | null;
+  };
+  threshold: number;
+  /** True past the CEO's registered trigger. A SIGNAL for the CTO to dispatch
+   *  the COO — it fires nothing by itself. */
+  coo_triage_due: boolean;
+  note: string;
 }
 
 /** The research desk: the firm's bench, artifact chain, and work queue. */
@@ -832,6 +856,9 @@ export interface DeskView {
     trace_id?: string | null;
   })[];
   open_requests: number;
+  /** Optional: absent on a spine that predates the counter, in which case the
+   *  chip renders nothing rather than a fabricated zero. */
+  desk_load?: DeskLoad;
   kills: number;
   /** The honesty line: the spine records requests; it does not run agents. */
   execution_note: string;
@@ -1022,6 +1049,28 @@ export interface RiskMonitorResponse {
   gross_exposure_usd: number;
   gross_exposure_pct: number;
   halted: boolean;
+  /** WHICH kind of dark this is (spine, 2026-08-20):
+   *   'integrity' — the fund cannot MEASURE itself (bad/absent mark, stale
+   *                 feed, dead heartbeat). No reopening procedure but fixing it.
+   *   'loss'      — it measured correctly and does not like the answer. The CEO
+   *                 may acknowledge-and-rebase.
+   *   'manual'    — a human pulled the switch.
+   *  `null` on a halt recorded before classes existed, and on a spine that does
+   *  not report it — UNKNOWN, never back-filled to 'manual'. */
+  halt_class?: 'integrity' | 'loss' | 'manual' | null;
+  halt_reason?: string | null;
+  halted_at?: string | null;
+  /** What the daily-loss rule is measuring FROM. `kind: 'absent'` means the
+   *  rule is NOT EVALUATING — not that the fund is within its limit. */
+  loss_reference?: {
+    nav_usd: number | null;
+    kind: 'prior_strike' | 'rebased' | 'absent';
+    at: string | null;
+    change_pct: number | null;
+  };
+  /** The echo the acknowledge-and-rebase control must send back. Derived from
+   *  the state being rebased, so a confirm read off a stale panel is refused. */
+  rebase_token?: string;
   drawdown: RiskMonitorDrawdown;
   positions: RiskMonitorPosition[];
   strategies: RiskMonitorStrategy[];
@@ -1924,6 +1973,25 @@ export const fundApiClient = {
 
   resumeTrading: async (actor = 'operator'): Promise<{ status: string; halted: boolean }> =>
     (await fundApi.post(`${P}/risk/resume`, { actor })).data,
+
+  /** Acknowledge a loss and move the daily-loss reference to current NAV.
+   *
+   *  The reopening procedure for a LOSS-class halt (CEO-blessed 2026-08-20).
+   *  Moves NO threshold — the limit stays where the register says it is; this
+   *  moves the point it is measured from, once, in the log, with a reason.
+   *
+   *  On the approval channel exactly like an order approval: `confirm` is the
+   *  `rebase_token` from GET /fund/risk/monitor, so the click proves the panel
+   *  was READ and was CURRENT. Refused (409) while an integrity halt is open —
+   *  you cannot accept a loss you cannot measure. */
+  rebaseLossReference: async (
+    reason: string,
+    confirm: string,
+    approver = 'neelesh',
+    instruction?: string,
+  ): Promise<{ status: string; nav_usd: number; reason: string; at: string; actor: string }> =>
+    (await fundApi.post(`${P}/risk/loss-reference/rebase`,
+      { reason, confirm, approver, instruction })).data,
 
   /** The seven-stage operating doctrine, with each stage's status read LIVE.
    *

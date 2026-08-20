@@ -36,7 +36,7 @@ export function StudioHeader({ subtitle, status, actions }: StudioHeaderProps) {
         <Link href="/clark/studio" className="flex items-center gap-2.5" title="Krypton">
           <img src="/Krypton Clark.svg" alt="" aria-hidden className="h-6 w-auto" />
           <span className="text-[15px] font-semibold tracking-tight text-[var(--kt-text-strong)]">
-            K Hedge Fund
+            Krypton Fund
           </span>
         </Link>
         {/* Subordinate to the name, on the same line rather than under it.

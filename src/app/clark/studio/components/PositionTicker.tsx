@@ -58,8 +58,20 @@ export function PositionTicker({ pollMs = 120000 }: { pollMs?: number }) {
               <div className="flex items-baseline gap-1.5">
                 <span className="text-[11px] font-semibold tracking-wide">{q.symbol}</span>
                 {q.held ? (
-                  <span className={`text-[9px] ${KT.accent}`} title="held in the book">
-                    ● {q.weight_pct != null ? `${q.weight_pct.toFixed(1)}%` : "held"}
+                  // CDO D8: the denominator, on the badge. A bare "3.2%" beside
+                  // a ticker reads as a price move to anyone glancing at a strip
+                  // whose next number IS a price move. It is a share of NAV, and
+                  // the strip is the one surface where a reader has no footnote
+                  // to fall back on.
+                  <span
+                    className={`text-[9px] ${KT.accent}`}
+                    title={q.weight_pct != null
+                      ? `${q.weight_pct.toFixed(1)}% of NAV, held in the book`
+                      : "held in the book — weight not reported"}
+                  >
+                    ● {q.weight_pct != null
+                      ? `${q.weight_pct.toFixed(1)}% of NAV`
+                      : "held"}
                   </span>
                 ) : (
                   <span className={`text-[9px] ${KT.muted}`} title="scoped to a strategy, not held">

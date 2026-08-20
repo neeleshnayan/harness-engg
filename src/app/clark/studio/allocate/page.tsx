@@ -148,6 +148,11 @@ export default function AllocatePage() {
   const { book, bench } = fold;
   const targetTotal = fold.target.value;
   const actualTotal = fold.actual.value;
+  /* The whole book including archived holders — the hero's number whenever an
+     archived strategy still holds exposure (CDO D2). Null stays null: an
+     unmeasurable total renders as a dash, never as a reassuring zero. */
+  const atWorkTrue = fold.actualIncludingArchived.value;
+  const archivedPct = fold.archivedActual.value;
   const cashPct = cashPctOfNav(cashUsd, navUsd);
   const worstDrift = fold.worstDrift;
   const driftOverLimit = worstDrift != null && worstDrift > 5;
@@ -239,13 +244,39 @@ export default function AllocatePage() {
                 deployed state, and the label was half of why the false zero
                 read as plausible. */}
             <div className={KT.label}>At work (actual)</div>
-            <div className={`mt-1 ${KT.numberLg}`}>{pct(actualTotal)}</div>
+            {/* CDO D2: while an ARCHIVED strategy still held exposure, this
+                rendered 0.0% — directly above a banner saying archived
+                strategies still hold positions. The hero now reports the whole
+                book, archived rows included, because dollars at work do not
+                stop being at work when a flag is set on the row that carries
+                them. Where even that total is unmeasurable it renders as an
+                absent dash carrying the banner's sentence, never as 0.0%. */}
+            <div className={`mt-1 ${KT.numberLg}${
+              orphanedHoldings.length > 0 ? " text-[var(--kt-warn)]" : ""}`}>
+              {pct(orphanedHoldings.length > 0 ? atWorkTrue : actualTotal)}
+            </div>
             <div className={`mt-1 text-[11px] ${KT.muted}`}>
               {strategies === null
                 ? "unknown — the strategy list did not load"
-                : pausedHolders.length > 0
-                  ? `of NAV in positions · ${pausedHolders.length} paused, still held`
-                  : "of NAV actually at work, whatever the state says"}
+                : orphanedHoldings.length > 0
+                  ? (atWorkTrue == null
+                      ? `not measurable — ${orphanedHoldings.length} archived ${
+                          orphanedHoldings.length === 1 ? "strategy holds" : "strategies hold"
+                        } exposure and no row reported a percentage`
+                      : `of NAV in positions — INCLUDES ${orphanedHoldings.length} archived ${
+                          orphanedHoldings.length === 1
+                            ? "strategy that still holds"
+                            : "strategies that still hold"
+                        }${
+                          archivedPct == null
+                            ? ""
+                            : Math.abs(archivedPct - atWorkTrue) < 0.005
+                              ? " — all of it"
+                              : ` (${pct(archivedPct)} of it)`
+                        }`)
+                  : pausedHolders.length > 0
+                    ? `of NAV in positions · ${pausedHolders.length} paused, still held`
+                    : "of NAV actually at work, whatever the state says"}
             </div>
           </div>
           <div className={KT.card}>

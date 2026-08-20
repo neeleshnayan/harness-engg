@@ -162,3 +162,54 @@ test("C3: an unread strategy list is not an empty book", () => {
   assert.equal(empty.book.length, 0);
   assert.equal(empty.all.length, 0);
 });
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * CDO D2 (2026-08-20) — the AT WORK hero rendered 0.0% directly above a banner
+ * saying archived strategies still held exposure.
+ *
+ * `actual` folds over NON-archived rows, which is right for "what is the book
+ * supposed to be" and wrong for the hero: a book whose only exposure sits on an
+ * archived row is not a flat book. `actualIncludingArchived` is the true book
+ * number, and it is null — never zero — when nothing reported a percentage.
+ * ─────────────────────────────────────────────────────────────────────────── */
+
+test("D2: the hero total includes archived rows that still hold", () => {
+  const rows = [
+    s({ strategy_id: "live", state: "paused", archived: false,
+        allocation_pct: 0, actual_pct: 0, exposure_usd: 0 }),
+    s({ strategy_id: "gone", state: "paused", archived: true,
+        allocation_pct: 0, actual_pct: 25.4344, exposure_usd: 477.81 }),
+  ];
+  const f = foldBook(rows);
+  // The old hero number: a flat, reassuring zero.
+  assert.equal(f.actual.value, 0);
+  // The true book: a quarter of NAV is in positions.
+  assert.equal(f.actualIncludingArchived.value, 25.4344);
+  assert.equal(f.archivedActual.value, 25.4344);
+  // And the contradiction is still surfaced separately, as before.
+  assert.equal(archivedStillHolding(rows).length, 1);
+});
+
+test("D2: with nothing reported, the hero total is ABSENT, not zero", () => {
+  // `actual_pct` is OMITTED, not null: StrategyView types it optional
+  // (`actual_pct?: number`), so absence on the wire is a missing key.
+  const rows = [
+    s({ strategy_id: "gone", state: "paused", archived: true,
+        allocation_pct: 0, exposure_usd: 477.81 }),
+  ];
+  const f = foldBook(rows);
+  assert.equal(f.actualIncludingArchived.value, null,
+    "an unmeasurable total must render as a dash, never as 0.0%");
+  assert.equal(archivedStillHolding(rows).length, 1,
+    "exposure_usd alone still makes it a holder");
+});
+
+test("D2: with no archived rows the two totals agree", () => {
+  const f = foldBook(liveSpine2026_08_20);
+  assert.equal(
+    f.actualIncludingArchived.value?.toFixed(4),
+    f.actual.value?.toFixed(4),
+    "the hero must not change on a book with no archived holders",
+  );
+  assert.equal(f.archivedActual.value, null);
+});

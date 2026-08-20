@@ -108,7 +108,14 @@ function Seat({ seat }: { seat: SeatId }) {
     }), seatRuns),
     [events, seatRuns, seat],
   );
-  const openRecs = (desk?.open_recommendations ?? []).filter((r) => r.seat === seat);
+  /* Two queues, not one (CDO D4). `/fund/desk` returns open, accepted AND
+     staged recommendations under one key, so "what this seat is asking of you"
+     was listing things the CEO had already decided — and a seat whose every ask
+     had been accepted looked exactly as demanding as one whose asks were all
+     untouched. */
+  const seatRecs = (desk?.open_recommendations ?? []).filter((r) => r.seat === seat);
+  const openRecs = seatRecs.filter((r) => r.status === "open");
+  const decidedRecs = seatRecs.filter((r) => r.status !== "open");
   const observedModels = Array.from(
     new Set(seatRuns.map((r) => r.model).filter((m): m is string => !!m)),
   );
@@ -256,8 +263,8 @@ function Seat({ seat }: { seat: SeatId }) {
         {/* ------------------------------------------------- 1. the seat asks -- */}
         <section className="mb-8">
           <SectionHead
-            title="What this seat is asking of you"
-            lede="Its open recommendations, decidable here. Accepting records the decision on the event log; it stages nothing and moves no money."
+            title={`What this seat is asking of you${desk ? ` (${openRecs.length})` : ""}`}
+            lede="Its UNDECIDED recommendations, decidable here. Accepting records the decision on the event log; it stages nothing and moves no money."
           />
           {openRecs.length === 0 ? (
             <p className={`text-sm ${KT.muted}`}>
@@ -270,6 +277,22 @@ function Seat({ seat }: { seat: SeatId }) {
               {openRecs.map((r) => (
                 <RecRow key={`${r.run_id}-${r.rec_id}`} r={r} onDecide={load} />
               ))}
+            </div>
+          )}
+          {decidedRecs.length > 0 && (
+            <div className="mt-4">
+              <p className={`${KT.label} mb-2`}>
+                Decided, awaiting execution ({decidedRecs.length})
+              </p>
+              <p className={`mb-2 text-xs ${KT.muted}`}>
+                Already decided — listed so a decision cannot go quiet, and NOT counted
+                above, because nothing here is waiting on you.
+              </p>
+              <div className="space-y-1.5">
+                {decidedRecs.map((r) => (
+                  <RecRow key={`${r.run_id}-${r.rec_id}`} r={r} onDecide={load} />
+                ))}
+              </div>
             </div>
           )}
         </section>

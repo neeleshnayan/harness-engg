@@ -196,14 +196,53 @@ export default function MonitorHome() {
           </div>
         )}
 
+        {/* THE anchor banner for the halt (CDO D9). Monitor states the halt
+            ONCE — here — and links to the kill-switch panel that owns the
+            controls and the detail. RiskBar in the shell keeps repeating it
+            everywhere; that is its charter and is untouched. What was removed
+            below is Monitor restating the same fact a third and fourth time on
+            its own page.
+
+            It now names the CLASS, because the class is what tells the reader
+            which way out exists (spine, 2026-08-20). */}
         {m?.halted && (
-          <div className={`mb-4 flex items-center gap-2 p-3 text-sm ${KT.inset} ${KT.down}`}>
+          <div className={`mb-4 p-3 text-sm ${KT.inset} ${KT.down}`}>
+            <div className="flex flex-wrap items-center gap-2">
             <ShieldAlert size={15} />
-            <span className="font-semibold">Trading halted</span>
-            <span className={KT.muted}>— buys blocked, sells allowed; resume is manual</span>
+            <span className="font-semibold">
+              {m.halt_class === "integrity"
+                ? "Trading halted — INTEGRITY"
+                : m.halt_class === "loss"
+                  ? "Trading halted — LOSS"
+                  : m.halt_class === "manual"
+                    ? "Trading halted — MANUAL"
+                    : "Trading halted"}
+            </span>
+            <span className={KT.muted}>
+              {m.halt_class === "integrity"
+                ? "— the fund cannot measure itself; buys blocked, sells allowed"
+                : m.halt_class === "loss"
+                  ? "— a loss limit tripped; buys blocked, sells allowed"
+                  : m.halt_class
+                    ? "— buys blocked, sells allowed; resume is manual"
+                    : "— class unknown; buys blocked, sells allowed"}
+            </span>
             <a href="#killswitch" className={`ml-auto text-[11px] ${KT.accent} underline underline-offset-2`}>
-              resume at the kill switch below
+              the kill switch, the reason and the way out
             </a>
+            </div>
+            {/* What tripped, INSIDE the banner rather than in a second red box
+                directly beneath it (CDO D9). The breach list is a different
+                fact from the halt — which limit, by how much — and it is kept
+                in full. What is removed is the second frame around it, which
+                made one event read as two. */}
+            {critical.length > 0 && (
+              <ul className="mt-1.5 space-y-0.5 text-[12px]">
+                {critical.map((a: { key?: string; message?: string; type?: string }) => (
+                  <li key={a.key}>· {a.message ?? a.type}</li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 
@@ -220,10 +259,17 @@ export default function MonitorHome() {
           </div>
         )}
 
-        {critical.length > 0 && (
+        {/* Only when NOT halted. While halted the same list is carried inside
+            the halt banner above — one event, one frame. A critical breach that
+            has NOT tripped a halt is its own fact and keeps its own box, which
+            is the case this block now exists for. */}
+        {!m?.halted && critical.length > 0 && (
           <div className={`mb-4 p-3 ${KT.inset} ${KT.down}`}>
             <div className="flex items-center gap-2 text-sm font-medium">
               <AlertTriangle size={15} /> {critical.length} critical breach{critical.length === 1 ? "" : "es"}
+              <span className={`text-[11px] font-normal ${KT.muted}`}>
+                — critical, and trading is NOT halted
+              </span>
             </div>
             <ul className={`mt-1.5 space-y-0.5 text-[12px] ${KT.muted}`}>
               {critical.map((a: { key?: string; message?: string; type?: string }) => (
@@ -401,7 +447,14 @@ export default function MonitorHome() {
 
         {/* ── LAST: the kill switch, out of reach of a routine scan. ── */}
         <div id="killswitch" className="mt-8 scroll-mt-24">
-          <HaltControl halted={m ? m.halted : undefined} onChanged={bump} />
+          <HaltControl
+            halted={m ? m.halted : undefined}
+            haltClass={m?.halt_class ?? null}
+            haltReason={m?.halt_reason ?? null}
+            lossReference={m?.loss_reference}
+            rebaseToken={m?.rebase_token}
+            onChanged={bump}
+          />
         </div>
 
         <div className="mt-8">

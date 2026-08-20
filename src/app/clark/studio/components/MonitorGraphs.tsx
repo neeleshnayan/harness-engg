@@ -338,15 +338,20 @@ export function MonitorGraphs({ m }: { m: RiskMonitorResponse | null }) {
           </div>
         ) : (
           <div className="px-4 py-3">
-            <div className="mb-2 flex items-center gap-3">
+            {/* CDO D8: the denominator lives beside the numbers, not only in
+                the footnote below them. Every percentage on this panel is a
+                share of INVESTED CAPITAL (cash excluded) — a reader who takes
+                them for shares of NAV under-reads every one of them, and the
+                footnote that said so was three screens of bars away. */}
+            <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
               <span className={`flex items-center gap-1.5 text-[10px] ${KT.muted}`}>
                 <span className="h-2 w-2 rounded-sm" style={{ background: c.accent }} />
-                capital
+                capital — of invested capital
               </span>
               {haveRisk && (
                 <span className={`flex items-center gap-1.5 text-[10px] ${KT.muted}`}>
                   <span className="h-2 w-2 rounded-sm" style={{ background: c.warn }} />
-                  risk
+                  risk — of portfolio risk
                 </span>
               )}
             </div>
@@ -375,7 +380,12 @@ export function MonitorGraphs({ m }: { m: RiskMonitorResponse | null }) {
                           </span>
                         )}
                       </span>
-                      <span className="flex-shrink-0 font-mono tabular-nums">
+                      <span
+                        className="flex-shrink-0 font-mono tabular-nums"
+                        title={`${pct(cap)} of invested capital${
+                          r.riskShare != null ? ` → ${pct(r.riskShare)} of portfolio risk` : ""
+                        }`}
+                      >
                         <span className={overCap ? KT.down : KT.muted}>{pct(cap)}</span>
                         {r.riskShare != null && (
                           <>

@@ -10,6 +10,7 @@ import { SeatFace } from "../SeatFace";
 import { faceFor } from "../faces";
 import { estimateCostUsd, fmtAt, fmtUsd, isSeat } from "../seatLib";
 import { QueuedAsk, queuedAsks } from "../execDesk";
+import { CooTriageChip } from "../components";
 
 /**
  * The CTO's desk — what waits on Fable's hands, and what the bench costs.
@@ -95,6 +96,14 @@ export default function CtoDeskPage() {
           <div>
             <p className={KT.label}>Krypton Fund · the console</p>
             <h1 className="text-2xl font-medium tracking-tight">Fable · CTO</h1>
+            {/* The CEO's desk load, on the console that dispatches the COO. The
+                chip is where the CTO learns the registered trigger has been
+                crossed; crossing it still fires nothing by itself. */}
+            {desk?.desk_load && (
+              <p className="mt-1 text-sm">
+                <CooTriageChip load={desk.desk_load} />
+              </p>
+            )}
             <p className={`mt-0.5 text-xs ${KT.muted}`}>
               {/* "0 runs · $— est." folded from an unread desk claims a week in
                   which the bench cost nothing. Say unknown instead. */}
@@ -125,8 +134,18 @@ export default function CtoDeskPage() {
         )}
 
         <section className="mb-8">
+          {/* The headline counts what is on YOUR hands (CDO D4). `cleared` asks
+              are the CEO's decision already made and waiting on the trigger;
+              `awaiting_ceo` asks are somebody else's decision, and folding them
+              into one number made a queue where nothing was actionable read
+              identically to one where everything was. */}
           <p className={`${KT.label} mb-2`}>
-            The dispatch queue ({desk === null ? "unknown" : queue.length})
+            Cleared to trigger ({desk === null ? "unknown" : cleared})
+            {desk !== null && queue.length - cleared > 0 && (
+              <span className={`ml-2 font-normal normal-case tracking-normal ${KT.muted}`}>
+                · {queue.length - cleared} still awaiting the CEO
+              </span>
+            )}
           </p>
           {/* The summary line is a CLAIM ABOUT THE QUEUE'S COMPOSITION. Made
               from an unread desk it asserted "every open ask was filed by a

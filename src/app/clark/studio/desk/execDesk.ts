@@ -139,12 +139,61 @@ export function recItems(
   return recs.map((r) => ({
     key: `rec:${r.run_id}:${r.rec_id}`,
     kind: "recommendation" as const,
-    // No money field exists on a recommendation. Absent, not zero.
-    moneyUsd: null,
+    // `money_at_stake` when the seat stated one (spine, 2026-08-20). Absent
+    // stays null — the field being optional is the whole point, and coercing
+    // an unstated figure to 0 would rank the fund's largest unpriced decision
+    // below its smallest priced one.
+    moneyUsd: typeof r.money_at_stake === "number" && Number.isFinite(r.money_at_stake)
+      ? r.money_at_stake
+      : null,
     reversibility: reversibilityOfKind(r.kind),
     waitingSince: resolvedAt.get(r.run_id) ?? null,
     rec: r,
   }));
+}
+
+/* ---------------------------------------------------------------- stages -- */
+
+/**
+ * Where an item sits relative to the CEO's click.
+ *
+ * `awaiting_decision` — nobody has decided. This is the CEO's actual queue.
+ * `awaiting_execution` — the CEO decided; it is now the CTO's to stage or the
+ *   machine's to run. It still belongs ON the desk (a decision that never
+ *   executes is a decision that did not happen) but it is NOT a thing to do.
+ *
+ * The headline counted both, so a desk where the CEO had decided everything and
+ * the CTO had staged nothing read as "20 awaiting your decision" — the same
+ * number as a desk where nothing had been decided at all (CDO D4).
+ */
+export type DeskStage = "awaiting_decision" | "awaiting_execution";
+
+export function stageOfItem(i: DeskItem): DeskStage {
+  // An order pending approval is the CEO's decision by definition.
+  if (i.kind === "order") return "awaiting_decision";
+  const status = i.rec?.status;
+  // `accepted` = the CEO said yes and the CTO has not staged it.
+  // `staged` = staged through the propose path, waiting on the approve click,
+  //            which is a click on the ORDER that staging created — the
+  //            recommendation itself is decided.
+  return status === "accepted" || status === "staged"
+    ? "awaiting_execution"
+    : "awaiting_decision";
+}
+
+export interface DeskSplit {
+  awaitingDecision: DeskItem[];
+  awaitingExecution: DeskItem[];
+}
+
+/** Split a ranked list into the two queues, preserving rank within each. */
+export function splitDeskItems(items: DeskItem[]): DeskSplit {
+  const awaitingDecision: DeskItem[] = [];
+  const awaitingExecution: DeskItem[] = [];
+  for (const i of items) {
+    (stageOfItem(i) === "awaiting_execution" ? awaitingExecution : awaitingDecision).push(i);
+  }
+  return { awaitingDecision, awaitingExecution };
 }
 
 /* --------------------------------------------------------------- ranking -- */

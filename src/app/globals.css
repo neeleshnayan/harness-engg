@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import "./clark/studio/styles/obsidian.css";
 @layer base {
   :root {
 

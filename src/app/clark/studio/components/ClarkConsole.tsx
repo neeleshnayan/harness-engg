@@ -63,10 +63,18 @@ const PUSH_MIN_WIDTH = 1100;
 const PREF_KEY = "clark.rail.open";
 
 export function ClarkConsole() {
-  // Open by default: the point of a rail is that it is simply there, the way a
-  // terminal pane is. Persisted, so a deliberate close is not undone by the
-  // next navigation.
+  // Open by default WHERE THE RAIL PUSHES — the point of a rail is that it is
+  // simply there, the way a terminal pane is. Below PUSH_MIN_WIDTH it cannot
+  // push, so "open by default" means a 420px panel overlaying the entire
+  // cockpit before the operator has asked for anything (CDO D1). The pill is
+  // the honest default there. Resolved once at mount, from the real viewport;
+  // a stated preference always wins over both.
   const [open, setOpen] = useState(true);
+  //: True once the mount effect has decided the default. Until then the
+  //: persistence effect below must not write, or the computed default would be
+  //: recorded as a preference the operator never expressed — and a phone visit
+  //: would then keep the rail shut on the desktop.
+  const settled = useRef(false);
   const [ctx, setCtx] = useState<Ctx>({ lines: [], suggestions: [], at: 0 });
   const [showCtx, setShowCtx] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -79,15 +87,25 @@ export function ClarkConsole() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
+    let saved: string | null = null;
     try {
-      const saved = window.localStorage.getItem(PREF_KEY);
-      if (saved !== null) setOpen(saved === "1");
+      saved = window.localStorage.getItem(PREF_KEY);
     } catch {
-      /* private mode — the default stands */
+      /* private mode — fall through to the width-derived default */
     }
+    if (saved !== null) {
+      setOpen(saved === "1");
+    } else {
+      // Width-derived, not device-sniffed: the question is whether this
+      // viewport can afford 420px beside the cockpit, which is exactly the
+      // question PUSH_MIN_WIDTH already answers for the reflow below.
+      setOpen(window.innerWidth >= PUSH_MIN_WIDTH);
+    }
+    settled.current = true;
   }, []);
 
   useEffect(() => {
+    if (!settled.current) return;
     try {
       window.localStorage.setItem(PREF_KEY, open ? "1" : "0");
     } catch {
