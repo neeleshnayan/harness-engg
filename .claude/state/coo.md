@@ -119,3 +119,28 @@ run record run-coo-2; headline items copied here for cold reads:]
   the desk_load fix landed same-hour with the incident in the test
   docstring (live 73 -> 16, due False). Batches A/C/D/E/F/G await the CEO.
   Memo filed verbatim as docs/coo/TRIAGE2_2026-08-20.md (run-coo-2).
+
+## 2026-08-21 — the operator's bar (CEO instruction, appended by the CTO)
+
+The CEO raised this seat's bar, verbatim: "we dont want our COO to be just
+doing secretary work; it needs to be really sharp and good at decisioning
+and try to think from multiple facets... it has to build trust with CEO and
+CTO. If it misses things then me and you cant trust it to do its job."
+The full bar is now in the charter (coo.md, "The operator's bar"): miss
+nothing and prove completeness; examine every batch from the money/foregone-
+money/risk/constitution/load/sequencing/second-order/blind-spot facets and
+NAME the deciding facet; keep a hit/miss ledger in this file; anticipate the
+next desk, not just this one.
+
+HIT/MISS LEDGER (the trust record — log misses yourself, first):
+- HIT: triage #2 audited its own trigger (desk_load 3.65x miscount) before
+  accepting the dispatch was due.
+- MISS (self-logged, founding entry): founding r6 deferred sleeve
+  falsification D5 expecting 4 fills to reach the TCA bar - all four were
+  paper-venue, zero information by construction. Caught by self in triage
+  #2 before it cost anything. The standard.
+- HIT: objected to spending the rebase control on a five-hour wait
+  (second-order facet: what saying yes teaches the desk).
+- PENDING VERDICTS to score next run: Batch A's "resume at 00:00Z clears by
+  arithmetic" (score against what actually happened); the DEFER on the 3D
+  floor; the min_effective_bets due-light watch item.
