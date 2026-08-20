@@ -215,6 +215,14 @@ def _requests(store: Any) -> list[dict[str, Any]]:
             rid = p.get("request_id")
             if rid:
                 rows[rid] = {**p, "status": "open"}
+        elif t == EventType.DESK_REQUEST_APPROVED.value:
+            rid = p.get("request_id")
+            # Approval only moves an OPEN request forward; a resolved one keeps
+            # its terminal state (the fold is order-honest, not last-write-wins).
+            if rid in rows and rows[rid].get("status") == "open":
+                rows[rid] = {**rows[rid], "status": "approved",
+                             "approved_by": p.get("actor"),
+                             "approved_at": p.get("at")}
         elif t == EventType.DESK_REQUEST_RESOLVED.value:
             rid = p.get("request_id")
             if rid in rows:

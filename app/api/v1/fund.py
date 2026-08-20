@@ -1368,6 +1368,26 @@ def desk_dispatch(req: DeskDispatch):
     return payload
 
 
+class DeskApprove(BaseModel):
+    """The CEO endorsing a queued request for dispatch. Approval is not a
+    trigger — the CTO still fires the dispatch; this records that the ask has
+    the CEO's blessing, which is what a seat-filed request waits for."""
+    actor: str = "ceo"
+    note: str = ""
+
+
+@router.post("/fund/desk/requests/{request_id}/approve")
+def desk_approve(request_id: str, req: DeskApprove):
+    from app.fund.events import Event, EventType
+    payload = {"request_id": request_id, "actor": req.actor,
+               "note": req.note or "",
+               "at": datetime.now(timezone.utc).isoformat()}
+    _store.append(Event(aggregate_id=request_id, aggregate_type="desk_request",
+                        type=EventType.DESK_REQUEST_APPROVED,
+                        payload=payload, actor=req.actor))
+    return payload
+
+
 class DeskResolve(BaseModel):
     resolution: str
     actor: str = "cto"

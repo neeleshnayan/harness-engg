@@ -126,6 +126,10 @@ class EventType(str, Enum):
     DESK_DISPATCHED = "DeskDispatched"
     DESK_REQUEST_RESOLVED = "DeskRequestResolved"
     DESK_RECOMMENDATION_DECIDED = "DeskRecommendationDecided"
+    # The CEO endorsing a queued request for dispatch — the middle hop of the
+    # seat-asks chain (seat files -> CEO approves -> CTO triggers). Governance,
+    # therefore an event (2026-08-20 amendment: seat-filed asks, human keys).
+    DESK_REQUEST_APPROVED = "DeskRequestApproved"
 
     EXIT_RULE_SET = "ExitRuleSet"               # committed before the position exists
     EXIT_RULE_TRIGGERED = "ExitRuleTriggered"   # fired; a closing proposal was raised
