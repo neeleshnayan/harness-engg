@@ -196,6 +196,43 @@ class DeskStore:
             out.append(d)
         return out
 
+    def runs_between(self, start_iso: str, end_iso: str,
+                     limit: int = 500) -> list[dict[str, Any]]:
+        """Every run RESOLVED inside a half-open window [start, end).
+
+        Additive, and it exists for one reason: `runs(limit=25)` — what the desk
+        payload carries — is capped ACROSS ALL SEATS, so a per-seat "runs today"
+        folded from it is a FLOOR wearing the costume of a count. On a busy day
+        the 26th run silently stops existing and the quietest seat is the one
+        that gets truncated first.
+
+        Filtering in SQL rather than in Python keeps the answer exact without
+        shipping the whole table: the window is small (a day) and the
+        (seat, resolved_at) index already covers it.
+
+        `resolved_at` is TIMESTAMPTZ, so the caller supplies UTC boundaries and
+        gets the venue's day, not the reader's — the same rule the UI's dayKey
+        follows. A run with a NULL resolved_at is not in any window; it is not
+        counted anywhere and that is correct, because a run with no resolution
+        time has not been placed on a day.
+        """
+        cols = ("run_id, seat, task, model, tokens, tool_uses, dispatched_at, "
+                "resolved_at, artifact_path, verdict, trace_id")
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"SELECT {cols} FROM fund_agent_runs "
+                    "WHERE resolved_at >= %s AND resolved_at < %s "
+                    "ORDER BY resolved_at DESC LIMIT %s",
+                    (start_iso, end_iso, limit))
+                rows = cur.fetchall()
+        return [{"run_id": r[0], "seat": r[1], "task": r[2], "model": r[3],
+                 "tokens": r[4], "tool_uses": r[5],
+                 "dispatched_at": r[6].isoformat() if r[6] else None,
+                 "resolved_at": r[7].isoformat() if r[7] else None,
+                 "artifact_path": r[8], "verdict": r[9], "trace_id": r[10]}
+                for r in rows]
+
     def run(self, run_id: str) -> Optional[dict[str, Any]]:
         rows = [r for r in self.runs(limit=1000, with_output=False)
                 if r["run_id"] == run_id]

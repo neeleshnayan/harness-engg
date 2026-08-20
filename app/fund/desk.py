@@ -350,18 +350,128 @@ def desk_load(open_recommendations: list[dict[str, Any]],
     }
 
 
+def utc_day_bounds(now: Any = None) -> tuple[str, str, str]:
+    """(day, start, end) for the UTC day containing ``now``.
+
+    UTC because the event log is UTC and the fund's day boundary is the
+    venue's, not the reader's — a local bucket would move a dispatch to a
+    different day depending on who opened the page.
+    """
+    from datetime import datetime, timedelta, timezone
+    n = now or datetime.now(timezone.utc)
+    start = n.replace(hour=0, minute=0, second=0, microsecond=0)
+    return (start.date().isoformat(), start.isoformat(),
+            (start + timedelta(days=1)).isoformat())
+
+
+def seat_telemetry(day_runs: Optional[list[dict[str, Any]]],
+                   activity: dict[str, dict[str, Any]],
+                   day: str,
+                   seats: Optional[list[str]] = None) -> dict[str, Any]:
+    """Per-seat: is it running now, how often today, at what token cost.
+
+    The CEO's question, verbatim in intent: "is it running, how often today, at
+    what token cost". Three facts, and each has a different way of being absent,
+    so each carries its own absence rather than a shared zero:
+
+      * ``running_now`` — the dispatch/resolve fold the desk already computes.
+        A dispatch with no matching resolution IS a working seat; the spine
+        cannot watch a model think and does not pretend to.
+      * ``runs_today`` — exact, from a SQL day window, NOT from the capped
+        25-run payload. On a day with 26 runs the capped fold would quietly
+        drop one, and the dropped one would look like a seat that did nothing.
+      * ``tokens_today`` — ``None`` when NO run reported a figure, and
+        ``tokens_partial`` when some did and some did not. A sum over 2 of 5
+        runs is a FLOOR, and rendering it as a total understates the bill by
+        whatever the missing runs cost. The client renders it with a "≥".
+
+    ``day_runs`` is None when the flight recorder could not be read at all. The
+    whole block then reports ``readable: false`` and every figure is absent —
+    an unreadable recorder must never render as a quiet day.
+
+    Token totals are also broken out BY MODEL, because pricing lives in the UI
+    (docs/COST_MODEL_2026-08-20.md's table, mirrored in seatLib.ts) and a blended
+    dollar figure computed here would need a second copy of that table. One
+    price table, in the place that renders the dollars.
+    """
+    names = list(seats or REQUEST_KINDS.values())
+    readable = day_runs is not None
+    out: dict[str, Any] = {}
+    for seat in names:
+        act = activity.get(seat) or {}
+        working = act.get("status") == "working"
+        row: dict[str, Any] = {
+            "running_now": working,
+            "running_task": act.get("task") if working else None,
+            "running_since": act.get("since") if working else None,
+            "runs_today": None,
+            "tokens_today": None,
+            "tokens_partial": False,
+            "runs_missing_tokens": None,
+            "tokens_by_model": {},
+            "last_run_at": None,
+        }
+        if readable:
+            mine = [r for r in (day_runs or []) if r.get("seat") == seat]
+            toks = [r.get("tokens") for r in mine
+                    if isinstance(r.get("tokens"), int)]
+            by_model: dict[str, int] = {}
+            for r in mine:
+                t = r.get("tokens")
+                if isinstance(t, int):
+                    m = (r.get("model") or "unknown").strip() or "unknown"
+                    by_model[m] = by_model.get(m, 0) + t
+            row["runs_today"] = len(mine)
+            row["tokens_today"] = sum(toks) if toks else None
+            row["runs_missing_tokens"] = len(mine) - len(toks)
+            # Partial only when there IS a figure that is incomplete. With no
+            # figure at all the total is absent, which is a stronger statement
+            # than "at least zero".
+            row["tokens_partial"] = bool(toks) and len(toks) < len(mine)
+            row["tokens_by_model"] = by_model
+            times = sorted(r.get("resolved_at") or "" for r in mine)
+            row["last_run_at"] = times[-1] if times and times[-1] else None
+        out[seat] = row
+
+    return {
+        "day": day,
+        "readable": readable,
+        "seats": out,
+        "note": (
+            f"Per-seat telemetry for {day} (UTC). Runs and tokens are folded "
+            "from the flight recorder over that day's window, not from the "
+            "capped run list the payload carries."
+            if readable else
+            "The flight recorder could not be read, so no seat's run count or "
+            "token cost is known for today. This is an absence, not a quiet "
+            "day."
+        ),
+    }
+
+
 def view(store: Any, deskstore: Any = None,
          pending_orders: Any = None) -> dict[str, Any]:
     artifacts = _artifacts()
     reqs = _requests(store)
     activity = _activity(store)
     runs, open_recs = [], []
+    # None, not [] — an unreadable recorder must not fold into "no runs today".
+    day, day_start, day_end = utc_day_bounds()
+    day_runs: Optional[list[dict[str, Any]]] = None
     if deskstore is not None:
         try:
             runs = deskstore.runs(limit=25)
             open_recs = deskstore.open_recommendations()
         except Exception as e:  # noqa: BLE001
             logger.info("desk runs unavailable: %s", e)
+        # Separate try: the day window is a different query and a store that
+        # predates `runs_between` (or a failure on just this one) must degrade
+        # to "telemetry unreadable", never to a fabricated zero, and must not
+        # take the rest of the payload down with it.
+        try:
+            day_runs = deskstore.runs_between(day_start, day_end)
+        except Exception as e:  # noqa: BLE001
+            logger.info("desk day window unavailable: %s", e)
     open_reqs = [r for r in reqs if r["status"] == "open"]
     killed = [a for a in artifacts if a["status"] == "killed"]
     return {
@@ -390,6 +500,10 @@ def view(store: Any, deskstore: Any = None,
         # The COO triage counter (CEO's standing rule, >20 open items). Rendered
         # as a chip on the CEO desk and the CTO console; it signals, never fires.
         "desk_load": desk_load(open_recs, pending_orders, open_reqs),
+        # Per-seat: running now, runs today, tokens today (CEO ask, 2026-08-21).
+        # Rolled up here rather than on the client so the day count is exact
+        # instead of folded from the capped 25-run list above.
+        "seat_telemetry": seat_telemetry(day_runs, activity, day),
         "kills": len(killed),
         "execution_note": (
             "The spine records requests; it does not run agents. Requests are "
