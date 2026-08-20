@@ -138,3 +138,26 @@ forgeable through the unauthenticated propose endpoint (demonstrated offline
 against evaluate(), bounded by the risk gate to ~15% NAV per order). Envelope
 v2 recommendations R1–R8 are on the desk as decidable rows on
 run-riskofficer-1.
+
+---
+
+## §3 — SECOND CORRECTION (same day; builder audit H2): a claim in "The fix" above was false
+
+This doc claimed *"the risk monitor already dropped unpriceable symbols into
+`unpriced` (its exception guard now actually fires)"*. The builder's read-only
+audit contradicted it: `NavService.compute()` (nav.py:108, unguarded) raises
+`PriceUnavailable` at riskmonitor.py's FIRST line of assess(), before the
+per-symbol guard can run — so the `unpriced` alarm was unreachable on the live
+wiring, and ONE unpriceable holding took the drawdown and daily-loss halts
+dark for the whole outage window. The falsifying test did not exist; it was
+written (tests/test_riskmonitor_unpriced.py), it confirmed the audit's claim,
+and the fix is in: the risk monitor now computes NAV with `stale_ok=True` —
+an unpriceable symbol is valued at the fund's OWN last struck mark (flagged
+`mark_stale`, `stale_nav_marks` warn alarm), or excluded and named when no
+prior mark exists. The halts keep evaluating on a stated-degraded book; the
+strict NAV surface still raises. This is also the first brick of the
+riskofficer's R1 (the last-struck mark as the corroboration source).
+
+Score for the day's ledger: two claims in this incident's own paper trail were
+falsified by the bench within hours of being written — the halt latency (§2)
+and this one. That rate is the team metric working on its own instruments.

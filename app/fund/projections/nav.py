@@ -45,10 +45,18 @@ class NavSnapshot:
     nav_per_unit: Decimal
     breakdown: dict[str, Decimal]               # {"positions": x, "cash": y}
     positions: list[dict[str, Any]] = field(default_factory=list)
+    #: Symbols valued at the LAST STRUCK mark because no live price existed
+    #: (stale_ok mode only). Named so a degraded valuation can never pass as a
+    #: fresh one.
+    stale_symbols: list[str] = field(default_factory=list)
+    #: Symbols EXCLUDED from the valuation: no live price and no prior struck
+    #: mark. Their value is absent from total_nav_usd, not zero — the reader
+    #: must be told the total is a floor, not the truth.
+    unpriced_symbols: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         # Downcast to float at the JSON/storage edge — display, not accounting.
-        return {
+        out = {
             "ts": self.ts,
             "total_nav_usd": f(self.total_nav_usd),
             "units_outstanding": f(self.units_outstanding),
@@ -56,10 +64,16 @@ class NavSnapshot:
             "breakdown": {k: f(v) for k, v in self.breakdown.items()},
             "positions": [
                 {"symbol": p["symbol"], "qty": f(p["qty"]),
-                 "mark": f(p["mark"]), "usd_value": f(p["usd_value"])}
+                 "mark": f(p["mark"]), "usd_value": f(p["usd_value"]),
+                 **({"mark_stale": True} if p.get("mark_stale") else {})}
                 for p in self.positions
             ],
         }
+        if self.stale_symbols:
+            out["stale_symbols"] = list(self.stale_symbols)
+        if self.unpriced_symbols:
+            out["unpriced_symbols"] = list(self.unpriced_symbols)
+        return out
 
 
 class NavService:
@@ -88,7 +102,32 @@ class NavService:
         from app.core.firebase import db as _fs_db
         return _fs_db()
 
-    def compute(self, book: Optional[Book] = None) -> NavSnapshot:
+    def _last_struck_marks(self) -> dict[str, Decimal]:
+        """Per-symbol marks from the most recent NAV_STRUCK event, or {}.
+
+        This is the fund's own last-known-good valuation — event-sourced,
+        deterministic, and exactly the corroboration source the riskofficer's
+        R1 named (the true GLD mark sat in seq 248, 29m46s before the phantom).
+        """
+        marks: dict[str, Decimal] = {}
+        try:
+            for e in self._store.stream(since_seq=0, limit=100_000):
+                t = e.get("type") if isinstance(e, dict) else getattr(e, "type", None)
+                t = getattr(t, "value", t)
+                if t != EventType.NAV_STRUCK.value:
+                    continue
+                p = (e.get("payload") if isinstance(e, dict)
+                     else getattr(e, "payload", None)) or {}
+                rows = p.get("positions") or []
+                if rows:
+                    marks = {r["symbol"]: D(r["mark"]) for r in rows
+                             if r.get("symbol") and r.get("mark") is not None}
+        except Exception:  # noqa: BLE001 — a degraded fallback must not raise
+            return {}
+        return marks
+
+    def compute(self, book: Optional[Book] = None, *,
+                stale_ok: bool = False) -> NavSnapshot:
         """Value the current book without persisting — safe to call any time.
 
         NAV is folded from the append-only event log ONLY. The broker (Alpaca)
@@ -97,15 +136,47 @@ class NavService:
         separately as a reconciliation/risk signal (broker-vs-book delta), not by
         overwriting the ledger. See GET /fund/venue/account and the reconciliation
         task in GEMINI.md.
+
+        ``stale_ok`` (2026-08-20, builder audit H2): the RISK MONITOR's mode.
+        In strict mode an unpriceable holding raises — correct for the NAV
+        surface, which must never serve a made-up number. But the same raise
+        inside the risk monitor took the drawdown and daily-loss halts dark for
+        as long as one symbol was unpriceable: the fix for the phantom price
+        silencing the control that caught the phantom price. With ``stale_ok``
+        an unpriceable symbol is valued at the fund's own LAST STRUCK mark
+        (flagged ``mark_stale``); with no prior struck mark it is EXCLUDED and
+        named in ``unpriced_symbols`` — the kill switches keep evaluating on a
+        stated-degraded book instead of not evaluating at all.
         """
         book = book or self._proj.build()
 
         positions_value = Decimal("0")
         positions_detail: list[dict[str, Any]] = []
+        stale_symbols: list[str] = []
+        unpriced_symbols: list[str] = []
+        struck: Optional[dict[str, Decimal]] = None
         for symbol, pos in book.positions.items():
             if abs(pos["qty"]) < _EPS:
                 continue
-            mark = D(self._price(symbol))
+            try:
+                mark = D(self._price(symbol))
+            except ValueError:
+                # PriceUnavailable is a ValueError by design; see paper.py.
+                if not stale_ok:
+                    raise
+                if struck is None:
+                    struck = self._last_struck_marks()
+                last = struck.get(symbol)
+                if last is None:
+                    unpriced_symbols.append(symbol)
+                    continue
+                stale_symbols.append(symbol)
+                value = pos["qty"] * last
+                positions_value += value
+                positions_detail.append(
+                    {"symbol": symbol, "qty": pos["qty"], "mark": last,
+                     "usd_value": value, "mark_stale": True})
+                continue
             value = pos["qty"] * mark
             positions_value += value
             positions_detail.append(
@@ -146,6 +217,8 @@ class NavService:
             nav_per_unit=navpu.quantize(_NAVPU_Q),
             breakdown=breakdown,
             positions=positions_detail,
+            stale_symbols=stale_symbols,
+            unpriced_symbols=unpriced_symbols,
         )
 
     def strike(self, actor: str = "system") -> NavSnapshot:

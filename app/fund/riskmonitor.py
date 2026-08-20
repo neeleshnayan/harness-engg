@@ -207,7 +207,13 @@ class RiskMonitor:
         limits_obj = self._control.limits()
         limits_dict = limits_obj.to_dict()
 
-        snap = self._nav.compute()
+        # stale_ok: the monitor must keep evaluating the halts while a symbol
+        # is unpriceable. Strict compute() raising here took the drawdown and
+        # daily-loss checks dark for the whole outage (builder audit H2,
+        # 2026-08-20) — the unpriced alarm below was unreachable because this
+        # line raised first. Degraded marks are flagged on the snapshot and
+        # surfaced as alarms; a dark monitor surfaces nothing.
+        snap = self._nav.compute(stale_ok=True)
         nav_usd = float(snap.total_nav_usd)
         cash_usd = float(snap.breakdown.get("cash", 0))
         cash_pct = (cash_usd / nav_usd * 100.0) if nav_usd > 0 else (100.0 if cash_usd > 0 else 0.0)
@@ -247,7 +253,11 @@ class RiskMonitor:
         # Positions (per-asset risk)
         book = PositionsProjection(self._store).build()
         positions_list: list[dict[str, Any]] = []
-        unpriced: list[str] = []
+        # Seed with NAV's own degraded-valuation report so a symbol NAV could
+        # not price (excluded) or priced from a stale struck mark is named even
+        # if the per-symbol loop below happens to price it on a flaky feed.
+        unpriced: list[str] = list(getattr(snap, "unpriced_symbols", []) or [])
+        nav_stale: list[str] = list(getattr(snap, "stale_symbols", []) or [])
         for sym, pos in book.positions.items():
             qty = float(pos["qty"])
             if abs(qty) < 1e-9:
@@ -258,7 +268,8 @@ class RiskMonitor:
             try:
                 mark = float(self._price(sym))
             except Exception:  # noqa: BLE001
-                unpriced.append(sym)
+                if sym not in unpriced:
+                    unpriced.append(sym)
                 continue
             val = qty * mark
             weight_pct = (val / nav_usd * 100.0) if nav_usd > 0 else 0.0
@@ -356,6 +367,14 @@ class RiskMonitor:
                          "EXCLUDED from NAV, exposure and every limit check below"),
                 metric=float(len(unpriced)), threshold=0.0,
             ).to_dict())
+        if nav_stale:
+            alarm_dicts.append(Alarm(
+                key="stale_nav_marks", type="data_quality", severity="warn",
+                message=(f"no live price for {', '.join(nav_stale)} — valued at the "
+                         "fund's own LAST STRUCK mark so the limit checks keep "
+                         "running; this NAV is degraded, not fresh"),
+                metric=float(len(nav_stale)), threshold=0.0,
+            ).to_dict())
         if stale_marks:
             oldest = max(stale_marks.values())
             alarm_dicts.append(Alarm(
@@ -380,6 +399,7 @@ class RiskMonitor:
             "alarms": alarm_dicts,
             "worst_position": worst_position,
             "unpriced_symbols": unpriced,
+            "stale_nav_symbols": nav_stale,
             "stale_marks": stale_marks,
             "ts": datetime.now(timezone.utc).isoformat(),
         }
