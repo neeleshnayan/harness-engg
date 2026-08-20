@@ -82,6 +82,30 @@ WITH that agent. Layout mirrors the loop, top to bottom:
 
 So each page reads as: decide → ask → inspect → calibrate trust.
 
+## The Desk as the office view (CEO direction, 2026-08-20, late)
+
+The Desk index page becomes **the office**: how the firm is doing, day by day,
+with past days as reviewable as today. Two elements:
+
+1. **A day scrubber.** Default = today, live. Scrub back and the whole desk
+   re-renders AS OF that day: which seats ran, how many times, who triggered
+   each (actor field: ceo / cto), what was delivered, what was decided. All of
+   this folds from the event log (DESK_REQUESTED / DISPATCHED / RESOLVED /
+   RECOMMENDATION_DECIDED all carry timestamps and actors) plus
+   `fund_agent_runs.resolved_at` — no new storage, one fold parameterised by
+   date. A per-day productivity strip: dispatches, tokens, verdicts, decisions,
+   kills (a kill is a win — render it as one).
+2. **The DAG.** Each trace_id renders as a small directed flow: request →
+   dispatch(seat) → run(verdict) → recommendations → decisions → (later)
+   staged order. Nodes carry actor + timestamp; edges are the trace. The day
+   view shows the DAGs that were alive that day. This is the CEO's "chatter
+   flow, recreatable" — it is also the audit view, one drawing.
+
+Charts principle, stated by the CEO: charts are how the CEO consumes fastest.
+Each seat page IS the analytical surface where the CEO reviews the seat's work
+and gives blessings — so the decision controls (Accept/Reject) sit next to the
+charts that justify them, never on a separate page.
+
 ## Charts: keep / retire / add (one rule decides)
 
 **The rule: a chart stays only if it informs a specific click or dispatch.**
