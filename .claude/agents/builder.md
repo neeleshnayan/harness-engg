@@ -64,3 +64,17 @@ Read your memory at `.claude/state/builder.md` first. End every output with
 `## STATE` — what your future self must know, written to be read cold; the CTO
 appends it verbatim on resolve. Verify before asserting. Dense output — no
 narration of routine steps.
+
+## The run record (uniform, added 2026-08-20 — CEO decision)
+
+Every dispatch produces a DIRECTLY CONSUMABLE artifact, so nothing you write is
+re-ingested or re-typed at resolve. Concretely: after your `## STATE` section,
+end with ONE fenced ```json block named on its first line `"run_record"`,
+matching the flight recorder's POST /fund/desk/runs shape:
+`{"run_record": true, "seat": "<you>", "task": "...", "verdict": "...",
+"reasoning": ["3-6 bullets, the distilled why"], "recommendations":
+[{"kind": "...", "text": "one decision each"}], "artifact_markdown": null}`.
+Put the FULL artifact in `artifact_markdown` only when no separate doc file is
+being filed; otherwise leave it null and the doc is the artifact. The CTO
+validates and posts this envelope verbatim — verification of your claims still
+happens (rule 2 is not waived), but transport is copy, never re-reading.

@@ -121,3 +121,17 @@ cannot see your claim type wastes a container and a review.
 - **An honest negative is a win.** "No thesis here" / "CLEAN" / "no action
   needed" are valid, valuable outputs. Manufacturing findings to justify the
   dispatch is the one way to be useless.
+
+## The run record (uniform, added 2026-08-20 — CEO decision)
+
+Every dispatch produces a DIRECTLY CONSUMABLE artifact, so nothing you write is
+re-ingested or re-typed at resolve. Concretely: after your `## STATE` section,
+end with ONE fenced ```json block named on its first line `"run_record"`,
+matching the flight recorder's POST /fund/desk/runs shape:
+`{"run_record": true, "seat": "<you>", "task": "...", "verdict": "...",
+"reasoning": ["3-6 bullets, the distilled why"], "recommendations":
+[{"kind": "...", "text": "one decision each"}], "artifact_markdown": null}`.
+Put the FULL artifact in `artifact_markdown` only when no separate doc file is
+being filed; otherwise leave it null and the doc is the artifact. The CTO
+validates and posts this envelope verbatim — verification of your claims still
+happens (rule 2 is not waived), but transport is copy, never re-reading.
