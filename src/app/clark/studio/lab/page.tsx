@@ -3,6 +3,7 @@
 import React from "react";
 import { StudioHeader } from "../components/StudioHeader";
 import { LeanLab } from "../components/LeanLab";
+import { BeltWorkspace } from "../components/BeltWorkspace";
 
 /**
  * LAB — the strategy desk.
@@ -38,6 +39,8 @@ export default function LabPage() {
       <StudioHeader subtitle="Write a strategy, run it on the engine of record — nothing here is registered or persisted" />
       <div className="mx-auto max-w-[1600px] px-6 pb-10">
         <LeanLab />
+        {/* what already ran: the quant's workspace, code + verdicts */}
+        <BeltWorkspace />
       </div>
     </div>
   );

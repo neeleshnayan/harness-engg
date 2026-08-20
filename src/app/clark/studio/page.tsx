@@ -9,7 +9,6 @@ import { spineError } from "@/lib/spine_error";
 import { StudioHeader } from "./components/StudioHeader";
 import { ApprovalQueue } from "./components/ApprovalQueue";
 import { OrderFlow } from "./components/OrderFlow";
-import { SignalsPanel } from "./components/SignalsPanel";
 import { MonitorGraphs } from "./components/MonitorGraphs";
 import { MonitorVerdict } from "./components/MonitorVerdict";
 import { DivergencePanel } from "./components/DivergencePanel";
@@ -273,7 +272,16 @@ export default function MonitorHome() {
             )}
           </div>
 
-          <SignalsPanel onProposed={showQueue} bookChanged={tick} />
+          {/* RETIRED 2026-08-20 (CEO decision, versioned): the harness's own
+              signal evaluator ("What the strategies want"). It predated the
+              firm — an in-spine re-evaluation of deployed strategies' rules —
+              and after the retirements it evaluated zero strategies. Signal
+              generation belongs to LEAN live-paper sessions (which propose
+              through the token-gated intake into the approval queue above);
+              the spine's job is limits, exits and the ledger, never ideas.
+              The /fund/signals endpoint remains for the API surface; this
+              panel is gone so no reader mistakes the harness for a signal
+              source again. Restore = re-add <SignalsPanel/>. */}
         </div>
 
         {/* ── STATE: what the fund is, right now. ── */}

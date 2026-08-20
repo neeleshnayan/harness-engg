@@ -1951,6 +1951,33 @@ export const fundApiClient = {
   getDeskRuns: async (seat: string, limit = 200): Promise<{ runs: DeskView['runs'] }> =>
     (await fundApi.get(`${P}/desk/runs`, { params: { seat, limit } })).data,
 
+  /** Every sweep the belt ever ran, with each one's holdout legs — the quant's
+   *  work made queryable (the list served 25 rows and stripped holdout_result
+   *  until the validator's floor review had to go around the API to Postgres). */
+  getLeanSweeps: async (): Promise<{ sweeps: {
+    sweep_id: string; algorithm: string; state: string;
+    total?: number | null; completed?: number | null;
+    submitted_at?: string | null; restored?: boolean;
+    summary?: { best?: { total_return_pct?: number | null } | null } | null;
+    holdout_result?: {
+      state?: string;
+      train?: { return_pct?: number | null; window?: string[] | null } | null;
+      test?: { return_pct?: number | null; total_orders?: number | null;
+               window?: string[] | null } | null;
+    } | null;
+  }[] }> => (await fundApi.get(`${P}/lean/sweeps`)).data,
+
+  /** The quant's workspace on the belt's disk: which algorithms exist.
+   *  (Shape read from the LIVE endpoint, not assumed — it already existed.) */
+  getLeanAlgorithms: async (): Promise<{ algorithms: {
+    name: string; class_name?: string | null; lines?: number | null;
+    modified_at?: string | null;
+  }[] }> => (await fundApi.get(`${P}/lean/algorithms`)).data,
+
+  /** One algorithm's source, verbatim. The field is `code`. */
+  getLeanAlgorithm: async (name: string): Promise<{ name: string; code: string }> =>
+    (await fundApi.get(`${P}/lean/algorithms/${encodeURIComponent(name)}`)).data,
+
   /** Decide one agent recommendation (CEO): accepted | rejected. */
   decideRecommendation: async (runId: string, recId: number,
                                body: { status: string; actor?: string; note?: string }) =>
