@@ -10,10 +10,12 @@ Base URL: `http://127.0.0.1:8090/api/v1`
 ## Market and research data
 
 - `GET /fund/marketdata/bars?symbol=X&lookback_days=N` — the param is
-  `lookback_days`, NOT `days`. Returns `{symbol, source, closes, dates,
-  start, end}`. Depth measured 2026-08-20: 826 sessions (back to 2023-05-04)
-  served for every symbol asked — the request, not the vendor, was the
-  binding limit. Adjusted for splits/dividends.
+  `lookback_days`, NOT `days`, and the ENDPOINT caps it at 2000 (le=2000 in
+  fund.py). Returns `{symbol, source, closes, dates, start, end}`. Vendor
+  depth measured 2026-08-20: **10 years of true daily bars** (SPY: 2512
+  sessions, 2016-08-22 →) via `lookback_days=3650` or explicit
+  `start`/`end`; the earlier "826 sessions" figure was the request's size,
+  not a limit. Adjusted for splits/dividends.
 - `GET /fund/research/observations?ticker=&category=` — the filings corpus:
   863 observations, 201 tickers, each with the verbatim quote it was
   verified against (last extraction 2026-08-18). `POST /fund/research/read`
@@ -59,3 +61,8 @@ Base URL: `http://127.0.0.1:8090/api/v1`
    5bps/side slippage constant validated on ten small-cap fills — it
    overcharges mega-liquid ETFs 3–5× (defect D2, measurement queued). Say so
    when cost arithmetic decides your conclusion.
+5. Deep history: asking `fetch_daily_bars` for MORE than 10 years without
+   explicit `start`/`end` maps to Yahoo `range=max`, which silently returns
+   MONTHLY bars from a function named fetch_DAILY_bars (SPY: 404 bars,
+   1993→2026, measured 2026-08-20). At ≤10y (`range=10y` or start/end) the
+   series is true daily. Check bar spacing before trusting depth.
