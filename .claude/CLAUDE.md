@@ -142,13 +142,14 @@ trigger is standing CEO authorization, not a schedule; when no session is
 live, nothing thinks, as always.
 
 Placement, per seat: mechanism/pm/adversary/validator/riskofficer/coo run on
-**Opus** (the coo is judgement near governance — never downgraded, never local); `quant` is HYBRID — the local 4090 (qwen3.8) drafts the LEAN
-algorithm, Opus reviews it against the known trap list (look-ahead, warm-up,
-declared constants, parameter plumbing), the belt judges as always; the split is
-confirmed or reverted by diffing both paths on the first real dispatch. Safe to
-trial there because quant's output is machine-verified downstream — errors reach
-the gate, not money; the guarded risk is a false negative (a good idea killed by
-a bad translation). The analyst SPLITS — survey/scan phases on the local 4090 (qwen,
+**Opus** (the coo is judgement near governance — never downgraded, never local); `quant` ran the HYBRID trial (local 4090 drafts, Opus
+reviews) on its first real dispatch 2026-08-21 and the split is **REVERTED
+for whole algorithms by measurement**: the local draft was discarded on
+four harness-knowledge defects (calendar month-end, nonexistent engine
+methods, a silent zero-order failure path, an out-of-feed window) and
+reviewing it cost more than writing the file. The quant runs Opus. A
+narrower trial — the local model drafting sub-functions against a fixed
+data structure — may be designed later as its own versioned step. The analyst SPLITS — survey/scan phases on the local 4090 (qwen,
 checkable outputs only), thesis judgement on Opus (built lazily, first time the
 seat runs hot). Validator's simulations and quant's belt runs are local compute
 it invokes for free. The adversary and anything near the approval chain are
