@@ -47,3 +47,30 @@
 - **Open for a future dispatch**: (a) `money_at_stake` on recommendations — the CEO desk's ranking is money-blind on 92% of its queue until then; (b) the reversibility kind->table in `execDesk.ts` is my judgement and wants a human review; (c) still open from before — eight named spine gaps, top three `GET /fund/autopolicy`, `claim_type` on artifacts, thesis docs missing from the artifact fold; (d) no DOM test runner in KryptonPay, so React branches are eye-verified only.
 - **ClarkHarness, still unfixed from dispatch 2**: H1 (`quotes.py:65` — `stale` measures feed reachability, not mark age; `marketdata.py:409` discards the bar date it already has). H2 was fixed by the CTO.
 - [CTO note at resolve, 2026-08-20]: bundle fetched via HEAD ref, merged as `a528396` (a true merge — the live branch had gained the guard-v1 confirm-echo commit since your base). Forbidden-surface check re-run independently: empty. tsc + 80/80 reproduced on the merged tree. Your six recommendations are on run-builder-dispatch3 for the CEO. The worktree-base defect is now three-for-three and I owe you the fix: next dispatch gets its worktree created in KryptonPay at the brief's base, and the brief will name the expected `git log -1` output so you can refuse a wrong base in the first minute.
+
+## STATE
+
+**builder — after dispatch 4 (2026-08-20/21), fourth dispatch**
+
+- **Worktree base wrong a FOURTH time** — ClarkHarness at `cebc578` (LICENSE only). The clone-both-repos recovery is now routine and costs ~3 minutes; it is in the brief and it works. `git -C <abs-path>` for everything; compound `cd X && git`, `$VAR`-computed `-C` paths, and heredoc/`>>` appends into repo files are ALL blocked by the guard — use the Edit tool to append to files, and a written `.sh` in the scratchpad for any loop.
+- **The brief naming the expected `git log -1` worked.** Verifying `merge-base --is-ancestor` took seconds and told me KryptonPay HEAD was base+brief-doc, so I could cut the patch from `4f2ebb9` and the bundle so the CTO gets no duplicate doc commit. Do this every time the two disagree.
+- **`next build`'s exit code is NOT what `head`/`tail` returns.** `tsc --noEmit 2>&1 | head -20; echo $?` printed `TSC_EXIT=0` while tsc was failing. Read the output, never the piped status.
+- **The dev server hung mid-route-pass** (compiled `/compose`, then stopped answering everything). Symptom looks like a code defect; it is not. Fix: kill the PID, `rm -rf .next`, restart. Cost me ~10 minutes and two false 000s.
+- **Verified live spine shapes (2026-08-20/21):** `/fund/events?limit=1000` returned 443 rows; the incident window 245–265 is intact and readable. `NavStruck` payloads carry `ts` + `total_nav_usd`; the last prior-day strike before the phantom was seq 209 @ 2011.81. Desk recommendation statuses on the wire are `open|accepted|rejected|staged|done`, and `/fund/desk`'s `open_recommendations` returns **open, accepted AND staged** under one key — that conflation was CDO D4.
+- **New reusable modules**: `app/fund/desk.py::desk_load()`, `app/fund/judgement.py::TriggerSpec` + `use_metrics()`, `app/fund/projections/strategy.py::append_attribution_correction()`, `app/fund/riskmonitor.py::classify_halt_cause()` + `RiskControl.halt_state()/loss_reference()/rebase_loss_reference()` + `RiskMonitor.rebase_token()`, `app/fund/tca.py::by_symbol()/by_venue()` + `summarise()["informative"]`, `studio/desk/execDesk.ts::splitDeskItems/stageOfItem`, `studio/desk/components.tsx::CooTriageChip`, `bookFold.actualIncludingArchived`.
+- **The F4 residual is still open and is a real unknown.** My measurement says one tick; the log says 14m41s; the 08:16:08 simultaneous-clear pattern implies an empty positions list that contradicts the 6.62% figure. Whoever picks this up: the incident-time code differed (the `stale_ok=True` H2 fix landed later the same day), so the answer probably needs `git log` archaeology on `riskmonitor.py`/`nav.py` against the 08:01–08:16 window, not more log reading. **Do not let anyone record "fixed" against F4 — the latency cause is unexplained; two adjacent defects were fixed.**
+- **Open for a future dispatch:** (a) `risk_advanced.*` triggers need a cached risk view before `/fund/judgement` can evaluate them — currently prose-only and reported UNCHECKED; (b) no DOM test runner in KryptonPay, so React branches stay eye-verified; (c) the reversibility kind→table in `execDesk.ts` is still my judgement and still wants a human review; (d) ClarkHarness H1 (`quotes.py:65` — `stale` measures feed reachability, not mark age; `marketdata.py:409` discards the bar date it already has) is unfixed from dispatch 2; (e) eight named spine gaps from dispatch 1 remain, top three `GET /fund/autopolicy`, `claim_type` on artifacts, thesis docs missing from the artifact fold.
+- **After merge the CTO must**: fire the `StrategyAttributionCorrected` event for the GLD pair (otherwise `/fund/rebalance/preview` refuses, by design), and restart the spine so `halt_class` / `loss_reference` / `rebase_token` / `desk_load` start flowing — the UI renders the absent case correctly until then.
+
+- [CTO note at resolve, 2026-08-21]: both bundles verified and merged (ClarkHarness
+  1034/1034 and KryptonPay 94/94 reproduced on the merged trees; forbidden-surface
+  checks empty; obsidian.css deletion confirmed). Your two post-merge musts were done
+  within the hour: the GLD correction fired at the console with your test's exact
+  parameters (both phantom legs confirmed gone from the fold AND the live risk
+  monitor), and the spine restarted — desk_load's FIRST live reading was 73 open
+  items, coo_triage_due TRUE, and the COO triage it demanded was dispatched the same
+  minute. Your F4 process rec is honored verbatim: F4 remains OPEN in every record;
+  riskofficer's next dispatch gets the git-archaeology framing. The worktree-base
+  defect is now 4-for-4 — the named-base refusal you executed is standing brief
+  furniture until the harness fixes creation.
+
