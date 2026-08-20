@@ -105,6 +105,12 @@ class OrderCost:
     has_split: bool
     proposed_ts: Optional[str]
     filled_ts: Optional[str]
+    #: Venue from the OrderSubmitted leg. Load-bearing for the assumption
+    #: verdict: the paper connector fills at its own quote (paper.py:116 is
+    #: the same call pipeline.py:215 records as arrival_price), so a paper
+    #: fill's execution slippage is identically zero at any sample size — a
+    #: tautology, not a measurement (validator audit 8b863152, 2026-08-20).
+    venue: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
         return {k: v for k, v in self.__dict__.items()}
@@ -200,6 +206,7 @@ class TransactionCosts:
             fees_bps=fees_bps, total_usd=total_usd,
             has_split=(delay_bps is not None and execution_bps is not None),
             proposed_ts=proposed.get("ts"), filled_ts=filled.get("ts"),
+            venue=s_pay.get("venue"),
         )
 
     # --- aggregates ---------------------------------------------------------
@@ -235,17 +242,29 @@ def summarise(rows: list[OrderCost]) -> dict[str, Any]:
     latency = [r.approval_latency_s for r in rows if r.approval_latency_s is not None]
     usd = [r.total_usd for r in rows if r.total_usd is not None]
 
-    mean_total = statistics.fmean(total) if total else None
     # Graded against the SAME number the backtests charge. These were two
     # separate constants that disagreed — LEAN priced 5bps a side while this
     # compared to 2 — so "we are over assumption" was meaningless, because
     # there were two assumptions. A comparison against a number no backtest
     # uses validates nothing, which is the entire point of measuring.
     from app.fund.costassumption import compare
-    # None when nothing has filled, deliberately preserved: the alternative is
-    # a verdict block whose numbers are all None, which reads like a
-    # measurement of zero to anything scanning for a field rather than a shape.
-    verdict = compare(mean_total, len(total)) if mean_total is not None else None
+    # The verdict compares the EXECUTION leg (arrival -> fill), never
+    # total_bps: the constant is documented as the spread, and total_bps is
+    # decision -> fill, which is mostly market drift during the human
+    # approval pause (measured: mean 523.6s of latency put -12.59bps of
+    # drift into a "reliable: true, cheaper than modelled" verdict,
+    # 2026-08-20). Paper-venue fills are excluded — the paper connector
+    # fills at its own quote, so their execution cost is identically zero
+    # by construction, a tautology that would drag the average toward zero
+    # as paper fills accumulate. Validator audit 8b863152.
+    informative = [r.execution_bps for r in rows
+                   if r.execution_bps is not None and (r.venue or "") != "paper"]
+    # None when nothing informative has filled, deliberately preserved: the
+    # alternative is a verdict block whose numbers are all None, which reads
+    # like a measurement of zero to anything scanning for a field rather
+    # than a shape.
+    verdict = (compare(statistics.fmean(informative), len(informative))
+               if informative else None)
 
     return {
         "orders": len(rows),

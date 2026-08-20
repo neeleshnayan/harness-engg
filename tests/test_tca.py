@@ -167,12 +167,53 @@ def test_fees_are_expressed_against_notional():
 
 
 # ---------------------------------------------------- against the assumption
+# The verdict grades the EXECUTION leg (arrival -> fill) on informative
+# venues only. total_bps includes the human approval pause, and the paper
+# venue fills at its own quote — both would put non-cost numbers into a
+# "realised cost" verdict (validator audit 8b863152, 2026-08-20).
+
 def test_realised_cost_is_reported_against_what_the_backtest_assumed():
-    s = lifecycle(MemStore(), decision=100.0, fill=100.05)      # 5bps
+    s = lifecycle(MemStore(), decision=100.0, arrival=100.0, fill=100.05)  # 5bps exec
     v = summarise(TransactionCosts(s).costs())["vs_assumption"]
     assert v["assumed_bps_per_side"] == ASSUMED_COST_BPS_PER_SIDE
     assert v["realised_bps_per_side"] == pytest.approx(5.0)
     assert v["excess_bps"] == pytest.approx(5.0 - ASSUMED_COST_BPS_PER_SIDE)
+
+
+def test_approval_latency_drift_is_not_graded_as_cost():
+    """decision 100 -> arrival 99 is the market moving during the human
+    pause; execution is clean. The verdict must read ~0, not -100bps —
+    the -12.59bps 'cheaper than modelled' incident, pinned."""
+    s = lifecycle(MemStore(), decision=100.0, arrival=99.0, fill=99.0)
+    v = summarise(TransactionCosts(s).costs())["vs_assumption"]
+    assert v["realised_bps_per_side"] == pytest.approx(0.0)
+
+
+def test_paper_venue_fills_are_excluded_from_the_verdict():
+    """The paper connector fills at its own quote — execution slippage is
+    identically zero by construction. A tautology must not be averaged
+    into a measurement, so paper-only history yields NO verdict."""
+    s = MemStore()
+    s.add("p1", EventType.ORDER_PROPOSED.value,
+          {"symbol": "SOFI", "side": "sell", "qty": 1.0,
+           "impact_preview": {"quote_price": 18.56}}, "2026-08-20T13:00:00+00:00")
+    s.add("p1", EventType.ORDER_SUBMITTED.value,
+          {"venue": "paper", "venue_ref": "v9", "arrival_price": 18.56},
+          "2026-08-20T13:00:01+00:00")
+    s.add("p1", EventType.ORDER_FILLED.value,
+          {"symbol": "SOFI", "side": "sell", "filled_qty": 1.0,
+           "avg_price": 18.56, "fees": 0.0}, "2026-08-20T13:00:02+00:00")
+    v = summarise(TransactionCosts(s).costs())["vs_assumption"]
+    assert v is None
+
+
+def test_fills_without_an_arrival_price_carry_no_verdict():
+    """No arrival leg -> no execution measurement. total_bps still reports;
+    the assumption verdict does not pretend."""
+    s = lifecycle(MemStore(), decision=100.0, fill=100.05)  # arrival=None
+    out = summarise(TransactionCosts(s).costs())
+    assert out["total_bps"]["n"] == 1
+    assert out["vs_assumption"] is None
 
 
 def test_a_small_sample_is_flagged_as_unreliable():
@@ -180,7 +221,7 @@ def test_a_small_sample_is_flagged_as_unreliable():
     shown — with the sample size beside it so it cannot be quoted as one."""
     s = MemStore()
     for i in range(3):
-        lifecycle(s, f"o{i}", decision=100.0, fill=100.5)
+        lifecycle(s, f"o{i}", decision=100.0, arrival=100.0, fill=100.5)
     v = summarise(TransactionCosts(s).costs())["vs_assumption"]
     assert v["sample"] == 3 and v["reliable"] is False
 
@@ -188,7 +229,7 @@ def test_a_small_sample_is_flagged_as_unreliable():
 def test_a_large_sample_is_flagged_reliable():
     s = MemStore()
     for i in range(20):
-        lifecycle(s, f"o{i}", decision=100.0, fill=100.5)
+        lifecycle(s, f"o{i}", decision=100.0, arrival=100.0, fill=100.5)
     v = summarise(TransactionCosts(s).costs())["vs_assumption"]
     assert v["reliable"] is True
 

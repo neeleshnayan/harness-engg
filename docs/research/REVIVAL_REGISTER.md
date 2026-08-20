@@ -80,6 +80,17 @@ Status: WAITING ON P1 (P1 alone may justify one container run). Owner at
 revival: quant, from the spec as written — one free parameter, fixed by the
 flow's timing, no sweep.
 
+Status note, 2026-08-20 (validator audit 8b863152): **P1 as originally
+conceived is REFUSED, structurally** — the paper venue fills at its own
+quote, so realised cost is unmeasurable from our fills at any sample size
+(TLT: zero informative observations; SPY: two, CI ±26.5bps). P1's honest
+replacements: (a) published quote/NBBO spread data adopted as a versioned
+cost-model change with a written reason (CEO decision), or (b) the interim
+slip-band run — belt at slip ∈ {1, 3, 5}bps with ALL THREE verdicts
+disclosed as a band (the spec's arithmetic moves 0.24%/yr per bps, so the
+verdict flips inside the band and saying so IS the honest result). Route
+(b) needs no new data and no threshold move.
+
 ## How entries leave
 
 REVIVED (a new proposal/thesis citing this section and meeting the conditions),

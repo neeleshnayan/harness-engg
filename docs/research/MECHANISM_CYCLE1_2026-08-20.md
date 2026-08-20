@@ -174,3 +174,30 @@ SPEC-FILED/DEFERRED), the Testable column split per D3, revival register
 extended, the seat's validator request filed as the amendment's first
 seat-filed ask, and the D2 cost measurement queued. Recorded as
 run-mechanism-cycle1 (trace 2f0959d6).
+
+---
+
+## Correction (2026-08-20, validator audit 8b863152 — new section, doc unedited above)
+
+Two claims in this doc's D2 argument are corrected by measurement; D2's
+substantive finding (one global constant at costassumption.py:33) STANDS.
+
+1. **"validated on ten SMALL-CAP fills" (lines 122, 142) is false.** The
+   ten fills behind the 5.95bps figure are five ETF, three mega-cap, two
+   small/mid. The 5.95 also measures decision→fill (mean ~9 min of
+   approval latency inside it), and removing two partial-fill outliers
+   (GLD +81.2, INTC −48.5 — intra-order drift, not spread) leaves 3.34bps
+   on eight.
+2. **The "overcharges mega-liquid ETFs 3–5×" figure has no measurement
+   behind it in our data.** The fund has 2 informative SPY cost
+   observations (95% CI ±26.5bps — contains 0, 1, 5 and 20) and ZERO for
+   TLT, because the paper venue fills at its own quote (execution
+   slippage identically zero by construction, paper.py:116 vs
+   pipeline.py:215).
+
+Consequence for P1: **refused, structurally** — a per-instrument cost
+model cannot be derived from our own fills on this venue at any sample
+size. The honest paths are (a) published quote/NBBO spread data as a
+versioned cost-model change with a written reason, or (b) the interim
+slip-band belt run (slip ∈ {1, 3, 5}bps, all three verdicts disclosed).
+Full measurement: validator run 8b863152, 2026-08-20.
