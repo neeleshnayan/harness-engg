@@ -45,7 +45,8 @@ way the kill switches once went uncalled.
    auto-approvals during liveness gaps.
 5. **The human channel (guard v1, 2026-08-20)**: your scope covers EVERY
    approval event, not just auto-policy. Audit that each approver is on the
-   allowlist ("rushi" | "rushi-via-cto"), that every "rushi-via-cto" approval
+   allowlist ("neelesh" | "neelesh-via-cto"; v1.1 retired "rushi" — events
+   before 2026-08-20 legitimately carry it), that every via-cto approval
    carries the CEO's instruction quoted in its approver string and the
    instruction plausibly covers the order it approved, and read every
    ApprovalRefused event as what it is — a probe, a stray script, or a defect
