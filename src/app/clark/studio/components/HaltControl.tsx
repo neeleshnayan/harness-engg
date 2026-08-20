@@ -36,8 +36,8 @@ export function HaltControl({ halted, onChanged }: {
     setBusy(true);
     setErr(null);
     try {
-      if (halted) await fundApiClient.resumeTrading("rushi");
-      else await fundApiClient.haltTrading(reason.trim() || "manual halt from monitor", "rushi");
+      if (halted) await fundApiClient.resumeTrading("neelesh");
+      else await fundApiClient.haltTrading(reason.trim() || "manual halt from monitor", "neelesh");
       setConfirming(false);
       setReason("");
       onChanged?.();

@@ -187,12 +187,17 @@ const ALIASES: ReadonlyArray<{ re: RegExp; id: string }> = [
   { re: /^auto-policy-v\d+$/, id: "auto-policy" },
   { re: /^claude:[a-z0-9_-]+$/i, id: "clark" },
   { re: /^claude$/i, id: "clark" },
-  // The CEO's operator handle on the venue log (every human approval click to
-  // date is actor `rushi`). Same person as `ceo`, so the SAME spec object —
-  // aliasing one human to their own face is truthful; a second face would be
-  // the lie the uniqueness rule exists to prevent.
+  // The CEO's retired operator handle (approval events before 2026-08-20
+  // carry actor `rushi`; guard v1.1 retired the name — history keeps it).
+  // Same person as `ceo`, so the SAME spec object — aliasing one human to
+  // their own face is truthful; a second face would be the lie the
+  // uniqueness rule exists to prevent.
   { re: /^rushi$/, id: "ceo" },
   { re: /^neelesh$/, id: "ceo" },
+  // A via-cto approval is the CTO's hand carrying the CEO's quoted
+  // instruction (guard v1); the approver string carries the quote in
+  // brackets. The face shown is the hand that clicked.
+  { re: /^(neelesh|rushi)-via-cto\b/, id: "cto" },
   { re: /^fable$/, id: "cto" },
   { re: /^vishesh$/, id: "coo" },
 ];

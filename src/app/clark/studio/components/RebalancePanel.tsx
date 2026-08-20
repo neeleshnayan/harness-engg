@@ -113,8 +113,8 @@ function PlanCard({ plan, onDone }: { plan: RebalancePlan; onDone: () => void })
     setBusy(what);
     setErr(null);
     try {
-      if (what === "approve") await fundApiClient.approveRebalance(plan.plan_id!, "rushi");
-      else await fundApiClient.declineRebalance(plan.plan_id!, "rushi");
+      if (what === "approve") await fundApiClient.approveRebalance(plan.plan_id!, "neelesh");
+      else await fundApiClient.declineRebalance(plan.plan_id!, "neelesh");
       onDone();
     } catch (e: unknown) {
       setErr(spineError(e));
@@ -283,7 +283,7 @@ export function RebalancePanel({ strategies, navUsd, onCommitted }: {
     setProposing(true);
     setErr(null);
     try {
-      await fundApiClient.proposeRebalance(targets, "rushi", note || undefined);
+      await fundApiClient.proposeRebalance(targets, "neelesh", note || undefined);
       setComposing(false);
       setNote("");
       await loadQueue();

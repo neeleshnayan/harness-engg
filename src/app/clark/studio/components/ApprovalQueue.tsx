@@ -111,7 +111,7 @@ export function ApprovalQueue({ onChanged, refreshSignal = 0, compact = false,
     setBusy(o.order_id);
     try {
       if (approve) {
-        const r = await fundApiClient.approveOrder(o.order_id, "rushi");
+        const r = await fundApiClient.approveOrder(o.order_id, "neelesh");
         const detail =
           r.status === "filled"
             ? `filled ${r.filled_qty ?? o.qty} @ ${money(r.avg_price)}`
@@ -126,7 +126,7 @@ export function ApprovalQueue({ onChanged, refreshSignal = 0, compact = false,
           },
         }));
       } else {
-        await fundApiClient.declineOrder(o.order_id, "rushi");
+        await fundApiClient.declineOrder(o.order_id, "neelesh");
         setOutcome((m) => ({
           ...m,
           [o.order_id]: { kind: "declined", detail: "declined — nothing was sent",

@@ -77,7 +77,7 @@ export function LimitsEditor({ onChanged }: { onChanged?: () => void }) {
     setErr(null);
     try {
       await fundApiClient.setRiskLimits(
-        Object.fromEntries(changes.map((c) => [c.key, c.after])), "rushi",
+        Object.fromEntries(changes.map((c) => [c.key, c.after])), "neelesh",
       );
       await load();
       onChanged?.();
