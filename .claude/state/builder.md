@@ -74,3 +74,32 @@
   defect is now 4-for-4 — the named-base refusal you executed is standing brief
   furniture until the harness fixes creation.
 
+
+## STATE
+
+**builder — after dispatch 5 (2026-08-21), fifth dispatch**
+
+- **Worktree base wrong a FIFTH time, in a NEW way** — dispatched into the *outer* `Krypton Fund` repo (`1bf4d80`; HANDOFF.md, workspace files, `.claude/`), not ClarkHarness and not KryptonPay. The clone-both recovery works unchanged and costs ~4 min. `git -C <shared checkout>` is refused by the guard, so **you cannot verify the live repos' HEADs directly** — clone first, verify inside the clone with `git merge-base --is-ancestor <base> HEAD`.
+- **Build the CDP probe on every UI dispatch. It is the highest-value tool this seat has.** `ws` is in KryptonPay's `node_modules`; launch `chrome --headless=new --remote-debugging-port=9222 --window-size=W,H`, then drive `Runtime.evaluate` / `Emulation.setEmulatedMedia` / `DOM.getContentQuads` / `Input.dispatchMouseEvent` from Node with `NODE_PATH=<kp>/node_modules`. Scripts left at `<scratchpad>/cdp.js`, `cdp_quad.js`. It found **both** of my own geometry defects, and it turns "looks right" into a number. `getBoundingClientRect` **lies inside a `preserve-3d` subtree** — use `DOM.getContentQuads`.
+- **Two dev servers on one clone share `.next` and serve each other STALE CSS.** Same hazard class as `next build` beside a live dev server. Symptom: identical source renders differently on two ports. Run ONE dev server; switch `NEXT_PUBLIC_HARNESS_API_URL` and restart instead.
+- **`process.env` passed as an OBJECT defeats Next's inlining.** Only literal `process.env.NEXT_PUBLIC_X` member accesses are replaced. A flag read through an injected bag is always undefined in the browser. Split into `xEnabledFrom(value)` + `xEnabled()` and assert the literal read in a source-level test.
+- **CSS 3D: any wrapper between the transformed plane and its children FLATTENS the context** — a plain semantic `<nav>` silently turned my billboard's `rotateX` into a vertical squash. Give every intermediate element `transform-style: preserve-3d`. And **lift furniture off the floor with `translateZ`**: coplanar elements sort unpredictably and the floor's own SVG steals hover.
+- **Verified live spine shapes (2026-08-21):** `GET /fund/events` returns **NEWEST FIRST** (`store.stream` is oldest-first — do not confuse them). `NavStruck.payload.positions[]` = `{symbol, mark, qty, usd_value}`. `OrderFilled` payload keys: `attribution, avg_price, backfill_reason, fees, filled_qty, side, strategy_id, symbol, venue` — **no `at`, no `qty`**. `DeskRequestResolved` carries **no seat** — recover it from the matching `DeskDispatched.task_id`. `DeskRequested.actor` can be a **seat** (`pm`). `/fund/desk` roster order **disagrees with the constitution order** in `seatLib.SEATS` — the floor deliberately obeys SEATS.
+- **Folding every fill gives held = DBC + TLT only**; five closed symbols carry ~1e-15 residue. Any "is it held" test must use a tolerance (1e-9), never `!= 0`.
+- **New reusable modules**: `app/fund/marksanity.py` (`gather`/`evaluate`/`check`); `riskmonitor.evaluate_autoresume()`, `effective_peak()`, `RiskControl.acknowledge_halt/halt_acknowledgement/halt_alarm/halt_ack_token/rebase_drawdown_reference/drawdown_reference/drawdown_rebase_token`; `desk.seat_telemetry()`/`utc_day_bounds()`; `DeskStore.runs_between()`; `studio/desk/deskTelemetry.ts`; `studio/desk/floor/floorPlan.ts`; `components.tsx::SeatTelemetryChips`; `RiskBar.RISK_UNREACHABLE`.
+- **Monitor payload gained** (no UI consumes them yet): `halt_acknowledgement`, `halt_alarm`, `halt_ack_token`, `autoresume_cooldown_minutes`, and on `drawdown`: `peak_basis`, `peak_note`, `unrebased_peak_nav`, `rebase`, `rebase_token`. A UI dispatch for the acknowledge + drawdown-rebase controls is the natural next KryptonPay piece.
+- **NOT BUILT this dispatch: C (merge gate script), D (factor pack v0), G (Lab analytics).** Stopped at the sanctioned E/F boundary. G is the largest — it needs a spine-storage change to persist engine payloads the factory currently drops, and deserves its own pass.
+- **Open from before, still open:** (a) no DOM test runner in KryptonPay; (b) the reversibility kind→table still wants a human review; (c) ClarkHarness H1 unfixed since dispatch 2; (d) eight named spine gaps from dispatch 1; (e) F4's latency cause remains unexplained — do not let anyone record "fixed".
+- **After merge the CTO must**: set `NEXT_PUBLIC_STUDIO_FLOOR=1` + restart the dev server; restart the spine; put the **30-minute cool-down** and the **`NEW_SYMBOL_WITHOUT_REFERENCE_REFUSES=False` flag** in front of the CEO.
+
+- [CTO note at resolve, 2026-08-21]: both bundles verified and merged (1100 +
+  127 reproduced on the merged trees; forbidden-surface checks empty;
+  judgement.py confirmed additive). All three post-merge musts executed within
+  the hour: flag set + dev server restarted, spine restarted, and the floor
+  verified LIVE (14 real pulses of 247 events, halted-room state and the
+  what-this-room-does-not-show block rendering exactly as specified). The two
+  proposed values (30-min cooldown, NEW_SYMBOL flag False) are on the CEO's
+  desk on run-builder-dispatch5. Stopping at the sanctioned boundary was the
+  pace direction working as written - C/D/G get their own dispatch. Wrong-base
+  count now 5/5; the refusal discipline held again.
+
