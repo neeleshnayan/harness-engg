@@ -114,7 +114,11 @@ function Seat({ seat }: { seat: SeatId }) {
     new Set(seatRuns.map((r) => r.model).filter((m): m is string => !!m)),
   );
 
-  const neverDispatched = runs != null && seatRuns.length === 0 && !dispatches.dispatches;
+  // "Never dispatched" needs BOTH records read. With the event log unreadable
+  // it was asserted from the flight recorder alone, which cannot see a
+  // dispatch that produced no run.
+  const neverDispatched =
+    runs != null && events != null && seatRuns.length === 0 && !dispatches.dispatches;
   // What this desk produced, across time. Run-anchored (see productionShelf):
   // the spine has no author field, so a shelf built any other way would credit
   // the wrong desk.
@@ -188,11 +192,16 @@ function Seat({ seat }: { seat: SeatId }) {
         {/* ---------------------------------------------- dispatch economics -- */}
         <section className="mb-8">
           <div className={`${KT.card} flex flex-wrap gap-x-10 gap-y-4`}>
+            {/* "never" is a CLAIM about the record, so it may only be made
+                when the record was actually read. With the event log
+                unreadable this used to read "never" over a caption saying the
+                log could not be read — the headline asserting the opposite of
+                its own footnote. Verified 2026-08-20 against a dead spine. */}
             <Metric
               label="dispatches"
-              value={dispatches.dispatches ?? "never"}
+              value={events == null ? "—" : dispatches.dispatches ?? "never"}
               sub={events == null
-                ? "event log unreadable"
+                ? "event log unreadable — dispatches unknown, not zero"
                 : dispatches.lastAt
                   ? `last ${fmtAt(dispatches.lastAt)}${dispatches.actors.length ? ` by ${dispatches.actors.join(", ")}` : ""}`
                   : "no dispatch event on record"}
@@ -276,7 +285,15 @@ function Seat({ seat }: { seat: SeatId }) {
             title="What this desk has produced"
             lede="Every delivery in time order, newest first — the date, the document, the verdict where one was stamped. A run that filed nothing appears saying so."
           />
-          {runs == null ? (
+          {/* Three states, kept apart: still loading, could not be read, and
+              read-and-empty. "Reading…" for a read that already FAILED is a
+              progress bar for something that is not in progress. */}
+          {runsErr ? (
+            <p className={`text-sm ${KT.sev.warn}`}>
+              The flight recorder could not be read ({runsErr}) — what this desk
+              produced is unknown, not nothing.
+            </p>
+          ) : runs == null ? (
             <p className={`text-sm ${KT.muted}`}>Reading the flight recorder…</p>
           ) : (
             <ProductionShelf
@@ -299,7 +316,12 @@ function Seat({ seat }: { seat: SeatId }) {
             title="The evidence"
             lede="Every dispatch stored whole in Postgres. Open a run for the distilled why; the full record lives at the artifact path."
           />
-          {runs == null ? (
+          {runsErr ? (
+            <p className={`text-sm ${KT.sev.warn}`}>
+              The flight recorder could not be read ({runsErr}) — this seat&apos;s
+              runs are unknown, not absent.
+            </p>
+          ) : runs == null ? (
             <p className={`text-sm ${KT.muted}`}>Reading the flight recorder…</p>
           ) : seatRuns.length === 0 ? (
             <p className={`text-sm ${KT.muted}`}>No runs recorded for this seat.</p>
