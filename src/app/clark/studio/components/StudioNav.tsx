@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, BookOpen, FlaskConical, Sliders, Swords } from "lucide-react";
+import { Activity, BookOpen, FlaskConical, ShieldAlert, Sliders, Swords } from "lucide-react";
 
 /**
  * Workflow-first navigation — FIVE tabs, down from seven (CEO direction,
@@ -33,12 +33,10 @@ import { Activity, BookOpen, FlaskConical, Sliders, Swords } from "lucide-react"
  *     the belt); its story and ladder render on the Desk. The rule: a chart
  *     stays only if it informs a specific click or dispatch, and Mechanics was
  *     a tab you read rather than acted on. /clark/studio/mechanics redirects.
- *   * RISK — the /risk page is untouched and still owns the six measured
- *     modules; it is reached from the always-on risk strip at the top of every
- *     page (which is where a breach is actually noticed), from Monitor, and
- *     from the riskofficer seat page that cites it as evidence. Kept out of the
- *     bar because the five tabs are the five workflows; risk follows the reader
- *     everywhere instead of waiting in a tab.
+ *   * RISK — the builder removed it from the bar (2026-08-20); the CEO vetoed
+ *     the removal the same morning ("risk page is entirely gone"). A page only
+ *     reachable through a strip nobody thinks of as a door IS gone to its
+ *     reader. Six tabs, restored by CEO decision.
  */
 const TABS = [
   { href: "/clark/studio", label: "Monitor", icon: Activity, exact: true,
@@ -49,6 +47,8 @@ const TABS = [
     hint: "Strategies, weights, composition and per-strategy attribution" },
   { href: "/clark/studio/lab", label: "Lab", icon: FlaskConical,
     hint: "Research an idea: write a strategy, run it on the engine of record" },
+  { href: "/clark/studio/risk", label: "Risk", icon: ShieldAlert,
+    hint: "Diversification, tail risk, market regime and survivability" },
   { href: "/clark/studio/thesis", label: "Thesis", icon: BookOpen,
     hint: "Automatic theme discovery & investment thesis generator" },
 ];
