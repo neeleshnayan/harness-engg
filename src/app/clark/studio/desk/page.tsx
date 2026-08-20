@@ -174,10 +174,12 @@ export default function DeskPage() {
               <p className={`${KT.label} mb-3 flex items-center gap-2`}>
                 <Users size={12} /> The floor — live
               </p>
-              {/* The top row is the humans: hierarchy reads top-down
-                  (CEO → COO → CTO → bench). No working/idle badge — humans are
-                  not dispatched. CEO ask 2026-08-20: names on, clickable. */}
-              <div className="mb-3 grid gap-3 sm:grid-cols-2">
+              {/* The top row is the executives: hierarchy reads top-down
+                  (CEO → COO → CTO → bench). The COO joined the row by CEO
+                  decision 2026-08-20 and carries Vishesh's name; it keeps its
+                  live status dot because unlike the humans, the seat IS
+                  dispatched. Names on, clickable. */}
+              <div className="mb-3 grid gap-3 sm:grid-cols-3">
                 <Link href="/clark/studio/desk/ceo"
                       className={`${KT.card} ${KT.cardHover} flex items-center gap-3 p-3`}>
                   <SeatFace actor="ceo" size={42} />
@@ -185,6 +187,28 @@ export default function DeskPage() {
                     <span className="block font-medium">Neelesh</span>
                     <span className={`block text-[11px] ${KT.muted}`}>
                       CEO — everything awaiting your click, in one place
+                    </span>
+                  </span>
+                </Link>
+                <Link href="/clark/studio/desk/coo"
+                      className={`${KT.card} ${KT.cardHover} flex items-center gap-3 p-3`}>
+                  <SeatFace actor="coo" size={42} />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="font-medium">Vishesh</span>
+                      {(() => {
+                        const coo = d.roster.find((r) => r.agent === "coo");
+                        const working = coo?.activity.status === "working";
+                        return coo ? (
+                          <span className={`flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] ${working ? "text-[var(--kt-warn)]" : KT.muted}`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${working ? "kt-breathe bg-[var(--kt-warn)]" : "bg-[var(--kt-border-strong)]"}`} />
+                            {coo.activity.status}
+                          </span>
+                        ) : null;
+                      })()}
+                    </span>
+                    <span className={`block text-[11px] ${KT.muted}`}>
+                      COO · Opus — your desk, triaged into batch decisions
                     </span>
                   </span>
                 </Link>
@@ -200,7 +224,9 @@ export default function DeskPage() {
                 </Link>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {d.roster.map((r) => <Desk key={r.agent} r={r} />)}
+                {d.roster
+                  .filter((r) => r.agent !== "coo")   // the coo sits in the exec row
+                  .map((r) => <Desk key={r.agent} r={r} />)}
               </div>
             </section>
 
@@ -537,7 +563,14 @@ function Desk({ r }: { r: DeskView["roster"][number] }) {
           <SeatFace actor={r.agent} size={42} decorative />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-mono text-sm text-[var(--kt-text-strong)]">{r.agent}</p>
+          {/* Every bench seat wears its model's name the way the CTO wears
+              Fable's (CEO decision 2026-08-20: "other agents get Opus name").
+              Judgement placement is Opus for the whole bench per the
+              constitution; hybrid/local phases are detail for the seat page. */}
+          <p className="truncate font-mono text-sm text-[var(--kt-text-strong)]">
+            {r.agent}
+            <span className={`ml-1.5 text-[11px] font-normal ${KT.muted}`}>· Opus</span>
+          </p>
           <p className={`mt-1 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] ${
             working ? "text-[var(--kt-warn)]" : KT.muted}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${

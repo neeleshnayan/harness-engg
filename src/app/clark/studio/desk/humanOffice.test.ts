@@ -65,7 +65,12 @@ test("humans and machines are different silhouettes, so a policy is never mistak
 });
 
 test("an unregistered actor gets NO face — never a generated one", () => {
-  assert.equal(faceFor("vishesh"), null);
+  // `vishesh` was this test's original unregistered example — until the CEO
+  // named the COO seat after him (2026-08-20, "so he doesn't feel left out").
+  // He now has a face by DECISION, which is exactly the registry's rule:
+  // assigned, never generated.
+  assert.equal(faceFor("vishesh"), faceFor("coo"));
+  assert.equal(faceFor("some-visitor"), null);
   assert.equal(faceFor(""), null);
   assert.equal(faceFor(null), null);
   assert.equal(faceFor(undefined), null);

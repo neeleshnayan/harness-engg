@@ -126,11 +126,13 @@ export const FACES: Readonly<Record<string, FaceSpec>> = Object.freeze({
   },
   coo: {
     // The market veteran who triages the CEO's desk (seated 2026-08-20).
-    // Wears the tie like the ceo — same room, same suits — but the oval head,
-    // line eyes and flat mouth are the veteran's: seen every cycle, moved by
-    // none of them. Tuple is unique; the registry test enforces it.
-    id: "coo", label: "coo", kind: "seat",
-    role: "triages the desk into batch decisions; endorses, never decides",
+    // Named VISHESH by CEO decision the same day ("so he doesn't feel left
+    // out") — the seat carries a colleague's name the way the CTO carries its
+    // model's. Wears the tie like the ceo — same room, same suits — but the
+    // oval head, line eyes and flat mouth are the veteran's: seen every
+    // cycle, moved by none of them. Tuple unique; the registry test enforces.
+    id: "coo", label: "Vishesh", kind: "seat",
+    role: "COO — triages the desk into batch decisions; endorses, never decides",
     head: "oval", eyes: "lines", mouth: "flat", feature: "tie",
   },
 
@@ -192,6 +194,7 @@ const ALIASES: ReadonlyArray<{ re: RegExp; id: string }> = [
   { re: /^rushi$/, id: "ceo" },
   { re: /^neelesh$/, id: "ceo" },
   { re: /^fable$/, id: "cto" },
+  { re: /^vishesh$/, id: "coo" },
 ];
 
 /**
