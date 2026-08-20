@@ -103,6 +103,17 @@ ROSTER = [
                        "oracle, v3 was an unnoticed loosening, v4 is "
                        "benchmark-blind, the controls were unwired, the verdict "
                        "column was write-only."},
+    {"agent": "coo",
+     "lane": "Triages the CEO's desk: batches every open item, checks each "
+             "against the constitution and mandate, ranks by money, endorses "
+             "or objects — the CEO decides batches, not items",
+     "emits": "ONE batched decision memo with per-item recommended "
+              "dispositions; an endorsement is never a decision",
+     "exists_because": "Seated 2026-08-20 by demonstrated need: the CEO's desk "
+                       "carried ~20 open recommendations in one day and an "
+                       "overwhelmed approver becomes a rubber stamp — the "
+                       "failure every control here exists to prevent. The "
+                       "click stays the CEO's, always."},
 ]
 
 #: Request kinds the desk accepts, mapped to the seat that serves them.
@@ -119,6 +130,8 @@ REQUEST_KINDS = {
     # gates through the CEO and the CTO, and a queue with a side channel is
     # not a queue.
     "build": "builder",
+    # The CEO asking for their own desk to be triaged into batch decisions.
+    "triage": "coo",
 }
 
 _STATUS_RE = re.compile(r"Status:\s*(KILLED|SURVIVES|under adversarial review"
