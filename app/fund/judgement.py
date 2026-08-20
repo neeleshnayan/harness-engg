@@ -52,6 +52,90 @@ def use_control(control: Any) -> None:
     global _CONTROL
     _CONTROL = control
 
+
+#: A provider returning the live metric namespace that ``TriggerSpec`` reads.
+#: None outside the app, where every spec then reports UNREADABLE — which is
+#: the truthful answer and, importantly, NOT "did not fire".
+_METRICS: Optional[Callable[[], dict[str, Any]]] = None
+
+
+def use_metrics(provider: Optional[Callable[[], dict[str, Any]]]) -> None:
+    """Point the register at a live metric source for machine-checkable triggers."""
+    global _METRICS
+    _METRICS = provider
+
+
+#: Comparators a trigger may use. Deliberately tiny: a trigger language rich
+#: enough to be interesting is rich enough to be wrong in ways nobody reviews.
+_COMPARATORS: dict[str, Callable[[float, float], bool]] = {
+    ">": lambda a, b: a > b,
+    ">=": lambda a, b: a >= b,
+    "<": lambda a, b: a < b,
+    "<=": lambda a, b: a <= b,
+}
+
+
+class TriggerSpec:
+    """A review trigger a machine can check: ``<metric> <comparator> <value>``.
+
+    Sixteen of seventeen registered triggers were free text no code evaluated,
+    and the register returned ``due_for_review: []`` while a 7.75% drawdown sat
+    in plain sight — R6's own trigger ("first drawdown episode over 3% from
+    peak") had demonstrably fired (validator run 8b863152, 2026-08-20). A
+    trigger nothing evaluates is a note, and a register of notes reviews
+    nothing.
+
+    Free-text triggers stay prose. This is for the quantifiable ones, and it
+    carries the same absence discipline as everything else here: an unreadable
+    metric is reported UNREADABLE, never as "not fired". A trigger that cannot
+    be checked has NOT been checked.
+    """
+
+    def __init__(self, metric: str, comparator: str, value: float,
+                 means: str = ""):
+        if comparator not in _COMPARATORS:
+            raise ValueError(
+                f"comparator must be one of {sorted(_COMPARATORS)}, got {comparator!r}")
+        self.metric = metric
+        self.comparator = comparator
+        self.value = float(value)
+        self.means = means
+
+    def __str__(self) -> str:
+        return f"{self.metric} {self.comparator} {self.value:g}"
+
+    def evaluate(self, metrics: Optional[dict[str, Any]]) -> dict[str, Any]:
+        base = {"spec": str(self), "metric": self.metric,
+                "comparator": self.comparator, "threshold": self.value,
+                "means": self.means}
+        if metrics is None:
+            return {**base, "readable": False, "fired": None, "observed": None,
+                    "note": "no live metric source wired — this trigger has NOT "
+                            "been checked, which is not the same as not fired"}
+        if self.metric not in metrics:
+            return {**base, "readable": False, "fired": None, "observed": None,
+                    "note": f"{self.metric} is not in the live metric namespace — "
+                            f"this trigger has NOT been checked"}
+        raw = metrics.get(self.metric)
+        try:
+            observed = float(raw)
+        except (TypeError, ValueError):
+            return {**base, "readable": False, "fired": None, "observed": raw,
+                    "note": f"{self.metric} read as {raw!r}, which is not a number — "
+                            f"this trigger has NOT been checked"}
+        return {**base, "readable": True, "observed": observed,
+                "fired": _COMPARATORS[self.comparator](observed, self.value)}
+
+
+def _live_metrics() -> Optional[dict[str, Any]]:
+    if _METRICS is None:
+        return None
+    try:
+        return _METRICS() or {}
+    except Exception as e:  # noqa: BLE001
+        logger.info("judgement: metric source unreadable: %s", e)
+        return None
+
 #: How a number came to hold its value. The distinction is not cosmetic: it says
 #: who is entitled to change it and what kind of argument counts.
 #:
@@ -74,7 +158,8 @@ class Judgement:
     def __init__(self, key: str, *, where: str, basis: str, why: str,
                  falsified_by: str, review_trigger: str, review_by: str,
                  read: Optional[Callable[[], Any]] = None,
-                 expected: Any = None):
+                 expected: Any = None,
+                 trigger_spec: Any = None):
         if basis not in BASES:
             raise ValueError(f"basis must be one of {BASES}, got {basis!r}")
         self.key = key
@@ -86,6 +171,15 @@ class Judgement:
         self.review_by = review_by
         self._read = read
         self.expected = expected
+        #: Zero or more machine-checkable forms of ``review_trigger``. ANY one
+        #: firing makes the entry due — a register that required all of them
+        #: would be harder to trip than the prose it replaces.
+        if trigger_spec is None:
+            self.trigger_spec: list[TriggerSpec] = []
+        elif isinstance(trigger_spec, TriggerSpec):
+            self.trigger_spec = [trigger_spec]
+        else:
+            self.trigger_spec = list(trigger_spec)
 
     def value(self) -> dict[str, Any]:
         """The value as it is RIGHT NOW, read from the running system.
@@ -128,17 +222,60 @@ class Judgement:
                        f"number, so either the reason or the number is stale"),
         }
 
-    def due(self, today: Optional[str] = None) -> bool:
-        now = today or date.today().isoformat()
-        return now >= self.review_by
+    def triggers(self, metrics: Optional[dict[str, Any]] = None) -> list[dict[str, Any]]:
+        """Every machine-checkable trigger, evaluated against the live metrics."""
+        if not self.trigger_spec:
+            return []
+        if metrics is None:
+            metrics = _live_metrics()
+        return [t.evaluate(metrics) for t in self.trigger_spec]
 
-    def to_dict(self, today: Optional[str] = None) -> dict[str, Any]:
+    def due(self, today: Optional[str] = None,
+            metrics: Optional[dict[str, Any]] = None) -> bool:
+        """Due when the backstop DATE has passed *or* a trigger has FIRED.
+
+        Both, because a date alone invites a review with nothing to review
+        against and a trigger alone can be postponed forever — the register's
+        own stated rule, now actually enforced for the quantifiable triggers.
+        """
+        now = today or date.today().isoformat()
+        if now >= self.review_by:
+            return True
+        return any(t.get("fired") for t in self.triggers(metrics))
+
+    def to_dict(self, today: Optional[str] = None,
+                metrics: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+        if metrics is None and self.trigger_spec:
+            metrics = _live_metrics()
+        evaluated = self.triggers(metrics)
+        fired = [t for t in evaluated if t.get("fired")]
+        unchecked = [t for t in evaluated if not t.get("readable")]
+        now = today or date.today().isoformat()
+        date_due = now >= self.review_by
+        if date_due and fired:
+            why_due = "the backstop date has passed AND a trigger has fired"
+        elif date_due:
+            why_due = "the backstop date has passed"
+        elif fired:
+            why_due = "a registered trigger has fired: " + "; ".join(
+                f"{t['spec']} (observed {t['observed']})" for t in fired)
+        else:
+            why_due = None
         return {
             "key": self.key, "where": self.where, "basis": self.basis,
             "why": self.why, "falsified_by": self.falsified_by,
             "review_trigger": self.review_trigger, "review_by": self.review_by,
             "registered_value": self.expected,
-            **self.value(), "drift": self.drift(), "due": self.due(today),
+            # The trigger in machine-checkable form, its live reading, and
+            # whether it fired. `unchecked_triggers` is separate from `fired`
+            # on purpose: a trigger nobody could evaluate must never be counted
+            # among the ones that did not fire.
+            "trigger_spec": evaluated,
+            "trigger_fired": bool(fired),
+            "unchecked_triggers": len(unchecked),
+            "due_reason": why_due,
+            **self.value(), "drift": self.drift(),
+            "due": date_due or bool(fired),
         }
 
 
@@ -403,7 +540,17 @@ def registry() -> list[Judgement]:
                          "reads 1.84) — fails in the tolerable direction.",
             review_trigger="effective bets within 0.1 of the floor, or the "
                            "sleeve grows past two names (the floor maps onto a "
-                           "different correlation statement per book)",
+                           "different correlation statement per book), or the "
+                           "first drawdown episode over 3% from peak",
+            # The drawdown leg, in machine-checkable form. This is the exact
+            # trigger that HAD fired — at 7.75% — while /fund/judgement returned
+            # `due_for_review: []` (validator 8b863152). The 3.0 is the number
+            # the entry was registered with, not a new one.
+            trigger_spec=TriggerSpec(
+                "risk_monitor.drawdown_pct", ">", 3.0,
+                means="a drawdown episode past 3% from peak is the evidence that "
+                      "makes 'is two effective bets actually diversified?' "
+                      "answerable rather than theoretical"),
             review_by="2026-12-01"),
         Judgement(
             "max_component_vol_pct",
@@ -439,8 +586,18 @@ def registry() -> list[Judgement]:
                          "legitimate change is the operator stating a different "
                          "one. Listed here so that a quiet loosening is visible "
                          "as drift rather than passing as a technical adjustment.",
+            # "The limit is approached" made machine-checkable at the number the
+            # entry itself already records: the 2026-08-20 review happened at
+            # 77.5% utilisation, so 75% of the limit is the level this fund has
+            # in fact treated as "approached". No threshold moves; the mandate
+            # limit is untouched and this only decides when to ASK about it.
+            trigger_spec=TriggerSpec(
+                "risk_monitor.drawdown_utilization_pct", ">=", 75.0,
+                means="drawdown has used three quarters of the mandate's "
+                      "tolerance — the level at which this entry was last "
+                      "reviewed in practice"),
             review_trigger="operator revisits the mandate, or the limit is "
-                           "approached. (REVIEWED 2026-08-20 at 77.5% utilised "
+                           "approached (75% of it used). (REVIEWED 2026-08-20 at 77.5% utilised "
                            "after the phantom-price incident: WATCHED, "
                            "UNCHANGED by CEO batch decision — the drawdown is "
                            "an incident artifact, not a mandate change, and "
@@ -559,10 +716,16 @@ def review(today: Optional[str] = None) -> dict[str, Any]:
     reason moving is worse than a number that is merely due for review: the
     written justification is then describing a decision nobody is making.
     """
-    entries = [j.to_dict(today) for j in registry()]
+    # ONE metric read for the whole register: the source folds the event log,
+    # and evaluating seventeen entries against seventeen separate folds is how
+    # a register becomes something nobody dares call.
+    metrics = _live_metrics()
+    entries = [j.to_dict(today, metrics) for j in registry()]
     drifted = [e for e in entries if (e.get("drift") or {}).get("drifted")]
     unreadable = [e for e in entries if not e.get("readable")]
     due = [e for e in entries if e.get("due")]
+    triggered = [e for e in entries if e.get("trigger_fired")]
+    unchecked = [e for e in entries if e.get("unchecked_triggers")]
     by_basis: dict[str, int] = {}
     for e in entries:
         by_basis[e["basis"]] = by_basis.get(e["basis"], 0) + 1
@@ -573,6 +736,13 @@ def review(today: Optional[str] = None) -> dict[str, Any]:
         "drifted": drifted,
         "unreadable": unreadable,
         "due_for_review": due,
+        # Entries due because a machine-checkable trigger FIRED, split out from
+        # the ones merely due by date: the register's first job is to notice
+        # evidence, and evidence should not be buried in a calendar.
+        "triggered": triggered,
+        # Entries carrying a trigger that could NOT be evaluated. An unchecked
+        # trigger is not a passing one.
+        "triggers_unchecked": unchecked,
         "entries": entries,
         "note": _note(entries, drifted, unreadable, due, by_basis),
     }

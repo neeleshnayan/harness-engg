@@ -34,6 +34,57 @@ from app.fund.strategies import StrategyRegistry
 SEVERITY = ("info", "warn", "critical")
 
 
+# --- halt classes (2026-08-20, CEO-blessed principle) -----------------------
+#
+# "Halted" was one word for two different kinds of dark, and the difference is
+# the whole reopening procedure:
+#
+#   integrity — the fund cannot MEASURE itself (bad or absent mark, stale feed,
+#               dead heartbeat). Nothing about the book is known to be wrong;
+#               what is wrong is our sight of it. Resumes only when the
+#               integrity problem is fixed AND a human acknowledges it. There is
+#               no "accept it and carry on" — accepting an unmeasured book is
+#               how the phantom price became a fill.
+#   loss      — the fund measured itself correctly and does not like the answer
+#               (drawdown, daily loss). A circuit breaker, with a reopening
+#               procedure: the CEO may acknowledge the loss and rebase the
+#               reference (see LOSS_REFERENCE_REBASED) with a written reason.
+#   manual    — a human pulled the switch. Not automatic, so not classified by
+#               cause; resumes when the same authority says so.
+#
+# The class is carried on the halt event and surfaced by /fund/risk/monitor so
+# the UI can say WHICH kind of dark this is. It changes no threshold and adds
+# no trigger: it labels the halts that already exist.
+HALT_INTEGRITY = "integrity"
+HALT_LOSS = "loss"
+HALT_MANUAL = "manual"
+HALT_CLASSES = (HALT_INTEGRITY, HALT_LOSS, HALT_MANUAL)
+
+#: Alarm type -> halt class. Only drawdown and daily_loss can auto-halt today
+#: (see RiskMonitor.run), so `integrity` currently reaches the halt path only
+#: through a manual halt that names an integrity cause. Stated rather than
+#: implied: this mapping does NOT create an integrity auto-halt, and nothing in
+#: this change does.
+_HALT_CLASS_BY_ALARM = {
+    "drawdown": HALT_LOSS,
+    "daily_loss": HALT_LOSS,
+    "data_quality": HALT_INTEGRITY,
+    "stale_marks": HALT_INTEGRITY,
+    "unpriced": HALT_INTEGRITY,
+    "heartbeat": HALT_INTEGRITY,
+}
+
+
+def classify_halt_cause(alarm_type: str | None) -> str:
+    """The halt class an alarm type implies. Unknown causes are MANUAL.
+
+    Unknown is not "loss": misfiling an unrecognised cause as a loss halt would
+    make it eligible for acknowledge-and-rebase, which is the one action that
+    must never be reachable by accident.
+    """
+    return _HALT_CLASS_BY_ALARM.get((alarm_type or "").strip().lower(), HALT_MANUAL)
+
+
 @dataclass
 class Alarm:
     """One breach. `key` (e.g. 'drawdown' or 'concentration:AAPL') dedups across
@@ -90,6 +141,10 @@ class RiskControl:
 
         limits = RiskLimits()
         halted = False
+        halt_class: str | None = None
+        halt_reason: str | None = None
+        halted_at: str | None = None
+        loss_reference: dict[str, Any] | None = None
         active: dict[str, dict] = {}
         history: list[dict] = []
 
@@ -100,8 +155,19 @@ class RiskControl:
                 limits = RiskLimits.from_dict(p)
             elif etype == EventType.TRADING_HALTED.value:
                 halted = True
+                # Halts recorded before halt classes existed carry no class.
+                # They are reported as None — "we do not know which kind of
+                # dark this was" — never back-filled as `manual`, which would
+                # invent a fact about a historical event.
+                halt_class = p.get("halt_class")
+                halt_reason = p.get("reason")
+                halted_at = e.get("ts")
             elif etype == EventType.TRADING_RESUMED.value:
                 halted = False
+                halt_class = halt_reason = halted_at = None
+            elif etype == EventType.LOSS_REFERENCE_REBASED.value:
+                loss_reference = {**p, "at": p.get("at") or e.get("ts"),
+                                  "actor": e.get("actor")}
             elif etype == EventType.RISK_ALARM_RAISED.value:
                 history.append(e)
                 if p.get("key"):
@@ -111,7 +177,10 @@ class RiskControl:
                 if p.get("key"):
                     active.pop(p["key"], None)
 
-        state = {"limits": limits, "halted": halted, "active": active, "history": history}
+        state = {"limits": limits, "halted": halted, "halt_class": halt_class,
+                 "halt_reason": halt_reason, "halted_at": halted_at,
+                 "loss_reference": loss_reference,
+                 "active": active, "history": history}
         self._cache = (time.monotonic(), state)
         return state
 
@@ -147,24 +216,46 @@ class RiskControl:
         """
         return self._fold(fresh=fresh)["halted"]
 
-    def halt(self, reason: str, actor: str) -> dict:
-        """Engage the kill switch (idempotent: no-op if already halted)."""
+    def halt(self, reason: str, actor: str,
+             halt_class: str = HALT_MANUAL) -> dict:
+        """Engage the kill switch (idempotent: no-op if already halted).
+
+        ``halt_class`` says which KIND of dark this is (see HALT_CLASSES). It
+        defaults to manual because a caller that does not know the cause has,
+        by definition, not measured one.
+        """
+        if halt_class not in HALT_CLASSES:
+            halt_class = HALT_MANUAL
         if self.is_halted():
-            return {"status": "already_halted", "reason": reason, "halted": True}
+            return {"status": "already_halted", "reason": reason, "halted": True,
+                    "halt_class": self.halt_class()}
         self._store.append(
             Event(
                 aggregate_id="fund",
                 aggregate_type="fund",
                 type=EventType.TRADING_HALTED,
-                payload={"reason": reason},
+                payload={"reason": reason, "halt_class": halt_class},
                 actor=actor,
             )
         )
         self._invalidate()
-        return {"status": "halted", "reason": reason, "halted": True}
+        return {"status": "halted", "reason": reason, "halted": True,
+                "halt_class": halt_class}
+
+    def halt_class(self) -> str | None:
+        """The class of the OPEN halt, or None when not halted / unclassified."""
+        return self._fold()["halt_class"] if self._fold()["halted"] else None
+
+    def halt_state(self) -> dict[str, Any]:
+        """The full halt picture for the UI: halted, class, reason, since."""
+        st = self._fold()
+        return {"halted": st["halted"],
+                "halt_class": st["halt_class"] if st["halted"] else None,
+                "halt_reason": st["halt_reason"] if st["halted"] else None,
+                "halted_at": st["halted_at"] if st["halted"] else None}
 
     def resume(self, actor: str) -> dict:
-        """Re-enable trading (human only)."""
+        """Re-enable trading (human only). Both halt classes resume manually."""
         if not self.is_halted():
             return {"status": "not_halted", "halted": False}
         self._store.append(
@@ -178,6 +269,60 @@ class RiskControl:
         )
         self._invalidate()
         return {"status": "resumed", "halted": False}
+
+    # --- acknowledge-and-rebase (loss class only) ---------------------------
+    def loss_reference(self) -> dict[str, Any] | None:
+        """The rebased daily-loss reference, or None if it has never been moved.
+
+        None means "no rebase has happened", NOT "the reference is zero": with
+        no rebase the daily-loss rule falls back to the prior day's strike, and
+        the caller must be able to tell those two states apart.
+        """
+        return self._fold()["loss_reference"]
+
+    def rebase_loss_reference(self, nav_usd: float, reason: str, actor: str) -> dict:
+        """Acknowledge a loss and move the daily-loss reference to current NAV.
+
+        The CEO's reopening procedure for a LOSS halt. It changes no threshold —
+        the limit stays exactly where the register says it is — it moves the
+        point the limit is measured FROM, once, deliberately, in the log, with
+        a reason that is mandatory because this is the one control whose whole
+        purpose is to be hard to use casually.
+
+        REFUSED while an integrity halt is open: rebasing to "current NAV" when
+        current NAV is the number we do not trust would launder a bad mark into
+        the fund's own reference. That is the phantom-price incident with a
+        signature on it.
+        """
+        reason = (reason or "").strip()
+        if not reason:
+            raise ValueError(
+                "acknowledging a loss requires a written reason — the reference "
+                "moves in the log and the log has to say why"
+            )
+        if self._fold()["halted"] and self._fold()["halt_class"] == HALT_INTEGRITY:
+            raise ValueError(
+                "an INTEGRITY halt is open: the fund cannot currently measure "
+                "itself, so 'current NAV' is not a number to rebase onto. Fix "
+                "the integrity fault and resume first."
+            )
+        try:
+            nav = float(nav_usd)
+        except (TypeError, ValueError) as e:
+            raise ValueError("the rebase reference must be a number") from e
+        if not (nav > 0):
+            raise ValueError(
+                f"refusing to rebase the daily-loss reference onto {nav_usd!r} — "
+                "a non-positive reference makes every future loss unmeasurable"
+            )
+        payload = {"nav_usd": round(nav, 2), "reason": reason,
+                   "at": datetime.now(timezone.utc).isoformat()}
+        self._store.append(Event(
+            aggregate_id="fund", aggregate_type="fund",
+            type=EventType.LOSS_REFERENCE_REBASED, payload=payload, actor=actor,
+        ))
+        self._invalidate()
+        return {"status": "rebased", **payload, "actor": actor}
 
     def active_alarms(self) -> list[dict]:
         """Currently-open alarms: RISK_ALARM_RAISED not yet followed by a CLEARED
@@ -220,6 +365,7 @@ class RiskMonitor:
         gross_exposure_usd = float(snap.breakdown.get("positions", 0))
         gross_exposure_pct = (gross_exposure_usd / nav_usd * 100.0) if nav_usd > 0 else 0.0
         halted = self._control.is_halted()
+        halt_state = self._control.halt_state()
 
         # Drawdown calculation
         history_snaps = self._nav.history(365)
@@ -303,8 +449,11 @@ class RiskMonitor:
             exp = float(r["exposure_usd"])
             pnl = float(r["pnl_usd"])
             weight_pct = (exp / nav_usd * 100.0) if nav_usd > 0 else 0.0
-            utilization = (weight_pct / max_strat_limit_pct) if max_strat_limit_pct > 0 else 0.0
-            breach = weight_pct > max_strat_limit_pct
+            # Magnitude, matching the two-sided cap in evaluate_alarms — the
+            # UI's breach flag and the alarm must not disagree about the same
+            # strategy on the same tick.
+            utilization = (abs(weight_pct) / max_strat_limit_pct) if max_strat_limit_pct > 0 else 0.0
+            breach = abs(weight_pct) > max_strat_limit_pct
             strategies_list.append({
                 "strategy_id": sid,
                 "name": name,
@@ -319,7 +468,7 @@ class RiskMonitor:
 
         # Limits & Gauge Utilization
         max_pos_weight = max([p["weight_pct"] for p in positions_list], default=0.0)
-        max_strat_weight = max([s["weight_pct"] for s in strategies_list], default=0.0)
+        max_strat_weight = max([abs(s["weight_pct"]) for s in strategies_list], default=0.0)
         pos_limit_pct = limits_obj.max_position_pct * 100.0
         strat_limit_pct = limits_obj.max_strategy_pct * 100.0
         cash_limit_pct = limits_obj.min_cash_pct * 100.0
@@ -391,6 +540,17 @@ class RiskMonitor:
             "gross_exposure_usd": round(gross_exposure_usd, 2),
             "gross_exposure_pct": round(gross_exposure_pct, 4),
             "halted": halted,
+            # WHICH kind of dark, so the UI stops saying only "HALTED":
+            # `integrity` (we cannot measure) vs `loss` (we measured and do not
+            # like it) vs `manual`. None on a pre-classes halt — unknown, not
+            # back-filled. `rebase_token` is what the acknowledge-and-rebase
+            # control must echo back; it changes whenever the state it describes
+            # changes, so a confirm read off a stale screen is refused.
+            "halt_class": halt_state.get("halt_class"),
+            "halt_reason": halt_state.get("halt_reason"),
+            "halted_at": halt_state.get("halted_at"),
+            "loss_reference": self._loss_reference_report(nav_usd),
+            "rebase_token": self.rebase_token(nav_usd),
             "drawdown": drawdown,
             "positions": positions_list,
             "strategies": strategies_list,
@@ -403,6 +563,88 @@ class RiskMonitor:
             "stale_marks": stale_marks,
             "ts": datetime.now(timezone.utc).isoformat(),
         }
+
+    def _loss_reference_report(self, nav_usd: float) -> dict[str, Any]:
+        """What the daily-loss rule is measuring FROM, for the UI.
+
+        ``nav_usd: None`` with ``kind: 'absent'`` is the honest reading when
+        there is no reference — the panel must be able to say "not evaluating"
+        rather than render a 0.00% loss.
+        """
+        ref, kind, at = self._loss_reference(
+            {"ts": datetime.now(timezone.utc).isoformat()})
+        change = None
+        if ref:
+            change = round((nav_usd - ref) / ref * 100.0, 4)
+        return {"nav_usd": ref, "kind": kind, "at": at, "change_pct": change}
+
+    def rebase_token(self, nav_usd: float | None = None) -> str:
+        """An 8-char digest of the state a rebase would act on.
+
+        The approval-channel guard's confirm echo needs something to echo, and
+        for an order that is the order id. A rebase has no id, so the token IS
+        the state: current NAV, the reference it would replace, and the halt.
+        Echoing it proves the clicker read the screen AND that the screen was
+        current — a confirm copied from a stale panel no longer matches.
+        """
+        import hashlib
+
+        st = self._fold_state()
+        ref, kind, at = self._loss_reference(
+            {"ts": datetime.now(timezone.utc).isoformat()})
+        if nav_usd is None:
+            nav_usd = float(self._nav.compute(stale_ok=True).total_nav_usd)
+        raw = f"{round(float(nav_usd), 2)}|{ref}|{kind}|{at}|{st['halted']}|{st['halt_class']}"
+        return hashlib.sha256(raw.encode()).hexdigest()[:8]
+
+    def _fold_state(self) -> dict[str, Any]:
+        return {"halted": self._control.is_halted(fresh=False),
+                "halt_class": self._control.halt_class()}
+
+    def _loss_reference(self, a: dict) -> tuple[float | None, str, str | None]:
+        """(nav, kind, at) for the daily-loss rule. ``nav`` is None when ABSENT.
+
+        Returns the NEWER of the prior day's last strike and any acknowledged
+        rebase. ``kind`` is 'prior_strike' | 'rebased' | 'absent'.
+        """
+        now_ts = a.get("ts") or datetime.now(timezone.utc).isoformat()
+        today_date = now_ts[:10]
+
+        strike_nav: float | None = None
+        strike_at: str | None = None
+        history_snaps = a.get("history_snaps")
+        if history_snaps is None:
+            history_snaps = self._nav.history(365)
+        for s in (history_snaps or []):
+            ts = s.get("ts", "")
+            if ts[:10] < today_date:
+                try:
+                    nav = float(s.get("total_nav_usd", 0))
+                except (TypeError, ValueError):
+                    continue
+                if nav > 0:
+                    strike_nav, strike_at = nav, ts
+
+        rebase = None
+        try:
+            rebase = self._control.loss_reference()
+        except Exception:  # noqa: BLE001 — an unreadable rebase must not blind the rule
+            rebase = None
+        rebase_nav: float | None = None
+        rebase_at: str | None = None
+        if rebase:
+            try:
+                nav = float(rebase.get("nav_usd"))
+            except (TypeError, ValueError):
+                nav = 0.0
+            if nav > 0:
+                rebase_nav, rebase_at = nav, rebase.get("at")
+
+        if rebase_nav is not None and (strike_at is None or (rebase_at or "") > strike_at):
+            return rebase_nav, "rebased", rebase_at
+        if strike_nav is not None:
+            return strike_nav, "prior_strike", strike_at
+        return None, "absent", None
 
     def evaluate_alarms(self, assessment: dict | None = None) -> list[Alarm]:
         """Pure: turn an assessment into the list of Alarms currently breaching.
@@ -431,29 +673,47 @@ class RiskMonitor:
                 threshold=dd_limit,
             ))
 
-        # 2. Daily loss rule (uses prior-day strike reference, not last strike)
-        history_snaps = a.get("history_snaps")
-        if history_snaps is None:
-            history_snaps = self._nav.history(365)
-        if history_snaps:
-            now_ts = a.get("ts") or datetime.now(timezone.utc).isoformat()
-            today_date = now_ts[:10]
-            prior_snaps = [s for s in history_snaps if s.get("ts", "")[:10] < today_date]
-            if prior_snaps:
-                prior_daily_nav = float(prior_snaps[-1].get("total_nav_usd", 0))
-                nav_usd = a.get("nav_usd", 0.0)
-                if prior_daily_nav > 0:
-                    daily_change_pct = ((nav_usd - prior_daily_nav) / prior_daily_nav) * 100.0
-                    daily_loss_limit = limits.max_daily_loss_pct * 100.0
-                    if daily_change_pct < -daily_loss_limit:
-                        alarms.append(Alarm(
-                            key="daily_loss",
-                            type="daily_loss",
-                            severity="critical",
-                            message=f"Daily NAV loss {abs(daily_change_pct):.2f}% exceeds limit {daily_loss_limit:.2f}%",
-                            metric=abs(daily_change_pct),
-                            threshold=daily_loss_limit,
-                        ))
+        # 2. Daily loss rule.
+        #
+        # The reference is the prior day's LAST strike — or, if the CEO has
+        # acknowledged a loss since then, the rebased reference (C2). Whichever
+        # is NEWER wins: a rebase at 14:00 must not be undone by a strike from
+        # yesterday, and yesterday's strike must not be undone by a rebase from
+        # last week.
+        #
+        # If there is no reference at all, the rule is UNEVALUABLE and says so.
+        # It used to return silently, which read on every surface as "the daily
+        # loss limit is fine" — a fund that has never struck a prior-day NAV had
+        # no daily-loss kill switch and nothing anywhere said it.
+        reference_nav, reference_kind, reference_at = self._loss_reference(a)
+        daily_loss_limit = limits.max_daily_loss_pct * 100.0
+        if reference_nav is None:
+            alarms.append(Alarm(
+                key="daily_loss_unevaluable",
+                type="data_quality",
+                severity="warn",
+                message=("the daily-loss halt has NO reference — no prior-day NAV "
+                         "strike and no acknowledged rebase — so the "
+                         f"{daily_loss_limit:.2f}% daily-loss limit is not being "
+                         "evaluated at all; this is an absence, not a pass"),
+                metric=0.0,
+                threshold=daily_loss_limit,
+            ))
+        else:
+            nav_usd = a.get("nav_usd", 0.0)
+            daily_change_pct = ((nav_usd - reference_nav) / reference_nav) * 100.0
+            if daily_change_pct < -daily_loss_limit:
+                since = (f" since the reference was rebased at {reference_at}"
+                         if reference_kind == "rebased" else "")
+                alarms.append(Alarm(
+                    key="daily_loss",
+                    type="daily_loss",
+                    severity="critical",
+                    message=(f"Daily NAV loss {abs(daily_change_pct):.2f}% exceeds "
+                             f"limit {daily_loss_limit:.2f}%{since}"),
+                    metric=abs(daily_change_pct),
+                    threshold=daily_loss_limit,
+                ))
 
         # 3. Concentration rule
         pos_limit = limits.max_position_pct * 100.0
@@ -501,19 +761,29 @@ class RiskMonitor:
                     symbol=sym,
                 ))
 
-        # 6. Strategy cap rule
+        # 6. Strategy cap rule — TWO-SIDED.
+        #
+        # This read `weight > strat_limit`, so a NEGATIVE strategy weight could
+        # never breach and the 40% cap was one-sided: a phantom short of any
+        # size sat under it forever (validator audit R6/D2, ITEM 3(a),
+        # 2026-08-20 — the same mistagged GLD pair). Exposure is exposure in
+        # either direction, so the cap is on the MAGNITUDE and the message says
+        # which side of zero the weight is on, because "-63% exceeds 40%" reads
+        # like a typo unless the word "short" is in the sentence.
         strat_limit = limits.max_strategy_pct * 100.0
         for strat in a.get("strategies", []):
             weight = strat.get("weight_pct", 0.0)
             sid = strat.get("strategy_id", "")
             name = strat.get("name", sid)
-            if weight > strat_limit:
+            if abs(weight) > strat_limit:
+                side = "short" if weight < 0 else "long"
                 alarms.append(Alarm(
                     key=f"strategy_cap:{sid}",
                     type="strategy_cap",
                     severity="warn",
-                    message=f"Strategy {name} weight {weight:.2f}% exceeds limit {strat_limit:.2f}%",
-                    metric=weight,
+                    message=(f"Strategy {name} weight {weight:.2f}% ({side}) exceeds "
+                             f"limit {strat_limit:.2f}% of NAV in either direction"),
+                    metric=abs(weight),
                     threshold=strat_limit,
                     strategy_id=sid,
                 ))
@@ -578,11 +848,16 @@ class RiskMonitor:
             None,
         )
         if critical_halt_alarm and not self._control.is_halted():
-            self._control.halt(reason=f"Auto-halt: {critical_halt_alarm.message}", actor="monitor")
+            self._control.halt(
+                reason=f"Auto-halt: {critical_halt_alarm.message}",
+                actor="monitor",
+                halt_class=classify_halt_cause(critical_halt_alarm.type),
+            )
 
         return {
             "raised": raised_alarms,
             "cleared": cleared_list,
             "halted": self._control.is_halted(),
+            "halt_class": self._control.halt_class(),
             "active": self._control.active_alarms(),
         }

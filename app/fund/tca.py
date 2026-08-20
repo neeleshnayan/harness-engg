@@ -206,7 +206,10 @@ class TransactionCosts:
             fees_bps=fees_bps, total_usd=total_usd,
             has_split=(delay_bps is not None and execution_bps is not None),
             proposed_ts=proposed.get("ts"), filled_ts=filled.get("ts"),
-            venue=s_pay.get("venue"),
+            # The fill's own venue first (recorded on OrderFilled since
+            # 2026-08-20), falling back to the submitted leg for the fills that
+            # predate it. Absent on neither leg stays None — not "paper".
+            venue=f_pay.get("venue") or s_pay.get("venue"),
         )
 
     # --- aggregates ---------------------------------------------------------
@@ -219,6 +222,28 @@ class TransactionCosts:
         for r in rows:
             groups.setdefault(r.strategy_id or "(discretionary)", []).append(r)
         return {k: summarise(v) for k, v in groups.items()}
+
+    def by_symbol(self, limit: int = 100_000) -> dict[str, Any]:
+        """Realised cost per instrument.
+
+        Per-instrument is the cut anyone asking "is our cost model right for
+        ETFs vs single names?" actually wants — and the cut that makes the
+        sample size per instrument visible, which is the finding that refused
+        a per-instrument cost model in the first place (max 2 informative price
+        events per instrument, against RELIABLE_SAMPLE = 20).
+        """
+        rows = self.costs(limit)
+        groups: dict[str, list[OrderCost]] = {}
+        for r in rows:
+            groups.setdefault(r.symbol or "?", []).append(r)
+        return {k: summarise(v) for k, v in sorted(groups.items())}
+
+    def by_venue(self, limit: int = 100_000) -> dict[str, Any]:
+        rows = self.costs(limit)
+        groups: dict[str, list[OrderCost]] = {}
+        for r in rows:
+            groups.setdefault(r.venue or "(unrecorded)", []).append(r)
+        return {k: summarise(v) for k, v in sorted(groups.items())}
 
 
 def _stats(values: list[float]) -> dict[str, Any]:
@@ -266,8 +291,42 @@ def summarise(rows: list[OrderCost]) -> dict[str, Any]:
     verdict = (compare(statistics.fmean(informative), len(informative))
                if informative else None)
 
+    # The same "informative fills only" discipline as the verdict, applied to
+    # the STATS a panel quotes.
+    #
+    # The verdict leg was fixed in August; the stats above were not, and the
+    # Monitor's EXECUTION QUALITY panel reads those (CDO D3, CTO-confirmed).
+    # Every paper fill contributes an execution cost of exactly 0.00bps by
+    # construction — paper.py fills at the same quote pipeline.py records as
+    # arrival — so the more paper fills accumulate the closer the headline
+    # drifts to "we trade for free". These blocks are the same statistics over
+    # the fills that carry information, and they NAME the venues they counted
+    # so the panel can label itself instead of implying it measured everything.
+    informative_rows = [r for r in rows if (r.venue or "") != "paper"]
+    venues_counted = sorted({r.venue for r in informative_rows if r.venue})
+    venues_excluded = sorted({r.venue for r in rows if (r.venue or "") == "paper"})
+    informative_block = {
+        "orders": len(informative_rows),
+        "venues_counted": venues_counted,
+        "venues_excluded": venues_excluded,
+        "excluded_orders": len(rows) - len(informative_rows),
+        "total_bps": _stats([r.total_bps for r in informative_rows
+                             if r.total_bps is not None]),
+        "execution_bps": _stats(informative),
+        # Said plainly rather than left to be inferred from n: a zero-sample
+        # block is an ABSENCE of measurement, and a panel that renders "0.00bps"
+        # from it is reporting a number nobody measured.
+        "measurable": bool(informative),
+        "reason": (None if informative else
+                   "no fills on a venue that can measure execution cost — the "
+                   "paper venue fills at its own quote, so its slippage is "
+                   "identically zero at any sample size"),
+    }
+
     return {
         "orders": len(rows),
+        # ALL venues, paper included. Kept because existing consumers read them,
+        # named here so nobody quotes them as a cost measurement again.
         "total_bps": _stats(total),
         "delay_bps": _stats(delay),
         "execution_bps": _stats(execution),
@@ -275,4 +334,5 @@ def summarise(rows: list[OrderCost]) -> dict[str, Any]:
         "realised_cost_usd": round(sum(usd), 2) if usd else None,
         "split_available": len(delay),
         "vs_assumption": verdict,
+        "informative": informative_block,
     }

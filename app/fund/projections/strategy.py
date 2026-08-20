@@ -19,10 +19,64 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any, Callable
 
-from app.fund.events import EventStore, EventType
+from app.fund.events import Event, EventStore, EventType
 from app.fund.money import D, f, money
 
 DISCRETIONARY = "discretionary"
+
+
+class AttributionCorrectionError(ValueError):
+    """A proposed correction is not one — refused before it reaches the log."""
+
+
+def append_attribution_correction(
+    store: EventStore, *, symbol: str, qty: Any, cost_usd: Any,
+    from_strategy_id: str, to_strategy_id: str, reason: str, actor: str,
+    realized_usd: Any = 0, net_invested_usd: Any = 0,
+) -> dict[str, Any]:
+    """Record a ``StrategyAttributionCorrected`` — the ONLY way to repair a mistag.
+
+    The log is append-only, so a fill tagged to the wrong strategy is never
+    edited; it is compensated by this event, which is itself permanent and
+    attributed. Validation is here rather than in the fold because a bad
+    correction that reaches the log is a permanent bad fact, and the fold's
+    job is to be honest about what it finds, not to launder it.
+
+    Deliberately NOT exposed as an HTTP endpoint. The event moves nothing but
+    an index, but it moves what every downstream money path (the rebalance
+    composition above all) reads as truth — so it is fired by a human hand at
+    the console with a written reason, not by anything that can be called.
+    """
+    reason = (reason or "").strip()
+    if not reason:
+        raise AttributionCorrectionError(
+            "a correction must carry a written reason naming the mistagged "
+            "fill — an unexplained correction is indistinguishable from an "
+            "unauthorised one and the fold will ignore it"
+        )
+    if not from_strategy_id or not to_strategy_id:
+        raise AttributionCorrectionError("both source and destination strategy are required")
+    if from_strategy_id == to_strategy_id:
+        raise AttributionCorrectionError(
+            f"{from_strategy_id} is both source and destination — that is a no-op, not a repair"
+        )
+    if not symbol:
+        raise AttributionCorrectionError("a correction must name the symbol it moves")
+    payload = {
+        "symbol": str(symbol).upper(),
+        "qty": f(D(qty)),
+        "cost_usd": f(D(cost_usd)),
+        "realized_usd": f(D(realized_usd)),
+        "net_invested_usd": f(D(net_invested_usd)),
+        "from_strategy_id": from_strategy_id,
+        "to_strategy_id": to_strategy_id,
+        "reason": reason,
+    }
+    store.append(Event(
+        aggregate_id=to_strategy_id, aggregate_type="strategy",
+        type=EventType.STRATEGY_ATTRIBUTION_CORRECTED, payload=payload, actor=actor,
+    ))
+    return payload
 
 
 class StrategyAttribution:
@@ -72,6 +126,10 @@ class StrategyAttribution:
                     "positions": {},
                 },
             )
+
+        if e.get("type") == EventType.STRATEGY_ATTRIBUTION_CORRECTED.value:
+            cls._apply_correction(s, e.get("payload", {}) or {})
+            return
 
         if e.get("type") != EventType.ORDER_FILLED.value:
             return
@@ -126,6 +184,46 @@ class StrategyAttribution:
                 # opening/extending a short: no realization yet
                 pos["qty"] -= sold
                 pos["cost"] -= sold * px - fees
+
+    @staticmethod
+    def _apply_correction(get: Callable[[str], dict[str, Any]],
+                          p: dict[str, Any]) -> None:
+        """Fold one ``StrategyAttributionCorrected``.
+
+        Moves ``qty`` shares of ``symbol`` at ``cost_usd`` of basis (and,
+        optionally, ``realized_usd`` of booked P&L and ``net_invested_usd``)
+        from ``from_strategy_id`` to ``to_strategy_id``. The fund's positions,
+        cash and NAV are UNTOUCHED by design — nothing traded; only the index
+        from fills to strategies is repaired.
+
+        Fails closed twice. A correction without a non-empty ``reason`` is
+        IGNORED, not applied: the whole justification for permitting a
+        compensating write is that it carries its own explanation, so an
+        unexplained one is not a weaker correction, it is not one. A correction
+        naming the same strategy on both sides is also ignored — a no-op that
+        looks like a repair is worse than no repair.
+        """
+        reason = str(p.get("reason") or "").strip()
+        src, dst = p.get("from_strategy_id"), p.get("to_strategy_id")
+        if not reason or not src or not dst or src == dst:
+            return
+        symbol = p.get("symbol")
+        if not symbol:
+            return
+
+        qty = D(p.get("qty", 0))
+        cost = D(p.get("cost_usd", 0))
+        realized = D(p.get("realized_usd", 0))
+        invested = D(p.get("net_invested_usd", 0))
+
+        for key, sign in ((str(src), D(-1)), (str(dst), D(1))):
+            rec = get(key)
+            pos = rec["positions"].setdefault(
+                str(symbol), {"qty": Decimal("0"), "cost": Decimal("0")})
+            pos["qty"] += sign * qty
+            pos["cost"] += sign * cost
+            rec["realized"] += sign * realized
+            rec["net_invested"] += sign * invested
 
     def with_values(self, pricer: Callable[[str], float]) -> list[dict[str, Any]]:
         out = []

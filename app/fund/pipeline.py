@@ -13,6 +13,7 @@ complete by construction.
 
 from __future__ import annotations
 
+import logging
 import os
 import uuid
 from datetime import datetime, timezone
@@ -31,6 +32,8 @@ from app.fund.projections.nav import NavService
 from app.fund.projections.orders import OrdersProjection
 from app.fund.risk import RiskGate, RiskLimits
 from app.fund.riskmonitor import RiskControl, RiskMonitor
+
+_log = logging.getLogger(__name__)
 
 
 #: How long a proposed order stays approvable. Past this the price and signal
@@ -305,6 +308,14 @@ class CommandPipeline:
             payload={
                 "symbol": order.symbol, "side": order.side.value, "strategy_id": order.strategy_id,
                 "filled_qty": D(qty), "avg_price": D(px or 0), "fees": D(fees or 0),
+                # The venue, on the FILL. It was only ever on OrderSubmitted, so
+                # any consumer that folds fills alone — and TCA's own "is this
+                # fill informative?" test is one — had to join two events to
+                # answer "which venue priced this?". The paper venue fills at
+                # its own quote and can therefore never measure execution cost
+                # (validator 8b863152), which makes venue a property the fill
+                # must carry rather than one a reader has to look up.
+                "venue": order.venue,
             },
             actor="system",
         ))
@@ -319,8 +330,26 @@ class CommandPipeline:
             if fresh:
                 try:
                     RiskMonitor(nav_service=self._nav, store=self._store, pricer=self._connector.price, control=self._control).run(actor="fill_re-eval")
-                except Exception:
-                    pass
+                except Exception as e:  # noqa: BLE001
+                    # A fill must still be recorded if the re-evaluation fails —
+                    # but `except: pass` meant the ONE evaluation triggered by
+                    # the event that moves the book could fail silently, and did:
+                    # while assess() raised on an unpriceable symbol this line
+                    # ate the exception and nothing anywhere said the kill
+                    # switches had not run (builder audit H2; riskofficer F4 —
+                    # 14m41s from breach to halt, cause partly here). Named now,
+                    # loudly, and the caller is told the halt check did not run.
+                    _log.error(
+                        "post-fill risk re-evaluation FAILED for order %s (%s: %s) — "
+                        "the drawdown and daily-loss halts were NOT evaluated against "
+                        "this fill; the next scheduled monitor tick is the only "
+                        "remaining check",
+                        order_id, type(e).__name__, e,
+                    )
+                    return {"status": "filled", "order_id": order_id, "duplicate": False,
+                            "filled_qty": f(D(status.filled_qty)),
+                            "avg_price": f(D(status.avg_price)),
+                            "risk_reeval": f"failed: {type(e).__name__}: {e}"}
             return {"status": "filled", "order_id": order_id, "duplicate": not fresh,
                     "filled_qty": f(D(status.filled_qty)), "avg_price": f(D(status.avg_price))}
 
