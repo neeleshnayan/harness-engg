@@ -473,4 +473,11 @@ class CommandPipeline:
             limit_price=p.get("limit_price"),
             strategy_id=p.get("strategy_id"),
         )
-        return order, events[-1]["type"]
+        # A refused approval (guard v1) is an annotation, never a lifecycle
+        # step: without this filter a failed probe would freeze the order in
+        # 'ApprovalRefused' and block the legitimate approver — the same
+        # denial-of-approval defect fixed in projections/orders.py, found
+        # live on the guard's first day.
+        lifecycle = [e for e in events
+                     if e["type"] != EventType.APPROVAL_REFUSED.value]
+        return order, (lifecycle[-1]["type"] if lifecycle else events[-1]["type"])

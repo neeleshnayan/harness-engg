@@ -256,6 +256,16 @@ class BacktestBySymbolRequest(_StrategyParams):
 
 class ApprovalRequest(BaseModel):
     approver: str = Field(..., description="Who approved/declined (the human in the loop)")
+    # approval-channel guard v1 (2026-08-20, CEO decision). APPROVALS only —
+    # declines are reversible and stay open for staging hygiene.
+    confirm: Optional[str] = Field(
+        None, description="First 8 chars of the id being approved — the "
+                          "deliberate echo that makes accidental approval "
+                          "impossible. Required to APPROVE, ignored on decline.")
+    instruction: Optional[str] = Field(
+        None, description="For approver 'rushi-via-cto' only: the CEO's "
+                          "explicit instruction, quoted verbatim. Recorded in "
+                          "the approval event.")
 
 
 class StrikeNavRequest(BaseModel):

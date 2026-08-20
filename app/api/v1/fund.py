@@ -1374,12 +1374,16 @@ class DeskApprove(BaseModel):
     the CEO's blessing, which is what a seat-filed request waits for."""
     actor: str = "ceo"
     note: str = ""
+    confirm: Optional[str] = None      # approval-channel guard v1: echo of id[:8]
+    instruction: Optional[str] = None  # via-cto: the CEO's quoted instruction
 
 
 @router.post("/fund/desk/requests/{request_id}/approve")
 def desk_approve(request_id: str, req: DeskApprove):
     from app.fund.events import Event, EventType
-    payload = {"request_id": request_id, "actor": req.actor,
+    actor = _guard_approval("desk_request", request_id, req.actor, req.confirm,
+                            req.instruction, DESK_APPROVAL_ALLOWLIST)
+    payload = {"request_id": request_id, "actor": actor,
                "note": req.note or "",
                "at": datetime.now(timezone.utc).isoformat()}
     _store.append(Event(aggregate_id=request_id, aggregate_type="desk_request",
@@ -1971,11 +1975,64 @@ def external_signal(req: ExternalSignalRequest):
     return _pipeline.propose_order(order, actor=f"external:{req.source}")
 
 
+# --- approval-channel guard v1 (2026-08-20, CEO decision) --------------------
+# Written reason: the approver field was free text accepted from anything on
+# localhost — exactly as forgeable as the exit-rule marker string autopolicy v1
+# trusted. On a one-box deployment identity cannot be proven cryptographically,
+# so v1 closes the two risks that are closable: approval by ACCIDENT (a stray
+# script, a replayed command, a probing seat) and approval without
+# ATTRIBUTION. Three checks, all fail-closed, approvals only (declines are
+# reversible and stay open):
+#   1. allowlist — only "rushi" (the CEO's own click) and "rushi-via-cto"
+#      (the CTO executing an EXPLICIT CEO instruction) may approve;
+#   2. echo — the request must repeat the first 8 chars of the id it
+#      approves: nothing can approve what it has not read;
+#   3. citation — a via-cto approval must quote the CEO's instruction
+#      verbatim; the quote lands in the approval event for the riskofficer.
+# A refused approval is RECORDED as an ApprovalRefused event: a probe becomes
+# a finding, not a fill. Widening this allowlist is a versioned change.
+APPROVAL_ALLOWLIST = {"rushi", "rushi-via-cto"}
+DESK_APPROVAL_ALLOWLIST = {"ceo", "rushi", "rushi-via-cto"}
+
+
+def _guard_approval(kind: str, target_id: str, approver: str,
+                    confirm: str | None, instruction: str | None,
+                    allowlist: set[str]) -> str:
+    """Refuse-and-record, or return the attribution string to pass downstream."""
+    from app.fund.events import Event, EventType
+    who = (approver or "").strip().lower()
+    want = (target_id or "")[:8]
+    reason = None
+    if who not in allowlist:
+        reason = (f"approver '{approver}' is not on the approval allowlist "
+                  f"{sorted(allowlist)} — approval-channel guard v1")
+    elif (confirm or "").strip() != want:
+        reason = (f"confirm echo missing or wrong: approving this {kind} "
+                  f"requires confirm='{want}' (the first 8 chars of its id)")
+    elif who == "rushi-via-cto" and not (instruction or "").strip():
+        reason = ("a via-cto approval must quote the CEO's explicit "
+                  "instruction verbatim in 'instruction'")
+    if reason:
+        _store.append(Event(
+            aggregate_id=target_id or "unknown", aggregate_type=kind,
+            type=EventType.APPROVAL_REFUSED,
+            payload={"kind": kind, "target_id": target_id,
+                     "approver": approver or "", "reason": reason,
+                     "at": datetime.now(timezone.utc).isoformat()},
+            actor=approver or "unknown"))
+        raise HTTPException(status_code=403, detail=f"approval refused: {reason}")
+    if who == "rushi-via-cto":
+        return f"rushi-via-cto [{(instruction or '').strip()}]"
+    return approver
+
+
 @router.post("/fund/orders/{order_id}/approve")
 def approve_order(order_id: str, req: ApprovalRequest):
     """Human approval gate — approving triggers idempotent execution."""
+    approver = _guard_approval("order", order_id, req.approver, req.confirm,
+                               req.instruction, APPROVAL_ALLOWLIST)
     try:
-        return _pipeline.approve_order(order_id, approver=req.approver)
+        return _pipeline.approve_order(order_id, approver=approver)
     except CommandError as e:
         raise HTTPException(status_code=409, detail=str(e))
 
@@ -3154,6 +3211,8 @@ class RebalanceProposeRequest(BaseModel):
 class RebalanceApproveRequest(BaseModel):
     approver: str
     allow_self_approval: bool = True
+    confirm: str | None = None      # approval-channel guard v1: echo of id[:8]
+    instruction: str | None = None  # via-cto: the CEO's quoted instruction
 
 
 class RebalanceDeclineRequest(BaseModel):
@@ -3202,8 +3261,10 @@ def get_rebalance(plan_id: str):
 @router.post("/fund/rebalance/{plan_id}/approve")
 def approve_rebalance(plan_id: str, req: RebalanceApproveRequest):
     """Push the plan: re-prices, re-gates every order, reports what happened."""
+    approver = _guard_approval("rebalance_plan", plan_id, req.approver,
+                               req.confirm, req.instruction, APPROVAL_ALLOWLIST)
     try:
-        return _rebalance.approve(plan_id, approver=req.approver,
+        return _rebalance.approve(plan_id, approver=approver,
                                   allow_self_approval=req.allow_self_approval)
     except RebalanceError as e:
         raise HTTPException(status_code=400, detail=str(e))

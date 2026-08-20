@@ -47,6 +47,13 @@ class OrdersProjection:
     def _apply(orders: dict[str, dict[str, Any]], e: dict[str, Any]) -> None:
         if e.get("aggregate_type") != "order":
             return
+        # A refused approval (guard v1) is an ANNOTATION on the order, never a
+        # lifecycle step. Folding it into ``last`` would knock a legitimate
+        # pending ticket off the CEO's queue — i.e. any failed probe could
+        # silently hide the very order it failed to steal. Found live on the
+        # guard's first day: two 403 probes made SOFI vanish from pending.
+        if e["type"] == EventType.APPROVAL_REFUSED.value:
+            return
         oid = e["aggregate_id"]
         rec = orders.setdefault(oid, {
             "order_id": oid, "proposed": None, "venue": None, "venue_ref": None,

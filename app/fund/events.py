@@ -131,6 +131,10 @@ class EventType(str, Enum):
     # therefore an event (2026-08-20 amendment: seat-filed asks, human keys).
     DESK_REQUEST_APPROVED = "DeskRequestApproved"
 
+    # approval-channel guard v1 (2026-08-20): a refused approval is a FINDING —
+    # a probe, a stray script, or a mistaken click — and findings are events.
+    APPROVAL_REFUSED = "ApprovalRefused"
+
     EXIT_RULE_SET = "ExitRuleSet"               # committed before the position exists
     EXIT_RULE_TRIGGERED = "ExitRuleTriggered"   # fired; a closing proposal was raised
     EXIT_RULE_OVERRIDDEN = "ExitRuleOverridden" # fired and kept anyway, with a reason
