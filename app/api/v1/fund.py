@@ -2088,13 +2088,61 @@ def _guard_approval(kind: str, target_id: str, approver: str,
 
 @router.post("/fund/orders/{order_id}/approve")
 def approve_order(order_id: str, req: ApprovalRequest):
-    """Human approval gate — approving triggers idempotent execution."""
+    """Human approval gate — approving triggers idempotent execution.
+
+    Two guards, in order, both fail-closed and both recording an
+    ApprovalRefused event so a refused click is a finding rather than silence:
+
+      1. the approval-channel guard (who, echo, citation) — v1, above;
+      2. MARK SANITY — v1, 2026-08-21. The price the order was RAISED at must
+         agree with the fund's own last struck mark within the SAME versioned
+         bound the auto-policy uses. This is the check whose absence cost
+         $128.26: the GLD sell at $100.00 against a $415.04 strike took exactly
+         this path, and the machine had been refusing that shape since
+         autopolicy v2 while the human had no check at all. See
+         app/fund/marksanity.py for the three cases and the one judgement.
+    """
     approver = _guard_approval("order", order_id, req.approver, req.confirm,
                                req.instruction, APPROVAL_ALLOWLIST)
+    _guard_mark_sanity(order_id, approver)
     try:
         return _pipeline.approve_order(order_id, approver=approver)
     except CommandError as e:
         raise HTTPException(status_code=409, detail=str(e))
+
+
+def _guard_mark_sanity(order_id: str, approver: str) -> dict:
+    """Refuse-and-record an approval whose price the fund's own marks contradict.
+
+    Returns the verdict on a pass, so the caller could attach it to the approval
+    if that is ever wanted; raises 409 on a refusal. 409, not 403: the channel
+    guard's 403 means "you may not approve", and this means "this order is not
+    in a state to be approved" — a different fact, and one a re-strike or a
+    re-proposal clears.
+    """
+    from app.fund.events import Event, EventType
+    from app.fund import marksanity
+
+    verdict = marksanity.check(_store, order_id)
+    if not verdict.get("refuse"):
+        return verdict
+    _store.append(Event(
+        aggregate_id=order_id, aggregate_type="order",
+        type=EventType.APPROVAL_REFUSED,
+        payload={"kind": "order", "target_id": order_id,
+                 "approver": approver or "", "guard": "mark_sanity_v1",
+                 "reason": verdict["reason"],
+                 # Both numbers on the record, always. A refusal whose numbers
+                 # live only in an HTTP response is a refusal nobody can audit.
+                 "quote_price": verdict.get("quote_price"),
+                 "reference_mark": verdict.get("reference_mark"),
+                 "move_pct": verdict.get("move_pct"),
+                 "bound_pct": verdict.get("bound_pct"),
+                 "basis": verdict.get("basis"),
+                 "at": datetime.now(timezone.utc).isoformat()},
+        actor=approver or "unknown"))
+    raise HTTPException(status_code=409,
+                        detail=f"approval refused: {verdict['reason']}")
 
 
 @router.post("/fund/orders/{order_id}/decline")
