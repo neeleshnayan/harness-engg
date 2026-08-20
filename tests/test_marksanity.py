@@ -342,6 +342,42 @@ def test_the_approval_endpoint_refuses_and_records_the_refusal():
     assert abs(p["move_pct"] - 75.9) < 0.1
 
 
+def test_a_mark_sanity_refusal_does_NOT_freeze_the_order():
+    """The denial-of-approval defect, guarded for the SECOND guard.
+
+    Guard v1's first live day: two refused probes wrote ApprovalRefused events
+    and SOFI vanished from the pending queue — the order froze in
+    'ApprovalRefused' and the legitimate approver was blocked. The fix made a
+    refusal an ANNOTATION, never a lifecycle step, in both the orders
+    projection and pipeline._load_order.
+
+    Mark sanity writes the SAME event type, so it inherits that fix — and this
+    test is here so a future change to either filter breaks loudly instead of
+    quietly locking an order the CEO still needs to approve.
+    """
+    from app.fund.events import EventType
+    from app.fund.projections.orders import OrdersProjection
+
+    events = [
+        {"aggregate_id": "o1", "aggregate_type": "order", "ts": "2026-08-20T08:00:00Z",
+         "type": EventType.ORDER_PROPOSED.value,
+         "payload": {"symbol": "GLD", "side": "sell", "qty": 1.0, "venue": "paper",
+                     "impact_preview": {"quote_price": 100.0}}},
+        {"aggregate_id": "o1", "aggregate_type": "order", "ts": "2026-08-20T08:05:00Z",
+         "type": EventType.APPROVAL_REFUSED.value,
+         "payload": {"guard": "mark_sanity_v1", "reason": "…"}},
+    ]
+
+    class S:
+        def stream(self, since_seq=0, limit=100_000):
+            return list(events)
+
+    rec = OrdersProjection(S())._fold()["o1"]
+    assert rec["last"] == EventType.ORDER_PROPOSED.value, (
+        "a mark-sanity refusal moved the order's lifecycle — the CEO can no "
+        "longer approve the ticket they still owe a decision on")
+
+
 def test_the_endpoint_lets_a_corroborated_order_through():
     """The guard must not be a wall. A sane price still executes."""
     from fastapi.testclient import TestClient
