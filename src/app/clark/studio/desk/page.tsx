@@ -223,6 +223,7 @@ export default function DeskPage() {
                     <option value="audit">audit — validator</option>
                     <option value="policy_audit">policy audit — riskofficer</option>
                     <option value="build">build — builder</option>
+                    <option value="triage">triage my desk — coo</option>
                   </select>
                 </label>
                 <label className="flex min-w-[16rem] flex-1 flex-col gap-1">

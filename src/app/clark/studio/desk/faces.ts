@@ -124,6 +124,15 @@ export const FACES: Readonly<Record<string, FaceSpec>> = Object.freeze({
     role: "harness engineering, in an isolated worktree",
     head: "oval", eyes: "dots", mouth: "small", feature: "hammer",
   },
+  coo: {
+    // The market veteran who triages the CEO's desk (seated 2026-08-20).
+    // Wears the tie like the ceo — same room, same suits — but the oval head,
+    // line eyes and flat mouth are the veteran's: seen every cycle, moved by
+    // none of them. Tuple is unique; the registry test enforces it.
+    id: "coo", label: "coo", kind: "seat",
+    role: "triages the desk into batch decisions; endorses, never decides",
+    head: "oval", eyes: "lines", mouth: "flat", feature: "tie",
+  },
 
   ceo: {
     id: "ceo", label: "ceo", kind: "human",

@@ -83,7 +83,7 @@ const ev = (over: Record<string, unknown> = {}) => ({
 /* ---------------------------------------------------------------- seats --- */
 
 test("the seat whitelist is the route guard, and rejects anything not on the bench", () => {
-  assert.equal(SEATS.length, 8);
+  assert.equal(SEATS.length, 9);   // coo seated 2026-08-20
   assert.ok(isSeat("riskofficer"));
   assert.ok(!isSeat("cto"));       // the CTO is not a seat page
   assert.ok(!isSeat(""));

@@ -41,6 +41,7 @@ export const SEATS = [
   "validator",
   "riskofficer",
   "builder",
+  "coo",
 ] as const;
 
 export type SeatId = (typeof SEATS)[number];
@@ -66,6 +67,7 @@ export const SEAT_REQUEST_KIND: Record<SeatId, string> = {
   validator: "audit",
   riskofficer: "policy_audit",
   builder: "build",
+  coo: "triage",
 };
 
 /** Declared model placement, per the quota-era dispatch rules in the workspace
@@ -87,6 +89,7 @@ export const SEAT_PLACEMENT: Record<SeatId, string> = {
   validator: "Opus (its simulations run on local compute)",
   riskofficer: "Opus",
   builder: "Opus",
+  coo: "Opus — judgement near governance, never downgraded, never local",
 };
 
 /* ------------------------------------------------------------- absences --- */
