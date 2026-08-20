@@ -42,6 +42,7 @@ import {
   SEAT_REQUEST_KIND,
   tokenStats,
   traceThreads,
+  wireFeed,
 } from "./seatLib.ts";
 
 /* ------------------------------------------------------------- fixtures --- */
@@ -127,6 +128,28 @@ test("a seat never dispatched has null dispatches, so the page can say 'never di
   const p = dispatchStats([ev()], "pm");
   assert.equal(p.dispatches, 1);
   assert.deepEqual(p.actors, ["cto"]);
+});
+
+/* ----------------------------------------------------------------- wire --- */
+
+test("the wire is the trace nodes flattened newest-first — same data, no third source", () => {
+  const events = [
+    ev({ type: "DeskRequested", actor: "ceo", ts: "2026-08-20T01:00:00+00:00",
+         payload: { request_id: "rq1", serves: "pm", subject: "review the book", trace_id: "t1" } }),
+    ev({ ts: "2026-08-20T02:00:00+00:00" }),   // dispatch on t1
+  ];
+  const feed = wireFeed(events, [run({ trace_id: "t1", resolved_at: "2026-08-20T03:00:00+00:00" })]);
+  assert.equal(feed.length, 3);
+  assert.deepEqual(feed.map((f) => f.kind), ["run", "dispatch", "request"],
+    "newest first — the top of the wire is the latest thing that happened");
+  assert.ok(feed.every((f) => f.traceId === "t1"));
+});
+
+test("the wire caps at the limit instead of rendering the whole log", () => {
+  const events = Array.from({ length: 10 }, (_, i) =>
+    ev({ event_id: `e${i}`, ts: `2026-08-20T0${i % 10}:00:00+00:00`,
+         payload: { seat: "pm", task: `t${i}`, trace_id: `t${i}` } }));
+  assert.equal(wireFeed(events, [], 4).length, 4);
 });
 
 /* ------------------------------------------------------------ economics --- */

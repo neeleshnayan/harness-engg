@@ -21,6 +21,7 @@ import {
 } from "./components";
 import {
   DayFold,
+  FeedItem,
   activeDays,
   dayKey,
   fmtAt,
@@ -29,6 +30,7 @@ import {
   foldDay,
   isSeat,
   traceThreads,
+  wireFeed,
 } from "./seatLib";
 
 /**
@@ -87,7 +89,9 @@ export default function DeskPage() {
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 60000);
+    // 10s, not 60: this page is the OFFICE — the CEO watches the seats
+    // interact in close to real time. The reads are cheap folds.
+    const t = setInterval(load, 10000);
     return () => clearInterval(t);
   }, [load]);
 
@@ -131,6 +135,8 @@ export default function DeskPage() {
   const older = idx >= 0 && idx + 1 < days.length ? days[idx + 1] : null;
   const newer = idx > 0 ? days[idx - 1] : null;
 
+  const feed = useMemo(() => wireFeed(evs, runs, 25), [evs, runs]);
+
   return (
     <>
       <RiskBar />
@@ -154,73 +160,62 @@ export default function DeskPage() {
         )}
         {!d && !err && <p className={`text-sm ${KT.muted}`}>Reading the desk…</p>}
 
-        {/* ------------------------------------------------- the day scrubber */}
-        {days.length > 0 && (
-          <section className="mb-8">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <button type="button" disabled={!older} onClick={() => setDay(older)}
-                      className={`${KT.btnGhost} flex h-8 items-center gap-1 px-2 text-xs disabled:opacity-30`}>
-                <ChevronLeft size={13} /> older
-              </button>
-              <div className="flex flex-wrap gap-1">
-                {days.slice(0, 14).map((dk) => (
-                  <button
-                    key={dk}
-                    type="button"
-                    onClick={() => setDay(dk === days[0] ? null : dk)}
-                    aria-current={dk === shownDay ? "date" : undefined}
-                    className={`rounded-lg border px-2 py-1 font-mono text-[11px] tabular-nums transition-colors ${
-                      dk === shownDay
-                        ? "border-[var(--kt-accent-border)] bg-[var(--kt-accent-bg)] text-[var(--kt-accent)]"
-                        : "border-transparent text-[var(--kt-text-dim)] hover:bg-[var(--kt-inset)]"
-                    }`}
-                  >
-                    {dk.slice(5)}
-                  </button>
-                ))}
-              </div>
-              <button type="button" disabled={!newer} onClick={() => setDay(newer === days[0] ? null : newer)}
-                      className={`${KT.btnGhost} flex h-8 items-center gap-1 px-2 text-xs disabled:opacity-30`}>
-                newer <ChevronRight size={13} />
-              </button>
-              <span className={`ml-2 font-mono text-[10px] uppercase tracking-[0.1em] ${isLive ? KT.accent : KT.muted}`}>
-                {isLive ? "today · live" : `as of ${shownDay}`}
-              </span>
-              {!isLive && (
-                <button type="button" onClick={() => setDay(null)}
-                        className={`text-[11px] ${KT.accent} underline underline-offset-2`}>
-                  back to today
-                </button>
-              )}
-            </div>
-
-            {fold && <ProductivityStrip fold={fold} />}
-            {events != null && (
-              <WindowNote events={events.length} capped={events.length >= 1000} />
-            )}
-            {eventsErr && (
-              <p className={`mt-2 text-xs ${KT.sev.warn}`}>
-                The event log could not be read ({eventsErr}) — the day view is
-                blank because it is unknown, not because nothing happened.
-              </p>
-            )}
-          </section>
-        )}
-
         {d && (
           <>
-            {/* -------------------------------------------- the day's chains */}
-            {dayThreads.length > 0 && (
+            {/* --------------------------------------- the office, live: who */}
+            <section className="mb-8">
+              <p className={`${KT.label} mb-3 flex items-center gap-2`}>
+                <Users size={12} /> The office — live
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {d.roster.map((r) => {
+                  const working = r.activity.status === "working";
+                  const inner = (
+                    <>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-sm text-[var(--kt-accent)]">{r.agent}</span>
+                        <span className={`flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] ${working ? "text-[var(--kt-warn)]" : KT.muted}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${working ? "animate-pulse bg-[var(--kt-warn)]" : "bg-[var(--kt-border-strong)]"}`} />
+                          {r.activity.status}
+                        </span>
+                      </div>
+                      <p className={`mt-1 line-clamp-2 text-[11px] leading-snug ${working ? "" : KT.muted}`}>
+                        {working && r.activity.task
+                          ? r.activity.task
+                          : r.activity.last_delivered
+                            ? <>last: <span className="font-mono">{r.activity.last_delivered.artifact}</span></>
+                            : r.lane}
+                      </p>
+                    </>
+                  );
+                  return isSeat(r.agent) ? (
+                    <Link key={r.agent} href={`/clark/studio/desk/${r.agent}`}
+                          className={`${KT.card} ${KT.cardHover} block p-3`}>
+                      {inner}
+                    </Link>
+                  ) : (
+                    <div key={r.agent} className={`${KT.card} p-3`}>{inner}</div>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* -------------------------------------- the wire: what, as it happens */}
+            {feed.length > 0 && (
               <section className="mb-8">
                 <SectionHead
-                  title={isLive ? "Chains alive today" : `Chains alive on ${shownDay}`}
-                  lede="Each trace is one conversation: the ask, the dispatch, the run and its verdict, then the decisions. Nodes carry who and when — the working view and the audit view are the same drawing."
+                  title="The wire"
+                  lede="Every interaction between the desks, newest first — the ask, the dispatch, the delivery, the decision. Click a seat to walk into its office. Refreshes every 10 seconds."
                 />
-                <div className="space-y-2">
-                  {dayThreads.slice(0, 6).map((t) => (
-                    <TraceFlow key={t.traceId} t={t} />
-                  ))}
+                <div className={`${KT.card} divide-y divide-[var(--kt-border)] p-0`}>
+                  {feed.map((f, i) => <WireRow key={`${f.traceId}-${f.kind}-${f.at}-${i}`} f={f} />)}
                 </div>
+                {eventsErr && (
+                  <p className={`mt-2 text-xs ${KT.sev.warn}`}>
+                    The event log could not be read ({eventsErr}) — the wire shows
+                    only the flight recorder until it returns.
+                  </p>
+                )}
               </section>
             )}
 
@@ -318,6 +313,68 @@ export default function DeskPage() {
               </section>
             )}
 
+            {/* ------------------- rewind: any past day, as reviewable as today */}
+            {days.length > 0 && (
+              <section className="mb-8">
+                <SectionHead
+                  title="Rewind"
+                  lede="The office on any past day: how many times each seat ran, who triggered them, what it cost, and each day's chains replayed. Today is live."
+                />
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <button type="button" disabled={!older} onClick={() => setDay(older)}
+                          className={`${KT.btnGhost} flex h-8 items-center gap-1 px-2 text-xs disabled:opacity-30`}>
+                    <ChevronLeft size={13} /> older
+                  </button>
+                  <div className="flex flex-wrap gap-1">
+                    {days.slice(0, 14).map((dk) => (
+                      <button
+                        key={dk}
+                        type="button"
+                        onClick={() => setDay(dk === days[0] ? null : dk)}
+                        aria-current={dk === shownDay ? "date" : undefined}
+                        className={`rounded-lg border px-2 py-1 font-mono text-[11px] tabular-nums transition-colors ${
+                          dk === shownDay
+                            ? "border-[var(--kt-accent-border)] bg-[var(--kt-accent-bg)] text-[var(--kt-accent)]"
+                            : "border-transparent text-[var(--kt-text-dim)] hover:bg-[var(--kt-inset)]"
+                        }`}
+                      >
+                        {dk.slice(5)}
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" disabled={!newer} onClick={() => setDay(newer === days[0] ? null : newer)}
+                          className={`${KT.btnGhost} flex h-8 items-center gap-1 px-2 text-xs disabled:opacity-30`}>
+                    newer <ChevronRight size={13} />
+                  </button>
+                  <span className={`ml-2 font-mono text-[10px] uppercase tracking-[0.1em] ${isLive ? KT.accent : KT.muted}`}>
+                    {isLive ? "today · live" : `as of ${shownDay}`}
+                  </span>
+                  {!isLive && (
+                    <button type="button" onClick={() => setDay(null)}
+                            className={`text-[11px] ${KT.accent} underline underline-offset-2`}>
+                      back to today
+                    </button>
+                  )}
+                </div>
+
+                {fold && <ProductivityStrip fold={fold} />}
+                {events != null && (
+                  <WindowNote events={events.length} capped={events.length >= 1000} />
+                )}
+
+                {dayThreads.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    <p className={`${KT.label} mb-1`}>
+                      {isLive ? "Chains alive today" : `Chains alive on ${shownDay}`}
+                    </p>
+                    {dayThreads.slice(0, 6).map((t) => (
+                      <TraceFlow key={t.traceId} t={t} />
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+
             {/* the flight recorder, filtered to the day in view */}
             {fold && (
               <section className="mb-8">
@@ -395,71 +452,6 @@ export default function DeskPage() {
               </div>
             </section>
 
-            {/* the bench — now a set of doors */}
-            <section className="mb-8">
-              <p className={`${KT.label} mb-3 flex items-center gap-2`}>
-                <Users size={12} /> The bench — one page each
-              </p>
-              <div className="grid gap-3 md:grid-cols-3">
-                {d.roster.map((r) => {
-                  const card = (
-                    <>
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="font-mono text-sm text-[var(--kt-accent)]">
-                          {r.agent}
-                        </p>
-                        <span
-                          className={`flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] ${
-                            r.activity.status === "working"
-                              ? "text-[var(--kt-warn)]"
-                              : KT.muted
-                          }`}
-                        >
-                          <span
-                            className={`h-1.5 w-1.5 rounded-full ${
-                              r.activity.status === "working"
-                                ? "animate-pulse bg-[var(--kt-warn)]"
-                                : "bg-[var(--kt-border-strong)]"
-                            }`}
-                          />
-                          {r.activity.status}
-                        </span>
-                      </div>
-                      {r.activity.status === "working" && r.activity.task && (
-                        <p className="mt-1.5 rounded bg-[var(--kt-inset)] px-2 py-1 text-xs leading-snug">
-                          {r.activity.task}
-                        </p>
-                      )}
-                      {r.activity.last_delivered && (
-                        <p className={`mt-1.5 text-[11px] ${KT.muted}`}>
-                          last delivered:{" "}
-                          <span className="font-mono">
-                            {r.activity.last_delivered.artifact}
-                          </span>
-                        </p>
-                      )}
-                      <p className="mt-1.5 text-xs leading-relaxed">{r.lane}</p>
-                      <p className={`mt-2 font-mono text-[10px] uppercase tracking-[0.1em] ${KT.muted}`}>
-                        emits
-                      </p>
-                      <p className={`text-xs ${KT.muted}`}>{r.emits}</p>
-                    </>
-                  );
-                  return isSeat(r.agent) ? (
-                    <Link key={r.agent} href={`/clark/studio/desk/${r.agent}`}
-                          className={`${KT.card} ${KT.cardHover} block p-4`}>
-                      {card}
-                      <p className={`mt-2 font-mono text-[10px] uppercase tracking-[0.1em] ${KT.accent}`}>
-                        open seat page →
-                      </p>
-                    </Link>
-                  ) : (
-                    <div key={r.agent} className={`${KT.card} p-4`}>{card}</div>
-                  );
-                })}
-              </div>
-            </section>
-
             {/* the protocol, verbatim */}
             <section className={`${KT.card} mb-8 p-4`}>
               <p className={`${KT.label} mb-2`}>The working protocol</p>
@@ -494,6 +486,48 @@ export default function DeskPage() {
         )}
       </div>
     </>
+  );
+}
+
+/** One interaction on the wire. Reads as a sentence: who did what to whom —
+ *  "ceo asked pm: …", "cto dispatched adversary: …", "pm delivered: … KILL",
+ *  "ceo accepted rec 4: …". The seat name is a door into its office. */
+function WireRow({ f }: { f: FeedItem }) {
+  const verb =
+    f.kind === "request" ? "asked" :
+    f.kind === "dispatch" ? "dispatched" :
+    f.kind === "run" ? "delivered" :
+    f.status ? f.status : "decided";
+  const who = f.kind === "run" ? f.seat : f.actor || "?";
+  const target = f.kind === "run" ? null : f.seat;
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-3 py-2 text-xs">
+      <span className={`w-24 shrink-0 font-mono text-[10px] tabular-nums ${KT.muted}`}>
+        {fmtAt(f.at)}
+      </span>
+      <span className="font-mono text-[11px]">{who}</span>
+      <span className={`font-mono text-[10px] uppercase tracking-[0.1em] ${
+        f.kind === "decision" ? "text-[var(--kt-accent)]" : KT.muted}`}>
+        {verb}
+      </span>
+      {target && (
+        isSeat(target) ? (
+          <Link href={`/clark/studio/desk/${target}`}
+                className={`font-mono text-[11px] ${KT.accent} hover:underline`}>
+            {target}
+          </Link>
+        ) : (
+          <span className="font-mono text-[11px]">{target}</span>
+        )
+      )}
+      <span className="min-w-0 flex-1 truncate">{f.label}</span>
+      {f.verdict && (
+        <span className={`font-mono text-[10px] uppercase ${
+          f.verdict.startsWith("KILL") ? "text-[var(--kt-down)]" : KT.muted}`}>
+          {f.verdict.length > 28 ? f.verdict.slice(0, 28) + "…" : f.verdict}
+        </span>
+      )}
+    </div>
   );
 }
 

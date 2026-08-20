@@ -371,6 +371,30 @@ export function traceThreads(events: SpineEvent[], runs: DeskRun[]): TraceThread
   return out;
 }
 
+export interface FeedItem extends TraceNode {
+  traceId: string;
+  synthetic: boolean;
+}
+
+/**
+ * The wire: every interaction on the desk as one reverse-chronological stream —
+ * the ask, the dispatch, the delivery, the decision — so the office reads like
+ * a room where the seats can be watched talking. Built by flattening the trace
+ * threads, deliberately: the live view and the audit trail are the SAME nodes,
+ * so nothing can appear on the wire that a trace replay would not show.
+ */
+export function wireFeed(events: SpineEvent[], runs: DeskRun[],
+                         limit = 30): FeedItem[] {
+  const items: FeedItem[] = [];
+  for (const t of traceThreads(events, runs)) {
+    for (const n of t.nodes) {
+      items.push({ ...n, traceId: t.traceId, synthetic: t.synthetic });
+    }
+  }
+  items.sort((a, b) => (b.at || "").localeCompare(a.at || ""));
+  return items.slice(0, limit);
+}
+
 /* ------------------------------------------------------------------ days -- */
 
 /** UTC date key. The event log is UTC and the fund's day boundaries are the
