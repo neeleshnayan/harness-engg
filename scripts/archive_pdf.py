@@ -35,10 +35,10 @@ CHROME_CANDIDATES = [
 # ink cover band; oversized roman section numerals as the editorial
 # signature; everything else reduced to hairlines and space. Loud in
 # exactly one place, silent everywhere else.
-INK = "#101418"
+INK = "#0E1215"
 PAPER = "#FFFFFF"
-ACCENT = "#0B6B4D"        # evergreen on paper
-ACCENT_BRIGHT = "#2FBF8F"  # evergreen on ink
+ACCENT = "#0DA271"         # live emerald on paper (v2's evergreen read flat)
+ACCENT_BRIGHT = "#3FE0A5"  # emerald on the ink band
 MUTED = "#707680"
 HAIR = "#DCE0E4"
 
@@ -49,10 +49,10 @@ CSS = f"""
 body {{ font-family: Georgia, 'Times New Roman', serif; color: {INK};
         background: {PAPER}; font-size: 10.2pt; line-height: 1.55;
         margin: 0; padding: 0 20mm 16mm; }}
-.cover {{ margin: 0 -20mm 9mm; background: {INK}; color: #F4F6F5;
-          padding: 15mm 20mm 10mm; border-bottom: 3px solid {ACCENT}; }}
+.cover {{ margin: 0 -20mm 8mm; background: {INK}; color: #F4F6F5;
+          padding: 10mm 20mm 7mm; border-bottom: 3px solid {ACCENT}; }}
 .cover .firm {{ font-family: 'Segoe UI', Arial, sans-serif;
-                font-weight: 700; font-size: 21pt;
+                font-weight: 700; font-size: 19pt;
                 letter-spacing: 0.22em; }}
 .cover .firm .k {{ color: {ACCENT_BRIGHT}; }}
 .cover .doc {{ font-family: 'Segoe UI', Arial, sans-serif;
@@ -61,9 +61,10 @@ body {{ font-family: Georgia, 'Times New Roman', serif; color: {INK};
                margin-top: 5px; }}
 .cover .prepared {{ font-family: 'Segoe UI', Arial, sans-serif;
                     font-size: 7.4pt; letter-spacing: 0.06em;
-                    color: #9AA2A9; margin-top: 9px; }}
+                    color: #9AA2A9; margin-top: 7px; }}
 h1 {{ font-family: 'Segoe UI', Arial, sans-serif; font-weight: 650;
-      font-size: 14pt; letter-spacing: 0.01em; margin: 16px 0 9px; }}
+      font-size: 13.5pt; letter-spacing: 0.06em; margin: 12px 0 8px;
+      text-transform: uppercase; }}
 /* The lede — the book line that opens THE DAILY — carries the page. */
 h1 + p {{ font-size: 11.6pt; line-height: 1.6; padding-left: 12px;
           border-left: 3px solid {ACCENT}; margin: 0 0 11px; }}
@@ -98,7 +99,7 @@ code {{ font-family: Consolas, 'Courier New', monospace; font-size: 8.6pt;
         border-radius: 2px; }}
 b {{ letter-spacing: 0.005em; }}
 hr {{ border: none; border-top: 0.75px solid {HAIR}; margin: 16px 0; }}
-.footer {{ margin-top: 28px; border-top: 2px solid {INK};
+.footer {{ margin-top: 18px; border-top: 2px solid {INK};
            padding-top: 6px; font-family: 'Segoe UI', Arial, sans-serif;
            font-size: 7.4pt; color: {MUTED}; letter-spacing: 0.04em;
            display: flex; justify-content: space-between; }}
@@ -148,7 +149,14 @@ def md_to_html_body(md: str) -> str:
                 i += 1
             out.append("</tbody></table>")
             continue
-        if s.startswith("### "):
+        if s.startswith("# "):
+            close_list()
+            # The letterhead carries the firm's name; an H1 repeating it is
+            # noise (CEO, 2026-08-20). Strip a leading "KRYPTON FUND — "
+            # defensively so the page says the name exactly once.
+            h1 = re.sub(r"^KRYPTON\s+FUND\s*[—-]\s*", "", s[2:], flags=re.I)
+            out.append(f"<h1>{_inline(h1)}</h1>")
+        elif s.startswith("### "):
             close_list()
             out.append(f"<h3>{_inline(s[4:])}</h3>")
         elif s.startswith("## "):
@@ -161,9 +169,6 @@ def md_to_html_body(md: str) -> str:
                            f"<span class='t'>{_inline(m.group(2))}</span></h2>")
             else:
                 out.append(f"<h2><span class='t'>{_inline(s[3:])}</span></h2>")
-        elif s.startswith("# "):
-            close_list()
-            out.append(f"<h1>{_inline(s[2:])}</h1>")
         elif s.startswith(("- ", "* ")):
             if not in_list:
                 out.append("<ul>")
@@ -204,8 +209,8 @@ def main() -> int:
            f"</div>"
            f"{body}"
            f"<div class='footer'><span class='mark'>K</span>"
-           f"<span>Krypton Fund — internal daily record · paper venue · "
-           f"figures fold from the event log; NAV is never broker equity"
+           f"<span>Internal daily record · paper venue · figures fold from "
+           f"the event log; NAV is never broker equity"
            f"</span><span>{day}</span></div>"
            f"</body></html>")
     with tempfile.TemporaryDirectory() as td:
