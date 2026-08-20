@@ -160,6 +160,7 @@ _LOOSENS_BY = {
     "max_avg_correlation": "rising",
     "max_strategy_correlation": "rising",
     "max_risk_concentration_pct": "rising",
+    "max_component_vol_pct": "rising",
     "max_expected_shortfall_pct": "rising",
     "min_cash_pct": "falling",
     "min_cash_buffer": "falling",

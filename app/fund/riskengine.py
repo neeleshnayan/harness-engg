@@ -570,16 +570,29 @@ class AdvancedRiskEngine:
 
         rc_block = view.get("risk_contribution") or {}
         if rc_block.get("measurable"):
-            top = rc_block.get("largest_risk_contributor") or {}
-            share = (top.get("risk_share_pct") or 0.0) / 100.0
-            if share > limits.max_risk_concentration_pct:
+            # v-change 2026-08-20 (CEO-accepted validator finding,
+            # run-validator-r6d2): the old risk_share_pct check had INVERTED
+            # discrimination — shares sum to 100% by Euler, so the definitive
+            # accident (one name, 100.00%) scored BETTER than the healthy
+            # hedged book (102.49%), and the alarm grew louder as the hedge
+            # improved. Replaced by the top name's component_risk_pct — its
+            # contribution to annualised NAV vol — which is cardinality-free
+            # and monotone in the accident (measured: 9.78 hedged, 20.09 at
+            # 90/10, 22.35 single-name, 4.87 at parity). Advisory alarm only,
+            # like every structural limit here.
+            rows = rc_block.get("contributions") or []
+            top = max(rows, key=lambda r: r.get("component_risk_pct") or 0.0,
+                      default=None)
+            comp = float((top or {}).get("component_risk_pct") or 0.0)
+            if top and comp > limits.max_component_vol_pct:
                 alarms.append(Alarm(
-                    key=f"risk_concentration:{top.get('symbol')}",
-                    type="risk_concentration", severity="warn",
-                    message=(f"{top.get('symbol')} is {top.get('capital_weight_pct'):.0f}% of "
-                             f"capital but {top.get('risk_share_pct'):.0f}% of book risk "
-                             f"(limit {limits.max_risk_concentration_pct:.0%})"),
-                    metric=float(share), threshold=limits.max_risk_concentration_pct,
+                    key=f"component_vol:{top.get('symbol')}",
+                    type="component_vol", severity="warn",
+                    message=(f"{top.get('symbol')} alone contributes {comp:.1f}% "
+                             f"of annualised NAV volatility (limit "
+                             f"{limits.max_component_vol_pct:.0f}%) — one name "
+                             f"is carrying the book's risk"),
+                    metric=comp, threshold=limits.max_component_vol_pct,
                     symbol=top.get("symbol"),
                 ))
 

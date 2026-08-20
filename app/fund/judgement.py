@@ -385,16 +385,48 @@ def registry() -> list[Judgement]:
             review_by="2026-12-01"),
         Judgement(
             "min_effective_bets",
-            where="risk limits", basis="judged", expected=2.0,
+            where="risk limits", basis="measured", expected=2.0,
             read=_limit("min_effective_bets"),
             why="Two independent bets is the least that can be called "
                 "diversified. It is also what forces a $500 sleeve into at least "
-                "two names, so it shapes deployment, not just monitoring.",
+                "two names, so it shapes deployment, not just monitoring. "
+                "REVIEWED 2026-08-20 (validator run 8b863152, R6 trigger fired "
+                "at 7.75% drawdown; CEO accepted): on the sleeve-only book the "
+                "floor is exactly 'DBC/TLT correlation <= -0.209' — it fires "
+                "when the hedge stops hedging. LEFT UNCHANGED; basis upgraded "
+                "judged -> measured.",
             falsified_by="A book satisfying 2.0 that still loses like a single "
-                         "position in a stress episode. Measured now: 2.93 on 172 "
-                         "sessions, so the limit is not currently binding and has "
-                         "therefore never been tested.",
-            review_trigger="first drawdown episode over 3% from peak",
+                         "position in a stress episode. Measured 2026-08-20: "
+                         "2.47 on 174 sessions (0.23 bets of headroom; the "
+                         "earlier 2.93-on-172 justification was stale). Known "
+                         "false-positive mode: a low-vol lopsided book (10/90 "
+                         "reads 1.84) — fails in the tolerable direction.",
+            review_trigger="effective bets within 0.1 of the floor, or the "
+                           "sleeve grows past two names (the floor maps onto a "
+                           "different correlation statement per book)",
+            review_by="2026-12-01"),
+        Judgement(
+            "max_component_vol_pct",
+            where="risk limits", basis="measured", expected=15.0,
+            read=_limit("max_component_vol_pct"),
+            why="Replaces max_risk_concentration_pct (RETIRED 2026-08-20, CEO-"
+                "accepted validator finding: risk shares sum to 100% by Euler, "
+                "so the definitive accident — one name, 100.00% — scored BETTER "
+                "than the healthy hedged book at 102.49%, and the alarm grew "
+                "louder as the hedge improved; no threshold value could "
+                "separate healthy from accident). This statistic is the top "
+                "name's contribution to annualised NAV volatility: "
+                "cardinality-free, monotone in the accident. 15.0 sits between "
+                "the healthy hedged sleeve (9.78) and a 90/10 concentration "
+                "accident (20.09); single-name reads 22.35, risk parity 4.87. "
+                "ADVISORY: no pre-trade check, halt, or throttle reads the "
+                "structural limits — stated per the same review; wiring them "
+                "into gating would be its own versioned change.",
+            falsified_by="A concentration accident this alarm misses, or a "
+                         "healthy book it flags: re-run the validator's "
+                         "accident table (scratchpad r6b.py method) against "
+                         "the then-current book.",
+            review_trigger="book gains a third name, or the alarm fires",
             review_by="2026-12-01"),
         Judgement(
             "max_drawdown_pct",

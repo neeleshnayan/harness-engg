@@ -65,7 +65,19 @@ class RiskLimits:
     min_effective_bets: float = 2.0         # correlation-adjusted independent bets
     max_avg_correlation: float = 0.75       # mean pairwise correlation across holdings
     max_strategy_correlation: float = 0.90  # two "different" strategies moving as one
-    max_risk_concentration_pct: float = 0.50  # one name's share of total book RISK
+    # RETIRED 2026-08-20 (CEO-accepted validator finding, run-validator-r6d2):
+    # risk_share_pct sums to 100% by Euler, so a 100%-single-name book read
+    # 100.00% — BETTER than the healthy hedged book's 102.49% — and the alarm
+    # got louder as the hedge improved. Kept only so stored limits payloads
+    # still load; consumed nowhere. Replaced by max_component_vol_pct below.
+    max_risk_concentration_pct: float = 0.50
+    #: One name's contribution to annualised NAV volatility, in vol points —
+    #: cardinality-free and monotone in the concentration accident (measured
+    #: 2026-08-20: 9.78 healthy hedged sleeve, 20.09 at a 90/10 book, 22.35
+    #: single-name, 4.87 at risk parity). 15.0 sits between health and the
+    #: 90/10 accident. Advisory alarm only — wiring it into gating would be
+    #: its own versioned change.
+    max_component_vol_pct: float = 15.0
     max_expected_shortfall_pct: float = 0.05  # 97.5% one-day ES as a fraction of NAV
 
     def to_dict(self) -> dict:
@@ -82,6 +94,7 @@ class RiskLimits:
             "max_avg_correlation": self.max_avg_correlation,
             "max_strategy_correlation": self.max_strategy_correlation,
             "max_risk_concentration_pct": self.max_risk_concentration_pct,
+            "max_component_vol_pct": self.max_component_vol_pct,
             "max_expected_shortfall_pct": self.max_expected_shortfall_pct,
         }
 
