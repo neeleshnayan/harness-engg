@@ -107,6 +107,11 @@ reads it first on every dispatch; every output ends with a `## STATE` section;
 the CTO appends that section verbatim when resolving the dispatch. Memory
 round-trips through the CTO by design — continuity without write access, so the
 governance chain and Abhishek's surfaces stay structurally protected.
+AMENDED 2026-08-21 (CEO instruction): **the CTO chair keeps one too**
+(`.claude/state/cto.md`) — self-written, read first on every cold start,
+appended the same session a lesson lands. Lessons that generalize beyond one
+seat graduate: endpoint facts to the API card, dispatch mechanics to briefs,
+governance to this file.
 
 ## Dispatch and placement (quota-era rules, agreed 2026-08-20)
 
