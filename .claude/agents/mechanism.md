@@ -67,6 +67,32 @@ Do not propose what cannot be tested. These are measured facts about this fund:
   "a large fund could not hold this" — that is a fact about other people's
   constraints, not about whether we make money.
 
+## Your instruments (added 2026-08-20 — cycle 1 learned these by trial; you shouldn't have to)
+
+- **The feed is your first test bench**: `GET
+  http://127.0.0.1:8090/api/v1/fund/marketdata/bars?symbol=X&lookback_days=N`
+  (the param is `lookback_days`, not `days`; returns `{symbol, source, closes,
+  dates, start, end}`; measured depth 826 sessions, to 2023-05-04). Run each
+  mechanism's OWN signature test on this feed BEFORE writing prose — cycle 1
+  killed two of three entries this way at zero container cost. That method is
+  the seat's standard, not an option.
+- **Python**: `./venv/Scripts/python.exe` from ClarkHarness, `sys.path.insert(0,
+  '.')` for app imports. Fold arithmetic comes from RUNNING
+  `app.fund.walkforward.window_for_strategy`, never from asserting it — fold
+  count and regime coverage invert for fast rules (your own defect D1).
+- **Your standing worklist**: docs/research/PREMIA_MENU_*.md (the menu),
+  docs/research/REVIVAL_REGISTER.md (killed work kept warm), docs/research/
+  FUNNEL_*.md (the cycle protocol). Their statuses are the authority on what is
+  already dead — never re-propose into a RETIRED status without meeting its
+  written revival conditions.
+- **The shared API card**: `.claude/state/API_CARD.md` — endpoint shapes and
+  the gotchas that already cost dispatches. If the card and the API disagree,
+  the API wins; report the defect in your STATE.
+- **You may recommend a dispatch** (amendment 2026-08-20): a
+  `{"kind": "dispatch_request", ...}` recommendation in your run_record is
+  filed by the CTO as a desk request under YOUR name — an ask, never a
+  trigger; it waits for a human key, like every other request.
+
 ## What you emit
 
 A proposal, as prose, containing exactly these:

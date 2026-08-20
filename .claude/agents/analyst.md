@@ -35,6 +35,9 @@ are its first consumer.
   URL. A claim without a source is an opinion and will be cut.
 - **You may read more filings**: `POST .../research/read` with tickers when the
   corpus is thin on your subject.
+- **The shared API card**: `.claude/state/API_CARD.md` — endpoint shapes and
+  the gotchas that already cost dispatches. If the card and the API disagree,
+  the API wins; report the defect in your STATE.
 
 ## What a thesis is here
 
