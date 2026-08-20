@@ -43,6 +43,43 @@ Revival conditions (six in the verdict; the dated ones):
 Status: DORMANT with a NOVEMBER 2026 tickler. Owner at revival: analyst, with
 the factor-context pack (funnel prerequisite 5) in hand.
 
+## Index mean reversion via LETF rebalance flow (menu entry 6, declined 2026-08-20)
+
+Refused by the mechanism seat before proposal: the levered-ETF rebalance
+story's own symmetry prediction fails on the fund's feed (after +1.5% SPY days
+the 3-day excess is +0.286%, where the mechanism requires NEGATIVE — 826
+sessions). Full arithmetic in docs/research/MECHANISM_CYCLE1_2026-08-20.md.
+
+Revival conditions (ALL three):
+1. Gate v5's train-leg beta adjustment implemented — the only always-invested
+   expression here is conditional leverage, which a benchmark-blind gate would
+   pass for the wrong reason.
+2. The up-tail symmetry test produces NEGATIVE excess with |t| > 2 on ≥100
+   events per tail — the mechanism's own signature, not a fit.
+3. History deep enough for that event count (the trigger fires on ~5.5% of
+   sessions).
+
+Status: DORMANT.
+
+## Month-end rebalancing flow, SPY/TLT (menu entry 11, SPEC-FILED 2026-08-20)
+
+Not killed — DEFERRED with an implementation-ready spec (the only cycle-1
+entry to clear the mechanism's bar). The mid-month placebo passes cleanly
+(the strongest evidence it is a flow, not a seasonal); the magnitude test
+fails and the post-publication half is a coin flip — both pre-registered and
+reported against the proposal by its own author.
+
+Unblock conditions:
+1. **P1 — per-instrument cost measurement** (the global 5bps/side constant,
+   validated on ten small-cap fills, charges SPY/TLT ~3–5× their true spread
+   and eats the whole 1.0–1.8%/yr gross). A measurement, not a threshold move.
+2. **P2 — the history backfill** (~30 month-end observations today vs ~120 at
+   10y), itself correctly gated on gate v5 per the register.
+
+Status: WAITING ON P1 (P1 alone may justify one container run). Owner at
+revival: quant, from the spec as written — one free parameter, fixed by the
+flow's timing, no sweep.
+
 ## How entries leave
 
 REVIVED (a new proposal/thesis citing this section and meeting the conditions),
