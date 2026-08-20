@@ -108,7 +108,15 @@ demands it (a fill, an alarm, a fired exit, an artifact awaiting review, a
 registered review trigger) AND a human dispatches it — or when the CEO asks.
 An idle seat costs zero and that is a feature. One sub-agent in flight at a
 time; briefs are batched (an adversary reviewing three artifacts costs barely
-more than one).
+more than one). AMENDED 2026-08-20 (CEO instruction), two standing rules:
+**(1) Batch-by-seat is the default, not a habit** — before any dispatch, the
+CTO drains everything queued for that seat into ONE brief; request-by-request
+dispatching needs a reason (e.g. blind review isolation). **(2) The COO triage
+trigger is registered at >20 open items on the CEO's desk** (open
+recommendations + pending orders + requests awaiting approval): crossing it
+DEMANDS a coo dispatch, which the CTO fires when a session is live — the
+trigger is standing CEO authorization, not a schedule; when no session is
+live, nothing thinks, as always.
 
 Placement, per seat: mechanism/pm/adversary/validator/riskofficer/coo run on
 **Opus** (the coo is judgement near governance — never downgraded, never local); `quant` is HYBRID — the local 4090 (qwen3.8) drafts the LEAN
