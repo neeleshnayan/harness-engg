@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowUp, Check, Loader2, RefreshCw } from "lucide-react";
 import { spineError } from "@/lib/spine_error";
 import { KT } from "../theme";
+import { ProvenanceChip } from "./Provenance";
 import { SignalRunResult, SignalSizedRow, fundApiClient } from "@/lib/fund_api";
 
 /**
@@ -124,7 +125,14 @@ export function SignalsPanel({ onProposed, bookChanged = 0 }: {
     <div className={KT.panel}>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--kt-border)] px-5 py-3">
         <div>
-          <span className={KT.label}>What the strategies want</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={KT.label}>What the strategies want</span>
+            {/* Found live by the CEO: this panel suggests trades and gave no way
+                to tell whether an agent was recommending them. It is arithmetic
+                — a registered strategy's rule evaluated against live bars, with
+                no model in the loop — and now says so. */}
+            <ProvenanceChip kind="deterministic" source="strategy signal (no agent)" />
+          </div>
           <div className={`mt-1 text-[11px] ${KT.muted}`}>
             Evaluated from live bars. Proposing sends it to the approval queue
             above — it does not reach the venue.

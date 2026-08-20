@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, Check, Loader2, X } from "lucide-react";
 import { spineError } from "@/lib/spine_error";
 import { KT } from "../theme";
+import { ProvenanceChip, provenanceOfRationale } from "./Provenance";
 import { MemoView, PendingOrder, ThesisView, fundApiClient } from "@/lib/fund_api";
 
 /**
@@ -236,6 +237,22 @@ export function ApprovalQueue({ onChanged, refreshSignal = 0, compact = false,
                     than a machine decision they can only accept. Rendered
                     before the thesis block because on a proposal that has both,
                     the reasoning for THIS order is the more specific claim. */}
+                {/* WHO is suggesting this order. An approval card is the last
+                    surface before money moves, so it must say whether the case
+                    below was written by a seat or computed by a committed exit
+                    rule — and say "unattributed" when the payload proves
+                    neither. Defaulting an unmarked rationale to "deterministic"
+                    would launder a model's suggestion into arithmetic. */}
+                <div className="mt-2">
+                  {(() => {
+                    const p = provenanceOfRationale(o.rationale);
+                    return (
+                      <ProvenanceChip kind={p.kind} source={p.source} seat={p.seat}
+                                      recId={p.recId} />
+                    );
+                  })()}
+                </div>
+
                 {!compact && (o.rationale || o.critique) && (
                   <div className="mt-3 space-y-3">
                     {o.rationale && (
