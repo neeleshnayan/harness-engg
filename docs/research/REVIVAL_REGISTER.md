@@ -88,10 +88,15 @@ persistence matches the spec's own F4 falsifier. At $2k NAV the rule is
 inexpressible in whole shares (measured: lot rounding exceeds the effect).
 Sharpened revival conditions: (1) realised SPY/TLT execution cost
 measured BELOW ~5.9bps/side — only the CEO-authorized experimental
-alpaca-venue path can produce it; (2) a fractional-share or larger-NAV
-expression; (3) fold persistence re-read after gate v5's
-benchmark-relative criteria land (two of today's three failure sentences
-are instrument artifacts for this shape). Full report:
+alpaca-venue path can produce it; (2) a fractional-share expression —
+**CORRECTED same day (CEO): the alpaca venue supports fractional shares
+and the fund's live book already holds fractional quantities (SPY
+0.16554 was held), so the whole-share constraint is the LEAN backtest
+engine's default, not the venue's.** The deployment blocker reduces to
+enabling fractional fills in the backtest for an honest re-measure — a
+belt configuration item, not a venue change; (3) fold persistence
+re-read after gate v5's benchmark-relative criteria land (two of today's
+three failure sentences are instrument artifacts for this shape). Full report:
 docs/research/QUANT_ENTRY11_2026-08-21.md.
 
 Status note, 2026-08-20 (validator audit 8b863152): **P1 as originally
