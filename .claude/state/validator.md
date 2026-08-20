@@ -201,3 +201,90 @@
   (8b863152, b0bd0489) resolved. The audit was filed verbatim as
   docs/AUDIT_R6_D2_ATTRIBUTION_2026-08-20.md.
 
+
+## 2026-08-20 — walk-forward window geometry for short holds (trace 5fc56190; first
+   seat-filed ask to complete the full chain: mechanism filed -> CEO approved -> CTO fired).
+   All numbers are runs of the shipped function or local-mirror queries.
+
+- INVERSION REPRODUCED, WITH TWO EXACT CLOSED FORMS (verified 276/276 and 23/23):
+    span_oos(h,K) = K * floor(4h * 365/252) calendar days
+    K(h)          = (cal(252+20h) - 366) // cal(4h)     [cal(d)=int(d*365/252)]
+  At gate v4.1 (min_folds=4, floor 2024-02-26, end 2026-08-19): hold-1 -> 5 folds / 25d;
+  hold-3 -> 5 folds / 85d (2026-05-26..08-19); hold-21 -> 4 folds / 484d; hold >=24 -> <4
+  folds -> NOT TESTABLE. Effective belt hold range is 1..23.
+  Fold count is NON-MONOTONE: K drops 5->4 at holds 4, 9, 14, 19 — pure cal() rounding beat.
+  walkforward.py:123-124 docstring ("6 folds for a 5-day hold") reproduces at min_folds=5,
+  not the shipped 4 (measured 5/4/1).
+- THE BIGGEST FINDING, NOT THE ONE ASKED FOR: window_for fold count is INVARIANT TO
+  AVAILABLE HISTORY. floor 2024-02-26 -> 2016-08-22 (905 -> 3649 cal days) leaves hold-3 at
+  5 folds / 85d, unchanged. walkforward.py:223-228 fixes reach-back at train+test*(K+1);
+  the floor only CLIPS, never extends. Belt fold counts for TEST=84 at 630/1260/2520
+  trading days are 4/5/5, versus 4/12/27 in scripts/gate_v5_audit_r4.py:224-230 (_folds(n)
+  PACKS the history). Therefore GATE_V5_ROUND4 §3's history table — the sole cited evidence
+  for the WALKFORWARD_HISTORY_FLOOR change and the 10y backfill sequencing (§144-147, §218-223)
+  — measures a fold generator the belt does not implement. §7's `available` is undefined
+  against any function: read one way the scaled floor is a permanent no-op (window_for
+  returns ~5 at every depth so the floor stays 4); read the other it needs 17 of 27 and makes
+  every 21-day strategy NOT TESTABLE. The backfill through window_for adds ZERO folds and
+  ZERO out-of-sample coverage; it extends TRAIN legs only. v5's MPPM/VR/margin work (§1,§4)
+  is untouched by this. NOT re-run: what the corrected r4 tables would say.
+- ITEM 4 ANSWERED, STRONGER THAN THE MECHANISM CLAIMED: span(hold-21)/span(hold-1) = 24.2x
+  at K = 4, 6, 8, 12, 17 AND 27 — exactly cal(84)/cal(4)=121/5. Count-scaling multiplies both
+  sides by K and closes nothing. Also, at TODAY's floor, raising min_folds to 6/8/12/17 gives
+  short holds 6/8/12/17 folds while hold-21 stays pinned at 4 and flips to NOT TESTABLE —
+  the scaled floor before the backfill INVERTS testability toward the least-covered rules.
+- REGIME COVERAGE (fund's own turbulence, regime.mahalanobis_series over SECTOR_BASKET, 11/11,
+  1004 scored days; reachable window 2024-02-26..2026-08-19 = 623 sessions, 143 elevated
+  >=p80 16.12, 39 extreme >=p95 29.60): hold-1 sees 21 sessions / 7.7% of elevated;
+  hold-3 63 / 25.9%; hold-10 198 / 55.2%; hold-21 336 / 60.1%. THE LARGEST STRESS EVENT IN
+  REACHABLE HISTORY (turb 86.9, 2025-04-03..05-13) IS INVISIBLE TO EVERY HOLD <= 17.
+  Episode counts monotone at merge gaps 3/5/10/20 but level is merge-dependent — do not
+  headline them. HONEST COUNTER-POINT: hold-3 covers 41% of EXTREME days in 10% of sessions
+  because the last quarter was hot — narrow coverage can land hot or cold, which is the
+  one-draw property, not an argument that short holds are uniformly worse.
+- THE RECORD IS CLEAN — NO ISSUED VERDICT IS AFFECTED. fund_candidates n=34, 19 carry a
+  walk-forward check. Stored test legs group as: 91d n=19 (the five gate-v2-era candidates,
+  2026-08-17 13:12-16:11), 121d n=34 (all null_random_smallcap, gate v4, = exactly the hold-21
+  4-fold set), 225d n=30 (single-window holdout, not walk-forward). ZERO verdicts ever ran a
+  leg shorter than 91d. The inversion is PROSPECTIVE. The 6 not_testable=True nulls are the
+  hold-63 grid behaving correctly.
+- QUALIFIER IS A RENDERING CHANGE, AND I VERIFIED THE PLUMBING: fold rows already carry
+  train/test start+end (walkforward.py:347-358 spreads **f), dates_honoured, measurable,
+  test_orders; summarise() (375-408) receives them and computes nothing from the dates.
+  BUT factory._run (165-171) DISCARDS `walk` after judging — _finish stores verdict+winner
+  only — so the qualifier must be written into verdict["checks"] by gate.evaluate (next to
+  gate.py:447-449) to survive. factory.history (366-372) serves FIVE count fields only;
+  confirmed live on :8090 (folds_measurable/folds_retained/median_retention/retained_share/
+  not_testable). Recommend headline statistic = oos_span_days (+ oos_start/oos_end/oos_folds/
+  oos_folds_dishonoured/hold_days/hold_days_source), computed over MEASURABLE folds with
+  dates_honoured True only. NOT quarter-count (boundary luck) and NOT episode-count (merge
+  parameter). Trust check: of 79 stored holdout_results, 73 dates_honoured=True / 4 False /
+  2 skipped, median (engine-actual / requested test days) = 1.000.
+- API CARD DEFECTS TO FIX: (a) the fold-planning bullet should add "fold count is INVARIANT
+  to available history — the floor only clips; deeper history does NOT buy folds";
+  (b) holdout_result.test.window is the ENGINE-ACTUAL window and is NOT copied into the
+  fold row — requested dates are the only per-fold record downstream.
+- DECISIONS_PER_TEST_LEG=4 IS UNVALIDATED. It sizes every test leg in the fund. total_orders
+  on the 121d legs reads min 20 / median 67 / max 136 because it counts symbol fills, not
+  rebalances. Neither confirmed nor refuted; no counter exists.
+- Scratchpad (session bbc88cbf-...): wf_geometry.py, wf_regime.py, wf_episodes.py (+ep3/5/20),
+  wf_counterfactual.py, deep.py, kscale.py, issued.py, holds.py, wins.py, hw.py, hw2.py,
+  orders.py. Captures: wf_rows.json, wf_regime.json, cand.json.
+- MEASUREMENT DEBTS, carried + new: 29 clean nulls to bound gate FPR under 10% (open);
+  v5 floor-sweep tables need a drifted, grid-max null (open); oracle discrimination inversion
+  needs its own v4 run (open); cost measurement blocked on alpaca fills or published spreads
+  (open). NEW AND BLOCKING: re-run scripts/gate_v5_audit_r4.py --history-sweep against
+  window_for's ACTUAL fold generator before any WALKFORWARD_HISTORY_FLOOR change or backfill.
+
+- [CTO note at resolve, 2026-08-20]: the invariance claim was reproduced independently
+  the same hour (hold-3: identical fold dates at floors 2024-02-26 and 2016-08-22; hold-21
+  gains only the one clipped fold, 4 -> 5, then caps). The defect in the r4 audit was MINE;
+  GATE_V5_ROUND4 now carries §8 correcting and reframing its history limb (window-function
+  change + 'available' definition + scaled floor + backfill as ONE versioned package), and
+  your blocking recommendation is honored: no floor change and no backfill until that
+  package is specified and measured against the real generator. The API card bullet was
+  corrected per your (a) and (b). Audit filed verbatim as
+  docs/AUDIT_WF_GEOMETRY_2026-08-20.md; recorded as run-validator-wfgeom; your 6
+  recommendations are on the CEO's desk. The first seat-filed ask closed its full loop —
+  and its answer found a defect in the CTO's own instrument, which is the metric working.
+

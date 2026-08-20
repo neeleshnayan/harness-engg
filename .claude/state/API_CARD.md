@@ -45,8 +45,16 @@ Base URL: `http://127.0.0.1:8090/api/v1`
   newlines in inline `-c` strings — write a script file instead.
 - Fold planning: `app.fund.walkforward.window_for_strategy` — RUN it, never
   assert fold counts. Fold count and regime coverage INVERT for fast rules
-  (mechanism defect D1, 2026-08-20: hold-3's five folds sit inside one
-  quarter; hold-21's four span 16 months).
+  (mechanism defect D1, confirmed with closed forms 2026-08-20:
+  span_oos = K·floor(4·hold·365/252) days; hold-1 gets 5 folds over 25
+  calendar days). AND: **fold count is INVARIANT to available history** —
+  reach-back is fixed at train + test·(K+1); the floor only clips, so
+  deeper history does NOT buy folds (validator 5fc56190; caught the r4
+  audit modeling a packed generator the belt doesn't have). Also: fold
+  count is non-monotone in hold (drops 5→4 at holds 4/9/14/19, cal()
+  rounding); `holdout_result.test.window` is engine-actual and is NOT
+  copied into the fold row — requested dates are the only per-fold record
+  downstream, gate them on `dates_honoured`.
 - Fold measurability: `app.fund.walkforward.retention()` returns
   `measurable: False` with a named reason (no trades, missing figure,
   non-positive or sub-floor train leg) — an unmeasurable fold is never a
