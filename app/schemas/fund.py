@@ -329,6 +329,54 @@ class LossRebaseRequest(BaseModel):
                          "log and the log has to say why")
 
 
+class DrawdownRebaseRequest(BaseModel):
+    """Lower the peak the drawdown rule measures from — CEO-only.
+
+    Same guard as an order approval. The echo is `drawdown.rebase_token` from
+    GET /fund/risk/monitor, a digest of the peak being replaced, so a confirm
+    read off a stale panel is refused rather than applied to a book that moved.
+
+    Unlike the loss rebase, the new reference is SUPPLIED rather than taken
+    from current NAV: the honest new peak is a judgement about which part of
+    the history was real, and only a human can make it. It may only ever LOWER
+    the reference, and it can never hide a later genuine high.
+    """
+    approver: str = Field(..., description="Who is rebasing the drawdown peak")
+    confirm: Optional[str] = Field(
+        None, description="drawdown.rebase_token from GET /fund/risk/monitor")
+    instruction: Optional[str] = Field(
+        None, description="For 'neelesh-via-cto' only: the CEO's instruction, verbatim")
+    nav_usd: float = Field(
+        ..., description="The new peak, in USD. Must be BELOW the current peak "
+                         "and at or above current NAV")
+    reason: str = Field(
+        ..., description="MANDATORY written reason — the peak moves in the log "
+                         "and the log has to say why")
+
+
+class HaltAcknowledgeRequest(BaseModel):
+    """Acknowledge a halt — CEO-only, on the approval channel, and it ACTS ON
+    NOTHING.
+
+    Recording that you have SEEN a halt is deliberately separable from
+    reopening it and from rebasing the loss reference: it moves no number and
+    re-arms no path. It is condition (1) of four for the loss-halt auto-resume
+    policy, and on its own it is worth one sentence in the log.
+
+    The echo is ``halt_ack_token`` from GET /fund/risk/monitor, a digest of the
+    halt itself — so an acknowledgement typed against a screen showing a
+    different darkness is refused rather than applied to this one.
+    """
+    approver: str = Field(..., description="Who is acknowledging the halt")
+    confirm: Optional[str] = Field(
+        None, description="The halt_ack_token from GET /fund/risk/monitor")
+    instruction: Optional[str] = Field(
+        None, description="For 'neelesh-via-cto' only: the CEO's instruction, verbatim")
+    note: str = Field(
+        ..., description="MANDATORY — what you saw. The log records that you "
+                         "looked, and it has to say at what")
+
+
 class RiskResumeRequest(BaseModel):
     actor: str = Field("operator", description="Who resumed trading (human only)")
 

@@ -152,7 +152,16 @@ class EventType(str, Enum):
     RISK_ALARM_RAISED = "RiskAlarmRaised"       # a limit/adverse-move breach opened
     RISK_ALARM_CLEARED = "RiskAlarmCleared"     # a breach resolved
     TRADING_HALTED = "TradingHalted"            # kill switch engaged (drawdown/loss/manual)
-    TRADING_RESUMED = "TradingResumed"          # trading re-enabled by a human
+    TRADING_RESUMED = "TradingResumed"          # trading re-enabled by a human or, for a
+                                                # LOSS halt only, by the auto-resume policy
+
+    # Halt acknowledgement (2026-08-21, CEO-approved): the CEO states, in the
+    # log, that they have SEEN a specific halt. Distinct from resuming and
+    # distinct from rebasing the loss reference — an acknowledgement changes no
+    # number and re-arms nothing by itself; it is condition (1) of four for the
+    # loss-halt auto-resume policy. Recorded against the halt it names, so an
+    # acknowledgement cannot outlive the halt it was given for.
+    HALT_ACKNOWLEDGED = "HaltAcknowledged"
 
     # Acknowledge-and-rebase (2026-08-20, CEO-blessed): the daily-loss reference
     # moved deliberately to current NAV, with a written reason. A circuit
@@ -161,6 +170,15 @@ class EventType(str, Enum):
     # decision. Refused while an integrity halt is open — you cannot accept a
     # loss you cannot measure.
     LOSS_REFERENCE_REBASED = "LossReferenceRebased"
+
+    # The DRAWDOWN peak's twin (2026-08-21, CEO-accepted PM sleeve-v2 R1). The
+    # drawdown rule measures from the trailing-365d high, so a peak inflated by
+    # a bad mark caps the fund's risk capacity for a YEAR. Same shape as the
+    # loss rebase: it moves the point the rule measures FROM, once, in the log,
+    # with a mandatory reason — and it may only ever LOWER the reference. A
+    # later genuine high raises it again, so a rebase can shorten a phantom's
+    # shadow but can never hide a real peak.
+    DRAWDOWN_REFERENCE_REBASED = "DrawdownReferenceRebased"
 
     # Rebalance — a BATCH of orders decided as one thing. Event-sourced
     # separately from the individual orders because the unit of human judgement
