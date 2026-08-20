@@ -1645,7 +1645,11 @@ export const fundApiClient = {
     avg_price?: number;
     reason?: string;
   }> =>
-    (await fundApi.post(`${P}/orders/${orderId}/approve`, { approver })).data,
+    // approval-channel guard v1: the spine refuses an approval that does not
+    // echo the first 8 chars of the id it approves. The UI supplies the echo
+    // from the id it is rendering — a stray or replayed call cannot.
+    (await fundApi.post(`${P}/orders/${orderId}/approve`,
+      { approver, confirm: orderId.slice(0, 8) })).data,
 
   declineOrder: async (orderId: string, approver = 'operator') =>
     (await fundApi.post(`${P}/orders/${orderId}/decline`, { approver })).data,
@@ -1985,9 +1989,11 @@ export const fundApiClient = {
   getLeanAlgorithm: async (name: string): Promise<{ name: string; code: string }> =>
     (await fundApi.get(`${P}/lean/algorithms/${encodeURIComponent(name)}`)).data,
 
-  /** CEO endorsement of a queued desk request — approval, never a trigger. */
+  /** CEO endorsement of a queued desk request — approval, never a trigger.
+   *  Guard v1: the confirm echo is supplied here from the rendered id. */
   approveDeskRequest: async (requestId: string, body?: { actor?: string; note?: string }) =>
-    (await fundApi.post(`${P}/desk/requests/${requestId}/approve`, body ?? {})).data,
+    (await fundApi.post(`${P}/desk/requests/${requestId}/approve`,
+      { ...(body ?? {}), confirm: requestId.slice(0, 8) })).data,
 
   /** Decide one agent recommendation (CEO): accepted | rejected. */
   decideRecommendation: async (runId: string, recId: number,
