@@ -29,49 +29,81 @@ CHROME_CANDIDATES = [
     r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
 ]
 
-CSS = """
-@page { size: A4; margin: 18mm 17mm 16mm; }
-* { box-sizing: border-box; }
-body { font-family: Georgia, 'Times New Roman', serif; color: #16181d;
-       font-size: 10.2pt; line-height: 1.52; margin: 0; }
-.masthead { border-bottom: 2.5px solid #16181d; padding-bottom: 8px;
-            margin-bottom: 4px; display: flex; align-items: baseline;
-            justify-content: space-between; }
-.masthead .firm { font-family: 'Segoe UI', Arial, sans-serif;
-                  font-weight: 700; font-size: 15pt;
-                  letter-spacing: 0.14em; }
-.masthead .doc { font-family: 'Segoe UI', Arial, sans-serif;
-                 font-size: 8.2pt; letter-spacing: 0.22em;
-                 text-transform: uppercase; color: #5a5f6a; }
-.subrule { border-bottom: 0.75px solid #b9bdc6; margin-bottom: 18px;
-           padding-bottom: 4px; font-family: 'Segoe UI', Arial, sans-serif;
-           font-size: 8.2pt; color: #5a5f6a; letter-spacing: 0.08em; }
-h1 { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13pt;
-     letter-spacing: 0.02em; margin: 20px 0 8px; }
-h2 { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10.6pt;
-     text-transform: uppercase; letter-spacing: 0.12em; color: #23262d;
-     border-bottom: 0.75px solid #d5d8de; padding-bottom: 3px;
-     margin: 22px 0 8px; page-break-after: avoid; }
-h3 { font-family: 'Segoe UI', Arial, sans-serif; font-size: 9.6pt;
-     letter-spacing: 0.04em; margin: 14px 0 5px; page-break-after: avoid; }
-p { margin: 0 0 7px; }
-ul { margin: 0 0 8px 0; padding-left: 16px; }
-li { margin-bottom: 3.5px; }
-table { border-collapse: collapse; width: 100%; margin: 6px 0 12px;
-        font-size: 8.9pt; page-break-inside: avoid;
-        font-variant-numeric: tabular-nums; }
-th { font-family: 'Segoe UI', Arial, sans-serif; font-size: 7.8pt;
-     text-transform: uppercase; letter-spacing: 0.09em; text-align: left;
-     color: #5a5f6a; border-bottom: 1.25px solid #16181d;
-     padding: 3px 10px 3px 0; }
-td { border-bottom: 0.6px solid #e2e4e9; padding: 3.5px 10px 3.5px 0;
-     vertical-align: top; }
-code { font-family: Consolas, 'Courier New', monospace; font-size: 8.6pt;
-       background: #f1f2f5; padding: 0 3px; border-radius: 2px; }
-hr { border: none; border-top: 0.75px solid #b9bdc6; margin: 16px 0; }
-.footer { margin-top: 26px; border-top: 0.75px solid #b9bdc6;
-          padding-top: 6px; font-family: 'Segoe UI', Arial, sans-serif;
-          font-size: 7.6pt; color: #8a8f99; }
+# Design (2026-08-20, CEO: "more badass... theme color and great
+# aesthetics... Jony Ive"): ONE accent — the fund's emerald, deepened for
+# ink (#0B6B4D on paper, #2FBF8F on the cover's near-black); a full-bleed
+# ink cover band; oversized roman section numerals as the editorial
+# signature; everything else reduced to hairlines and space. Loud in
+# exactly one place, silent everywhere else.
+INK = "#101418"
+PAPER = "#FFFFFF"
+ACCENT = "#0B6B4D"        # evergreen on paper
+ACCENT_BRIGHT = "#2FBF8F"  # evergreen on ink
+MUTED = "#707680"
+HAIR = "#DCE0E4"
+
+CSS = f"""
+@page {{ size: A4; margin: 0; }}
+* {{ box-sizing: border-box;
+     -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+body {{ font-family: Georgia, 'Times New Roman', serif; color: {INK};
+        background: {PAPER}; font-size: 10.2pt; line-height: 1.55;
+        margin: 0; padding: 0 20mm 16mm; }}
+.cover {{ margin: 0 -20mm 9mm; background: {INK}; color: #F4F6F5;
+          padding: 15mm 20mm 10mm; border-bottom: 3px solid {ACCENT}; }}
+.cover .firm {{ font-family: 'Segoe UI', Arial, sans-serif;
+                font-weight: 700; font-size: 21pt;
+                letter-spacing: 0.22em; }}
+.cover .firm .k {{ color: {ACCENT_BRIGHT}; }}
+.cover .doc {{ font-family: 'Segoe UI', Arial, sans-serif;
+               font-size: 8.4pt; letter-spacing: 0.34em;
+               text-transform: uppercase; color: {ACCENT_BRIGHT};
+               margin-top: 5px; }}
+.cover .prepared {{ font-family: 'Segoe UI', Arial, sans-serif;
+                    font-size: 7.4pt; letter-spacing: 0.06em;
+                    color: #9AA2A9; margin-top: 9px; }}
+h1 {{ font-family: 'Segoe UI', Arial, sans-serif; font-weight: 650;
+      font-size: 14pt; letter-spacing: 0.01em; margin: 16px 0 9px; }}
+/* The lede — the book line that opens THE DAILY — carries the page. */
+h1 + p {{ font-size: 11.6pt; line-height: 1.6; padding-left: 12px;
+          border-left: 3px solid {ACCENT}; margin: 0 0 11px; }}
+h2 {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 24px 0 9px;
+      display: flex; align-items: baseline; gap: 10px;
+      border-bottom: 0.75px solid {HAIR}; padding-bottom: 5px;
+      page-break-after: avoid; }}
+h2 .num {{ font-weight: 300; font-size: 19pt; color: {ACCENT};
+           min-width: 26px; line-height: 1; letter-spacing: 0.02em; }}
+h2 .t {{ font-size: 10.4pt; text-transform: uppercase;
+         letter-spacing: 0.15em; color: {INK}; font-weight: 650; }}
+h3 {{ font-family: 'Segoe UI', Arial, sans-serif; font-size: 9.6pt;
+      letter-spacing: 0.04em; margin: 14px 0 5px;
+      page-break-after: avoid; }}
+p {{ margin: 0 0 7px; }}
+ul {{ margin: 0 0 9px 0; padding-left: 15px; list-style: none; }}
+li {{ margin-bottom: 4px; position: relative; }}
+li::before {{ content: ""; position: absolute; left: -15px; top: 0.62em;
+              width: 8px; height: 2px; background: {ACCENT}; }}
+table {{ border-collapse: collapse; width: 100%; margin: 7px 0 13px;
+         font-size: 8.9pt; page-break-inside: avoid;
+         font-family: 'Segoe UI', Arial, sans-serif;
+         font-variant-numeric: tabular-nums; }}
+th {{ font-size: 7.6pt; text-transform: uppercase;
+      letter-spacing: 0.11em; text-align: left; color: {MUTED};
+      border-bottom: 1.5px solid {ACCENT}; padding: 3px 10px 4px 0; }}
+td {{ border-bottom: 0.6px solid {HAIR}; padding: 4.5px 10px 4.5px 0;
+      vertical-align: top; }}
+tr td:first-child {{ font-weight: 600; }}
+code {{ font-family: Consolas, 'Courier New', monospace; font-size: 8.6pt;
+        background: #F0F3F2; color: {ACCENT}; padding: 0 3px;
+        border-radius: 2px; }}
+b {{ letter-spacing: 0.005em; }}
+hr {{ border: none; border-top: 0.75px solid {HAIR}; margin: 16px 0; }}
+.footer {{ margin-top: 28px; border-top: 2px solid {INK};
+           padding-top: 6px; font-family: 'Segoe UI', Arial, sans-serif;
+           font-size: 7.4pt; color: {MUTED}; letter-spacing: 0.04em;
+           display: flex; justify-content: space-between; }}
+.footer .mark {{ color: {ACCENT}; font-weight: 700;
+                 letter-spacing: 0.18em; }}
 """
 
 
@@ -121,7 +153,14 @@ def md_to_html_body(md: str) -> str:
             out.append(f"<h3>{_inline(s[4:])}</h3>")
         elif s.startswith("## "):
             close_list()
-            out.append(f"<h2>{_inline(s[3:])}</h2>")
+            # "II. Trading & execution" -> oversized roman numeral + tracked
+            # caps title: the letter's editorial signature.
+            m = re.match(r"^([IVXLC]+)\.\s+(.*)$", s[3:])
+            if m:
+                out.append(f"<h2><span class='num'>{m.group(1)}</span>"
+                           f"<span class='t'>{_inline(m.group(2))}</span></h2>")
+            else:
+                out.append(f"<h2><span class='t'>{_inline(s[3:])}</span></h2>")
         elif s.startswith("# "):
             close_list()
             out.append(f"<h1>{_inline(s[2:])}</h1>")
@@ -156,15 +195,18 @@ def main() -> int:
     doc = (f"<!doctype html><html><head><meta charset='utf-8'>"
            f"<title>Krypton Fund — Daily Record {day}</title>"
            f"<style>{CSS}</style></head><body>"
-           f"<div class='masthead'><span class='firm'>KRYPTON FUND</span>"
-           f"<span class='doc'>Daily Record · {day}</span></div>"
-           f"<div class='subrule'>Prepared by Donna, secretary · from the "
-           f"event log, the flight recorder, and the day's commits · every "
-           f"figure cited to the record</div>"
+           f"<div class='cover'>"
+           f"<div class='firm'><span class='k'>K</span>RYPTON FUND</div>"
+           f"<div class='doc'>The Daily Record &nbsp;·&nbsp; {day}</div>"
+           f"<div class='prepared'>Prepared by Donna, secretary — from the "
+           f"event log, the flight recorder, and the day's commits. Every "
+           f"figure cited to the record.</div>"
+           f"</div>"
            f"{body}"
-           f"<div class='footer'>Krypton Fund — internal daily record. "
-           f"Paper venue; figures fold from the event log (NAV is never "
-           f"broker equity). Generated by scripts/archive_pdf.py.</div>"
+           f"<div class='footer'><span class='mark'>K</span>"
+           f"<span>Krypton Fund — internal daily record · paper venue · "
+           f"figures fold from the event log; NAV is never broker equity"
+           f"</span><span>{day}</span></div>"
            f"</body></html>")
     with tempfile.TemporaryDirectory() as td:
         html_path = pathlib.Path(td) / f"{day}.html"
