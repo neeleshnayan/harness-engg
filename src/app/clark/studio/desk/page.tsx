@@ -20,6 +20,7 @@ import {
 } from "./components";
 import { MemoThread } from "./MemoThread";
 import { SeatFace } from "./SeatFace";
+import { floorEnabled } from "./floor/floorPlan";
 import {
   DayFold,
   FeedItem,
@@ -173,6 +174,16 @@ export default function DeskPage() {
             <section className="mb-8">
               <p className={`${KT.label} mb-3 flex items-center gap-2`}>
                 <Users size={12} /> The floor — live
+                {/* The 2.5D room, when the build carries the flag. A LINK from
+                    here rather than a seventh nav tab: the room is presence,
+                    not a workflow, and the spec's first acceptance criterion is
+                    that the floor adds ZERO navigations to the approval path. */}
+                {floorEnabled() && (
+                  <Link href="/clark/studio/desk/floor"
+                        className={`ml-1 normal-case tracking-normal ${KT.accent} underline underline-offset-2`}>
+                    walk the room
+                  </Link>
+                )}
               </p>
               {/* The top row is the executives: hierarchy reads top-down
                   (CEO → COO → CTO → bench). The COO joined the row by CEO

@@ -17,6 +17,22 @@ import { KT } from "../theme";
  * Shows an honest "unreachable" state rather than implying all-clear when the
  * spine is down — silence must never look like safety.
  */
+/**
+ * The strip's own sentence for an unreachable monitor.
+ *
+ * Exported so the floor can say EXACTLY what the strip says on a dead spine
+ * (CDO spec, Deliverable B) instead of carrying a second, softer copy. Two
+ * renderings of one sentence is two things to drift, and the softer one always
+ * wins the argument with a reader who wants reassurance.
+ */
+export const RISK_UNREACHABLE = {
+  head: "Risk monitor unreachable",
+  tail: "cannot confirm limits are being enforced",
+} as const;
+
+export const RISK_UNREACHABLE_SENTENCE =
+  `${RISK_UNREACHABLE.head} — ${RISK_UNREACHABLE.tail}.`;
+
 export function RiskBar({ pollMs = 30000 }: { pollMs?: number }) {
   const [m, setM] = useState<RiskMonitorResponse | null>(null);
   const [err, setErr] = useState(false);
@@ -40,8 +56,8 @@ export function RiskBar({ pollMs = 30000 }: { pollMs?: number }) {
     return (
       <Bar tone="warn">
         <AlertTriangle size={13} />
-        <span className="font-medium">Risk monitor unreachable</span>
-        <span className={KT.muted}>— cannot confirm limits are being enforced</span>
+        <span className="font-medium">{RISK_UNREACHABLE.head}</span>
+        <span className={KT.muted}>— {RISK_UNREACHABLE.tail}</span>
       </Bar>
     );
   }
