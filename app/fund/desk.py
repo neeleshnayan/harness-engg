@@ -232,9 +232,21 @@ def _requests(store: Any) -> list[dict[str, Any]]:
                 rows[rid] = {**rows[rid], "status": "approved",
                              "approved_by": p.get("actor"),
                              "approved_at": p.get("at")}
+        elif t == EventType.DESK_REQUEST_DECLINED.value:
+            rid = p.get("request_id")
+            # A rejection lands while open or approved-but-untriggered; a
+            # resolved request is history and keeps its terminal state.
+            if rid in rows and rows[rid].get("status") in ("open", "approved"):
+                rows[rid] = {**rows[rid], "status": "declined",
+                             "declined_by": p.get("actor"),
+                             "declined_at": p.get("at"),
+                             "decline_reason": p.get("reason")}
         elif t == EventType.DESK_REQUEST_RESOLVED.value:
             rid = p.get("request_id")
-            if rid in rows:
+            # Resolution only completes a request still on the path (open or
+            # approved) — it must not overwrite a rejection: executing a
+            # declined ask would be the CTO overriding the CEO's no.
+            if rid in rows and rows[rid].get("status") in ("open", "approved"):
                 rows[rid] = {**rows[rid], "status": "resolved",
                              "resolved_at": p.get("at"),
                              "resolution": p.get("resolution")}

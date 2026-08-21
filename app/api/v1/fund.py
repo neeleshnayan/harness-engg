@@ -1408,6 +1408,43 @@ def desk_approve(request_id: str, req: DeskApprove):
     return payload
 
 
+class DeskDecline(BaseModel):
+    """The CEO rejecting a queued request. Like order declines, deliberately
+    OUTSIDE the approval guard: a decline is reversible (the ask can be
+    re-filed) and closing a door must never be harder than opening one. The
+    reason is mandatory — a silent rejection reads identically to an unseen
+    ask."""
+    reason: str
+    actor: str = "ceo"
+
+
+@router.post("/fund/desk/requests/{request_id}/decline")
+def desk_decline(request_id: str, req: DeskDecline):
+    """Reject a request — allowed while open OR approved-but-untriggered
+    (withdrawing a blessing before the CTO fires it is a real decision and
+    deserves a real record). A resolved request is history and stays."""
+    from app.fund.events import Event, EventType
+    if not (req.reason or "").strip():
+        raise HTTPException(status_code=422,
+                            detail="a rejection needs its written reason")
+    from app.fund.desk import _requests
+    row = next((r for r in _requests(_store)
+                if r.get("request_id") == request_id), None)
+    if row is None:
+        raise HTTPException(status_code=404, detail="no such request")
+    if row.get("status") in ("resolved", "declined"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"request is already {row['status']} — history stays")
+    payload = {"request_id": request_id, "reason": req.reason.strip(),
+               "at": datetime.now(timezone.utc).isoformat(),
+               "actor": req.actor}
+    _store.append(Event(aggregate_id=request_id, aggregate_type="desk_request",
+                        type=EventType.DESK_REQUEST_DECLINED,
+                        payload=payload, actor=req.actor))
+    return payload
+
+
 class DeskResolve(BaseModel):
     resolution: str
     actor: str = "cto"

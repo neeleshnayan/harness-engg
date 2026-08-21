@@ -79,6 +79,59 @@ def test_requests_fold_from_the_event_log_and_survive_resolution():
     assert v["requests"][0]["resolution"] == "docs/reviews/X.md"
 
 
+def test_a_declined_request_is_terminal_and_carries_its_reason():
+    """2026-08-21 (CEO): the lifecycle needs open / approved-not-executed /
+    completed / REJECTED. A rejection must be attributable, reasoned, and
+    terminal — and a later resolve must not quietly execute over the CEO's
+    no."""
+    store = MemStore()
+    store.append(Event(aggregate_id="d1", aggregate_type="desk_request",
+                       type=EventType.DESK_REQUESTED,
+                       payload={"request_id": "d1", "kind": "proposal",
+                                "serves": "mechanism", "subject": "an ask",
+                                "at": "2026-08-21T00:00:00Z"}, actor="pm"))
+    store.append(Event(aggregate_id="d1", aggregate_type="desk_request",
+                       type=EventType.DESK_REQUEST_DECLINED,
+                       payload={"request_id": "d1", "actor": "ceo",
+                                "reason": "duplicates entry 7",
+                                "at": "2026-08-21T01:00:00Z"}, actor="ceo"))
+    # A resolve landing AFTER the rejection must not overwrite it.
+    store.append(Event(aggregate_id="d1", aggregate_type="desk_request",
+                       type=EventType.DESK_REQUEST_RESOLVED,
+                       payload={"request_id": "d1", "resolution": "docs/X.md",
+                                "at": "2026-08-21T02:00:00Z"}, actor="cto"))
+    v = desk.view(store)
+    row = [r for r in v["requests"] if r["request_id"] == "d1"][0]
+    assert row["status"] == "declined"
+    assert row["decline_reason"] == "duplicates entry 7"
+    assert row["declined_by"] == "ceo"
+    assert v["open_requests"] == 0
+
+
+def test_an_approved_request_can_still_be_declined_before_trigger():
+    """Withdrawing a blessing before the CTO fires it is a real decision."""
+    store = MemStore()
+    store.append(Event(aggregate_id="d2", aggregate_type="desk_request",
+                       type=EventType.DESK_REQUESTED,
+                       payload={"request_id": "d2", "kind": "attack",
+                                "serves": "adversary", "subject": "x",
+                                "at": "2026-08-21T00:00:00Z"}, actor="pm"))
+    store.append(Event(aggregate_id="d2", aggregate_type="desk_request",
+                       type=EventType.DESK_REQUEST_APPROVED,
+                       payload={"request_id": "d2", "actor": "neelesh",
+                                "at": "2026-08-21T01:00:00Z"}, actor="neelesh"))
+    store.append(Event(aggregate_id="d2", aggregate_type="desk_request",
+                       type=EventType.DESK_REQUEST_DECLINED,
+                       payload={"request_id": "d2", "actor": "ceo",
+                                "reason": "changed my mind before dispatch",
+                                "at": "2026-08-21T02:00:00Z"}, actor="ceo"))
+    v = desk.view(store)
+    row = [r for r in v["requests"] if r["request_id"] == "d2"][0]
+    assert row["status"] == "declined"
+    # The approval history survives on the row — the record shows the full path.
+    assert row["approved_by"] == "neelesh"
+
+
 def test_a_seat_filed_ask_is_visible_not_just_counted():
     """Found 2026-08-21: the CEO's desk read '2/20 open' while rendering
     empty. Seat-filed asks write subject/serves; the readers key on

@@ -139,6 +139,11 @@ class EventType(str, Enum):
     # seat-asks chain (seat files -> CEO approves -> CTO triggers). Governance,
     # therefore an event (2026-08-20 amendment: seat-filed asks, human keys).
     DESK_REQUEST_APPROVED = "DeskRequestApproved"
+    # The CEO saying no — added 2026-08-21 (CEO: the lifecycle needs
+    # approved-not-executed, approved-completed, AND rejected). Until this
+    # existed a request could only be approved or silently ignored, and an
+    # ignored ask is indistinguishable from an unseen one.
+    DESK_REQUEST_DECLINED = "DeskRequestDeclined"
 
     # approval-channel guard v1 (2026-08-20): a refused approval is a FINDING —
     # a probe, a stray script, or a mistaken click — and findings are events.
