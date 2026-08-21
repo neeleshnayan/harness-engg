@@ -86,6 +86,27 @@ it.
 
 ### BUILT / SHIPPED
 
+- **Builder D9 — the CEO desk counter, the third dispatch state, and desk
+  ordering. BUILT AND GATE-PASSED, NOT MERGED — held for the adversary blind.**
+  Both bundles verify against their declared bases (chair-checked); ClarkHarness
+  1324 passed on the merged tree, KryptonPay 255/255. **The seat flagged its own
+  diff as touching a control despite a green classifier**, which is exactly the
+  instinct that was missing when the D8 guard widening nearly shipped.
+  - The counter now measures **whose next move it is**, not what label a row
+    carries: **18 → 13** on the data that produced the CEO's complaint. **This is
+    a LOOSENING** — the COO trigger fires later — and it is on the CEO's desk for
+    explicit sign-off rather than silent acceptance.
+  - **It refuted my brief's central premise with a measurement**: `kind` is free
+    text, **84 distinct values over 219 rows, 49 singletons**, so routing on it
+    moves only 18.7% and the decoupling I hoped for is *not* achieved. It pinned
+    that in a test named for the limit rather than the hope.
+  - **The third state's gap was the BACKEND only** — the UI shipped complete at
+    `65e6fdc4` while the spine half sat in the adversary-killed D8 branch. It has
+    been dead code on the live spine since it landed.
+  - **It found a defect in the killed branch and re-derived rather than
+    cherry-picked**: that version matched runs on `task_id` (8 of 24 live) where
+    the right key is `trace_id` (17 of 24).
+
 - **`## BINDS` protocol** — a seat names which OTHER seats a lesson binds; the
   chair carries it. Closes the propagation loop, which had a measured bias
   toward defects over anything that changes what gets proposed. First use was

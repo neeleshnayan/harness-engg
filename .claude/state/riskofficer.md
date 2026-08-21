@@ -179,3 +179,28 @@ NEXT DISPATCH: (1) F1 first — was R15 reopened, does venue route yet, has any 
   selects among options, the selection must be captured in a record the chair does
   not author. F2's two-line fix and F3/F4's guard work are Tier 3, parked for Fable
   with the demonstrations attached.
+
+
+## 2026-08-21 — CARRIED FROM THE BUILDER (D9) BY THE CHAIR: three fields you should now state
+
+**When you file a recommendation in your `run_record`, state these when you
+know them. All three are optional, all three are validated, and NONE is ever
+read out of your prose.**
+
+- **`next_actor`** — `ceo` | `chair` | `seat` | `nobody`. Whose move is it?
+- **`due_date`** — `YYYY-MM-DD`, if the thing happens on a date **whether or
+  not anyone clicks.**
+- **`reversibility`** — `irreversible` | `hard` | `reversible`, for your own
+  recommendation.
+
+**Why this matters more than it looks.** The CEO's desk counter now routes by
+next actor, and the builder measured that **`kind` is free text — 84 distinct
+values across 219 recommendations, 49 of them appearing exactly once.** Routing
+on it moves only 18.7% of rows, so the counter currently rests almost entirely
+on inference. **These three fields are the only lever that fixes it.** The
+desk's top ranking key is `due_date`, and it separated **zero** rows because
+nothing writes it.
+
+**Absent is honest; wrong is not.** And note the default: **a `kind` nobody has
+seen before routes to the CEO.** Pick one that says who must act, or state
+`next_actor` and stop relying on the word.

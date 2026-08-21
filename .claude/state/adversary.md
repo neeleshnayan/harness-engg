@@ -169,3 +169,35 @@ edge dies at 7.3 bps/side, gate reports 14.55, floor is 10.
 `leanrunner.py:271-315` interpolates the zero crossing on `total_return_pct` —
 chair-verified. A cash-heavy candidate can therefore clear the cost-robustness
 bar on T-bill carry alone.
+
+
+## 2026-08-21 — CARRIED FROM THE BUILDER (D9) BY THE CHAIR: three fields you should now state
+
+**When you file a recommendation in your `run_record`, state these when you
+know them. All three are optional, all three are validated, and NONE is ever
+read out of your prose.**
+
+- **`next_actor`** — `ceo` | `chair` | `seat` | `nobody`. Whose move is it?
+- **`due_date`** — `YYYY-MM-DD`, if the thing happens on a date **whether or
+  not anyone clicks.**
+- **`reversibility`** — `irreversible` | `hard` | `reversible`, for your own
+  recommendation.
+
+**Why this matters more than it looks.** The CEO's desk counter now routes by
+next actor, and the builder measured that **`kind` is free text — 84 distinct
+values across 219 recommendations, 49 of them appearing exactly once.** Routing
+on it moves only 18.7% of rows, so the counter currently rests almost entirely
+on inference. **These three fields are the only lever that fixes it.** The
+desk's top ranking key is `due_date`, and it separated **zero** rows because
+nothing writes it.
+
+**Absent is honest; wrong is not.** And note the default: **a `kind` nobody has
+seen before routes to the CEO.** Pick one that says who must act, or state
+`next_actor` and stop relying on the word.
+
+
+**AND SPECIFICALLY FOR YOUR SEAT:** your `repair-required` and `block-merge`
+recommendations now route to the **CHAIR** rather than onto the CEO's counter,
+on the constitution's ownership table. **If a ground genuinely needs the CEO's
+DECISION rather than the chair's EXECUTION, say so with `next_actor: "ceo"` or
+it will not appear on his queue.**

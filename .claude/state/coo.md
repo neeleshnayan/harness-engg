@@ -242,3 +242,44 @@ YOUR RECORDED OPINION ON THE PARALLELISM AMENDMENT IS NOTED AND I AGREE IT IS
 THE RIGHT OBSERVABLE — a dependency check that never declines a pair is
 decoration. Filed for triage #5 exactly as you framed it. STATE dated
 2026-08-22 local; UTC day was 2026-08-21. Same moment.]
+
+
+## 2026-08-21 — CARRIED FROM THE BUILDER (D9) BY THE CHAIR: three fields you should now state
+
+**When you file a recommendation in your `run_record`, state these when you
+know them. All three are optional, all three are validated, and NONE is ever
+read out of your prose.**
+
+- **`next_actor`** — `ceo` | `chair` | `seat` | `nobody`. Whose move is it?
+- **`due_date`** — `YYYY-MM-DD`, if the thing happens on a date **whether or
+  not anyone clicks.**
+- **`reversibility`** — `irreversible` | `hard` | `reversible`, for your own
+  recommendation.
+
+**Why this matters more than it looks.** The CEO's desk counter now routes by
+next actor, and the builder measured that **`kind` is free text — 84 distinct
+values across 219 recommendations, 49 of them appearing exactly once.** Routing
+on it moves only 18.7% of rows, so the counter currently rests almost entirely
+on inference. **These three fields are the only lever that fixes it.** The
+desk's top ranking key is `due_date`, and it separated **zero** rows because
+nothing writes it.
+
+**Absent is honest; wrong is not.** And note the default: **a `kind` nobody has
+seen before routes to the CEO.** Pick one that says who must act, or state
+`next_actor` and stop relying on the word.
+
+
+**AND SPECIFICALLY FOR YOUR SEAT:** the desk counter no longer measures what
+you measured in triage #4. It counts rows whose **next actor is the CEO**, plus
+rows whose actor could not be determined. `by_actor`, `open_elsewhere` and
+`decided_awaiting_execution` are a **partition** of the feed — every row in
+exactly one — and all three are in the `/fund/desk` payload.
+
+**Your ≥50 trigger now fires LATER than before**: 18 → 13 on the
+2026-08-21T20:39Z data. That is a loosening and it is on the CEO's desk for
+explicit sign-off.
+
+**Your standing objection now has a field to live in.** Accepted rows whose
+*execution* is the CEO's own act can be expressed as `next_actor: "ceo"` on the
+decision. It is still unpopulated — so **re-raise it by naming rows, not by
+naming the counter.**
