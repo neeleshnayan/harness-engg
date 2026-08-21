@@ -59,6 +59,14 @@ export interface SeatTelemetry {
   /** The UTC day the counts are for, or null when nothing could be read. */
   day: string | null;
   runningNow: boolean;
+  /** THE THIRD DISPATCH STATE: the seat returned and the chair has not
+   *  reviewed it. Mutually exclusive with `runningNow` — a returned seat is
+   *  an obligation on the chair, not a busy bench slot, and reading it as
+   *  "running" is what made two finished dispatches look live for 21 and 19
+   *  hours on 2026-08-22. */
+  awaitingReview: boolean;
+  /** The run that came back, when the spine could identify it. */
+  returnedRunId: string | null;
   runningTask: string | null;
   runningSince: string | null;
   /** A number when the recorder was read, an `Absent` sentence when it was not.
@@ -119,6 +127,8 @@ export function seatTelemetry(
     seat,
     day: null,
     runningNow: false,
+    awaitingReview: false,
+    returnedRunId: null,
     runningTask: null,
     runningSince: null,
     runsToday: DESK_UNREADABLE,
@@ -135,9 +145,21 @@ export function seatTelemetry(
   // roster the desk payload has always carried.
   const rosterRow = view.roster?.find((r) => r.agent === seat);
   const runningFromRoster = rosterRow?.activity?.status === "working";
+  // The third state is folded the same way, from the same roster, and is
+  // EXCLUSIVE with running: `status` is one string, so a returned dispatch can
+  // never also read as a busy seat.
+  const awaitingFromRoster = rosterRow?.activity?.status === "awaiting_review";
+  const openFromRoster = runningFromRoster || awaitingFromRoster;
   base.runningNow = runningFromRoster;
-  base.runningTask = runningFromRoster ? rosterRow?.activity?.task ?? null : null;
-  base.runningSince = runningFromRoster ? rosterRow?.activity?.since ?? null : null;
+  base.awaitingReview = awaitingFromRoster;
+  base.returnedRunId = awaitingFromRoster
+    ? rosterRow?.activity?.returned_run_id ?? null
+    : null;
+  // The task and the clock belong to the DISPATCH, which is still open in both
+  // live states — blanking them the moment a run lands would erase what the
+  // chair now owes a review on.
+  base.runningTask = openFromRoster ? rosterRow?.activity?.task ?? null : null;
+  base.runningSince = openFromRoster ? rosterRow?.activity?.since ?? null : null;
 
   const block = view.seat_telemetry;
   if (!block) {
@@ -162,8 +184,14 @@ export function seatTelemetry(
   }
 
   // running_now from the rollup wins where present — same fold, one hop closer
-  // to the events it came from.
+  // to the events it came from. Same for the third state, with one asymmetry
+  // that matters: `awaiting_review` is OPTIONAL on the wire, so an absent key
+  // falls back to the roster rather than reading as `false`. A spine that
+  // predates the split would otherwise report every returned seat as not
+  // awaiting, which is the state this whole change exists to make visible.
   const running = row.running_now ?? runningFromRoster;
+  const awaiting = row.awaiting_review ?? awaitingFromRoster;
+  const open = running || awaiting;
 
   let cost: number | null = null;
   let unpriced = 0;
@@ -183,8 +211,12 @@ export function seatTelemetry(
     seat,
     day: block.day ?? null,
     runningNow: running,
-    runningTask: running ? row.running_task ?? base.runningTask : null,
-    runningSince: running ? row.running_since ?? base.runningSince : null,
+    awaitingReview: awaiting,
+    returnedRunId: awaiting
+      ? row.returned_run_id ?? base.returnedRunId
+      : null,
+    runningTask: open ? row.running_task ?? base.runningTask : null,
+    runningSince: open ? row.running_since ?? base.runningSince : null,
     runsToday: row.runs_today ?? absent("runs today", "the rollup returned no count"),
     tokensToday: row.tokens_today == null
       ? absent("tokens today",

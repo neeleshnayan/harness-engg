@@ -96,6 +96,14 @@ export interface OfficerQueue {
   awaiting: DeskItem[];
   /** Decided, not yet executed. Shown, never counted. */
   decided: DeskItem[];
+  /** OPEN, and not the CEO's to decide — an engineering ticket, a seat-to-seat
+   *  handoff, a row nothing is owed on. Shown, never counted.
+   *
+   *  Kept apart from `decided` rather than folded in, because the two are
+   *  different facts and the desk has already paid for confusing them once:
+   *  "decided, awaiting execution" over a row NOBODY decided would report a
+   *  promise the firm never made. Same reason `notes` is its own bucket. */
+  elsewhere: DeskItem[];
   /** Donna only: items to READ. Shown, never counted, no buttons. */
   notes: DeskItem[];
   /** Vishesh only: the COO's batch memos, newest first. */
@@ -113,7 +121,8 @@ const empty = (id: OfficerId): OfficerQueue => ({
   label: OFFICER_LABEL[id],
   role: OFFICER_ROLE[id],
   seat: OFFICER_SEAT[id],
-  awaiting: [], decided: [], notes: [], memos: [], asks: [], groups: [],
+  awaiting: [], decided: [], elsewhere: [], notes: [], memos: [], asks: [],
+  groups: [],
   awaitingCount: 0,
 });
 
@@ -151,6 +160,10 @@ export interface OfficerDesk {
 export function officerDesk(input: {
   awaitingDecision: DeskItem[];
   awaitingExecution: DeskItem[];
+  /** Open, and not the CEO's. Optional so a caller that predates the third
+   *  stage keeps compiling; absent means none were routed away, which is the
+   *  old behaviour rather than a silent drop. */
+  ownedElsewhere?: DeskItem[];
   memos: CooMemo[];
   asks: QueuedAsk[];
 }): OfficerDesk {
@@ -172,6 +185,12 @@ export function officerDesk(input: {
   }
   for (const item of input.awaitingExecution) {
     q[officerOfItem(item)].decided.push(item);
+  }
+  // Open work that is somebody else's. It lands under the officer whose seat
+  // FILED it, which is where a reader looks for it — not under the chair who
+  // now owns it, because the desk is organised by who is speaking.
+  for (const item of input.ownedElsewhere ?? []) {
+    q[officerOfItem(item)].elsewhere.push(item);
   }
 
   q.vishesh.memos = input.memos;
@@ -218,5 +237,5 @@ export function officerDesk(input: {
  */
 export function hasContent(qq: OfficerQueue): boolean {
   return qq.awaiting.length > 0 || qq.decided.length > 0 || qq.notes.length > 0
-    || qq.memos.length > 0 || qq.asks.length > 0;
+    || qq.memos.length > 0 || qq.asks.length > 0 || qq.elsewhere.length > 0;
 }

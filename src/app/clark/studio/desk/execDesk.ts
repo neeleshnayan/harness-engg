@@ -91,6 +91,28 @@ export function reversibilityOfKind(kind?: string | null): Reversibility {
   return REVERSIBILITY_BY_KIND[kind] ?? "unclassified";
 }
 
+/**
+ * How hard to undo, STATED by the seat if it said, inferred from kind if not.
+ *
+ * The inference is thin exactly where the CEO reads most: `awaits-ceo`, `batch`
+ * and `challenge` are routing words that say nothing about the act, so the
+ * amber "unclassified kind" sentence fired on almost every row of his own
+ * queue — honest, and noise, and noise on every row is how a warning stops
+ * being read. A seat knows whether its own recommendation can be taken back.
+ *
+ * The stated value WINS over the table rather than being a fallback for it: a
+ * declaration by whoever knows beats a lookup on a word they happened to pick.
+ * Nothing writes it yet, and the page prints how many rows went unclassified
+ * rather than implying the table covered them.
+ */
+export function reversibilityOf(
+  stated?: string | null, kind?: string | null,
+): Reversibility {
+  const v = (stated ?? "").trim().toLowerCase();
+  if (v === "irreversible" || v === "hard" || v === "reversible") return v;
+  return reversibilityOfKind(kind);
+}
+
 /** Sort weight: lower sorts first. Unclassified sits with the urgent half. */
 const REVERSIBILITY_RANK: Record<Reversibility, number> = {
   irreversible: 0,
@@ -112,6 +134,22 @@ export interface DeskItem {
   reversibility: Reversibility;
   /** When this started waiting on the CEO. Null when nothing dates it. */
   waitingSince: string | null;
+  /** A DATED COMMITMENT (YYYY-MM-DD), not an arrival time — the day something
+   *  happens whether or not anybody clicks. The top ranking key.
+   *
+   *  Null on every row today, and that is the honest state rather than an
+   *  oversight: the fund's one live example (a 2026-09-08 auto-close) states
+   *  its date in PROSE, and reading a deadline out of English is the same
+   *  class of mistake as the "EXECUTED" text-grep this desk is being repaired
+   *  from. The field is here, the ranking key is wired, and `rankCoverage()`
+   *  prints the zero until a seat fills it in. */
+  dueDate: string | null;
+  /** Whose move it is, as the SPINE resolved it — never re-derived here. Two
+   *  implementations of one predicate is how this page came to show 11 and 6
+   *  for the same thing eight pixels apart. Undefined from a spine that
+   *  predates the annotation, which falls the surface back to the old
+   *  status rule. */
+  nextActor?: string | null;
   /** The raw item, for rendering. Exactly one of these is set. */
   order?: PendingOrder;
   rec?: DeskView["open_recommendations"][number];
@@ -127,6 +165,12 @@ export function orderItems(pending: PendingOrder[]): DeskItem[] {
     // A fill cannot be un-filled. This is the only `irreversible` in the fund.
     reversibility: "irreversible" as const,
     waitingSince: o.ts ?? null,
+    // A pending order has no deadline of its own — it waits until it is
+    // approved or it goes stale. Null, not "today".
+    dueDate: null,
+    // An order pending approval is the CEO's click by definition; there is no
+    // other actor it could be waiting on.
+    nextActor: "ceo",
     order: o,
   }));
 }
@@ -162,8 +206,13 @@ export function recItems(
     moneyUsd: typeof r.money_at_stake === "number" && Number.isFinite(r.money_at_stake)
       ? r.money_at_stake
       : null,
-    reversibility: reversibilityOfKind(r.kind),
+    reversibility: reversibilityOf(r.reversibility, r.kind),
     waitingSince: resolvedAt.get(r.run_id) ?? null,
+    // Never parsed out of `text`. See DeskItem.dueDate.
+    dueDate: typeof r.due_date === "string" && r.due_date.trim()
+      ? r.due_date.trim()
+      : null,
+    nextActor: r.next_actor_resolved ?? null,
     rec: r,
   }));
 }
@@ -182,8 +231,27 @@ export function recItems(
  * the CTO had staged nothing read as "20 awaiting your decision" — the same
  * number as a desk where nothing had been decided at all (CDO D4).
  */
-export type DeskStage = "awaiting_decision" | "awaiting_execution";
+export type DeskStage =
+  | "awaiting_decision"
+  | "awaiting_execution"
+  | "owned_elsewhere";
 
+/**
+ * THREE stages since 2026-08-22, and the third one exists because the CEO said
+ * *"they sustain on my queue even if that work has been done"*.
+ *
+ * `owned_elsewhere` is an OPEN row that is not the CEO's to decide — an
+ * engineering ticket, a seat-to-seat handoff. Nobody has decided it, so calling
+ * it `awaiting_execution` would say the firm made a promise it did not make;
+ * leaving it in `awaiting_decision` is what put chair work on the CEO's number.
+ * It gets its own stage, is shown, and is not counted.
+ *
+ * The routing is the SPINE'S, read off `next_actor_resolved`. It is not
+ * re-derived here: this page and the spine's counter each had their own rule
+ * and rendered 11 and 6 for the same payload, eight pixels apart. A spine that
+ * predates the annotation sends no field, and the old status rule is the
+ * fallback — degrading to the previous behaviour, never to a guess.
+ */
 export function stageOfItem(i: DeskItem): DeskStage {
   // An order pending approval is the CEO's decision by definition.
   if (i.kind === "order") return "awaiting_decision";
@@ -192,46 +260,95 @@ export function stageOfItem(i: DeskItem): DeskStage {
   // `staged` = staged through the propose path, waiting on the approve click,
   //            which is a click on the ORDER that staging created — the
   //            recommendation itself is decided.
-  return status === "accepted" || status === "staged"
-    ? "awaiting_execution"
-    : "awaiting_decision";
+  const decided = status === "accepted" || status === "staged";
+  if (decided) return "awaiting_execution";
+  const actor = i.nextActor;
+  // `unknown` stays with the CEO on purpose: a row whose owner could not be
+  // read is work he may still owe, and routing it away would answer an
+  // unmeasurable with a zero.
+  if (actor === "chair" || actor === "seat" || actor === "nobody") {
+    return "owned_elsewhere";
+  }
+  return "awaiting_decision";
 }
 
 export interface DeskSplit {
   awaitingDecision: DeskItem[];
   awaitingExecution: DeskItem[];
+  /** Open, real, and somebody else's. Shown, never counted. */
+  ownedElsewhere: DeskItem[];
 }
 
-/** Split a ranked list into the two queues, preserving rank within each. */
+/** Split a ranked list into the three queues, preserving rank within each. */
 export function splitDeskItems(items: DeskItem[]): DeskSplit {
   const awaitingDecision: DeskItem[] = [];
   const awaitingExecution: DeskItem[] = [];
+  const ownedElsewhere: DeskItem[] = [];
   for (const i of items) {
-    (stageOfItem(i) === "awaiting_execution" ? awaitingExecution : awaitingDecision).push(i);
+    const stage = stageOfItem(i);
+    if (stage === "awaiting_execution") awaitingExecution.push(i);
+    else if (stage === "owned_elsewhere") ownedElsewhere.push(i);
+    else awaitingDecision.push(i);
   }
-  return { awaitingDecision, awaitingExecution };
+  return { awaitingDecision, awaitingExecution, ownedElsewhere };
 }
 
 /* --------------------------------------------------------------- ranking -- */
 
 /**
- * money → reversibility → staleness, then key for stability.
+ * deadline → reversibility → money → staleness, then key for stability.
  *
- * Nulls sort LAST within their key rather than first: an unpriced item is not a
- * $0 item, and a $0 item is not urgent. Undated sorts last for the same reason.
+ * REORDERED 2026-08-22, on the CEO's complaint that his desk is "out of order
+ * ... Making my flow messy", and on the COO's stated rule, which the chair
+ * adopted as house rule and which this now implements literally:
+ *
+ *   *"A versioned envelope change can be reversed in an afternoon; an
+ *   unintended short position at a real venue cannot."*
+ *
+ * The previous order was money FIRST, which is why a $750 armed short sat level
+ * with any other four-figure row and a doc-indexing chore with no figure sank
+ * below both. Money is a good second key and a bad first one: it ranks by how
+ * much is moving, not by how much of it you can get back.
+ *
+ * THE FOUR KEYS, in order, and what each is for:
+ *
+ *   1. DEADLINE — a dated commitment outranks everything, earliest first. The
+ *      fund has exactly one live example (a 2026-09-08 auto-close) and the date
+ *      is in its PROSE, which is where it has to stop being: `due_date` is a
+ *      field now, nothing writes it yet, and `rankCoverage()` reports the zero
+ *      out loud. Scraping a date out of English would be the same class of
+ *      mistake as the "EXECUTED" grep this desk is being repaired from.
+ *   2. REVERSIBILITY — how much of this you can get back. Unclassified ranks
+ *      with the urgent half, which is the fail-closed direction.
+ *   3. MONEY — larger first, WITHIN the band. `0` is a real measurement and is
+ *      not "unimportant": it means nothing moves, and it still sits above every
+ *      reversible row in the fund because its band put it there. Unpriced sorts
+ *      last within its band and the row SAYS it is unpriced, rather than
+ *      looking like a small one.
+ *   4. STALENESS — oldest first; undated last.
+ *
+ * Every one of these is visible: `rankReason()` renders the sentence beside the
+ * row. A ranking a reader cannot argue with is a ranking a reader cannot check.
  */
 export function compareDeskItems(a: DeskItem, b: DeskItem): number {
-  // 1 — money, largest first; unpriced last.
-  if (a.moneyUsd != null || b.moneyUsd != null) {
-    if (a.moneyUsd == null) return 1;
-    if (b.moneyUsd == null) return -1;
-    if (a.moneyUsd !== b.moneyUsd) return b.moneyUsd - a.moneyUsd;
+  // 1 — a dated commitment first, soonest due at the top. Undated is not
+  // "later", it is unknown, and it sorts after everything dated.
+  if (a.dueDate !== b.dueDate) {
+    if (!a.dueDate) return 1;
+    if (!b.dueDate) return -1;
+    return a.dueDate.localeCompare(b.dueDate);
   }
   // 2 — reversibility, hardest to undo first.
   const ra = REVERSIBILITY_RANK[a.reversibility];
   const rb = REVERSIBILITY_RANK[b.reversibility];
   if (ra !== rb) return ra - rb;
-  // 3 — staleness, oldest first; undated last.
+  // 3 — money, largest first; unpriced last WITHIN the band it already earned.
+  if (a.moneyUsd != null || b.moneyUsd != null) {
+    if (a.moneyUsd == null) return 1;
+    if (b.moneyUsd == null) return -1;
+    if (a.moneyUsd !== b.moneyUsd) return b.moneyUsd - a.moneyUsd;
+  }
+  // 4 — staleness, oldest first; undated last.
   if (a.waitingSince !== b.waitingSince) {
     if (!a.waitingSince) return 1;
     if (!b.waitingSince) return -1;
@@ -242,6 +359,64 @@ export function compareDeskItems(a: DeskItem, b: DeskItem): number {
 
 export function rankDeskItems(items: DeskItem[]): DeskItem[] {
   return [...items].sort(compareDeskItems);
+}
+
+/** Why a band leads, in the words a reader can disagree with. */
+const REVERSIBILITY_REASON: Record<Reversibility, string> = {
+  irreversible: "cannot be undone once it fills",
+  hard: "changes what the machine does without asking again",
+  unclassified: "unclassified kind — ranked as if hard to undo",
+  reversible: "revertible by a commit or the opposite click",
+};
+
+/**
+ * The sentence that explains this row's position, in plain words.
+ *
+ * The CEO's instruction on the ranking was explicit: *do not invent a scoring
+ * formula and bury it* — a human should be able to look at two rows and say why
+ * one is above the other. So there is no score. There are four named keys, and
+ * this returns the ones that actually separated this row, in the order they
+ * were applied.
+ *
+ * Absences are stated, never smoothed: an unpriced row says it is unpriced
+ * rather than reading as a cheap one, and a $0 row says nothing moves rather
+ * than reading as unimportant.
+ */
+export function rankReason(i: DeskItem): string {
+  const parts: string[] = [];
+  if (i.dueDate) parts.push(`due ${i.dueDate}`);
+  parts.push(REVERSIBILITY_REASON[i.reversibility]);
+  if (i.moneyUsd == null) {
+    parts.push("no dollar figure stated — ordered by age within its band, not priced as small");
+  } else if (i.moneyUsd === 0) {
+    parts.push("$0 moves — ranked on reversibility, not on size");
+  } else {
+    parts.push(`$${i.moneyUsd.toLocaleString("en-US", { maximumFractionDigits: 2 })} at stake`);
+  }
+  parts.push(i.waitingSince ? `waiting since ${i.waitingSince.slice(0, 10)}` : "undated");
+  return parts.join(" · ");
+}
+
+/**
+ * What the ranking could and could not see, as counts.
+ *
+ * Printed on the page beside the list. A ranking that silently pretends to know
+ * the money on 47 of 48 rows is worse than one that says which rows it could
+ * not price — and the same is now true of the deadline key, which is wired and
+ * fed by nothing.
+ */
+export function rankCoverage(items: DeskItem[]): {
+  total: number; priced: number; unpriced: number; zero: number;
+  dated: number; undated: number; unclassified: number;
+} {
+  let priced = 0, unpriced = 0, zero = 0, dated = 0, undated = 0, unclassified = 0;
+  for (const i of items) {
+    if (i.moneyUsd == null) unpriced++;
+    else { priced++; if (i.moneyUsd === 0) zero++; }
+    if (i.dueDate) dated++; else undated++;
+    if (i.reversibility === "unclassified") unclassified++;
+  }
+  return { total: items.length, priced, unpriced, zero, dated, undated, unclassified };
 }
 
 /** How much of this ranking was made without a money key. Rendered verbatim. */

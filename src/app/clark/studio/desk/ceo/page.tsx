@@ -16,7 +16,8 @@ import { RecRow } from "../components";
 import { fmtAt } from "../seatLib";
 import {
   CooMemo, DeskItem, QueuedAsk, asksForCeo, cooMemos, decisionVelocity,
-  memoDayLabel, moneyGap, orderItems, queuedAsks, rankDeskItems, recItems,
+  memoDayLabel, moneyGap, orderItems, queuedAsks, rankCoverage, rankDeskItems,
+  rankReason, recItems,
   splitDeskItems, unwrapMemoMarkdown,
 } from "../execDesk";
 import {
@@ -99,12 +100,20 @@ export default function CeoDeskPage() {
     ]),
     [pending, desk],
   );
-  /* Two queues, not one list (CDO D4). "Awaiting your decision" is the CEO's
-     actual work; "decided, awaiting execution" is a promise the firm has made
-     and not yet kept. Counting them together meant a desk where everything had
-     been decided read exactly like one where nothing had. */
+  /* THREE queues, not one list. "Awaiting your decision" is the CEO's actual
+     work; "decided, awaiting execution" is a promise the firm has made and not
+     yet kept (CDO D4 — counting them together meant a desk where everything had
+     been decided read exactly like one where nothing had); "owned elsewhere" is
+     OPEN work that is the chair's or another seat's, which is neither. The
+     third was added 2026-08-22 on the CEO's complaint that finished and
+     not-his work "sustain on my queue". The routing is the SPINE'S — see
+     stageOfItem. */
   const split = useMemo(() => splitDeskItems(ranked), [ranked]);
   const gap = useMemo(() => moneyGap(split.awaitingDecision), [split]);
+  /* What the ranking could NOT see, printed rather than implied. The deadline
+     key is wired and fed by nothing today, and a page that stayed silent about
+     that would let a reader assume the fund has no dated commitments. */
+  const coverage = useMemo(() => rankCoverage(split.awaitingDecision), [split]);
   const memos = useMemo(() => cooMemos(desk?.runs ?? [], memoParts), [desk]);
   const velocity = useMemo(() => decisionVelocity(events, new Date()), [events]);
 
@@ -131,12 +140,14 @@ export default function CeoDeskPage() {
     () => officerDesk({
       awaitingDecision: split.awaitingDecision,
       awaitingExecution: split.awaitingExecution,
+      ownedElsewhere: split.ownedElsewhere,
       memos,
       asks,
     }),
     [split, memos, asks],
   );
   const awaitingCount = officers.awaitingTotal;
+  const elsewhereItems = split.ownedElsewhere;
 
   return (
     <div className="min-h-screen bg-[var(--kt-bg)] text-[var(--kt-text)]">
@@ -159,6 +170,20 @@ export default function CeoDeskPage() {
                   {" · "}
                   <span className="font-mono tabular-nums">{decidedItems.length}</span>{" "}
                   decided, awaiting execution
+                </span>
+              )}
+              {/* Open work that is not yours. Named on the headline rather than
+                  only in a chip, because the number it was REMOVED from is on
+                  the same line: a reader who sees the count drop is entitled to
+                  see where it went. */}
+              {desk !== null && elsewhereItems.length > 0 && (
+                <span
+                  className={KT.muted}
+                  title="Open recommendations whose next actor is the chair or another seat. Real work, not yours to decide."
+                >
+                  {" · "}
+                  <span className="font-mono tabular-nums">{elsewhereItems.length}</span>{" "}
+                  with the chair or a seat
                 </span>
               )}
               <CooTriageChip load={desk?.desk_load} />
@@ -232,9 +257,9 @@ export default function CeoDeskPage() {
             be checked, and a queue that mis-attributes is worse than an
             unattributed one because the CEO would trust the label.
 
-            Order within each queue is untouched — money → reversibility →
-            staleness, exactly as before. Whose desk an item came off says who
-            is asking, not how urgent it is. */}
+            Order within each queue is untouched by the routing: deadline →
+            reversibility → money → staleness, and whose desk an item came off
+            says who is asking, not how urgent it is. */}
         {desk === null ? (
           <section className="mb-8">
             <p className={`${KT.label} mb-2`}>Your queues</p>
@@ -250,11 +275,59 @@ export default function CeoDeskPage() {
               q={q}
               pendingUnreadable={pending === null}
               gap={gap}
+              coverage={coverage}
               memo={memo}
               memoUnreachable={memoErr}
               onChanged={load}
             />
           ))
+        )}
+
+        {/* ── 3b · OPEN, AND NOT YOURS ───────────────────────────────
+            Engineering tickets, seat-to-seat handoffs, rows nothing is owed on.
+            Nobody has decided them, so they are NOT "decided, awaiting
+            execution"; nobody is waiting on the CEO, so they are not counted.
+            They are here because the counting fix must not become a hiding fix:
+            the number stopped including them, the page must not stop showing
+            them. Collapsed by default — present, and out of the way. */}
+        {desk !== null && elsewhereItems.length > 0 && (
+          <section className="mb-8">
+            <details>
+              <summary className={`${KT.label} cursor-pointer select-none`}>
+                Open, and not yours ({elsewhereItems.length})
+              </summary>
+              <p className={`mt-2 mb-2 text-xs leading-relaxed ${KT.muted}`}>
+                Nobody has decided these and nobody is waiting on you for them —
+                each one names the actor it is waiting on and why it was routed
+                there. They stay on this page so that taking them off your count
+                does not take them off your screen.
+              </p>
+              <div className="space-y-1.5">
+                {elsewhereItems.map((item) => (
+                  <div key={item.key} className={`${KT.card} p-3`}>
+                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <span
+                        className={`font-mono text-[10px] uppercase tracking-[0.1em] ${KT.muted}`}
+                        title={item.rec?.next_actor_why ?? undefined}
+                      >
+                        {item.nextActor ?? "unrouted"}
+                      </span>
+                      <span className="min-w-0 flex-1 text-[13px] leading-snug">
+                        {item.rec?.text}
+                      </span>
+                      <span className={`font-mono text-[10px] ${KT.muted}`}>
+                        {item.rec?.seat}
+                      </span>
+                    </div>
+                    <p className={`mt-0.5 font-mono text-[10px] ${KT.muted}`}>
+                      {item.rec?.next_actor_why
+                        ?? "routed away from your desk; the spine stated no reason"}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </details>
+          </section>
         )}
 
         {/* ── 4 · DECIDED, AWAITING EXECUTION ──────────────────────────────
@@ -319,11 +392,13 @@ export default function CeoDeskPage() {
  * "Donna has not filed today" and "nothing pending at the venue" are different
  * facts and a shared string would flatten them.
  */
-function OfficerSection({ q, pendingUnreadable, gap, memo, memoUnreachable,
-                         onChanged }: {
+function OfficerSection({ q, pendingUnreadable, gap, coverage, memo,
+                         memoUnreachable, onChanged }: {
   q: OfficerQueue;
   pendingUnreadable: boolean;
   gap: { priced: number; unpriced: number };
+  /** What the ranking could and could not see. Printed, never implied. */
+  coverage: ReturnType<typeof rankCoverage>;
   /** Donna's short memo, or `null` when the endpoint could not be read. */
   memo: ArchiveMemo | null;
   memoUnreachable: boolean;
@@ -466,14 +541,29 @@ function OfficerSection({ q, pendingUnreadable, gap, memo, memoUnreachable,
         </p>
       )}
 
-      {q.id === "others" && gap.unpriced > 0 && q.awaitingCount > 0 && (
+      {q.id === "others" && q.awaitingCount > 0
+        && (gap.unpriced > 0 || coverage.dated === 0) && (
         <p className={`mt-2 text-xs leading-relaxed ${KT.muted}`}>
-          <span className={KT.sev.warn}>
-            {gap.unpriced} of {gap.priced + gap.unpriced} items carry no money figure
-          </span>{" "}
-          — <code>money_at_stake</code> is optional on a recommendation and these
-          seats stated none, so they are ranked on the two remaining keys rather
-          than on a number read out of their prose.
+          Ranked by <strong>reversibility</strong>, then money, then age — a
+          versioned change can be reversed in an afternoon and a fill cannot.
+          {gap.unpriced > 0 && (
+            <>
+              {" "}
+              <span className={KT.sev.warn}>
+                {gap.unpriced} of {gap.priced + gap.unpriced} carry no money figure
+              </span>{" "}
+              — <code>money_at_stake</code> is optional and these seats stated
+              none, so they sit at the foot of their own band rather than being
+              priced from their prose.
+            </>
+          )}
+          {coverage.dated === 0 && (
+            <>
+              {" "}None carries a <code>due_date</code>, so the deadline key —
+              which outranks everything else — separated nothing here. That is a
+              gap in what seats record, not a claim that nothing is dated.
+            </>
+          )}
         </p>
       )}
     </section>
@@ -806,30 +896,28 @@ function AskRow({ ask, onDecided }: {
   );
 }
 
-/** A ranked recommendation: the existing RecRow, plus the keys it was ranked
- *  on, so the ordering is auditable from the page itself. */
+/** A ranked recommendation: the existing RecRow, plus the SENTENCE it was
+ *  ranked on, so the ordering is auditable from the page itself.
+ *
+ *  One sentence rather than the two chips this used to carry: the ordering has
+ *  four keys and the row was showing two of them, so a reader comparing rows
+ *  could not see which key had actually separated them. `rankReason` renders
+ *  all four in the order they are applied, and there is deliberately no score
+ *  to read — a number here would be a formula asking to be trusted. */
 function RankedRec({ item, onDecide }: {
   item: DeskItem;
   onDecide: () => Promise<void> | void;
 }) {
   const tone =
-    item.reversibility === "hard" ? "text-[var(--kt-warn)]"
-      : item.reversibility === "unclassified" ? "text-[var(--kt-warn)]"
-        : KT.muted;
+    item.dueDate ? "text-[var(--kt-warn)]"
+      : item.reversibility === "hard" ? "text-[var(--kt-warn)]"
+        : item.reversibility === "unclassified" ? "text-[var(--kt-warn)]"
+          : KT.muted;
   return (
     <div>
       <RecRow r={item.rec!} onDecide={onDecide} />
-      <p className={`mt-0.5 flex flex-wrap gap-x-3 pl-3 font-mono text-[10px] ${KT.muted}`}>
-        <span className={tone}>
-          {item.reversibility === "unclassified"
-            ? `kind "${item.rec?.kind ?? "none"}" is unclassified — ranked as if hard to undo`
-            : `${item.reversibility} to undo`}
-        </span>
-        <span>
-          {item.waitingSince
-            ? `waiting since ${fmtAt(item.waitingSince)}`
-            : "undated — its run recorded no resolve time"}
-        </span>
+      <p className={`mt-0.5 pl-3 font-mono text-[10px] ${tone}`}>
+        {rankReason(item)}
       </p>
     </div>
   );

@@ -834,12 +834,46 @@ export interface DeskRecommendation {
    *  `null` / absent means the seat stated none — never zero. The desk ranks
    *  absent-last and prints how many rows it could not price. */
   money_at_stake?: number | null;
+  /** Whose move it is NEXT, as STATED rather than inferred (spine 2026-08-22).
+   *  Absent means the desk infers it from the row's lifecycle and kind. Its one
+   *  indispensable case is an `accepted` row whose EXECUTION is still the CEO's
+   *  own act — inference sends every accepted row to the chair, and three such
+   *  rows were live on 2026-08-21 with no field to say otherwise. */
+  next_actor?: 'ceo' | 'chair' | 'seat' | 'nobody' | string | null;
+  /** A DATED COMMITMENT (YYYY-MM-DD) — the day something happens whether or not
+   *  anybody clicks. The desk's TOP ranking key.
+   *
+   *  Optional, and empty across the whole corpus today: the fund's one live
+   *  example states its date in prose, and a client that read a deadline out of
+   *  English would be repeating the text-grep this desk is being repaired from.
+   *  The desk prints how many rows carry one rather than implying none exist. */
+  due_date?: string | null;
+  /** How hard this is to undo, as the SEAT states it — the desk's SECOND
+   *  ranking key. Absent falls back to a kind table, whose weak spot is the
+   *  CEO's own rows: `awaits-ceo`, `batch` and `challenge` are routing words
+   *  that say nothing about the act. */
+  reversibility?: 'irreversible' | 'hard' | 'reversible' | null;
+  /** Whose move it is, as the SPINE resolved it — the single definition of the
+   *  predicate. Present since 2026-08-22; a client must fall back to the status
+   *  rule when it is absent rather than treating the absence as `ceo`. */
+  next_actor_resolved?: 'ceo' | 'chair' | 'seat' | 'nobody' | 'unknown' | null;
+  /** How that was decided: explicit / lifecycle / kind / default / one of the
+   *  three unreadable cases. Rendered so a reader can disagree with a routing
+   *  instead of absorbing it. */
+  next_actor_basis?: string | null;
+  /** The same, as a sentence. */
+  next_actor_why?: string | null;
 }
 
-/** The COO triage counter: how many open items sit on the CEO's desk.
+/** The COO triage counter: how many items on the CEO's desk are waiting on HIM.
  *
  *  `complete: false` with a populated `unreadable` means the total is a FLOOR —
- *  a component could not be counted, so a quiet desk may not be quiet. */
+ *  a component could not be counted, so a quiet desk may not be quiet.
+ *
+ *  CHANGED 2026-08-22 and worth knowing when reading an old screenshot: this
+ *  used to count rows whose STATUS LABEL was open, which put finished work and
+ *  engineering tickets on the CEO's number. It now counts rows whose NEXT
+ *  ACTOR is the CEO. On the same instant of live data the two read 18 and 13. */
 export interface DeskLoad {
   total: number;
   complete: boolean;
@@ -849,6 +883,35 @@ export interface DeskLoad {
     pending_orders: number | null;
     requests_awaiting_approval: number | null;
   };
+  /** Every recommendation in the feed, split by WHOSE MOVE IT IS (spine
+   *  2026-08-22). `total` above counts only `ceo` + `unknown`; this block is
+   *  what keeps the rest visible, because routing work off the CEO's figure
+   *  must never mean routing it off the screen.
+   *
+   *  `unknown` is a real actor, not a fallback: a row whose next actor could
+   *  not be determined counts toward the CEO's figure, because "I could not
+   *  measure that" is not "zero".
+   *
+   *  Optional — a spine that predates the split reports none of these, and a
+   *  surface must render the plain total rather than invent a breakdown. */
+  by_actor?: {
+    ceo: number; chair: number; seat: number; nobody: number; unknown: number;
+  };
+  /** OPEN work that is real and is somebody else's — the chair's or a seat's.
+   *  A PARTITION with `total` and `decided_awaiting_execution`: every row in
+   *  the feed is in exactly one of the three, and none of them counts a row
+   *  twice. Kept apart from the decided count because "nobody decided this and
+   *  it isn't yours" and "you decided this and it hasn't happened" send a
+   *  reader to two different places. */
+  open_elsewhere?: number;
+  /** Decided by the CEO, not yet executed, and not waiting on him. */
+  decided_awaiting_execution?: number;
+  /** How many rows STATED their next actor instead of having it inferred.
+   *  Zero means the whole split rests on inference, which a reader is
+   *  entitled to know. */
+  explicit_next_actor?: number;
+  /** Which version of the routing rules produced this count. */
+  rules_version?: string;
   threshold: number;
   /** True past the CEO's registered trigger. A SIGNAL for the CTO to dispatch
    *  the COO — it fires nothing by itself. */
@@ -865,6 +928,15 @@ export interface DeskLoad {
  *  dollar figure computed spine-side would need a second copy of it. */
 export interface SeatTelemetryRow {
   running_now: boolean;
+  /** The third dispatch state, carried here as well as on the roster: the seat
+   *  RETURNED and the chair has not reviewed it. `running_now` is then FALSE —
+   *  a returned seat is not a busy one, and before the split existed this
+   *  block reported two seats running 21 and 19 hours after both had come
+   *  back. Optional: a spine that predates the split omits it, and a surface
+   *  must not read the absence as "not awaiting". */
+  awaiting_review?: boolean;
+  /** The run that came back, for the chair to open. */
+  returned_run_id?: string | null;
   running_task: string | null;
   running_since: string | null;
   runs_today: number | null;

@@ -298,6 +298,15 @@ export function WindowNote({ events, capped }: { events: number; capped: boolean
 export function CooTriageChip({ load }: { load?: DeskView["desk_load"] }) {
   if (!load) return null;
   const over = load.coo_triage_due;
+  // Work that is real and is somebody else's. Rendered BESIDE the CEO's figure
+  // and never folded into it: the counter stopped counting chair work on
+  // 2026-08-22 because it was never the CEO's, and a surface that then dropped
+  // it from the screen would have solved a counting problem by hiding work.
+  const elsewhere = load.open_elsewhere ?? 0;
+  // An absent split is absent, not zero — a spine predating the change reports
+  // no `by_actor`, and inventing a "0 unknown" for it would be a fabricated
+  // reassurance.
+  const unknown = load.by_actor?.unknown;
   return (
     <span
       title={load.note}
@@ -311,7 +320,22 @@ export function CooTriageChip({ load }: { load?: DeskView["desk_load"] }) {
         {load.total}
         {!load.complete && "+"}
       </span>
-      <span>/ {load.threshold} open</span>
+      <span>/ {load.threshold} awaiting you</span>
+      {!!unknown && (
+        <span
+          title="rows whose next actor could not be determined. They COUNT toward your figure — an unmeasurable is not a zero."
+        >
+          · {unknown} unknown
+        </span>
+      )}
+      {elsewhere > 0 && (
+        <span
+          className={KT.muted}
+          title={`${elsewhere} OPEN recommendation(s) are owned by the chair or another seat. Real work, not yours to decide — shown so it is not invisible. Anything you have already decided is counted separately, as "decided, awaiting execution".`}
+        >
+          · +{elsewhere} elsewhere
+        </span>
+      )}
       {over && <span>· COO triage due</span>}
       {!load.complete && (
         <span title={`could not count: ${load.unreadable.join(", ")}`}>
@@ -382,17 +406,39 @@ export function SeatTelemetryChips({ t, compact = false }: {
   return (
     <div className="mt-2 space-y-1.5">
       <div className="flex flex-wrap items-center gap-1.5">
+        {/* THREE states, because the chip used to have two and the missing one
+            told a lie: a seat whose dispatch had RETURNED rendered as "not
+            running" with the title "No dispatch is open for this seat", while
+            a dispatch was open and owed the chair a review. The dot does not
+            breathe on the third state — a pulse says someone is working, and
+            a returned dispatch means the opposite. */}
         <span
-          title={t.runningNow && t.runningTask ? t.runningTask : "No dispatch is open for this seat."}
+          title={
+            t.awaitingReview
+              ? `Returned${t.returnedRunId ? ` as ${t.returnedRunId}` : ""} — the chair has not reviewed it yet. A dispatch closes on a resolution, never on a run coming back.${t.runningTask ? `\n\n${t.runningTask}` : ""}`
+              : t.runningNow && t.runningTask
+                ? t.runningTask
+                : "No dispatch is open for this seat."
+          }
           className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] ${
             t.runningNow
               ? "border-[var(--kt-warn)] text-[var(--kt-warn)]"
-              : `border-[var(--kt-border)] ${KT.muted}`
+              : t.awaitingReview
+                ? "border-[var(--kt-border-strong)] text-[var(--kt-text)]"
+                : `border-[var(--kt-border)] ${KT.muted}`
           }`}
         >
           <span className={`h-1.5 w-1.5 rounded-full ${
-            t.runningNow ? "kt-breathe bg-[var(--kt-warn)]" : "bg-[var(--kt-border-strong)]"}`} />
-          {t.runningNow ? "running now" : "not running"}
+            t.runningNow
+              ? "kt-breathe bg-[var(--kt-warn)]"
+              : t.awaitingReview
+                ? "bg-[var(--kt-text)]"
+                : "bg-[var(--kt-border-strong)]"}`} />
+          {t.runningNow
+            ? "running now"
+            : t.awaitingReview
+              ? "awaiting review"
+              : "not running"}
         </span>
 
         {typeof runs === "number" ? (

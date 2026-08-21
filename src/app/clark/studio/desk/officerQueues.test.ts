@@ -24,6 +24,7 @@ const rec = (seat: string, over: Record<string, unknown> = {}): DeskItem => ({
   moneyUsd: null,
   reversibility: "reversible",
   waitingSince: null,
+  dueDate: null,
   rec: {
     run_id: "r1", rec_id: 1, seat, kind: "process", status: "open",
     text: "t", task: "task", artifact_path: null, trace_id: null,
@@ -37,6 +38,7 @@ const order = (id = "o1"): DeskItem => ({
   moneyUsd: 169.25,
   reversibility: "irreversible",
   waitingSince: "2026-08-21T09:00:00+00:00",
+  dueDate: null,
   order: { order_id: id } as DeskItem["order"],
 });
 
