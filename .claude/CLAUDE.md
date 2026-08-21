@@ -14,7 +14,13 @@ while alpha search runs alongside as a longer-horizon effort. The alpha sleeve
 two success criteria:
 
 - **premia** — better risk-adjusted return than holding the asset. Does NOT need to
-  beat buy-and-hold, and must not be judged as if it should.
+  beat buy-and-hold, and must not be judged as if it should. AMENDED
+  2026-08-21 (CEO decision, from adversary r4 rec 2): "risk-adjusted" is
+  measured over **EXCESS returns** — above the risk-free rate, with
+  financing charged on any leverage. Written because the alternative was
+  demonstrated to certify a zero-skill cash-heavy mix as premia: under
+  rf=0 with free leverage, T-bill carry impersonates edge. Every gate
+  round from v5r5 onward must consume excess returns end-to-end.
 - **alpha** — beats the benchmark after costs. Judged by the full gate.
 
 The gate currently only knows the second. Fixing that is part of gate v5, together
