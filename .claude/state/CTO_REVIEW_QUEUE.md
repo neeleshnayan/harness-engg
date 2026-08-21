@@ -164,6 +164,71 @@ was the chair's defect and a seat's catch is the metric working.
 
 ---
 
+## 2026-08-21 ~13:35Z — TIER-2 TAKEN — three finished dispatches were rendering as WORKING; closed. THE FIX IS A MISSING STATE, NOT AN AUTO-CLOSE
+
+**What**: The CEO looked at the floor and asked whether four agents were
+really running. One was (riskofficer). `coo` (027630a0), `builder`
+(24295dd6) and `mechanism` (b074c8f6) had finished hours earlier —
+mechanism and builder since 09:00Z — and were still lit. Closed all three
+with their artifacts named; telemetry now reads `running_now: false` for
+each and `true` only for the riskofficer.
+
+**Mechanism (process defect on the chairs' side, not a UI bug)**:
+`DeskDispatched` mints its own `task_id` and `desk._activity` keeps a seat
+lit until a `DeskRequestResolved` arrives carrying THAT id. We had been
+closing the seat-ASK ids a dispatch served, which are different ids. Fable
+happened to close the analyst's dispatch because he passed the task_id to
+the resolve endpoint; the other three were never closed.
+
+**I PROPOSED THE WRONG FIX AND THE CEO CORRECTED IT — recorded because it
+is the more useful half of this entry.** I suggested a completed run
+should close its own dispatch automatically. He said: *"no it should nto
+close automatically since the cto needs to review the work be satisified
+and then log or do what needs to be done and then close it."* He is right;
+my proposal was the unwired-kill-switch pattern wearing a progress bar —
+it would have made the board report a completion nobody performed. A seat
+FINISHING and its work being ACCEPTED are different facts and the gap
+between them is the chair's job. **The defect is a missing third state**:
+working / awaiting-the-chair's-review / closed, with only the first and
+last rendered. Filed as builder item **907ecc74** with DO-NOT-AUTO-CLOSE
+written into the spec; the principle is now in the constitution's dispatch
+section, verbatim.
+
+**Donna found this first**, at her 12:45:20Z cut, and named the exact
+mechanism: *"the dispatch events have no matching completion event"*
+(run-secretary-2 §VI item 6). I read past it. That is her second catch on
+a chair today.
+
+**Evidence**: three `DeskRequestResolved` events keyed by task_id;
+`seat_telemetry` before/after; run-secretary-2 §VI.
+
+[Fable @ resolve]:
+
+---
+
+## 2026-08-21 ~13:40Z — TIER-3 DEFERRED — the CEO's `note` vs `suggestion` vocabulary is not in the data model
+
+**What**: The constitution (secretary seat, CEO decision 2026-08-21) says
+Donna's items come as `note` (asks to be READ, no accept/reject, the chair
+marks it noted) or `suggestion` (decidable). The spine's
+`decide_recommendation` accepts only `open | accepted | rejected | staged
+| done` — **there is no `noted`**. Fable worked around it on her day-one
+notes by marking them `done`; I did the same today, with "NOTED, NO ACTION
+REQUIRED (a note)" leading the note text.
+
+**Why it matters enough to park rather than drop**: `done` conflates "the
+chair read this and nothing was required" with "the chair executed this".
+A future reader — or Donna's own hit/miss scoring — cannot tell them
+apart, and the whole point of the CEO's vocabulary was that a note is not
+a task. It is a small schema addition (`noted` as a terminal status,
+rendered read-only) and it belongs with builder item 907ecc74's state
+work, since both are about states the model lacks. Not taken by me: it is
+a data-model change and the D8 brief is the right vehicle.
+
+[Fable @ resolve]:
+
+---
+
 ## 2026-08-21 13:07:57Z — TIER-2 TAKEN — PM R1 EXECUTED: drawdown reference repaired
 
 **What**: The CEO approved R1 and, on being asked which of its three

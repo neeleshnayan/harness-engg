@@ -40,3 +40,54 @@ Standing facts for the first run:
   brief for lack of citation — the seat's hard line holding against its principal
   on day one is exactly the seat working. Her §IX items and record-keeping
   findings are on the desk via the run record.
+
+## 2026-08-21 — day two, FIRST self-service run (I wrote both files myself)
+
+**Documented same-day at 12:45:20Z. The day-one template held with zero redesign. Keep it.**
+
+**Self-filing mechanics, learned the hard way (repeat exactly):**
+1. There is **no Write tool** on this seat — only Bash. Write the archive with `cat > <path> <<'EOF'`.
+2. **A single heredoc longer than ~127 lines FAILS** with `unexpected EOF while looking for matching`. Split the memo into ~5 chunks of <=85 lines: first `cat >`, then `cat >>`. Verify with `wc -l` after each chunk. My 399-line memo took 5 chunks.
+3. PDF: `ClarkHarness/venv/Scripts/python.exe -X utf8 scripts/archive_pdf.py "<ABSOLUTE .md path>"` run from the ClarkHarness directory. It prints `wrote <abs path>`. Verify with `ls -la` + `stat -c '%s'` + `head -c 8 | od -c` (expect `%PDF-1.4`). 2026-08-21.pdf = 460,064 bytes from 29,003 bytes of markdown; day one was 472,743 from 31,013 — roughly 16x the source, so anything under ~100 KB means a failed render.
+4. Finish with `git -C ClarkHarness status --porcelain` — it must show **exactly two** `??` lines. That is the proof of the two-files rule.
+
+**Query facts that still hold (day-one STATE confirmed):** `fund_events` type column is `type`; `ts` is text (`ts like '2026-08-21%'`); `fund_agent_runs` uses `tokens` not `tokens_used`, filter `resolved_at::text like '...'`. No `psql` on PATH; use `psycopg` via the ClarkHarness venv. **New:** the belt tables are `fund_lean_sweeps` (filter `submitted_at`) and `fund_candidates` (filter `started_at`) — there is no `fund_lean_candidates`. `fund_agent_transcripts` exists as of D7 and is empty.
+
+**Commit counting — the method matters and I now report BOTH.** `--date=format-local` under `TZ=UTC` vs under the local zone gave **46 vs 83** for the same day. Day one reported 99 by the local clock. Report both, name the method, and say which one the prior archive used, or the series is not comparable.
+
+**Numbers established for 2026-08-21 (reuse as the prior day's reference):** open NAV $1,884.79 (seq 574) = close $1,884.79 (seq 655), day change **$0.00** on bit-identical marks; close cash $968.69 (51.40%) / positions $916.11 (48.61%) / 4 legs; 10 NAV strikes; halted false from 00:03:25Z; 2 fills, $414.77 deployed, both `approver: neelesh`; 2 orders expired on the 120-min staleness limit and were re-staged; 99 events (seq 563-661); 51 decision events (15 accepted / 32 done / 4 staged); 7 runs, 2,106,788 tokens, 680 tool uses, all Opus; builder 69.40%; commits 83 local / 46 UTC; 10 docs filed; desk_load 27 at the cut.
+
+**What I refused to write, and why — the day-one line held again.** My dispatch brief said "the book did not change today". **The log says otherwise**: composition changed materially (2 legs -> 4, cash $1,383.46 -> $968.69, gross 26.60% -> 48.61%). Only the NAV *level* was unchanged. I documented what the log said and did not repeat the brief. Hold this line — the brief is a pointer, the log is the source, and this is the second consecutive day the brief had a fact the record contradicted.
+
+**Disagreements I reported and did NOT resolve (my mandate, exercised four times today):** (i) live `desk_load.threshold` = 20 vs a constitution now reading >=50; (ii) the DBA order's venue differs across its own three lifecycle events, with `avg_price == arrival_price` exactly (the API card's documented paper-venue signature); (iii) today's two fills absent from `/fund/tca` entirely; (iv) `dc7b068c` cites `fund.py:3511` while the line reads at 3619 on the current head. Never resolve these — name them, cite both sides, move on.
+
+**Standing observations to carry into tomorrow (check whether each repeats):** (a) **RESOLVED IN THE GOOD DIRECTION then complicated** — the CEO's largest burst fell 34 -> 5 and the COO trigger fired at 23; but the threshold is now >=50 and the seat's blind-spot objection is unaddressed. Watch whether a desk >23 now goes untriaged. (b) **WORSENED** — builder token share 57.4% -> 69.40%. (c) **PARTLY FIXED** — analyst and mechanism both ran once (from zero), but **leg 2 is at zero for two consecutive days**; this is now the strongest single fact I carry. (d) **PERSISTS AND SPREAD** — the UTC/local drift moved from filenames to the two-chair ledger's own `Z`-labelled IST timestamps; 37 commits change day depending on the clock. New standing item (e): does `docs/README.md` ever get indexed?
+
+**Format contract as exercised (do not drift):** TL;DR fence 5 lines, no citations. THE DAILY = dateline, book-first line, 3-6 bullets, ranked Awaiting-you, one italic tease at the end. THE RECORD = I-IX, `##` roman headings, tables for anything with >2 numbers, zero exclamation marks, citation inline. Three-leg numbers live in I (leg 3), III (leg 2), VI (leg 1) — every day, so the trend reads across archives. **State the cut time at the top of section 2**: events landed while I worked (decisions went 47 -> 51 mid-run), so a snapshot without a stated cut is not reproducible.
+
+- [co-CTO note at resolve, 2026-08-21]: **This run was TRIGGERED EARLY and
+  that was my error, not hers.** I read the machine's local clock (18:22
+  IST) as end of day; it was 12:53Z, the UTC day her archive is dated by
+  was half over, and the CEO was still working. She stated her cut time at
+  the top of the record and made stating it a standing rule, so the
+  artifact is honest about being a snapshot — but it documents a partial
+  day and is owed a clearly-labelled completing section at true EoD,
+  appended, never rewritten.
+  **TWO CATCHES OF HERS LANDED ON THE CHAIR, BOTH BEFORE THE CHAIR SAW
+  THEM.** (1) Section VI item 4: the two-chair ledger stamped `~18:10Z` on
+  entries whose commits landed at 12:14:16Z, 12:21:28Z and 12:40:22Z — the
+  local clock wearing a Z. She found it at her 12:45:20Z cut; I found it
+  independently at 12:58Z only because the CEO asked why she was running
+  mid-day. Corrected by appended note, never edited. (2) Section VI item 6:
+  seat telemetry showing `mechanism` and `builder` as `running_now: true`
+  with `last_run_at` hours earlier and **"the dispatch events have no
+  matching completion event"** — she named the exact mechanism. I read
+  past it; the CEO spotted four WORKING chips on the floor an hour later
+  and asked. Three stale dispatches closed; the real fix is a missing
+  third state (working / awaiting-review / closed), filed as 907ecc74 with
+  DO-NOT-AUTO-CLOSE in the spec on the CEO's instruction that closing is
+  the chair's judgement, never mechanical.
+  **The CEO's words on the record: "kudos to donna for finding this".**
+  Two chair defects caught by the secretary in one day is the seat earning
+  its chair twice over — and it is precisely the "external observer" value
+  the CEO described when he created it.
