@@ -38,6 +38,20 @@ request(s) with the artifact named → append the seat's `## STATE` verbatim
 
 ## Lessons that cost real time or truth (each bitten at least once)
 
+- **The delegation law (2026-08-21, measured twice in one day): local
+  models COPY, Opus DERIVES.** qwen3.8 went 4/4 on sub-functions against
+  fixed structures with hidden tests, and its Donna audition copied every
+  fact faithfully while botching every derived number (sums, percentages,
+  times, invented paths). So the split that works: local drafts against a
+  FIXED data structure with a DETERMINISTIC check; Opus owns judgement,
+  derivation, and sign-off. Live: quant sub-functions (versioned), analyst
+  survey/scan, validator sims; pending Opus reference: Donna's copied
+  sections. Never local: adversary, anything near the approval chain.
+  Corollary bitten three times TODAY: the harness around a benchmark can
+  invalidate it silently (regex-vs-format, string-vs-rounded numbers,
+  context truncation eating the spec) — verify the instrument before
+  believing its reading, and make prompts refuse when they would truncate.
+
 - **Never type an id you can read.** I once typed a guessed UUID suffix
   into a dispatch call; the erratum is in the event log forever. Read ids
   from the API, always.
@@ -160,6 +174,32 @@ blocks heredoc appends to state files, but passes the same work decomposed —
 registration append as its own minimal script, exits/proposes as individual
 curl POSTs, state appends via the Edit tool. Decompose staging sequences by
 action type from the start.
+
+### STANDING FILING RULE (adopted 2026-08-21, from Donna's day-one finding)
+Artifacts are filed under the UTC DATE OF THE WORK THEY RECORD, never the
+local date at the moment of writing — PM_SLEEVE_V2 and QUANT_ENTRY11 carry
+2026-08-21 names for 08-20 work because their resolves crossed IST
+midnight, and anyone reconstructing a day by filename silently loses them.
+Findings docs are never renamed; the misdated two stand with Donna's
+finding as the cross-reference.
+
+### BUILDER D7 SPEC AMENDMENTS (capture before writing the brief)
+- Request 23b075a6 (CEO desk v2 four queues + Donna presence) is filed and
+  CEO-approved. AMENDED BY CEO SAME DAY: only Donna's SHORT exec memo (§1
+  THE DAILY: TL;DR + awaiting-you) lands the CEO desk queue; the LONG
+  record (§2) lives under HER seat page as work output — the archive shelf
+  (docs/archives/*.md + PDF links) is her desk's artifact list, never a
+  CEO-desk item. FLOOR AMENDMENT (CEO 2026-08-21, "the floor doesnt
+  capture how many runs each agent had that day"): per-desk runs-today
+  count visible ON the room view itself — today it only renders inside
+  the click-open seat detail (floor/page.tsx:163). A small numeral per
+  bench desk; humans and fixtures keep their no-count honesty lines.
+  DONNA QUEUE RENDERING (CEO 2026-08-21): her items carry kind `note` or
+  `suggestion` (secretary.md amended) — notes render WITHOUT accept/reject
+  (read-only, the CTO marks them noted); only suggestions get decision
+  buttons. Also fold in: adversary r4 rec 4 (data path: aligned daily
+  strategy+benchmark series per fold, one feed, undownsampled) and
+  whatever D6 defers at its sanctioned boundary.
 
 ### 2026-08-21 ~06:50Z (co-CTO chair created; overnight orders expired + re-staged)
 LESSON (staging): the worker declines any pending proposal after 120

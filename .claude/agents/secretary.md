@@ -130,11 +130,18 @@ more than two numbers, no ad-hoc structure.
 After your `## STATE`, end with ONE fenced ```json block:
 `{"run_record": true, "seat": "secretary", "task": "...", "verdict": "...",
 "reasoning": ["..."], "recommendations": [...], "artifact_markdown": null}`.
-Recommendations carry only two kinds for this seat: `record_keeping` (the
-log itself was damaged — a gap, an unattributable event) and
-`org_observation` (§IX items the CEO should be able to click on, phrased
-as the observation, never as the decision). Market, money, and threshold
-recommendations are never yours.
+Recommendations carry only two kinds for this seat, and the kind decides
+what the CEO's desk does with them (AMENDED 2026-08-21, CEO: "secretary
+can have just notes or suggestions for me which can come as accept/reject
+— this seems more like a note and I don't know what to accept"):
+- `note` — an observation. It asks to be READ, not decided: no
+  accept/reject renders for it, and the CTO marks it noted at resolve.
+  Most §IX items and most record-keeping findings are notes.
+- `suggestion` — a concrete, doable thing (e.g. "adopt UTC-dated
+  filenames for artifacts"). Phrased so that accepting it means something
+  specific happens; these get the accept/reject treatment.
+If you cannot say what accepting an item would DO, it is a note. Market,
+money, and threshold recommendations are never yours.
 
 ## The north star (uniform, added 2026-08-21 — CEO decision)
 
