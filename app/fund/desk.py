@@ -147,6 +147,88 @@ def _title_of(text: str) -> str:
     return "(untitled)"
 
 
+#: Where the secretary files. Append-only by convention: one dated file per day,
+#: never an edit — see the constitution's third code exception (2026-08-21).
+ARCHIVES = DOCS / "archives"
+
+_ARCHIVE_NAME_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})$")
+
+
+def archives() -> dict[str, Any]:
+    """Every Daily the secretary has filed, newest first.
+
+    Exists because the UI must not read the filesystem. Donna's seat page needs
+    an index of `docs/archives/*.md` and the Studio has no business walking a
+    directory — the spine owns what is on disk, the browser owns what is on
+    screen, and a page that stats files is a page that breaks the moment it is
+    served from anywhere but this machine.
+
+    Read every call rather than cached, for the same reason `_artifacts` is: the
+    files ARE the state, and an in-memory copy is a second place to disagree
+    with them.
+
+    THREE ABSENCES, kept apart:
+      * the directory does not exist — nothing has ever been filed;
+      * it exists and is empty — the secretary has run zero times;
+      * it cannot be READ — unknown, which is not either of the above.
+    A caller that cannot tell those apart will report "no dailies" for a
+    permissions error.
+    """
+    if not ARCHIVES.exists():
+        return {"archives": [], "readable": True, "exists": False,
+                "note": "docs/archives/ does not exist — the secretary has "
+                        "never filed. This is an absence, not an empty list"}
+    try:
+        entries = sorted(ARCHIVES.glob("*.md"))
+    except OSError as e:
+        return {"archives": [], "readable": False, "exists": True,
+                "note": f"docs/archives/ could not be read ({e}) — whether "
+                        f"anything is filed is UNKNOWN, not none"}
+
+    out: list[dict[str, Any]] = []
+    for p in entries:
+        stem = p.stem
+        pdf = p.with_suffix(".pdf")
+        try:
+            size = p.stat().st_size
+        except OSError:
+            size = None
+        m = _ARCHIVE_NAME_RE.match(stem)
+        out.append({
+            "date": m.group(1) if m else None,
+            "path": str(p).replace("\\", "/"),
+            # The PDF is a RENDER of the markdown, not a separate artifact, so
+            # its absence is normal rather than a fault: the secretary files the
+            # .md and renders the .pdf, and a day rendered before that step
+            # existed has only the first.
+            "pdf_path": str(pdf).replace("\\", "/") if pdf.exists() else None,
+            "title": _title_of(_read(p)),
+            "bytes": size,
+            # A file whose name is not a date is still listed — it is on disk and
+            # hiding it would make the index disagree with the directory.
+            "note": None if m else
+                    "filename is not a YYYY-MM-DD date — listed as filed, but "
+                    "which day it documents cannot be read from the name",
+        })
+    out.sort(key=lambda r: (r["date"] or "", r["path"]), reverse=True)
+    return {
+        "archives": out, "readable": True, "exists": True,
+        "count": len(out),
+        "with_pdf": sum(1 for r in out if r["pdf_path"]),
+        "note": (f"{len(out)} daily archive(s) on file"
+                 if out else
+                 "docs/archives/ exists and holds no .md — the secretary has "
+                 "filed nothing yet, which is different from never having run"),
+    }
+
+
+def _read(p: Path) -> str:
+    try:
+        return p.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
 def _artifacts() -> list[dict[str, Any]]:
     """Proposals and designs, paired with the verdicts that reviewed them.
 
