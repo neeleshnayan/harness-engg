@@ -164,6 +164,54 @@ was the chair's defect and a seat's catch is the metric working.
 
 ---
 
+## 2026-08-21 ~17:5xZ — TIER-2 PART-TAKEN — builder D8: KryptonPay MERGED, ClarkHarness HELD for the adversary
+
+**What**: D8 delivered eight of nine briefed parts plus `GET /fund/autopolicy`.
+I gated both bundles myself.
+
+- **KryptonPay**: gate **PASS, 230/230, 12 ordinary / 0 sensitive / 0
+  forbidden**. `fund_api.ts` diff checked line by line — additive (+63/−2),
+  and the two deletions are the two status unions being WIDENED (`noted`,
+  `awaiting_review`), which is exactly Parts 7 and 8. Zero thesis types.
+  **MERGED at `65e6fdc4`.** Note the base was `b23ef096`, not the
+  `a3d59de1` my brief named — the live tip had moved by my own brief
+  commit and the builder branched from the tip and said so.
+- **ClarkHarness: NOT MERGED.** The gate flagged **1 sensitive**:
+  `app/fund/riskmonitor.py`, with six changed lines inside the
+  approval-guard region. The constitution routes a sensitive diff through
+  the **adversary blind** before a chair merges it, so that is where it
+  went — dispatched blind, artifact only, with neither the builder's
+  report nor my assessment attached. Fetched as branch `builder-d8` in the
+  live ClarkHarness repo for the adversary to read; **the fetch creates a
+  ref, not a merge.**
+
+**Safe to split the halves**: the builder designed the UI to degrade
+honestly while the spine endpoints are absent — a 404 on the memo endpoint
+renders "UNKNOWN, not absent", never "she filed nothing". Verified by its
+own CDP probe against a 404 spine.
+
+**TWO NEW JUDGED NUMBERS AWAIT THE CEO** (they gate an `info`-severity
+alarm only, and no existing threshold moved in either direction):
+`NAV_BAND_PCT = 0.01` — basis: ~20× the measured $0.92 mark-timing
+residual (0.049% of NAV) the PM derived; `NAV_BAND_FLOOR_USD = 150.0` —
+basis: the smallest live position, DBA at $149.94. Both bases are
+measurements, not preferences. Ratification is the CEO's.
+
+**Deliberately NOT in this dispatch**: `autopolicy.py`, untouched by
+instruction — the envelope change that would consume the new drift alarm
+(the venue must hold what an exit rule sells) is the riskofficer's lane
+and the CEO's decision, request `86f7662e`, and it is the one item with a
+date on it (2026-09-08, $502.15).
+
+**Operational note**: the spine blocked for minutes on a 24-hour
+`universe refresh` that appears to run on the request path. Not a defect I
+chased today; worth a look, because a blocking refresh makes every
+endpoint — including the risk monitor — unavailable while it runs.
+
+[Fable @ resolve]:
+
+---
+
 ## 2026-08-21 ~14:30Z — TIER-2, CEO-INSTRUCTED — THE FUND HAD NO OFFSITE DURABILITY. RESTORED AND VERIFIED.
 
 **Fable: this is the most serious thing found today, and it had been true
