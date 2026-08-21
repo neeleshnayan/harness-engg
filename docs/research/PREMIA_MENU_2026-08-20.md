@@ -50,3 +50,49 @@ Anything requiring speed (HFT, intraday microstructure), breadth we lack
 (thousand-name stat-arb), leverage or shorting beyond the paper venue's
 reality, or data we do not have and have not priced. The menu grows by
 demonstrated feasibility, never by textbook completeness.
+
+
+---
+
+## CYCLE 2 STATUS SECTION (2026-08-21, run-mechanism-cycle2 — appended, never edited)
+
+**Ground rule added — DEFECT D4**: under the excess-return amendment
+(constitution, 2026-08-21), Sharpe(L·r_excess) = Sharpe(r_excess) for
+constant L. A LONG-ONLY DE-RISKING RULE CANNOT BE A PREMIA CLAIM — it
+changes exposure, not risk-adjusted return. A proposal whose mechanism is
+"hold less of the factor in bad states" is rejected at the menu level
+unless it demonstrates timing skill or adds an independent return stream.
+
+**Status changes**:
+- Entry 7 (defensive/low-vol) → **DECLINED-WITH-CONDITIONS**. C7a:
+  corr(beta, excess Sharpe) across a declared ≥9-name universe turns
+  negative over ≥5y (today +0.62). C7b: an anti-beta wrapper's trailing-3y
+  excess turns positive (today BTAL −7.89%/yr). Both required. Full
+  grounds: docs/research/MECHANISM_CYCLE2_2026-08-21.md §1.
+- Entry 4 (trend as premia) → **RETIRED**. The long-only form is a
+  de-risking rule (D4); the documented long-short breadth form is
+  unreachable; the wrapper form fails ex-ante selection (WTMF/FMF SR
+  +0.21/+0.05, WTMF −7.8% in 2022). Revival: an ex-ante-selectable
+  wrapper basket beating a matched-vol hold over ≥2 equity bears with an
+  SG-Trend leak test. Full grounds: MECHANISM_CYCLE2 §2.
+
+**New entries**:
+- **13 — Tax-deadline forced selling** (payers: Oct-31-FY mutual funds,
+  Dec-31 retail harvesters; statutory, recurring). Alpha claim. UNTESTED;
+  blocked on history depth. LIVE.
+- **14 — Secondary-offering placement discount** (payer: issuer/selling
+  shareholder buying execution certainty). Signal: EDGAR 424B5 / 8-K 8.01
+  — non-price, in-house. Alpha claim. Prerequisite: measure event count
+  in our band. LIVE — cycle 3's aim.
+- **15 — Treasury auction cycle** (payers: primary dealers, index bond
+  funds). ADDED WITH FIRST TEST NEGATIVE: no post-auction reversal on 63
+  long-end auctions (t=−0.82). Needs api.fiscaldata.treasury.gov history
+  before any dispatch. Recorded so the negative is not re-discovered.
+
+**Pre-killed at zero cost** (do not spend a cycle): merger arb via MNA
+(+0.95%/yr, SR 0.15, skew −2.30; negative since 2020); index
+reconstitution (Greenwood-Sammon JF 2025: 7.4% → 0.3%). Roll-schedule
+spread: uninformative on ETF pairs (confounded), not negative.
+
+Menu: 15 entries. Live and unblocked: 12, 14, 10 (data absent). Blocked
+on backfill: 13, 4-post-backfill, 2, 3, 9.
