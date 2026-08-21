@@ -164,6 +164,86 @@ was the chair's defect and a seat's catch is the metric working.
 
 ---
 
+## 2026-08-21 ~14:30Z — TIER-2, CEO-INSTRUCTED — THE FUND HAD NO OFFSITE DURABILITY. RESTORED AND VERIFIED.
+
+**Fable: this is the most serious thing found today, and it had been true
+for an unknown number of days while the status endpoint reported success
+every hour.**
+
+**The defect.** `.env` carried `USE_FAKE_FIRESTORE=1`. `app/main.py:47-53`
+reads it, calls `install_fake()` — an **in-memory, ephemeral** Firestore —
+and stamps the project id `"in-memory"`. The hourly `FirestoreSnapshotter`
+wrote the fund's durability mirror into that dictionary. The running spine
+logged `MOCK MODE — in-memory ledger, real market prices. NOT the fund.`
+at startup, while holding four real positions and taking real approvals.
+`/fund/snapshot/status` reported `last_ok: true` throughout.
+
+**Measured, not assumed.** I read the real project directly (a full stream
+of `fund_events`, gap-checked):
+- offsite before: **160 documents, seq 1..160, contiguous**
+- Postgres: **712 events**
+- the Postgres watermark claimed: **700**
+
+**552 events (seq 161–712) existed on exactly one machine** — every fill,
+the GLD phantom incident, the halt, today's R1 rebase, all four current
+positions. Combined with the standing no-push rule, the firm repo is
+single-machine too.
+
+**Fixed, in the order the CEO instructed ("restore durability first,
+alone" → "go"):**
+1. `.env` `USE_FAKE_FIRESTORE=1 → 0`; backup at
+   `ClarkHarness/.env.backup-2026-08-21-preflag`.
+2. Spine restarted. Verified: **no MOCK MODE line**, real project
+   `hedgefund-ae96c` (staging).
+3. **Watermark re-baselined 700 → 160** — the clean-field rule applied to
+   itself: cause fixed first, old value preserved here and in the row's
+   `last_error` text, magnitude MEASURED (contiguous 1..160), direction
+   safe (lowering only ever re-pushes; writes are keyed by document id, so
+   idempotent), a human decided.
+4. Backfill run: **552 events pushed, seq 161→712**, plus 3 agent runs.
+5. **Verified by reading Firestore again, not by trusting the endpoint
+   that lied: 712 documents, seq 1..712, CONTIGUOUS.** Status now reads
+   `behind_by: 0`, runs `0 behind`.
+
+Book unchanged throughout: NAV $1,885.02, gross 48.61%, halted false,
+alarms empty, peak $1,908.09 `rebased`, four positions.
+
+**SIDE EFFECT THE CEO SHOULD SEE — venue changed at the same time, and I
+could not isolate it.** The same flag gates connector selection, so
+turning it off routed orders to Alpaca: `/fund/venue/account` now reads
+`{"venue":"alpaca","configured":true,"mode":"alpaca_paper","status":
+"AccountStatus.ACTIVE"}`. The account is live and reachable. **This is
+what R15 wanted** — but it arrived as a coupled effect, not an isolated
+decision, which is precisely the conflation the cleanup exists to end.
+
+**NEW FINDING, unresolved, reported not fixed**: the Alpaca account
+reports `portfolio_value 2014.64 / cash 846.84` while the fund's own book
+reads NAV $1,885.02 / cash ~$968. **They disagree by ~$130.** Expected in
+kind — the book was built on paper-connector fills that never reached
+Alpaca — but it is now a live reconciliation gap, and the riskofficer
+independently flagged that reconciliation has produced no event since
+seq 141 (2026-08-15) and has no liveness heartbeat. NAV stays the event
+log's number per the constitution; broker equity is a comparison, never
+the truth.
+
+**Also found while mapping this**: two Firebase projects are in play —
+`.env` points at `firebase_service_account.hedgefund.json`
+(**hedgefund-ae96c**, the fund's) while the code's default fallback is
+`firebase_service_account.json` (**krypton-auth-e8653**, a stale auth
+project that also contains a `fund_events` collection). A script that
+does not load `.env` silently targets the wrong project. That is a live
+foot-gun and belongs in the cleanup brief.
+
+**Still to do, NOT done by me** (the CEO's staged plan, steps 2 and 3):
+decide Alpaca routing on its own terms and re-run R15 properly; then
+split `USE_FAKE_FIRESTORE` into three orthogonal flags — store target,
+order routing, ledger target — each named for what it does. `FUND_REAL_
+BROKER` already exists because someone split one of the three off before.
+
+[Fable @ resolve]:
+
+---
+
 ## 2026-08-21 ~14:05Z — TIER-2 TAKEN — R15 REOPENED: the "alpaca" experimental deployment filled on the PAPER venue
 
 **Fable — this is the entry to read first.** The riskofficer's dispatch
