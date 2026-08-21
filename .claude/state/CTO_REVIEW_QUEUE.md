@@ -1567,3 +1567,75 @@ re-clicks four things he has already decided — say so and I will stop.
 `open` for already-accepted work. The builder independently named the
 structural version — a `covered_by` relation linking a recommendation to the
 decision that covered it — which is the same defect one level down.
+
+
+---
+
+## 2026-08-21 (UTC) — envelope v4 MERGED AND LIVE; and a trapdoor I fell through on the way
+
+### v4 is live
+
+**Adversary verdict: SURVIVES — the first survival on that seat.** 1,067,152
+adversarial cases (817,152 at `evaluate()` level, 250,000 end-to-end through
+the gatherer): **zero orders v4 approves that v3 would have refused.** 163×
+tighter over the same grid, and with the venue in sync it still approves 26% of
+generated cases — so it is a tightening, not a kill switch wearing a policy's
+name.
+
+Its strongest single piece of evidence was **reading the diff's DELETIONS**:
+only the version bump, the R5 block, the `max(0.0,…)` clamp, the `context_for`
+signature and one hoisted comprehension. "Added three, removed none" proved
+without relying on a test the author wrote — which is the right instinct after
+two author-written tests blessed a regression on D9.
+
+**Merged at `b05cb9b`.** Merge gate blocked on sensitive surface (correct — that
+is the route to the adversary, which happened); 1323 passed on the merged tree.
+Spine restarted; `AUTOPOLICY_VERSION` reads **v4** live with all three checks
+present; **NAV unchanged across the restart at $1,885.74** (cash $968.69,
+positions $917.06).
+
+**F1 corrected before merge, and the wrong number was mine.** `$652.09` was
+baked into a permanent dated note at `autopolicy.py:105` and twice in the tests.
+Corrected to **$501.58**, superseded figure preserved rather than erased, and
+the undated `loss_pct` rules added. **Verified comment-and-docstring only — no
+logic line differs from the tree the adversary reviewed.**
+
+### THE TRAPDOOR — I fell through it during that very restart
+
+`events.store_backend()` (`events.py:218`) **defaults to `"firestore"` when
+`FUND_STORE` is unset.** My restart did not carry the shell variable, so **the
+fund silently came up reading Firestore instead of Postgres.** Reads all looked
+correct — NAV matched to the cent, because Firestore is mirrored — and I only
+caught it on a **503 from a desk write.**
+
+Had I not written a run in the next five minutes, the fund would have run on
+the wrong store and nothing would have said so.
+
+**Mitigated immediately**: `FUND_STORE=postgres` written into `.env` with the
+reason inline (backup at `.env.backup-2026-08-21-pre-fundstore`). **The default
+is still the defect** and is Part C of `d8f2a2ff`.
+
+### CEO instruction: kill the sham and kill the flag
+
+Verbatim: *"every order needs to route to alpaca paper account no sham and kill
+fake_firestore; I do not want it biting us no more."*
+
+Filed and **approved at filing** as `d8f2a2ff` (per the rule recorded today: if
+he has already decided it, do not hand the decision back as a queue item).
+Supersedes `09e49ae5` and `b72847bc`.
+
+**The sharper half is Part A, and I had not seen it until he asked about
+Alpaca.** The connector ternary at `fund.py:151-163` has **three ways to reach
+`PaperConnector` and two of them are silent** — the last branch falls back to
+the simulator when `ALPACA_API_KEY` is merely *absent*. **If that key is ever
+dropped by a restart that does not carry the environment — exactly what just
+happened to `FUND_STORE` — orders go to a simulator and the book moves as
+though they were real, with no error and no log line.** The fix is to fail
+closed: a fund that cannot reach its broker must know it cannot reach its
+broker.
+
+**Note the pattern across all three (`USE_FAKE_FIRESTORE`, `FUND_STORE`,
+`ALPACA_API_KEY`): each is a piece of production behaviour that changes
+silently when an environment variable goes missing.** Not one of them announces
+the switch. That is one defect wearing three names, and it has now bitten the
+fund twice in one day.
