@@ -1671,6 +1671,33 @@ def desk_archives():
     return desk_mod.archives()
 
 
+@router.get("/fund/desk/archives/memo")
+def desk_archive_memo(date: Optional[str] = None):
+    """The secretary's Daily, parsed for the memo card on the CEO's desk.
+
+    THE CEO SAW THE ABSENCE AND ASKED ABOUT IT. The card, the TypeScript type
+    and its five-way absence vocabulary all merged; this route did not exist,
+    so the card has rendered a permanent "no memo" caused entirely by its own
+    missing endpoint. A control reporting an absence it manufactures is the
+    unwired-kill-switch pattern with a friendly face.
+
+    Without `date`, the newest DATED archive. With one, that day exactly. The
+    parameter is never joined into a path — it is matched against the index
+    `archives()` builds by globbing `docs/archives/*.md`, so this route can
+    only ever read a file that directory listed — and it is additionally
+    validated against YYYY-MM-DD so a malformed parameter can be told apart
+    from a day nobody documented.
+
+    Always 200. The five absences are DATA (`available` + `reason`), not
+    statuses: the client must be able to tell "she has never run" from "no
+    session was live that day" from "the file is unreadable", and an HTTP code
+    can only say "no". That is the same reason `/fund/desk/archives` returns
+    its three absences in the body.
+    """
+    from app.fund import desk as desk_mod
+    return desk_mod.archive_memo(date)
+
+
 class RecDecision(BaseModel):
     status: str          # accepted | rejected | staged | done | noted
     actor: str = "ceo"

@@ -251,6 +251,296 @@ def _read(p: Path) -> str:
         return ""
 
 
+# ----------------------------------------------------- the secretary's memo --
+
+#: A fence line: ``` or ~~~, optionally with an info string.
+_FENCE_RE = re.compile(r"^\s*(```+|~~~+)\s*(\S*)\s*$")
+
+#: The TL;DR label, however it is spelled. Matched on a line of its own, either
+#: as the first line INSIDE the fence or the last line BEFORE it — the two real
+#: archives on disk do it differently, which is the whole reason this is a
+#: regex and not a string comparison. See `archive_memo`.
+_TLDR_LABEL_RE = re.compile(r"^\s*\**\s*TL\s*;?\s*DR\s*:?\s*\**\s*$", re.I)
+
+#: A level-1 heading and its text.
+_H1_RE = re.compile(r"^#\s+(.*?)\s*$")
+
+
+def _split_memo(text: str) -> dict[str, Any]:
+    """Pull the TL;DR fence and the DAILY section out of a filed archive.
+
+    RE-DERIVED FROM THE TWO REAL FILES ON DISK, not from any earlier draft,
+    and the derivation immediately earned itself: **the two archives are not
+    the same shape.**
+
+        docs/archives/2026-08-21.md      docs/archives/2026-08-20.md
+        ```                              TL;DR
+        TL;DR                            ```
+        <five lines>                     <ten lines>
+        ```                              ```
+
+    The label is INSIDE the fence in one and OUTSIDE it in the other. A parser
+    written against either file alone gets the other wrong — it would return
+    the label as the memo's first line, or miss the memo entirely. Both
+    positions are accepted, and neither is guessed at: the label must be
+    present in one of the two places, or there is no TL;DR here.
+
+    WHY THE LABEL IS REQUIRED. A fenced block before the first heading is
+    *probably* the TL;DR by convention. Convention-matching over prose is what
+    the CEO's desk was just repaired FROM — six rows found by grepping their
+    text for "EXECUTED" — and the TL;DR is the sixty-second read, the one
+    paragraph the CEO is promised he can act on. Presenting an arbitrary code
+    block as his headline is a worse failure than saying the headline is
+    absent, so an unlabelled fence yields ``tldr: None`` and a note that says
+    a fence was found and not identified.
+
+    Returns the pieces plus ``notes``, a list of things a reader should know
+    about how this particular file was read.
+    """
+    lines = text.replace("\r\n", "\n").split("\n")
+    notes: list[str] = []
+
+    # --- the TL;DR fence, which must come before the first level-1 heading ---
+    first_h1 = next((i for i, l in enumerate(lines) if _H1_RE.match(l)), len(lines))
+    tldr: Optional[str] = None
+    fence_seen = False
+    i = 0
+    while i < first_h1:
+        m = _FENCE_RE.match(lines[i])
+        if not m:
+            i += 1
+            continue
+        fence_seen = True
+        marker = m.group(1)
+        # The closing fence is the next line using the SAME marker character.
+        close = next((j for j in range(i + 1, first_h1)
+                      if _FENCE_RE.match(lines[j])
+                      and _FENCE_RE.match(lines[j]).group(1)[0] == marker[0]),
+                     None)
+        if close is None:
+            notes.append("a code fence before the first heading is never "
+                         "closed — the TL;DR could not be delimited")
+            break
+        body = lines[i + 1:close]
+        labelled_inside = bool(body) and _TLDR_LABEL_RE.match(body[0])
+        # The label on its own line above the fence, ignoring blanks.
+        above = next((lines[j] for j in range(i - 1, -1, -1) if lines[j].strip()),
+                     "")
+        labelled_above = bool(_TLDR_LABEL_RE.match(above))
+        if labelled_inside:
+            body = body[1:]
+        if labelled_inside or labelled_above:
+            tldr = "\n".join(body).strip() or None
+            if tldr is None:
+                notes.append("the TL;DR fence is labelled and empty")
+            break
+        i = close + 1
+
+    if tldr is None and fence_seen and not notes:
+        notes.append("a fenced block sits before the first heading but carries "
+                     "no TL;DR label, so it is NOT reported as the memo's "
+                     "headline — an unlabelled block could be anything, and "
+                     "the wrong five lines is worse than none")
+
+    # --- the DAILY section: `# THE DAILY` up to but never including the next
+    #     level-1 heading (which is `# THE RECORD` in every archive so far).
+    h1s = [(i, m.group(1)) for i, l in enumerate(lines) if (m := _H1_RE.match(l))]
+    daily_at = next((i for i, t in h1s if t.upper().startswith("THE DAILY")), None)
+    record_at = next((i for i, t in h1s if t.upper().startswith("THE RECORD")),
+                     None)
+    if daily_at is None and h1s:
+        # A renamed heading is still a memo. Reporting "no memo section" for a
+        # file that plainly has one would send the reader to the wrong place —
+        # the exact collapse the four absence reasons exist to prevent. So it
+        # degrades to "the first section", and SAYS it degraded.
+        daily_at = h1s[0][0]
+        notes.append(
+            f"no `# THE DAILY` heading; read the first section "
+            f"({h1s[0][1]!r}) as the memo instead — the heading convention "
+            "changed, or this file is not a Daily")
+
+    daily: Optional[str] = None
+    if daily_at is not None:
+        # THE RECORD ends it when there is one; otherwise the next level-1
+        # heading of any name; otherwise the end of the file. Stated as three
+        # cases rather than one clever expression, because "and never
+        # including `# THE RECORD`" is a promise in the client's own type.
+        if record_at is not None and record_at > daily_at:
+            end = record_at
+        else:
+            end = next((i for i, _ in h1s if i > daily_at), len(lines))
+        daily = "\n".join(lines[daily_at:end]).strip() or None
+
+    return {"tldr": tldr, "daily": daily,
+            "has_long_record": record_at is not None, "notes": notes}
+
+
+def archive_memo(date: Optional[str] = None) -> dict[str, Any]:
+    """The secretary's Daily, parsed for the CEO's desk card.
+
+    THE CEO SAW A PERMANENT ABSENCE AND ASKED ABOUT IT: the memo card on his
+    page has been rendering "no memo" since it merged, because the route it
+    reads — `GET /fund/desk/archives/memo` — did not exist. The consumer, the
+    TypeScript type and the four-way absence vocabulary were all merged; only
+    this was missing. A card that reports an absence caused by its own missing
+    endpoint is the unwired-control pattern with a friendly face.
+
+    FIVE ABSENCES, KEPT APART, because a surface that collapses them sends the
+    reader somewhere useless:
+
+      * ``never_filed``    — docs/archives/ does not exist. She has never run.
+      * ``none_yet``       — it exists and holds no Daily. She has run zero
+                             times, which is different from never having been
+                             seated.
+      * ``no_such_day``    — an explicit date nobody documented. NOT the same
+                             as a quiet day: the fund has days with no archive
+                             because no session was live, and saying "no memo"
+                             would imply she filed an empty one.
+      * ``unreadable``     — the file is there and could not be read. UNKNOWN,
+                             not absent. This fund has answered an
+                             unmeasurable with a zero four separate times.
+      * ``no_memo_section``— filed and readable, carrying neither a headline
+                             nor a Daily section. That is a defect in the
+                             ARTIFACT, not a missing memo, and it points at
+                             the secretary rather than at the plumbing.
+
+    ON THE QUERY PARAMETER, stated precisely rather than dramatically. ``date``
+    is never joined into a path: the row is looked up in the index `archives()`
+    already built by globbing ``docs/archives/*.md``, so a traversal string
+    matches nothing by construction and the endpoint reads only files that
+    directory listed. The anchored ``YYYY-MM-DD`` check is a SECOND lock on
+    that — and it earns its place for a different reason: it lets a malformed
+    parameter (a broken client) be told apart from a day nobody documented (a
+    quiet day), which the note does and the closed `reason` enum cannot.
+    """
+    if date is not None:
+        if not _ARCHIVE_NAME_RE.match(date.strip()):
+            # NOT `no_such_day`: the caller asked something malformed, which is
+            # a different fact from a day nobody documented, and answering it
+            # with a day-shaped absence would hide a broken client.
+            return {"available": False, "reason": "no_such_day",
+                    "date": None, "path": None, "pdf_path": None,
+                    "title": None, "tldr": None, "daily_markdown": None,
+                    "has_long_record": False,
+                    "note": f"{date!r} is not a YYYY-MM-DD date, so no archive "
+                            "was looked for. Nothing was read from disk."}
+        date = date.strip()
+
+    index = archives()
+    if not index["exists"]:
+        return {"available": False, "reason": "never_filed",
+                "date": None, "path": None, "pdf_path": None, "title": None,
+                "tldr": None, "daily_markdown": None, "has_long_record": False,
+                "note": index["note"]}
+    if not index["readable"]:
+        return {"available": False, "reason": "unreadable",
+                "date": None, "path": None, "pdf_path": None, "title": None,
+                "tldr": None, "daily_markdown": None, "has_long_record": False,
+                "note": index["note"]}
+
+    rows = index["archives"]
+    if not rows:
+        return {"available": False, "reason": "none_yet",
+                "date": None, "path": None, "pdf_path": None, "title": None,
+                "tldr": None, "daily_markdown": None, "has_long_record": False,
+                "note": "docs/archives/ exists and holds no Daily — the "
+                        "secretary has filed nothing yet. She runs at end of "
+                        "day on the chair's trigger, so a day with no live "
+                        "session has no memo by design."}
+
+    if date is None:
+        # `archives()` already sorted newest first, and undated files sort last
+        # by construction. Take the newest DATED one: an undated file cannot be
+        # presented as "today's memo" when nothing says which day it is.
+        row = next((r for r in rows if r["date"]), None)
+        if row is None:
+            return {"available": False, "reason": "no_memo_section",
+                    "date": None, "path": None, "pdf_path": None,
+                    "title": None, "tldr": None, "daily_markdown": None,
+                    "has_long_record": False,
+                    "note": f"{len(rows)} file(s) in docs/archives/ and not one "
+                            "of them is named for a day, so which memo is the "
+                            "latest cannot be read from disk"}
+    else:
+        row = next((r for r in rows if r["date"] == date), None)
+        if row is None:
+            return {"available": False, "reason": "no_such_day",
+                    "date": date, "path": None, "pdf_path": None,
+                    "title": None, "tldr": None, "daily_markdown": None,
+                    "has_long_record": False,
+                    "note": f"no Daily is filed for {date}. That is an absence, "
+                            "not an empty day: the secretary runs when a "
+                            "session is live, and a day nobody documented has "
+                            "no memo rather than a blank one."}
+
+    p = Path(row["path"])
+    try:
+        # Distinguished from `_read`'s silent "" on purpose: this endpoint must
+        # be able to say UNREADABLE, and a helper that returns empty string for
+        # a permissions error would make that indistinguishable from an empty
+        # file. Same reason `archives()` keeps its three absences apart.
+        text = p.read_text(encoding="utf-8", errors="replace")
+    except OSError as e:
+        return {"available": False, "reason": "unreadable",
+                "date": row["date"], "path": row["path"],
+                "pdf_path": row["pdf_path"], "title": None, "tldr": None,
+                "daily_markdown": None, "has_long_record": False,
+                "note": f"{row['path']} is on disk and could not be read "
+                        f"({e}). Whether a memo exists for {row['date']} is "
+                        "UNKNOWN, not no."}
+
+    parts = _split_memo(text)
+    title = _title_of(text)
+    notes = list(parts["notes"])
+
+    # AVAILABLE TURNS ON THE DAILY SECTION, NOT ON THE TL;DR. Section 1 is what
+    # makes the file a memo; the headline is a summary OF it. A memo whose
+    # author skipped the fence is still a memo the CEO should see, and a file
+    # carrying only a headline is not a Daily — it is a fragment, and calling
+    # it available would put five unanchored lines on his desk as though the
+    # day were documented.
+    if parts["daily"] is None:
+        return {"available": False, "reason": "no_memo_section",
+                "date": row["date"], "path": row["path"],
+                "pdf_path": row["pdf_path"], "title": title,
+                # The headline is still returned when there is one: it was
+                # read, it is real, and withholding a fact because a
+                # neighbouring one is missing is its own kind of dishonesty.
+                "tldr": parts["tldr"],
+                "daily_markdown": None,
+                "has_long_record": parts["has_long_record"],
+                "note": f"{row['path']} is filed and readable and carries no "
+                        + ("Daily section, only a TL;DR headline"
+                           if parts["tldr"] else
+                           "Daily section and no TL;DR headline")
+                        + ". That is a defect in the ARTIFACT, not a missing "
+                          "memo — the file is there, and this points at the "
+                          "secretary rather than at the plumbing."
+                        + ("" if not notes else " " + "; ".join(notes) + ".")}
+
+    note = (f"Donna's Daily for {row['date']}"
+            + ("" if parts["tldr"] else
+               ", with no TL;DR headline — the card shows the Daily itself")
+            + ("" if parts["has_long_record"] else
+               ". No long record section is present in the file")
+            + ".")
+    if notes:
+        note = note + " " + "; ".join(notes) + "."
+
+    return {
+        "available": True,
+        "reason": None,
+        "date": row["date"],
+        "path": row["path"],
+        "pdf_path": row["pdf_path"],
+        "title": title,
+        "tldr": parts["tldr"],
+        "daily_markdown": parts["daily"],
+        "has_long_record": parts["has_long_record"],
+        "note": note,
+    }
+
+
 def _artifacts() -> list[dict[str, Any]]:
     """Proposals and designs, paired with the verdicts that reviewed them.
 
