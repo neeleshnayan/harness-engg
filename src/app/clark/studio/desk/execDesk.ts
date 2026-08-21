@@ -251,6 +251,29 @@ export type DeskStage =
  * and rendered 11 and 6 for the same payload, eight pixels apart. A spine that
  * predates the annotation sends no field, and the old status rule is the
  * fallback — degrading to the previous behaviour, never to a guess.
+ *
+ * THE ACTOR IS CONSULTED **BEFORE** THE STATUS, and that ordering is the whole
+ * repair (killed by the adversary 2026-08-22, on the first cut of this
+ * function). The first version returned `awaiting_execution` for any
+ * accepted/staged row and only then looked at `nextActor` — so an ACCEPTED row
+ * carrying `next_actor: "ceo"` fell out before the field was ever read. That
+ * row is not a hypothetical: it is the COO's preserved objection in the
+ * constitution, verbatim — *"items at status `accepted` whose execution
+ * requires the CEO personally (three live today, including PM R1, the
+ * largest-money decision in the firm)"* — and it is the exact case the spine's
+ * explicit `next_actor` field exists to express, ranked ABOVE the lifecycle in
+ * `desk.py::next_actor`'s own precedence list. Under the old ordering the
+ * spine counted such a row as CEO load and this page filed it under "shown,
+ * never counted": server 1, page 0, on the same line of `ceo/page.tsx`. That
+ * is the 11-vs-6 divergence reintroduced by the field introducing it.
+ *
+ * The precedence below MIRRORS `desk.py::next_actor` because it consumes that
+ * function's answer rather than recomputing it — terminal rows never reach
+ * here (`recItems` drops them), the actor decides, and status is used for one
+ * thing only: telling a decided row that is not the CEO's ("you said yes,
+ * the chair owes you the execution") from an open one that is not his
+ * ("nobody has decided this and it was never yours"). Those are different
+ * facts and the desk has already paid for confusing them once.
  */
 export function stageOfItem(i: DeskItem): DeskStage {
   // An order pending approval is the CEO's decision by definition.
@@ -261,15 +284,24 @@ export function stageOfItem(i: DeskItem): DeskStage {
   //            which is a click on the ORDER that staging created — the
   //            recommendation itself is decided.
   const decided = status === "accepted" || status === "staged";
-  if (decided) return "awaiting_execution";
   const actor = i.nextActor;
-  // `unknown` stays with the CEO on purpose: a row whose owner could not be
-  // read is work he may still owe, and routing it away would answer an
-  // unmeasurable with a zero.
+  // 1 — THE SPINE'S ANSWER, whatever the lifecycle says. `unknown` stays with
+  // the CEO on purpose: a row whose owner could not be read is work he may
+  // still owe, and routing it away would answer an unmeasurable with a zero.
+  // `desk_load` counts `ceo` and `unknown` toward his figure and nothing else;
+  // this line is the client half of that same partition.
+  if (actor === "ceo" || actor === "unknown") return "awaiting_decision";
   if (actor === "chair" || actor === "seat" || actor === "nobody") {
-    return "owned_elsewhere";
+    // Somebody else's — but WHOSE somebody-else depends on whether a decision
+    // was made. A decided row is a promise the firm owes back to the CEO; an
+    // open one was never his.
+    return decided ? "awaiting_execution" : "owned_elsewhere";
   }
-  return "awaiting_decision";
+  // 2 — no routing on the row at all (a spine predating the annotation, which
+  // sends null, or a caller that built the item by hand, which leaves it
+  // undefined). The OLD status rule, unchanged: degrade to the previous
+  // behaviour, never to a guess.
+  return decided ? "awaiting_execution" : "awaiting_decision";
 }
 
 export interface DeskSplit {

@@ -52,6 +52,55 @@ test("a DECIDED row is awaiting execution — the CEO's complaint, pinned", () =
   }
 });
 
+test("a DECIDED row the CEO must still act on stays HIS — the kill, pinned", () => {
+  /* THE INCIDENT (adversary kill, 2026-08-22, on this file's own first cut).
+   *
+   * The test above pinned "decided => awaiting execution" using ONLY
+   * `nextActor: "chair"` — the one case where the spine and the page agree —
+   * and so it went green over a function that returned before it ever read the
+   * field. The case it never tested is the case the field exists FOR: the
+   * constitution's preserved COO objection, verbatim, "items at status
+   * `accepted` whose execution requires the CEO personally (three live today,
+   * including PM R1, the largest-money decision in the firm)".
+   *
+   * `desk.py::next_actor` ranks the explicit field ABOVE the lifecycle, so the
+   * spine counts such a row as CEO load. The page filed it under "shown, never
+   * counted". Server 1, page 0, eight pixels apart — the 11-vs-6 divergence
+   * this whole module was written to eliminate, reintroduced by the field that
+   * eliminates it.
+   *
+   * A test that cannot bless the bug: it fails if the accepted/staged shortcut
+   * is ever restored above the actor read, in either status. */
+  for (const status of ["accepted", "staged"]) {
+    assert.equal(
+      stageOfItem(item({ nextActor: "ceo", rec: rec({ status }) })),
+      "awaiting_decision", `${status} + next_actor ceo`);
+    // And the other half of the same defect: an explicit value the SPINE could
+    // not parse resolves to `unknown`, which also counts toward the CEO
+    // (`desk_load` sums ceo + unknown). A decided row must not swallow it.
+    assert.equal(
+      stageOfItem(item({ nextActor: "unknown", rec: rec({ status }) })),
+      "awaiting_decision", `${status} + next_actor unknown`);
+  }
+});
+
+test("a decided row owned elsewhere is a PROMISE, not somebody else's ticket", () => {
+  /* The distinction the repair must not flatten while fixing the one above.
+   * `chair`/`seat`/`nobody` on an OPEN row means nobody decided it and it was
+   * never the CEO's (`owned_elsewhere`); the same actor on a DECIDED row means
+   * he said yes and the firm owes him the execution (`awaiting_execution`).
+   * Both are uncounted, and reporting the second as the first would drop a
+   * promise the firm actually made. */
+  for (const actor of ["chair", "seat", "nobody"]) {
+    assert.equal(
+      stageOfItem(item({ nextActor: actor, rec: rec({ status: "accepted" }) })),
+      "awaiting_execution", `accepted + ${actor}`);
+    assert.equal(
+      stageOfItem(item({ nextActor: actor, rec: rec({ status: "open" }) })),
+      "owned_elsewhere", `open + ${actor}`);
+  }
+});
+
 test("an OPEN row owned by the chair is neither his decision nor a promise", () => {
   /* The distinction that earns the third stage. Nobody decided it, so calling
    * it "decided, awaiting execution" would report a promise the firm never
@@ -86,16 +135,133 @@ test("a spine with no routing falls back to the OLD rule, never to a guess", () 
                "awaiting_execution");
 });
 
-test("the page NEVER re-derives the routing from kind or status", () => {
-  /* The whole repair is that there is one definition. A second one in
-   * TypeScript would be free to drift from the Python, which is exactly how
-   * 11 and 6 ended up on the same line. */
+/**
+ * The source-text census of `stageOfItem`, comments stripped.
+ *
+ * THE INCIDENT this shape is written from (adversary kill, 2026-08-22): the
+ * previous version of the test below was TITLED "never re-derives the routing
+ * from kind or status" and grepped the body for `KIND_ACTORS` and
+ * `"awaits-ceo"` — and **never for `status`**, which was literally in the slice
+ * it read, deciding the answer one line above the field it did assert on. A
+ * test whose title names a token it never greps for is a green light you built
+ * yourself.
+ *
+ * So this does not grep for a blacklist. It enumerates EVERY string literal and
+ * EVERY `i.…` field read in the function and requires each one to be on a
+ * reviewed allowlist. A token nobody reviewed fails the test BY NAME, which is
+ * the only version of this check that cannot go quietly green over a rule
+ * somebody added.
+ */
+function stageOfItemCensus(): {
+  literals: Set<string>; fields: Set<string>; body: string;
+} {
   const src = readFileSync(new URL("./execDesk.ts", import.meta.url), "utf8");
-  const fn = src.slice(src.indexOf("export function stageOfItem"),
-                       src.indexOf("export interface DeskSplit"));
-  assert.ok(fn.includes("i.nextActor"), "the stage must read the spine's field");
-  assert.ok(!fn.includes("KIND_ACTORS") && !fn.includes("awaits-ceo"),
+  /* The slice ends at the NEXT top-level `export`, not at a named landmark.
+   * A named end-marker is a landmark that moves: adding an unrelated export
+   * between `stageOfItem` and the old marker (`export interface DeskSplit`)
+   * silently widened this census to cover code it was never meant to judge,
+   * which it caught on itself within the hour of being written. A slice that
+   * can drift is a source assertion that can quietly stop being about its
+   * subject. */
+  const start = src.indexOf("export function stageOfItem");
+  const after = src.slice(start + 1);
+  const rel = after.indexOf("\nexport ");
+  const raw = rel >= 0 ? src.slice(start, start + 1 + rel) : src.slice(start);
+  /* Guards, because a census over nothing passes every assertion it makes. */
+  if (start < 0 || !raw.includes("DeskStage") || raw.length > 4000) {
+    throw new Error(
+      `the stageOfItem slice looks wrong (${raw.length} chars). A census over `
+      + "the wrong text is worse than no census.");
+  }
+  // Comments carry the why and are prose; a sentence about `accepted` is not a
+  // re-derivation of it. Strip them before tokenising, or the census measures
+  // the documentation instead of the code.
+  const body = raw.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
+  const literals = new Set<string>();
+  for (const m of body.matchAll(/"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'/g)) {
+    literals.add(m[1] ?? m[2] ?? "");
+  }
+  const fields = new Set<string>();
+  for (const m of body.matchAll(/\bi\s*(?:\?\.|\.)\s*(\w+)(?:\s*(?:\?\.|\.)\s*(\w+))?/g)) {
+    fields.add(m[2] ? `${m[1]}.${m[2]}` : m[1]);
+  }
+  return { literals, fields, body };
+}
+
+test("the page NEVER re-derives the routing — every token is on the allowlist", () => {
+  const { literals, fields, body } = stageOfItemCensus();
+
+  /* What the function is ALLOWED to say, and why each entry is here. Adding a
+   * token means editing this list, which means somebody read it. */
+  const ALLOWED_LITERALS = new Set([
+    // The item discriminant — an order, not a recommendation's `kind`.
+    "order",
+    // The two lifecycle statuses, and ONLY these two. `desk.py` treats
+    // accepted/staged as "the CEO already decided"; the client reads the same
+    // pair for the same reason and reads no other status at all.
+    "accepted", "staged",
+    // The spine's five actors, verbatim from `desk.py::NEXT_ACTORS`. A sixth
+    // one appearing here would be the client inventing routing.
+    "ceo", "unknown", "chair", "seat", "nobody",
+    // Its own three return values.
+    "awaiting_decision", "awaiting_execution", "owned_elsewhere",
+  ]);
+  const ALLOWED_FIELDS = new Set([
+    "kind",        // DeskItem.kind — "order" | "recommendation"
+    "rec.status",  // the lifecycle, for the decided/open split ONLY
+    "nextActor",   // the spine's answer
+  ]);
+
+  const uncheckedLiterals = [...literals].filter((x) => !ALLOWED_LITERALS.has(x));
+  const uncheckedFields = [...fields].filter((x) => !ALLOWED_FIELDS.has(x));
+
+  /* Print the census every run, per the brief: run the assertion against your
+   * own source and say what it did NOT check. An empty remainder is a claim
+   * this test earns rather than implies. */
+  console.log(
+    "  [census] stageOfItem literals:", [...literals].sort().join(" ")
+    + "\n  [census] stageOfItem i.<field> reads:", [...fields].sort().join(" ")
+    + `\n  [census] unchecked: literals=[${uncheckedLiterals.join(",")}] `
+    + `fields=[${uncheckedFields.join(",")}]`);
+
+  assert.deepEqual(uncheckedLiterals, [],
+    "a string literal in stageOfItem that nobody put on the allowlist — either "
+    + "it is a re-derivation of the spine's routing, or the allowlist above "
+    + "needs a line saying why it is not");
+  assert.deepEqual(uncheckedFields, [],
+    "stageOfItem reads a field the allowlist does not cover; every input to "
+    + "this predicate must be a reviewed one");
+
+  // The positives, stated so the census cannot pass by the function being empty.
+  assert.ok(fields.has("nextActor"), "the stage must read the spine's field");
+  assert.ok(!body.includes("KIND_ACTORS"),
     "no kind table may be re-implemented on the client");
+  assert.ok(!fields.has("rec.kind"),
+    "the recommendation's KIND must not reach this predicate: `kind` is free "
+    + "text (84 distinct values over 219 rows) and routing on it is the spine's "
+    + "job, done once, in `desk.py::KIND_ACTORS`");
+});
+
+test("the ACTOR is read BEFORE the status shortcut can return — the kill, in source", () => {
+  /* The behavioural pin is above; this pins the SHAPE, because the defect was
+   * an ORDERING and an ordering is what a future edit will get wrong again.
+   * The first `awaiting_execution` return must not sit above the first read of
+   * the spine's actor — that single line of precedence is the whole kill. */
+  const { body } = stageOfItemCensus();
+  const firstActorRead = body.indexOf("nextActor");
+  const firstDecidedReturn = body.indexOf('"awaiting_execution"');
+  /* The guard is not ceremony: a source assertion whose landmark has moved
+   * finds nothing and passes, which is the same green-light-you-built-yourself
+   * failure this whole file is being repaired from. It has already fired once
+   * — the first draft looked for the string `return "awaiting_execution"` and
+   * the repaired function returns it from a ternary. */
+  assert.ok(firstActorRead >= 0 && firstDecidedReturn >= 0,
+    `both landmarks must exist for this assertion to mean anything `
+    + `(nextActor@${firstActorRead}, "awaiting_execution"@${firstDecidedReturn})`);
+  assert.ok(firstActorRead < firstDecidedReturn,
+    "stageOfItem returned `awaiting_execution` before it had read "
+    + "`nextActor` — that is the accepted-row-owned-by-the-CEO defect the "
+    + "adversary killed on 2026-08-22, exactly as it was written the first time");
 });
 
 /* ------------------------------------------------------------ the split -- */
