@@ -217,6 +217,57 @@ export function recItems(
   }));
 }
 
+/* ----------------------------------------------- the shared contract ------ */
+
+/**
+ * The desk-stage contract this build's expectations were generated against.
+ *
+ * `contract/desk_stage_contract.v1.json` is produced BY `app/fund/desk.py` in
+ * ClarkHarness and checked in to both repos, byte-identical. Each repo's suite
+ * pins its own copy, which catches an edit on either side and does NOT catch
+ * ClarkHarness being regenerated while this copy stays stale — there is no
+ * shared build for a hermetic test to live in.
+ *
+ * So the spine publishes `desk_load.contract_digest` and the page compares. It
+ * is the one place a silent drift between the counter and this page could
+ * still hide, and a silent drift between the counter and this page is the
+ * entire 11-vs-6 defect, which has now shipped twice.
+ *
+ * Changing this means regenerating in ClarkHarness, copying the file here, and
+ * updating this literal AND `PINNED_DIGEST` in `deskStageContract.test.ts`.
+ * Three deliberate acts, on purpose.
+ */
+export const CONTRACT_DIGEST =
+  "0fdfb5123edf0ab0188ef09acadba87b8adc3ef6c72e2bc6a16499a0a5bdb593";
+
+/** What the live spine's contract digest says about this page's fixture.
+ *  `null` = they agree and nothing is rendered. */
+export type ContractDrift = "drifted" | "unverified" | null;
+
+/**
+ * Compare the live spine's contract digest against this build's.
+ *
+ * THREE OUTCOMES, THREE RENDERINGS, and two of them are absences:
+ *
+ *   `null`         — the spine and this page were built against the same
+ *                    contract. Silent; a control that shouts when it is happy
+ *                    stops being read.
+ *   `"unverified"` — the spine sent no digest (it predates the field) or sent
+ *                    `null` (it could not read or could not verify its own
+ *                    contract file). This is NOT agreement, and must never
+ *                    render as agreement. Absence is never zero and it is
+ *                    never "fine" either.
+ *   `"drifted"`    — a real disagreement. The counter and this page are
+ *                    running different rules, and the numbers on this screen
+ *                    may not mean what they say.
+ */
+export function contractDrift(
+  liveDigest?: string | null,
+): ContractDrift {
+  if (typeof liveDigest !== "string" || !liveDigest) return "unverified";
+  return liveDigest === CONTRACT_DIGEST ? null : "drifted";
+}
+
 /* ---------------------------------------------------------------- stages -- */
 
 /**
