@@ -1139,3 +1139,38 @@ that means what its label says.
 **A challenge whose first casualty is the chair that filed it is the right way
 to open this rule.** If the first one had been aimed only outward I would trust
 the mechanism less.
+
+---
+
+## 2026-08-21 (UTC) — the one-seat-in-flight rule overridden by the CEO, recorded rather than absorbed
+
+**co-CTO chair. Small entry, deliberately loud, because the alternative is a
+standing rule eroding without anyone noticing it happened.**
+
+The constitution's dispatch rules say **"One sub-agent in flight at a time;
+briefs are batched"** — a quota-era cost rule agreed 2026-08-20. I queued a
+quant dispatch behind a running COO triage on exactly that basis and told the
+CEO so. He replied, verbatim: **"no run it in parallel"**, and I fired the quant
+immediately alongside the COO.
+
+**Scope: I have treated this as THIS DISPATCH, not as a rule change.** He
+answered a specific "it's queued" with a specific "run it"; reading a standing
+amendment into that would be me widening an instruction I was given narrowly.
+If he wants it standing, it is a one-word confirmation and a dated amendment —
+and the reason to make it explicit rather than let it drift is that the rule is
+a **cost** control, and cost controls that erode by precedent are exactly the
+quiet-loosening pattern the constitution forbids in the other direction.
+
+**Why it was cheap here, for the record**: the two seats do not contend. The COO
+is read-only judgement over the desk; the quant runs LEAN containers and writes
+only inside `lean_workspace/algorithms/**`. No shared surface, no shared lock,
+and `MAX_CONCURRENT_CONTAINERS` is unaffected because the COO uses none. **That
+is a fact about this pair, not a general argument for parallelism** — two
+builders in worktrees, or any two seats writing anywhere, would not be this
+clean, and a future parallel dispatch should be checked for contention rather
+than assumed safe because this one was.
+
+Both dispatches: COO triage #4 (manual, counter reads 30/50 and would not have
+fired), and quant re-running `monthend_rebalance_flow` (desk `0a93f9c9`) to
+prove the analytics capture path on a real candidate — the CEO's Lab-page ask
+and the validator's cheapest-unblock for gate round 6, which are the same run.
