@@ -112,8 +112,18 @@ _CONST_ASSIGN = re.compile(r"^\+\s*([A-Z][A-Z0-9_]{2,})\s*[:=]\s*"
 #: How the suite is run, per repo shape. Detected from what is actually on disk
 #: rather than passed in, so the caller cannot accidentally gate a Python repo
 #: with a command that tests nothing.
+#:
+#: The KryptonPay entry quotes its glob so NODE expands it, not the shell. That
+#: is not a style choice and it cost a wrong number to find: this seat had been
+#: running `src/app/clark/studio/**/*.test.ts` through bash, where `**` without
+#: `globstar` means `*` — one directory level — so a nested suite
+#: (`studio/desk/floor/`) was silently never run and the reported total was 163
+#: when the truth was 183. A merge gate quoting a short count is worse than one
+#: quoting none, so the glob is passed through as a single argument.
 _SUITES: tuple[tuple[str, list[str]], ...] = (
     ("pytest.ini", [sys.executable, "-m", "pytest", "-q"]),
+    ("next.config.ts", ["node", "--experimental-strip-types", "--test",
+                        "src/app/clark/**/*.test.ts"]),
 )
 
 

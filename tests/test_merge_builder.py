@@ -289,6 +289,30 @@ def test_an_unrecognised_repo_shape_returns_None_rather_than_a_default(tmp_path)
     assert detect_suite(tmp_path) is None
 
 
+def test_the_python_and_node_repo_shapes_are_both_recognised(tmp_path):
+    py, node = tmp_path / "py", tmp_path / "node"
+    py.mkdir()
+    node.mkdir()
+    (py / "pytest.ini").write_text("[pytest]\n", encoding="utf-8")
+    (node / "next.config.ts").write_text("export default {};\n", encoding="utf-8")
+    assert "pytest" in " ".join(detect_suite(py) or [])
+    assert "--test" in (detect_suite(node) or [])
+
+
+def test_the_node_glob_is_ONE_argument_so_node_expands_it_not_the_shell(tmp_path):
+    """`**` in bash without globstar means `*` — one level — and a nested suite
+    is then silently never run. This seat reported 163 passing when the truth
+    was 183, exactly that way. The glob must reach node intact."""
+    node = tmp_path / "node"
+    node.mkdir()
+    (node / "next.config.ts").write_text("export default {};\n", encoding="utf-8")
+    cmd = detect_suite(node) or []
+    globs = [a for a in cmd if "*" in a]
+    assert len(globs) == 1, cmd
+    assert globs[0].count("**") == 1
+    assert globs[0] == "src/app/clark/**/*.test.ts"
+
+
 def test_the_rendered_report_states_that_nothing_was_merged(repo, tmp_path):
     b, base = _bundle(repo, tmp_path, _ok)
     text = render(review(b, base, repo, BRANCH))
