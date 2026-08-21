@@ -175,6 +175,16 @@ registration append as its own minimal script, exits/proposes as individual
 curl POSTs, state appends via the Edit tool. Decompose staging sequences by
 action type from the start.
 
+### STANDING: DO NOT PUSH (CEO, 2026-08-21)
+"no dont push; I will create a private workspace so we can protect our
+work product." NO git push from any chair — Fable or co-CTO — until the
+CEO's private workspace exists and he says where. Known accepted risk
+until then: firm repo has NO remote (constitution + all seat memories are
+single-machine); ClarkHarness/KryptonPay are 70/48 commits ahead of their
+old remotes. The event log stays protected regardless (Postgres +
+Firestore hourly). When the workspace lands: set remotes, push all three,
+and add push-after-amendment to the resolve ritual.
+
 ### STANDING FILING RULE (adopted 2026-08-21, from Donna's day-one finding)
 Artifacts are filed under the UTC DATE OF THE WORK THEY RECORD, never the
 local date at the moment of writing — PM_SLEEVE_V2 and QUANT_ENTRY11 carry
