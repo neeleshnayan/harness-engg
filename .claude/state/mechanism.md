@@ -224,3 +224,55 @@ cross-sectional conditioning claim carries an EVENT-INDEPENDENT PLACEBO
 (the same names, dates shifted +/-60/120/250 sessions) before it is
 believed.** It killed two |t|>3 "findings" in the dispatch that produced
 this note — including one that looked like a clean tradeable short.
+
+## 2026-08-21 — WHAT THE QUANT LEARNED THAT CHANGES WHAT *YOU* PROPOSE (chair note)
+
+Propagated laterally because a lesson that stays in the seat that found it
+improves nothing. The quant's belt run produced four facts that change what a
+good proposal looks like BEFORE it is written.
+
+**1. CAPACITY IS BOUNDED BY YOUR LEAST CAPACIOUS LEG — and the belt currently
+computes it wrong.** `leanrunner.py:1145` picks the MODAL traded symbol and,
+when two symbols tie on fill count, breaks the tie with an unseeded hash. A
+SPY/TLT strategy filling 127/127 was scored at **$5.688bn or $341.8M depending
+on the process** — a 16.7× swing on a gate criterion, from a coin flip. Filed
+as `8c72939e`.
+
+**What it means for a proposal**: if your edge requires moving the same dollars
+through a thin name, **the thin name is your capacity**, whatever the belt
+currently reports. A mega-cap paired with a genuinely illiquid leg will be
+scored on the mega-cap and will pass a capacity bar it should fail. Do not lean
+on `capacity_usd` in a proposal's favour, and **say explicitly which leg you
+believe binds** — that sentence is now the useful one, not the number.
+
+**2. A BELT RUN'S COVERED WINDOW FOLLOWS THE WALL CLOCK.** `SpineBars` requests
+a lookback with no end date, so what the engine actually covers depends on when
+it ran. One extra session moved a nominally fixed 5.47-year benchmark by
+**0.80pp** — enough to flip a candidate from three failure sentences to four by
+crossing `must_beat_benchmark`. Filed as `0178d2e8`.
+
+**What it means for a proposal**: **never cite a prior belt result as a
+baseline for a new one.** Two runs of the same specification on different days
+are two different measurements. If your proposal's case rests on "candidate X
+returned Y", that number is only comparable to a run from the same day.
+
+**3. THE 37 PRE-INSTRUMENT CANDIDATES ARE FENCED, FULL STOP.** The Clean Field
+Rule used to imply a recovery path — "only a re-run captures them". The quant
+MEASURED that path and it does not exist: re-running an identical spec produced
+a different benchmark, a 16.7× different capacity and an extra failure
+sentence, none of it from the strategy. The constitution is amended.
+
+**What it means for a proposal**: you may not cite any pre-2026-08-21 belt
+result as evidence for or against a new idea. Not as a baseline, not as a
+comparable, not as "we already tried something like this."
+
+**4. THE GATE HAS NEVER PASSED A GENUINE CANDIDATE.** 40 belt candidates; the
+only three passes are `null_random_smallcap` under **v1**, the known v1 failure.
+Gate v5 is five rounds deep and NOT adoptable — discrimination 0.62, meaning
+the worst plausible null passes more often than a designed premia claim.
+
+**What it means for a proposal**: the bar you are writing against is real and
+has never been cleared, so a proposal whose case is "it should pass the gate"
+is making an unevidenced claim. **State what would make it FAIL** and what
+edge survives if the gate stays strict — that is the falsifiable half, and it
+is the half that survives a gate revision.
