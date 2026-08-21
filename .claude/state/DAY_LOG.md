@@ -73,6 +73,32 @@ short holding its long cost basis. **On a short, a rising price is a loss that
 reads as a gain — stops fire backwards.** Filed `34338ef6`. R19 does not touch
 it.
 
+### IN FLIGHT AS OF THE LAST UPDATE
+
+- **Adversary, blind, on envelope v4.** Built and proven against the live
+  916-event log — the builder synthesised the event `enforce()` will write on
+  2026-09-08 and ran the real gatherer and evaluator: `APPROVE = False`, with
+  all twelve v3 checks still passing on the same data. Tests 19 → 59 plus a new
+  wiring file; **fifteen mutations injected into its own new code, fifteen
+  caught.** Merge gate **FAIL exit 1** — the correct verdict, `autopolicy.py` is
+  sensitive. **Nothing merged.** The CEO's click adopts v4 once the adversary
+  clears it, and I asked the adversary to attack one claim hardest: *that v4 is
+  strictly tightening* — because that premise is what lets it adopt without a
+  separate widening review, and a sign-agnostic predicate inside a sells-only
+  policy is where a widening would hide.
+- **Builder, on the office.** D9 was **KILLED** by the adversary on one ground,
+  chair-verified line-exact: `stageOfItem` returns on `status` before ever
+  reading `nextActor`, so an `accepted` row marked `next_actor: "ceo"` — *the
+  exact case the field exists for* — is counted by the spine and filed by the
+  page under "shown, never counted." **Server 1, page 0, same line of the same
+  screen.** Two of the diff's own tests blessed it, including one titled *"never
+  re-derives from kind or status"* that greps for neither. Repair dispatched,
+  **plus the CEO has authorised the decision-list restructure** ("lets have the
+  builder fix our office first"): N cards and nothing above them, the COO's
+  batch as the *grouping* of those cards, a date chip on the one row that does
+  not wait, and Donna's 404 memo route recovered. Commits kept separable so the
+  kill-repair stays reviewable alone.
+
 ### DECIDED (by the CEO)
 
 - **Envelope v4 adopted**, with the skip-visibility fix in the same change.
@@ -161,6 +187,15 @@ it.
   and the belt window contains +0.12%/yr of it. Zero containers spent.
 
 ### OPEN FOR FABLE
+
+- **FIRST CHAIR-APPROVED DESK REQUESTS IN THE FUND'S HISTORY (4).** The CEO:
+  *"this says awaiting you when its already accepted."* Four rows of four, all
+  mine — build tickets filed at status `open` for work whose recommendation he
+  had already accepted, so the desk handed his own decisions back as fresh
+  questions. Approved via the guard as `neelesh-via-co-cto` with his verbatim
+  words; `requests_awaiting_approval` **4 → 0**. All 25 prior approvals carry
+  `ceo` or `neelesh-via-cto`. **If that line should hold absolutely, revert
+  them** — the cost is only four re-clicks. Reasoning in the queue.
 
 - **Tier-3 parked, in priority order**: the register's trigger-evaluability fix
   (**before** registering governance decisions — 17 of 19 triggers are inert
