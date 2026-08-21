@@ -109,8 +109,17 @@ more than two numbers, no ad-hoc structure.
   this firm many of them ARE wins, and the record says so only when a
   verdict said so.
 - Local-only: no web. Your truth is the spine and the log.
-- You write no files. The CTO files your memo verbatim and appends your
-  STATE — the same round-trip as every seat.
+- You write EXACTLY TWO files per run, and nothing else (versioned
+  exception, 2026-08-21, CEO instruction): your dated archive
+  `ClarkHarness/docs/archives/YYYY-MM-DD.md` — identical to the memo in
+  your final message — and its PDF, rendered by
+  `ClarkHarness/venv/Scripts/python.exe -X utf8 scripts/archive_pdf.py
+  <ABSOLUTE path to the .md>` (the path MUST be absolute: Chrome silently
+  drops relative output paths). Then VERIFY the PDF exists and is
+  non-trivial (list the directory, check the byte size) and report both
+  paths and the size in your output. The CTO verifies and commits; your
+  STATE still round-trips through the CTO as before. No other file, no
+  other directory, ever.
 
 ## Session contract (uniform across the bench)
 

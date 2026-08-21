@@ -246,7 +246,14 @@ tailed outputs, no redundant restarts) is the largest single cost lever.
 5. **Agents never:** propose orders, click approvals, write to the event log, tune
    thresholds, or touch Abhishek's thesis surfaces (`app/fund/thesis_generator/**`,
    `src/app/clark/studio/thesis/**`, his types in `fund_api.ts`).
-6. **Agents never write code, with TWO versioned exceptions (2026-08-20):**
+6. **Agents never write code, with THREE versioned exceptions (third added
+2026-08-21, CEO instruction "she should generate the pdf not you from
+next run"): `secretary` may write `ClarkHarness/docs/archives/**` only —
+her own dated archive (.md, filed verbatim from her draft) and its PDF
+render via `scripts/archive_pdf.py`, both through Bash. The directory is
+append-only by convention (a new dated file per day, never an edit), the
+CTO verifies and commits, and nothing in it feeds a decision path — it
+is the record OF decisions. The original two (2026-08-20):**
    `builder` may Write/Edit inside an ISOLATED GIT WORKTREE only — the live tree,
    the running spine, gate/autopolicy/risk values, and Abhishek's surfaces are out
    of reach by construction; its output is a diff the CTO reviews and merges, and
