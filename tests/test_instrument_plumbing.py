@@ -211,9 +211,28 @@ class TestDeskLoad:
                                       "pending_orders": 3,
                                       "requests_awaiting_approval": 2}
 
-    def test_the_chip_fires_strictly_above_the_threshold(self):
-        assert desk_mod.desk_load([{}] * 20, [], []) ["coo_triage_due"] is False
-        assert desk_mod.desk_load([{}] * 21, [], []) ["coo_triage_due"] is True
+    def test_the_chip_fires_at_or_above_the_threshold(self):
+        """RENAMED AND RE-PINNED 2026-08-21 (CEO instruction, verbatim:
+        "Lets run coo on >=50 items or we can trigger as needed").
+
+        The old invariant was STRICTLY above (>20 fired at 21). The CEO's
+        instruction says >=50, which fires AT 50, so the comparison moved
+        from `>` to `>=` and this test's name moved with it. Recorded
+        loudly rather than quietly because a test renamed to match the
+        change it is supposed to catch is exactly how a gate gets loosened
+        by its own suite — the difference here is one item on a governance
+        dashboard light, it moves no risk limit, and the reason is in
+        desk.py beside the constant.
+
+        What this still pins, and why it is worth a test at all: the
+        boundary is exact. One item below the threshold is quiet; the
+        threshold itself fires."""
+        assert desk_mod.desk_load(
+            [{}] * (desk_mod.COO_TRIAGE_THRESHOLD - 1), [], []
+        )["coo_triage_due"] is False
+        assert desk_mod.desk_load(
+            [{}] * desk_mod.COO_TRIAGE_THRESHOLD, [], []
+        )["coo_triage_due"] is True
 
     def test_decided_recommendations_do_not_count_toward_the_ceo_load(self):
         """Measured on the counter's first live day: it read 73 against 10

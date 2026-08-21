@@ -413,7 +413,22 @@ def _activity(store: Any) -> dict[str, dict[str, Any]]:
 #: one place — the count crossing it is a SIGNAL for the CTO to dispatch, and
 #: nothing in this module or the spine dispatches anything. The ignition keys
 #: stay human; this is the dashboard light, not the starter motor.
-COO_TRIAGE_THRESHOLD = 20
+#: VERSIONED CHANGE 2026-08-21: 20 -> 50, and the comparison moved from
+#: `>` to `>=`, by CEO instruction verbatim: "Lets run coo on >=50 items or
+#: we can trigger as needed." WRITTEN REASON (the rule requires one in
+#: either direction, and this is a LOOSENING so it is recorded loudly):
+#: COO triage #3 measured that 11 of 20 open recommendations were already
+#: executed — the counter was summoning the seat on stale bookkeeping
+#: rather than on decisions. Manual dispatch at any count remains available
+#: and is the CEO's stated fallback. OBJECTION ON THE RECORD: the COO
+#: (interest disclosed by the seat itself) recommended KEEPING 20, arguing
+#: the number is not the defect — the counter is blind to items at status
+#: `accepted` whose execution requires the CEO personally (three live that
+#: day, including PM R1). Raising the threshold does NOT address that blind
+#: spot; it remains open work. Applied by the co-CTO chair on the CEO's
+#: explicit approval; the constitution carries the same amendment and the
+#: objection beside it.
+COO_TRIAGE_THRESHOLD = 50
 
 
 def desk_load(open_recommendations: list[dict[str, Any]],
@@ -462,7 +477,7 @@ def desk_load(open_recommendations: list[dict[str, Any]],
         "unreadable": unreadable,
         "components": parts,
         "threshold": COO_TRIAGE_THRESHOLD,
-        "coo_triage_due": total > COO_TRIAGE_THRESHOLD,
+        "coo_triage_due": total >= COO_TRIAGE_THRESHOLD,
         "note": (
             f"{total} open item(s) on the CEO's desk against a triage trigger of "
             f"{COO_TRIAGE_THRESHOLD}"
@@ -470,7 +485,7 @@ def desk_load(open_recommendations: list[dict[str, Any]],
                "total is at least this" if unreadable else "")
             + (". A COO triage dispatch is DUE; the CTO fires it when a session "
                "is live — crossing this line triggers nothing by itself."
-               if total > COO_TRIAGE_THRESHOLD else ".")
+               if total >= COO_TRIAGE_THRESHOLD else ".")
         ),
     }
 
