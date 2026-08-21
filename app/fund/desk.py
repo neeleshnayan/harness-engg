@@ -114,6 +114,22 @@ ROSTER = [
                        "overwhelmed approver becomes a rubber stamp — the "
                        "failure every control here exists to prevent. The "
                        "click stays the CEO's, always."},
+    {"agent": "secretary",
+     "lane": "Documents each day from the record at end of day: one short memo "
+             "(the CEO's sixty-second read) and one detailed record, filed to "
+             "docs/archives/YYYY-MM-DD.md",
+     "emits": "two memos in one dated artifact, every claim cited to the log",
+     "exists_because": "Seated 2026-08-20 (CEO decision). The Scribe seat's "
+                       "'still nothing for them to do' condition ended the day "
+                       "the firm shipped a guard, merged a dispatch, ran two "
+                       "audits and filled four tickets, and no human could have "
+                       "reconstructed it without an hour in the log. The seat "
+                       "carries the name Donna; she documents and never "
+                       "decides, and her one steering output is the factual "
+                       "'awaits the CEO' list. ADDED TO THIS ROSTER 2026-08-21: "
+                       "the seat existed in the constitution and was missing "
+                       "here, so her seat page rendered a roster absence for a "
+                       "colleague who had already run."},
 ]
 
 #: Request kinds the desk accepts, mapped to the seat that serves them.
@@ -132,6 +148,12 @@ REQUEST_KINDS = {
     "build": "builder",
     # The CEO asking for their own desk to be triaged into batch decisions.
     "triage": "coo",
+    # The CTO's end-of-day trigger. A KIND rather than a schedule, deliberately:
+    # the secretary runs when a human fires her, and naming it here is what puts
+    # her in the activity fold and the per-seat telemetry — without it she is a
+    # seat that has run and reports NO runs-today at all, which the floor draws
+    # as an unmeasured "×?" beside colleagues showing real counts.
+    "document_day": "secretary",
 }
 
 _STATUS_RE = re.compile(r"Status:\s*(KILLED|SURVIVES|under adversarial review"
