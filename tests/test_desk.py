@@ -79,6 +79,36 @@ def test_requests_fold_from_the_event_log_and_survive_resolution():
     assert v["requests"][0]["resolution"] == "docs/reviews/X.md"
 
 
+def test_a_seat_filed_ask_is_visible_not_just_counted():
+    """Found 2026-08-21: the CEO's desk read '2/20 open' while rendering
+    empty. Seat-filed asks write subject/serves; the readers key on
+    task/seat — an unnormalized row is counted by desk_load but renders
+    blank. An invisible item on the CEO's desk is the worst kind of open
+    item: it blocks the funnel and nobody can click it."""
+    store = MemStore()
+    store.append(Event(aggregate_id="r2", aggregate_type="desk_request",
+                       type=EventType.DESK_REQUESTED,
+                       payload={"request_id": "r2", "kind": "proposal",
+                                "serves": "mechanism",
+                                "subject": "propose premia-menu entry 7",
+                                "actor": "pm",
+                                "at": "2026-08-20T20:08:26Z"}, actor="pm"))
+    v = desk.view(store)
+    row = v["requests"][0]
+    assert row["task"] == "propose premia-menu entry 7"
+    assert row["seat"] == "mechanism"
+    # And the CEO-typed vocabulary still round-trips untouched.
+    store.append(Event(aggregate_id="r3", aggregate_type="desk_request",
+                       type=EventType.DESK_REQUESTED,
+                       payload={"request_id": "r3", "kind": "attack",
+                                "seat": "adversary", "task": "attack the gate",
+                                "at": "2026-08-21T00:00:00Z"}, actor="operator"))
+    v = desk.view(store)
+    row3 = [r for r in v["requests"] if r["request_id"] == "r3"][0]
+    assert row3["task"] == "attack the gate"
+    assert row3["seat"] == "adversary"
+
+
 def test_the_execution_honesty_line_is_in_the_payload():
     """The one lie this page must never tell: that the spine can think."""
     v = desk.view(MemStore())

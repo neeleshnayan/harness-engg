@@ -214,7 +214,16 @@ def _requests(store: Any) -> list[dict[str, Any]]:
         if t == EventType.DESK_REQUESTED.value:
             rid = p.get("request_id")
             if rid:
-                rows[rid] = {**p, "status": "open"}
+                row = {**p, "status": "open"}
+                # Seat-filed asks write subject/serves where CEO-typed
+                # requests write task/seat. The desk's readers key on
+                # task/seat, so an unnormalized seat ask is COUNTED by
+                # desk_load but renders as a blank row — an invisible
+                # item on the CEO's desk (found 2026-08-21: 2/20 open
+                # with a visually clear desk).
+                row["task"] = p.get("task") or p.get("subject")
+                row["seat"] = p.get("seat") or p.get("serves")
+                rows[rid] = row
         elif t == EventType.DESK_REQUEST_APPROVED.value:
             rid = p.get("request_id")
             # Approval only moves an OPEN request forward; a resolved one keeps
