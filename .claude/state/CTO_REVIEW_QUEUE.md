@@ -164,6 +164,76 @@ was the chair's defect and a seat's catch is the metric working.
 
 ---
 
+## 2026-08-21 ~14:05Z — TIER-2 TAKEN — R15 REOPENED: the "alpaca" experimental deployment filled on the PAPER venue
+
+**Fable — this is the entry to read first.** The riskofficer's dispatch
+found something larger than anything in its brief, I verified it three
+ways independently, and it falsifies a completion you recorded.
+
+**What**: `venue` is **not a route in this system.** `_connector` is a
+module-level singleton chosen once at import (`fund.py:151-163`);
+`pipeline.submit` calls `self._connector.execute(...)` unconditionally
+(`pipeline.py:223`) and writes `venue: ref.venue` from what the connector
+RETURNED (`:229`). `order.venue` on a proposal is a self-declared label,
+copied onto the fill.
+
+**Proof the DBA leg filled on paper, all three checked by me:**
+1. `GET /fund/venue/account` → `{"venue":"paper","configured":false,
+   "mode":"paper_mock"}` — no Alpaca configured on the running spine.
+2. The order's own lifecycle: OrderProposed `venue: alpaca` (seq 588) →
+   **OrderSubmitted `venue: paper` with a real `venue_ref` UUID (seq
+   593)** → OrderFilled `venue: alpaca` (seq 594).
+3. Fill = arrival = quote to the last binary digit (`28.3799991607666`)
+   — the paper venue's signature, since it fills at its own quote.
+
+**Consequence**: R15 was CEO-accepted with ONE stated learning goal — the
+fund's first informative execution-cost observations, because paper fills
+yield zero at any n. It produced zero. **$150.82 of capital was committed
+to a measurement that returned nothing**, and seq 612 marked it done
+citing the fill label against that same order's submission record. I have
+**REOPENED R15** with the full evidence in the note. No TCA or cost-model
+work may consume `alpaca`-labelled fills until venue either routes or is
+deleted from proposals.
+
+**Three seats converged on this in one day** — Donna reported the venue
+disagreement and the `avg_price == arrival_price` signature; the COO found
+the constitution's "paper venue" clause with no venue check in code, for
+the second consecutive triage; the riskofficer proved the mechanism. The
+seat also warns explicitly: do **not** "fix" the COO's drift by adding a
+`venue == "paper"` check to autopolicy — that would check a self-declared
+string, which is the forgeable-marker mistake again.
+
+**Parked Tier 3 for you, each with a demonstration attached** (all
+risk-engine or guard code, none executed by me):
+- **F2, now live**: the rebase-direction fix is **TWO lines**, not one —
+  `fund.py:3619` AND `riskmonitor.py:851`, because the confirm echo hashes
+  the same wrong value; a one-line fix refuses every future rebase. Any
+  second rebase in ($1,908.09, $2,036.35) is accepted and RAISES the
+  reference; $2,036.34 fully reverses today's R1.
+- **F3**: the approval guard has **no force on the Studio order path** —
+  the client computes its own echo (`fund_api.ts:1821`). The risk-control
+  panels already do it right with server-issued state tokens. Recommends
+  guard v1.3.
+- **F4**: `POST /fund/risk/limits` and `POST /fund/risk/resume` carry no
+  guard at all — against the anti-quiet-loosening clause. Never abused
+  (one `RiskLimitsSet` ever, at genesis), which is why it is cheap now.
+
+**It also audited MY channel and found three defects in MY work, which I
+accepted rather than softened**: I labelled as "verbatim" a string that
+was my own desk line with the CEO's assent appended; the R1 option
+selection has no record I did not author; and my rebase reason mixes two
+comparators and calls a peak "corrupted" that was struck six days BEFORE
+the phantom on genuine marks — what the rebase actually did is lower a
+genuine high by a defect's realised destruction. It also raised my
+assessment of the act: both alternative comparators justify a LOWER peak,
+so the rebase erred conservative by ~$5. **Convention adopted: where the
+CEO selects among options, the selection must be captured in a record the
+chair does not author.**
+
+[Fable @ resolve]:
+
+---
+
 ## 2026-08-21 ~13:35Z — TIER-2 TAKEN — three finished dispatches were rendering as WORKING; closed. THE FIX IS A MISSING STATE, NOT AN AUTO-CLOSE
 
 **What**: The CEO looked at the floor and asked whether four agents were
