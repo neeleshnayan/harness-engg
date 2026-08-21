@@ -184,9 +184,39 @@ like a CEO-typed one. The org chart gains edges; the ignition keys stay human,
 which is what keeps the cost ceiling structural rather than hopeful. A seat runs when a state change
 demands it (a fill, an alarm, a fired exit, an artifact awaiting review, a
 registered review trigger) AND a human dispatches it — or when the CEO asks.
-An idle seat costs zero and that is a feature. One sub-agent in flight at a
-time; briefs are batched (an adversary reviewing three artifacts costs barely
-more than one). AMENDED 2026-08-20 (CEO instruction), two standing rules:
+An idle seat costs zero and that is a feature. Briefs are batched (an adversary
+reviewing three artifacts costs barely more than one).
+
+**AT MOST TWO sub-agents in flight, and only when they are INDEPENDENT
+(amended 2026-08-21, CEO instruction, verbatim: "going forward its okay to
+run 2 agents in parallel if there's no dependency between them"; supersedes
+the original one-at-a-time rule of 2026-08-20).** Two is a cap, not a
+target — a lone seat is still the normal case, and the cost argument that
+set the original rule is unchanged.
+
+**"No dependency" is a check the chair PERFORMS, never an assumption.** Two
+seats are dependent — and must be sequenced — if ANY of these holds:
+
+1. **One's output is the other's input.** A quant implementing what a
+   mechanism is still proposing is one job in two costumes.
+2. **They write to the same surface.** Two builders, or any two seats whose
+   write scopes touch. Read-only seats never collide with anything.
+3. **Blind review would be contaminated.** The adversary reviews an
+   artifact, never its author's reasoning — so it must not run alongside
+   the seat that authored the thing it is attacking. Working protocol 3 is
+   not negotiable for throughput.
+4. **They contend for a scarce resource.** LEAN containers against
+   `MAX_CONCURRENT_CONTAINERS`, or anything that would make one seat's
+   timeout a function of the other's load — a wall-clock measurement taken
+   under unadvertised contention is a corrupted measurement, not a slow one.
+5. **They would both act on state the other is changing.** Reading a desk
+   another seat is resolving gives two seats two different truths.
+
+The first parallel pair under this rule was a COO triage (read-only
+judgement over the desk) beside a quant belt run (LEAN containers, writes
+confined to `lean_workspace/algorithms/**`): no shared surface, no shared
+lock, no container contention because the COO uses none. **That pair was
+checked, not assumed** — and it is the standard for the next one. AMENDED 2026-08-20 (CEO instruction), two standing rules:
 **(1) Batch-by-seat is the default, not a habit** — before any dispatch, the
 CTO drains everything queued for that seat into ONE brief; request-by-request
 dispatching needs a reason (e.g. blind review isolation). **(2) The COO triage

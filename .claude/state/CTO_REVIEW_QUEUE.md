@@ -1174,3 +1174,16 @@ Both dispatches: COO triage #4 (manual, counter reads 30/50 and would not have
 fired), and quant re-running `monthend_rebalance_flow` (desk `0a93f9c9`) to
 prove the analytics capture path on a real candidate — the CEO's Lab-page ask
 and the validator's cheapest-unblock for gate round 6, which are the same run.
+
+**AMENDED THE SAME SESSION, and this is the correct outcome of the entry
+above.** I recorded the parallel override as this-dispatch-only and said a
+standing version would take one word. The CEO gave it: *"going forward its
+okay to run 2 agents in parallel if there is no dependency between them."*
+The constitution now carries it as a dated amendment with a FIVE-PART
+dependency test the chair must PERFORM rather than assume - outputs feeding
+inputs, shared write surfaces, blind-review contamination, resource
+contention (a wall-clock measured under unadvertised load is corrupted, not
+slow), and two seats acting on state the other is changing. Two is a CAP,
+not a target. The lesson worth keeping: recording the narrow override
+loudly is what made the standing version arrive as an explicit decision
+with a written test, instead of arriving as drift nobody could point at.
