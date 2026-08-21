@@ -127,6 +127,18 @@ ids a dispatch served does not close the dispatch. **Closing the
 dispatch task_id is now part of how I resolve** — and it is the last
 step, after verify/file/record/STATE, never before.
 
+**MARKET-CLOSED WORK — a category the CEO created 2026-08-21** ("lets
+park it for weekends when market is closed"). Heavy compute that should
+not compete with live-session responsiveness and is safest when no fill
+can land mid-run: the harness replay engine, the ~3.4h corpus deepening,
+the long-window backtest whose runtime still exceeds the 900s ceiling.
+Filed as `f2d70a55`. **It is a REGISTERED TRIGGER, NOT A SCHEDULE** — the
+constitution forbids cadences and self-starting seats, so a human fires it
+when a session is live and the market is closed, exactly like the COO's
+desk_load trigger. Writing it any other way would smuggle a cron into a
+firm whose whole cost ceiling rests on "when no session is live, nothing
+thinks."
+
 **What worked, keep doing:** gating both bundles with `merge_builder.py`
 BEFORE touching the live trees; re-measuring the builder's refutation
 myself (n=4,895) instead of accepting a seat's claim that contradicted
