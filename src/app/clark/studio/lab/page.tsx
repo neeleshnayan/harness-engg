@@ -4,6 +4,7 @@ import React from "react";
 import { StudioHeader } from "../components/StudioHeader";
 import { LeanLab } from "../components/LeanLab";
 import { BeltWorkspace } from "../components/BeltWorkspace";
+import { BeltRuns } from "./BeltRuns";
 
 /**
  * LAB — the strategy desk.
@@ -31,6 +32,23 @@ import { BeltWorkspace } from "../components/BeltWorkspace";
  * directly through the API. A panel that exists so a human can do an agent's
  * first step is a panel that gets skimmed and trusted; the Lab is now only the
  * place where an idea is written and run.
+ *
+ * ONE VALIDATION EXPERIENCE (CEO direction, 2026-08-21): *"unify the experience
+ * so I can validate agents runs same way i would mine ... importantly be able to
+ * see the analytics behind the runs!"*. The page reads top to bottom as the same
+ * loop at three scales:
+ *
+ *   1. LeanLab      — write it and run it. Your own run's analytics render
+ *                     immediately, through LeanResults.
+ *   2. BeltRuns     — what the FACTORY judged, each opening into the same
+ *                     analytics in the same order, from the same engine output.
+ *   3. BeltWorkspace— the raw sweep history and the source on disk, verbatim.
+ *
+ * The middle one is new. It could not exist before 2026-08-21 because the belt
+ * discarded the evidence: the curve, the fills, the cost grid and the per-fold
+ * rows were computed, handed to the gate, and dropped. The spine keeps them now
+ * (ClarkHarness app/fund/runanalytics.py), and every candidate judged BEFORE
+ * that renders as a named absence rather than as an empty panel.
  */
 
 export default function LabPage() {
@@ -39,7 +57,9 @@ export default function LabPage() {
       <StudioHeader subtitle="Write a strategy, run it on the engine of record — nothing here is registered or persisted" />
       <div className="mx-auto max-w-[1600px] px-6 pb-10">
         <LeanLab />
-        {/* what already ran: the quant's workspace, code + verdicts */}
+        {/* what the factory judged, and the evidence behind each verdict */}
+        <BeltRuns />
+        {/* what already ran: the quant's workspace, code + sweep history */}
         <BeltWorkspace />
       </div>
     </div>

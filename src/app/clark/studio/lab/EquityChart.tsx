@@ -2,14 +2,28 @@
 
 import React, { useMemo } from "react";
 import { useChartColors } from "../chartColors";
+import { rebase } from "./candidateAnalytics";
 
 /**
  * Strategy equity vs benchmark, with the drawdown underneath.
  *
- * Drawn as plain SVG rather than through a charting library: the series are
- * already normalised to 1.0 and the only interaction needed is reading it. Both
- * curves share one axis because the comparison is the point — a strategy that
- * trails buy & hold should look like it trails.
+ * Drawn as plain SVG rather than through a charting library: the only
+ * interaction needed is reading it. Both curves share one axis because the
+ * comparison is the point — a strategy that trails buy & hold should look like
+ * it trails.
+ *
+ * REBASED HERE, at the boundary, since 2026-08-21. This component's own
+ * docstring used to assert "the series are already normalised to 1.0" and its
+ * axis formatter (`(v - 1) * 100`%) depended on it. They never were: LEAN
+ * reports raw account equity (~100,000) and the benchmark in the underlying's
+ * own price (~684). The axis printed "10346705%" and the benchmark was drawn
+ * flat against the floor, so the comparison this chart exists to make was
+ * invisible. Fixed in ONE place rather than at each call site, because both
+ * callers — LeanResults and RunAnalytics — pass the engine's raw arrays and
+ * a per-caller fix is a per-caller chance to forget.
+ *
+ * Passing an ALREADY rebased series is harmless: rebasing a series that starts
+ * at 1.0 is the identity.
  */
 export function EquityChart({
   equity,
@@ -28,10 +42,12 @@ export function EquityChart({
   const PAD = { t: 10, r: 8, b: 18, l: 44 };
 
   const { path, benchPath, lo, hi, ddPath, maxDD } = useMemo(() => {
-    if (!equity?.length) {
+    const eq = rebase(equity);
+    const bm = rebase(benchmark);
+    if (!eq) {
       return { path: "", benchPath: "", lo: 0, hi: 1, ddPath: "", maxDD: 0 };
     }
-    const series = benchmark?.length ? [...equity, ...benchmark] : equity;
+    const series = bm ? [...eq, ...bm] : eq;
     const lo = Math.min(...series);
     const hi = Math.max(...series);
     const span = hi - lo || 1;
@@ -44,9 +60,12 @@ export function EquityChart({
     const toPath = (arr: number[]) =>
       arr.map((v, i) => `${i ? "L" : "M"}${x(i, arr.length).toFixed(1)},${y(v).toFixed(1)}`).join("");
 
-    // drawdown from running peak — the shape of the pain, not just its worst value
-    let peak = equity[0];
-    const dd = equity.map((v) => {
+    // Drawdown from running peak — the shape of the pain, not just its worst
+    // value. Computed on the rebased series, which changes nothing: a drawdown
+    // is a ratio and is invariant under scaling. Using `eq` anyway so no raw
+    // array survives past the rebase, which is how the mismatch above started.
+    let peak = eq[0];
+    const dd = eq.map((v) => {
       peak = Math.max(peak, v);
       return v / peak - 1;
     });
@@ -59,20 +78,28 @@ export function EquityChart({
       `L${x(dd.length - 1, dd.length).toFixed(1)},${(H - PAD.b).toFixed(1)}Z`;
 
     return {
-      path: toPath(equity),
-      benchPath: benchmark?.length ? toPath(benchmark) : "",
+      path: toPath(eq),
+      benchPath: bm ? toPath(bm) : "",
       lo, hi, ddPath, maxDD: worst,
     };
   }, [equity, benchmark, H]);
 
-  if (!equity?.length) {
+  if (!path) {
+    // Keyed on the PATH, not on `equity.length`: a one-point series, or one
+    // starting at zero, has a length and still cannot be drawn. Saying so beats
+    // rendering an empty axis that reads as a flat result.
     return (
       <div className="flex items-center justify-center text-xs" style={{ height, color: c.textMuted }}>
-        Run a backtest to see the equity curve
+        {equity?.length
+          ? "The equity series cannot be plotted — fewer than two points, or a zero starting value."
+          : "Run a backtest to see the equity curve"}
       </div>
     );
   }
 
+  // The series are rebased to 1.0 above, so this reads as growth from the start
+  // of the window. It is the ONE place the rebase is assumed, and the assumption
+  // is now true by construction rather than by comment.
   const fmt = (v: number) => `${((v - 1) * 100).toFixed(0)}%`;
 
   return (

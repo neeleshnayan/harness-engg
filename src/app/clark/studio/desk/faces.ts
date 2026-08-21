@@ -197,7 +197,18 @@ const ALIASES: ReadonlyArray<{ re: RegExp; id: string }> = [
   // A via-cto approval is the CTO's hand carrying the CEO's quoted
   // instruction (guard v1); the approver string carries the quote in
   // brackets. The face shown is the hand that clicked.
-  { re: /^(neelesh|rushi)-via-cto\b/, id: "cto" },
+  //
+  // `-via-co-cto` (guard v1.2, CEO decision 2026-08-21) is the SAME rule with a
+  // second chair: an Opus session occupying the CTO chair operationally while
+  // Fable's tokens are out. It carries a distinct identity precisely so the
+  // record shows which chair staged what — but the FACE is the CTO's, because a
+  // face answers "whose hand clicked", and both chairs are that one chair.
+  // A distinct co-cto face is deliberately NOT in scope: it would need its own
+  // unique tuple, and inventing a colleague is exactly what the uniqueness rule
+  // exists to prevent. Anchored with `\b` like its sibling, so an actor that
+  // merely BEGINS with the string (the log carries 200-character sentences in
+  // `actor`) still matches nothing.
+  { re: /^(neelesh|rushi)-via-(co-)?cto\b/, id: "cto" },
   { re: /^fable$/, id: "cto" },
   { re: /^vishesh$/, id: "coo" },
 ];

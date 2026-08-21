@@ -5,6 +5,10 @@ import { Loader2, ShieldAlert, ShieldCheck } from "lucide-react";
 import { spineError } from "@/lib/spine_error";
 import { KT } from "../theme";
 import { fundApiClient } from "@/lib/fund_api";
+import {
+  canAcknowledge, canRebaseDrawdown, checkNewPeak, cooldownSentence, peakLine,
+  raisesEffectivePeak, type DrawdownView, type HaltAcknowledgement,
+} from "./haltControls";
 
 /**
  * The kill switch. Deliberately at the bottom, and deliberately two steps.
@@ -48,8 +52,44 @@ const HALT_CLASS_COPY: Record<string, { label: string; says: string }> = {
   },
 };
 
+/**
+ * The identity box for an APPROVAL-CHANNEL action.
+ *
+ * Empty by default and never prefilled, per the dispatch-6 brief. The Studio's
+ * older controls (order approve/decline, the loss rebase, the limits editor,
+ * the rebalance approve) post a hardcoded `"neelesh"` — that is a firm-wide
+ * convention on the CEO's own console and changing it is a governance decision
+ * for a human, not a refactor. These two controls are NEW, so they start the way
+ * the brief says: the human types who is approving, and an allowlisted approval
+ * is never reachable without someone claiming it.
+ */
+function ApproverBox({ value, onChange, label }: {
+  value: string; onChange: (v: string) => void; label: string;
+}) {
+  const viaCto = /-via-(co-)?cto\b/i.test(value.trim());
+  return (
+    <div className="mt-2">
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Who is approving? (type it — not prefilled)"
+        aria-label={label}
+        className="w-full rounded border border-[var(--kt-border)] bg-transparent px-2 py-1.5 text-[12px] outline-none focus:border-[var(--kt-accent)]"
+      />
+      {viaCto && (
+        <p className={`mt-1 text-[10px] ${KT.sev.warn}`}>
+          A via-cto identity must carry the CEO&apos;s instruction VERBATIM in
+          brackets — the spine&apos;s guard refuses it otherwise.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function HaltControl({ halted, haltClass, haltReason, lossReference,
-                             rebaseToken, onChanged }: {
+                             rebaseToken, haltAckToken, haltAcknowledgement,
+                             haltAlarm, autoresumeCooldownMinutes, drawdown,
+                             onChanged }: {
   halted: boolean | undefined;
   /** null/undefined = UNKNOWN (a pre-classes halt, or a spine that does not
    *  report it). Rendered as unknown, never as "manual". */
@@ -63,6 +103,17 @@ export function HaltControl({ halted, haltClass, haltReason, lossReference,
   };
   /** The echo the rebase must send back — read off THIS render. */
   rebaseToken?: string;
+  /** Echo for the acknowledgement — a digest of the HALT, so an ack typed
+   *  against a screen showing a different darkness is refused. */
+  haltAckToken?: string | null;
+  /** Present once someone has recorded that they saw this halt. */
+  haltAcknowledgement?: HaltAcknowledgement | null;
+  /** The alarm that closed the fund, when the spine records one. */
+  haltAlarm?: { type?: string | null; message?: string | null;
+                severity?: string | null } | null;
+  /** Absent = the cool-down is UNKNOWN here, never zero. */
+  autoresumeCooldownMinutes?: number | null;
+  drawdown?: DrawdownView | null;
   onChanged?: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
@@ -73,6 +124,64 @@ export function HaltControl({ halted, haltClass, haltReason, lossReference,
   const [rebaseReason, setRebaseReason] = useState("");
   const [rebaseErr, setRebaseErr] = useState<string | null>(null);
   const [rebaseBusy, setRebaseBusy] = useState(false);
+
+  // --- acknowledge -------------------------------------------------------
+  const [ackOpen, setAckOpen] = useState(false);
+  const [ackWho, setAckWho] = useState("");
+  const [ackNote, setAckNote] = useState("");
+  const [ackErr, setAckErr] = useState<string | null>(null);
+  const [ackBusy, setAckBusy] = useState(false);
+
+  // --- drawdown rebase ---------------------------------------------------
+  const [ddOpen, setDdOpen] = useState(false);
+  const [ddWho, setDdWho] = useState("");
+  const [ddPeak, setDdPeak] = useState("");
+  const [ddReason, setDdReason] = useState("");
+  const [ddErr, setDdErr] = useState<string | null>(null);
+  const [ddBusy, setDdBusy] = useState(false);
+
+  const ackAvail = canAcknowledge({ halted, halt_ack_token: haltAckToken,
+                                    halt_acknowledgement: haltAcknowledgement });
+  const ddAvail = canRebaseDrawdown(drawdown);
+  const ddCheck = checkNewPeak(ddPeak, drawdown);
+  const ddWarn = raisesEffectivePeak(ddPeak, drawdown);
+  const peak = peakLine(drawdown);
+
+  const runAck = async () => {
+    if (!haltAckToken) return;
+    setAckBusy(true);
+    setAckErr(null);
+    try {
+      await fundApiClient.acknowledgeHalt(ackWho.trim(), haltAckToken,
+                                          ackNote.trim() || undefined);
+      setAckOpen(false);
+      setAckNote("");
+      onChanged?.();
+    } catch (e: unknown) {
+      setAckErr(spineError(e));
+    } finally {
+      setAckBusy(false);
+    }
+  };
+
+  const runDrawdownRebase = async () => {
+    const token = drawdown?.rebase_token;
+    if (!token || !ddCheck.ok) return;
+    setDdBusy(true);
+    setDdErr(null);
+    try {
+      await fundApiClient.rebaseDrawdownReference(
+        ddWho.trim(), token, Number(ddPeak.trim()), ddReason.trim());
+      setDdOpen(false);
+      setDdPeak("");
+      setDdReason("");
+      onChanged?.();
+    } catch (e: unknown) {
+      setDdErr(spineError(e));
+    } finally {
+      setDdBusy(false);
+    }
+  };
 
   const runRebase = async () => {
     if (!rebaseToken) return;
@@ -153,8 +262,19 @@ export function HaltControl({ halted, haltClass, haltReason, lossReference,
             {haltReason && (
               <p className={`mt-1.5 font-mono text-[11px] ${KT.muted}`}>{haltReason}</p>
             )}
+            {/* The alarm that closed the fund. Absent is stated: a halt whose
+                triggering alarm the spine did not record is a halt whose CAUSE
+                is unknown, which is different from a halt with no cause. */}
+            <p className={`mt-1.5 text-[11px] ${haltAlarm ? KT.body : KT.muted}`}>
+              {haltAlarm
+                ? <>Alarm: <span className="font-mono">{haltAlarm.type ?? "unnamed"}</span>
+                    {haltAlarm.severity ? ` · ${haltAlarm.severity}` : ""}
+                    {haltAlarm.message ? ` — ${haltAlarm.message}` : ""}</>
+                : "No triggering alarm was recorded against this halt — the cause is unknown, not absent."}
+            </p>
           </div>
         )}
+
 
         {/* The daily-loss reference, always — because `kind: 'absent'` means the
             daily-loss halt is NOT EVALUATING, and that is the single most
@@ -223,6 +343,79 @@ export function HaltControl({ halted, haltClass, haltReason, lossReference,
                 Cancel
               </button>
             </div>
+          </div>
+        )}
+
+        {/* ── ACKNOWLEDGE ────────────────────────────────────────────────
+            Deliberately its own control, and deliberately worded so it cannot
+            be mistaken for a resume: it moves no number and re-arms no path.
+            It is condition (1) of four for the loss-halt auto-resume policy,
+            and a halt whose other three never hold stays shut forever with
+            this sitting harmlessly in the log. */}
+        {halted && (
+          <div className="mt-4 border-t border-[var(--kt-border)] pt-4">
+            <p className={KT.label}>Acknowledge — record that you have seen this</p>
+            <p className={`mt-1.5 text-[12px] ${KT.muted}`}>
+              Acknowledging does NOT resume trading and does NOT move any
+              reference. It records one sentence in the log saying a human saw
+              this halt. {cooldownSentence(autoresumeCooldownMinutes)}
+            </p>
+
+            {haltAcknowledgement ? (
+              <p className={`mt-2 text-[12px] ${KT.accent}`}>
+                Acknowledged by {haltAcknowledgement.actor ?? "an unrecorded actor"}
+                {haltAcknowledgement.at
+                  ? ` at ${haltAcknowledgement.at.slice(0, 16).replace("T", " ")}`
+                  : " at an unrecorded time"}
+                {haltAcknowledgement.note ? ` — “${haltAcknowledgement.note}”` : ""}.
+                {" "}The fund is still halted.
+              </p>
+            ) : !ackAvail.ok ? (
+              <p className={`mt-2 text-[12px] ${KT.sev.warn}`}>{ackAvail.why}</p>
+            ) : ackOpen ? (
+              <div className={`mt-3 p-3 ${KT.inset}`}>
+                <div className="text-[12px] font-medium">
+                  Record that you have seen this halt?
+                </div>
+                <ApproverBox value={ackWho} onChange={setAckWho}
+                             label="Who is acknowledging the halt" />
+                <input
+                  value={ackNote}
+                  onChange={(e) => setAckNote(e.target.value)}
+                  placeholder="Note (optional — recorded verbatim)"
+                  className="mt-2 w-full rounded border border-[var(--kt-border)] bg-transparent px-2 py-1.5 text-[12px] outline-none focus:border-[var(--kt-accent)]"
+                />
+                <p className={`mt-1.5 font-mono text-[10px] ${KT.muted}`}>
+                  confirming halt {haltAckToken}
+                </p>
+                {ackErr && <p className={`mt-2 text-[12px] ${KT.down}`}>{ackErr}</p>}
+                <div className="mt-3 flex gap-2">
+                  <button
+                    disabled={ackBusy || ackWho.trim().length === 0}
+                    onClick={runAck}
+                    className={`flex items-center gap-1.5 ${KT.btnGhost} disabled:opacity-40`}
+                  >
+                    {ackBusy && <Loader2 size={14} className="animate-spin" />}
+                    Record the acknowledgement
+                  </button>
+                  <button disabled={ackBusy}
+                          onClick={() => { setAckOpen(false); setAckErr(null); }}
+                          className={KT.btnGhost}>
+                    Cancel
+                  </button>
+                </div>
+                {ackWho.trim().length === 0 && (
+                  <p className={`mt-2 text-[11px] ${KT.muted}`}>
+                    An approver is required, and is deliberately not filled in for
+                    you — this is an approval-channel action.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <button onClick={() => setAckOpen(true)} className={`mt-3 ${KT.btnGhost}`}>
+                Acknowledge this halt…
+              </button>
+            )}
           </div>
         )}
 
@@ -299,10 +492,102 @@ export function HaltControl({ halted, haltClass, haltReason, lossReference,
                     A reason is required. The spine refuses a rebase without one.
                   </p>
                 )}
+                <p className={`mt-2 text-[10px] ${KT.muted}`}>
+                  Submits as the console identity <code>neelesh</code>, the
+                  Studio&apos;s existing convention for approvals on this page. The
+                  two controls below ask you to type an identity instead; the
+                  difference is deliberate and is on the CTO&apos;s desk.
+                </p>
               </div>
             )}
           </div>
         )}
+
+        {/* ── REBASE THE DRAWDOWN PEAK ───────────────────────────────────
+            NOT gated on the halt state, deliberately: an inflated peak caps
+            risk capacity whether or not the fund is stopped, and the live
+            fund's own peak includes the phantom-fill era. Only the token
+            gates it, because without one a click cannot prove which peak it
+            replaces. */}
+        <div className="mt-5 border-t border-[var(--kt-border)] pt-4">
+          <p className={KT.label}>The drawdown reference</p>
+          <p className={`mt-1.5 text-[12px] ${KT.body}`}>{peak.headline}.</p>
+          {drawdown?.peak_note && (
+            <p className={`mt-1 text-[11px] ${KT.muted}`}>{drawdown.peak_note}</p>
+          )}
+          {drawdown?.rebase && (
+            <p className={`mt-1 text-[11px] ${KT.muted}`}>
+              Rebased by {drawdown.rebase.actor ?? "an unrecorded actor"}
+              {drawdown.rebase.at
+                ? ` on ${String(drawdown.rebase.at).slice(0, 16).replace("T", " ")}`
+                : ""}
+              {drawdown.rebase.reason ? ` — “${drawdown.rebase.reason}”` : ""}
+            </p>
+          )}
+          <p className={`mt-2 text-[12px] ${KT.muted}`}>
+            Lowering the reference moves NO threshold — the drawdown limit stays
+            exactly where the register says it is. It moves the point the limit
+            is measured from, once, in the log, with a mandatory reason. It can
+            only ever LOWER the peak, and it can never hide a later genuine high:
+            the effective peak is the max of the rebased value, every NAV since,
+            and current NAV.
+          </p>
+
+          {!ddAvail.ok ? (
+            <p className={`mt-2 text-[12px] ${KT.sev.warn}`}>{ddAvail.why}</p>
+          ) : !ddOpen ? (
+            <button onClick={() => setDdOpen(true)} className={`mt-3 ${KT.btnGhost}`}>
+              Rebase the drawdown peak…
+            </button>
+          ) : (
+            <div className={`mt-3 p-3 ${KT.inset}`}>
+              <div className="text-[12px] font-medium">
+                Lower the peak the drawdown is measured from
+              </div>
+              <ApproverBox value={ddWho} onChange={setDdWho}
+                           label="Who is rebasing the drawdown peak" />
+              <input
+                value={ddPeak}
+                onChange={(e) => setDdPeak(e.target.value)}
+                inputMode="decimal"
+                placeholder="The new peak, in USD — a judgement about which part of the history was real"
+                aria-label="The new drawdown peak in USD"
+                className="mt-2 w-full rounded border border-[var(--kt-border)] bg-transparent px-2 py-1.5 text-[12px] outline-none focus:border-[var(--kt-accent)]"
+              />
+              {ddCheck.error && (
+                <p className={`mt-1 text-[11px] ${KT.down}`}>{ddCheck.error}</p>
+              )}
+              {ddWarn && <p className={`mt-1 text-[11px] ${KT.sev.warn}`}>{ddWarn}</p>}
+              <textarea
+                rows={3}
+                value={ddReason}
+                onChange={(e) => setDdReason(e.target.value)}
+                placeholder="Why is the old peak wrong? (mandatory — recorded verbatim in the event log)"
+                className="mt-2 w-full rounded border border-[var(--kt-border)] bg-transparent px-2 py-1.5 text-[12px] outline-none focus:border-[var(--kt-accent)]"
+              />
+              <p className={`mt-1.5 font-mono text-[10px] ${KT.muted}`}>
+                confirming peak {drawdown?.rebase_token}
+              </p>
+              {ddErr && <p className={`mt-2 text-[12px] ${KT.down}`}>{ddErr}</p>}
+              <div className="mt-3 flex gap-2">
+                <button
+                  disabled={ddBusy || !ddCheck.ok || ddWho.trim().length === 0
+                            || ddReason.trim().length === 0}
+                  onClick={runDrawdownRebase}
+                  className={`flex items-center gap-1.5 ${KT.btnDanger} disabled:opacity-40`}
+                >
+                  {ddBusy && <Loader2 size={14} className="animate-spin" />}
+                  Yes, lower the reference
+                </button>
+                <button disabled={ddBusy}
+                        onClick={() => { setDdOpen(false); setDdErr(null); }}
+                        className={KT.btnGhost}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

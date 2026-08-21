@@ -298,8 +298,14 @@ export function cooMemos(
 
 /* ------------------------------------------------- the CTO's ask queue ---- */
 
-/** Where a queued ask sits on the seat files → CEO approves → CTO triggers path. */
-export type AskStage = "awaiting_ceo" | "cleared_to_trigger" | "resolved";
+/** Where a queued ask sits on the seat files → CEO approves → CTO triggers path.
+ *
+ *  `declined` added 2026-08-21 with the spine's fourth state. It is TERMINAL:
+ *  a resolve cannot overwrite it, because executing a declined ask would be the
+ *  CTO overriding the CEO's no. Folding it in with `resolved` would erase the
+ *  difference between "done" and "refused". */
+export type AskStage =
+  | "awaiting_ceo" | "cleared_to_trigger" | "resolved" | "declined";
 
 export interface QueuedAsk {
   requestId: string;
@@ -315,6 +321,10 @@ export interface QueuedAsk {
   stage: AskStage;
   approvedBy: string | null;
   approvedAt: string | null;
+  declinedBy: string | null;
+  declinedAt: string | null;
+  /** The rejection's MANDATORY written reason — the spine refuses one without. */
+  declineReason: string | null;
 }
 
 /**
@@ -354,16 +364,30 @@ export function queuedAsks(requests: DeskView["requests"]): QueuedAsk[] {
         requestId: r.request_id,
         actor,
         seatFiled: isSeatFiled(actor),
-        serves: r.serves,
-        subject: r.subject,
+        // The spine normalizes seat vocabulary onto task/seat; the older
+        // subject/serves spelling is still on historical events. Read the
+        // normalized field first and fall back — an unnormalized ask rendered
+        // as a BLANK ROW while desk_load counted it, which is how two items sat
+        // invisible on a visually clear desk (2026-08-21).
+        serves: r.seat ?? r.serves,
+        subject: r.task ?? r.subject,
         note: r.note ?? null,
         at: r.at ?? null,
-        stage: (r.status === "approved" ? "cleared_to_trigger" : "awaiting_ceo") as AskStage,
+        stage: (r.status === "declined" ? "declined"
+          : r.status === "approved" ? "cleared_to_trigger"
+            : "awaiting_ceo") as AskStage,
         approvedBy: r.approved_by ?? null,
         approvedAt: r.approved_at ?? null,
+        declinedBy: r.declined_by ?? null,
+        declinedAt: r.declined_at ?? null,
+        declineReason: r.decline_reason ?? null,
       };
     })
     .sort((a, b) => {
+      // Declined asks sink: they are terminal and need no action from anyone.
+      if ((a.stage === "declined") !== (b.stage === "declined")) {
+        return a.stage === "declined" ? 1 : -1;
+      }
       // Cleared asks lead — they are the only ones the CTO may act on.
       if (a.stage !== b.stage) return a.stage === "cleared_to_trigger" ? -1 : 1;
       // Then oldest first: an ask that has waited longest is the one at risk of
@@ -373,6 +397,34 @@ export function queuedAsks(requests: DeskView["requests"]): QueuedAsk[] {
       if (!b.at) return -1;
       return a.at.localeCompare(b.at);
     });
+}
+
+/**
+ * The same asks, ordered for the CEO instead of for the CTO.
+ *
+ * `queuedAsks` leads with CLEARED asks because on the CTO console those are the
+ * only ones the CTO may act on. On the CEO's desk that ordering is exactly
+ * backwards, and it showed: the first render buried the single ask AWAITING THE
+ * CEO beneath three already-approved ones, on a page whose entire subtitle is
+ * "everything awaiting your click".
+ *
+ * A separate function rather than a flag, and here rather than inline in JSX,
+ * for the reason the CEO page's own docstring gives about ranking: an order
+ * derived inside a component cannot be checked, and a queue that silently
+ * mis-ranks is worse than an unranked one because the reader trusts its top.
+ */
+export function asksForCeo(asks: QueuedAsk[]): QueuedAsk[] {
+  const rank = (s: AskStage) =>
+    s === "awaiting_ceo" ? 0 : s === "cleared_to_trigger" ? 1 : 2;
+  return [...asks].sort((a, b) => {
+    const d = rank(a.stage) - rank(b.stage);
+    if (d !== 0) return d;
+    // Within a stage, oldest first — the one at risk of being forgotten.
+    if (!a.at && !b.at) return 0;
+    if (!a.at) return 1;
+    if (!b.at) return -1;
+    return a.at.localeCompare(b.at);
+  });
 }
 
 /* -------------------------------------------------------- decision pace --- */

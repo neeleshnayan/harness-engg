@@ -1,5 +1,12 @@
 import axios from 'axios';
 
+// TYPE-ONLY, so this stays a compile-time reference and adds no runtime edge
+// from lib/ into app/. The belt's candidate shape is declared beside the logic
+// that reads it (studio/lab/candidateAnalytics.ts) rather than restated here,
+// because two declarations of the same wire shape drift and only one of them
+// has tests.
+import type { CandidateRow } from '@/app/clark/studio/lab/candidateAnalytics';
+
 // ClarkHarness (fund spine). In the dev browser go through the Next rewrite
 // (/proxy/harness) to avoid CORS; otherwise use the configured harness URL.
 // Mirror of the /proxy/{main,hedge,web3} pattern in next.config.ts.
@@ -307,6 +314,11 @@ export interface StrategyDivergenceRow {
   strategy_id: string;
   name?: string | null;
   state: string;
+  /** Whether the registry has archived this strategy. OPTIONAL: a spine that
+   *  predates the field (added 2026-08-21) omits it, and an absent flag must
+   *  read as LIVE — hiding a live strategy is the worse error. Test `=== true`,
+   *  never `!== false`. */
+  archived?: boolean;
   comparable: boolean;
   reason?: string | null;
   backtest_annual_return_pct?: number | null;
@@ -323,9 +335,17 @@ export interface StrategyDivergenceRow {
 
 export interface StrategyDivergence {
   rows: StrategyDivergenceRow[];
+  /** EVERY row, archived included. Kept at its original meaning so no existing
+   *  reader changes underneath itself — the live counts are new keys beside it. */
   n_deployed: number;
   n_comparable: number;
   n_diverging: number;
+  /** Added 2026-08-21, all optional for the same reason `archived` is. */
+  n_archived?: number;
+  n_live?: number;
+  n_live_comparable?: number;
+  n_live_diverging?: number;
+  archived_note?: string | null;
   note: string;
 }
 
@@ -544,6 +564,26 @@ export interface RiskMonitorDrawdown {
   max_drawdown_pct: number;
   limit_pct: number;
   utilization: number;
+  /** WHERE the peak came from: 'trailing_365d' | 'rebased' | 'post_rebase_high'
+   *  | 'current_nav'. Optional — absent on a spine that predates the rebase
+   *  path, and rendered as unknown rather than assumed to be the trailing high. */
+  peak_basis?: string | null;
+  peak_note?: string | null;
+  /** The trailing-365d high BEFORE any rebase. Kept alongside `peak_nav` so a
+   *  reader can see that the reference moved and by how much — otherwise a
+   *  rebase is a quiet edit to the number risk is measured against. */
+  unrebased_peak_nav?: number | null;
+  /** Null until someone has rebased. `nav_usd` is the value rebased TO. */
+  rebase?: {
+    nav_usd?: number | null;
+    at?: string | null;
+    actor?: string | null;
+    reason?: string | null;
+    previous_peak_usd?: number | null;
+  } | null;
+  /** The echo a drawdown rebase must send back — a digest of the peak being
+   *  replaced, so a confirm read off a stale panel is refused. */
+  rebase_token?: string | null;
 }
 
 export interface RiskMonitorPosition {
@@ -867,11 +907,21 @@ export interface DeskView {
   requests: {
     request_id: string; kind: string; serves: string; subject: string;
     note?: string; at?: string;
-    status: 'open' | 'approved' | 'resolved';
+    /** FOUR states since 2026-08-21. `declined` is TERMINAL — a resolve cannot
+     *  overwrite it, because executing a declined ask would be the CTO
+     *  overriding the CEO's no. */
+    status: 'open' | 'approved' | 'resolved' | 'declined';
     resolution?: string;
+    /** The spine normalizes seat-filed vocabulary onto these (`task` from
+     *  `subject`, `seat` from `serves`) — an unnormalized seat ask was COUNTED
+     *  by desk_load and rendered as a blank row. Both spellings are typed
+     *  because both are on the wire and old events keep the old one. */
+    task?: string; seat?: string;
     /** CEO endorsement of a queued ask (seat-filed or human-filed) — the
      *  middle hop of seat files → CEO approves → CTO triggers. */
     approved_by?: string; approved_at?: string;
+    /** A rejection carries its MANDATORY written reason. */
+    declined_by?: string; declined_at?: string; decline_reason?: string;
     /** Who asked (ceo / cto). Present on every DESK_REQUESTED payload; typed
      *  here because the office view attributes each day's asks to a person. */
     actor?: string;
@@ -1121,6 +1171,26 @@ export interface RiskMonitorResponse {
   /** The echo the acknowledge-and-rebase control must send back. Derived from
    *  the state being rebased, so a confirm read off a stale panel is refused. */
   rebase_token?: string;
+  /** The echo for a halt ACKNOWLEDGEMENT — a digest of the halt itself, so an
+   *  ack typed against a screen showing a different darkness is refused rather
+   *  than applied to this one. Served even while `halted` is false (verified on
+   *  the live payload 2026-08-21), so it is NOT permission to acknowledge. */
+  halt_ack_token?: string | null;
+  /** Present once a human has recorded seeing the open halt. It is not a
+   *  resume: it moves no number and re-arms no path. */
+  halt_acknowledgement?: {
+    actor?: string | null; at?: string | null; note?: string | null;
+    halt_at?: string | null;
+  } | null;
+  /** The alarm that closed the fund. Null means the CAUSE is unrecorded, which
+   *  is different from a halt with no cause. */
+  halt_alarm?: {
+    type?: string | null; message?: string | null; severity?: string | null;
+    key?: string | null;
+  } | null;
+  /** How long a loss halt stays shut after acknowledgement. Absent = UNKNOWN
+   *  here, never zero and never "immediate". */
+  autoresume_cooldown_minutes?: number | null;
   drawdown: RiskMonitorDrawdown;
   positions: RiskMonitorPosition[];
   strategies: RiskMonitorStrategy[];
@@ -2043,6 +2113,53 @@ export const fundApiClient = {
     (await fundApi.post(`${P}/risk/loss-reference/rebase`,
       { reason, confirm, approver, instruction })).data,
 
+  /** Record that the CEO has SEEN an open halt. It ACTS ON NOTHING.
+   *
+   *  Deliberately separable from resuming and from rebasing: it moves no number
+   *  and re-arms no path. It is condition (1) of the four the loss-halt
+   *  auto-resume policy evaluates on each monitor tick, and a halt whose other
+   *  three never hold stays shut forever with this sitting harmlessly in the log.
+   *
+   *  `confirm` is `halt_ack_token` from GET /fund/risk/monitor — a digest of the
+   *  halt itself, so an acknowledgement typed against a screen showing a
+   *  DIFFERENT darkness is refused rather than applied to this one.
+   *
+   *  `approver` has NO DEFAULT, on purpose. This is an approval-channel call and
+   *  the identity is the human's to type; a default would make an allowlisted
+   *  approval reachable without anyone claiming it. */
+  acknowledgeHalt: async (
+    approver: string,
+    confirm: string,
+    note?: string,
+    instruction?: string,
+  ): Promise<{ status: string; actor: string; at?: string; note?: string | null }> =>
+    (await fundApi.post(`${P}/risk/halt/acknowledge`,
+      { approver, confirm, note, instruction })).data,
+
+  /** Lower the peak the drawdown rule measures from (CEO-accepted, PM R1).
+   *
+   *  The defect it answers: the drawdown peak is the trailing-365d MAX of NAV,
+   *  and the fund's high includes the phantom-fill era — so one bad mark caps
+   *  risk capacity for a YEAR. This moves the reference once, in the log, with a
+   *  mandatory reason. It moves NO threshold.
+   *
+   *  `nav_usd` is SUPPLIED rather than taken from current NAV: which part of the
+   *  history was real is a judgement only a human can make. The spine enforces
+   *  the direction (a rebase may only LOWER the reference) and floors the
+   *  effective peak at any genuine high since, so this can shorten a phantom's
+   *  shadow and can never hide a real peak.
+   *
+   *  `confirm` is `drawdown.rebase_token`; `approver` has no default, as above. */
+  rebaseDrawdownReference: async (
+    approver: string,
+    confirm: string,
+    navUsd: number,
+    reason: string,
+    instruction?: string,
+  ): Promise<{ status: string; peak_nav?: number; reason?: string; actor?: string }> =>
+    (await fundApi.post(`${P}/risk/drawdown-reference/rebase`,
+      { approver, confirm, nav_usd: navUsd, reason, instruction })).data,
+
   /** The seven-stage operating doctrine, with each stage's status read LIVE.
    *
    *  Status is READ, never restated in the client. A doctrine view that carried
@@ -2113,6 +2230,19 @@ export const fundApiClient = {
     (await fundApi.post(`${P}/desk/requests/${requestId}/approve`,
       { ...(body ?? {}), confirm: requestId.slice(0, 8) })).data,
 
+  /** The CEO's NO on a queued desk request. Terminal: the spine refuses a
+   *  resolve over a decline, because executing a declined ask would be the CTO
+   *  overriding the CEO.
+   *
+   *  `reason` is MANDATORY — the endpoint 422s on an empty one. NO confirm
+   *  echo, deliberately and matching the spine: declines sit outside the guard
+   *  exactly like order declines, because the guard exists to stop an
+   *  accidental YES. Making a NO harder to give than a YES is the wrong
+   *  asymmetry on a control whose safe direction is refusal. */
+  declineDeskRequest: async (requestId: string, reason: string, actor = 'ceo') =>
+    (await fundApi.post(`${P}/desk/requests/${requestId}/decline`,
+      { reason, actor })).data,
+
   /** Decide one agent recommendation (CEO): accepted | rejected. */
   decideRecommendation: async (runId: string, recId: number,
                                body: { status: string; actor?: string; note?: string }) =>
@@ -2129,6 +2259,32 @@ export const fundApiClient = {
    *  is neither healthy nor broken — another process may hold the lease. */
   getLiveness: async (): Promise<LivenessReport> =>
     (await fundApi.get(`${P}/liveness`)).data,
+
+  /** The belt's index: every candidate it has judged, with the SCOREBOARD.
+   *
+   *  Carries `walkforward.folds` (requested dates + `dates_honoured` + each
+   *  fold's own measurable/why-not reason) and `analytics_available`, but NOT
+   *  the equity curves — those are ~80 KB apiece and have one reader. Types live
+   *  in `studio/lab/candidateAnalytics.ts`, beside the logic that reads them,
+   *  and are imported here rather than restated so the two cannot drift. */
+  getCandidates: async (algorithm?: string, limit = 50): Promise<{
+    scoreboard: {
+      submitted: number; judged: number; passed: number; killed: number;
+      errored: number; orphaned: number; running: number;
+      note?: string; absence_note?: string | null;
+    };
+    candidates: CandidateRow[];
+  }> => (await fundApi.get(`${P}/factory/candidates`,
+    { params: { ...(algorithm ? { algorithm } : {}), limit } })).data,
+
+  /** ONE candidate, WITH the analytics its verdict was computed from.
+   *
+   *  `analytics.available` is false for the four typed absences (never captured
+   *  / aged out / unavailable / not testable) and carries the sentence saying
+   *  which. Never render a false as an empty panel. */
+  getCandidate: async (candidateId: string): Promise<CandidateRow> =>
+    (await fundApi.get(
+      `${P}/factory/candidates/${encodeURIComponent(candidateId)}`)).data,
 };
 
 export default fundApi;

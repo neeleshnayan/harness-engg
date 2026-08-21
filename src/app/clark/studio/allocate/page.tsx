@@ -146,6 +146,10 @@ export default function AllocatePage() {
   );
 
   const { book, bench } = fold;
+  /* How many rows `foldBook` dropped as archived. Stated on the bench panel so
+     "nothing on the bench" cannot be read as "the fund has no idle strategies"
+     when it actually means "every idle one is dead". */
+  const archivedCount = (strategies ?? []).filter((s) => s.archived).length;
   const targetTotal = fold.target.value;
   const actualTotal = fold.actual.value;
   /* The whole book including archived holders — the hero's number whenever an
@@ -443,7 +447,12 @@ export default function AllocatePage() {
           <RebalancePanel strategies={book} navUsd={navUsd} onCommitted={load} />
         </div>
 
-        {/* Not yet carrying capital */}
+        {/* Not yet carrying capital.
+            ARCHIVED rows are already out — `foldBook` derives the bench from
+            non-archived strategies only — but the COUNT is stated below rather
+            than left implicit, because "nothing on the bench" and "everything
+            on the bench is archived" are different facts and the panel used to
+            render the second as the first. */}
         <div className={`mt-6 ${KT.panel}`}>
           <div className={`border-b border-[var(--kt-border)] px-5 py-3 ${KT.label}`}>
             Bench · not carrying capital
@@ -453,7 +462,14 @@ export default function AllocatePage() {
               Unreadable — the bench is unknown, not empty.
             </div>
           ) : bench.length === 0 ? (
-            <div className={`px-5 py-8 text-sm ${KT.muted}`}>Nothing on the bench.</div>
+            <div className={`px-5 py-8 text-sm ${KT.muted}`}>
+              Nothing on the bench.
+              {archivedCount > 0 && (
+                <> {archivedCount} archived {archivedCount === 1 ? "strategy is" : "strategies are"}{" "}
+                  excluded — archived is the fund&apos;s own &ldquo;this no longer
+                  exists&rdquo;, and a dead strategy is not a benched one.</>
+              )}
+            </div>
           ) : (
             <ul className="divide-y divide-[var(--kt-border)]">
               {bench.map((s) => (
@@ -461,9 +477,22 @@ export default function AllocatePage() {
                   <span className="font-medium">{s.name}</span>
                   <Badge state={s.state} />
                   <span className={`text-[11px] ${KT.muted}`}>
-                    {s.backtest?.sharpe != null
-                      ? `Sharpe ${s.backtest.sharpe.toFixed(2)} · return ${((s.backtest.total_return ?? 0) * 100).toFixed(1)}%`
-                      : "no backtest yet"}
+                    {/* Each figure absent on its OWN terms. This read
+                        `(total_return ?? 0) * 100` and printed "return 0.0%"
+                        for a backtest that had a Sharpe and no return — an
+                        unmeasured figure rendered as a measured flat result,
+                        on the number an allocation decision is taken against. */}
+                    {s.backtest?.sharpe == null && s.backtest?.total_return == null
+                      ? "no backtest yet"
+                      : <>
+                          Sharpe {s.backtest?.sharpe != null
+                            ? s.backtest.sharpe.toFixed(2)
+                            : <span className={KT.sev.warn}>not recorded</span>}
+                          {" · return "}
+                          {s.backtest?.total_return != null
+                            ? `${(s.backtest.total_return * 100).toFixed(1)}%`
+                            : <span className={KT.sev.warn}>not recorded</span>}
+                        </>}
                   </span>
                   <button onClick={() => setAllocTarget(s)} className={`ml-auto flex items-center gap-1 text-[11px] ${KT.accent}`}>
                     allocate <ArrowRight size={11} />

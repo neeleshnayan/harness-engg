@@ -14,8 +14,8 @@ import { SeatFace } from "../SeatFace";
 import { RecRow } from "../components";
 import { fmtAt } from "../seatLib";
 import {
-  DeskItem, cooMemos, decisionVelocity, moneyGap, orderItems, rankDeskItems,
-  recItems, splitDeskItems,
+  DeskItem, QueuedAsk, asksForCeo, cooMemos, decisionVelocity, moneyGap,
+  orderItems, queuedAsks, rankDeskItems, recItems, splitDeskItems,
 } from "../execDesk";
 import { CooTriageChip } from "../components";
 
@@ -97,6 +97,18 @@ export default function CeoDeskPage() {
   const decidedItems = split.awaitingExecution;
   const halted = risk?.halted === true;
 
+  /* Seat-filed and human-filed ASKS. Found live 2026-08-21: these rendered only
+     on the CTO console, so this page read "0 awaiting you" while `desk_load`
+     counted 2 — the CEO could not see, let alone click, items that were waiting
+     on the CEO. Kept as their own section rather than folded into `ranked`,
+     because an ask is not priced and not reversibility-classified, and pushing
+     it through a money-first ranking would give it a position it has not
+     earned. It IS counted in the headline, because it does await a decision. */
+  const asks = useMemo(
+    () => asksForCeo(queuedAsks(desk?.requests ?? [])), [desk]);
+  const asksAwaitingCeo = asks.filter((a) => a.stage === "awaiting_ceo");
+  const awaitingCount = split.awaitingDecision.length + asksAwaitingCeo.length;
+
   return (
     <div className="min-h-screen bg-[var(--kt-bg)] text-[var(--kt-text)]">
       <StudioHeader subtitle="The CEO's desk — everything awaiting your click" />
@@ -110,7 +122,7 @@ export default function CeoDeskPage() {
                 decided is reported beside it, not inside it. */}
             <p className={`mt-1 text-sm ${KT.body}`}>
               <span className="font-mono tabular-nums text-[var(--kt-text-strong)]">
-                {desk === null ? "unknown" : split.awaitingDecision.length}
+                {desk === null ? "unknown" : awaitingCount}
               </span>{" "}
               awaiting your decision
               {desk !== null && decidedItems.length > 0 && (
@@ -320,6 +332,37 @@ export default function CeoDeskPage() {
           </div>
         </section>
 
+        {/* ── 3b · BENCH ASKS AWAITING YOUR APPROVAL ───────────────────────
+            THE DEFECT THIS FIXES, found live 2026-08-21: seat-filed asks
+            rendered ONLY on the CTO console, so this page said "0 awaiting you"
+            while the spine's own desk_load counted 2. The CEO could not see —
+            or click — items that were waiting on the CEO.
+
+            A seat-filed ask is the constitution's 2026-08-20 amendment made
+            real: "pm requests quant" is hierarchy in the data. It is an ASK and
+            never a trigger; approving it clears the CTO to fire it, and nothing
+            here starts an agent. Approved asks STAY on the page in a cleared
+            state rather than vanishing, because a blessing nobody acted on is
+            exactly the kind of thing that goes quiet. */}
+        {desk !== null && asks.length > 0 && (
+          <section className="mb-8">
+            <p className={`${KT.label} mb-2`}>
+              Bench asks awaiting your approval ({asksAwaitingCeo.length})
+            </p>
+            <p className={`mb-2 text-xs leading-relaxed ${KT.muted}`}>
+              A seat, or a human, has asked the desk for work. Approving is an
+              ENDORSEMENT and not a trigger — the CTO fires the dispatch, and no
+              agent runs until a human does. Declining is terminal and takes a
+              written reason.
+            </p>
+            <div className="space-y-1.5">
+              {asks.map((a) => (
+                <AskRow key={a.requestId} ask={a} onDecided={load} />
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* ── 4 · DECIDED, AWAITING EXECUTION ──────────────────────────────
             Still on the desk, deliberately: a decision that never executes is a
             decision that did not happen, and the CEO is the only person who can
@@ -368,6 +411,146 @@ export default function CeoDeskPage() {
           .
         </p>
       </div>
+    </div>
+  );
+}
+
+/**
+ * ONE queued ask, in whichever of its four states it is in.
+ *
+ * Approve carries the guard's confirm echo (the client derives it from the
+ * rendered id — guard v1). Decline deliberately does NOT: declines sit outside
+ * the guard on the spine, exactly like order declines, because the guard exists
+ * to stop an accidental YES and making a NO harder to give than a YES is the
+ * wrong asymmetry on a control whose safe direction is refusal.
+ *
+ * The actor is the page's existing `ceo` desk convention (faces.ts), which is
+ * this console's identity for every decision on it — the same one the approve
+ * and decline buttons above already use.
+ */
+function AskRow({ ask, onDecided }: {
+  ask: QueuedAsk; onDecided: () => Promise<void> | void;
+}) {
+  const [busy, setBusy] = useState<"approve" | "decline" | null>(null);
+  const [declining, setDeclining] = useState(false);
+  const [reason, setReason] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+
+  const act = async (what: "approve" | "decline") => {
+    setBusy(what);
+    setErr(null);
+    try {
+      if (what === "approve") {
+        await fundApiClient.approveDeskRequest(ask.requestId, { actor: "ceo" });
+      } else {
+        await fundApiClient.declineDeskRequest(ask.requestId, reason.trim(), "ceo");
+      }
+      setDeclining(false);
+      setReason("");
+      await onDecided();
+    } catch (e: unknown) {
+      const detail = (e as { response?: { data?: { detail?: string } } })
+        ?.response?.data?.detail;
+      setErr(detail ?? (e instanceof Error ? e.message : "the spine refused it"));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const stageTone =
+    ask.stage === "declined" ? KT.muted
+      : ask.stage === "cleared_to_trigger" ? KT.accent
+        : "text-[var(--kt-warn)]";
+  const stageLabel =
+    ask.stage === "declined" ? "declined"
+      : ask.stage === "cleared_to_trigger" ? "cleared — CTO will trigger"
+        : "awaiting you";
+
+  return (
+    <div className={`${KT.card} p-3 ${ask.stage === "declined" ? "opacity-60" : ""}`}>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className={`font-mono text-[10px] uppercase tracking-[0.1em] ${stageTone}`}>
+          {stageLabel}
+        </span>
+        <span className="min-w-0 flex-1 text-[13px] leading-snug">
+          {ask.subject || (
+            <span className={KT.sev.warn}>
+              this ask recorded no subject — unreadable, not empty
+            </span>
+          )}
+        </span>
+        <span className={`font-mono text-[10px] ${KT.muted}`}>
+          {ask.actor || "unattributed"}
+          {ask.seatFiled && " · seat"}
+          {ask.serves ? ` → ${ask.serves}` : ""}
+        </span>
+      </div>
+      {ask.note && <p className={`mt-1 text-[11px] ${KT.body}`}>{ask.note}</p>}
+      <p className={`mt-0.5 font-mono text-[10px] ${KT.muted}`}>
+        {ask.at ? `filed ${fmtAt(ask.at)}` : "undated — the request recorded no time"}
+        {ask.stage === "cleared_to_trigger" && (
+          ask.approvedBy
+            ? ` · approved by ${ask.approvedBy}${ask.approvedAt ? ` · ${fmtAt(ask.approvedAt)}` : ""}`
+            : " · approved — the approval event recorded no actor")}
+        {ask.stage === "declined" && (
+          ask.declinedBy
+            ? ` · declined by ${ask.declinedBy}${ask.declinedAt ? ` · ${fmtAt(ask.declinedAt)}` : ""}`
+            : " · declined — the decline event recorded no actor")}
+      </p>
+      {ask.stage === "declined" && (
+        <p className={`mt-1 text-[11px] ${KT.muted}`}>
+          {ask.declineReason
+            ? `“${ask.declineReason}”`
+            : "no reason was recorded with this decline — the reason is absent, not blank"}
+        </p>
+      )}
+      {err && <p className={`mt-1.5 text-[11px] ${KT.down}`}>{err}</p>}
+
+      {ask.stage === "awaiting_ceo" && !declining && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          <button disabled={busy !== null} onClick={() => act("approve")}
+                  className={`${KT.btn} disabled:opacity-40`}>
+            {busy === "approve" ? "Approving…" : "Approve"}
+          </button>
+          <button disabled={busy !== null} onClick={() => setDeclining(true)}
+                  className={`${KT.btnGhost} disabled:opacity-40`}>
+            Decline…
+          </button>
+        </div>
+      )}
+
+      {ask.stage === "awaiting_ceo" && declining && (
+        <div className={`mt-2 p-3 ${KT.inset}`}>
+          <div className="text-[12px] font-medium">Decline this ask?</div>
+          <textarea
+            autoFocus
+            rows={2}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Why? (mandatory — recorded verbatim, and the ask cannot be revived)"
+            className="mt-2 w-full rounded border border-[var(--kt-border)] bg-transparent px-2 py-1.5 text-[12px] outline-none focus:border-[var(--kt-accent)]"
+          />
+          <div className="mt-2 flex gap-2">
+            <button
+              disabled={busy !== null || reason.trim().length === 0}
+              onClick={() => act("decline")}
+              className={`${KT.btnDanger} disabled:opacity-40`}
+            >
+              {busy === "decline" ? "Declining…" : "Yes, decline"}
+            </button>
+            <button disabled={busy !== null}
+                    onClick={() => { setDeclining(false); setReason(""); setErr(null); }}
+                    className={KT.btnGhost}>
+              Cancel
+            </button>
+          </div>
+          {reason.trim().length === 0 && (
+            <p className={`mt-1.5 text-[11px] ${KT.muted}`}>
+              A reason is required. The spine refuses a decline without one.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

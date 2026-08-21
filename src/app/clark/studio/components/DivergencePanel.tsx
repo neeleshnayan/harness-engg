@@ -18,6 +18,16 @@ import { StrategyDivergence, fundApiClient } from "@/lib/fund_api";
  *
  * A strategy with no backtest on record is the loudest row here. Deployed on
  * what?
+ *
+ * ARCHIVED ROWS ARE HIDDEN BY DEFAULT (2026-08-21). Measured on the live spine
+ * that day: three of the four rows this panel served were archived — Momentum,
+ * Mean Reversion and Trend — and the header called all four "deployed". An
+ * archived strategy's gap to its backtest is HISTORY; presenting it beside a
+ * live one invites a decision about a book position that no longer exists.
+ *
+ * Hidden, not dropped: the toggle brings them back, the count is always stated,
+ * and the spine still serves every row. A surface that silently discards rows
+ * is how a reader comes to believe the fund has fewer strategies than it does.
  */
 
 // `pct` moved to ../format.ts (2026-08-20); same body, same default of 1.
@@ -25,6 +35,7 @@ import { StrategyDivergence, fundApiClient } from "@/lib/fund_api";
 export function DivergencePanel({ refreshSignal = 0 }: { refreshSignal?: number }) {
   const [d, setD] = useState<StrategyDivergence | null>(null);
   const [err, setErr] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -54,7 +65,12 @@ export function DivergencePanel({ refreshSignal = 0 }: { refreshSignal?: number 
     );
   }
 
-  const rows = d?.rows ?? [];
+  const all = d?.rows ?? [];
+  // `archived` is optional on the wire: a spine that predates the field serves
+  // rows without it, and those must read as LIVE rather than be hidden. A
+  // truthy test does exactly that; `!== false` would hide them.
+  const archived = all.filter((r) => r.archived === true);
+  const rows = showArchived ? all : all.filter((r) => r.archived !== true);
   const diverging = rows.filter((r) => r.diverging);
 
   return (
@@ -69,16 +85,37 @@ export function DivergencePanel({ refreshSignal = 0 }: { refreshSignal?: number 
         </div>
         {d && (
           <span className={`font-mono text-[11px] tabular-nums ${diverging.length ? KT.down : KT.muted}`}>
+            {/* Counted off the rows SHOWN. Quoting the spine's n_deployed here
+                would put "0/4 comparable" beside one visible row. */}
             {diverging.length === 0
-              ? `${d.n_comparable}/${d.n_deployed} comparable · none diverging`
+              ? `${rows.filter((r) => r.comparable).length}/${rows.length} comparable · none diverging`
               : `${diverging.length} diverging`}
           </span>
         )}
       </div>
 
+      {archived.length > 0 && (
+        <div className="flex flex-wrap items-baseline gap-x-2 border-b border-[var(--kt-border)] px-5 py-2">
+          <span className={`text-[11px] ${KT.muted}`}>
+            {archived.length} archived {archived.length === 1 ? "strategy is" : "strategies are"}{" "}
+            {showArchived ? "shown below" : "hidden"} — an archived strategy&apos;s gap
+            to its backtest is history, not a live comparison.
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowArchived((v) => !v)}
+            className={`ml-auto font-mono text-[10px] uppercase tracking-[0.1em] ${KT.accent}`}
+          >
+            {showArchived ? "hide archived" : "include archived"}
+          </button>
+        </div>
+      )}
+
       {rows.length === 0 ? (
         <div className={`px-5 py-5 text-sm ${KT.muted}`}>
-          No deployed strategies to compare.
+          {archived.length > 0
+            ? `No LIVE strategies to compare — all ${archived.length} on record are archived.`
+            : "No deployed strategies to compare."}
         </div>
       ) : (
         <ul className="divide-y divide-[var(--kt-border)]">
@@ -86,8 +123,14 @@ export function DivergencePanel({ refreshSignal = 0 }: { refreshSignal?: number 
             const noBacktest = !r.comparable && (r.reason ?? "").includes("no backtest");
             return (
               <li key={r.strategy_id}
-                  className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-5 py-2.5 text-[12px]">
+                  className={`flex flex-wrap items-baseline gap-x-4 gap-y-1 px-5 py-2.5 text-[12px] ${
+                    r.archived ? "opacity-60" : ""}`}>
                 <span className="font-medium">{r.name ?? r.strategy_id}</span>
+                {r.archived && (
+                  <span className={`font-mono text-[10px] uppercase tracking-[0.1em] ${KT.sev.warn}`}>
+                    archived
+                  </span>
+                )}
                 {r.comparable ? (
                   <span className={`font-mono tabular-nums ${r.diverging ? KT.down : KT.muted}`}>
                     live {pct(r.live_annual_return_pct)} vs backtest {pct(r.backtest_annual_return_pct)}
