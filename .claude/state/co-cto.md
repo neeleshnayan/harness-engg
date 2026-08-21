@@ -153,3 +153,67 @@ gate flags new numeric constants for a human to read and that check is
 real (it surfaced `DEFAULT_MAX_CHARS`). `git status --porcelain` includes
 untracked files; check `--untracked-files=no` plus a collision test
 against the incoming diff before refusing a merge.
+
+### 2026-08-21 (UTC) — gate v5 r5 closed, and a defect in our own price feed
+
+**THE DATING TRAP, second variant, caught this time.** Local IST had rolled to
+2026-08-22 while UTC was still **2026-08-21 19:40Z**. Both returning seats dated
+their STATE headers 2026-08-22 (local). My first instinct was to name the
+findings docs 2026-08-22 to match — which would have put every artifact of this
+session one day ahead of the event-log rows that prove its claims. **I ran
+`date -u` before writing anything and named both docs for UTC**, left the seat
+STATE headers verbatim (they are appended verbatim, never edited), and added a
+bracketed chair note saying the two dates are the same moment. **RULE, now
+twice-earned: the UTC day and the local day disagree for 5.5 hours out of every
+24 in this timezone, and that window is exactly when I do evening work. Read
+`date -u` before naming or dating anything. The first version of this mistake
+was fabricating times; this version is inheriting a local date from a seat.**
+
+**TASK OUTPUT FILES ARE BEING WRITTEN 0 BYTES.** The analyst's dispatch output
+file was empty; the report survived only in the run notification. A directory
+listing shows many 0-byte outputs. I filed the artifact by transcribing from the
+notification and **disclosed the transcription in the doc's provenance note** —
+because a findings doc that silently claims to be verbatim when it was
+hand-copied is a worse defect than the empty file. **RULE: check the output file
+size before assuming it is the source of truth; when it is empty, file from the
+notification AND say so in the artifact.**
+
+**VERIFY THE CLAIM THAT WOULD HURT MOST, NOT THE EASIEST ONE.** Both seats came
+back with big claims. For the analyst I checked TENX (one curl) and re-counted
+attrition (one script) — and the attrition number came back **starker** than
+reported: 203 of 203 alive, not "zero before 2026-08-18". For the validator I
+checked `GATE_VERSION`, whether r4 had been edited, and
+`count(analytics) from fund_candidates` → `37 | 0`. That last one is the claim
+that makes the entire round a *model of the instrument rather than a run of it*,
+and it is the one I most wanted to be wrong. **Pick the claim whose falsity would
+change your actions, and check that one.**
+
+**TWO JUDGEMENT CALLS I MADE AND FLAGGED AS REVERSIBLE** — the pattern to keep:
+1. **Closed gate v5 round 5 as a measured NO rather than adopting anything.** The
+   CEO said "close gate v5 so we can keep testing"; the honest close was
+   finishing the round, not shipping a rule with discrimination below a coin.
+   Adopting it would have been the unwired-kill-switch pattern relocated into the
+   instrument that decides what reaches money.
+2. **Did NOT inject the analyst's gate-blindness finding into round 5, which was
+   in flight.** Round 4 died with four grounds because it changed two structural
+   things at once. Filed as a round-6 input instead (`4698dee7`).
+   **Both are written into the queue with "to reverse: ..." spelled out.** A
+   judgement Fable can reverse in one move is a judgement I am allowed to make.
+
+**WHAT I ROUTED TO THE CEO AND WHY** — the tier discipline working correctly
+after last session's correction. I did NOT ask about: dispatching, filing
+tickets, putting the no-sort rule into three seat memories, closing the round.
+I DID route two things, both because they are his by right: the **rf source for
+the gate** (his own excess-return amendment is unimplementable without it, and
+the choice is a versioned one) and **fencing the 200-name universe** (the CLEAN
+FIELD RULE's guard rail 5 puts a change to the frame future work is judged
+against on the approval channel). **The test that worked: is this a choice, or
+is it my job? Choices with money or a version attached go up; everything else I
+just do and ledger.**
+
+**A pattern worth naming, seen twice in one day**: `runanalytics.daily_return_legs`
+under-reports absent legs because `folds()` reads the fold count from the same
+absent payload — it says 2 missing when 6 are missing. The validator called it
+"the same shape as the write-only verdict column." **The absence reporter that
+cannot report its own absences is a recurring failure here.** When a component's
+job is to name what is missing, check what it does when EVERYTHING is missing.
