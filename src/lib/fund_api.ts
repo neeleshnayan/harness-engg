@@ -907,11 +907,21 @@ export interface DeskView {
   requests: {
     request_id: string; kind: string; serves: string; subject: string;
     note?: string; at?: string;
-    status: 'open' | 'approved' | 'resolved';
+    /** FOUR states since 2026-08-21. `declined` is TERMINAL — a resolve cannot
+     *  overwrite it, because executing a declined ask would be the CTO
+     *  overriding the CEO's no. */
+    status: 'open' | 'approved' | 'resolved' | 'declined';
     resolution?: string;
+    /** The spine normalizes seat-filed vocabulary onto these (`task` from
+     *  `subject`, `seat` from `serves`) — an unnormalized seat ask was COUNTED
+     *  by desk_load and rendered as a blank row. Both spellings are typed
+     *  because both are on the wire and old events keep the old one. */
+    task?: string; seat?: string;
     /** CEO endorsement of a queued ask (seat-filed or human-filed) — the
      *  middle hop of seat files → CEO approves → CTO triggers. */
     approved_by?: string; approved_at?: string;
+    /** A rejection carries its MANDATORY written reason. */
+    declined_by?: string; declined_at?: string; decline_reason?: string;
     /** Who asked (ceo / cto). Present on every DESK_REQUESTED payload; typed
      *  here because the office view attributes each day's asks to a person. */
     actor?: string;
@@ -2219,6 +2229,19 @@ export const fundApiClient = {
   approveDeskRequest: async (requestId: string, body?: { actor?: string; note?: string }) =>
     (await fundApi.post(`${P}/desk/requests/${requestId}/approve`,
       { ...(body ?? {}), confirm: requestId.slice(0, 8) })).data,
+
+  /** The CEO's NO on a queued desk request. Terminal: the spine refuses a
+   *  resolve over a decline, because executing a declined ask would be the CTO
+   *  overriding the CEO.
+   *
+   *  `reason` is MANDATORY — the endpoint 422s on an empty one. NO confirm
+   *  echo, deliberately and matching the spine: declines sit outside the guard
+   *  exactly like order declines, because the guard exists to stop an
+   *  accidental YES. Making a NO harder to give than a YES is the wrong
+   *  asymmetry on a control whose safe direction is refusal. */
+  declineDeskRequest: async (requestId: string, reason: string, actor = 'ceo') =>
+    (await fundApi.post(`${P}/desk/requests/${requestId}/decline`,
+      { reason, actor })).data,
 
   /** Decide one agent recommendation (CEO): accepted | rejected. */
   decideRecommendation: async (runId: string, recId: number,

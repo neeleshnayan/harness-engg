@@ -18,7 +18,8 @@ import { memoParts } from "../memo.ts";
 import type { DeskRun } from "./seatLib.ts";
 import {
   compareDeskItems, cooMemos, decisionVelocity, isSeatFiled, moneyGap,
-  orderItems, queuedAsks, rankDeskItems, recItems, reversibilityOfKind,
+  asksForCeo, orderItems, queuedAsks, rankDeskItems, recItems,
+  reversibilityOfKind,
 } from "./execDesk.ts";
 
 /* ------------------------------------------------------------- fixtures -- */
@@ -289,4 +290,111 @@ test("a genuinely quiet day reports 0, distinct from null", () => {
   assert.equal(v.today, 0);
   assert.equal(v.week, 0);
   assert.notEqual(v.today, null);
+});
+
+/* --------------------------------- the ask lifecycle, all four states ----- */
+//
+// The defect these guard, found live 2026-08-21: asks rendered only on the CTO
+// console, so the CEO's own page read "0 awaiting you" while the spine's
+// desk_load counted 2 — the CEO could not see or click items waiting on the
+// CEO. And the spine gained a FOURTH state the same day.
+
+const ASK = {
+  at: "2026-08-21T09:00:00+00:00",
+  kind: "audit",
+  actor: "pm",
+  request_id: "abc12345-0000-0000-0000-000000000000",
+} as const;
+
+test("a DECLINED ask is terminal and never reads as done", () => {
+  // Folding `declined` in with `resolved` would erase the difference between
+  // "we did it" and "the CEO said no".
+  const [a] = queuedAsks([{
+    ...ASK, serves: "quant", subject: "pm requests quant: implement the survivor",
+    status: "declined", declined_by: "ceo", declined_at: "2026-08-21T10:00:00+00:00",
+    decline_reason: "the survivor is not funded this quarter",
+  }]);
+  assert.equal(a.stage, "declined");
+  assert.notEqual(a.stage, "resolved");
+  assert.equal(a.declinedBy, "ceo");
+  assert.equal(a.declineReason, "the survivor is not funded this quarter");
+});
+
+test("an APPROVED ask stays on the queue as cleared, rather than disappearing", () => {
+  // A blessing nobody acted on is exactly the thing that goes quiet.
+  const [a] = queuedAsks([{
+    ...ASK, serves: "quant", subject: "s", status: "approved",
+    approved_by: "ceo", approved_at: "2026-08-21T10:00:00+00:00",
+  }]);
+  assert.equal(a.stage, "cleared_to_trigger");
+  assert.equal(a.approvedBy, "ceo");
+  assert.equal(a.declinedBy, null);
+});
+
+test("the normalized task/seat spelling is preferred over subject/serves", () => {
+  // The spine normalizes seat vocabulary onto task/seat. An unnormalized ask was
+  // COUNTED by desk_load and rendered as a BLANK ROW — invisible work on a
+  // visually clear desk.
+  const [a] = queuedAsks([{
+    ...ASK, serves: "quant", subject: "old spelling",
+    task: "normalized task", seat: "validator", status: "open",
+  }]);
+  assert.equal(a.subject, "normalized task");
+  assert.equal(a.serves, "validator");
+});
+
+test("the OLD spelling still renders when the spine sent no normalized field", () => {
+  const [a] = queuedAsks([{
+    ...ASK, serves: "quant", subject: "old spelling", status: "open",
+  }]);
+  assert.equal(a.subject, "old spelling");
+  assert.equal(a.serves, "quant");
+});
+
+test("declined asks sink below anything still needing a decision", () => {
+  const asks = queuedAsks([
+    { ...ASK, request_id: "d", serves: "q", subject: "declined", status: "declined",
+      decline_reason: "no" },
+    { ...ASK, request_id: "o", serves: "q", subject: "open", status: "open" },
+    { ...ASK, request_id: "c", serves: "q", subject: "cleared", status: "approved" },
+  ]);
+  assert.deepEqual(asks.map((a) => a.stage),
+    ["cleared_to_trigger", "awaiting_ceo", "declined"]);
+});
+
+test("a resolved ask is off the queue entirely — it is history", () => {
+  const asks = queuedAsks([{
+    ...ASK, serves: "q", subject: "done", status: "resolved",
+    resolution: "filed at docs/x.md",
+  }]);
+  assert.equal(asks.length, 0);
+});
+
+test("the CEO's ordering leads with what awaits the CEO, not with what is cleared", () => {
+  // Found by looking, 2026-08-21: the first render of the CEO desk reused the
+  // CTO console's order and buried the one ask awaiting the CEO beneath three
+  // already-approved ones, on a page subtitled "everything awaiting your click".
+  const asks = queuedAsks([
+    { ...ASK, request_id: "c1", serves: "q", subject: "cleared", status: "approved",
+      at: "2026-08-21T07:00:00+00:00" },
+    { ...ASK, request_id: "d1", serves: "q", subject: "declined", status: "declined",
+      decline_reason: "no", at: "2026-08-21T06:00:00+00:00" },
+    { ...ASK, request_id: "o1", serves: "q", subject: "open", status: "open",
+      at: "2026-08-21T09:00:00+00:00" },
+  ]);
+  assert.equal(queuedAsks.length >= 0, true);
+  assert.deepEqual(asksForCeo(asks).map((a) => a.stage),
+    ["awaiting_ceo", "cleared_to_trigger", "declined"]);
+  // And the CTO's own ordering is untouched — it leads with cleared.
+  assert.equal(asks[0].stage, "cleared_to_trigger");
+});
+
+test("within a stage the CEO sees the oldest ask first", () => {
+  const asks = queuedAsks([
+    { ...ASK, request_id: "n", serves: "q", subject: "newer", status: "open",
+      at: "2026-08-21T12:00:00+00:00" },
+    { ...ASK, request_id: "o", serves: "q", subject: "older", status: "open",
+      at: "2026-08-19T12:00:00+00:00" },
+  ]);
+  assert.deepEqual(asksForCeo(asks).map((a) => a.subject), ["older", "newer"]);
 });
