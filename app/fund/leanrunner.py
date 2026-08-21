@@ -35,7 +35,36 @@ logger = logging.getLogger(__name__)
 
 IMAGE = os.getenv("LEAN_IMAGE", "quantconnect/lean:latest")
 WORKSPACE = Path(os.getenv("LEAN_WORKSPACE_DIR", "lean_workspace"))
-JOB_TIMEOUT_S = float(os.getenv("LEAN_JOB_TIMEOUT", "300"))
+
+#: Wall clock allowed one engine container. 300 -> 900 on 2026-08-21, by
+#: measurement, on the quant seat's accepted finding (run-quant-entry11: "2 of 37
+#: container runs died on LEAN_JOB_TIMEOUT=300s under three concurrent
+#: candidates").
+#:
+#: The measurement that decided the number, taken from the 50 most recent jobs in
+#: the durable store on 2026-08-21:
+#:
+#:     min 1.0s   median 14.8s   p90 300.4s   max 301.2s
+#:     44 jobs under 120s;  SIX pinned at 300.4-301.2s;  NOTHING in between.
+#:
+#: That gap is the whole argument. A healthy tail arrives gradually — 150s, 220s,
+#: 280s. A cliff at exactly the ceiling with an empty approach means the
+#: distribution is CENSORED: those six runs did not take 300 seconds, they were
+#: killed at 300 and their true duration has never been observed. So the old
+#: value was not sampling a tail, it was manufacturing one, and every one of
+#: those kills entered the belt as missing evidence.
+#:
+#: 900s is 3x the censoring point and ~60x the median, chosen because the honest
+#: answer to "how long do they need" is that we do not know and cannot know until
+#: one finishes. It stays inside every enclosing deadline: `_run_point` waits
+#: JOB_TIMEOUT_S + 60, the sweep waits 5,400s and the factory 3,600s, so a single
+#: slow point can no longer be reported as an unmeasurable strategy — it will
+#: either finish or be reported as a TIMEOUT by name.
+#:
+#: RE-MEASURE THIS once a job lands between 300s and 900s: that will be the first
+#: real observation of the tail, and the number should follow it rather than this
+#: reasoning.
+JOB_TIMEOUT_S = float(os.getenv("LEAN_JOB_TIMEOUT", "900"))
 
 _CLASS_RE = re.compile(r"class\s+(\w+)\s*\(\s*QCAlgorithm\s*\)")
 _NAME_RE = re.compile(r"^[a-z0-9_\-]{1,64}$")
@@ -168,6 +197,13 @@ def _sweep_point(params: dict[str, str], job: dict[str, Any]) -> dict[str, Any]:
         "parameters": dict(params),
         "state": job.get("state"),
         "error": job.get("error"),
+        # Carried STRUCTURALLY rather than left to be recovered from the error
+        # sentence. A killed run and a strategy that had nothing to say produce
+        # the same shape downstream — every figure absent — and the quant seat
+        # read six of them as "unmeasurable" when they were "never measured".
+        # A boolean cannot be mistaken for a result; a prose match on an error
+        # string can, and would break the first time the sentence is reworded.
+        "timed_out": bool(job.get("timed_out")),
         "total_return_pct": res.get("total_return_pct"),
         "sharpe": res.get("sharpe"),
         "max_drawdown_pct": res.get("max_drawdown_pct"),
@@ -687,7 +723,10 @@ class LeanRunner:
             if j["state"] in ("done", "failed"):
                 return j
             time.sleep(1.0)
-        return {"state": "failed", "error": "point outlasted its deadline"}
+        return {"state": "failed", "job_id": job_id, "timed_out": True,
+                "error": (f"the point outlasted its deadline of "
+                          f"{JOB_TIMEOUT_S + 60:.0f}s — the container was still "
+                          f"alive and produced nothing readable")}
 
     #: How long an engine's raw output is kept on disk. Every backtest writes a
     #: results directory and nothing ever removed one, so 501 of them had
@@ -879,8 +918,13 @@ class LeanRunner:
                      "return_pct": point.get("total_return_pct"),
                      "sharpe": point.get("sharpe"),
                      "psr_pct": point.get("psr_pct"),
-                     "total_orders": point.get("total_orders")},
+                     "total_orders": point.get("total_orders"),
+                     # Travels with the leg it describes. The walk-forward reads
+                     # `test` and nothing else when it decides why a fold could
+                     # not be measured.
+                     "timed_out": bool(point.get("timed_out"))},
             "dates_honoured": honoured,
+            "timed_out": bool(point.get("timed_out")),
             "error": point.get("error"),
         }
 
@@ -958,6 +1002,10 @@ class LeanRunner:
         except subprocess.TimeoutExpired:
             job["state"] = "failed"
             job["error"] = f"timed out after {JOB_TIMEOUT_S:.0f}s — engine killed"
+            # The flag, not the sentence, is what downstream reads. A killed run
+            # produced NO evidence; without this it arrives at the walk-forward
+            # looking exactly like a strategy that declined to trade.
+            job["timed_out"] = True
             subprocess.run(self._docker + ["kill", container],
                            capture_output=True, timeout=30)
         except Exception as e:  # noqa: BLE001

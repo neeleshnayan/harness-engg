@@ -45,9 +45,21 @@ class FakeRunner:
                     "breakeven_cost": {"breakeven_bps": 25.0}}
                    if self.scored else {})
         return {"state": self.sweep_state, "algorithm": "a", "summary": summary,
+                "points": [{"parameters": {"fast": "10"}, "state": "done",
+                            "total_return_pct": 20.0}],
+                # Windows added 2026-08-21 so the captured envelope carries what
+                # the engine actually covered. EQUAL LENGTH deliberately: the
+                # gate annualises each leg over its own window, so unequal ones
+                # would silently move this fixture's retention (20/16 cumulative
+                # = 0.80, but over 363 vs 588 days = 0.48) and change what the
+                # pass/fail tests above are asserting about the GATE rather than
+                # about the fixture.
                 "holdout_result": {"state": "done", "dates_honoured": True,
-                                   "train": {"return_pct": 20.0},
-                                   "test": {"return_pct": 16.0}}}
+                                   "train": {"return_pct": 20.0,
+                                             "window": ["2024-01-02", "2024-12-30"]},
+                                   "test": {"return_pct": 16.0,
+                                            "total_orders": 40,
+                                            "window": ["2025-01-02", "2025-12-31"]}}}
 
     def submit_backtest(self, algorithm, parameters=None):
         self.verified_params = parameters
@@ -58,8 +70,14 @@ class FakeRunner:
               "psr_pct": 80.0 if self.passing else 10.0,
               "costs": {"slippage_modelled": True}}
         return {"state": "done", "algorithm": "a", "parameters": {"fast": "10"},
+                "job_id": job_id, "wall_seconds": 11.4,
                 "result": {"total_return_pct": 20.0, "benchmark_return_pct": 10.0,
                            "capacity": {"capacity_usd": 5_000_000.0},
+                           "equity_curve": [100.0, 110.0, 120.0],
+                           "equity_dates": ["2025-01-02", "2025-06-02", "2026-01-02"],
+                           "benchmark_curve": [100.0, 105.0, 110.0],
+                           "orders": [{"symbol": "SPY", "side": "buy", "qty": 3.0}],
+                           "raw_files": ["/Results/job1/out.json"],
                            "robustness": rb}}
 
 
@@ -188,3 +206,130 @@ def test_the_scoreboard_treats_kills_as_the_product():
     sb = f.scoreboard()
     assert sb["judged"] == 1 and sb["killed"] == 1 and sb["passed"] == 0
     assert "not a gate" in sb["note"]
+
+
+# --- the evidence behind the verdict (2026-08-21) ---------------------------
+#
+# The CEO, three times in one day: "i can see monthend_rebalance_flow but cant
+# see the analytics behind". The belt computed the curve, the fills, the cost
+# grid and the folds, handed the folds to the gate, and stored none of them.
+# These fail if that regresses.
+
+HOLDOUT = {"train_start": "2024-01-01", "train_end": "2024-12-31",
+           "test_start": "2025-01-01", "test_end": "2026-08-14"}
+
+
+def _judged(passing=True, holdout=HOLDOUT):
+    r = FakeRunner(passing=passing)
+    f = _factory(r)
+    cid = f.submit("algo", {"fast": ["10"]}, holdout=holdout)["candidate_id"]
+    _settle(f, cid)
+    return f, cid
+
+
+def test_a_verdict_is_stored_with_the_evidence_it_was_computed_from():
+    f, cid = _judged()
+    row = f.get(cid)
+    a = row["analytics"]
+    assert a["available"] is True, a
+    res = a["verification"]["result"]
+    assert res["equity_curve"] == [100.0, 110.0, 120.0]
+    assert res["orders"][0]["symbol"] == "SPY"
+    assert a["verification"]["job_id"] == "job1"
+    assert a["sweep"]["summary"]["breakeven_cost"]["breakeven_bps"] == 25.0
+
+
+def test_the_per_fold_rows_are_served_on_the_candidate_read():
+    """Accepted quant recommendation, run-quant-entry11: the rows had to be
+    reconstructed 'from sweeps by grid-key luck'. Each carries its requested
+    dates and dates_honoured."""
+    f, cid = _judged()
+    folds = f.get(cid)["walkforward"]["folds"]
+    assert folds, "the belt ran the folds and stored none of them"
+    assert {"train_start", "train_end", "test_start", "test_end"} <= set(folds[0])
+    assert "dates_honoured" in folds[0]
+
+
+def test_the_index_read_serves_folds_but_not_the_curve():
+    """~80 KB of curve per candidate has one reader — the panel for the run you
+    opened. The folds are a kilobyte and the index is unreadable without them."""
+    f, cid = _judged()
+    row = next(r for r in f.history("algo") if r["candidate_id"] == cid)
+    assert row["walkforward"]["folds"]
+    assert row["analytics_available"] is True
+    assert "analytics" not in row
+
+
+def test_a_candidate_judged_before_capture_reads_as_not_captured_not_empty():
+    """The live state of every candidate judged before 2026-08-21. An empty
+    panel would say 'this ran and produced nothing', which is a claim about the
+    strategy rather than about our storage."""
+    import psycopg
+    from app.fund import runanalytics
+    f, cid = _judged()
+    with psycopg.connect(f._dsn) as c:
+        with c.cursor() as cur:
+            cur.execute("UPDATE fund_candidates SET analytics = NULL "
+                        "WHERE candidate_id = %s", (cid,))
+        c.commit()
+    row = f.get(cid)
+    assert row["analytics"]["available"] is False
+    assert row["analytics"]["reason"] == runanalytics.NOT_CAPTURED
+    assert row["analytics_available"] is False
+    assert row["analytics_absence"]["reason"] == runanalytics.NOT_CAPTURED
+    # The verdict is still there. Absent evidence never removes the judgement.
+    assert row["verdict"]["gate_version"]
+
+
+def test_pruning_leaves_a_tombstone_and_never_a_null():
+    """Pruned and never-captured must stay distinguishable: one has evidence
+    that expired and is re-runnable, the other never had any."""
+    from app.fund import runanalytics
+    f, cid = _judged()
+    out = f.prune_analytics(max_age_days=0, keep_newest=0)
+    assert cid in out["pruned"], out
+    row = f.get(cid)
+    assert row["analytics"]["available"] is False
+    assert row["analytics"]["reason"] == runanalytics.PRUNED
+    assert row["analytics"]["reason"] != runanalytics.NOT_CAPTURED
+    assert row["analytics"]["pruned_at"]
+
+
+def test_pruning_is_idempotent_and_does_not_re_report_a_tombstone():
+    f, cid = _judged()
+    f.prune_analytics(max_age_days=0, keep_newest=0)
+    again = f.prune_analytics(max_age_days=0, keep_newest=0)
+    assert again["count"] == 0, "a tombstone was pruned a second time"
+
+
+def test_the_newest_candidates_survive_the_prune_whatever_their_age():
+    """Age alone is the wrong rule: after an idle month every row is stale and
+    the most recent evidence anyone has would be swept."""
+    f, cid = _judged()
+    out = f.prune_analytics(max_age_days=0, keep_newest=1)
+    assert out["count"] == 0
+    assert f.get(cid)["analytics"]["available"] is True
+
+
+def test_an_errored_candidate_stores_no_analytics_and_says_so():
+    """A sweep that failed produced no evidence — the row must not imply one."""
+    from app.fund import runanalytics
+    f = _factory(FakeRunner(sweep_state="failed"))
+    cid = f.submit("algo", {"fast": ["10"]})["candidate_id"]
+    _settle(f, cid)
+    row = f.get(cid)
+    assert row["state"] == "failed"
+    assert row["analytics"]["available"] is False
+    assert row["analytics"]["reason"] == runanalytics.NOT_CAPTURED
+
+
+def test_a_candidate_with_no_holdout_records_why_the_folds_are_missing():
+    """'Never asked for' and 'attempted and crashed' both returned a bare None,
+    so the stored verdict read 'no walk-forward test' for each — true of one and
+    misleading about the other."""
+    from app.fund import runanalytics
+    f, cid = _judged(holdout=None)
+    wf = f.get(cid)["analytics"]["walkforward"]
+    assert wf["present"] is False
+    assert wf["reason"] == runanalytics.UNAVAILABLE
+    assert "no holdout window was supplied" in wf["note"]

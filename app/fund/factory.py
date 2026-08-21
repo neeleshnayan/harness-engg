@@ -55,6 +55,14 @@ CREATE TABLE IF NOT EXISTS fund_candidates (
 
 CREATE INDEX IF NOT EXISTS fund_candidates_algo_idx
     ON fund_candidates (algorithm, started_at DESC);
+
+-- The evidence the verdict was computed from: equity curve, fills, the cost
+-- sweep's grid, and the per-fold walk-forward rows. Added 2026-08-21 because
+-- the belt measured all of it and stored none of it — see app/fund/runanalytics.py.
+-- NULL means "judged before this column existed", which the reader renders as a
+-- named absence rather than as an empty panel; a pruned payload writes a
+-- tombstone into the column instead of returning to NULL.
+ALTER TABLE fund_candidates ADD COLUMN IF NOT EXISTS analytics JSONB;
 """
 
 
@@ -134,6 +142,7 @@ class CandidateFactory:
         try:
             sub = runner.submit_sweep(algorithm, grid, holdout)
             sweep = self._await(lambda: runner.sweep(sub["sweep_id"]))
+            sweep.setdefault("sweep_id", sub.get("sweep_id"))
             if sweep.get("state") != "done":
                 return self._finish(candidate_id, error=f"sweep {sweep.get('state')}")
 
@@ -149,6 +158,7 @@ class CandidateFactory:
             # so judging the trimmed row would mean waiving those criteria.
             job_id = runner.submit_backtest(algorithm, params)["job_id"]
             job = self._await(lambda: runner.job(job_id))
+            job.setdefault("job_id", job_id)
             if job.get("state") != "done":
                 return self._finish(candidate_id,
                                     error=f"verification run {job.get('state')}: {job.get('error')}")
@@ -162,28 +172,46 @@ class CandidateFactory:
             # Expensive and deliberately so: one grid per fold. That cost IS the
             # finding from the null audit — a single window is cheap and a
             # coin flip cleared it half the time.
-            walk = self._walkforward(algorithm, grid, holdout)
+            walk, walk_note = self._walkforward(algorithm, grid, holdout)
 
             verdict = evaluate(job.get("result") or {},
                                sweep.get("holdout_result"),
                                sweep.get("summary"),
                                walkforward=walk)
-            self._finish(candidate_id, verdict=verdict, winner=params)
+            # Captured in the SAME statement as the verdict, deliberately. A
+            # second pass could re-read a job or re-run a fold, and a verdict
+            # whose evidence disagrees with it is worse than one with no
+            # evidence, because it reassures. See app/fund/runanalytics.py.
+            from app.fund import runanalytics
+            analytics = runanalytics.capture(job=job, sweep=sweep,
+                                             walkforward=walk,
+                                             walkforward_note=walk_note)
+            self._finish(candidate_id, verdict=verdict, winner=params,
+                         analytics=analytics)
         except Exception as e:  # noqa: BLE001
             logger.warning("candidate %s failed: %s", candidate_id, e)
             self._finish(candidate_id, error=f"{type(e).__name__}: {e}"[:400])
 
     def _walkforward(self, algorithm: str, grid: dict[str, list[str]],
-                     holdout: Optional[dict[str, str]]) -> Optional[dict[str, Any]]:
-        """Walk-forward folds over the same history the holdout came from.
+                     holdout: Optional[dict[str, str]]
+                     ) -> tuple[Optional[dict[str, Any]], Optional[str]]:
+        """Walk-forward folds, and — separately — why there are none.
 
-        Returns None when folds cannot be built rather than an empty result: the
-        gate treats a missing walk-forward as a failure, and handing it an empty
-        dict would let "we could not test this" read as "it was tested and had
-        no folds".
+        Returns ``(result, note)``. The RESULT is None when folds cannot be built
+        rather than an empty dict: the gate treats a missing walk-forward as a
+        failure, and handing it an empty dict would let "we could not test this"
+        read as "it was tested and had no folds".
+
+        The NOTE exists because the gate cannot carry it. Both the no-holdout
+        case and the crashed case previously returned a bare None, so the stored
+        verdict said "no walk-forward test" in each — a sentence that is true of
+        the first and misleading about the second, where the leg ran and threw.
+        The gate's input and its sentence are unchanged; the reason now survives
+        alongside the evidence instead of only in a log line nobody folds.
         """
         if not holdout:
-            return None
+            return None, ("no holdout window was supplied, so no folds could be "
+                          "built — the walk-forward leg was never attempted")
         try:
             from app.fund.gate import CRITERIA
             from app.fund.walkforward import (WalkForward, declared_hold_days,
@@ -212,15 +240,19 @@ class CandidateFactory:
                 return {"not_testable": True, "note": plan["note"],
                         "hold_days": hold["hold_days"],
                         "hold_days_source": hold["source"],
-                        "folds_measurable": 0, "folds_retained": 0}
+                        "folds_measurable": 0, "folds_retained": 0}, None
             out = WalkForward(runner=self._lean()).evaluate(
                 algorithm, grid, plan["folds"])
             out["hold_days"] = hold["hold_days"]
             out["hold_days_source"] = hold["source"]
-            return out
+            out["requested_folds"] = plan["folds"]
+            out["test_days"] = plan["test_days"]
+            return out, None
         except Exception as e:  # noqa: BLE001
             logger.warning("walk-forward unavailable for %s: %s", algorithm, e)
-            return None
+            return None, (f"the walk-forward leg raised {type(e).__name__}: {e} — "
+                          f"it was attempted and failed, which is not the same as "
+                          f"never having been asked for"[:400])
 
     @staticmethod
     def _await(fetch, timeout_s: float = 3_600.0, poll_s: float = 2.0) -> dict[str, Any]:
@@ -234,14 +266,16 @@ class CandidateFactory:
         return {"state": "timeout"}
 
     def _finish(self, candidate_id: str, verdict: Optional[dict] = None,
-                winner: Optional[dict] = None, error: Optional[str] = None) -> None:
+                winner: Optional[dict] = None, error: Optional[str] = None,
+                analytics: Optional[dict] = None) -> None:
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
                     UPDATE fund_candidates
                        SET state = %s, passed = %s, failures = %s, winner = %s,
-                           verdict = %s, error = %s, finished_at = now()
+                           verdict = %s, error = %s, analytics = %s,
+                           finished_at = now()
                      WHERE candidate_id = %s
                     """,
                     ("failed" if error else "done",
@@ -249,7 +283,13 @@ class CandidateFactory:
                      json.dumps((verdict or {}).get("failures") or []),
                      json.dumps(winner) if winner else None,
                      json.dumps(verdict) if verdict else None,
-                     error, candidate_id))
+                     error,
+                     # default=str for the same reason leanstore._js has it: one
+                     # statistic arriving as a Decimal must not cost the whole
+                     # capture. A failed capture would be silent otherwise, and
+                     # the row would read as never-captured — which is a lie.
+                     json.dumps(analytics, default=str) if analytics else None,
+                     candidate_id))
             conn.commit()
 
     #: A candidate takes ~20 minutes through the belt. Anything still `running`
@@ -309,10 +349,89 @@ class CandidateFactory:
                      "no candidate has been running longer than the ceiling"),
         }
 
+    #: How long a candidate's captured analytics is kept. Deliberately far longer
+    #: than the engine's own results directories (1 day): those are debug
+    #: material that the parsed result supersedes, while THIS is the evidence a
+    #: deployment decision rested on. 90 days covers a full quarter of review —
+    #: long enough that a verdict argued about in October still has its curve.
+    #:
+    #: Sized from measurement, not taste: a captured envelope is ~11 KB for a
+    #: short window and ~80 KB for a five-year one, and this belt has judged 37
+    #: candidates in its lifetime. Ninety days of that pace is single-digit
+    #: megabytes in one JSONB column.
+    ANALYTICS_RETENTION_DAYS = float(os.getenv("FUND_ANALYTICS_RETENTION_DAYS", "90"))
+
+    #: Kept regardless of age, newest first — the same rule the engine's result
+    #: directories use, and for the same reason: after an idle month every row is
+    #: stale, and age alone would sweep the most recent evidence anyone has.
+    ANALYTICS_KEEP_NEWEST = int(os.getenv("FUND_ANALYTICS_KEEP_NEWEST", "50"))
+
+    def prune_analytics(self, max_age_days: Optional[float] = None,
+                        keep_newest: Optional[int] = None) -> dict[str, Any]:
+        """Age out captured payloads, leaving a TOMBSTONE rather than a NULL.
+
+        The distinction is the whole point and it is the reason this is not one
+        line of SQL setting the column back to NULL. A NULL is indistinguishable
+        from a candidate judged before the column existed — and the two send a
+        reader to different places: one had evidence that expired and can be
+        re-run to get it back, the other never had any. Writing the same value
+        for both would be a fresh instance of the absence-is-not-zero error this
+        fund has now fixed in the gate, the NAV fold and the risk monitor.
+
+        A candidate that is still `running` is never touched, whatever its age:
+        its analytics are about to be written.
+        """
+        from app.fund import runanalytics
+        age = (self.ANALYTICS_RETENTION_DAYS if max_age_days is None
+               else max_age_days)
+        keep = self.ANALYTICS_KEEP_NEWEST if keep_newest is None else keep_newest
+        stone = json.dumps(runanalytics.pruned(retention_days=age))
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE fund_candidates
+                       SET analytics = %s::jsonb
+                     WHERE analytics IS NOT NULL
+                       AND (analytics ? 'pruned') IS NOT TRUE
+                       AND state <> 'running'
+                       AND started_at < now() - (%s * INTERVAL '1 day')
+                       AND candidate_id NOT IN (
+                             SELECT candidate_id FROM fund_candidates
+                              WHERE analytics IS NOT NULL
+                           ORDER BY started_at DESC LIMIT %s)
+                 RETURNING candidate_id
+                    """,
+                    (stone, age, keep))
+                rows = cur.fetchall() or []
+            conn.commit()
+        ids = [r[0] for r in rows]
+        if ids:
+            logger.info("pruned analytics for %d candidate(s) older than %.0fd "
+                        "(kept newest %d)", len(ids), age, keep)
+        return {
+            "pruned": ids, "count": len(ids), "retention_days": age,
+            "kept_newest": keep,
+            "note": (f"{len(ids)} candidate(s) had their captured analytics aged "
+                     f"out. Each row now carries a tombstone saying so — pruned "
+                     f"is NOT the same as never captured, and the Lab says which"
+                     if ids else
+                     f"nothing captured longer than {age:.0f}d ago outside the "
+                     f"newest {keep}"),
+        }
+
     # --- memory -------------------------------------------------------------
 
     def get(self, candidate_id: str) -> Optional[dict[str, Any]]:
-        rows = self._rows("WHERE candidate_id = %s", (candidate_id,), 1)
+        """One candidate, WITH its full analytics payload.
+
+        The detail read is the only one that carries the equity curve and the
+        fills. A verification run is ~11 KB for a short window and around 80 KB
+        for a five-year one (measured on job 53ef3e67d89a and on entry 11's
+        254-fill run), so serving 50 of them on the list read would be several
+        megabytes to render a table — see `history`.
+        """
+        rows = self._rows("WHERE candidate_id = %s", (candidate_id,), 1, detail=True)
         return rows[0] if rows else None
 
     def history(self, algorithm: Optional[str] = None,
@@ -321,19 +440,27 @@ class CandidateFactory:
 
         The point of keeping this: without it, research rediscovers the same
         broken idea every few weeks with the enthusiasm of the first time.
+
+        Carries the walk-forward FOLD ROWS but not the equity curves or the
+        fills. The folds are what the index has to show — a run reading "2 of 4"
+        is unreadable without the four rows behind it — and they are about a
+        kilobyte per candidate. The curves are two orders of magnitude larger and
+        have exactly one reader, the panel for the run you opened.
         """
         if algorithm:
             return self._rows("WHERE algorithm = %s ORDER BY started_at DESC LIMIT %s",
                               (algorithm, limit), limit)
         return self._rows("ORDER BY started_at DESC LIMIT %s", (limit,), limit)
 
-    def _rows(self, where: str, params: tuple, limit: int) -> list[dict[str, Any]]:
+    def _rows(self, where: str, params: tuple, limit: int,
+              detail: bool = False) -> list[dict[str, Any]]:
+        from app.fund import runanalytics
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     "SELECT candidate_id, algorithm, grid, holdout, state, passed, "
                     "       failures, winner, error, started_at, finished_at, "
-                    "       verdict "
+                    "       verdict, analytics "
                     f"FROM fund_candidates {where}", params)
                 rows = cur.fetchall()
         out = []
@@ -355,6 +482,12 @@ class CandidateFactory:
             # and neither should require knowing the verdict's shape.
             v = r[11] or {}
             checks = (v.get("checks") or {}) if isinstance(v, dict) else {}
+            raw = r[12] if isinstance(r[12], dict) else None
+            # ONE shape whether or not there is anything to show, so no consumer
+            # has to branch on null before it can branch on content. The four
+            # absences (never captured / pruned / unavailable / not testable) are
+            # each named — see app/fund/runanalytics.py for why they are not one.
+            seen = runanalytics.view(raw)
             out.append({
                 "candidate_id": r[0], "algorithm": r[1], "grid": r[2],
                 "holdout": r[3], "state": r[4], "passed": r[5],
@@ -369,7 +502,24 @@ class CandidateFactory:
                     "median_retention": checks.get("walkforward_median_retention"),
                     "retained_share": checks.get("walkforward_retained_share"),
                     "not_testable": checks.get("not_testable"),
+                    # Requested by the quant seat 2026-08-21 (run-quant-entry11,
+                    # accepted): "per-fold rows had to be reconstructed from
+                    # sweeps by grid-key luck". Each row carries its requested
+                    # dates, the window the engine actually covered via
+                    # `dates_honoured`, and its own measurable/why-not reason.
+                    # None, not [], when there are no rows — an empty list would
+                    # read as a claim about the strategy.
+                    "folds": runanalytics.folds(raw),
                 } if checks else None,
+                # Availability travels on BOTH reads; the payload only on detail.
+                # A list row that carried `analytics: null` would be ambiguous
+                # between "nothing was captured" and "the list does not serve it".
+                "analytics_available": bool(seen.get("available")),
+                "analytics_absence": None if seen.get("available") else {
+                    "reason": seen.get("reason"), "note": seen.get("note"),
+                    "pruned_at": seen.get("pruned_at"),
+                },
+                **({"analytics": seen} if detail else {}),
             })
         return out
 

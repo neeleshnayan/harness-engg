@@ -25,11 +25,18 @@ raw ratio was 0.02 to 0.04 against a 0.5 floor. Perfect foreknowledge scored 0.0
 A ratio of cumulative returns over unequal windows measures the length of the
 windows, and compounding makes the longer one enormously larger.
 
-Three ways a fold can fail to produce a number, all kept distinct from zero:
+Four ways a fold can fail to produce a number, all kept distinct from zero and
+from each other, because each implies a different next action:
 
   * the test leg placed NO ORDERS — it was never examined (usually warm-up
     starvation), and scoring that as 0% retention would condemn a strategy
     nobody looked at;
+  * the run was KILLED BY THE CLOCK — the engine hit its wall-clock ceiling and
+    the container was destroyed. Added as its own case 2026-08-21 on the quant
+    seat's accepted finding: six runs died at exactly LEAN_JOB_TIMEOUT and every
+    one of them entered the belt indistinguishable from a strategy that had
+    nothing to say. The action is "re-run it, probably with more time", which is
+    nothing like "give it warm-up" or "stop asking";
   * the run CRASHED — unmeasured, and a crash is not a result;
   * the train leg LOST money — retention is undefined, because a ratio against a
     negative denominator inverts sign and reports a losing fold as a triumph.
@@ -249,23 +256,55 @@ def _annualise(total_pct: Optional[float], days: Optional[int]) -> Optional[floa
     return (growth ** (365.0 / days) - 1.0) * 100.0
 
 
+#: What an unmeasurable fold says when the engine ran out of wall clock. Named
+#: rather than inlined so the Lab, the gate's failure text and the tests all
+#: agree on one sentence, and so a reader grepping for "timed out" finds one
+#: place. See the module docstring's four-cases list.
+TIMEOUT_REASON = (
+    "the engine hit its wall-clock ceiling and the container was killed, so this "
+    "fold produced NO evidence — it is not a result and it is not a strategy "
+    "that declined to trade. Re-run it, with more time if it happens again")
+
+
+def timed_out(*legs: Any) -> bool:
+    """Whether any supplied leg carries the engine's timeout flag.
+
+    Reads a BOOLEAN the runner sets, never the error prose. The sentence is for
+    humans and gets reworded; a flag does not, and a `"timed out" in error` match
+    is one copy-edit away from silently reclassifying every killed run as an
+    ordinary failure.
+    """
+    return any(bool((leg or {}).get("timed_out")) for leg in legs
+               if isinstance(leg, dict))
+
+
 def retention(train_return: Optional[float],
               test_return: Optional[float],
               test_orders: Optional[int],
               train_days: Optional[int] = None,
-              test_days: Optional[int] = None) -> dict[str, Any]:
+              test_days: Optional[int] = None,
+              engine_timed_out: bool = False) -> dict[str, Any]:
     """One fold's retention as a ratio of RATES, or a stated reason there isn't one.
 
     Never returns a number it cannot justify. The undefined cases are named rather
     than collapsed to zero, because each implies a different next action: give it
-    warm-up, re-run it, or stop asking about retention on a strategy that did not
-    make money to retain.
+    warm-up, re-run it with more time, re-run it, or stop asking about retention
+    on a strategy that did not make money to retain.
 
     When window lengths are supplied both legs are annualised first, so the ratio
     measures whether the EDGE persisted rather than how long each window was.
     Without them it falls back to raw cumulative returns and says so, because a
     silent fallback here is how the criterion became unpassable.
     """
+    # FIRST, ahead of every other reason. A killed container explains all the
+    # missing figures below it, and reporting one of the downstream symptoms —
+    # "no return figure", or worse "placed no trades" — sends the reader to fix
+    # a strategy when the thing that failed was ours. Deliberately does NOT
+    # depend on test_orders: a run killed mid-window may have placed orders
+    # already, and a partial count is not a measurement either.
+    if engine_timed_out:
+        return {"retention": None, "measurable": False,
+                "timed_out": True, "reason": TIMEOUT_REASON}
     if test_orders == 0:
         return {"retention": None, "measurable": False,
                 "reason": "the test leg placed no trades, so it says nothing "
@@ -337,22 +376,43 @@ class WalkForward:
                                 "error": f"{type(e).__name__}: {e}"[:200]})
                 continue
             sweep = self._await_sweep(r, sid)
-            ho = (sweep or {}).get("holdout_result") or {}
+            if sweep is None:
+                # The fold's whole sweep outlasted its own deadline. Previously
+                # this fell through as an empty dict and the fold was reported
+                # "a leg produced no return figure" — true, and useless: it
+                # describes the symptom of our clock running out as though the
+                # strategy had been examined.
+                results.append({
+                    "fold": i, **f, "state": "timeout", "sweep_id": sid,
+                    "retention": None, "measurable": False, "timed_out": True,
+                    "reason": TIMEOUT_REASON,
+                })
+                continue
+            ho = sweep.get("holdout_result") or {}
             train = ho.get("train") or {}
             test = ho.get("test") or {}
+            killed = timed_out(ho, test)
             ret = retention(train.get("return_pct"), test.get("return_pct"),
                             test.get("total_orders"),
                             train_days=_span_days(f["train_start"], f["train_end"]),
-                            test_days=_span_days(f["test_start"], f["test_end"]))
+                            test_days=_span_days(f["test_start"], f["test_end"]),
+                            engine_timed_out=killed)
             results.append({
                 "fold": i, **f,
-                "state": ho.get("state") or (sweep or {}).get("state"),
+                "state": "timeout" if killed else (
+                    ho.get("state") or sweep.get("state")),
                 "sweep_id": sid,
                 "chosen": ho.get("parameters"),
                 "train_return_pct": train.get("return_pct"),
                 "test_return_pct": test.get("return_pct"),
                 "test_orders": test.get("total_orders"),
                 "test_psr_pct": test.get("psr_pct"),
+                # The requested window is already in **f; this is the window the
+                # ENGINE actually covered, and `dates_honoured` says whether the
+                # two agree. An algorithm that ignores start/end runs the same
+                # dates twice and the "held-out" fold proves nothing.
+                "train_window": train.get("window"),
+                "test_window": test.get("window"),
                 "dates_honoured": ho.get("dates_honoured"),
                 **ret,
             })
@@ -383,12 +443,18 @@ def summarise(results: list[dict[str, Any]]) -> dict[str, Any]:
     measurable = [f for f in results if f.get("measurable")]
     rets = [f["retention"] for f in measurable]
     unmeasurable = [f for f in results if not f.get("measurable")]
+    # Counted on its own line because it is OUR failure, not the strategy's, and
+    # a summary that folds it into "unmeasurable" invites the reader to conclude
+    # something about the rule. Six of these were read as strategy findings
+    # before the reason was split out (run-quant-entry11).
+    killed = [f for f in unmeasurable if f.get("timed_out")]
     if not rets:
         return {
             "folds_attempted": len(results),
             "folds_measurable": 0,
             "median_retention": None,
             "folds_retained": 0,
+            "folds_timed_out": len(killed),
             "verdict": ("no fold produced a measurable retention — "
                         + "; ".join(sorted({str(f.get("reason")) for f in unmeasurable}))
                         + ". This is an absence of evidence, not evidence of absence"),
@@ -399,18 +465,27 @@ def summarise(results: list[dict[str, Any]]) -> dict[str, Any]:
         "folds_attempted": len(results),
         "folds_measurable": len(rets),
         "folds_unmeasurable": len(unmeasurable),
+        "folds_timed_out": len(killed),
         "median_retention": round(med, 4),
         "min_retention": round(min(rets), 4),
         "max_retention": round(max(rets), 4),
         "folds_retained": len(retained),
         "retention_floor": RETENTION_FLOOR,
-        "verdict": _verdict(len(rets), len(retained), med, len(unmeasurable)),
+        "verdict": _verdict(len(rets), len(retained), med, len(unmeasurable),
+                            len(killed)),
     }
 
 
-def _verdict(n: int, retained: int, med: float, unmeasurable: int) -> str:
+def _verdict(n: int, retained: int, med: float, unmeasurable: int,
+             killed: int = 0) -> str:
     tail = (f" {unmeasurable} fold(s) could not be measured at all."
             if unmeasurable else "")
+    if killed:
+        tail += (f" {killed} of those was the ENGINE running out of wall clock, "
+                 f"not the strategy — that fold was never examined."
+                 if killed == 1 else
+                 f" {killed} of those were the ENGINE running out of wall clock, "
+                 f"not the strategy — those folds were never examined.")
     if retained == n and n >= 2:
         return (f"kept at least {RETENTION_FLOOR:.0%} of its edge in all {n} "
                 f"measurable folds (median {med:.0%}) — the one result so far "
