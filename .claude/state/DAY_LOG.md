@@ -101,6 +101,32 @@ it.
 
 ### DECIDED (by the CEO)
 
+- **THE HARNESS PHASE NOW HAS AN EXIT CONDITION, and it is the `alpaca-prod`
+  precondition list.** Agreed 2026-08-21. The firm is deliberately
+  builder-heavy right now — 21 tickets on one seat, near-zero elsewhere —
+  because a firm whose instruments are broken cannot trust any other seat's
+  output. The risk in "fix the harness first" is that it has no natural
+  stopping point: today alone found four absence-as-zero instruments, a
+  phantom price factor, a coin-flip capacity, a blind gate, a mislabelling
+  venue and a trapdoor default, and the mechanism measured the trend going the
+  wrong way (4 of 8 verdicts dying on the instrument, rising).
+  **So "robust enough" is DEFINED as: controls have fired in anger · book and
+  venue reconcile · the sign-inverted P&L is fixed · a kill switch is wired and
+  tested · N real informative fills in the cost model.** Not "the queue is
+  empty" — it never will be. When those five hold, the bench comes back on.
+- **Three modes: `test` | `alpaca-paper` | `alpaca-prod`.** Three stores; paper
+  NAV and real NAV must never be foldable together. `alpaca-prod` is
+  structurally unreachable until the five above are met. `alpaca-paper` syncs
+  to what the CEO sees on his Alpaca screen, and unmanaged positions are
+  acceptable — **but by APPENDING reconciling events, never by reading broker
+  equity as NAV.** Two consequences to surface loudly when it lands: NAV moves
+  **$127.55 for a non-market reason**, and **~$1,166.52 enters the book with no
+  strategy and no exit rule.** This SUPERSEDES the PM's R18 fence-the-cohort
+  recommendation — reconcile, do not fence.
+- **Mock is isolated, not ephemeral.** It persists to Postgres like everything
+  else. The old flag's sin was conflating those two: 552 events lived in memory
+  while the status endpoint reported success hourly.
+
 - **Envelope v4 adopted**, with the skip-visibility fix in the same change.
 - **Two agents may run in parallel when independent** — supersedes the
   one-at-a-time rule. Five-part dependency test written into the constitution.
