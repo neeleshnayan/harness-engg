@@ -134,6 +134,61 @@ _ENGINE_SLOTS = threading.BoundedSemaphore(MAX_CONCURRENT_CONTAINERS)
 
 _PARAM_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_\-]{0,31}$")
 
+#: The parameter an algorithm reads to fill FRACTIONAL shares.
+#:
+#: The engine fills whole shares by default and the venue does not: Alpaca
+#: supports fractional equities, so a $2,000 book that LEAN rounds to whole
+#: shares is being tested under a constraint the fund does not actually have.
+#:
+#: MEASURED 2026-08-21 with `lean_workspace/algorithms/frac_probe`, one window,
+#: same rule, $2,000 book, a 49% target in each of SPY and TLT:
+#:
+#:     fractional:0   SPY 1.0000   TLT 11.0000   <- the engine's default
+#:     fractional:1   SPY 1.4298   TLT 11.1207
+#:
+#: SPY printed at $685, so 49% of the book is $980 = 1.43 shares. Whole-share
+#: rounding holds ONE share — 34% of the book against a 49% target, a 15
+#: percentage-point error. That is an order of magnitude larger than the 1-2%/yr
+#: effect entry 11 was trying to measure, and it is why the quant had to run that
+#: candidate at a $100k notional and report the $2k deployment answer separately
+#: (run-quant-entry11, accepted 2026-08-21).
+#:
+#: The mechanism, verified rather than assumed — an algorithm opts in with:
+#:
+#:     if str(self.get_parameter("fractional") or "0") == "1":
+#:         old = sec.symbol_properties
+#:         sec.symbol_properties = SymbolProperties(
+#:             old.description, old.quote_currency, old.contract_multiplier,
+#:             old.minimum_price_variation, 0.0001, old.market_ticker)
+FRACTIONAL_PARAM = "fractional"
+
+#: Source tokens that prove an algorithm actually READS the switch.
+#:
+#: This check exists because of the failure it prevents, which is the worst kind:
+#: the runner can set a parameter, but only the ALGORITHM can act on it. Setting
+#: `fractional:1` for a file that ignores it would leave the caller believing the
+#: run was fractional when it was whole-share — a silent lie about the conditions
+#: a verdict was produced under. So the request is checked against the source and
+#: an unhonoured one is REPORTED, never assumed to have taken effect.
+_FRACTIONAL_TOKENS = (FRACTIONAL_PARAM, "symbol_properties")
+
+
+def honours_fractional(code: Optional[str]) -> bool:
+    """Whether this algorithm's source reads the fractional switch at all.
+
+    A source scan rather than a runtime check, for the same reason
+    `walkforward.declared_hold_days` reads HOLD_DAYS statically: the engine has
+    exited by the time anyone asks, so the file is the only thing left to ask.
+
+    Conservative in the safe direction — it must find BOTH the parameter name
+    and the symbol-properties override. A file mentioning one without the other
+    is not honouring the switch, and reporting that it might be would put the
+    caller back where they started.
+    """
+    if not code:
+        return False
+    return all(t in code for t in _FRACTIONAL_TOKENS)
+
 
 class LeanError(Exception):
     pass
@@ -408,7 +463,8 @@ class LeanRunner:
 
     def submit_backtest(self, algorithm: str,
                         parameters: Optional[dict[str, Any]] = None,
-                        enrich: bool = True) -> dict[str, Any]:
+                        enrich: bool = True,
+                        fractional: Optional[bool] = None) -> dict[str, Any]:
         """Run one backtest.
 
         ``enrich`` controls the extras that cost a NETWORK call — the buy-and-
@@ -416,12 +472,37 @@ class LeanRunner:
         twenty-four grid points would otherwise make twenty-four fetches for
         numbers the comparison never reads, which is slow in production and
         was enough to make the suite flaky under load.
+
+        ``fractional`` asks for fractional share fills. The engine rounds to
+        whole shares and the VENUE does not, so a $2,000 book tested whole-share
+        is being judged under a constraint the fund does not have — measured, a
+        15 percentage-point error on a 49% target (see FRACTIONAL_PARAM).
+
+        Asking is not the same as getting, and the job says which. Only the
+        ALGORITHM can honour the switch, so the source is checked; a request an
+        algorithm ignores is recorded as `fractional_honoured: False` with a
+        note, rather than leaving the caller believing a whole-share run was
+        fractional.
         """
         algo = self.get_algorithm(algorithm)  # raises on unknown
         m = _CLASS_RE.search(algo["code"])
         if not m:
             raise LeanError("algorithm lost its QCAlgorithm class")
         parameters = _clean_parameters(parameters)
+        honoured: Optional[bool] = None
+        frac_note: Optional[str] = None
+        if fractional is not None:
+            honoured = honours_fractional(algo.get("code"))
+            parameters[FRACTIONAL_PARAM] = "1" if fractional else "0"
+            if fractional and not honoured:
+                frac_note = (
+                    f"fractional fills were REQUESTED and this algorithm does "
+                    f"not read the '{FRACTIONAL_PARAM}' parameter, so the run is "
+                    f"WHOLE-SHARE. Any weight this rule targets is being held to "
+                    f"the nearest whole share — at a small book that error can "
+                    f"exceed the effect under test. Add the opt-in shown in "
+                    f"leanrunner.FRACTIONAL_PARAM and re-run")
+                logger.warning("job for %s: %s", algorithm, frac_note)
         # The fund's cost assumption travels WITH the run, so the number the
         # backtest charges is the same one TCA grades realised fills against.
         # The algorithm's own `or 0.0005` stays as a fallback for anyone
@@ -441,6 +522,13 @@ class LeanRunner:
             "started_at": None, "finished_at": None,
             "parameters": parameters,
             "enrich": enrich,
+            # Travels with the job because it is a CONDITION THE VERDICT WAS
+            # PRODUCED UNDER, in exactly the way the cost assumption is. None
+            # means nobody asked either way — which is the engine's whole-share
+            # default, and is not the same as having asked for it.
+            "fractional_requested": fractional,
+            "fractional_honoured": honoured,
+            "fractional_note": frac_note,
             "error": None, "result": None, "log_tail": [],
         }
         with self._lock:
