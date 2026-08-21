@@ -666,6 +666,48 @@ TERMINAL_STATUSES = ("rejected", "done", "noted")
 NEXT_ACTOR_RULES_VERSION = "v1 (2026-08-22)"
 
 
+def _contract_digest() -> Optional[str]:
+    """The digest of the desk-stage contract this build was generated against.
+
+    THE ONE DRIFT A HERMETIC TEST CANNOT SEE. The contract file
+    (``contract/desk_stage_contract.v1.json``) is checked in to BOTH this repo
+    and KryptonPay, and each repo's suite pins its own copy — which catches an
+    edit on either side, and does NOT catch this repo being regenerated while
+    the other copy stays stale. There is no shared build to catch it in.
+
+    So it is detected where it can be: the digest travels in the payload, the
+    CEO page compares it against the one its own fixture carries, and a
+    mismatch renders as a visible warning. A silent drift between the counter
+    and the page is precisely the 11-vs-6 defect, and it has now shipped twice.
+
+    ``None`` when the file is missing or unreadable — reported absent, never
+    defaulted to a value that would read as agreement. A spine deployed without
+    the contract file must not claim a digest it does not have.
+    """
+    try:
+        import hashlib
+        import json as _json
+        p = Path(__file__).resolve().parents[2] / "contract" \
+            / "desk_stage_contract.v1.json"
+        body = _json.loads(p.read_text(encoding="utf-8"))
+        stated = body.get("digest")
+        # Recompute rather than trust the field: a self-declared digest that
+        # nobody checks is a label, and this fund has a rule about those.
+        body.pop("digest", None)
+        actual = hashlib.sha256(_json.dumps(
+            body, sort_keys=True, separators=(",", ":"),
+            ensure_ascii=False).encode("utf-8")).hexdigest()
+        return actual if actual == stated else None
+    except Exception as e:  # noqa: BLE001
+        logger.info("desk stage contract unreadable: %s", e)
+        return None
+
+
+#: Read once at import — the file does not change under a running process, and
+#: a per-request stat on the CEO's desk buys nothing.
+CONTRACT_DIGEST = _contract_digest()
+
+
 def _norm_kind(kind: Any) -> str:
     """Lower-case, separator-insensitive. Seats write `harness-gap` and
     `engineering_ticket` in the same corpus; a table that cared would be a
@@ -867,6 +909,13 @@ def desk_load(open_recommendations: list[dict[str, Any]],
         # know the count rests on inference rather than on declaration.
         "explicit_next_actor": explicit_rows,
         "rules_version": NEXT_ACTOR_RULES_VERSION,
+        # The shared contract this spine's routing was generated against, so a
+        # client can tell whether its own copy still agrees. `None` = the file
+        # could not be read or did not match itself; the page then says the
+        # agreement is UNVERIFIED rather than assuming it holds. See
+        # `_contract_digest`. Purely informational — it changes no count and
+        # cannot change `coo_triage_due`.
+        "contract_digest": CONTRACT_DIGEST,
         "threshold": COO_TRIAGE_THRESHOLD,
         "coo_triage_due": total >= COO_TRIAGE_THRESHOLD,
         "note": (
