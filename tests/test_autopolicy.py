@@ -12,7 +12,7 @@ orders from the audit, which v1 approved and v2 must decline.
 v4 (2026-08-21, riskofficer R19). THE INCIDENT THIS SECTION GUARDS AGAINST HAS
 A DATE ON IT: 2026-09-08, when the TLT and DBC `kind: time` exits (ExitRuleSet
 seq 178 and 181, verified on the live log) fire against a broker holding ZERO
-of either. v3 approves them twelve checks out of twelve and opens $652.09 of
+of either. v3 approves them twelve checks out of twelve and opens $501.58 of
 real short exposure, because every check v3 makes reads the fund's own ledger
 and none of them asks the broker what it holds. If
 ``test_the_2026_09_08_time_exit_is_refused_by_the_venue_check`` ever passes an
@@ -406,8 +406,9 @@ def test_the_2026_09_08_time_exit_is_refused_by_the_venue_check():
     2026-08-21). v3 approves it twelve checks out of twelve and opens a real
     short. Every v3 check is factually true; none of them asks the broker.
 
-    If this test ever asserts an approval, $652.09 of date-certain short
-    exposure is live again.
+    If this test ever asserts an approval, $501.58 of date-certain short
+    exposure is live again — and $750.35 armed across all four legs, since
+    TLT/DBC/SPY/DBA each also carry an UNDATED loss_pct rule.
     """
     v = _eval(_order(symbol="TLT", qty=LIVE_BOOK_TLT),
               ctx=_the_2026_09_08_context())

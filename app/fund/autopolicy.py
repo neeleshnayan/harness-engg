@@ -102,10 +102,20 @@ logger = logging.getLogger(__name__)
 #:     and false of the WORLD. Measured at the broker: book 3.019871 TLT /
 #:     8.122157 DBC / 5.314306 DBA against a broker holding 0 / 0 / 0.
 #:
-#: So "blast radius today is $0" was $750.36, 39.79% of NAV, of which $652.09
-#: is date-certain: the TLT and DBC `kind: time` rules (ExitRuleSet seq 178 and
-#: 181) fire on 2026-09-08 and v3 approves them TWELVE CHECKS OUT OF TWELVE,
-#: selling shares the broker holds none of. Shorting is enabled on the account.
+#: So "blast radius today is $0" was $750.35 armed, 39.79% of NAV, of which
+#: $501.58 is date-certain: the TLT and DBC `kind: time` rules (ExitRuleSet seq
+#: 178 and 181) fire on 2026-09-08 and v3 approves them TWELVE CHECKS OUT OF
+#: TWELVE, selling shares the broker holds none of. Shorting is enabled.
+#:
+#: AND IT IS NOT ONLY DATED. TLT/DBC/SPY/DBA each ALSO carry an UNDATED
+#: `loss_pct` rule (4.0 / 8.7 / 7.3 / 6.1 percent). Any one firing on an
+#: ordinary drawdown hits the identical defect on any day. 2026-09-08 is when
+#: part of the exposure becomes certain, not when it begins.
+#:
+#: (An earlier draft of this note said $652.09 date-certain. That summed two
+#: DIFFERENT dates: DBA's and SPY's `time` exits are 2026-11-19. Per-leg
+#: figures were exact; only the attribution was wrong. Corrected before merge
+#: on the adversary's F1.)
 #:
 #: The envelope was not malfunctioning. Every check v3 makes is factually true.
 #: It checks the fund's own books and never asks the broker what it holds.
