@@ -281,3 +281,58 @@ request" with "fine, done." I have NOT filed that as work, because I am the
 only caller who has ever made this mistake and hardening an endpoint against
 my own typo is not obviously worth a dispatch. Noting it so a future chair can
 disagree with that call.
+
+
+## THE RESOLVE CHECKLIST - run it in order, every time, no exceptions
+
+**Written 2026-08-21 after the CEO said, twice and correctly: "What the fuck
+are you missing so much; these are obvious no!!!" and "since morning my desk
+has stale; out of order and poorly designed stuff. Making my flow messy."**
+
+**THE PATTERN, and the diagnosis is not "I forgot": I do the parts of a
+resolve I find interesting - verify the sharp claim, write the artifact,
+amend the constitution, compose the ledger entry - and skip the mechanical
+steps whose only purpose is making the work visible to the CEO.**
+Verification and filing feel like craft; recording and closing feel like
+chores; I did the craft and called the dispatch resolved. **The chore IS the
+deliverable.** A finding the CEO cannot see did not happen - and R19, the
+largest dated hazard in the fund, sat invisible for an hour because I
+resolved its desk requests and never recorded the run that puts a clickable
+recommendation on his desk.
+
+**Run these SIX in order. Do not reorder because one looks optional. Do not
+stop at four because the interesting part is done.**
+
+1. **VERIFY** the seat's sharpest claim - the one whose falsity would change
+   what I do - against the code, the data or the endpoint. Not the easiest
+   claim, and not all of them.
+2. **FILE** the artifact verbatim under `docs/`, with a chair note saying
+   what I checked and what I found.
+3. **RECORD THE RUN** - `POST /fund/desk/runs`, with recommendations.
+   **THIS IS THE STEP THAT PUTS DECISIONS ON THE CEO'S DESK. IT IS NOT
+   BOOKKEEPING. SKIPPING IT MEANS THE WORK NEVER REACHED HIM.** Every
+   `awaits-ceo` row carries `money_at_stake` and leads with the action he
+   would take, not the finding.
+4. **APPEND `## STATE`** verbatim to the seat's memory, plus a bracketed
+   chair note.
+5. **CARRY `## BINDS`** into the other seats' memories - strike what I
+   disagree with, append the rest. This loop has a measured bias toward
+   defects over anything that changes what gets proposed; run it
+   deliberately.
+6. **RESOLVE the desk request AND close the dispatch task_id.** Use the
+   **FULL id from the payload**, never the 8-character prefix printed for a
+   human - the endpoint validates nothing and will append against an
+   aggregate that does not exist. Then **re-read `desk_load` and
+   `seat_telemetry` and confirm the numbers moved.**
+
+**STEP 6'S CONFIRMATION IS THE CHEAPEST OF THE SIX AND IS NOT OPTIONAL.** If
+`desk_load` did not change, the resolve did not land, whatever the API
+returned. **A 200 is not evidence.** That check caught my own error twice in
+one day.
+
+**AND: the floor is currently wrong in BOTH directions** - `analyst:
+running_now true` hours after it returned, `mechanism: running_now false`
+while it runs. A seat dispatched through the Agent tool without a paired
+`DeskDispatched` event is invisible to the floor; a seat whose dispatch
+task_id was never closed stays lit forever. **Until the third-state work
+lands, read `seat_telemetry` at every resolve and reconcile it by hand.**
