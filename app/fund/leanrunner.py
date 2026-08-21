@@ -21,6 +21,7 @@ import ast
 import itertools
 import json
 import logging
+import math
 import os
 import re
 import subprocess
@@ -987,6 +988,13 @@ class LeanRunner:
                              "end": holdout["test_end"]})
         point = _sweep_point(params, j)
         point["window"] = _window_of(j)
+        # The out-of-sample leg's aligned daily series (adversary r4 rec 4).
+        # Carried on the HOLDOUT only, never on every grid point: a 24-point
+        # cost sweep would otherwise store two dozen full return series for a
+        # comparison that reads four scalars. The train leg's series is NOT
+        # here and the payload says so — see `daily_returns_note` below.
+        test_daily = ((j.get("result") or {}).get("daily_returns")
+                      if isinstance(j, dict) else None)
 
         train_window = next((p.get("window") for p in sweep["points"]
                              if p.get("parameters") == params and p.get("window")), None)
@@ -1007,6 +1015,7 @@ class LeanRunner:
                      "sharpe": point.get("sharpe"),
                      "psr_pct": point.get("psr_pct"),
                      "total_orders": point.get("total_orders"),
+                     "daily_returns": test_daily,
                      # Travels with the leg it describes. The walk-forward reads
                      # `test` and nothing else when it decides why a fold could
                      # not be measured.
@@ -1014,6 +1023,17 @@ class LeanRunner:
             "dates_honoured": honoured,
             "timed_out": bool(point.get("timed_out")),
             "error": point.get("error"),
+            # Stated rather than left to be noticed: the TRAIN leg's daily
+            # series is not captured. Its numbers come from a stored sweep
+            # row, and the job that produced them was released after the grid
+            # ran. The out-of-sample leg is the one a premia statistic is
+            # computed on, so this is a known and deliberate half rather than
+            # an oversight — capturing the train leg needs the winner's job
+            # held open, which is a separate change.
+            "daily_returns_note": (
+                "test leg captured; TRAIN leg NOT captured — its job was "
+                "released after the grid ran, and re-running it would be a "
+                "different run rather than the one these numbers came from"),
         }
 
     # --- the engine run ------------------------------------------------------
@@ -1330,7 +1350,24 @@ class LeanRunner:
 
         charts = best.get("charts") or best.get("Charts") or {}
         equity, dates = _curve(charts, "Strategy Equity", "Equity")
-        bench, _ = _curve(charts, "Benchmark", "Benchmark")
+        # The benchmark's OWN dates are kept now (they used to be dropped):
+        # the daily-return alignment below joins the two legs by date, and a
+        # positional pairing would misalign them the first time the engine
+        # emitted a different number of benchmark points.
+        bench, bench_dates = _curve(charts, "Benchmark", "Benchmark")
+
+        # THE DAILY RETURN SERIES, TAKEN BEFORE THE DOWNSAMPLE (adversary r4
+        # rec 4, CEO-accepted 2026-08-21). Computed here and nowhere else,
+        # because four lines below the curves are thinned to 400 points and the
+        # raw series is gone — a 5.47-year run loses roughly two thirds of its
+        # observations, and no premia statistic is computable from a series
+        # whose spacing was chosen for a chart.
+        #
+        # Aligned BY DATE rather than by index: the strategy and benchmark
+        # series come from different charts and are not guaranteed to be the
+        # same length, and a positional zip would silently pair Tuesday's
+        # strategy return with Wednesday's benchmark.
+        daily = _daily_returns(equity, dates, bench, bench_dates)
 
         # The dates travel WITH the curve. Downstream, "is this alpha or beta"
         # regresses the curve against factor returns by date — an equity series
@@ -1341,6 +1378,9 @@ class LeanRunner:
         return {
             "engine": "lean",
             "statistics": stats,
+            # Undownsampled, one feed, aligned. The prerequisite for gate v5
+            # round 5 — without it no premia statistic is computable.
+            "daily_returns": daily,
             "total_return_pct": _pct("Net Profit"),
             "sharpe": _pct("Sharpe Ratio"),
             "max_drawdown_pct": _pct("Drawdown"),
@@ -1480,6 +1520,96 @@ def _curve(charts: dict, chart: str, series: str) -> tuple[list[float], list[str
         values.append(value)
         dates.append(date)
     return values, dates
+
+
+def _daily_returns(equity: list[float], dates: list[str],
+                   bench: list[float], bench_dates: list[str]) -> dict[str, Any]:
+    """Aligned daily returns for the strategy and its benchmark, UNDOWNSAMPLED.
+
+    The prerequisite for gate v5's premia statistics (adversary round 4,
+    recommendation 4, CEO-accepted 2026-08-21). Every existing curve on a stored
+    result has been thinned to 400 points for drawing; a premia claim needs the
+    real observations, on one clock, with no gaps invented.
+
+    THREE RULES, each of which is a way the series could lie:
+
+      * ALIGNED BY DATE, never by index. The two series come from different
+        engine charts and are not guaranteed to be the same length; a
+        positional zip pairs Tuesday's strategy with Wednesday's benchmark and
+        every downstream beta is then wrong by one day.
+      * A day present in only ONE series is DROPPED, and the count of dropped
+        days is reported. Carrying it with a zero on the missing side would
+        invent a flat day for an instrument that did not trade.
+      * A non-positive or non-finite previous level breaks the chain rather than
+        dividing — the same rule `factors.daily_returns` follows, and for the
+        same reason: one bad bar otherwise emits an infinity into every
+        regression built on the series.
+
+    Returns the series plus an honest description of what is missing. `absent`
+    is not an empty list: a run whose benchmark never arrived must be
+    distinguishable from one whose benchmark was flat.
+
+    ONE DISCLOSED SUBTLETY. Returns are differenced between CONSECUTIVE COMMON
+    observations, which is what any aligned-series treatment does — so when a
+    day is dropped for being present on only one side, the following return
+    spans that gap and is a two-day return wearing a daily label. Both series
+    come from the same engine run and normally share every date, so
+    `dropped_unmatched_days` is normally 0; it is reported precisely because a
+    non-zero value means a handful of the observations are wider than they look,
+    and a reader computing daily volatility should know before they do.
+    """
+    if len(dates) != len(equity) or len(equity) < 2:
+        return {"present": False, "dates": [], "strategy": [], "benchmark": [],
+                "n": 0,
+                "reason": "the equity curve carries no usable dates, so a daily "
+                          "series cannot be placed on a clock — absent, not empty"}
+
+    eq_by_date = {d: v for d, v in zip(dates, equity)}
+    bm_by_date = ({d: v for d, v in zip(bench_dates, bench)}
+                  if bench and len(bench_dates) == len(bench) else {})
+    have_bench = bool(bm_by_date)
+
+    ordered = sorted(eq_by_date)
+    common = [d for d in ordered if d in bm_by_date] if have_bench else ordered
+    dropped = len(ordered) - len(common)
+
+    out_dates: list[str] = []
+    strat: list[float] = []
+    mark: list[float] = []
+    prev_e: float | None = None
+    prev_b: float | None = None
+    for d in common:
+        e = eq_by_date[d]
+        b = bm_by_date.get(d)
+        ok_e = isinstance(e, (int, float)) and math.isfinite(e) and e > 0
+        ok_b = (not have_bench) or (
+            isinstance(b, (int, float)) and math.isfinite(b) and b > 0)
+        if prev_e is not None and ok_e and ok_b and prev_e > 0 and (
+                not have_bench or (prev_b or 0) > 0):
+            out_dates.append(d)
+            strat.append(e / prev_e - 1.0)
+            if have_bench:
+                mark.append(b / prev_b - 1.0)
+        prev_e = e if ok_e else None
+        prev_b = b if ok_b else None
+
+    return {
+        "present": bool(out_dates),
+        "dates": out_dates,
+        "strategy": [round(r, 10) for r in strat],
+        "benchmark": [round(r, 10) for r in mark] if have_bench else [],
+        "benchmark_present": have_bench,
+        "n": len(out_dates),
+        "dropped_unmatched_days": dropped,
+        "reason": None if out_dates else
+                  "no two consecutive usable levels — nothing to difference",
+        "note": (f"{len(out_dates)} aligned daily observations"
+                 + ("" if have_bench else
+                    "; NO benchmark series was emitted by the engine, so the "
+                    "benchmark leg is ABSENT rather than flat")
+                 + (f"; {dropped} day(s) present in only one series were dropped "
+                    f"rather than zero-filled" if dropped else "")),
+    }
 
 
 def _downsample2(values: list[float], dates: list[str],

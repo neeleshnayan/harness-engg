@@ -26,11 +26,14 @@ class MemStore:
 def test_the_view_reads_real_artifacts_and_pairs_them_with_verdicts():
     """Runs against the actual docs/ tree — the files ARE the state."""
     v = desk.view(MemStore())
-    assert len(v["roster"]) == 9
+    # secretary added 2026-08-21: the seat existed in the constitution and was
+    # missing from this roster, so her seat page rendered a roster absence for
+    # a colleague who had already run.
+    assert len(v["roster"]) == 10
     assert {r["agent"] for r in v["roster"]} == {"mechanism", "analyst", "pm",
                                                  "quant", "builder", "adversary",
                                                  "validator", "riskofficer",
-                                                 "coo"}
+                                                 "coo", "secretary"}
     # Every seat carries its justification - a role with no measured reason is
     # ceremony, and the roster rule says it should not exist.
     assert all(r["exists_because"].strip() for r in v["roster"])

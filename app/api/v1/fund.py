@@ -336,11 +336,39 @@ def run_snapshot() -> dict:
             if age_min < SNAPSHOT_EVERY_MINUTES:
                 return {"skipped": "recent", "age_minutes": round(age_min, 1),
                         **st}
-        if not st.get("behind_by"):
+        # TWO LEGS, EACH CHECKED SEPARATELY (2026-08-21).
+        #
+        # This block used to `return` the moment the event log was current —
+        # which is most of the time. Adding the agent-runs mirror underneath
+        # that early exit would have produced a mirror that essentially never
+        # ran: the unwired-kill-switch pattern, in the one module written to
+        # end it. The two legs are behind for unrelated reasons and each gets
+        # its own test.
+        events_behind = st.get("behind_by") or 0
+        runs_behind = (st.get("runs") or {}).get("behind_by") or 0
+        if not events_behind and not runs_behind:
             return {"skipped": "nothing new to snapshot", **st}
-        logger.info("snapshot starting — %s events behind", st.get("behind_by"))
-        out = snap.run()
-        logger.info("snapshot pushed: %s", out)
+
+        out: dict[str, Any] = {}
+        if events_behind:
+            logger.info("snapshot starting — %s events behind", events_behind)
+            out = snap.run()
+            logger.info("snapshot pushed: %s", out)
+        else:
+            out = {"pushed": 0, "note": "the event log was already current"}
+        if runs_behind:
+            try:
+                out["runs"] = snap.run_runs()
+                logger.info("agent-run snapshot pushed: %s", out["runs"])
+            except Exception as e:  # noqa: BLE001
+                # A runs failure must never fail the event leg — the ledger's
+                # durability is the older and larger promise.
+                logger.warning("agent-run snapshot failed: %s", e)
+                out["runs"] = {"pushed": 0,
+                               "error": f"{type(e).__name__}: {e}"[:200]}
+        else:
+            out["runs"] = {"pushed": 0,
+                           "note": "every run was already offsite and unchanged"}
         return out
     except Exception as e:  # noqa: BLE001
         logger.warning("snapshot skipped: %s", e)
@@ -357,16 +385,31 @@ def snapshot_run(dry_run: bool = Query(False)):
     works was to wait for the interval — which is how it went unnoticed that it
     did not work at all.
 
-    Copies events; writes nothing to the ledger and moves no money.
+    Copies events AND agent runs; writes nothing to the ledger and moves no
+    money. The runs leg is reported separately rather than summed in — a caller
+    watching the event log's durability must not have that number moved by an
+    unrelated leg, and a runs failure must not read as an events failure.
     """
     if store_backend() != "postgres":
         raise HTTPException(status_code=503,
                             detail="the snapshot copies FROM postgres")
     from app.fund.snapshot_firestore import FirestoreSnapshotter
     try:
-        return FirestoreSnapshotter(pg_store=_store).run(dry_run=dry_run)
+        snap = FirestoreSnapshotter(pg_store=_store)
+        out = snap.run(dry_run=dry_run)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}"[:300])
+    try:
+        out["runs"] = snap.run_runs(dry_run=dry_run)
+    except Exception as e:  # noqa: BLE001
+        # Best effort and SAID so: losing the runs mirror must not fail the
+        # event push, and a silent skip would leave the flight recorder
+        # single-copy while the response read as a success.
+        logger.warning("agent-run snapshot failed: %s", e)
+        out["runs"] = {"pushed": 0, "error": f"{type(e).__name__}: {e}"[:300],
+                       "note": "the runs leg failed; the event leg above is "
+                               "unaffected and its result stands"}
+    return out
 
 
 @router.get("/fund/snapshot/status")
@@ -1552,6 +1595,71 @@ def get_agent_run(run_id: str):
     if got is None:
         raise HTTPException(status_code=404, detail=f"no run {run_id}")
     return got
+
+
+class TranscriptRecord(BaseModel):
+    #: brief | report | transcript — a closed set, so "did we keep the brief"
+    #: is answerable by query rather than by grepping a free-text column.
+    kind: str
+    content: str
+    meta: Optional[dict] = None
+
+
+@router.post("/fund/desk/runs/{run_id}/transcript")
+def add_run_transcript(run_id: str, req: TranscriptRecord):
+    """Store the INTERACTION behind a run — the brief, the verbatim report, or
+    the turn log (CEO decision, 2026-08-21).
+
+    `fund_agent_runs.output` holds what a seat CONCLUDED. It does not hold what
+    we asked, nor how the seat got there, and both currently live only in a
+    session that ends. This is the durable copy.
+
+    APPEND-ONLY: a second `brief` for the same run is a second row, not an
+    overwrite — a dispatch that gained a mid-flight course correction had two
+    briefs, and collapsing them would erase that the scope moved.
+
+    There is NO retention policy, deliberately (the CEO said so explicitly).
+    Cleanup is a later versioned decision with a written reason.
+    """
+    ds = _deskstore()
+    if ds is None:
+        raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
+    try:
+        return ds.add_transcript(run_id=run_id, kind=req.kind,
+                                 content=req.content, meta=req.meta)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@router.get("/fund/desk/runs/{run_id}/transcript")
+def get_run_transcript(run_id: str, kind: str | None = Query(None),
+                       with_content: bool = Query(True)):
+    """The interaction behind a run, OLDEST FIRST — it is a chronology.
+
+    Reports `kinds_missing` as well as what is present: "no brief was captured
+    for this run" is the answer a reader most often wants and the easiest one to
+    mistake for "this run had no brief".
+    """
+    ds = _deskstore()
+    if ds is None:
+        raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
+    return ds.transcripts(run_id, kind=kind, with_content=with_content)
+
+
+@router.get("/fund/desk/archives")
+def desk_archives():
+    """Every Daily the secretary has filed, newest first.
+
+    Exists so the Studio never reads the filesystem: the spine owns what is on
+    disk, the browser owns what is on screen, and a page that stats files breaks
+    the moment it is served from anywhere but this machine.
+
+    Distinguishes three absences — the directory missing, present-and-empty, and
+    unreadable — because a caller that cannot tell them apart reports "no
+    dailies" for a permissions error.
+    """
+    from app.fund import desk as desk_mod
+    return desk_mod.archives()
 
 
 class RecDecision(BaseModel):

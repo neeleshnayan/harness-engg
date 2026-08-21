@@ -82,15 +82,46 @@ class Filing:
     filed: str
     accession: str
     document: str
+    #: EDGAR's acceptance stamp, stored as the UTC it declares itself to be.
+    #:
+    #: MEASURED 2026-08-21, because the dispatch brief asserted this field is ET
+    #: mislabelled as Z and asked for a -4h shift. It is not, and the shift would
+    #: have manufactured the sub-daily lookahead it was meant to remove. Two
+    #: independent tests against live EDGAR:
+    #:   * hour histogram (n=2,400): activity 10:00-02:00, DEAD 03:00-09:00 —
+    #:     exactly EDGAR's 06:00-22:00 ET window read as UTC;
+    #:   * decisive — the next-business-day roll-over (EDGAR dates a filing the
+    #:     following business day after 17:30 ET) begins at raw hour 21 and
+    #:     dominates at 22-23 over n=30,732 filings, with ZERO roll-overs at
+    #:     hours 10-20. 21:30 UTC is 17:30 EDT. Under the ET reading the
+    #:     roll-over would sit at raw hour 17, where 1,723 filings are same-day
+    #:     and none roll over.
+    #: None when the feed omitted it — absent, never back-filled from `filed`,
+    #: which would invent a time of day.
+    accepted_at: Optional[str] = None
+    #: The fiscal period the filing REPORTS on (EDGAR reportDate). A different
+    #: question from when it was filed. Often absent on an 8-K.
+    period: Optional[str] = None
+    #: 8-K item codes, comma separated ("2.02,9.01"). Free on the feed and the
+    #: cheapest possible filter for "is this an earnings release" (item 2.02).
+    items: Optional[str] = None
 
     @property
     def url(self) -> str:
         return (f"https://www.sec.gov/Archives/edgar/data/{int(self.cik)}/"
                 f"{self.accession.replace('-', '')}/{self.document}")
 
+    @property
+    def base_url(self) -> str:
+        """The filing's directory — where its exhibits live."""
+        return (f"https://www.sec.gov/Archives/edgar/data/{int(self.cik)}/"
+                f"{self.accession.replace('-', '')}")
+
     def to_dict(self) -> dict[str, Any]:
         return {"ticker": self.ticker, "cik": self.cik, "form": self.form,
-                "filed": self.filed, "accession": self.accession, "url": self.url}
+                "filed": self.filed, "accession": self.accession,
+                "url": self.url, "accepted_at": self.accepted_at,
+                "period": self.period, "items": self.items}
 
 
 def ticker_map(refresh: bool = False) -> dict[str, dict[str, Any]]:
@@ -135,20 +166,124 @@ def recent_filings(ticker: str, forms: Iterable[str] = DEFAULT_FORMS,
         return []
 
     rec = (doc.get("filings") or {}).get("recent") or {}
-    rows = zip(rec.get("form") or [], rec.get("filingDate") or [],
-               rec.get("accessionNumber") or [], rec.get("primaryDocument") or [])
+    forms = rec.get("form") or []
+    # Parallel arrays, and they are NOT guaranteed to be the same length —
+    # `items` in particular is absent on older feeds. `_col` pads with None so a
+    # short array degrades to "not stated" rather than truncating the whole
+    # result at its length, which a bare zip() would do silently.
+    n = len(forms)
+    fileds = _col(rec, "filingDate", n)
+    accs = _col(rec, "accessionNumber", n)
+    primaries = _col(rec, "primaryDocument", n)
+    accepted = _col(rec, "acceptanceDateTime", n)
+    periods = _col(rec, "reportDate", n)
+    items = _col(rec, "items", n)
+
     out: list[Filing] = []
-    for form, filed, acc, primary in rows:
+    for i, form in enumerate(forms):
+        primary = primaries[i]
+        filed = fileds[i]
         if form.upper() not in wanted or not primary:
             continue
-        if since and filed < since:
+        if since and filed and filed < since:
             # The list is newest-first, so the first filing older than the
             # bound means every one after it is too.
             break
-        out.append(Filing(ticker.upper(), cik, form, filed, acc, primary))
+        out.append(Filing(
+            ticker.upper(), cik, form, filed, accs[i], primary,
+            accepted_at=_utc(accepted[i]),
+            period=periods[i] or None,
+            items=(items[i] or None)))
         if len(out) >= limit:
             break
     return out
+
+
+#: EX-99.1 under every naming convention EDGAR filers actually use.
+#:
+#: Measured on a real 8-K index (SRPT 0001193125-26-335056): the exhibit is
+#: `srpt-ex99_1.htm`. Others in the wild use `ex-99_1`, `ex991`, and the
+#: DFIN-style `d123456dex991.htm`. The `(?![0-9])` tail is what stops `ex99_10`
+#: and `ex99_11` matching as 99.1 — an exhibit-numbering collision would attach
+#: the wrong document to an earnings read and nothing downstream would notice.
+_EX991_RE = re.compile(r"ex[-_]?99[-_.]?1(?![0-9])", re.I)
+
+#: The 8-K item code for "Results of Operations and Financial Condition" — the
+#: earnings release. Free on the submissions feed.
+ITEM_EARNINGS = "2.02"
+
+
+def exhibit_url(filing: "Filing", timeout: float = 60.0) -> dict[str, Any]:
+    """The EX-99.1 for a filing, or a stated reason there is none.
+
+    THE DEFECT THIS CLOSES (analyst cycle 2, confirmed on the live API): the
+    reader follows `primaryDocument`, which on an 8-K is the COVER PAGE. 83% of
+    8-K reads returned zero observations because the cover page contains no
+    content — the earnings text lives in exhibit 99.1, which is reachable only
+    through the filing index. Measured on SRPT's 2026-08-05 8-K: the cover page
+    is 47,594 bytes and `srpt-ex99_1.htm` is 887,797.
+
+    Returns a dict rather than a bare string because the FALLBACK MATTERS: when
+    no exhibit is found the caller gets the primary document AND is told that is
+    what it is, so a zero-yield read can be attributed to the filing rather than
+    to us reading the wrong file. Never raises — a network failure degrades to
+    the primary document with the reason attached.
+    """
+    try:
+        raw = _throttled_get(f"{filing.base_url}/index.json", timeout=timeout)
+        items = (json.loads(raw.decode()).get("directory") or {}).get("item") or []
+    except Exception as e:  # noqa: BLE001
+        logger.info("EDGAR index unavailable for %s: %s", filing.accession, e)
+        return {"url": filing.url, "document": filing.document, "is_exhibit": False,
+                "reason": f"the filing index could not be read ({type(e).__name__}) — "
+                          f"fell back to the primary document, which on an 8-K is "
+                          f"the cover page"}
+
+    cands = []
+    for it in items:
+        name = str(it.get("name") or "")
+        if not name.lower().endswith((".htm", ".html", ".txt")):
+            continue
+        if _EX991_RE.search(name):
+            try:
+                size = int(it.get("size") or 0)
+            except (TypeError, ValueError):
+                size = 0
+            cands.append((size, name))
+    if not cands:
+        return {"url": filing.url, "document": filing.document, "is_exhibit": False,
+                "reason": "no EX-99.1 in this filing's index — the primary "
+                          "document is what there is"}
+    # Largest wins: a filer occasionally includes a stub alongside the real
+    # exhibit, and the content is in the big one.
+    cands.sort(reverse=True)
+    size, name = cands[0]
+    return {"url": f"{filing.base_url}/{name}", "document": name,
+            "is_exhibit": True, "bytes": size, "reason": None}
+
+
+def _col(rec: dict[str, Any], key: str, n: int) -> list[Any]:
+    """One parallel column, padded to length. A missing column is all-None."""
+    col = rec.get(key) or []
+    return list(col) + [None] * max(0, n - len(col))
+
+
+def _utc(stamp: Optional[str]) -> Optional[str]:
+    """EDGAR's acceptance stamp, normalised to an explicit UTC offset.
+
+    NO TIMEZONE SHIFT — see the Filing.accepted_at note. The `Z` is truthful;
+    this only rewrites it to `+00:00` so downstream `fromisoformat` on older
+    Pythons and Postgres both read it as aware rather than naive. A naive
+    timestamp landing in a TIMESTAMPTZ column is interpreted in the SERVER's
+    zone, which is how a stamp silently moves by whatever the container is set
+    to.
+    """
+    if not stamp:
+        return None
+    s = str(stamp).strip()
+    if not s:
+        return None
+    return s[:-1] + "+00:00" if s.endswith("Z") else s
 
 
 _TAG_RE = re.compile(r"<[^>]+>")
@@ -235,12 +370,29 @@ def focus_section(text: str) -> tuple[str, Optional[str]]:
 
 
 def document_text(filing: Filing, max_chars: int = MAX_CHARS,
-                  focus: bool = True) -> dict[str, Any]:
-    """The filing as text, with truncation reported rather than hidden."""
+                  focus: bool = True, follow_exhibit: bool = True) -> dict[str, Any]:
+    """The filing as text, with truncation reported rather than hidden.
+
+    ON AN 8-K THIS FOLLOWS THE INDEX TO EX-99.1 (analyst cycle 2, 2026-08-21).
+    `primaryDocument` on an 8-K is the cover page: 83% of 8-K reads returned
+    zero observations because the content a reader wants — the item 2.02
+    earnings release — is an exhibit. Measured on SRPT's 2026-08-05 8-K, the
+    cover page is 47,594 bytes against 887,797 for `srpt-ex99_1.htm`.
+
+    Which document was actually read is REPORTED (`document_read`,
+    `is_exhibit`, `exhibit_note`), so a zero-yield read is attributable to the
+    filing rather than to us having read the wrong file. `follow_exhibit=False`
+    restores the old behaviour for a caller that genuinely wants the cover page.
+    """
+    url, exhibit = filing.url, None
+    if follow_exhibit and filing.form.upper().startswith("8-K"):
+        exhibit = exhibit_url(filing)
+        url = exhibit["url"]
     try:
-        raw = _throttled_get(filing.url, timeout=120.0)
+        raw = _throttled_get(url, timeout=120.0)
     except Exception as e:  # noqa: BLE001
         return {**filing.to_dict(), "text": None,
+                "document_read": (exhibit or {}).get("document") or filing.document,
                 "error": f"{type(e).__name__}: {e}"[:200]}
     text = _to_text(raw)
     full_chars = len(text)
@@ -250,6 +402,12 @@ def document_text(filing: Filing, max_chars: int = MAX_CHARS,
     truncated = len(text) > max_chars
     return {
         **filing.to_dict(),
+        # WHICH document this text came from. Without it, "the 8-K said nothing"
+        # and "we read the cover page" are the same row.
+        "document_read": (exhibit or {}).get("document") or filing.document,
+        "url_read": url,
+        "is_exhibit": bool((exhibit or {}).get("is_exhibit")),
+        "exhibit_note": (exhibit or {}).get("reason"),
         "text": text[:max_chars],
         "chars": len(text),
         "full_chars": full_chars,

@@ -56,7 +56,43 @@ ALTER TABLE fund_agent_runs ADD COLUMN IF NOT EXISTS reasoning TEXT;
 ALTER TABLE fund_agent_runs ADD COLUMN IF NOT EXISTS trace_id TEXT;
 CREATE INDEX IF NOT EXISTS fund_agent_runs_trace_idx
     ON fund_agent_runs (trace_id);
+
+-- THE INTERACTION ITSELF (CEO decision, 2026-08-21).
+--
+-- `fund_agent_runs.output` holds what a seat CONCLUDED. It does not hold the
+-- brief the seat was given, nor the turn-by-turn transcript of how it got
+-- there — and those are the two things needed to ask why a seat reached a
+-- conclusion, or to re-run a dispatch against a changed harness and compare.
+-- Both currently live only in a session that ends.
+--
+-- Kinds, deliberately three rather than a free string: `brief` (what we asked),
+-- `report` (what came back, verbatim, before any editing into an artifact), and
+-- `transcript` (the turn log). A run may have any subset; the absence of one is
+-- a fact about our capture, not about the run.
+--
+-- NO RETENTION POLICY, and that is a decision rather than an oversight — the
+-- CEO said so explicitly. Cleanup is a later versioned change with a written
+-- reason. A table that silently aged out the record of how a decision was
+-- reached would be the write-only-verdict-column defect wearing a janitor's
+-- coat.
+CREATE TABLE IF NOT EXISTS fund_agent_transcripts (
+    transcript_id BIGSERIAL PRIMARY KEY,
+    run_id        TEXT NOT NULL,
+    kind          TEXT NOT NULL,
+    content       TEXT NOT NULL,
+    meta          JSONB DEFAULT '{}'::jsonb,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS fund_agent_transcripts_run_idx
+    ON fund_agent_transcripts (run_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS fund_agent_transcripts_kind_idx
+    ON fund_agent_transcripts (kind, created_at DESC);
 """
+
+#: What a transcript row may be. A closed set because the three answer different
+#: questions and a free-text kind would make "did we keep the brief" unanswerable
+#: by query.
+TRANSCRIPT_KINDS = ("brief", "report", "transcript")
 
 #: Statuses a recommendation moves through. `open` -> CEO decides -> `accepted`
 #: or `rejected`; an accepted one the CTO stages becomes `staged`, and `done`
@@ -245,6 +281,85 @@ class DeskStore:
                 got = cur.fetchone()
         rows[0]["output"] = got[0] if got else None
         return rows[0]
+
+    # --- the interaction itself (2026-08-21) -------------------------------
+
+    def add_transcript(self, *, run_id: str, kind: str, content: str,
+                       meta: Optional[dict] = None) -> dict[str, Any]:
+        """Store a brief, a verbatim report, or a turn log against a run.
+
+        APPEND-ONLY and deliberately NOT upserted on (run_id, kind). A dispatch
+        can legitimately carry two briefs — the original and a mid-flight course
+        correction — and collapsing them onto one row would erase the fact that
+        the scope moved, which is exactly the thing a later reader needs to see.
+        Each row carries its own `created_at`, so the sequence is recoverable.
+
+        The run does NOT have to exist yet: a brief is written before a run
+        resolves, and refusing it until the run row lands would mean the one
+        artifact written first is the one that cannot be stored.
+        """
+        k = (kind or "").strip().lower()
+        if k not in TRANSCRIPT_KINDS:
+            raise ValueError(f"kind must be one of {TRANSCRIPT_KINDS}, got {kind!r}")
+        if not (content or "").strip():
+            raise ValueError("refusing to store an empty transcript — an empty "
+                             "row would read as 'we captured this' when nothing "
+                             "was captured")
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO fund_agent_transcripts (run_id, kind, content, meta) "
+                    "VALUES (%s,%s,%s,%s) RETURNING transcript_id, created_at",
+                    (run_id, k, content, json.dumps(meta or {})))
+                tid, created = cur.fetchone()
+            conn.commit()
+        return {"transcript_id": int(tid), "run_id": run_id, "kind": k,
+                "chars": len(content),
+                "created_at": created.isoformat() if created else None}
+
+    def transcripts(self, run_id: str, kind: Optional[str] = None,
+                    with_content: bool = True) -> dict[str, Any]:
+        """Everything captured for one run, oldest first.
+
+        Oldest first, unlike `runs()`: this is a CHRONOLOGY — brief, then
+        transcript, then report — and reading a conversation backwards is a
+        different thing from reading a list of runs newest-first.
+
+        `kinds_present` / `kinds_missing` are returned rather than left to the
+        caller to derive, because "no brief was captured for this run" is the
+        answer a reader most often wants and the easiest one to mistake for
+        "this run had no brief".
+        """
+        sql = ("SELECT transcript_id, run_id, kind, created_at, meta, "
+               "       length(content), " + ("content" if with_content else "NULL") +
+               " FROM fund_agent_transcripts WHERE run_id = %s")
+        params: list[Any] = [run_id]
+        if kind:
+            sql += " AND kind = %s"
+            params.append(kind.strip().lower())
+        sql += " ORDER BY created_at ASC, transcript_id ASC"
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, tuple(params))
+                rows = cur.fetchall()
+        out = [{"transcript_id": int(r[0]), "run_id": r[1], "kind": r[2],
+                "created_at": r[3].isoformat() if r[3] else None,
+                "meta": r[4] or {}, "chars": int(r[5] or 0),
+                "content": r[6]} for r in rows]
+        present = sorted({r["kind"] for r in out})
+        missing = [k for k in TRANSCRIPT_KINDS if k not in present]
+        return {
+            "run_id": run_id, "transcripts": out, "count": len(out),
+            "kinds_present": present,
+            "kinds_missing": missing,
+            "note": (f"{len(out)} captured ({', '.join(present)})"
+                     + (f"; NOT captured: {', '.join(missing)} — absent from the "
+                        f"record, which is not the same as the run not having had one"
+                        if missing else "")
+                     if out else
+                     "nothing was captured for this run — the interaction is "
+                     "gone, not empty"),
+        }
 
     def decide_recommendation(self, run_id: str, rec_id: int, status: str,
                               actor: str, note: str = "") -> dict[str, Any]:
