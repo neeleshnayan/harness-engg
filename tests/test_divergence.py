@@ -23,8 +23,9 @@ class _FakeStore:
         ]
 
 
-def _strategy(sid, state="deployed", bt=None):
-    return {"strategy_id": sid, "name": f"S {sid}", "state": state, "backtest": bt}
+def _strategy(sid, state="deployed", bt=None, archived=False):
+    return {"strategy_id": sid, "name": f"S {sid}", "state": state,
+            "backtest": bt, "archived": archived}
 
 
 def _bt(total_return=0.10, bars=126, volatility=0.20):
@@ -95,3 +96,53 @@ def test_no_fills_means_nothing_live():
     row = out["rows"][0]
     assert row["comparable"] is False
     assert "no fills" in row["reason"]
+
+
+# --- archived is a fact the row must carry (2026-08-21) ---------------------
+#
+# The defect: three of the four rows this endpoint served on 2026-08-21 were
+# archived (`Momentum — Large Cap Tech`, `Mean Reversion — Cyclicals`,
+# `Trend — Sector & Commodity`), and the row said nothing about it. The Studio's
+# Live-vs-backtest panel labelled all four "deployed" and the CEO was reading
+# dead strategies as live comparisons.
+
+
+def test_a_row_says_whether_the_strategy_is_archived():
+    """A PAUSED-and-archived strategy is still in `rows` — the audit wants it —
+    but the reader has to be able to tell. It could not."""
+    out = dv.compare(_FakeStore([]),
+                     [_strategy("a", state="paused", bt=_bt(), archived=True)], [])
+    assert out["rows"][0]["archived"] is True
+
+
+def test_a_live_strategy_is_not_marked_archived():
+    out = dv.compare(_FakeStore([]), [_strategy("a", bt=_bt())], [])
+    assert out["rows"][0]["archived"] is False
+
+
+def test_a_registry_that_omits_the_flag_reads_as_NOT_archived():
+    """`archived` absent means the registry predates the flag. Defaulting to
+    True would hide a live strategy; the row says so rather than guessing."""
+    s = {"strategy_id": "a", "name": "S a", "state": "deployed", "backtest": _bt()}
+    assert dv.compare(_FakeStore([]), [s], [])["rows"][0]["archived"] is False
+
+
+def test_the_live_counts_exclude_archived_and_the_old_count_does_not_move():
+    """`n_deployed` keeps its old meaning — silently redefining a number a
+    caller already reads is worse than adding one beside it."""
+    rows = [_strategy("a", state="paused", bt=_bt(), archived=True),
+            _strategy("b", state="paused", bt=_bt(), archived=True),
+            _strategy("c", bt=_bt())]
+    out = dv.compare(_FakeStore([]), rows, [])
+    assert out["n_deployed"] == 3
+    assert out["n_archived"] == 2
+    assert out["n_live"] == 1
+    assert "2 of these 3 strategies are ARCHIVED" in out["archived_note"]
+
+
+def test_no_archived_rows_means_no_archived_note_at_all():
+    """An absent note, not an empty sentence — a panel that always prints a
+    reassurance is one nobody reads."""
+    out = dv.compare(_FakeStore([]), [_strategy("a", bt=_bt())], [])
+    assert out["archived_note"] is None
+    assert out["n_archived"] == 0

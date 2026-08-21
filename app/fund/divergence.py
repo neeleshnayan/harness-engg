@@ -98,6 +98,18 @@ def compare(
             "strategy_id": sid,
             "name": s.get("name"),
             "state": s.get("state"),
+            # Carried since 2026-08-21, additively, because the SURFACE could not
+            # tell. Three of the four rows this panel served were archived, and
+            # it labelled all four "deployed" — the CEO was reading dead
+            # strategies as live comparisons. Archived is a fact the registry
+            # already holds; the row simply never passed it on, and the client
+            # had no way to know without a second call and a join.
+            #
+            # Reported, NOT filtered. Whether an archived strategy belongs on a
+            # given panel is the panel's judgement; dropping the row here would
+            # take that choice away from every reader at once, including the
+            # audit ones that want it.
+            "archived": bool(s.get("archived")),
             "comparable": False,
             "reason": None,
         }
@@ -175,13 +187,29 @@ def compare(
         rows.append(row)
 
     n_flagged = sum(1 for r in rows if r.get("diverging"))
+    live_rows = [r for r in rows if not r.get("archived")]
+    n_archived = len(rows) - len(live_rows)
     return {
         "rows": rows,
+        # `n_deployed` counts EVERY row, archived included, and is kept at that
+        # meaning so no existing reader changes underneath itself. The live
+        # counts are new keys beside it rather than a redefinition — silently
+        # changing what a number means is worse than adding one.
         "n_deployed": len(rows),
         "n_comparable": sum(1 for r in rows if r["comparable"]),
         "n_diverging": n_flagged,
+        "n_archived": n_archived,
+        "n_live": len(live_rows),
+        "n_live_comparable": sum(1 for r in live_rows if r["comparable"]),
+        "n_live_diverging": sum(1 for r in live_rows if r.get("diverging")),
         "note": (
             "live return is P&L over capital deployed, annualised over days since "
             "first fill; a row diverges only beyond max(5pp, one backtest vol)"
         ),
+        "archived_note": (
+            f"{n_archived} of these {len(rows)} strategies are ARCHIVED. They are "
+            f"included in `rows` and in `n_deployed` for audit, and excluded from "
+            f"the `n_live_*` counts — an archived strategy's gap to its backtest "
+            f"is history, not a live comparison"
+            if n_archived else None),
     }
