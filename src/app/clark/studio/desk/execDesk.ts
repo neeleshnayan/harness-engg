@@ -75,6 +75,15 @@ const REVERSIBILITY_BY_KIND: Readonly<Record<string, Reversibility>> = Object.fr
   dispatch: "reversible",
   dispatch_request: "reversible",
   next_dispatch: "reversible",
+  // The secretary's two kinds (seat definition, 2026-08-21). A `suggestion` is
+  // "a concrete, doable thing" like adopting a filename convention — undoable
+  // by doing the opposite. Classified because the alternative was visible on
+  // the CEO's page: an unclassified suggestion rendered the sentence
+  // 'kind "suggestion" is unclassified — ranked as if hard to undo', which is
+  // both noise and a mis-rank. `note` is here for completeness; a note is never
+  // ranked, because it is never a decision.
+  suggestion: "reversible",
+  note: "reversible",
 });
 
 export function reversibilityOfKind(kind?: string | null): Reversibility {

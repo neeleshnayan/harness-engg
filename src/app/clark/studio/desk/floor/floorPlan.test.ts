@@ -72,8 +72,11 @@ test("the flag is read as a LITERAL process.env member, or the browser never see
 
 /* ------------------------------------------------- geometry = org chart ---- */
 
-test("the exec row is the reporting line: corner office, triage, console", () => {
-  assert.deepEqual(EXEC_ROW.map((s) => s.id), ["ceo", "coo", "cto"]);
+test("the exec row is the reporting line: corner office, triage, record, console", () => {
+  // Donna joined 2026-08-21, beside Vishesh (brief Part B). The row is the
+  // reporting line: the CEO decides, the COO batches, the secretary records,
+  // the CTO dispatches.
+  assert.deepEqual(EXEC_ROW.map((s) => s.id), ["ceo", "coo", "secretary", "cto"]);
   // Left to right along the back wall, and the corner office is IN the corner.
   const xs = EXEC_ROW.map((s) => s.at.x);
   assert.deepEqual([...xs].sort((a, b) => a - b), xs);
@@ -92,9 +95,16 @@ test("exactly ONE inbox tray exists, and it is in the corner office", () => {
   assert.equal(triage[0].id, "coo", "the triage tray feeds the corner office; it is not one");
 });
 
-test("the bench is in CONSTITUTION order, two rows of four, and the coo is not on it", () => {
+test("the bench is in CONSTITUTION order, two rows of four, and no exec-row seat is on it", () => {
+  // The coo (2026-08-20) and the secretary (2026-08-21) have exec-row desks.
+  // A seat drawn in BOTH places would appear twice in one room, which is the
+  // failure this assertion caught the day Donna was added.
   assert.equal(BENCH_ORDER.length, 8);
-  assert.deepEqual([...BENCH_ORDER], SEATS.filter((s) => s !== "coo"));
+  assert.deepEqual([...BENCH_ORDER],
+    SEATS.filter((s) => s !== "coo" && s !== "secretary"));
+  for (const id of ["coo", "secretary"]) {
+    assert.ok(!BENCH_ORDER.includes(id as never), `${id} is on the bench AND the exec row`);
+  }
   const spots = benchSpots();
   assert.equal(spots.length, 8);
   const rows = new Set(spots.map((s) => s.at.y));
@@ -335,4 +345,36 @@ test("the camera is fixed, orthographic and dimetric — no perspective, ever", 
   assert.ok(!CAMERA_TRANSFORM.includes("perspective"));
   assert.ok(!CAMERA_TRANSFORM.includes("scale"));
   assert.equal((CAMERA_TRANSFORM.match(/rotate/g) || []).length, 2);
+});
+
+/* ------------------------------------------------ Donna joins the floor --- */
+
+test("the secretary has an exec-row desk, a route and a face", () => {
+  // Brief Part B: "executive row beside Vishesh". Before this she had no desk,
+  // no seat page and no face — a colleague who had already run, invisible on
+  // the floor and unattributed on the CEO's desk.
+  const d = spotById("secretary");
+  assert.ok(d, "no secretary desk on the floor");
+  assert.equal(d!.href, "/clark/studio/desk/secretary");
+  assert.equal(d!.at.y, EXEC_ROW[0].at.y, "she is on the back wall with the others");
+  assert.ok(faceFor("secretary"), "no face on file for the secretary");
+  assert.equal(faceFor("donna")?.id, "secretary", "her name must reach her face");
+});
+
+test("the exec row stays evenly spaced after the fourth desk", () => {
+  // The row was re-spaced from three to four rather than squeezing her in: exec
+  // spacing was 23-25 units and the bench's is 19, so an inserted desk at ~11
+  // would have overlapped its neighbours.
+  const xs = EXEC_ROW.map((s) => s.at.x);
+  const gaps = xs.slice(1).map((x, i) => x - xs[i]);
+  assert.ok(Math.min(...gaps) >= 18,
+    `exec desks are ${Math.min(...gaps)} units apart — they will overlap`);
+  assert.ok(Math.max(...gaps) - Math.min(...gaps) <= 3, "the row is uneven");
+});
+
+test("no seat is drawn twice — the exec row and the bench are disjoint", () => {
+  // The failure this caught when Donna was added: BENCH_ORDER derived from
+  // SEATS minus the coo, so she appeared at her exec desk AND on the bench.
+  const ids = allSpots().map((s) => s.id);
+  assert.equal(new Set(ids).size, ids.length, "a spot id appears twice in the room");
 });

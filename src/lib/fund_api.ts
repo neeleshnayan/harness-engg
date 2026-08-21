@@ -2160,6 +2160,27 @@ export const fundApiClient = {
     (await fundApi.post(`${P}/risk/drawdown-reference/rebase`,
       { approver, confirm, nav_usd: navUsd, reason, instruction })).data,
 
+  /** Every Daily the secretary has filed, newest first.
+   *
+   *  Served by the spine rather than read off disk by the browser: the spine
+   *  owns what is on disk, the browser owns what is on screen, and a page that
+   *  stats files breaks the moment it is served from anywhere but that machine.
+   *
+   *  THREE ABSENCES, kept apart, because a caller that cannot tell them apart
+   *  reports "no dailies" for a permissions error:
+   *    `exists: false`   — the directory is not there; she has never filed.
+   *    `readable: false` — it could not be read; whether anything is filed is
+   *                        UNKNOWN.
+   *    `archives: []`    — she has filed nothing yet, which is neither. */
+  getDeskArchives: async (): Promise<{
+    archives: {
+      date: string | null; path: string; pdf_path: string | null;
+      title: string; bytes: number | null; note: string | null;
+    }[];
+    exists: boolean; readable: boolean;
+    count?: number; with_pdf?: number; note?: string;
+  }> => (await fundApi.get(`${P}/desk/archives`)).data,
+
   /** The seven-stage operating doctrine, with each stage's status read LIVE.
    *
    *  Status is READ, never restated in the client. A doctrine view that carried

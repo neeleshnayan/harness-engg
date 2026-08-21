@@ -398,3 +398,13 @@ test("within a stage the CEO sees the oldest ask first", () => {
   ]);
   assert.deepEqual(asksForCeo(asks).map((a) => a.subject), ["older", "newer"]);
 });
+
+test("the secretary's two kinds are classified, not left unclassified", () => {
+  // Visible on the CEO's page before this: an unclassified suggestion rendered
+  // 'kind "suggestion" is unclassified — ranked as if hard to undo', which is
+  // noise on the page AND a mis-rank (adopting a filename convention is undone
+  // by doing the opposite).
+  assert.equal(reversibilityOfKind("suggestion"), "reversible");
+  assert.equal(reversibilityOfKind("note"), "reversible");
+  assert.notEqual(reversibilityOfKind("suggestion"), "unclassified");
+});

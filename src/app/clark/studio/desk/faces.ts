@@ -136,6 +136,21 @@ export const FACES: Readonly<Record<string, FaceSpec>> = Object.freeze({
     head: "oval", eyes: "lines", mouth: "flat", feature: "tie",
   },
 
+  secretary: {
+    // Seated 2026-08-20 (CEO decision) and named DONNA the same day, the way
+    // the COO seat carries Vishesh. Given a face 2026-08-21 with her floor desk
+    // and seat page — before this she rendered FACELESS on the CEO's desk, and
+    // an unattributed note is a note nobody can place.
+    //
+    // The `book` feature is the corpus; hers is the RECORD, which is the same
+    // gesture — a bound thing that is read, not decided. Tuple stays unique via
+    // the round head + line eyes + small mouth combination; the registry test
+    // enforces it.
+    id: "secretary", label: "Donna", kind: "seat",
+    role: "documents each day from the record; never decides",
+    head: "round", eyes: "lines", mouth: "small", feature: "book",
+  },
+
   ceo: {
     id: "ceo", label: "Neelesh", kind: "human",
     role: "CEO — risk appetite, identity, and every approval click",
@@ -211,6 +226,7 @@ const ALIASES: ReadonlyArray<{ re: RegExp; id: string }> = [
   { re: /^(neelesh|rushi)-via-(co-)?cto\b/, id: "cto" },
   { re: /^fable$/, id: "cto" },
   { re: /^vishesh$/, id: "coo" },
+  { re: /^donna$/, id: "secretary" },
 ];
 
 /**

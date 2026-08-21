@@ -93,25 +93,39 @@ export interface FloorSpot {
 
 /**
  * The back wall, left to right: the corner office, the triage desk beside it,
- * the console.
+ * the secretary, the console.
  *
  * Order is the reporting line, not aesthetics — the CEO's corner, the COO who
- * feeds it, the CTO who dispatches. The corner office is in the CORNER (x=15,
- * against the left wall) because that is what makes it one.
+ * feeds it, the secretary who records it, the CTO who dispatches. The corner
+ * office is in the CORNER (against the left wall) because that is what makes it
+ * one.
+ *
+ * DONNA JOINED 2026-08-21 (brief Part B: "executive row beside Vishesh"). The
+ * row was re-spaced from three to four rather than squeezing her into the gap:
+ * exec spacing was 23-25 units and the bench's is 19, so an inserted fourth desk
+ * at ~11 units would have overlapped its neighbours. The console moved from
+ * x=63 to x=75 and THE CORRIDOR MOVED WITH IT — the aisle threads through the
+ * console as a chain station, and leaving the waypoint behind would have drawn
+ * the candidate chain passing through empty floor.
  */
 export const EXEC_ROW: readonly FloorSpot[] = Object.freeze([
   {
-    id: "ceo", kind: "office", at: { x: 15, y: 11 },
+    id: "ceo", kind: "office", at: { x: 12, y: 11 },
     label: "Neelesh", says: "the corner office — every approval click, and the only inbox tray on this floor",
     href: "/clark/studio/desk/ceo", inboxTray: true,
   },
   {
-    id: "coo", kind: "desk", at: { x: 40, y: 11 },
+    id: "coo", kind: "desk", at: { x: 33, y: 11 },
     label: "Vishesh", says: "triage — the desk batched into decisions, then handed to the corner office",
     href: "/clark/studio/desk/coo", triageTray: true, lampable: true,
   },
   {
-    id: "cto", kind: "console", at: { x: 63, y: 11 },
+    id: "secretary", kind: "desk", at: { x: 54, y: 11 },
+    label: "Donna", says: "the record — each day documented from the log at end of day; documents, never decides",
+    href: "/clark/studio/desk/secretary", lampable: true,
+  },
+  {
+    id: "cto", kind: "console", at: { x: 75, y: 11 },
     label: "Fable", says: "the console — the dispatch board; every seat runs from here",
     href: "/clark/studio/desk/cto",
   },
@@ -127,10 +141,14 @@ export const EXEC_ROW: readonly FloorSpot[] = Object.freeze([
  * disagree today (the spine returns builder before riskofficer), and the spec
  * says constitution order, so the plan states which source it obeys rather than
  * inheriting whichever arrived. The COO is not here: it sits in the exec row by
- * the CEO's 2026-08-20 decision.
+ * the CEO's 2026-08-20 decision, and neither is the SECRETARY, who joined that
+ * row 2026-08-21. Both are excluded by the same rule — a seat with an exec-row
+ * desk drawn on the bench as well would appear twice in one room.
  */
+const EXEC_SEATS = new Set(["coo", "secretary"]);
+
 export const BENCH_ORDER: readonly SeatId[] = Object.freeze(
-  SEATS.filter((s) => s !== "coo"),
+  SEATS.filter((s) => !EXEC_SEATS.has(s)),
 ) as readonly SeatId[];
 
 const BENCH_ROW_Y = [43, 66];
@@ -231,14 +249,21 @@ export const CORRIDOR: readonly RoomPoint[] = Object.freeze([
   { x: 15, y: 66 },   // adversary
   { x: 26, y: 66 },
   { x: 26, y: 29 },
-  { x: 63, y: 29 },
-  { x: 63, y: 11 },   // the console
-  { x: 80, y: 11 },
+  // Moved 63 -> 75 with the console when Donna joined the exec row
+  // (2026-08-21). The aisle reaches the CTO because the CTO is a chain station;
+  // a waypoint left at the old x would draw the chain through empty floor and
+  // `corridorHasNoShortcut` would stop reaching a station it must.
+  { x: 75, y: 29 },
+  { x: 75, y: 11 },   // the console
+  { x: 82, y: 11 },
   { x: 88, y: 22 },   // the machine room
   { x: 88, y: 36 },
   { x: 36, y: 36 },
   { x: 36, y: 18 },
-  { x: 15, y: 11 },   // the corner office
+  // Moved 15 -> 12 with the corner office (2026-08-21). The aisle's last
+  // leg is the candidate walking BACK for a human's click; it has to end
+  // where the office actually is.
+  { x: 12, y: 11 },   // the corner office
 ]);
 
 /** The corridor index each station sits at, or -1. */

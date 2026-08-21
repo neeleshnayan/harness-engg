@@ -147,6 +147,19 @@ export default function FloorPage() {
               // whichever is prettier. Only DESKS get them: a machine has no
               // runs, and a zero beside the caged auto-policy would read as a
               // measurement of something nobody measures.
+              /* Runs today, ON the room (CEO, 2026-08-21: "the floor doesnt
+                 capture how many runs each agent had that day"). The three
+                 returns are three facts: undefined for anything that is not a
+                 dispatched seat — humans and fixtures keep their no-count
+                 honesty lines and get NO numeral, because a zero on Neelesh's
+                 or Fable's desk would be a lie about a colleague; null when
+                 the count could not be measured; a number otherwise. */
+              runsToday={(spot) => {
+                if (spot.kind === "machine" || spot.kind === "door") return undefined;
+                if (spot.id === "ceo" || spot.id === "cto") return undefined;
+                const t = seatTelemetry(desk, spot.id);
+                return typeof t.runsToday === "number" ? t.runsToday : null;
+              }}
               renderSeatDetail={(spot) =>
                 spot.kind === "machine" || spot.kind === "door" ? (
                   <p className={`mt-2 text-xs ${KT.muted}`}>

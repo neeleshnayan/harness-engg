@@ -14,9 +14,12 @@ import { SeatFace } from "../SeatFace";
 import { RecRow } from "../components";
 import { fmtAt } from "../seatLib";
 import {
-  DeskItem, QueuedAsk, asksForCeo, cooMemos, decisionVelocity, moneyGap,
-  orderItems, queuedAsks, rankDeskItems, recItems, splitDeskItems,
+  CooMemo, DeskItem, QueuedAsk, asksForCeo, cooMemos, decisionVelocity,
+  moneyGap, orderItems, queuedAsks, rankDeskItems, recItems, splitDeskItems,
 } from "../execDesk";
+import {
+  OfficerQueue, hasContent, officerDesk,
+} from "../officerQueues";
 import { CooTriageChip } from "../components";
 
 /**
@@ -92,8 +95,8 @@ export default function CeoDeskPage() {
   const memos = useMemo(() => cooMemos(desk?.runs ?? [], memoParts), [desk]);
   const velocity = useMemo(() => decisionVelocity(events, new Date()), [events]);
 
-  const orders = split.awaitingDecision.filter((i) => i.kind === "order");
-  const recItemsRanked = split.awaitingDecision.filter((i) => i.kind === "recommendation");
+  /* The by-kind split moved INTO each officer section (2026-08-21): orders and
+     recommendations are now separated per queue rather than page-wide. */
   const decidedItems = split.awaitingExecution;
   const halted = risk?.halted === true;
 
@@ -106,8 +109,21 @@ export default function CeoDeskPage() {
      earned. It IS counted in the headline, because it does await a decision. */
   const asks = useMemo(
     () => asksForCeo(queuedAsks(desk?.requests ?? [])), [desk]);
-  const asksAwaitingCeo = asks.filter((a) => a.stage === "awaiting_ceo");
-  const awaitingCount = split.awaitingDecision.length + asksAwaitingCeo.length;
+
+  /* The four queues (CEO, 2026-08-21). The headline count comes from HERE and
+     not from the flat split, because the two disagree by design: Donna's notes
+     are in the desk but are not decisions, and counting them would make a day
+     of pure observations read as a backlog. */
+  const officers = useMemo(
+    () => officerDesk({
+      awaitingDecision: split.awaitingDecision,
+      awaitingExecution: split.awaitingExecution,
+      memos,
+      asks,
+    }),
+    [split, memos, asks],
+  );
+  const awaitingCount = officers.awaitingTotal;
 
   return (
     <div className="min-h-screen bg-[var(--kt-bg)] text-[var(--kt-text)]">
@@ -194,173 +210,36 @@ export default function CeoDeskPage() {
           </div>
         )}
 
-        {/* ── 1 · THE COO'S BATCH MEMOS ────────────────────────────────────
-            The intended top of this page once triage is flowing: the CEO
-            decides batches, not items. */}
-        <section className="mb-8">
-          <p className={`${KT.label} mb-2 flex items-center gap-2`}>
-            <SeatFace actor="coo" size={16} decorative /> Vishesh&apos;s batch memos
-          </p>
-          {/* Three states, not two. An unread desk rendering an EMPTY section
-              is the absence-as-value error with the sentence removed — the
-              heading alone reads as "no memos on file". Caught on the
-              dead-spine pass, 2026-08-20. */}
-          {desk === null ? (
-            <p className={`text-sm ${KT.sev.warn}`}>
-              Unreadable — whether the COO has filed a memo is unknown, not none.
-            </p>
-          ) : memos.length === 0 ? (
-            <p className={`text-sm ${KT.muted}`}>
-              No triage on file. The COO has not run — the queue below is unbatched, which
-              is the state this seat exists to end.
-            </p>
-          ) : (
-            <div className="space-y-1.5">
-              {memos.map((m) => (
-                <div key={m.runId} className={`${KT.card} p-3`}>
-                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <span className={`font-mono text-[10px] tabular-nums ${KT.muted}`}>
-                      {m.at ? m.at.slice(0, 10) : "undated"}
-                    </span>
-                    <span className="min-w-0 flex-1 text-[13px] font-medium leading-snug">
-                      {m.headline || (
-                        <span className={KT.sev.warn}>
-                          filed no verdict — the memo exists, its conclusion was not recorded
-                        </span>
-                      )}
-                    </span>
-                    <span className={`font-mono text-[10px] tabular-nums ${
-                      m.openRecCount > 0 ? "text-[var(--kt-accent)]" : KT.muted}`}>
-                      {m.openRecCount} of {m.recCount} still open
-                    </span>
-                  </div>
-                  {m.rest && (
-                    <p className={`mt-1 text-[12px] leading-relaxed ${KT.body}`}>{m.rest}</p>
-                  )}
-                  <p className={`mt-1.5 font-mono text-[10px] ${KT.muted}`}>
-                    {m.artifactPath ?? "no artifact filed on this run"}
-                    {" · "}
-                    <Link href="/clark/studio/desk/coo" className={`${KT.accent} hover:underline`}>
-                      open the COO&apos;s desk
-                    </Link>
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+        {/* ── FOUR QUEUES, BY PERSON ───────────────────────────────────────
+            CEO verbatim, 2026-08-21: "my desk should have 4 queues -> Vishesh,
+            Donna, Fable and Others segregated by team member name."
 
-        {/* ── 2 · ORDERS ───────────────────────────────────────────────────
-            First in the ranked queue by construction: they are the only items
-            that carry a dollar figure AND the only irreversible ones. */}
-        <section className="mb-8">
-          <p className={`${KT.label} mb-2`}>Orders awaiting your approval</p>
-          {pending === null ? (
-            <p className={`text-sm ${KT.sev.warn}`}>
-              The approval queue is unreadable — anything waiting is still waiting.
-            </p>
-          ) : orders.length === 0 ? (
-            <p className={`text-sm ${KT.muted}`}>Nothing pending at the venue.</p>
-          ) : (
-            <div className="space-y-1.5">
-              {orders.map((item) => {
-                const o = item.order!;
-                const m = memoParts(o.rationale);
-                const age = o.age_minutes;
-                const expiresIn = age != null ? Math.max(0, 120 - age) : null;
-                return (
-                  <div key={item.key}
-                       className={`${KT.card} flex flex-wrap items-baseline gap-x-3 gap-y-1 p-3 text-sm`}>
-                    <span className="font-semibold uppercase">{o.side}</span>
-                    <span className="font-mono tabular-nums">{o.qty}</span>
-                    <span className="font-semibold">{o.symbol}</span>
-                    {/* The ranking key, shown. A queue that sorts by a number
-                        it does not display is asking to be trusted blind. */}
-                    <span className="font-mono text-[11px] tabular-nums text-[var(--kt-text-strong)]">
-                      {item.moneyUsd == null
-                        ? <span className={KT.sev.warn}>notional not previewed</span>
-                        : money(item.moneyUsd)}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-[12px]">{m.headline}</span>
-                    <span className={`font-mono text-[10px] tabular-nums ${
-                      expiresIn != null && expiresIn < 30 ? "text-[var(--kt-warn)]" : KT.muted}`}>
-                      {expiresIn != null
-                        ? `expires in ~${Math.round(expiresIn)}m`
-                        : "age unknown"}
-                    </span>
-                  </div>
-                );
-              })}
-              <p className={`text-[11px] italic ${KT.muted}`}>
-                Approve and decline live on <Link href="/clark/studio" className={`${KT.accent} hover:underline`}>Monitor</Link> — one approval surface, deliberately.
-              </p>
-            </div>
-          )}
-        </section>
+            The routing is in ../officerQueues.ts with tests, for the same
+            reason the RANKING is: an attribution derived inline in JSX cannot
+            be checked, and a queue that mis-attributes is worse than an
+            unattributed one because the CEO would trust the label.
 
-        {/* ── 3 · RECOMMENDATIONS, RANKED ──────────────────────────────────── */}
-        <section className="mb-8">
-          <p className={`${KT.label} mb-2`}>
-            {/* A count folded from an unread desk is a zero nobody measured. */}
-            Recommendations awaiting your decision ({desk === null ? "unknown" : recItemsRanked.length})
-          </p>
-          <p className={`mb-2 text-xs leading-relaxed ${KT.muted}`}>
-            Ranked money → reversibility → staleness.{" "}
-            {gap.unpriced > 0 && (
-              <>
-                <span className={KT.sev.warn}>
-                  {gap.unpriced} of {gap.priced + gap.unpriced} items carry no money figure
-                </span>{" "}
-                — <code>money_at_stake</code> is optional on a recommendation and these
-                seats stated none, so they are ranked on the two remaining keys rather than
-                on a number read out of their prose. Reversibility is derived from each
-                item&apos;s kind and shown beside it.
-              </>
-            )}
-          </p>
-          {desk === null ? (
-            <p className={`text-sm ${KT.sev.warn}`}>
-              Unreadable — the bench may be owed decisions. This is not an empty queue.
-            </p>
-          ) : recItemsRanked.length === 0 ? (
-            <p className={`text-sm ${KT.muted}`}>Nothing awaiting you — the bench owes you no decisions right now.</p>
-          ) : null}
-          <div className="space-y-1.5">
-            {recItemsRanked.map((item) => (
-              <RankedRec key={item.key} item={item} onDecide={load} />
-            ))}
-          </div>
-        </section>
-
-        {/* ── 3b · BENCH ASKS AWAITING YOUR APPROVAL ───────────────────────
-            THE DEFECT THIS FIXES, found live 2026-08-21: seat-filed asks
-            rendered ONLY on the CTO console, so this page said "0 awaiting you"
-            while the spine's own desk_load counted 2. The CEO could not see —
-            or click — items that were waiting on the CEO.
-
-            A seat-filed ask is the constitution's 2026-08-20 amendment made
-            real: "pm requests quant" is hierarchy in the data. It is an ASK and
-            never a trigger; approving it clears the CTO to fire it, and nothing
-            here starts an agent. Approved asks STAY on the page in a cleared
-            state rather than vanishing, because a blessing nobody acted on is
-            exactly the kind of thing that goes quiet. */}
-        {desk !== null && asks.length > 0 && (
+            Order within each queue is untouched — money → reversibility →
+            staleness, exactly as before. Whose desk an item came off says who
+            is asking, not how urgent it is. */}
+        {desk === null ? (
           <section className="mb-8">
-            <p className={`${KT.label} mb-2`}>
-              Bench asks awaiting your approval ({asksAwaitingCeo.length})
+            <p className={`${KT.label} mb-2`}>Your queues</p>
+            <p className={`text-sm ${KT.sev.warn}`}>
+              The desk is unreadable — every queue below is UNKNOWN, not empty.
+              Anything waiting is still waiting.
             </p>
-            <p className={`mb-2 text-xs leading-relaxed ${KT.muted}`}>
-              A seat, or a human, has asked the desk for work. Approving is an
-              ENDORSEMENT and not a trigger — the CTO fires the dispatch, and no
-              agent runs until a human does. Declining is terminal and takes a
-              written reason.
-            </p>
-            <div className="space-y-1.5">
-              {asks.map((a) => (
-                <AskRow key={a.requestId} ask={a} onDecided={load} />
-              ))}
-            </div>
           </section>
+        ) : (
+          officers.all.map((q) => (
+            <OfficerSection
+              key={q.id}
+              q={q}
+              pendingUnreadable={pending === null}
+              gap={gap}
+              onChanged={load}
+            />
+          ))
         )}
 
         {/* ── 4 · DECIDED, AWAITING EXECUTION ──────────────────────────────
@@ -411,6 +290,250 @@ export default function CeoDeskPage() {
           .
         </p>
       </div>
+    </div>
+  );
+}
+
+/**
+ * ONE officer's queue: their face, their name, what they are owed.
+ *
+ * Each queue renders only what that officer actually produces — memos for
+ * Vishesh, notes and suggestions for Donna, orders and asks for Fable, the
+ * bench grouped by seat for Others. The empty states are per-officer and say
+ * something true about that person rather than reusing one generic sentence:
+ * "Donna has not filed today" and "nothing pending at the venue" are different
+ * facts and a shared string would flatten them.
+ */
+function OfficerSection({ q, pendingUnreadable, gap, onChanged }: {
+  q: OfficerQueue;
+  pendingUnreadable: boolean;
+  gap: { priced: number; unpriced: number };
+  onChanged: () => Promise<void> | void;
+}) {
+  const orders = q.awaiting.filter((i) => i.kind === "order");
+  const recs = q.awaiting.filter((i) => i.kind === "recommendation");
+
+  return (
+    <section className="mb-8">
+      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+        {q.seat ? <SeatFace actor={q.seat} size={22} decorative /> : null}
+        <span className="text-[15px] font-medium tracking-tight">{q.label}</span>
+        <span className={`font-mono tabular-nums text-[11px] ${
+          q.awaitingCount > 0 ? "text-[var(--kt-accent)]" : KT.muted}`}>
+          {q.awaitingCount} awaiting you
+        </span>
+        {q.decided.length > 0 && (
+          <span className={`font-mono tabular-nums text-[10px] ${KT.muted}`}>
+            · {q.decided.length} decided, listed at the foot of the page
+          </span>
+        )}
+        {q.seat && (
+          <Link href={`/clark/studio/desk/${q.seat}`}
+                className={`ml-auto text-[11px] ${KT.accent} hover:underline`}>
+            open their desk
+          </Link>
+        )}
+      </div>
+      <p className={`mb-2 text-xs ${KT.muted}`}>{q.role}</p>
+
+      {/* ---- Vishesh: the batch memos ---- */}
+      {q.id === "vishesh" && (
+        q.memos.length === 0 ? (
+          <p className={`mb-2 text-sm ${KT.muted}`}>
+            No triage on file. The COO has not run — the queues below are
+            unbatched, which is the state this seat exists to end.
+          </p>
+        ) : (
+          <div className="mb-2 space-y-1.5">
+            {q.memos.map((m) => <MemoCard key={m.runId} m={m} />)}
+          </div>
+        )
+      )}
+
+      {/* ---- Fable: orders ---- */}
+      {q.id === "fable" && (
+        pendingUnreadable ? (
+          <p className={`mb-2 text-sm ${KT.sev.warn}`}>
+            The approval queue is unreadable — anything waiting is still waiting.
+          </p>
+        ) : orders.length === 0 ? (
+          <p className={`mb-2 text-sm ${KT.muted}`}>Nothing pending at the venue.</p>
+        ) : (
+          <div className="mb-2 space-y-1.5">
+            {orders.map((item) => <OrderRow key={item.key} item={item} />)}
+            <p className={`text-[11px] italic ${KT.muted}`}>
+              Approve and decline live on{" "}
+              <Link href="/clark/studio" className={`${KT.accent} hover:underline`}>Monitor</Link>
+              {" "}— one approval surface, deliberately.
+            </p>
+          </div>
+        )
+      )}
+
+      {/* ---- Fable: the seat-filed asks ---- */}
+      {q.id === "fable" && q.asks.length > 0 && (
+        <div className="mb-2 space-y-1.5">
+          <p className={`text-xs leading-relaxed ${KT.muted}`}>
+            A seat, or a human, has asked the desk for work. Approving is an
+            ENDORSEMENT and not a trigger — the CTO fires the dispatch, and no
+            agent runs until a human does. Declining is terminal and takes a
+            written reason.
+          </p>
+          {q.asks.map((a) => <AskRow key={a.requestId} ask={a} onDecided={onChanged} />)}
+        </div>
+      )}
+
+      {/* ---- Donna: notes, deliberately WITHOUT decision buttons ---- */}
+      {q.id === "donna" && q.notes.length > 0 && (
+        <div className="mb-2 space-y-1.5">
+          <p className={`text-xs leading-relaxed ${KT.muted}`}>
+            Observations, to be READ rather than decided — the CTO marks them
+            noted. They carry no accept/reject and are not counted above, because
+            they are not work you owe anyone.
+          </p>
+          {q.notes.map((item) => <NoteRow key={item.key} item={item} />)}
+        </div>
+      )}
+
+      {/* ---- Others: grouped by seat ---- */}
+      {q.id === "others" && q.groups.length > 0 && (
+        <div className="space-y-4">
+          {q.groups.map((g) => (
+            <div key={g.seat}>
+              <p className={`${KT.label} mb-1.5 flex items-center gap-2`}>
+                <SeatFace actor={g.seat} size={14} decorative />
+                {g.seat} ({g.items.length})
+              </p>
+              <div className="space-y-1.5">
+                {g.items.map((item) => (
+                  <RankedRec key={item.key} item={item} onDecide={onChanged} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ---- everyone else's recommendations ---- */}
+      {q.id !== "others" && recs.length > 0 && (
+        <div className="space-y-1.5">
+          {recs.map((item) => (
+            <RankedRec key={item.key} item={item} onDecide={onChanged} />
+          ))}
+        </div>
+      )}
+
+      {/* ---- nothing at all ----
+           PRESENT TENSE, deliberately. "Donna has filed nothing" reads as
+           "never filed"; what is true is that nothing of hers is on the desk
+           RIGHT NOW — she has filed before and every item was marked noted.
+           The same distinction the rest of this page draws between absent,
+           empty and unknown. */}
+      {!hasContent(q) && (
+        <p className={`text-sm ${KT.muted}`}>
+          {q.id === "donna"
+            ? "Nothing of Donna's is on your desk right now. Her daily lands here when she runs at end of day; anything she filed earlier has been marked noted."
+            : q.id === "vishesh"
+              ? "Nothing of the COO's is on your desk right now."
+              : q.id === "fable"
+                ? "Nothing staged at the venue, and no bench asks awaiting you."
+                : "The bench owes you no decisions right now."}
+        </p>
+      )}
+
+      {q.id === "others" && gap.unpriced > 0 && q.awaitingCount > 0 && (
+        <p className={`mt-2 text-xs leading-relaxed ${KT.muted}`}>
+          <span className={KT.sev.warn}>
+            {gap.unpriced} of {gap.priced + gap.unpriced} items carry no money figure
+          </span>{" "}
+          — <code>money_at_stake</code> is optional on a recommendation and these
+          seats stated none, so they are ranked on the two remaining keys rather
+          than on a number read out of their prose.
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** One COO batch memo. Extracted verbatim from the old section 1. */
+function MemoCard({ m }: { m: CooMemo }) {
+  return (
+    <div className={`${KT.card} p-3`}>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className={`font-mono text-[10px] tabular-nums ${KT.muted}`}>
+          {m.at ? m.at.slice(0, 10) : "undated"}
+        </span>
+        <span className="min-w-0 flex-1 text-[13px] font-medium leading-snug">
+          {m.headline || (
+            <span className={KT.sev.warn}>
+              filed no verdict — the memo exists, its conclusion was not recorded
+            </span>
+          )}
+        </span>
+        <span className={`font-mono text-[10px] tabular-nums ${
+          m.openRecCount > 0 ? "text-[var(--kt-accent)]" : KT.muted}`}>
+          {m.openRecCount} of {m.recCount} still open
+        </span>
+      </div>
+      {m.rest && <p className={`mt-1 text-[12px] leading-relaxed ${KT.body}`}>{m.rest}</p>}
+      <p className={`mt-1.5 font-mono text-[10px] ${KT.muted}`}>
+        {m.artifactPath ?? "no artifact filed on this run"}
+      </p>
+    </div>
+  );
+}
+
+/** One pending order. Extracted verbatim from the old section 2. */
+function OrderRow({ item }: { item: DeskItem }) {
+  const o = item.order!;
+  const m = memoParts(o.rationale);
+  const age = o.age_minutes;
+  const expiresIn = age != null ? Math.max(0, 120 - age) : null;
+  return (
+    <div className={`${KT.card} flex flex-wrap items-baseline gap-x-3 gap-y-1 p-3 text-sm`}>
+      <span className="font-semibold uppercase">{o.side}</span>
+      <span className="font-mono tabular-nums">{o.qty}</span>
+      <span className="font-semibold">{o.symbol}</span>
+      {/* The ranking key, shown. A queue that sorts by a number it does not
+          display is asking to be trusted blind. */}
+      <span className="font-mono text-[11px] tabular-nums text-[var(--kt-text-strong)]">
+        {item.moneyUsd == null
+          ? <span className={KT.sev.warn}>notional not previewed</span>
+          : money(item.moneyUsd)}
+      </span>
+      <span className="min-w-0 flex-1 truncate text-[12px]">{m.headline}</span>
+      <span className={`font-mono text-[10px] tabular-nums ${
+        expiresIn != null && expiresIn < 30 ? "text-[var(--kt-warn)]" : KT.muted}`}>
+        {expiresIn != null ? `expires in ~${Math.round(expiresIn)}m` : "age unknown"}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * One of Donna's NOTES — read-only by construction.
+ *
+ * No accept/reject, deliberately and per her seat definition: a note "asks to
+ * be READ, not decided". The CEO's own words on the alternative: "this seems
+ * more like a note and I don't know what to accept". Rendering buttons here
+ * would ask for a decision that means nothing.
+ */
+function NoteRow({ item }: { item: DeskItem }) {
+  const r = item.rec!;
+  return (
+    <div className={`${KT.card} p-3`}>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        {/* The kind is only worth printing when it says something the word
+            "note" does not — `note · note` is noise. Her pre-vocabulary kinds
+            (record_keeping, org_observation) DO say something and are kept. */}
+        <span className={`font-mono text-[10px] uppercase tracking-[0.1em] ${KT.muted}`}>
+          {r.kind && r.kind !== "note" ? `note · ${r.kind}` : "note"}
+        </span>
+        <span className="min-w-0 flex-1 text-[13px] leading-snug">{r.text}</span>
+      </div>
+      <p className={`mt-1 font-mono text-[10px] ${KT.muted}`}>
+        read-only — the CTO marks it noted
+      </p>
     </div>
   );
 }

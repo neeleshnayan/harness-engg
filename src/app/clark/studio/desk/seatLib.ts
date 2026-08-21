@@ -42,6 +42,9 @@ export const SEATS = [
   "riskofficer",
   "builder",
   "coo",
+  // Seated 2026-08-20 (CEO decision); given a route and a floor desk
+  // 2026-08-21. The seat carries the name Donna — see faces.ts.
+  "secretary",
 ] as const;
 
 export type SeatId = (typeof SEATS)[number];
@@ -68,6 +71,8 @@ export const SEAT_REQUEST_KIND: Record<SeatId, string> = {
   riskofficer: "policy_audit",
   builder: "build",
   coo: "triage",
+  // The CTO triggers her at end of day; the kind names that, not a schedule.
+  secretary: "document_day",
 };
 
 /** Declared model placement, per the quota-era dispatch rules in the workspace
@@ -90,6 +95,7 @@ export const SEAT_PLACEMENT: Record<SeatId, string> = {
   riskofficer: "Opus",
   builder: "Opus",
   coo: "Opus — judgement near governance, never downgraded, never local",
+  secretary: "Opus first; a downgrade trial is allowed once the memo template is stable — a bad summary misleads the CEO quietly",
 };
 
 /* ------------------------------------------------------------- absences --- */

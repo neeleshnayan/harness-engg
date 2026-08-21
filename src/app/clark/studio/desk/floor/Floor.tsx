@@ -55,10 +55,24 @@ export interface FloorProps {
   /** Rendered inside the detail panel for the focused seat. Part B (desk
    *  telemetry) supplies it; the floor itself asserts no figures. */
   renderSeatDetail?: (spot: FloorSpot) => React.ReactNode;
+  /** Runs today for a desk, for the numeral ON the room view.
+   *
+   *  CEO, 2026-08-21: "the floor doesnt capture how many runs each agent had
+   *  that day." It only rendered in the click-open detail, so a room you had
+   *  to click nine times to read was not answering the question the room is
+   *  for.
+   *
+   *  THREE RETURNS, and they are three different facts: a NUMBER (measured,
+   *  including a measured zero), `null` (a seat whose count could not be
+   *  measured — renders a dashed x?), and `undefined` (not a dispatched seat
+   *  at all — humans and fixtures, which render NOTHING). A zero on a human's
+   *  desk would be a lie about a colleague. */
+  runsToday?: (spot: FloorSpot) => number | null | undefined;
 }
 
 export function Floor({
   desk, events, halted, state, deadSentence, pulseLimit = 14, renderSeatDetail,
+  runsToday,
 }: FloorProps) {
   const [focus, setFocus] = useState<string | null>(null);
   const [zooming, setZooming] = useState(false);
@@ -102,6 +116,7 @@ export function Floor({
                   onFocus={() => setFocus(s.id)}
                   onLeave={() => setFocus((f) => (f === s.id ? null : f))}
                   onNavigate={() => setZooming(true)}
+                  runs={state === "dead" ? null : runsToday?.(s)}
                 />
               ))}
             </nav>
@@ -254,9 +269,11 @@ function RoomSvg({ wires, lit, state }: {
 
 /* -------------------------------------------------------------- furniture -- */
 
-function Spot({ s, lit, state, halted, focused, onFocus, onLeave, onNavigate }: {
+function Spot({ s, lit, state, halted, focused, onFocus, onLeave, onNavigate,
+               runs }: {
   s: FloorSpot; lit: boolean; state: RoomState; halted: boolean;
   focused: boolean; onFocus: () => void; onLeave: () => void; onNavigate: () => void;
+  runs?: number | null;
 }) {
   const machine = s.kind === "machine" || s.kind === "door";
   const body = (
@@ -280,6 +297,28 @@ function Spot({ s, lit, state, halted, focused, onFocus, onLeave, onNavigate }: 
         lit ? "text-[var(--kt-text)]" : KT.muted}`}>
         {s.label}
       </span>
+      {/* Runs today, ON the room view (CEO, 2026-08-21). Matches the x-N chip
+          style the CTO's compact seat cards use, so one glyph means one thing
+          in both places. `undefined` renders NOTHING — a human or a fixture
+          has no run count and a zero there would be a lie about a colleague;
+          `null` renders a dashed x? because unmeasured must never read as
+          zero; a number renders, including a measured zero. */}
+      {runs !== undefined && (
+        <span
+          title={typeof runs === "number"
+            ? `${runs} run${runs === 1 ? "" : "s"} today`
+            : "runs today could not be measured — unmeasured, not zero"}
+          className={`inline-flex items-center rounded-full border px-1.5 font-mono text-[9px] uppercase tracking-[0.08em] ${
+            typeof runs === "number"
+              ? `border-[var(--kt-border)] ${KT.muted}`
+              : "border-dashed border-[var(--kt-border-strong)] " + KT.muted}`}
+        >
+          ×<span className={typeof runs === "number"
+            ? "tabular-nums text-[var(--kt-text)]" : ""}>
+            {typeof runs === "number" ? runs : "?"}
+          </span>
+        </span>
+      )}
       {s.inboxTray && <Tray label="inbox" hot={!halted} />}
       {s.triageTray && <Tray label="triage" hot={false} />}
       {s.id === "venue-door" && halted && (
@@ -452,6 +491,19 @@ function TrafficNote({ state, drawn, total, limit }: {
 function Detail({ spot, lit, state, renderSeatDetail }: {
   spot: FloorSpot; lit: boolean; state: RoomState;
   renderSeatDetail?: (spot: FloorSpot) => React.ReactNode;
+  /** Runs today for a desk, for the numeral ON the room view.
+   *
+   *  CEO, 2026-08-21: "the floor doesnt capture how many runs each agent had
+   *  that day." It only rendered in the click-open detail, so a room you had
+   *  to click nine times to read was not answering the question the room is
+   *  for.
+   *
+   *  THREE RETURNS, and they are three different facts: a NUMBER (measured,
+   *  including a measured zero), `null` (a seat whose count could not be
+   *  measured — renders a dashed x?), and `undefined` (not a dispatched seat
+   *  at all — humans and fixtures, which render NOTHING). A zero on a human's
+   *  desk would be a lie about a colleague. */
+  runsToday?: (spot: FloorSpot) => number | null | undefined;
 }) {
   const f = faceFor(spot.id);
   return (

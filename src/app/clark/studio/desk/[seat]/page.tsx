@@ -331,6 +331,13 @@ function Seat({ seat }: { seat: SeatId }) {
           )}
         </section>
 
+        {/* --------------------------------- 3b. Donna's archive shelf ------
+            The secretary's output is not only a run record — it is a DATED
+            FILE, one per day, and the run's own shelf spine cannot show which
+            days exist or which of them rendered a PDF. Only her desk carries
+            this, because only she files into docs/archives/. */}
+        {seat === "secretary" && <ArchiveShelf />}
+
         {/* --------------------------------------------------- 4. the evidence */}
         <section className="mb-8">
           <SectionHead
@@ -553,5 +560,98 @@ function PriceTable() {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Every Daily Donna has filed, newest first.
+ *
+ * Brief Part B: "her seat page lists every archived Daily over time ... serve
+ * via a small spine endpoint — the UI must not read the filesystem". So this
+ * reads `GET /fund/desk/archives`; the spine owns what is on disk.
+ *
+ * FOUR STATES, and they are four different facts. A shelf that rendered
+ * "no dailies" for a permissions error would be a missing record showing up as
+ * a clean one — which is the same class as an unread desk rendering an empty
+ * section, caught on this page's own dead-spine pass in August.
+ */
+function ArchiveShelf() {
+  const [got, setGot] = useState<
+    Awaited<ReturnType<typeof fundApiClient.getDeskArchives>> | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    fundApiClient.getDeskArchives()
+      .then((d) => { if (alive) { setGot(d); setErr(null); } })
+      .catch((e: unknown) => {
+        if (alive) setErr(e instanceof Error ? e.message : "unreachable");
+      });
+    return () => { alive = false; };
+  }, []);
+
+  const rows = got?.archives ?? [];
+  return (
+    <section className="mb-8">
+      <SectionHead
+        title="The archive — every day on file"
+        lede="One dated record per day, filed to docs/archives/. The short memo is the CEO's sixty-second read; this is the long record behind it."
+      />
+      {err ? (
+        <p className={`text-sm ${KT.sev.warn}`}>
+          The archive could not be read ({err}) — what has been filed is unknown,
+          not nothing.
+        </p>
+      ) : got === null ? (
+        <p className={`text-sm ${KT.muted}`}>Reading the archive…</p>
+      ) : got.readable === false ? (
+        <p className={`text-sm ${KT.sev.warn}`}>
+          {got.note ?? "docs/archives/ could not be read — UNKNOWN, not none."}
+        </p>
+      ) : got.exists === false ? (
+        <p className={`text-sm ${KT.muted}`}>
+          {got.note ?? "docs/archives/ does not exist — she has never filed."}
+        </p>
+      ) : rows.length === 0 ? (
+        <p className={`text-sm ${KT.muted}`}>
+          {got.note ?? "Nothing filed yet."}
+        </p>
+      ) : (
+        <>
+          <ul className="divide-y divide-[var(--kt-border)]">
+            {rows.map((a) => (
+              <li key={a.path}
+                  className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2 text-[12px]">
+                <span className={`w-24 font-mono tabular-nums ${
+                  a.date ? "" : KT.sev.warn}`}>
+                  {a.date ?? "undated"}
+                </span>
+                <span className="min-w-0 flex-1 truncate">{a.title}</span>
+                <span className={`font-mono text-[10px] ${KT.muted}`}>
+                  {a.bytes == null ? "size unknown" : `${Math.round(a.bytes / 1024)}k`}
+                </span>
+                {/* The PDF is a RENDER of the markdown, so its absence is
+                    normal rather than a fault — a day filed before that step
+                    existed has only the first. Said, not blanked. */}
+                <span className={`w-16 text-right font-mono text-[10px] ${KT.muted}`}>
+                  {a.pdf_path ? "md · pdf" : "md only"}
+                </span>
+                {a.note && (
+                  <span className={`w-full text-[11px] ${KT.sev.warn}`}>{a.note}</span>
+                )}
+                <span className={`w-full font-mono text-[10px] ${KT.muted}`}>
+                  {a.path}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className={`mt-2 text-[11px] ${KT.muted}`}>
+            {got.count ?? rows.length} day(s) on file
+            {got.with_pdf != null && `, ${got.with_pdf} with a rendered PDF`}.
+            The paths are the spine&apos;s; this page never reads the filesystem.
+          </p>
+        </>
+      )}
+    </section>
   );
 }
