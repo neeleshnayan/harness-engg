@@ -314,6 +314,11 @@ export interface StrategyDivergenceRow {
   strategy_id: string;
   name?: string | null;
   state: string;
+  /** Whether the registry has archived this strategy. OPTIONAL: a spine that
+   *  predates the field (added 2026-08-21) omits it, and an absent flag must
+   *  read as LIVE — hiding a live strategy is the worse error. Test `=== true`,
+   *  never `!== false`. */
+  archived?: boolean;
   comparable: boolean;
   reason?: string | null;
   backtest_annual_return_pct?: number | null;
@@ -330,9 +335,17 @@ export interface StrategyDivergenceRow {
 
 export interface StrategyDivergence {
   rows: StrategyDivergenceRow[];
+  /** EVERY row, archived included. Kept at its original meaning so no existing
+   *  reader changes underneath itself — the live counts are new keys beside it. */
   n_deployed: number;
   n_comparable: number;
   n_diverging: number;
+  /** Added 2026-08-21, all optional for the same reason `archived` is. */
+  n_archived?: number;
+  n_live?: number;
+  n_live_comparable?: number;
+  n_live_diverging?: number;
+  archived_note?: string | null;
   note: string;
 }
 
@@ -551,6 +564,26 @@ export interface RiskMonitorDrawdown {
   max_drawdown_pct: number;
   limit_pct: number;
   utilization: number;
+  /** WHERE the peak came from: 'trailing_365d' | 'rebased' | 'post_rebase_high'
+   *  | 'current_nav'. Optional — absent on a spine that predates the rebase
+   *  path, and rendered as unknown rather than assumed to be the trailing high. */
+  peak_basis?: string | null;
+  peak_note?: string | null;
+  /** The trailing-365d high BEFORE any rebase. Kept alongside `peak_nav` so a
+   *  reader can see that the reference moved and by how much — otherwise a
+   *  rebase is a quiet edit to the number risk is measured against. */
+  unrebased_peak_nav?: number | null;
+  /** Null until someone has rebased. `nav_usd` is the value rebased TO. */
+  rebase?: {
+    nav_usd?: number | null;
+    at?: string | null;
+    actor?: string | null;
+    reason?: string | null;
+    previous_peak_usd?: number | null;
+  } | null;
+  /** The echo a drawdown rebase must send back — a digest of the peak being
+   *  replaced, so a confirm read off a stale panel is refused. */
+  rebase_token?: string | null;
 }
 
 export interface RiskMonitorPosition {
@@ -1128,6 +1161,26 @@ export interface RiskMonitorResponse {
   /** The echo the acknowledge-and-rebase control must send back. Derived from
    *  the state being rebased, so a confirm read off a stale panel is refused. */
   rebase_token?: string;
+  /** The echo for a halt ACKNOWLEDGEMENT — a digest of the halt itself, so an
+   *  ack typed against a screen showing a different darkness is refused rather
+   *  than applied to this one. Served even while `halted` is false (verified on
+   *  the live payload 2026-08-21), so it is NOT permission to acknowledge. */
+  halt_ack_token?: string | null;
+  /** Present once a human has recorded seeing the open halt. It is not a
+   *  resume: it moves no number and re-arms no path. */
+  halt_acknowledgement?: {
+    actor?: string | null; at?: string | null; note?: string | null;
+    halt_at?: string | null;
+  } | null;
+  /** The alarm that closed the fund. Null means the CAUSE is unrecorded, which
+   *  is different from a halt with no cause. */
+  halt_alarm?: {
+    type?: string | null; message?: string | null; severity?: string | null;
+    key?: string | null;
+  } | null;
+  /** How long a loss halt stays shut after acknowledgement. Absent = UNKNOWN
+   *  here, never zero and never "immediate". */
+  autoresume_cooldown_minutes?: number | null;
   drawdown: RiskMonitorDrawdown;
   positions: RiskMonitorPosition[];
   strategies: RiskMonitorStrategy[];
@@ -2049,6 +2102,53 @@ export const fundApiClient = {
   ): Promise<{ status: string; nav_usd: number; reason: string; at: string; actor: string }> =>
     (await fundApi.post(`${P}/risk/loss-reference/rebase`,
       { reason, confirm, approver, instruction })).data,
+
+  /** Record that the CEO has SEEN an open halt. It ACTS ON NOTHING.
+   *
+   *  Deliberately separable from resuming and from rebasing: it moves no number
+   *  and re-arms no path. It is condition (1) of the four the loss-halt
+   *  auto-resume policy evaluates on each monitor tick, and a halt whose other
+   *  three never hold stays shut forever with this sitting harmlessly in the log.
+   *
+   *  `confirm` is `halt_ack_token` from GET /fund/risk/monitor — a digest of the
+   *  halt itself, so an acknowledgement typed against a screen showing a
+   *  DIFFERENT darkness is refused rather than applied to this one.
+   *
+   *  `approver` has NO DEFAULT, on purpose. This is an approval-channel call and
+   *  the identity is the human's to type; a default would make an allowlisted
+   *  approval reachable without anyone claiming it. */
+  acknowledgeHalt: async (
+    approver: string,
+    confirm: string,
+    note?: string,
+    instruction?: string,
+  ): Promise<{ status: string; actor: string; at?: string; note?: string | null }> =>
+    (await fundApi.post(`${P}/risk/halt/acknowledge`,
+      { approver, confirm, note, instruction })).data,
+
+  /** Lower the peak the drawdown rule measures from (CEO-accepted, PM R1).
+   *
+   *  The defect it answers: the drawdown peak is the trailing-365d MAX of NAV,
+   *  and the fund's high includes the phantom-fill era — so one bad mark caps
+   *  risk capacity for a YEAR. This moves the reference once, in the log, with a
+   *  mandatory reason. It moves NO threshold.
+   *
+   *  `nav_usd` is SUPPLIED rather than taken from current NAV: which part of the
+   *  history was real is a judgement only a human can make. The spine enforces
+   *  the direction (a rebase may only LOWER the reference) and floors the
+   *  effective peak at any genuine high since, so this can shorten a phantom's
+   *  shadow and can never hide a real peak.
+   *
+   *  `confirm` is `drawdown.rebase_token`; `approver` has no default, as above. */
+  rebaseDrawdownReference: async (
+    approver: string,
+    confirm: string,
+    navUsd: number,
+    reason: string,
+    instruction?: string,
+  ): Promise<{ status: string; peak_nav?: number; reason?: string; actor?: string }> =>
+    (await fundApi.post(`${P}/risk/drawdown-reference/rebase`,
+      { approver, confirm, nav_usd: navUsd, reason, instruction })).data,
 
   /** The seven-stage operating doctrine, with each stage's status read LIVE.
    *

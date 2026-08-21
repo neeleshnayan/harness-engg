@@ -97,6 +97,36 @@ test("matching is anchored: a note that BEGINS with an actor name is not that ac
   assert.equal(faceFor("claudette"), null);
 });
 
+test("a via-co-cto approval wears the CTO's face — one chair, two occupants", () => {
+  // Guard v1.2 (CEO decision 2026-08-21) seated a co-CTO on Opus to occupy the
+  // chair operationally while Fable's tokens are out. The identity is distinct
+  // ON PURPOSE, so the record shows which chair staged what; the FACE is the
+  // same, because a face answers "whose hand clicked" and both chairs are that
+  // one chair. Before this the approver rendered FACELESS — a real approval
+  // attributed to nobody.
+  assert.equal(faceFor("neelesh-via-co-cto")?.id, "cto");
+  assert.equal(faceFor("neelesh-via-cto")?.id, "cto");
+  // The guard's approver string carries the CEO's quoted instruction after the
+  // identity; the `\b` anchor has to survive that.
+  assert.equal(
+    faceFor('neelesh-via-co-cto ["stage the trim, my words verbatim"]')?.id,
+    "cto");
+  // Still anchored. A longer word that merely starts the same way is not a
+  // chair, and a co-cto without the via- prefix is not a registered actor.
+  assert.equal(faceFor("neelesh-via-co-ctoad"), null);
+  assert.equal(faceFor("co-cto"), null);
+  assert.equal(faceFor("someone-via-co-cto"), null);
+});
+
+test("the co-CTO does NOT get a face of its own — inventing a colleague is the lie", () => {
+  // A distinct co-cto face would need a distinct (head, eyes, mouth, feature)
+  // tuple, which is the uniqueness rule being used to manufacture a person who
+  // does not exist. Deliberately out of scope; asserted so a future dispatch
+  // adds it by DECISION rather than by drift.
+  assert.equal(Object.prototype.hasOwnProperty.call(FACES, "co-cto"), false);
+  assert.equal(faceFor("neelesh-via-co-cto"), faceFor("cto"));
+});
+
 test("actor ids are matched case- and whitespace-insensitively, because the log is free text", () => {
   assert.equal(faceFor("  PM  ")?.id, "pm");
   assert.equal(faceFor("CTO")?.id, "cto");

@@ -453,6 +453,16 @@ export default function MonitorHome() {
             haltReason={m?.halt_reason ?? null}
             lossReference={m?.loss_reference}
             rebaseToken={m?.rebase_token}
+            // Served by the spine since 2026-08-21 and consumed by nothing
+            // until now: the acknowledgement path, the alarm that closed the
+            // fund, the auto-resume cool-down, and the drawdown reference with
+            // its own rebase token. `?? null` rather than `??` a default —
+            // a spine that does not report one of these renders as UNKNOWN.
+            haltAckToken={m?.halt_ack_token ?? null}
+            haltAcknowledgement={m?.halt_acknowledgement ?? null}
+            haltAlarm={m?.halt_alarm ?? null}
+            autoresumeCooldownMinutes={m?.autoresume_cooldown_minutes ?? null}
+            drawdown={m?.drawdown ?? null}
             onChanged={bump}
           />
         </div>
