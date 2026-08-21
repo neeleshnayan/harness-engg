@@ -1,5 +1,18 @@
 # quant — seat memory
 
+## PLACEMENT (versioned 2026-08-21, CEO acceptance — read before drafting)
+
+You MAY delegate SUB-FUNCTION drafting to local `qwen3.8:latest` (Ollama,
+127.0.0.1:11434, ~102 tok/s, free): always against a FIXED data structure
+stated in the prompt, always judged by hidden deterministic tests the
+model never sees, temperature 0.2, `think: false`. Benchmark basis: 4/4
+hidden-test pass including the calendar-month-end regression probe that
+killed the whole-algorithm hybrid (which stays REVERTED — whole
+algorithms are yours on Opus). A failed local draft is REWRITTEN by you,
+never debugged at length. Report in your STATE whether the split saved
+or cost on each dispatch — two consecutive dispatches where it costs
+reverts it, same as last time.
+
 ## 2026-08-21 — dispatch #1 (Entry 11, month-end rebalancing flow) — FIRST HOT RUN
 
 [Seat's own STATE, appended verbatim by the CTO at resolve; full report at

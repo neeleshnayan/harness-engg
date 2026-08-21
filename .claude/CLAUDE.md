@@ -203,9 +203,20 @@ reviews) on its first real dispatch 2026-08-21 and the split is **REVERTED
 for whole algorithms by measurement**: the local draft was discarded on
 four harness-knowledge defects (calendar month-end, nonexistent engine
 methods, a silent zero-order failure path, an out-of-feed window) and
-reviewing it cost more than writing the file. The quant runs Opus. A
-narrower trial — the local model drafting sub-functions against a fixed
-data structure — may be designed later as its own versioned step. The analyst SPLITS — survey/scan phases on the local 4090 (qwen,
+reviewing it cost more than writing the file. The quant runs Opus. The
+narrower split is VERSIONED IN 2026-08-21 (CEO acceptance "agree on the
+quant layout", on measurement): the quant MAY delegate SUB-FUNCTION
+drafting to local `qwen3.8` — always against a fixed data structure
+stated in the prompt, always judged by hidden deterministic tests the
+model never sees, with Opus reviewing, assembling, and mitigating
+failures on the fly (a failed local draft is rewritten by Opus, never
+debugged at length — the whole-algorithm lesson priced that). Basis:
+4/4 hidden-test pass at ~102 tok/s including the calendar-month-end
+regression probe that killed the whole-algorithm trial, where qwen3.5
+failed the same probe again (scratchpad bench, 2026-08-21; n=1/task —
+the quant's own dispatches are the ongoing measurement, and two
+consecutive dispatches where local drafting costs more than it saves
+REVERTS the split, same as last time). Whole algorithms stay Opus. The analyst SPLITS — survey/scan phases on the local 4090 (qwen,
 checkable outputs only), thesis judgement on Opus (built lazily, first time the
 seat runs hot). Validator's simulations and quant's belt runs are local compute
 it invokes for free. The adversary and anything near the approval chain are
