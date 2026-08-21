@@ -190,11 +190,26 @@ more than one). AMENDED 2026-08-20 (CEO instruction), two standing rules:
 **(1) Batch-by-seat is the default, not a habit** — before any dispatch, the
 CTO drains everything queued for that seat into ONE brief; request-by-request
 dispatching needs a reason (e.g. blind review isolation). **(2) The COO triage
-trigger is registered at >20 open items on the CEO's desk** (open
+trigger is registered at ≥50 open items on the CEO's desk** (open
 recommendations + pending orders + requests awaiting approval): crossing it
 DEMANDS a coo dispatch, which the CTO fires when a session is live — the
 trigger is standing CEO authorization, not a schedule; when no session is
-live, nothing thinks, as always. **(3) The CIO trigger is registered
+live, nothing thinks, as always. **AMENDED 2026-08-21 from >20 to ≥50 by CEO
+instruction, verbatim: "Lets run coo on >=50 items or we can trigger as
+needed."** The threshold moves in the LOOSENING direction, so the reason is
+recorded loudly rather than quietly: triage #3 measured that **11 of 20 open
+recommendations were already executed** and needed only a closing sweep —
+the counter was summoning the seat on stale bookkeeping, not on decisions.
+Manual dispatch at any count remains available and is the CEO's stated
+preference ("or we can trigger as needed"). **OBJECTION ON THE RECORD (COO,
+triage #3, interest disclosed by the seat itself): Vishesh recommended
+KEEPING 20**, arguing "the number is not the defect, the blind spot is" —
+the counter cannot see items at status `accepted` whose execution requires
+the CEO personally (three live today, including PM R1, the largest-money
+decision in the firm). That objection is preserved unresolved: raising the
+threshold does NOT address the blind spot, and the counter fix remains open
+work. A seat's objection is input, never a veto — and it is recorded here so
+reversing this amendment costs one word. **(3) The CIO trigger is registered
 2026-08-21 (CEO agreement): the CEO is the CIO today — fund identity and
 risk appetite are the CEO's row in the table, and at two sleeves the
 direction-setting load is small. When candidates clearing the gate exceed

@@ -237,3 +237,109 @@ briefs explicitly.
 collided with the incoming diff, which is why the merge was safe.
 
 [Fable @ resolve]:
+
+---
+
+## 2026-08-21 ~19:40Z — TIER-2 TAKEN — COO triage #3 fired, filed; TWO DISSENTS AGAINST ME ACCEPTED
+
+**What**: `desk_load` crossed to 23/20 with `coo_triage_due: True` (my own
+D7 run record supplied the last four items), which constitutionally
+DEMANDS a coo dispatch under standing CEO authorization. Fired it,
+verified three of its claims, filed the memo verbatim to
+`docs/coo/TRIAGE3_2026-08-21.md`, recorded `run-coo-3`, appended its
+STATE.
+
+**Vishesh objected to two of MY decisions and I accepted both**:
+1. **The refuted EDGAR line should have been QUARANTINED, not merely
+   parked.** He is right: leaving a proved-false instruction live in a
+   document every seat reads is not the same trade-off as declining to
+   edit another chair's file. Quarantine ≠ overruling. I have put a
+   one-line **REFUTED banner** on the API card entry (the false text is
+   struck, the correct rule is stated above it, and the full correction
+   stays parked for you). His own pending-verdict #5 — "was the card's
+   EDGAR line quarantined, or did a seat act on the false instruction
+   first?" — is answered in the same hour it was written: quarantined,
+   nobody acted on it.
+2. **Gating PM R1 on the riskofficer audit was one step tighter than the
+   code supports.** He read `fund.py:3619` and showed the direction check
+   sources `unrebased_peak_nav`, which never moves — which is precisely
+   why the confirmed defect bites the SECOND rebase and cannot bite the
+   first, and the fund has never had a first. **Fable: I am not editing
+   your handoff entry, but I am correcting its operative line here** — the
+   gate is "audit before rebase #2", not "audit before the CEO's choice".
+   R1 goes to the CEO as its own decision. Measured cost of the extra
+   step, in his numbers: $874.45 idle above the 5% cash floor and 58.4%
+   halt odds carried another day.
+
+**Two findings of his that outlive this triage**:
+- **The counter has a structural blind spot.** An item at status
+  `accepted` whose execution requires the CEO *personally* is invisible to
+  `desk_load` — the status says the human acted, the record shows the
+  decision was never taken. Three live today: **PM R1** (the
+  largest-money decision in the firm), `GET /fund/autopolicy` (still
+  404 — the seat scoring its own triage-#2 batch as undischarged), and
+  the controls-or-decoration register answer (concentration limit still
+  reads 0.50). He has adopted an accepted-item second pass as standing
+  method; making the *counter* see it is open work.
+- **On 2026-09-08 the TLT and DBC time exits will auto-close $501.34
+  with no click** — he checked all nine envelope conditions. The
+  re-establishment needs the CEO and nothing schedules him. He
+  recommends a PM dispatch on 2026-09-05.
+
+**Evidence**: `run-coo-3`; `docs/coo/TRIAGE3_2026-08-21.md`;
+`.claude/state/coo.md`; my verifications — `fund.py:3619`,
+`GET /fund/autopolicy` → 404 live, count audit 20+0+3=23.
+
+[Fable @ resolve]:
+
+---
+
+## 2026-08-21 ~19:45Z — CEO-DICTATED AMENDMENT APPLIED — COO trigger >20 → ≥50, over the COO's recorded objection
+
+**What**: The CEO instructed, verbatim: *"Lets run coo on >=50 items or we
+can trigger as needed."* Applied to `.claude/CLAUDE.md` dispatch rule (2)
+as a dated amendment. Manual dispatch at any count remains available and
+is the CEO's stated preference.
+
+**Why I treated this as within the chair rather than parking it**: the
+charter's Tier-3 carve-out is "constitution changes **beyond dated
+amendments the CEO dictates verbatim**". This is a dispatch-cadence rule
+in constitution prose — it touches no risk limit, no register entry, no
+code, and moves no money. **Fable: if you read that boundary differently,
+this is the entry to reverse and I will take the correction.**
+
+**The anti-quiet-loosening rule is satisfied loudly, not quietly.** It is
+a loosening, so the amendment carries: the CEO's verbatim instruction; the
+measured reason (triage #3 found **11 of 20 open recommendations already
+executed** — the counter was summoning the seat on stale bookkeeping); and
+**the COO's objection preserved verbatim in the constitution beside it**.
+Vishesh recommended KEEPING 20, with his interest disclosed, arguing "the
+number is not the defect, the blind spot is."
+
+**Honest note on the merits**: his objection is not resolved by this
+change and I have said so in the amendment text. Raising the threshold
+does nothing about accepted-but-undischarged items, and today's evidence
+cuts both ways — the counter over-fired on bookkeeping (supports the CEO)
+while the single largest decision sat invisible (supports the COO). The
+real fix is a counter that measures what actually awaits the CEO. That is
+open work and belongs in a builder brief.
+
+[Fable @ resolve]:
+
+---
+
+## 2026-08-21 ~19:50Z — TIER-1 — Donna dispatched for today's EoD; CEO desk-surface request filed
+
+**What**: (1) Fired Donna for the 2026-08-21 Daily — standing CEO
+authorization, and her first fully self-service run under the
+constitution's third write exception (she files her own archive and
+renders her own PDF; I verify and commit). (2) Filed desk request
+**920ecbe5** to the builder on the CEO's verbatim instruction: *"For
+Donna http://localhost:3000/clark/studio/desk/ceo lets have her high
+level memo for today from her yesterdays EoD and when it arrives
+autoupdate it"* — the Donna queue must surface her latest filed Daily's
+high-level memo with its date visible, auto-updating when a newer one
+lands; the long record stays on her seat page. Batched for D8 with the
+untouched Part G addendum.
+
+[Fable @ resolve]:

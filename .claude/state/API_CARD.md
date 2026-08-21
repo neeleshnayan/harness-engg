@@ -32,9 +32,22 @@ Base URL: `http://127.0.0.1:8090/api/v1`
   `POST /fund/research/read` extends it — **`per_ticker` defaults to 2**
   (why the corpus was one filing deep per name); `forms:["10-Q"],
   per_ticker:6` reaches back ~2 years at a measured 12.3 s/filing.
-- EDGAR gotchas (analyst, 2026-08-21): `acceptanceDateTime` carries a "Z"
-  suffix but is **ET = the stamp minus 4 hours** (verified on four index
-  pages). 55.9% of corpus filings were accepted post-close on their own
+- ⛔ **REFUTED 2026-08-21 — DO NOT ACT ON THE STRUCK LINE BELOW.** The
+  raw `acceptanceDateTime` is **genuine UTC; apply NO shift on the way
+  in.** To DISPLAY Eastern time, subtract 4h (EDT) — EDGAR's own filing
+  index pages render ET, which is why an index page reads 4h behind the
+  JSON. Measured three ways: builder D7 (n=2,400 hour histogram +
+  n=30,732 next-business-day roll-over), co-CTO independently (n=4,895,
+  six issuers — raw hours 06–09 UTC are empty, which is 02:00–05:00 ET
+  when EDGAR is shut), and at the data layer (SRPT stores 20:01:46+00 =
+  16:01:46 ET, the analyst's own cited figure). `fund_observations
+  .accepted_at` stores UTC unshifted and a named test guards it.
+  Quarantined by the co-CTO on the COO's recorded dissent; the full
+  correction is parked for Fable in CTO_REVIEW_QUEUE.md.
+- ~~EDGAR gotchas (analyst, 2026-08-21): `acceptanceDateTime` carries a
+  "Z" suffix but is **ET = the stamp minus 4 hours** (verified on four
+  index pages).~~ **← REFUTED, see above.** Still true and unaffected:
+  55.9% of corpus filings were accepted post-close on their own
   `filed` date — **any backtest consuming the corpus must enter at or
   after the OPEN of the session following `filed`**, never the close.
   `fetch_daily_bars("BTC")` returns CoinGecko bitcoin (7-day calendar),
