@@ -1357,3 +1357,78 @@ question: **`riskmonitor.py:878` computes P&L with no reference to the sign of
 the position**, and `positions.py:87` leaves a short holding its long cost
 basis — so on a short, a losing move reads as a gain and the stop never fires.
 **R19 does not fix this and no short may deploy before it is closed.**
+
+
+---
+
+## 2026-08-21 (UTC) — **FABLE: READ THIS ENTRY FIRST. A DATED TIER-3 ITEM THE CO-CTO CANNOT EXECUTE.**
+
+**The CEO has APPROVED adopting auto-approval envelope v4. I cannot perform
+it. autopolicy.py is explicitly reserved to the CTO chair by my charter, and
+I am not crossing that line on my own judgement.**
+
+**The deadline is 2026-09-08 — seventeen days.** If you do not return before
+then, **v4 does not exist on that date and the exits fire under v3.**
+
+### What happens on that date if nothing changes
+
+The TLT and DBC time exits fire (`ExitRuleSet` seq 178 and 181, `kind: time`,
+`on_date: 2026-09-08`). The riskofficer rebuilt the real evaluation context
+and ran `autopolicy.evaluate()` against it: **all four live exits pass v3
+twelve checks out of twelve, zero failures.** They auto-approve and sell
+shares the broker holds **zero** of.
+
+- **$652.09 date-certain on 2026-09-08** (TLT + DBC).
+- **$750.36 armed today** across all four legs — 39.79% of NAV.
+- Shorting is enabled on the account. Borrow cost, buy-in risk and unbounded
+  loss are all unmodelled here.
+
+**The envelope is not malfunctioning.** Every check v3 makes is factually
+true. It checks our own book and never asks the broker what it holds.
+
+### Why it now reaches a real venue, and that part is mine
+
+I flipped `USE_FAKE_FIRESTORE` 1→0 to fix a genuine durability defect — 552
+events were living in an in-memory Firestore while the status endpoint
+reported success hourly. That fix was right. **I did not grep what else read
+the flag.** `_mock_mode()` (`fund.py:128-129`) reads it and gates the
+connector ternary (`fund.py:151-163`), so the flip moved order execution from
+a paper connector to a real Alpaca account. `fund.py:132-140` carries a
+docstring saying `_real_broker()` exists to prevent exactly this conflation.
+Filed as `b72847bc`; my responsibility is on the record there.
+
+### What is ready for you
+
+- **Full specification**: `docs/R19_ENVELOPE_V4_SPEC_2026-08-21.md`. Predicate,
+  placement, three absence modes with distinct detail strings, wiring, twenty
+  test cases including the keystone that pins sign-agnosticism and the
+  no-widening property in one case.
+- **It must ship WITH the skip-visibility fix**, by the seat's own
+  requirement and the CEO's acceptance of both together. A v4 decline
+  currently produces no event, no log line and no alarm; the proposal then
+  expires at 120 minutes and **never re-raises** — `pipeline.py:400-403` and
+  `fund.py:3768` both claim it does and both are false. **v4 alone converts a
+  silent short into a silently dropped exit.**
+- **The seat's challenge is CEO-accepted**: v3's adoption premise ("blast
+  radius today is $0… the sleeve owns its positions", `autopolicy.py:84-87`)
+  is measured false in both halves. Correct it with a **new dated note at the
+  v4 bump**, never by editing `:84-87`.
+
+### If you are not going to be back in time
+
+**Then the CEO needs to know that from you, or he needs to authorise this
+chair to cross the tier for this one item.** There is precedent — he
+authorised a Tier-3 threshold crossing earlier in this session, recorded
+above — but I am not treating that as standing authority for autopolicy, and
+I have told him so directly rather than letting the date arrive quietly.
+
+**What I have NOT done, deliberately: I have not partially implemented v4,
+staged a diff for you to merge, or written anything into autopolicy.py.** A
+half-built envelope reviewed under deadline pressure is how the guard-widening
+in D8 nearly shipped.
+
+### Everything else from that dispatch IS executed and is mine
+
+Sign-inverted exit trigger → `34338ef6`. Broker-drift alarm + the two false
+docstrings → `d7f38be2`. Venue/ledger decoupling → `b72847bc`. Test gap →
+recorded as a precondition of the v4 merge, not a follow-up.
