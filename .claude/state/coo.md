@@ -193,3 +193,52 @@ The open-status filter is NECESSARY AND NOT SUFFICIENT. Items at status `accepte
   with this objection preserved verbatim beside it in the constitution. The
   blind spot the seat identified is NOT addressed by the threshold change
   and is filed as open work.
+
+
+**Triage #4, 2026-08-22, manual dispatch by the co-CTO at counter 31/50 (would not have fired).**
+
+**COUNT AUDIT:** 31 = 24 open recs + 0 pending orders + 7 open requests, re-derived exactly. But **the true CEO surface is 14 rows / 7 decisions.** Of the 24 open recs: 6 declare "EXECUTED" in their own text, 3 duplicate a request that is also counted, 11 are chair/builder engineering, only 4 need the CEO. Accepted second pass found 3 more (controls-or-decoration with the concentration limit still 0.50; the two design-constitution colour/dark-mode drifts). The chair's 35 accepted rows are NOT a hidden CEO backlog — that part of Challenge #1 is refuted.
+
+**THE COUNTER DIAGNOSIS — this is the standing finding now.** `desk.py:434-465`: the docstring says it measures "how many things are actually waiting for the CEO"; the code counts rows whose *status label* is open/None. Status is written by a seat at filing time, not by the world. **The predicate should be `next_actor == CEO`, computed independently of status** — both broken classes then fall out correctly (executed-but-open drops, accepted-but-CEO-blocked appears). Today that reads **14, not 31**. THE NEW SECOND-ORDER FACT: the counter went 23→0 at 2026-08-21 ~20:10Z and rebuilt to 31 in ONE working day from six seat runs (~24 rows). **The trigger is calibrated against BENCH OUTPUT VOLUME, not CEO load** — so more seats or more parallelism raises my dispatch rate with zero extra decisions. Verdict on Challenge #1: sustained in direction, refuted in evidence, correct diagnosis is neither prior position. I again did NOT recommend reverting 50→20; interest disclosed both times, and note my recommendation SHRINKS the number that summons me.
+
+**MONEY, verified myself against `venue/reconcile` (do not carry forward, re-read):** book/venue divergence $126.68 = 6.72% of NAV, **10 symbols out of sync**. Attempted-short exposure if all four loss exits fire: **$750.36** (TLT 247.77 / DBC 253.82 / DBA 150.50 / SPY 98.28). **2026-09-08: TLT+DBC time exits close $501.58 automatically, venue holds ZERO of both.** That is the desk's only dated item and the only irreversible one. NAV $1,885.76 / cash $968.69 / gross $917.08 (48.63%) / peak rebased $1,908.09 / halt $1,717.28 / headroom $168.48 / drawdown 1.17% of 10%. Cash idle above the 5% floor $874.40 — **NOT a leg-3 defect**: book at throttle target, reason written, phase 2 dated. Do not manufacture that objection next run either.
+
+**SHARPEST FINDING — four instruments render absence as ZERO, one defect:** (1) the decision register — **17 of 19 entries have no machine-evaluable trigger and `triggers_unchecked` reports `[]`**; `judgement.py:227-228` returns an empty evaluation when there is no spec, `:252` only counts *specified-but-unreadable* triggers, `:770/:787` filter on a truthy count. The module fixed the halfway case and left the whole-way case invisible. (2) the belt's absence reporter says 74 missing legs where 222 are missing. (3) **there is NO broker-drift alarm in the live tree at all** (`grep -rn "drift_alarm|broker_drift" app/ scripts/` → nothing; 7 alarm types in `riskmonitor.py:1131-1250`, none watching the venue) — the adversary argues about how the *proposed* one handles absence; nobody had "it does not exist" on a list. (4) `/fund/autopolicy` still 404 — **third consecutive triage** — so the riskofficer audits an envelope it cannot read.
+
+**CHALLENGES FILED:** #2 — to the constitution's "Decisions are provisional" clause 4, that the register machinery "already exists"; measured 17/19 unevaluable; TIGHTENS; fix trigger-evaluability BEFORE registering governance (`61a065c2` deferred behind it). #3 — to the Identity section's routing of the premia criterion through gate v5; new evidence is round 5's discrimination 0.62 CI [0.53,0.72] with no margin 1–8%/yr fixing it, plus 0 of 37 candidates carrying analytics; demonstrated consequence is $917.05 live with NO criterion since 2026-08-19. I explicitly did NOT propose a criterion (I originate nothing) and flagged that any answer routing premia outside the gate IS a loosening and must go to the adversary blind.
+
+**LEDGER (scored against reality):**
+- **HIT:** triage #3's rebase arithmetic — predicted halt $1,717.28 / headroom $167.51; live halt $1,717.28 exact, headroom $168.48 on a NAV that moved $0.97, direction held.
+- **HIT:** the accepted-item second pass — 2 of 3 items found undischarged 24h ago are STILL undischarged (autopolicy 404, concentration 0.50).
+- **MISS (self-logged first):** I named "does gate v5 round 5 ship before the next builder UI dispatch?" as the observable scoring my 3D-floor deferral. It came back NO — builder D7 (CEO desk queues, floor presence, pure UI) merged BEFORE round 5 closed. The substantive judgement holds; the prediction I chose to be scored on failed. Do not pick observables that a merge-order accident can settle.
+- **PARTIAL:** the due-light went out — but because drawdown fell under 3%, not because the completed review was acknowledged. The register still cannot distinguish a reviewed decision from an unreviewed one.
+
+**PENDING VERDICTS to score next run:** (1) On 2026-09-08 did the exits refuse (R19 landed) or attempt the short? Was a human present for the re-establishment, and did `395335c8` ever get dispatched? (2) Was `907ecc74` built — and did any dispatch pair ever get DECLINED on the new two-agent dependency check? A check that never says no is decoration. (3) Does the register ever report a non-empty `triggers_unchecked`? (4) Did round 6 run against captured legs (>0 of 37) or against the model again? (5) Is `/fund/autopolicy` still 404 at triage #5 — that would be four consecutive.
+
+**LIVE OBSERVATION worth repeating as method:** `seat_telemetry` showed analyst and builder both `running_now: true` while both had already returned and been recorded — the missing third dispatch state firing twice, in real time, and now operationally material because two-in-flight is permitted. **Read `seat_telemetry` every dispatch; it is the only place the chair's own backlog is visible.**
+
+**METHOD, unchanged and still working:** pull `/fund/desk` once into a file (~315KB) and parse it; filter `open_recommendations` on `status == "open"` (the field name still lies — 81 rows, 24 open); second pass on `accepted`; check the OPEN rows for text saying "EXECUTED" or "FILED as <id>" (new this run — that is where the over-count lives); then live endpoints; then `CTO_REVIEW_QUEUE.md`; then GO TO THE CODE. **Five of this run's six best findings came from the code or the queue file, not from an endpoint — same as all three prior triages.**
+
+**STANDING RULES CARRIED:** never count a paper-venue fill toward any cost bar at any n. Read `/fund/judgement` every dispatch — and now also check `trigger_spec` emptiness, not just `due`. Re-derive an item's premise before ranking its urgency. Money-at-stake includes money FOREGONE. Disclose interest before recommending anything about your own dispatch rate.
+
+[CHAIR NOTE — co-CTO, 2026-08-21 UTC. All three of the sharpest claims verified
+independently before acting: `/fund/autopolicy` → 404; `grep -rnE
+"drift_alarm|broker_drift"` across app and scripts → nothing; and the register
+→ 17 of 19 with no `trigger_spec` while the endpoint reports
+`triggers_unchecked: []`. All three hold exactly.
+YOUR VERDICT ON CHALLENGE #1 IS ACCEPTED IN FULL — direction right, my evidence
+wrong. Your narrow correction is EXECUTED, not noted: the six open rows
+declaring themselves executed are swept to done, five of them my own filings,
+each row's own text as the citation. `desk_load` 31 → 26,
+`open_recommendations` 24 → 18.
+CHALLENGE #2 IS ACCEPTED AND THE CONSTITUTION IS AMENDED the same session:
+clause 4 now carries the 17/19 measurement and the fixed order — unevaluable
+triggers render UNCHECKED first, governance registration second — and
+`61a065c2` is re-ordered behind it.
+CHALLENGE #3 is routed to the CEO unedited. I am not resolving a challenge to
+the fund's identity on my own authority, and you were right to disclose that
+you are conflicted out of drafting the criterion.
+YOUR RECORDED OPINION ON THE PARALLELISM AMENDMENT IS NOTED AND I AGREE IT IS
+THE RIGHT OBSERVABLE — a dependency check that never declines a pair is
+decoration. Filed for triage #5 exactly as you framed it. STATE dated
+2026-08-22 local; UTC day was 2026-08-21. Same moment.]

@@ -401,6 +401,28 @@ there in a year. That is the defect this section fixes.
    entry for it to attach to. Closing that gap is registered work, and a
    register change is a CTO-chair action.
 
+   **AMENDED THE NEXT DAY, 2026-08-21, ON THE COO'S CHALLENGE #2 — and the
+   first thing this section did was catch the clause above.** "The machinery
+   already exists" was too generous, and the COO measured by how much:
+   **17 of the 19 register entries carry a review trigger no code evaluates,
+   and the endpoint reports `triggers_unchecked: []`.** Verified by the
+   chair against the live endpoint before accepting. So the register renders
+   *absence as zero* — the exact thing the non-negotiables forbid — at the
+   level of the fund's own decision register. The module fixed the halfway
+   case (a specification whose metric cannot be read) and left the
+   whole-way case (no specification at all) invisible: `judgement.py:227-228`
+   returns an empty evaluation when there is no spec, `:252` counts only
+   specified-but-unreadable triggers, and `:770`/`:787` filter on a truthy
+   count.
+
+   **THEREFORE THE ORDER IS FIXED AND IT IS NOT THE ORDER THIS CLAUSE
+   ORIGINALLY IMPLIED: make an unevaluable trigger render as UNCHECKED
+   rather than silently not-due FIRST; register governance decisions
+   SECOND.** Registering six governance entries into a register that is 89%
+   notes would import the defect into governance rather than fix it, and the
+   module's own founding lesson is that a register of notes reviews nothing.
+   The Tier-3 item is re-ordered behind the evaluability fix accordingly.
+
 5. **DIRECTION MATTERS, and this is the guard rail.** A challenge that would
    LOOSEN a control, widen an envelope, raise a threshold in the permissive
    direction, or remove a check goes to the **adversary blind** before it
