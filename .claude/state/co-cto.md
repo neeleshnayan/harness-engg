@@ -336,3 +336,43 @@ while it runs. A seat dispatched through the Agent tool without a paired
 `DeskDispatched` event is invisible to the floor; a seat whose dispatch
 task_id was never closed stays lit forever. **Until the third-state work
 lands, read `seat_telemetry` at every resolve and reconcile it by hand.**
+
+
+## **NEVER FILE A DESK REQUEST IN `open` FOR WORK THE CEO HAS ALREADY ACCEPTED**
+
+**2026-08-21. The CEO, looking at a row: "this says awaiting you when its
+already accepted." He was right, it was FOUR rows out of four, and every one
+was mine.**
+
+**The mechanism of the error.** A seat's recommendation gets accepted by the
+CEO. I then file a desk request so the work is dispatchable and visible — and
+the request lands at status `open`, which the desk counts under
+`requests_awaiting_approval`. **So his own acceptance comes back to him as a
+fresh question.** The note on the row even said "CEO-accepted via
+run-riskofficer-3/3" — the row was carrying the proof it did not need him,
+while sitting in the queue that asks him.
+
+**THE RULE: if the CEO has already decided the underlying recommendation,
+approve the request AT FILING TIME with the citation, or do not create a
+request at all.** Approving a build request only authorises a dispatch, which
+is Tier 1 and already mine — so this is bookkeeping, not authority. Filing it
+`open` is not caution; it is handing his own decision back to him.
+
+**The deeper shape, and it is the same defect the builder named:** a request
+and the recommendation it implements are ONE decision living in two places,
+and nothing links them. The builder called for a `covered_by` relation for
+exactly this reason. Until that exists, **the link is my discipline** — and
+discipline that has already failed once should be written down, which is why
+this is here.
+
+**Why this kept happening**: filing a request feels like *doing the work*, and
+approving my own filing feels like *skipping a control*. It is the reverse. The
+control is the CEO's decision on the recommendation, and that already happened;
+the request is the work order. **Confusing the work order for the decision is
+what put four already-answered questions back on his desk.**
+
+**Check at every resolve** (now folded into the six-step checklist): after
+filing any request, read `desk_load.components.requests_awaiting_approval` and
+ask whether every row in it is genuinely a question the CEO has not yet
+answered. Today that count went **4 → 0** and not one of the four was a real
+question.

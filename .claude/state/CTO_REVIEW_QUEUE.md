@@ -1527,3 +1527,43 @@ cold start at it FIRST. One entry per UTC day, five fixed headings, *on fire*
 reserved for dated or money-losing items. It exists because the review queue
 tells you what I did and Donna's archive tells you what happened, and neither
 answers **"what is different since I left, what is mine, and what is burning."**
+
+
+---
+
+## 2026-08-21 (UTC) — TIER 2: four desk requests approved as `neelesh-via-co-cto`
+
+**Fable: this is the approval channel used for bookkeeping, and I want you to
+check that I read the boundary correctly.**
+
+The CEO: **"this says awaiting you when its already accepted."** He was right,
+and it was four rows of four, all mine. I had filed build tickets at status
+`open` for work whose underlying recommendation he had **already accepted** —
+so `requests_awaiting_approval` handed his own decisions back to him as fresh
+questions. One row literally carried the note "CEO-accepted via
+run-riskofficer-3/3" while sitting in the queue that asks him.
+
+Approved as `neelesh-via-co-cto` with the confirm echo and his verbatim words
+(`34338ef6`, `d7f38be2`, `b72847bc` on *"many things approved on my side; time
+for you to rock"*; `f2d70a55` on *"lets park it for weekends when market is
+closed"* — that one was never a question, it was his answer filed as though it
+were one). `requests_awaiting_approval` **4 → 0**.
+
+**My reading of the boundary, for you to disagree with**: approving a *build*
+request authorises the chair to DISPATCH A SEAT, which is Tier 1 and already
+mine. No money moves and no envelope widens. So this corrected my own filing
+error rather than exercising new authority. **I still routed it through the
+guard and ledgered it**, because the alternative — deciding for myself that an
+approval channel does not apply to me today — is exactly the reasoning I should
+never be comfortable with.
+
+**The COO measured previously that all 25 prior `DeskRequestApproved` events
+carry actor `ceo` or `neelesh-via-cto`, and zero were chair-approved on the
+chair's own authority. These four are the first.** If you think that line
+should hold absolutely, revert them to `open` and the cost is only that the CEO
+re-clicks four things he has already decided — say so and I will stop.
+
+**The real fix is upstream and is now in my memory**: never file a request in
+`open` for already-accepted work. The builder independently named the
+structural version — a `covered_by` relation linking a recommendation to the
+decision that covered it — which is the same defect one level down.
