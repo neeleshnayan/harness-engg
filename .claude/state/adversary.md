@@ -84,3 +84,75 @@
   your grounds in its header; the history-floor extension stays blocked. Your
   spine-down note: the spine runs on 8090, not 8000 — recorded for your next
   dispatch. Your run_record envelope posted verbatim as run-adversary-v5r3.
+
+## 2026-08-21 — gate v5 ROUND 4: KILL (fourth gate-v5 kill in the chain)
+- NEW attack, now top of the list, generalises far beyond this doc: WHEN A RULE
+  LEVERS, ASK WHO PAYS THE FINANCING. r4's premia leg levers the strategy to the
+  benchmark's vol and compares CRRA growth (gate_v5_audit_r4.py:175-176), levering
+  TOTAL returns with no rf term; GISW's actual MPPM divides by (1+rf)
+  (breakingdownfinance.com/.../manipulation-proof-performance-measure/, RFS 20(5)
+  1503). Deterministic gift = (k-1)*rf. On the fund's OWN bars (SPY+BIL, 2512
+  sessions), 40% SPY / 60% BIL clears both full-sample legs by +3.36/+3.67 %/yr
+  vs a 2.0%/yr margin; 20/80 vs the belt's own equal-weight-universe bar clears by
+  +3.35/+3.33. Synthetic: w*bench+(1-w)*cash, excess Sharpe IDENTICAL to bench,
+  passes 98.9% at rf=2%/lever 3.33 and 0.0% at rf=0 - the switch matches (k-1)*rf
+  exactly. BIL carry: 2.24%/yr over 10y, 4.07%/yr over the last 504 sessions, so
+  lever 1.67 (any candidate at <=60% of bench vol) already beats the margin.
+- Second kill, and the reusable form of it: A GUARD ON DOMINANCE IS NOT A GUARD ON
+  PRESENCE. VR<=2.0 (leg 0) kills the pure AR(1) rho=.98 null (VR 18.5) but the SAME
+  wander diluted to 10% of idio variance and carried on beta 1 sits at VR 1.39,
+  keeps sd(drift) 13.5%/yr, and passes premia_r4 23.6% - 6.5x the claimed 3.6% null
+  FPR, break-even prior 35.9% vs the 8.0% headline. Always dilute an adversarial
+  null and re-check the guard; masking is cheaper than evading.
+- Third: THE HEADLINE WAS MEASURED IN A GEOMETRY THE BELT CANNOT REACH, and s8's
+  own correction under-scoped itself ("the statistic work is untouched" - false:
+  s1's margin table and s2's depth table run through _folds(2520)=27 and leg 1 needs
+  ceil(0.6*27)=17). Shipped window_for caps hold-21 at 5 folds forever and only ever
+  runs ~672 trading days. Measured: reachable state = FPR 13.7% / TP 24.5% /
+  break-even 35.8% (today 7.5/13.7/35.3) vs doc's 3.6/42.1/8.0 - WORSE than the
+  15.8% that killed r3, by the doc's own adopted test. Corollaries: max(4,ceil(
+  share*5))=4 for share .50/.60/.75 alike, so s3's share sweep is a control that
+  cannot fire on the belt (r3 ground-2 pattern, new costume); and s3's 27 folds need
+  BOTH a reach-back change AND lifting max_folds=max(min_folds,6) (walkforward.py:228).
+- Fourth: NO DATA PATH. Live spine candidate walkforward = {folds_measurable,
+  folds_retained, median_retention, not_testable, retained_share}, folds:0;
+  _run_holdout (leanrunner.py:874-885) keeps only window/return_pct/sharpe/psr/orders;
+  equity is stride-downsampled to 400 pts (leanrunner.py:1202, :1349-1362) while the
+  benchmark curve is written back at FULL daily length (:1138) - 400 vs 2512 points,
+  lever ratio off by ~sqrt(6.3). No full-history run exists, and per-fold reselection
+  means "the full-history stream" isn't a defined object. Rule 4 (find the caller)
+  works on STATISTICS too: find the field that feeds it.
+- Mislabel, not a kill: rho=0 (levered arithmetic mean, ZERO risk penalty) drops the
+  b0 seller from r3's 93.2% to 3.6%. The FOUR-LEG STRUCTURE is the fix, not the MPPM;
+  rho moves b1 ~5pp and sv_1000_30 not at all. s1's ground-1 attribution is wrong and
+  rho=5 is near-decorative. Script default is MPPM_RHO=3.0 (:78) so the bare command
+  in s7 doesn't reproduce the design.
+- Also disclosed nowhere: the whole calibration is conditional on --market-sharpe 1.0.
+  Fund's own feed 10y: SPY Sharpe 0.88 / vol 18.0% / VR21 0.73, IWM 0.55, TLT -0.09.
+  At matched vol the rule is ~"beat bench Sharpe by margin/vol": a 1.5x-fair seller
+  (Sharpe 0.59) passes 4.8% while a FAIR-PRICED beta-1 seller passes 12.2% - ordering
+  driven by beta inheritance, not compensation.
+- HONEST NEGATIVES worth carrying: (1) reproduction EXACT again - 4 depth cells within
+  MC error at 300 draws. (2) The class maximum SURVIVED seven attempts (step .3->3,
+  step 2->.3, two sinusoidal betas, two idio-vol switches, K up to 24): nothing beat
+  7.1%. Do not re-spend a round there. (3) The 20.8% dropout is precisely the
+  EXOGENOUS 11 of 53 (4 no-orders + 7 timeouts), correctly excluding the 3 endogenous
+  floor causes. (4) "Correct verdict" labels are right this round (checked all 14).
+  (5) Blindness arithmetic exact.
+- Spine is on 8090 (confirmed); useful endpoints: /api/v1/fund/desk/runs,
+  /api/v1/fund/factory/candidates[/{id}], /openapi.json to enumerate.
+- Kills on record: gate v5 r1, r2, r3, r4, VRP/XYLD, SRPT.
+- If gate v5 round 5 arrives: FIRST check whether the statistic consumes excess or
+  total returns and whether any leverage carries a financing cost; SECOND dilute every
+  adversarial null in the battery and re-run the guards; THIRD run the whole battery
+  through the SHIPPED window_for geometry before reading any headline; FOURTH name the
+  field that feeds each leg.
+
+- [CTO note at resolve, 2026-08-21]: three decisive claims verified line-exact
+  (no-rf _mppm + raw lever; max_folds cap; 400-pt downsample beside full-length
+  benchmark) before filing. Verdict filed verbatim at
+  docs/reviews/ADVERSARY_GATE_V5_R4_2026-08-21.md; recorded as run-adversary-v5r4.
+  Gate package + backfill stay BLOCKED; round 5 owes the CEO one written decision
+  (excess vs total returns) and the harness a data path before any statistic is
+  chosen. The cash-mix null and masked-null battery additions are adopted as
+  standing audit practice.
