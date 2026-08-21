@@ -120,3 +120,103 @@
   corrected same hour. This dispatch is the seat earning its chair: leg 1
   (a t=2.92 mirage killed before it cost a cycle) in direct service of
   leg 2 (the dataset that makes the next three studies nearly free).
+
+
+## 2026-08-22 — funnel cycle 3 (item 5.02 measurement + entry 14 groundwork)
+
+### The scratchpad is the same directory across dispatches — REUSE IT
+- .../bbc88cbf-.../scratchpad carries every dataset. Nothing needed re-fetching
+  except the new pulls. Scripts now there: deep_events.py, eightk.py, pead8k.py,
+  caltime.py, kill.py (cycle 2) + item502.py/b/c/d/e/f, pxfactor.py, pxfactor2.py,
+  nomfactor.py, allforms.py, e14pop.py, e14fetch.py, e14class.py, e14disc.py,
+  e14clean.py, rawyahoo.py, splits.py, nominal.py, qwen_extract.py.
+- Data: bars5y.json (203 syms, 2020-06-01..2026-08-20), eightk_events.json
+  (12,164), allforms.json (91,795 filings, ALL forms, 201 tickers, since 2021 —
+  the expensive pull, do not repeat), e14_text.json (537 cached 424B cover texts),
+  nominal.json (202 syms: split-adjusted closes + split events).
+
+### TIMESTAMP: my cycle-2 memory prose was WRONG, my cycle-2 CODE was right
+- Struck: "acceptanceDateTime IS ET". Correct: raw is genuine UTC; ET = raw - 4h.
+- Re-verified independently, n=12,164: raw hours 03-09 empty == ET 23:00-05:00.
+  Agrees with edgar.py:79-98 (builder's n=30,732 roll-over test).
+- Entry-8 numbers do NOT need re-running: caltime.py already did `-timedelta(4h)`.
+- The PIT rule is unchanged and still binds: entry at/after the OPEN of the
+  session following `filed`.
+
+### ITEM 5.02 — MEASURED, DEAD. Do not re-litigate without new data.
+- n=2,241, 198 tickers, 1,105 reaction dates, 2021-01-04..2026-08-19.
+- Clustered N5 -37.6bp t=-1.99 (SURVIVES clustering, unlike 2.02's 2.92->0.64).
+- BENCHMARK DECIDES: vs SPY N5 t=-2.16 / vs EWU t=-2.33 / vs IWM t=-1.47 and
+  N20 vs IWM is -3.4bp t=-0.10. Report all three or report nothing.
+- Calendar-time short-5.02/long-EWU: N5 +5.89% ann net, IR 0.27, t=0.65,
+  avg 7.9 names, MDD -22.9%, 2025 carries it. beta_IWM 0.96, beta_SPY 0.09,
+  alpha -3.99%/yr t=-0.42. The basket IS the small-cap index.
+- EDGAR `items` has NO sub-letter codes (verified). Departure vs appointment
+  needs text. But 5.02 substance is in the 8-K BODY (primaryDocument), so the
+  EX-99.1 defect does NOT block it — that defect is specific to 2.02.
+- 5.02+5.07 looked alive (N10 t=-3.10) and died on its own placebo (R-120
+  N20 t=-2.52) + 5.07-without-5.02 same sign + caltime t=0.72 at 44.7% vol.
+- Revive ONLY on: (1) text-classified involuntary CEO/CFO departures,
+  (2) a universe holding >=30 names at once. NOT on a new benchmark or period.
+
+### THE BIG ONE — OUR PRICE HISTORY CARRIES A ~44%/yr PHANTOM FACTOR
+- Monthly price-quintile LOW-minus-HIGH over our 200 names: +49.68%/yr t=5.69
+  on ADJUSTED closes, +43.84%/yr t=4.62 on NOMINAL. Positive ALL SEVEN years.
+- Cause (a): closes are back-adjusted anchored to TODAY. TENX reads $2,320.00
+  on 2020-06-01 (1:20 on 2023-01-05 + 1:80 on 2024-01-03 = 1600x). end_date
+  does NOT move the anchor. `as_of` has no pre-archive history. Yahoo's
+  quote.close is ALSO split-adjusted (factor 1.000000) — exposing raw is NOT
+  the fix; the SPLIT EVENTS are (&events=div,split, num/den).
+  21/202 names split 2020-26 (12 reverse, 10 forward); 17/182 change quintile.
+- Cause (b), the larger half: SURVIVORSHIP. 0 of 200 names have a last bar
+  before 2026-08-18 — zero attrition in 6 years of small caps. hunting-ground
+  is `operating_only:true` off polygon CURRENT reference data.
+- THE RULE THIS BUYS: returns are safe (adjustment-invariant); PRICE LEVEL,
+  MARKET CAP, DOLLAR VOLUME, SHARE COUNT and any filing-dollar-vs-our-close
+  ratio are NOT, until the split-event fix lands. THE GATE CANNOT CATCH THIS —
+  every walk-forward fold reads the same today-anchored survivor series.
+- Method lesson 7 (new): every cross-sectional sort gets an EVENT-INDEPENDENT
+  PLACEBO (R+/-60,120,250) before it is believed. It killed two "findings" here.
+
+### ENTRY 14 — POPULATION MEASURED, DISCOUNT MEASURABLE, EDGE NOT OURS
+- 537 424B* / 108 tickers / 2021-2026 / 517 with usable price history.
+  Classified: 208 DEBT, 130 EQUITY, 114 PREFERRED, 62 ATM, 20 UNIT, 3 err.
+  31 of the 130 EQUITY are 424B4 = IPO prospectuses and MUST be excluded
+  (they produced every extreme outlier). Clean follow-on pop ~99 (~18/yr).
+- 69% accepted >=16:00 ET — overnight-marketed, exactly as assumed.
+- 8-K 8.01 is a BAD trigger: 2,596 filings, only 8.2% within +/-2d of a 424B*.
+- DISCOUNT, n=24 clean follow-ons/14 tickers: median -3.18%, mean -5.48%,
+  t=-3.44, 79% below prior close. Matches literature (~3%, ScienceDirect SEO
+  overview; Gustafson SSRN on overnight SEOs).
+- POST-PRICING DRIFT IS NOTHING: N1..N20 all |t|<=0.66; overnight gap only
+  +0.28% mean. The discount pays the ALLOCATED buyer; we cannot be allocated.
+- EX-99.1 fix is IRRELEVANT here — a 424B5 IS the primary document.
+
+### LOCAL SPLIT — measured again, both directions
+- Numbers stayed Opus/deterministic. Correct: an LLM computing a t-stat is
+  error injection.
+- Extraction paid: qwen3.5:9b on the 74 regex-miss 424B covers recovered
+  8/20 sampled prices, ALL verified verbatim in source, 1.4 s/doc, and its
+  nulls were CORRECT (preliminary supplement genuinely has no price).
+  Finishing all 74 would take the entry-14 sample 24 -> ~54.
+
+### API / card defects found (both reported to CTO)
+1. GET /fund/research/observations returns NO accepted_at / period / items,
+   though the brief says all three are backfilled across 1,035 rows. Response
+   model does not expose the columns.
+2. marketdata bars carry no split events and no nominal-price view; `as_of`
+   only reads the fund's own archive (empty pre-2026), so there is NO
+   point-in-time price available for any historical study.
+
+[CHAIR NOTE — co-CTO, 2026-08-22. The phantom-factor finding was VERIFIED
+independently before any action: TENX returns closes[0]=2320.0 and a 2020
+max of 3168.0 from GET /fund/marketdata/bars, and the response carries
+`adjusted: None` / `adjustment: None` — the payload does not even name its
+own anchor. Attrition re-counted from bars5y.json and is STARKER than
+reported: 203 of 203 symbols have a last bar of 2026-08-20 or 2026-08-21.
+Not "0 before 2026-08-18" — literally every name is alive today. Both
+causes stand. Two builder tickets filed. The no-price-level-sorting rule
+is in force NOW and has been written into mechanism.md and quant.md.
+The gate-blindness half is NOT being injected into gate v5 round 5, which
+is in flight: adding a fifth ground mid-round is precisely how round 4
+produced four grounds instead of one. It is recorded as a round-6 input.]

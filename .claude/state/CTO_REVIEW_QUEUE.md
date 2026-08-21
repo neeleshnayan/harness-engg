@@ -883,3 +883,152 @@ halt odds 58.4% vs 9.6%. It is no longer gated on the riskofficer audit
 class: the status says decided, the record says it never was.
 
 [Fable @ resolve]:
+
+---
+
+## 2026-08-21 (UTC) — GATE v5 ROUND 5 CLOSED + a confirmed defect in our own price feed
+
+**co-CTO chair. Everything below is filed, recorded and reversible. Fable: the
+two judgement calls are flagged as JUDGEMENT and each says how to reverse it.**
+
+### A. Gate v5 round 5 — MEASURED, CLOSED, NOT ADOPTED
+
+CEO instruction, verbatim: *"Lets close gate v5 so we can keep testing and keep
+your notes for fable so he is aware exactly."* That instruction overrode this
+chair's Tier-3 parking of gate architecture; the design doc
+(`docs/GATE_V5_ROUND5_DESIGN_2026-08-21.md`) recorded the override and every
+judgement call before any measurement ran, so you can audit the round cold.
+
+**Result: `docs/GATE_V5_ROUND5_MEASURED_2026-08-21.md`, run
+`run-validator-gate-v5-r5`.**
+
+- **G1 financing: FIXED, and the validator could not reopen it.** The zero-skill
+  cash mix scores 0.0000 %/yr at every weight and 0.0% in all 16 Monte-Carlo
+  cells (0/2000 ⇒ CP95 upper bound 0.2%), where round 4 handed it up to
+  +35.11%/yr. Running the SAME cells through round 4's statistic reproduces the
+  adversary's Ground 1 at **98.6% conditional** — an independent confirmation of
+  both the kill and the repair, in the reachable geometry.
+- **G3 geometry: honoured.** `window_for_strategy` imported and CALLED.
+- **G4 data path: exists, and HAS NEVER RUN.**
+- **THE RULE IS NOT ADOPTABLE.** Two blocking holes:
+  - **H1 — no risk-free series exists anywhere in the gate path.** "Excess
+    returns" is not a fix by itself; it is a fix *conditional on an rf source we
+    do not have*. `rf_assumed = 0` reproduces round 4 EXACTLY (+5.88%/yr at
+    w=0.40). `rf = 2%` against a realised 3.97% certifies a zero-skill 40/60 mix
+    at +2.90%/yr against a 2.0%/yr margin. **This is now the CEO's decision and
+    it is on his desk.**
+  - **H2 — discrimination 0.62, CI [0.53, 0.72], excluding 1.0.** At the class
+    maximum the worst plausible null passes MORE OFTEN than the designed premia
+    claim. A margin sweep 1→8 %/yr costs the true claim (13.0→4.3) and barely
+    touches the worst null (21.2→16.6). Round 3's pattern in a new statistic.
+  - **H3 names the mechanism**: vol-matching is the amplifier — the worst null
+    is a 3%-vol stream levered 6.48× to a 20%-vol benchmark. Registered as round
+    6's first experiment.
+
+**Chair verification before filing** (three claims, all confirmed):
+`GATE_VERSION = "v4.1"` at `gate.py:157`; `git status --porcelain scripts/`
+shows only `?? gate_v5_audit_r5.py` so **r4 was left untouched**; and
+`select count(*), count(analytics) from fund_candidates` → **`37 | 0`** against
+Postgres directly. Zero of thirty-seven. Round 5 is a model of the instrument,
+never a run of it.
+
+**JUDGEMENT 1 — I closed round 5 as a measured NO rather than adopting anything.
+To reverse: adopt the premia rule.** I did not, because adopting a judging rule
+whose discrimination is below a coin is the unwired-kill-switch pattern relocated
+into the instrument that decides what reaches money. "Close gate v5" was
+satisfied by finishing the round honestly, not by shipping a rule.
+
+**Nothing retrospective is affected.** No verdict has ever used a v5 premia
+statistic; the only three passes on the belt are `null_random_smallcap` under v1,
+the known v1 failure. The cost is prospective and it is leg-2/leg-3: **the premia
+sleeve has had no criterion at all since the identity decision of 2026-08-19.**
+
+### B. A CONFIRMED DEFECT IN OUR OWN PRICE FEED — the bigger finding of the day
+
+From the analyst's batched cycle-3 dispatch (`run-analyst-cycle3`, artifact
+`docs/ANALYST_CYCLE3_PRICE_ANCHOR_2026-08-21.md`). The dispatch's assigned job —
+8-K item 5.02 drift — came back **DEAD** (calendar-time t=0.65, beta_IWM 0.96,
+alpha t=−0.42; the basket IS the small-cap index). The by-product is worth more.
+
+**Our price history carries a low-minus-high price factor of +49.68%/yr (t=5.69)
+on adjusted closes and +43.84%/yr (t=4.62) on nominal, positive in all seven
+years.** Two causes, both **verified by me before I acted**:
+
+- **Today-anchored split back-adjustment.** `GET /fund/marketdata/bars?symbol=TENX`
+  returns `closes[0] = 2320.0` for 2020-06-01 and a 2020 high of 3168.0 — for a
+  sub-$2 biotech — on a 1600× reverse-split factor. `end_date` does not move the
+  anchor. The payload carries `adjusted: None` / `adjustment: None`: **it does
+  not name its own anchor**, even though `marketdata.py:289-290` has the fields.
+- **Total survivorship.** I re-counted attrition and it is **starker than the
+  analyst reported**: **203 of 203 symbols have a last bar of 2026-08-20 or
+  2026-08-21.** Not "zero before 2026-08-18" — *every single name in a six-year
+  small-cap universe is alive today.*
+
+**Why it matters more than the 5.02 kill: the walk-forward gate is
+STRUCTURALLY BLIND to it.** Walk-forward slices TIME, and every fold reads the
+same today-anchored survivor-only series, so the contamination is identical in
+train and test. A candidate sorting on price level, market cap or dollar volume
+presents ~+44%/yr at IR ~1.9, positive in EVERY fold, and passes.
+
+**Actions taken (all Tier 1, all reversible):**
+1. **The no-price-level-sorting rule is IN FORCE**, written into
+   `.claude/state/mechanism.md`, `quant.md` and `validator.md`. Returns are safe
+   and unaffected; price level, market cap, dollar volume, share count and any
+   filing-dollar-vs-our-close ratio are not.
+2. The placebo rule is in force in the same three files: every cross-sectional
+   conditioning claim carries an event-independent placebo (±60/120/250 sessions)
+   before it is believed. It killed two |t|>3 "findings" in this dispatch alone.
+3. Builder ticket **`7032a0fd`** — split events (`&events=div,split`), a
+   nominal-price view, and populate the anchor fields. Approach already proven on
+   202/202 symbols.
+4. Builder ticket **`6aadd330`** — expose `accepted_at`/`period`/`items` on
+   `/fund/research/observations` and correct the API card. The analyst bypassed
+   the fund's own corpus for a whole dispatch because of this.
+
+**JUDGEMENT 2 — I did NOT inject the gate-blindness half into round 5, which was
+in flight. To reverse: fold it into round 6's brief, which is where I put it
+(`4698dee7`).** Round 4 died with four grounds because it changed two structural
+things at once. Round 5 fixed financing and measured the masked family; that is
+enough for one round.
+
+### C. AWAITING THE CEO — two items, and only one is urgent
+
+1. **The risk-free source for the gate (H1).** His own excess-return amendment
+   is not implementable without it, and a static assumed rate reintroduces round
+   4's hole. Recommendation on the desk: a realised daily short-bill series (the
+   spine already serves BIL at 2,779 sessions), not a constant. **The measurement
+   is the seat's; the choice and its version are his.**
+2. **Fence the 200-name universe** as a pre-instrument reference frame under the
+   CLEAN FIELD RULE. It **cannot** be re-baselined — no point-in-time universe
+   membership exists in the fund — so the fence clause applies rather than the
+   re-baseline path. I did NOT adopt this silently: guard rail 5 puts a change to
+   the frame future work is judged against on the approval channel. Consequence
+   if accepted: no new work is ever judged against this universe's ABSOLUTE
+   returns (the +24.77%/yr EW figure included); relative and return-based work is
+   unaffected.
+
+### D. Market-closed work — a category, not a parking space
+
+CEO instruction, verbatim: *"lets park it for weekends when market is closed."*
+Filed as **`f2d70a55`**: the harness replay engine (adversary writes scenarios
+blind, builder implements, complete store isolation, first subject our own August
+because F4 is still unexplained), the ~3.4h corpus deepening, and the
+long-window backtest that still exceeds the 900s ceiling. **Registered as a
+TRIGGER, not a schedule** — a human fires it when a session is live and the
+market is closed, exactly like the COO's desk-load trigger. Writing it any other
+way would smuggle a cron into a firm whose cost ceiling rests on "when no session
+is live, nothing thinks."
+
+### E. Two housekeeping facts you will want
+
+- **A dating trap I nearly walked into again.** Local IST had rolled to
+  2026-08-22 while UTC was still 2026-08-21 19:40Z. Both seats dated their STATE
+  headers 2026-08-22 (local); I named both findings docs for **UTC** and left the
+  STATE headers verbatim with a bracketed chair note saying they are the same
+  moment. Same error family as my fabricated-timestamp correction, caught this
+  time by reading the clock before writing.
+- **Task output files are being written 0 bytes.** The analyst's dispatch output
+  file was empty and the report survived only in the run notification; many files
+  in that directory are 0 bytes. I filed the artifact from the notification and
+  **disclosed the transcription in the doc's provenance note**. Worth knowing
+  before you trust a task output file.

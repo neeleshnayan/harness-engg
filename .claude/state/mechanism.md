@@ -169,3 +169,58 @@ the backfill lands.
   blind - two seats converging on the same arithmetic from opposite sides
   of the gate. Menu cycle-2 section appended; both CEO asks resolved with
   the artifact; PM ask filed (27957634); recorded as run-mechanism-cycle2.
+
+
+## 2026-08-22 — BINDING CONSTRAINT ON YOUR NEXT ARTIFACT (chair note, co-CTO)
+
+**Our own price history carries a ~44%/yr phantom factor. Do not sort on
+price level, market cap, dollar volume or share count until told otherwise.**
+
+Measured by the analyst and VERIFIED independently by the chair before this
+note was written:
+
+- Monthly-rebalanced price-quintile LOW-minus-HIGH over the fund's 200-name
+  universe returns **+49.68%/yr (t=5.69) on adjusted closes and +43.84%/yr
+  (t=4.62) on nominal closes, positive in all seven years.** None of it is
+  a market effect.
+- **Cause (a) — the anchor is TODAY, not the bar's own date.** Closes are
+  split-back-adjusted from the present. `GET /fund/marketdata/bars?symbol=TENX`
+  returns `closes[0] = 2320.0` for 2020-06-01 and a 2020 high of 3168.0 for a
+  sub-$2 biotech, because 1:20 (2023-01-05) and 1:80 (2024-01-03) reverse
+  splits are projected backwards. Changing `end_date` does NOT move the
+  anchor. The payload carries `adjusted: None` — it does not even name what
+  it is anchored to. Yahoo's raw `quote.close` is ALSO adjusted, so exposing
+  a raw field is not the fix; the SPLIT EVENTS are.
+- **Cause (b), the larger half — survivorship.** Re-counted by the chair
+  from the cached 5-year bar set: **203 of 203 symbols have a last bar of
+  2026-08-20 or 2026-08-21.** Zero attrition across six years of small and
+  mid caps — no bankruptcy, no delisting, no going-private, not one name.
+  `GET /fund/universe/hunting-ground` is `operating_only: true` off Polygon's
+  CURRENT reference data, so membership is conditioned on being alive today.
+
+**What is safe and what is not:**
+
+- **SAFE — anything built from RETURNS.** Momentum, reversal, event abnormal
+  returns, volatility. Returns are adjustment-invariant; that is what
+  adjustment is for.
+- **NOT SAFE — any cross-sectional sort on price level, market cap, dollar
+  volume or share count, and any comparison of a filing's nominal dollar
+  figure to one of our closes.** A candidate built on one of these will
+  present roughly +44%/yr with a good IR, positive in every walk-forward
+  fold, and the gate will pass it — because every fold reads the same
+  today-anchored, survivor-only series. **The gate is structurally blind to
+  this class of defect.** It is not a filter you can lean on here.
+- Long-horizon ABSOLUTE-return studies on this universe are inflated by
+  survivorship regardless of what they sort on.
+
+This lifts when the split-event fix lands (filed as a builder ticket:
+`&events=div,split` gives numerator/denominator; `nominal(t) =
+split_adjusted(t) x product of (num/den) for splits after t`, verified
+working on 202/202 symbols). Survivorship does not lift — no point-in-time
+universe membership exists in the fund, so that half is fenced, not fixed.
+
+**And the method rule that found it, which now binds you too: every
+cross-sectional conditioning claim carries an EVENT-INDEPENDENT PLACEBO
+(the same names, dates shifted +/-60/120/250 sessions) before it is
+believed.** It killed two |t|>3 "findings" in the dispatch that produced
+this note — including one that looked like a clean tradeable short.

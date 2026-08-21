@@ -288,3 +288,161 @@
   recommendations are on the CEO's desk. The first seat-filed ask closed its full loop —
   and its answer found a defect in the CTO's own instrument, which is the metric working.
 
+
+
+## 2026-08-22 — BINDING CONSTRAINT ON YOUR NEXT ARTIFACT (chair note, co-CTO)
+
+**Our own price history carries a ~44%/yr phantom factor. Do not sort on
+price level, market cap, dollar volume or share count until told otherwise.**
+
+Measured by the analyst and VERIFIED independently by the chair before this
+note was written:
+
+- Monthly-rebalanced price-quintile LOW-minus-HIGH over the fund's 200-name
+  universe returns **+49.68%/yr (t=5.69) on adjusted closes and +43.84%/yr
+  (t=4.62) on nominal closes, positive in all seven years.** None of it is
+  a market effect.
+- **Cause (a) — the anchor is TODAY, not the bar's own date.** Closes are
+  split-back-adjusted from the present. `GET /fund/marketdata/bars?symbol=TENX`
+  returns `closes[0] = 2320.0` for 2020-06-01 and a 2020 high of 3168.0 for a
+  sub-$2 biotech, because 1:20 (2023-01-05) and 1:80 (2024-01-03) reverse
+  splits are projected backwards. Changing `end_date` does NOT move the
+  anchor. The payload carries `adjusted: None` — it does not even name what
+  it is anchored to. Yahoo's raw `quote.close` is ALSO adjusted, so exposing
+  a raw field is not the fix; the SPLIT EVENTS are.
+- **Cause (b), the larger half — survivorship.** Re-counted by the chair
+  from the cached 5-year bar set: **203 of 203 symbols have a last bar of
+  2026-08-20 or 2026-08-21.** Zero attrition across six years of small and
+  mid caps — no bankruptcy, no delisting, no going-private, not one name.
+  `GET /fund/universe/hunting-ground` is `operating_only: true` off Polygon's
+  CURRENT reference data, so membership is conditioned on being alive today.
+
+**What is safe and what is not:**
+
+- **SAFE — anything built from RETURNS.** Momentum, reversal, event abnormal
+  returns, volatility. Returns are adjustment-invariant; that is what
+  adjustment is for.
+- **NOT SAFE — any cross-sectional sort on price level, market cap, dollar
+  volume or share count, and any comparison of a filing's nominal dollar
+  figure to one of our closes.** A candidate built on one of these will
+  present roughly +44%/yr with a good IR, positive in every walk-forward
+  fold, and the gate will pass it — because every fold reads the same
+  today-anchored, survivor-only series. **The gate is structurally blind to
+  this class of defect.** It is not a filter you can lean on here.
+- Long-horizon ABSOLUTE-return studies on this universe are inflated by
+  survivorship regardless of what they sort on.
+
+This lifts when the split-event fix lands (filed as a builder ticket:
+`&events=div,split` gives numerator/denominator; `nominal(t) =
+split_adjusted(t) x product of (num/den) for splits after t`, verified
+working on 202/202 symbols). Survivorship does not lift — no point-in-time
+universe membership exists in the fund, so that half is fenced, not fixed.
+
+**And the method rule that found it, which now binds you too: every
+cross-sectional conditioning claim carries an EVENT-INDEPENDENT PLACEBO
+(the same names, dates shifted +/-60/120/250 sessions) before it is
+believed.** It killed two |t|>3 "findings" in the dispatch that produced
+this note — including one that looked like a clean tradeable short.
+
+
+## 2026-08-22 — gate v5 ROUND 5 measured (dispatch from the co-CTO chair; CEO: "close gate v5 so we can keep testing").
+   New instrument: scripts/gate_v5_audit_r5.py (885 lines, mine, r4 NOT edited). Repro:
+   ./venv/Scripts/python.exe scripts/gate_v5_audit_r5.py --all --draws 2000
+   Variants that matter: --stat r4 (before/after, identical geometry+seeds), --floor none,
+   --real-bench, --draws N. Bar cache defaults to %TEMP%/krypton_r5_bars_cache.json — the repo
+   stays clean (git status showed only the one authorized new file).
+
+- G1 FINANCING IS FIXED AND I COULD NOT REOPEN IT. GISW form implemented as excess ratio
+  returns e=(1+r)/(1+rf)-1 (r5:161,202); levering multiplies e by k, which IS rf+k(r-rf).
+  Real SPY/BIL, 336 OOS sessions: cash mix w*bench+(1-w)*rf scores 0.0000 %/yr at every w
+  (daily leg) vs r4's +0.98/+2.61/+5.88/+15.70/+35.11. MC: 0.0% in all 16 (w x rf) cells,
+  0/2000 => CP95 upper bound 0.2% per cell. Same cells through r4's statistic: 33-38.7% at
+  rf>=2, 0.0% at rf=0. cashmix_w0.40 under r4-stat with real BIL = 39.8% uncond / 98.6%
+  CONDITIONAL ON RUNNING — reproduces the adversary's 98.9% in the REACHABLE geometry.
+  MAX_LEVER=10 under excess UNDER-levers (w=0.05 reads -1.76) — conservative, opposite
+  direction from r4. 21-day residual (<=1.11%/yr at w=0.20) is REBALANCING CONVEXITY not
+  financing: it moves with w, falls as rf rises (0.267/0.239/0.214 at rf 0/4/8 at w=0.80).
+  It would bind if the margin ever went below ~1.1%/yr.
+- THE NEW BLOCKING HOLE, H1: NO rf SERIES EXISTS ANYWHERE IN THE GATE PATH. The rule must
+  assume one, and the gift is ((1-w)/w)*(rf_true - rf_assumed) %/yr; break-even error is
+  margin*w/(1-w). Measured: rf_a=0 reproduces r4 EXACTLY (+5.88 at w=0.40); rf_a=2% while
+  BIL earned 3.97% gives +2.90 vs a 2.0 margin = zero-skill pass. Choice of cash PROXY is
+  NOT the risk (BIL 3.97 vs SHV 3.94 over the same window). Static-vs-realised is the risk.
+- DISCRIMINATION IS BELOW A COIN AND NO MARGIN FIXES IT. Shipped geometry (window_for_strategy
+  CALLED, floor 2024-02-26 => 4 folds / 84d legs / 336 OOS sessions; floor none => 5 / 416),
+  2000 draws, rho 5, margin 2.0, mktSharpe 1.0 ASSUMED, rf real BIL, dropout 20.8%:
+  class max 18.2% CP95[16.5,20.0] = sv_1000_30_b0; TP premia_defensive 11.3% CP95[9.9,12.8];
+  break-even 61.8%; DISCRIMINATION 0.62 CI[0.53,0.72] — CI excludes 1. Excluding the blindness
+  class: 10.2% vs 11.3% = 1.11 CI[0.93,1.32]. Oracle SR2.5 as TP: 1.42 CI[1.26,1.60].
+  Margin sweep 1/2/3/5/8 %/yr: worst null 21.2/17.3/18.8/17.7/16.6, TP 13.0/12.0/10.2/8.6/4.3
+  — discrimination 0.61/0.69/0.54/0.49/0.26. Round 3's pattern in a new statistic.
+  Before/after, identical geometry+seeds: r4-stat class max 39.8% / TP 15.1% / disc 0.38 ->
+  r5 18.2 / 11.3 / 0.62. The fix is real AND leaves the round below a coin.
+- MECHANISM OF THE CLASS MAX (H3, the highest-value unrun experiment): VOL-MATCHING IS THE
+  AMPLIFIER. Median realised lever sv_1000_30_b0 6.48 (p90 7.07) vs premia_defensive 1.72,
+  oracle_sr2.5 1.99, beta-1 nulls ~0.9. A 3%-vol stream matched to 20% is levered 6.7x and a
+  tiny event-free drift becomes +17.8%/yr median. ROUND 6 MUST MEASURE DISCRIMINATION AS A
+  FUNCTION OF MAX_LEVER AND OF A LEVER-AWARE MARGIN. Blindness: P(0 events in 336 OOS
+  sessions) = 71.5% at p=1/1000, 91.9% within one 84d leg. Unconditional full-sample leg
+  P(>2%/yr): worst null 61.7%, premia_defensive 53.5% — the margin sits INSIDE the noise band
+  (premia_defensive p10 -10.0 / p90 +13.9 %/yr on 336 sessions).
+- MASKED FAMILY SURVIVES ROUND 5 (H4): peak 10.2% uncond / 26.0% CONDITIONAL, statistically
+  unchanged from r4's 23.6%. Its apparent improvement is entirely the starvation ceiling.
+  VR guard is NOT broken — it kills 100% of RUNNING pure-wander draws at w=1.00 and degrades
+  to 3.2% caught at w=0.10/beta=1, exactly as the adversary showed.
+- STARVATION CEILING, common-mode: gate.py:183 needs 4 measurable; the live floor supplies
+  EXACTLY 4 (slack 0) => P(>=4 of 4) = 39.3%, so 60.7% never judged; floor none gives
+  P(>=4 of 5) = 72.1%. Lifting the floor moves FPR 18.2->35.2 and TP 11.3->23.9 and
+  discrimination only 0.62->0.68. neverRan is 55-63% of every battery row.
+- MEASURABILITY: THE DATA PATH EXISTS AND HAS NEVER RUN. 37 candidates, 0 with analytics;
+  0 legs computable belt-wide; missing by name {verification:37, holdout_test:37};
+  runanalytics.view() reason 'not_captured' x37. Postgres: count(analytics)=0 of 37;
+  0 of 99 fund_lean_sweeps contain 'daily_returns'. Last candidate finished 2026-08-20T20:05Z,
+  BEFORE 76784c2 merged 2026-08-21 17:29 IST. NEW READER DEFECT: when analytics is absent
+  entirely, daily_return_legs names only 2 missing legs because folds() (runanalytics.py:267-276,
+  :312) learns K from the same absent payload — true absent count is 2+K (222 belt-wide vs 74
+  reported). Same shape as the write-only verdict column.
+- RECORD IS CLEAN, PROSPECTIVE ONLY: GATE_VERSION v4.1 (gate.py:157); stored verdicts v1 x11,
+  v2 x5, v4 x14, v4.1 x3, null x4. NO verdict has ever used a v5 premia statistic. The only
+  three passes on the whole belt are null_random_smallcap under v1. The cost is leg-2/leg-3:
+  the premia sleeve has had no criterion since 2026-08-19.
+- HONEST NEGATIVES, DO NOT RE-SPEND: financing could not be reopened by any w / rf / lever
+  cap / aggregation. GRID-MAX SELECTION ON RAW TRAIN RETURN HAS NO MATERIAL EFFECT on the OOS
+  excess statistic (<=3pp on P(>margin) across 7 processes, n=1500) — MY OWN CARRIED
+  MEASUREMENT DEBT FROM THE FLOOR REVIEW IS CLOSED. --real-bench (no market-Sharpe assumption)
+  gives disc 0.43, so the conclusion does not rest on --market-sharpe 1.0. Do not re-run the
+  beta-nonstationarity class maximum (7.1%) or the 20.8% dropout provenance.
+- CAVEAT I DID NOT CORRECT: concatenating surviving test legs is contiguous by construction at
+  the live floor (any dropout => never_ran), but at floor=none a survivable dropout leaves an
+  84-day hole and the 21-day blocks straddling it are wider than they look. Applies to the
+  floor-lifted table only.
+- COULD NOT RECONCILE: the adversary's r4 reachable-state figures (FPR 13.7 / TP 24.5 /
+  break-even 35.8) exist only in review prose — no committed script produces them. r4's own
+  630-day table gives class max 19.3 / TP 12.3 / disc 0.64, which MY r5 numbers do match
+  (18.2 / 11.3 / 0.62).
+- MEASUREMENT DEBTS carried + new: 29 clean nulls to bound gate FPR under 10% (open);
+  oracle discrimination inversion needs its own v4 run (open); cost measurement blocked on
+  alpaca fills or published spreads (open). NEW: discrimination vs MAX_LEVER and a lever-aware
+  margin (H3, highest value); a residual-based VR guard measured against the masked family
+  (H4); DECISIONS_PER_TEST_LEG=4 still unvalidated and it SETS the 336-session window that
+  puts the margin inside the noise band.
+- Scratchpad (session bbc88cbf-...): r5/full_run.txt (--all --draws 2000), r5/margin.py
+  (margin sweep), r5/dist.py (unconditional full-leg distribution + grid-selection negative),
+  r5/lever.py (realised vol-match levers).
+
+[CHAIR NOTE — co-CTO. Three claims verified independently before filing:
+GATE_VERSION = "v4.1" at gate.py:157 (so "nothing retrospective" stands);
+`git status --porcelain scripts/` shows ONLY `?? gate_v5_audit_r5.py`, so r4
+really was left untouched; and `select count(*), count(analytics) from
+fund_candidates` returns `37 | 0` against Postgres directly — zero of
+thirty-seven. The measurability finding is the one I most wanted to be wrong
+and it is exactly right. Filed as docs/GATE_V5_ROUND5_MEASURED_2026-08-21.md.
+DATING: the STATE header above says 2026-08-22 (local IST); the UTC day was
+still 2026-08-21 when this ran, and the doc is named for UTC. Both are the
+same moment.
+ROUND 5 IS CLOSED, NOT ADOPTED — the CEO asked to "close gate v5 so we can
+keep testing", and the honest close is a measured NO with named holes, which
+is what round 5 produced. H1 (the rf source) is routed to the CEO as the one
+decision he owns. H3 (discrimination vs MAX_LEVER) is registered as round 6's
+first experiment. The analyst's price-anchor finding is registered as a
+SEPARATE round-6 input (4698dee7) and was deliberately kept out of round 5.]
