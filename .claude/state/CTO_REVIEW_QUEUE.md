@@ -1432,3 +1432,98 @@ in D8 nearly shipped.
 Sign-inverted exit trigger → `34338ef6`. Broker-drift alarm + the two false
 docstrings → `d7f38be2`. Venue/ledger decoupling → `b72847bc`. Test gap →
 recorded as a precondition of the v4 merge, not a follow-up.
+
+
+---
+
+## 2026-08-21 (UTC) — **TIER-3 LINE CROSSED ON EXPLICIT CEO AUTHORISATION: envelope v4**
+
+**FABLE: this is the one entry where I did something my charter forbids. Read
+it in full. The CEO authorised it in his own words and I am recording the
+authorisation, the scope I read into it, the scope I deliberately did NOT read
+into it, and how it was executed — so you can reverse any part of it.**
+
+### The authorisation
+
+I told the CEO plainly that v4 adoption was Tier 3, that I would not cross it
+on my own judgement, and that he would need to either hear from you or
+authorise me for that single item. His reply, verbatim:
+
+> **"get it done but make sure fable gets full context of the change; I also
+> think you should maintain a day log for fable to review"**
+
+### What I read that as authorising, and what I did NOT
+
+**AUTHORISED — one item**: adopting auto-approval envelope v4 as specified in
+`docs/R19_ENVELOPE_V4_SPEC_2026-08-21.md`, together with the skip-visibility
+fix that the riskofficer required to ship in the same change.
+
+**NOT AUTHORISED, and I did not take any of it**: this is not standing
+authority over autopolicy, the guard, the gate, the risk engine, exit-rule
+mechanics or the event store. **Every other Tier-3 item remains parked and
+untouched** — the register evaluability fix, guard v1.3, risk-limits onto the
+approval channel, the rebase direction pair, D5, D7. One instruction, one item.
+
+### How it was executed, and why not by me directly
+
+**I did not hand-write autopolicy code**, even though "get it done" would have
+covered it. The execution path is deliberately the slowest safe one:
+
+1. **Builder implements the spec in an ISOLATED WORKTREE.** Diff out; nothing
+   touches the live tree.
+2. **ADVERSARY REVIEWS IT BLIND.** Mandatory and non-negotiable: the
+   constitution requires sensitive diffs to pass the adversary blind, and this
+   is an approval-path diff. **That review is what caught the D8
+   guard-predicate rename** — a keyword classifier flagged six clean lines and
+   missed a refusal flipping to an allow on a ledger-writing endpoint.
+3. **The chair merges only on**: full suites green on the merged tree, the
+   adversary not returning KILL, and the twenty specified test cases present —
+   including the keystone (`pre = −10`, buy 10) that pins sign-agnosticism and
+   the no-widening property in a single case.
+
+**I also refused to mix it into the running desk-UI dispatch.** An envelope
+change buried in a counter fix is how a sensitive diff gets reviewed as noise.
+
+### What v4 actually changes, in one sentence you can check
+
+> v4 forbids the machine auto-approving an exit whose quantity **the broker
+> does not actually hold on the same side**; v3 checked only the fund's own
+> book, so TLT / DBC / DBA — book 3.019871 / 8.122157 / 5.314306 against a
+> broker holding 0 / 0 / 0 — pass v3 **twelve checks out of twelve** and would
+> open **$652.09** of real short exposure on **2026-09-08**.
+
+Three new fail-closed checks after `rule_owner_holds_position`; one predicate
+`P(pre, delta)` applied at three ledgers; `MAX_POSITION_DRIFT_QTY = 1e-6` set
+**equal to the reconciler's own `_TOL`** so there are not two definitions of
+"in sync"; and the `max(0.0, …)` clamp dropped so R5 carries the sign.
+
+**`side_is_sell` is UNCHANGED.** v4 adds checks and relaxes none — it is
+strictly tightening. Relaxing it to `side_reduces_exposure`, which a shorting
+strategy would eventually need, is a **WIDENING** and stays parked for you
+behind an adversary blind. **I did not smuggle it in under a tightening, and
+the keystone test exists specifically to prove I did not.**
+
+### Reverse it in one move if you disagree
+
+The whole change is one commit against `autopolicy.py` plus its tests. Revert
+it and v3 is back — **but if you do, the 2026-09-08 hazard is back with it**,
+so pair any reversal with a decision about that date rather than leaving it
+implied.
+
+### The one thing I want you to check first
+
+**The riskofficer's challenge, which the CEO accepted**: v3 was adopted on the
+written premise at `autopolicy.py:84-87` — *"blast radius today is $0 (only the
+sleeve's rules can pass rule_predates_position, and the sleeve owns its
+positions) — adopted as structure, not as an emergency."* **Both halves are now
+measured false.** The correction must land as a **NEW dated note at the v4
+bump**, never by editing `:84-87` — findings are never edited, and that rule
+holds for a note explaining a decision just as much as for a measurement.
+
+### And the day log
+
+Created at `.claude/state/DAY_LOG.md`, and the constitution now points your
+cold start at it FIRST. One entry per UTC day, five fixed headings, *on fire*
+reserved for dated or money-losing items. It exists because the review queue
+tells you what I did and Donna's archive tells you what happened, and neither
+answers **"what is different since I left, what is mine, and what is burning."**

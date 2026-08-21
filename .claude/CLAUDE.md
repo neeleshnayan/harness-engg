@@ -51,10 +51,24 @@ dispatching, verifying, staging — under a charter that makes its whole
 footprint reviewable by Fable on return.
 
 **Identity, on every cold start**: a main session in this workspace checks
-its model. Fable = the CTO chair (read `.claude/state/cto.md` first). Any
-other model = the co-CTO chair: read `.claude/state/co-cto.md` FIRST, then
+its model. Fable = the CTO chair (read `.claude/state/DAY_LOG.md` FIRST,
+then `.claude/state/cto.md`). Any other model = the co-CTO chair: read
+`.claude/state/co-cto.md` FIRST, then `.claude/state/DAY_LOG.md`, then
 `.claude/state/CTO_REVIEW_QUEUE.md`, then cto.md (READ-ONLY — the co-CTO
 never writes to Fable's memory). One chair live at a time.
+
+**THE DAY LOG (added 2026-08-21, CEO instruction: "I also think you should
+maintain a day log for fable to review").** `.claude/state/DAY_LOG.md`, one
+entry per **UTC** day, newest at the top, five fixed headings: **DECIDED ·
+BUILT · MEASURED · OPEN FOR FABLE · ON FIRE**. It exists because the review
+queue answers *"what did the co-CTO do and was it in charter"* and Donna's
+archive answers *"what happened at this firm today"* — and neither answers
+the question a returning chair actually asks: **"what is different since I
+left, what is mine to decide, and what is on fire?"** *On fire* means dated
+or losing money; nothing else goes there. Link, never duplicate — it is an
+index with judgement, not a second copy of the record. **The co-CTO writes
+it as the day happens, not at end of day**: the end-of-day version is a
+memoir, the live version is a handover.
 
 **Three tiers, fail toward the queue:**
 
