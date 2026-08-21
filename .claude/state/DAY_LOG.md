@@ -41,8 +41,15 @@ maintain a day log for fable to review."***
 DBC time exits fire that day (`ExitRuleSet` seq 178, 181), auto-approve, and
 sell shares the broker holds **zero** of. The riskofficer rebuilt the real
 evaluation context and ran it: **all four live exits pass v3 twelve checks out
-of twelve, zero failures.** $652.09 date-certain, $750.36 armed across all four
-legs — 39.79% of NAV. Shorting is enabled on the account; borrow cost, buy-in
+of twelve, zero failures.** **$501.58 date-certain** (TLT seq 178 + DBC seq 181), **$750.35 armed across all
+four legs** — 39.79% of NAV. **CORRECTED 2026-08-21 by the builder, verified by the
+chair against `/fund/exits`: the earlier figure of $652.09 was WRONG — it summed two
+different dates.** DBA's and SPY's time exits are **2026-11-19**, ten weeks later.
+
+**AND THE HAZARD IS LIVE, NOT SCHEDULED — this is the sharper correction.** All four
+symbols additionally carry **UNDATED `loss_pct` rules**: TLT 4.0%, DBC 8.7%, SPY 7.3%,
+DBA 6.1%. Any one firing on an ordinary drawdown hits the identical defect **tomorrow**.
+2026-09-08 is when part of it becomes certain, not when it begins. Shorting is enabled on the account; borrow cost, buy-in
 risk and unbounded loss are all unmodelled here.
 
 The envelope is not malfunctioning. Every check it makes is true. **It checks
