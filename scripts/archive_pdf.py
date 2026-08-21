@@ -43,13 +43,20 @@ MUTED = "#707680"
 HAIR = "#DCE0E4"
 
 CSS = f"""
-@page {{ size: A4; margin: 0; }}
+/* v2 print geometry (2026-08-21, CEO: the letter "renders across pages in
+   a broken way"): @page margin 0 left pages 2+ starting at the paper's
+   literal top edge, and page-break-inside:avoid on TABLES forced long
+   tables to jump pages whole, leaving holes, then shatter anyway. Real
+   page margins repeat on every page (the cover pulls itself full-bleed
+   over page 1's top margin); tables break BETWEEN rows with their header
+   repeated on each page. */
+@page {{ size: A4; margin: 13mm 0 14mm; }}
 * {{ box-sizing: border-box;
      -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
 body {{ font-family: Georgia, 'Times New Roman', serif; color: {INK};
         background: {PAPER}; font-size: 10.2pt; line-height: 1.55;
-        margin: 0; padding: 0 20mm 16mm; }}
-.cover {{ margin: 0 -20mm 8mm; background: {INK}; color: #F4F6F5;
+        margin: 0; padding: 0 20mm; }}
+.cover {{ margin: -13mm -20mm 8mm; background: {INK}; color: #F4F6F5;
           padding: 10mm 20mm 7mm; border-bottom: 3px solid {ACCENT}; }}
 .cover .firm {{ font-family: 'Segoe UI', Arial, sans-serif;
                 font-weight: 700; font-size: 19pt;
@@ -85,9 +92,12 @@ li {{ margin-bottom: 4px; position: relative; }}
 li::before {{ content: ""; position: absolute; left: -15px; top: 0.62em;
               width: 8px; height: 2px; background: {ACCENT}; }}
 table {{ border-collapse: collapse; width: 100%; margin: 7px 0 13px;
-         font-size: 8.9pt; page-break-inside: avoid;
+         font-size: 8.9pt; page-break-inside: auto;
          font-family: 'Segoe UI', Arial, sans-serif;
          font-variant-numeric: tabular-nums; }}
+thead {{ display: table-header-group; }}
+tr {{ page-break-inside: avoid; }}
+li {{ page-break-inside: avoid; }}
 th {{ font-size: 7.6pt; text-transform: uppercase;
       letter-spacing: 0.11em; text-align: left; color: {MUTED};
       border-bottom: 1.5px solid {ACCENT}; padding: 3px 10px 4px 0; }}
