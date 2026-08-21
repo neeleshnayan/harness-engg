@@ -145,3 +145,96 @@ cross-sectional conditioning claim carries an EVENT-INDEPENDENT PLACEBO
 (the same names, dates shifted +/-60/120/250 sessions) before it is
 believed.** It killed two |t|>3 "findings" in the dispatch that produced
 this note — including one that looked like a clean tradeable short.
+
+## 2026-08-22 — dispatch #2 (instrument test: re-run monthend_rebalance_flow)
+
+WHAT THIS RUN ESTABLISHED
+- Analytics capture WORKS end to end. 3 new candidates, each 6/6 daily-return
+  legs present, 0 missing, 3,016 aligned obs, dropped_unmatched_days=0 on all
+  18 legs. Store went 37|0 -> 40|3. Gate v5 r6 has real legs to measure.
+- New ids: a663a592ff1d (1bps) / 01593c65a05d (3bps) / 01b61967c933 (5bps),
+  all FAIL v4.1. 1 and 3 bps fail 3; 5bps fails 4 (gained must_beat_benchmark).
+- Verdict on the STRATEGY is unchanged. It stays dead.
+
+THE CAPTURED SERIES IS CALENDAR-DAILY, NOT SESSION-DAILY (tell gate v5)
+- 180 obs over a 180-CALENDAR-day window; 52 weekends, 49 of them exactly 0.0.
+  Verification leg n=1998 over 5.47y (~1,375 sessions). Annualising at sqrt(252)
+  understates Sharpe by sqrt(252/365)=0.83. Filter to sessions or use 365.
+
+TWO DEFECTS FOUND BECAUSE THE FILLS WERE FINALLY KEPT
+- CAPACITY IS A COIN FLIP. leanrunner.py:1145 `max(set(symbols), key=count)`.
+  This strategy fills SPY 127 / TLT 127 - exact tie - and set iteration order is
+  hash-randomized. 8 fresh interpreters: TLT SPY SPY TLT SPY TLT SPY TLT.
+  PYTHONHASHSEED unset in .env. Arithmetic closes it: SPY adv 35.09bn ->
+  $5.688bn (stored 5.696bn); TLT adv 2.109bn -> $341.8M (stored 341.4M).
+  Turnover NEVER changed (6.17% both runs). Stable WITHIN a spine process,
+  flips BETWEEN restarts - so a whole cohort gets one arm and it is invisible
+  inside a session. Second-order: modal symbol is the wrong rule anyway;
+  capacity is bounded by the LEAST capacious leg. min_capacity_usd=100k so no
+  verdict changed here, but it is a gate criterion with a nondeterministic value.
+- test_end IS A REQUEST, NOT A WINDOW. SpineBars fetches lookback_days=2000 with
+  NO end date, so coverage follows the wall clock. Same nominal window, one extra
+  session: EW SPY/TLT end 08-18 = 40.800 (08-20 run reported 40.75), end 08-19 =
+  41.600 (today reported 41.55). 0.80pp on 5.47y - enough to flip 5bps into
+  must_beat_benchmark. I ASSUMED today-anchored price adjustment and the data
+  REFUTED it. Check the covered span in daily_returns.dates, never the request.
+
+TIMEOUTS: NOT REPRODUCED, AND THAT IS THE DATA
+- 34/34 jobs done. min 11.3s / avg 12.8s / max 18.4s. The 5.47y verification ran
+  in 18.4s = 2% of the 900s ceiling. Window length is NOT the killer; the 300s
+  censored tail was recorded under 3 concurrent candidates. Run sequential and
+  there is no tail. One cohort does not close the issue.
+- Cost: 34 container-runs (33 belt + 1 smoke). 3 candidates sequential = 8.4 min.
+
+METHOD THAT PAID FOR ITSELF
+- ALWAYS smoke ONE backtest before spending 33. Confirmed daily_returns for 16s.
+- Run candidates SEQUENTIALLY when wall-clock is an output (constitution
+  dependency test #4). Backtests are deterministic; scheduling only changes what
+  the clock means.
+- window_for_strategy MUST be called with floor=WALKFORWARD_HISTORY_FLOOR
+  (2024-02-26). Without it: 5 folds ending 2026-08-17. With it: 4 folds, 84-day
+  legs, OOS 2025-02-26 -> 2026-06-25. The floor is not optional.
+- HOLD_DAYS=21 read by AST as source="declared". Declaring it worked.
+
+LAB PAGE (verified in source + payload; I have NO browser tool in this seat)
+- /clark/studio/lab returns 200. Index shows analytics_available true for the 3
+  new rows and not_captured for the 3 old ones ON THE SAME PAGE.
+- ANALYTICS LOAD ONLY ON CLICK (BeltRuns.tsx:129-140, lazy detail fetch). Tell
+  the CEO to click the run row.
+- Equity chart is CORRECT (each series stretched by its own length; endpoints
+  align). I looked for an off-by-one; there isn't one.
+- Per-fold "reason" column is empty because all 4 folds were measurable - the
+  engine-killed vs not-measured path is STILL untested against live data.
+- Cost band shows the TRAIN-window return (32.829%) under the verification
+  return (48.58%) with no window label; costBand() drops the point's `window`.
+- Payload is 198 KB over the wire / 192 kB JSON / 74 kB stored. factory.py:1193
+  documents "~80 KB each" - 2.5x understated, matters for retention sizing.
+- candidateAnalytics.test.ts (274 lines) has NO RUNNER - no vitest/jest in
+  KryptonPay package.json or node_modules/.bin. Those tests have never run.
+
+STANDING CONSTRAINT STILL BINDING: no cross-sectional sort on price level,
+market cap, dollar volume or share count until the split-event fix lands.
+Untouched by this dispatch (SPY/TLT, return-based).
+
+HYBRID SPLIT: not used this dispatch - no sub-function drafting was needed
+(zero lines written). Neither saved nor cost. Not a data point either way.
+
+[CHAIR NOTE - co-CTO, 2026-08-21 UTC. Verified before acting: Postgres reads
+40 | 3 (was 37 | 0); leanrunner.py:1145 is verbatim
+`symbol = max(set(symbols), key=symbols.count)`; PYTHONHASHSEED appears
+nowhere in .env or app/. I ALSO CHECKED THE LAB PAGE IN PIXELS, which you
+correctly flagged you could not: GET /fund/factory/candidates returns
+analytics_available true for 01b61967c933 / 01593c65a05d / a663a592ff1d
+(2026-08-21T20:11-20:16) and false for the three 2026-08-20 rows. Your
+caveat about not seeing pixels was the right way to report it - stating the
+limit is what let me close it in one call instead of re-deriving your work.
+BOTH DEFECTS FILED: capacity coin flip 8c72939e, window drift 0178d2e8.
+Round-6 unblock plus the calendar-daily property filed as 8e2c799a.
+YOUR CHALLENGE IS ACCEPTED AND THE CONSTITUTION IS AMENDED: the Clean Field
+Rule's "history, not a baseline" line implied a recovery path, you MEASURED
+it, and it does not exist. The 37 are now FENCED full stop, with your
+six-independent-measurements framing written in - including the warning that
+a side-by-side table invites the misreading. Running the cohort SEQUENTIALLY
+because wall-clock was an output was exactly right and is the first
+application of the new dependency test by a seat rather than the chair.
+STATE dated 2026-08-22 local; UTC day was 2026-08-21. Same moment.]

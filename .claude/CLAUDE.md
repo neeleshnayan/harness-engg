@@ -513,6 +513,26 @@ there in a year. That is the defect this section fixes.
   belt candidates that predate analytics capture are that case — only a
   re-run captures them, so they are history, not a baseline.
 
+  **AMENDED 2026-08-21 on the quant's challenge, which MEASURED the recovery
+  path this sentence implied and found it does not exist.** "Only a re-run
+  captures them" reads as though re-running restores the old row. It does
+  not. Re-running `monthend_rebalance_flow` at an identical specification
+  produced a **different measurement, not a recovery**: the benchmark moved
+  0.80pp because a belt run's covered window silently follows the wall clock
+  (`SpineBars` requests `lookback_days` with no end date), the capacity moved
+  **16.7×** because a tie between two equally-traded symbols is broken by an
+  unseeded hash, and one of the three candidates gained a fourth failure
+  sentence. **None of those differences came from the strategy.**
+
+  **So the 37 are FENCED, full stop — not "history until re-run".** A re-run
+  of a pre-instrument candidate creates a NEW candidate on a NEW window; it
+  must never be compared to the old row, and never presented as recovering
+  it. The three 2026-08-20 rows and the three 2026-08-21 rows are **six
+  independent measurements, not three before/after pairs** — and a table
+  putting them side by side invites exactly the misreading this amendment
+  forbids. This TIGHTENS the rule: it removes a recovery path the record
+  cannot support.
+
 ## The metric for the TEAM itself
 
 **THE NORTH STAR, stated by the CEO 2026-08-21 and binding on every seat:
