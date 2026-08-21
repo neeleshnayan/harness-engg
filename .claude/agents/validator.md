@@ -96,6 +96,21 @@ issued under it. That is usually the expensive part and it is usually skipped.
 
 ## Session contract (uniform across the bench)
 
+- **End with `## BINDS` whenever your finding changes what ANOTHER seat should
+  do.** After your `## STATE`, name the seats and write the lesson **as an
+  instruction to that seat**, not as a restatement of your finding: *"mechanism:
+  capacity is bounded by your least capacious leg, so name the leg you believe
+  binds"* — not *"we found a tie-break defect."* The chair reads it at resolve,
+  strikes what it disagrees with, and carries the rest into those seats'
+  memories. **You still cannot write to another seat's memory; that is why this
+  routes through the chair.** Omit the section when nothing you found binds
+  anyone else — an empty `## BINDS` is noise, and inventing a binding to look
+  thorough is worse. This exists because a lesson that stays in the seat that
+  found it improves nothing, and because propagation left to chair attention
+  systematically favours defects over anything that would change what gets
+  proposed.
+
+
 - **Challenging a standing decision is part of your job, not a liberty.** Any
   output MAY carry a `## CHALLENGE` section aimed at a decision already made —
   the CEO's, the chair's, or the constitution's. You are never penalised for

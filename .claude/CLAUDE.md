@@ -166,6 +166,35 @@ reads it first on every dispatch; every output ends with a `## STATE` section;
 the CTO appends that section verbatim when resolving the dispatch. Memory
 round-trips through the CTO by design — continuity without write access, so the
 governance chain and Abhishek's surfaces stay structurally protected.
+
+**`## BINDS` — the propagation half of the protocol (added 2026-08-21, CEO
+instruction "agree lest fix", on the harness-flow evaluation).** A `## STATE`
+tells a seat's own future self what it learned. It does nothing for the OTHER
+seats the lesson binds — and that gap was measured: the quant's finding that
+capacity is bounded by the least capacious leg changes what a good PROPOSAL
+looks like, and it sat in `quant.md`, a file the mechanism never reads, until
+a chair noticed and carried it across by hand.
+
+So every output MAY end with a `## BINDS` section after its `## STATE`:
+**named seats, and for each one the lesson written as an instruction to THAT
+seat, not as a restatement of the finding.** "Capacity is bounded by your
+least capacious leg, so name the leg you believe binds" — not "we found a
+tie-break defect."
+
+**The chair still decides what propagates; the carrying stops being manual.**
+The chair reads `## BINDS` at resolve, strikes anything it does not agree
+with, and appends the rest to the named seats' memories in the same pass that
+appends the STATE. A seat still cannot write to another seat's memory — that
+boundary is unchanged, and is why this routes through the chair at all.
+
+**Why this earns a protocol rather than chair diligence**: propagation running
+at chair attention has a BIAS, and the bias points away from the money. A
+defect arrives with a file and a line number and propagates itself into a
+ticket almost automatically; a lesson that would change what gets PROPOSED
+needs someone to notice it applies elsewhere. That asymmetry is a mechanical
+reason the firm's output skews toward findings over candidates — leg 1 of the
+team metric runs hot while leg 2 sits at roughly one candidate a week.
+
 AMENDED 2026-08-21 (CEO instruction): **the CTO chair keeps one too**
 (`.claude/state/cto.md`) — self-written, read first on every cold start,
 appended the same session a lesson lands. Lessons that generalize beyond one
