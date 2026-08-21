@@ -397,10 +397,25 @@ class CommandPipeline:
 
         So expiry is a scheduled behaviour: anything past the limit is DECLINED by
         the worker with the reason on the record. Exit-rule-sourced proposals are
-        deliberately NOT re-raised here — the exit tick re-evaluates its rules
-        against FRESH marks every cycle anyway, so a still-true condition
-        re-proposes itself within a tick, and a no-longer-true condition (the
-        INTC case) correctly stays silent.
+        deliberately NOT re-raised here.
+
+        CORRECTED 2026-08-21 (riskofficer R19). The reason given for that used to
+        be "the exit tick re-evaluates its rules against FRESH marks every cycle
+        anyway, so a still-true condition re-proposes itself within a tick, and a
+        no-longer-true condition (the INTC case) correctly stays silent." THE
+        FIRST HALF IS FALSE. The exit tick re-evaluates marks, yes — but
+        ExitRules.enforce() stamps `triggered_at` on a rule when it fires
+        (exitrule.py:183-194) and SKIPS every rule carrying that stamp
+        (exitrule.py:275), for idempotency. So a fired rule fires ONCE. Its
+        proposal expiring here does not send it round again; only a fresh
+        EXIT_RULE_SET clears the stamp, and seq 195's own note records a human
+        doing that by hand.
+
+        The INTC half stands: a no-longer-true condition correctly stays silent.
+        What was wrong is the belief that a STILL-true one comes back. Nothing
+        about expiry changes as a result — but anyone reasoning about what
+        happens to an expired exit needs the true version, because the answer is
+        "nothing, until a human re-commits the rule".
         """
         limit = (PROPOSAL_STALE_AFTER_MINUTES if max_age_minutes is None
                  else max_age_minutes)
