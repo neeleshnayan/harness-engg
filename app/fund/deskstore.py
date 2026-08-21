@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -137,6 +138,52 @@ def _next_actor(raw: Any) -> Optional[str]:
     return v or None
 
 
+#: How hard a recommendation is to undo, as the SEAT states it.
+#:
+#: The desk currently INFERS this from `kind` against a table, and the inference
+#: is thin where it matters most: `awaits-ceo`, `batch` and `challenge` are
+#: routing words that say nothing about the act, so the CEO's own rows render
+#: "unclassified kind — ranked as if hard to undo" on almost every line. That is
+#: honest and it is noise, and noise on every row is how a warning stops being
+#: read.
+#:
+#: A seat knows whether its own recommendation can be taken back. This is the
+#: same pattern as `money_at_stake`, `due_date` and `next_actor`: optional,
+#: validated, never inferred from prose, and absent means the desk falls back to
+#: the kind table rather than to a guess.
+REVERSIBILITY = ("irreversible", "hard", "reversible")
+
+
+def _reversibility(raw: Any) -> Optional[str]:
+    if not isinstance(raw, str):
+        return None
+    v = raw.strip().lower()
+    return v if v in REVERSIBILITY else None
+
+
+_DUE_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _due_date(raw: Any) -> Optional[str]:
+    """A dated commitment as YYYY-MM-DD, or None.
+
+    The day something happens whether or not anybody clicks — an auto-close, a
+    time exit, a expiring authorisation. It is the CEO desk's top ranking key,
+    because a deadline is the one thing on that page that does not wait.
+
+    VALIDATED, and anything else is None rather than stored: a malformed date
+    would sort lexicographically against real ones and silently put a row in
+    the wrong place, which is worse than the row having no date at all. It is
+    never parsed out of the recommendation's text — a deadline read out of
+    English is the same class of mistake as a completion read out of English,
+    and this desk is being repaired from exactly that.
+    """
+    if not isinstance(raw, str):
+        return None
+    v = raw.strip()
+    return v if _DUE_DATE_RE.match(v) else None
+
+
 def _money_at_stake(r: Any) -> Optional[float]:
     """The dollars a recommendation moves, if the seat stated one.
 
@@ -212,7 +259,21 @@ class DeskStore:
                          # next; absent means the desk infers it. See
                          # `_next_actor` for why the field exists at all.
                          "next_actor": _next_actor(
-                             r.get("next_actor") if isinstance(r, dict) else None)})
+                             r.get("next_actor") if isinstance(r, dict) else None),
+                         # OPTIONAL YYYY-MM-DD. A DATED COMMITMENT — the day
+                         # something happens whether or not anybody clicks —
+                         # and the CEO desk's top ranking key. Absent means the
+                         # seat stated no date; it is never parsed out of the
+                         # text, because a deadline read out of English is the
+                         # same mistake as a completion read out of English.
+                         "due_date": _due_date(
+                             r.get("due_date") if isinstance(r, dict) else None),
+                         # OPTIONAL. The desk's SECOND ranking key, stated by
+                         # the seat rather than guessed from its kind. Absent
+                         # falls back to the kind table.
+                         "reversibility": _reversibility(
+                             r.get("reversibility") if isinstance(r, dict)
+                             else None)})
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(

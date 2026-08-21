@@ -794,12 +794,28 @@ def desk_load(open_recommendations: list[dict[str, Any]],
 
     by_actor = {a: 0 for a in NEXT_ACTORS}
     explicit_rows = 0
+    # A PARTITION, not overlapping tallies: every row lands in exactly one of
+    # the CEO's figure, `decided_awaiting_execution`, or `open_elsewhere`.
+    # Written this way because the first attempt reported "26 elsewhere" beside
+    # a page saying "6 with the chair" — both true, both counting different
+    # things, one label apart. Two numbers that sound like the same number are
+    # the defect this whole module is being repaired from.
+    decided_rows = 0
+    open_elsewhere = 0
     if isinstance(open_recommendations, list):
         for row in open_recommendations:
             verdict = next_actor(row)
-            by_actor[verdict["actor"]] = by_actor[verdict["actor"]] + 1
+            actor = verdict["actor"]
+            by_actor[actor] = by_actor[actor] + 1
             if verdict["basis"] == "explicit":
                 explicit_rows = explicit_rows + 1
+            status = row.get("status") if isinstance(row, dict) else None
+            if actor in ("ceo", "unknown"):
+                pass                      # counted in `total` below
+            elif status in ("accepted", "staged"):
+                decided_rows = decided_rows + 1
+            else:
+                open_elsewhere = open_elsewhere + 1
         # UNKNOWN counts. A row whose next actor could not be read is work the
         # CEO may still owe, and reporting it as zero would be this fund's
         # oldest mistake in a new place.
@@ -813,17 +829,19 @@ def desk_load(open_recommendations: list[dict[str, Any]],
     }
     unreadable = sorted(k for k, v in parts.items() if v is None)
     total = sum(v for v in parts.values() if v is not None)
-    elsewhere = by_actor["chair"] + by_actor["seat"]
     return {
         "total": total,
         "complete": not unreadable,
         "unreadable": unreadable,
         "components": parts,
-        # The full split, so nothing routed away from the CEO becomes invisible.
+        # The full census by actor, so nothing routed away becomes invisible.
         "by_actor": by_actor,
-        # Work that is real and is somebody else's. Rendered beside the CEO
-        # figure, never folded into it.
-        "not_ceo_load": elsewhere,
+        # The other two legs of the partition. OPEN work owned by the chair or
+        # a seat is a different fact from work the CEO already DECIDED and is
+        # waiting to see executed, and the desk page renders them as two
+        # different sentences — so they are two numbers here, not one.
+        "open_elsewhere": open_elsewhere,
+        "decided_awaiting_execution": decided_rows,
         # How many rows STATED their next actor instead of being inferred.
         # Zero today: nothing writes the field yet, and a reader deserves to
         # know the count rests on inference rather than on declaration.
@@ -837,10 +855,12 @@ def desk_load(open_recommendations: list[dict[str, Any]],
             + (f"; {by_actor['unknown']} of them because their next actor could "
                "not be determined, which counts rather than disappears"
                if by_actor["unknown"] else "")
-            + (f". {elsewhere} further recommendation(s) are open work owned by "
-               "the chair or another seat, counted here so they stay visible "
-               "and excluded from the CEO's figure because they were never his "
-               "to decide" if elsewhere else "")
+            + (f". {open_elsewhere} further recommendation(s) are OPEN work "
+               "owned by the chair or another seat — counted here so they stay "
+               "visible, and excluded from the CEO's figure because they were "
+               "never his to decide" if open_elsewhere else "")
+            + (f". {decided_rows} are decided and awaiting execution"
+               if decided_rows else "")
             + (f" — {', '.join(unreadable)} could not be counted, so the real "
                "total is at least this" if unreadable else "")
             + (". A COO triage dispatch is DUE; the CTO fires it when a session "
@@ -965,6 +985,21 @@ def seat_telemetry(day_runs: Optional[list[dict[str, Any]]],
     }
 
 
+def _annotated(rec: Any) -> Any:
+    """One recommendation with its resolved next actor attached.
+
+    Three fields rather than one, because a reader who disagrees with the
+    routing needs to see WHY without opening the source: the actor, the basis
+    it was decided on (explicit / lifecycle / kind / default), and the sentence.
+    A surface that showed only the verdict would be asking to be trusted.
+    """
+    if not isinstance(rec, dict):
+        return rec
+    v = next_actor(rec)
+    return {**rec, "next_actor_resolved": v["actor"],
+            "next_actor_basis": v["basis"], "next_actor_why": v["why"]}
+
+
 #: How many runs the desk payload carries. Named because it is TWO things: the
 #: list the UI renders, and the window review-detection searches — so a reader
 #: changing it should see both consequences in one place.
@@ -1003,6 +1038,13 @@ def view(store: Any, deskstore: Any = None,
     # None when the recorder could not be read, which makes `review_detectable`
     # false rather than reporting WORKING as a confident answer.
     activity = _activity(store, runs=seen_runs, runs_limit=_RUNS_IN_PAYLOAD)
+    # Whose move it is, resolved ONCE and attached to the row, so the count and
+    # the list cannot disagree. The CEO's desk page had its own status-label
+    # rule and the counter had another; on the same payload they read 11 and 6,
+    # two numbers claiming the same thing eight pixels apart. A client that
+    # re-implemented this predicate in TypeScript would be a second definition
+    # free to drift from the first — the defect class this module is fixing.
+    open_recs = [_annotated(r) for r in (open_recs or [])]
     open_reqs = [r for r in reqs if r["status"] == "open"]
     killed = [a for a in artifacts if a["status"] == "killed"]
     return {

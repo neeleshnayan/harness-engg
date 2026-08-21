@@ -1560,7 +1560,8 @@ class AgentRunRecord(BaseModel):
     # The chatter thread this run belongs to — the desk request's trace_id,
     # carried verbatim so the whole chain replays from one id.
     trace_id: Optional[str] = None
-    # Each recommendation is {kind, text, money_at_stake?, next_actor?}.
+    # Each recommendation is {kind, text, money_at_stake?, next_actor?,
+    # due_date?}.
     # `money_at_stake` is an OPTIONAL float: the dollars this recommendation
     # moves, stated by the seat. Absent means the seat did not state one —
     # never zero — and the desk ranks absent-last and prints the gap.
@@ -1568,6 +1569,10 @@ class AgentRunRecord(BaseModel):
     # move it is. Absent means the desk INFERS it from lifecycle and kind, and
     # `desk_load.explicit_next_actor` reports how many rows declared it, so a
     # reader can tell a count built on declaration from one built on inference.
+    # `due_date` is an OPTIONAL YYYY-MM-DD dated commitment — the day something
+    # happens whether or not anybody clicks. It is the CEO desk's TOP ranking
+    # key, so a seat filing a time exit or an auto-close should state it here;
+    # it is never read out of the recommendation's prose.
     recommendations: Optional[list[dict]] = None
     meta: Optional[dict] = None
 

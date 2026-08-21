@@ -208,7 +208,7 @@ class TestDeskLoadCountsCeoWork:
                 {"status": "open", "kind": "awaits-ceo"}]
         load = desk_mod.desk_load(feed, [], [])
         assert load["total"] == 1
-        assert load["not_ceo_load"] == 2
+        assert load["open_elsewhere"] == 2
         assert sum(load["by_actor"].values()) == 3, \
             "every row in the feed must appear somewhere in by_actor"
         assert "chair or another seat" in load["note"]
@@ -249,6 +249,31 @@ class TestDeskLoadCountsCeoWork:
         assert desk_mod.desk_load([], [], [])["rules_version"] \
             == desk_mod.NEXT_ACTOR_RULES_VERSION
 
+    def test_the_three_legs_are_a_partition_and_never_double_count(self):
+        """The first attempt at this breakdown reported "26 elsewhere" beside a
+        page saying "6 with the chair" — both true, both counting different
+        things, one label apart. Two numbers that sound like one number is the
+        defect this module exists to remove, so the legs partition."""
+        feed = ([{"status": "open", "kind": "awaits-ceo"}] * 3
+                + [{"status": "open", "kind": "build"}] * 5
+                + [{"status": "accepted", "kind": "batch"}] * 20
+                + [{"status": "staged", "kind": "fix"}] * 2
+                + [{"status": "weird"}])
+        load = desk_mod.desk_load(feed, [], [])
+        assert load["components"]["open_recommendations"] == 4   # 3 ceo + 1 unknown
+        assert load["open_elsewhere"] == 5
+        assert load["decided_awaiting_execution"] == 22
+        assert (load["components"]["open_recommendations"]
+                + load["open_elsewhere"]
+                + load["decided_awaiting_execution"]) == len(feed)
+        # A decided row that STILL needs the CEO belongs to him alone — it is
+        # not also "decided, awaiting execution" from his point of view.
+        one = desk_mod.desk_load(
+            [{"status": "accepted", "next_actor": "ceo"}], [], [])
+        assert one["total"] == 1
+        assert one["decided_awaiting_execution"] == 0
+        assert one["open_elsewhere"] == 0
+
     def test_the_trigger_boundary_is_unchanged_and_exact(self):
         """The threshold itself did not move — only what feeds it. One item
         below is quiet; the threshold itself fires."""
@@ -276,8 +301,98 @@ class TestDeskLoadCountsCeoWork:
                          "no_action", "awaits-ceo", "envelope_change")]
         load = desk_mod.desk_load(one_seat_run, [], [])
         assert load["by_actor"]["ceo"] == 2
-        assert load["not_ceo_load"] == 3
+        # chair(harness, next_dispatch) + seat(handoff) + nobody(no_action):
+        # all four are OPEN and none is the CEO's.
+        assert load["open_elsewhere"] == 4
         assert load["by_actor"]["nobody"] == 1
+        assert load["decided_awaiting_execution"] == 0
+
+
+class TestTheRowsCarryTheirOwnVerdict:
+    """The count and the list must not be able to disagree.
+
+    They already did once: the CEO desk page kept its own status-label rule and
+    the spine's counter kept another, and on one payload they rendered 11 and 6
+    for the same question eight pixels apart. The predicate has ONE definition
+    and the answer travels ON the row.
+    """
+
+    class _Store:
+        def __init__(self, recs):
+            self._recs = recs
+
+        def runs(self, limit=25):
+            return []
+
+        def open_recommendations(self):
+            return self._recs
+
+    def _view(self, recs):
+        from tests.test_desk import MemStore
+        return desk_mod.view(MemStore(), self._Store(recs))
+
+    def test_every_row_carries_the_resolved_actor_and_its_reason(self):
+        v = self._view([{"status": "open", "kind": "build", "rec_id": 1},
+                        {"status": "accepted", "kind": "awaits-ceo", "rec_id": 2},
+                        {"status": "open", "kind": "awaits-ceo", "rec_id": 3}])
+        rows = v["open_recommendations"]
+        assert [r["next_actor_resolved"] for r in rows] == ["chair", "chair", "ceo"]
+        assert [r["next_actor_basis"] for r in rows] == ["kind", "lifecycle", "kind"]
+        # The sentence travels too — a surface that showed only the verdict
+        # would be asking a reader to trust a routing they cannot inspect.
+        assert all(r["next_actor_why"] for r in rows)
+
+    def test_the_annotation_and_the_count_agree_by_construction(self):
+        recs = [{"status": "open", "kind": k, "rec_id": i}
+                for i, k in enumerate(["build", "awaits-ceo", "no_action",
+                                       "handoff_to_quant", "envelope_change"])]
+        v = self._view(recs)
+        rows = v["open_recommendations"]
+        ceo_rows = [r for r in rows
+                    if r["next_actor_resolved"] in ("ceo", "unknown")]
+        assert len(ceo_rows) == v["desk_load"]["components"]["open_recommendations"]
+
+    def test_annotating_does_not_disturb_an_explicit_declaration(self):
+        """`next_actor_resolved` is a derived field. It must never be mistaken
+        for the seat's own `next_actor` on a later pass — a derived value fed
+        back in as a declaration is how an inference becomes a fact nobody
+        stated."""
+        v = self._view([{"status": "accepted", "next_actor": "ceo", "rec_id": 1}])
+        row = v["open_recommendations"][0]
+        assert row["next_actor"] == "ceo"
+        assert row["next_actor_resolved"] == "ceo"
+        assert row["next_actor_basis"] == "explicit"
+        assert desk_mod.next_actor(row)["basis"] == "explicit"
+
+    def test_a_non_dict_row_survives_annotation(self):
+        v = self._view(["not a row"])
+        assert v["open_recommendations"] == ["not a row"]
+        assert v["desk_load"]["by_actor"]["unknown"] == 1
+
+
+def test_a_due_date_is_validated_never_parsed_out_of_prose():
+    """The desk's TOP ranking key. A malformed date would sort
+    lexicographically against real ones and put a row silently in the wrong
+    place, which is worse than the row carrying no date at all."""
+    pytest.importorskip("psycopg")
+    from app.fund.deskstore import _due_date
+    assert _due_date("2026-09-08") == "2026-09-08"
+    assert _due_date("  2026-09-08 ") == "2026-09-08"
+    for junk in ("Sept 8", "2026-9-8", "2026-09-08T00:00:00Z", "", None, 20260908,
+                 "the 2026-09-08 auto-close"):
+        assert _due_date(junk) is None, junk
+
+
+def test_a_stated_reversibility_is_validated_against_a_closed_set():
+    """The desk's SECOND ranking key. A free string would put a row in a band
+    the comparator does not know about, which sorts as undefined rather than as
+    wrong — the worst of the three outcomes."""
+    pytest.importorskip("psycopg")
+    from app.fund.deskstore import _reversibility
+    for good in ("hard", "IRREVERSIBLE", " reversible "):
+        assert _reversibility(good) == good.strip().lower()
+    for junk in ("unclassified", "very hard", "", None, 3, "revertible"):
+        assert _reversibility(junk) is None, junk
 
 
 def test_the_two_terminal_lists_agree():
