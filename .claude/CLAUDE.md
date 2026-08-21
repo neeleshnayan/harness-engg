@@ -309,6 +309,43 @@ is the record OF decisions. The original two (2026-08-20):**
   direction. Quiet loosening is the one forbidden move.
 - Findings docs are never edited — a re-measurement gets a new section or a new file
   (docs/README.md carries each doc's status).
+- **THE CLEAN FIELD RULE (added 2026-08-21, CEO instruction, verbatim: "since
+  we are building a lot of new components its important that we park our
+  mistakes post fixing them t new level field so that future experiments dont
+  get adulterated on those").** When a confirmed defect has contaminated a
+  measurement that FUTURE work will be judged against, the remediation has TWO
+  halves and shipping only the first is an unfinished fix: **(1) fix the cause
+  so it cannot recur, and (2) re-baseline the contaminated measurement, so the
+  next experiment is not judged against polluted history.** A fund that fixes
+  causes but never re-baselines accumulates a reference frame made of its own
+  old mistakes, and every later result is measured against them.
+
+  This rule is one step from "quietly reset the number you dislike", so it
+  carries five guard rails — each one earned by what made the 2026-08-21
+  drawdown rebase legitimate, and ALL are required:
+  1. **The cause is fixed first, and demonstrably.** Re-baselining a still-open
+     defect just moves the contamination forward.
+  2. **The contaminated value is PRESERVED beside the new one.** Annotate,
+     never erase — the rebase kept `unrebased_peak_nav` and set
+     `peak_basis: "rebased"`, so a reader sees that the reference moved and
+     by how much.
+  3. **The magnitude must be MEASURED, not estimated.** You re-baseline BY a
+     number the record supports ($128.26, the phantom's realised destruction),
+     never by a number that makes the picture look better. An unmeasured
+     contamination is not a licence to pick a figure — absence is never zero,
+     and it is never a free hand either.
+  4. **Direction is enforced in code wherever the shape allows it** (a drawdown
+     rebase may only LOWER the reference, and the effective peak floors at any
+     genuine high since — so it can shorten a phantom's shadow and can never
+     hide a real peak).
+  5. **A human decides and the record says who, why and when.** It is a
+     versioned action on the approval channel, not housekeeping.
+
+  Where the defect CANNOT be re-baselined (the measurement is unrecoverable),
+  the honest move is to fence the contaminated cohort rather than launder it:
+  mark it as pre-instrument and never compare new work against it. The 37
+  belt candidates that predate analytics capture are that case — only a
+  re-run captures them, so they are history, not a baseline.
 
 ## The metric for the TEAM itself
 

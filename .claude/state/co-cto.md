@@ -89,6 +89,20 @@ right** — worth internalising rather than just recording:
   you enforce it.** Cost of not doing so: $874 idle and 58% halt odds
   carried a day longer than necessary.
 
+**CEO CORRECTION, 2026-08-21 — the one to internalise before any other.**
+I ended a report with "Say the word on the riskofficer and I'll fire it
+now." He replied: *"you need to start taking decisions as co-CTO; I wont
+approve things that is in your job profile."* He is right and the charter
+already said so — **dispatching the bench is TIER 1, free, mine.** Asking
+for a word I did not need is not caution, it is pushing my own job onto
+the CEO's desk, and it costs him exactly the attention this whole
+governance apparatus exists to protect. **RULE: before asking the CEO
+anything, check the tier. Tier 1 → just do it. Tier 2 → do it and ledger
+it. Only a genuine Tier-3 fork or a decision that is his by right (an
+option choice, money, a threshold) earns a question.** The R1 option
+question WAS right to ask — three options, money attached, his call. The
+riskofficer dispatch was not.
+
 **What worked, keep doing:** gating both bundles with `merge_builder.py`
 BEFORE touching the live trees; re-measuring the builder's refutation
 myself (n=4,895) instead of accepting a seat's claim that contradicted
