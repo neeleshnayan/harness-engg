@@ -103,3 +103,27 @@
   pace direction working as written - C/D/G get their own dispatch. Wrong-base
   count now 5/5; the refusal discipline held again.
 
+
+## STATE
+
+**builder — after dispatch 6 (2026-08-21), sixth dispatch**
+
+- **Worktree base wrong a SIXTH time, and the worst variant yet: I was dispatched into the LIVE `KryptonPay` checkout** (not a worktree at all). Clone-both recovery into the scratchpad is now muscle memory (~4 min) and is the only safe response — verify with `git log -1` inside the clone before touching anything. The CTO moved the ClarkHarness head TWICE mid-dispatch (`ca2b08b`, `bd25cdb`); `git -C <clone> fetch origin <branch>` then `rebase FETCH_HEAD` is clean and cheap. Do it immediately, not at bundling time.
+- **`node --test` glob must be ONE argument.** Bash without `globstar` expands `**` as `*`, so `studio/**/*.test.ts` silently missed `studio/desk/floor/`. I reported 137/163 for two commits when the truth was 127/191. Always `node --experimental-strip-types --test "src/app/clark/**/*.test.ts"` (quoted — node expands it). **My d6 commit messages contain the undercounts; the report has the corrected figures.**
+- **`scripts/merge_builder.py` now exists and works on both repos.** `--bundle --base --repo [--branch]`; PASS/FAIL, exit 0/1, usage error 2. It MERGES for real inside a throwaway clone (`--no-commit --no-ff`) and runs the suite on the result — I shipped it checking out the tip and caught that by running it on its own bundle. Use it before every merge; it found nothing wrong with my own diff but it reported the 3 new constants for a human to read, which is the point.
+- **CDP probe doctrine paid for itself four times this dispatch.** The equity-chart lie, the archived-strategies-as-live defect, the CEO-desk ordering error and the bench `0.0%` were all found by LOOKING, not reading. `mock_spine.js` in the scratchpad proxies the live spine and overrides chosen endpoints from JSON fixtures (`MONITOR_FIXTURE` / `DIVERGENCE_FIXTURE` / `DESK_FIXTURE` / `FAIL_DETAIL=1`) — generate fixtures with the SPINE'S OWN code so shapes cannot drift. **The mock proxies POSTs to the live spine: never click an approve/decline submit while it is up.**
+- **Verified live shapes (2026-08-21):** feed serves SPY TLT DBC UUP XBI IBB GLD DBA IWM SRPT, 551 bars each from 2024-06-10, source=alpaca. `/fund/desk` requests have FOUR states with `task`/`seat` normalized from `subject`/`serves`. `halt_ack_token` and `drawdown.rebase_token` are served even when `halted:false` — the token is NOT permission. LEAN job wall times are BIMODAL: 44 of 50 under 120s, 6 pinned at 300–301s, nothing between (a censored distribution; that is why I raised `LEAN_JOB_TIMEOUT` to 900).
+- **Fractional fills: measured, not guessed.** `sec.symbol_properties = SymbolProperties(desc, ccy, mult, minvar, 0.0001, ticker)` produces fractional fills (SPY 1.4298 vs 1.0000 at a $2k book). `lean_workspace/algorithms/frac_probe` is the KEPT falsifier — re-run both arms after any LEAN image bump. Docker + `quantconnect/lean:latest` are available and a short run is ~13s, so engine questions ARE answerable here; do not guess at them again.
+- **CONFIRMED LATENT RISK DEFECT, unfixed and out of my bounds:** a SECOND drawdown rebase RAISES the effective peak. `app/api/v1/fund.py:3511` checks direction against `unrebased_peak_nav` (which never moves) while `effective_peak()` returns the rebased value — so after a rebase to 1950, a rebase to 2000 is accepted and the reference goes UP, contradicting `riskmonitor.py`'s own docstring. Verified by calling `effective_peak` directly. Never triggered (the fund has never been rebased). **Needs a human/riskofficer decision.**
+- **Open for a future dispatch:** (a) belt-candidate serialisation — needs a `queued` candidate state, which changes the scoreboard's shape, so it is a decision not a refactor; (b) the gate's HOLDOUT leg still reports an engine timeout as "a leg produced no return figure" (one argument to `_leg_retention`, but it is `gate.py`); (c) the hardcoded `"neelesh"` approver in ApprovalQueue / RebalancePanel / LimitsEditor / HaltControl's loss-rebase — a firm-wide convention needing a human call; (d) `correlation.aligned_returns` memoises on `fetcher.__name__`, so same-named fakes collide (benign in prod, lethal in tests); (e) still no DOM test runner in KryptonPay; (f) ClarkHarness H1 unfixed since dispatch 2; (g) F4's latency cause still unexplained.
+- **After merge the CTO must**: restart the spine so `analytics`, `archived` on divergence rows, and the fractional switch start flowing (the Lab renders every pre-existing candidate as NOT CAPTURED until then, which is correct); the 37 existing candidates will never have analytics — only a re-run captures them.
+
+- [CTO note at resolve, 2026-08-21]: both bundles re-verified independently on
+  the live trees (1208 + 191, corrected glob; forbidden surfaces 0; fund_api.ts
+  diff confirmed additive with zero thesis types) and merged; spine restarted —
+  n_live/n_archived flowing (1 live, 3 archived). The latent rebase-direction
+  defect is routed to the riskofficer as policy_audit dc7b068c and gates R1's
+  first use. The glob undercount self-correction without commit rewriting is
+  the honesty standard, noted. Wrong-base now 6/6 — the dispatch-harness fix
+  (hand the seat a clone) is on the recommendations. First run recorded under
+  the interaction-durability rule: full report verbatim in the record.

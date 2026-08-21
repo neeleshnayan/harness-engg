@@ -16,10 +16,22 @@ Base URL: `http://127.0.0.1:8090/api/v1`
   sessions, 2016-08-22 →) via `lookback_days=3650` or explicit
   `start`/`end`; the earlier "826 sessions" figure was the request's size,
   not a limit. Adjusted for splits/dividends.
-- `GET /fund/research/observations?ticker=&category=` — the filings corpus:
-  863 observations, 201 tickers, each with the verbatim quote it was
-  verified against (last extraction 2026-08-18). `POST /fund/research/read`
-  with tickers extends it when thin.
+- `GET /fund/research/observations?ticker=&category=&limit=` — the filings
+  corpus: 1,035 observations, 201 tickers, 249 filings (refreshed
+  2026-08-21), each with the verbatim quote it was verified against.
+  **`limit` defaults to 50, max 500** — a naive fetch silently returns 50
+  of 1,035 rows; page by `category` (largest is liquidity at 379).
+  `POST /fund/research/read` extends it — **`per_ticker` defaults to 2**
+  (why the corpus was one filing deep per name); `forms:["10-Q"],
+  per_ticker:6` reaches back ~2 years at a measured 12.3 s/filing.
+- EDGAR gotchas (analyst, 2026-08-21): `acceptanceDateTime` carries a "Z"
+  suffix but is **ET = the stamp minus 4 hours** (verified on four index
+  pages). 55.9% of corpus filings were accepted post-close on their own
+  `filed` date — **any backtest consuming the corpus must enter at or
+  after the OPEN of the session following `filed`**, never the close.
+  `fetch_daily_bars("BTC")` returns CoinGecko bitcoin (7-day calendar),
+  not the SEC filer Grayscale Bitcoin Mini Trust — run a bar-count
+  integrity check against SPY in any study touching crypto-named tickers.
 - `GET /fund/universe/hunting-ground` — liquidity, capacity, CIKs. Never
   filter on "too small for big funds": at $2k NAV that is other people's
   constraint, not ours.

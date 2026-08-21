@@ -224,7 +224,20 @@ schema change, effective now, both chairs. The deeper capture is D7.
   (read-only, the CTO marks them noted); only suggestions get decision
   buttons. Also fold in: adversary r4 rec 4 (data path: aligned daily
   strategy+benchmark series per fold, one feed, undownsampled) and
-  whatever D6 defers at its sanctioned boundary.
+  whatever D6 defers at its sanctioned boundary. FROM THE ANALYST CYCLE-2
+  DISPATCH (all builder-sized, none touch protected surfaces): (a) add
+  `accepted_at TIMESTAMPTZ` + `period DATE` to fund_observations,
+  populated from EDGAR acceptanceDateTime (ET = stamp minus 4h) and
+  reportDate — edgar.py:138-139 currently discards both; prevents the
+  55.9% sub-daily lookahead; (b) 8-K reader must follow the filing index
+  to exhibit EX-99.1 instead of primaryDocument (edgar.py:86-89) — 83% of
+  8-K reads are zero-yield cover pages and item 2.02 earnings content is
+  unreachable; (c) route equity-namespace symbols away from _crypto_id
+  when an EDGAR CIK exists (BTC = Grayscale trust, not bitcoin spot).
+  FROM BUILDER D6 deferrals: belt-candidate `queued` state (decision
+  first), gate.py holdout timeout split (sanctioned gate change), the
+  hardcoded "neelesh" approver convention (human call), the dispatch
+  harness handing seats a clone (wrong base 6/6).
 
 ### 2026-08-21 ~06:50Z (co-CTO chair created; overnight orders expired + re-staged)
 LESSON (staging): the worker declines any pending proposal after 120
