@@ -1,5 +1,12 @@
 import axios from 'axios';
 
+// TYPE-ONLY, so this stays a compile-time reference and adds no runtime edge
+// from lib/ into app/. The belt's candidate shape is declared beside the logic
+// that reads it (studio/lab/candidateAnalytics.ts) rather than restated here,
+// because two declarations of the same wire shape drift and only one of them
+// has tests.
+import type { CandidateRow } from '@/app/clark/studio/lab/candidateAnalytics';
+
 // ClarkHarness (fund spine). In the dev browser go through the Next rewrite
 // (/proxy/harness) to avoid CORS; otherwise use the configured harness URL.
 // Mirror of the /proxy/{main,hedge,web3} pattern in next.config.ts.
@@ -2129,6 +2136,32 @@ export const fundApiClient = {
    *  is neither healthy nor broken — another process may hold the lease. */
   getLiveness: async (): Promise<LivenessReport> =>
     (await fundApi.get(`${P}/liveness`)).data,
+
+  /** The belt's index: every candidate it has judged, with the SCOREBOARD.
+   *
+   *  Carries `walkforward.folds` (requested dates + `dates_honoured` + each
+   *  fold's own measurable/why-not reason) and `analytics_available`, but NOT
+   *  the equity curves — those are ~80 KB apiece and have one reader. Types live
+   *  in `studio/lab/candidateAnalytics.ts`, beside the logic that reads them,
+   *  and are imported here rather than restated so the two cannot drift. */
+  getCandidates: async (algorithm?: string, limit = 50): Promise<{
+    scoreboard: {
+      submitted: number; judged: number; passed: number; killed: number;
+      errored: number; orphaned: number; running: number;
+      note?: string; absence_note?: string | null;
+    };
+    candidates: CandidateRow[];
+  }> => (await fundApi.get(`${P}/factory/candidates`,
+    { params: { ...(algorithm ? { algorithm } : {}), limit } })).data,
+
+  /** ONE candidate, WITH the analytics its verdict was computed from.
+   *
+   *  `analytics.available` is false for the four typed absences (never captured
+   *  / aged out / unavailable / not testable) and carries the sentence saying
+   *  which. Never render a false as an empty panel. */
+  getCandidate: async (candidateId: string): Promise<CandidateRow> =>
+    (await fundApi.get(
+      `${P}/factory/candidates/${encodeURIComponent(candidateId)}`)).data,
 };
 
 export default fundApi;
