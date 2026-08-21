@@ -160,3 +160,22 @@
   builder has corrected a chair. The false line is PARKED FOR FABLE (the
   API card is the CTO chair's instrument); every brief I write meanwhile
   will carry the correction inline.
+
+## 2026-08-21 — CARRIED FROM THE MECHANISM (cycle 3) BY THE CHAIR
+
+First use of the `## BINDS` protocol. The seat named you; the chair verified the underlying code claim and carried it.
+
+**The walk-forward out-of-sample union is `(need + 1) × 4 × hold` trading
+days, with `need` a single global constant** (`factory.py:220`, reading
+`CRITERIA["min_walkforward_folds"]`). Chair-verified.
+
+**A 1-day rule is certified on TWENTY trading days of a single regime** and
+stamped with the same gate version as a 21-day rule certified on sixteen
+months. Deriving `need` from a target OOS span instead gives 63/32/21/13/7
+folds over 252–280 days for holds 1/2/3/5/10 and leaves hold=21 unchanged.
+
+It is gate-adjacent, so it is Fable's call — **but the arithmetic, the fold
+table and the container cost are all measured and in the artifact
+(`docs/MECHANISM_CYCLE3_2026-08-21.md`). Do not re-derive them.** Note the
+honest cost the mechanism volunteered: fold count IS container count, so
+hold=1 is ~12.6× compute.

@@ -446,3 +446,21 @@ is what round 5 produced. H1 (the rf source) is routed to the CEO as the one
 decision he owns. H3 (discrimination vs MAX_LEVER) is registered as round 6's
 first experiment. The analyst's price-anchor finding is registered as a
 SEPARATE round-6 input (4698dee7) and was deliberately kept out of round 5.]
+
+## 2026-08-21 — CARRIED FROM THE MECHANISM (cycle 3) BY THE CHAIR
+
+First use of the `## BINDS` protocol. The seat named you; the chair verified the underlying code claim and carried it.
+
+**`breakeven_cost` (`leanrunner.py:271-315`) interpolates on TOTAL RETURN, so
+any candidate holding cash between signals has its cost robustness inflated by
+risk-free carry.** Chair-verified: the function skips points where
+`total_return_pct is None` and finds the zero crossing on that field.
+
+Measured instance: a candidate's edge dies at **7.3 bps/side**, the gate reads
+**14.55** against a 10.0 floor and passes it — and at that floor the strategy
+earns +1.09%/yr against BIL's +2.05%/yr.
+
+**Your task: of the 40 belt candidates, how many passed `min_breakeven_bps` on
+that inflation?** One query plus one re-interpolation on
+return-minus-cash-leg. This is the gate-v5 round-4/5 risk-free leak living
+inside **v4.1**, and it is one of the cheapest leg-1 measurements available.

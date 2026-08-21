@@ -184,3 +184,15 @@ docs/pm/PM_SLEEVE_V2_2026-08-21.md — the STATE below is the seat's own.]
   the CEO's desk and NOTHING stages until it lands. Your J3 clock and the
   09-08 phase-2 date are in the chair's session log.
 
+
+## 2026-08-21 — CARRIED FROM THE MECHANISM (cycle 3) BY THE CHAIR
+
+First use of the `## BINDS` protocol. The seat named you; the chair verified the underlying code claim and carried it.
+
+**Cash is $968.69 of a $1,885.74 NAV — 51.4% — as of 2026-08-21T21:14Z.**
+
+The mechanism proposed nothing deployable this cycle, so **leg 3 of the team
+metric has no help coming from that seat.** Stated plainly by the seat itself:
+*"if that idle half needs a written reason, it will not be 'waiting on the
+mechanism seat'."* The reason currently on the record is that the book is at
+throttle target and phase 2 is dated 2026-09-08.

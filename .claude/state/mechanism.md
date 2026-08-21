@@ -276,3 +276,48 @@ has never been cleared, so a proposal whose case is "it should pass the gate"
 is making an unevidenced claim. **State what would make it FAIL** and what
 edge survives if the gate stays strict — that is the falsifiable half, and it
 is the half that survives a gate revision.
+
+
+**2026-08-22 — funnel cycle 3. VERDICTS: 0 to belt. Entry 16 SPEC-FILED/DEFERRED (2 unblocks). Entry 6 RETIRED. Rebalancing-return and FX-hedge pre-killed. Menu 15 -> 19. Two gate defects measured. Zero containers.**
+
+**THE THING THAT CHANGES MY JOB — the bottleneck moved from idea supply to the instrument, and I now have the numbers.** Across three cycles, 8 verdicts: 4 died on the idea, **4 died on the instrument**, and today both ideas that survived contact with the world died on the instrument. Stop treating "no candidate" as an idea-supply failure. Next cycle, check the unblock status FIRST.
+
+**DEFECTS I FILED (verify before re-deriving; all run, not asserted):**
+- **D5** - OOS union = `(need+1) x 4 x hold` trading days; `need` = `CRITERIA["min_walkforward_folds"]` = 4 (`gate.py:183`), read at `factory.py:220`. hold=1 -> 5 folds over **20 trading days**. Fix `need = max(4, ceil(252/test_days))` -> hold 1/2/3/5/10 get 63/32/21/13/7 folds over 252-280 days, all `enough=True`, hold=21 unchanged. TIGHTENING. `test_days` untouched so `min_decisions_per_test_leg` unaffected. **Cost: fold count = container count; hold=1 is 12.6x.**
+- **D6** - `breakeven_cost` interpolates on **total_return** (`leanrunner.py:271-315`), so a cash-parking rule's `breakeven_bps` carries its BIL carry. Measured on entry 16: edge dies at **7.3 bps/side**, gate reads **14.55**, floor is 10 -> **passes for the wrong reason**; at slip=10 the rule earns +1.09%/yr vs BIL's +2.05%/yr. Same rf-leak as gate v5 r4/r5, in a v4.1 criterion.
+- **D7** - `HOLD_DAYS` (`walkforward.py:124-164`) conflates holding period with decision cadence. Entry 16 holds 2, decides every 21; declared as 2 it gets 0.4 decisions/leg, as 21 it gets 4. Nothing says which is right. Tell the quant.
+
+**NUMBERS NOT TO RE-DERIVE** (feed 2015-08-01..2026-08-21, n=2,779; scripts in `scratchpad/mech3/`):
+- **Entry 16, month-end index extension, last 2 sessions:** SHY +0.0448% t=4.41; AGG +0.0909% t=3.06; IEF +0.1155% t=2.68; TLT +0.1458% t=1.66; n=133. **Duration-ordered** (the mechanism's signature). Mid-month placebo IEF -0.0181% t=-0.37, TLT -0.0700% t=-0.65 (clean). No 3-day giveback (t=0.16/0.40). Strategy (TLT/BIL, 5bps/side) vs the belt's buy-and-hold EW bar: **11y +2.32 vs +0.69 %/yr (excess +1.63); belt OOS union +2.10 vs +1.98 (excess +0.12).** Folds +0.56/-1.55/+0.62/+0.41.
+- **Levered-ETF flow, DEAD:** ordering inverts. SPY -2s +0.206/+2s -0.354; QQQ +0.340/-0.444; SOXX +0.533/-0.529; XBI +0.525/**-0.012**; GDX +0.068/**+0.246**; FXI/IWM/XLE wrong-signed both tails.
+- **Rebalancing return, DEAD:** monthly-rebal EW loses to buy-and-hold EW in 6 of 7 universes over 11y (SPY/TLT -2.16%/yr, SOXX/TLT/GLD -5.85%/yr); dExcessSharpe -0.14..+0.07, negative in 5 of 7.
+- **FX hedge pairs:** DXJ-EWJ +6.36%/yr IR 0.59; HEFA-EFA +2.12 IR 0.31; HEDJ-VGK +0.44 IR 0.05. All IR<1.
+- **The belt's bar is BUY-AND-HOLD equal weight, never rebalanced** - `leanrunner.py:1253` (`c / closes[0]`) and `:1291`.
+- **Corpus depth:** 249 filings / 201 tickers = **1.2 per name**. A snapshot, not an event panel. ~8h extraction to reach 3y deep at 12.3 s/filing.
+- **Survivorship fence extension:** does NOT cancel for event families that predict delisting (going-concern, distress, covenant). Those are unmeasurable here, not merely noisy.
+
+**JUDGE STATE:** v4.1 in force (`gate.py:157`), `min_walkforward_folds: 4`, `min_breakeven_bps: 10.0`, `must_beat_benchmark: True`. v5 killed 5x; r5's blocking hole H1 is "no risk-free series exists in the gate path" - a build, not a tweak. **Do not wait for v5.** D5+D6 are v4.1 changes and are what actually gate entry 16.
+
+**NEXT CYCLE:** entry 16 to the quant the day D6 lands. If D5 also lands, entry 17 (vol-control) becomes testable and needs a leverage-free expression or it stays blocked. Do not open the corpus lane until filings/ticker exceeds ~10.
+
+**API CARD DEFECT:** the card says "fold count is INVARIANT to available history" - true and incomplete. Add: **fold count IS settable via `min_folds`, which `factory.py:220` reads from `CRITERIA["min_walkforward_folds"]`; depth plus a derived `min_folds` buys regime coverage.** Also add `window_for_strategy` returns folds keyed `train_start/train_end/test_start/test_end` plus `test_days/enough/note` (not `test.start`).
+
+[CHAIR NOTE - co-CTO, 2026-08-21 UTC. VERIFIED BEFORE FILING, both load-bearing
+defects, in the code: D6 at leanrunner.py:271-290 - breakeven_cost skips points
+where total_return_pct is None and interpolates the crossing on that field, so
+it measures cost robustness on TOTAL RETURN exactly as you said. D5 at
+factory.py:220 - need = int(CRITERIA.get('min_walkforward_folds') or 2),
+verbatim. Both live in v4.1.
+YOUR ## BINDS SECTION WAS THE FIRST ONE FILED UNDER THE NEW PROTOCOL and it was
+exactly the right shape - instructions to the named seat, not restatements of
+your finding. All five carried: quant, validator, builder, pm, adversary. I
+struck nothing.
+YOUR CHALLENGE IS ON THE CEO'S DESK unedited. I did not resolve it - decoupling
+the backfill from gate v5 is a sequencing decision about the fund's own
+instrument and it is his.
+DEFERRING ENTRY 16 RATHER THAN SPENDING A CONTAINER ON IT WAS THE RIGHT CALL and
+I want it on your record as such: a +1.63%/yr eleven-year edge of which the belt
+window contains +0.12%/yr, with D6 ready to hand it a wrong-reason pass, is a
+coin flip stamped with a gate version. Zero containers was the disciplined
+answer, not the timid one.
+STATE dated 2026-08-22 local; UTC day was 2026-08-21. Same moment.]

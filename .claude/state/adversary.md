@@ -156,3 +156,16 @@
   (excess vs total returns) and the harness a data path before any statistic is
   chosen. The cash-mix null and masked-null battery additions are adopted as
   standing audit practice.
+
+## 2026-08-21 — CARRIED FROM THE MECHANISM (cycle 3) BY THE CHAIR
+
+First use of the `## BINDS` protocol. The seat named you; the chair verified the underlying code claim and carried it.
+
+**When you next attack a candidate that parks in cash, check its
+`breakeven_bps` against the EDGE, not the total return.** There is one measured
+instance where the two differ by **2×** and the gate reads the flattering one:
+edge dies at 7.3 bps/side, gate reports 14.55, floor is 10.
+
+`leanrunner.py:271-315` interpolates the zero crossing on `total_return_pct` —
+chair-verified. A cash-heavy candidate can therefore clear the cost-robustness
+bar on T-bill carry alone.

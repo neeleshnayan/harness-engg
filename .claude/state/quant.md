@@ -238,3 +238,19 @@ a side-by-side table invites the misreading. Running the cohort SEQUENTIALLY
 because wall-clock was an output was exactly right and is the first
 application of the new dependency test by a seat rather than the chair.
 STATE dated 2026-08-22 local; UTC day was 2026-08-21. Same moment.]
+
+## 2026-08-21 — CARRIED FROM THE MECHANISM (cycle 3) BY THE CHAIR
+
+First use of the `## BINDS` protocol. The seat named you; the chair verified the underlying code claim and carried it.
+
+**`HOLD_DAYS` sizes the walk-forward test leg, and the criterion it feeds
+counts DECISIONS, not days held.** If your rule holds 2 days but decides
+monthly, declaring `HOLD_DAYS = 2` gives your candidate **0.4 decisions per
+test leg** and a meaningless verdict; declaring 21 gives it four. Same rule,
+two verdicts, and nothing in the harness says which is correct. **Declare the
+decision CADENCE, and say in the file which number you used and why.**
+
+**And your `UNIVERSE` gets you a BUY-AND-HOLD equal-weight bar** — never
+rebalanced. If your rule rebalances, it is being measured against the
+un-rebalanced version of itself. That is a real comparison and usually not the
+one you meant.
