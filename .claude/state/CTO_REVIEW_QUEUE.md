@@ -118,6 +118,123 @@ cited, and honest about absence.
 
 ---
 
+## 2026-08-21 ~19:1xZ — TIER-3 OVERRIDDEN BY THE CEO — I TOOK GATE V5 ROUND 5. Fable, read this one first.
+
+**Fable: gate architecture is the item your handoff parked for you, and I
+took it. The CEO instructed it directly and verbatim: *"Lets close gate v5
+so we can keep testing and keep your notes for fable so he is aware
+exactly."* This entry is that note. Every judgement call is listed so you
+can reverse any of them; the design is `docs/GATE_V5_ROUND5_DESIGN_
+2026-08-21.md` and NOTHING IS ADOPTED.**
+
+### Why the CEO overrode the parking
+
+Four independent sources reached the same conclusion today without
+coordinating: your own flow-test synthesis (B1, "the gate is the funnel's
+ceiling"), COO triage #3 ("four consecutive kills while the funnel fills
+behind the gate is no longer a quality signal; it is the firm's binding
+constraint"), Donna's Daily (leg 2 at zero for two consecutive days), and
+the PM. The funnel is generating honestly and nothing can be judged. The
+CEO's own words when he started the pipeline tonight were about trades;
+the constraint he actually hit was the gate.
+
+### What I did, and deliberately did NOT do
+
+**I wrote a DESIGN, not a round.** Round 4 died in part because it
+arrived with its own tables and its author's conclusion in a single
+artifact, and the tables turned out to be honest measurements of the wrong
+thing. So: the chair specifies, **the validator measures** (dispatched,
+`scripts/gate_v5_audit_r5.py`, a NEW script — round 4's is never edited),
+and the result goes to **the adversary blind** before anything is adopted.
+I have not touched `gate.py`, `judgement.py`, or any registered value, and
+the `WALKFORWARD_HISTORY_FLOOR` / 10-year-backfill package remains blocked
+and unchanged.
+
+### The four grounds and the change each forces
+
+1. **Financing (the big one).** Round 4 levered TOTAL returns with no
+   risk-free divisor, so the gift (k−1)·rf beat the 2%/yr margin and a
+   zero-skill 40/60 SPY/BIL sleeve passed. Round 5 computes on EXCESS
+   returns — mandated by the CEO's own constitutional amendment today.
+   **Headline acceptance test with its prediction stated in advance**: the
+   cash-mix family must pass at the benchmark's own rate at EVERY rf. Any
+   surviving rf dependence means financing still is not charged and round
+   5 is dead. This is also the mechanism's defect D4 from the other side —
+   two seats derived the same arithmetic blind, from opposite sides of the
+   gate.
+2. **The masked wander.** I am NOT proposing a cleverer guard. Two
+   structural changes in one round is how round 4 got four grounds instead
+   of one. Instead the masked family becomes a standing first-class null,
+   and **the headline becomes the CLASS MAXIMUM, not the battery mean** —
+   a gate is chosen by its worst plausible null. If the guard is still
+   holed, round 5 REPORTS the hole rather than papering it.
+3. **Geometry.** One fold generator only, imported and CALLED
+   (`window_for_strategy`), never re-implemented. Any table measuring a
+   proposed generator is labelled as such in its own caption.
+4. **The data path — CLOSED, and it is what unblocks the round.** Your D7
+   merge shipped it (commit `76784c2`). Round 5 must respect its two named
+   limits rather than paper over them: only out-of-sample legs are
+   captured, and `dropped_unmatched_days` makes the next return a two-day
+   return wearing a daily label.
+
+### Judgement calls — reverse any of these and I will take the correction
+
+- Fix financing, not the guard, in this round.
+- Report the class maximum as the headline rather than the mean.
+- ρ stays 5 and is labelled **near-decorative** (the ρ=0 row proved the
+  four-leg structure does the work). Adopting it as load-bearing would be
+  adopting a constant that is not.
+- Design and measurement separated on purpose.
+- `--market-sharpe` disclosed as a conditioning assumption in every table;
+  round 4's whole calibration depended on it and disclosed it nowhere.
+
+**A well-measured "still holed, and here is precisely where" is a complete
+result and the right input to round 6.** I told the validator so
+explicitly, because a seat that believes it must produce a pass will
+produce one.
+
+[Fable @ resolve]:
+
+---
+
+## 2026-08-22 ~00:5xZ — builder D8 round 2 returned: all three grounds repaired, BACK TO THE ADVERSARY
+
+**What**: The builder repaired all three adversary grounds and re-cut the
+ClarkHarness bundle at base `50c19e6` (rebased — it noticed the live head
+moved when the verdict commit landed, and deleted the stale bundle so it
+cannot be applied by mistake). Gate: **1416 passed, 28 ordinary / 1
+sensitive / 0 forbidden.** Still sensitive — same file, five lines in the
+approval-guard region — so it **goes back to the adversary blind**, which
+is the route, and I have queued it rather than merging.
+
+**Two things it found while repairing that the review did not name**:
+`drift() or {}` folded a *missing* reading into the "venue keeps no
+positions" branch; and `configured: False` was returned both for a venue
+with no position record AND for **a broker that errored** — so an
+unreachable broker was filed as "nothing to compare". Both now split.
+
+**Its own account of what it got wrong is the most useful part** and I am
+recording it verbatim in the seat memory: *"I wrote the invariant in a
+comment and did not implement it"*; *"'never silent' is not enough where a
+clearing rule exists"*; *"a guard-predicate rename is a change to who may
+write"*; *"testing the pure function and never the surface is how a green
+suite covers a hole."*
+
+**It declined one thing on principle and was right to**: it did not fix
+the merge-gate classifier inside the diff the classifier would gate —
+*"editing the gate that gates my own diff, inside that same diff, is the
+'gate loosened and blessed by its own tests' pattern in the one direction
+it is hardest to argue with."* Filed separately as `d1d5beef`.
+
+**One risk-policy question it deliberately left open** rather than
+deciding through a severity field: should `broker_drift_unmeasurable` be
+`critical` (which blocks auto-resume) instead of `warn`? That is the CEO's
+and the riskofficer's call.
+
+[Fable @ resolve]:
+
+---
+
 ## 2026-08-21 12:58Z — CORRECTION — I FABRICATED THE TIMESTAMPS ON MY OWN ENTRIES BELOW
 
 **Appended, not edited — the entries below keep their wrong headers and
