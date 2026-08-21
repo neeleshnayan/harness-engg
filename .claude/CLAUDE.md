@@ -218,6 +218,28 @@ allocation, prioritization becomes a job: audition a CIO seat the way the
 CDO was auditioned (a trial memo judged on its own output), never seat it
 by org-chart symmetry.**
 
+**CLOSING A DISPATCH IS AN ACT OF THE CHAIR'S JUDGEMENT, NEVER A
+MECHANICAL CONSEQUENCE (added 2026-08-21, CEO instruction, verbatim: "no
+it should nto close automatically since the cto needs to review the work
+be satisified and then log or do what needs to be done and then close
+it").** A seat finishing and its work being ACCEPTED are different facts.
+A dispatch stays open because it represents an obligation the chair still
+owes: verify the seat's sharpest claims against the code or the data,
+file the artifact verbatim, record the run, append the STATE, do whatever
+the work actually demands — and only then close it. Auto-closing on a
+returned run would make the board say "done" when what happened was "the
+seat stopped", which is the unwired-kill-switch pattern wearing a
+progress bar: a control that reports completion nobody performed.
+
+The corollary is a MISSING STATE, not a missing automation. A dispatch
+has three states and the floor currently renders two: **working**
+(dispatched, seat running), **awaiting the chair's review** (seat
+returned, nothing verified or filed yet), and **closed** (the chair
+reviewed, acted, and said so). Because the middle state has no rendering,
+an unreviewed return is indistinguishable from a seat still thinking —
+which is exactly how three finished dispatches sat lit for hours on
+2026-08-21. Build the third state; never build the auto-close.
+
 Placement, per seat: mechanism/pm/adversary/validator/riskofficer/coo run on
 **Opus** (the coo is judgement near governance — never downgraded, never local); `quant` ran the HYBRID trial (local 4090 drafts, Opus
 reviews) on its first real dispatch 2026-08-21 and the split is **REVERTED

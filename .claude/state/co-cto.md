@@ -103,6 +103,30 @@ option choice, money, a threshold) earns a question.** The R1 option
 question WAS right to ask — three options, money attached, his call. The
 riskofficer dispatch was not.
 
+**SECOND CEO CORRECTION, same session — and this one I had already put
+in a chat message as a recommendation, so it nearly reached the record.**
+Three finished dispatches were rendering as WORKING; I closed them and
+then proposed that "a completed run should close its own dispatch
+automatically." The CEO: *"no it should nto close automatically since the
+cto needs to review the work be satisified and then log or do what needs
+to be done and then close it."* He is right and my proposal was the
+unwired-kill-switch pattern wearing a progress bar — it would have made
+the board report a completion nobody performed. **A seat FINISHING and
+its work being ACCEPTED are different facts, and the gap between them is
+the chair's whole job.** The real defect is a MISSING STATE, not a
+missing automation: working / awaiting-the-chair's-review / closed, and
+the floor renders only the first and last. Filed as 907ecc74 with
+"DO NOT auto-close" written into the spec. **RULE: when a manual step
+looks like friction, check whether the step IS the control before
+proposing to remove it.**
+
+**Mechanics that caused it, worth keeping:** `DeskDispatched` mints its
+own `task_id`, and `desk._activity` keeps a seat lit until a
+`DeskRequestResolved` arrives carrying THAT id. Resolving the seat-ASK
+ids a dispatch served does not close the dispatch. **Closing the
+dispatch task_id is now part of how I resolve** — and it is the last
+step, after verify/file/record/STATE, never before.
+
 **What worked, keep doing:** gating both bundles with `merge_builder.py`
 BEFORE touching the live trees; re-measuring the builder's refutation
 myself (n=4,895) instead of accepting a seat's claim that contradicted
