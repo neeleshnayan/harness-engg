@@ -93,6 +93,25 @@ def test_via_cto_passes_only_with_the_quote_attached(store):
     assert store.events == []
 
 
+def test_via_co_cto_without_citation_is_refused(store):
+    # v1.2: the co-CTO chair carries the same burden as the CTO chair — an
+    # explicit CEO instruction, quoted verbatim, or nothing.
+    detail, _ = _refused(store, approver="neelesh-via-co-cto",
+                         confirm=OID[:8])
+    assert "instruction" in detail
+
+
+def test_via_co_cto_passes_with_the_quote_and_keeps_its_own_name(store):
+    # The decorated attribution preserves WHICH chair staged it — the whole
+    # point of a distinct identity is that Fable and the riskofficer can
+    # audit the co-CTO's approvals as a set.
+    out = api._guard_approval("order", OID, "neelesh-via-co-cto", OID[:8],
+                              "co-CTO may stage my accepted items",
+                              api.APPROVAL_ALLOWLIST)
+    assert out == "neelesh-via-co-cto [co-CTO may stage my accepted items]"
+    assert store.events == []
+
+
 def test_desk_allowlist_admits_the_ui_ceo_actor(store):
     out = api._guard_approval("desk_request", OID, "ceo", OID[:8], None,
                               api.DESK_APPROVAL_ALLOWLIST)

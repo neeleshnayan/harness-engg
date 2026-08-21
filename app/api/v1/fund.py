@@ -2053,8 +2053,16 @@ def external_signal(req: ExternalSignalRequest):
 # neelesh"): the approval identity migrated rushi -> neelesh. Historical
 # events keep the rushi actor they were recorded with; the name can no longer
 # approve anything.
-APPROVAL_ALLOWLIST = {"neelesh", "neelesh-via-cto"}
-DESK_APPROVAL_ALLOWLIST = {"ceo", "neelesh", "neelesh-via-cto"}
+# v1.2 (2026-08-21, CEO decision — the co-CTO chair): "neelesh-via-co-cto"
+# added to both allowlists. Same rules as via-cto (echo + verbatim CEO
+# instruction), distinct identity so the record shows WHICH chair staged
+# every approval — the co-CTO's actions are auditable as a set, by Fable
+# and by the riskofficer, without reading a single diff. The co-CTO's
+# charter (what it may and may not do) lives in the firm constitution;
+# this guard only makes its footprint attributable.
+APPROVAL_ALLOWLIST = {"neelesh", "neelesh-via-cto", "neelesh-via-co-cto"}
+DESK_APPROVAL_ALLOWLIST = {"ceo", "neelesh", "neelesh-via-cto",
+                           "neelesh-via-co-cto"}
 
 
 def _guard_approval(kind: str, target_id: str, approver: str,
@@ -2071,9 +2079,10 @@ def _guard_approval(kind: str, target_id: str, approver: str,
     elif (confirm or "").strip() != want:
         reason = (f"confirm echo missing or wrong: approving this {kind} "
                   f"requires confirm='{want}' (the first 8 chars of its id)")
-    elif who == "neelesh-via-cto" and not (instruction or "").strip():
-        reason = ("a via-cto approval must quote the CEO's explicit "
-                  "instruction verbatim in 'instruction'")
+    elif (who in ("neelesh-via-cto", "neelesh-via-co-cto")
+          and not (instruction or "").strip()):
+        reason = (f"a {who.split('neelesh-')[1]} approval must quote the "
+                  "CEO's explicit instruction verbatim in 'instruction'")
     if reason:
         _store.append(Event(
             aggregate_id=target_id or "unknown", aggregate_type=kind,
@@ -2083,8 +2092,8 @@ def _guard_approval(kind: str, target_id: str, approver: str,
                      "at": datetime.now(timezone.utc).isoformat()},
             actor=approver or "unknown"))
         raise HTTPException(status_code=403, detail=f"approval refused: {reason}")
-    if who == "neelesh-via-cto":
-        return f"neelesh-via-cto [{(instruction or '').strip()}]"
+    if who in ("neelesh-via-cto", "neelesh-via-co-cto"):
+        return f"{who} [{(instruction or '').strip()}]"
     return approver
 
 
