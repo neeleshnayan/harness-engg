@@ -35,7 +35,36 @@ logger = logging.getLogger(__name__)
 
 IMAGE = os.getenv("LEAN_IMAGE", "quantconnect/lean:latest")
 WORKSPACE = Path(os.getenv("LEAN_WORKSPACE_DIR", "lean_workspace"))
-JOB_TIMEOUT_S = float(os.getenv("LEAN_JOB_TIMEOUT", "300"))
+
+#: Wall clock allowed one engine container. 300 -> 900 on 2026-08-21, by
+#: measurement, on the quant seat's accepted finding (run-quant-entry11: "2 of 37
+#: container runs died on LEAN_JOB_TIMEOUT=300s under three concurrent
+#: candidates").
+#:
+#: The measurement that decided the number, taken from the 50 most recent jobs in
+#: the durable store on 2026-08-21:
+#:
+#:     min 1.0s   median 14.8s   p90 300.4s   max 301.2s
+#:     44 jobs under 120s;  SIX pinned at 300.4-301.2s;  NOTHING in between.
+#:
+#: That gap is the whole argument. A healthy tail arrives gradually — 150s, 220s,
+#: 280s. A cliff at exactly the ceiling with an empty approach means the
+#: distribution is CENSORED: those six runs did not take 300 seconds, they were
+#: killed at 300 and their true duration has never been observed. So the old
+#: value was not sampling a tail, it was manufacturing one, and every one of
+#: those kills entered the belt as missing evidence.
+#:
+#: 900s is 3x the censoring point and ~60x the median, chosen because the honest
+#: answer to "how long do they need" is that we do not know and cannot know until
+#: one finishes. It stays inside every enclosing deadline: `_run_point` waits
+#: JOB_TIMEOUT_S + 60, the sweep waits 5,400s and the factory 3,600s, so a single
+#: slow point can no longer be reported as an unmeasurable strategy — it will
+#: either finish or be reported as a TIMEOUT by name.
+#:
+#: RE-MEASURE THIS once a job lands between 300s and 900s: that will be the first
+#: real observation of the tail, and the number should follow it rather than this
+#: reasoning.
+JOB_TIMEOUT_S = float(os.getenv("LEAN_JOB_TIMEOUT", "900"))
 
 _CLASS_RE = re.compile(r"class\s+(\w+)\s*\(\s*QCAlgorithm\s*\)")
 _NAME_RE = re.compile(r"^[a-z0-9_\-]{1,64}$")
@@ -105,6 +134,61 @@ _ENGINE_SLOTS = threading.BoundedSemaphore(MAX_CONCURRENT_CONTAINERS)
 
 _PARAM_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_\-]{0,31}$")
 
+#: The parameter an algorithm reads to fill FRACTIONAL shares.
+#:
+#: The engine fills whole shares by default and the venue does not: Alpaca
+#: supports fractional equities, so a $2,000 book that LEAN rounds to whole
+#: shares is being tested under a constraint the fund does not actually have.
+#:
+#: MEASURED 2026-08-21 with `lean_workspace/algorithms/frac_probe`, one window,
+#: same rule, $2,000 book, a 49% target in each of SPY and TLT:
+#:
+#:     fractional:0   SPY 1.0000   TLT 11.0000   <- the engine's default
+#:     fractional:1   SPY 1.4298   TLT 11.1207
+#:
+#: SPY printed at $685, so 49% of the book is $980 = 1.43 shares. Whole-share
+#: rounding holds ONE share — 34% of the book against a 49% target, a 15
+#: percentage-point error. That is an order of magnitude larger than the 1-2%/yr
+#: effect entry 11 was trying to measure, and it is why the quant had to run that
+#: candidate at a $100k notional and report the $2k deployment answer separately
+#: (run-quant-entry11, accepted 2026-08-21).
+#:
+#: The mechanism, verified rather than assumed — an algorithm opts in with:
+#:
+#:     if str(self.get_parameter("fractional") or "0") == "1":
+#:         old = sec.symbol_properties
+#:         sec.symbol_properties = SymbolProperties(
+#:             old.description, old.quote_currency, old.contract_multiplier,
+#:             old.minimum_price_variation, 0.0001, old.market_ticker)
+FRACTIONAL_PARAM = "fractional"
+
+#: Source tokens that prove an algorithm actually READS the switch.
+#:
+#: This check exists because of the failure it prevents, which is the worst kind:
+#: the runner can set a parameter, but only the ALGORITHM can act on it. Setting
+#: `fractional:1` for a file that ignores it would leave the caller believing the
+#: run was fractional when it was whole-share — a silent lie about the conditions
+#: a verdict was produced under. So the request is checked against the source and
+#: an unhonoured one is REPORTED, never assumed to have taken effect.
+_FRACTIONAL_TOKENS = (FRACTIONAL_PARAM, "symbol_properties")
+
+
+def honours_fractional(code: Optional[str]) -> bool:
+    """Whether this algorithm's source reads the fractional switch at all.
+
+    A source scan rather than a runtime check, for the same reason
+    `walkforward.declared_hold_days` reads HOLD_DAYS statically: the engine has
+    exited by the time anyone asks, so the file is the only thing left to ask.
+
+    Conservative in the safe direction — it must find BOTH the parameter name
+    and the symbol-properties override. A file mentioning one without the other
+    is not honouring the switch, and reporting that it might be would put the
+    caller back where they started.
+    """
+    if not code:
+        return False
+    return all(t in code for t in _FRACTIONAL_TOKENS)
+
 
 class LeanError(Exception):
     pass
@@ -168,6 +252,13 @@ def _sweep_point(params: dict[str, str], job: dict[str, Any]) -> dict[str, Any]:
         "parameters": dict(params),
         "state": job.get("state"),
         "error": job.get("error"),
+        # Carried STRUCTURALLY rather than left to be recovered from the error
+        # sentence. A killed run and a strategy that had nothing to say produce
+        # the same shape downstream — every figure absent — and the quant seat
+        # read six of them as "unmeasurable" when they were "never measured".
+        # A boolean cannot be mistaken for a result; a prose match on an error
+        # string can, and would break the first time the sentence is reworded.
+        "timed_out": bool(job.get("timed_out")),
         "total_return_pct": res.get("total_return_pct"),
         "sharpe": res.get("sharpe"),
         "max_drawdown_pct": res.get("max_drawdown_pct"),
@@ -372,7 +463,8 @@ class LeanRunner:
 
     def submit_backtest(self, algorithm: str,
                         parameters: Optional[dict[str, Any]] = None,
-                        enrich: bool = True) -> dict[str, Any]:
+                        enrich: bool = True,
+                        fractional: Optional[bool] = None) -> dict[str, Any]:
         """Run one backtest.
 
         ``enrich`` controls the extras that cost a NETWORK call — the buy-and-
@@ -380,12 +472,37 @@ class LeanRunner:
         twenty-four grid points would otherwise make twenty-four fetches for
         numbers the comparison never reads, which is slow in production and
         was enough to make the suite flaky under load.
+
+        ``fractional`` asks for fractional share fills. The engine rounds to
+        whole shares and the VENUE does not, so a $2,000 book tested whole-share
+        is being judged under a constraint the fund does not have — measured, a
+        15 percentage-point error on a 49% target (see FRACTIONAL_PARAM).
+
+        Asking is not the same as getting, and the job says which. Only the
+        ALGORITHM can honour the switch, so the source is checked; a request an
+        algorithm ignores is recorded as `fractional_honoured: False` with a
+        note, rather than leaving the caller believing a whole-share run was
+        fractional.
         """
         algo = self.get_algorithm(algorithm)  # raises on unknown
         m = _CLASS_RE.search(algo["code"])
         if not m:
             raise LeanError("algorithm lost its QCAlgorithm class")
         parameters = _clean_parameters(parameters)
+        honoured: Optional[bool] = None
+        frac_note: Optional[str] = None
+        if fractional is not None:
+            honoured = honours_fractional(algo.get("code"))
+            parameters[FRACTIONAL_PARAM] = "1" if fractional else "0"
+            if fractional and not honoured:
+                frac_note = (
+                    f"fractional fills were REQUESTED and this algorithm does "
+                    f"not read the '{FRACTIONAL_PARAM}' parameter, so the run is "
+                    f"WHOLE-SHARE. Any weight this rule targets is being held to "
+                    f"the nearest whole share — at a small book that error can "
+                    f"exceed the effect under test. Add the opt-in shown in "
+                    f"leanrunner.FRACTIONAL_PARAM and re-run")
+                logger.warning("job for %s: %s", algorithm, frac_note)
         # The fund's cost assumption travels WITH the run, so the number the
         # backtest charges is the same one TCA grades realised fills against.
         # The algorithm's own `or 0.0005` stays as a fallback for anyone
@@ -405,6 +522,13 @@ class LeanRunner:
             "started_at": None, "finished_at": None,
             "parameters": parameters,
             "enrich": enrich,
+            # Travels with the job because it is a CONDITION THE VERDICT WAS
+            # PRODUCED UNDER, in exactly the way the cost assumption is. None
+            # means nobody asked either way — which is the engine's whole-share
+            # default, and is not the same as having asked for it.
+            "fractional_requested": fractional,
+            "fractional_honoured": honoured,
+            "fractional_note": frac_note,
             "error": None, "result": None, "log_tail": [],
         }
         with self._lock:
@@ -687,7 +811,10 @@ class LeanRunner:
             if j["state"] in ("done", "failed"):
                 return j
             time.sleep(1.0)
-        return {"state": "failed", "error": "point outlasted its deadline"}
+        return {"state": "failed", "job_id": job_id, "timed_out": True,
+                "error": (f"the point outlasted its deadline of "
+                          f"{JOB_TIMEOUT_S + 60:.0f}s — the container was still "
+                          f"alive and produced nothing readable")}
 
     #: How long an engine's raw output is kept on disk. Every backtest writes a
     #: results directory and nothing ever removed one, so 501 of them had
@@ -879,8 +1006,13 @@ class LeanRunner:
                      "return_pct": point.get("total_return_pct"),
                      "sharpe": point.get("sharpe"),
                      "psr_pct": point.get("psr_pct"),
-                     "total_orders": point.get("total_orders")},
+                     "total_orders": point.get("total_orders"),
+                     # Travels with the leg it describes. The walk-forward reads
+                     # `test` and nothing else when it decides why a fold could
+                     # not be measured.
+                     "timed_out": bool(point.get("timed_out"))},
             "dates_honoured": honoured,
+            "timed_out": bool(point.get("timed_out")),
             "error": point.get("error"),
         }
 
@@ -958,6 +1090,10 @@ class LeanRunner:
         except subprocess.TimeoutExpired:
             job["state"] = "failed"
             job["error"] = f"timed out after {JOB_TIMEOUT_S:.0f}s — engine killed"
+            # The flag, not the sentence, is what downstream reads. A killed run
+            # produced NO evidence; without this it arrives at the walk-forward
+            # looking exactly like a strategy that declined to trade.
+            job["timed_out"] = True
             subprocess.run(self._docker + ["kill", container],
                            capture_output=True, timeout=30)
         except Exception as e:  # noqa: BLE001

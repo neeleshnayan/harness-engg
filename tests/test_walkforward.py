@@ -222,3 +222,148 @@ def test_a_fast_rule_gets_folds_and_a_slow_one_is_told_it_is_untestable():
     assert "NOT TESTABLE" in slow["note"]
     # The leg scales with the hold: four decisions each.
     assert slow["test_days"] == 63 * 4
+
+
+# --- an engine kill is OURS, not the strategy's (2026-08-21) ----------------
+#
+# The quant seat's accepted finding (run-quant-entry11): "2 of 37 container runs
+# died on LEAN_JOB_TIMEOUT=300s ... those absences produced the 'only 3 folds'
+# sentences". A killed container and a strategy that declined to trade arrived
+# at the belt in the same shape — every figure absent — and were read as a
+# finding about the rule. They demand opposite next actions.
+
+
+def test_an_engine_kill_is_not_reported_as_no_trades():
+    """THE regression this guards. `test_orders` is absent when a container is
+    killed, and the old code fell through to 'a leg produced no return figure'
+    or, worse, to the no-trades sentence."""
+    from app.fund.walkforward import TIMEOUT_REASON
+    out = retention(train_return=20.0, test_return=None, test_orders=None,
+                    engine_timed_out=True)
+    assert out["measurable"] is False
+    assert out["timed_out"] is True
+    assert out["reason"] == TIMEOUT_REASON
+    assert "no trades" not in out["reason"]
+    assert "wall-clock" in out["reason"]
+
+
+def test_the_timeout_reason_wins_over_every_downstream_symptom():
+    """A run killed mid-window may have placed zero orders so far. Reporting
+    that as warm-up starvation sends the reader to fix a strategy when the thing
+    that failed was our clock."""
+    from app.fund.walkforward import TIMEOUT_REASON
+    assert retention(20.0, 0.0, 0, engine_timed_out=True)["reason"] == TIMEOUT_REASON
+    assert retention(-5.0, None, None, engine_timed_out=True)["reason"] == TIMEOUT_REASON
+    assert retention(0.03, 6.94, 12, engine_timed_out=True)["reason"] == TIMEOUT_REASON
+
+
+def test_without_the_flag_the_old_reasons_are_untouched():
+    """The split must not reclassify anything that was already correct."""
+    assert "no trades" in retention(20.0, 0.0, 0)["reason"]
+    assert "no return figure" in retention(20.0, None, None)["reason"]
+    assert retention(20.0, 16.0, 40)["measurable"] is True
+
+
+def test_timed_out_reads_a_flag_never_the_error_prose():
+    """A `"timed out" in error` match is one copy-edit away from silently
+    reclassifying every killed run as an ordinary failure."""
+    from app.fund.walkforward import timed_out
+    assert timed_out({"timed_out": True}) is True
+    assert timed_out({}, {"timed_out": True}) is True
+    assert timed_out({"error": "timed out after 900s — engine killed"}) is False
+    assert timed_out(None, {}, "not a dict") is False
+
+
+def test_the_summary_counts_engine_kills_on_their_own_line():
+    """Folding them into 'unmeasurable' invites a conclusion about the rule."""
+    out = summarise([
+        _fold(0.8), _fold(0.6),
+        {"retention": None, "measurable": False, "timed_out": True,
+         "reason": "the engine hit its wall-clock ceiling"},
+        _fold(None, False, "the test leg placed no trades"),
+    ])
+    assert out["folds_measurable"] == 2
+    assert out["folds_unmeasurable"] == 2
+    assert out["folds_timed_out"] == 1
+    assert "ENGINE running out of wall clock" in out["verdict"]
+    assert "not the strategy" in out["verdict"]
+
+
+def test_a_summary_with_no_kills_says_nothing_about_the_engine():
+    out = summarise([_fold(0.8), _fold(None, False, "the test leg placed no trades")])
+    assert out["folds_timed_out"] == 0
+    assert "wall clock" not in out["verdict"]
+
+
+class _TimeoutRunner:
+    """A runner whose fold sweeps never settle — the shape `_await_sweep` sees."""
+
+    def __init__(self, mode):
+        self.mode = mode
+
+    def submit_sweep(self, algorithm, grid, holdout=None):
+        return {"sweep_id": "sw-timeout"}
+
+    def sweep(self, sweep_id):
+        if self.mode == "never_settles":
+            return {"state": "running"}
+        # Settled, but the test leg's own container was killed.
+        return {"state": "done", "holdout_result": {
+            "state": "failed", "timed_out": True,
+            "train": {"return_pct": 20.0},
+            "test": {"return_pct": None, "total_orders": None, "timed_out": True},
+        }}
+
+
+def test_a_fold_whose_sweep_never_settles_is_a_timeout_not_a_missing_figure():
+    from app.fund.walkforward import TIMEOUT_REASON, WalkForward
+    wf = WalkForward(runner=_TimeoutRunner("never_settles"))
+    wf._await_sweep = staticmethod(lambda r, sid, timeout_s=0: None)  # no waiting
+    out = wf.evaluate("algo", {"fast": ["10"]},
+                      [{"train_start": "2024-01-01", "train_end": "2024-12-31",
+                        "test_start": "2025-01-01", "test_end": "2025-03-31"}])
+    fold = out["folds"][0]
+    assert fold["state"] == "timeout"
+    assert fold["measurable"] is False
+    assert fold["timed_out"] is True
+    assert fold["reason"] == TIMEOUT_REASON
+    assert out["folds_timed_out"] == 1
+
+
+def test_a_fold_whose_test_leg_was_killed_is_a_timeout_not_an_unmeasurable_rule():
+    from app.fund.walkforward import TIMEOUT_REASON, WalkForward
+    out = WalkForward(runner=_TimeoutRunner("leg_killed")).evaluate(
+        "algo", {"fast": ["10"]},
+        [{"train_start": "2024-01-01", "train_end": "2024-12-31",
+          "test_start": "2025-01-01", "test_end": "2025-03-31"}])
+    fold = out["folds"][0]
+    assert fold["timed_out"] is True
+    assert fold["reason"] == TIMEOUT_REASON
+    assert fold["state"] == "timeout"
+
+
+def test_a_fold_row_carries_both_the_requested_and_the_covered_window():
+    """`dates_honoured` is meaningless without them: an algorithm that ignores
+    start/end runs the same dates twice and the fold proves nothing."""
+    from app.fund.walkforward import WalkForward
+
+    class R:
+        def submit_sweep(self, a, g, holdout=None):
+            return {"sweep_id": "s"}
+
+        def sweep(self, sid):
+            return {"state": "done", "holdout_result": {
+                "state": "done", "dates_honoured": True,
+                "train": {"return_pct": 20.0, "window": ["2024-01-02", "2024-12-30"]},
+                "test": {"return_pct": 16.0, "total_orders": 9,
+                         "window": ["2025-01-02", "2025-03-28"]}}}
+
+    out = WalkForward(runner=R()).evaluate(
+        "algo", {"fast": ["10"]},
+        [{"train_start": "2024-01-01", "train_end": "2024-12-31",
+          "test_start": "2025-01-01", "test_end": "2025-03-31"}])
+    fold = out["folds"][0]
+    assert fold["train_start"] == "2024-01-01"      # requested
+    assert fold["test_window"] == ["2025-01-02", "2025-03-28"]   # covered
+    assert fold["dates_honoured"] is True
+    assert fold["measurable"] is True

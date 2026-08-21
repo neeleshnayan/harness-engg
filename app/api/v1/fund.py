@@ -1120,6 +1120,18 @@ def factory_submit(req: CandidateRequest):
 
 @router.get("/fund/factory/candidates/{candidate_id}")
 def factory_get(candidate_id: str):
+    """One candidate, with the ANALYTICS the verdict was computed from.
+
+    Additive since 2026-08-21: `analytics` carries the verification run's equity
+    curve, benchmark curve and fills, the cost sweep's grid, and the per-fold
+    walk-forward rows. Every pre-existing field is unchanged — the Lab's belt
+    table and the mechanics view both read this shape.
+
+    `analytics.available` is false for the four typed absences (never captured /
+    pruned / unavailable / not testable) and carries the sentence that says
+    which. A candidate judged before the belt kept its evidence renders as
+    NOT CAPTURED, never as an empty panel — see app/fund/runanalytics.py.
+    """
     f = _factory()
     if f is None:
         raise HTTPException(status_code=503, detail="the factory needs FUND_STORE=postgres")
@@ -1131,7 +1143,14 @@ def factory_get(candidate_id: str):
 
 @router.get("/fund/factory/candidates")
 def factory_history(algorithm: str | None = Query(None), limit: int = Query(50, ge=1, le=500)):
-    """What has already been tried, and why it died."""
+    """What has already been tried, and why it died.
+
+    The INDEX read: every row carries `walkforward.folds` (requested dates, the
+    window the engine covered, `dates_honoured`, and each fold's own reason for
+    being measurable or not) and `analytics_available`, but NOT the equity curves
+    or the fills — those are ~80 KB each and have one reader, the panel for the
+    run you opened. GET the individual candidate for those.
+    """
     f = _factory()
     if f is None:
         raise HTTPException(status_code=503, detail="the factory needs FUND_STORE=postgres")
@@ -3575,8 +3594,33 @@ def run_results_prune_tick() -> dict:
     had accumulated to 188 MB on a machine already short of disk and RAM. The
     parsed result is mirrored to Postgres, so a settled job's directory is debug
     material rather than the record.
+
+    ALSO ages out captured candidate analytics, on the same tick and deliberately
+    NOT on the same schedule: engine directories are debug material with a
+    one-day life, while a candidate's captured evidence is what a deployment
+    decision rested on and keeps for a quarter. One tick, two policies, each
+    sized from what it holds.
+
+    The candidate leg is best-effort and reported separately rather than folded
+    in: it needs Postgres, and a tick that failed silently because the factory
+    was unavailable would look exactly like a tick with nothing to do.
     """
-    return _lean().prune_results()
+    out = _lean().prune_results()
+    f = _factory()
+    if f is None:
+        out["analytics"] = {
+            "count": 0,
+            "note": "candidate analytics are stored only under FUND_STORE=postgres; "
+                    "nothing was examined, which is not the same as nothing being due",
+        }
+        return out
+    try:
+        out["analytics"] = f.prune_analytics()
+    except Exception as e:  # noqa: BLE001
+        logger.warning("candidate analytics prune failed: %s", e)
+        out["analytics"] = {"count": 0, "error": f"{type(e).__name__}: {e}"[:200],
+                            "note": "the prune could not run — nothing was removed"}
+    return out
 
 
 def run_autopolicy_tick() -> dict:

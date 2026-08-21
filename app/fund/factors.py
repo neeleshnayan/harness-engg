@@ -330,3 +330,284 @@ def eigen_factor_map(symbols: Sequence[str], returns: dict[str, list[float]],
             "their composition drifts between regimes.",
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# THE FACTOR PACK v0 (2026-08-21)
+#
+# Everything above answers "is this alpha or beta you already own" for a
+# FINISHED return series. What the analyst and adversary seats kept needing was
+# the raw material: the daily factor SERIES themselves, a rolling beta, and the
+# residual left after taking a known exposure out. Those had no home, so each
+# seat rebuilt them by hand from `marketdata/bars` — which is how two seats end
+# up quoting different betas for the same pair.
+#
+# Pure read-and-compute. No thresholds, no verdicts, nothing that decides
+# anything: every function here returns a number and the reason it might not
+# have one, and the judgement stays with the reader.
+#
+# THE PROXIES ARE VERIFIED, NOT ASSUMED. Checked against the fund's own feed on
+# 2026-08-21 (GET /fund/marketdata/bars, lookback_days=800):
+#
+#     SPY TLT DBC UUP XBI IBB GLD DBA IWM SRPT
+#     551 bars each, 2024-06-10 .. 2026-08-20, source=alpaca
+#
+# So the dollar leg (UUP) and the biotech pair (XBI/IBB) are both available and
+# both are included. A symbol the feed stops serving is reported ABSENT with its
+# reason rather than dropped — a factor pack that quietly loses a leg produces a
+# residual against a model nobody chose.
+
+#: The premia legs, long-only. Each is a thing the fund could actually buy, so a
+#: beta against one answers "could I have got this by owning something simple?".
+PREMIA_PROXIES: dict[str, str] = {
+    "mkt": "SPY",
+    "duration": "TLT",
+    "commodity": "DBC",
+    "dollar": "UUP",
+}
+
+#: The biotech pair the SRPT revival condition is stated against — the first
+#: named consumer of this pack. A single-name biotech's moves are mostly the
+#: sector's; the question that decides a revival is what is left AFTER the
+#: sector beta comes out, which is exactly `beta_adjusted_residual` below.
+BIOTECH_PROXIES: dict[str, str] = {"xbi": "XBI", "ibb": "IBB"}
+
+#: Below this many overlapping observations a beta is a line through noise.
+#: Sixty trading days ~ one quarter, the same floor `MIN_OBS` uses above and for
+#: the same reason; stated separately so a future change to one is a decision
+#: about that one.
+MIN_BETA_OBS = 60
+
+#: Default rolling window. 63 trading days ~ one quarter — short enough that a
+#: regime change shows up, long enough that a single gap day does not swing it.
+#: A judgement, labelled as one; every caller may pass its own.
+DEFAULT_BETA_WINDOW = 63
+
+
+def daily_returns(closes: Sequence[float]) -> list[float]:
+    """Simple daily returns from a close series.
+
+    A close is usable only if it is finite AND strictly positive. Anything else
+    is a BAD BAR: it produces no return and it breaks the chain, so the next
+    good close is not differenced against it.
+
+    That second half is deliberate and was caught in test. Treating a zero close
+    as a price rather than as a fault emits a −100% return — arithmetically
+    correct, and a fabricated catastrophe manufactured out of a data gap. It
+    would then propagate into every beta, residual and rolling window built on
+    the series. A skipped day produces NO return, which shortens the series;
+    callers that need dates aligned should use `factor_series`, which intersects
+    on dates rather than on position.
+    """
+    out: list[float] = []
+    prev: float | None = None
+    for c in closes or []:
+        try:
+            v = float(c)
+        except (TypeError, ValueError):
+            prev = None
+            continue
+        if not math.isfinite(v) or v <= 0.0:
+            prev = None
+            continue
+        if prev is not None and prev > 0:
+            out.append(v / prev - 1.0)
+        prev = v
+    return out
+
+
+def factor_series(proxies: dict[str, str] | None = None,
+                  lookback_days: int = 400,
+                  fetcher: Callable[..., Any] = fetch_daily_bars,
+                  ) -> dict[str, Any]:
+    """Daily factor returns on a COMMON set of dates, plus what is missing.
+
+    Returns ``{"factors": {key: [r, ...]}, "dates": [...], "symbols": {...},
+    "absent": {key: reason}, "n_obs": int}``.
+
+    `absent` is the load-bearing key. A leg the feed cannot serve is named with
+    its reason and is NOT in `factors`; it is never zero-filled, and it never
+    silently narrows the model. A caller regressing against three legs when it
+    asked for four must be able to see that it did.
+    """
+    px = dict(proxies or PREMIA_PROXIES)
+    used, rets, dates, excluded = aligned_returns(
+        sorted(set(px.values())), lookback_days=lookback_days, fetcher=fetcher)
+    have = set(used)
+    factors: dict[str, list[float]] = {}
+    absent: dict[str, str] = {}
+    for key, sym in px.items():
+        if sym in have:
+            factors[key] = list(rets[sym])
+        else:
+            absent[key] = excluded.get(
+                sym, f"{sym} was not served by the feed over this window")
+    return {
+        "factors": factors,
+        "dates": list(dates),
+        "symbols": px,
+        "absent": absent,
+        "n_obs": len(dates),
+        "note": (f"{len(factors)} of {len(px)} legs available over "
+                 f"{len(dates)} common dates"
+                 + ("; ABSENT: " + ", ".join(f"{k} ({v})"
+                                             for k, v in sorted(absent.items()))
+                    if absent else "")),
+    }
+
+
+def beta(y: Sequence[float], x: Sequence[float]) -> dict[str, Any]:
+    """Univariate beta of ``y`` on ``x``, or a stated reason there is none.
+
+    Never returns 0.0 for "could not compute". A zero beta is a real and
+    meaningful answer — it says the two are unrelated — so it must stay
+    distinguishable from an absent one, which says nobody looked.
+    """
+    n = min(len(y or []), len(x or []))
+    if n < MIN_BETA_OBS:
+        return {"beta": None, "measurable": False, "n_obs": n,
+                "reason": f"{n} overlapping observations, under the "
+                          f"{MIN_BETA_OBS} a beta needs to be a measurement "
+                          f"rather than a line through noise"}
+    ya = np.asarray([float(v) for v in y[-n:]], dtype=float)
+    xa = np.asarray([float(v) for v in x[-n:]], dtype=float)
+    if not (np.all(np.isfinite(ya)) and np.all(np.isfinite(xa))):
+        return {"beta": None, "measurable": False, "n_obs": n,
+                "reason": "the series contain non-finite values — unmeasured, "
+                          "which is not the same as zero"}
+    var = float(np.var(xa, ddof=1))
+    if var <= 0.0:
+        return {"beta": None, "measurable": False, "n_obs": n,
+                "reason": "the factor did not move over this window, so nothing "
+                          "can be said about sensitivity to it"}
+    cov = float(np.cov(ya, xa, ddof=1)[0, 1])
+    b = cov / var
+    alpha_daily = float(np.mean(ya) - b * np.mean(xa))
+    y_var = float(np.var(ya, ddof=1))
+    corr = (float(np.corrcoef(ya, xa)[0, 1]) if y_var > 0 else 0.0)
+    return {
+        "beta": round(b, 6),
+        "alpha_daily": round(alpha_daily, 8),
+        "alpha_annual_pct": round(alpha_daily * TRADING_DAYS * 100.0, 4),
+        "r_squared": round(corr * corr, 4),
+        "measurable": True, "n_obs": n, "reason": None,
+    }
+
+
+def rolling_beta(y: Sequence[float], x: Sequence[float],
+                 window: int = DEFAULT_BETA_WINDOW) -> list[Any]:
+    """Beta over a trailing window, aligned to ``y``'s index.
+
+    Entries before the window fills are **None, not zero** — the single most
+    important property of this function. A zero-padded head makes a chart open
+    at "no exposure" and makes a mean over the series wrong by however many
+    periods were padded, in the direction of "less exposed than we are".
+    """
+    n = min(len(y or []), len(x or []))
+    w = max(2, int(window))
+    out: list[Any] = [None] * n
+    if n < w:
+        return out
+    ya = np.asarray([float(v) for v in y[:n]], dtype=float)
+    xa = np.asarray([float(v) for v in x[:n]], dtype=float)
+    for i in range(w - 1, n):
+        ys, xs = ya[i - w + 1:i + 1], xa[i - w + 1:i + 1]
+        if not (np.all(np.isfinite(ys)) and np.all(np.isfinite(xs))):
+            continue
+        var = float(np.var(xs, ddof=1))
+        if var <= 0.0:
+            continue
+        out[i] = round(float(np.cov(ys, xs, ddof=1)[0, 1]) / var, 6)
+    return out
+
+
+def residual_series(y: Sequence[float], x: Sequence[float],
+                    b: Any = None) -> dict[str, Any]:
+    """``y`` with its exposure to ``x`` removed: e_t = y_t - beta * x_t.
+
+    The part of a name's move that is NOT the sector's. Uses a full-sample beta
+    unless one is supplied — a caller with a pre-registered beta should pass it,
+    because re-fitting on the same window you are judging is how a residual
+    becomes a curve fit.
+    """
+    fit = beta(y, x) if b is None else {"beta": float(b), "measurable": True,
+                                        "n_obs": min(len(y or []), len(x or [])),
+                                        "reason": None}
+    if not fit.get("measurable"):
+        return {"measurable": False, "reason": fit.get("reason"),
+                "beta": None, "residuals": None,
+                "cumulative_residual_pct": None}
+    n = min(len(y), len(x))
+    bb = float(fit["beta"])
+    ys, xs = list(y[-n:]), list(x[-n:])
+    res = [float(ys[i]) - bb * float(xs[i]) for i in range(n)]
+    # Compounded, not summed: these are returns, and a sum overstates by the
+    # cross terms — the same error that made retention divide cumulative windows.
+    cum = 1.0
+    for r in res:
+        cum *= (1.0 + r)
+    return {
+        "measurable": True, "reason": None,
+        "beta": round(bb, 6),
+        "beta_source": "supplied" if b is not None else "fitted on this window",
+        "n_obs": n,
+        "residuals": [round(r, 8) for r in res],
+        "cumulative_residual_pct": round((cum - 1.0) * 100.0, 4),
+        "residual_vol_annual_pct": (
+            round(float(np.std(np.asarray(res), ddof=1))
+                  * math.sqrt(TRADING_DAYS) * 100.0, 4) if n > 1 else None),
+    }
+
+
+def beta_adjusted_residual(symbol: str, against: str = "XBI",
+                           lookback_days: int = 400,
+                           window: int = DEFAULT_BETA_WINDOW,
+                           fetcher: Callable[..., Any] = fetch_daily_bars,
+                           ) -> dict[str, Any]:
+    """A name's move with its sector beta taken out — the SRPT revival shape.
+
+    The first named consumer of this pack. SRPT was killed on a thesis whose
+    revival condition is stated as a beta-adjusted residual against the biotech
+    sector: a single-name biotech's moves are mostly XBI's, and what decides a
+    revival is what is left after that comes out.
+
+    Reports the full-sample beta AND the rolling one, because a residual is only
+    as good as the beta that produced it: a name whose sector beta has drifted
+    from 0.6 to 1.4 has no single residual worth quoting, and the rolling series
+    is how a reader sees that before believing the number.
+
+    Computes NOTHING about whether the condition is met. That is a judgement and
+    it belongs to the seat that pre-registered it.
+    """
+    sym, ref = symbol.upper(), against.upper()
+    used, rets, dates, excluded = aligned_returns(
+        [sym, ref], lookback_days=lookback_days, fetcher=fetcher)
+    have = set(used)
+    miss = [s for s in (sym, ref) if s not in have]
+    if miss:
+        return {
+            "measurable": False, "symbol": sym, "against": ref,
+            "reason": "; ".join(
+                f"{s}: {excluded.get(s, 'not served by the feed')}" for s in miss),
+            "beta": None, "cumulative_residual_pct": None,
+        }
+    y, x = rets[sym], rets[ref]
+    out = residual_series(y, x)
+    roll = rolling_beta(y, x, window=window)
+    seen = [b for b in roll if b is not None]
+    return {
+        "symbol": sym, "against": ref,
+        "dates": list(dates),
+        "window": window,
+        "rolling_beta": roll,
+        # None, not 0.0, when the window never filled — the whole point of the
+        # rolling series returning Nones is that they survive the summary.
+        "rolling_beta_min": round(min(seen), 4) if seen else None,
+        "rolling_beta_max": round(max(seen), 4) if seen else None,
+        "rolling_beta_last": seen[-1] if seen else None,
+        "rolling_beta_note": (
+            f"{len(seen)} of {len(roll)} points have a beta; the first "
+            f"{window - 1} cannot have one and are ABSENT rather than zero"
+            if roll else "no rolling beta could be computed"),
+        **out,
+    }
