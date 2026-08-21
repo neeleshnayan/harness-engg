@@ -376,3 +376,37 @@ filing any request, read `desk_load.components.requests_awaiting_approval` and
 ask whether every row in it is genuinely a question the CEO has not yet
 answered. Today that count went **4 → 0** and not one of the four was a real
 question.
+
+
+## **"KILL IT" IS THE WRONG SHAPE WHEN THE THING IS COUPLED, NOT WRONG**
+
+**2026-08-21.** The CEO said *"kill fake_firestore; I do not want it biting us
+no more"* and I filed a ticket to remove the flag AND the paper-connector
+fallback. He then asked: *"I am wondering if we may need it for testing…
+cause alpaca runs only weekdays."*
+
+**He was right, and the code comment I had just read said so** —
+`fund.py:145-148`: *"routing mock fills to the real broker leaves them queued
+until the market opens, so the book never moves and the point of the mock is
+lost."* I read that comment while inspecting the ternary and did not connect it
+to what I was proposing to delete.
+
+**The measurement that settles it, which I should have taken BEFORE filing:**
+zero test files reference `USE_FAKE_FIRESTORE`; **three** depend on
+`PaperConnector`. Two different things, one of which is dead and one of which
+is load-bearing — and removing the second would also break the market-closed
+work queue the CEO had registered hours earlier, since weekend work is the
+whole point of both.
+
+**THE GENERAL LESSON: when something is dangerous because it is COUPLED and
+SILENT, the fix is to decouple it and make it loud — not to remove the
+capability.** Here: give venue selection its own explicit variable, make unset
+FAIL rather than fall back, and make a paper venue *incapable* of emitting a
+fill labelled `alpaca`. That keeps the weekend capability while making it
+impossible to mistake for the real thing, which is strictly stronger than
+deletion.
+
+**And the tell I should have caught in my own ticket**: I wrote *"keep
+PaperConnector as a class if tests need it"* — a hedge. **A hedge in a ticket
+is a measurement I did not take.** If I had run the grep before filing instead
+of after being asked, the ticket would have been right the first time.
