@@ -228,3 +228,61 @@ date-certain**.
 items, and correct the record with a **new dated note at the v4 bump** rather
 than editing `:84-87` — findings are never edited. *"'Structure' tolerates a
 queue; seventeen days does not."*
+
+
+---
+
+# CORRECTION — appended 2026-08-21, never edited above
+
+**Findings docs are never edited; this is a new section, and the original text
+stands as written so a reader can see what was believed and when.**
+
+## The date attribution in §1 was wrong. The per-leg money was right.
+
+Found by the builder while implementing this spec, and **verified independently
+by the chair against `GET /fund/exits`** before being accepted:
+
+| symbol | kind | when | strategy |
+|---|---|---|---|
+| TLT | `time` | **2026-09-08** | sleeve_beta_500 |
+| DBC | `time` | **2026-09-08** | sleeve_beta_500 |
+| SPY | `time` | **2026-11-19** | sleeve_premia_equity |
+| DBA | `time` | **2026-11-19** | sleeve_premia_carry |
+
+- **2026-09-08 carries TLT + DBC only: $501.58.**
+- The figure **$652.09** stated in §1 and §6 is **wrong — it summed two
+  different dates.** DBA's time exit is ten weeks later.
+- The total armed across all four legs, **$750.35**, is correct (§1 says
+  $750.36; rounding).
+- **Every per-leg figure in §1 is exact.** Only the date attribution failed.
+
+**The chair propagated $652.09 into the day log, the review queue and three
+verbal reports before this was caught.** All corrected. The lesson, recorded
+because it is the chair's and not the seat's: **when totalling money against a
+date, sum only the legs carrying that date and cite the seq of each.** The
+spec listed four rules under one heading and the chair added them up without
+re-reading their dates.
+
+## THE SHARPER CORRECTION: the hazard is LIVE, not scheduled
+
+§1 covered the four `time` rules and **missed that every one of those symbols
+also carries an UNDATED `loss_pct` rule**:
+
+| symbol | undated trigger |
+|---|---|
+| TLT | `loss_pct` **4.0%** |
+| DBC | `loss_pct` **8.7%** |
+| SPY | `loss_pct` **7.3%** |
+| DBA | `loss_pct` **6.1%** |
+
+**Any one of these firing on an ordinary drawdown hits the identical defect
+tomorrow.** The exposure is not scheduled for September; **2026-09-08 is the
+date on which part of it becomes certain, not the date on which it begins.**
+
+This sharpens the case for v4 rather than softening it, and it changes the
+character of the item on the CEO's desk from "a deadline in seventeen days" to
+"an armed condition with a deadline attached."
+
+**Standing instruction to the riskofficer, carried via BINDS**: enumerate
+*every* armed rule per symbol, not the one that prompted the investigation.
+The undated trigger is the one that fires first.
