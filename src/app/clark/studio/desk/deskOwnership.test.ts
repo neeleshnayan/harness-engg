@@ -332,9 +332,61 @@ test("the CEO page renders the routed-away rows and says why", () => {
   assert.ok(src.includes("ownedElsewhere: split.ownedElsewhere"),
     "the page must pass the third queue through to the officer routing");
   assert.ok(src.includes("Open, and not yours"),
-    "the routed-away rows need a section of their own");
+    "the routed-away rows need a door of their own");
   assert.ok(src.includes("next_actor_why"),
     "each routed row must carry the spine's reason, so a reader can disagree");
-  assert.ok(src.includes("with the chair or a seat"),
-    "the headline must say where the rows that left the count went");
+  assert.ok(src.includes("more on file, at the foot"),
+    "the headline must say that the rows which left the count are still on "
+    + "the page — taking work off the number must not take it off the screen");
+});
+
+test("the decision list comes FIRST and the folded doors come after", () => {
+  /* THE RESTRUCTURE, pinned in source (2026-08-22). Measured on the page this
+   * replaces: the first Accept button sat 11,608px — 14.7 screenfuls — below
+   * the CEO's name, behind 49,549 characters, and the largest block on the
+   * page was a section headed "0 awaiting you".
+   *
+   * A source-order assertion is a weak proxy for a layout and it is stated as
+   * one; the strong check is the DOM measurement in the dispatch report. What
+   * this catches is the cheap regression: somebody adding a section above the
+   * list because it seemed important, which is exactly how the old page grew.
+   */
+  const src = readFileSync(new URL("./ceo/page.tsx", import.meta.url), "utf8");
+  const list = src.indexOf("1 · THE DECISION LIST");
+  const doors = src.indexOf("2 · EVERYTHING ELSE, BEHIND NAMED DOORS");
+  assert.ok(list > 0 && doors > 0, "both landmarks must exist");
+  assert.ok(list < doors, "the decision list must precede the folded doors");
+
+  /* The only things allowed above the list are the ones that change what a
+   * click on it DOES, or say the page cannot be trusted. */
+  const above = src.slice(0, list);
+  for (const allowed of ["THE HALT", "CONTRACT DRIFT"]) {
+    assert.ok(above.includes(allowed),
+      `${allowed} is one of the two blocks that may sit above the list`);
+  }
+  for (const banned of ["MemoCard key=", "DailyMemoCard memo", "AskRow key"]) {
+    assert.ok(!above.includes(banned),
+      `${banned} renders above the decision list — memos, the daily and the `
+      + "ask queue are the three blocks that were measured at 708, 951 and "
+      + "9,596 pixels of already-read text above the first Accept button");
+  }
+});
+
+test("the header count and the card count are ONE number in the source", () => {
+  /* Not a second computation. `decisionList` is built from the officer desk,
+   * and the page must not re-derive either half — that is how 11 and 6, and
+   * then 1 and 0, ended up eight pixels apart. */
+  const src = readFileSync(new URL("./ceo/page.tsx", import.meta.url), "utf8");
+  assert.ok(src.includes("decisionList(officers,"),
+    "the list must be built FROM the officer desk");
+  assert.ok(src.includes("officers.awaitingTotal"),
+    "the header number must come from the same object the list came from");
+  assert.ok(src.includes("const awaitingCount = officers.awaitingTotal;"),
+    "the header count must be exactly that binding and nothing else");
+  /* Assignments, not comparisons — `awaitingCount === 0` is a read. */
+  const assignments = [...src.matchAll(/awaitingCount\s*=(?!=)/g)];
+  assert.equal(assignments.length, 1,
+    `the header count is assigned ${assignments.length} times; it must have `
+    + "exactly one source, because computing one quantity twice is how this "
+    + "page rendered 11 and 6 for the same question");
 });
