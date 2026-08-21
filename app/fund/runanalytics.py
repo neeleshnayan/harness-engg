@@ -274,3 +274,62 @@ def folds(analytics: Optional[dict[str, Any]]) -> Optional[list[dict[str, Any]]]
     wf = ((analytics or {}).get("walkforward")) or {}
     rows = wf.get("folds")
     return rows if isinstance(rows, list) and rows else None
+
+
+def daily_return_legs(analytics: Optional[dict[str, Any]]) -> dict[str, Any]:
+    """Every captured strategy-vs-benchmark daily series, by leg name.
+
+    The reader gate v5 will use (adversary round 4, recommendation 4). Gathers
+    what the belt actually captured and — the load-bearing half — names what it
+    did NOT, so a premia statistic computed over three legs when five were
+    expected is visibly that rather than silently narrower.
+
+    Leg names are stable: ``verification`` (the winner's full re-run),
+    ``holdout_test``, and ``fold_N_test`` per walk-forward fold. Train legs are
+    deliberately absent everywhere — their jobs are released after the grid runs
+    and re-running one would be a different run from the one the numbers came
+    from. That absence is reported, not hidden.
+    """
+    a = analytics or {}
+    legs: dict[str, Any] = {}
+    missing: list[str] = []
+
+    ver = (a.get("verification") or {})
+    vr = (ver.get("result") or {}) if ver.get("present") else {}
+    dr = vr.get("daily_returns")
+    if isinstance(dr, dict) and dr.get("present"):
+        legs["verification"] = dr
+    else:
+        missing.append("verification")
+
+    ho = ((a.get("sweep") or {}).get("holdout_result") or {})
+    hd = (ho.get("test") or {}).get("daily_returns")
+    if isinstance(hd, dict) and hd.get("present"):
+        legs["holdout_test"] = hd
+    else:
+        missing.append("holdout_test")
+
+    for f in (folds(a) or []):
+        name = f"fold_{f.get('fold')}_test"
+        fd = f.get("daily_returns")
+        if isinstance(fd, dict) and fd.get("present"):
+            legs[name] = fd
+        else:
+            missing.append(name)
+
+    with_bench = [k for k, v in legs.items() if v.get("benchmark_present")]
+    return {
+        "legs": legs,
+        "captured": sorted(legs),
+        "missing": missing,
+        "legs_with_benchmark": sorted(with_bench),
+        "total_observations": sum(int(v.get("n") or 0) for v in legs.values()),
+        "note": (
+            f"{len(legs)} leg(s) carry an aligned daily series"
+            + (f"; {len(with_bench)} of them include the benchmark"
+               if legs else "")
+            + (f". NOT captured: {', '.join(missing)}" if missing else "")
+            + ". Train legs are never captured — their jobs are released after "
+              "the grid runs, and a re-run would be a different run"
+            if legs or missing else "nothing captured"),
+    }

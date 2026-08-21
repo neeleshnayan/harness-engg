@@ -413,6 +413,12 @@ class WalkForward:
                 # dates twice and the "held-out" fold proves nothing.
                 "train_window": train.get("window"),
                 "test_window": test.get("window"),
+                # The fold's out-of-sample daily series, aligned strategy vs
+                # benchmark and undownsampled (adversary r4 rec 4). This is
+                # what gate v5 needs per fold; without it no premia statistic
+                # is computable and the fold reduces to one retention scalar.
+                "daily_returns": test.get("daily_returns"),
+                "daily_returns_note": ho.get("daily_returns_note"),
                 "dates_honoured": ho.get("dates_honoured"),
                 **ret,
             })
