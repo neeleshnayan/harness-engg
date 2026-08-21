@@ -1282,3 +1282,78 @@ disclosed itself conflicted out, having endorsed the sleeve design). **Queued
 behind the current pair; the two-agent cap is full.** Noted here so it is not
 lost: it is the largest open question on the desk, $917.05 live at 48.6% of NAV
 with no criterion since 2026-08-19.
+
+---
+
+## 2026-08-21 (UTC) — execution sweep; and a chair error appended to the log
+
+**co-CTO chair.** CEO: *"many things approved on my side; time for you to rock."*
+
+### Desk cleared
+
+Open recommendations **0**. Requests: approved **24 → 18**, resolved **14 → 20**.
+Six requests were already SERVED and were closed with the artifact that served
+them named — the quant belt re-run, the analyst 5.02 measurement, the R19
+specification and its amendment, Challenge #1's verdict, and builder D7.
+Everything still genuinely awaiting work was left alone.
+
+### MY ERROR, appended to the event log and not removable
+
+**I resolved the first six requests against 8-CHARACTER ID PREFIXES instead of
+full request ids.** The endpoint accepted them — it appends a
+`DESK_REQUEST_RESOLVED` event with whatever `aggregate_id` it is given — so
+**six events now stand against aggregate ids that match no request.** The fold
+did not move, which is how I caught it: 24 approved before, 24 after.
+
+Re-resolved correctly against the full UUIDs minutes later, and **every
+corrected resolution carries a chair note describing the orphaned attempt**,
+because the log is append-only and the honest move is to annotate rather than
+leave six inexplicable events for a future reader to trip over. They are inert:
+they resolve nothing, they were superseded, no money moved.
+
+**RULE: the desk API takes ids, and an 8-character prefix is a DISPLAY form.
+The endpoints do not validate — `/resolve` will happily append against a
+nonexistent aggregate. Read the full id from the payload; never retype the
+prefix I printed for a human.** Fable: this is the second time this chair has
+been bitten by treating a rendered convenience as the real value (the first was
+reading a local clock and appending a `Z`).
+
+### The largest live hazard, and its cause is also mine
+
+The riskofficer's R19 dispatch established something that changes the severity
+of the whole 2026-09-08 item: **`USE_FAKE_FIRESTORE` controls ORDER ROUTING,
+not just the ledger.** `_mock_mode()` (`fund.py:128-129`) reads it, and the
+connector ternary (`fund.py:151-163`) falls through to `AlpacaConnector()` when
+it is false and `ALPACA_API_KEY` is set. **I flipped that flag** — correctly,
+to fix a real durability defect where 552 events lived in an in-memory
+Firestore while the status endpoint reported success hourly — **and did not
+grep what else read the variable.**
+
+Confirmed independently by the seat: `get_all_positions()` returns six real
+positions, and `reconcile.run()` only writes mismatches when
+`account_info().configured` is true, which `PaperConnector` never returns —
+and 61 `ReconciliationMismatch` events now exist at seq 749–807.
+
+`fund.py:132-140` carries a docstring saying `_real_broker()` exists precisely
+to prevent this conflation. **The code explains the defect it then commits.**
+
+Filed as **`b72847bc`**, sharpening the already-approved `09e49ae5`: venue
+selection gets its own variable, neither inferable from the other, and an unset
+value fails closed rather than picking a broker.
+
+### Still the CEO's, and dated
+
+**R19 / envelope v4 awaits his click.** It is a versioned envelope change and
+Tier 3 for this chair regardless. Two things must go with it: the
+skip-visibility fix in the same change (a v4 decline currently produces no
+event, no log line and no alarm, and the proposal then expires in 120 minutes
+and never re-raises — `pipeline.py:400-403` and `fund.py:3768` both claim it
+does and both are false), and the seat's challenge that v3's adoption premise
+("blast radius today is $0… the sleeve owns its positions") is now measured
+false at $750.36 armed.
+
+And the one the riskofficer found while stress-testing the CEO's own shorting
+question: **`riskmonitor.py:878` computes P&L with no reference to the sign of
+the position**, and `positions.py:87` leaves a short holding its long cost
+basis — so on a short, a losing move reads as a gain and the stop never fires.
+**R19 does not fix this and no short may deploy before it is closed.**

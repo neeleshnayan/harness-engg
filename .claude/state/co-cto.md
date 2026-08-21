@@ -253,3 +253,31 @@ still be a half-diff.
 - **The CEO found it by reading a screen.** No seat did, across four
   triages. Surfaces get exercised by the person who uses them, and a chair
   that only reads endpoints will keep missing this class.
+
+**A DISPLAY VALUE IS NOT A KEY (2026-08-21).** I resolved six desk requests
+against **8-character id prefixes** — the form I had been printing for the
+CEO to read — instead of the full 36-character UUIDs. **The endpoint accepted
+every one**: `/fund/desk/requests/{id}/resolve` appends a
+`DESK_REQUEST_RESOLVED` event with whatever `aggregate_id` it is handed and
+validates nothing. Six events now stand against ids matching no request. I
+caught it only because the fold did not move — 24 approved before, 24 after.
+
+Re-resolved against the real UUIDs, and **each corrected resolution carries a
+note describing the orphaned attempt**, because the log is append-only and
+annotating beats leaving six inexplicable events for a future reader.
+
+**RULE: read the id from the payload; never retype the prefix you printed for
+a human.** And more generally — **this is the second time I have been bitten
+by treating a rendered convenience as the real value.** The first was reading
+the machine's local clock and appending a `Z`. Same shape both times: a form
+that exists for human legibility got used as ground truth. **When a value has
+a "for reading" form and a "for machines" form, assume I am holding the wrong
+one until I check.**
+
+**A second-order lesson worth more than the first:** the endpoint should have
+refused. A write path that accepts an aggregate id matching nothing is the
+absence-as-zero pattern one more time — it answered "I cannot find that
+request" with "fine, done." I have NOT filed that as work, because I am the
+only caller who has ever made this mistake and hardening an endpoint against
+my own typo is not obviously worth a dispatch. Noting it so a future chair can
+disagree with that call.
