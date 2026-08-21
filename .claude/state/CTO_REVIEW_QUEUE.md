@@ -1032,3 +1032,110 @@ is live, nothing thinks."
   in that directory are 0 bytes. I filed the artifact from the notification and
   **disclosed the transcription in the doc's provenance note**. Worth knowing
   before you trust a task output file.
+
+---
+
+## 2026-08-21 (UTC) — DECISIONS ARE PROVISIONAL: a constitutional amendment, and the first challenge
+
+**co-CTO chair. Fable: this is a dated amendment carrying the CEO's verbatim
+instruction, which the charter puts inside my lane. Everything downstream of it
+is Tier 1 except one item, which is parked for you.**
+
+### The instruction
+
+CEO, verbatim: *"Imp; my approved decisions needs to continually evolved and
+updated so the team is requested to question it and recommend changes."*
+
+### What I wrote, and the gap it closes
+
+New constitution section, **"Decisions are provisional"**, placed immediately
+before the non-negotiables. Eight clauses. The reasoning I want you to check:
+
+**This firm had excellent machinery for MAKING decisions and almost none for
+REVISITING them.** Working protocol 1 says every artifact is falsifiable or it
+is rejected — and then decisions, the highest-stakes artifacts here, were
+exempt. The proof was sitting in the constitution already: the COO's objection
+to the ≥50 threshold is marked *"preserved unresolved"*, which is honest and
+completely inert. Nobody owned it. Nothing triggered on it. It would still have
+been there in a year.
+
+The clauses, in brief: decisions are provisional including the CEO's own and
+this constitution (1); challenging one is a **duty**, not a permission (2); the
+admissibility bar is **new evidence or a demonstrated consequence** — *"I would
+have decided differently"* is not a challenge (3); every new decision records
+what would change its mind (4); a challenge that would **loosen** a control goes
+to the adversary blind first (5); challenges route through the COO batch (6);
+rejected challenges are recorded and re-filing needs new evidence (7); challenge
+and reversal remain different acts, so **my non-reversal rule toward your chair
+is unchanged — I may now challenge your decisions in writing, and still may not
+reverse one** (8).
+
+Clauses 3, 5 and 7 exist because without them this section is a token furnace
+and a quiet-loosening channel. I would rather you check those three hardest.
+
+### The best part is that the machinery already existed
+
+I was about to specify a new register and found `app/fund/judgement.py` already
+does it: `falsified_by`, `review_trigger`, `registered_value`, drift detection
+between what was decided and what the code now does, and `due_for_review`. It
+even carries the exact lesson this amendment is about, in its own docstring —
+*sixteen of seventeen registered triggers were free text no code evaluated, and
+the register returned `due_for_review: []` while a 7.75% drawdown sat there.*
+
+So clause 4 **points at judgement.py rather than inventing a parallel system.**
+
+**The measured gap: all 19 registered entries are NUMBERS.** Not one governance
+decision is registered — not the fund identity, the COO threshold, the
+auto-approval envelope version, the co-CTO charter, the experimental-deployment
+authorization, or the excess-returns amendment. All prose in CLAUDE.md, watched
+by nothing. Five of the 19 also read `readable: false`, so the register cannot
+check those either.
+
+**TIER 3 — PARKED FOR YOU, NOT EXECUTED: extending the register to governance
+decisions is a register change, which the charter makes a CTO-chair action.**
+Filed as **`61a065c2`** with my review note. My recommendation, for you to take
+or discard: extend the existing register rather than build a second one (a second
+register is a second thing to forget to read), and make a governance entry whose
+trigger cannot be evaluated render as **UNCHECKED** rather than silently as
+not-due — because the module has already proved that unevaluable triggers make
+the register lie.
+
+### Making the duty real in the seats (Tier 1, done)
+
+A duty that lives only in the constitution is a duty no seat reads at dispatch
+time. The `## CHALLENGE` clause is now in the uniform session contract of **all
+ten seat definitions** — with the admissibility bar, the loosening/adversary
+rule, and the line that filing a challenge never licenses a seat to act against
+a decision while it stands.
+
+### CHALLENGE #1, filed the same session — `2c4c4451`
+
+I held it to the bar I had just written rather than re-raising the COO's
+objection as-is, and it cleared:
+
+- **New evidence**: the desk counter reads **30 of 50** and reports no triage
+  needed, while **31 recommendations sit at status `accepted` that the counter
+  counts none of.**
+- **Demonstrated consequence**: the trigger is reading 30 against a backlog it
+  cannot see. No threshold value fixes an instrument measuring the wrong
+  quantity.
+
+**And it cuts partly at me, which I disclosed in the filing rather than leaving
+for the COO to find.** Those 31 are a mixture of two states the fund cannot tell
+apart — genuinely awaiting execution, and executed-but-never-marked — and a
+large share of the second kind is **my own unmarked cascade**: I executed the
+COO's batch acceptances by actioning the underlying items and never marked the
+batch recommendations themselves done. So the pro-raise argument (that the
+counter was summoning the seat on stale bookkeeping) is **partly vindicated by
+the same measurement**.
+
+**I am NOT recommending reverting 50 → 20.** I am claiming the counter measures
+items awaiting a DECISION and is blind to items awaiting EXECUTION, and that
+until those are distinguishable no number measures the CEO's real load.
+Recommended order: the chair sweeps its own unmarked cascade first so the number
+is clean, then the COO re-triages, then the threshold is revisited on a number
+that means what its label says.
+
+**A challenge whose first casualty is the chair that filed it is the right way
+to open this rule.** If the first one had been aimed only outward I would trust
+the mechanism less.
