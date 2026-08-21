@@ -154,7 +154,14 @@ function PmLane({ runs }: { runs: DeskRun[] }) {
     { label: "rejected", n: f.rejected, tone: "text-[var(--kt-down)]" },
     { label: "staged", n: f.staged },
     { label: "done", n: f.done },
+    // Read and closed without a decision (CEO, 2026-08-21) — a real outcome,
+    // and one the funnel would otherwise lose.
+    { label: "noted", n: f.noted },
   ];
+  // Only drawn when it is non-zero: an "unrecognised" bar at 0 is noise, and a
+  // missing one when it is not 0 is a funnel that does not add up.
+  if (f.other > 0) bars.push({ label: "unrecognised", n: f.other,
+                               tone: "text-[var(--kt-warn)]" });
   const max = Math.max(1, f.made);
   return (
     <>

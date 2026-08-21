@@ -530,6 +530,13 @@ export interface RecFunnel {
   rejected: number;
   staged: number;
   done: number;
+  /** Read and closed without a decision (CEO, 2026-08-21). */
+  noted: number;
+  /** A status this build does not recognise. Counted rather than dropped: the
+   *  buckets must sum to `made`, or a funnel silently loses rows the day the
+   *  spine grows a status — which is precisely how `noted` would have gone
+   *  missing here. */
+  other: number;
 }
 
 /**
@@ -541,7 +548,8 @@ export interface RecFunnel {
  * anything. Rejections are the part of the record most worth keeping.
  */
 export function recFunnel(runs: DeskRun[]): RecFunnel {
-  const f: RecFunnel = { made: 0, open: 0, accepted: 0, rejected: 0, staged: 0, done: 0 };
+  const f: RecFunnel = { made: 0, open: 0, accepted: 0, rejected: 0, staged: 0,
+                        done: 0, noted: 0, other: 0 };
   for (const r of runs) {
     for (const rec of r.recommendations || []) {
       f.made += 1;
@@ -551,6 +559,9 @@ export function recFunnel(runs: DeskRun[]): RecFunnel {
       else if (s === "rejected") f.rejected += 1;
       else if (s === "staged") f.staged += 1;
       else if (s === "done") f.done += 1;
+      else if (s === "noted") f.noted += 1;
+      // Anything else — including a missing status — is counted, not dropped.
+      else f.other += 1;
     }
   }
   return f;
@@ -748,3 +759,33 @@ export const fmtUsd = (n: number | null | undefined): string =>
  *  compare it with a timestamp that means something else. */
 export const fmtAt = (ts: string | null | undefined): string =>
   !ts ? "—" : `${ts.slice(0, 16).replace("T", " ")}Z`;
+
+/* --------------------------------------------------------- seat activity -- */
+
+/** How a seat's activity status renders. Three states, plus a fourth for a
+ *  status this build has never heard of.
+ *
+ *  The third state exists because three finished dispatches rendered as WORKING
+ *  for hours (CEO, request 907ecc74): the fold knew only "dispatched, nothing
+ *  back" and "resolved", so a returned dispatch was indistinguishable from a
+ *  running one and the chair's review queue was invisible.
+ *
+ *  `unknown` is deliberate: a status the spine grows later must NOT fall
+ *  through to idle, because idle is a claim ("nothing is owed here") and this
+ *  code would not know that. It renders the raw word instead.
+ */
+export type SeatStatusTone = "working" | "awaiting" | "idle" | "unknown";
+
+export function seatStatusTone(status: string | null | undefined): SeatStatusTone {
+  if (status === "working") return "working";
+  if (status === "awaiting_review") return "awaiting";
+  if (status === "idle") return "idle";
+  return "unknown";
+}
+
+/** The word a human reads. Only the third state is rewritten — `awaiting_review`
+ *  is a wire value, and the floor is prose. */
+export function seatStatusLabel(status: string | null | undefined): string {
+  if (status === "awaiting_review") return "awaiting review";
+  return status || "unknown";
+}

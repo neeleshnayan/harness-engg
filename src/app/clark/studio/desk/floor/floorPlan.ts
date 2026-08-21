@@ -333,6 +333,45 @@ export function litSeats(roster: DeskView["roster"] | null | undefined): string[
     .map((r) => r.agent);
 }
 
+/**
+ * Seats whose dispatch has COME BACK and which nobody has reviewed.
+ *
+ * The third state (CEO, request 907ecc74). The floor drew two where there are
+ * three, so three finished dispatches rendered as WORKING for hours and the
+ * chair's review queue was invisible.
+ *
+ * Deliberately NOT lit like a working seat: a lamp says "someone is at that
+ * desk". A returned dispatch is the opposite — the seat is done and the
+ * obligation has moved to the chair. Rendering them the same is what made the
+ * queue invisible in the first place.
+ */
+export function awaitingReviewSeats(
+  roster: DeskView["roster"] | null | undefined,
+): string[] {
+  if (!roster) return [];
+  return roster
+    .filter((r) => r.activity?.status === "awaiting_review")
+    .map((r) => r.agent);
+}
+
+/**
+ * Whether the spine could TELL a returned dispatch from a running one.
+ *
+ * False means detection was unavailable, not that every seat is genuinely
+ * busy — measured 2026-08-21, only 8 of 23 dispatched task_ids carry a run
+ * with a matching trace. A floor that showed a confident WORKING on an
+ * undetectable dispatch would be asserting something it cannot see.
+ */
+export function reviewDetectionBlind(
+  roster: DeskView["roster"] | null | undefined,
+): string[] {
+  if (!roster) return [];
+  return roster
+    .filter((r) => r.activity?.status === "working"
+      && r.activity?.review_detectable === false)
+    .map((r) => r.agent);
+}
+
 /* -------------------------------------------------------------- pulses ----- */
 
 export const DESK_EVENT_TYPES = [

@@ -35,8 +35,10 @@ import {
   corridorHasNoShortcut,
   floorEnabledFrom,
   floorPulses,
+  awaitingReviewSeats,
   litSeats,
   pulsesByWire,
+  reviewDetectionBlind,
   roomState,
   spotById,
 } from "./floorPlan.ts";
@@ -377,4 +379,43 @@ test("no seat is drawn twice — the exec row and the bench are disjoint", () =>
   // SEATS minus the coo, so she appeared at her exec desk AND on the bench.
   const ids = allSpots().map((s) => s.id);
   assert.equal(new Set(ids).size, ids.length, "a spot id appears twice in the room");
+});
+
+/* --------------------------------------------------- the third state ------ */
+/* CEO, request 907ecc74: three finished dispatches rendered as WORKING for
+   hours, because the floor drew two states where there are three. */
+
+test("a returned dispatch is NOT lit like a working seat", () => {
+  const roster = [
+    { agent: "pm", activity: { status: "working" } },
+    { agent: "builder", activity: { status: "awaiting_review" } },
+    { agent: "quant", activity: { status: "idle" } },
+  ] as unknown as Parameters<typeof litSeats>[0];
+  // THE regression. A lamp says "someone is at that desk"; a returned dispatch
+  // means the opposite, and drawing them alike is what hid the review queue.
+  assert.deepEqual(litSeats(roster), ["pm"]);
+  assert.deepEqual(awaitingReviewSeats(roster), ["builder"]);
+});
+
+test("no roster means no awaiting seats — never 'everything reviewed'", () => {
+  assert.deepEqual(awaitingReviewSeats(null), []);
+  assert.deepEqual(awaitingReviewSeats(undefined), []);
+});
+
+test("a row with no activity block is neither lit nor awaiting", () => {
+  const roster = [{ agent: "analyst" }] as unknown as Parameters<typeof litSeats>[0];
+  assert.deepEqual(litSeats(roster), []);
+  assert.deepEqual(awaitingReviewSeats(roster), []);
+});
+
+test("an undetectable return is named, not hidden behind a confident WORKING", () => {
+  // Measured 2026-08-21: only 8 of 23 dispatched task_ids carry a run with a
+  // matching trace, so WORKING is a floor and the floor must say so.
+  const roster = [
+    { agent: "pm", activity: { status: "working", review_detectable: false } },
+    { agent: "quant", activity: { status: "working", review_detectable: true } },
+    // Idle seats have nothing to detect; `null` must not read as blind.
+    { agent: "adversary", activity: { status: "idle", review_detectable: null } },
+  ] as unknown as Parameters<typeof litSeats>[0];
+  assert.deepEqual(reviewDetectionBlind(roster), ["pm"]);
 });

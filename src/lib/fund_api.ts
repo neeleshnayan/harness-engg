@@ -820,7 +820,11 @@ export interface ResearchBacktestResponse {
 export interface DeskRecommendation {
   rec_id: number;
   seat: string;
-  status: 'open' | 'accepted' | 'rejected' | 'staged' | 'done';
+  /** `noted` added 2026-08-21 (CEO): an observation the CEO READ and neither
+   *  accepted nor rejected — deciding it would be a decision nobody made, and
+   *  leaving it open kept it on the desk forever. Terminal and read-only:
+   *  nothing on any surface offers a button on a noted row. */
+  status: 'open' | 'accepted' | 'rejected' | 'staged' | 'done' | 'noted';
   text: string;
   kind?: string | null;
   decided_by?: string;
@@ -882,15 +886,60 @@ export interface SeatTelemetryBlock {
 }
 
 /** The research desk: the firm's bench, artifact chain, and work queue. */
+/** The secretary's daily memo, as `GET /fund/desk/archives/memo` returns it.
+ *
+ *  Verified against a real response 2026-08-21 (2026-08-21.md): every field
+ *  below was present on the wire — this shape is read, not assumed.
+ *
+ *  FOUR absences, and they are different facts: `never_filed` (the archives
+ *  directory does not exist — she has never run), `none_yet` (it exists and is
+ *  empty), `no_such_day` (an explicit date nobody documented; not the same as a
+ *  quiet day), `unreadable` (the file is there and could not be read — UNKNOWN,
+ *  not absent) and `no_memo_section` (filed and readable but carrying neither
+ *  section, which is a defect in the artifact, not a missing memo). A surface
+ *  that collapses these into "no memo" sends the reader to the wrong place. */
+export interface ArchiveMemo {
+  available: boolean;
+  reason: 'never_filed' | 'none_yet' | 'no_such_day' | 'unreadable'
+    | 'no_memo_section' | null;
+  /** The day the memo IS for — always present when available, so the CEO can
+   *  see that yesterday's memo is yesterday's. */
+  date: string | null;
+  path: string | null;
+  pdf_path: string | null;
+  title: string | null;
+  /** Her five-line headline. `null` when the file carries no TL;DR fence —
+   *  the memo can still be available, because §1 is what makes it a memo. */
+  tldr: string | null;
+  /** `# THE DAILY` through to (and never including) `# THE RECORD`. */
+  daily_markdown: string | null;
+  has_long_record: boolean;
+  note: string;
+}
+
 export interface DeskView {
   roster: {
     agent: string; lane: string; emits: string; exists_because: string;
     /** Live per-seat activity, folded from dispatch/resolve events. The spine
      *  cannot watch an agent think; this is the truthful envelope. */
     activity: {
-      status: 'working' | 'idle';
+      /** THREE states since 2026-08-21 (CEO, request 907ecc74).
+       *  `awaiting_review` = the seat RETURNED and nobody has reviewed it —
+       *  an obligation on the chair, not a busy seat. It does NOT auto-close;
+       *  a resolution is what closes a dispatch. */
+      status: 'working' | 'awaiting_review' | 'idle';
       task: string | null;
       since: string | null;
+      /** The dispatch's id, so a surface can link to it. */
+      task_id?: string | null;
+      /** The run that came back, for the chair to open and review. */
+      returned_run_id?: string | null;
+      /** Whether the spine could TELL a returned dispatch from a running one.
+       *  `false` means detection was unavailable — measured 2026-08-21, only
+       *  8 of 23 dispatched task_ids carry a run with a matching trace — so
+       *  `working` is an honest floor rather than a confident reading. `null`
+       *  when the seat is idle and there is nothing to detect. */
+      review_detectable?: boolean | null;
       last_delivered: { task: string; artifact: string; at: string } | null;
     };
   }[];
@@ -2197,6 +2246,18 @@ export const fundApiClient = {
   /** The firm's bench and artifact chain. Reads docs/ + the event log. */
   getDesk: async (): Promise<DeskView> =>
     (await fundApi.get(`${P}/desk`)).data,
+
+  /** The secretary's SHORT memo for a day — TL;DR plus §1 THE DAILY.
+   *
+   *  Deliberately not the long record: the endpoint cuts at `# THE RECORD`
+   *  (CEO amendment, request 920ecbe5 — the short memo belongs on the desk,
+   *  the nine-section record is her seat-page work output).
+   *
+   *  Omit `date` for the newest filed memo. The response always carries the
+   *  date it actually read, so yesterday's memo cannot render as today's. */
+  getArchiveMemo: async (date?: string): Promise<ArchiveMemo> =>
+    (await fundApi.get(`${P}/desk/archives/memo`,
+      date ? { params: { date } } : undefined)).data,
 
   /** The filings corpus the analyst seat reads from, with its coverage.
    *

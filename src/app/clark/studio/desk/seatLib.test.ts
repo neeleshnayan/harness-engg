@@ -23,6 +23,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { DeskRun } from "./seatLib.ts";
 import {
   absent,
   activeDays,
@@ -43,6 +44,8 @@ import {
   tokenStats,
   traceThreads,
   wireFeed,
+  seatStatusLabel,
+  seatStatusTone,
 } from "./seatLib.ts";
 
 /* ------------------------------------------------------------- fixtures --- */
@@ -348,4 +351,45 @@ test("artifacts are attached to a seat only where a path proves it", () => {
   assert.equal(mine[0].path, "docs/proposals/vrp.md");
   assert.equal(artifactsForRuns([run({ artifact_path: null })], artifacts).length, 0,
     "a run with no artifact claims no artifact");
+});
+
+/* --------------------------------------------------- seat activity -------- */
+
+test("the three activity states render distinctly", () => {
+  assert.equal(seatStatusTone("working"), "working");
+  assert.equal(seatStatusTone("awaiting_review"), "awaiting");
+  assert.equal(seatStatusTone("idle"), "idle");
+  assert.equal(seatStatusLabel("awaiting_review"), "awaiting review");
+});
+
+test("a status this build has never heard of does NOT fall through to idle", () => {
+  // Idle is a claim — "nothing is owed at this desk" — and this code would not
+  // know that about a status the spine grew later.
+  assert.equal(seatStatusTone("blocked"), "unknown");
+  assert.notEqual(seatStatusTone("blocked"), "idle");
+  assert.equal(seatStatusLabel("blocked"), "blocked");
+  assert.equal(seatStatusTone(null), "unknown");
+  assert.equal(seatStatusTone(undefined), "unknown");
+  assert.equal(seatStatusLabel(undefined), "unknown");
+});
+
+test("the decision funnel counts NOTED and never silently drops a status", () => {
+  // `noted` (CEO, 2026-08-21) is a real outcome: read, closed, undecided. The
+  // funnel dropped anything it did not recognise before this, so the bars did
+  // not add up to `made` the day the spine grew a status.
+  const runs = [{
+    run_id: "r1", seat: "pm", task: "t", verdict: null, reasoning: null,
+    artifact_path: null, at: null, model: null, tokens: null,
+    recommendations: [
+      { rec_id: 1, seat: "pm", status: "open", text: "a" },
+      { rec_id: 2, seat: "pm", status: "noted", text: "b" },
+      { rec_id: 3, seat: "pm", status: "quantum", text: "c" },
+      { rec_id: 4, seat: "pm", status: null, text: "d" },
+    ],
+  }] as unknown as DeskRun[];
+  const f = recFunnel(runs);
+  assert.equal(f.noted, 1);
+  assert.equal(f.other, 2);
+  assert.equal(f.open + f.accepted + f.rejected + f.staged + f.done
+    + f.noted + f.other, f.made);
 });

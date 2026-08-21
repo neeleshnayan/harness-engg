@@ -28,6 +28,8 @@ import {
   productionShelf,
   tokenStats,
   traceThreads,
+  seatStatusLabel,
+  seatStatusTone,
 } from "../seatLib";
 
 /**
@@ -398,20 +400,27 @@ function Seat({ seat }: { seat: SeatId }) {
 function SeatStatus({ roster }: { roster: DeskView["roster"][number] | null }) {
   if (!roster) return null;
   const a = roster.activity;
+  const tone = seatStatusTone(a.status);
   return (
     <span
       className={`flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] ${
-        a.status === "working" ? "text-[var(--kt-warn)]" : KT.muted
+        tone === "working" ? "text-[var(--kt-warn)]"
+          : tone === "awaiting" ? "text-[var(--kt-text-strong)]" : KT.muted
       }`}
     >
       {/* kt-breathe, not animate-pulse: the Tailwind utility ignores
           prefers-reduced-motion, so a reader who asked the OS for no animation
-          got one anyway. The class drops the motion and keeps the marker. */}
+          got one anyway. The class drops the motion and keeps the marker.
+          AWAITING REVIEW is a hollow ring and does NOT breathe: nothing is
+          happening at that desk — the obligation has moved to the chair. */}
       <span className={`h-1.5 w-1.5 rounded-full ${
-        a.status === "working" ? "kt-breathe bg-[var(--kt-warn)]" : "bg-[var(--kt-border-strong)]"
+        tone === "working" ? "kt-breathe bg-[var(--kt-warn)]"
+          : tone === "awaiting" ? "border border-[var(--kt-text-strong)]"
+          : "bg-[var(--kt-border-strong)]"
       }`} />
-      {a.status}
-      {a.status === "working" && a.since && <> since {fmtAt(a.since)}</>}
+      {seatStatusLabel(a.status)}
+      {tone === "working" && a.since && <> since {fmtAt(a.since)}</>}
+      {tone === "awaiting" && a.since && <> since {fmtAt(a.since)}</>}
     </span>
   );
 }

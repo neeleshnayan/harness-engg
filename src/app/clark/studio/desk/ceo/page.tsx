@@ -4,7 +4,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, OctagonX } from "lucide-react";
 import {
-  fundApiClient, DeskView, PendingOrder, RiskMonitorResponse, SpineEvent,
+  fundApiClient, ArchiveMemo, DeskView, PendingOrder, RiskMonitorResponse,
+  SpineEvent,
 } from "@/lib/fund_api";
 import { KT } from "../../theme";
 import { money } from "../../format";
@@ -15,12 +16,14 @@ import { RecRow } from "../components";
 import { fmtAt } from "../seatLib";
 import {
   CooMemo, DeskItem, QueuedAsk, asksForCeo, cooMemos, decisionVelocity,
-  moneyGap, orderItems, queuedAsks, rankDeskItems, recItems, splitDeskItems,
+  memoDayLabel, moneyGap, orderItems, queuedAsks, rankDeskItems, recItems,
+  splitDeskItems, unwrapMemoMarkdown,
 } from "../execDesk";
 import {
   OfficerQueue, hasContent, officerDesk,
 } from "../officerQueues";
 import { CooTriageChip } from "../components";
+import { ClarkMarkdown } from "../../components/ClarkMarkdown";
 
 /**
  * The CEO's desk — everything awaiting Neelesh's click, in one place.
@@ -52,14 +55,22 @@ export default function CeoDeskPage() {
   const [events, setEvents] = useState<SpineEvent[] | null>(null);
   const [risk, setRisk] = useState<RiskMonitorResponse | null>(null);
   const [riskErr, setRiskErr] = useState(false);
+  /* Donna's short memo (CEO, request 920ecbe5). `null` is UNREACHABLE, not
+     "she filed nothing" — the endpoint's own `available: false` carries that,
+     with a reason. Two different facts, two different renders. */
+  const [memo, setMemo] = useState<ArchiveMemo | null>(null);
+  const [memoErr, setMemoErr] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [d, p, ev, rk] = await Promise.allSettled([
+    const [d, p, ev, rk, mm] = await Promise.allSettled([
       fundApiClient.getDesk(),
       fundApiClient.getPending(),
       fundApiClient.getEvents(1000, 0),
       fundApiClient.getRiskMonitor(),
+      // Newest filed memo, no date argument — it auto-updates on this page's
+      // own 15s poll the moment she files a newer one.
+      fundApiClient.getArchiveMemo(),
     ]);
     if (d.status === "fulfilled") { setDesk(d.value); setErr(null); }
     else { setDesk(null); setErr(d.reason instanceof Error ? d.reason.message : "unreachable"); }
@@ -67,6 +78,8 @@ export default function CeoDeskPage() {
     setEvents(ev.status === "fulfilled" ? (ev.value.events || []) : null);
     if (rk.status === "fulfilled") { setRisk(rk.value); setRiskErr(false); }
     else { setRisk(null); setRiskErr(true); }
+    if (mm.status === "fulfilled") { setMemo(mm.value); setMemoErr(false); }
+    else { setMemo(null); setMemoErr(true); }
   }, []);
 
   useEffect(() => {
@@ -237,6 +250,8 @@ export default function CeoDeskPage() {
               q={q}
               pendingUnreadable={pending === null}
               gap={gap}
+              memo={memo}
+              memoUnreachable={memoErr}
               onChanged={load}
             />
           ))
@@ -304,10 +319,14 @@ export default function CeoDeskPage() {
  * "Donna has not filed today" and "nothing pending at the venue" are different
  * facts and a shared string would flatten them.
  */
-function OfficerSection({ q, pendingUnreadable, gap, onChanged }: {
+function OfficerSection({ q, pendingUnreadable, gap, memo, memoUnreachable,
+                         onChanged }: {
   q: OfficerQueue;
   pendingUnreadable: boolean;
   gap: { priced: number; unpriced: number };
+  /** Donna's short memo, or `null` when the endpoint could not be read. */
+  memo: ArchiveMemo | null;
+  memoUnreachable: boolean;
   onChanged: () => Promise<void> | void;
 }) {
   const orders = q.awaiting.filter((i) => i.kind === "order");
@@ -383,6 +402,11 @@ function OfficerSection({ q, pendingUnreadable, gap, onChanged }: {
         </div>
       )}
 
+      {/* ---- Donna: her latest daily, the SHORT memo only ---- */}
+      {q.id === "donna" && (
+        <DailyMemoCard memo={memo} unreachable={memoUnreachable} />
+      )}
+
       {/* ---- Donna: notes, deliberately WITHOUT decision buttons ---- */}
       {q.id === "donna" && q.notes.length > 0 && (
         <div className="mb-2 space-y-1.5">
@@ -429,15 +453,16 @@ function OfficerSection({ q, pendingUnreadable, gap, onChanged }: {
            RIGHT NOW — she has filed before and every item was marked noted.
            The same distinction the rest of this page draws between absent,
            empty and unknown. */}
-      {!hasContent(q) && (
+      {/* Donna's queue is never "empty" now: her memo card renders its own
+          state, including its own absences, so the generic sentence below would
+          contradict what is on the screen an inch above it. */}
+      {!hasContent(q) && q.id !== "donna" && (
         <p className={`text-sm ${KT.muted}`}>
-          {q.id === "donna"
-            ? "Nothing of Donna's is on your desk right now. Her daily lands here when she runs at end of day; anything she filed earlier has been marked noted."
-            : q.id === "vishesh"
-              ? "Nothing of the COO's is on your desk right now."
-              : q.id === "fable"
-                ? "Nothing staged at the venue, and no bench asks awaiting you."
-                : "The bench owes you no decisions right now."}
+          {q.id === "vishesh"
+            ? "Nothing of the COO's is on your desk right now."
+            : q.id === "fable"
+              ? "Nothing staged at the venue, and no bench asks awaiting you."
+              : "The bench owes you no decisions right now."}
         </p>
       )}
 
@@ -478,6 +503,109 @@ function MemoCard({ m }: { m: CooMemo }) {
       {m.rest && <p className={`mt-1 text-[12px] leading-relaxed ${KT.body}`}>{m.rest}</p>}
       <p className={`mt-1.5 font-mono text-[10px] ${KT.muted}`}>
         {m.artifactPath ?? "no artifact filed on this run"}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Donna's latest daily, on the CEO's desk (CEO instruction, request 920ecbe5).
+ *
+ * The SHORT memo only. The endpoint cuts at `# THE RECORD` and this card would
+ * render whatever it got, so the cut lives there, with a test — but the reason
+ * lives here: the nine-section record is the secretary's seat-page work output,
+ * and a desk that opens with it is not a sixty-second read.
+ *
+ * The DATE is on the card, always. She runs at end of day, so the memo here is
+ * normally yesterday's, and an undated memo reads as this morning's — which is
+ * exactly the misreading the CEO asked to prevent.
+ *
+ * FIVE absences, kept apart on purpose. "Unreachable" is not "she has not
+ * filed"; "never filed" is not "filed and empty"; and a file that is present
+ * but carries no memo section is a DEFECT in the artifact rather than a missing
+ * memo — collapsing them would send the reader to the wrong place.
+ */
+function DailyMemoCard({ memo, unreachable }: {
+  memo: ArchiveMemo | null;
+  unreachable: boolean;
+}) {
+  if (unreachable || memo === null) {
+    return (
+      <p className={`mb-2 text-sm ${KT.sev.warn}`}>
+        Her memo could not be read — UNKNOWN, not absent. Anything she filed is
+        still filed; this surface could not reach it.
+      </p>
+    );
+  }
+  if (!memo.available) {
+    const said = memo.reason === "never_filed"
+      ? "The archive has never been written to — she has not run yet."
+      : memo.reason === "none_yet"
+        ? "No daily has been filed yet. Hers lands here when she runs at end of day."
+        : memo.reason === "no_such_day"
+          ? "Nothing was documented for that day — which is not the same as a quiet day."
+          : memo.reason === "unreadable"
+            ? "Her memo is on file and could not be read — UNKNOWN, not absent."
+            : memo.reason === "no_memo_section"
+              ? "A daily is filed but carries neither a TL;DR nor a THE DAILY section — a defect in the artifact, not a missing memo."
+              : "Her memo is unavailable and the reason was not stated.";
+    return (
+      <p className={`mb-2 text-sm ${
+        memo.reason === "unreadable" || memo.reason === "no_memo_section"
+          ? KT.sev.warn : KT.muted}`}>
+        {said}
+      </p>
+    );
+  }
+
+  const age = memoDayLabel(memo.date, new Date());
+  return (
+    <div className={`${KT.card} mb-2 p-3`}>
+      <div className="mb-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="text-[13px] font-medium tracking-tight">Her daily</span>
+        <span className={`font-mono text-[11px] tabular-nums ${KT.muted}`}>
+          {memo.date ?? "undated"}
+        </span>
+        {/* Only when it is known. An unparseable date renders NOTHING here
+            rather than a soothing "today". */}
+        {age && (
+          <span className={`font-mono text-[10px] uppercase tracking-[0.1em] ${
+            age === "today" || age === "yesterday" ? KT.muted : KT.sev.warn}`}>
+            {age}
+          </span>
+        )}
+        {memo.pdf_path && (
+          <span className={`ml-auto font-mono text-[10px] ${KT.muted}`}
+                title={memo.pdf_path}>
+            pdf filed
+          </span>
+        )}
+      </div>
+
+      {/* Her five-line headline, first — the sixty-second read. */}
+      {memo.tldr ? (
+        <p className={`whitespace-pre-line text-[13px] leading-relaxed ${KT.body}`}>
+          {memo.tldr}
+        </p>
+      ) : (
+        <p className={`text-[12px] ${KT.sev.warn}`}>
+          This daily carries no TL;DR — the section below is the whole memo.
+        </p>
+      )}
+
+      {/* §1 THE DAILY: the book line, what moved, what awaits you. */}
+      {memo.daily_markdown && (
+        <ClarkMarkdown
+          text={unwrapMemoMarkdown(memo.daily_markdown)}
+          className={`mt-2 border-t border-[var(--kt-border)] pt-2 text-[12px] ${KT.body}`}
+        />
+      )}
+
+      <p className={`mt-2 font-mono text-[10px] ${KT.muted}`}>
+        {memo.path ?? "no path returned"}
+        {memo.has_long_record
+          ? " · the long record is on her desk, not here"
+          : " · this daily carries no long record"}
       </p>
     </div>
   );

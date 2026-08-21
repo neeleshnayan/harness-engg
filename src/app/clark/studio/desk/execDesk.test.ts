@@ -17,9 +17,10 @@ import type { DeskView, PendingOrder } from "../../../../lib/fund_api.ts";
 import { memoParts } from "../memo.ts";
 import type { DeskRun } from "./seatLib.ts";
 import {
-  compareDeskItems, cooMemos, decisionVelocity, isSeatFiled, moneyGap,
+  compareDeskItems, cooMemos, decisionVelocity, isSeatFiled, memoDayLabel,
+  moneyGap,
   asksForCeo, orderItems, queuedAsks, rankDeskItems, recItems,
-  reversibilityOfKind,
+  reversibilityOfKind, unwrapMemoMarkdown,
 } from "./execDesk.ts";
 
 /* ------------------------------------------------------------- fixtures -- */
@@ -407,4 +408,94 @@ test("the secretary's two kinds are classified, not left unclassified", () => {
   assert.equal(reversibilityOfKind("suggestion"), "reversible");
   assert.equal(reversibilityOfKind("note"), "reversible");
   assert.notEqual(reversibilityOfKind("suggestion"), "unclassified");
+});
+
+/* ----------------------------------------------- the secretary's memo ----- */
+
+test("the memo's age is said in words, never guessed", () => {
+  const now = new Date("2026-08-21T18:00:00Z");
+  assert.equal(memoDayLabel("2026-08-21", now), "today");
+  assert.equal(memoDayLabel("2026-08-20", now), "yesterday");
+  assert.equal(memoDayLabel("2026-08-14", now), "7 days ago");
+});
+
+test("an undated memo is NOT called today's", () => {
+  // The whole reason the endpoint always returns a date: a memo with no visible
+  // age reads as this morning's, and she runs at end of day.
+  const now = new Date("2026-08-21T18:00:00Z");
+  assert.equal(memoDayLabel(null, now), null);
+  assert.equal(memoDayLabel(undefined, now), null);
+  assert.equal(memoDayLabel("not-a-date", now), null);
+  assert.equal(memoDayLabel("2026-08-21T00:00:00Z", now), null);
+});
+
+test("a memo dated ahead of the clock says so rather than rendering a negative", () => {
+  const now = new Date("2026-08-21T18:00:00Z");
+  assert.equal(memoDayLabel("2026-08-22", now), "dated 1 day ahead");
+});
+
+test("the day boundary is UTC, not the reader's local midnight", () => {
+  // 23:30 UTC on the 21st is already the 22nd in Sydney. The memo is named for
+  // a UTC day, so it stays "today" here.
+  assert.equal(memoDayLabel("2026-08-21", new Date("2026-08-21T23:30:00Z")), "today");
+  assert.equal(memoDayLabel("2026-08-21", new Date("2026-08-22T00:30:00Z")), "yesterday");
+});
+
+test("a terminal recommendation never lands on the CEO's queue", () => {
+  // `noted` is read-and-closed (CEO, 2026-08-21). Rendering it as awaiting a
+  // decision would put a click on the desk that nobody owes — the same shape
+  // as the open-rec miscount that fired a triage on 73 items against 10 real.
+  const recs = [
+    { run_id: "r1", rec_id: 1, seat: "pm", status: "open", text: "decide me" },
+    { run_id: "r1", rec_id: 2, seat: "pm", status: "noted", text: "read me" },
+    { run_id: "r1", rec_id: 3, seat: "pm", status: "done", text: "finished" },
+    { run_id: "r1", rec_id: 4, seat: "pm", status: "rejected", text: "no" },
+    { run_id: "r1", rec_id: 5, seat: "pm", status: "accepted", text: "yes" },
+    { run_id: "r1", rec_id: 6, seat: "pm", status: "staged", text: "staged" },
+  ] as unknown as DeskView["open_recommendations"];
+  const items = recItems(recs, []);
+  assert.deepEqual(items.map((i) => i.rec!.rec_id), [1, 5, 6]);
+});
+
+test("a hard-wrapped memo re-flows into paragraphs, and blocks stay blocks", () => {
+  // Her file is 80 columns; the renderer made one paragraph per source line, so
+  // a six-sentence memo read as a list of fragments (CEO desk, 2026-08-21).
+  const md = [
+    "# THE DAILY · 2026-08-21",
+    "",
+    "**The book.** NAV $1,884.79 at the close, unchanged to the cent",
+    "from the open — cash $968.69 (51.40%).",
+    "",
+    "**What moved**",
+    "",
+    "- Two fills, both approved directly by the CEO: SPY 0.346119 and",
+    "  DBA 5.314306.",
+    "- The adversary killed gate v5 round 4.",
+    "",
+    "1. PM R1 — the drawdown reference. $128.26 already destroyed,",
+    "   ~$400 of capacity blocked.",
+    "2. COO batches 2 and 4.",
+    "",
+    "---",
+  ].join("\n");
+  const lines = unwrapMemoMarkdown(md).split("\n").filter((l) => l.trim());
+  assert.deepEqual(lines, [
+    "# THE DAILY · 2026-08-21",
+    "**The book.** NAV $1,884.79 at the close, unchanged to the cent from the open — cash $968.69 (51.40%).",
+    "**What moved**",
+    "- Two fills, both approved directly by the CEO: SPY 0.346119 and DBA 5.314306.",
+    "- The adversary killed gate v5 round 4.",
+    "1. PM R1 — the drawdown reference. $128.26 already destroyed, ~$400 of capacity blocked.",
+    "2. COO batches 2 and 4.",
+  ]);
+});
+
+test("re-flowing never merges a heading into the text under it", () => {
+  const out = unwrapMemoMarkdown("## Awaiting you\nfour requests and two batches");
+  assert.equal(out, "## Awaiting you\nfour requests and two batches");
+});
+
+test("an absent memo body re-flows to an empty string, not to 'undefined'", () => {
+  assert.equal(unwrapMemoMarkdown(null), "");
+  assert.equal(unwrapMemoMarkdown(undefined), "");
 });

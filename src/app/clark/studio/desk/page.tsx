@@ -36,6 +36,8 @@ import {
   productionShelf,
   traceThreads,
   wireFeed,
+  seatStatusLabel,
+  seatStatusTone,
 } from "./seatLib";
 
 /**
@@ -211,11 +213,16 @@ export default function DeskPage() {
                       <span className="font-medium">Vishesh</span>
                       {(() => {
                         const coo = d.roster.find((r) => r.agent === "coo");
-                        const working = coo?.activity.status === "working";
+                        const tone = seatStatusTone(coo?.activity.status);
                         return coo ? (
-                          <span className={`flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] ${working ? "text-[var(--kt-warn)]" : KT.muted}`}>
-                            <span className={`h-1.5 w-1.5 rounded-full ${working ? "kt-breathe bg-[var(--kt-warn)]" : "bg-[var(--kt-border-strong)]"}`} />
-                            {coo.activity.status}
+                          <span className={`flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] ${
+                            tone === "working" ? "text-[var(--kt-warn)]"
+                              : tone === "awaiting" ? "text-[var(--kt-text-strong)]" : KT.muted}`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${
+                              tone === "working" ? "kt-breathe bg-[var(--kt-warn)]"
+                                : tone === "awaiting" ? "border border-[var(--kt-text-strong)]"
+                                : "bg-[var(--kt-border-strong)]"}`} />
+                            {seatStatusLabel(coo.activity.status)}
                           </span>
                         ) : null;
                       })()}
@@ -633,6 +640,13 @@ const fileName = (p: string): string => p.split(/[\\/]/).pop() || p;
 
 function Desk({ r, t }: { r: DeskView["roster"][number]; t: SeatTelemetry }) {
   const working = r.activity.status === "working";
+  // The third state (CEO, request 907ecc74): the seat came back and nobody has
+  // reviewed it. It is NOT working — it does not breathe, because nothing is
+  // happening there — and it is NOT idle, because it is an obligation on this
+  // chair. Three finished dispatches read as WORKING for hours before this.
+  const awaiting = r.activity.status === "awaiting_review";
+  // Both states carry the dispatch's task; only WORKING is present tense.
+  const dispatched = working || awaiting;
   const inner = (
     <>
       <div className="flex items-start gap-3">
@@ -649,10 +663,13 @@ function Desk({ r, t }: { r: DeskView["roster"][number]; t: SeatTelemetry }) {
             <span className={`ml-1.5 text-[11px] font-normal ${KT.muted}`}>· Opus</span>
           </p>
           <p className={`mt-1 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] ${
-            working ? "text-[var(--kt-warn)]" : KT.muted}`}>
+            working ? "text-[var(--kt-warn)]"
+              : awaiting ? "text-[var(--kt-text-strong)]" : KT.muted}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${
-              working ? "kt-breathe bg-[var(--kt-warn)]" : "bg-[var(--kt-border-strong)]"}`} />
-            {r.activity.status}
+              working ? "kt-breathe bg-[var(--kt-warn)]"
+                : awaiting ? "border border-[var(--kt-text-strong)]"
+                : "bg-[var(--kt-border-strong)]"}`} />
+            {awaiting ? "awaiting review" : r.activity.status}
           </p>
         </div>
       </div>
@@ -660,10 +677,30 @@ function Desk({ r, t }: { r: DeskView["roster"][number]; t: SeatTelemetry }) {
           shown by its TASK, not by its file path: a path is an address, and a
           floor plan that reads as a list of addresses is not a floor. The path
           is still there, as the second line, in the file name only. */}
-      {working && r.activity.task ? (
-        <p className={`mt-3 line-clamp-3 text-[12px] leading-relaxed ${KT.body}`}>
-          {r.activity.task}
-        </p>
+      {dispatched && r.activity.task ? (
+        <>
+          <p className={`mt-3 line-clamp-3 text-[12px] leading-relaxed ${KT.body}`}>
+            {r.activity.task}
+          </p>
+          {/* What the chair has to DO, said plainly. A dispatch closes on a
+              resolution, never on a run coming back — so this line stays until
+              somebody reviews it and resolves the request. */}
+          {awaiting && (
+            <p className={`mt-1.5 font-mono text-[10px] ${KT.muted}`}>
+              returned{r.activity.returned_run_id ? ` · ${r.activity.returned_run_id}` : ""}
+              {" · review, then resolve to close"}
+            </p>
+          )}
+          {/* Detection is incomplete and says so rather than implying a clean
+              reading: measured 2026-08-21, only 8 of 23 dispatched task_ids
+              carry a run with a matching trace. WORKING is then a floor. */}
+          {working && r.activity.review_detectable === false && (
+            <p className={`mt-1.5 font-mono text-[10px] ${KT.muted}`}
+               title="the run recorder could not be read, so a returned dispatch would look the same as a running one">
+              return not detectable
+            </p>
+          )}
+        </>
       ) : r.activity.last_delivered ? (
         <div className="mt-3">
           <p className={`line-clamp-2 text-[12px] leading-relaxed ${KT.muted}`}>

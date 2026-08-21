@@ -6,6 +6,7 @@ import { KT } from "../../theme";
 import { SeatFace } from "../SeatFace";
 import { faceFor } from "../faces";
 import {
+  awaitingReviewSeats,
   CORRIDOR,
   FloorSpot,
   Pulse,
@@ -83,6 +84,14 @@ export function Floor({
     () => (state === "dead" ? [] : litSeats(desk?.roster)),
     [desk, state],
   );
+  // The third state. NOT a lamp: a lamp says someone is at that desk, and a
+  // returned dispatch means the opposite — the seat is done and the
+  // obligation has moved to the chair. Drawing them alike is what made the
+  // review queue invisible for hours.
+  const awaiting = useMemo(
+    () => (state === "dead" ? [] : awaitingReviewSeats(desk?.roster)),
+    [desk, state],
+  );
   const { pulses, total } = useMemo(
     () => (state === "dead"
       ? { pulses: [] as Pulse[], total: 0 }
@@ -110,6 +119,7 @@ export function Floor({
                   key={s.id}
                   s={s}
                   lit={lit.includes(s.id)}
+                  awaitingReview={awaiting.includes(s.id)}
                   state={state}
                   halted={halted === true}
                   focused={focus === s.id}
@@ -270,10 +280,11 @@ function RoomSvg({ wires, lit, state }: {
 /* -------------------------------------------------------------- furniture -- */
 
 function Spot({ s, lit, state, halted, focused, onFocus, onLeave, onNavigate,
-               runs }: {
+               runs, awaitingReview }: {
   s: FloorSpot; lit: boolean; state: RoomState; halted: boolean;
   focused: boolean; onFocus: () => void; onLeave: () => void; onNavigate: () => void;
   runs?: number | null;
+  awaitingReview?: boolean;
 }) {
   const machine = s.kind === "machine" || s.kind === "door";
   const body = (
@@ -297,6 +308,18 @@ function Spot({ s, lit, state, halted, focused, onFocus, onLeave, onNavigate,
         lit ? "text-[var(--kt-text)]" : KT.muted}`}>
         {s.label}
       </span>
+      {/* The third state (CEO, request 907ecc74). NOT a lamp and not a lit
+          label: the seat is finished and the obligation has moved to the
+          chair, so it reads as a standing item rather than as activity.
+          Three dispatches rendered as WORKING for hours before this. */}
+      {awaitingReview && (
+        <span
+          title="returned — the chair has not reviewed it yet; a dispatch closes on a resolution, never on a run coming back"
+          className="inline-flex items-center rounded-full border border-[var(--kt-text-dim)] px-1.5 font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--kt-text)]"
+        >
+          review
+        </span>
+      )}
       {/* Runs today, ON the room view (CEO, 2026-08-21). Matches the x-N chip
           style the CTO's compact seat cards use, so one glyph means one thing
           in both places. `undefined` renders NOTHING — a human or a fixture
@@ -332,7 +355,10 @@ function Spot({ s, lit, state, halted, focused, onFocus, onLeave, onNavigate,
     </span>
   );
 
-  const label = `${s.label} — ${s.says}`;
+  // The screen-reader name carries the third state too — a chip nobody can
+  // hear is half a control.
+  const label = `${s.label} — ${s.says}`
+    + (awaitingReview ? " — awaiting review" : "");
   const common = {
     className: "kt-floor-spot",
     style: pct(s.at),

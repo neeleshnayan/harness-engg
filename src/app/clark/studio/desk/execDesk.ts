@@ -139,13 +139,20 @@ export function orderItems(pending: PendingOrder[]): DeskItem[] {
  * an undated item floating to the top of a freshness sort is how the oldest
  * thing on the desk becomes invisible.
  */
+/** Statuses that are FINISHED. A terminal row is not desk work — it is record.
+ *  `noted` joined them 2026-08-21 (CEO): read, closed, and deliberately never
+ *  decided. The spine's `open_recommendations` already excludes all three; this
+ *  is the second lock, so a widened feed cannot put a closed item back in front
+ *  of the CEO as though a click were owed on it. */
+const TERMINAL_REC_STATUSES = new Set(["rejected", "done", "noted"]);
+
 export function recItems(
   recs: DeskView["open_recommendations"],
   runs: DeskRun[],
 ): DeskItem[] {
   const resolvedAt = new Map<string, string | null>();
   for (const r of runs) resolvedAt.set(r.run_id, r.resolved_at ?? null);
-  return recs.map((r) => ({
+  return recs.filter((r) => !TERMINAL_REC_STATUSES.has(String(r.status))).map((r) => ({
     key: `rec:${r.run_id}:${r.rec_id}`,
     kind: "recommendation" as const,
     // `money_at_stake` when the seat stated one (spine, 2026-08-20). Absent
@@ -473,4 +480,80 @@ export function decisionVelocity(
     if (!Number.isNaN(t) && t >= weekAgo) week += 1;
   }
   return { today, week, oldestSeen: oldest };
+}
+
+/* ----------------------------------------------- the secretary's memo ----- */
+
+/**
+ * How old the memo on the CEO's desk is, in plain words.
+ *
+ * The CEO asked for "her memo for today from her yesterdays EoD" (request
+ * 920ecbe5). A memo with no visible age reads as this morning's, and the
+ * secretary runs at END OF DAY — so the memo on the desk is normally
+ * yesterday's, and that has to be legible rather than inferred.
+ *
+ * Days are compared as UTC calendar days, because the log is UTC and the memo
+ * is named for a UTC day; comparing against a local midnight would call the
+ * same file "today" in one timezone and "yesterday" in another.
+ *
+ * An undated or unparseable memo returns `null` — NOT "today". A guess here
+ * would be the exact error the date was added to prevent.
+ */
+export function memoDayLabel(
+  date: string | null | undefined,
+  now: Date,
+): string | null {
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const then = Date.parse(`${date}T00:00:00Z`);
+  if (Number.isNaN(then)) return null;
+  const today = Date.parse(`${now.toISOString().slice(0, 10)}T00:00:00Z`);
+  const days = Math.round((today - then) / 86_400_000);
+  if (days === 0) return "today";
+  if (days === 1) return "yesterday";
+  // A memo from the FUTURE is a clock disagreement, not a memo. Saying so is
+  // better than "-2 days ago", which reads like a rendering bug and hides one.
+  if (days < 0) return `dated ${-days} day${days === -1 ? "" : "s"} ahead`;
+  return `${days} days ago`;
+}
+
+/**
+ * Un-hard-wrap a filed memo so it reads as prose on screen.
+ *
+ * Donna writes to an 80-column file. The renderer treats one source line as one
+ * paragraph, so a hard-wrapped sentence arrived as five separately spaced lines
+ * — legible, but it made a six-sentence memo look like a list of fragments
+ * (seen on the CEO desk, 2026-08-21, before this).
+ *
+ * Deliberately NOT done inside the markdown renderer: that component renders
+ * live model output on three other surfaces, and re-flowing text there is a
+ * different decision with different risks. This re-flows only what the
+ * secretary filed.
+ *
+ * The join is conservative — blank lines, headings, bullets, numbered items and
+ * table rows all START a block and are never merged into what precedes them,
+ * so nothing gets swallowed. Horizontal rules are dropped because the renderer
+ * has no rule and would print `---` at the reader.
+ */
+export function unwrapMemoMarkdown(md: string | null | undefined): string {
+  if (!md) return "";
+  const starts = (l: string) =>
+    !l.trim()
+    || /^#{1,6}\s/.test(l)
+    || /^\s*[-*•]\s+/.test(l)
+    || /^\s*\d+[.)]\s+/.test(l)
+    || /^\s*\|/.test(l)
+    || /^\s*>/.test(l);
+  const isRule = (l: string) => /^\s*([-*_])\s*\1\s*\1[\s\-*_]*$/.test(l);
+  const out: string[] = [];
+  for (const raw of md.replace(/\r\n/g, "\n").split("\n")) {
+    const line = raw.trimEnd();
+    if (isRule(line)) continue;
+    const prev = out.length ? out[out.length - 1] : null;
+    if (!starts(line) && prev !== null && prev.trim() && !/^#{1,6}\s/.test(prev)) {
+      out[out.length - 1] = `${prev} ${line.trim()}`;
+      continue;
+    }
+    out.push(line);
+  }
+  return out.join("\n");
 }
