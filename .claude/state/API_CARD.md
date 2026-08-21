@@ -10,12 +10,20 @@ Base URL: `http://127.0.0.1:8090/api/v1`
 ## Market and research data
 
 - `GET /fund/marketdata/bars?symbol=X&lookback_days=N` — the param is
-  `lookback_days`, NOT `days`, and the ENDPOINT caps it at 2000 (le=2000 in
-  fund.py). Returns `{symbol, source, closes, dates, start, end}`. Vendor
-  depth measured 2026-08-20: **10 years of true daily bars** (SPY: 2512
-  sessions, 2016-08-22 →) via `lookback_days=3650` or explicit
-  `start`/`end`; the earlier "826 sessions" figure was the request's size,
-  not a limit. Adjusted for splits/dividends.
+  `lookback_days`, NOT `days`, and the ENDPOINT caps it at 2000 (le=2000,
+  fund.py:2582 — **`lookback_days=3650` returns HTTP 422**; the card's
+  earlier "3650 works" line was WRONG, caught by the mechanism 2026-08-21).
+  Depth params are **`start_date` / `end_date`** (NOT `start`/`end`).
+  Verified depth: `start_date=2015-08-01&end_date=2026-08-21` returns
+  **2,779 true daily sessions from 2015-08-03** on 30/30 symbols tried —
+  ELEVEN years. Adjusted for splits/dividends. Also takes `as_of` (the
+  point-in-time archive view).
+- Treasury data (mechanism, 2026-08-21): `treasurydirect.gov
+  TA_WS/securities/auctioned` IGNORES startDate/endDate/pagesize — serves
+  only a rolling ~18-month window whatever you ask. Use
+  `api.fiscaldata.treasury.gov` for auction history.
+- `app.fund.walkforward.window_for_strategy` signature: `(end, hold_days,
+  min_folds, train_days=252, floor=None)` — `hold_days` alone raises.
 - `GET /fund/research/observations?ticker=&category=&limit=` — the filings
   corpus: 1,035 observations, 201 tickers, 249 filings (refreshed
   2026-08-21), each with the verbatim quote it was verified against.

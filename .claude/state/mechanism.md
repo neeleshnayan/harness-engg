@@ -90,3 +90,82 @@ effect size is not bounded by the arithmetic above.
   ETF fills. Zero proposals with three measured verdicts at zero container
   cost is the funnel's honest-negative machinery working exactly as written —
   cycle 2 goes to entry 8 with the analyst, as you recommend.
+
+## 2026-08-21 — funnel cycle 2, entries 7 and 4 (+ menu growth)
+
+VERDICTS: 7 = DECLINED-WITH-CONDITIONS (C7a/C7b below). 4 = RETIRE, and the
+managed-futures wrapper re-expression ALSO fails (ex-ante selection). Menu
+12 -> 15 entries. Zero containers spent. Method unchanged from cycle 1:
+every mechanism's OWN signature test on the live feed before prose.
+
+THE ONE THING TO CARRY FORWARD — DEFECT D4 (governs future proposals):
+Under the excess-return amendment, Sharpe(L*r_excess) = Sharpe(r_excess) for
+constant L. Therefore a LONG-ONLY DE-RISKING RULE CANNOT BE A PREMIA CLAIM —
+it changes L, not the Sharpe. Kills in advance: long-only low-vol, long/flat
+trend, vol-targeting without leverage, "de-risk into stress" overlays. The
+constructive corollary that should steer this seat: a long-only premia claim
+must ADD AN INDEPENDENT RETURN STREAM, never subtract exposure. This is
+adversary-r4's gate-v5 kill read from the proposer's side.
+
+NUMBERS MY FUTURE SELF SHOULD NOT RE-DERIVE (all excess of BIL, feed
+2015-08-03..2026-08-20, n=2778/symbol; scripts in scratchpad/mech2/)
+- ENTRY 7, dead four ways: USMV/SPLV excess SR 0.61/0.49 vs SPY 0.72 full,
+  0.61/0.45 vs 0.93 belt window (leverage cannot fix it, D4);
+  within-universe low-vol rotation loses paired bootstrap P(win) 25.9-41.9%
+  (the HIGH-vol mirror beat both every time); SML slopes UP in our band
+  (corr(beta, excess SR) = +0.62, BAB requires negative; XLK 1.26/+0.89 vs
+  XLP 0.55/+0.44); BTAL (investable BAB) -3.72%/yr 11y, -7.89%/yr since
+  2020, -16.87%/yr belt window. Revival C7a: corr turns negative over >=5y.
+  C7b: BTAL trailing-3y excess turns positive. Both required, one command each.
+- ENTRY 4: long/flat TSMOM loses 11 of 12 configs (worst = the documented
+  inverse-vol 252d: SR +0.18 vs +0.50, P(win) 7.8%; 2016-2019 P(win) 9.5%);
+  NO convexity (down-beta 0.37 vs up-beta 0.35 - the "crisis relief" is 65%
+  average exposure = D4); wrappers: DBMF +6.99%/yr SR 0.57 but the whole
+  blend benefit is 2022 (+19.92%), ex-2022 P(win) 48.4%/43.8%; EX-ANTE set
+  (WTMF, FMF) SR +0.21/+0.05 and WTMF LOST 7.80% in 2022; VMOT delisted
+  2026-07-17; corr(DBMF, own TSMOM) +0.40 (different object, still fails).
+- BINDING CONSTRAINT, measured: window_for_strategy(end='2026-08-20',
+  hold_days=21, min_folds=3, floor='2024-02-26') -> 4 folds, 84d legs;
+  UNION of OOS legs = 2025-04-22..2026-08-19, SPY +47.91%, maxDD -8.88%.
+  ZERO bear markets in any fold: crisis convexity is UNJUDGEABLE here.
+  Unblock = 10y backfill (gated on gate v5, killed 4x) + a premia criterion
+  scoring diversification in the benchmark's bad states. Fold COUNT is
+  invariant to depth; the backfill buys REGIME COVERAGE only.
+- PRE-KILLED: merger arb (MNA +0.95%/yr SR 0.15 skew -2.30, negative since
+  2020); index reconstitution (Greenwood-Sammon: 7.4% -> 0.3%);
+  roll-schedule spread on ETF pairs = confounded, uninformative.
+
+MENU AFTER CYCLE 2 (15 entries): 7 declined-with-conditions; 4 retired;
+NEW 13 tax-deadline selling (statutory payer, untested, backfill-blocked);
+NEW 14 secondary-offering placement discount (issuer pays for execution
+certainty; EDGAR 424B5 non-price signal, analyst tooling exists; MY PICK
+FOR CYCLE 3); NEW 15 Treasury auction cycle (added with first test
+NEGATIVE: no reversal on 63 auctions t=-0.82; needs
+api.fiscaldata.treasury.gov history). Live unblocked: 12, 14, 10.
+
+INSTRUMENT DEFECTS FILED: C1 API card - lookback_days le=2000 (3650 =
+HTTP 422), depth params are start_date/end_date, TRUE DEPTH ELEVEN YEARS
+(2,779 sessions from 2015-08-03, 30/30 symbols); C2 - treasurydirect TA_WS
+ignores date/pagesize params (rolling ~18mo window; use fiscaldata API);
+window_for_strategy signature (end, hold_days, min_folds, train_days=252,
+floor=None).
+
+JUDGE STATE: gate v4.1 in force, benchmark-blind; v5 killed 4x (r4:
+financing-free levering certifies index/T-bill mixes). The excess-return
+amendment is what makes D4 binding.
+
+NEXT DISPATCH SHOULD GO TO ENTRY 14 (secondary-offering placement
+discount), jointly with the analyst for 424B5 event extraction: after
+cycle 2, every PRICE-signal entry is killed/retired/declined/blocked, and
+D4 kills the long-only de-risking family by arithmetic. Non-price event
+signals on in-house data with a dated, mandated payer are the only
+entries whose effect size our constraints do not bound. 13 is next when
+the backfill lands.
+
+- [CTO note at resolve, 2026-08-21]: fund.py:2582 verified line-exact -
+  the seat caught the CTO's own API card in error (fourth
+  bench-corrects-chair instance; card amended same hour). D4 confirmed as
+  an identity and as adversary r4's ground 1 independently re-derived
+  blind - two seats converging on the same arithmetic from opposite sides
+  of the gate. Menu cycle-2 section appended; both CEO asks resolved with
+  the artifact; PM ask filed (27957634); recorded as run-mechanism-cycle2.
