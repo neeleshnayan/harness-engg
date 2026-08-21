@@ -357,7 +357,41 @@ def _requests(store: Any) -> list[dict[str, Any]]:
     return sorted(rows.values(), key=lambda r: r.get("at") or "", reverse=True)
 
 
-def _activity(store: Any) -> dict[str, dict[str, Any]]:
+def _ts(value: Any):
+    """An ISO timestamp as a comparable instant, or None if it is not one.
+
+    Never a string compare: the log writes `+00:00` and hand-written fixtures
+    write `Z`, and lexicographic order across the two is wrong exactly where it
+    matters. Unparseable returns None, and every caller treats that as "cannot
+    compare" rather than as an ordering that happens to sort.
+    """
+    from datetime import datetime
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        return datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _within_window(dispatched_at: Any, window_floor: Any) -> bool:
+    """Could a return for this dispatch be inside the run window we searched?
+
+    True when there is no floor (the recorder was read and holds no runs at
+    all, so "nothing came back" is a MEASURED negative). False when either
+    timestamp cannot be read — an incomparable pair is an unknown, and an
+    unknown must not report as a clean look.
+    """
+    if window_floor is None:
+        return True
+    a, b = _ts(dispatched_at), _ts(window_floor)
+    if a is None or b is None:
+        return False
+    return a >= b
+
+
+def _activity(store: Any, runs: Optional[list[dict[str, Any]]] = None,
+              runs_limit: Optional[int] = None) -> dict[str, dict[str, Any]]:
     """What each seat is doing RIGHT NOW, folded from dispatch/resolve events.
 
     The spine cannot see a Claude agent thinking; what it can see is the CTO
@@ -365,9 +399,42 @@ def _activity(store: Any) -> dict[str, dict[str, Any]]:
     truthful resolution available, and the UI renders exactly it - a spinner
     pretending to watch the agent's cursor would be theatre.
 
-    A dispatch with no matching resolution is WORKING. Resolution clears it and
-    becomes last_delivered. A seat with neither is idle - and idle is a real
-    state, not a gap: a bench seat that is never idle is a bottleneck.
+    THREE STATES, not two (constitution, from the CEO's instruction on desk
+    request 907ecc74: *"no it should nto close automatically since the cto needs
+    to review the work be satisified and then log or do what needs to be done
+    and then close it"*):
+
+      WORKING          dispatched, and nothing has come back.
+      AWAITING REVIEW  the seat RETURNED — a run exists carrying this
+                       dispatch's trace — and no resolution has been recorded.
+                       An obligation on the CHAIR, not a busy seat.
+      idle             neither. A real state, not a gap: a bench seat that is
+                       never idle is a bottleneck.
+
+    Measured on the live spine 2026-08-22, which is why this is not cosmetic:
+    the builder's desk read `working` for 21 hours and the analyst's for 19,
+    both after their dispatches had returned — and two agents in parallel are
+    permitted as of the same week, so a chair reading this payload could not
+    tell whether a slot was free.
+
+    IT DOES NOT AUTO-CLOSE, and a test asserts it. Closing is the chair's
+    judgement step — review the work, be satisfied, file what needs filing.
+    Deriving `closed` from "a run came back" would make the board report a
+    completion nobody performed.
+
+    DETECTION IS IDENTIFIER-BASED AND INCOMPLETE, reported rather than hidden.
+    A dispatch is matched to a run on EXACT identifiers only — the dispatch's
+    `trace_id`, then its `task_id`, against the run's `trace_id` or `run_id`.
+    Nothing is matched on seat plus a timestamp: a near-miss there would mark
+    an unrelated run as this dispatch's return and invent an obligation the
+    chair does not have. Measured over the live log: 17 of 24 dispatches match
+    on trace_id, 8 on task_id, and 4 carry NO trace_id at all and therefore can
+    never be matched. Those four report `review_detectable: false` and stay
+    WORKING — "still running" and "we cannot see" must not render as the same
+    confident word.
+
+    ``runs_limit`` is the cap ``runs`` was fetched under, so a truncated list
+    can be told from a complete one. See ``window_floor`` below.
     """
     from app.fund.events import EventType
 
@@ -394,14 +461,75 @@ def _activity(store: Any) -> dict[str, dict[str, Any]]:
                 row["last_delivered"] = {"task": d.get("task"),
                                          "artifact": p.get("resolution"),
                                          "at": p.get("at")}
+
+    # Which run identifiers exist at all, so a dispatch can be matched against
+    # them. `runs` is None when the flight recorder could not be read — a
+    # different fact from "it was read and held nothing", and the two must not
+    # collapse: the first makes detection unavailable, the second makes it
+    # available and negative.
+    recorder_read = runs is not None
+    run_by_key: dict[str, str] = {}
+    resolved: list[str] = []
+    for r in (runs or []):
+        rid = r.get("run_id")
+        if not rid:
+            continue
+        for key in (r.get("trace_id"), rid):
+            if key:
+                run_by_key.setdefault(key, rid)
+        if r.get("resolved_at"):
+            resolved.append(r["resolved_at"])
+    # THE WINDOW'S FLOOR, and why it is load-bearing. `runs` is the newest N by
+    # resolved_at, so when that list is TRUNCATED a dispatch made before its
+    # oldest row may have a return that resolved outside it — invisible to us.
+    # A run for a dispatch always resolves after the dispatch, so a dispatch at
+    # or after the floor would have its return inside the window if one
+    # existed; before the floor, a miss proves nothing. Without this the
+    # payload would report `review_detectable: true, status: working` for every
+    # old dispatch, which is a confident answer built on a truncated list.
+    #
+    # `runs_limit` is what makes the rule EXACT rather than merely careful: a
+    # list shorter than the cap it was fetched under is the whole table, so
+    # there is no outside to fall into and the floor does not apply. Without
+    # that check the honest-unknown would fire on knowable cases, which is its
+    # own kind of wrong answer.
+    truncated = (runs_limit is not None and runs is not None
+                 and len(runs) >= runs_limit)
+    window_floor = min(resolved) if (resolved and truncated) else None
+
     out = {}
     for seat in list(REQUEST_KINDS.values()):
         row = seats.get(seat, {})
         w = row.get("working_on")
+        # EXACT identifiers only, in the order that matches most on the live
+        # log: the dispatch's own trace first (17 of 24), its task_id second
+        # (8 of 24, the older convention where the two were the same string).
+        keys = [k for k in ((w or {}).get("trace_id"), (w or {}).get("task_id"))
+                if k]
+        back = None
+        for k in keys:
+            back = run_by_key.get(k)
+            if back:
+                break
         out[seat] = {
-            "status": "working" if w else "idle",
+            "status": ("awaiting_review" if back else "working") if w else "idle",
             "task": (w or {}).get("task"),
             "since": (w or {}).get("at"),
+            "task_id": (w or {}).get("task_id"),
+            # The run that came back, so the chair can open it and review.
+            "returned_run_id": back,
+            # Whether the spine could TELL a returned dispatch from a running
+            # one FOR THIS DISPATCH. Per-dispatch and not per-payload: a
+            # dispatch carrying no identifier is undetectable even with a
+            # fully readable recorder, and reporting it as detectable would
+            # dress "we never looked" as "nothing came back". None when the
+            # seat is idle — there is nothing to detect. A positive match is
+            # its own proof, so it short-circuits every other condition.
+            "review_detectable": (
+                True if back else
+                (recorder_read and bool(keys)
+                 and _within_window((w or {}).get("at"), window_floor))
+            ) if w else None,
             "last_delivered": row.get("last_delivered"),
         }
     return out
@@ -431,17 +559,230 @@ def _activity(store: Any) -> dict[str, dict[str, Any]]:
 COO_TRIAGE_THRESHOLD = 50
 
 
+# --------------------------------------------------- whose move is it? ------
+#
+# THE DEFECT THIS SECTION EXISTS TO FIX (CEO, 2026-08-22, verbatim): *"I maybe
+# out of sync with whats happening across agents but they sustain on my queue
+# even if that work has been done. this needs to be fixed."*
+#
+# `desk_load` promised to measure "how many things are actually waiting for the
+# CEO" and measured something else: rows whose STATUS LABEL was open. A status
+# label is written by a seat at filing time, not by the world, so an engineering
+# ticket nobody would ever hand the CEO counted exactly like a decision only he
+# can make. Measured on the live record by replaying the decision events: at
+# 2026-08-21T20:39Z the counter read 18 (17 recommendations + 1 desk request)
+# and the chair cleared every one of them by hand eight minutes later.
+#
+# So the question the counter asks changes: not "what status does this row
+# carry" but **WHOSE MOVE IS IT**. Two independent facts answer that, and
+# neither alone is sufficient — both failures are measured, not supposed:
+#
+#   * the LIFECYCLE says whether a decision is still outstanding. Status alone
+#     is what produced the 18 above.
+#   * the KIND says whose decision it is. Kind alone is worse: all 9 rows
+#     carrying kind `awaits-ceo` on 2026-08-22 were already ACCEPTED, so a
+#     status-blind kind predicate would have parked them on the CEO's counter
+#     permanently — the complaint above, made structural.
+#
+# HONEST LIMIT, STATED HERE BECAUSE IT SETS EXPECTATIONS FOR THE TRIGGER: `kind`
+# is free text and the corpus proves it — 84 distinct values across 219
+# recommendations, 49 of them appearing exactly once, and the vocabulary grows
+# every dispatch. So the table below routes only kinds whose NAME ALONE settles
+# the actor, and everything else falls through to the CEO. Measured coverage:
+# 41 of 219 rows (18.7%) route away from the CEO by kind. The kind axis is a
+# real improvement and it is a small one; the lever that would actually decouple
+# this counter from the bench's output volume is `next_actor` written at FILING
+# time, which is why the explicit field below takes precedence over all of this.
+
+#: The only actors this counter knows. `unknown` is a first-class member, not a
+#: fallback that got away: a row whose next actor cannot be determined COUNTS,
+#: because "I could not measure that" has been answered with "zero" by four
+#: separate instruments in this fund already.
+NEXT_ACTORS = ("ceo", "chair", "seat", "nobody", "unknown")
+
+#: Kinds whose NAME ALONE settles who moves next. Deliberately short.
+#:
+#: The inclusion rule, applied to every entry and worth stating because it is
+#: what stops this table rotting into prose-matching: a kind earns a row here
+#: only if the WORD determines the actor without reading the recommendation.
+#: `repair-required` is an engineering repair whoever wrote it; `fix` is not —
+#: the corpus carries `fix` rows that are code changes and `fix` rows that are
+#: portfolio decisions, so `fix` is absent and falls through to the CEO.
+#:
+#: The routing itself is the constitution's ownership table, not taste: the CTO
+#: chair owns "what gets built next", and merging a builder diff is named as a
+#: co-CTO action. Everything engineering-shaped therefore belongs to the chair.
+KIND_ACTORS = {
+    # The chair's own work — building, merging, dispatching.
+    "build": "chair",
+    "harness": "chair",
+    "harness_gap": "chair",
+    "engineering_ticket": "chair",
+    "infra": "chair",
+    "code_fix": "chair",
+    "ui": "chair",
+    "api_card": "chair",
+    "docs": "chair",
+    "repair_required": "chair",
+    "block_merge": "chair",
+    "dispatch_request": "chair",
+    "next_dispatch": "chair",
+    # A positive assertion rather than a default, so the common case is
+    # readable in the table instead of implied by its absence.
+    "awaits_ceo": "ceo",
+    # Nothing is owed: the row records a fact or asks that a round NOT be spent.
+    "no_action": "nobody",
+    "measurement_recorded": "nobody",
+}
+
+#: Kind PREFIXES that name their own recipient. `handoff_to_mechanism` and
+#: `note-to-riskofficer` both exist in the corpus and both are seat-to-seat.
+_SEAT_KIND_PREFIXES = ("handoff_to_", "note_to_", "routed_to_")
+
+#: Statuses after which nothing more is expected of anyone. Kept here rather
+#: than imported from deskstore so this module stays importable without a
+#: database, and asserted equal to deskstore's list by a test — one definition
+#: with a guard beats two that drift.
+TERMINAL_STATUSES = ("rejected", "done", "noted")
+
+#: Bump when the table or the precedence changes. Published in the payload so a
+#: reader can tell WHICH rules produced a count they are looking at — the same
+#: discipline every threshold here follows.
+NEXT_ACTOR_RULES_VERSION = "v1 (2026-08-22)"
+
+
+def _norm_kind(kind: Any) -> str:
+    """Lower-case, separator-insensitive. Seats write `harness-gap` and
+    `engineering_ticket` in the same corpus; a table that cared would be a
+    table with two entries per idea and one of them always missing."""
+    if not isinstance(kind, str):
+        return ""
+    return kind.strip().lower().replace("-", "_").replace(" ", "_")
+
+
+def next_actor(rec: Any) -> dict[str, Any]:
+    """Whose move is it on this recommendation: {actor, basis, why}.
+
+    PRECEDENCE:
+
+      1. a TERMINAL status. Nothing follows a rejected, done or noted row, and
+         no label may say otherwise — this rule sits ABOVE the explicit field
+         on purpose. An explicit `next_actor` written while the row was live
+         and never cleared would otherwise pin a closed row to the CEO's
+         counter forever, which is the complaint this module is fixing, in a
+         costume. (`decide_recommendation` also clears the field on a terminal
+         move; this is the belt to that pair of braces, for rows written by any
+         other path.)
+      2. an EXPLICIT ``next_actor`` on the row. Authoritative below terminal,
+         because it is a statement about the world made by whoever knew — and
+         it is the only path that can express the COO's standing objection (a
+         row the CEO has ACCEPTED whose execution is still the CEO's own act,
+         of which there were three live on 2026-08-21). Nothing writes it yet;
+         that is a fact about our capture, reported in the payload, not hidden.
+      3. the rest of the LIFECYCLE. accepted/staged -> the chair, who executes
+         what the CEO decided. A status outside the known vocabulary is
+         UNKNOWN, never quietly one of the five.
+      4. the KIND, for undecided rows only, against ``KIND_ACTORS``.
+      5. otherwise the CEO — because a recommendation is by construction a
+         thing a seat asks the firm to decide, and the decision channel is the
+         CEO's. Failing toward "he must look" is the safe direction for a
+         control; failing toward "nobody must look" is how work disappears.
+
+    NOTHING HERE READS THE RECOMMENDATION'S PROSE. The emergency sweep that
+    produced this brief found six finished rows by grepping their text for
+    "EXECUTED"; that was the right measure at the time and is the wrong
+    permanent one, because a heuristic over free English rots silently and
+    reports the rot as a count.
+    """
+    if not isinstance(rec, dict):
+        return {"actor": "unknown", "basis": "unreadable",
+                "why": "the row is not a readable recommendation, so whose "
+                       "move it is cannot be determined — counted as needing "
+                       "attention rather than dropped"}
+
+    status = rec.get("status")
+    if status in TERMINAL_STATUSES:
+        return {"actor": "nobody", "basis": "lifecycle",
+                "why": f"status {status!r} is terminal — nothing follows it, "
+                       "and no label may claim otherwise"}
+
+    explicit = rec.get("next_actor")
+    if explicit is not None:
+        e = explicit.strip().lower() if isinstance(explicit, str) else ""
+        if e in NEXT_ACTORS and e != "unknown":
+            return {"actor": e, "basis": "explicit",
+                    "why": f"the row states its next actor is the {e}"}
+        return {"actor": "unknown", "basis": "explicit_unrecognised",
+                "why": f"the row states next_actor={explicit!r}, which is not "
+                       f"one of {NEXT_ACTORS} — an unreadable claim is UNKNOWN, "
+                       "not an excuse to fall back to a guess"}
+
+    if status in ("accepted", "staged"):
+        return {"actor": "chair", "basis": "lifecycle",
+                "why": f"status {status!r} means the CEO has already decided; "
+                       "what remains is the chair's to execute"}
+    if status not in (None, "open"):
+        return {"actor": "unknown", "basis": "status_unrecognised",
+                "why": f"status {status!r} is outside the known vocabulary, so "
+                       "whether a decision is outstanding cannot be read"}
+
+    kind = _norm_kind(rec.get("kind"))
+    for prefix in _SEAT_KIND_PREFIXES:
+        if kind.startswith(prefix) and len(kind) > len(prefix):
+            return {"actor": "seat", "basis": "kind",
+                    "why": f"kind {rec.get('kind')!r} names its own recipient — "
+                           "a seat-to-seat handoff is not the CEO's load"}
+    routed = KIND_ACTORS.get(kind)
+    if routed:
+        return {"actor": routed, "basis": "kind",
+                "why": f"kind {rec.get('kind')!r} routes to the {routed}"}
+    return {"actor": "ceo", "basis": "default",
+            "why": "undecided, and nothing routes it elsewhere — a "
+                   "recommendation awaiting a decision awaits the CEO's"}
+
+
 def desk_load(open_recommendations: list[dict[str, Any]],
               pending_orders: Any, open_requests: Any) -> dict[str, Any]:
     """How many things are actually waiting for the CEO, and whether that is
     past the COO triage trigger.
 
     "Open items" is defined exactly, because a number whose definition drifts
-    is worse than no number: open recommendations + pending orders + requests
-    awaiting approval. Each component that cannot be counted is reported as
-    None and named in ``unreadable`` — the total then carries ``complete:
-    false``, because a partial count that reads like a full one is how a desk
-    under the trigger looks quiet.
+    is worse than no number: recommendations whose NEXT REQUIRED ACTOR is the
+    CEO (or cannot be determined) + pending orders + requests awaiting
+    approval. Each component that cannot be counted is reported as None and
+    named in ``unreadable`` — the total then carries ``complete: false``,
+    because a partial count that reads like a full one is how a desk under the
+    trigger looks quiet.
+
+    THE OTHER TWO COMPONENTS WERE CHECKED AGAINST THE RECORD RATHER THAN
+    ASSUMED, since the whole point of this change is that a component must
+    earn its place on the CEO's counter:
+
+      * pending orders — an order awaiting approval is the CEO's click by
+        construction; anything the auto-approval envelope takes never appears
+        here at all.
+      * requests awaiting approval — all 25 `DeskRequestApproved` events in
+        the log carry actor `ceo` or `neelesh-via-cto` (the CEO's instruction
+        staged by the chair). Zero were approved by a chair on its own
+        authority, so an open desk request is a CEO decision. Note that
+        `view()`'s own note calls the same rows "waiting for the CTO session",
+        which is about DISPATCH — a different step, after the approval.
+
+    NOTHING IS HIDDEN TO MAKE THE NUMBER SMALLER. The rows that route away
+    from the CEO are counted in ``by_actor`` and summarised in ``not_ceo_load``,
+    the desk's own list of recommendations is untouched, and the note names the
+    chair's backlog out loud. Solving a counting problem by dropping rows would
+    be the same defect wearing the opposite sign.
+
+    MEASURED EFFECT ON THE TRIGGER (this changes WHEN the COO is summoned, so
+    it is recorded loudly): replayed against the live decision log at
+    2026-08-21T20:39Z, the old predicate counted 18 and this one counts 13 —
+    12 recommendations plus the 1 open desk request. Five recommendations moved
+    off the CEO's counter: two adversary `repair-required` grounds and one
+    `block-merge` to the chair, one `note-to-riskofficer` to a seat, one
+    `no_action` to nobody. The trigger fires LATER, which is the loosening
+    direction, and the reason is that those five were never the CEO's to
+    decide.
     """
     def _count(x) -> Optional[int]:
         if x is None:
@@ -451,18 +792,19 @@ def desk_load(open_recommendations: list[dict[str, Any]],
         except (TypeError, ValueError):
             return None
 
+    by_actor = {a: 0 for a in NEXT_ACTORS}
+    explicit_rows = 0
     if isinstance(open_recommendations, list):
-        # The upstream `open_recommendations` feed includes accepted+staged
-        # rows (the UI needs them to render "decided, awaiting execution");
-        # the CEO's triage trigger counts only what still AWAITS the CEO.
-        # Measured on this counter's first live day: it read 73 against 10
-        # truly open — 3.65x the real load — and fired a triage whose own
-        # memo found the miscount (COO triage #2, 2026-08-20). Same defect
-        # class as CDO D4, one layer down.
-        # A row with NO status counts toward load (dropping a malformed row
-        # would hide work); a row explicitly decided does not.
+        for row in open_recommendations:
+            verdict = next_actor(row)
+            by_actor[verdict["actor"]] = by_actor[verdict["actor"]] + 1
+            if verdict["basis"] == "explicit":
+                explicit_rows = explicit_rows + 1
+        # UNKNOWN counts. A row whose next actor could not be read is work the
+        # CEO may still owe, and reporting it as zero would be this fund's
+        # oldest mistake in a new place.
         open_recommendations = [r for r in open_recommendations
-                                if r.get("status") in (None, "open")]
+                                if next_actor(r)["actor"] in ("ceo", "unknown")]
 
     parts = {
         "open_recommendations": _count(open_recommendations),
@@ -471,16 +813,34 @@ def desk_load(open_recommendations: list[dict[str, Any]],
     }
     unreadable = sorted(k for k, v in parts.items() if v is None)
     total = sum(v for v in parts.values() if v is not None)
+    elsewhere = by_actor["chair"] + by_actor["seat"]
     return {
         "total": total,
         "complete": not unreadable,
         "unreadable": unreadable,
         "components": parts,
+        # The full split, so nothing routed away from the CEO becomes invisible.
+        "by_actor": by_actor,
+        # Work that is real and is somebody else's. Rendered beside the CEO
+        # figure, never folded into it.
+        "not_ceo_load": elsewhere,
+        # How many rows STATED their next actor instead of being inferred.
+        # Zero today: nothing writes the field yet, and a reader deserves to
+        # know the count rests on inference rather than on declaration.
+        "explicit_next_actor": explicit_rows,
+        "rules_version": NEXT_ACTOR_RULES_VERSION,
         "threshold": COO_TRIAGE_THRESHOLD,
         "coo_triage_due": total >= COO_TRIAGE_THRESHOLD,
         "note": (
-            f"{total} open item(s) on the CEO's desk against a triage trigger of "
+            f"{total} item(s) awaiting the CEO against a triage trigger of "
             f"{COO_TRIAGE_THRESHOLD}"
+            + (f"; {by_actor['unknown']} of them because their next actor could "
+               "not be determined, which counts rather than disappears"
+               if by_actor["unknown"] else "")
+            + (f". {elsewhere} further recommendation(s) are open work owned by "
+               "the chair or another seat, counted here so they stay visible "
+               "and excluded from the CEO's figure because they were never his "
+               "to decide" if elsewhere else "")
             + (f" — {', '.join(unreadable)} could not be counted, so the real "
                "total is at least this" if unreadable else "")
             + (". A COO triage dispatch is DUE; the CTO fires it when a session "
@@ -515,8 +875,14 @@ def seat_telemetry(day_runs: Optional[list[dict[str, Any]]],
     so each carries its own absence rather than a shared zero:
 
       * ``running_now`` — the dispatch/resolve fold the desk already computes.
-        A dispatch with no matching resolution IS a working seat; the spine
-        cannot watch a model think and does not pretend to.
+        A dispatch with nothing back IS a working seat; the spine cannot watch
+        a model think and does not pretend to. A seat whose dispatch has
+        RETURNED is not running: ``running_now`` is False and
+        ``awaiting_review`` is True. Measured 2026-08-22 before this split
+        existed: `running_now` was True for the builder and the analyst
+        simultaneously, 21 and 19 hours after both had returned and been
+        recorded — a chair reading the payload to see whether a parallel slot
+        was free would have been told the bench was full.
       * ``runs_today`` — exact, from a SQL day window, NOT from the capped
         25-run payload. On a day with 26 runs the capped fold would quietly
         drop one, and the dropped one would look like a seat that did nothing.
@@ -540,10 +906,20 @@ def seat_telemetry(day_runs: Optional[list[dict[str, Any]]],
     for seat in names:
         act = activity.get(seat) or {}
         working = act.get("status") == "working"
+        awaiting = act.get("status") == "awaiting_review"
         row: dict[str, Any] = {
             "running_now": working,
-            "running_task": act.get("task") if working else None,
-            "running_since": act.get("since") if working else None,
+            # The third state, carried here too: a returned dispatch is an
+            # obligation on the chair, and a telemetry block that dropped it
+            # would render the seat as idle — which is how a review queue
+            # becomes invisible.
+            "awaiting_review": awaiting,
+            "returned_run_id": act.get("returned_run_id") if awaiting else None,
+            # The task and the clock belong to the dispatch, which is still
+            # open in BOTH live states — so they survive the return rather
+            # than blanking the moment the run lands.
+            "running_task": act.get("task") if (working or awaiting) else None,
+            "running_since": act.get("since") if (working or awaiting) else None,
             "runs_today": None,
             "tokens_today": None,
             "tokens_partial": False,
@@ -589,18 +965,28 @@ def seat_telemetry(day_runs: Optional[list[dict[str, Any]]],
     }
 
 
+#: How many runs the desk payload carries. Named because it is TWO things: the
+#: list the UI renders, and the window review-detection searches — so a reader
+#: changing it should see both consequences in one place.
+_RUNS_IN_PAYLOAD = 25
+
+
 def view(store: Any, deskstore: Any = None,
          pending_orders: Any = None) -> dict[str, Any]:
     artifacts = _artifacts()
     reqs = _requests(store)
-    activity = _activity(store)
     runs, open_recs = [], []
     # None, not [] — an unreadable recorder must not fold into "no runs today".
     day, day_start, day_end = utc_day_bounds()
     day_runs: Optional[list[dict[str, Any]]] = None
+    # None until proven otherwise, for the same reason: `_activity` must be
+    # able to tell "the recorder could not be read" from "it was read and held
+    # no matching run", and only the first makes review-detection unavailable.
+    seen_runs: Optional[list[dict[str, Any]]] = None
     if deskstore is not None:
         try:
-            runs = deskstore.runs(limit=25)
+            runs = deskstore.runs(limit=_RUNS_IN_PAYLOAD)
+            seen_runs = runs
             open_recs = deskstore.open_recommendations()
         except Exception as e:  # noqa: BLE001
             logger.info("desk runs unavailable: %s", e)
@@ -612,6 +998,11 @@ def view(store: Any, deskstore: Any = None,
             day_runs = deskstore.runs_between(day_start, day_end)
         except Exception as e:  # noqa: BLE001
             logger.info("desk day window unavailable: %s", e)
+    # AFTER the runs are loaded, because the third dispatch state is detected
+    # by matching an open dispatch's identifiers against a recorded run. Passed
+    # None when the recorder could not be read, which makes `review_detectable`
+    # false rather than reporting WORKING as a confident answer.
+    activity = _activity(store, runs=seen_runs, runs_limit=_RUNS_IN_PAYLOAD)
     open_reqs = [r for r in reqs if r["status"] == "open"]
     killed = [a for a in artifacts if a["status"] == "killed"]
     return {
@@ -637,8 +1028,12 @@ def view(store: Any, deskstore: Any = None,
         "runs": runs,
         "open_recommendations": open_recs,
         "open_requests": len(open_reqs),
-        # The COO triage counter (CEO's standing rule, >20 open items). Rendered
-        # as a chip on the CEO desk and the CTO console; it signals, never fires.
+        # The COO triage counter (CEO's standing rule, >=50 items awaiting the
+        # CEO). Rendered as a chip on the CEO desk and the CTO console; it
+        # signals, never fires. Since 2026-08-22 it counts rows whose NEXT
+        # ACTOR is the CEO rather than rows whose status label reads open —
+        # `by_actor` in the payload carries everyone else's, so nothing that
+        # left this number left the surface.
         "desk_load": desk_load(open_recs, pending_orders, open_reqs),
         # Per-seat: running now, runs today, tokens today (CEO ask, 2026-08-21).
         # Rolled up here rather than on the client so the day count is exact

@@ -1560,10 +1560,14 @@ class AgentRunRecord(BaseModel):
     # The chatter thread this run belongs to — the desk request's trace_id,
     # carried verbatim so the whole chain replays from one id.
     trace_id: Optional[str] = None
-    # Each recommendation is {kind, text, money_at_stake?}. `money_at_stake` is
-    # an OPTIONAL float: the dollars this recommendation moves, stated by the
-    # seat. Absent means the seat did not state one — never zero — and the
-    # desk ranks absent-last and prints the gap.
+    # Each recommendation is {kind, text, money_at_stake?, next_actor?}.
+    # `money_at_stake` is an OPTIONAL float: the dollars this recommendation
+    # moves, stated by the seat. Absent means the seat did not state one —
+    # never zero — and the desk ranks absent-last and prints the gap.
+    # `next_actor` is an OPTIONAL string (ceo | chair | seat | nobody): whose
+    # move it is. Absent means the desk INFERS it from lifecycle and kind, and
+    # `desk_load.explicit_next_actor` reports how many rows declared it, so a
+    # reader can tell a count built on declaration from one built on inference.
     recommendations: Optional[list[dict]] = None
     meta: Optional[dict] = None
 
@@ -1663,9 +1667,16 @@ def desk_archives():
 
 
 class RecDecision(BaseModel):
-    status: str          # accepted | rejected | staged | done
+    status: str          # accepted | rejected | staged | done | noted
     actor: str = "ceo"
     note: str = ""
+    # OPTIONAL: whose move it is NEXT, which is a different question from what
+    # the decision was. One of ceo / chair / seat / nobody. Its indispensable
+    # case is an `accepted` row whose EXECUTION is still the CEO's own act —
+    # the desk's counter otherwise infers every accepted row onto the chair,
+    # which is the COO's standing objection of 2026-08-21. Refused on a
+    # terminal status; absent means the desk infers.
+    next_actor: Optional[str] = None
 
 
 @router.post("/fund/desk/runs/{run_id}/recommendations/{rec_id}")
@@ -1678,7 +1689,7 @@ def decide_recommendation(run_id: str, rec_id: int, req: RecDecision):
     from app.fund.events import Event, EventType
     try:
         hit = ds.decide_recommendation(run_id, rec_id, req.status, req.actor,
-                                       req.note)
+                                       req.note, next_actor=req.next_actor)
     except (KeyError, ValueError) as e:
         raise HTTPException(status_code=422, detail=str(e))
     _store.append(Event(aggregate_id=run_id, aggregate_type="desk_run",
@@ -1687,6 +1698,12 @@ def decide_recommendation(run_id: str, rec_id: int, req: RecDecision):
                                  "status": req.status, "note": req.note,
                                  "text": hit.get("text"),
                                  "seat": hit.get("seat"),
+                                 # On the event too, not just the table: the
+                                 # log is where "who owed what, when" is
+                                 # reconstructed, and a routing decision that
+                                 # existed only in current state would be
+                                 # unrecoverable the moment it changed.
+                                 "next_actor": hit.get("next_actor"),
                                  "trace_id": hit.get("trace_id"),
                                  "at": datetime.now(timezone.utc).isoformat()},
                         actor=req.actor))
