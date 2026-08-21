@@ -193,7 +193,22 @@ midnight, and anyone reconstructing a day by filename silently loses them.
 Findings docs are never renamed; the misdated two stand with Donna's
 finding as the cross-reference.
 
+### RESOLVE-PIPELINE AMENDMENT (CEO 2026-08-21, effective immediately)
+Agent INTERACTIONS become durable: at every resolve, the run record's
+`output` field carries the seat's COMPLETE final report verbatim (not a
+summary), and `meta.brief` carries the dispatch brief verbatim. Zero
+schema change, effective now, both chairs. The deeper capture is D7.
+
 ### BUILDER D7 SPEC AMENDMENTS (capture before writing the brief)
+- AGENT-INTERACTION DURABILITY (CEO 2026-08-21: "make agent interactions
+  also durable on postgres... retrievable on demand; later if we dont
+  need we can clean up db"): new table `fund_agent_transcripts`
+  (run_id, kind: brief|report|transcript, content, created_at) + POST/GET
+  under /fund/desk/runs/{run_id}/transcript; an ingest script that lifts
+  a session task JSONL into it; NO retention policy yet — cleanup is a
+  later versioned decision, the CEO said so explicitly. AND extend
+  FirestoreSnapshotter to mirror fund_agent_runs (the flight recorder is
+  currently single-copy — found 2026-08-21).
 - Request 23b075a6 (CEO desk v2 four queues + Donna presence) is filed and
   CEO-approved. AMENDED BY CEO SAME DAY: only Donna's SHORT exec memo (§1
   THE DAILY: TL;DR + awaiting-you) lands the CEO desk queue; the LONG
