@@ -352,6 +352,33 @@ export function SeatTelemetryChips({ t, compact = false }: {
   const gap: Absent | null =
     isAbsent(runs) ? runs : isAbsent(toks) ? (toks as Absent) : null;
 
+  // Compact (the seat cards): ONE chip — "×N" runs today. The card already
+  // carries the running/idle status word under the seat's name (CEO,
+  // 2026-08-21: "we already have running status just below their name; I
+  // just wanted something #x that shows how many runs"), and token depth
+  // lives on the seat's own desk page. The absence rule survives as a
+  // dashed "×?" — unmeasured must never read as zero, but it earns one
+  // small chip, not a row.
+  if (compact) {
+    return (
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {typeof runs === "number" ? (
+          <span title={note ?? `${runs} run${runs === 1 ? "" : "s"} today`}
+                className={`inline-flex items-center gap-0.5 rounded-full border border-[var(--kt-border)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] ${KT.muted}`}>
+            ×<span className="tabular-nums text-[var(--kt-text)]">{runs}</span>
+          </span>
+        ) : gap ? (
+          <span
+            title={`${gap.what} — not measured: ${gap.needs}.`}
+            className={`inline-flex items-center rounded-full border border-dashed border-[var(--kt-border-strong)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] ${KT.muted}`}
+          >
+            ×?
+          </span>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="mt-2 space-y-1.5">
       <div className="flex flex-wrap items-center gap-1.5">
@@ -386,21 +413,6 @@ export function SeatTelemetryChips({ t, compact = false }: {
             )}
           </span>
         ) : null}
-        {/* The absence, ON THE CARD, as a dashed chip whose title is the full
-            sentence. `compact` exists because the first version rendered the
-            paragraph on all nine desks: nine identical five-line explanations
-            of ONE gap, which buried the seat cards the reader came for. What
-            must be true on every card is that the reader can see the figure is
-            NOT MEASURED rather than zero — and that survives here. The page
-            states the sentence in full, once, beneath the floor. */}
-        {compact && gap && (
-          <span
-            title={`${gap.what} — not measured: ${gap.needs}.`}
-            className={`inline-flex items-center rounded-full border border-dashed border-[var(--kt-border-strong)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] ${KT.muted}`}
-          >
-            runs / tokens — not measured
-          </span>
-        )}
       </div>
 
       {/* Full sentences, on the roomier surface (the floor's desk detail). */}
