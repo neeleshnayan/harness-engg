@@ -51,6 +51,57 @@ CREATE INDEX IF NOT EXISTS fund_observations_ticker_idx
     ON fund_observations (ticker, filed DESC);
 CREATE INDEX IF NOT EXISTS fund_observations_accession_idx
     ON fund_observations (accession);
+
+-- POINT-IN-TIME (analyst cycle 2, 2026-08-21). `filed` is a DATE, so every
+-- observation from one day is indistinguishable in time from every other — and
+-- 55.9% of this corpus shares a filing date with another observation on the
+-- same name. A backtest that reads them in id order is reading the future
+-- inside a day.
+--
+-- `accepted_at` is EDGAR's own acceptance stamp, which resolves that ordering
+-- to the second. `period` is the fiscal period the filing REPORTS on, which is
+-- a different question from when it was filed and the one most ratio work
+-- actually wants.
+ALTER TABLE fund_observations ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMPTZ;
+ALTER TABLE fund_observations ADD COLUMN IF NOT EXISTS period DATE;
+ALTER TABLE fund_observations ADD COLUMN IF NOT EXISTS items TEXT;
+CREATE INDEX IF NOT EXISTS fund_observations_accepted_idx
+    ON fund_observations (ticker, accepted_at DESC);
+
+-- THE TIMEZONE, MEASURED RATHER THAN ASSUMED — and the brief was wrong.
+--
+-- The dispatch brief stated that `acceptanceDateTime` "carries a Z suffix but is
+-- ET = the stamp minus 4 hours" and asked for it to be shifted on the way in.
+-- Two independent measurements against the live EDGAR API on 2026-08-21 refute
+-- that, so NO SHIFT IS APPLIED and the stamp is stored as the UTC it says it is:
+--
+--   1. Hour histogram, n=2,400 acceptance stamps across six issuers: activity
+--      runs 10:00-02:00 with a DEAD ZONE at 03:00-09:00. EDGAR's dissemination
+--      window is 06:00-22:00 ET, which under a genuine-UTC reading maps to
+--      exactly 10:00-02:00 UTC. Under the ET reading, 43.6% of filings would
+--      have been accepted while EDGAR was closed.
+--   2. Decisive: EDGAR dates a filing the NEXT business day when it is accepted
+--      after 17:30 ET. Over n=30,732 filings the next-day roll-over begins at
+--      raw hour 21 (443 rows), dominates at 22 (1,045) and 23 (1,087), and is
+--      ZERO at hours 10-20. 21:30 UTC IS 17:30 EDT. Were the stamp ET, the
+--      roll-over would appear at raw hour 17 — where there are 1,723 same-day
+--      filings and none rolled over.
+--
+-- Had the -4h shift been applied, every stamp at hours 22-23 (2,132 of 30,732
+-- in that sample) would have moved to the previous evening, manufacturing the
+-- sub-daily ordering error this column exists to remove.
+COMMENT ON COLUMN fund_observations.accepted_at IS
+    'EDGAR acceptanceDateTime, stored as genuine UTC. Measured 2026-08-21: the '
+    'Z suffix is truthful. The next-business-day roll-over appears at 21:00-23:00 '
+    'in the raw stamp (= 17:30 ET), not at 17:00, over n=30,732 filings. NO '
+    'timezone shift is applied and none should be added without repeating that '
+    'measurement.';
+COMMENT ON COLUMN fund_observations.period IS
+    'EDGAR reportDate - the fiscal period the filing REPORTS on, which is not '
+    'when it was filed. NULL where the feed carried none (common on 8-K).';
+COMMENT ON COLUMN fund_observations.items IS
+    'EDGAR 8-K item codes, comma separated (e.g. "2.02,9.01"). Free on the '
+    'submissions feed. NULL/empty on forms that do not use them.';
 """
 
 #: Categories worth separating. Not a taxonomy of everything — a short list of
@@ -203,17 +254,28 @@ class Observations:
             cat = str(it.get("category") or "other").lower()
             rows.append((
                 uuid.uuid4().hex[:16], doc["ticker"], doc["form"], doc["filed"],
-                doc["accession"], doc["url"],
+                doc["accession"],
+                # The URL ACTUALLY READ, which on an 8-K is now the EX-99.1
+                # exhibit rather than the cover page. Storing `url` here would
+                # cite a document the observation did not come from — a quote
+                # that cannot be found at its own citation.
+                doc.get("url_read") or doc["url"],
                 cat if cat in CATEGORIES else "other",
                 obs, quote, True, bool(doc.get("truncated")),
+                # Point-in-time (analyst cycle 2). None stays None: an absent
+                # acceptance stamp must never be back-filled from `filed`, which
+                # would invent a time of day and re-create the intra-day
+                # ordering error these columns exist to remove.
+                doc.get("accepted_at"), doc.get("period") or None,
+                doc.get("items") or None,
             ))
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.executemany(
                     "INSERT INTO fund_observations (observation_id, ticker, form, "
                     "filed, accession, url, category, observation, quote, "
-                    "quote_verified, truncated) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)", rows)
+                    "quote_verified, truncated, accepted_at, period, items) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)", rows)
             conn.commit()
         return len(rows)
 

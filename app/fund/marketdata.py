@@ -14,11 +14,14 @@ raise ``BarsError`` with a readable message; the caller maps it to HTTP 422.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import urllib.request
 from typing import Any
 from dataclasses import dataclass
 from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
 
 
 class BarsError(Exception):
@@ -111,9 +114,51 @@ _CRYPTO_IDS = {
 }
 
 
+#: Bare tickers that are ALSO listed US equities. Routing these to CoinGecko
+#: prices a different instrument entirely.
+#:
+#: MEASURED against the SEC ticker map, 2026-08-21:
+#:     BTC -> CIK 0002015034  Grayscale Bitcoin Mini Trust ETF
+#:     ETH -> CIK 0002020455  Grayscale Ethereum Staking Mini ETF
+#:
+#: So `BTC` in this fund's equity namespace is a Grayscale ETF trading at tens
+#: of dollars, and `_crypto_id` was pricing it as bitcoin spot at tens of
+#: thousands — a ~1000x error in any position, exposure or drawdown that touched
+#: it. The ambiguity is real and only the CALLER's namespace resolves it, so an
+#: EXPLICIT crypto form (`BTC-USD`, `BTC/USDT`) still routes to CoinGecko; a
+#: bare ticker with an EDGAR CIK does not.
+#:
+#: The CIK lookup is the test rather than a hardcoded list, so a future
+#: `SOL`/`DOGE` ETF is handled the day it lists rather than the day someone
+#: notices.
+def _has_edgar_cik(base: str) -> bool:
+    """Whether this bare ticker is a filed US issuer. Best effort and CACHED
+    upstream; a lookup failure returns False so a network problem degrades to
+    the old behaviour rather than blanking crypto entirely."""
+    try:
+        from app.fund.edgar import cik_for
+        return bool(cik_for(base))
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _crypto_id(symbol: str) -> str | None:
-    base = (symbol or "").upper().split("-")[0].split("/")[0].strip()
-    return _CRYPTO_IDS.get(base)
+    raw = (symbol or "").upper().strip()
+    base = raw.split("-")[0].split("/")[0].strip()
+    coin = _CRYPTO_IDS.get(base)
+    if not coin:
+        return None
+    # An explicit pair (BTC-USD, BTC/USDT) is unambiguous: the caller said
+    # crypto. Only a BARE ticker is ambiguous, and only then does the equity
+    # namespace get to win.
+    explicit = raw != base
+    if explicit:
+        return coin
+    if _has_edgar_cik(base):
+        logger.info("%s resolves to an EDGAR filer — routing to equities, not "
+                    "CoinGecko. Use %s-USD for the crypto asset.", base, base)
+        return None
+    return coin
 
 
 def _epoch(d: str) -> int:
