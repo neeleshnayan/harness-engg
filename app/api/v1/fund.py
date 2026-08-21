@@ -3734,9 +3734,13 @@ def run_results_prune_tick() -> dict:
 def run_autopolicy_tick() -> dict:
     """Worker tick: auto-approve what the deterministic envelope covers.
 
-    v1 envelope: exit-rule-triggered SELLs only, and only while the controls are
-    demonstrably alive. Everything else waits for the CEO exactly as before. See
-    app/fund/autopolicy.py for the amendment this implements and its reasoning.
+    v4 envelope: exit-rule-triggered SELLs only, fresh, liveness proven, the
+    trigger event naming the exact order, the rule predating the position, the
+    mark corroborated, the notional capped — and (v4) the quantity held on the
+    same side by the rule's own strategy, by the fund's book AND by the BROKER,
+    with book and broker agreeing. Everything else waits for the CEO exactly as
+    before. See app/fund/autopolicy.py for the amendment this implements, its
+    reasoning, and the dated note on what v4 corrects.
     """
     from app.fund import autopolicy, heartbeat
     try:
@@ -3750,14 +3754,24 @@ def run_autopolicy_tick() -> dict:
                 "policy_version": autopolicy.AUTOPOLICY_VERSION,
                 "note": "queue empty"}
     hb = {j["job"]: j for j in heartbeat.report()["jobs"]}
+    # v4: ONE broker round trip per TICK, not per order — the policy's cost must
+    # not be a function of the queue length. Taken here, AFTER the empty-queue
+    # return above, so an idle queue costs the venue nothing.
+    #
+    # `readable` rides separately from the dict on purpose: an empty dict is
+    # what a flat account and an unreachable broker both return, and reading
+    # the second as the first is how the fund would conclude "everything is
+    # flat" from a network error.
+    venue_readable, venue_positions = autopolicy.venue_snapshot(_connector)
     # v2: each candidate order gets its context gathered from the event log
     # (trigger linkage, rule pre-commitment, mark corroboration vs the last
     # strike, notional vs struck NAV). A failing gatherer yields an absent
     # context, which evaluate() fails closed on.
     return autopolicy.run(
         _pipeline, pending, halted=_control.is_halted(), heartbeats=hb,
-        context_fn=lambda row: autopolicy.context_for(_store, row,
-                                                      _connector.price))
+        context_fn=lambda row: autopolicy.context_for(
+            _store, row, _connector.price,
+            venue_positions=venue_positions, venue_readable=venue_readable))
 
 
 def run_proposal_expiry_tick() -> dict:
@@ -3765,8 +3779,17 @@ def run_proposal_expiry_tick() -> dict:
 
     The approve path already refuses stale proposals; this keeps the QUEUE honest
     between refusals, so the operator never faces a button whose only outcome is
-    an error. Exit-sourced proposals re-raise themselves from fresh marks on the
-    exit tick if their condition still holds.
+    an error.
+
+    CORRECTED 2026-08-21 (riskofficer R19). This docstring used to end "Exit-
+    sourced proposals re-raise themselves from fresh marks on the exit tick if
+    their condition still holds." THAT IS FALSE, and it is false in the
+    dangerous direction: ExitRules.enforce() stamps `triggered_at` on the rule
+    (exitrule.py:183-194) and SKIPS any rule carrying it (exitrule.py:275), so
+    a fired exit fires exactly once. Only a fresh EXIT_RULE_SET clears the
+    stamp. Seq 195 is the live proof — its own note records a human
+    re-committing the rule by hand. So an expired exit proposal is GONE until
+    someone notices, which is why autopolicy.run() now logs every decline.
     """
     try:
         pending = _orders.pending() or []

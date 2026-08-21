@@ -89,7 +89,47 @@ logger = logging.getLogger(__name__)
 #: v2's position_opened_at never resolved and rule_predates_position failed
 #: closed on EVERYTHING — over-tight (the sleeve's legitimate auto-path was
 #: dead), never loose, but wrong, and now tested.
-AUTOPOLICY_VERSION = "v3"
+#:
+#: v3 -> v4 (2026-08-21, riskofficer R19, spec at
+#: docs/R19_ENVELOPE_V4_SPEC_2026-08-21.md). THE CORRECTION TO THE RECORD, as a
+#: new dated note rather than an edit to the v3 note above — findings are never
+#: edited, and v3's adoption premise is now MEASURED FALSE in both halves:
+#:
+#:   * "only the sleeve's rules can pass rule_predates_position" — the sleeve's
+#:     rules DO pass it (TLT set_at 2026-08-18T02:11:39 against opened_at
+#:     2026-08-19T18:20:54).
+#:   * "and the sleeve owns its positions" — true of the LEDGER the check read
+#:     and false of the WORLD. Measured at the broker: book 3.019871 TLT /
+#:     8.122157 DBC / 5.314306 DBA against a broker holding 0 / 0 / 0.
+#:
+#: So "blast radius today is $0" was $750.36, 39.79% of NAV, of which $652.09
+#: is date-certain: the TLT and DBC `kind: time` rules (ExitRuleSet seq 178 and
+#: 181) fire on 2026-09-08 and v3 approves them TWELVE CHECKS OUT OF TWELVE,
+#: selling shares the broker holds none of. Shorting is enabled on the account.
+#:
+#: The envelope was not malfunctioning. Every check v3 makes is factually true.
+#: It checks the fund's own books and never asks the broker what it holds.
+#:
+#: v4 adds three checks, RELAXES NONE, and generalises one:
+#:
+#:   * exit_reduces_exposure — the fund's own signed book must move TOWARD zero
+#:     and never cross it. (New.)
+#:   * venue_holds_position — the BROKER's own answer, over an authenticated
+#:     round trip, must hold the quantity on the same side. (New. This is the
+#:     one that refuses 2026-09-08.)
+#:   * book_venue_in_sync — the two ledgers must agree within
+#:     MAX_POSITION_DRIFT_QTY. A fund that does not know what it holds does not
+#:     self-execute. (New.)
+#:   * rule_owner_holds_position — v3's R5, made SIGN-AWARE via the same
+#:     predicate rather than the old unsigned `qty <= held` comparison, which
+#:     read a short as a zero (the max(0.0, ...) clamp in the gatherer) and read
+#:     a missing qty as a free pass (`float(qty or 0.0)` -> 0 <= held).
+#:
+#: NOT DONE HERE, deliberately: `side_is_sell` is UNCHANGED. Relaxing it to a
+#: side_reduces_exposure — which a shorting strategy needs before it can have
+#: auto-exits at all — is a WIDENING and goes to the adversary blind first. v4
+#: is strictly tightening: every order v4 approves, v3 would also have approved.
+AUTOPOLICY_VERSION = "v4"
 
 #: Marker the exit tick stamps into rationales it generates. Kept in v2 as a
 #: cheap first filter; the authoritative provenance is exit_trigger_linked.
@@ -124,6 +164,143 @@ REQUIRED_HEARTBEATS = ("exit_check", "risk_monitor", "settlement")
 #: next tick to re-raise against fresh marks.
 MAX_AGE_MINUTES = 10.0
 
+#: v4: the quantity epsilon for the exposure predicate. Not a threshold anyone
+#: tunes — it is float noise, and it was already the inline `1e-9` v3 used at
+#: its `oqty <= held + 1e-9` comparison. Named so the three ledgers cannot
+#: acquire three different ideas of "zero".
+POSITION_EPS = 1e-9
+
+#: v4: the largest book-vs-venue quantity disagreement the policy will still
+#: call "in sync", per symbol. Set EQUAL TO THE RECONCILER'S OWN ``_TOL``
+#: (reconcile.py:20) on purpose: two definitions of "in sync" is exactly the
+#: second-opinion defect marksanity.py:12 was written to name, and a symbol the
+#: reconciler flags as drifted while the approval policy calls it reconciled is
+#: the fund holding two beliefs about the same number. tests/test_autopolicy.py
+#: pins the two together so they cannot drift apart silently.
+MAX_POSITION_DRIFT_QTY = 1e-6
+
+
+def reduces_exposure(pre: Optional[float], delta: Optional[float]) -> bool:
+    """THE v4 INVARIANT, as one predicate: an exit REDUCES exposure and never
+    crosses zero into a position in the opposite direction.
+
+    ``pre`` is the signed position on some ledger; ``delta`` is what the order
+    would do to it (``+qty`` buy, ``−qty`` sell). Both conjuncts earn their keep:
+
+    * ``pre * delta < -EPS`` — the order must push TOWARD zero. It does the sign
+      work for free and, because a flat ledger yields exactly ``0``, it also
+      kills the flat case. **That conjunct is what refuses 2026-09-08's TLT**:
+      the broker holds 0, so ``0 * −3.019871 = 0``, which is not ``< −EPS``.
+    * ``abs(delta) <= abs(pre) + EPS`` — it must not overshoot through zero and
+      out the other side. Selling 10 against a long 3 closes 3 and SHORTS 7.
+
+    Deliberately SIGN-AGNOSTIC: it is equally true of a long being sold and a
+    short being bought back. That is a property of the invariant, not a
+    widening — ``side_is_sell`` is a separate check and v4 does not touch it.
+    Absence on either side is False: an unmeasurable position is never a
+    permitted one.
+    """
+    if pre is None or delta is None:
+        return False
+    try:
+        product = float(pre) * float(delta)
+        # NaN fails every comparison, so a NaN on either side lands on False
+        # without a special case. Verified in the tests rather than assumed.
+        return (product < -POSITION_EPS
+                and abs(float(delta)) <= abs(float(pre)) + POSITION_EPS)
+    except (TypeError, ValueError, OverflowError):
+        return False
+
+
+def _as_float(value: Any) -> Optional[float]:
+    """A context value as a float, or ABSENT. Never raises.
+
+    ``evaluate()`` is the deterministic core of an execution path and must
+    return a verdict for every input it is handed, including a malformed one —
+    an exception there aborts the whole tick and leaves the remaining orders
+    unevaluated. So a value that will not parse becomes ``None``, which every
+    check fails closed on, rather than a traceback.
+    """
+    if value is None:
+        return None
+    try:
+        out = float(value)
+    except (TypeError, ValueError):
+        return None
+    if out != out or out in (float("inf"), float("-inf")):  # NaN / ±inf
+        return None
+    return out
+
+
+def order_delta(order: dict[str, Any]) -> Optional[float]:
+    """Signed effect of an order on a position: ``+qty`` buy, ``−qty`` sell.
+
+    ``None`` when the side or the quantity cannot be read — which every check
+    downstream fails closed on. Note that v3 read the quantity as
+    ``float(order.get("qty") or 0.0)``, so an order with NO quantity became
+    ``0.0`` and sailed through ``0 <= held``; here it is absent instead, which
+    is what it actually is.
+    """
+    qty = _as_float(order.get("qty"))
+    if qty is None:
+        return None
+    side = str(order.get("side") or "").lower()
+    if side == "buy":
+        return abs(qty)
+    if side == "sell":
+        return -abs(qty)
+    return None
+
+
+def venue_snapshot(connector: Any) -> tuple[bool, dict[str, float]]:
+    """One broker round trip, returning ``(readable, {symbol: signed_qty})``.
+
+    ``readable`` is carried SEPARATELY from the dict, and that separation is
+    the whole point: an empty dict is what a genuinely flat account returns AND
+    what an unreachable broker returns, and reading the second as the first is
+    precisely how "we could not look" becomes "everything is flat". Both
+    connectors OMIT flat symbols (paper filters ``abs(qty) > 1e-9``; Alpaca
+    simply does not return them), so a symbol's ABSENCE from a list we did read
+    means zero — but only because we read it, which is what the flag records.
+
+    Any failure — no connector, a raising ``positions()``, a row that will not
+    parse — returns ``(False, {})`` and discards whatever was parsed so far. A
+    partial read is not a read.
+
+    Reads SETTLED positions, not positions net of working orders. Harmless
+    today (the fund raises one exit order per rule and nothing else is in
+    flight), and stated here rather than discovered later.
+    """
+    if connector is None:
+        return False, {}
+    try:
+        rows = connector.positions() or []
+    except Exception as e:  # noqa: BLE001 — unreachable venue -> not readable
+        logger.warning("autopolicy: venue positions could not be read: %s", e)
+        return False, {}
+    out: dict[str, float] = {}
+    try:
+        for p in rows:
+            if isinstance(p, dict):
+                sym, qty = p.get("symbol"), p.get("qty")
+            else:
+                sym, qty = getattr(p, "symbol", None), getattr(p, "qty", None)
+            if not sym or _as_float(qty) is None:
+                # NOT skipped. A row we cannot read names a symbol that would
+                # then be absent from the dict — and absent from a READ list
+                # means flat. Silently dropping it is the absence-is-zero error
+                # this entire function exists to prevent, so it fails the whole
+                # read instead.
+                raise ValueError(f"unreadable venue position row: {p!r}")
+            # Summed rather than assigned: if a venue ever returns two rows for
+            # one symbol, the fold is the honest answer and a last-write-wins
+            # would silently drop half the position.
+            out[str(sym)] = out.get(str(sym), 0.0) + float(qty)
+    except Exception as e:  # noqa: BLE001 — a partial parse is not a read
+        logger.warning("autopolicy: venue positions could not be parsed: %s", e)
+        return False, {}
+    return True, out
+
 
 def evaluate(order: dict[str, Any], *, halted: bool,
              heartbeats: dict[str, Any],
@@ -142,6 +319,14 @@ def evaluate(order: dict[str, Any], *, halted: bool,
       position_opened_at   — ts of the fill that opened the current position
       mark_move_vs_strike_pct — |current mark / last struck mark − 1| × 100
       notional_pct_of_nav  — order notional as % of last struck NAV
+    and the v4 inputs:
+      rule_strategy_holding_qty — SIGNED qty the rule's own strategy holds
+      book_qty_signed      — SIGNED qty the fund's book holds, folded fund-wide
+      venue_readable       — did the broker round trip succeed AT ALL
+      venue_qty_signed     — SIGNED qty the broker says it holds; 0.0 when the
+                             list was read and the symbol is absent, None when
+                             it could not be read. The two are different facts
+                             and v4 reports them differently.
     A missing context, or any missing field, fails the corresponding check —
     the policy never widens because the gatherer broke.
     """
@@ -203,24 +388,106 @@ def evaluate(order: dict[str, Any], *, halted: bool,
               ("" if ok else " — a move this size is either a data fault or a "
                              "crash, and both deserve the human's eyes"))
 
-    # R5 (v3): the rule's own strategy must hold what the order sells. A rule
-    # registered under one strategy_id must never liquidate another strategy's
-    # position — which is literally what the first live fire did.
-    held = ctx.get("rule_strategy_holding_qty")
-    try:
-        oqty = float(order.get("qty") or 0.0)
-    except (TypeError, ValueError):
-        oqty = None
-    if held is None or oqty is None:
+    # THE THREE LEDGERS (v4), asked in the order a human would ask them: does
+    # the rule's own strategy hold this, does the FUND hold it, does the BROKER
+    # hold it — and do the last two agree. One predicate, `reduces_exposure`,
+    # applied to each. Non-short-circuiting like everything else here: each is
+    # evaluated and recorded even when an earlier one has already failed, which
+    # is what made the first audit possible from the log alone.
+    delta = order_delta(order)
+    symbol = order.get("symbol")
+
+    # R5 (v3, made sign-aware in v4): the rule's own strategy must hold what the
+    # order sells. A rule registered under one strategy_id must never liquidate
+    # another strategy's position — which is literally what the first live fire
+    # did. v3 compared unsigned quantities against a gatherer that clamped the
+    # holding at zero, so a SHORT held by the strategy read as flat.
+    # Coerced through _as_float so a malformed context value lands on ABSENT —
+    # which fails closed — rather than on an exception that would abort the
+    # tick and leave every remaining order unevaluated.
+    held = _as_float(ctx.get("rule_strategy_holding_qty"))
+    if held is None or delta is None:
         check("rule_owner_holds_position", False,
               f"the triggering rule's strategy holding could not be determined "
-              f"(held={held!r}) — an unownable close does not self-execute")
+              f"(held={held!r}, order delta={delta!r}) — an unownable close "
+              f"does not self-execute")
     else:
-        ok = oqty <= held + 1e-9
+        ok = reduces_exposure(held, delta)
         check("rule_owner_holds_position", ok,
-              f"order qty {oqty} vs {held} held by the rule's own strategy" +
+              f"order delta {delta} against {held} held by the rule's own "
+              f"strategy" +
               ("" if ok else " — the rule would be closing a position its "
-                             "strategy does not hold"))
+                             "strategy does not hold, or crossing it into the "
+                             "opposite direction"))
+
+    # v4 / the fund's own book: the exit must move the FUND's signed position
+    # toward zero. Folded fund-wide from the fills, which the gatherer already
+    # computed and threw away.
+    book = _as_float(ctx.get("book_qty_signed"))
+    if book is None or delta is None:
+        check("exit_reduces_exposure", False,
+              f"the fund's own signed position in {symbol} could not be "
+              f"determined (book={book!r}, order delta={delta!r}) — an "
+              f"unmeasurable position is not a closable one; fails closed")
+    else:
+        ok = reduces_exposure(book, delta)
+        check("exit_reduces_exposure", ok,
+              f"the fund's book holds {book} {symbol}; this order moves it by "
+              f"{delta}" +
+              ("" if ok else " — which does not reduce exposure, or crosses "
+                             "zero into a position in the opposite direction"))
+
+    # v4 / THE VENUE — the check that refuses 2026-09-08. Note what is read and
+    # what is NOT: `connector.positions()`, the broker's own answer over an
+    # authenticated round trip. NEVER `order["venue"]`, which is a client string
+    # the proposer supplies and which exitrule.py hardcodes to "paper" on every
+    # exit it raises, whatever connector will execute it — a venue == "paper"
+    # check would have passed the exact orders that go to Alpaca.
+    #
+    # Three outcomes with three DISTINCT detail strings, because "we could not
+    # look" and "we looked and it is zero" have completely different fixes and
+    # the audit reads the detail, not the boolean.
+    readable = ctx.get("venue_readable")
+    vqty = _as_float(ctx.get("venue_qty_signed"))
+    if readable is not True:
+        check("venue_holds_position", False,
+              "the venue's positions could not be read — an unmeasurable "
+              "position is not a zero position")
+    elif vqty is None:
+        check("venue_holds_position", False,
+              f"the venue read succeeded but carried no quantity for {symbol} "
+              f"— a gap in a read is not a reading of zero")
+    elif abs(vqty) <= POSITION_EPS:
+        opens = "a short" if side == "sell" else "a position"
+        check("venue_holds_position", False,
+              f"the venue holds ZERO {symbol}; this {side.upper() or 'ORDER'} "
+              f"of {order.get('qty')} would open {opens}, not close an "
+              f"existing one")
+    else:
+        ok = reduces_exposure(vqty, delta)
+        check("venue_holds_position", ok,
+              f"the venue holds {vqty} {symbol}; this order moves it by "
+              f"{delta}" +
+              ("" if ok else " — the venue does not hold that quantity on that "
+                             "side, so the order would open or increase an "
+                             "opposite position"))
+
+    # v4 / the two ledgers against each other. A fund whose book and broker
+    # disagree does not know what it holds, and an order sized off the wrong one
+    # is wrong by exactly the drift.
+    if book is None or readable is not True or vqty is None:
+        check("book_venue_in_sync", False,
+              f"book={book!r} against venue={vqty!r} (venue readable="
+              f"{readable!r}) — the two ledgers could not be compared, and an "
+              f"uncomparable book is not a reconciled one")
+    else:
+        drift = abs(book - vqty)
+        ok = drift <= MAX_POSITION_DRIFT_QTY
+        check("book_venue_in_sync", ok,
+              f"book holds {book} {symbol} against {vqty} at the venue — drift "
+              f"{drift:.9f} against a {MAX_POSITION_DRIFT_QTY:g} tolerance" +
+              ("" if ok else " — the fund does not know what it holds; an "
+                             "unreconciled position does not self-execute"))
 
     # R7: the blast radius, governed.
     npct = ctx.get("notional_pct_of_nav")
@@ -264,18 +531,42 @@ def evaluate(order: dict[str, Any], *, halted: bool,
 
 
 def context_for(store: Any, order: dict[str, Any],
-                pricer: Optional[Callable[[str], float]]) -> dict[str, Any]:
-    """Gather the v2 inputs for one order from the event log and the pricer.
+                pricer: Optional[Callable[[str], float]], *,
+                venue_positions: Optional[dict[str, float]] = None,
+                venue_readable: bool = False) -> dict[str, Any]:
+    """Gather the envelope's inputs for one order from the log, the pricer and
+    the venue snapshot.
 
     One pass over the log; every failure degrades to an ABSENT field, which
     evaluate() fails closed on. The gatherer can only narrow the envelope by
     breaking, never widen it.
+
+    ``venue_positions`` / ``venue_readable`` come from ``venue_snapshot()``,
+    taken ONCE PER TICK by the caller rather than once per order — a broker
+    round trip per order would make the policy's cost a function of the queue
+    length. They default to *unreadable*, so a caller that has not been updated
+    to pass them declines everything rather than approving on a phantom flat
+    book. Fail-closed defaults are the only safe ones on this path.
     """
     from app.fund.events import EventType
 
     oid = str(order.get("order_id") or "")
     symbol = order.get("symbol")
     ctx: dict[str, Any] = {}
+
+    # Set BEFORE the log walk, deliberately: the venue read is independent of
+    # the event log, so an exception below must not erase what the broker said.
+    # `venue_readable` is a separate field from the dict and is never inferred
+    # from it — an empty dict means "flat" only when we know we read one.
+    ctx["venue_readable"] = venue_readable is True
+    if ctx["venue_readable"] and symbol:
+        try:
+            ctx["venue_qty_signed"] = float((venue_positions or {}).get(symbol, 0.0))
+        except (TypeError, ValueError):
+            ctx["venue_qty_signed"] = None
+    else:
+        ctx["venue_qty_signed"] = None
+
     trigger = None
     rule_sets: dict[tuple, str] = {}      # (strategy_id,symbol,kind) -> last set ts
     struck_marks: dict[str, float] = {}
@@ -327,9 +618,17 @@ def context_for(store: Any, order: dict[str, Any],
                trigger.get("kind"))
         ctx["rule_set_at"] = rule_sets.get(key)
         # R5: what the rule's OWN strategy holds in this symbol, from fills.
-        ctx["rule_strategy_holding_qty"] = max(
-            0.0, qty_by_strategy.get(trigger.get("strategy_id"), 0.0))
+        # v4 drops v3's `max(0.0, ...)` clamp. The clamp made a strategy that is
+        # SHORT the symbol read as flat — which is the same "absence is zero"
+        # error the venue check exists to fix, one ledger over. The sign now
+        # travels to `reduces_exposure`, which is what needs it.
+        ctx["rule_strategy_holding_qty"] = qty_by_strategy.get(
+            trigger.get("strategy_id"), 0.0)
     ctx["position_opened_at"] = opened_at
+    # v4: the fund-wide signed position. Already computed above as the running
+    # fold; v3 computed it and threw it away, so exposing it costs no new pass
+    # over the log.
+    ctx["book_qty_signed"] = qty_running
 
     mark = None
     if pricer is not None and symbol:
@@ -373,10 +672,28 @@ def run(pipeline: Any, pending: list[dict[str, Any]], *, halted: bool,
         verdict = evaluate(row, halted=halted, heartbeats=heartbeats,
                            age_minutes=row.get("age_minutes"), context=ctx)
         if not verdict["approve"]:
+            failed_checks = [c["check"] for c in verdict["checks"]
+                             if c["ok"] is not True]
             skipped.append({"order_id": oid, "symbol": row.get("symbol"),
-                            "failed_checks": [c["check"] for c in
-                                              verdict["checks"]
-                                              if c["ok"] is not True]})
+                            "failed_checks": failed_checks})
+            # A DECLINE MUST BE AUDIBLE. Until v4 this branch logged nothing:
+            # run() logged approvals and errors only, and the worker discards
+            # this return value entirely, so an order the envelope refused
+            # produced no event, no log line and no alarm. That was survivable
+            # while the envelope refused nothing; v4 refuses the 2026-09-08 TLT
+            # and DBC time exits, and a silent refusal there is the unwired
+            # kill switch wearing the opposite costume — "the machine quietly
+            # stops honouring the fund's own exits" instead of "the machine
+            # quietly opens a short". The proposal then expires at 120 minutes
+            # and does NOT come back on its own (exitrule.py:275 skips any rule
+            # carrying `triggered_at`; only a fresh EXIT_RULE_SET clears it), so
+            # this line is the only thing standing between a refused exit and
+            # nobody ever knowing. Strictly additive: it changes no behaviour.
+            logger.warning(
+                "AUTOPOLICY DECLINED %s %s %s under %s — outside the envelope, "
+                "waiting for the CEO. Failed checks: %s", row.get("side"),
+                row.get("qty"), row.get("symbol"), AUTOPOLICY_VERSION,
+                ", ".join(failed_checks) or "(none recorded)")
             continue
         try:
             pipeline.approve_order(
