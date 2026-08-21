@@ -188,7 +188,14 @@ trigger is registered at >20 open items on the CEO's desk** (open
 recommendations + pending orders + requests awaiting approval): crossing it
 DEMANDS a coo dispatch, which the CTO fires when a session is live — the
 trigger is standing CEO authorization, not a schedule; when no session is
-live, nothing thinks, as always.
+live, nothing thinks, as always. **(3) The CIO trigger is registered
+2026-08-21 (CEO agreement): the CEO is the CIO today — fund identity and
+risk appetite are the CEO's row in the table, and at two sleeves the
+direction-setting load is small. When candidates clearing the gate exceed
+the capital available to fund them, or ≥3 live sleeves compete for
+allocation, prioritization becomes a job: audition a CIO seat the way the
+CDO was auditioned (a trial memo judged on its own output), never seat it
+by org-chart symmetry.**
 
 Placement, per seat: mechanism/pm/adversary/validator/riskofficer/coo run on
 **Opus** (the coo is judgement near governance — never downgraded, never local); `quant` ran the HYBRID trial (local 4090 drafts, Opus
