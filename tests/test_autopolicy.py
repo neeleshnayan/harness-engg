@@ -774,6 +774,38 @@ def test_context_for_keeps_the_venue_read_even_when_the_log_walk_explodes():
     assert {"exit_reduces_exposure", "book_venue_in_sync"} <= _failed(v)
 
 
+def test_a_corporate_action_is_not_folded_and_that_fails_CLOSED():
+    """A NAMED narrowness, pinned so it cannot be mistaken for an oversight.
+
+    `context_for` folds ORDER_FILLED only. PositionsProjection also folds
+    CORPORATE_ACTION_APPLIED (positions.py:101-114), which rewrites a symbol's
+    quantity outright on a split. So after a split, `book_qty_signed` disagrees
+    with the fund's official book.
+
+    That disagreement may only fail CLOSED, and this test is what says so: the
+    stale fold differs from the venue by the split ratio, `book_venue_in_sync`
+    trips, and the order waits for the CEO. If someone later "fixes" this by
+    widening the tolerance instead of folding the projection, this test fails.
+    """
+    s = _log_with_a_tlt_position(qty=3.0)
+    s.add("CorporateActionApplied", {"symbol": "TLT", "old_qty": 3.0,
+                                     "new_qty": 6.0})
+    order = {"order_id": "o1", "symbol": "TLT", "side": "sell", "qty": 6.0}
+    # The venue HAS applied the split; our fold has not.
+    ctx = context_for(s, order, None, venue_positions={"TLT": 6.0},
+                      venue_readable=True)
+    assert ctx["book_qty_signed"] == 3.0, "the split is deliberately not folded"
+
+    v = evaluate(order, halted=False, heartbeats=HB_OK, age_minutes=0.5,
+                 context={**CTX_OK, **{k: ctx[k] for k in
+                                       ("book_qty_signed", "venue_readable",
+                                        "venue_qty_signed")}})
+    assert v["approve"] is False
+    assert _checks(v)["book_venue_in_sync"]["ok"] is False
+    # The venue check is unaffected — it reads the broker, not our fold.
+    assert _checks(v)["venue_holds_position"]["ok"] is True
+
+
 def test_context_for_keeps_a_short_strategy_holding_negative():
     s = _log_with_a_tlt_position(qty=-4.0)
     ctx = context_for(s, {"order_id": "o1", "symbol": "TLT", "side": "sell",

@@ -628,6 +628,23 @@ def context_for(store: Any, order: dict[str, Any],
     # v4: the fund-wide signed position. Already computed above as the running
     # fold; v3 computed it and threw it away, so exposing it costs no new pass
     # over the log.
+    #
+    # KNOWN AND DELIBERATE NARROWNESS, stated rather than discovered later: this
+    # folds ORDER_FILLED only, while PositionsProjection ALSO folds
+    # CORPORATE_ACTION_APPLIED (positions.py:101-114), which rewrites a symbol's
+    # quantity outright on a split. So after a split this number would disagree
+    # with the fund's official book until a fill re-based it.
+    #
+    # It is left this way because the disagreement can only fail CLOSED. A split
+    # the venue has applied and this fold has not makes `book_qty_signed` differ
+    # from `venue_qty_signed` by the split ratio, which trips
+    # `book_venue_in_sync` and DECLINES — an order waiting for the CEO, which is
+    # the correct outcome for a book the fund cannot reconcile. And the check
+    # that actually refuses 2026-09-08 reads the broker directly and does not
+    # depend on this number at all. The fund has had no corporate action to
+    # date; if that changes, fold this from PositionsProjection instead of
+    # widening the tolerance. tests/test_autopolicy.py pins the current
+    # behaviour so the narrowness cannot be mistaken for an oversight.
     ctx["book_qty_signed"] = qty_running
 
     mark = None
