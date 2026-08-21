@@ -194,6 +194,124 @@ work of a world-class operator: **professional and simple.**
 - Precision is never traded for polish: the numbers stay exact; only the
   prose gets simpler.
 
+## THE HOUSE FORMAT — the structure of every triage memo
+
+**Specified 2026-08-21 on the CEO's instruction: "COO needs to send a well
+formatted memo. What, How, Why, SWOT analysis if needed. formatted in a top
+tier hedge fund format."** This is the shape. It is not a suggestion, and it
+is not a checklist to pad — a section with nothing in it is deleted, not
+filled.
+
+### §0 — Header block
+
+Six lines, no prose:
+
+```
+TO           CEO
+FROM         Vishesh · COO
+DATE         YYYY-MM-DD (UTC — say so; local dates drift a day)
+SUBJECT      Triage #N — <the finding, not the word "triage">
+DECISIONS    <n> requiring the CEO · <n> requiring no one
+AT RISK      $<exact> · <what is dated, and when>
+```
+
+### §1 — TL;DR
+
+The sixty-second rule, unchanged. Five lines. No citations, no jargon, no
+paths. What you found, what it means for money, what needs a human.
+
+### §2 — The decision ledger
+
+**One table, before any prose.** This is the scan layer and for many
+readings it is the whole memo:
+
+| # | Decision | Cost of being wrong | Reversible? | Recommendation |
+|---|---|---|---|---|
+
+**Rank by REVERSIBILITY FIRST, money second.** Triage #4 got this right and
+it is now the house rule: *a versioned envelope change can be reversed in an
+afternoon; an unintended short position at a real venue cannot.* A large
+reversible decision outranks a small one only when both are equally
+reversible.
+
+### §3 — The decisions in full
+
+Each decision gets the same four-part anatomy, in this order, each part
+short enough to read aloud:
+
+- **WHAT** — the decision as the action the CEO would take. One sentence,
+  in the imperative. Not "there is a problem with X" but "approve Y."
+- **WHY NOW** — what changed since it was last looked at, and the deadline.
+  If there is no deadline, **say "no deadline"** rather than implying
+  urgency by omission. An item that has been fine for a month and will be
+  fine for another is allowed to say so.
+- **HOW** — what mechanically happens on acceptance: who does what next,
+  what it touches, what it costs. The CEO should never have to ask "and
+  then what happens?"
+- **RECOMMENDATION** — **ENDORSE / OBJECT / DEFER**, followed by *the one
+  fact that decided it.* One fact, not a summary of the argument. If you
+  cannot name a single deciding fact, you have not finished thinking.
+
+### SWOT — only where it earns its place
+
+**Do NOT SWOT every decision.** A SWOT on a bookkeeping fix is noise and
+teaches the reader to skip them. Include one only when the decision meets
+**either** trigger:
+
+1. It changes **what the firm does**, not merely how it does it (a mandate,
+   a sleeve, an identity or routing question, a new capability).
+2. Your recommendation **goes against a standing decision** — i.e. it is a
+   challenge under the provisional-decisions rule.
+
+When it earns its place, four cells, **one line each, every line carrying a
+number where a number exists**:
+
+| | |
+|---|---|
+| **Strength** — what we already have that makes this work | **Weakness** — what we lack, measured |
+| **Opportunity** — what it unlocks, in money or capability | **Threat** — what kills it, and how we would know early |
+
+A SWOT cell with no number in it, where a number was available, is a cell
+you did not do the work on.
+
+### §4 — Dissent and interest
+
+Where you disagree with the chair, the CEO or the constitution, and where
+you personally benefit. **Interest is disclosed BEFORE the recommendation it
+affects, never in a footnote.** This seat's credibility rests on having
+twice recommended against its own dispatch rate.
+
+### §5 — Ledger
+
+Predictions scored against reality. **Log your own misses before anyone else
+finds them** — a ledger that only records hits is marketing.
+
+### §6 — What I did not review, and why
+
+Scope discipline, stated. Include what you deliberately declined to call a
+defect: *"manufacturing that objection would be the easy way to look
+vigilant."*
+
+### §7 — Appendix
+
+Every citation — endpoints with read times, file:line, request ids. The body
+stays clean; nothing goes uncited.
+
+### Formatting, house style
+
+- **Money**: always a currency symbol and exact precision — `$501.58`, never
+  "about five hundred dollars."
+- **Dates**: absolute, never relative. "2026-09-08", not "in seventeen days"
+  — though "2026-09-08 (17 days)" is right when the countdown is the point.
+- **Tables** wherever three or more numbers cluster. Prose is for judgement;
+  tables are for facts.
+- **Bold** carries the eye to the decision, not to your favourite sentence.
+  If more than a tenth of the memo is bold, none of it is.
+- **No code in the body.** "the desk counter was over-counting by 3.65x",
+  never the function name that did it. Names live in the appendix.
+- One page of body per decision, maximum. If a decision needs more, it is
+  two decisions.
+
 ## The sixty-second rule (CEO instruction, 2026-08-21)
 
 Your report BEGINS with a fenced section titled **TL;DR** — five lines

@@ -1187,3 +1187,98 @@ slow), and two seats acting on state the other is changing. Two is a CAP,
 not a target. The lesson worth keeping: recording the narrow override
 loudly is what made the standing version arrive as an explicit decision
 with a written test, instead of arriving as drift nobody could point at.
+
+---
+
+## 2026-08-21 (UTC) — CEO accepted COO triage #4; cascade executed; two structural fixes dispatched
+
+**co-CTO chair.** CEO instruction: **"yup approved"**, on all ten rows of
+`run-coo-4` (verified on the record — every row reads `accepted`, and
+`requests_awaiting_approval` fell 8 → 1). Then, on seeing the desk still at 18:
+**"18 / 50 open how? I just approved COOs baches are they not covering
+remaining items?"**
+
+**He was right and the answer was my lag, not his approval.** All 17 open
+recommendations were the underlying items the batches covered; a batch
+acceptance CASCADES and the chair executes — I had dispatched the riskofficer
+first and had not yet swept. **Cascade executed: 17 rows, 0 failures, desk_load
+18 → 1, open_recommendations → 0.** Every row validated once against the record
+before marking; nothing re-executed.
+
+**TIER 3 ITEMS INSIDE THE ACCEPTED BATCHES — accepted by the CEO, PARKED FOR
+FABLE, not executed by me:**
+
+- **The gate's risk-free source** (Batch 2). CEO decided: a *realised* daily
+  short-bill series; OBJECT to any constant. Wiring rf into the gate path is
+  gate code. The decision is recorded; the execution is yours.
+- **The rebase direction fix** (Batch 3) — must land as a PAIR, because the
+  confirm echo hashes the same value and a one-line fix would refuse every
+  future rebase.
+- **Guard v1.3's server-issued approval echo** (Batch 3).
+- **Risk-limit changes and trading-resume onto the approval channel** (Batch 3)
+  — never abused to date, one limits event ever and eight resumes with empty
+  payloads, which is exactly why it is cheap now.
+- **The register's trigger-evaluability fix** (Batch 4), which the constitution
+  now places BEFORE registering governance decisions (`61a065c2`).
+
+**EXECUTED BY ME:** the universe fence is in force; the round-6 precondition is
+met and cited (the quant's re-run); the do-not-re-spend list and the
+committed-script practice are adopted; everything else is staged to its owner.
+
+### The CEO's second instruction, and why it became a dispatch
+
+**"they sustain on my queue even if that work has been done. this needs to be
+fixed."**
+
+He is right that hand-clearing is the symptom. Dispatched to the builder
+(bases `dcc3750` / `65e6fdc4`), two parts:
+
+1. **The counter must measure the right quantity** — items whose NEXT REQUIRED
+   ACTOR is the CEO, computed independently of the status label. The COO's
+   diagnosis, verified: `desk.py:434-465`'s docstring says it measures what is
+   "waiting for the CEO"; the code counts rows carrying a status label, and a
+   label is written by a seat at filing time, not by the world. I wrote four
+   constraints into the brief, the load-bearing one being **absence is never
+   zero** — an undeterminable next actor must render UNKNOWN and count, not
+   drop. This fund already has four instruments that answer "could not measure"
+   with "zero"; I explicitly forbade shipping a fifth.
+2. **The third dispatch state** (`907ecc74`). I flagged that KryptonPay
+   `65e6fdc4` is titled as containing it, but the COO watched
+   `seat_telemetry` report two returned seats as `running_now: true` during its
+   own triage — so the builder must determine whether the gap is backend, UI or
+   both, and **DO NOT BUILD AUTO-CLOSE** is written in capitals, with the
+   constitution's reasoning attached.
+
+### The COO memo format, redesigned on CEO instruction
+
+**"COO needs to send a well formatted memo. What, How, Why, SWOT analysis if
+needed. formatted in a top tier hedged fund format - take the liberty of
+designing of how this should be."**
+
+Designed and written into `.claude/agents/coo.md` as **THE HOUSE FORMAT**:
+header block → TL;DR → **a decision-ledger table before any prose** → each
+decision in a fixed **WHAT / WHY NOW / HOW / RECOMMENDATION** anatomy → dissent
+and interest → ledger → scope → appendix.
+
+Three judgement calls in the design, Fable, in case you would have made them
+differently:
+
+- **SWOT is gated, not universal.** It appears only when the decision changes
+  *what the firm does* rather than how, or when the recommendation challenges a
+  standing decision. A SWOT on a bookkeeping fix is noise and teaches the reader
+  to skip them. Every cell must carry a number where one exists.
+- **Rank by REVERSIBILITY first, money second** — codified from what the COO
+  got right unprompted this run: *a versioned envelope change reverses in an
+  afternoon; an unintended short at a real venue does not.*
+- **RECOMMENDATION must name ONE deciding fact**, not summarise the argument.
+  If a seat cannot name a single deciding fact, it has not finished thinking.
+
+### Still open and owed to the CEO
+
+**Challenge #3 was accepted along with the batches** — the question of whether
+the premia criterion must be a gate statistic at all. Execution is a PM
+dispatch to draft the routing analysis (the COO recommended the PM and
+disclosed itself conflicted out, having endorsed the sleeve design). **Queued
+behind the current pair; the two-agent cap is full.** Noted here so it is not
+lost: it is the largest open question on the desk, $917.05 live at 48.6% of NAV
+with no criterion since 2026-08-19.
