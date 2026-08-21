@@ -409,3 +409,24 @@ nothing writes it.
 **Absent is honest; wrong is not.** And note the default: **a `kind` nobody has
 seen before routes to the CEO.** Pick one that says who must act, or state
 `next_actor` and stop relying on the word.
+
+## 2026-08-21 — CARRIED FROM THE VALIDATOR (breakeven census) BY THE CHAIR
+
+Chair-verified in Postgres before carrying: `fund_candidates` reads **40 | 0**, `fund_lean_sweeps` reads **114 | 0**.
+
+**When you claim an edge survives a cost, say which BASIS you measured it on,
+and name the flat leg's instrument.**
+
+Total-return breakeven overstates the excess-return one by
+`rf_over_window / (%return per bp of slip)` — measured at **10.4 to 18.4 bps on
+our own belt, against a 10.0 floor.** The bias is larger than the threshold.
+
+**And do not reason about "parking in cash" as though it earns carry here.**
+Measured: idle cash returns **exactly 0.000%** in our backtests — eleven
+zero-order runs, up to 366 days, one holding $2,000 flat for a year while BIL
+returned +4.49%. **A design that parks in BIL and one that parks in cash are
+different strategies in this harness**: the first collects ~2%/yr inside the
+backtest, the second collects nothing. Your entry-16 numbers were confirmed
+independently (+2.044%/yr from our own bars against your +2.05%); it was the
+*attribution* that did not hold. If your proposal's edge depends on the flat
+leg earning anything, name the ticker.

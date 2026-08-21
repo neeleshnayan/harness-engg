@@ -179,6 +179,32 @@ it.
 
 ### MEASURED
 
+- **THE COST-ROBUSTNESS CRITERION HAS NEVER PRODUCED A NUMBER. A census of all
+  40 belt candidates, chair-verified in Postgres: `fund_candidates` reads
+  **40 | 0**, `fund_lean_sweeps` reads **114 | 0**.** Eleven v1 candidates
+  satisfied it *without measurement* and **all three passes the belt has ever
+  issued are in that eleven** — the fund's entire pass history rests on a
+  criterion satisfied by absence. Twenty-five later candidates were *failed*
+  for the same missing measurement, and the numeric branch has never executed,
+  so discrimination on this criterion is undefined.
+  - **The bias, where it could be measured, is LARGER THAN THE THRESHOLD**:
+    total-return breakeven exceeds excess-return breakeven by **10.4–18.4 bps
+    against a 10.0 floor.** One walk-forward fold flips from 17.22 to 0.81 —
+    that fold's entire apparent cost robustness *is* the risk-free rate.
+  - **The widest door needs no number at all**: `gate.py:411-412` passes on
+    "still profitable at every cost tested", and on the one cost-swept family
+    that path passes a candidate whose benchmark-excess edge is **negative at
+    every cost tested**.
+  - **And the gap runs both ways**: the belt credits **zero** interest on idle
+    cash, so it docks the most selective designs **2.0–3.5%/yr** of carry they
+    would really have earned. `mean_reversion_cyclicals` sits 97.95% in cash.
+    That is a leg-1 defect pointing straight at leg 2.
+  - **MY BRIEF'S PREMISE WAS WRONG AND THE SEAT REFUTED IT.** I asserted that
+    cash-parking inflates breakeven, relaying the mechanism's attribution
+    without re-deriving it. Idle cash earns **exactly 0.000%** here. Cash
+    parkers are the *least* affected. Third time today a seat corrected the
+    brief that dispatched it.
+
 - **The machine, because the team had been treating local compute as scarce and
   the CEO challenged it.** He was right, and the bound is not the one being
   cited: **CPU is a Ryzen 9 7900X, 24 threads at 11% utilisation; the GPU is an

@@ -410,3 +410,39 @@ deletion.
 PaperConnector as a class if tests need it"* — a hedge. **A hedge in a ticket
 is a measurement I did not take.** If I had run the grep before filing instead
 of after being asked, the ticket would have been right the first time.
+
+
+## **I RELAYED A SEAT'S ATTRIBUTION AS FACT — SECOND TIME TODAY**
+
+**2026-08-21.** My validator brief asserted, as the premise of the whole
+dispatch, that *"any candidate that parks in cash between signals has its
+cost robustness inflated by risk-free carry."* **I took that from the
+mechanism's report and put it in a brief as established fact.**
+
+The validator measured it: **idle cash earns exactly 0.000% in our LEAN.**
+Eleven zero-order runs, up to 366 days, one holding $2,000 flat for a year
+while BIL returned +4.49%. Cash-parkers are the LEAST affected by the defect,
+not the most — the brief had it exactly backwards.
+
+**The mechanism's NUMBER was right (+2.05%/yr, independently confirmed at
++2.044%). Its ATTRIBUTION was wrong** — its flat leg was BIL, an *asset* in our
+dividend-adjusted feed, not cash. And I propagated the attribution because the
+number checked out.
+
+**This is the same failure as `$652.09` and it is now a pattern: I verify the
+NUMBER a seat gives me and accept the STORY attached to it.** The number is the
+easy half. A correct number with a wrong cause sends the next seat at the wrong
+target — and here it would have sent the validator hunting cash-parkers when
+the defect hits low-turnover strategies over long windows.
+
+**RULE: when a seat explains WHY a number is what it is, that explanation is a
+claim and gets verified like any other. Especially when I am about to write it
+into another seat's brief as the premise of their work.** A brief is the one
+place a chair's unverified belief becomes another seat's starting assumption.
+
+**Credit where it is due, and the reason the system worked anyway:** the
+validator did not accept my premise. It measured it, refuted it, and said so
+in its first section. That is the third time today a seat has corrected the
+brief that dispatched it — the builder on `$652.09`, the builder on `kind`
+being a strong signal, and now this. **The briefs are the weakest artifact this
+chair produces, and the bench is catching them.**

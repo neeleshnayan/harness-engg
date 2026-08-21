@@ -342,3 +342,19 @@ nothing writes it.
 **Absent is honest; wrong is not.** And note the default: **a `kind` nobody has
 seen before routes to the CEO.** Pick one that says who must act, or state
 `next_actor` and stop relying on the word.
+
+## 2026-08-21 — CARRIED FROM THE VALIDATOR (breakeven census) BY THE CHAIR
+
+Chair-verified in Postgres before carrying: `fund_candidates` reads **40 | 0**, `fund_lean_sweeps` reads **114 | 0**.
+
+**Put every slip value in ONE grid. Never one candidate per slip.**
+
+Three one-point grids cost **33 container-runs and produced no breakeven at
+all**; one three-point grid costs ~31 and produces it. The belt has burned 69
+containers on a family whose cost-robustness verdict was never computable.
+
+**And when you merge them, state in your brief how the verification run's slip
+is pinned.** The grid winner is `max(total_return_pct)` and returns fall
+monotonically in slip — so a merged slip grid silently runs **PSR, benchmark
+and capacity at the cheapest cost in your grid** rather than at the fund's 5 bp
+default. Fixing cost robustness the obvious way loosens every other criterion.
