@@ -254,3 +254,66 @@ decision CADENCE, and say in the file which number you used and why.**
 rebalanced. If your rule rebalances, it is being measured against the
 un-rebalanced version of itself. That is a real comparison and usually not the
 one you meant.
+
+
+## 2026-08-21 — **STOP TREATING LOCAL COMPUTE AS SCARCE. IT IS NOT. MEASURE WHICH RESOURCE YOU MEAN.**
+
+**CEO instruction, verbatim: "I am seeing concerns with the team of their
+being a upper bound to compute which is not true; we have a very capable PC
+and whats stopping them?"** He is right, and the chair measured the machine
+rather than assuming either way.
+
+**THE MACHINE, measured 2026-08-21:**
+
+| resource | actual | verdict |
+|---|---|---|
+| CPU | **Ryzen 9 7900X — 12 cores / 24 threads, running at 11%** | **NOT SCARCE** |
+| GPU | **RTX 4090**, idle except during local-model work | **NOT SCARCE** |
+| Disk | 74 GB free of 421 | not scarce |
+| **RAM** | **15.2 GB total, 0.8 GB FREE** | **THIS IS THE WALL** |
+
+**THREE DIFFERENT SCARCITIES HAVE BEEN COLLAPSING INTO ONE WORD, AND ONLY TWO
+ARE REAL:**
+
+1. **TOKENS — genuinely scarce and structural.** This is what the quota-era
+   dispatch rules protect: batch by seat, one human trigger, an idle seat costs
+   zero. Frugality here is correct and is not up for revision.
+2. **RAM — genuinely scarce at 15.2 GB, and it is the real container
+   ceiling.** `MAX_CONCURRENT_CONTAINERS = 6` is registered with basis
+   `measured` and falsified-by *"a WinError 1455 or any host-memory kill"* —
+   the paging-file error. That limit came from an actual out-of-memory event.
+   It is a RAM limit wearing the word "container".
+3. **CPU, GPU AND WALL-CLOCK — NOT SCARCE, AND THIS IS WHERE THE FALSE CAUTION
+   LIVES.** Twenty-four threads at 11% and a 4090 doing nothing.
+
+**THE RULE THIS BUYS: before you cite a compute cost as a reason to narrow a
+recommendation, say WHICH resource you mean and what you measured.** "12.6×
+compute" is not a cost statement — it is three different claims wearing one
+number, and on this machine two of the three are free.
+
+**THE WORKED EXAMPLE, and it is a live one.** The mechanism's D5 fix would take
+a 1-day rule from 5 folds to 63. The seat called it *"~12.6× compute per
+candidate"* and declined to recommend it without a cap. But the quant measured
+real container wall-clock at **12.8s average, 18.4s maximum**, including a
+5.47-year verification. Sixty-three folds × two legs × ~13s is **roughly 27
+minutes, run sequentially, on a machine at 11% CPU.**
+
+**That is not a cost. That is a coffee break, and it is exactly what the
+market-closed queue exists for.** The cap the seat hesitated over is probably
+unnecessary, and the hesitation came from reasoning about CPU-seconds in the
+token frame.
+
+**WHAT IS STILL TRUE AND MUST NOT BE THROWN OUT WITH THIS:**
+
+- **Run candidates SEQUENTIALLY when wall-clock is an output.** The quant
+  established this and it stands: the constitution's dependency test says a
+  wall-clock measured under unadvertised contention is corrupted, not slow. The
+  300s censored tail that justified raising the timeout ceiling was recorded
+  under three concurrent candidates; sequentially there was no tail at all.
+  **Parallelism is what costs here, not duration.**
+- **Concurrency still hits the RAM wall at 6 containers.** Do not raise that
+  limit as a consequence of this note; it is a registered value with a measured
+  basis and moving it is a versioned change.
+- **Tokens remain the real budget.** An 8-hour local extraction is cheap; an
+  8-hour Opus dispatch is not. When you defer something for cost, be explicit
+  about which one you mean.

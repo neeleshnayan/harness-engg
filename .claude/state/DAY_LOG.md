@@ -99,6 +99,20 @@ it.
 
 ### MEASURED
 
+- **The machine, because the team had been treating local compute as scarce and
+  the CEO challenged it.** He was right, and the bound is not the one being
+  cited: **CPU is a Ryzen 9 7900X, 24 threads at 11% utilisation; the GPU is an
+  RTX 4090, idle.** Neither is scarce. **RAM is the wall — 15.2 GB total, 0.8 GB
+  free** — and `MAX_CONCURRENT_CONTAINERS = 6` is registered with basis
+  `measured`, falsified-by *"a WinError 1455 or any host-memory kill"*. That
+  limit came from a real out-of-memory event; it is a RAM limit wearing the word
+  "container". **Three scarcities had been collapsing into one word: tokens
+  (real, structural), RAM (real, 15.2 GB), CPU/GPU/wall-clock (not scarce, and
+  where the false caution lived).** Worked example: the mechanism declined to
+  recommend D5 without a cap on "12.6× compute" — but at the quant's measured
+  12.8s per container that is ~27 minutes sequential on a machine at 11% CPU.
+  Correction propagated to mechanism, quant, validator, analyst and builder.
+
 - **Our price history carries a +43.84%/yr phantom factor** — today-anchored
   split adjustment (TENX reads $2,320 on 2020-06-01) plus **203 of 203 symbols
   alive today**. The walk-forward gate is structurally blind to it.
