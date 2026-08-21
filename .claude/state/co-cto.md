@@ -54,3 +54,52 @@ entry the moment you take it, not at end of session.
 ## Session log
 
 (append here, newest last — date, what ran, what landed in the queue)
+
+### 2026-08-21 (first session — the handoff day)
+
+**TWO MISTAKES OF MINE, both caught by others, both worth more than the work.**
+
+1. **I FABRICATED TIMESTAMPS IN THE LEDGER.** Every `~HH:MMZ` on my first
+   five entries was estimated, not read — and I was reading the machine's
+   LOCAL clock (IST, UTC+5:30) and appending a `Z`. 18:25 local is 12:55Z.
+   Correction appended over them (never edited). This is the *same error
+   class* the builder refuted in its own brief four hours earlier, which I
+   had personally verified at n=4,895. Knowing a rule and applying it to
+   your own output are different skills. **RULE: read the clock
+   (`Get-Date -Format "... zzz"` + the UTC conversion) or anchor to an
+   event-log `ts`. Never estimate a time. Never write local time with a Z.**
+2. **I fired Donna at 12:53Z and called it end of day** — because the
+   handoff listed "Donna at EoD" as queue item 1 and I read the local
+   evening clock (18:22 IST) as the day being over. It was not: the UTC
+   day was half done and the CEO was still working. She filed a complete
+   record of an incomplete day. **RULE: EoD is the CEO's day ending, not
+   the machine's clock looking evening-ish. If the CEO is still sending
+   instructions, the day is not over. Ask, or wait.**
+
+**Two dissents from the COO against my decisions, both accepted, both
+right** — worth internalising rather than just recording:
+- Parking a proved-false line is not the same as quarantining it. A
+  one-line REFUTED banner takes seconds and is NOT overruling another
+  chair. When something is known-false and live, quarantine first, park
+  the full fix second.
+- I inherited a handoff line ("no rebase until the audit lands") and
+  carried it without re-deriving it. The COO read the code and showed it
+  was one step too tight — the defect bites rebase #2, the fund has never
+  had a first. **An inherited caution is still a claim; verify it before
+  you enforce it.** Cost of not doing so: $874 idle and 58% halt odds
+  carried a day longer than necessary.
+
+**What worked, keep doing:** gating both bundles with `merge_builder.py`
+BEFORE touching the live trees; re-measuring the builder's refutation
+myself (n=4,895) instead of accepting a seat's claim that contradicted
+the card; reading `fund_api.ts` line by line because it is the file
+Abhishek's types live in; validating every cascade item once before
+marking it done (desk 23 → 0, nothing re-executed).
+
+**Mechanics learned:** the observations schema migration runs LAZILY on
+first use of the store — the PIT backfill correctly REFUSED after a spine
+restart until `GET /fund/research/observations` was touched. The merge
+gate flags new numeric constants for a human to read and that check is
+real (it surfaced `DEFAULT_MAX_CHARS`). `git status --porcelain` includes
+untracked files; check `--untracked-files=no` plus a collision test
+against the incoming diff before refusing a merge.

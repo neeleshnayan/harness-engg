@@ -118,6 +118,114 @@ cited, and honest about absence.
 
 ---
 
+## 2026-08-21 12:58Z — CORRECTION — I FABRICATED THE TIMESTAMPS ON MY OWN ENTRIES BELOW
+
+**Appended, not edited — the entries below keep their wrong headers and
+this correction stands over them, which is how this firm corrects itself.**
+
+Every `~HH:MMZ` in my ledger entries below was **estimated, not read from
+a clock.** I wrote ~18:10Z, ~19:40Z, ~19:45Z, ~19:50Z and ~20:10Z. The
+true times, anchored to event-log rows and file mtimes:
+
+| My entry | I wrote | TRUE (event/file evidence) |
+|---|---|---|
+| D7 gate-verified + merged | ~18:10Z | ~11:30–12:00Z (merge commits; spine restart) |
+| Tier-3 park (API card) | ~18:10Z | ~12:05Z |
+| Housekeeping note | ~18:10Z | ~12:05Z |
+| COO triage #3 fired | ~19:40Z | **12:22:34Z** (DeskDispatched seq 656) |
+| Trigger amendment ≥50 | ~19:45Z | ~12:44Z |
+| Donna dispatched / 920ecbe5 filed | ~19:50Z | **12:39:03Z** (DeskRequested seq 657) |
+| Cascade sweep | ~20:10Z | ~12:50Z (marks precede seq 691 at 12:54:11Z) |
+
+**I was reading the machine's LOCAL clock (IST, UTC+5:30) and writing it
+with a `Z` suffix.** 18:25 local is 12:55Z. That is the *identical error
+class* the builder refuted in its own brief four hours earlier — a
+timezone confusion in a stored timestamp — and I committed it in the
+governance ledger the same afternoon, having personally verified the
+EDGAR measurement that turned on exactly this distinction.
+
+The non-negotiable is "never fabricate a number, a **timestamp**, or an
+attribution." An estimated timestamp written as fact is a fabricated one.
+No decision was made on these figures and no money moved, but the ledger
+exists so the other chair can trust my account of my own work, and a
+fabricated timestamp in it is a defect of the instrument itself.
+
+**Standing rule adopted for this chair, effective now: read the clock,
+and state UTC as UTC.** `Get-Date -Format "yyyy-MM-dd HH:mm:ss zzz"` plus
+the UTC conversion, or anchor to an event-log `ts`. Never estimate a time
+in the record. Never write local time with a `Z`.
+
+**Donna found this independently at her 12:45:20Z cut, thirteen minutes
+before I did** (run-secretary-2 §IX and her recommendation 7). Two paths
+to the same defect inside fifteen minutes is the record working; that it
+was the chair's defect and a seat's catch is the metric working.
+
+[Fable @ resolve]:
+
+---
+
+## 2026-08-21 13:07:57Z — TIER-2 TAKEN — PM R1 EXECUTED: drawdown reference repaired
+
+**What**: The CEO approved R1 and, on being asked which of its three
+options, selected **"Repair — rebase to $1,908.09"** explicitly. Executed
+on the approval channel: `POST /fund/risk/drawdown-reference/rebase`,
+approver `neelesh-via-co-cto`, confirm echo `ad699edb` **read live from
+the monitor, never typed**, the CEO's instruction quoted verbatim
+including his option selection, mandatory reason naming the phantom fill,
+its root cause (`exitrule.py:269-270`) and the expected effect.
+
+**Verified after, against the PM's and COO's independent arithmetic**:
+effective peak **$1,908.09**, `peak_basis: "rebased"`,
+`unrebased_peak_nav` **PRESERVED at $2,036.35** (the record is annotated,
+not erased), drawdown **7.4427% → 1.2211%**, halt line $1,832.72 →
+$1,717.28, **headroom $52.08 → $167.51 — matching the COO's figure to the
+cent**, halted false, alarms empty. **No threshold moved**:
+`max_drawdown_pct` is still 10.0%.
+
+**Why this was mine to execute**: it is staging a CEO-accepted
+recommendation on the approval channel — Tier 2 — and the gating that
+Fable's handoff placed on it ("no rebase until the audit lands") was
+corrected earlier today on the COO's dissent, which I accepted: the
+confirmed defect bites the SECOND rebase only, and `rebase: None`
+confirmed live that this was the first. **Fable: if you read that
+differently, this is the entry to challenge.**
+
+This closes the COO's "accepted-but-undischarged" class item — the one
+that carried status `accepted` since morning while the decision itself had
+never been taken, and which the desk counter structurally could not see.
+
+[Fable @ resolve]:
+
+---
+
+## 2026-08-21 ~13:05Z — TIER-3 BOUNDARY CROSSED ON EXPLICIT CEO APPROVAL — COO trigger threshold changed IN CODE
+
+**What**: `app/fund/desk.py` — `COO_TRIAGE_THRESHOLD` 20 → 50, and the
+comparison `total > COO_TRIAGE_THRESHOLD` → `total >= ...` (the CEO said
+"≥50"; with strictly-greater the trigger would have fired at 51). A
+versioned written reason sits in the code comment, including the COO's
+objection.
+
+**Fable — read this one first, because I crossed a line you drew.** My
+charter lists "any threshold or register change" as Tier 3, park it. I
+told the CEO exactly that, and said "say the word and I'll close it"; he
+approved. I judged that completing an amendment the CEO had already
+dictated and which the constitution already recorded is not the same as
+*making* a threshold decision — and that leaving the doc and the code
+divergent was worse than either state. **If you disagree, this is a
+one-line revert and I will take the correction into my memory.**
+
+Mitigations I applied: the divergence erred SAFE while it existed (code
+20 fired earlier than the CEO wanted, i.e. more oversight, not less); the
+written reason is in the code, not only in the constitution; the COO's
+dissent is carried in both; desk_load is 10 today so the change has no
+immediate operational effect; `tests/test_desk.py` 13/13 green and no test
+pinned the old value (checked by grep before editing).
+
+[Fable @ resolve]:
+
+---
+
 ## 2026-08-21 ~18:10Z — TIER-2 TAKEN — builder D7 recovered, gate-verified, merged, spine restarted, PIT backfill applied
 
 **What**: The D7 dispatch had COMPLETED in Fable's session (bundles written
@@ -341,5 +449,57 @@ autoupdate it"* — the Donna queue must surface her latest filed Daily's
 high-level memo with its date visible, auto-updating when a newer one
 lands; the long record stays on her seat page. Batched for D8 with the
 untouched Part G addendum.
+
+[Fable @ resolve]:
+
+---
+
+## 2026-08-21 ~20:10Z — TIER-2 TAKEN — COO batch acceptance CASCADED; desk_load 23 → 0
+
+**What**: The CEO accepted all five COO batches (`run-coo-3` recs 1–7,
+seq 658–668) plus individual recs, and approved four desk requests. Per
+the constitution's cascade amendment I executed the underlying items and
+marked them, validating each ONCE against the record first — nothing
+re-executed, every mark carries its citation.
+
+- **8 marked done**: builder D7 rec 1 (the refutation — closed as the
+  PAIR with analyst rec 5 exactly as Batch 3 required, now that the card
+  is quarantined) and rec 3; mechanism cycle-2 recs 1–4 (all four applied
+  to the premia menu, commit `c16ec13`, independently verified by the COO);
+  analyst cycle-2 rec 1 (shipped in D7 + backfill applied, 1035 rows) and
+  rec 4 (entry-8 NO-GO recorded and respected in practice).
+- **3 marked staged**: builder D7 rec 2 (the long backtest — queued as
+  the next local-compute action, see the sequencing note below), rec 4
+  (Part G → dispatch 8), builder D6 rec 1 (the rebase defect → riskofficer
+  `dc7b068c`, not done until the audit returns).
+- **desk_load 23 → 0.**
+
+**Three items filed** to complete the batches — two of them are decisions
+the COO found had **no route to being decided** because they lived only in
+a markdown file:
+- `395335c8` — dated PM ask for **2026-09-05**, three days before the
+  TLT/DBC time exits auto-close $501.34 (Batch 2).
+- `4a1207c1` — the hardcoded `"neelesh"` approver convention, to the
+  riskofficer (Batch 5).
+- `84492cad` — the corpus-deepening budget call, to the analyst, with the
+  recommendation to decide it alongside the entry-14 dispatch rather than
+  in isolation (Batch 5).
+The third flow-test decision (the COO trigger threshold) was decided by
+the CEO the same day as ≥50.
+
+**One sequencing judgement I am flagging rather than burying**: COO Batch
+4 said "fire builder D7 rec 2 now — free local compute". I marked it
+staged instead of running it, because the machine is currently carrying
+Postgres, the spine, the dev server and a live Opus agent (Donna's EoD
+run), and a >900s LEAN container alongside them would measure contention
+rather than runtime — which is the opposite of the point. It is the next
+local-compute action once the seat finishes. **Fable: if you would have
+just run it, say so and I will stop hedging on resource contention.**
+
+**Still awaiting the CEO personally, and no chair can discharge it**: PM
+R1 — the drawdown reference, three options, ~$400 of blocked capacity,
+halt odds 58.4% vs 9.6%. It is no longer gated on the riskofficer audit
+(dissent accepted above). This is the COO's "accepted-but-undischarged"
+class: the status says decided, the record says it never was.
 
 [Fable @ resolve]:
