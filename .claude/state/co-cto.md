@@ -217,3 +217,39 @@ absent payload — it says 2 missing when 6 are missing. The validator called it
 "the same shape as the write-only verdict column." **The absence reporter that
 cannot report its own absences is a recurring failure here.** When a component's
 job is to name what is missing, check what it does when EVERYTHING is missing.
+
+**A COST OF MY OWN BEST DECISION, found by the CEO reading a screen
+(2026-08-21).** He pasted the desk's own words back at me: *"Her memo could
+not be read — UNKNOWN, not absent. Anything she filed is still filed; this
+surface could not reach it."* Diagnosis took five minutes and every step
+was a fact: Donna's memos ARE on disk (four files, two days, .md + .pdf);
+`GET /fund/desk/archives` works perfectly (`readable: true, count: 2`); and
+`GET /fund/desk/archives/memo` — the route the UI actually calls — returns
+**404, because it does not exist on the spine.** `git grep -ln
+archives/memo builder-d8 -- app/` finds it on the branch I HELD.
+
+**THE LESSON, and it generalises: SPLITTING A CROSS-REPO DIFF CAN SHIP A
+CALLER WITHOUT ITS CALLEE.** Builder D8 shipped both halves — the
+KryptonPay memo panel and the ClarkHarness route feeding it. The adversary
+killed the ClarkHarness half on three real grounds; I merged the KryptonPay
+half separately and held the other. **The split was RIGHT** — it caught a
+guard-predicate rename that widened a ledger-writing endpoint on the live
+configuration, and the COO called it the strongest decision of the
+interval. **And it broke a surface, because I checked the halves for
+independent CORRECTNESS and never checked them for DEPENDENCE.**
+
+**RULE, now standing: before splitting a cross-repo diff, grep each half
+for the other's symbols — endpoint paths, type names, field names. If the
+UI half calls a route the spine half introduces, they are ONE merge or the
+UI half ships behind a flag.** A half-diff that passes its own tests can
+still be a half-diff.
+
+**Two corollaries worth keeping:**
+- **The honest-absence discipline paid for itself here.** Because the UI
+  said UNKNOWN rather than rendering an empty state, this was diagnosable
+  in minutes instead of being mistaken for "Donna never ran." That
+  discipline is why the CEO's screenshot was a bug report and not a wrong
+  belief.
+- **The CEO found it by reading a screen.** No seat did, across four
+  triages. Surfaces get exercised by the person who uses them, and a chair
+  that only reads endpoints will keep missing this class.
