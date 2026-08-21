@@ -127,3 +127,36 @@
   the honesty standard, noted. Wrong-base now 6/6 — the dispatch-harness fix
   (hand the seat a clone) is on the recommendations. First run recorded under
   the interaction-durability rule: full report verbatim in the record.
+
+## STATE
+
+**builder — after dispatch 7 (2026-08-21), seventh dispatch**
+
+- **Bases were RIGHT for the first time in 7 dispatches** (ClarkHarness `ec816f7`, KryptonPay `cbc32b8a`, both exact, D6 in both histories). The clone-both setup still takes ~4 min and is worth doing regardless — it is what let the usage-limit interruption cost nothing.
+- **A usage-limit cut mid-dispatch is survivable and cheap IF you commit at part boundaries.** My clones came back untouched; `git status` + re-running the last green suite confirmed it in two minutes. Commit each Part as it lands — the interruption cost me nothing because Parts B-spine/D were already committed.
+- **I mis-stated a test count in a commit message AGAIN** (said 216, truth 215). Both times the cause was writing the number before the last test landed and not re-measuring. **Measure immediately before writing the commit, never from memory.** The merge gate catches it now — its suite tail is the authority.
+- **VERIFY THE BRIEF'S OWN FACTUAL CLAIMS, not just my code.** The D7 brief asserted EDGAR's `acceptanceDateTime` is ET-minus-4 as "a CRITICAL detail the analyst verified". Two measurements (n=2,400 histogram; n=30,732 next-business-day roll-over at raw hour 21 = 17:30 EDT) refuted it. Applying it would have created the lookahead it was meant to close. An accepted recommendation is not a verified one.
+- **Engine facts, measured this dispatch:** a 5.47y `monthend_rebalance_flow` run exceeds **900s** (my own D6 ceiling) — the long-window runtime is STILL unmeasured, and the censored distribution I found in D6 is not resolved. A 6-month window is ~13s. `_parse_results` downsamples curves to 400 points BEFORE storing, so anything needing raw observations must be computed there or it is gone.
+- **Shapes verified live (2026-08-21):** session JSONL lines carry `isSidechain: true` on sub-agent turns (that is how a seat dispatch is extracted); assistant `content` is a block list (`thinking`/`text`/`tool_use`), user `content` may be a bare string. EDGAR `recent` arrays are PARALLEL and NOT equal length (`items` is short on older feeds) — a bare `zip()` truncates every filing after the shortest column. `seat_telemetry` enumerates `REQUEST_KINDS.values()`, NOT the roster, so a seat missing from that map reports no runs at all.
+- **The floor's geometry is COUPLED and the tests know it.** Moving a desk in `EXEC_ROW` breaks `CORRIDOR` (chain stations must lie on the aisle) and `BENCH_ORDER` (a seat with an exec desk must be excluded or it renders twice). Both broke when Donna was added; both were caught by existing tests, not by me.
+- **Mock-spine fixtures now cover:** `MONITOR_FIXTURE`, `DIVERGENCE_FIXTURE`, `DESK_FIXTURE`, `ARCHIVES_FIXTURE`, `FAIL_DETAIL=1`. Generate them with the SPINE'S OWN code (`gen_archives.py`, `gen_desk_d7.py`) so shapes cannot drift. **It proxies POSTs to the live spine — never click a submit while it is up.**
+- **Open for a future dispatch:** (a) Part G addendum, untouched; (b) walk-forward TRAIN legs carry no daily series — needs the winner's job held open past the grid; (c) the long-window engine timeout is unresolved; (d) everything still open from D6 — the latent drawdown-rebase direction defect (routed to riskofficer), belt `queued` state, gate.py holdout timeout split, the hardcoded `"neelesh"` approver, `aligned_returns` caching on `fetcher.__name__`, no DOM test runner.
+
+- [co-CTO note at resolve, 2026-08-21]: both bundles independently
+  gate-verified by me on the live heads (1277 + 215, 0 sensitive, 0
+  forbidden), fund_api.ts diff confirmed additive with zero thesis types,
+  DEFAULT_MAX_CHARS read and cleared as a script guard rail. Merged;
+  spine restarted; archives endpoint serving; secretary in the roster;
+  PIT backfill applied (249/249 accessions, 1035 rows, 0 unresolvable).
+  **THE REFUTATION IS CONFIRMED, INDEPENDENTLY**: I re-measured the EDGAR
+  timezone question myself (n=4,895, 6 issuers) and the decisive
+  discriminator is the empty raw-hour 06-09 band — that is 02:00-05:00 ET
+  when EDGAR is shut; under the ET reading it would be 06:00-09:00 ET
+  when EDGAR opens. Plus 280 same-day vs 1 roll-over at raw 17-18 where
+  the ET reading puts the cutoff. Then proven at the data layer: SRPT
+  stores 20:01:46+00 = 16:01:46 ET, exactly the analyst's own cited
+  figure. Refusing a brief on measurement, and being right, is this seat
+  at its best — and it is the second time in two dispatches that the
+  builder has corrected a chair. The false line is PARKED FOR FABLE (the
+  API card is the CTO chair's instrument); every brief I write meanwhile
+  will carry the correction inline.
