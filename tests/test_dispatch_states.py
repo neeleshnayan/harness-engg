@@ -227,6 +227,32 @@ def test_timestamps_are_compared_as_instants_not_strings():
     assert b["builder"]["review_detectable"] is False
 
 
+def test_a_mixed_zone_run_list_neither_raises_nor_mis_floors():
+    """The window floor is chosen by parsed INSTANT.
+
+    Two ways to get this wrong, both caught here: picking the floor by string
+    order (`Z` sorts after `+00:00` for the same moment), and mixing a naive
+    stamp with an aware one, which Python refuses to order at all — a single
+    unzoned string would otherwise raise from inside a payload builder.
+    """
+    runs = [_run("a", "a", resolved_at="2026-08-22T10:00:00Z"),
+            _run("b", "b", resolved_at="2026-08-22T08:00:00+00:00"),
+            _run("c", "c", resolved_at="2026-08-22T09:00:00"),
+            _run("d", "d", resolved_at="not a time")]
+    a = desk._activity(
+        MemStore([_dispatch("builder", "t1", "run-b-1",
+                            at="2026-08-22T08:30:00+00:00")]),
+        runs=runs, runs_limit=4)
+    # The floor is 08:00 (the aware one), and the dispatch at 08:30 is inside
+    # it — so the miss is a MEASURED negative.
+    assert a["builder"]["review_detectable"] is True
+    earlier = desk._activity(
+        MemStore([_dispatch("builder", "t1", "run-b-1",
+                            at="2026-08-22T07:30:00+00:00")]),
+        runs=runs, runs_limit=4)
+    assert earlier["builder"]["review_detectable"] is False
+
+
 def test_a_positive_match_proves_detection_regardless_of_the_window():
     """Finding the run IS the proof. A window rule that could turn a matched
     return into `review_detectable: false` would contradict the payload it

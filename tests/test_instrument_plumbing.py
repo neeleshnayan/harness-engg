@@ -294,7 +294,7 @@ class TestDeskLoad:
         # post, no run, no store. ("get" reads a row's fields; "strip"/"lower"/
         # "replace"/"startswith" normalise a kind string.)
         assert called <= {"_count", "int", "len", "sum", "sorted", "join",
-                          "values", "items", "isinstance", "get",
+                          "values", "items", "isinstance", "get", "append",
                           "next_actor", "_norm_kind",
                           "strip", "lower", "replace", "startswith"}, called
 

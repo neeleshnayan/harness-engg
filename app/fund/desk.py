@@ -364,14 +364,21 @@ def _ts(value: Any):
     write `Z`, and lexicographic order across the two is wrong exactly where it
     matters. Unparseable returns None, and every caller treats that as "cannot
     compare" rather than as an ordering that happens to sort.
+
+    A timestamp with NO zone is read as UTC — the same assumption
+    ``utc_day_bounds`` already makes, and stated here rather than left to
+    whichever comparison hits it first. The alternative is worse than an
+    assumption: Python refuses to order a naive datetime against an aware one,
+    so a single unzoned string would raise from inside a payload builder.
     """
-    from datetime import datetime
+    from datetime import datetime, timezone
     if not isinstance(value, str) or not value.strip():
         return None
     try:
-        return datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        t = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
     except ValueError:
         return None
+    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
 
 
 def _within_window(dispatched_at: Any, window_floor: Any) -> bool:
@@ -493,9 +500,17 @@ def _activity(store: Any, runs: Optional[list[dict[str, Any]]] = None,
     # there is no outside to fall into and the floor does not apply. Without
     # that check the honest-unknown would fire on knowable cases, which is its
     # own kind of wrong answer.
+    #
+    # The floor is chosen by parsed INSTANT, not by string order — `Z` and
+    # `+00:00` sort wrongly against each other, and picking the floor with the
+    # comparison this function exists to avoid would be a neat way to be
+    # careful in one line and careless in the one above it.
     truncated = (runs_limit is not None and runs is not None
                  and len(runs) >= runs_limit)
-    window_floor = min(resolved) if (resolved and truncated) else None
+    window_floor = None
+    if resolved and truncated:
+        dated = [(t, s) for s in resolved if (t := _ts(s)) is not None]
+        window_floor = min(dated)[1] if dated else None
 
     out = {}
     for seat in list(REQUEST_KINDS.values()):
@@ -768,11 +783,12 @@ def desk_load(open_recommendations: list[dict[str, Any]],
         `view()`'s own note calls the same rows "waiting for the CTO session",
         which is about DISPATCH — a different step, after the approval.
 
-    NOTHING IS HIDDEN TO MAKE THE NUMBER SMALLER. The rows that route away
-    from the CEO are counted in ``by_actor`` and summarised in ``not_ceo_load``,
-    the desk's own list of recommendations is untouched, and the note names the
-    chair's backlog out loud. Solving a counting problem by dropping rows would
-    be the same defect wearing the opposite sign.
+    NOTHING IS HIDDEN TO MAKE THE NUMBER SMALLER. Every row is counted in
+    ``by_actor``; the ones that left the CEO's figure are summed in
+    ``open_elsewhere`` and ``decided_awaiting_execution``; the desk's own list
+    of recommendations is untouched; and the note names the chair's backlog out
+    loud. Solving a counting problem by dropping rows would be the same defect
+    wearing the opposite sign.
 
     MEASURED EFFECT ON THE TRIGGER (this changes WHEN the COO is summoned, so
     it is recorded loudly): replayed against the live decision log at
@@ -803,6 +819,11 @@ def desk_load(open_recommendations: list[dict[str, Any]],
     decided_rows = 0
     open_elsewhere = 0
     if isinstance(open_recommendations, list):
+        # ONE classification pass, and the CEO's rows are collected in it. The
+        # first version classified twice — once to tally, once to filter — and
+        # two calls to the same predicate over the same row is two chances for
+        # the count and the list to disagree, which is the defect above.
+        mine = []
         for row in open_recommendations:
             verdict = next_actor(row)
             actor = verdict["actor"]
@@ -810,17 +831,16 @@ def desk_load(open_recommendations: list[dict[str, Any]],
             if verdict["basis"] == "explicit":
                 explicit_rows = explicit_rows + 1
             status = row.get("status") if isinstance(row, dict) else None
+            # UNKNOWN counts toward the CEO. A row whose next actor could not
+            # be read is work he may still owe, and reporting it as zero would
+            # be this fund's oldest mistake in a new place.
             if actor in ("ceo", "unknown"):
-                pass                      # counted in `total` below
+                mine.append(row)
             elif status in ("accepted", "staged"):
                 decided_rows = decided_rows + 1
             else:
                 open_elsewhere = open_elsewhere + 1
-        # UNKNOWN counts. A row whose next actor could not be read is work the
-        # CEO may still owe, and reporting it as zero would be this fund's
-        # oldest mistake in a new place.
-        open_recommendations = [r for r in open_recommendations
-                                if next_actor(r)["actor"] in ("ceo", "unknown")]
+        open_recommendations = mine
 
     parts = {
         "open_recommendations": _count(open_recommendations),
