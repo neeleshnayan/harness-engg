@@ -82,6 +82,27 @@ maintain a day log for fable to review."***
   risk) needs only a nod.
 - gate-v5 trio builder still in flight.
 
+### BUILT (overnight, after the CEO slept)
+
+- **GATE v4.2 DELIVERED, UNMERGED** (builder D16, bundle
+  `builder-d16-gatev5.bundle`): the breakeven floor is REACHABLE (failure
+  names tested-range and floor), inadequate cost grids are refused AT
+  SUBMISSION (400 before 96 minutes of containers), CRITERIA byte-identical,
+  version bumped because the same evidence now fails. **Fix 3 (active
+  breakeven) correctly STOPPED**: sweep points carry no benchmark and run on
+  the holdout train window — a naive active number would have KILLED
+  candidates that clear the floor (−31.83pp vs true 13.9bps). The close is a
+  BELT change (per-point benchmarks). 1743 tests green on the merged tree;
+  12/12 mutants killed. **With the adversary blind now** (batched with the
+  two loosening challenges: COO counter rule, PDT retirement). Entry 20's
+  v4.1 row is PRESERVED — a re-judge is a new row, never a replacement.
+- Builder EVOLVE applied (mutation-prove every branch; prove READ by MOVING
+  the value — two-dispatch measured basis). THE CLEANUP now deferred FOUR
+  times; slot after hazard batch + benchmark population; scope gains the four
+  cebc578 worktrees.
+- PM in flight on the 2026-09-08 exit design (395335c8) + the PDT-free
+  sizing re-derivation.
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT

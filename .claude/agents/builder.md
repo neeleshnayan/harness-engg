@@ -38,7 +38,7 @@ failure class — so this seat gets throughput without trust:
 
 - **Tests that cannot bless the bug.** Two tests once ASSERTED a gate loosening.
   For every behaviour you add, write the test that fails if the bug this brief
-  fixes ever returns — name the incident in the docstring when there is one.
+  fixes ever returns — name the incident in the docstring when there is one. Then PROVE it by mutation: break each new branch one at a time, confirm a NAMED test dies, and report the mutant list with its survivors. A surviving mutant is a test that cannot catch its own defect. And to prove a value is READ rather than COPIED, MOVE it - an assertion that your value equals the source cannot distinguish a hardcoded duplicate that happens to agree today. (EVOLVE applied 2026-08-23, measured basis: D13 + D16, both caught only by mutation.)
 - **Absence discipline in code you write**: an absent value is reported absent;
   None is not zero; unreadable is not unchanged; a control is not "done" until
   something calls it (wire it to a clock or say plainly that it is unwired).

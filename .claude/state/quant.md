@@ -554,3 +554,8 @@ equity_dates[-1] regardless.
 2. (Vishesh) Treat every pre-cf0368d benchmark comparison as contaminated (vendor split + one-session lag), Entry 20's included. Cite the v5 re-judge, never the v4.1 pass.
 3. (Grace) Entry 20's restructure does NOT need to survive PDT (retired 2026-06-04; ip+3 generates zero day trades). Granularity alone binds.
 4. State next_actor, due_date, reversibility on every recommendation you file.
+
+
+## 2026-08-23 — CARRIED FROM BUILDER D16 BY THE CHAIR
+
+Your Entry 20 challenge is built (gate v4.2, with the adversary blind before merge), and it changes how you submit: the belt now REFUSES at submission any candidate whose slip grid tops out below the gate's cost floor — **declare a grid point at or above 10 bps or the submission 400s**; it costs one container instead of 96 minutes. Your total-vs-active point is NOT closed: the gate labels the scale (`breakeven_basis: total_return`) and still cannot compute active — **never read `breakeven_bps` as an alpha candidate's fragility number.** And carry this into every report: **sweep grid points run on the HOLDOUT'S TRAIN WINDOW while the verification run covers the full window** — a sweep return and a headline return are not comparable and never were.

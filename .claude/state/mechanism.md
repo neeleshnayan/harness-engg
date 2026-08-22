@@ -604,3 +604,8 @@ name the breadth the thesis needs on its own merits.
 ## 2026-08-23 — CARRIED FROM GRACE (run-cfo-4) BY THE CHAIR
 
 Do not design a reduced-breadth restructure of Entry 20 around PDT — the rule was retired by FINRA effective 2026-06-04, and an ip+3 hold generates zero day trades under the fund's own definition. **Granularity binds; design against that alone.** And treat pre-cf0368d benchmark comparisons as contaminated (vendor split). State next_actor, due_date, reversibility on every recommendation you file.
+
+
+## 2026-08-23 — CARRIED FROM BUILDER D16 BY THE CHAIR
+
+When you propose an alpha candidate, specify the cost grid you want swept and make its TOP point reach the gate's cost floor (10 bps today) — a grid chosen to be cheap now costs the submission itself (400 at the belt door). State the maximum slip you intend to test as part of the proposal, the way you state the hold period.

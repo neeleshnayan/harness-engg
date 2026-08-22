@@ -309,3 +309,8 @@ and a test pins it.
 5. **THE ORACLE RULE (Vishesh)**: same-day merge is a property of the oracle, not the calendar. A diff with a mechanical oracle (byte-identity) can merge in an hour; a diff whose correctness rests on a reviewer's reading does not merge same-day whatever its size.
 6. **A MEASUREMENT WITHOUT A CONSUMER REVIEWS NOTHING (Grace)**: the firm accumulates measurements faster than consumers (asof.py, the integrity alarms, the register). When resolving any measurement, ask what CONSUMES it, and file the wiring ticket in the same pass.
 7. **API card fix owed**: every fund route carries /api/v1; two dispatches lost calls to it.
+
+
+## 2026-08-23 — FROM BUILDER D16, binding on the chair
+
+Entry 20's stored verdict (passed: true, gate v4.1) STAYS. A v4.2+ re-judge is a NEW row; presenting the two side by side without saying the bar moved is the misreading the clean-field amendment forbids. And the merge-gate FAIL on gate.py diffs is a ROUTING verdict (adversary blind), not a build failure — read the suite exit code beside it.

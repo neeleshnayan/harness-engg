@@ -777,3 +777,8 @@ reading a wall-clock-following window instead.
 1. (Grace) Add to your instrument audits: **does this measurement have a consumer?** asof.py corrects a measured −6.90pp bias and has one consumer in the repo (a capture script) — a finding nothing reads reviews nothing, the register-of-notes lesson's sibling.
 2. (Vishesh) When a recommendation of yours self-declares a loosening, file its adversary ticket in the same dispatch — your per-name slippage replacement was RETURNED for lacking one.
 3. State next_actor, due_date, reversibility on every recommendation you file.
+
+
+## 2026-08-23 — CARRIED FROM BUILDER D16 BY THE CHAIR
+
+Gate v4.2 changes which candidates pass with NO threshold moved — any null-audit, power-audit or calibration figure computed under v4.1 now measures a different bar. **Re-run rather than compare; never put a v4.1 row beside a v4.2 row in one table.** Your reachable-criterion census gains a confirmed member: min_breakeven_bps was unevaluable-and-reported-passed — the register-of-notes pattern live inside the gate itself, not only judgement.py.
