@@ -265,6 +265,31 @@ MODES: dict[FundMode, ModeSpec] = {
 # This constant is the first lock. Changing it is a versioned change with a
 # written reason and a human's name on it, exactly like a threshold — because
 # that is what it is.
+#
+# AND IT ONLY BECAME A LOCK ON 2026-08-22 (adversary review of builder D11,
+# finding K5). v1 wrote both locks down and wired NEITHER: ``resolve()`` read
+# only its own ``allow_prod`` argument, so ``PROD_UNLOCKED`` and the five
+# preconditions decided nothing, and ``prod_gate_report()["reachable"]``
+# computed from a constant the deciding line never consulted — the boolean read
+# a different line than the one that refused. Prod was unreachable by ABSENCE
+# OF A CALLER (``allow_prod`` had zero callers in the whole repository,
+# including tests), which is the unwired-kill-switch pattern with a report on
+# top of it.
+#
+# EVERY gate now goes through ``_refuse_prod_unless_reachable``, which asks
+# ``prod_gate_report()["reachable"]`` — so the report and the refusal cannot
+# disagree, because they are the same call. The four gates:
+#
+#     resolve()          — a process may not even determine itself into prod
+#     activate()         — nor declare itself prod once resolved
+#     pg_dsn_for()       — nor construct a connection string to the prod ledger
+#     venue.build_connector() — nor build an order path to the live account
+#
+# and EventStore.__new__ inherits two of them by construction. Deleting any one
+# `if` therefore removes ONE gate, not all of them — which is the specific
+# upgrade hazard the review named: whoever eventually unlocks prod flips this
+# constant, sees the refusals stop naming it, and never has to edit a
+# conditional.
 PROD_UNLOCKED = False
 
 #: What the CEO agreed must be true before real money moves (desk request
@@ -427,8 +452,42 @@ def prod_gate_report(store: Any = None) -> dict[str, Any]:
         "n_blocking": len(unmet),
         # BOTH locks. Reported as one boolean because the caller's question is
         # "can real money move", and the answer is no if either lock holds.
+        #
+        # THIS IS THE LINE THAT DECIDES, not merely the line that describes.
+        # Every gate in the fund reads it through
+        # ``_refuse_prod_unless_reachable`` below, so a report that says
+        # ``reachable: true`` while the code refuses — v1's actual behaviour —
+        # is no longer expressible.
         "reachable": bool(PROD_UNLOCKED) and not unmet,
     }
+
+
+def _refuse_prod_unless_reachable(spec: ModeSpec, action: str,
+                                  store: Any = None) -> None:
+    """THE ONE GATE. Every alpaca-prod refusal in the fund comes through here.
+
+    A no-op for the two wired modes, so the cost of routing every call site
+    through it is one enum comparison.
+
+    Why one function rather than the same condition written four times: the
+    review's finding was not that a check was missing, it was that the check
+    and the REPORT OF the check were different code. Four copies of a condition
+    is four chances for that to happen again, and the fifth caller — the one
+    someone adds next year — is the one that will not have the check at all.
+    """
+    if spec.mode is not FundMode.ALPACA_PROD:
+        return
+    report = prod_gate_report(store)
+    if report["reachable"]:
+        return
+    blocking = "; ".join(f"{c['key']}={c['status']}"
+                         for c in report["preconditions"]
+                         if c["status"] != "met")
+    raise ProdLocked(
+        f"{action}: alpaca-prod is structurally unreachable. "
+        f"PROD_UNLOCKED={PROD_UNLOCKED} (app/fund/mode.py), and "
+        f"{report['n_blocking']} of {report['n_preconditions']} CEO-agreed "
+        f"preconditions are not met: {blocking}")
 
 
 # --- resolution --------------------------------------------------------------
@@ -490,7 +549,7 @@ def parse_mode(raw: str) -> FundMode:
         ) from None
 
 
-def resolve(env: Optional[dict] = None, *, allow_prod: bool = False) -> ModeSpec:
+def resolve(env: Optional[dict] = None) -> ModeSpec:
     """The declared mode, or an exception. Never a guess.
 
     Two authorities, and they must AGREE:
@@ -531,17 +590,12 @@ def resolve(env: Optional[dict] = None, *, allow_prod: bool = False) -> ModeSpec
     mode = parse_mode(chosen)
     spec = MODES[mode]
 
-    if mode is FundMode.ALPACA_PROD and not allow_prod:
-        report = prod_gate_report()
-        raise ProdLocked(
-            "alpaca-prod is structurally unreachable. "
-            f"PROD_UNLOCKED={PROD_UNLOCKED} (app/fund/mode.py), and "
-            f"{report['n_blocking']} of {report['n_preconditions']} "
-            "CEO-agreed preconditions are not met: "
-            + "; ".join(f"{c['key']}={c['status']}"
-                        for c in report["preconditions"]
-                        if c["status"] != "met")
-        )
+    # NO BYPASS ARGUMENT. v1 had ``allow_prod: bool = False`` here and it was
+    # the ONLY thing the condition read — the constant and the preconditions
+    # were decorative. It is deleted rather than made private, because it had
+    # zero callers in the entire repository (tests included), so nothing needed
+    # it and its only function was to be the hole.
+    _refuse_prod_unless_reachable(spec, "resolving the fund mode")
     return spec
 
 
@@ -560,6 +614,12 @@ def activate(spec: ModeSpec, *, force: bool = False) -> ModeSpec:
     established that nothing is in flight.
     """
     global _ACTIVE
+    # The second gate, and it is NOT redundant with resolve(): `activate()` is
+    # callable with any spec by anything that can reach `MODES`, including the
+    # mode-switch endpoint, which passes `MODES[target]` directly and never
+    # goes through resolve() at all. `force=True` skips the store-crossing
+    # check; it has never skipped this one.
+    _refuse_prod_unless_reachable(spec, "activating the fund mode")
     if _ACTIVE is not None and _ACTIVE.mode is not spec.mode and not force:
         raise StoreCrossing(
             f"this process is already running {_ACTIVE.mode.value!r} against "
@@ -602,7 +662,13 @@ def pg_dsn_for(spec: ModeSpec, base_dsn: str) -> str:
     segment of a libpq URI; everything before it (user, password, host, port)
     and everything after it (query parameters) is carried through untouched,
     so a change of host or an added ``sslmode`` needs no change here.
+
+    REFUSES for alpaca-prod while the gate is shut. Reading the NAME of the
+    prod database is fine and ``report()`` does it on every call; building a
+    connection string to it is the act, and this is the only function that
+    performs it — ``EventStore.__new__`` reaches Postgres through here.
     """
+    _refuse_prod_unless_reachable(spec, "building the ledger DSN")
     head, sep, tail = base_dsn.partition("?")
     if "/" not in head:
         raise ModeError(

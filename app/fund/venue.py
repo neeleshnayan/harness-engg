@@ -32,6 +32,7 @@ from app.fund.mode import (
     ModeError,
     ModeSpec,
     VenueKind,
+    _refuse_prod_unless_reachable,
     assert_connector_permitted,
 )
 
@@ -53,7 +54,14 @@ def build_connector(spec: ModeSpec,
 
     ``live_pricer`` is only consulted for the simulated venue, where fills are
     fake and the prices they fill at are real.
+
+    REFUSES for alpaca-prod while the gate is shut, and this is the gate that
+    matters most: the adversary's probe BUILT a live ``AlpacaConnector(paper=
+    False)`` off the prod spec because nothing here asked (review of builder
+    D11, finding K5). Prod was unreachable by absence of a caller, not by a
+    mechanism.
     """
+    _refuse_prod_unless_reachable(spec, "building the order path")
     if spec.venue_kind is VenueKind.SIMULATED:
         from app.fund.connectors.paper import PaperConnector
         conn: Any = PaperConnector(live_pricer=live_pricer)

@@ -245,13 +245,20 @@ class TestStoresAreNeverJoined:
 class TestDsnRouting:
     BASE = "postgresql://krypton:krypton_local@127.0.0.1:5433/krypton_fund"
 
-    def test_each_mode_gets_its_own_database_on_the_same_server(self):
+    def test_each_wired_mode_gets_its_own_database_on_the_same_server(self):
+        """Only the two WIRED modes. pg_dsn_for refuses to build a connection
+        string to the prod ledger while the gate is shut (K5) — the prod
+        database's NAME is still readable, on the spec and in the report, but
+        a DSN is the act of preparing to open it."""
         got = {mode.value: m.pg_dsn_for(m.MODES[mode], self.BASE)
-               for mode in m.FundMode}
+               for mode in m.FundMode if m.MODES[mode].wired}
         assert got["test"].endswith("/krypton_fund_dev")
         assert got["alpaca-paper"].endswith("/krypton_fund")
-        assert got["alpaca-prod"].endswith("/krypton_fund_prod")
-        assert len(set(got.values())) == 3
+        assert len(set(got.values())) == 2
+        # The three names are still three, read off the specs rather than out
+        # of a DSN — that separation is the whole point.
+        assert len({m.MODES[mode].pg_database for mode in m.FundMode}) == 3
+        assert m.MODES[m.FundMode.ALPACA_PROD].pg_database == "krypton_fund_prod"
 
     def test_credentials_host_and_port_are_carried_through(self):
         out = m.pg_dsn_for(m.MODES[m.FundMode.TEST], self.BASE)
@@ -397,6 +404,171 @@ class TestModeFile:
         env = {"FUND_MODE_FILE": str(tmp_path / ".fund_mode")}
         m.write_mode_file(m.FundMode.TEST, "neelesh", "r", env=env)
         assert sorted(p.name for p in tmp_path.iterdir()) == [".fund_mode"]
+
+
+# --- K5: THE TWO LOCKS ARE THE LOCKS -----------------------------------------
+class TestProdGatesAreWiredNotDescribed:
+    """Adversary review of builder D11, 2026-08-22, finding K5.
+
+    v1 documented two independent locks — the ``PROD_UNLOCKED`` constant and
+    the five CEO preconditions — and wired NEITHER. ``resolve()`` read only its
+    own ``allow_prod`` argument; the constant and the preconditions decided
+    nothing, and ``prod_gate_report()["reachable"]`` computed from a line the
+    refusal never consulted, so the report could read ``True`` while the code
+    refused. The adversary's probe BUILT a live ``AlpacaConnector(paper=False)``
+    off the prod spec, because ``build_connector`` never asked. Prod was
+    unreachable by ABSENCE OF A CALLER — ``allow_prod`` had zero callers in the
+    whole repository — which is the unwired-kill-switch pattern with a report
+    on top of it.
+
+    Every surface that can move real money is probed here. A test that only
+    checked ``resolve()`` would have passed against v1's successor if someone
+    re-added a bypass to any of the other four.
+    """
+
+    PROD = None  # set in setup; the spec is a plain dict entry and readable
+
+    def setup_method(self):
+        self.PROD = m.MODES[m.FundMode.ALPACA_PROD]
+
+    def test_A_resolve_refuses(self):
+        with pytest.raises(m.ProdLocked):
+            m.resolve(env={"FUND_MODE": "alpaca-prod",
+                           "FUND_MODE_FILE": "/nonexistent/.fund_mode"})
+
+    def test_B_resolve_has_no_bypass_argument_at_all(self):
+        """Deleted rather than made private. It had zero callers, so nothing
+        needed it and its only function was to be the hole."""
+        import inspect
+        params = inspect.signature(m.resolve).parameters
+        assert list(params) == ["env"], (
+            f"resolve() grew a parameter: {list(params)} — if it is a prod "
+            f"bypass, K5 has returned")
+
+    def test_C_activate_refuses(self):
+        """NOT redundant with resolve(): the mode-switch endpoint passes
+        MODES[target] to activate() directly and never calls resolve()."""
+        with pytest.raises(m.ProdLocked):
+            m.activate(self.PROD)
+
+    def test_D_activate_refuses_even_with_force(self):
+        """``force=True`` skips the store-crossing check. It has never been
+        permitted to skip this one, and the switch path passes it."""
+        with pytest.raises(m.ProdLocked):
+            m.activate(self.PROD, force=True)
+
+    def test_E_pg_dsn_for_refuses(self):
+        with pytest.raises(m.ProdLocked):
+            m.pg_dsn_for(self.PROD,
+                         "postgresql://u:p@127.0.0.1:5433/krypton_fund")
+
+    def test_F_build_connector_refuses_before_it_can_construct_one(self,
+                                                                   monkeypatch):
+        """The probe that made this a KILL: with credentials present,
+        build_connector produced a LIVE AlpacaConnector off the prod spec."""
+        from app.fund.venue import build_connector
+
+        monkeypatch.setenv("ALPACA_API_KEY", "k")
+        monkeypatch.setenv("ALPACA_SECRET_KEY", "s")
+        with pytest.raises(m.ProdLocked):
+            build_connector(self.PROD)
+
+    def test_G_the_event_store_cannot_be_pointed_at_the_prod_ledger(self,
+                                                                    monkeypatch):
+        """EventStore.__new__ resolves the mode and calls pg_dsn_for; both are
+        gated, so the prod ledger cannot be opened by a forgetful script."""
+        from app.fund.events import EventStore
+
+        monkeypatch.setenv("FUND_STORE", "postgres")
+        monkeypatch.setenv("FUND_MODE", "alpaca-prod")
+        monkeypatch.setenv("FUND_MODE_FILE", "/nonexistent/.fund_mode")
+        m.deactivate()
+        with pytest.raises(m.ProdLocked):
+            EventStore()
+
+    def test_every_gate_reads_prod_gate_report_and_nothing_else(self,
+                                                                monkeypatch):
+        """v1's sharpest defect: ``reachable`` computed from PROD_UNLOCKED
+        while ``resolve()`` read ``allow_prod``, so the boolean measured the
+        documented design rather than the shipped line.
+
+        Replaces ``prod_gate_report`` wholesale with a recording stub that says
+        reachable. Every gate must then OPEN — which is only possible if each
+        of them asks that one call. A gate wired to a private copy of the
+        condition stays shut and this fails; a gate that forgot to ask does not
+        appear in ``asked``.
+        """
+        asked = []
+
+        def stub(store=None):
+            asked.append(store)
+            return {"reachable": True, "preconditions": [],
+                    "n_blocking": 0, "n_preconditions": 0}
+
+        monkeypatch.setattr(m, "prod_gate_report", stub)
+        spec = m.resolve(env={"FUND_MODE": "alpaca-prod",
+                              "FUND_MODE_FILE": "/nonexistent/.fund_mode"})
+        assert spec.mode is m.FundMode.ALPACA_PROD
+        assert m.pg_dsn_for(spec, "postgresql://u:p@h:1/krypton_fund") \
+            .endswith("/krypton_fund_prod")
+        m.deactivate()
+        assert m.activate(spec).mode is m.FundMode.ALPACA_PROD
+        m.deactivate()
+        assert len(asked) == 3, (
+            f"three gates were exercised and prod_gate_report was asked "
+            f"{len(asked)} time(s) — one of them decides on something else")
+
+    def test_at_boot_a_store_dependent_precondition_blocks_and_that_is_stated(self):
+        """A property worth naming rather than discovering on the day it bites.
+
+        ``resolve()`` runs at IMPORT, before any event store exists, so it can
+        only ever pass ``store=None`` — and ``Precondition.evaluate`` reports
+        ``unchecked`` (which blocks) whenever there is no store to read. Two of
+        the five CEO preconditions need one.
+
+        The consequence: unlocking alpaca-prod is NOT a one-line constant flip.
+        Whoever unlocks it must also arrange for the gate to be evaluated
+        somewhere a store exists. That is fail-closed and deliberate; it is
+        written down here so it is a decision rather than a surprise.
+        """
+        report = m.prod_gate_report(store=None)
+        got = {c["key"]: c["status"] for c in report["preconditions"]}
+        assert got["controls_fired"] == "unchecked"
+        assert got["informative_fills"] == "unchecked"
+        assert report["reachable"] is False
+
+    def test_one_lock_alone_is_not_enough_in_either_direction(self,
+                                                              monkeypatch):
+        """Two INDEPENDENT locks. Opening either one alone keeps prod shut, so
+        a future edit that satisfies the preconditions does not silently also
+        flip the constant, and vice versa."""
+        met = [m.Precondition(key="x", text="t",
+                              evaluator=lambda s: (True, "ok"))]
+
+        # preconditions met, constant still False
+        monkeypatch.setattr(m, "PROD_PRECONDITIONS", tuple(met))
+        assert m.prod_gate_report(store=object())["reachable"] is False
+        with pytest.raises(m.ProdLocked):
+            m.activate(m.MODES[m.FundMode.ALPACA_PROD])
+
+        # constant True, preconditions back to the real (unchecked) five
+        monkeypatch.undo()
+        monkeypatch.setattr(m, "PROD_UNLOCKED", True)
+        assert m.prod_gate_report(store=None)["reachable"] is False
+        with pytest.raises(m.ProdLocked):
+            m.activate(m.MODES[m.FundMode.ALPACA_PROD])
+
+    def test_the_two_wired_modes_are_untouched_by_the_gate(self):
+        """A gate that also blocks the modes the fund actually runs on is a
+        different kind of failure. Both wired modes still resolve, activate,
+        and produce a DSN."""
+        for mode in (m.FundMode.TEST, m.FundMode.ALPACA_PAPER):
+            spec = m.MODES[mode]
+            m.deactivate()
+            assert m.activate(spec).mode is mode
+            assert m.pg_dsn_for(spec, "postgresql://u:p@h:1/krypton_fund") \
+                .endswith("/" + spec.pg_database)
+        m.deactivate()
 
 
 # --- K1: THE MODE LEDGERS ARE NOT PYTEST'S SCRATCH SPACE ---------------------
