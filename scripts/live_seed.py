@@ -81,9 +81,14 @@ def main() -> int:
         print("spine unreachable:", book)
         return 1
     if not book.get("orders_are_real"):
+        # The instruction must name a variable that still DOES something.
+        # FUND_REAL_BROKER stopped selecting the venue on 2026-08-22; an
+        # operator who followed this line would set it, see no change, and
+        # conclude the spine was broken.
         print(f"REFUSING: this spine does not route orders to the real broker "
-              f"(venue={book.get('venue')!r}). Start it with FUND_REAL_BROKER=1, "
-              "or use mock_seed.py for a simulated venue.")
+              f"(mode={book.get('mode')!r}, venue={book.get('venue')!r}). "
+              "Start it with FUND_MODE=alpaca-paper, or use mock_seed.py "
+              "against FUND_MODE=test for a simulated venue.")
         return 1
     if book.get("is_production"):
         print("REFUSING: this is the PRODUCTION ledger. This script is for a local "
