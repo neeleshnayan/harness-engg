@@ -45,6 +45,11 @@ export const SEATS = [
   // Seated 2026-08-20 (CEO decision); given a route and a floor desk
   // 2026-08-21. The seat carries the name Donna — see faces.ts.
   "secretary",
+  // Seated 2026-08-22 (CEO decision); given a route and an EXECUTIVE-ROW floor
+  // desk the same day. The seat carries the name Grace — see faces.ts. She is
+  // on this list for the route guard only: her desk is drawn in EXEC_ROW, not
+  // on the bench, and floorPlan.ts excludes her from BENCH_ORDER accordingly.
+  "cfo",
 ] as const;
 
 export type SeatId = (typeof SEATS)[number];
@@ -60,6 +65,15 @@ export function isSeat(s: string | undefined | null): s is SeatId {
  * click. The spine validates the kind on POST regardless; if this map ever
  * drifts, the request is rejected with a 422 listing the valid kinds rather
  * than silently filed to the wrong seat.
+ *
+ * AN EMPTY STRING IS A STATED ABSENCE, NOT A BLANK TO FILL IN. The spine's
+ * `REQUEST_KINDS` (app/fund/desk.py:160-181, read 2026-08-22) has ten entries
+ * and none of them routes to the `cfo`. There is therefore NO kind that would
+ * reach Grace, and inventing one here would put a word on screen that the
+ * endpoint rejects — the composer displays this value verbatim. So the entry is
+ * empty and `AskSeat` renders a sentence naming the gap instead of a form that
+ * cannot post. The day the spine gains a cfo kind, seatLib.test.ts fails until
+ * this is filled in; that is deliberate.
  */
 export const SEAT_REQUEST_KIND: Record<SeatId, string> = {
   mechanism: "proposal",
@@ -73,6 +87,10 @@ export const SEAT_REQUEST_KIND: Record<SeatId, string> = {
   coo: "triage",
   // The CTO triggers her at end of day; the kind names that, not a schedule.
   secretary: "document_day",
+  // NO KIND ON THE SPINE. See the note above: Grace is dispatched by the chair
+  // directly today, and the desk queue cannot route to her until app/fund/desk.py
+  // gains an entry. Absent, said out loud — never a plausible-looking guess.
+  cfo: "",
 };
 
 /** Declared model placement, per the quota-era dispatch rules in the workspace
@@ -96,6 +114,13 @@ export const SEAT_PLACEMENT: Record<SeatId, string> = {
   builder: "Opus",
   coo: "Opus — judgement near governance, never downgraded, never local",
   secretary: "Opus first; a downgrade trial is allowed once the memo template is stable — a bad summary misleads the CEO quietly",
+  // UNDECLARED, deliberately. The constitution's placement paragraph names
+  // mechanism/pm/adversary/validator/riskofficer/coo, the quant split, the
+  // analyst split and the secretary — it does not name the cfo, seated
+  // 2026-08-22. This field is a DECLARATION, so the honest value is that no
+  // declaration exists; the observed models the page renders beside it are the
+  // only measurement there is.
+  cfo: "undeclared — the constitution's placement paragraph does not yet name this seat; the observed models beside this are the only measurement",
 };
 
 /* ------------------------------------------------------------- absences --- */

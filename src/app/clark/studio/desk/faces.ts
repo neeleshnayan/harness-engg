@@ -151,6 +151,26 @@ export const FACES: Readonly<Record<string, FaceSpec>> = Object.freeze({
     head: "round", eyes: "lines", mouth: "small", feature: "book",
   },
 
+  cfo: {
+    // Seated 2026-08-22 (CEO decision) and named GRACE the same day, for
+    // Hopper. Given a desk in the EXECUTIVE ROW rather than on the bench: the
+    // constitution's executive table seats her and the COO as peers who advise
+    // the CEO on the same decisions from different axes.
+    //
+    // THE FEATURE IS SHARED WITH THE QUANT AND THAT IS A COMPROMISE, NAMED.
+    // The mark this seat wants is Hopper's nanosecond — 11.8 inches of wire, a
+    // short straight segment — and adding a `wire` glyph means a new case in
+    // SeatFace.tsx, which is outside this dispatch's file boundary. `curve` is
+    // the nearest true meaning available (her memo's central artifact is a
+    // meter and a critical path, both curves) and the TUPLE is what the
+    // registry's uniqueness rule actually enforces: oval/lines/small/curve is
+    // held by nobody. Replace it with `wire` the first time SeatFace.tsx is
+    // legitimately open.
+    id: "cfo", label: "Grace", kind: "seat",
+    role: "what each seat costs and what it bought; judges work by whether it moves the date",
+    head: "oval", eyes: "lines", mouth: "small", feature: "curve",
+  },
+
   ceo: {
     id: "ceo", label: "Neelesh", kind: "human",
     role: "CEO — risk appetite, identity, and every approval click",
@@ -227,6 +247,7 @@ const ALIASES: ReadonlyArray<{ re: RegExp; id: string }> = [
   { re: /^fable$/, id: "cto" },
   { re: /^vishesh$/, id: "coo" },
   { re: /^donna$/, id: "secretary" },
+  { re: /^grace$/, id: "cfo" },
 ];
 
 /**

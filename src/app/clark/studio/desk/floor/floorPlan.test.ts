@@ -30,6 +30,7 @@ import {
   CORRIDOR,
   EXEC_ROW,
   FIXTURES,
+  PLANE_PX,
   allSpots,
   benchSpots,
   corridorHasNoShortcut,
@@ -40,7 +41,10 @@ import {
   pulsesByWire,
   reviewDetectionBlind,
   roomState,
+  runsChip,
+  screenSeparation,
   spotById,
+  wallClearance,
 } from "./floorPlan.ts";
 
 /* ------------------------------------------------------------------ flag --- */
@@ -74,15 +78,28 @@ test("the flag is read as a LITERAL process.env member, or the browser never see
 
 /* ------------------------------------------------- geometry = org chart ---- */
 
-test("the exec row is the reporting line: corner office, triage, record, console", () => {
-  // Donna joined 2026-08-21, beside Vishesh (brief Part B). The row is the
-  // reporting line: the CEO decides, the COO batches, the secretary records,
-  // the CTO dispatches.
-  assert.deepEqual(EXEC_ROW.map((s) => s.id), ["ceo", "coo", "secretary", "cto"]);
+test("the exec row is the reporting line: corner office, triage, the meter, record, console", () => {
+  // Donna joined 2026-08-21, beside Vishesh (brief Part B). Grace joined
+  // 2026-08-22 (CEO: "CFO desk needs to be visible in the room too"). The row
+  // is the reporting line: the CEO decides, the COO batches, the CFO argues
+  // with the COO, the secretary records, the CTO dispatches.
+  assert.deepEqual(EXEC_ROW.map((s) => s.id), ["ceo", "coo", "cfo", "secretary", "cto"]);
   // Left to right along the back wall, and the corner office is IN the corner.
   const xs = EXEC_ROW.map((s) => s.at.x);
   assert.deepEqual([...xs].sort((a, b) => a - b), xs);
   assert.ok(EXEC_ROW[0].at.x < 25, "the corner office must sit against the wall");
+});
+
+test("the two seats the constitution makes argue are drawn ADJACENT", () => {
+  // THE EXECUTIVE TABLE (constitution, 2026-08-22): the COO and the CFO advise
+  // the same person on the same decisions from different axes and are expected
+  // to argue — "Vishesh ranks by what cannot be taken back; Grace ranks by what
+  // moves the date." On this floor the geometry IS the org chart, so seating
+  // them at opposite ends of the row would be drawing something false. This
+  // fails if a future re-order slides another desk between them.
+  const ids = EXEC_ROW.map((s) => s.id);
+  assert.equal(Math.abs(ids.indexOf("coo") - ids.indexOf("cfo")), 1,
+    "the COO and the CFO are peers who argue; the room must not seat them apart");
 });
 
 test("exactly ONE inbox tray exists, and it is in the corner office", () => {
@@ -98,15 +115,24 @@ test("exactly ONE inbox tray exists, and it is in the corner office", () => {
 });
 
 test("the bench is in CONSTITUTION order, two rows of four, and no exec-row seat is on it", () => {
-  // The coo (2026-08-20) and the secretary (2026-08-21) have exec-row desks.
-  // A seat drawn in BOTH places would appear twice in one room, which is the
-  // failure this assertion caught the day Donna was added.
+  // The coo (2026-08-20), the secretary (2026-08-21) and the cfo (2026-08-22)
+  // have exec-row desks. A seat drawn in BOTH places would appear twice in one
+  // room, which is the failure this assertion caught the day Donna was added.
+  //
+  // EIGHT IS CHECKED, NOT ASSUMED. Grace's arrival added a seat to SEATS AND a
+  // desk to the exec row in the same change, so the bench held at eight and
+  // still fills 4x2 exactly. Had only one half landed, this is the line that
+  // fails — either a nine-seat bench with a row of one, or a duplicate desk.
   assert.equal(BENCH_ORDER.length, 8);
   assert.deepEqual([...BENCH_ORDER],
-    SEATS.filter((s) => s !== "coo" && s !== "secretary"));
-  for (const id of ["coo", "secretary"]) {
+    SEATS.filter((s) => s !== "coo" && s !== "secretary" && s !== "cfo"));
+  for (const id of ["coo", "secretary", "cfo"]) {
     assert.ok(!BENCH_ORDER.includes(id as never), `${id} is on the bench AND the exec row`);
   }
+  // The exec row and the bench between them must cover EVERY seat: a colleague
+  // who is on the roster and on neither is simply not in the room.
+  const drawn = new Set<string>([...EXEC_ROW.map((s) => s.id), ...BENCH_ORDER]);
+  for (const s of SEATS) assert.ok(drawn.has(s), `${s} has no desk anywhere on this floor`);
   const spots = benchSpots();
   assert.equal(spots.length, 8);
   const rows = new Set(spots.map((s) => s.at.y));
@@ -209,6 +235,32 @@ test("a dead spine is UNLIT, and is not the same fact as a quiet room", () => {
   // RiskBar owns the sentence about an unreachable monitor; the floor must not
   // invent a second, softer one.
   assert.equal(roomState({ deskReadable: true, monitorReadable: true, halted: null }), "lit");
+});
+
+test("a dead spine hides COUNTS, and must not invent a chip on a human or a machine", () => {
+  // THE DEFECT THIS PINS WAS LIVE UNTIL 2026-08-22 AND WAS FOUND BY LOOKING.
+  // Floor.tsx read `state === "dead" ? null : runsToday(spot)`. The first half
+  // is right — a stale count on an unreadable spine reads as measured — but it
+  // collapsed `undefined` into `null` on the way, and `undefined` is not a
+  // missing count, it is "this is not a dispatched seat at all". Result: a ×?
+  // on Neelesh's desk, on Fable's, on the machine room, on the caged
+  // auto-policy, on the venue door and on Abhishek's thesis door. Seventeen
+  // spots, seventeen chips, measured off the live DOM.
+  //
+  // The three returns are three facts and the rule keeps them three.
+  assert.equal(runsChip("lit", 3), 3);
+  assert.equal(runsChip("lit", 0), 0, "a measured zero is a measurement");
+  assert.equal(runsChip("halted", 5), 5, "a halt is not an unreadable spine");
+  assert.equal(runsChip("lit", null), null, "an unread count is ×?, never 0");
+  // Dead: counts become ×?, because unknown must not read as measured.
+  assert.equal(runsChip("dead", 3), null);
+  assert.equal(runsChip("dead", 0), null);
+  assert.equal(runsChip("dead", null), null);
+  // Dead: a NON-SEAT stays a non-seat. This is the regression.
+  assert.equal(runsChip("dead", undefined), undefined,
+    "a dead spine put a runs chip on the CEO, the CTO and every fixture");
+  assert.equal(runsChip("lit", undefined), undefined);
+  assert.equal(runsChip("halted", undefined), undefined);
 });
 
 test("no roster means NO lamps — never 'everyone idle'", () => {
@@ -363,15 +415,142 @@ test("the secretary has an exec-row desk, a route and a face", () => {
   assert.equal(faceFor("donna")?.id, "secretary", "her name must reach her face");
 });
 
-test("the exec row stays evenly spaced after the fourth desk", () => {
-  // The row was re-spaced from three to four rather than squeezing her in: exec
-  // spacing was 23-25 units and the bench's is 19, so an inserted desk at ~11
-  // would have overlapped its neighbours.
+/* ------------------------------------------------ Grace joins the floor --- */
+
+test("the cfo has an exec-row desk, a route the whitelist knows, and a face", () => {
+  // CEO, 2026-08-22: "CFO desk needs to be visible in the room too". Grace was
+  // seated in the constitution, had been dispatched and had recorded a run, and
+  // the room did not draw her — the spine had already been fixed (GET /fund/desk
+  // returns 11 roster seats with cfo present) and only the UI was behind.
+  const d = spotById("cfo");
+  assert.ok(d, "no cfo desk on the floor");
+  assert.equal(d!.label, "Grace");
+  assert.equal(d!.at.y, EXEC_ROW[0].at.y, "she is on the back wall with the others");
+  assert.ok(d!.lampable, "she is a dispatched seat and her desk must be able to light");
+  // The desk is a DOOR, and a door that 404s is worse than no door: the route
+  // whitelist has to carry her too. This is the assertion that would have
+  // caught a floor desk added without the seatLib change.
+  assert.equal(d!.href, "/clark/studio/desk/cfo");
+  assert.ok((SEATS as readonly string[]).includes("cfo"),
+    "the cfo desk links to a route the seat whitelist rejects — it will 404");
+  assert.ok(faceFor("cfo"), "no face on file for the cfo");
+  assert.equal(faceFor("grace")?.id, "cfo", "her name must reach her face");
+  // Her sentence has to carry the SEAT's point, not its title. The scarce
+  // resource is the clock (CEO, same day), and every allocation is judged on
+  // whether it moves the date — a desk plaque reading "CFO — finance" would be
+  // a label where the room promises a job.
+  assert.match(d!.says, /clock/);
+  assert.match(d!.says, /date/);
+});
+
+test("the exec row stays evenly spaced after the fifth desk", () => {
+  // The row was re-spaced from three to four (Donna, 2026-08-21) and from four
+  // to five (Grace, 2026-08-22) rather than squeezing anyone in: exec spacing
+  // was 23-25 units when the row held three and the bench's is ~20, so an
+  // inserted desk at ~11 units would have overlapped its neighbours.
+  //
+  // 18 UNITS IS NOT A TASTE, it is the arithmetic of the camera. One unit of
+  // pure-x travel is sqrt((PLANE_PX/100/√2)² + (PLANE_PX/100·cos58°/√2)²) =
+  // 6.08 screen px at PLANE_PX=760, so 18 units is 109px between centres
+  // against the widest measured exec card (the COO's, 75px with its triage
+  // tray). The row runs at 19 today, i.e. 116px.
   const xs = EXEC_ROW.map((s) => s.at.x);
   const gaps = xs.slice(1).map((x, i) => x - xs[i]);
   assert.ok(Math.min(...gaps) >= 18,
     `exec desks are ${Math.min(...gaps)} units apart — they will overlap`);
   assert.ok(Math.max(...gaps) - Math.min(...gaps) <= 3, "the row is uneven");
+});
+
+test("no two pieces of furniture overlap ON SCREEN, which is the space that matters", () => {
+  // Room-unit distance is the WRONG measure and a test that used it would pass
+  // while the room read as a pile: the camera squashes y to cos(58°) = 53% and
+  // spins the plane 45°, so two desks 12 units apart vertically are far closer
+  // than two 12 units apart on the diagonal. `screenSeparation` is that
+  // projection, validated against the live DOM (it predicted the console card
+  // 33.4px below the plane's top edge; getBoundingClientRect measured 34).
+  //
+  // 85px is measured, not chosen. Desk cards rendered 68-75px wide (CDP,
+  // 2026-08-22, 17 spots), so the widest possible pair of desks needs 75px of
+  // centre separation to stop touching and 85 leaves 10px of aisle. Today's
+  // tightest pair is quant/machine-room at 88.4px — this test has almost no
+  // slack in it on purpose: the next desk inserted here should have to think.
+  const spots = allSpots();
+  let worst = { pair: "", d: Infinity };
+  for (let i = 0; i < spots.length; i++) {
+    for (let k = i + 1; k < spots.length; k++) {
+      const d = screenSeparation(spots[i].at, spots[k].at);
+      if (d < worst.d) worst = { pair: `${spots[i].id} / ${spots[k].id}`, d };
+    }
+  }
+  assert.ok(worst.d >= 85,
+    `${worst.pair} are ${worst.d.toFixed(1)}px apart on screen — their cards touch`);
+
+  // The thesis door is the exception the room has to route around: its plaque
+  // reads "thesis — observe only" and measured 117px, so its neighbours need
+  // 92.5px before anything else does — nothing else in the room does. This
+  // assertion is also what said the door did NOT have to move in the
+  // 2026-08-22 re-space: an intermediate pass shifted it to (2,32), which
+  // measured 105.6px to the corner office, and (3,34) measures 119.4px. It
+  // stayed. Today's tightest neighbour is the mechanism's desk at 113.7px.
+  const door = spotById("thesis-door")!;
+  for (const s of spots) {
+    if (s.id === door.id) continue;
+    const d = screenSeparation(s.at, door.at);
+    assert.ok(d >= 100,
+      `${s.id} is ${d.toFixed(1)}px from the thesis door, whose 117px plaque needs 100`);
+  }
+});
+
+test("every desk STANDS ON the floor — nothing hangs over a wall but a door", () => {
+  // THE DEFECT THIS PINS WAS FOUND BY LOOKING, 2026-08-22, and every assertion
+  // in this file passed while it was live. The first pass of the re-space put
+  // the machine room at x=94 and the venue door at (96,84); both cards rendered
+  // hanging past the floor's right edge with nothing underneath them. In room
+  // units nothing was wrong — 94 is comfortably inside 0..100 — because the
+  // failure is the CARD's pixel width against the wall's projected distance,
+  // and until `wallClearance` existed those two lived in different spaces.
+  //
+  // 38px is half the widest measured desk card (75px, the COO's with its triage
+  // tray), so a spot at exactly this clearance has its card's far edge on the
+  // wall. Today's tightest is the corner office at 40px, which is correct: a
+  // corner office is supposed to be in the corner.
+  for (const s of allSpots()) {
+    if (s.kind === "door") continue;  // a door is IN a wall; its plaque straddles one
+    const c = wallClearance(s.at);
+    assert.ok(c >= 38,
+      `${s.id} sits ${c.toFixed(0)}px from the nearest wall — its card hangs off the floor`);
+  }
+  // And the exemption is narrow: the two doors are the only spots that may.
+  const doors = allSpots().filter((s) => s.kind === "door").map((s) => s.id);
+  assert.deepEqual(doors.sort(), ["thesis-door", "venue-door"]);
+});
+
+test("the plan's PLANE_PX is the CSS's plane, and the plane is SQUARE", () => {
+  // Two copies of one number, and the room breaks quietly if they disagree:
+  // `PLANE_PX` sets how far a traffic dot travels along a wire, and
+  // `.kt-floor-plane` sets how far the desks actually are. When the plane grew
+  // 640 -> 760 on 2026-08-22, a stale constant would have left every dot 16%
+  // short of its destination — moving, plausible, and wrong.
+  //
+  // SQUARE is a correctness constraint, not a look. The SVG floor is drawn with
+  // `preserveAspectRatio="none"` over `viewBox="0 0 100 100"` while the desk
+  // cards are placed as PERCENTAGES of the same box; the grid, the corridor and
+  // the lamps sit under the right desks only because both axes scale alike.
+  const css = readFileSync(
+    new URL("../../studio-theme.css", import.meta.url), "utf8");
+  const plane = css.match(/\.kt-floor-plane\s*\{[^}]*\}/);
+  assert.ok(plane, "the .kt-floor-plane rule is gone from studio-theme.css");
+  const w = plane![0].match(/width:\s*(\d+)px/);
+  const h = plane![0].match(/height:\s*(\d+)px/);
+  assert.ok(w && h, "the plane no longer declares a pixel width and height");
+  assert.equal(Number(w![1]), PLANE_PX,
+    "floorPlan.PLANE_PX and .kt-floor-plane disagree — the pulses will miss their desks");
+  assert.equal(Number(h![1]), Number(w![1]),
+    "the plane is no longer square — the SVG floor and the desk cards will disagree about where a desk is");
+
+  const floorSrc = readFileSync(new URL("./Floor.tsx", import.meta.url), "utf8");
+  assert.match(floorSrc, /preserveAspectRatio="none"/,
+    "the SVG layer must cover the plane box exactly, or it letterboxes away from the furniture");
 });
 
 test("no seat is drawn twice — the exec row and the bench are disjoint", () => {

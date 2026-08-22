@@ -469,6 +469,32 @@ function AskSeat({ seat, onSent, executionNote }: {
     }
   };
 
+  // A SEAT THE DESK QUEUE CANNOT ROUTE TO GETS A SENTENCE, NOT A FORM.
+  // `SEAT_REQUEST_KIND` mirrors the spine's REQUEST_KINDS, and an empty entry
+  // means the spine has no kind that reaches this seat (the cfo, 2026-08-22).
+  // Rendering the composer anyway would draw a control whose only possible
+  // outcome is a 422 — a button with no caller, dressed as a working one.
+  if (!kind) {
+    return (
+      <section className={`${KT.card} mb-8`}>
+        <p className={`${KT.label} mb-2`}>Asking {seat} for work is not wired yet</p>
+        <p className={`text-sm ${KT.body}`}>
+          The desk queue has no request kind that routes to this seat, so there
+          is nothing this form could post — the spine would reject it. The seat
+          is dispatched by the chair directly today. Filing a request here becomes
+          possible when <code className="font-mono">REQUEST_KINDS</code> in{" "}
+          <code className="font-mono">app/fund/desk.py</code> gains an entry for{" "}
+          <span className="font-mono">{seat}</span>; until it does, this seat also
+          reports no runs-today at all, because the per-seat telemetry enumerates
+          that same map.
+        </p>
+        {executionNote && (
+          <p className={`mt-3 text-xs italic leading-relaxed ${KT.muted}`}>{executionNote}</p>
+        )}
+      </section>
+    );
+  }
+
   return (
     <section className={`${KT.card} mb-8 border-[var(--kt-accent-border)]`}>
       <p className={`${KT.label} mb-3`}>Ask {seat} for work</p>
