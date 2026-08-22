@@ -206,8 +206,16 @@ class EventType(str, Enum):
     #
     # STRICTLY ADDITIVE. It changes no approval behaviour: the decline still
     # declines, the order still waits for the CEO. It moves no NAV, no
-    # position and no cash, and no projection folds it — it is a finding, and
-    # findings are events for the same reason ApprovalRefused is.
+    # position and no cash, and no fold treats it as a lifecycle step — it is a
+    # finding, and findings are events for the same reason ApprovalRefused is.
+    #
+    # THAT LAST SENTENCE WAS A CLAIM BEFORE IT WAS TRUE (adversary kill 1,
+    # 2026-08-23). Both order folds gated on a single-type exclusion naming
+    # ApprovalRefused, so this event DID fold as a lifecycle step: the order
+    # left ``pending()`` and both ``approve_order`` and ``decline_order``
+    # refused it. Membership of ``ORDER_ANNOTATION_EVENTS`` below is what makes
+    # the claim true, and the payload's "it remains PENDING and the CEO can
+    # still approve it" is now a statement the code supports.
     #
     # The money case is dated: on 2026-09-08 the fund's own TLT and DBC time
     # exits fall due, v4 refuses them, and the proposal then expires at 120
@@ -259,6 +267,36 @@ class EventType(str, Enum):
     REBALANCE_PROPOSED = "RebalanceProposed"
     REBALANCE_APPROVED = "RebalanceApproved"
     REBALANCE_DECLINED = "RebalanceDeclined"
+
+
+#: Events that land on an ORDER aggregate and are NOT lifecycle steps — a
+#: FINDING about the order rather than a change to what state it is in.
+#:
+#: EVERY FOLD OVER AN ORDER MUST SKIP THESE, and the set lives here rather than
+#: in either fold because the same omission has now been made twice:
+#:
+#:   * ``ApprovalRefused`` (guard v1, 2026-08-20) — two failed 403 probes made a
+#:     live SOFI ticket vanish from the CEO's pending queue on the guard's first
+#:     day. Fixed at ``projections/orders.py`` and ``pipeline._load_order`` with
+#:     a single-type exclusion at each site.
+#:   * ``AutopolicyDeclined`` (PM R41, 2026-08-23) — added as an audit record
+#:     whose own payload says "it remains PENDING and the CEO can still approve
+#:     it", and the two single-type exclusions did not cover it. A declined
+#:     order dropped out of ``pending()`` and BOTH ``approve_order`` and
+#:     ``decline_order`` refused it as "not awaiting approval": the deterministic
+#:     envelope saying no became the CEO being unable to say yes. The exclusion
+#:     comments at both sites named the first incident by name and neither site
+#:     was revisited when the second event type arrived.
+#:
+#: The lesson the set encodes: A NEW EVENT TYPE ON AN EXISTING AGGREGATE IS A
+#: LIFECYCLE CHANGE UNTIL PROVEN OTHERWISE. Classifying a new order event is now
+#: one edit in one place, and ``tests/test_hazard_batch.py`` fails if a type is
+#: appended to an order aggregate anywhere in ``app/`` without being either a
+#: lifecycle step (``OrdersProjection._STATUS``) or a member of this set.
+ORDER_ANNOTATION_EVENTS: frozenset[str] = frozenset({
+    EventType.APPROVAL_REFUSED.value,
+    EventType.AUTOPOLICY_DECLINED.value,
+})
 
 
 @dataclass

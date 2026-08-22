@@ -26,7 +26,12 @@ from app.fund.compliance import (
     DayTradeLedger,
 )
 from app.fund.connectors.base import Connector, FillState, Order, Side, VenueRef
-from app.fund.events import Event, EventStore, EventType
+from app.fund.events import (
+    ORDER_ANNOTATION_EVENTS,
+    Event,
+    EventStore,
+    EventType,
+)
 from app.fund.money import D, f, money
 from app.fund.projections.nav import NavService
 from app.fund.projections.orders import OrdersProjection
@@ -597,11 +602,19 @@ class CommandPipeline:
             limit_price=p.get("limit_price"),
             strategy_id=p.get("strategy_id"),
         )
-        # A refused approval (guard v1) is an annotation, never a lifecycle
-        # step: without this filter a failed probe would freeze the order in
-        # 'ApprovalRefused' and block the legitimate approver — the same
-        # denial-of-approval defect fixed in projections/orders.py, found
-        # live on the guard's first day.
+        # AN ANNOTATION IS NOT A LIFECYCLE STEP. Without this filter the order
+        # freezes in the annotation's own type and every state check below
+        # ("is it awaiting approval?") answers no — the denial-of-approval
+        # defect, fixed here and in projections/orders.py, which read the same
+        # distinction and must keep reading the same set.
+        #
+        # ``ApprovalRefused`` (a failed probe, guard v1's first day) and
+        # ``AutopolicyDeclined`` (an audit record whose payload says the order
+        # remains pending) have both been that annotation. The set is in
+        # ``app/fund/events.py``; adding a member there fixes both folds at once,
+        # which is the point — this site was NOT revisited when the second one
+        # arrived, and the result was an order the CEO could neither approve nor
+        # decline.
         lifecycle = [e for e in events
-                     if e["type"] != EventType.APPROVAL_REFUSED.value]
+                     if e["type"] not in ORDER_ANNOTATION_EVENTS]
         return order, (lifecycle[-1]["type"] if lifecycle else events[-1]["type"])
