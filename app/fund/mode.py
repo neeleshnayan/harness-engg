@@ -320,10 +320,16 @@ def _controls_have_fired(store: Any) -> tuple[bool, str]:
 
 
 #: How many fills that can actually measure execution cost the model needs
-#: before a backtest's cost assumption stops being an assumption. Matches
-#: ``tca.RELIABLE_SAMPLE``; stated here so the precondition cites a number
-#: rather than a feeling.
-PROD_MIN_INFORMATIVE_FILLS = 20
+#: before a backtest's cost assumption stops being an assumption.
+#:
+#: IMPORTED, not copied. This is not a new threshold — it is the fund's
+#: existing sample bar (``costassumption.RELIABLE_SAMPLE``, the number TCA's
+#: own verdict already says "20 is the bar" against), reused so that the prod
+#: precondition and the cost model cannot come to disagree about what a
+#: trustworthy sample is. Two copies of one belief is exactly how
+#: ASSUMED_COST_BPS_PER_SIDE and the backtester's CostModel drifted apart, and
+#: the comment recording that is four files away in tca.py.
+from app.fund.costassumption import RELIABLE_SAMPLE as PROD_MIN_INFORMATIVE_FILLS
 
 
 def _informative_fills(store: Any) -> tuple[bool, str]:
