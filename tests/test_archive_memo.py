@@ -28,13 +28,16 @@ stops working.
 """
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
 from app.fund import desk as desk_mod
 
-REAL_ARCHIVES = Path(__file__).resolve().parents[1] / "docs" / "archives"
+REPO = Path(__file__).resolve().parents[1]
+REAL_ARCHIVES = REPO / "docs" / "archives"
 
 
 @pytest.fixture
@@ -319,43 +322,102 @@ class TestTheQueryParameterIsNotAPath:
 
 # ---------------------------------------------------------------- the route -
 
+#: The route assertions, run in a CLEAN INTERPRETER. See `TestTheRoute`.
+_ROUTE_PROBE = r'''
+import json, sys
+from fastapi.testclient import TestClient
+from app.main import app
+
+c = TestClient(app)
+out = {}
+r = c.get("/api/v1/fund/desk/archives/memo")
+out["latest"] = {"status": r.status_code, "body": r.json()}
+r = c.get("/api/v1/fund/desk/archives/memo", params={"date": "1999-01-01"})
+out["missing_day"] = {"status": r.status_code, "body": r.json()}
+r = c.get("/api/v1/fund/desk/archives/memo", params={"date": "../../etc/passwd"})
+out["traversal"] = {"status": r.status_code, "body": r.json()}
+sys.stdout.write("PROBE" + json.dumps(out) + "PROBE")
+'''
+
+
+@pytest.fixture(scope="module")
+def probe() -> dict:
+    """Run the route assertions once, in a clean interpreter.
+
+    Module-scoped and defined at module level: a class-scoped fixture written
+    as an instance method is deprecated in pytest, and one subprocess serving
+    four assertions is the point — the whole cost of this isolation is a single
+    process start. See `TestTheRoute` for why the isolation is not optional.
+    """
+    r = subprocess.run([sys.executable, "-c", _ROUTE_PROBE],
+                       capture_output=True, text=True, cwd=str(REPO),
+                       timeout=300)
+    assert r.returncode == 0, (
+        f"the route probe could not run:\n{r.stdout[-3000:]}\n{r.stderr[-3000:]}")
+    assert "PROBE" in r.stdout, f"probe produced no result:\n{r.stdout[-2000:]}"
+    return json.loads(r.stdout.split("PROBE")[1])
+
+
 class TestTheRoute:
-    def test_the_route_exists_and_answers_200(self):
+    """The route, exercised in a SUBPROCESS — and the reason is a live trap.
+
+    `app/main.py`'s FastAPI **lifespan** hook calls `seed_if_empty` (main.py
+    :266-277). Constructing `TestClient(app)` runs it, and it does what it
+    says: finds the store empty and SEEDS DEMO EVENTS. `tests/conftest.py`'s
+    `wire` fixture clears the fake Firestore at the start of each test, so a
+    route test that runs mid-session hands every later test a pre-seeded event
+    log.
+
+    MEASURED, on the merged tree: three in-session route tests here turned a
+    green suite into **39 failures** across test_spine, test_settlement,
+    test_riskmonitor and test_strategy — `test_event_seq_is_monotonic` got
+    `[1, 2, 3, 4, 5, 6, ...]` where it wanted `[1, 2, 3]`. Every one of them
+    passed in isolation, and the suite was green on my branch and green on the
+    live head; only the MERGE showed it, which is exactly what the merge gate
+    is for.
+
+    `tests/test_thesis_generator.py` uses `TestClient(test_app)` — a different
+    app object with no lifespan — so it escapes. **Nothing prevents the next
+    endpoint test from walking into this**, and a file named to sort after
+    test_spine would "fix" it by alphabet, which is blessing the bug with a
+    filename. Reported to the chair as harness work rather than patched here.
+
+    A subprocess is the honest isolation: real app, real route, real lifespan,
+    and a process boundary between it and everyone else's fixtures. It also
+    asserts something the in-session version could not — that the route
+    resolves in a FRESH interpreter, which is how it will be served.
+    """
+
+    def test_the_route_exists_and_answers_200(self, probe):
         """THE ASSERTION THAT WOULD HAVE CAUGHT THE ORIGINAL DEFECT. The card
         and the type merged and the route did not; nothing anywhere asserted
         that the URL the client fetches resolves."""
-        from fastapi.testclient import TestClient
-
-        from app.main import app
-        r = TestClient(app).get("/api/v1/fund/desk/archives/memo")
-        assert r.status_code == 200, r.text
-        body = r.json()
-        assert set(body) == {
+        assert probe["latest"]["status"] == 200
+        assert set(probe["latest"]["body"]) == {
             "available", "reason", "date", "path", "pdf_path", "title",
             "tldr", "daily_markdown", "has_long_record", "note"}, (
             "the payload keys must match the merged ArchiveMemo type exactly; "
             "three bugs this week came from reading keys an endpoint never "
             "returned")
 
-    def test_every_absence_is_still_a_200(self):
+    def test_every_absence_is_still_a_200(self, probe):
         """The five absences are DATA, not statuses. An HTTP code can only say
         "no", and the client must tell "she has never run" from "no session
         was live that day" from "the file is unreadable"."""
-        from fastapi.testclient import TestClient
+        assert probe["missing_day"]["status"] == 200
+        assert probe["missing_day"]["body"]["reason"] == "no_such_day"
 
-        from app.main import app
-        r = TestClient(app).get(
-            "/api/v1/fund/desk/archives/memo", params={"date": "1999-01-01"})
-        assert r.status_code == 200
-        assert r.json()["reason"] == "no_such_day"
-
-    def test_the_route_serves_the_real_memo(self):
-        from fastapi.testclient import TestClient
-
-        from app.main import app
-        r = TestClient(app).get("/api/v1/fund/desk/archives/memo")
-        body = r.json()
+    def test_the_route_serves_the_real_memo(self, probe):
+        body = probe["latest"]["body"]
         assert body["available"] is True, body["note"]
         assert body["tldr"], "the CEO's sixty-second read must be on the wire"
-        # It must be JSON-clean: the client renders it as markdown.
-        json.dumps(body)
+        assert "Â" not in (body["title"] or ""), "mojibake survived the wire"
+
+    def test_a_traversal_parameter_is_refused_over_HTTP_too(self, probe):
+        """Asserted at the route, not only at the function: a query parameter
+        is only safe if it is safe where it actually arrives."""
+        assert probe["traversal"]["status"] == 200
+        b = probe["traversal"]["body"]
+        assert b["available"] is False
+        assert b["date"] is None
+        assert "not a YYYY-MM-DD date" in b["note"]
