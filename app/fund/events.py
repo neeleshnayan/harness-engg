@@ -189,6 +189,33 @@ class EventType(str, Enum):
     # a probe, a stray script, or a mistaken click — and findings are events.
     APPROVAL_REFUSED = "ApprovalRefused"
 
+    # The auto-approval envelope REFUSING an order (2026-08-23, PM R41).
+    #
+    # Not a decline of the ORDER — the order stays PENDING and the CEO can
+    # still approve it, which is the whole design. This records that the
+    # deterministic envelope looked and said no, and WHICH checks failed.
+    #
+    # It exists because the decline path had been logger.warning-only, and the
+    # seat whose job is auditing that policy reads /fund/events, not stdout.
+    # The riskofficer said it in one line: "audible" means IN THE EVENT LOG.
+    # autopolicy.py already carried eleven lines of comment arguing that a
+    # silent refusal is the unwired kill switch wearing the opposite costume —
+    # "the machine quietly stops honouring the fund's own exits" — and then
+    # shipped a log line. A comment that says a control must be observable is
+    # a specification; this is the implementation of it.
+    #
+    # STRICTLY ADDITIVE. It changes no approval behaviour: the decline still
+    # declines, the order still waits for the CEO. It moves no NAV, no
+    # position and no cash, and no projection folds it — it is a finding, and
+    # findings are events for the same reason ApprovalRefused is.
+    #
+    # The money case is dated: on 2026-09-08 the fund's own TLT and DBC time
+    # exits fall due, v4 refuses them, and the proposal then expires at 120
+    # minutes and does NOT come back (exitrule.py skips any rule carrying
+    # `triggered_at`; only a fresh EXIT_RULE_SET clears it). Before this event
+    # existed, nothing the CEO can see said any of that had happened.
+    AUTOPOLICY_DECLINED = "AutopolicyDeclined"
+
     EXIT_RULE_SET = "ExitRuleSet"               # committed before the position exists
     EXIT_RULE_TRIGGERED = "ExitRuleTriggered"   # fired; a closing proposal was raised
     EXIT_RULE_OVERRIDDEN = "ExitRuleOverridden" # fired and kept anyway, with a reason

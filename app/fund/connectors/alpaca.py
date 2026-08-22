@@ -351,6 +351,14 @@ class AlpacaConnector(Connector):
         return AccountState(
             known=True,
             equity=num("equity"),
+            # PM R42 (2026-08-23). ``account_info`` above has read both of
+            # these off the same ``acct`` object since it was written; the
+            # TYPED path the trade gate uses read neither, so the compliance
+            # layer knew the account's equity and not whether it could pay for
+            # anything. ``num`` returns None on a field the SDK does not
+            # expose, and None travels the whole way as None.
+            cash=num("cash"),
+            buying_power=num("buying_power"),
             daytrade_count=count("daytrade_count"),
             pattern_day_trader=flag("pattern_day_trader"),
             trading_blocked=flag("trading_blocked"),

@@ -4528,7 +4528,12 @@ def run_autopolicy_tick() -> dict:
         _pipeline, pending, halted=_control.is_halted(), heartbeats=hb,
         context_fn=lambda row: autopolicy.context_for(
             _store, row, _connector.price,
-            venue_positions=venue_positions, venue_readable=venue_readable))
+            venue_positions=venue_positions, venue_readable=venue_readable),
+        # PM R41 (2026-08-23): a decline becomes an AutopolicyDeclined event
+        # rather than a logger.warning nobody reads. Passing the store is the
+        # whole wiring; autopolicy.record_decline does the rest, once per
+        # distinct failed-check set so a 30s tick cannot flood the log.
+        store=_store)
 
 
 def run_proposal_expiry_tick() -> dict:

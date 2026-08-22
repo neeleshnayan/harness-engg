@@ -18,6 +18,73 @@ from app.fund.money import D
 
 _ZERO = Decimal("0")
 
+#: Quantity noise floor. Matches ``autopolicy.POSITION_EPS`` and
+#: ``reconcile._TOL`` in spirit: three ledgers must not acquire three different
+#: ideas of "zero". Folding every fill of the live log leaves five closed
+#: symbols carrying ~1e-15 residue, so a bare ``== 0`` is never safe here.
+_QTY_EPS = Decimal("1e-9")
+
+
+def _new_avg_price(old_qty: Decimal, old_avg: Decimal,
+                   signed: Decimal, px: Decimal, new_qty: Decimal) -> Decimal:
+    """The cost basis after a fill, for a position of EITHER sign.
+
+    THE SHORT'S COST BASIS (desk 34338ef6, fixed 2026-08-23). This logic was
+    one line — ``if signed > 0 and abs(new_qty) > 1e-9`` — which asks "was this
+    a BUY", and a buy is not the same question as "did this position grow".
+    Measured against the four cases a signed book actually has, it was wrong in
+    three of them:
+
+      * long 10 @ 100, SELL 20 @ 110  -> flips to short 10, basis stayed 100.
+        The true basis of the new short is 110, so the position was born
+        reporting a 10% gain it never made.
+      * short 10 @ 100, SELL 10 @ 90  -> short grows to 20, basis stayed 100
+        instead of averaging to 95. Adding to a short did not move its basis
+        at all, because adding to a short is a SELL.
+      * short 10 @ 100, BUY 5 @ 90    -> covering half. ``signed > 0`` fired,
+        and the weighted-average line ran with a NEGATIVE denominator:
+        (-10*100 + 5*90) / -5 = 110. Reducing a position CORRUPTED the basis of
+        the part still open, and did it in the profitable-looking direction.
+
+    Together with the sign-blind P&L formula in riskmonitor, that is why every
+    exit rule on a short would have been inverted, and why this is the gating
+    condition on any short-selling strategy.
+
+    The four cases, which are the standard treatment and not an invention:
+
+      1. OPENING or ADDING (same sign, or from flat) — weighted average.
+      2. REDUCING (opposite sign, not through zero) — basis UNCHANGED. Closing
+         part of a position realises P&L; it does not re-price what remains.
+      3. CROSSING ZERO — the old position is fully closed and a new one opens
+         in the other direction at this fill's price. Basis is ``px``.
+      4. FLAT (new_qty ~ 0) — basis UNCHANGED rather than zeroed, so a closed
+         symbol keeps a readable last basis instead of a 0.00 that the P&L
+         formula's ``avg_cost <= 0`` branch would silently read as "unknown".
+
+    Pure and total: every path returns a Decimal, and no path divides by a
+    denominator it has not first checked against ``_QTY_EPS``.
+    """
+    # 4 — flat. Nothing to price.
+    if abs(new_qty) <= _QTY_EPS:
+        return old_avg
+    # 1 — from flat, in either direction. This fill IS the basis.
+    if abs(old_qty) <= _QTY_EPS:
+        return px
+    same_direction = (old_qty > 0) == (signed > 0)
+    # 1 — adding to an existing position, long or short. The weighted average
+    # is over MAGNITUDES, so it is the same arithmetic on both sides of zero;
+    # written with abs() rather than relying on two negatives cancelling,
+    # because relying on that is what produced case 3's silent corruption.
+    if same_direction:
+        return ((abs(old_qty) * old_avg + abs(signed) * px)
+                / (abs(old_qty) + abs(signed)))
+    # 3 — the fill was larger than the position and flipped it. Whatever was
+    # there is closed; what is left was opened at this price.
+    if (old_qty > 0) != (new_qty > 0):
+        return px
+    # 2 — reducing, still on the same side. The basis does not move.
+    return old_avg
+
 
 @dataclass
 class Book:
@@ -84,9 +151,10 @@ class PositionsProjection:
             px = D(p["avg_price"])
             signed = qty if side == "buy" else -qty
             pos = book.positions.get(symbol, {"qty": _ZERO, "avg_price": px})
-            new_qty = pos["qty"] + signed
-            if signed > 0 and abs(new_qty) > Decimal("1e-9"):
-                pos["avg_price"] = (pos["qty"] * pos["avg_price"] + signed * px) / new_qty
+            old_qty = pos["qty"]
+            new_qty = old_qty + signed
+            pos["avg_price"] = _new_avg_price(old_qty, pos["avg_price"],
+                                              signed, px, new_qty)
             pos["qty"] = new_qty
             book.positions[symbol] = pos
             book.cash -= signed * px + D(p.get("fees", 0))

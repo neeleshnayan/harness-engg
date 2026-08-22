@@ -386,6 +386,42 @@ class Alarm:
         }
 
 
+def unrealised_pnl_pct(qty: float, mark: float, avg_cost: float) -> float:
+    """Unrealised P&L as a percentage, SIGNED BY THE DIRECTION OF THE POSITION.
+
+    THE SIGN-INVERTED EXIT TRIGGER (desk 34338ef6, fixed 2026-08-23). This read
+    ``(mark - avg_cost) / avg_cost`` with no reference to ``qty`` at all, which
+    is correct for a long and exactly backwards for a short: a short position
+    LOSES money when the price rises, and the old formula called that a gain.
+
+    The consequence was not cosmetic, because this number is what every exit
+    rule is evaluated against (``ExitRules.check`` reads ``unrealized_pnl_pct``
+    off these rows). On a short:
+
+      * a ``loss_pct`` stop would never fire while the position bled, and
+      * a ``gain_pct`` take-profit would fire precisely when it was losing.
+
+    Every exit rule on a short would have been inverted, which is why the CEO's
+    own question — "how would this play out when we try to short-sell" — has
+    the answer "the stops would fire backwards", and why no short-selling
+    strategy may deploy before this is closed (registered as the
+    ``exit_sign_fixed`` precondition in app/fund/mode.py).
+
+    ``avg_cost <= 0`` returns 0.0, PRESERVED FROM THE ORIGINAL and not
+    silently improved: an unknown basis is a separate defect with a separate
+    owner, and changing what it returns here would move the underwater alarm
+    and every exit rule for reasons that have nothing to do with the sign. It
+    is called out rather than fixed — see the STATE note on positions.py.
+    """
+    if avg_cost <= 0:
+        return 0.0
+    move_pct = (mark - avg_cost) / avg_cost * 100.0
+    # The only line that matters: a rise is a gain to a long and a loss to a
+    # short. `qty == 0` cannot reach here (assess skips flat rows) and is
+    # treated as long, which is the harmless direction for a zero position.
+    return -move_pct if qty < 0 else move_pct
+
+
 def _drift_alarm(reading: Any) -> Optional[Alarm]:
     """The book-vs-venue alarm for one drift reading. Pure; absence RAISES.
 
@@ -1056,8 +1092,13 @@ class RiskMonitor:
             val = qty * mark
             weight_pct = (val / nav_usd * 100.0) if nav_usd > 0 else 0.0
             avg_cost = float(pos.get("avg_price", 0))
-            unrealized_pnl_pct = ((mark - avg_cost) / avg_cost * 100.0) if avg_cost > 0 else 0.0
-            shock_20_usd = val * -0.20
+            unrealized_pnl_pct = unrealised_pnl_pct(qty, mark, avg_cost)
+            # A 20% ADVERSE move, which is not "down" for every position. A
+            # short loses when the price RISES, so shocking it by -20% of a
+            # negative value would have reported a short's disaster as a gain
+            # on the same row that reports its P&L. Magnitude of the exposure,
+            # always negative, for both directions.
+            shock_20_usd = -abs(val) * 0.20
             positions_list.append({
                 "symbol": sym,
                 "qty": qty,
@@ -1065,6 +1106,10 @@ class RiskMonitor:
                 "value_usd": round(val, 2),
                 "weight_pct": round(weight_pct, 4),
                 "unrealized_pnl_pct": round(unrealized_pnl_pct, 4),
+                # Stated on the row rather than left to be inferred from the
+                # sign of `qty`. Every consumer of `unrealized_pnl_pct` — the
+                # exit rules above all — now has the direction in front of it.
+                "side": "short" if qty < 0 else "long",
                 "shock_20_usd": round(shock_20_usd, 2),
             })
         positions_list.sort(key=lambda p: p["value_usd"], reverse=True)
@@ -1500,6 +1545,44 @@ class RiskMonitor:
         #    reconciler's; this rule does not even have a copy to keep in step.
         if "venue_drift" in a:
             alarms.append(_drift_alarm(a.get("venue_drift")))
+
+        # 9. A SHORT POSITION EXISTS (desk 34338ef6, 2026-08-23).
+        #
+        #    The book cannot distinguish an INTENDED short from an accidental
+        #    one, because nothing in the fund declares shorting intent:
+        #    `positions.py` folds `new_qty = qty + signed` with no floor at
+        #    zero, correctly — a fill happened and the ledger must record it —
+        #    and no strategy, mandate field or exit rule anywhere says whether
+        #    a negative quantity was wanted.
+        #
+        #    Inventing an intent model is a mandate decision, not a repair, so
+        #    this does the one honest thing available: it REPORTS every short
+        #    and lets a human decide. Today the fund holds none, the entry
+        #    envelope (R19) refuses to OPEN one, and no shorting strategy is
+        #    deployed — so this alarm is a canary that should never sing, and
+        #    if it does, the fund is short something nobody authorised.
+        #
+        #    WHAT THIS DOES NOT FIX, named rather than implied: a short's
+        #    downside is unbounded, and the drawdown machinery assumes it is
+        #    not. Borrow cost and buy-in risk are unmodelled everywhere in this
+        #    codebase. Those are open, they are not closed by an alarm, and no
+        #    short-selling strategy should read this alarm's existence as
+        #    coverage of them.
+        for pos in a.get("positions", []):
+            qty = pos.get("qty", 0.0)
+            sym = pos.get("symbol", "")
+            if qty is not None and qty < 0:
+                alarms.append(Alarm(
+                    key=f"short_position:{sym}",
+                    type="short_position",
+                    severity="warn",
+                    message=(f"{sym} is SHORT {abs(qty):g} shares. The fund "
+                             f"declares no shorting intent anywhere, so this "
+                             f"is either a strategy nobody registered or an "
+                             f"over-sell. Borrow cost, buy-in risk and "
+                             f"unbounded downside are all unmodelled"),
+                    metric=abs(float(qty)), threshold=0.0, symbol=sym,
+                ))
 
         return [al for al in alarms if al is not None]
 
