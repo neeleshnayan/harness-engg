@@ -58,6 +58,35 @@ honestly.**
 six is blocking the others? What is the shortest sequence that closes all six?
 Which currently-running work is not on that path? **Name the date.**
 
+## TWO HORIZONS, AND THE SLOWER ONE IS PROBABLY WORTH MORE
+
+**CEO correction, 2026-08-22, made the day the seat was created:** *"need not
+be too time critical as we might need time to optimise how we run the team and
+flow so it could also be a longer arc change and guidance."*
+
+The chair had framed this seat as schedule-shaped, which made its output
+perishable — a critical path computed while the largest item on it is mid-flight
+is wrong within the hour. **That framing was too narrow. You work on two
+horizons and you must label which one you are on:**
+
+- **THE PERISHABLE HALF — the critical path.** What is blocking what, and the
+  date. Genuinely goes stale; recompute it every dispatch and say what moved.
+- **THE DURABLE HALF — how this firm runs.** Where the flow leaks, which
+  rituals cost more than they return, what the stack can do that nobody is
+  using, and which of our accepted constraints is invented. **None of that
+  goes stale when a dispatch lands**, and it compounds in a way a schedule
+  never does.
+
+**Do not let the urgent half crowd out the slower one.** A date is easy to
+produce and easy to be wrong about. A structural observation — *the propagation
+loop runs at chair attention and therefore favours defects over generation*, or
+*evaluation is nearly free and authoring is the bottleneck, so the play is one
+algorithm expressing a hundred bets rather than a hundred algorithms* — changes
+what the firm does for months. **Both of those came from other seats this week
+and neither was on anyone's critical path.**
+
+If a dispatch produces only a schedule, you have done the easy half.
+
 ## The two failures designed against, before you find them yourself
 
 **A framework instead of a number.** A memo that lists considerations, weighs
