@@ -321,6 +321,43 @@ class BarSnapshot:
         return cls.from_dict(json.loads(Path(path).read_text(encoding="utf-8")))
 
 
+#: How many candidate snapshots to keep on disk. MEASURED 2026-08-22: one
+#: 170-leg candidate serialises to 7.40 MB, so this bounds the directory at
+#: roughly 150 MB rather than letting it grow for the life of the machine. They
+#: are kept at all because they are the evidence for what a candidate actually
+#: ran on; they are bounded because they are regenerable vendor data, not
+#: research — the same reasoning that gitignores lean_workspace/results/.
+KEEP_SNAPSHOTS = 20
+
+
+def prune_snapshots(directory: Path, keep: int = KEEP_SNAPSHOTS) -> dict[str, Any]:
+    """Keep the newest ``keep`` snapshots, delete the rest.
+
+    Returns what it removed rather than logging silently, so a sweep that
+    deletes far more than expected is visible — the same contract as
+    ``LeanRunner.prune_results``.
+    """
+    directory = Path(directory)
+    if not directory.is_dir():
+        return {"removed": [], "bytes_reclaimed": 0, "kept": 0}
+    files = sorted((p for p in directory.glob("*.json") if p.is_file()),
+                   key=lambda p: p.stat().st_mtime, reverse=True)
+    removed, reclaimed = [], 0
+    for path in files[max(0, int(keep)):]:
+        try:
+            size = path.stat().st_size
+            path.unlink()
+            removed.append(path.name)
+            reclaimed += size
+        except OSError as e:  # noqa: PERF203
+            logger.info("could not prune snapshot %s: %s", path, e)
+    if removed:
+        logger.info("pruned %d bar snapshot(s), reclaimed %.1f MB",
+                    len(removed), reclaimed / 1e6)
+    return {"removed": removed, "bytes_reclaimed": reclaimed,
+            "kept": min(len(files), max(0, int(keep)))}
+
+
 def _bisect_left(dates: list[str], value: str) -> int:
     import bisect
     return bisect.bisect_left(dates, value)

@@ -288,6 +288,38 @@ def test_snapshot_round_trips_through_disk(tmp_path):
     assert got.closes == snap.legs["SPY"].closes
 
 
+def test_prune_keeps_the_newest_and_deletes_the_rest(tmp_path):
+    """One 170-leg snapshot is 7.40 MB; unbounded, this directory grows forever."""
+    import os
+    import time
+
+    for i in range(6):
+        p = tmp_path / f"cand{i}.json"
+        p.write_text('{"candidate": "x"}', encoding="utf-8")
+        # Explicit mtimes: a same-second write order is not a guarantee.
+        os.utime(p, (time.time() + i, time.time() + i))
+    out = barcache.prune_snapshots(tmp_path, keep=2)
+    left = sorted(p.name for p in tmp_path.glob("*.json"))
+    assert left == ["cand4.json", "cand5.json"], left
+    assert sorted(out["removed"]) == ["cand0.json", "cand1.json",
+                                      "cand2.json", "cand3.json"]
+    assert out["bytes_reclaimed"] > 0
+    assert out["kept"] == 2
+
+
+def test_prune_on_a_missing_directory_is_a_no_op(tmp_path):
+    out = barcache.prune_snapshots(tmp_path / "nope")
+    assert out == {"removed": [], "bytes_reclaimed": 0, "kept": 0}
+
+
+def test_prune_keeps_everything_when_under_the_limit(tmp_path):
+    for i in range(3):
+        (tmp_path / f"c{i}.json").write_text("{}", encoding="utf-8")
+    out = barcache.prune_snapshots(tmp_path, keep=20)
+    assert out["removed"] == []
+    assert len(list(tmp_path.glob("*.json"))) == 3
+
+
 def test_save_is_atomic_leaving_no_partial_file(tmp_path):
     f = _fetcher({"SPY": (_days(5), [1, 2, 3, 4, 5])})
     snap = barcache.prefetch(["SPY"], candidate="c1", lookback_days=700, fetcher=f)

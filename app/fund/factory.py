@@ -202,7 +202,11 @@ class CandidateFactory:
             # Checkpointed as soon as it exists: a dispatch that dies keeps what
             # it already paid for, and the pinned bytes are the evidence for
             # what this candidate actually ran on.
-            snap.save(Path(runner._ws) / "snapshots" / f"{candidate_id}.json")
+            snapshot_dir = Path(runner._ws) / "snapshots"
+            snap.save(snapshot_dir / f"{candidate_id}.json")
+            # Bounded on the way in, not by a sweep nobody runs. One 170-leg
+            # candidate is 7.40 MB of regenerable vendor data.
+            barcache.prune_snapshots(snapshot_dir)
         except Exception as e:  # noqa: BLE001
             logger.info("snapshot checkpoint failed for %s: %s", candidate_id, e)
         return snap
