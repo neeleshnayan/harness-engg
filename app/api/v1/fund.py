@@ -271,20 +271,38 @@ def start_trade_stream():
     if not (key and secret):
         _log.warning("trade stream: no Alpaca credentials — polling only")
         return None
+    if not _mode_spec.real_broker:
+        _log.warning("trade stream: mode is %r, which has no broker socket to "
+                     "listen to — polling only", _mode_spec.mode.value)
+        return None
     if _connector.name != "alpaca":
         _log.warning("trade stream: venue is %r, not alpaca — polling only", _connector.name)
         return None
 
     from app.fund.tradestream import TradeStream
 
-    paper = os.getenv("ALPACA_PAPER", "true").lower() not in ("0", "false", "no")
+    # paper vs live from the MODE, like everything else. ALPACA_PAPER decided
+    # which ACCOUNT this socket subscribed to while being tied to nothing the
+    # rest of the fund could see.
+    paper = _mode_spec.venue_kind is fundmode.VenueKind.ALPACA_PAPER
     _trade_stream = TradeStream(_pipeline, key, secret, paper=paper)
     return asyncio.create_task(_trade_stream.run())
 
 
 def stop_trade_stream() -> None:
+    """Stop the stream AND drop the handle.
+
+    The handle is cleared as of 2026-08-22. Without it a stopped stream stayed
+    in ``_trade_stream`` and ``trade_stream_state()`` kept describing a socket
+    that had been told to stop — a control reporting a state it is no longer
+    in, which is the pattern this codebase names most often. It also matters to
+    the mode switch, which stops the stream precisely so that nothing holds the
+    pipeline of the store being left.
+    """
+    global _trade_stream
     if _trade_stream is not None:
         _trade_stream.stop()
+        _trade_stream = None
 
 
 def trade_stream_state() -> dict:
@@ -747,6 +765,22 @@ def switch_fund_mode(req: ModeSwitchRequest):
                            "against another is the phantom-fill shape with a "
                            "switch on the front"})
 
+    # (2b) THE FILL STREAM MUST STOP BEFORE THE STORE MOVES.
+    #
+    # TradeStream captures the pipeline it was constructed with, so a stream
+    # started in alpaca-paper holds the OLD pipeline — old connector, old
+    # store — for as long as it lives. Rewiring underneath it would leave a
+    # socket subscribed to the Alpaca account writing fills into the store we
+    # just left, which is the two-books-in-one-process failure this whole
+    # module exists to make impossible, arriving through the one object that
+    # does not go through `_wire`.
+    #
+    # Found by reading the diff, not by a test: nothing in the suite starts a
+    # real stream.
+    stream_was_live = _trade_stream is not None
+    if stream_was_live:
+        stop_trade_stream()
+
     previous = _mode_spec
     at = datetime.now(timezone.utc).isoformat()
     payload = {"from": previous.mode.value, "to": target.value,
@@ -784,8 +818,19 @@ def switch_fund_mode(req: ModeSwitchRequest):
                         payload={**payload, "leg": "arrival"},
                         actor=approver))
     _riskengine.invalidate()
+
+    # The stream is NOT auto-restarted, and that is stated rather than silent.
+    # Restarting it needs the running event loop's `create_task`, and a fill
+    # observer that comes back up by itself after a mode change is exactly the
+    # kind of thing that should be a deliberate act. The poller underneath it
+    # keeps working — it is the backstop and it reads the new wiring — so this
+    # degrades to slower, never to blind, and the response says which.
     return {"switched": True, "from": previous.mode.value, "to": target.value,
-            "persisted": record, "mode": fundmode.report(store=_store)}
+            "persisted": record,
+            "fill_stream": ("stopped — restart the spine to re-subscribe; the "
+                            "settlement poller is still running underneath"
+                            if stream_was_live else "was not running"),
+            "mode": fundmode.report(store=_store)}
 
 
 @router.get("/fund/book")
