@@ -25,6 +25,27 @@ FUND = "hedgefund-ae96c"
 STALE_AUTH = "krypton-auth-e8653"
 
 
+@pytest.fixture(autouse=True)
+def _restore_active_book():
+    """``firebase._active`` is MODULE state and these tests write to it.
+
+    Learned the expensive way in this file's own first run: the override test
+    below deliberately gets PAST the project check, so it reaches
+    ``_active.update()`` and leaves a foreign ``project_id`` behind. Every
+    later test that called ``db()`` then tripped the test-mode interlock —
+    **124 errors and 4 failures across the suite, none of them in this file**,
+    all from one dictionary this file forgot to put back.
+
+    The irony is the point and it is worth keeping: the module under test
+    exists to stop a process from silently operating against the wrong book,
+    and the test for it silently left the wrong book configured.
+    """
+    saved = dict(fb._active)
+    yield
+    fb._active.clear()
+    fb._active.update(saved)
+
+
 def _account(tmp_path, project_id, name="sa.json"):
     p = tmp_path / name
     p.write_text(json.dumps({"project_id": project_id, "type": "service_account"}),
