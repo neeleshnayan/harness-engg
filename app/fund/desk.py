@@ -1342,12 +1342,21 @@ def utc_day_bounds(now: Any = None) -> tuple[str, str, str]:
     UTC because the event log is UTC and the fund's day boundary is the
     venue's, not the reader's — a local bucket would move a dispatch to a
     different day depending on who opened the page.
+
+    THE ARITHMETIC LIVES IN ``metrics.day_bounds`` AND IS NOT REPEATED HERE
+    (2026-08-22). Two copies of a day boundary is two chances to disagree about
+    which day a dispatch happened on, and the disagreement would be invisible
+    because both copies would look right. This function survives for its
+    three-tuple shape, which its callers use; the bounds themselves come from
+    one place.
     """
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timezone
+    from app.fund.metrics import day_bounds
     n = now or datetime.now(timezone.utc)
-    start = n.replace(hour=0, minute=0, second=0, microsecond=0)
-    return (start.date().isoformat(), start.isoformat(),
-            (start + timedelta(days=1)).isoformat())
+    day = (n if getattr(n, "tzinfo", None) else n.replace(tzinfo=timezone.utc)) \
+        .astimezone(timezone.utc).date()
+    start, end = day_bounds(day)
+    return (day.isoformat(), start, end)
 
 
 def seat_telemetry(day_runs: Optional[list[dict[str, Any]]],

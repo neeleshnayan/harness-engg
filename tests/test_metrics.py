@@ -312,3 +312,27 @@ def test_a_run_with_no_seat_is_UNSTATED_and_still_counted():
     got = metrics.summarise_runs([{"tokens": 5}])
     assert got["by_seat"]["UNSTATED"]["runs"] == 1
     assert got["total_runs"] == 1
+
+
+def test_a_naive_datetime_is_read_as_UTC_not_as_the_hosts_local_time():
+    """`astimezone` alone applies the HOST offset, which can move an event to
+    the wrong day on a machine that is not on UTC. Every timestamp in this fund
+    is UTC; `desk._ts` states the same assumption and the two must not drift."""
+    from datetime import datetime, timezone
+    naive_late = datetime(2026, 8, 21, 23, 30)
+    naive_early = datetime(2026, 8, 21, 0, 30)
+    assert metrics.parse_day(naive_late).isoformat() == "2026-08-21"
+    assert metrics.parse_day(naive_early).isoformat() == "2026-08-21"
+    aware = datetime(2026, 8, 21, 23, 30, tzinfo=timezone.utc)
+    assert metrics.parse_day(aware) == metrics.parse_day(naive_late)
+
+
+def test_desk_utc_day_bounds_and_metrics_day_bounds_CANNOT_disagree():
+    """One day boundary, one implementation. Two copies is two chances to
+    disagree about which day a dispatch happened on, invisibly."""
+    from datetime import datetime, timezone
+    from app.fund import desk
+    n = datetime(2026, 8, 21, 23, 59, 59, tzinfo=timezone.utc)
+    day, start, end = desk.utc_day_bounds(n)
+    assert (start, end) == metrics.day_bounds(day)
+    assert day == "2026-08-21"

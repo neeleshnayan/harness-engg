@@ -131,9 +131,16 @@ def parse_day(day: Any) -> date:
     Refuses anything else rather than guessing. A malformed date that silently
     became "today" would serve a reader a different day from the one they
     asked for, and they would have no way to notice.
+
+    A NAIVE datetime is read as UTC, not as local time. ``astimezone`` alone
+    would apply the HOST's offset and could move an event to the wrong day on a
+    machine that is not on UTC — and every timestamp in this fund is UTC. It is
+    the same assumption ``desk._ts`` states, made explicit here so the two
+    cannot drift.
     """
     if isinstance(day, datetime):
-        return day.astimezone(timezone.utc).date()
+        aware = day if day.tzinfo else day.replace(tzinfo=timezone.utc)
+        return aware.astimezone(timezone.utc).date()
     if isinstance(day, date):
         return day
     if isinstance(day, str):

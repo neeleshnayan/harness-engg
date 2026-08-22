@@ -394,13 +394,21 @@ class DeskStore:
                 "status": st}
 
     def runs(self, seat: Optional[str] = None, limit: int = 50,
-             with_output: bool = False) -> list[dict[str, Any]]:
+             with_output: bool = False,
+             run_id: Optional[str] = None) -> list[dict[str, Any]]:
+        """Runs newest first. ``run_id`` selects exactly one by primary key.
+
+        ``run_id`` was added so ``run()`` could stop scanning a capped list in
+        Python to find a row the database can look up directly — see ``run``.
+        """
         cols = ("run_id, seat, task, model, tokens, tool_uses, dispatched_at, "
                 "resolved_at, artifact_path, verdict, reasoning, trace_id, "
                 "status, recommendations"
                 + (", output" if with_output else ""))
         where, params = "", ()
-        if seat:
+        if run_id:
+            where, params = "WHERE run_id = %s", (run_id,)
+        elif seat:
             where, params = "WHERE seat = %s", (seat,)
         with self._connect() as conn:
             with conn.cursor() as cur:
@@ -509,17 +517,19 @@ class DeskStore:
                 return int(cur.fetchone()[0])
 
     def run(self, run_id: str) -> Optional[dict[str, Any]]:
-        rows = [r for r in self.runs(limit=1000, with_output=False)
-                if r["run_id"] == run_id]
-        if not rows:
-            return None
-        with self._connect() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT output FROM fund_agent_runs "
-                            "WHERE run_id = %s", (run_id,))
-                got = cur.fetchone()
-        rows[0]["output"] = got[0] if got else None
-        return rows[0]
+        """One run by id, whole.
+
+        FIXED 2026-08-22 — THIS HAD A CAP AND THE CAP WAS A BUG. It used to
+        fetch the newest 1,000 rows and filter in Python, then issue a SECOND
+        query for the output. At 55 rows that was merely wasteful; at 1,001 the
+        OLDEST run would have returned 404 while sitting in the table, and the
+        endpoint would have said "no run <id>" about a run that exists. That is
+        the same defect as the 25-run payload cap that truncated the firm's
+        first spend meter, one row-limit further out — a limit read as a fact
+        about the data. A primary-key lookup has no limit to get wrong.
+        """
+        rows = self.runs(limit=1, with_output=True, run_id=run_id)
+        return rows[0] if rows else None
 
     # --- the interaction itself (2026-08-21) -------------------------------
 

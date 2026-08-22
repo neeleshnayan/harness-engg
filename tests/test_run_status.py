@@ -203,3 +203,55 @@ def test_run_stats_on_an_absent_recorder_is_UNKNOWN_not_zero():
     got = metrics.run_stats(None)
     assert metrics.is_unknown(got)
     assert got["reason"] == "RECORDER_UNREACHABLE"
+
+
+# --- the cap that was a bug -------------------------------------------------
+
+def test_run_by_id_does_NOT_depend_on_the_row_being_in_a_capped_window():
+    """REGRESSION, 2026-08-22, AND THE TEST IS BUILT SO THE OLD CODE FAILS IT.
+
+    `run()` used to fetch the newest 1,000 rows with no key and filter in
+    Python, so run number 1,001 would 404 while sitting in the table — the
+    endpoint saying "no run <id>" about a run that exists. Same defect as the
+    25-run payload cap that truncated the firm's first spend meter, one
+    row-limit further out.
+
+    Inserting 1,001 rows to prove it would be slow and would still only prove
+    it at ONE limit. Instead the unkeyed listing is made to return nothing —
+    exactly what a row outside the window looks like — so any implementation
+    that SCANS a list fails, and only one that looks the row up by primary key
+    passes. The bug cannot hide behind a small fixture."""
+    s = _store()
+    s.record_run(run_id="r0", seat="pm", task="t", output="body-0")
+
+    real = s.runs
+    seen = []
+
+    def only_keyed(*a, **kw):
+        seen.append(kw.get("run_id"))
+        if not kw.get("run_id"):
+            return []          # the row is outside the window
+        return real(*a, **kw)
+
+    s.runs = only_keyed
+    got = s.run("r0")
+    assert got is not None, ("run() scanned an unkeyed list instead of looking "
+                            "the row up by primary key")
+    assert got["run_id"] == "r0"
+    assert got["output"] == "body-0"
+    assert seen == ["r0"], f"expected one keyed lookup, got calls {seen}"
+
+
+def test_run_by_id_returns_None_for_a_run_that_does_not_exist():
+    s = _store()
+    s.record_run(run_id="r1", seat="pm", task="t", output="o")
+    assert s.run("nope") is None
+
+
+def test_runs_filtered_by_run_id_ignores_the_seat_filter():
+    """run_id is a primary key; combining it with seat could only ever return
+    the same row or nothing, and silently returning nothing would look like a
+    missing run."""
+    s = _store()
+    s.record_run(run_id="r1", seat="pm", task="t", output="o")
+    assert [r["run_id"] for r in s.runs(seat="builder", run_id="r1")] == ["r1"]
