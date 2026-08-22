@@ -65,6 +65,54 @@ November and 7 in July, a 20.9× swing, which retires the premise of the 8-hour
 corpus extension the mechanism requested and the CEO approved. Entry 14 CLOSED
 (8 names at N=20, 0.0% of days ≥30).
 
+### THE REIMAGINED TEAM — implemented overnight on the CEO's instruction
+
+CEO, verbatim: *"our team needs to become a self evolving harness that
+cordially works as one team and one goal"* → *"go ahead and implement a new
+reimagined team over the night."* Shipped: blueprint
+(`docs/TEAM_REIMAGINED_2026-08-22.md`, ClarkHarness `bb188c3`), a dated
+constitution section (two layers · seats hold boundaries/surfaces/pens, never
+workloads · transient fan-out · `## EVOLVE` · the selection loop,
+proposals-only, two-week falsifier · adversary excluded from the loop's reach
+as chair default **awaiting CEO ratification**), and the evolution contract
+appended to ALL 11 seat files with a per-seat FITNESS QUESTION. Control layer
+untouched. The executive table reviews the implementation: Grace v0.2 on the
+date axis, Vishesh triage #5 on reversibility — review AFTER implementation
+was the CEO's sequencing call.
+
+**Also amended (CEO, awake): TWO BUILDERS may run in parallel** — disjoint
+write scopes, serialized full suites, falsifier: any RAM collapse or hung
+suite reverts to one heavy.
+
+### THE CHAIR IS BACK — Fable, from ~11:00Z
+
+Handoff accepted and annotated resolved at the top of the queue. Rulings:
+clause 5 gates seat challenges, not CEO instructions (falsifier-at-write-time
+is the treatment for a CEO loosening); the wire's posting boundary PINNED
+narrow (a posting never fires a seat — CEO confirmed); PM dispatched on
+`5b6b37bd` within the hour (the co-CTO's caution was over-caution, by its own
+note). Five seats in flight: adversary (D11 blind), builder (the room),
+mechanism (c5), Donna (08-21 archive), pm (measurement programme).
+
+**OVERNIGHT AUTHORIZATION (CEO, 2026-08-22, verbatim: "I was working the whole
+day so I havent slept - lets work together for next 30 aqnd then you need to
+run the team for next few hours").** This is a live session with standing CEO
+authorization — not scheduled autonomy; the deliberate-versioned-step line is
+uncrossed. Scope the chair holds overnight: dispatch/verify/file/record/
+resolve; merges on green within chair authority. Scope that WAITS for the
+CEO's morning click: the alpaca-paper reconciliation, any deploy, any
+threshold move, any COO batch acceptance, Grace's D4 respec.
+
+**Three overnight acts pre-authorized by the CEO awake ("yup", 2026-08-22):**
+(1) **D11 merges WHOLE on adversary SURVIVES** — `FUND_MODE=alpaca-paper` into
+the live `.env` first, spine restart, NAV verified $1,885.74 on Postgres; on
+KILL nothing merges and the repair brief goes out tonight. (2) **The 2016q1
+corpus extension runs as the night's one HEAVY job** — pre-registration
+committed BEFORE the pull (see docs/research/), output to the 4TB store,
+after the room builder lands. (3) **COO triage #5 runs late tonight** — one
+batch memo on the CEO's desk at breakfast, including Vishesh's owed
+`## WHERE I DIFFER` on Grace's first memo, his own ranking formed FIRST.
+
 ### HANDOFF TO FABLE — 2026-08-22, and it is the top entry of CTO_REVIEW_QUEUE.md
 
 **The CEO is bringing the CTO chair back.** The full handoff is one detailed

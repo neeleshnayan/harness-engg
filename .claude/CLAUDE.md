@@ -238,6 +238,51 @@ objection marked "preserved unresolved", which this firm has already priced.
 advise the same decision on different axes, the same discipline applies. What
 makes it safe here is that neither seat decides: the CEO does.
 
+## The reimagined team (2026-08-22, CEO instruction, implemented overnight)
+
+**Verbatim: "our team needs to become a self evolving harness that cordially
+works as one team and one goal" and "go ahead and implement a new reimagined
+team over the night."** Full blueprint with reasoning:
+`ClarkHarness/docs/TEAM_REIMAGINED_2026-08-22.md`. The binding rules:
+
+1. **TWO LAYERS. The WORK layer evolves; the CONTROL layer versions.** Seat
+   definitions, briefs, propagation protocols, allocation and memory evolve
+   under chair review, same-day, one commit to revert. The guard, autopolicy,
+   gate, thresholds, risk limits, exit mechanics, event store, the CEO's
+   click and the ignition keys change ONLY by versioned human decision — and
+   the self-evolving machinery may not touch that layer nor propose to touch
+   it quietly. Quiet self-loosening is the native failure mode of a
+   self-evolving system; the one forbidden move now binds the evolution
+   mechanism itself.
+2. **A standing seat exists to hold a judgment boundary, an accountability
+   surface, or a pen — never a workload.** Labor re-lanes freely by the
+   chair's judgement; the blind-review boundary, the never-downgrade rules
+   and author ≠ reviewer ≠ approver move never.
+3. **TRANSIENT FAN-OUT under a standing seat's name**: the chair may fan
+   breadth work out to transient workers under a seat's identity; the
+   standing seat's memory receives one consolidated STATE and remains the
+   single accountability surface.
+4. **The protocol gains `## EVOLVE`** after STATE and BINDS: a seat may
+   propose amendments to its own seat file as before/after text, grounded in
+   a measured outcome. Admissibility is the challenge bar — a measured
+   outcome or demonstrated consequence, never taste. The chair reviews at
+   resolve like BINDS; cross-seat proposals additionally reach the receiving
+   seat in its next brief before applying.
+5. **THE SELECTION LOOP** (the retrospective organ): a chair-triggered,
+   proposals-only instrument over the decision log — which briefs produced
+   surviving verdicts, which amendments changed outcomes, what aged
+   unanswered, what was re-derived. Output is reviewable diffs through the
+   ordinary desk path. **Nothing auto-applies, ever.** Falsifier, written at
+   birth: two weeks without one amendment surviving both chair and seat
+   review dismantles the loop.
+6. **THE IMMUNE-SYSTEM EXCLUSION (chair default, awaiting CEO ratification):
+   the loop may not propose amendments to the adversary's seat.** Nothing
+   reviewed by a boundary may reshape that boundary.
+7. **Unchanged, listed so nobody wonders**: no seat gained a trigger; a
+   posting fills an in-tray and never fires a seat; every non-negotiable
+   stands; the candidate chain is untouched; the CEO's click count may fall,
+   his authority never.
+
 ## Tools and memory per seat
 
 Each seat's tools match its job, not a default: `mechanism`, `analyst` and
@@ -357,6 +402,16 @@ interchangeable units of load**, and the chair weights them:
   containers, validator simulations. **At most ONE heavy job in flight**,
   and a heavy seat's OWN internal parallelism is part of the chair's
   dependency check, not the seat's private business.
+
+  **AMENDED 2026-08-22 (CEO, verbatim: "have two builders run in parallel is
+  not a very bad idea"): TWO BUILDERS may run concurrently IF their write
+  scopes are fully disjoint (different repos, or provably disjoint
+  directories) AND their full test-suite runs are SERIALIZED between them —
+  the morning's collapse was two heavy jobs spiking RAM simultaneously, not
+  two jobs existing. Editing is light; suites are heavy; the discipline goes
+  in both briefs. Falsifier, written at decision time: any host RAM collapse
+  or hung suite while two builders are in flight reverts this to one heavy
+  job, pending a written reason.**
 
 Dependency criterion 4 below already forbids contending for a scarce
 resource; this names RAM as one and gives it a number. And the corollary is
