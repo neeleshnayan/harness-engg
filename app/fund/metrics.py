@@ -286,6 +286,53 @@ def _nav_section(day_events: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def nav_strikes(day: Any, store: Any) -> dict[str, Any]:
+    """Each individual NavStruck on a day, oldest first — the DETAIL view.
+
+    ``compute_daily``'s ``nav`` section answers "how many, and open to close".
+    This answers "show me each one", which is the question asked when a strike
+    looks wrong. Kept in the module rather than in the script so both readings
+    come from one fold; a second copy in a script drifts and the drift is
+    invisible because both copies look plausible.
+
+    A DERIVED READING OF THE LOG, never the book — same rule as every other
+    section here. A strike whose total cannot be parsed is listed with
+    ``total_nav_usd: None``, not dropped: a strike that happened and could not
+    be read is a fact worth seeing.
+    """
+    d = parse_day(day)
+    start, end = day_bounds(d)
+    rows = [e for e in _events_for_day(store, start, end)
+            if _etype(e) == "NavStruck"]
+    rows.sort(key=lambda e: (_get(e, "seq") or 0, _get(e, "ts") or ""))
+    out = []
+    for e in rows:
+        p = _payload(e)
+        total = _num(p.get("total_nav_usd"))
+        bd = p.get("breakdown") if isinstance(p.get("breakdown"), dict) else {}
+        positions = p.get("positions")
+        out.append({
+            "seq": _get(e, "seq"),
+            "ts": _get(e, "ts"),
+            "total_nav_usd": None if total is None else float(total),
+            "cash_usd": _f(bd.get("cash")),
+            "positions_usd": _f(bd.get("positions")),
+            # A count, not the whole list: the strike payload carries every
+            # position and a detail script does not need 60 KB per row.
+            "position_count": (len(positions) if isinstance(positions, list)
+                               else None),
+        })
+    return {"day": d.isoformat(), "strikes": out, "count": len(out),
+            "note": (f"{len(out)} strike(s) on {d.isoformat()}" if out else
+                     f"no NavStruck on {d.isoformat()} — the fund was not "
+                     "marked, which is not the same as being marked at zero")}
+
+
+def _f(raw: Any) -> Optional[float]:
+    v = _num(raw)
+    return None if v is None else float(v)
+
+
 def _fills_section(day_events: list[dict[str, Any]]) -> dict[str, Any]:
     """``OrderFilled`` count, notional and venue split.
 
@@ -788,8 +835,8 @@ def friction(store: Any, now: Optional[datetime] = None) -> dict[str, Any]:
                f"{dispatch_total} DeskDispatched events carry no request_id, "
                "so a dispatched request can look undispatched here"
                if dispatch_unlinkable else "")
-            + (f". {dispatch_orphan} dispatch event(s) name a request that was "
-               "never filed; counted, never folded" if dispatch_orphan else "")
+            + (f". {dispatch_orphan} dispatch event(s) naming a request that "
+               "was never filed; counted, never folded" if dispatch_orphan else "")
             + "."
         ),
     }
