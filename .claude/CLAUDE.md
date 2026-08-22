@@ -575,7 +575,15 @@ tailed outputs, no redundant restarts) is the largest single cost lever.
 2026-08-21, CEO instruction "she should generate the pdf not you from
 next run"): `secretary` may write `ClarkHarness/docs/archives/**` only —
 her own dated archive (.md, filed verbatim from her draft) and its PDF
-render via `scripts/archive_pdf.py`, both through Bash. The directory is
+render via `scripts/archive_pdf.py`, both through Bash. AMENDED 2026-08-22
+(CEO agreement on the chair's proposal, "Agree"): the secretary's write
+scope extends to `ClarkHarness/docs/lab/**` — the strategy one-pager per
+experiment, rendered from the record via `scripts/lab/strategy_onepager.py`
+once built (ticket `66912f40`). Same shape as the archives exception: a
+dated artifact per experiment, never an edit, nothing in it feeds a
+decision path, and the CAVEATS section is sourced from the judging seat's
+filed report, never auto-written — the honesty is a seat's judgement, not
+a template's. The directory is
 append-only by convention (a new dated file per day, never an edit), the
 CTO verifies and commits, and nothing in it feeds a decision path — it
 is the record OF decisions. The original two (2026-08-20):**

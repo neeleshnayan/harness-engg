@@ -339,6 +339,26 @@ the firm's best lead, Grace's memo, and what I deliberately did not do.
   check-your-model-on-cold-start rule is the only reason we know. Harness
   bug, CEO filing it upstream; until then the served model is the identity,
   never the picker.
+- **`daily_returns.benchmark` is DEFECTIVE in the verification payload**:
+  compounds to +19.76% vs the true +84.78% on candidate 144387901688 while
+  claiming "907 aligned daily observations, dropped 0" — absence rendered as
+  zero on the calendar grid. Found by the chair charting the CEO's one-pager;
+  carried to the validator. Never consume that leg.
+
+### DECIDED (by the CEO) — evening additions
+
+- **THE LAB**: a strategy one-pager per experiment, docked under `docs/lab/`
+  with a Studio shelf (builder ticket `66912f40`); **Donna's write exception
+  extends to `docs/lab/**`** — working-protocol-6 amendment written, caveats
+  always sourced from the judging seat's report, never templated. Entry 20's
+  PDF (`docs/quant/ENTRY20_ONEPAGER_2026-08-22.pdf`) is the format seed.
+- **THE BELT DATA CACHE approved and dispatched** (ticket `252bce7b`): the
+  measured 85%-of-container fetch tax; expected ~96 min → ~20-25 min per
+  candidate; clean-field merge condition — bit-identical verification run.
+- **+16 GB RAM incoming** (host going 15.2 → ~31 GB). NOTE FOR THE CHAIR:
+  this re-opens the host-budget numbers (one-heavy-job rule, the 1.28 GB
+  collapse falsifier) — revisit as a WRITTEN, versioned amendment when the
+  RAM physically lands, never silently. The rule stands until then.
 
 ### DECIDED (by the CEO)
 
