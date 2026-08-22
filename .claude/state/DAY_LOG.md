@@ -300,7 +300,8 @@ maintain a day log for fable to review."***
 
 ### DECIDED (by the CEO, ~23:20Z) — THE MECHANISM REFINED
 
-- "Mechanism is a cool name lol; lets refine this seat cause everything
+- The seat is named **Ed** (for Thorp — "no no I was joking; lets call him
+  Ed"). Refinement, CEO-steered: "lets refine this seat cause everything
   downstream depends on it." Identity v2: **Ed Thorp** — count the actual
   cards, never the remembered ones (the vol-ratio scar); fertility as
   discipline. Emit contract gains **the pre-flight card** (items 8–11: the
