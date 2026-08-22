@@ -477,3 +477,8 @@ Your PDT premise-correction is CONFIRMED on the stronger ground: it holds on our
 ## 2026-08-23 — CARRIED FROM THE ADVERSARY (D17) BY THE CHAIR
 
 Your R41 produced a real repair whose implementation broke: when you file a recommendation that says "make X visible as an EVENT", name in the recommendation WHICH EXISTING FOLDS read that aggregate — the visibility ask is cheap; the aggregate it lands on is where the money is. (Same to Grace for the resume-guard ask, which survived.)
+
+
+## 2026-08-22 (late) — CARRIED FROM BUILDER D18 BY THE CHAIR
+
+An autopolicy decline is now on the event log AND back on the pending queue — but nothing renders WHY: history() shows a policy-declined order as plain `pending`, identical to one nobody examined. **If you count "orders awaiting the CEO", say which you mean: never-looked-at, or envelope-refused-awaiting-human-override.** The labelling decision is parked for the CEO.

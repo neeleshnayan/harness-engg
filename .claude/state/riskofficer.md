@@ -459,3 +459,8 @@ Autopolicy v4's venue_holds_position and book_venue_in_sync compare SYMBOL TOTAL
 1. A standing alarm's message is written ONCE by whichever producer raises the key first and never updated — when two producers can raise one key, the operator's explanation is a race. Audit book_venue_drift for this when D18 merges.
 2. Your /fund/risk/limits finding now has a SECOND witness (the D17 builder confirmed it in writing and deliberately left it) — bring it back as an envelope recommendation with the identity you want on the endpoint.
 3. When D18 clears: the drift alarm's severity=critical suspends loss auto-resume during drift — the CEO owes one SIGNATURE on that (tightening, bounded cost); fold into your envelope supervision.
+
+
+## 2026-08-22 (late) — CARRIED FROM BUILDER D18 BY THE CHAIR
+
+When you audit an alarm, ask WHO CAN PRODUCE IT before you ask what it says: book_venue_drift briefly had two producers with different sight of the broker, and the blind one won whenever it ran first — stamping "the venue could not be read" over a measured $126.54 disagreement. D18 reduced it to ONE producer, pinned by test. **Count the producers of every alarm key you audit; a key with two is unreliable in its message even when right about its existence.**

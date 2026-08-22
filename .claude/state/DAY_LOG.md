@@ -368,6 +368,30 @@ Donna's: CHECK date -u BEFORE DATING ANYTHING.**
   (light seat; D18 heavy slot unaffected) — first run under the production
   ethic and the pre-flight card.
 
+### BUILT — D18 DELIVERED (~21:45Z); FINAL BLIND PASS IN FLIGHT; THE VAULT
+
+- **D18: both kills repaired and mutation-proven** (annotate-not-lifecycle
+  via ONE exported set both folds read; the report DERIVED from the judged
+  dict + one shared predicate; producers reduced to one). 1852 green in
+  worktree, 1863 on the merged tree — arithmetic exact. 20 mutants: 19
+  killed, 1 RETIRED WITH CAPTURED PROOF. Item 7's verification is now 13
+  executable tests. First correct base in 18 dispatches; best deletion
+  ratio in six. Builder's rule-6 risk, honest: run() still double-evaluates
+  alarms — the defect-class MECHANISM is intact behind one test; follow-up
+  ticketed. **Whole branch (D17+D18) with the adversary for the final
+  blind pass; merge whole-or-nothing after.**
+- **THE VAULT** (CEO decision): private repo github.com/neeleshnayan/
+  harness-engg to de-risk the work off this PC; remotes wired
+  (vault→firm/clarkharness/kryptonpay branches); pushes await the CEO's
+  own gh auth (credentials are his, never the chair's). **SECRETS FINDING
+  disclosed and DECIDED**: ClarkHarness history carries a tracked .env
+  backup with the Alpaca PAPER key/secret + Polygon key + signal token —
+  already visible to the team on the OG origin. CEO: "I wont rotate keys
+  to a paper account lol" — accepted, his risk call, recorded. **THE RULE
+  THAT BANKS FORWARD: Monday's LIVE-account keys never touch any repo —
+  .env only, untracked; a live credential in any diff is a merge-blocker
+  at threshold-move severity.** THE CLEANUP: sixth deferral, on the record.
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT

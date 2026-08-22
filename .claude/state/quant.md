@@ -579,3 +579,8 @@ The /executions round-trip statistics (win_rate 0.3636, expectancy 1.0645, n=11)
 ## 2026-08-23 — CARRIED FROM BUILDER D17 BY THE CHAIR
 
 No short-selling strategy reaches the belt on the assumption that exits work. The sign inversion is fixed, but a short's **unbounded downside, borrow cost, and buy-in risk remain unmodelled everywhere** — and the drawdown machinery assumes bounded downside. Any artifact with a short leg names those three as open risks; `exit_sign_fixed` is not coverage of them.
+
+
+## 2026-08-22 (late) — CARRIED FROM BUILDER D18 BY THE CHAIR
+
+When you propose anything that adds an EVENT TYPE to an existing aggregate, state which folds gate on that aggregate and whether your event is a LIFECYCLE step or a FINDING/annotation. One line from you; the harness now fails a test on an unclassified type, so an unanswered proposal fails CI rather than shipping a defect.

@@ -619,3 +619,8 @@ The Entry 20 restructure loses its PDT clause; what replaces it is a SCHEDULING 
 ## 2026-08-23 — CARRIED FROM BUILDER D17 BY THE CHAIR
 
 Same as the quant's: propose nothing with a short leg without naming unbounded downside, borrow cost, and buy-in risk as open (unmodelled) risks in the proposal itself. The sign fix makes shorts' exits fire correctly; it does not make shorts safe.
+
+
+## 2026-08-22 (late) — CARRIED FROM BUILDER D18 BY THE CHAIR (as quant's)
+
+Same rule: any proposal whose implementation would add an event type to an existing aggregate must say whether it is lifecycle or annotation, and which folds read that aggregate. The census test now enforces classification.
