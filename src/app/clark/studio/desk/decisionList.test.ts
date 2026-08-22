@@ -18,7 +18,9 @@ import {
   orderItems, rankDeskItems, recItems, splitDeskItems, type QueuedAsk,
 } from "./execDesk.ts";
 import { officerDesk } from "./officerQueues.ts";
-import { countCheck, decisionList, foldedCounts } from "./decisionList.ts";
+import {
+  countCheck, decisionList, foldedCounts, orderingHazard,
+} from "./decisionList.ts";
 import { memoParts } from "../memo.ts";
 
 const rec = (o: Record<string, unknown>) =>
@@ -259,6 +261,70 @@ test("orders are their own group and asks are LAST", () => {
     "an ask carries neither money nor a reversibility class, so it is placed "
     + "rather than ranked — and placed where that is visible");
   assert.equal(list.total, 3);
+});
+
+/* ------------------------------------------------ the ordering hazard ----- */
+
+test("the ordering hazard is SILENT on today's data", () => {
+  /* Reported by the adversary and deliberately not killed on: it is a real
+   * hazard and a NO-OP on the live corpus, where every row is $0. A warning
+   * that fires on a hypothetical is noise, and noise on every render is how a
+   * warning stops being read. */
+  const { list } = build([
+    rec({ rec_id: 1, kind: "an-unregistered-kind" }),
+    rec({ rec_id: 2, kind: "process", money_at_stake: 0 }),
+  ], [run()], []);
+  assert.equal(orderingHazard(list.all), null);
+});
+
+test("the ordering hazard FIRES, with the figure, when a priced row is outranked", () => {
+  /* THE HAZARD MADE VISIBLE. `due_date` separates zero rows because nothing
+   * writes it, so reversibility is the top LIVE key — and it is a lookup on
+   * free text against a ~30-entry table. An unrecognised kind is
+   * `unclassified` (rank 2, the fail-closed direction) and outranks anything
+   * classified `reversible` (rank 3), however large. */
+  const { list } = build([
+    rec({ rec_id: 1, kind: "an-unregistered-kind" }),
+    rec({ rec_id: 2, kind: "decision", money_at_stake: 500_000 }),
+  ], [run()], []);
+  const h = orderingHazard(list.all);
+  assert.ok(h, "a $500,000 row sorted below an unpriced chore must be said");
+  assert.match(h!, /\$500,000/, "the FIGURE must be in the sentence — the "
+    + "whole complaint is that the number is invisible");
+  assert.match(h!, /an-unregistered-kind/, "and the kind that outranked it");
+  assert.match(h!, /a seat states `reversibility`|goes in the table/,
+    "and a way out, because a warning with no action is a complaint");
+});
+
+test("the hazard does NOT fire when the outranking row is genuinely urgent", () => {
+  /* `hard` and `irreversible` outranking a priced reversible row is the
+   * ordering working as the CEO decided it, not a defect. Only the
+   * UNCLASSIFIED case — where the rank rests on absence of information rather
+   * than on a judgement — is the hazard. */
+  for (const kind of ["exit_rule", "retire", "risk"]) {
+    const { list } = build([
+      rec({ rec_id: 1, kind }),
+      rec({ rec_id: 2, kind: "decision", money_at_stake: 500_000 }),
+    ], [run()], []);
+    assert.equal(orderingHazard(list.all), null, kind);
+  }
+});
+
+test("a DATED unclassified row is not the hazard either", () => {
+  /* It leads on the deadline key, which is a measurement, not a word. The
+   * hazard is specifically "ranked high because we could not read its kind". */
+  const { list } = build([
+    rec({ rec_id: 1, kind: "an-unregistered-kind", due_date: "2026-09-08" }),
+    rec({ rec_id: 2, kind: "decision", money_at_stake: 500_000 }),
+  ], [run()], []);
+  assert.equal(orderingHazard(list.all), null);
+});
+
+test("the hazard reaches the page", () => {
+  const src = readFileSync(new URL("./ceo/page.tsx", import.meta.url), "utf8");
+  assert.ok(src.includes("orderingHazard(list.all)"),
+    "an unwired warning is worse than none — it looks like a control");
+  assert.ok(src.includes("{hazard}"), "and its sentence must render");
 });
 
 /* ------------------------------------------------- the runtime check ------ */

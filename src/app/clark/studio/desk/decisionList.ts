@@ -283,6 +283,69 @@ export function countCheck(args: {
   );
 }
 
+/**
+ * WHERE THE RANKING IS RESTING ON A WORD RATHER THAN A NUMBER.
+ *
+ * THE HAZARD, reported by the adversary and NOT killed on: promoting
+ * reversibility above money makes a ~30-entry free-text `kind` lookup the top
+ * LIVE key, because `due_date` separates zero rows (nothing writes it). So an
+ * unpriced chore whose kind nobody registered sorts as `unclassified` — rank 2,
+ * the fail-closed direction — while a row carrying a real dollar figure whose
+ * kind IS in the table as `reversible` sorts at rank 3, below it. A $500k
+ * decision can sit under a $0 chore because of a word.
+ *
+ * WHAT I DECIDED, and the reasoning, because this is the seam between a defect
+ * and a decision:
+ *
+ *   * NOT to reorder the keys. The CEO ordered them this week, on the COO's
+ *     stated rule, and no live row is affected — all rows are $0 today, so the
+ *     hazard is real and currently a no-op. Changing a standing decision needs
+ *     new evidence or a demonstrated consequence, and "I can construct a case"
+ *     is neither.
+ *   * NOT to let money jump a band. That is the ordering the CEO rejected,
+ *     smuggled in as a tie-break.
+ *   * NOT to widen the kind table on my own. It is my judgement from D3 and it
+ *     has wanted a human review since; guessing harder is not reviewing it.
+ *
+ *   * TO MAKE IT VISIBLE, WITH THE FIGURES. The brief's constraint was "do not
+ *     let it silently sort a real decision downward", and the operative word is
+ *     silently. This returns the sentence the page prints when the hazard is
+ *     actually live, naming the dollar amount that got outranked and the kind
+ *     that outranked it. When it fires, the CEO has the evidence to reopen the
+ *     ordering; until then it says nothing, because a warning about a
+ *     hypothetical is noise.
+ */
+export function orderingHazard(decisions: Decision[]): string | null {
+  const items = decisions.flatMap((d) => (d.kind === "ask" ? [] : [d.item]));
+  let worstPriced: DeskItem | null = null;
+  const outranking: DeskItem[] = [];
+  // The list is already in render order, so "above" is simply "earlier".
+  for (const i of items) {
+    if (i.reversibility === "unclassified" && i.dueDate == null) {
+      outranking.push(i);
+      continue;
+    }
+    if (i.reversibility !== "reversible") continue;
+    if (typeof i.moneyUsd !== "number" || i.moneyUsd <= 0) continue;
+    if (outranking.length === 0) continue;
+    if (!worstPriced || i.moneyUsd > worstPriced.moneyUsd!) worstPriced = i;
+  }
+  if (!worstPriced) return null;
+  const kinds = [...new Set(outranking.map((i) => i.rec?.kind ?? "(no kind)"))];
+  const money = worstPriced.moneyUsd!.toLocaleString(
+    "en-US", { maximumFractionDigits: 2 });
+  return (
+    `THE ORDER ABOVE IS RESTING ON A WORD. A $${money} decision is sorted `
+    + `BELOW ${outranking.length} row(s) carrying no dollar figure, because `
+    + `their kind (${kinds.join(", ")}) is not in the reversibility table and `
+    + "an unrecognised kind ranks with the urgent half — the fail-closed "
+    + "direction, which is right in general and wrong here. Nothing writes "
+    + "`due_date`, so reversibility is the top LIVE key and it is a lookup on "
+    + "free text. Two ways out, both yours: a seat states `reversibility` on "
+    + "the recommendation, or the kind goes in the table."
+  );
+}
+
 export interface FoldedCounts {
   decided: number;
   elsewhere: number;

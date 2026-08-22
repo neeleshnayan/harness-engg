@@ -20,7 +20,9 @@ import {
   unwrapMemoMarkdown,
 } from "../execDesk";
 import type { Decision, DecisionGroup } from "../decisionList";
-import { countCheck, decisionList, foldedCounts } from "../decisionList";
+import {
+  countCheck, decisionList, foldedCounts, orderingHazard,
+} from "../decisionList";
 import { officerDesk } from "../officerQueues";
 import { CooTriageChip, ProvenanceChip } from "../components";
 import { cardStyle } from "../deskCardStyle";
@@ -330,7 +332,8 @@ export default function CeoDeskPage() {
             {list.groups.map((g) => (
               <DecisionGroupBlock key={g.key} group={g} onChanged={load} />
             ))}
-            <RankingNote gap={gap} coverage={coverage} batches={list.batches} />
+            <RankingNote gap={gap} coverage={coverage} batches={list.batches}
+                         hazard={orderingHazard(list.all)} />
           </section>
         )}
 
@@ -789,12 +792,21 @@ function GroupAccept({ items, isBatch, onChanged }: {
  * price. The `covered_by` sentence is here for the same reason — the grouping
  * is honest about the relation it does NOT have.
  */
-function RankingNote({ gap, coverage, batches }: {
+function RankingNote({ gap, coverage, batches, hazard }: {
   gap: { priced: number; unpriced: number };
   coverage: ReturnType<typeof rankCoverage>;
   batches: number;
+  /** Set only when the ordering is ACTUALLY resting on an unrecognised kind
+   *  over a priced row — null the rest of the time. A warning about a
+   *  hypothetical is noise, and noise on every render is how a warning stops
+   *  being read. See `orderingHazard`. */
+  hazard: string | null;
 }) {
   return (
+    <>
+    {hazard && (
+      <p className={`text-[12px] leading-relaxed ${KT.sev.warn}`}>{hazard}</p>
+    )}
     <p className={`text-[11px] leading-relaxed ${KT.muted}`}>
       Ranked by <strong>deadline</strong>, then reversibility, then money, then
       age — a versioned change can be reversed in an afternoon and a fill
@@ -827,6 +839,7 @@ function RankingNote({ gap, coverage, batches }: {
         </>
       )}
     </p>
+    </>
   );
 }
 
