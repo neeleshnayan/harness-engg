@@ -13,6 +13,29 @@ PRODUCTION = "production"
 _active: dict[str, str] = {}
 
 
+def _is_test_mode() -> bool:
+    """Is this process running the fund's ``test`` mode?
+
+    Replaces ``USE_FAKE_FIRESTORE`` as the key for the interlock below. The
+    flag is gone; THE MODE IT WAS PROTECTING IS NOT — it was renamed ``test``
+    and made persistent — so the interlock is re-keyed rather than deleted.
+    Removing a guard along with its flag is only correct when the state it
+    guards against stops existing, and here it did not.
+
+    Deliberately tolerant: any failure to resolve a mode answers False, so an
+    unconfigured process is treated as NOT test mode and gets the loud refusal
+    from every other guard instead of a quiet exemption from this one.
+    """
+    try:
+        from app.fund.mode import FundMode, current, resolve
+        spec = current()
+        if spec is None:
+            spec = resolve()
+        return spec.mode is FundMode.TEST
+    except Exception:  # noqa: BLE001 — see the docstring
+        return False
+
+
 def initialize_firebase() -> None:
     """Initialize Firebase Admin once, from a service-account JSON.
 
@@ -39,9 +62,9 @@ def initialize_firebase() -> None:
         _log.warning("Could not read project_id from %s (%s)", service_account_path, e)
 
     env = os.getenv("FUND_ENV", "staging").strip().lower()
-    if os.getenv("USE_FAKE_FIRESTORE", "").lower() in ("1", "true", "yes"):
-        # An in-memory ledger is never the fund, whatever FUND_ENV claims.
-        env = "mock"
+    if _is_test_mode():
+        # A test-mode process is never the fund, whatever FUND_ENV claims.
+        env = "test"
     _active.update({"project_id": project_id, "env": env,
                     "service_account": service_account_path,
                     "database_id": os.getenv("FIRESTORE_DATABASE_ID", "(default)")})
@@ -63,29 +86,27 @@ def db():
     (the fund's production project has one called "default"), and the SDK will
     404 looking for "(default)" if that id is not passed through.
     """
-    # USE_FAKE_FIRESTORE means "this process must not touch the real ledger".
-    # The app honours that by swapping the EventStore before anything calls
-    # db(), but a STANDALONE SCRIPT only calls initialize_firebase() — which
-    # happily labelled itself env="mock" while handing back a client wired to
-    # the production project. A repair script run with --apply under that
-    # illusion would write to the real, append-only fund ledger.
+    # FUND_MODE=test means "this process must not touch the real ledger".
+    # The app honours that by choosing the store before anything calls db(),
+    # but a STANDALONE SCRIPT only calls initialize_firebase() — which happily
+    # labelled itself env="test" while handing back a client wired to the
+    # production project. A repair script run with --apply under that illusion
+    # would write to the real, append-only fund ledger.
     #
-    # Reaching here in mock mode is therefore a bug, not a fallback: fail loudly
-    # rather than quietly connect to production.
-    # The app installs an in-memory Firestore before importing anything that
-    # calls db(), and that path is legitimate — it reports project "in-memory".
-    # A standalone script does NOT install it, so it reaches here still pointing
-    # at the real project while believing it is in mock mode. That is the case
-    # to stop: it is how a repair script run with --apply writes to the real,
-    # append-only fund ledger.
-    if (os.getenv("USE_FAKE_FIRESTORE", "").lower() in ("1", "true", "yes")
+    # Reaching here in test mode is therefore a bug, not a fallback: fail
+    # loudly rather than quietly connect to production. The app installs an
+    # in-memory Firestore before importing anything that calls db() and that
+    # path is legitimate — it reports project "in-memory". A standalone script
+    # does NOT install it, so it reaches here still pointing at the real
+    # project while believing it is isolated. That is the case to stop.
+    if (_is_test_mode()
             and _active.get("project_id") not in (None, "", "in-memory")):
         raise RuntimeError(
-            "refusing to open a REAL Firestore client while USE_FAKE_FIRESTORE is set — "
+            "refusing to open a REAL Firestore client while FUND_MODE=test — "
             f"the in-memory store was never installed, so this would reach project "
             f"{_active.get('project_id')!r}. Run this through the API against a "
-            "mock-mode spine, or unset USE_FAKE_FIRESTORE if you genuinely mean to "
-            "touch the real book."
+            "test-mode spine, or declare the mode you actually mean if you "
+            "genuinely intend to touch the real book."
         )
 
     from firebase_admin import firestore

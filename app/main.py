@@ -39,17 +39,38 @@ _WEB_DIR = pathlib.Path(__file__).resolve().parents[1] / "web"
 
 load_dotenv()
 
-# Firebase must be ready before importing routers that build Firestore clients.
-# Dev escape hatch: USE_FAKE_FIRESTORE=1 runs with an in-memory Firestore (no
-# creds, ephemeral) so you can test locally without a service account.
-use_fake = os.getenv("USE_FAKE_FIRESTORE", "").lower() in ("1", "true", "yes")
+# THE MODE IS RESOLVED FIRST, BEFORE ANYTHING ELSE, and a process that cannot
+# determine its mode does not start. This is the whole design in one statement:
+# a fund that cannot say where its orders go and where its events land must
+# refuse to construct an order path at all, loudly, at startup.
+#
+# It is deliberately NOT wrapped in a try/except. The failure this replaces —
+# USE_FAKE_FIRESTORE, FUND_REAL_BROKER and the mere presence of an API key,
+# three implicit switches across two files — never once produced an error; it
+# produced a fund quietly doing something other than what its operator
+# believed. An exception here is the improvement.
+from app.fund import mode as fundmode  # noqa: E402
 
-if use_fake:
-    _log.warning("MOCK MODE — in-memory ledger, real market prices. NOT the fund.")
+_mode_spec = fundmode.activate(fundmode.resolve())
+_log.warning("FUND MODE: %s | orders -> %s | events -> %s | real money: %s",
+             _mode_spec.mode.value, _mode_spec.venue_label,
+             _mode_spec.pg_database, _mode_spec.real_money)
+
+# Firebase must be ready before importing routers that build Firestore clients.
+# In test mode there is no service account and no real project: an in-memory
+# Firestore stands in for the parts of the harness that still speak Firestore
+# (the paper venue's own book, the snapshot store). The fund's EVENT LOG in
+# test mode is NOT in memory — it is Postgres, krypton_fund_test, persistent
+# and append-only exactly like the real one. Isolation and durability are
+# orthogonal, and the flag this replaces treated them as one thing.
+if _mode_spec.mode is fundmode.FundMode.TEST:
+    _log.warning("TEST MODE — simulated fills at real prices. NOT the fund. "
+                 "The record is persistent and separate (%s).",
+                 _mode_spec.pg_database)
     from app.core.dev_firestore import install_fake
     install_fake()
     from app.core import firebase as _fb
-    _fb._active.update({"project_id": "in-memory", "env": "mock",
+    _fb._active.update({"project_id": "in-memory", "env": "test",
                         "service_account": "(none)", "database_id": "(memory)"})
 else:
     try:
@@ -74,7 +95,7 @@ else:
                 f"cannot reach the production ledger ({e}). Refusing to fall "
                 f"back to a local file: fills written there would be invisible "
                 f"to reconciliation and to the audit trail. Fix connectivity, "
-                f"or set USE_FAKE_FIRESTORE=1 deliberately to work offline."
+                f"or run FUND_MODE=test deliberately to work offline."
             ) from e
         _log.warning("Firebase init failed (%s) — falling back to local dev Firestore.", e)
         from app.core.dev_firestore import install_fake

@@ -64,6 +64,17 @@ class _Row:
         self.total_usd = None
         self.symbol = symbol
         self.strategy_id = None
+        self.order_id = "row"
+        # Mirrors OrderCost since 2026-08-22: the fill's own label kept beside
+        # the venue that actually executed, and whether the two disagreed.
+        self.venue_declared = venue
+        self.venue_disputed = False
+
+    @property
+    def informative(self):
+        """Same rule as OrderCost.informative — a stand-in that diverges from
+        the thing it stands in for tests nothing."""
+        return (self.venue or "") != "paper"
 
 
 class TestInformativeStats:

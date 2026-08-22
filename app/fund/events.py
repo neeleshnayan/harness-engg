@@ -145,6 +145,28 @@ class EventType(str, Enum):
     # ignored ask is indistinguishable from an unseen one.
     DESK_REQUEST_DECLINED = "DeskRequestDeclined"
 
+    # The fund's MODE changing hands (2026-08-22, CEO decision: "the UI needs
+    # to give a toggle so I can switch"). A CONTROL, not a preference —
+    # switching modes changes where real money-shaped orders go — so it is an
+    # event naming who switched, when, from what and to what, and it is
+    # appended to BOTH stores: the one being left records the departure and the
+    # one being entered records the arrival, so neither log has a silent gap
+    # where the fund stopped or started for no stated reason. The two logs are
+    # never joined; each simply carries its own half of the fact.
+    FUND_MODE_SWITCHED = "FundModeSwitched"
+
+    # Broker reconciliation (2026-08-22, CEO decision — supersedes the PM's
+    # R18 fence-the-cohort recommendation). The book is brought into agreement
+    # with the venue BY APPENDING, never by reading broker equity as NAV: the
+    # fold must produce the matching answer rather than be bypassed. Carries
+    # its own basis — which broker reading, at what timestamp, against which
+    # book fold — so a future reader can re-derive the delta without trusting
+    # the note.
+    BOOK_RECONCILED_TO_VENUE = "BookReconciledToVenue"
+    #: Cash the fold must hold to agree with the venue, with a stated basis.
+    #: Distinct from a subscription: no unit is issued and no LP paid anything.
+    CASH_RECONCILED = "CashReconciled"
+
     # approval-channel guard v1 (2026-08-20): a refused approval is a FINDING —
     # a probe, a stray script, or a mistaken click — and findings are events.
     APPROVAL_REFUSED = "ApprovalRefused"
@@ -213,16 +235,54 @@ class Event:
         return d
 
 
+#: The two backends this store can front. Not an open set: a typo must be a
+#: refusal, not a new backend nobody implemented.
+STORE_BACKENDS = ("postgres", "firestore")
+
+
+class StoreUnset(RuntimeError):
+    """``FUND_STORE`` is unset or not a backend. There is no default."""
+
+
 def store_backend() -> str:
-    """Which store the fund is running on: ``postgres`` or ``firestore``."""
-    return (os.getenv("FUND_STORE", "firestore") or "firestore").strip().lower()
+    """Which store the fund is running on: ``postgres`` or ``firestore``.
+
+    NO DEFAULT, as of 2026-08-22. This function used to return ``"firestore"``
+    when the variable was absent, and on 2026-08-21 a spine restart that did
+    not carry the shell variable silently moved the WHOLE FUND off Postgres.
+    It was caught by a 503 on an unrelated desk write, which is to say it was
+    caught by luck. A default that relocates the ledger is a trapdoor: the
+    failure it produces is not "the fund stopped", it is "the fund kept going
+    somewhere else", and that is the one failure the append-only log cannot
+    repair afterwards.
+
+    Fail closed rather than defaulting to ``postgres``, deliberately, and the
+    difference matters. Defaulting to postgres would have fixed THIS incident
+    and left the shape intact — the next process whose environment is
+    incomplete would still come up confidently pointed at a store nobody
+    chose. An unset ledger is an unanswered question, and the honest response
+    to an unanswered question is to stop.
+    """
+    raw = (os.getenv("FUND_STORE") or "").strip().lower()
+    if not raw:
+        raise StoreUnset(
+            "FUND_STORE is unset. Set it to one of "
+            f"{list(STORE_BACKENDS)} — there is no default, because the "
+            "previous default ('firestore') silently relocated the fund's "
+            "entire ledger on a restart that did not carry the variable.")
+    if raw not in STORE_BACKENDS:
+        raise StoreUnset(
+            f"FUND_STORE={raw!r} is not a store backend; expected one of "
+            f"{list(STORE_BACKENDS)}.")
+    return raw
 
 
 class EventStore:
     """Append-only writer/reader over ``fund_events``.
 
-    Firestore by default; ``FUND_STORE=postgres`` returns a PostgresEventStore
-    instead.
+    ``FUND_STORE`` selects the backend and has NO DEFAULT (see
+    ``store_backend``); ``FUND_STORE=postgres`` returns a PostgresEventStore
+    pointed at the ACTIVE MODE's database (see ``app/fund/mode.py``).
 
     The switch lives in ``__new__`` rather than in a factory function called by
     every caller, and that is a deliberate trade. ``EventStore()`` is
@@ -237,8 +297,17 @@ class EventStore:
 
     def __new__(cls, db=None):
         if db is None and store_backend() == "postgres":
-            from app.fund.pgstore import PostgresEventStore
-            return PostgresEventStore()
+            from app.fund import mode as _mode
+            from app.fund.pgstore import PostgresEventStore, dsn as _base_dsn
+
+            # WHICH Postgres database is a property of the MODE, not of the
+            # backend. Three modes, three databases, and a process that has
+            # not declared its mode does not get handed the fund's real book
+            # by omission — it resolves the mode the same way the spine does,
+            # which raises when nothing declared one. This is the branch a
+            # forgetful repair script arrives on.
+            spec = _mode.current() or _mode.resolve()
+            return PostgresEventStore(_mode.pg_dsn_for(spec, _base_dsn()))
         return super().__new__(cls)
 
     def __init__(self, db=None):

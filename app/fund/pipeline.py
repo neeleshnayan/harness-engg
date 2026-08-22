@@ -67,6 +67,47 @@ class CommandPipeline:
         # makes a limit change take effect without a restart.
         self._risk = risk_gate or RiskGate(limits=RiskLimits())
 
+    # --- the spine's own answer to "where did this run" ---------------------
+    def _runtime_venue(self) -> str | None:
+        """The venue THIS pipeline's connector is, asked of the connector.
+
+        Never ``order.venue``. That field is whatever the proposer typed, and
+        it has demonstrably lied: ``exitrule.py:303`` hardcodes ``"paper"`` on
+        every exit it raises regardless of which connector will execute it,
+        and the propose schema defaults it to ``"paper"`` for anything that
+        does not say otherwise. Autopolicy v4 already refuses to read it
+        (``autopolicy.py:452``); this makes the WRITE path agree with that.
+
+        Returns None when the connector declines to identify itself, which is
+        an ABSENCE — the caller records the declaration as unverified rather
+        than promoting it to a fact.
+        """
+        name = getattr(self._connector, "name", None)
+        return str(name) if name else None
+
+    def _venue_stamp(self, order: Order) -> dict[str, Any]:
+        """The venue fields every order event carries, derived not declared."""
+        runtime = self._runtime_venue()
+        from app.fund import mode as _mode
+
+        stamp: dict[str, Any] = {"venue": runtime or order.venue}
+        if runtime is None:
+            # Say so rather than passing the declaration off as verified.
+            stamp["venue_source"] = "declared (the connector named no venue)"
+        elif order.venue and order.venue != runtime:
+            # The disagreement is the finding. Kept, not silently overwritten:
+            # a proposer asking for a venue it did not get is worth seeing.
+            stamp["venue_requested"] = order.venue
+            stamp["venue_source"] = "connector"
+        active = _mode.current_label()
+        if active:
+            # Mode travels with the artifact. Omitted, never guessed, when the
+            # process never declared one — a hand-built pipeline in a unit test
+            # genuinely has no mode, and "unknown" written into a payload would
+            # be a mode nobody chose.
+            stamp["mode"] = active
+        return stamp
+
     # --- propose -----------------------------------------------------------
     def propose_order(self, order: Order, actor: str) -> dict[str, Any]:
         order_id = str(uuid.uuid4())
@@ -226,7 +267,13 @@ class CommandPipeline:
                 aggregate_id=order_id,
                 aggregate_type="order",
                 type=EventType.ORDER_SUBMITTED,
-                payload={"venue": ref.venue, "venue_ref": ref.ref_id,
+                # ``ref.venue`` is the connector's own handle and was already
+                # the honest leg; the stamp adds the mode beside it and keeps
+                # the two legs' vocabulary identical so a reader never has to
+                # know which event it is looking at to know what venue means.
+                payload={**self._venue_stamp(order),
+                         "venue": ref.venue,
+                         "venue_ref": ref.ref_id,
                          "arrival_price": arrival},
                 actor="system",
             )
@@ -308,14 +355,20 @@ class CommandPipeline:
             payload={
                 "symbol": order.symbol, "side": order.side.value, "strategy_id": order.strategy_id,
                 "filled_qty": D(qty), "avg_price": D(px or 0), "fees": D(fees or 0),
-                # The venue, on the FILL. It was only ever on OrderSubmitted, so
-                # any consumer that folds fills alone — and TCA's own "is this
-                # fill informative?" test is one — had to join two events to
-                # answer "which venue priced this?". The paper venue fills at
-                # its own quote and can therefore never measure execution cost
-                # (validator 8b863152), which makes venue a property the fill
-                # must carry rather than one a reader has to look up.
-                "venue": order.venue,
+                # The venue, on the FILL, DERIVED FROM THE CONNECTOR THAT RAN
+                # IT — corrected 2026-08-22. This line read ``order.venue``,
+                # the proposer's own string, and it produced the fund's
+                # cleanest example of a self-declared label lying: order
+                # 17d64dcd (DBA, 2026-08-21, the CEO-authorised experimental
+                # deployment) was submitted on the paper connector and its fill
+                # was stamped ``alpaca``, so the cost model counted a
+                # zero-information fill among its informative ones. The whole
+                # point of that deployment was the fill.
+                #
+                # A fill must carry its venue — TCA folds fills alone and would
+                # otherwise have to join two events to ask "which venue priced
+                # this?" — but it must carry the one the RUNTIME can prove.
+                **self._venue_stamp(order),
             },
             actor="system",
         ))
@@ -365,7 +418,8 @@ class CommandPipeline:
                         "reason": status.reason}
             self._store.append(Event(
                 aggregate_id=order_id, aggregate_type="order", type=EventType.ORDER_FAILED,
-                payload={"reason": status.reason or "unknown"}, actor="system",
+                payload={**self._venue_stamp(order),
+                         "reason": status.reason or "unknown"}, actor="system",
             ))
             return {"status": "failed", "order_id": order_id, "reason": status.reason}
 
@@ -374,7 +428,9 @@ class CommandPipeline:
                 self._store.append(Event(
                     aggregate_id=order_id, aggregate_type="order",
                     type=EventType.ORDER_PARTIALLY_FILLED,
-                    payload={"cumulative_qty": D(status.filled_qty), "avg_price": D(status.avg_price or 0)},
+                    payload={**self._venue_stamp(order),
+                             "cumulative_qty": D(status.filled_qty),
+                             "avg_price": D(status.avg_price or 0)},
                     actor="system",
                 ))
             return {"status": "working", "order_id": order_id, "filled_qty": f(D(status.filled_qty))}
@@ -462,10 +518,16 @@ class CommandPipeline:
         return {"status": "declined", "order_id": order_id}
 
     # --- helpers -----------------------------------------------------------
-    @staticmethod
-    def _order_payload(order: Order) -> dict[str, Any]:
+    def _order_payload(self, order: Order) -> dict[str, Any]:
+        """The order as recorded. Venue and mode come from the RUNTIME.
+
+        No longer a staticmethod, and that is the change: a payload built
+        without reference to the running spine can only repeat what it was
+        told, which is how a request's default string became the fund's record
+        of where an order went.
+        """
         return {
-            "venue": order.venue,
+            **self._venue_stamp(order),
             "symbol": order.symbol,
             "side": order.side.value,
             "qty": order.qty,

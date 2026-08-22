@@ -5,8 +5,10 @@ Order path (venue-agnostic, human-gated): propose → risk gate → approve/decl
 two-phase confirm, minting/burning units at NAV. Read routes expose NAV,
 positions, per-LP holdings, and the audit event log.
 
-The pipeline is wired to the PaperConnector today; swapping in the IBKRConnector
-(Step 2) changes only the construction block below.
+The venue and the ledger are chosen by the fund's MODE (app/fund/mode.py):
+``test`` runs a simulated venue against an isolated store, ``alpaca-paper``
+runs the real broker's paper account against the fund's book, ``alpaca-prod``
+is built and structurally locked. Neither dimension has a default.
 """
 
 import logging
@@ -20,8 +22,9 @@ import pandas as pd
 from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel
 
-from app.fund.connectors.alpaca import AlpacaConnector
+from app.fund import mode as fundmode
 from app.fund.connectors.base import Order, Side
+from app.fund.venue import build_connector
 from app.fund import tearsheet
 from app.fund.backtest import CostModel, SimpleBacktester, signals_for
 from app.fund.execution import ExecutionHistory, summarise
@@ -30,7 +33,6 @@ _log = logging.getLogger(__name__)
 from app.fund.custody import CustodyIngest
 from app.fund.signals import SignalRunner
 from app.fund.marketdata import BarsError, fetch_daily_bars
-from app.fund.connectors.paper import PaperConnector
 from app.fund.events import EventStore
 from app.fund.ledger import LedgerError, LedgerService
 from app.fund.money import D, f
@@ -109,103 +111,127 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# --- spine wiring (single place to swap the venue) -------------------------
-# Alpaca when configured, else the in-Firestore paper venue. Same protocol.
+# --- spine wiring: ONE mode, TWO dimensions --------------------------------
+# A mode is (where orders go) x (where events land). See app/fund/mode.py for
+# why those are two decisions and why neither has a default.
 def _live_price_fn():
-    """Live marks unconditionally — mock mode wants real prices behind fake fills."""
+    """Live marks unconditionally, for READ views that want market levels.
+
+    Not part of the order path — see ``_paper_live_pricer`` for that.
+    """
     from app.fund.marketdata import live_price
     return live_price
 
 
 def _paper_live_pricer():
-    """Live free marks for the paper venue when FUND_LIVE_MARKS is truthy."""
+    """Live free marks for the simulated venue when FUND_LIVE_MARKS is truthy.
+
+    Read from the flag ALONE as of 2026-08-22. The old mock branch was
+    ``_paper_live_pricer() or _live_price_fn()`` — live marks unconditionally,
+    with the flag able only to turn them on, never off. One switch, one
+    meaning; ``.env`` carries FUND_LIVE_MARKS=true, so the live spine's
+    behaviour is unchanged and the hidden ``or`` is gone.
+    """
     if os.getenv("FUND_LIVE_MARKS", "false").lower() in ("1", "true", "yes"):
         from app.fund.marketdata import live_price
         return live_price
     return None
 
 
-def _mock_mode() -> bool:
-    return os.getenv("USE_FAKE_FIRESTORE", "").lower() in ("1", "true", "yes")
+# --- the wiring, as ONE function of the mode --------------------------------
+# Everything below depends on the mode through exactly two things: which
+# connector executes orders, and which store the events land in. Building it in
+# a function rather than as twenty top-level statements is what makes the mode
+# SWITCHABLE at all — and, more importantly, what makes the switch ATOMIC:
+# every object is constructed into a local first, and the module globals are
+# rebound only once all of them exist. A half-rewired spine — new store, old
+# connector — is the exact shape of the incident this whole module exists to
+# prevent.
+_mode_spec: fundmode.ModeSpec
+_snapshots = None
 
 
-def _real_broker() -> bool:
-    """Route orders to the real venue even while the ledger is local.
+def _wire(spec: fundmode.ModeSpec) -> fundmode.ModeSpec:
+    """(Re)build every object whose identity depends on the fund's mode."""
+    global _mode_spec, _connector, _store, _snapshots, _projection, _nav
+    global _pipeline, _ledger, _holdings, _strategies, _theses, _memos
+    global _thesis_generator, _risk, _postmortem, _attribution, _orders
+    global _reconciler, _control, _monitor, _riskengine, _factor_model
+    global _intraday, _rebalance, _simulator
 
-    The two decisions — where state lives, and where orders go — are separate,
-    and conflating them meant you could not do the one thing that actually
-    proves the system works: place real orders and watch them fill, without
-    writing to the production ledger. This flag splits them.
-    """
-    return (os.getenv("FUND_REAL_BROKER", "").lower() in ("1", "true", "yes")
-            and bool(os.getenv("ALPACA_API_KEY")))
+    connector = build_connector(spec, live_pricer=_paper_live_pricer())
+    store = EventStore()
+
+    # Snapshotted on Firestore: without it every read folds the entire event
+    # log, which is O(all history) per request and exhausted the read quota
+    # (429).
+    #
+    # NOT snapshotted on Postgres, deliberately. The snapshot store is a cache
+    # whose only justification was that reading the log was expensive; folding
+    # 155 events out of Postgres takes 40 milliseconds, so the cache buys
+    # nothing and costs a write every fifty events. Worse, it kept the read
+    # path anchored to Firestore after the ledger had left: with the quota
+    # exhausted, every snapshot read failed through gRPC retries and a single
+    # NAV request took FIFTY-SEVEN SECONDS — long enough that Clark's own tools
+    # timed out and reported the fund unreachable while Postgres sat there
+    # answering in milliseconds.
+    from app.fund.events import store_backend
+    if store_backend() == "postgres":
+        snapshots = None
+    else:
+        from app.fund.snapshots import SnapshotStore
+        snapshots = SnapshotStore()
+
+    projection = PositionsProjection(store, snapshots=snapshots)
+    nav = NavService(pricer=connector.price, store=store, projection=projection)
+    pipeline = CommandPipeline(connector=connector, nav_service=nav, store=store)
+    ledger = LedgerService(nav_service=nav, store=store)
+    holdings = HoldingsProjection(store, snapshots=snapshots)
+    strategies = StrategyService(store=store)
+    theses = ThesisService(store=store)
+    memos = MemoService(store=store)
+    thesis_generator = ThesisGeneratorService(store=store, thesis_service=theses,
+                                              memo_service=memos)
+    risk = RiskAnalytics(nav_service=nav)
+    postmortem = PostmortemService(store=store, pricer=connector.price)
+    attribution = StrategyAttribution(store, snapshots=snapshots)
+    orders = OrdersProjection(store, snapshots=snapshots)
+    reconciler = Reconciler(connector=connector, store=store,
+                            projection=projection, nav_service=nav)
+    control = RiskControl(store=store)
+    monitor = RiskMonitor(nav_service=nav, store=store, pricer=connector.price,
+                          attribution=attribution, strategies=strategies,
+                          control=control)
+    riskengine = AdvancedRiskEngine(nav_service=nav, pricer=connector.price,
+                                    attribution=attribution, strategies=strategies)
+    factor_model = FactorModel()
+    intraday = IntradayNav()
+    rebalance = RebalanceService(nav_service=nav, pricer=connector.price,
+                                 attribution=attribution, strategies=strategies,
+                                 pipeline=pipeline, control=control,
+                                 risk_engine=riskengine, store=store)
+    simulator = CounterfactualSimulator(nav_service=nav,
+                                        positions_projection=projection,
+                                        strategy_service=strategies)
+
+    # Everything constructed. Rebind in one pass.
+    _mode_spec = spec
+    _connector, _store, _snapshots = connector, store, snapshots
+    _projection, _nav, _pipeline, _ledger = projection, nav, pipeline, ledger
+    _holdings, _strategies, _theses, _memos = holdings, strategies, theses, memos
+    _thesis_generator, _risk, _postmortem = thesis_generator, risk, postmortem
+    _attribution, _orders, _reconciler = attribution, orders, reconciler
+    _control, _monitor, _riskengine = control, monitor, riskengine
+    _factor_model, _intraday = factor_model, intraday
+    _rebalance, _simulator = rebalance, simulator
+    return spec
 
 
-# Mock mode normally uses the paper venue even when Alpaca credentials exist:
-# routing mock fills to the real broker leaves them queued until the market
-# opens, so the book never moves and the point of the mock is lost. Fills are
-# simulated; the prices they fill at are real (live_pricer).
-#
-# FUND_REAL_BROKER=1 overrides that for live-flow testing: orders go to Alpaca
-# for real, the ledger stays local.
-_connector = (
-    AlpacaConnector()
-    if _real_broker()
-    else (
-        PaperConnector(live_pricer=_paper_live_pricer() or _live_price_fn())
-        if _mock_mode()
-        else (
-            AlpacaConnector()
-            if os.getenv("ALPACA_API_KEY")
-            else PaperConnector(live_pricer=_paper_live_pricer())
-        )
-    )
-)
-_store = EventStore()
-# Snapshotted on Firestore: without it every read folds the entire event log,
-# which is O(all history) per request and exhausted the read quota (429).
-#
-# NOT snapshotted on Postgres, deliberately. The snapshot store is a cache
-# whose only justification was that reading the log was expensive; folding 155
-# events out of Postgres takes 40 milliseconds, so the cache buys nothing and
-# costs a write every fifty events. Worse, it kept the read path anchored to
-# Firestore after the ledger had left: with the quota exhausted, every snapshot
-# read failed through gRPC retries and a single NAV request took FIFTY-SEVEN
-# SECONDS — long enough that Clark's own tools timed out and reported the fund
-# unreachable while Postgres sat there answering in milliseconds.
-from app.fund.events import store_backend
-if store_backend() == "postgres":
-    _snapshots = None
-else:
-    from app.fund.snapshots import SnapshotStore
-    _snapshots = SnapshotStore()
-_projection = PositionsProjection(_store, snapshots=_snapshots)
-_nav = NavService(pricer=_connector.price, store=_store, projection=_projection)
-_pipeline = CommandPipeline(connector=_connector, nav_service=_nav, store=_store)
-_ledger = LedgerService(nav_service=_nav, store=_store)
-_holdings = HoldingsProjection(_store, snapshots=_snapshots)
-_strategies = StrategyService(store=_store)
-_theses = ThesisService(store=_store)
-_memos = MemoService(store=_store)
-_thesis_generator = ThesisGeneratorService(store=_store, thesis_service=_theses, memo_service=_memos)
-_risk = RiskAnalytics(nav_service=_nav)
-_postmortem = PostmortemService(store=_store, pricer=_connector.price)
-_attribution = StrategyAttribution(_store, snapshots=_snapshots)
-_orders = OrdersProjection(_store, snapshots=_snapshots)
-_reconciler = Reconciler(connector=_connector, store=_store, projection=_projection,
-                         nav_service=_nav)
-_control = RiskControl(store=_store)
-_monitor = RiskMonitor(nav_service=_nav, store=_store, pricer=_connector.price,
-                       attribution=_attribution, strategies=_strategies, control=_control)
-_riskengine = AdvancedRiskEngine(nav_service=_nav, pricer=_connector.price,
-                                 attribution=_attribution, strategies=_strategies)
-_factor_model = FactorModel()
-_intraday = IntradayNav()
-_rebalance = RebalanceService(nav_service=_nav, pricer=_connector.price,
-                              attribution=_attribution, strategies=_strategies,
-                              pipeline=_pipeline, control=_control,
-                              risk_engine=_riskengine, store=_store)
-_simulator = CounterfactualSimulator(nav_service=_nav, positions_projection=_projection, strategy_service=_strategies)
+#: Resolved and wired at IMPORT — a fund that cannot determine its own mode
+#: must refuse to construct an order path at all, which for a module whose
+#: import IS the construction means failing right here, loudly, before a single
+#: endpoint exists to accept an order.
+_wire(fundmode.activate(fundmode.resolve()))
 
 
 # --- worker hooks (called by endpoints and the scheduled worker) -----------
@@ -624,6 +650,138 @@ def get_compliance_status():
     }
 
 
+# --- the fund's mode: read it, and switch it --------------------------------
+class ModeSwitchRequest(BaseModel):
+    mode: str
+    approver: str
+    #: The approval-channel echo. For a mode switch the id being approved IS
+    #: the mode, so the echo is its first 8 characters — "nothing can approve
+    #: what it has not read" applies to a mode exactly as it does to an order.
+    confirm: str | None = None
+    instruction: str | None = None
+    reason: str = ""
+
+
+@router.get("/fund/mode")
+def get_fund_mode():
+    """Which mode this spine is in, which modes exist, and why prod is locked.
+
+    The read side of the CEO's toggle. Deliberately verbose: the failure this
+    surface prevents is a human reading a test number as real, so it reports
+    the active mode, both of its dimensions, where the declaration came from,
+    and the full alpaca-prod precondition list with each item's status.
+    """
+    return fundmode.report(store=_store)
+
+
+@router.post("/fund/mode")
+def switch_fund_mode(req: ModeSwitchRequest):
+    """Switch the fund's mode. A CONTROL, not a preference.
+
+    Four things have to be true, and each of them is a lesson rather than a
+    formality:
+
+      1. THE CEO'S CLICK. Same allowlist and same echo as an order approval —
+         switching modes changes where real money-shaped orders go, which is a
+         larger decision than any single order, so it cannot be a smaller one
+         procedurally.
+      2. NOTHING IN FLIGHT. An order proposed against one venue and approved
+         against another is the phantom-fill shape with a switch on the front.
+         Pending AND unresolved-in-flight both block; the check names the
+         orders rather than just refusing, so the operator can clear them.
+      3. THE DEPARTURE AND THE ARRIVAL ARE BOTH RECORDED. The event goes into
+         the store being LEFT and the store being ENTERED. Neither log gets a
+         silent gap. The two are never joined — each holds its own half.
+      4. THE CHOICE IS DURABLE. Written to the mode file, so a restart does
+         not quietly revert the switch. A toggle a restart undoes is the same
+         trapdoor as a defaulting ledger flag.
+    """
+    from app.fund.events import Event, EventType
+
+    try:
+        target = fundmode.parse_mode(req.mode)
+    except fundmode.ModeError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    if target is _mode_spec.mode:
+        return {"switched": False, "mode": target.value,
+                "note": f"already in {target.value}"}
+
+    # (1) the approval channel, echoing the MODE being switched to.
+    approver = _guard_approval("fund_mode", target.value, req.approver,
+                               req.confirm, req.instruction, APPROVAL_ALLOWLIST)
+
+    # alpaca-prod: the code lock and the precondition list, both.
+    if target is fundmode.FundMode.ALPACA_PROD:
+        gate = fundmode.prod_gate_report(store=_store)
+        raise HTTPException(
+            status_code=403,
+            detail={"refused": "alpaca-prod is structurally unreachable",
+                    "prod_gate": gate})
+
+    # (2) nothing may be in flight across the switch.
+    blocking = []
+    try:
+        blocking = ([{"order_id": r["order_id"], "state": "pending_approval"}
+                     for r in _orders.pending()]
+                    + [{"order_id": r["order_id"], "state": "in_flight"}
+                       for r in _orders.in_flight()])
+    except Exception as e:  # noqa: BLE001 — unreadable is NOT "nothing pending"
+        raise HTTPException(
+            status_code=503,
+            detail=f"cannot read the order queue ({type(e).__name__}: {e}), so "
+                   "it cannot be shown to be empty. Refusing to switch modes "
+                   "against an unknown queue — unreadable is not unchanged.")
+    if blocking:
+        raise HTTPException(
+            status_code=409,
+            detail={"refused": "orders are open across the switch",
+                    "orders": blocking,
+                    "why": "an order proposed against one venue and resolved "
+                           "against another is the phantom-fill shape with a "
+                           "switch on the front"})
+
+    previous = _mode_spec
+    at = datetime.now(timezone.utc).isoformat()
+    payload = {"from": previous.mode.value, "to": target.value,
+               "from_ledger": previous.pg_database,
+               "to_ledger": fundmode.MODES[target].pg_database,
+               "approver": approver, "reason": req.reason, "at": at}
+
+    # (3a) the DEPARTURE, into the store being left, before anything moves.
+    _store.append(Event(aggregate_id="fund", aggregate_type="fund",
+                        type=EventType.FUND_MODE_SWITCHED,
+                        payload={**payload, "leg": "departure"},
+                        actor=approver))
+
+    # (4) durable, then rewire.
+    record = fundmode.write_mode_file(target, actor=approver,
+                                      reason=req.reason or "(no reason given)")
+    try:
+        _wire(fundmode.activate(fundmode.MODES[target], force=True))
+    except Exception as e:  # noqa: BLE001
+        # Put the process back where it was AND the file with it, so a failed
+        # switch does not leave a spine and a file disagreeing — which
+        # ``resolve()`` would refuse to start on next boot.
+        fundmode.write_mode_file(previous.mode, actor=approver,
+                                 reason=f"rolled back: switch to "
+                                        f"{target.value} failed ({e})")
+        _wire(fundmode.activate(previous, force=True))
+        raise HTTPException(
+            status_code=500,
+            detail=f"switch to {target.value} failed and was rolled back to "
+                   f"{previous.mode.value}: {type(e).__name__}: {e}")
+
+    # (3b) the ARRIVAL, into the store now in force. _store is the new one.
+    _store.append(Event(aggregate_id="fund", aggregate_type="fund",
+                        type=EventType.FUND_MODE_SWITCHED,
+                        payload={**payload, "leg": "arrival"},
+                        actor=approver))
+    _riskengine.invalidate()
+    return {"switched": True, "from": previous.mode.value, "to": target.value,
+            "persisted": record, "mode": fundmode.report(store=_store)}
+
+
 @router.get("/fund/book")
 def get_book_identity():
     """Which Firestore project this process is reading and writing.
@@ -636,14 +794,22 @@ def get_book_identity():
         info = active_book()
     except Exception:
         info = {"project_id": "unknown", "env": "unknown"}
-    # Where state lives and where ORDERS go are separate facts, and "mock" must
-    # never hide that real orders are leaving the building. Report both.
+    # Where state lives and where ORDERS go are separate facts, and a test mode
+    # must never hide that real orders are leaving the building. Report both,
+    # from the MODE rather than from a pair of environment flags.
     venue = getattr(_connector, "name", "unknown")
     return {**info,
             "is_production": info.get("env") == "production",
             "venue": venue,
-            "orders_are_real": bool(_real_broker()),
-            "seeder_may_run": bool(_mock_mode() and not _real_broker()),
+            "mode": _mode_spec.mode.value,
+            "ledger_database": _mode_spec.pg_database,
+            # "Real" here has always meant "leaving the building for a broker",
+            # which is true of the Alpaca PAPER account too — a queued order at
+            # a real venue is not a simulation. Whether real MONEY can move is
+            # the separate, sharper question beside it.
+            "orders_are_real": _mode_spec.real_broker,
+            "real_money": _mode_spec.real_money,
+            "seeder_may_run": not _mode_spec.real_broker,
             # How fills reach the ledger. A silently dead stream looks exactly
             # like a quiet market, so its state is reported rather than assumed.
             "fill_stream": trade_stream_state()}
@@ -3549,9 +3715,11 @@ class BackfillApplyRequest(BaseModel):
 def plan_venue_backfill():
     """DRY RUN: which venue fills are missing from our log, and what adopting
     them would do. Reads both sides, writes nothing."""
-    if not _real_broker():
-        raise HTTPException(status_code=400,
-                            detail="no real broker configured — nothing to back-fill")
+    if not _mode_spec.real_broker:
+        raise HTTPException(
+            status_code=400,
+            detail=f"mode {_mode_spec.mode.value!r} runs on a simulated venue — "
+                   "there is no broker to back-fill from")
     try:
         fills = _broker_fills_for_backfill()
     except Exception as e:  # noqa: BLE001
@@ -3579,8 +3747,10 @@ def apply_venue_backfill(req: BackfillApplyRequest):
                    "use scripts/reconcile_broker.py with a dry run first")
     if not req.confirm:
         raise HTTPException(status_code=400, detail="pass confirm=true to write")
-    if not _real_broker():
-        raise HTTPException(status_code=400, detail="no real broker configured")
+    if not _mode_spec.real_broker:
+        raise HTTPException(
+            status_code=400,
+            detail=f"mode {_mode_spec.mode.value!r} runs on a simulated venue")
     fills = _broker_fills_for_backfill()
     bf = BrokerBackfill(store=_store)
     plan = bf.plan(fills)
