@@ -275,9 +275,10 @@ team over the night."** Full blueprint with reasoning:
    ordinary desk path. **Nothing auto-applies, ever.** Falsifier, written at
    birth: two weeks without one amendment surviving both chair and seat
    review dismantles the loop.
-6. **THE IMMUNE-SYSTEM EXCLUSION (chair default, awaiting CEO ratification):
-   the loop may not propose amendments to the adversary's seat.** Nothing
-   reviewed by a boundary may reshape that boundary.
+6. **THE IMMUNE-SYSTEM EXCLUSION (RATIFIED by the CEO 2026-08-22, verbatim
+   "Agree on adversary"): the loop may not propose amendments to the
+   adversary's seat.** Nothing reviewed by a boundary may reshape that
+   boundary. Changing the adversary's mandate is a human act, always.
 7. **Unchanged, listed so nobody wonders**: no seat gained a trigger; a
    posting fills an in-tray and never fires a seat; every non-negotiable
    stands; the candidate chain is untouched; the CEO's click count may fall,
