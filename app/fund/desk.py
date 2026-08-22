@@ -1120,7 +1120,8 @@ def next_actor(rec: Any) -> dict[str, Any]:
 
 
 def desk_load(open_recommendations: list[dict[str, Any]],
-              pending_orders: Any, open_requests: Any) -> dict[str, Any]:
+              pending_orders: Any, open_requests: Any,
+              chair_backlog: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     """How many things are actually waiting for the CEO, and whether that is
     past the COO triage trigger.
 
@@ -1162,6 +1163,28 @@ def desk_load(open_recommendations: list[dict[str, Any]],
     `no_action` to nobody. The trigger fires LATER, which is the loosening
     direction, and the reason is that those five were never the CEO's to
     decide.
+
+    ``chair_backlog`` (added 2026-08-22, from the secretary's friction ledger)
+    IS REPORTED AND IS DELIBERATELY NOT SUMMED INTO ``total``. The dict is
+    published whole, listed in ``excluded_from_total``, and named in the note.
+
+    THE REASON IS THE SAME ONE THE PARAGRAPH ABOVE RESTS ON, POINTED THE OTHER
+    WAY. An approved-but-undispatched request is waiting on the CHAIR to
+    dispatch it; the CEO already said yes. This number's stated definition is
+    "awaiting the CEO", and a component whose next actor is not the CEO does
+    not belong in it — the module's own rule is that nothing is hidden to make
+    the figure smaller, and the mirror of that rule is that nothing is added to
+    make it larger.
+
+    IT ALSO WOULD HAVE MOVED A CONTROL WITHOUT MOVING ITS THRESHOLD, WHICH IS
+    THE MEASURED PART. Against the live desk on 2026-08-22 the CEO's total is
+    38 with ``coo_triage_due: false``; folding in the 30 approved-undispatched
+    requests makes it 68 and flips the trigger TRUE the same second. Changing
+    what a threshold counts is a threshold change wearing a schema change's
+    clothes, and it points at exactly the failure the COO already named: the
+    counter would then be calibrated against BENCH OUTPUT VOLUME rather than
+    CEO load. Including it in ``total`` is therefore a CEO decision, not a
+    builder's — and it is one line here if he takes it.
     """
     def _count(x) -> Optional[int]:
         if x is None:
@@ -1212,6 +1235,8 @@ def desk_load(open_recommendations: list[dict[str, Any]],
     }
     unreadable = sorted(k for k, v in parts.items() if v is None)
     total = sum(v for v in parts.values() if v is not None)
+    backlog = chair_backlog if isinstance(chair_backlog, dict) else None
+    undispatched = (backlog or {}).get("requests_approved_undispatched")
     return {
         "total": total,
         "complete": not unreadable,
@@ -1229,6 +1254,18 @@ def desk_load(open_recommendations: list[dict[str, Any]],
         # Zero today: nothing writes the field yet, and a reader deserves to
         # know the count rests on inference rather than on declaration.
         "explicit_next_actor": explicit_rows,
+        # THE CHAIR'S OWN QUEUE, reported and NOT summed into `total`. See the
+        # docstring: these are approved requests awaiting dispatch, so the CEO
+        # has already decided them and folding them into a figure defined as
+        # "awaiting the CEO" would move a control without moving its threshold.
+        # None means it was not supplied — never zero, because "the chair has
+        # nothing waiting" is a claim and "nobody computed it" is not.
+        "requests_approved_undispatched": undispatched,
+        "chair_backlog": backlog,
+        # Named explicitly so a reader of the payload can see WHAT was left out
+        # of the total rather than having to diff two versions of this file.
+        "excluded_from_total": (["requests_approved_undispatched"]
+                                if undispatched else []),
         "rules_version": NEXT_ACTOR_RULES_VERSION,
         # The shared contract this spine's routing was generated against, so a
         # client can tell whether its own copy still agrees. `None` = the file
@@ -1251,6 +1288,10 @@ def desk_load(open_recommendations: list[dict[str, Any]],
                "never his to decide" if open_elsewhere else "")
             + (f". {decided_rows} are decided and awaiting execution"
                if decided_rows else "")
+            + (f". Separately, {undispatched} approved desk request(s) await "
+               "DISPATCH by the chair — reported, and deliberately not added "
+               "to the CEO's figure, because he already decided them"
+               if undispatched else "")
             + (f" — {', '.join(unreadable)} could not be counted, so the real "
                "total is at least this" if unreadable else "")
             + (". A COO triage dispatch is DUE; the CTO fires it when a session "
@@ -1260,18 +1301,69 @@ def desk_load(open_recommendations: list[dict[str, Any]],
     }
 
 
+def _chair_backlog(store: Any) -> Optional[dict[str, Any]]:
+    """Approved desk requests still awaiting dispatch — the chair's own queue.
+
+    DELEGATES TO ``metrics.friction`` RATHER THAN RE-FOLDING HERE, and that is
+    the point of the whole 2026-08-22 metrics change: the request lifecycle is
+    folded in ONE place. A second copy in this module would drift within a
+    week, and the drift would be invisible because both copies would look
+    plausible. Measured cost of the extra pass over the log: 0.03s at 965
+    events, against a desk payload that already takes 0.20s.
+
+    Returns None — not an empty dict and never a zero — when the fold cannot
+    be computed. ``desk_load`` renders that as absent.
+    """
+    try:
+        from app.fund import metrics
+        f = metrics.friction(store)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("desk: chair backlog unreadable: %s", e)
+        return None
+    rows = [r for r in f["requests"] if r["state"] == "approved_undispatched"]
+    cov = f["dispatch_link_coverage"]
+    return {
+        "requests_approved_undispatched": len(rows),
+        "oldest_hours": rows[0]["age_hours"] if rows else None,
+        "oldest_request_id": rows[0]["request_id"] if rows else None,
+        # The figure is a CEILING while any dispatch event cannot be linked to
+        # its request: such a request looks undispatched here even if it was
+        # dispatched. Stated on the number rather than in a footnote.
+        "upper_bound": not cov["complete"],
+        "dispatch_link_coverage": cov,
+        "note": (f"{len(rows)} approved request(s) await dispatch by the chair"
+                 + (f", oldest {rows[0]['age_hours']:.1f}h since filing"
+                    if rows and rows[0]["age_hours"] is not None else "")
+                 + ("; an UPPER BOUND — "
+                    f"{cov['unlinkable_no_request_id']} of "
+                    f"{cov['dispatch_events']} dispatch events carry no "
+                    "request_id" if not cov["complete"] else "")
+                 + ". Not counted toward the CEO's figure: he already "
+                   "approved them."),
+    }
+
+
 def utc_day_bounds(now: Any = None) -> tuple[str, str, str]:
     """(day, start, end) for the UTC day containing ``now``.
 
     UTC because the event log is UTC and the fund's day boundary is the
     venue's, not the reader's — a local bucket would move a dispatch to a
     different day depending on who opened the page.
+
+    THE ARITHMETIC LIVES IN ``metrics.day_bounds`` AND IS NOT REPEATED HERE
+    (2026-08-22). Two copies of a day boundary is two chances to disagree about
+    which day a dispatch happened on, and the disagreement would be invisible
+    because both copies would look right. This function survives for its
+    three-tuple shape, which its callers use; the bounds themselves come from
+    one place.
     """
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timezone
+    from app.fund.metrics import day_bounds
     n = now or datetime.now(timezone.utc)
-    start = n.replace(hour=0, minute=0, second=0, microsecond=0)
-    return (start.date().isoformat(), start.isoformat(),
-            (start + timedelta(days=1)).isoformat())
+    day = (n if getattr(n, "tzinfo", None) else n.replace(tzinfo=timezone.utc)) \
+        .astimezone(timezone.utc).date()
+    start, end = day_bounds(day)
+    return (day.isoformat(), start, end)
 
 
 def seat_telemetry(day_runs: Optional[list[dict[str, Any]]],
@@ -1466,7 +1558,8 @@ def view(store: Any, deskstore: Any = None,
         # ACTOR is the CEO rather than rows whose status label reads open —
         # `by_actor` in the payload carries everyone else's, so nothing that
         # left this number left the surface.
-        "desk_load": desk_load(open_recs, pending_orders, open_reqs),
+        "desk_load": desk_load(open_recs, pending_orders, open_reqs,
+                               chair_backlog=_chair_backlog(store)),
         # Per-seat: running now, runs today, tokens today (CEO ask, 2026-08-21).
         # Rolled up here rather than on the client so the day count is exact
         # instead of folded from the capped 25-run list above.

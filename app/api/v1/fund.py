@@ -1552,7 +1552,20 @@ class AgentRunRecord(BaseModel):
     model: Optional[str] = None
     tokens: Optional[int] = None
     tool_uses: Optional[int] = None
+    # THE CHAIR PASSES THIS AT RECORD TIME and nothing else can: the recorder
+    # is written at RESOLVE, so without it the row knows when the work
+    # finished and not when it started, and the run has no wall-clock at all.
+    # Measured 2026-08-22: 7 of 52 rows carry it, so 45 runs report an UNKNOWN
+    # duration — which is the honest reading, and the reason to start passing
+    # it. ISO-8601 UTC.
     dispatched_at: Optional[str] = None
+    # WHAT BECAME OF THE DISPATCH: delivered | failed | aborted. Absent means
+    # the chair stated no outcome and reads as `unrecorded` — never as success.
+    # A failed run is recordable precisely so that work which DIES stops
+    # costing zero: today's meter records at resolve, so a dispatch that
+    # collapses with the host leaves no row and no cost. An unrecognised value
+    # is REFUSED (422) rather than nulled.
+    status: Optional[str] = None
     artifact_path: Optional[str] = None
     verdict: Optional[str] = None
     # The distilled why: 3-6 bullets, written at resolve, rendered on the desk.
@@ -1579,11 +1592,31 @@ class AgentRunRecord(BaseModel):
 
 @router.post("/fund/desk/runs")
 def record_agent_run(req: AgentRunRecord):
-    """Store an agent run whole - the desk's flight recorder."""
+    """Store an agent run whole - the desk's flight recorder.
+
+    TWO FIELDS THE CHAIR MUST PASS AND HISTORICALLY HAS NOT:
+
+    * ``dispatched_at`` — the only source of a run's wall-clock, because this
+      endpoint is called at RESOLVE. 7 of 52 live rows carry it.
+    * ``status`` — ``delivered`` / ``failed`` / ``aborted``. A dispatch that
+      dies is recorded with ``status="failed"`` and whatever tokens it burned;
+      without it, failed work costs zero by construction and the firm's
+      self-knowledge is biased by exactly the amount of work that failed.
+
+    RE-POSTING THE SAME ``run_id`` IS A CORRECTION, NOT A REPLACEMENT: every
+    nullable field upserts through COALESCE, so omitting one leaves the stored
+    value alone.
+    """
     ds = _deskstore()
     if ds is None:
         raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
-    return ds.record_run(**req.model_dump())
+    try:
+        return ds.record_run(**req.model_dump())
+    except ValueError as e:
+        # A mistyped `status` is a 422, not a 500 and not a silent null — the
+        # caller is the chair or a script, and it should see which value was
+        # refused rather than discover later that an outcome went unrecorded.
+        raise HTTPException(status_code=422, detail=str(e))
 
 
 @router.get("/fund/desk/runs")
@@ -1593,6 +1626,34 @@ def list_agent_runs(seat: str | None = Query(None),
     if ds is None:
         raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
     return {"runs": ds.runs(seat=seat, limit=limit)}
+
+
+@router.get("/fund/desk/runs/stats")
+def agent_run_stats():
+    """LIFETIME per-seat run aggregates — UNCAPPED, with a truncation proof.
+
+    **DECLARED BEFORE ``/fund/desk/runs/{run_id}`` ON PURPOSE.** FastAPI matches
+    routes in declaration order, so a literal path registered after a path
+    parameter on the same prefix is unreachable — this endpoint would return
+    404 "no run stats" instead of the stats. A test pins the order.
+
+    Exists because the firm's first spend meter was hand-assembled from
+    ``GET /fund/desk/runs``'s default payload, whose 25-run cap ``deskstore``
+    itself documents as "a FLOOR wearing the costume of a count", while
+    lifetime runs were 49+. Nobody noticed until someone queried with limit=500.
+
+    So this reports ``row_count`` (from ``SELECT count(*)``) beside
+    ``rows_read`` and sets ``truncated``: the answer says whether it is
+    complete, rather than leaving the reader to assume.
+
+    Per seat: runs, tokens, tool uses, first/last resolution, median wall-clock
+    where ``dispatched_at`` was recorded, and the outcome split. Absences are
+    named, never zeroed — a seat with no token counts reports ``tokens: null``
+    with ``runs_missing_tokens``, and a run with no ``status`` is
+    ``unrecorded``, which is not ``delivered``.
+    """
+    from app.fund import metrics
+    return metrics.run_stats(_deskstore())
 
 
 @router.get("/fund/desk/runs/{run_id}")
@@ -3737,6 +3798,165 @@ def rebase_loss_reference(req: LossRebaseRequest):
 def resume_trading(req: RiskResumeRequest):
     """Resume trading after halt (human only)."""
     return _control.resume(actor=req.actor)
+
+
+# --- derived metrics (2026-08-22) -------------------------------------------
+#
+# READ-SIDE ONLY, AND DERIVED. Nothing here is a source of truth: NAV folds
+# from the event log, the desk folds from the desk, and these endpoints exist
+# so a seat can ask a question in ONE call instead of re-deriving it from 965
+# raw events by hand. See app/fund/metrics.py for the guard rails.
+
+_metricsstore_cache = None
+
+
+def _metricsstore():
+    """The rollup table, or None when the fund is not on Postgres.
+
+    None is a real answer and every caller renders it as such: the derived
+    table does not exist on the Firestore backend, and a refresh that silently
+    did nothing would be worse than one that says it cannot run.
+    """
+    global _metricsstore_cache
+    if _metricsstore_cache is None:
+        from app.fund.events import store_backend
+        if store_backend() != "postgres":
+            return None
+        from app.fund.metrics import MetricsStore
+        _metricsstore_cache = MetricsStore()
+    return _metricsstore_cache
+
+
+@router.get("/fund/metrics/daily")
+def metrics_daily(date: Optional[str] = Query(
+        None, description="UTC day as YYYY-MM-DD; defaults to today (UTC)")):
+    """One UTC day, folded once — the call that replaces a seat's hand fold.
+
+    Events by type, decisions by actor and status, NAV open/close/strike count,
+    fills with notional and venue split, ReconciliationMismatch, the desk
+    request lifecycle, and per-seat runs from the UNCAPPED window.
+
+    COMPUTED LIVE ON EVERY CALL. The stored rollup is reported BESIDE the fresh
+    computation under ``stored``, with ``agrees`` comparing digests — so a
+    stale row is visible and never authoritative. That ordering is the whole
+    safety property: a cache that can silently disagree with the log would be
+    the write-only verdict column in a new costume.
+
+    ``complete_day`` is False while the day is still running. Sections that
+    cannot be computed carry ``state: "UNKNOWN"`` with a reason; they are
+    listed in ``unknown_sections`` and they are never zero.
+    """
+    from app.fund import metrics
+    day = date or datetime.now(timezone.utc).date().isoformat()
+    try:
+        body = metrics.compute_daily(day, _store, deskstore=_deskstore())
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    ms = _metricsstore()
+    stored = None
+    if ms is not None:
+        try:
+            row = ms.stored(body["day"])
+        except Exception as e:  # noqa: BLE001
+            logger.warning("metrics: stored row unreadable: %s", e)
+            row = None
+            stored = {"present": None, "note": f"the rollup table could not be "
+                                               f"read: {e}"}
+        if stored is None:
+            stored = {
+                "present": row is not None,
+                "computed_at": (row or {}).get("computed_at"),
+                "digest": (row or {}).get("digest"),
+                "metrics_version": (row or {}).get("metrics_version"),
+                # None, not False: with no stored row there is nothing to agree
+                # or disagree with, and False would read as "the cache is
+                # wrong" when the truth is "there is no cache".
+                "agrees": (None if row is None
+                           else row.get("digest") == body["digest"]),
+                "note": ("no rollup has been recorded for this day; the figures "
+                         "above were computed live from the log"
+                         if row is None else
+                         "the recorded rollup " +
+                         ("MATCHES" if row.get("digest") == body["digest"]
+                          else "DISAGREES WITH") +
+                         " a fresh fold of the log"),
+            }
+    else:
+        stored = {"present": None,
+                  "note": "the rollup table exists only under "
+                          "FUND_STORE=postgres; nothing was recorded and "
+                          "nothing was compared"}
+    return {**body, "stored": stored}
+
+
+class MetricsRefresh(BaseModel):
+    #: UTC day to (re)compute. Absent means today.
+    date: Optional[str] = None
+    actor: str = "cto"
+
+
+@router.post("/fund/metrics/refresh")
+def metrics_refresh(req: MetricsRefresh):
+    """Recompute a day and RECORD it. Idempotent, chair-triggered.
+
+    NO SCHEDULER AND NO SELF-STARTING ANYTHING — the constitution's ignition
+    rule applies to derived tables exactly as it applies to seats. A day that
+    nobody refreshes simply has no stored row, and ``GET /fund/metrics/daily``
+    still answers correctly because it computes live.
+
+    ``changed`` says whether the content actually moved since the last record.
+    On a CLOSED day that is a signal worth reading: it means the log gained
+    events after the day ended — a backfill or a late correction — and a chair
+    should see that rather than have the row silently replaced.
+
+    A computation that raises writes NOTHING; the previous row stands. There is
+    no except clause in ``MetricsStore.refresh`` to get that wrong.
+    """
+    ms = _metricsstore()
+    if ms is None:
+        raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
+    day = req.date or datetime.now(timezone.utc).date().isoformat()
+    try:
+        return {**ms.refresh(day, _store, deskstore=_deskstore()),
+                "actor": req.actor}
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@router.get("/fund/metrics/days")
+def metrics_days(limit: int = Query(90, ge=1, le=365)):
+    """Which days have a recorded rollup — headers only, never whole bodies."""
+    ms = _metricsstore()
+    if ms is None:
+        raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
+    rows = ms.days(limit=limit)
+    return {"days": rows, "count": len(rows)}
+
+
+@router.get("/fund/metrics/friction")
+def metrics_friction(open_only: bool = Query(
+        False, description="drop resolved and declined rows")):
+    """Every desk request, folded forward, AGED, oldest first.
+
+    The secretary's friction ledger as one call. Its first hand-built run found
+    28 requests approved and undispatched at midnight on 2026-08-21, all
+    waiting on the chair, the oldest 14h34m, and only 3 of the 28 answered the
+    next day.
+
+    ``approved_undispatched`` is a first-class state, and the payload declares
+    it an UPPER BOUND: 14 of 24 ``DeskDispatched`` events carry no
+    ``request_id``, so a dispatched request can look undispatched here. See
+    ``dispatch_link_coverage``. Reporting the number without that caveat would
+    be a confident figure resting on an instrument that cannot see half its own
+    input.
+    """
+    from app.fund import metrics
+    got = metrics.friction(_store)
+    if open_only:
+        got = {**got,
+               "requests": [r for r in got["requests"] if not r["terminal"]],
+               "filtered": "open_only"}
+    return got
 
 
 def run_risk_monitor_tick(actor: str = "worker") -> dict:

@@ -58,6 +58,23 @@ ALTER TABLE fund_agent_runs ADD COLUMN IF NOT EXISTS trace_id TEXT;
 CREATE INDEX IF NOT EXISTS fund_agent_runs_trace_idx
     ON fund_agent_runs (trace_id);
 
+-- WORK THAT DIED (2026-08-22). The meter records a run AT RESOLVE, so a
+-- dispatch that dies — host RAM collapse, usage limit, a hung suite — costs
+-- ZERO by construction, and the firm's picture of what its bench costs is
+-- biased by exactly the amount of work that failed. A three-hour builder
+-- dispatch returned zero bytes on 2026-08-22 and left no row anywhere.
+--
+-- NULLABLE, WITH NO DEFAULT, AND THAT IS THE WHOLE POINT. Every run written
+-- before this column existed made NO STATEMENT about its outcome; defaulting
+-- them to 'delivered' would fabricate a success rate out of an absence, which
+-- is this fund's oldest mistake with a new column name. NULL reads as
+-- `unrecorded` everywhere it is aggregated, and `runs_failed` is therefore
+-- always reported beside `runs_unrecorded_status` so nobody mistakes a clean
+-- record for a clean history.
+ALTER TABLE fund_agent_runs ADD COLUMN IF NOT EXISTS status TEXT;
+CREATE INDEX IF NOT EXISTS fund_agent_runs_status_idx
+    ON fund_agent_runs (status) WHERE status IS NOT NULL;
+
 -- THE INTERACTION ITSELF (CEO decision, 2026-08-21).
 --
 -- `fund_agent_runs.output` holds what a seat CONCLUDED. It does not hold the
@@ -94,6 +111,47 @@ CREATE INDEX IF NOT EXISTS fund_agent_transcripts_kind_idx
 #: questions and a free-text kind would make "did we keep the brief" unanswerable
 #: by query.
 TRANSCRIPT_KINDS = ("brief", "report", "transcript")
+
+#: What became of a DISPATCH, as the chair states it at record time.
+#:
+#: Three values, deliberately not two, and none of them is a default:
+#:
+#:   delivered  the seat returned work. What every existing row IS, and what
+#:              none of them SAYS — see the schema comment on the column.
+#:   failed     the dispatch died without returning: the host collapsed, the
+#:              suite hung, the session was cut. Tokens were spent; nothing came
+#:              back.
+#:   aborted    the chair stopped it deliberately. Distinct from `failed`
+#:              because a decision to stop and a crash carry opposite lessons,
+#:              and a meter that merges them cannot tell a discipline from an
+#:              outage.
+#:
+#: Absent (NULL) is `unrecorded` and is never any of the three. Queryable by
+#: design rather than left in prose: the CFO must be able to ask "what did
+#: failed work cost us" in SQL, and today the honest answer is that the
+#: question has no column to land on.
+RUN_STATUSES = ("delivered", "failed", "aborted")
+
+
+def _run_status(raw: Any) -> Optional[str]:
+    """A validated run outcome, or None for 'nobody said'.
+
+    An UNRECOGNISED value RAISES rather than becoming None. That is the
+    opposite of `_next_actor`'s choice and the difference is deliberate:
+    next_actor is RENDERED, so a garbled value can be shown as UNKNOWN and
+    someone goes to look; this column is AGGREGATED, and a garbled value
+    silently downgraded to NULL would report a failed run as unrecorded — a
+    quiet loss in the one field built to stop quiet losses.
+    """
+    if raw is None:
+        return None
+    if not isinstance(raw, str) or raw.strip().lower() not in RUN_STATUSES:
+        raise ValueError(
+            f"status must be one of {RUN_STATUSES} or absent, got {raw!r} — "
+            "refused rather than nulled, because a mistyped outcome that "
+            "became 'unrecorded' would hide the failure it was reporting")
+    return raw.strip().lower()
+
 
 #: Statuses a recommendation moves through. `open` -> CEO decides -> `accepted`
 #: or `rejected`; an accepted one the CTO stages becomes `staged`, and `done`
@@ -232,6 +290,7 @@ class DeskStore:
                    verdict: Optional[str] = None,
                    reasoning: Optional[str] = None,
                    trace_id: Optional[str] = None,
+                   status: Optional[str] = None,
                    recommendations: Optional[list[dict]] = None,
                    meta: Optional[dict] = None) -> dict[str, Any]:
         """One dispatch, stored whole. Recommendations get ids and open status.
@@ -240,6 +299,24 @@ class DeskStore:
         dispatch), carried verbatim onto the run, its recommendations, and the
         decision events — so one id filters the whole conversation between
         desks out of SQL and the event log.
+
+        ``dispatched_at`` IS THE CHAIR'S TO PASS, and it is the only source of
+        a run's wall-clock: the recorder is written at RESOLVE, so without it
+        the row knows when the work finished and not when it started. Measured
+        2026-08-22: 7 of 52 live runs carry it, so 45 have no duration at all
+        and the aggregates report those as UNKNOWN rather than as fast.
+
+        ``status`` is what became of the dispatch (``delivered`` / ``failed`` /
+        ``aborted``); absent means nobody said, and it is never read as
+        success. A failed run is recordable precisely so that work which dies
+        stops costing zero.
+
+        RE-RECORDING IS A CORRECTION, NOT A REPLACEMENT. Every nullable field
+        upserts through COALESCE, so a second POST that omits a field leaves
+        the stored value alone. Measured before this change: re-recording a run
+        with a corrected ``tool_uses`` silently kept the old number while
+        ``tokens`` moved, and omitting ``tokens`` blanked it — the flight
+        recorder was losing exactly the corrections it was being sent.
         """
         recs = []
         for i, r in enumerate(recommendations or [], 1):
@@ -274,6 +351,7 @@ class DeskStore:
                          "reversibility": _reversibility(
                              r.get("reversibility") if isinstance(r, dict)
                              else None)})
+        st = _run_status(status)
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -281,14 +359,28 @@ class DeskStore:
                     INSERT INTO fund_agent_runs
                         (run_id, seat, task, model, tokens, tool_uses,
                          dispatched_at, artifact_path, verdict, reasoning,
-                         output, trace_id, recommendations, meta)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                         output, trace_id, status, recommendations, meta)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                     ON CONFLICT (run_id) DO UPDATE SET
                         output = EXCLUDED.output,
                         artifact_path = EXCLUDED.artifact_path,
                         verdict = EXCLUDED.verdict,
                         reasoning = EXCLUDED.reasoning,
-                        tokens = EXCLUDED.tokens,
+                        -- COALESCE on every nullable field: a re-record is a
+                        -- CORRECTION and an omitted field must not erase what
+                        -- is already known. `tokens` used to take EXCLUDED
+                        -- unconditionally (so omitting it blanked the count)
+                        -- while `tool_uses` and `dispatched_at` were not
+                        -- updated at all (so correcting them was a no-op).
+                        -- Both directions lost data; measured 2026-08-22.
+                        tokens = COALESCE(EXCLUDED.tokens,
+                                          fund_agent_runs.tokens),
+                        tool_uses = COALESCE(EXCLUDED.tool_uses,
+                                             fund_agent_runs.tool_uses),
+                        dispatched_at = COALESCE(EXCLUDED.dispatched_at,
+                                                 fund_agent_runs.dispatched_at),
+                        status = COALESCE(EXCLUDED.status,
+                                          fund_agent_runs.status),
                         trace_id = COALESCE(EXCLUDED.trace_id,
                                             fund_agent_runs.trace_id),
                         recommendations = EXCLUDED.recommendations,
@@ -296,18 +388,27 @@ class DeskStore:
                     """,
                     (run_id, seat, task, model, tokens, tool_uses,
                      dispatched_at, artifact_path, verdict, reasoning, output,
-                     trace_id, json.dumps(recs), json.dumps(meta or {})))
+                     trace_id, st, json.dumps(recs), json.dumps(meta or {})))
             conn.commit()
-        return {"run_id": run_id, "recommendations": len(recs)}
+        return {"run_id": run_id, "recommendations": len(recs),
+                "status": st}
 
     def runs(self, seat: Optional[str] = None, limit: int = 50,
-             with_output: bool = False) -> list[dict[str, Any]]:
+             with_output: bool = False,
+             run_id: Optional[str] = None) -> list[dict[str, Any]]:
+        """Runs newest first. ``run_id`` selects exactly one by primary key.
+
+        ``run_id`` was added so ``run()`` could stop scanning a capped list in
+        Python to find a row the database can look up directly — see ``run``.
+        """
         cols = ("run_id, seat, task, model, tokens, tool_uses, dispatched_at, "
                 "resolved_at, artifact_path, verdict, reasoning, trace_id, "
-                "recommendations"
+                "status, recommendations"
                 + (", output" if with_output else ""))
         where, params = "", ()
-        if seat:
+        if run_id:
+            where, params = "WHERE run_id = %s", (run_id,)
+        elif seat:
             where, params = "WHERE seat = %s", (seat,)
         with self._connect() as conn:
             with conn.cursor() as cur:
@@ -328,9 +429,12 @@ class DeskStore:
                  # below it for the audit.
                  "reasoning": r[10],
                  "trace_id": r[11],
-                 "recommendations": r[12] or []}
+                 # What became of the dispatch. None means the chair recorded
+                 # no outcome — `unrecorded`, never `delivered`.
+                 "status": r[12],
+                 "recommendations": r[13] or []}
             if with_output:
-                d["output"] = r[13]
+                d["output"] = r[14]
             out.append(d)
         return out
 
@@ -355,7 +459,7 @@ class DeskStore:
         time has not been placed on a day.
         """
         cols = ("run_id, seat, task, model, tokens, tool_uses, dispatched_at, "
-                "resolved_at, artifact_path, verdict, trace_id")
+                "resolved_at, artifact_path, verdict, trace_id, status")
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -368,21 +472,64 @@ class DeskStore:
                  "tokens": r[4], "tool_uses": r[5],
                  "dispatched_at": r[6].isoformat() if r[6] else None,
                  "resolved_at": r[7].isoformat() if r[7] else None,
-                 "artifact_path": r[8], "verdict": r[9], "trace_id": r[10]}
+                 "artifact_path": r[8], "verdict": r[9], "trace_id": r[10],
+                 "status": r[11]}
                 for r in rows]
 
-    def run(self, run_id: str) -> Optional[dict[str, Any]]:
-        rows = [r for r in self.runs(limit=1000, with_output=False)
-                if r["run_id"] == run_id]
-        if not rows:
-            return None
+    def all_runs(self, limit: int = 100_000) -> list[dict[str, Any]]:
+        """EVERY run, lightweight columns only — for lifetime aggregates.
+
+        THE DEFAULT LIMIT IS A SAFETY VALVE, NOT A PAGE SIZE, and it is three
+        orders of magnitude above the live row count (52 on 2026-08-22). The
+        distinction matters because the last cap this table had was read as a
+        count: the desk payload's ``runs(limit=25)`` truncated the firm's first
+        spend meter to roughly half of lifetime, and nobody knew until someone
+        queried the uncapped endpoint.
+
+        ``output`` is deliberately not selected — it holds whole reports and
+        would make a per-seat token sum cost megabytes.
+        """
         with self._connect() as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT output FROM fund_agent_runs "
-                            "WHERE run_id = %s", (run_id,))
-                got = cur.fetchone()
-        rows[0]["output"] = got[0] if got else None
-        return rows[0]
+                cur.execute(
+                    "SELECT run_id, seat, task, model, tokens, tool_uses, "
+                    "       dispatched_at, resolved_at, verdict, trace_id, "
+                    "       status "
+                    "FROM fund_agent_runs ORDER BY resolved_at DESC LIMIT %s",
+                    (limit,))
+                rows = cur.fetchall()
+        return [{"run_id": r[0], "seat": r[1], "task": r[2], "model": r[3],
+                 "tokens": r[4], "tool_uses": r[5],
+                 "dispatched_at": r[6].isoformat() if r[6] else None,
+                 "resolved_at": r[7].isoformat() if r[7] else None,
+                 "verdict": r[8], "trace_id": r[9], "status": r[10]}
+                for r in rows]
+
+    def run_count(self) -> int:
+        """The true lifetime row count, straight from SQL.
+
+        Exists so a caller can PROVE that ``all_runs`` was not truncated rather
+        than assume it: ``run_stats`` compares the two and says so.
+        """
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT count(*) FROM fund_agent_runs")
+                return int(cur.fetchone()[0])
+
+    def run(self, run_id: str) -> Optional[dict[str, Any]]:
+        """One run by id, whole.
+
+        FIXED 2026-08-22 — THIS HAD A CAP AND THE CAP WAS A BUG. It used to
+        fetch the newest 1,000 rows and filter in Python, then issue a SECOND
+        query for the output. At 55 rows that was merely wasteful; at 1,001 the
+        OLDEST run would have returned 404 while sitting in the table, and the
+        endpoint would have said "no run <id>" about a run that exists. That is
+        the same defect as the 25-run payload cap that truncated the firm's
+        first spend meter, one row-limit further out — a limit read as a fact
+        about the data. A primary-key lookup has no limit to get wrong.
+        """
+        rows = self.runs(limit=1, with_output=True, run_id=run_id)
+        return rows[0] if rows else None
 
     # --- the interaction itself (2026-08-21) -------------------------------
 
