@@ -178,6 +178,13 @@ REQUEST_KINDS = {
     # seat that has run and reports NO runs-today at all, which the floor draws
     # as an unmeasured "×?" beside colleagues showing real counts.
     "document_day": "secretary",
+    # The CFO's kind, added 2026-08-22 when the floor gained her desk and the
+    # builder found no request could reach it: seat_telemetry enumerates THIS
+    # map, so a seat absent here has no runs-today row and the floor draws an
+    # unmeasured x? beside colleagues showing real counts — the exact absence
+    # the secretary's comment above predicts. Named for what the seat does
+    # (the meter, the lever map, the allocation call), like portfolio_review.
+    "allocation_review": "cfo",
 }
 
 _STATUS_RE = re.compile(r"Status:\s*(KILLED|SURVIVES|under adversarial review"
