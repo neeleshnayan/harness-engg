@@ -439,3 +439,13 @@ re-derivation killers, memory distillation (episodes/memorandum) as a
 context-size lever. Tonight ~2.5M tokens since sunset — the densest and
 most valuable night on record; her job is to say WHICH half of that
 sentence dominated, with numbers.
+
+
+## 2026-08-22 (~23:45Z) — the measurement shelf (CEO instruction)
+
+Ticket filed (postgres store for seat measurements: append-only, as-of +
+instrument-version stamped, method + script ref, chair-filed at resolve).
+EFFECTIVE IMMEDIATELY, no build needed: every dispatch brief now says
+CONSULT THE SHELF/RECORD FIRST — cite what you reuse, file what you
+re-derived and why the existing row did not suffice. The seats' "numbers
+not to re-derive" STATE blocks are the shelf's seed content.
