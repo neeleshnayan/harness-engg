@@ -797,3 +797,8 @@ Gate v4.2 changes which candidates pass with NO threshold moved — any null-aud
 ## 2026-08-23 — CARRIED FROM THE ADVERSARY (D17) BY THE CHAIR
 
 A "control that cannot fire" has a second, cheaper signature: **an input the guard tests for PRESENCE that the producer ALWAYS supplies** (UNEVALUATED_ON_ABSENT unreachable because assess() always emits the key). When you audit a new guard, do not check that it fires in its test — check whether any REAL caller can reach the state it guards against. Same family as the meas+=1 unconditional-increment, one layer up.
+
+
+## 2026-08-22 (~22:20Z) — CARRIED FROM THE ADVERSARY (D18 re-review) BY THE CHAIR
+
+When you audit an instrument whose output is "all clear", ENUMERATE THE SHAPES ITS MATCHER CANNOT SEE before recording the clear — two guards on this branch report clean partly because of what they cannot parse (the order-event census; the retired-flag scanner matching only os.getenv with a Name base). A clean from a narrow matcher and a clean from a complete one are different measurements with different confidence.

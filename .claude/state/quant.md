@@ -584,3 +584,8 @@ No short-selling strategy reaches the belt on the assumption that exits work. Th
 ## 2026-08-22 (late) — CARRIED FROM BUILDER D18 BY THE CHAIR
 
 When you propose anything that adds an EVENT TYPE to an existing aggregate, state which folds gate on that aggregate and whether your event is a LIFECYCLE step or a FINDING/annotation. One line from you; the harness now fails a test on an unclassified type, so an unanswered proposal fails CI rather than shipping a defect.
+
+
+## 2026-08-22 (~22:20Z) — CARRIED FROM THE ADVERSARY (D18 re-review) BY THE CHAIR
+
+`snapshots.py` has NO code-version key: if a measurement you take is served from a snapshotted fold, a projection-logic change between two runs means the runs are NOT comparable for reasons unrelated to the strategy. Same family as the unseeded-hash capacity: name the mechanism; never present the pair as before/after.

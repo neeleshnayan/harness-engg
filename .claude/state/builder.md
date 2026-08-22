@@ -499,3 +499,11 @@ ALSO: your item-5 fold was upheld but by a STRICTER method — your fold_ab.py f
 - **Ninth consecutive late-read catch**: the mutation harness restored files with newline="\n", leaving a zero-line-diff modified file in git status. **A harness that rewrites files must restore BYTES; check `git status --porcelain` against the intended file list before committing.**
 - **Fitness: +912/−60 overall, app/ +148/−51 = 2.9:1 — best in six, deletions structural.** THE CLEANUP (dce47670): SIXTH deferral; scope now five stale worktrees (four @cebc578, agent-a5b6670c4289d4c7a @2f322a6); my own two temp worktrees removed this dispatch.
 - Open, mine: run() double-evaluates alarms (the defect-class mechanism, intact — follow-up ticketed in recommendations); no surface labels a policy-declined order; everything from D14-D17 including /fund/risk/limits unguarded, avg_cost<=0 reads as good standing, _add_benchmark positional summing.
+
+
+## 2026-08-22 (~22:20Z) — ADVERSARY CLEARANCE + CARRIES (D18 re-review) BY THE CHAIR
+
+D17+D18 SURVIVES whole-branch and is MERGED (1863 green, drift alarm live-firing its true message). Three carries:
+1. **When you ship an AST scanner as a guard, run it over planted code in every construction shape the codebase uses, and REPORT what it cannot read** — your census is blind to positional Event() (27 live sites) and computed aggregate_type (1 live site). Ticketed.
+2. **A subset assertion is half a symmetry claim** — state and check what the report ADDS (ts is rule-read; two clocks). Ticketed with your own double-evaluation removal.
+3. **Any diff changing a projection _apply's SEMANTICS must say what happens to snapshots folded under the old one** (snapshots.py has no code-version key; a stale snapshot is trusted forever). Moot this branch, not the next.

@@ -392,3 +392,13 @@ committed by the chair that filed the guard ticket about it. RULE, now
 mine: **`date -u` before dating anything — an entry header, a dispatched_at,
 an archive cut. The harness's date banner is LOCAL and is not evidence.**
 Corrected in place with a banner, not silently re-headed.
+
+
+## 2026-08-22 (~22:15Z) — ED'S WORKSHOP, chair mechanics (CEO design)
+
+When resolving an Ed batch, read `## NEXT BATCH ASKS` and compose his next
+dispatch as chair-fired transient workers (research/crunch types) UNDER
+Ed's identity + Ed consuming their output — one pass, shared context (the
+token-dedup the CEO wants), one consolidated STATE. Verification asks may
+be subordinated to Ed's thesis; discovery may not (the shelf and the seats
+stay independent). Nothing transient writes to lean_workspace/**.

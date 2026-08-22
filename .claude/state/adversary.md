@@ -404,3 +404,18 @@ BUNDLE KILL, 5 of 7 items SURVIVE (1 resume guard, 2 integrity wiring, 4 cash fi
 - LIVE FACTS: /fund/venue/reconcile (GET) → 10 of 11 out of sync, $126.54, 6.71%; /fund/events caps limit at 1000 (log is 1022); Postgres 5433 refuses postgres/postgres — use spine endpoints.
 - Probes reusable: scratchpad/advd17/{probeA,probeA3,probeD,probeD2,foldC,astdiff}.py
 - Kills on record: gate v5 r1-r4, VRP/XYLD, SRPT, insider-screen headline, builder D11, ENTRY-20 premia label, ENTRY-20 challenge, COO filing-rule remedy, builder D17 items 3+6.
+
+
+## 2026-08-22 (~22:20Z) — STATE from run-adversary-d18 (D17+D18 blind RE-review), appended by the chair
+
+WHOLE BRANCH SURVIVES (56d450a → b6ea612); both my D17 kills CLOSED BY EXECUTION. Second consecutive kill→repair→clear loop. Say the negatives loudly.
+
+- **RE-RUNNING MY OWN OLD PROBES UNCHANGED IS THE CHEAPEST RE-REVIEW THERE IS** — probeD/D2/A/A3 flipped verdict with zero edits in ~30s. ALWAYS keep the killing probe; always re-run it before writing a word. Probes: advd17/* + advd18/{census_plant,probeE,probeF,probeG,probeH,astdiff2}.py (astdiff2 also diffs module CONSTANTS).
+- **NEW TOP ATTACK: AN AST SCANNER SHIPPED AS A GUARD IS ITSELF AN ARTIFACT — run it over planted code in EVERY construction shape the codebase actually uses.** D18's census reads only bare Event() with constant kwarg aggregate_type; positional and computed forms pass SILENTLY (27 + 1 live sites). A scanner can be fail-closed on one axis and wide open on another; check every axis it filters on.
+- **SECOND NEW ATTACK: A SYMMETRY PIN THAT CHECKS ONE DIRECTION.** judged−report pinned; report−judged unchecked — and the report ADDS a rule-read key (ts → two clocks). Whenever a diff pins "A ⊆ B", ask what B−A contains and who reads it.
+- **AST-DIFF WITH MODULE CONSTANTS is the cheapest scope proof** (4 functions + 1 predicate + 1 frozenset; autopolicy/fund.py CHANGED:[]). That licenses "untouched".
+- **A DISCLOSED LOOSENING SURFACE IS NOT A BLESSED ONE — second confirmation**: the annotation-set test MOVES OrderDeclined into the set and demonstrates the hazard in the open, plus a shrink-only pin. Read the framing before calling a test an assertion of the defect.
+- **SNAPSHOT HAZARD, structural, no live instance**: snapshots.py:129-136 has NO code-version key — a fold snapshotted under an old _apply is trusted forever; a semantics fix does not repair folded state. Check on EVERY projection-fold diff. Verified moot here (AutopolicyDeclined count 0; the SOFI order renders correctly).
+- **MY OWN NEAR-MISS: I almost killed on the census hole.** Wrong — the runtime defect is fixed and verified; the residual is $0 today; a false KILL costs five surviving items + two verified repairs. **Weigh the residual's money before promoting it to a verdict.**
+- LIVE FACTS: no /fund/orders collection endpoint (404 — use /fund/orders/pending etc.); bash /tmp and python \tmp are DIFFERENT dirs on this host — write probes to the scratchpad absolute path.
+- Kills unchanged; D17 items 3+6 now REPAIRED-AND-VERIFIED. Fitness: verdicts right in both directions, two SURVIVES on execution this dispatch.

@@ -409,6 +409,26 @@ Donna's: CHECK date -u BEFORE DATING ANYTHING.**
   tree (node test runner via tsx — vitest is not the runner here). Studio
   picks it up via HMR; the mode-truth UI (fundMode.ts) is live.
 
+### BUILT — THE HAZARD BATCH IS LIVE (~22:20Z); ED'S WORKSHOP WIRED
+
+- **D17+D18 SURVIVES whole-branch (adversary re-review, kills closed BY
+  EXECUTION) and is MERGED + SERVING**: 1863 green (arithmetic exact),
+  spine restarted, and **THE DRIFT ALARM FIRED ON LIVE STATE with its true
+  message within seconds** — "book and venue disagree on 10 of 11,
+  $126.54." Resume guarded, declines evented and queue-preserved, shorts'
+  exits un-inverted. Second kill→repair→clear loop closed in 24 hours.
+  Two residual-guard tickets filed (census shapes; two-directional pin +
+  the double-evaluation removal). **CEO signature still owed** on the
+  drift-severity auto-resume consequence — desk item, Monday.
+- **ED'S WORKSHOP** (CEO design, wired): Ed may staff his batches via
+  `## NEXT BATCH ASKS` — chair-composed TRANSIENT workers under HIS
+  identity (rule-3 fan-out; shared context = the token dedup the CEO
+  wants; one consolidated STATE). **The honest line, written in:
+  VERIFICATION may be subordinated to Ed's thesis; DISCOVERY may not** —
+  Dr. Mike Darwin's shelf feeds catalog→idea (never idea→catalog), the
+  quant SEAT implements fresh after the adversary, nothing transient
+  touches lean_workspace/**. The named seats are colleagues, not staff.
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT
