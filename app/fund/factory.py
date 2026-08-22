@@ -155,6 +155,16 @@ class CandidateFactory:
         from app.fund import barcache
         from app.fund.leanrunner import (_declared_lookback_days,
                                          _declared_universe)
+        # OFF SWITCH. This component sits in the measurement instrument's data
+        # path, so it gets a documented way to be turned off without a code
+        # change — set FUND_BAR_SNAPSHOT=0 and every candidate goes back to
+        # per-container live fetches. It is also how the A/B in
+        # scripts/belt/verify_bar_snapshot_e2e.py runs both arms on one spine.
+        if (os.getenv("FUND_BAR_SNAPSHOT", "1").strip().lower()
+                in ("0", "false", "no", "off")):
+            logger.info("FUND_BAR_SNAPSHOT is off; %s runs on live fetches",
+                        candidate_id)
+            return None
         try:
             code = runner.get_algorithm(algorithm)["code"]
         except Exception as e:  # noqa: BLE001

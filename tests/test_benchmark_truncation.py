@@ -147,6 +147,43 @@ def test_the_benchmark_is_served_from_the_active_snapshot(monkeypatch):
     assert snap.misses == []
 
 
+def test_the_pinned_benchmark_spans_the_strategys_own_window(monkeypatch):
+    """MEASURED end-to-end 2026-08-22, and the reason the two arms disagreed.
+
+    Running monthend both ways, the strategy's equity ended 2026-08-21 while the
+    DIRECT-path benchmark ended 2026-08-20 — one session short, every time, not
+    transiently. Cause: the benchmark asks with start AND end, which routes to
+    Yahoo (marketdata.py), and Yahoo lags Alpaca by a session; the strategy
+    itself traded the Alpaca series. So the bar was systematically computed over
+    a shorter window than the curve it was grading, worth 0.10pp on that run.
+
+    Served from the pinned leg both sides are the same series, so the bar spans
+    the strategy's window exactly. That is the property under test.
+    """
+    import app.fund.marketdata as md
+
+    strategy_dates = [f"2024-01-{d:02d}" for d in range(1, 11)]
+    pinned = [f"2024-01-{d:02d}" for d in range(1, 11)]
+    lagging = [f"2024-01-{d:02d}" for d in range(1, 10)]      # a session short
+
+    monkeypatch.setattr(
+        md, "fetch_daily_bars",
+        lambda *a, **k: _Bars(lagging, [100.0 + i for i in range(9)], "yahoo"))
+
+    snap = barcache.prefetch(
+        ["AAA", "BBB"], candidate="c1", lookback_days=700,
+        fetcher=lambda s, **k: _Bars(pinned, [100.0 + i for i in range(10)],
+                                     "alpaca"))
+    result = _result(strategy_dates, ("AAA", "BBB"))
+    with barcache.activate(snap):
+        LeanRunner._add_benchmark(result)
+
+    assert result["benchmark_dates"][-1] == strategy_dates[-1], (
+        "the bar does not reach the last session the strategy traded")
+    assert len(result["benchmark_curve"]) == len(pinned)
+    assert result["benchmark_feeds"] == ["alpaca"]
+
+
 def test_the_benchmark_falls_back_live_when_the_snapshot_cannot_serve(monkeypatch):
     """Fail OPEN. A snapshot that cannot answer must not cost a benchmark."""
     import app.fund.marketdata as md

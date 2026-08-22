@@ -63,7 +63,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
 
@@ -216,14 +216,14 @@ class BarSnapshot:
         lo, hi = start, end
 
         dates, closes = leg.dates, leg.closes
-        if lo is not None and lo > (leg.first or ""):
-            # Fine: the window starts inside the pinned leg.
-            pass
-        elif lo is not None and lo < (leg.first or ""):
-            # The caller wants history from before this leg begins. The leg may
-            # still be complete (the vendor may simply not go back that far),
-            # but this snapshot cannot PROVE that, and a snapshot that guesses
-            # is worse than one that declines. Fall through to a live fetch.
+        # BOTH ENDS MUST BE INSIDE THE PINNED LEG. The caller may want history
+        # from before this leg begins, or bars after it ends; the leg may even
+        # still be complete (the vendor may simply not go back that far), but
+        # this snapshot cannot PROVE that. Serving the overlap would hand back a
+        # short series that looks whole, which is the Entry 20 defect arrived at
+        # from the other side. A snapshot that guesses is worse than one that
+        # declines, so an uncovered end is a miss and the caller fetches live.
+        if lo is not None and lo < (leg.first or ""):
             self._miss(sym, lookback_days, start, end,
                        f"window starts {lo}, pinned leg starts {leg.first}")
             return None

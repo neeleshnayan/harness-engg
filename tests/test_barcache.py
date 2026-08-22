@@ -230,12 +230,16 @@ def test_marketdata_fetch_daily_bars_is_not_wrapped_by_the_cache():
     assert marketdata.fetch_daily_bars is before
 
 
-def test_the_consult_sites_are_exactly_the_three_belt_side_ones():
+def test_the_consult_sites_are_exactly_the_two_belt_side_ones():
     """Pins WHO may read a snapshot.
 
-    If a future diff adds a fourth consult site, this fails and the author has
+    If a future diff adds a third consult site, this fails and the author has
     to say why that site is belt-side. The list is the safety argument: a
     snapshot is safe because of who reads it, not because of how it is scoped.
+
+    Two, not three: ``_add_capacity`` asks for a 120-day window that no pinned
+    leg can match, so consulting there was a guaranteed miss that marked every
+    candidate's data path non-uniform. It was removed rather than special-cased.
     """
     import pathlib
 
@@ -248,9 +252,11 @@ def test_the_consult_sites_are_exactly_the_three_belt_side_ones():
         for i, line in enumerate(text.splitlines(), 1):
             if "barcache.serve(" in line:
                 sites.append(f"{path.relative_to(root).as_posix()}:{i}")
-    assert len(sites) == 3, f"unexpected barcache.serve call sites: {sites}"
-    assert any(s.startswith("app/api/v1/fund.py") for s in sites)
-    assert sum(s.startswith("app/fund/leanrunner.py") for s in sites) == 2
+    assert len(sites) == 2, f"unexpected barcache.serve call sites: {sites}"
+    assert any(s.startswith("app/api/v1/fund.py") for s in sites), (
+        "the endpoint that serves LEAN containers no longer consults the snapshot")
+    assert sum(s.startswith("app/fund/leanrunner.py") for s in sites) == 1, (
+        "the benchmark leg no longer consults the snapshot")
 
 
 # --- staleness -------------------------------------------------------------

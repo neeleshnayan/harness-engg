@@ -1144,18 +1144,20 @@ class LeanRunner:
             return
         symbol = max(set(symbols), key=symbols.count)
         try:
-            from app.fund import barcache
             from app.fund.capacity import estimate
             from app.fund.marketdata import fetch_daily_bars
-            # Only serve capacity from the pinned leg when that leg actually
-            # carries VOLUMES. Capacity is a volume estimate; a pinned leg whose
-            # vendor returned no volume would turn a real ceiling into "no
-            # volume, no estimate" and the candidate would silently lose a
-            # number it used to have. Falling through costs one fetch and keeps
-            # the estimate honest.
-            pinned = barcache.serve(symbol, lookback_days=120)
-            bars = (pinned if (pinned is not None and pinned.volumes)
-                    else fetch_daily_bars(symbol, lookback_days=120))
+            # DELIBERATELY NOT SERVED FROM THE BAR SNAPSHOT, and the reason is
+            # worth recording because the first draft of this diff did consult
+            # it. A snapshot is pinned at the lookback the ALGORITHM asks for
+            # (700/900/2000); capacity wants 120 days. That request can never
+            # match, so the consult was guaranteed to miss — and every miss is
+            # recorded, so it marked EVERY candidate's data path non-uniform and
+            # turned an honest signal into one that always cries wolf.
+            #
+            # It also buys nothing: capacity is computed ONCE per candidate, not
+            # once per container, so this is a single fetch against a belt that
+            # was making thousands.
+            bars = fetch_daily_bars(symbol, lookback_days=120)
             result["capacity"] = estimate(
                 symbol, list(bars.closes or []), list(bars.volumes or []),
                 rb.get("turnover_pct"))
@@ -1733,6 +1735,7 @@ def _declared_universe(code: Optional[str]) -> list[str]:
                if isinstance(e, ast.Constant) and isinstance(e.value, str)]
         return sorted(set(out))
     return []
+
 
 def _declared_lookback_days(code: Optional[str]) -> Optional[int]:
     """The ``lookback_days`` an algorithm's own bar URL asks the spine for.
