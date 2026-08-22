@@ -335,3 +335,15 @@ already run, one a package whose naive click would have recorded six shorts.
 The systemic mechanism is ticketed (adversary-blind first — reducing CEO
 visibility is a direction-sensitive surface); until it lands, this
 discipline is the control.
+
+
+## 2026-08-23 — addendum to the supersession discipline (CEO refinement #2)
+
+When dispatching ticket 762d28c9, the brief carries the THREE-TIER
+visibility model: ACTIVE (desk, clickable) / SUPERSEDED (off desk, linked
+chip on the successor) / KILLED (off desk, NO chip - terminally dead with
+no successor; browsable on the floor's kill shelf, never deleted). A kill
+differs from a supersession precisely in having no successor to hang a chip
+on - forcing it into the lineage render would put dead weight on live rows.
+The adversary's kill record (docs/reviews + run records) is the data source;
+the floor shelf is a read-side render of it.

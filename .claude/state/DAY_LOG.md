@@ -210,7 +210,14 @@ maintain a day log for fable to review."***
   replaced) and the CONTEST TRAIL (per-row dissent chips: who challenged /
   differed / returned / killed, with artifact links). v1 (`895bd29b`)
   declined with a forward link — deliberately demonstrating the exact
-  pattern v2 builds.
+  pattern v2 builds. SECOND REFINEMENT same hour (CEO verbatim: "items that
+  got entirely killed can move out from my desk but still remain on the
+  floor if i wish to review"): the visibility model is THREE TIERS —
+  **ACTIVE** (the desk, clickable) · **SUPERSEDED** (off the desk; visible
+  as a linked chip on its successor) · **KILLED** (off the desk entirely, no
+  chip on anything — a terminally dead item with no successor; lives on THE
+  FLOOR's kill shelf, browsable on demand, never deleted). The dispatch
+  brief for 762d28c9 carries all three tiers.
 
 ### ON FIRE
 
