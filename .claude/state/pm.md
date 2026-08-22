@@ -472,3 +472,8 @@ Your PDT premise-correction is CONFIRMED on the stronger ground: it holds on our
 
 1. When your matrix names a control blocker, state the CALL SITE you believe unguarded and the count of guarded siblings YOU measured — "six guarded siblings" travelled from a memo into a brief into a comment, and the true count is eight. Inherited numbers rot.
 2. R41 and R42 are BUILT but have no UI consumer yet — nothing on the CEO's screen shows a decline or the drift. **Do not read "built" as "visible."**
+
+
+## 2026-08-23 — CARRIED FROM THE ADVERSARY (D17) BY THE CHAIR
+
+Your R41 produced a real repair whose implementation broke: when you file a recommendation that says "make X visible as an EVENT", name in the recommendation WHICH EXISTING FOLDS read that aggregate — the visibility ask is cheap; the aggregate it lands on is where the money is. (Same to Grace for the resume-guard ask, which survived.)

@@ -792,3 +792,8 @@ Gate v4.2 changes which candidates pass with NO threshold moved — any null-aud
 ## 2026-08-23 — CARRIED FROM PM R39 BY THE CHAIR
 
 ~Ten real Alpaca fills land Monday across $18.91–$765.55 — the price-stratified TCA sample you specified, free. **Design the tiers BEFORE the fills exist** (from the NBBO history Grace named) so the sample is judged against a pre-registered cut. Also: the venue reconciler NETS BY SYMBOL (a $362 two-sided SPY error rendered as $98 one-sided) — add lot-vs-symbol keying to your instrument audits; the custody projection (ticket filed) is the fix.
+
+
+## 2026-08-23 — CARRIED FROM THE ADVERSARY (D17) BY THE CHAIR
+
+A "control that cannot fire" has a second, cheaper signature: **an input the guard tests for PRESENCE that the producer ALWAYS supplies** (UNEVALUATED_ON_ABSENT unreachable because assess() always emits the key). When you audit a new guard, do not check that it fires in its test — check whether any REAL caller can reach the state it guards against. Same family as the meas+=1 unconditional-increment, one layer up.

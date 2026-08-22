@@ -265,6 +265,28 @@ maintain a day log for fable to review."***
   record is the first to comply.
 - THE CLEANUP: deferred a FIFTH time, next builder slot, on the record.
 
+### MEASURED — D17 KILLED BY THE ADVERSARY (~22:15Z); repair D18 in flight
+
+- **BUNDLE KILL on items 3+6, both with EXECUTED reproductions; 5 of 7
+  survive** (resume guard, integrity wiring, cash fields, and the shorts
+  fix — upheld by a STRICTER method than the builder's own: a real-_apply
+  base-vs-head fold over all 1000 live events, cross-checked against the
+  live spine). KILL 1: AutopolicyDeclined knocks a declined order out of
+  the CEO's pending queue — un-approvable, un-declinable, and on 09-08 the
+  TLT/DBC exits would have been declined and then INVISIBLE. The repo's own
+  comments named this incident and the diff walked back into it. KILL 2:
+  a driftless post-fill monitor raises a fabricated CRITICAL "venue could
+  not be read" that would permanently mask the true $126.54 message.
+  **1,813 green tests with two merge-blocking defects** — the suite stubbed
+  the producer and named an invariant its body never asserted.
+- **The adversary's honest negative on its own lead attack**: the
+  drift-severity halt-hold costs far less than framed (v4 already refuses
+  per-order on drifting symbols) — one CEO SIGNATURE when D18 clears, not
+  a block. Parked for the morning.
+- **NOTHING MERGED. D18 repair dispatched** with the adversary's probes as
+  acceptance tests, on the same branch, whole-or-nothing after blind
+  re-review — the D11→D14 loop, second running.
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT

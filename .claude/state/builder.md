@@ -477,3 +477,11 @@ forbidden.
 - **UNEVALUATED_ON_ABSENT is the general lesson**: `active_keys - current_keys` conflates "evaluated false" with "never evaluated" — any new rule with an optional input must join that set or it erases itself on monitors lacking the input.
 - **Fitness: +1,901/−51 (app/ +817/−60).** THE CLEANUP (dce47670) deferred a FIFTH time — next slot under this name; scope includes the four cebc578 worktrees.
 - Open: avg_cost <= 0 → 0.0 reads as good standing to every exit rule (named, unfixed — moves the underwater alarm); shorts' unbounded downside / borrow cost / buy-in risk unmodelled everywhere (an alarm is not coverage); no UI consumes AutopolicyDeclined or venue_drift; mode.py exit_sign_fixed precondition stays `unchecked` (correct — inventing an evaluator that says "met" would be a loosening); everything from D14/D15/D16.
+
+
+## 2026-08-23 — ADVERSARY VERDICT ON D17 (carried by the chair): BUNDLE KILL, items 3+6; five survive
+
+TWO RULES FOR EVERY NEXT DIFF, from executed failures:
+1. **When you add an EventType, you have changed a lifecycle until proven otherwise.** Grep every fold that gates on aggregate_type and filters by type allowlist/single-exclusion (orders.py:48/55/77, pipeline.py:605) and STATE in the diff which you checked. AutopolicyDeclined knocked orders out of pending() and made them un-approvable and un-declinable — the exclusion comments at both sites named this incident by name.
+2. **A test that stubs the producer cannot test the producer's contract.** Where the contract is what a real function EMITS, call the real function. And re-read every test whose NAME states an invariant its BODY does not assert (test_..._leaves_the_order_pending never called pending()).
+ALSO: your item-5 fold was upheld but by a STRICTER method — your fold_ab.py folded only OrderFilled and skipped CorporateActionApplied/BookReconciledToVenue; use the adversary's real-_apply base-vs-head fold with the live-spine cross-check (scratchpad/advd17/foldC.py) next time. And a verification item (7) with no recorded artifact is unreviewable — file the assertion you ran, re-executable.

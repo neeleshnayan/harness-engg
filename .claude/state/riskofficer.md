@@ -452,3 +452,10 @@ Autopolicy v4's venue_holds_position and book_venue_in_sync compare SYMBOL TOTAL
 1. **POST /fund/risk/limits still takes no allowlist, no echo, no written reason while it PATCHES THE RISK LIMITS** — your 2026-08-21 filing stands and resume was never the only hole. Bring it back as an envelope recommendation with the identity you want on it; guarding a threshold-setting endpoint decides WHO MAY MOVE A THRESHOLD, which is yours and the CEO's, not a repair in passing.
 2. **AutopolicyDeclined is the audit surface you asked for**: every decline now carries its failed check names and full evaluation on the event log, idempotent per distinct verdict. Audit declines the way you audit approvals — and `recorded: False` means "already on the record or no store", NEVER "no decline happened".
 3. The drift alarm's severity=critical holds a LOSS halt shut during book-broker drift (under adversary attack now as a deliberate policy consequence) — when it clears, fold it into your envelope supervision: it is a new condition your auto-resume audits must know about.
+
+
+## 2026-08-23 — CARRIED FROM THE ADVERSARY (D17) BY THE CHAIR
+
+1. A standing alarm's message is written ONCE by whichever producer raises the key first and never updated — when two producers can raise one key, the operator's explanation is a race. Audit book_venue_drift for this when D18 merges.
+2. Your /fund/risk/limits finding now has a SECOND witness (the D17 builder confirmed it in writing and deliberately left it) — bring it back as an envelope recommendation with the identity you want on the endpoint.
+3. When D18 clears: the drift alarm's severity=critical suspends loss auto-resume during drift — the CEO owes one SIGNATURE on that (tightening, bounded cost); fold into your envelope supervision.
