@@ -65,6 +65,33 @@ November and 7 in July, a 20.9× swing, which retires the premise of the 8-hour
 corpus extension the mechanism requested and the CEO approved. Entry 14 CLOSED
 (8 names at N=20, 0.0% of days ≥30).
 
+### THE METRICS LAYER IS LIVE — and the record now has a clock
+
+**Builder D13 merged at `5bef3e2`** (chair re-ran the suite on the merged
+tree: 1523 passed, REAL_EXIT=0; spine restarted; all five routes verified;
+NAV $1,885.74). One shared fold replaces every seat's hand-derivation —
+Donna's day drops from ~26 minutes of folding to 0.12s. Three defects found
+by building, all mutation-verified — sharpest: **the flight recorder was
+DISCARDING the corrections it was sent** (upsert missing DO UPDATE columns;
+an omitted tokens field BLANKED the stored count). `run-builder-d13` is
+**the first run record in the firm's history carrying its own
+`dispatched_at` and `status`** — the chair's habit changed the same pass the
+fields landed. The builder's EVOLVE (baseline test count beside the final)
+ACCEPTED into its seat file — the contract's second applied amendment in
+one night.
+
+**First live reading from the new instrument**: `chair_backlog` = 30
+approved-undispatched requests, oldest 20.8h, all on the chair — published
+as an upper bound with its link coverage stated (10 of 24 dispatch events
+linkable). **One decision routed to the CEO**: whether that backlog enters
+`desk_load.total` — including it flips `coo_triage_due` without a threshold
+moving, and the builder correctly refused to decide a threshold.
+
+**D11 v2 dispatched** — the night's last build, as NARROW SEPARABLE diffs
+per Grace's G3 (measured: bundles on the broker surface die, narrow diffs
+merge). In flight at update: adversary (Entry 20 blind) · COO #5 ·
+validator (three settling measurements) · builder (v2). 
+
 ### THE NIGHT SHIFT, SECOND HALF — the funnel turned over in one night
 
 **RETIRED, honestly**: the insider lead failed its own pre-registration at
