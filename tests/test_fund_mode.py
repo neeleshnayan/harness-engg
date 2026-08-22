@@ -838,3 +838,114 @@ class TestTheRestartHazardIsVisibleAtTheClick:
         with pytest.raises(m.ModeConflict):
             m.resolve(env={"FUND_MODE": "alpaca-paper",
                            "FUND_MODE_FILE": str(f)})
+
+
+# --- K8: THE TWO FALSIFIED CLAIMS --------------------------------------------
+class TestTheFourthSwitchIsActuallyGone:
+    """Adversary review of builder D11, 2026-08-22, finding K8.
+
+    ``.env.example`` removed ``ALPACA_PAPER=true`` on the claim that the switch
+    was gone. It was not: ``connectors/alpaca.py`` still read it as the default
+    for ``paper``, and ``scripts/preflight.py`` and ``scripts/reconcile_broker.py``
+    each read it to open their own broker clients. Three live readers of a
+    variable that decides whether real money can move, while the file that
+    documents the environment said it no longer existed.
+
+    Removing a variable from a template does not remove a variable.
+    """
+
+    def test_the_connector_refuses_to_guess_paper_or_live(self):
+        """Not defaulted to paper — REFUSED. A safe default would still be a
+        default deciding where money goes, which is the shape of every incident
+        in mode.py's docstring."""
+        from app.fund.connectors.alpaca import AlpacaConnector
+
+        with pytest.raises(ValueError) as e:
+            AlpacaConnector()
+        assert "requires paper=True or paper=False" in str(e.value)
+        assert "build_connector" in str(e.value)
+
+    def test_the_environment_variable_cannot_reach_the_connector(self,
+                                                                 monkeypatch):
+        """Set it to the value that used to mean LIVE, and it changes
+        nothing — because nothing reads it."""
+        from app.fund.connectors.alpaca import AlpacaConnector
+
+        monkeypatch.setenv("ALPACA_PAPER", "false")
+        assert AlpacaConnector(paper=True)._paper is True
+        with pytest.raises(ValueError):
+            AlpacaConnector()
+
+    def test_nothing_in_the_shipped_tree_reads_ALPACA_PAPER(self):
+        """The claim, enforced. Scans app/ and scripts/ for a live read of the
+        variable, ignoring string literals and comments — those legitimately
+        NAME it, and several deliberately do, to record that it was retired.
+        """
+        import ast
+        import pathlib
+
+        root = pathlib.Path(__file__).resolve().parents[1]
+        offenders = []
+        for pat in ("app/**/*.py", "scripts/**/*.py"):
+            for p in root.glob(pat):
+                try:
+                    tree = ast.parse(p.read_text(encoding="utf-8"))
+                except SyntaxError:            # pragma: no cover
+                    continue
+                for node in ast.walk(tree):
+                    # os.getenv("ALPACA_PAPER") / os.environ.get("ALPACA_PAPER")
+                    if not isinstance(node, ast.Call):
+                        continue
+                    fn = node.func
+                    name = getattr(fn, "attr", None) or getattr(fn, "id", None)
+                    if name not in ("getenv", "get", "environ"):
+                        continue
+                    for arg in node.args:
+                        if isinstance(arg, ast.Constant) and \
+                                arg.value == "ALPACA_PAPER":
+                            offenders.append(f"{p.name}:{node.lineno}")
+                    # os.environ["ALPACA_PAPER"]
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.Subscript) and \
+                            isinstance(node.slice, ast.Constant) and \
+                            node.slice.value == "ALPACA_PAPER":
+                        offenders.append(f"{p.name}:{node.lineno}")
+        assert not offenders, (
+            f"ALPACA_PAPER is still read at {offenders} — .env.example says it "
+            f"is gone, so either the readers go or the claim does (K8)")
+
+    def test_the_scan_can_see_a_reader(self):
+        """A guard that cannot fail is not a guard."""
+        import ast
+        tree = ast.parse('import os\nx = os.getenv("ALPACA_PAPER", "true")\n')
+        found = [n for n in ast.walk(tree)
+                 if isinstance(n, ast.Call)
+                 and getattr(n.func, "attr", None) == "getenv"
+                 and any(isinstance(a, ast.Constant) and a.value == "ALPACA_PAPER"
+                         for a in n.args)]
+        assert len(found) == 1
+
+
+class TestFundLiveMarksClaim:
+    def test_the_flag_alone_decides_and_the_env_does_not_carry_it(self,
+                                                                  monkeypatch):
+        """The other falsified claim (K8).
+
+        The comment argued the hidden ``or`` could be removed harmlessly
+        because ``.env`` carries FUND_LIVE_MARKS=true. Measured against the
+        live .env on 2026-08-22: there is no such key. So removal DOES change
+        behaviour for a test-mode spine started outside run_test.sh — the safe
+        direction (an absent mark is loud, an invented one is not), but shipped
+        as "no change", which was wrong.
+
+        What is testable here is the behaviour, which is now unconditional on
+        the flag in BOTH directions.
+        """
+        from app.api.v1 import fund as fundapi
+
+        monkeypatch.delenv("FUND_LIVE_MARKS", raising=False)
+        assert fundapi._paper_live_pricer() is None
+        monkeypatch.setenv("FUND_LIVE_MARKS", "true")
+        assert fundapi._paper_live_pricer() is not None
+        monkeypatch.setenv("FUND_LIVE_MARKS", "false")
+        assert fundapi._paper_live_pricer() is None

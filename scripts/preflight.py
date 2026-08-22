@@ -33,7 +33,11 @@ def check_alpaca() -> str:
     key, secret = os.getenv("ALPACA_API_KEY"), os.getenv("ALPACA_SECRET_KEY")
     if not (key and secret):
         return "not configured — the in-Firestore paper connector will be used"
-    paper = os.getenv("ALPACA_PAPER", "true").lower() != "false"
+    # Paper vs LIVE from the fund's MODE, not from ALPACA_PAPER. This script
+    # opens a real broker client, so it answers the same question the order
+    # path answers, the same way (2026-08-22, adversary D11 K8).
+    from app.fund.mode import VenueKind, resolve
+    paper = resolve().venue_kind is VenueKind.ALPACA_PAPER
     from alpaca.trading.client import TradingClient
     acct = TradingClient(key, secret, paper=paper).get_account()
     return (f"ok — paper={paper} status={acct.status} "

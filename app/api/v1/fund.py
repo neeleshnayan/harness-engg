@@ -129,8 +129,23 @@ def _paper_live_pricer():
     Read from the flag ALONE as of 2026-08-22. The old mock branch was
     ``_paper_live_pricer() or _live_price_fn()`` — live marks unconditionally,
     with the flag able only to turn them on, never off. One switch, one
-    meaning; ``.env`` carries FUND_LIVE_MARKS=true, so the live spine's
-    behaviour is unchanged and the hidden ``or`` is gone.
+    meaning, and the hidden ``or`` is gone.
+
+    THE PREMISE THIS CHANGE WAS ARGUED ON WAS FALSE, and the correction is
+    kept rather than the sentence quietly deleted (adversary review of builder
+    D11, finding K8). The original comment said *"``.env`` carries
+    FUND_LIVE_MARKS=true, so the live spine's behaviour is unchanged"*.
+    Measured against the live ``.env`` on 2026-08-22: there is NO such key.
+    Its twelve keys are ALPACA_API_KEY, ALPACA_SECRET_KEY, ALPACA_PAPER,
+    USE_FAKE_FIRESTORE, FIREBASE_SERVICE_ACCOUNT_JSON, FUND_ENV,
+    FIRESTORE_DATABASE_ID, SETTLE_INTERVAL_SECONDS, STRIKE_INTERVAL_SECONDS,
+    EXTERNAL_SIGNAL_TOKEN, POLYGON_API_KEY, FUND_STORE.
+
+    So removing the ``or`` DOES change behaviour: a test-mode spine started
+    outside ``scripts/run_test.sh`` (which exports the flag) now gets NO live
+    pricer where it used to get one silently. That direction is the safe one —
+    an absent mark is loud, an invented one is not — and it is the intended
+    behaviour, but it was shipped as "no change" and that was wrong.
     """
     if os.getenv("FUND_LIVE_MARKS", "false").lower() in ("1", "true", "yes"):
         from app.fund.marketdata import live_price

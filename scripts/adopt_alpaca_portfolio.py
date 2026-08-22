@@ -10,7 +10,6 @@ load_dotenv()
 
 from app.core.firebase import initialize_firebase
 initialize_firebase() # Ensure Firebase is initialized
-from app.fund.connectors.alpaca import AlpacaConnector
 from app.fund.events import EventStore, Event, EventType
 from app.fund.money import D
 
@@ -19,8 +18,18 @@ async def main():
         print("Error: ALPACA_API_KEY and ALPACA_SECRET_KEY must be set in .env")
         sys.exit(1)
 
-    print("Connecting to Alpaca Paper Trading...")
-    connector = AlpacaConnector()
+    # Built through the MODE, like the spine's own order path. `AlpacaConnector()`
+    # with no `paper=` used to read ALPACA_PAPER and default to paper — a
+    # variable deciding real money while living beside a CORS list (adversary
+    # review of builder D11, K8). build_connector also runs the permitted-
+    # connector check and the prod gate, so this script cannot reach the live
+    # account by omission either.
+    from app.fund.mode import resolve
+    from app.fund.venue import build_connector
+
+    spec = resolve()
+    print(f"Connecting to Alpaca ({spec.mode.value})...")
+    connector = build_connector(spec)
     
     try:
         positions = connector.positions()

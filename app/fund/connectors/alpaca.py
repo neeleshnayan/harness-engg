@@ -9,7 +9,8 @@ the existing handle on any replay/retry — never a second submission. This is
 the async-boundary guarantee the spine relies on.
 
 Config comes from the environment (never committed):
-    ALPACA_API_KEY, ALPACA_SECRET_KEY, ALPACA_PAPER (default "true")
+    ALPACA_API_KEY, ALPACA_SECRET_KEY. Paper vs LIVE comes from the fund MODE
+    (app/fund/mode.py) and is passed in; ALPACA_PAPER is not read here.
 
 The SDK-touching calls are thin; the tricky mapping (order status, positions)
 is extracted into pure functions that are unit-tested without a network.
@@ -76,7 +77,27 @@ class AlpacaConnector(Connector):
                  price_ttl=None, clock=None):
         self._key = key or os.getenv("ALPACA_API_KEY")
         self._secret = secret or os.getenv("ALPACA_SECRET_KEY")
-        self._paper = (os.getenv("ALPACA_PAPER", "true").lower() != "false") if paper is None else paper
+        # PAPER VS LIVE IS STATED BY THE CALLER OR IT IS REFUSED — 2026-08-22,
+        # adversary review of builder D11, finding K8. This line read
+        # ``os.getenv("ALPACA_PAPER", "true")`` when `paper` was not given,
+        # which made an environment variable living beside a CORS list the
+        # thing that decided whether real money could move — a fourth
+        # accidental switch, tied to nothing the rest of the fund could see.
+        # The D11 diff claimed to have removed it and only removed it from
+        # .env.example; this is the line that actually removes it.
+        #
+        # Defaulting to `paper=True` instead would have been safe and still
+        # wrong: a default that decides where money goes is the shape of every
+        # incident in mode.py's docstring. The caller knows; ask the caller.
+        # app/fund/venue.py derives it from the mode and has always passed it.
+        if paper is None:
+            raise ValueError(
+                "AlpacaConnector requires paper=True or paper=False. Paper vs "
+                "LIVE is a property of the fund's MODE (app/fund/mode.py) and "
+                "must be stated by whoever builds the connector; use "
+                "app.fund.venue.build_connector(spec), which derives it. "
+                "ALPACA_PAPER is no longer read here.")
+        self._paper = bool(paper)
         self._t = trading   # inject in tests; else built lazily from creds
         self._d = data
         # Short TTL cache so repeated NAV computes (cockpit polls every ~4s) don't

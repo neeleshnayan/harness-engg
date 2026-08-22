@@ -13,7 +13,8 @@ Set these in the deploy env (Railway variables / local `.env` — never commit):
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | path to the Firebase Admin service-account JSON |
 | `ALPACA_API_KEY` | Alpaca key id (e.g. the paper key) |
 | `ALPACA_SECRET_KEY` | Alpaca **secret** — set here only, never in chat/repo |
-| `ALPACA_PAPER` | `true` (paper, default) or `false` (live) |
+| `FUND_MODE` | `test` / `alpaca-paper` / `alpaca-prod`. REQUIRED, no default. Decides both the venue and the ledger. `ALPACA_PAPER` was retired 2026-08-22 and is no longer read anywhere. |
+| `FUND_STORE` | `postgres` / `firestore`. REQUIRED, no default. |
 | `ALPACA_PRICE_TTL` | price cache seconds (default `5`) |
 | `CORS_ORIGINS` | comma-separated origins for the LP view / cockpit |
 | `ENABLE_SCHEDULER` | `true` (default) runs settle/strike/reconcile worker |
