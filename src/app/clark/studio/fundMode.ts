@@ -166,18 +166,27 @@ export function presentMode(report: FundModeReport | null): ModePresentation {
 export function selectability(
   report: FundModeReport | null,
   target: FundModeName,
-): { selectable: boolean; reason: string } {
+): { selectable: boolean; reason: string; isCurrent: boolean } {
   if (!report) {
-    return { selectable: false, reason: "the spine is unreachable" };
+    return { selectable: false, reason: "the spine is unreachable",
+             isCurrent: false };
   }
   if (report.active?.mode === target) {
-    return { selectable: false, reason: "already in this mode" };
+    // NOT A PROBLEM, and the caller needs to know that. Found by looking at
+    // the rendered dialog: every unavailable row wore the warning colour, so
+    // "already in this mode" — the normal, correct state of exactly one row on
+    // every reading — shouted as loudly as "locked in code, 5 of 5
+    // preconditions not met". A palette where the ordinary case is amber is a
+    // palette where nobody reads the amber.
+    return { selectable: false, reason: "already in this mode",
+             isCurrent: true };
   }
   if (target === "alpaca-prod") {
     const gate = report.prod_gate;
     if (!gate.code_lock.open) {
       return {
         selectable: false,
+        isCurrent: false,
         reason:
           `locked in code (${gate.code_lock.constant} is false) and ` +
           `${gate.n_blocking} of ${gate.n_preconditions} preconditions are ` +
@@ -187,15 +196,17 @@ export function selectability(
     if (gate.n_blocking > 0) {
       return {
         selectable: false,
+        isCurrent: false,
         reason: `${gate.n_blocking} of ${gate.n_preconditions} preconditions are not met`,
       };
     }
   }
   const spec = report.modes.find((m) => m.mode === target);
   if (spec && !spec.wired) {
-    return { selectable: false, reason: "this mode has never been wired" };
+    return { selectable: false, reason: "this mode has never been wired",
+             isCurrent: false };
   }
-  return { selectable: true, reason: "" };
+  return { selectable: true, reason: "", isCurrent: false };
 }
 
 /**

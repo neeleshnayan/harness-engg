@@ -358,3 +358,33 @@ test("a spine too old to send `conflict` still gets the disagreement rendered", 
 test("an unreachable spine reports no conflict rather than inventing one", () => {
   assert.equal(declarationConflict(null), null);
 });
+
+// --- the current mode is not a warning ---------------------------------------
+
+test("the CURRENT mode is flagged isCurrent, not as a problem", () => {
+  // Found by SCREENSHOTTING the dialog: every unavailable row wore the warning
+  // colour, so the one row that is unavailable on every single reading — the
+  // mode you are already in — shouted as loudly as "locked in code, 5 of 5
+  // preconditions not met". A palette where the ordinary case is amber is a
+  // palette where nobody reads the amber.
+  const s = selectability(report(spec("test")), "test");
+  assert.equal(s.selectable, false);
+  assert.equal(s.isCurrent, true);
+});
+
+test("every OTHER refusal is not isCurrent", () => {
+  const r = report(spec("test"));
+  assert.equal(selectability(r, "alpaca-prod").isCurrent, false);
+  assert.equal(selectability(null, "test").isCurrent, false);
+  const unwired = report(spec("test"), {
+    modes: [spec("test"), spec("alpaca-paper", { wired: false }),
+            spec("alpaca-prod")],
+  });
+  assert.equal(selectability(unwired, "alpaca-paper").isCurrent, false);
+});
+
+test("a selectable mode is never isCurrent", () => {
+  const s = selectability(report(spec("test")), "alpaca-paper");
+  assert.equal(s.selectable, true);
+  assert.equal(s.isCurrent, false);
+});

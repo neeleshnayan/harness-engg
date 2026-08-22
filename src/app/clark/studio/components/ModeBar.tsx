@@ -268,6 +268,28 @@ function ModeSwitchDialog({
           <DeclaredBy report={report} />
         )}
 
+        {/* UNREACHABLE IS NOT AN EMPTY LIST. Found by the dead-spine pass, not
+            by the diff: with the spine down this dialog rendered a blank body
+            and a footer reading "Choose a mode above" — an instruction
+            pointing at nothing, which reads as a rendering bug rather than as
+            the fund being unable to answer. */}
+        {!report && (
+          <div
+            className={`${KT.inset} mt-4 p-3 text-[12px]`}
+            data-testid="mode-dialog-unreachable"
+          >
+            <div className="font-semibold text-[var(--kt-down)]">
+              The spine did not answer
+            </div>
+            <div className={`mt-1 ${KT.body}`}>
+              So this dialog cannot list the modes, cannot say which one is
+              active, and cannot switch anything. That is an absence, not an
+              empty book — nothing on this screen is the fund&rsquo;s own
+              numbers until the spine answers.
+            </div>
+          </div>
+        )}
+
         <div className="mt-5 space-y-2">
           {(report?.modes ?? []).map((m) => {
             const s = selectability(report, m.mode);
@@ -304,9 +326,17 @@ function ModeSwitchDialog({
                 </div>
                 {/* A disabled control ALWAYS says why. A greyed button with no
                     explanation is how a precondition list becomes invisible. */}
+                {/* The CURRENT mode is not a problem and must not wear the
+                    warning colour. Found by screenshotting the dialog: every
+                    unavailable row was amber, so the one row that is amber on
+                    EVERY reading — "already in this mode" — shouted as loudly
+                    as "locked in code, 5 of 5 preconditions not met". A
+                    palette where the ordinary case is amber is a palette
+                    where nobody reads the amber. */}
                 {!s.selectable && s.reason && (
-                  <div className="mt-1 text-[11px] text-[var(--kt-warn)]">
-                    unavailable — {s.reason}
+                  <div className={`mt-1 text-[11px] ${
+                    s.isCurrent ? KT.muted : "text-[var(--kt-warn)]"}`}>
+                    {s.isCurrent ? s.reason : `unavailable — ${s.reason}`}
                   </div>
                 )}
               </button>
@@ -399,9 +429,13 @@ function ModeSwitchDialog({
             <div className="font-semibold">
               Switched — and the next spine restart will REFUSE to start
             </div>
+            {/* An em dash, not a full stop: `effect` is a lowercase CLAUSE
+                from the spine ("the next spine start will REFUSE with…"), and
+                concatenating it after a period read as a broken sentence.
+                Found by reading the rendered text, not the diff. */}
             <div className="mt-1">
               FUND_MODE={hazard.env} in the spine&rsquo;s environment now
-              disagrees with the mode file, which says {hazard.file}.{" "}
+              disagrees with the mode file, which says {hazard.file} —{" "}
               {hazard.effect}
             </div>
             <div className="mt-1">{hazard.remedy}</div>
@@ -426,7 +460,9 @@ function ModeSwitchDialog({
           {/* A disabled button says why it is disabled, at the button. The
               operator should never have to scroll up to find out. */}
           <span className={`ml-auto text-right text-[11px] ${KT.muted}`}>
-            {!target
+            {!report
+              ? "The spine is unreachable — nothing can be switched"
+              : !target
               ? "Choose a mode above"
               : !sel.selectable
                 ? sel.reason
@@ -455,6 +491,8 @@ function DeclaredBy({ report }: { report: FundModeReport }) {
   const conflict = declarationConflict(report);
   const env = report.declared?.env;
   const file = report.declared?.file?.mode;
+  const setBy = report.declared?.file?.set_by;
+  const setAt = report.declared?.file?.set_at;
   const fileError = report.declared?.file_error;
   return (
     <div className={`${KT.inset} mt-4 p-3`} data-testid="mode-declared-by">
@@ -471,6 +509,15 @@ function DeclaredBy({ report }: { report: FundModeReport }) {
           {fileError
             ? <span className="text-[var(--kt-warn)]">unreadable — {fileError}</span>
             : file || <span className={KT.muted}>no file</span>}
+          {/* WHO and WHEN, because the spine records them and dropping them
+              here wastes the only accountability the file carries. A mode
+              somebody switched at 03:00 and a mode set at deploy time are
+              different facts about the same string. */}
+          {!fileError && setBy && (
+            <span className={`ml-2 font-sans ${KT.muted}`}>
+              set by {setBy}{setAt ? ` · ${setAt}` : ""}
+            </span>
+          )}
         </dd>
         <dt className={KT.muted}>file path</dt>
         <dd className={`font-mono ${KT.muted}`}>{report.declared?.file_path}</dd>
