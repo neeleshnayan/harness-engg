@@ -410,6 +410,11 @@ class TestStrategyLedgersAndExitCoverage:
         held = {sym for sym, qty in (beta.get("positions") or {}).items()
                 if abs(float(qty)) > 1e-9}
         assert "DBC" not in held and "TLT" not in held
+        # ...and SPY, which was only REDUCED (0.346119 -> 0.217757), STAYS.
+        # End to end through apply() and the real fold, not just the unit
+        # arithmetic: this is the case that would have disabled autopolicy v3's
+        # cover for the sleeve's own exits (adversary D11, K3).
+        assert float(beta["positions"]["SPY"]) == pytest.approx(0.217757)
 
     def test_no_realised_pnl_is_invented_by_a_reconciliation(self, book):
         """Nothing was sold. Booking a realised gain here would put an invented
@@ -479,3 +484,198 @@ class TestExitCoverageCanSeeUncoveredHoldings:
         assert out["uncovered"] == []
         assert out["coverage_known"] is False
         assert "UNKNOWN" in out["note"]
+
+
+# --- K3: A REDUCED POSITION KEEPS ITS OWNER ----------------------------------
+class TestPartialReleaseKeepsTheOwner:
+    """Adversary review of builder D11, 2026-08-22, finding K3.
+
+    v1's docstring documented RELEASE and ADOPT; the code had a third case it
+    did not mention. It emptied EVERY holder of a symbol and wrote any
+    surviving quantity into ``discretionary``, so a position that was merely
+    REDUCED changed owner.
+
+    The consequence the review measured, on the live book: SPY 0.346119 ->
+    0.217757 would leave the owning sleeve holding NOTHING, and autopolicy v3's
+    envelope requires that "the rule's own strategy must hold the quantity it
+    sells". The sleeve's exit rules could then never be auto-approved again —
+    fails closed, so safe, but the control stops working SILENTLY. And the
+    sleeve reports zero exposure while the fund still holds the position.
+    """
+
+    @staticmethod
+    def _apply(rows, holders_state=None):
+        """Run the fold over one BookReconciledToVenue payload.
+
+        Builds the ledger state directly rather than through fills, because
+        what is under test is the FOLD's arithmetic on a known starting point.
+        """
+        from decimal import Decimal
+
+        from app.fund.projections.strategy import StrategyAttribution
+
+        strats: dict = {}
+        for sid, symbol, qty, cost in (holders_state or []):
+            rec = strats.setdefault(sid, {"strategy_id": sid,
+                                          "positions": {},
+                                          "net_invested": Decimal("0"),
+                                          "realized_pnl": Decimal("0")})
+            rec["positions"][symbol] = {"qty": Decimal(str(qty)),
+                                        "cost": Decimal(str(cost))}
+            rec["net_invested"] += Decimal(str(cost))
+
+        def get(sid):
+            return strats.setdefault(sid, {"strategy_id": sid,
+                                           "positions": {},
+                                           "net_invested": Decimal("0"),
+                                           "realized_pnl": Decimal("0")})
+
+        StrategyAttribution._apply_venue_reconciliation(get, {"positions": rows})
+        return strats
+
+    def test_a_reduced_position_stays_with_the_strategy_that_held_it(self):
+        """THE LIVE CASE. SPY 0.346119 -> 0.217757, one holder."""
+        strats = self._apply(
+            [{"symbol": "SPY", "venue_qty": "0.217757",
+              "venue_avg_price": "640.00",
+              "holders": [{"strategy_id": "sleeve_premia_equity"}]}],
+            holders_state=[("sleeve_premia_equity", "SPY", "0.346119",
+                            "251.00")])
+        sleeve = strats["sleeve_premia_equity"]["positions"].get("SPY")
+        assert sleeve is not None, (
+            "the sleeve was emptied — autopolicy v3 can no longer auto-approve "
+            "its exits, and the control stops working silently")
+        assert float(sleeve["qty"]) == pytest.approx(0.217757)
+        assert "SPY" not in strats.get("discretionary", {}).get("positions", {})
+
+    def test_the_reduction_realises_no_pnl_and_keeps_cost_per_share(self):
+        """Nothing was sold. A reconciliation that booked a realised gain would
+        put an invented trade into every performance number the strategy has,
+        permanently."""
+        strats = self._apply(
+            [{"symbol": "SPY", "venue_qty": "0.217757",
+              "venue_avg_price": "640.00",
+              "holders": [{"strategy_id": "sleeve_premia_equity"}]}],
+            holders_state=[("sleeve_premia_equity", "SPY", "0.346119",
+                            "251.00")])
+        rec = strats["sleeve_premia_equity"]
+        pos = rec["positions"]["SPY"]
+        before_per_share = 251.00 / 0.346119
+        assert float(pos["cost"]) / float(pos["qty"]) == \
+            pytest.approx(before_per_share)
+        assert float(rec["realized_pnl"]) == 0.0
+        # net_invested falls by exactly the basis that left the ledger.
+        assert float(rec["net_invested"]) == pytest.approx(float(pos["cost"]))
+
+    def test_two_holders_are_reduced_pro_rata(self):
+        """The share of a reduction cannot be attributed to one holder over
+        another — the venue does not say which of them was sold. Pro rata is
+        the only reading the payload supports."""
+        strats = self._apply(
+            [{"symbol": "SPY", "venue_qty": "3", "venue_avg_price": "100",
+              "holders": [{"strategy_id": "a"}, {"strategy_id": "b"}]}],
+            holders_state=[("a", "SPY", "4", "400"), ("b", "SPY", "2", "200")])
+        assert float(strats["a"]["positions"]["SPY"]["qty"]) == pytest.approx(2.0)
+        assert float(strats["b"]["positions"]["SPY"]["qty"]) == pytest.approx(1.0)
+        assert float(strats["a"]["positions"]["SPY"]["cost"]) == pytest.approx(200.0)
+        assert float(strats["b"]["positions"]["SPY"]["cost"]) == pytest.approx(100.0)
+
+    def test_a_full_release_still_empties_every_holder(self):
+        """The case v1 got right, pinned so the repair cannot break it."""
+        strats = self._apply(
+            [{"symbol": "TLT", "venue_qty": "0", "mark": "82",
+              "holders": [{"strategy_id": "sleeve_beta_500"}]}],
+            holders_state=[("sleeve_beta_500", "TLT", "3.019871", "240.00")])
+        assert "TLT" not in strats["sleeve_beta_500"]["positions"]
+        assert float(strats["sleeve_beta_500"]["net_invested"]) == 0.0
+        assert "TLT" not in strats.get("discretionary", {}).get("positions", {})
+
+    def test_an_unowned_adoption_still_lands_in_discretionary(self):
+        """Also right in v1, and it is the CEO's accepted case: "if there is no
+        strategy tracking it then its okay too"."""
+        strats = self._apply(
+            [{"symbol": "SOFI", "venue_qty": "9.18819",
+              "venue_avg_price": "22.79", "holders": []}])
+        pos = strats["discretionary"]["positions"]["SOFI"]
+        assert float(pos["qty"]) == pytest.approx(9.18819)
+
+    def test_only_the_EXCESS_is_adopted_when_the_venue_holds_more(self):
+        """The mirror of the partial release. A strategy that holds 4 and finds
+        the venue holding 6 did not stop managing its 4."""
+        strats = self._apply(
+            [{"symbol": "DBC", "venue_qty": "6", "venue_avg_price": "30",
+              "holders": [{"strategy_id": "sleeve_beta_500"}]}],
+            holders_state=[("sleeve_beta_500", "DBC", "4", "100")])
+        assert float(strats["sleeve_beta_500"]["positions"]["DBC"]["qty"]) == \
+            pytest.approx(4.0)
+        assert float(strats["sleeve_beta_500"]["positions"]["DBC"]["cost"]) == \
+            pytest.approx(100.0)
+        assert float(strats["discretionary"]["positions"]["DBC"]["qty"]) == \
+            pytest.approx(2.0)
+        assert float(strats["discretionary"]["positions"]["DBC"]["cost"]) == \
+            pytest.approx(60.0)
+
+    def test_a_sign_flip_is_a_release_and_a_fresh_adoption(self):
+        """Long 4 against short 2 is not a reduction of anything; there is no
+        pro-rata reading of it. Treated as what it factually is."""
+        strats = self._apply(
+            [{"symbol": "XLE", "venue_qty": "-2", "venue_avg_price": "80",
+              "holders": [{"strategy_id": "a"}]}],
+            holders_state=[("a", "XLE", "4", "300")])
+        assert "XLE" not in strats["a"]["positions"]
+        assert float(strats["discretionary"]["positions"]["XLE"]["qty"]) == \
+            pytest.approx(-2.0)
+
+    def test_the_ledgers_always_sum_to_the_venue_quantity(self):
+        """THE INVARIANT THAT TIES THE TWO FOLDS TOGETHER.
+
+        positions.py SETs the book to the venue's quantity; strategy.py
+        distributes the same number across owners. Two folds reading one
+        payload is exactly where they drift apart, so every case above is
+        re-run here against the one property that must hold in all of them.
+        """
+        cases = [
+            # (rows, holders_state, symbol, venue_qty)
+            ([{"symbol": "S", "venue_qty": "0.217757", "venue_avg_price": "640",
+               "holders": [{"strategy_id": "a"}]}],
+             [("a", "S", "0.346119", "251")], "S", 0.217757),
+            ([{"symbol": "S", "venue_qty": "3", "venue_avg_price": "100",
+               "holders": [{"strategy_id": "a"}, {"strategy_id": "b"}]}],
+             [("a", "S", "4", "400"), ("b", "S", "2", "200")], "S", 3.0),
+            ([{"symbol": "S", "venue_qty": "6", "venue_avg_price": "30",
+               "holders": [{"strategy_id": "a"}]}],
+             [("a", "S", "4", "100")], "S", 6.0),
+            ([{"symbol": "S", "venue_qty": "0", "mark": "10",
+               "holders": [{"strategy_id": "a"}]}],
+             [("a", "S", "4", "100")], "S", 0.0),
+            ([{"symbol": "S", "venue_qty": "5", "venue_avg_price": "10",
+               "holders": []}], [], "S", 5.0),
+            ([{"symbol": "S", "venue_qty": "-2", "venue_avg_price": "10",
+               "holders": [{"strategy_id": "a"}]}],
+             [("a", "S", "4", "100")], "S", -2.0),
+        ]
+        for rows, state, symbol, expected in cases:
+            strats = self._apply(rows, holders_state=state)
+            total = sum(float(r["positions"].get(symbol, {}).get("qty", 0))
+                        for r in strats.values())
+            assert total == pytest.approx(expected), (
+                f"the strategy ledgers sum to {total} while positions.py sets "
+                f"the book to {expected} for {rows}")
+
+    def test_an_adoption_does_not_double_count_a_stale_discretionary_cost(self):
+        """A smaller defect found while repairing K3, fixed in the same pass.
+
+        v1's adopt branch overwrote discretionary's qty and cost and then ADDED
+        the new cost to net_invested without first removing the old one, so a
+        second reconciliation of a symbol discretionary already held inflated
+        capital-employed by the previous basis. Reachable on any re-run.
+        """
+        strats = self._apply(
+            [{"symbol": "GLD", "venue_qty": "2", "venue_avg_price": "400",
+              "holders": []}],
+            holders_state=[("discretionary", "GLD", "1", "350")])
+        rec = strats["discretionary"]
+        # holders is empty, so this is the adopt path over a pre-existing row.
+        assert float(rec["positions"]["GLD"]["cost"]) == pytest.approx(800.0)
+        assert float(rec["net_invested"]) == pytest.approx(800.0), (
+            "net_invested still carries the superseded 350 basis")

@@ -194,56 +194,129 @@ class StrategyAttribution:
                                     p: dict[str, Any]) -> None:
         """The book aligned to the venue, seen from the strategy ledgers.
 
-        Two rules, and both matter for what the PM is able to report:
+        THREE cases, not two. v1 documented RELEASE and ADOPT and shipped a
+        third the docstring did not mention: it emptied EVERY holder of the
+        symbol and wrote any surviving quantity into ``discretionary``, so a
+        position that was merely REDUCED changed owner (adversary review of
+        builder D11, 2026-08-22, finding K3).
 
-        RELEASE (the book held it, the venue does not) — the quantity comes out
-        of the ledger that actually held it, at that ledger's own cost basis,
-        WITH NO REALISED P&L. Nothing was sold. Booking a realised gain here
-        would put an invented trade into every performance number the strategy
-        has, permanently.
+        On the live book that was not cosmetic. SPY 0.346119 -> 0.217757 would
+        have left ``sleeve_premia_equity`` holding nothing, and autopolicy v3's
+        envelope requires that "the rule's own strategy must hold the quantity
+        it sells". So the sleeve's exit rules could never again be
+        auto-approved: the control fails CLOSED, which is safe, but it stops
+        working SILENTLY, and a control that quietly stops is the pattern this
+        firm names most often. The premia sleeve would also have reported zero
+        exposure while the fund still held the position.
 
-        ADOPT (the venue holds it, the book did not) — it lands in
-        ``discretionary``, because no strategy chose it. The CEO accepted that
-        explicitly (*"if there is no strategy tracking it then its okay too"*),
-        and this is the fold that makes the acceptance TRUE rather than
-        assumed: exit coverage reads these ledgers, so an adopted position that
-        quietly acquired a strategy would be reported as covered by an exit
-        rule that was never written for it.
+        FULL RELEASE (the venue holds none of it) — every ledger that held it
+        is emptied, at its own cost basis, WITH NO REALISED P&L. Nothing was
+        sold. Booking a realised gain here would put an invented trade into
+        every performance number the strategy has, permanently.
+
+        PARTIAL RELEASE (the venue holds less than the book) — the survivors
+        stay with the strategies that held them, scaled PRO RATA, cost basis
+        per share unchanged and no realised P&L. Ownership is preserved
+        because nothing about a broker reconciliation is a decision to stop
+        managing a position: the fund still holds it, and the strategy that
+        chose it still owns it.
+
+        ADOPT (the venue holds more than the book) — the holders keep what they
+        had and only the EXCESS lands in ``discretionary``, because no strategy
+        chose that part. The CEO accepted the unmanaged remainder explicitly
+        (*"if there is no strategy tracking it then its okay too"*), and this
+        is the fold that makes the acceptance TRUE rather than assumed: exit
+        coverage reads these ledgers, so an adopted quantity that quietly
+        acquired a strategy would be reported as covered by an exit rule
+        nobody wrote for it.
+
+        The invariant, in every case: the strategy ledgers sum to the venue's
+        quantity, which is what ``positions.py`` sets the book to. Pinned by a
+        test, because the two folds reading one payload is exactly where they
+        can drift apart.
         """
         for row in (p.get("positions") or []):
             symbol = row.get("symbol")
             if not symbol:
                 continue
             target = D(row.get("venue_qty", 0))
-            holders = row.get("holders") or []
 
-            # Empty every ledger that held this symbol, at its own basis.
-            for h in holders:
+            # The ledgers' OWN state, not the payload's copy of it. The payload
+            # records holders as they were at PLAN time; the fold is the
+            # authority on what each ledger holds now, and it carries the cost
+            # basis the payload rounds.
+            current = []
+            for h in (row.get("holders") or []):
                 rec = get(h.get("strategy_id") or DISCRETIONARY)
                 pos = rec["positions"].get(symbol)
-                if pos is None:
-                    continue
-                # net_invested falls by exactly what the ledger had in it, so
-                # the strategy's capital-employed figure stops counting a
-                # position it no longer holds.
-                rec["net_invested"] -= pos["cost"]
-                rec["positions"].pop(symbol, None)
+                if pos is not None:
+                    current.append((rec, pos))
+            held = sum((pos["qty"] for _, pos in current), Decimal("0"))
+
+            def _empty_all():
+                for rec, pos in current:
+                    # net_invested falls by exactly what the ledger had in it,
+                    # so the strategy's capital-employed figure stops counting
+                    # a position it no longer holds.
+                    rec["net_invested"] -= pos["cost"]
+                    rec["positions"].pop(symbol, None)
+
+            # A sign flip (the book is long, the venue is short, or the
+            # reverse) is not a reduction of anything — there is no pro-rata
+            # reading of it. Treated as a full release followed by a fresh
+            # adoption, which is what it factually is.
+            flipped = (held != 0 and target != 0
+                       and (held > 0) != (target > 0))
 
             if abs(target) < Decimal("1e-9"):
+                _empty_all()
                 continue
 
+            if abs(held) < Decimal("1e-9") or flipped:
+                _empty_all()
+                basis = row.get("venue_avg_price") or row.get("mark")
+                if basis is None:
+                    # Absent is absent. The plan refuses to reach here (it
+                    # raises on an unpriced symbol), so this is a belt to that
+                    # brace: a position is never adopted at a cost basis
+                    # nobody stated.
+                    continue
+                rec = get(DISCRETIONARY)
+                pos = rec["positions"].setdefault(symbol,
+                                                  {"qty": Decimal("0"),
+                                                   "cost": Decimal("0")})
+                rec["net_invested"] -= pos["cost"]
+                pos["qty"] = target
+                pos["cost"] = target * D(basis)
+                rec["net_invested"] += pos["cost"]
+                continue
+
+            if abs(target - held) < Decimal("1e-9"):
+                continue                      # in sync per ledger; nothing to do
+
+            if abs(target) < abs(held):
+                # PARTIAL RELEASE. Scale every holder by the same ratio, so
+                # cost PER SHARE is untouched and no P&L is realised.
+                ratio = target / held
+                for rec, pos in current:
+                    new_cost = pos["cost"] * ratio
+                    rec["net_invested"] += new_cost - pos["cost"]
+                    pos["qty"] = pos["qty"] * ratio
+                    pos["cost"] = new_cost
+                continue
+
+            # PARTIAL ADOPT: holders keep theirs, the excess is unmanaged.
             basis = row.get("venue_avg_price") or row.get("mark")
             if basis is None:
-                # Absent is absent. The plan refuses to reach here (it raises
-                # on an unpriced symbol), so this is a belt to that brace: a
-                # position is never adopted at a cost basis nobody stated.
                 continue
+            excess = target - held
             rec = get(DISCRETIONARY)
             pos = rec["positions"].setdefault(symbol, {"qty": Decimal("0"),
                                                        "cost": Decimal("0")})
-            pos["qty"] = target
-            pos["cost"] = target * D(basis)
-            rec["net_invested"] += pos["cost"]
+            pos["qty"] = pos["qty"] + excess
+            add = excess * D(basis)
+            pos["cost"] = pos["cost"] + add
+            rec["net_invested"] += add
 
     @staticmethod
     def _apply_correction(get: Callable[[str], dict[str, Any]],
