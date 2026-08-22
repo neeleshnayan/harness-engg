@@ -26,14 +26,17 @@ from fastapi import HTTPException
 import app.api.v1.fund as api
 from app.fund import autopolicy
 from app.fund.compliance import AccountState
-from app.fund.events import EventType
+from app.fund.events import ORDER_ANNOTATION_EVENTS, EventType
 from app.fund.exitrule import evaluate as evaluate_rule
+from app.fund.projections.orders import OrdersProjection
 from app.fund.projections.positions import _new_avg_price
 from app.fund.riskmonitor import (
     DRIFT_ALARM_KEY,
+    UNEVALUATED_ON_ABSENT,
     RiskControl,
     RiskMonitor,
     _drift_alarm,
+    _drift_was_read,
     evaluate_autoresume,
     unrealised_pnl_pct,
 )
@@ -617,9 +620,16 @@ def test_no_store_still_declines():
     assert autopolicy.record_decline(None, ORDER, ["fresh"], VERDICT) is None
 
 
-def test_run_records_the_decline_and_leaves_the_order_pending():
-    """END TO END, and the second half is the invariant: this change must alter
-    NO approval behaviour. The order is still pending for the CEO."""
+def test_run_records_the_decline_and_does_not_approve():
+    """The recording half, against a fake pipeline.
+
+    RENAMED AT D18. It used to be called `..._and_leaves_the_order_pending` and
+    its body never called `pending()` — the adversary's second rule, verbatim:
+    re-read every test whose NAME states an invariant its BODY does not assert.
+    The pending half is now
+    `test_a_policy_declined_order_is_STILL_PENDING_end_to_end`, which folds a
+    real store instead of asserting against a stub.
+    """
     store = MemStore()
 
     class Pipe:
@@ -1041,9 +1051,16 @@ def test_assess_PASSES_the_three_integrity_inputs_to_the_evaluator(wire):
     assert "stale_marks" in seen
 
 
-def test_assess_omits_venue_drift_entirely_when_there_is_no_source(wire):
-    """ABSENT, not empty. The key's absence is what tells run() the family was
-    never judged; a `{}` there would be read as a reading."""
+def test_assess_reports_venue_drift_as_NOT_ASKED_when_there_is_no_source(wire):
+    """ABSENT, not empty, and the SAME absence in both dicts.
+
+    REWRITTEN AT D18 (adversary kill 2). This test used to assert that the
+    judged dict OMITS the key while the report carries it as null — and that
+    difference WAS the defect: run() re-evaluates on the report, so the two
+    dicts disagreeing about this one field is what raised a fabricated CRITICAL
+    on every fill. The contract now is one value, None, meaning NOT ASKED in
+    both places, with `_drift_was_read` the single reader of it.
+    """
     control = RiskControl(wire.store)
     seen = {}
     m = RiskMonitor(nav_service=wire.nav, store=wire.store,
@@ -1051,14 +1068,17 @@ def test_assess_omits_venue_drift_entirely_when_there_is_no_source(wire):
     real = m.evaluate_alarms
 
     def spy(assessment=None):
-        seen.update({"has_key": "venue_drift" in (assessment or {})})
+        seen["judged"] = dict(assessment or {})
         return real(assessment)
 
     m.evaluate_alarms = spy
     out = m.assess()
 
-    assert seen["has_key"] is False
+    assert seen["judged"]["venue_drift"] is None
     assert out["venue_drift"] is None
+    assert _drift_was_read(seen["judged"]) is False
+    assert _drift_was_read(out) is False
+    assert DRIFT_ALARM_KEY not in [a["key"] for a in out["alarms"]]
 
 
 def test_assess_carries_the_drift_reading_when_there_IS_a_source(wire):
@@ -1091,3 +1111,530 @@ def test_only_a_NEGATIVE_quantity_raises_the_short_alarm(qty):
                                  "weight_pct": 1.0,
                                  "unrealized_pnl_pct": 0.0}]})
     assert not [k for k in keys if k.startswith("short_position")]
+
+
+# ==========================================================================
+# 7. THE TWO D17 KILLS (adversary review, 2026-08-23) — repaired at D18.
+#
+# KILL 1 — DENIAL OF APPROVAL. `AutopolicyDeclined` landed on the order
+# aggregate and both order folds excluded only `ApprovalRefused`, so a declined
+# order left `pending()` and BOTH `approve_order` and `decline_order` refused it
+# as "not awaiting approval". The event's own payload says "it remains PENDING
+# and the CEO can still approve it"; the code made that sentence false.
+#
+# KILL 2 — A FABRICATED CRITICAL. `assess()` built the judged dict and the
+# returned report as two separate literals, adding `venue_drift` conditionally
+# to the first and unconditionally to the second. `run()` re-evaluates on the
+# report, so every driftless post-fill tick raised "the venue could not be
+# read" — and `UNEVALUATED_ON_ABSENT` / `_can_evaluate`, written to prevent
+# exactly that, were dead code on every production path.
+#
+# THE TWO RULES BOTH KILLS TAUGHT, and the tests below are those rules made
+# executable:
+#   1. A new EventType on an existing aggregate is a LIFECYCLE CHANGE until
+#      proven otherwise.
+#   2. A test that stubs the producer cannot test the producer's contract.
+# ==========================================================================
+
+_DECLINE_NOTE_FRAGMENT = "remains PENDING and the CEO can still approve it"
+
+
+def _order_event_census() -> dict[str, str]:
+    """Every EventType appended to an ORDER aggregate anywhere in ``app/``.
+
+    Reads the AST, not the text: a grep for `aggregate_type="order"` cannot tell
+    a live append from one inside a docstring, and the census's whole value is
+    that its answer is the set of types the folds will actually meet.
+    """
+    import ast
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parents[1] / "app"
+    found: dict[str, str] = {}
+    unparseable: list[str] = []
+    for path in sorted(root.rglob("*.py")):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except (SyntaxError, UnicodeDecodeError) as e:
+            # A file the census cannot read is reported, never treated as
+            # containing nothing. Absence is not zero, and a scanner that
+            # swallows its own blind spots certifies whatever hides there.
+            unparseable.append(f"{path.relative_to(root)} ({type(e).__name__})")
+            continue
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Name)
+                    and node.func.id == "Event"):
+                continue
+            kw = {k.arg: k.value for k in node.keywords}
+            agg = kw.get("aggregate_type")
+            if not (isinstance(agg, ast.Constant) and agg.value == "order"):
+                continue
+            ty = kw.get("type")
+            # `type=EventType.X` is the only shape used today. A computed type
+            # becomes UNREADABLE and therefore unclassified, rather than being
+            # skipped: the same absence-is-not-zero rule one level down.
+            name = ty.attr if isinstance(ty, ast.Attribute) else "UNREADABLE"
+            found.setdefault(name, f"{path.relative_to(root)}:{node.lineno}")
+    assert not unparseable, f"the census could not read: {unparseable}"
+    return found
+
+
+def _unclassified(found: dict[str, str]) -> dict[str, str]:
+    """Those census entries that are NEITHER a lifecycle step nor an annotation."""
+    lifecycle = set(OrdersProjection._STATUS)
+    out = {}
+    for name, where in found.items():
+        member = getattr(EventType, name, None)
+        if member is None or (member.value not in lifecycle
+                              and member.value not in ORDER_ANNOTATION_EVENTS):
+            out[name] = where
+    return out
+
+
+def _propose_real(wire, qty=1.0):
+    """One real order through the real pipeline. Returns its id."""
+    from app.fund.connectors.base import Order, Side
+
+    r = wire.ledger.request_subscription(lp_id="lp-d18", usd_amount=100_000.0,
+                                         actor="mgr")
+    wire.ledger.confirm_subscription(r["subscription_id"], actor="mgr")
+    res = wire.pipe_open.propose_order(
+        Order(venue="paper", symbol="AAPL", side=Side.BUY, qty=qty), actor="op")
+    # `pending_approval` is what the real pipeline returns — verified against
+    # it rather than assumed, because a helper that silently accepts a rejected
+    # order would make every test below pass on an empty queue.
+    assert res["status"] == "pending_approval", res
+    return res["order_id"]
+
+
+def _decline_it_for_real(wire, order_id):
+    """Append the decline THE PRODUCER ITSELF writes.
+
+    Adversary rule 2: where the contract is what a real function EMITS, call
+    the real function. Hand-rolling the event here would test a fixture's idea
+    of `AutopolicyDeclined`, and the whole kill was that the real one lands on
+    the ORDER aggregate.
+    """
+    row = {"order_id": order_id, "symbol": "AAPL", "side": "buy", "qty": 1.0}
+    payload = autopolicy.record_decline(
+        wire.store, row, ["not_halted"],
+        {"approve": False, "checks": [{"check": "not_halted", "ok": False}]})
+    assert payload is not None, "the producer wrote nothing to decline against"
+    return payload
+
+
+def test_the_producer_writes_the_decline_onto_the_ORDER_aggregate(wire):
+    """The premise of kill 1, measured rather than assumed. If this event ever
+    moves to a different aggregate the fold tests below stop meaning anything,
+    so the shape is pinned where they can see it."""
+    oid = _propose_real(wire)
+    _decline_it_for_real(wire, oid)
+
+    rows = [e for e in wire.store.stream(since_seq=0, limit=10_000)
+            if e["type"] == EventType.AUTOPOLICY_DECLINED.value]
+    assert len(rows) == 1
+    assert rows[0]["aggregate_id"] == oid
+    assert rows[0]["aggregate_type"] == "order"
+
+
+def test_a_policy_declined_order_is_STILL_PENDING_end_to_end(wire):
+    """KILL 1, THE ACCEPTANCE. Real pipeline, real store, real producer, and
+    `pending()` actually called — the projection is what the CEO's approval
+    queue renders, and before this fix the order was simply not in it."""
+    oid = _propose_real(wire)
+    assert oid in [r["order_id"] for r in wire.orders.pending()]
+
+    _decline_it_for_real(wire, oid)
+
+    still = [r["order_id"] for r in OrdersProjection(wire.store).pending()]
+    assert oid in still, "the policy's decline erased the order from the queue"
+
+
+def test_the_CEO_can_still_APPROVE_an_order_the_policy_declined(wire):
+    """The payload's own promise, executed. `approve_order` raised
+    CommandError("... is 'AutopolicyDeclined', not awaiting approval") — the
+    deterministic envelope saying no became the human being unable to say yes,
+    which inverts the entire relationship between the two."""
+    oid = _propose_real(wire)
+    _decline_it_for_real(wire, oid)
+
+    out = wire.pipe_open.approve_order(oid, approver="neelesh")
+
+    assert out is not None
+    types = [e["type"] for e in wire.store.by_aggregate(oid)]
+    assert EventType.ORDER_APPROVED.value in types
+
+
+def test_the_CEO_can_still_DECLINE_an_order_the_policy_declined(wire):
+    """The other half, and it is not symmetric decoration: with both refused
+    the ticket could be neither actioned nor cleared, so it sat on the queue
+    until the staleness sweep — which also calls `decline_order`."""
+    oid = _propose_real(wire)
+    _decline_it_for_real(wire, oid)
+
+    out = wire.pipe_open.decline_order(oid, approver="neelesh")
+
+    assert out["status"] == "declined"
+    types = [e["type"] for e in wire.store.by_aggregate(oid)]
+    assert EventType.ORDER_DECLINED.value in types
+
+
+def test_the_declines_own_words_are_TRUE_not_deleted(wire):
+    """The event says "it remains PENDING and the CEO can still approve it".
+    Read that sentence OUT OF THE PRODUCER'S PAYLOAD and then prove both
+    clauses of it, so the fix can never be "delete the sentence"."""
+    oid = _propose_real(wire)
+    payload = _decline_it_for_real(wire, oid)
+
+    assert _DECLINE_NOTE_FRAGMENT in payload["note"]
+    assert oid in [r["order_id"] for r in OrdersProjection(wire.store).pending()]
+    wire.pipe_open.approve_order(oid, approver="neelesh")
+
+
+def test_a_refused_approval_ALSO_still_leaves_the_order_pending(wire):
+    """The FIRST incident, guarded in the same breath as the second. Two 403
+    probes made a live SOFI ticket vanish on the guard's first day; the
+    single-type exclusion that fixed it is now set membership, and this test
+    fails if the generalisation dropped the original case."""
+    from app.fund.events import Event
+
+    oid = _propose_real(wire)
+    wire.store.append(Event(
+        aggregate_id=oid, aggregate_type="order",
+        type=EventType.APPROVAL_REFUSED,
+        payload={"order_id": oid, "reason": "not on the allowlist"},
+        actor="probe"))
+
+    assert oid in [r["order_id"] for r in OrdersProjection(wire.store).pending()]
+    wire.pipe_open.approve_order(oid, approver="neelesh")
+
+
+def test_an_annotation_does_not_hide_a_REAL_terminal_state(wire):
+    """The over-correction, which would be just as wrong: skipping annotations
+    must not make an executed order look pending. The annotation is skipped;
+    the lifecycle underneath it is untouched."""
+    from app.fund.events import Event
+
+    oid = _propose_real(wire)
+    wire.pipe_open.approve_order(oid, approver="neelesh")
+    wire.store.append(Event(
+        aggregate_id=oid, aggregate_type="order",
+        type=EventType.APPROVAL_REFUSED,
+        payload={"order_id": oid, "reason": "a late probe"}, actor="probe"))
+
+    row = next(r for r in OrdersProjection(wire.store).history()
+               if r["order_id"] == oid)
+    assert row["status"] in ("filled", "working", "partial")
+    assert oid not in [r["order_id"]
+                       for r in OrdersProjection(wire.store).pending()]
+
+
+def test_BOTH_folds_read_THE_SAME_set_object():
+    """Identity, not equality. An assertion that two copies AGREE cannot tell a
+    shared constant from a hardcoded duplicate that happens to match today —
+    and a duplicate is precisely how the two fold sites came to disagree about
+    `AutopolicyDeclined` in the first place."""
+    from app.fund import events as events_mod
+    from app.fund import pipeline as pipeline_mod
+    from app.fund.projections import orders as orders_mod
+
+    assert (orders_mod.ORDER_ANNOTATION_EVENTS
+            is events_mod.ORDER_ANNOTATION_EVENTS
+            is pipeline_mod.ORDER_ANNOTATION_EVENTS)
+
+
+def test_the_folds_READ_the_set_rather_than_matching_a_literal(wire, monkeypatch):
+    """MOVE IT. Put a type that is NOT an annotation into the set and both folds
+    must start skipping it. A test that only checks today's two members cannot
+    distinguish "reads the set" from "compares against two hardcoded names",
+    which is the same defect one level up."""
+    from app.fund import pipeline as pipeline_mod
+    from app.fund.projections import orders as orders_mod
+    from app.fund.events import Event
+
+    oid = _propose_real(wire)
+    wire.pipe_open.decline_order(oid, approver="neelesh")
+    assert oid not in [r["order_id"]
+                       for r in OrdersProjection(wire.store).pending()]
+
+    moved = frozenset({EventType.ORDER_DECLINED.value})
+    monkeypatch.setattr(orders_mod, "ORDER_ANNOTATION_EVENTS", moved)
+    monkeypatch.setattr(pipeline_mod, "ORDER_ANNOTATION_EVENTS", moved)
+
+    # OrderDeclined is now an "annotation", so both folds must ignore it and
+    # the order reads as pending again.
+    assert oid in [r["order_id"] for r in OrdersProjection(wire.store).pending()]
+    _, last = wire.pipe_open._load_order(oid)
+    assert last == EventType.ORDER_PROPOSED.value
+
+    # ...and AutopolicyDeclined, no longer in the set, folds as a lifecycle
+    # step: the defect reappears exactly when the set stops naming it.
+    wire.store.append(Event(
+        aggregate_id=oid, aggregate_type="order",
+        type=EventType.AUTOPOLICY_DECLINED,
+        payload={"order_id": oid, "failed_checks": ["not_halted"]},
+        actor="auto-policy"))
+    assert oid not in [r["order_id"]
+                       for r in OrdersProjection(wire.store).pending()]
+
+
+def test_EVERY_order_event_type_in_the_codebase_is_CLASSIFIED():
+    """THE RULE, MECHANISED: a new EventType on an existing aggregate is a
+    lifecycle change until proven otherwise.
+
+    Walks `app/` for every `Event(..., aggregate_type="order", ...)` literal and
+    demands that its type be either a lifecycle step (`OrdersProjection._STATUS`
+    knows how to label it) or a declared annotation. `AutopolicyDeclined` was
+    neither, and nothing anywhere said so — the two exclusion comments named the
+    previous incident and were not revisited when the next event type arrived.
+
+    This fails on the ELEVENTH type, which is the point. The fix is one line —
+    in `ORDER_ANNOTATION_EVENTS` or in `_STATUS` — and the author has to decide
+    which, in a diff someone reviews.
+    """
+    found = _order_event_census()
+
+    assert found, "the census found no order events at all — it is not looking"
+
+    unclassified = _unclassified(found)
+    assert not unclassified, (
+        "order-aggregate event type(s) classified as NEITHER a lifecycle step "
+        "nor an annotation — every fold over an order will treat them as a "
+        "lifecycle change, which is how a declined order became un-approvable: "
+        f"{unclassified}")
+
+
+def test_the_census_and_its_classifier_CATCH_an_unclassified_type():
+    """The census's own falsifier, and it runs the real classifier rather than
+    restating its premise. A scan that passes because its matcher is broken is
+    worth less than no scan."""
+    real = _order_event_census()
+    assert _unclassified(real) == {}
+
+    planted = dict(real, NAV_STRUCK="planted/by/this/test.py:1")
+    assert _unclassified(planted) == {"NAV_STRUCK": "planted/by/this/test.py:1"}
+
+    # ...and a type the enum does not have at all — the shape a rename leaves
+    # behind — is unclassified rather than quietly skipped.
+    assert "NOT_AN_EVENT_TYPE" in _unclassified(
+        dict(real, NOT_AN_EVENT_TYPE="planted:2"))
+
+
+def test_the_annotation_set_names_exactly_the_two_known_findings():
+    """A shrink-only pin. If a THIRD type joins the set this fails, and the
+    author has to state in the diff why that event is a FINDING about an order
+    rather than a step in its life. Membership makes an event invisible to
+    every order fold — a permission, not a formality."""
+    assert ORDER_ANNOTATION_EVENTS == frozenset({
+        EventType.APPROVAL_REFUSED.value,
+        EventType.AUTOPOLICY_DECLINED.value,
+    })
+
+
+# --------------------------------------------------------------------------
+# KILL 2 — the drift alarm through the REAL assess(), not a stub of it.
+#
+# Every drift test written at D17 replaced `assess` with a lambda, so the two
+# dicts assess() actually builds were never compared and the fabricated CRITICAL
+# went straight past a green suite. These drive the real method.
+# --------------------------------------------------------------------------
+def _real_monitor(wire, **kw):
+    """A monitor whose assess() is the REAL one, over the real wiring."""
+    return RiskMonitor(nav_service=wire.nav, store=wire.store,
+                       pricer=wire.conn.price,
+                       control=RiskControl(wire.store), **kw)
+
+
+def _drift_events(wire):
+    return [e for e in wire.store.stream(since_seq=0, limit=10_000)
+            if e["type"] in (EventType.RISK_ALARM_RAISED.value,
+                             EventType.RISK_ALARM_CLEARED.value)
+            and (e["payload"] or {}).get("key") == DRIFT_ALARM_KEY]
+
+
+def test_a_driftless_monitor_run_raises_NOTHING_drift_related(wire):
+    """KILL 2, THE ACCEPTANCE. `pipeline._apply_status` builds exactly this
+    monitor — no drift source — on every fill. It raised a CRITICAL saying the
+    venue could not be read, on a book nobody had asked about."""
+    out = _real_monitor(wire).run(actor="fill_re-eval")
+
+    assert DRIFT_ALARM_KEY not in [a["key"] for a in out["raised"]]
+    assert DRIFT_ALARM_KEY not in out["cleared"]
+    assert _drift_events(wire) == [], (
+        "a monitor with no drift source wrote a drift alarm into the log")
+
+
+def test_a_monitor_WITH_a_source_raises_the_TRUE_drift_through_run(wire):
+    """The other direction, and it is what stops the fix from being "the alarm
+    never fires". Today's real book: ten of eleven positions out of sync,
+    $126.54 of broker-vs-book disagreement."""
+    m = _real_monitor(wire, drift_fn=lambda: LIVE_DRIFT_2026_08_23)
+    out = m.run(actor="monitor")
+
+    alarm = next(a for a in out["raised"] if a["key"] == DRIFT_ALARM_KEY)
+    assert alarm["severity"] == "critical"
+    assert "10 of 11" in alarm["message"]
+    assert "126.54" in alarm["message"]
+    assert len(_drift_events(wire)) == 1
+
+
+def test_an_unreadable_venue_still_raises_through_the_real_assess(wire):
+    """Absence RAISES, and the path it raises through is the real one. This is
+    the message the driftless monitor was FABRICATING — it must be reachable
+    only when something actually tried to read the broker and failed."""
+    m = _real_monitor(wire, drift_fn=lambda: {"configured": False,
+                                              "reason": "alpaca 500"})
+    alarm = next(a for a in m.run(actor="monitor")["raised"]
+                 if a["key"] == DRIFT_ALARM_KEY)
+
+    assert alarm["severity"] == "critical"
+    assert "UNKNOWN" in alarm["message"] and "alpaca 500" in alarm["message"]
+
+
+def test_repeated_driftless_ticks_write_NOTHING_at_all(wire):
+    """The fill loop, run for real. Three fills produced three CRITICAL raises
+    and three false clears in the append-only log — one pair per fill, forever,
+    on a book that was in sync."""
+    for _ in range(3):
+        _real_monitor(wire).run(actor="fill_re-eval")
+
+    assert _drift_events(wire) == []
+
+
+def test_a_driftless_tick_does_not_CLEAR_a_standing_drift_alarm(wire):
+    """UNEVALUATED_ON_ABSENT, exercised on the path it was written for.
+
+    D17 shipped this guard and it was DEAD CODE: `_can_evaluate` asked
+    `"venue_drift" in assessment` and the report always carried the key, so the
+    filter never removed anything. This drives the real assess() and so proves
+    the guard is wired, not merely present.
+    """
+    scheduled = _real_monitor(wire, drift_fn=lambda: LIVE_DRIFT_2026_08_23)
+    scheduled.run(actor="monitor")
+    assert DRIFT_ALARM_KEY in [a["key"]
+                               for a in scheduled._control.active_alarms()]
+
+    before = len(_drift_events(wire))
+    _real_monitor(wire).run(actor="fill_re-eval")
+
+    assert len(_drift_events(wire)) == before, (
+        "a monitor that never looked at the broker cleared the drift alarm")
+    assert DRIFT_ALARM_KEY in [
+        a["key"] for a in RiskControl(wire.store).active_alarms()]
+
+
+def test_the_drift_alarm_DOES_clear_when_a_real_reading_says_in_sync(wire):
+    """...and it must still be able to clear, or the fix is a stuck alarm
+    wearing a repair's clothes. Only a monitor that LOOKED may clear it."""
+    _real_monitor(wire, drift_fn=lambda: LIVE_DRIFT_2026_08_23).run(actor="monitor")
+
+    clean = {"configured": True, "per_symbol": [{"symbol": "AAPL",
+                                                 "in_sync": True}]}
+    out = _real_monitor(wire, drift_fn=lambda: clean).run(actor="monitor")
+
+    assert DRIFT_ALARM_KEY in out["cleared"]
+
+
+@pytest.mark.parametrize("drift_fn, why", [
+    (None, "no drift source — the post-fill monitor"),
+    (lambda: {"configured": True, "per_symbol": []}, "a clean reading"),
+    (lambda: {"configured": False, "reason": "timeout"}, "an unreadable venue"),
+    (lambda: LIVE_DRIFT_2026_08_23, "today's real drift"),
+])
+def test_the_REPORTED_alarms_and_the_RE_EVALUATED_alarms_AGREE(wire, drift_fn, why):
+    """THE INVARIANT THAT WOULD HAVE CAUGHT KILL 2, and it is general.
+
+    `assess()` judges a dict and reports another; `run()` re-judges the report.
+    Any field the two dicts disagree about can flip a rule between "judged" and
+    "not judged" without a single test noticing — which is exactly what happened
+    to `venue_drift`. This compares the two verdicts directly, so a future field
+    with the same shape of divergence fails here rather than in production.
+    """
+    m = _real_monitor(wire, **({"drift_fn": drift_fn} if drift_fn else {}))
+    report = m.assess()
+    re_evaluated = [a.to_dict() for a in m.evaluate_alarms(report)]
+
+    assert report["alarms"] == re_evaluated, (
+        f"assess() reported different alarms from the ones run() computes "
+        f"from its own report ({why})")
+
+
+def test_the_report_shows_EVERY_field_the_evaluator_judged(wire):
+    """The structural half. `history_snaps` is the ONE documented exclusion (up
+    to 365 NAV snapshots on a poll the risk bar makes every page render, and it
+    steers no rule by its presence). Anything else the evaluator saw and the
+    report hides is a divergence waiting to become an alarm."""
+    m = _real_monitor(wire, drift_fn=lambda: LIVE_DRIFT_2026_08_23)
+    seen = {}
+    real = m.evaluate_alarms
+
+    def spy(assessment=None):
+        seen["judged"] = dict(assessment or {})
+        return real(assessment)
+
+    m.evaluate_alarms = spy
+    report = m.assess()
+
+    withheld = set(seen["judged"]) - set(report)
+    assert withheld == {"history_snaps"}, (
+        f"the evaluator judged field(s) the report does not show: {withheld}")
+    for k in set(seen["judged"]) & set(report):
+        assert seen["judged"][k] == report[k], f"{k} differs between the two"
+
+
+def test_the_post_fill_path_is_NOT_a_producer_of_this_alarm(wire):
+    """WHO OWNS THE MESSAGE. A standing alarm's payload is written once, by
+    whichever monitor raises it, so two producers with different sight of the
+    broker would race to describe the same key — and the driftless one would
+    win whenever it ran first, stamping "the venue could not be read" onto a
+    disagreement that had been measured in dollars.
+
+    After the fix there is exactly ONE producer: only a monitor holding a
+    `drift_fn` can put this key into `current_map` at all. The scheduled
+    monitor in `app/api/v1/fund.py` is the only one wired with one; the
+    post-fill monitor in `pipeline._apply_status` is deliberately blind and now
+    contributes neither a raise nor a clear.
+    """
+    blind = _real_monitor(wire)
+    assert DRIFT_ALARM_KEY not in {
+        a.key for a in blind.evaluate_alarms(blind.assess())}
+
+    seeing = _real_monitor(wire, drift_fn=lambda: LIVE_DRIFT_2026_08_23)
+    assert DRIFT_ALARM_KEY in {
+        a.key for a in seeing.evaluate_alarms(seeing.assess())}
+
+
+def test_the_drift_predicate_is_READ_by_both_the_rule_and_the_guard(wire):
+    """MOVE IT. The rule and the clear guard each carried their own copy of
+    "was a reading taken", and the copies disagreeing with the dict is the whole
+    kill. Force the shared predicate to answer the opposite of the truth and
+    BOTH must follow — a hardcoded second copy in either one would not.
+    """
+    import app.fund.riskmonitor as rm
+
+    m = _real_monitor(wire)                      # genuinely NOT asked
+    assert _drift_was_read(m.assess()) is False
+
+    monkey = lambda _a: True  # noqa: E731 — "pretend a reading was taken"
+    original = rm._drift_was_read
+    try:
+        rm._drift_was_read = monkey
+        report = m.assess()
+        # the RULE follows the predicate...
+        assert DRIFT_ALARM_KEY in {a.key for a in m.evaluate_alarms(report)}
+        # ...and so does the CLEAR GUARD.
+        assert m._can_evaluate(DRIFT_ALARM_KEY, report) is True
+    finally:
+        rm._drift_was_read = original
+
+    assert m._can_evaluate(DRIFT_ALARM_KEY, m.assess()) is False
+
+
+def test_DRIFT_ALARM_KEY_is_the_only_member_of_UNEVALUATED_ON_ABSENT():
+    """A shrink-only pin with a live consequence: `_can_evaluate` returns False
+    for any member it has no clause for, so a key added to this set without a
+    clause can never be cleared again. Adding one is a decision, not a tidy-up.
+    """
+    assert UNEVALUATED_ON_ABSENT == frozenset({DRIFT_ALARM_KEY})
+    assert RiskMonitor._can_evaluate("some_future_key", {"venue_drift": {}}) is False
