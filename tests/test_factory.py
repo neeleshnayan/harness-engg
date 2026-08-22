@@ -200,6 +200,98 @@ def test_a_typo_fails_immediately_rather_than_on_the_belt():
         f.submit("missing", {"fast": ["10"]})
 
 
+# --- grid adequacy: refuse the question the bar cannot use (2026-08-22) ------
+#
+# Entry 20 (candidate 144387901688) declared a cost grid of 1/3/5 bps, spent
+# 96.4 minutes and 22 containers, and arrived at the 10 bps cost floor with
+# evidence that reaches 5. Gate v4.2 fails that. This refuses it first, because
+# the remedy is one extra grid point and the diagnosis does not need the run.
+
+
+def test_a_cost_grid_that_stops_short_of_the_floor_is_refused_before_it_runs():
+    """THE REGRESSION, belt side. Entry 20's exact grid.
+
+    The refusal has to happen at submission: by the time the gate can say it,
+    the containers have already run, and a candidate that could have been fixed
+    in one line has instead consumed the whole engine budget.
+    """
+    from app.fund.leanrunner import LeanError
+    f = _factory(FakeRunner())
+    with pytest.raises(LeanError) as e:
+        f.submit("algo", {"slip": ["0.0001", "0.0003", "0.0005"]})
+    msg = str(e.value)
+    assert "only to 5 bps" in msg, msg
+    assert "floor is 10" in msg, msg
+    # And nothing was started: no row, no thread, no containers. `_factory`
+    # truncates the table, so an empty history is the whole claim.
+    assert f.history() == []
+
+
+def test_a_cost_grid_that_reaches_the_floor_is_accepted():
+    """The rule must not refuse the fix it asks for. One extra point at 10 bps
+    is the whole remedy, and it has to be sufficient."""
+    f = _factory(FakeRunner())
+    out = f.submit("algo", {"slip": ["0.0001", "0.0005", "0.0010"]})
+    assert out["state"] == "running"
+
+
+def test_a_grid_that_sweeps_no_cost_at_all_is_left_alone():
+    """Deliberately NOT pre-empted here. A grid that never varies a cost fails
+    the gate for a different and older reason ("cost robustness was never
+    measured"), and widening this rule to cover it would refuse every ordinary
+    parameter sweep on the belt. Narrow on purpose."""
+    f = _factory(FakeRunner())
+    assert f.submit("algo", {"fast": ["10", "20"]})["state"] == "running"
+
+
+def test_a_cost_grid_the_engine_cannot_price_is_refused():
+    """A declared cost sweep whose values are not numbers produces no priced
+    points, so the sweep answers nothing — and an unanswerable sweep must not
+    look like a submitted one."""
+    from app.fund.leanrunner import LeanError
+    f = _factory(FakeRunner())
+    with pytest.raises(LeanError) as e:
+        f.submit("algo", {"slip": ["cheap", "dear"]})
+    assert "do not read as numbers" in str(e.value)
+
+
+def test_the_grid_rule_reads_the_gates_floor_rather_than_its_own_copy():
+    """One number, one home. A second copy of 10.0 living in the belt is how
+    the fund's 2bps and 5bps cost assumptions managed to disagree.
+
+    Asserted by MOVING the floor, not by comparing it to itself: a hardcoded
+    `floor = 10.0` in the belt agrees with `CRITERIA["min_breakeven_bps"]`
+    today and would sail through an equality check. It cannot survive a bar
+    that says something else. (This test's first draft did exactly that and a
+    mutation run caught it — the same defect class it is written to guard.)
+    """
+    from app.fund.factory import check_cost_grid
+    from app.fund.gate import CRITERIA, CRITERIA_V1
+    narrow = {"slip": ["0.0001", "0.0005"]}          # reaches 5 bps
+    assert check_cost_grid(narrow)["adequate"] is False
+    assert check_cost_grid(narrow)["floor_bps"] == CRITERIA["min_breakeven_bps"]
+    # A LOWER bar makes the same grid adequate...
+    lower = check_cost_grid(narrow, criteria={"min_breakeven_bps": 3.0})
+    assert lower["adequate"] is True and lower["floor_bps"] == 3.0
+    # ...and a higher one refuses a grid the default would accept.
+    wide = {"slip": ["0.0001", "0.0020"]}            # reaches 20 bps
+    assert check_cost_grid(wide)["adequate"] is True
+    higher = check_cost_grid(wide, criteria={"min_breakeven_bps": 50.0})
+    assert higher["adequate"] is False and higher["floor_bps"] == 50.0
+    # Judged against a bar that never asked for a measured breakeven, the rule
+    # stands down — re-reading an old candidate must not acquire a new demand.
+    assert check_cost_grid(narrow, criteria=CRITERIA_V1)["adequate"] is True
+
+
+def test_the_grid_rule_reports_how_far_the_grid_reaches():
+    """The figure the refusal is made on, returned rather than only printed, so
+    a caller that annotates instead of refusing has the number."""
+    from app.fund.factory import check_cost_grid
+    out = check_cost_grid({"slip": ["0.0001", "0.0020"]})
+    assert out["adequate"] is True
+    assert out["max_tested_bps"] == 20.0
+
+
 def test_the_scoreboard_treats_kills_as_the_product():
     f = _factory(FakeRunner(passing=False))
     _settle(f, f.submit("algo", {"fast": ["10"]})["candidate_id"])

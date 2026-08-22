@@ -40,6 +40,43 @@ def _window_days(window: Any) -> Optional[int]:
     return (b - a).days or None
 
 
+def max_tested_bps(tested_range: Any) -> Optional[float]:
+    """The widest cost a sweep actually priced, in basis points.
+
+    ``leanrunner.breakeven_cost`` reports ``tested_range`` as the sorted
+    [cheapest, dearest] slip values it scored, as FRACTIONS — 0.0005 is 5 bps —
+    matching the ``breakeven_bps = crossing * 10_000`` it reports on the
+    crossing branch. Verified against the stored sweep of candidate
+    144387901688: ``tested_range: [0.0001, 0.0005]`` for a 1/3/5 bps grid.
+
+    PUBLIC, and imported by ``factory.check_cost_grid``, because the belt now
+    asks the same question at submission time that the gate asks at judgement
+    time. Two copies of that arithmetic is the two-copies-of-one-belief failure
+    leanrunner already names about the cost assumption itself.
+
+    Returns None rather than guessing when the range is absent or malformed.
+    The caller FAILS on None: a tested range nobody can read is not a cleared
+    floor, and absence is never zero.
+    """
+    if not isinstance(tested_range, (list, tuple)) or not tested_range:
+        return None
+    try:
+        return max(float(v) for v in tested_range) * 10_000.0
+    except (TypeError, ValueError):
+        return None
+
+
+def fmt_bps(x: float) -> str:
+    """A basis-point figure with enough digits to not lie about a comparison.
+
+    The comparison is always made on the raw float and never on this string.
+    Measured: a slip of 0.0009996 is 9.996 bps and ``round(x, 1)`` renders it
+    "10.0" — which would print a candidate as having tested TO a 10.0 floor it
+    did not reach, turning a display convention into a quiet loosening.
+    """
+    return f"{x:.4f}".rstrip("0").rstrip(".") or "0"
+
+
 #: Bump when a threshold changes, so a stored verdict says which bar it cleared.
 #: A candidate approved under v1 has not been approved under v2.
 #:
@@ -154,7 +191,59 @@ def _window_days(window: Any) -> Optional[int]:
 #: latent on every verdict issued to date (all five negative-retention candidates
 #: failed the criterion anyway). The holdout leg now calls the SAME
 #: walkforward.retention() the folds use. No threshold moved.
-GATE_VERSION = "v4.1"
+#:
+#: v4.1 -> v4.2 (2026-08-22, written reason). NO THRESHOLD MOVED — this makes an
+#: existing floor REACHABLE, it does not make it different. `min_breakeven_bps`
+#: stays 10.0.
+#:
+#: The cost-robustness criterion was unevaluable on the branch that every
+#: candidate surviving its whole cost grid takes, and the first candidate ever
+#: to survive one took it immediately. Measured on candidate `144387901688`
+#: (announcement_premium, "Entry 20", the fund's first substantive pass —
+#: docs/quant/QUANT_ENTRY20_2026-08-22.md): the grid was slip 1/3/5 bps, all
+#: three points stayed profitable, so the sweep reported no crossing. This
+#: branch then wrote the string "beyond the tested range" into `checks` and
+#: appended NO failure. A 10.0 bps floor was certified on evidence that
+#: establishes 5.0 — a register reading an absence as a pass, which is the one
+#: pattern the non-negotiables forbid, sitting in the fund's own gate.
+#:
+#: The v2 comment this branch carries was right about the case it was written
+#: for — a candidate never cost-swept — and wrong about the case it produces.
+#: "Still profitable at every cost tested" is not an answer. It is an answer
+#: BOUNDED BY THE GRID THE SUBMITTER CHOSE, and the submitter chose a grid that
+#: stopped at half the floor.
+#:
+#: So v4.2 compares the sweep's MAXIMUM TESTED slip against the floor:
+#:
+#:   * tested past the floor and still profitable -> a genuine pass, and the
+#:     figure is recorded in `checks["breakeven_max_tested_bps"]` so the
+#:     evidence is visible rather than implied;
+#:   * tested short of the floor -> a failure naming both numbers;
+#:   * tested range unreadable -> a failure, because a range nobody can read is
+#:     not a cleared floor.
+#:
+#: The submission-side half is `factory.check_cost_grid`, so a grid too narrow
+#: to answer the question is refused BEFORE it spends the 96 minutes of
+#: containers Entry 20 spent proving it.
+#:
+#: WHAT v4.2 DOES NOT FIX, stated so the pass is not over-read. This floor
+#: judges a breakeven computed on TOTAL return. For an ALPHA claim the
+#: fragility that matters is where ACTIVE return — strategy minus benchmark —
+#: crosses zero, and on Entry 20 those two numbers are 64.6 and 13.9 bps/side,
+#: 4.6x apart. The belt cannot currently produce the active number: sweep
+#: points run `enrich=False` (leanrunner.py:808) so they carry no benchmark at
+#: all, and the only benchmark the candidate owns was measured over a DIFFERENT
+#: WINDOW than the sweep ran (verified on 144387901688: points cover the train
+#: leg 2024-02-26..2025-08-21, the benchmark covers 2024-02-26..2026-08-04).
+#: Subtracting those is not an approximation, it is a category error — it puts
+#: the naive active return at -31.8pp at 1 bp and would KILL a candidate whose
+#: true active breakeven is 13.9. So the scale is LABELLED
+#: (`checks["breakeven_basis"]`) and not computed. Closing it needs the sweep
+#: points to carry a benchmark measured over each point's OWN window — a belt
+#: change, listed as item 1 of docs/GATE_V5_DESIGN_2026-08-19.md, not a gate
+#: change — and until they do, a computed active breakeven here would be a
+#: fabricated number wearing a criterion's name.
+GATE_VERSION = "v4.2"
 
 #: The bar. Deliberately data, not code branches: it can be printed, argued
 #: about on its own merits, and diffed when it changes.
@@ -401,15 +490,52 @@ def evaluate(result: dict[str, Any],
     be = (sweep_summary or {}).get("breakeven_cost") or {}
     be_bps = be.get("breakeven_bps")
     checks["breakeven_bps"] = be_bps
+    # WHICH RETURN SCALE THIS FRAGILITY NUMBER IS ON, stated beside it in the
+    # same shape as `holdout_retention_basis`. The sweep varies cost and reads
+    # TOTAL return, so this is the cost at which the strategy stops making
+    # money — not the cost at which it stops beating its benchmark. For an
+    # alpha claim only the second is the claim's own fragility, and the two are
+    # 4.6x apart on the one candidate that has reached here. A label is what
+    # the data supports; see the version note above.
+    #
+    # Set only where there IS an answer to describe. Labelling the scale of a
+    # measurement that was never taken would decorate an absence, which is the
+    # habit this whole criterion exists to break.
+    if be_bps is not None:
+        checks["breakeven_basis"] = "total_return"
     if be_bps is None:
         # v1 let this through, and a null strategy used the gap: never having
-        # been cost-swept satisfied the cost-robustness criterion. "Still
-        # profitable at every cost tested" is a real answer and is reported as a
-        # reason, so the only case left here is genuinely untested.
+        # been cost-swept satisfied the cost-robustness criterion.
         if c.get("require_breakeven_measured"):
             reason = be.get("reason") or "no cost sweep was run"
             if "still profitable at every cost tested" in str(reason):
+                # v4.2. "Still profitable at every cost tested" is bounded by
+                # the grid the submitter chose, so the floor is checked against
+                # HOW FAR THE GRID WENT. Before this, the string below was the
+                # whole of the check and `min_breakeven_bps` was unreachable —
+                # see the version note. The string is kept as the annotation it
+                # always was; what changes is that it no longer substitutes for
+                # the evaluation.
+                floor = c["min_breakeven_bps"]
+                widest = max_tested_bps(be.get("tested_range"))
                 checks["breakeven_bps"] = "beyond the tested range"
+                checks["breakeven_max_tested_bps"] = (
+                    None if widest is None else round(widest, 4))
+                # A tested range IS a cost answer, so it carries the same scale
+                # label as a crossing does.
+                checks["breakeven_basis"] = "total_return"
+                if widest is None:
+                    failures.append(
+                        f"the cost sweep says the edge survived every cost it "
+                        f"tested but does not say how far it tested, so the "
+                        f"{fmt_bps(floor)}bps floor could not be checked — an "
+                        f"unreadable tested range is not a cleared floor")
+                elif widest < floor:
+                    # The comparison is on the raw float; fmt_bps only prints.
+                    failures.append(
+                        f"cost robustness was tested only to {fmt_bps(widest)} "
+                        f"bps and the floor is {fmt_bps(floor)} — widen the "
+                        f"grid past the floor")
             else:
                 failures.append(
                     f"cost robustness was never measured ({reason}) — a "
