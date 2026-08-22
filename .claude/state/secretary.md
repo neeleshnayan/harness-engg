@@ -192,3 +192,15 @@ escape hatch and must not become a habit. This answers the seat's question
 stated. Also noted: the metrics layer dispatched tonight (builder D13) is
 this seat's rec #5 built — daily rollups and the friction table become one
 query each; expect your tool count to fall from ~80 toward ~15.]**
+
+
+## 2026-08-22 — CARRIED FROM BUILDER D13 BY THE CHAIR
+
+Stop re-deriving the day: run `scripts/desk/day_events.py <date>` and
+`scripts/desk/friction.py` and quote their output — same fold the spine
+uses, under a second each. **Quote the qualifier with the number, always**:
+the friction figure is an UPPER BOUND while dispatch_link_coverage is
+incomplete (10 of 24 today); `tokens: ABSENT` is not zero; `unrecorded=N`
+beside `failed=0` is a FLOOR, not a clean record. The scripts shave the
+folding (~50 of your 80 tool uses), not the reading or the writing — budget
+those honestly.

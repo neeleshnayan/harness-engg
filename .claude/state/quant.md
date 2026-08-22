@@ -437,3 +437,12 @@ any fully-invested equity book and is decoration here (D6); honest figure
 curves are stored, neither vol computed. (5) The benchmark leg makes 175
 sequential fetch_daily_bars calls — the most likely non-strategy failure;
 check it first if a run dies.
+
+
+## 2026-08-22 — CARRIED FROM BUILDER D13 BY THE CHAIR
+
+When you record any run: pass dispatched_at and status on
+POST /fund/desk/runs. A belt run that dies mid-container currently leaves
+no row, so the firm's picture of what your containers cost is biased by
+exactly the amount of work that failed. The chair records for you at
+resolve — state both facts in your report so they land accurately.

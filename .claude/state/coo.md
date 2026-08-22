@@ -342,3 +342,13 @@ decision.** Also: `owner` is absent from the payload on all accepted desk
 recommendations — neither of you can currently say which seat owes an
 accepted item; state that blindness in the memo if it isn't fixed by your
 run.
+
+
+## 2026-08-22 — CARRIED FROM BUILDER D13 BY THE CHAIR
+
+Your standing ≥50 objection now has its number: the chair's backlog is
+measurable — **30 approved-and-undispatched requests, oldest 20.0h, all on
+one seat** — published at desk_load.chair_backlog and
+GET /fund/metrics/friction. Argue the threshold question with that figure
+rather than the blind-spot argument alone; note it is an UPPER BOUND (14 of
+24 dispatch events unlinkable to their request).

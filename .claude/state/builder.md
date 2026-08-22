@@ -346,3 +346,39 @@ seen before routes to the CEO.** Pick one that says who must act, or state
 - **From the analyst, for the queue**: insider_parse.py must join on
   ISSUERCIK, not ISSUERTRADINGSYMBOL (measured: 4,106 missed, 1,048 alien
   rows; the live 2021–2026 panel inherits it).
+
+
+## 2026-08-22 — STATE from run-builder-d13 (the metrics layer), appended verbatim by the chair
+
+- **BASE WAS CORRECT** (2af4256, exact) — verify the live head directly in
+  one call before cloning; cheaper than the clone. Dispatched into the OUTER
+  repo again; clone into a DISPATCH-SPECIFIC subdirectory (the shared
+  scratchpad root now holds other agents' work).
+- The venv is `ClarkHarness/venv`, NOT `.venv` — the only Python with
+  psycopg/fastapi (3.11.15). Large heredocs through Bash get mangled — Write
+  tool for files over ~100 lines. `curl -o` needs a Windows-style path.
+- **Verified live shapes (965 events / 55 runs)**: `OrderFilled.avg_price`
+  is a STRING on 22 of 29 rows and a number on 7 — coerce. 20 of 29 fills
+  carry NO `venue` key. 14 of 24 `DeskDispatched` carry no request_id, 1
+  names a request never filed. All `ts` exactly 32 chars ending +00:00 —
+  string ranges on the TEXT column are safe. Decision actors exactly
+  {ceo, cto, co-cto}.
+- **FastAPI matches routes in DECLARATION ORDER** — a literal path after a
+  path parameter on the same prefix is unreachable and 404s plausibly.
+  /fund/desk/runs/stats sits before /{run_id}, pinned by two tests.
+- **New module `app/fund/metrics.py` — extend it, never re-fold a day by
+  hand.** `scripts/desk/` exists — run it, never re-author; the quirk list
+  lives once in `_common.py` and a test pins ten named traps.
+- Confirmed defects fixed, mutation-verified: the recorder's
+  correction-discarding upsert; DeskStore.run()'s 1,000-row scan; the
+  script fallback's import order; duplicated day arithmetic.
+- The late pass caught three of my own — including a REGRESSION TEST THAT
+  COULD NOT CATCH ITS OWN REGRESSION ("20.0h" contains "0.0h"), rewritten
+  and proven by mutation. The late pass is not optional; five dispatches
+  running.
+- **Fitness, stated plainly: +3,732/−30 = 124:1. On DELETIONS I score
+  poorly.** The next dispatch under this name should be deletion-first —
+  THE CLEANUP (dce47670) is filed and waiting.
+- Open: no UI reads chair_backlog yet; the 14 unlinkable DeskDispatched
+  rows are a write-path data defect (out of my bounds); status/dispatched_at
+  now written by the chair as of run-builder-d13 itself.

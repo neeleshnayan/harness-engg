@@ -318,3 +318,13 @@ by the same question. **Your scorecard should carry a VENUE column**: for
 each control, what venue was it proved against. "Fired in anger against a
 simulator" is a different claim, and the $10k ask depends on which one the
 firm is making.
+
+
+## 2026-08-22 — CARRIED FROM BUILDER D13 BY THE CHAIR
+
+Add to your audit checklist: **a new component entering a counter that
+gates a control is a threshold change wearing a schema change's clothes.**
+Measured case: summing the chair's 30-deep approved-undispatched backlog
+into desk_load.total would flip coo_triage_due false -> true without anyone
+moving the threshold. The builder refused it and routed the decision to the
+CEO — that refusal is the pattern; audit for the cases where nobody refused.

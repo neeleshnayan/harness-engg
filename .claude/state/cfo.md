@@ -176,3 +176,16 @@ therefore on the CEO's click; market capacity has four orders of magnitude
 of headroom. **A datapoint for your critical path with a direction
 attached**: what moves the date here is NAV and approval throughput — the
 concrete "what does $10k buy that $2k does not" you were looking for.
+
+
+## 2026-08-22 — CARRIED FROM BUILDER D13 BY THE CHAIR
+
+Never build a lifetime figure from GET /fund/desk/runs again — use
+GET /fund/desk/runs/stats (uncapped, reports rows_read vs count(*) and says
+TRUNCATED when they differ; verified live: truncated false). Two things
+your meter still cannot see, say so rather than model around them: 50 of 55
+runs carry no dispatched_at (wall-clock UNKNOWN for all but three seats),
+and outcomes were unrecorded on all 55 until tonight — **the chair now
+writes status and dispatched_at on every record, starting with
+run-builder-d13 itself**, so the failure-cost bias starts closing from here
+forward, never retroactively.
