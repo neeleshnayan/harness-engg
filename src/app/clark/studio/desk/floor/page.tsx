@@ -178,18 +178,12 @@ export default function FloorPage() {
               }
             />
 
-            <section className="mt-8">
-              <SectionHead
-                title="What this room deliberately does not show"
-                lede="Stated, because a floor plan that looks complete invites the reader to stop looking."
-              />
-              <ul className={`space-y-1 text-[13px] leading-relaxed ${KT.muted}`}>
-                <li>· No numbers and no recommendation text — those live on the desk pages, where they can be decided.</li>
-                <li>· No decidable control. Nothing on this floor approves, stages, dispatches or halts anything.</li>
-                <li>· No people walking, no ambient motion, no replay. A pulse exists only where a spine event does.</li>
-                <li>· No interior for the thesis wing — that is Abhishek&apos;s surface, and this floor draws its door only.</li>
-              </ul>
-            </section>
+            {/* The "what this room does not show" disclaimer was REMOVED
+                2026-08-22 on the CEO's instruction. The constraints it listed
+                are still true and still enforced in floorPlan.ts — this floor
+                renders no decidable control, no ambient motion, and no
+                interior for Abhishek's thesis wing. They are properties of the
+                code, not a caption, and the caption was costing a screenful. */}
           </>
         )}
       </div>
