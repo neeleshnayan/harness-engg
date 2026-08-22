@@ -355,6 +355,10 @@ the firm's best lead, Grace's memo, and what I deliberately did not do.
 - **THE BELT DATA CACHE approved and dispatched** (ticket `252bce7b`): the
   measured 85%-of-container fetch tax; expected ~96 min → ~20-25 min per
   candidate; clean-field merge condition — bit-identical verification run.
+- **THE LOOP CHARTER RATIFIED** ("Agree", same day as drafted):
+  docs/LOOP_CHARTER_2026-08-22.md — three phases (honest+fast / feed / scale),
+  per-stage measured baselines, the brakes exempted, four falsifiers. Grace
+  and Vishesh owe WHERE I DIFFER at next dispatch.
 - **+16 GB RAM incoming** (host going 15.2 → ~31 GB). NOTE FOR THE CHAIR:
   this re-opens the host-budget numbers (one-heavy-job rule, the 1.28 GB
   collapse falsifier) — revisit as a WRITTEN, versioned amendment when the
