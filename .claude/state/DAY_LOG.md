@@ -65,6 +65,48 @@ November and 7 in July, a 20.9× swing, which retires the premise of the 8-hour
 corpus extension the mechanism requested and the CEO approved. Entry 14 CLOSED
 (8 names at N=20, 0.0% of days ≥30).
 
+### THE NIGHT SHIFT — running record (Fable, updated live)
+
+**Landed and fully resolved (verify → file → record → STATE → BINDS, all
+five steps):** Donna's superseding 08-21 archive (`2af4256` — found two
+discrepancies in the chair's own instruments, both verified: the queue's
+wrong mismatch count at line 1654, and the v4 runs missing from the record —
+closed with retroactive records marked as such). The adversary's D11 KILL
+(`docs/reviews/ADVERSARY_D11_2026-08-22.md` — four falsified self-claims;
+NOTHING MERGED per the CEO's pre-authorization; KP parked to land with v2).
+The PM's measurement-programme design
+(`docs/pm/PM_MEASUREMENT_PROGRAMME_2026-08-22.md` — the cost benchmark is a
+cached LAST TRADE, not a mid; required n scales with cost²; the baton; the
+$40 tuition cap; request `5b6b37bd` RESOLVED — Grace's critical-path item is
+designed). Propagation sweep committed at `cee5406`: five STATEs verbatim,
+all BINDS carried, chair decisions written where seats read them.
+
+**In flight at last update (5/5):** mechanism c5 · room builder (KryptonPay)
+· metrics builder D13 (ClarkHarness — CEO instruction on slow agent runs:
+Postgres rollups, friction view, uncapped run stats, dispatched_at + failure
+runs, scripts/desk library) · **analyst on the 2016q1 extension**
+(CEO instruction "put analyst on the run"; locked pre-reg `d8259e0`;
+single-stream, 4TB store, checkpointed) · Grace v0.2 (re-derive the date —
+the PM moved its inputs; answer the PM's challenge to D4; review the
+redesign on the date axis; cost the second pen).
+
+**JUDGEMENT LEDGERED**: analyst + metrics builder = two concurrent heavies
+beside a light room builder — a deliberate exception to the one-heavy rule
+on the CEO's direct instruction, taken at 5.05 GB free with single-stream
+discipline written into the brief. The falsifier stands: any collapse, the
+analyst dies first and the cap reverts.
+
+**Still queued for tonight:** D11 v2 repair brief (fires when the metrics
+builder lands — fund.py collision bars concurrency) · guard v1.3 +
+integrity-alarms builder (after a builder slot frees) · THE CLEANUP
+(`dce47670`, after the D11 decision) · COO triage #5 LAST, so the batch
+memo on the CEO's desk at breakfast covers the whole night, with Vishesh's
+owed `## WHERE I DIFFER` on Grace.
+
+**For the CEO's breakfast, accumulating:** PM programme clicks R25–R31 ·
+R33 (the dated 2026-09-08 exits, hard) · the D4 ↔ PM-challenge pair ·
+the reconciliation HOLD (adversary: wait for K2/K3 repairs) · the COO batch.
+
 ### THE REIMAGINED TEAM — implemented overnight on the CEO's instruction
 
 CEO, verbatim: *"our team needs to become a self evolving harness that
