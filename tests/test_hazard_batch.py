@@ -713,17 +713,20 @@ def test_an_unreadable_account_reports_neither():
 
 
 def test_the_new_fields_block_nothing():
-    """READ AND REPORTED, not enforced. A refusal built on cash is a mandate
-    decision for a human, and this test fails the day one appears without
-    that decision."""
+    """READ AND REPORTED, not enforced. A refusal built on cash or buying power
+    is a MANDATE decision for a human — "may the fund borrow" is not a question
+    a builder answers while wiring a getter. This fails the day one appears, so
+    the decision has to be made deliberately rather than arrived at."""
+    import inspect
+
     from app.fund import compliance
-    src = compliance.ComplianceGate.check.__doc__ or ""
-    gate_src = __import__("inspect").getsource(compliance.ComplianceGate)
-    assert "buying_power" not in gate_src, (
-        "a block on buying power appeared in ComplianceGate — that is a "
-        "mandate decision and needs a human, not a test update")
-    assert "state.cash" not in gate_src
-    del src
+
+    gate_src = inspect.getsource(compliance.ComplianceGate)
+    for field in ("buying_power", "state.cash"):
+        assert field not in gate_src, (
+            f"ComplianceGate now reads {field!r}. If that is a real block, it "
+            f"is a mandate change and needs a human's decision on the record — "
+            f"not an updated assertion here.")
 
 
 # ==========================================================================
