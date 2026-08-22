@@ -457,3 +457,20 @@ verdict; name it in every result. (2) The bar's IDENTITY is computed
 (benchmark_basis/kind/symbol/legs at leanrunner :1297-1302) and DISCARDED by
 the gate — record the basis in your own dispatch output until the gate stores
 it, or a must_beat_benchmark failure is unauditable.
+
+
+## 2026-08-22 — CARRIED FROM THE ADVERSARY (Entry 20) BY THE CHAIR — for the implementation
+
+Entry 20 comes to you as an ALPHA candidate (its premia label was killed by
+its own pre-commitment). Sequenced behind the v2 builder. Three things: (1)
+**hold the residual sleeve EQUAL-WEIGHT REBALANCED, not drifted buy-and-hold**
+— same tilt, same signal, measured ret/vol 1.071 vs 0.933 and vol 20.25% vs
+22.74%; drifted buy-and-hold credits the candidate a rebalancing bonus it
+does not produce. (2) **Do NOT read daily_returns.benchmark as the gate's
+bar** — for multi-name strategies it is the ENGINE benchmark (set_benchmark),
+discarded at leanrunner :1218 and replaced at :1291, never recomputed
+(corr 1.0000 with SPY on a candidate whose bar is EW(SPY,TLT)); it is also on
+a calendar-day clock with ~31% zeros. Compute both vol legs yourself from
+benchmark_curve and a full-length equity series and say which clock. (3) The
+panel embeds as a literal (~100KB); hold=21; report the ACTIVE-return
+breakeven, which dies at ~12 bps against a zero-skill rebalance.

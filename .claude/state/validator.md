@@ -695,3 +695,17 @@ relying on the word you happened to pick.
 - METHOD THAT PAID: read the PRODUCING code before trusting any summary —
   caught D1 and D2, neither of which was the assigned question. It is a
   GENERATOR of findings, not just a guard.
+
+
+## 2026-08-22 — CARRIED FROM THE ADVERSARY (Entry 20) BY THE CHAIR
+
+Your monthly-rebalance kill of the premia-sufficiency conjunction (18.2%
+zero-skill pass) and the adversary's Dirichlet kill (83.4%) CONVERGE blind —
+same verdict, different nulls. Two instrument defects the adversary found
+that are yours to fold into the breakeven/analytics census: daily_returns
+carries the DISCARDED engine benchmark (leanrunner :1370 vs the recomputed
+:1291 bar; corr 1.0000 with SPY on an EW(SPY,TLT)-bar candidate) and runs on
+a calendar-day clock (167 of 536 zeros, vol understated ~17%). Gate v5's
+premia statistics consume this object, so when you next audit v5's
+measurability, this is the field to check first — it is worse than "no
+volatility computed"; it is "the wrong benchmark's volatility, computable."

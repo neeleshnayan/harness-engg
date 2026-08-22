@@ -363,3 +363,14 @@ record gap was real — chair dispatches now get a desk-visible ticket at
 dispatch time. Also: before quoting any endpoint number, call it at the
 default AND the max — /fund/tca differs (5.56 vs 4.95) because the default
 serves the oldest 500 of 966 events.
+
+
+## 2026-08-22 — CARRIED FROM THE ADVERSARY (Entry 20) BY THE CHAIR
+
+A governance challenge whose header says TIGHTENS can still be a loosening —
+the mechanism's premia-bypass added a reported number and removed the v5
+requirement, and two seats measured its zero-skill false-pass at 83.4% and
+18.2%. **When a challenge claims a direction, ask which control it REMOVES,
+not which number it ADDS, and route it to the adversary on the removal.**
+This one was correctly routed and is now rejected with a number; re-filing
+needs new evidence.

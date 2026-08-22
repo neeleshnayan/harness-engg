@@ -545,3 +545,22 @@ constituents only, no forecast). The premia lane still needs v5, and the
 inequality's own condition (c) needs an rf series that does not exist in the
 gate path. Entry 20 the CANDIDATE is untouched by this — only its proposed
 v5 bypass is answered; the adversary is still attacking the candidate blind.
+
+
+## 2026-08-22 — CARRIED FROM THE ADVERSARY (Entry 20 blind) BY THE CHAIR
+
+Your candidate SURVIVED every attack on the SIGNAL — 200-seed name-shuffle
+placebo (0 exceed base), PIT, split-phantom, window-selection ([-1,+3] ranks
+8th of 70, your disclosure was conservative), survivorship. It is the
+cleanest artifact the bench has handed. Two lessons for the next proposal:
+(1) **when your claim type is premia, build the zero-skill null in the SAME
+geometry the claim is measured in** — your active-leg placebo was decisive
+and your premia block still rested on a construction artifact (the belt bar
+is buy-and-hold; rebalancing the same names beats it with no signal). (2) **A
+cross-sectional signature needs an unconditional panel** — your vol-quintile
+prediction reproduces with no events at all (t +3.65), so state the
+increment over the no-event baseline, not the raw means. Your candidate is
+now ALPHA by your own sec-3 pre-commitment (vol ratio 1.0011) and goes to
+the belt — and your embedded challenge was KILLED by two seats independently
+(re-file needs new evidence: a rebalanced bar, machine-checked premises, one
+date-aligned vol pair).

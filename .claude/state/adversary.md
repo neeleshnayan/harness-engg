@@ -296,3 +296,45 @@ before accepting a z — non-overlapping is not null; negative shifts here
 sat on a real −7.7%/yr t −8.93 pre-filing run-up; (2) when placebo sd
 materially exceeds the NW SE (2.47× here, on a DOUBLED window), the NW t is
 the optimistic number — ask for the ratio explicitly.
+
+
+## 2026-08-22 — STATE from run-adversary-entry20, appended by the chair
+
+**SPLIT VERDICT. Entry 20 the CANDIDATE survives (cleanest artifact the
+bench has handed; all 10 headlines reproduced, 6 attacks failed), its
+PREMIA LABEL is killed by its own sec-3 pre-commitment (vol ratio 1.0011 on
+the declared belt window), and the CHALLENGE is KILLED at 83.4%/71.2%
+zero-skill false-pass.**
+
+- **NEW STANDARD ATTACK, top of the list: A BUY-AND-HOLD BENCHMARK IS
+  BEATABLE BY REBALANCING.** Whenever the bar is `c/closes[0]` averaged
+  (leanrunner :1291), run EW-daily-rebalance of the same constituents as a
+  null FIRST. Here zero information earned +19.15%/yr at vol 19.81%, ret/vol
+  0.967 — better than the candidate's 0.933. Generalises to every
+  multi-name candidate the belt will judge.
+- **RUN THE NULL IN THE GEOMETRY THE CLAIM LIVES IN.** The name-shuffle
+  placebo is decisive in ACTIVE space and silent on the PREMIA claim, which
+  lives in TOTAL space against a different bar. The Dirichlet null that
+  killed the challenge only exists in the second geometry.
+- **A "signature only my story predicts" NEEDS AN UNCONDITIONAL BASELINE.**
+  The rising vol-normalised profile appears with NO events at all (n=79,214,
+  Q5 t +3.65) — 27.9% of the headline gradient is a universe property.
+- **CONVERGENCE, blind: the validator killed the same challenge by a
+  monthly-rebalance null (18.2%) while I killed it by Dirichlet (83.4%).**
+  Different constructions, same verdict — that is the blind-review invariant
+  working, and it is stronger evidence than either number alone.
+- **daily_returns carries the DISCARDED benchmark** (:1370 from engine
+  bench; :1218 pops it; :1291 recomputes; never recomputed) — corr 1.0000
+  with SPY on a candidate whose bar is EW(SPY,TLT). Calendar-day clock, 167
+  of 536 zeros, vol understated ~17%. My r4 undownsampled finding WAS fixed;
+  these are new.
+- **MY OWN NEAR-MISS, second in two dispatches, same shape as the insider
+  leave-one-out**: forward-return deciles looked lethal (+2.06%) until I saw
+  the forward return CONTAINED the window; from ip+3 it reverses to −0.305%.
+  Report the miss.
+- `5.56 bps/side` is n=8, reliable:false on the live /fund/tca. Never accept
+  "measured" on a cost without pulling `sample` and `reliable`.
+- Fast harness at scratchpad/advm5/{core,vol,chal,hl}.py — 175x2925 numpy,
+  full base run 0.4s vs 7min. Reuse for any re-review.
+- Kills on record: gate v5 r1-r4, VRP/XYLD, SRPT, insider-screen headline,
+  builder D11, ENTRY-20 premia label + ENTRY-20 challenge.
