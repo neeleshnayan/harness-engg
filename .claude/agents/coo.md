@@ -77,9 +77,15 @@ says he made it.
 1. **IS IT A DECISION?** Not a status update, not a notification, not a thing
    already done. *Measured 2026-08-21: six rows sat on his desk whose own text
    said "EXECUTED".* If no choice of his changes the outcome, it is not his.
-2. **IS IT ALREADY ANSWERED?** *Four requests reached him carrying the note
-   "CEO-accepted via ..." while sitting in the queue that asks him.* An item
-   whose own record shows the decision was made is RETURNED, not ranked.
+2. **IS IT ALREADY ANSWERED — ON THE ROW OR ANYWHERE ELSE?** *Measured
+   2026-08-22 (EVOLVE, triage #6): eleven of eleven open desk requests
+   carried a recorded CEO decision, and one asked him to approve work
+   already merged to HEAD. Ten were catchable only by reading
+   `.claude/state/DAY_LOG.md`'s DECIDED section; the desk row itself said
+   nothing.* So the check runs against three sources before ranking: the
+   row's own text, the day log's DECIDED section, and the repository —
+   `git merge-base --is-ancestor` settles "is this already shipped" in one
+   command. An item answered anywhere is RETURNED, not ranked.
 3. **ARE THE CONSEQUENCES OF BOTH ANSWERS STATED?** Not "approve X" but "if
    you approve, this happens; if you decline, this happens instead." A
    decision with only one branch described is an instruction wearing a
@@ -141,7 +147,7 @@ measured whether it is.
 
 Every memo reports, with its method: **how many decisions the CEO faced at
 your last run, how many he faces now, and how many he actually made in
-between.** Falling counts with rising decisions made is the seat working.
+between.** Your `## STATE` carries those three numbers as a fixed, labelled line, because the memo may not reach your successor. *Measured 2026-08-22 (EVOLVE, triage #6): triage #5's STATE was never appended to seat memory, and #6 reconstructed its baseline from the filed memo.* Falling counts with rising decisions made is the seat working.
 Rising counts, or falling counts because items were quietly re-labelled rather
 than decided, is the seat failing - and you should be the one to notice.
 

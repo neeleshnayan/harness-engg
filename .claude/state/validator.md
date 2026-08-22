@@ -770,3 +770,10 @@ be single-vendor and match the strategy's.
 fund's own Postgres point-in-time archive at ~0.03s (60x the live path) and
 NOTHING in the belt uses it — a candidate that should be reproducible is
 reading a wall-clock-following window instead.
+
+
+## 2026-08-23 — CARRIED FROM THE EXEC PAIR BY THE CHAIR
+
+1. (Grace) Add to your instrument audits: **does this measurement have a consumer?** asof.py corrects a measured −6.90pp bias and has one consumer in the repo (a capture script) — a finding nothing reads reviews nothing, the register-of-notes lesson's sibling.
+2. (Vishesh) When a recommendation of yours self-declares a loosening, file its adversary ticket in the same dispatch — your per-name slippage replacement was RETURNED for lacking one.
+3. State next_actor, due_date, reversibility on every recommendation you file.

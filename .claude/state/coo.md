@@ -374,3 +374,34 @@ requirement, and two seats measured its zero-skill false-pass at 83.4% and
 not which number it ADDS, and route it to the adversary on the removal.**
 This one was correctly routed and is now rejected with a number; re-filing
 needs new evidence.
+
+
+## 2026-08-22 — STATE from run-coo-triage6, appended by the chair
+
+**Triage #6, 2026-08-22 UTC, counter 91/50, chair-fired (Fable). Ran concurrently with Grace v4; neither read the other. JOB-2 prior written to scratchpad `coo_job2_prior.md` BEFORE opening the charter — do this again, it is provable independence.**
+
+**PRODUCT NUMBERS — carry these forward as a fixed line:** decisions requiring the CEO: **7 from counter 31 (#4) · 7 from 52 (#5) · 8 from 91 (#6)**. Decided between #5 and #6: **zero of my seven** (CEO on GMAT leave). Segmentation of 91: 11 requests RETURNED + 10 recs closed as already actioned + 4 recs RETURNED for a missing gate step + 29 chair/builder-queue + 11 reads + 1 action already decided + 25 rows composing 8 decisions = 91 exactly.
+
+**THE SHARPEST FINDING, a class not an instance: 11 of 11 open desk requests carry a recorded CEO decision in their own filing.** One (`252bce7b`) asks him to approve the belt cache merged at `cf0368d`. **Method that found it: read `.claude/state/DAY_LOG.md` DECIDED section BEFORE ranking — decisions live there the desk row cannot see. Now step one.**
+
+**ROUTING IS ENTIRELY INFERRED**: `explicit_next_actor: 0`; next_actor/due_date/reversibility None on all 88 open rows despite D9 shipping all three. 46 of 80 CEO rows arrive by DEFAULT (desk.py:1117); KIND_ACTORS has no entry for process/finding/defect/builder-ticket/gate-v5-input etc. Do not cite the counter's split without saying it rests on a default.
+
+**MONEY (re-derived):** NAV $1,885.74 / gross 48.63% (AT throttle target — NOT a leg-3 defect, third time declining that) / book-venue delta $126.54, 10 symbols / armed naked $750.36 / date-certain 2026-09-08 $501.58 / **TLT 3.11pp from its 4.0% stop** / idle-above-floor $874.40.
+
+**FIFTH+ CONSECUTIVE:** /fund/autopolicy 404. **UNCHANGED 24h after my accepted Challenge #2**: judgement triggers_unchecked: 0 against 17/19 empty trigger_spec, and NO desk ticket exists for the step-one evaluability fix — an accepted challenge produced a document change and no instrument change. Watch for this shape.
+
+**CHAIR BACKLOG, my #5 position UPDATED by my own measurement:** 30 approved-undispatched, oldest 33.0h; FOUR rows on the 2026-09-08 hazard path (395335c8 dated 29.5h, 34338ef6, d7f38be2, b72847bc). Name four rows, not thirty.
+
+**THREE WIDENINGS REACHED THE DESK WITH NO ADVERSARY PASS** (riskofficer entry envelope — no ticket; validator per-name slippage — no ticket; excess-return challenge — ticket 9fb82050 undispatched 13.9h). RETURNED. **The gate rule: search the queue for the ticket the row's own text demands — verify the ticket, never the sentence.**
+
+**LIVE UNSIGNED LOOSENING:** the D9 trigger-predicate change runs in production unsigned; its author asked for sign-off. Two triages carried it.
+
+**LOOP CHARTER, filed position:** endorsed incl. same-day cache merge — **same-day merge is a property of the ORACLE, not the calendar** (byte-identity 170/170 is an oracle; "suites green" is not). Three tightening differs filed: stage-0 verification-latency number; T0 clock is control-layer, third fence = live path refuses an injected clock, proven by test; episodes need a dated superseding-correction path (an immutable WRONG episode propagates forever).
+
+**MISSES, self-logged:** (1) triage #5 STATE was never appended to this file — ran without my own numbers; the fixed-line rule above is the fix. (2) Under-weighted delay-as-irreversibility on G1; Grace was right on my own axis; conceded on the record.
+
+**STANDING RULES CARRIED** (all prior rules stand), plus: read the DAY_LOG DECIDED section before ranking · verify the ticket, never the sentence · apply reversibility to rows, never aggregates · write the JOB-2-style prior to scratchpad before reading any document I must judge.
+
+**MONEY-FIGURE BLINDNESS:** only 6 of 88 open rows carry an item-specific sourceable figure; 18 carry the $500.00 placeholder. Rank on reversibility; state the blindness.
+
+**Pending verdicts for #7:** any row populates the three routing fields · register reports non-empty unchecked · 395335c8 dispatched before 2026-09-05 · envelope's adversary pass before it reaches the CEO again · trigger change signed or reversed.

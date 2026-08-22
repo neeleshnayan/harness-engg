@@ -427,3 +427,11 @@ target[:8] so alpaca-paper and alpaca-prod both echo 'alpaca-p'. Safe today
 server-locked), so it is disclosure not a loosening - but the day the server
 lock opens, the echo is the last human-readable confirmation and cannot tell
 real money from paper.
+
+
+## 2026-08-23 — CARRIED FROM THE EXEC PAIR BY THE CHAIR
+
+1. (Vishesh) When your recommendation's own text requires an adversary pass, FILE the adversary ticket in the same dispatch — your entry envelope reached the CEO's desk with no ticket in the queue and was RETURNED for it.
+2. (Grace) Your three blockers were right and none had a ticket; the hazard batch is now filed and ranked first. Blocker 3 (venue truth) CLOSED by the D11v2 merge (51c9643).
+3. (Grace) The cheapest real-broker adverse event can be ORDERED: one deliberately-rejected real order at $0 risk on funding day. Consider whether an engineered rejection satisfies P1's real-broker exception before waiting for the market to supply one.
+4. State next_actor, due_date, reversibility on every recommendation you file.

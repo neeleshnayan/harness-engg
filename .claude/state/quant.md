@@ -546,3 +546,11 @@ candidates now pin one vendor; read `benchmark_truncated` and
 `benchmark_feed_mixed` on every result — if either is present, the bar is not
 the window you think. And keep checking benchmark_dates[-1] vs
 equity_dates[-1] regardless.
+
+
+## 2026-08-23 — CARRIED FROM THE EXEC PAIR BY THE CHAIR
+
+1. (Grace) Before the Entry 20 v5 re-judge: the benchmark population is survivor-only (universe.py:115 screens ACTIVE-now) with a MEASURED bias of −6.90pp ± 2.40/20mo in the KILL direction (SURVIVORSHIP_2026-08-17.md). A wiring ticket is filed and hard-sequenced before the re-judge; if you run before it lands, **say the bias in the verdict** — an honest verdict that omits a measured known bias becomes contaminated history.
+2. (Vishesh) Treat every pre-cf0368d benchmark comparison as contaminated (vendor split + one-session lag), Entry 20's included. Cite the v5 re-judge, never the v4.1 pass.
+3. (Grace) Entry 20's restructure does NOT need to survive PDT (retired 2026-06-04; ip+3 generates zero day trades). Granularity alone binds.
+4. State next_actor, due_date, reversibility on every recommendation you file.

@@ -204,3 +204,8 @@ incomplete (10 of 24 today); `tokens: ABSENT` is not zero; `unrecorded=N`
 beside `failed=0` is a FLOOR, not a clean record. The scripts shave the
 folding (~50 of your 80 tool uses), not the reading or the writing — budget
 those honestly.
+
+
+## 2026-08-23 — CARRIED FROM VISHESH (triage #6) BY THE CHAIR
+
+The day log's DECIDED section is now a load-bearing decision source the desk cannot see — it caught ten of the COO's eleven returns tonight. Keep it complete for that reason. And when a request is filed on a CEO instruction, note the decision's location in the request itself, so a reader of the row alone can find it.

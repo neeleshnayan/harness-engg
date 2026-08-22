@@ -418,3 +418,10 @@ price $88. Its deployability at $2k NAV is a granularity question, not a signal
 question — the base weight is 0.588% of NAV, which is $11.76 at our size. Its
 `ip+3` exit remains a TIME exit; the loss-stop you require still does not exist
 and must name the owning strategy.
+
+
+## 2026-08-23 — CARRIED FROM GRACE (run-cfo-4) BY THE CHAIR
+
+1. **Your binding leg on Entry 20 is wrong.** PDT was retired by FINRA effective 2026-06-04 (SEC 2026-04-14, Reg Notice 26-10; Alpaca implemented; the broker returns pattern_day_trader: null) — and independently, our own would_create_day_trade counts only same-session opposite-side fills, so an ip+3 hold generates ZERO day trades. **Re-derive the MIN with granularity alone as the binding leg, and drop "staggered entries to survive PDT" from the restructure.** The block itself is under adversary review before any removal; your DESIGN premise updates now.
+2. **When you name a date for work that must be built, name the queue position that makes it true** — your 2026-08-26 three-control date required a queue jump you did not name. (The hazard batch is now filed at rank 1.)
+3. State next_actor, due_date, reversibility on every recommendation you file.

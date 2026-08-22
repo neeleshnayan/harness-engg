@@ -298,3 +298,14 @@ corrections), so late-arriving figures get re-posted, never left wrong.
 Also: `scripts/desk/` exists — day_events, friction, run_stats, nav_day —
 run them, never re-author the queries; the quirk list lives in `_common.py`
 and a test pins it.
+
+
+## 2026-08-23 — CARRIED FROM THE EXEC PAIR (COO #6 + Grace 4) BY THE CHAIR, binding on the chair itself
+
+1. **FILE AT THE RIGHT STATUS**: a desk request that quotes a CEO instruction or records his approval is filed `approved`, never `open` — 11 of 11 open requests were his own decisions returning to his desk. (The counter-side version is a LOOSENING under adversary review; the filing-side discipline applies NOW.)
+2. **DISPATCH BY HAZARD PATH, NOT AGE**: four of thirty backlog rows sat on the 2026-09-08 chain. Name the hazard rows first.
+3. **EVERY BRIEF NOW INSTRUCTS THE SEAT** to state next_actor, due_date, reversibility on every recommendation — 0 of 88 rows carried them and 46 of 80 CEO-routed rows routed by default.
+4. **PRE-READ PRIORS TO SCRATCHPAD** before a seat judges a document — both exec seats did it tonight unprompted-by-each-other; it is provable independence and now the house pattern for WHERE I DIFFER work.
+5. **THE ORACLE RULE (Vishesh)**: same-day merge is a property of the oracle, not the calendar. A diff with a mechanical oracle (byte-identity) can merge in an hour; a diff whose correctness rests on a reviewer's reading does not merge same-day whatever its size.
+6. **A MEASUREMENT WITHOUT A CONSUMER REVIEWS NOTHING (Grace)**: the firm accumulates measurements faster than consumers (asof.py, the integrity alarms, the register). When resolving any measurement, ask what CONSUMES it, and file the wiring ticket in the same pass.
+7. **API card fix owed**: every fund route carries /api/v1; two dispatches lost calls to it.

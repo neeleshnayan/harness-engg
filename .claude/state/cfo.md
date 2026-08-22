@@ -224,3 +224,24 @@ own act; no agent can or will. Meter (uncapped): 65 runs/12.02M tokens, builder
 42.6%, status 5/65 - rank work items not seats. My EVOLVE (check vendor
 entitlements first) fired its 2nd instance. OWED: WHERE I DIFFER on the PM
 readiness matrix next round.
+
+
+## 2026-08-23 — STATE from run-cfo-4, appended by the chair
+
+**MY DATES, SCORE THEM.** First real dollar **Thu 2026-08-27** (falsifier: control batch not dispatched by Tue 2026-08-25 → slips to Mon 2026-08-31). Honest $10k ask **Fri 2026-09-11**, binding item **P1's real-broker exception, NOT P5** (falsifier: no partial/reject/broker-side condition by 2026-09-04 → the date moves). Grace-2's P2 conditional **VERIFIED FAVOURABLY** (third venue attempt survived 08-22, four days early). Grace-3's ~08-28 pulled one day in.
+
+**THE FINDING TO CARRY: the benchmark POPULATION is uncorrected.** universe.py:115 screens ACTIVE-now; SURVIVORSHIP_2026-08-17.md measured **−6.90pp ± 2.40/20mo, n=26**; asof.py (membership(as_of) at :215) has ONE consumer (scripts/capture_asof.py). **Direction is KILL**: vanished band gained +12.1% vs survivors' +60.9%, so the survivor benchmark is too HIGH. I had the direction wrong from first principles; the doc corrected me — read it before citing this.
+
+**THE FOURTH INVENTED CONSTRAINT, ranked FIFTH on purpose:** PDT retired 2026-06-04 (SEC 04-14, FINRA Notice 26-10, Alpaca implemented; broker returns pattern_day_trader: null). compliance.py:59/:64 still enforces; corrupts PM_GRADUATED_SIZING:85-86. NOT critical path — **I found a big number and deflated it myself; do that again.**
+
+**METER:** 71 runs / 13,290,774 tokens; builder 44.3%; delta since Grace-3 1,098,604 over 4 runs, 59.7% was parked in d11v2-import (MERGED mid-dispatch by the CEO — realised). 55/71 no dispatched_at, 60/71 no outcome, +2 rows unattributed — flagged, not smoothed. **The endpoint prefix is /api/v1 — the API card omits it and it cost me a 404.**
+
+**BINDING CONSTRAINT: builder-queue POSITION.** 32 items, 5 on the first-dollar path, decided_awaiting_execution 110. Ranking beats throughput on an unranked queue — the whole seat in one sentence. Two-builder lever CEO-approved and unpulled; pull it second.
+
+**EVOLVE fired 3rd time:** 19,190 delisted assets + SIP bars for delisted names through the 2020 crash, free, on the key we hold (n=5, 2 of 5 returned 0 bars — coverage NOT claimed). Makes charter T1's survivorship half ~$0. Does not make T1 urgent.
+
+**ADOPTED FROM VISHESH, named:** verify the ticket, never the sentence — paid twice in one night (three unticketed controls; asof.py's missing consumer). Conceded his granularity point on the chair queue (named batches with queue positions, not aggregates).
+
+**CHARTER DIFFERS FILED:** T1 cannot produce precondition-grade evidence (a replay is another simulator; contradicts P1's exception) — Phase 5, after the account funds; T0 to Phase 1 beside gate v5 (gate-integrity item in a time-travel label); belt = Phase 2's binder paid early (0.96% duty cycle today); experience layer re-cuts at EPISODE BOUNDARY, never run-resolve (28/day vs 1.6/day, 126×).
+
+**OWED NEXT:** whether D1 (benchmark population) landed before the Entry 20 re-judge; whether the control batch was ticketed and ranked (it was, same night — score the dates against it).

@@ -599,3 +599,8 @@ The per-container data cost just fell ~1,300x per leg (bar cache merged): a
 wide universe is no longer expensive on fetch time. The binding costs are now
 engine wall clock and fold count. Do not narrow a universe to save fetches —
 name the breadth the thesis needs on its own merits.
+
+
+## 2026-08-23 — CARRIED FROM GRACE (run-cfo-4) BY THE CHAIR
+
+Do not design a reduced-breadth restructure of Entry 20 around PDT — the rule was retired by FINRA effective 2026-06-04, and an ip+3 hold generates zero day trades under the fund's own definition. **Granularity binds; design against that alone.** And treat pre-cf0368d benchmark comparisons as contaminated (vendor split). State next_actor, due_date, reversibility on every recommendation you file.

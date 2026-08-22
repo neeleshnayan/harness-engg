@@ -33,6 +33,61 @@ maintain a day log for fable to review."***
 
 ---
 
+## 2026-08-23 (UTC)
+
+### DECIDED (by the CEO, ~00:30Z, before sleep)
+
+- **D11 v2 MERGED — the CEO ran the crossing himself** (`51c9643`): the
+  harness permission layer had refused the chair, so the CEO executed his own
+  approved merge; it conflicted on one import hunk (D15's barcache vs D14's
+  PaperConnector removal), the chair resolved it (keep barcache, drop the
+  import whose last use D14 deleted), suite **1732 passed RC=0**, spine
+  restarted. **The live venue lie is dead**: /fund/book now returns
+  `mode: alpaca-paper` with venue truth. FUND_MODE=alpaca-paper declared in
+  .env (the new fail-closed mode system refused to boot without it — working
+  as designed). **P2 CLOSED. Riskofficer blocker 3 CLOSED.**
+
+### MEASURED (the concurrent exec pair, resolved ~01:00Z)
+
+- **COO triage #6** (docs/coo/TRIAGE6_2026-08-22.md): 8 real CEO decisions
+  from a counter of 91; **11 of 11 open desk requests carried a recorded CEO
+  decision in their own filing** (filing-discipline leak — chair now files
+  CEO-quoted requests at `approved`); 3 widenings RETURNED for missing
+  adversary tickets; 0 of 88 rows populate next_actor/due_date/reversibility;
+  TLT is 3.11pp from its undated stop. His counter-rule challenge (LOOSENS)
+  is with the adversary (`1c53589f`).
+- **Grace 4** (docs/cfo/GRACE4_2026-08-23.md): **the v5 re-judge has a
+  measured hole — the benchmark POPULATION is survivor-only**
+  (universe.py:115 ACTIVE-now; measured −6.90pp ± 2.40/20mo, KILL direction;
+  asof.py has one consumer). **PDT WAS RETIRED 2026-06-04** and still
+  corrupts the PM's sizing premise (design premise corrected via BINDS; block
+  retirement with the adversary, `b6f4a407`). Dates on record: first real
+  dollar **Thu 2026-08-27** (falsifier: hazard batch not dispatched by Tue),
+  $10k ask **Fri 2026-09-11**, P1 binding.
+- **Convergent from both, independently**: rank the builder queue by hazard
+  path (done: `75ca57a7` THE HAZARD BATCH rank 1, `739b5ac9` BENCHMARK
+  POPULATION rank 2, hard-sequenced before the Entry 20 re-judge); the
+  charter's T0 clock needs a control-layer fence; exec seats now write
+  pre-read priors to scratchpad (provable independence — house pattern).
+
+### OPEN FOR FABLE / THE CHAIR
+
+- Charter amendments awaiting the CEO's read (both seats' WHERE I DIFFER):
+  stage-0 verification-latency number; T0 to Phase 1 with the third fence
+  (live path refuses an injected clock, by test); episode
+  superseding-correction path; experience layer re-cuts at EPISODE BOUNDARY
+  (126× cheaper); T1 to Phase 5 (a replay is another simulator — cannot
+  close P1).
+- Vishesh's 8-decision batch on the CEO's desk; Grace's D4 drill set ($0
+  risk) needs only a nod.
+- gate-v5 trio builder still in flight.
+
+### ON FIRE
+
+- **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT
+  3.11pp from stop) — but now STAFFED: hazard batch at queue rank 1, and
+  395335c8 (exit re-establishment design) next for its seat.
+
 ## 2026-08-22 (UTC)
 
 ### ON FIRE
