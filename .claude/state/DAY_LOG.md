@@ -73,8 +73,8 @@ reimagined team over the night."* Shipped: blueprint
 (`docs/TEAM_REIMAGINED_2026-08-22.md`, ClarkHarness `bb188c3`), a dated
 constitution section (two layers · seats hold boundaries/surfaces/pens, never
 workloads · transient fan-out · `## EVOLVE` · the selection loop,
-proposals-only, two-week falsifier · adversary excluded from the loop's reach
-as chair default **awaiting CEO ratification**), and the evolution contract
+proposals-only, two-week falsifier · adversary excluded from the loop's reach —
+**RATIFIED by the CEO the same night ("Agree on adversary")**), and the evolution contract
 appended to ALL 11 seat files with a per-seat FITNESS QUESTION. Control layer
 untouched. The executive table reviews the implementation: Grace v0.2 on the
 date axis, Vishesh triage #5 on reversibility — review AFTER implementation
