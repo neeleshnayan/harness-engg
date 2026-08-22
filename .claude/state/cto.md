@@ -369,3 +369,15 @@ The chair enforces at every resolve, before a row lands:
 4. **Money sourced or labelled UNSOURCED.** Never a placeholder figure.
 5. The UI half is ticketed (desk redesign, pairs with 762d28c9); until it
    ships, the chair's editing pen at resolve IS the render.
+
+
+## 2026-08-23 — desk standard rule 6 (CEO instruction, same night)
+
+Verbatim: "the seat should also think one negative/risk attached to their
+recommendation for me stated plainly. and if not then its okay but we become
+a better team via honesty." EVERY recommendation carries ONE plainly-stated
+risk/negative against itself — the seat's own, not the chair's. A seat that
+genuinely finds none writes "no material downside identified" explicitly
+(stated absence, never silent absence — the house rule in one more place).
+Goes into every dispatch brief from now on; the chair checks it at resolve
+like the other five rules.
