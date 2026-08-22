@@ -482,3 +482,36 @@ builder-heavy distribution "the right distribution." It is right as a QUEUE —
 21 waiting on one seat — but on the day itself every seat ran. The imbalance
 was in what was WAITING, not in what was WORKING, and I let those two words do
 the same job in a sentence to the CEO.
+
+## The 4TB store (CEO, 2026-08-22)
+
+`\wsl.localhost\Ubuntu\mnt\wsl\PHYSICALDRIVE0p1\Krypton` — a 4TB device the CEO
+offered for "bigger files saving". **Chair-verified reachable and WRITABLE**
+(POSIX path `//wsl.localhost/Ubuntu/mnt/wsl/PHYSICALDRIVE0p1/Krypton`).
+
+**IT IS FOR DATA, NOT FOR CODE — and this needs saying loudly.** The drive
+holds `ClarkHarness/` and `Krypton_Clark/` directories and **they are COPIES,
+not the tree we edit** (CEO, 2026-08-22: *"those two are copies of the
+codebase not the one we are editing currently"*). The live tree is and
+remains `C:\Users\user\Documents\Krypton Fund\`. **A builder that wandered into the copy would edit
+successfully, test successfully, and change nothing that runs** — a silent
+no-op indistinguishable from a completed dispatch. Never point a code
+dispatch at this path and never let a worktree base resolve there. The
+builder has already had its worktree base land in the wrong place seven
+times by its own count, so this is a live hazard, not a theoretical one.
+
+**Put it in the brief whenever a dispatch is data-heavy.** The immediate case is
+the adversary's cheapest-decisive-test on the insider screen: extending the SEC
+bulk pull back to 2016q1 is 20 more quarterly ZIPs, and the existing 21 already
+produced a 19 MB panel plus raw archives sitting in a session scratchpad that is
+wiped between sessions.
+
+**Two cautions, both learned today rather than assumed:**
+1. **It is a WSL mount, and WSL is what collapsed this morning.** Heavy IO
+   against it is heavy IO against the same VM that took Docker and Postgres
+   down. It relieves DISK pressure; it does nothing for RAM, and it may make the
+   RAM problem worse if a job streams through it. It is not a fix for the
+   LIGHT/HEAVY rule.
+2. **`df` cannot stat it through the UNC path**, so free space is unverified —
+   4TB is the CEO's figure, not a measurement. Do not size a job against it
+   without checking from inside WSL first.

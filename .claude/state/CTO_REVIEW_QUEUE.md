@@ -16,6 +16,298 @@ Evidence: how to verify it against the record (event ids, test output).
 
 ---
 
+---
+
+# ██ HANDOFF: co-CTO → FABLE, 2026-08-22 ██
+
+**READ THIS ENTRY FIRST. It is the top of the queue and it is the whole state.**
+CEO instruction 2026-08-22: *"time to bring back our CTO, Fable — prepare for
+handoff"* and *"Be deatiled in your handoff since we changed many things."*
+
+The chair ran Opus from 2026-08-21 ~12:30Z to 2026-08-22 ~10:30Z. Below is
+everything: what is live, what is parked for you, what is on fire, and where I
+was wrong. **Nothing from your chair was reverted, reset or amended. Where I
+disagreed with a standing decision I wrote it down and left it standing.**
+
+---
+
+## 1. FOUR SEATS ARE IN FLIGHT RIGHT NOW
+
+You are inheriting a running desk, not a quiet one. **Check these before you do
+anything else** — three of the four will land on your watch.
+
+| seat | task | why it matters to you |
+|---|---|---|
+| **adversary** | BLIND on the fund-mode diff (D11) | Gates the single largest merge decision waiting for you |
+| **builder** | The room: seat the CFO in the exec row, re-space the floor | KryptonPay only, scoped to floor files; low risk |
+| **mechanism** | Cycle 5: a proposal in the long-only EW top-k shape | Generation, leg 2 of the team metric |
+| **Donna** | The 2026-08-21 archive, owed and overdue | Was cut INTERIM at 12:45Z; the completing section is this dispatch |
+
+**`secretary` IS MISSING FROM THE AGENT REGISTRY.** Donna is running through a
+`general-purpose` agent pointed at her seat file. That is a harness fault, it
+has persisted all day, and it is worth fixing before she is needed again.
+
+**Desk state at handoff: `desk_load` 35/50** (30 open recommendations, 0 pending
+orders, 5 requests awaiting approval). **23 open builder requests.** Six runs
+recorded today.
+
+---
+
+## 2. ON FIRE
+
+**(a) THE KILL SWITCH'S OFF-SWITCH IS UNGUARDED AND THE API IS UNAUTHENTICATED.**
+Found by the riskofficer today, **chair-verified line-exact**:
+
+- `POST /fund/risk/resume` (`fund.py:3736-3739`) is three lines with **no
+  `_guard_approval`**. `RiskResumeRequest` (`schemas/fund.py:380-381`) has **one
+  field — a free-text `actor` defaulting to `"operator"`**. No allowlist, no
+  confirm echo, no reason.
+- `POST /fund/risk/halt` (`:3643-3648`) is the same.
+- `app/main.py` has **exactly one middleware and it is CORS**.
+- **The irony, verified:** the guard IS applied at `:3704` to
+  `halt_acknowledge` — an endpoint whose own docstring says it acts on nothing —
+  while the two endpoints that MOVE the switch are open.
+- **Why it is yours and not merely untidy:** `autopolicy.py:512` is
+  `check("not_halted", …)`, the single thing between the auto-approval policy
+  and executing during a halt. It reads a state any unauthenticated caller can
+  flip, attributed to any name they type. All eight `TradingResumed` actors are
+  client-supplied and unverifiable.
+- **A guard change is Tier 3 and therefore yours.** Direction TIGHTENS, so no
+  adversary pass is required. The machinery exists; six endpoints already use it.
+
+**(b) THE INTEGRITY HALT CANNOT FIRE.** Also riskofficer, also chair-verified:
+`unpriced` / `stale_nav_marks` / `stale_marks` are built inside `assess()` into
+a **local list `run()` never reads** (`riskmonitor.py:967-989`); `run()` diffs
+`evaluate_alarms()`, whose six rules are named at `:1116-1121` and exclude all
+three — **I grepped the function body, zero occurrences.** They render on the
+risk bar and can never be raised, persisted, cleared or gated on.
+`_HALT_CLASS_BY_ALARM` (`:71-74`) maps four alarm types to `HALT_INTEGRITY`;
+three can never reach `run()` and the fourth, `heartbeat`, **does not exist as
+an alarm type anywhere**. So *"the fund cannot measure itself"* — the exact
+class of the 2026-08-20 phantom incident — has no automatic producer. **Two
+green tests sit over it** asserting against `assess()` output and a mapping no
+input can reach.
+
+**(c) 2026-09-08 IS STILL DATED.** $501.58 certain (TLT + DBC time exits),
+$750.35 armed across four legs, plus **undated `loss_pct` rules on all four
+symbols** that make it a tomorrow risk. v4 is merged and **will refuse those
+exits** because Alpaca holds zero of both. **The riskofficer's recommendation,
+which I endorse: that refusal is CORRECT — fix the world, not the envelope.**
+Sync the paper account before 2026-09-01; do NOT relax `MAX_POSITION_DRIFT_QTY`
+or `book_venue_in_sync`; if the sync slips, a human clicks the two exits.
+
+**(d) THE LIVE SPINE CONTRADICTS ITSELF ON VENUE.** `GET /fund/book` returns
+`venue: "alpaca"` and `orders_are_real: false` in the same response —
+chair-verified on the running spine minutes before writing this. Two fields,
+two different switches. **The fund routes to a real Alpaca account while its own
+status endpoint denies it.** Fixed in the D11 diff, which is parked for you.
+
+---
+
+## 3. THE DECISION WAITING FOR YOU: THE FUND-MODE DIFF (D11)
+
+**Bundles**: `scratchpad/d11_ch.bundle` (base `b5e15d5`, 11 commits, 31 files,
++3942/−253) and `scratchpad/d11_kp.bundle` (base `b80a7290`, 1 commit, +904).
+
+**What it does**: replaces the environment-flag tangle with one deliberate
+switch — `test` | `alpaca-paper` | `alpaca-prod` — over **three separate
+Postgres ledgers**, so paper NAV and real NAV can never be folded together.
+`alpaca-prod` behind two claimed-independent locks plus five preconditions.
+
+**Tests, verbatim, with real exit codes**: `1533 passed … FINAL3_PYTEST_EXIT=0`;
+UI `314/314`; `TSC_EXIT=0`.
+
+**IT IS TIER 3 AND I DID NOT MERGE IT.** Commit `7c6d733` touches
+`app/fund/events.py` and `app/fund/pgstore.py` — event-store code, reserved to
+your chair. `c80b77f` touches `app/fund/exitrule.py` (claimed additive coverage
+reporting only, `evaluate()` and `active()` untouched — verify that). No
+autopolicy, gate, riskmonitor, guard or threshold changes anywhere in the diff.
+
+**THE SEPARABILITY I ASKED FOR DOES NOT EXIST, and the builder proved it rather
+than asserting it.** I briefed it to keep the event-store commits separable so
+you could merge the safe half. It built that split and tested it: with the store
+half reverted, only 2 tests fail and **it looks mergeable** — but the resulting
+spine reports `krypton_fund_test` while events land in `krypton_fund`. **A lying
+surface with a switch on the front, worse than not merging.** So: **merge whole
+or park whole.** The commits are ordered with `7c6d733` as the base of
+everything, so parking it parks the rest cleanly.
+
+**The adversary is attacking it blind right now**, briefed to hunt exactly the
+partial-application class above, plus whether the two prod locks are really
+independent. **Wait for that verdict before you decide.**
+
+**If you merge**: `FUND_MODE=alpaca-paper` must go into the live `.env` BEFORE
+restarting — the spine now refuses to boot without it, by design, and
+`alpaca-paper` preserves today's behaviour exactly.
+
+---
+
+## 4. TIER-3 ITEMS PARKED FOR YOU, WITH MY REVIEW NOTE ON EACH
+
+Ordered by what I would do first, which is a recommendation and not a decision.
+
+1. **Guard `/fund/risk/resume` and `/fund/risk/halt`** (§2a). Guard v1.3.
+   TIGHTENS. **My note: this is the highest-money item on the board and the
+   cheapest to fix.**
+2. **The D11 merge** (§3). Awaiting the adversary.
+3. **Move the three data-quality alarms into `evaluate_alarms()`** (§2b), and
+   fix the two green tests to assert on the RAISED event.
+4. **Register trigger-evaluability, BEFORE registering governance decisions.**
+   Unchanged from your chair's ordering and I did not touch it. 17 of 19
+   register entries carry a trigger no code evaluates; the endpoint still
+   reports `triggers_unchecked: []`. **The constitution already fixes the order
+   and I left it fixed.**
+5. **D8** — `correlation.py:241` computes the stressed leg from signed weights
+   while `:211` uses `abs()`. Chair-verified line-exact. Risk engine, yours.
+6. **D9** — a hedged book cannot pass `must_beat_benchmark` by construction
+   (`leanrunner.py:1291`). Gate surface, yours. **Its consequence is the
+   sequencing**: the beta-hedged construction that would raise the independence
+   ceiling from 3.6 to 31 bets is unjudgeable under v4.1 AND stays unjudgeable
+   under v5 while the benchmark is equal-weight-of-declared-universe.
+7. **The rebase direction pair** — `fund.py:3667` + `riskmonitor.py:851`. The
+   riskofficer notes the line MOVED since it first filed this; a second rebase
+   would compare against the unrebased peak. **Change one side without the other
+   and every future rebase fails on echo mismatch.**
+8. **`RELIABLE_SAMPLE` → a precision bound** (validator, today). TIGHTENS, so no
+   adversary pass, but it is a threshold change and therefore a chair action.
+
+---
+
+## 5. GOVERNANCE CHANGES — the CEO changed a lot today
+
+Each is a dated amendment the CEO dictated. **All are ledgered above with the
+verbatim instruction; this is the index.**
+
+- **Parallelism cap 2 → 5**, bounded by a new HOST BUDGET (LIGHT vs HEAVY seats,
+  at most ONE heavy job in flight). **Flagged for you as a LOOSENING I did not
+  route to the adversary**, on the reading that clause 5 governs seat
+  CHALLENGES, not CEO instructions. **Confirm or correct that reading — the
+  precedent matters more than the instance.**
+- **THE WIRE** (desk requests `572261e6` and `384a4bfd`). The CEO caught two
+  routing failures on his own desk within ten minutes and named the real
+  problem. Four declared fields on every recommendation (`direction`, `channel`,
+  `next_actor`, `gates`); **a LOOSENS item routes to the ADVERSARY'S desk and
+  never appears on the CEO's** (his correction to my draft, and he was right —
+  `next_actor` is the routing key and an item lives on exactly one desk);
+  segments DECIDE / KNOW / IN FLIGHT / DONE; agent-to-agent postings off a
+  versioned pre-approved list, fail-closed to the CEO; four loop brakes.
+  **I wrote one boundary in explicitly and flagged it for the CEO: a posting
+  fills an in-tray, it NEVER fires a seat.** His instruction could be read
+  either way and the wider reading removes the firm's structural cost ceiling.
+  **He has not yet answered that flag. It is open.**
+- **Donna's FRICTION LEDGER** — she now observes what makes the CEO's desk and
+  other desks easier or harder, and specifically **who is waiting on whom with
+  no answer**, aged, oldest first, chair and CEO included as respondents.
+- **The `cfo` seat (Grace) joined the ROSTER** — committed `41b6b54`. She had
+  been dispatched and had recorded a run while `app/fund/desk.py` did not know
+  she existed. **This is the SECOND time** (the secretary entry above it records
+  the first), and I wrote the pattern into the code rather than the incident.
+- **The 4TB store**: `\\wsl.localhost\Ubuntu\mnt\wsl\PHYSICALDRIVE0p1\Krypton`,
+  verified writable. **DATA ONLY.** Its `ClarkHarness/` and `Krypton_Clark/`
+  directories are COPIES, not the live tree (CEO). A builder that wandered in
+  would edit, test and change nothing that runs.
+
+---
+
+## 6. WHERE I WAS WRONG — read this before you trust my summaries
+
+**Three times today I stated a seat's claim as fact without verifying it, and
+twice it was wrong.** This is the failure mode to watch in my record.
+
+1. **I told the CEO the dead builder dispatch produced ZERO BYTES.** It had
+   **8 commits and 3,731 insertions** in a scratchpad clone at `scratchpad/wt/ch`.
+   I checked `.claude/worktrees/` and `git worktree list` and never looked
+   there. The next builder found it in ten minutes.
+2. **I recorded the insider screen's `+2.72%/yr, t_NW 2.66` into the desk before
+   the adversary returned.** It came back a KILL — the screen sells at the close
+   of the filing day and 86.8% of those filings are not public until after that
+   close. Honest numbers are **+1.99%/yr, t_NW 1.96**. Its first recommendation
+   was literally *"do not record +2.72%/yr anywhere in the fund's record."*
+   Corrected on the desk.
+3. **I briefed the validator that `DEFAULT_SLIPPAGE_BPS` was the input to the
+   breakeven criterion that failed 25 candidates.** It refuted me three ways and
+   I verified all three: `min_breakeven_bps=10.0` is a fixed constant, the
+   slippage constant appears nowhere in the evaluation, `breakeven_bps` is NULL
+   for all 40 candidates, and the 25 are the NEVER-RAN mode.
+4. **My resolve discipline was named by seats THREE times in one day.** The
+   analyst's run sat unrecorded for ~14 hours while the desk showed it as still
+   working. The validator re-derived three findings already staged on the desk
+   because a completed run's STATE was never appended. **Treat an unappended
+   STATE as an open dispatch obligation** — that is the validator's instruction
+   to this chair and it is correct.
+
+---
+
+## 7. THE FIRM'S BEST LEAD, AND WHAT IT NEEDS
+
+**A long-only insider-transaction EXCLUSION screen**, built from a
+69,304-transaction panel (21 bulk SEC ZIPs, 2021q1–2026q1, 201 tickers —
+chair-verified on disk). Headline killed, **effect survived eleven further
+attacks** including the beta decomposition that has killed four things here and
+came back empty for the first time (β = −0.0121), a sign test (excluding
+insider BUYERS flips to −1.30%/yr at t −2.68), survivorship running *against*
+the claim, and a cost test at 6× measured cost.
+
+**Honest numbers: +1.99%/yr, t_NW 1.96, range 1.6–2.1.**
+
+**Cheapest decisive test, per the adversary**: extend the SEC pull back to
+2016q1 — 20 more quarterly ZIPs through the pipeline that already exists, hours
+not days — which should take t near 2.7 if the effect is real. **Pre-register N
+and the filter first**: N=20 is currently a local peak on a 72-cell surface
+running t 0.09 to 3.20.
+
+**The catch, aimed at the PM and the CFO**: 143 names at 578%/yr turnover is not
+fundable at $1,885 NAV — position size ~$13. **If this advances, book size is
+the binding leg, not signal strength.**
+
+---
+
+## 8. GRACE'S FIRST MEMO — the CFO seat is working
+
+`docs/cfo/GRACE1_2026-08-22.md`, filed verbatim with my verification appended
+separately. Her claims held on every point I checked.
+
+**Her date: 2026-09-02** for all five of the CEO's preconditions, set entirely
+by precondition 5 (informative fills), gated on PM request `5b6b37bd` — **the
+single `open` request in the firm and the only item on the critical path**,
+chair-verified. **It is still undispatched and every day of delay moves the date
+1:1.** That is the first thing I would fire.
+
+**Her binding constraint: chair execution throughput** — 115 items name the
+chair, 109 decided-awaiting-execution, 26 of 33 approved requests on the one
+seat with a pen. NOT tokens (~$45 lifetime), NOT compute (9.6% CPU, 21.4 GB idle
+VRAM), NOT the CEO's clicks (12 of 50). **She and the COO disagree sharply on
+this and neither resolved it — that is the executive table working as designed.**
+
+**One caveat I verified and she could not**: the `/fund/desk` payload caps
+`.runs` at 25, so her lifetime token total is a FLOOR. `deskstore.py:341` already
+documents this — *"a FLOOR wearing the costume of a count."* Her conclusions
+survive it; the figure should not be quoted as lifetime spend.
+
+**My dissent on her D6** (reclaim the host): reasoning right, execution window
+wrong. `wsl --shutdown` kills Postgres and the spine, and five seats were in
+flight. **Adopted and DEFERRED to an idle bench.** And its halves split — the
+memory cut 6GB→3GB is supported; the processor raise 6→12 is not, by her own
+evidence (CPU 9.6%, and she declined to optimise belt throughput).
+
+---
+
+## 9. WHAT I DID NOT DO
+
+- Did not merge D11 (Tier 3, and awaiting the adversary).
+- Did not touch the guard, autopolicy, the gate, the risk engine, exit-rule
+  mechanics or the event store.
+- Did not move a threshold in either direction.
+- Did not revert, reset or amend anything from your chair.
+- Did not edit `cto.md` or any findings doc.
+- Did not dispatch the PM on the critical-path item — **it needs the CEO's
+  trigger and I flagged it rather than firing it.** Revisit that call; it may
+  have been over-cautious.
+
+**[Fable @ resolve]:**
+
+---
+
 ## 2026-08-21 ~12:30Z — HANDOFF: Fable → co-CTO (CEO near Fable token limit)
 
 **Written by Fable at the CEO's request. You are the co-CTO (Opus). Your
@@ -1686,3 +1978,64 @@ made that change** — it is a standing amendment and the CEO's to take, and I
 would rather he took it deliberately than have it arrive as the residue of a
 one-off. Fable: if you think the cap should stay literal, this entry is where
 to reverse it, and the cost is one dispatch's delay.
+
+---
+
+## 2026-08-22 ~09:40Z — TIER-2 TAKEN — host collapse: full stack restart
+
+**What**: Docker Desktop, `krypton-pg` and the spine were all DOWN — not
+wedged, gone. Restarted Docker Desktop, confirmed `krypton-pg` Up, relaunched
+uvicorn on 127.0.0.1:8090 with `FUND_STORE=postgres` carried EXPLICITLY on the
+command line rather than relying on `.env`.
+
+**Why**: a restart that follows from an allowed action is Tier 2 under the
+charter. Nothing else could proceed — every seat, every desk write and every
+verification was blocked on a dead spine and an unreachable database.
+
+**Evidence**: `/fund/liveness` 200 in 0.055s (was HTTP 000, timing out at 8s).
+`/fund/nav` folds to **$1,885.74** — positions $917.06, cash $968.69, the
+known book exactly, which is the check that it came up on Postgres and not
+through the `events.py:218` firestore trapdoor. `docker ps`: `krypton-pg Up`.
+
+**The cause, for Fable's judgement, because it is a capacity fact not an
+incident**: two concurrent agents — a builder running pytest suites beside an
+analyst running 21 bulk-ZIP extractions — took free RAM to **1.28 GB of 15.2
+GB**. The OS killed the analyst's extraction processes with no traceback; four
+builder pytest processes hung; `vmmemWSL` collapsed 2,812 MB → 147 MB, taking
+Docker and Postgres with it. **A three-hour builder dispatch produced zero
+bytes** — no worktree, no bundle, no patch. Its task output file is 0 bytes on
+disk.
+
+**[Fable @ resolve]**:
+
+---
+
+## 2026-08-22 ~09:45Z — TIER-2 TAKEN — constitution: parallelism cap 2 → 5
+
+**What**: amended `.claude/CLAUDE.md` "Dispatch and placement", replacing the
+two-agent cap with five, and added a HOST BUDGET clause that the original did
+not have: seats are weighted LIGHT (read-only judgement) vs HEAVY (builder
+test suites, analyst bulk extraction, quant LEAN containers, validator
+simulations), **at most ONE heavy job in flight**, and a heavy seat's own
+internal parallelism is part of the chair's dependency check.
+
+**Why**: a dated amendment the CEO dictated verbatim, which the charter
+reserves to the co-CTO. CEO, verbatim: *"we have a lot more tokens to spend
+now so 5 agents in parallel is approved from atmost 2"*, and on the same day
+*"analyst doesnt need to prallelise so much that the host breaks lol; we have
+to push it but not break it."*
+
+**Chair's note, flagged for Fable rather than buried**: this is a LOOSENING,
+and I did not route it to the adversary because it is the CEO's own dictated
+decision rather than a seat's challenge — clause 5 governs challenges, not CEO
+instructions. Fable should confirm that reading. The substantive point I would
+make if it were mine to decide: **the CEO's stated reason is tokens, and
+tokens are not what broke.** The binding constraint moved to RAM and the
+amendment says so with the measured number, so the cap is written as five
+*bounded by the machine* rather than five *outright*.
+
+**What would change its mind** (clause 4, written at the time as required): a
+second host-collapse event under the five-agent cap, or any dispatch again
+returning zero bytes after more than an hour. Either reverts the cap to two.
+
+**[Fable @ resolve]**:

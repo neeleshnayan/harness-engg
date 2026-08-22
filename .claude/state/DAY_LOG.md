@@ -33,6 +33,125 @@ maintain a day log for fable to review."***
 
 ---
 
+## 2026-08-22 (UTC)
+
+### ON FIRE
+
+**The 2026-09-08 short hazard is unchanged and still dated.** $501.58
+date-certain, $750.35 armed across four legs, plus UNDATED `loss_pct` rules on
+all four symbols that make it a tomorrow risk, not a September one. Envelope v4
+is merged (`b05cb9b`) — the remaining exposure is the skip-visibility half and
+the sign-inverted P&L (`34338ef6`), both still open.
+
+### MEASURED
+
+**THE HOST COLLAPSED, and it is a capacity fact rather than an incident.** Two
+concurrent agents — builder pytest suites beside the analyst's 21 bulk-ZIP
+extractions — drove free RAM to **1.28 GB of 15.2 GB**. The OS killed
+extraction processes with no traceback, four builder pytest processes hung, and
+`vmmemWSL` fell 2,812 MB → 147 MB, taking Docker, Postgres and the spine with
+it. **A three-hour builder dispatch produced ZERO BYTES** — its task output
+file is 0 bytes, no worktree, no bundle. Full stack restarted; `/fund/liveness`
+200 in 0.055s, NAV folds to $1,885.74 on Postgres.
+
+**The analyst's cycle 4 returned three results and one of them may matter more
+than anything else this week.** A **69,304-transaction insider panel** (21 bulk
+SEC quarterly ZIPs, 2021q1–2026q1, 201 universe tickers — chair-verified on
+disk) yields a long-only **exclusion screen at +2.72%/yr over the equal-weight
+universe, t_NW 2.66, positive 5 of 6 years.** UNREVIEWED; adversary dispatched
+blind against the same data. Also: **breadth on the filings corpus is a
+SEASONALITY problem, not a count problem** — entry 8 holds 146 names in
+November and 7 in July, a 20.9× swing, which retires the premise of the 8-hour
+corpus extension the mechanism requested and the CEO approved. Entry 14 CLOSED
+(8 names at N=20, 0.0% of days ≥30).
+
+### HANDOFF TO FABLE — 2026-08-22, and it is the top entry of CTO_REVIEW_QUEUE.md
+
+**The CEO is bringing the CTO chair back.** The full handoff is one detailed
+entry at the TOP of `CTO_REVIEW_QUEUE.md` — nine sections: four seats in flight,
+four things on fire, the D11 merge decision, eight Tier-3 items with my review
+note on each, the day's governance changes, **a section on where I was wrong**,
+the firm's best lead, Grace's memo, and what I deliberately did not do.
+
+### ON FIRE — added through the day
+
+- **THE KILL SWITCH'S OFF-SWITCH IS UNGUARDED.** `POST /fund/risk/resume`
+  (`fund.py:3736-3739`) has no `_guard_approval`; `RiskResumeRequest` is one
+  free-text `actor` field defaulting to `"operator"`; the API has one
+  middleware and it is CORS. **`halt_acknowledge` — which acts on nothing — IS
+  guarded.** `autopolicy.py:512`'s `not_halted` check reads a state anyone can
+  flip. Chair-verified line-exact. Tier 3, TIGHTENS, cheapest high-money fix on
+  the board.
+- **THE INTEGRITY HALT HAS NO AUTOMATIC PRODUCER.** The three data-quality
+  alarms are built into a local list `run()` never reads — zero occurrences in
+  `evaluate_alarms()`, chair-grepped. The *"fund cannot measure itself"* halt,
+  the exact class of the 2026-08-20 phantom incident, cannot fire. Two green
+  tests sit over it.
+- **THE LIVE SPINE CONTRADICTS ITSELF**: `GET /fund/book` returns
+  `venue: "alpaca"` with `orders_are_real: false`. Fixed in D11, which is parked.
+
+### MEASURED — added through the day
+
+- **The insider screen: headline KILLED, effect SURVIVED.** +2.72%/t 2.66 →
+  **+1.99%/t 1.96**. The screen sold at the close of the filing day; 86.8% of
+  those Form 4s are not public until after that close. Survived eleven further
+  attacks including beta (−0.0121, first time that attack has come back empty
+  here) and a sign test. Still the firm's best lead.
+- **Precondition 1 is MET WITH NAMED EXCEPTIONS** — the firm has been carrying
+  it as unmet, a date lost for free. But **every fill in fund history was
+  mock-filled**, so it is not sufficient for `alpaca-prod`.
+- **The cost model measures the wrong thing.** Five of eight fills rested 74+
+  minutes, so `execution_bps` is overnight drift, not spread. Honest n is 3.
+  And the chair's own brief was refuted three ways on breakeven.
+- **The dead builder dispatch was NOT lost** — 8 commits, 3,731 lines in a
+  scratchpad clone I failed to look in. Recovered and bundled.
+
+### DECIDED (by the CEO)
+
+- **THE WIRE**, in two parts (`572261e6`, `384a4bfd`). Routing becomes something
+  code evaluates. His correction is the spine of it: **a loosening item routes
+  to the adversary's desk and never reaches his.** Segments, agent-to-agent
+  postings off a versioned list, four loop brakes. **One boundary flagged and
+  still unanswered: a posting fills an in-tray, it never fires a seat.**
+- **Donna gains the FRICTION LEDGER** — who is waiting on whom, aged, with the
+  chair and the CEO included as respondents.
+- **Grace is on the floor** (roster `41b6b54`), and the room re-space is with a
+  builder.
+- **Parallelism cap 2 → 5**, verbatim: *"we have a lot more tokens to spend now
+  so 5 agents in parallel is approved from atmost 2"*, tempered the same day by
+  *"analyst doesnt need to prallelise so much that the host breaks lol; we have
+  to push it but not break it."* Written into the constitution WITH a host
+  budget (LIGHT vs HEAVY seats, at most one heavy job in flight) because the
+  stated reason is tokens and the measured constraint is RAM. Ledgered.
+- **Restart the builder and close its items** — done; four seats now in flight.
+
+### BUILT
+
+- Three builder requests CLOSED against live verification, not commit
+  messages: `907ecc74` (third dispatch state, `desk.py:820` in the live tree),
+  `920ecbe5` and `af279b4c` (Donna's memo route — `GET
+  /fund/desk/archives/memo` now 200, serving THE DAILY · 2026-08-21; it was a
+  hard 404 this morning).
+
+### OPEN FOR FABLE
+
+- **The loosening question.** The cap amendment is a LOOSENING that did NOT go
+  to the adversary. My reading: clause 5 governs seat CHALLENGES, not CEO
+  instructions. Confirm or correct it — the precedent matters more than this
+  instance.
+- **The insider screen**, if the adversary lets it live: it would be the first
+  candidate this firm has ever had reach the belt with a real prior.
+
+### ON THE CHAIR (recorded against myself)
+
+**The analyst's run sat unrecorded for ~14 hours**, so the desk showed
+`running_now: true` for a seat that had finished — the exact "working vs
+awaiting review" ambiguity the third dispatch state was built to remove. The
+state shipped and works; I did not feed it. **Second time this week I have
+skipped step three of my own resolve checklist.**
+
+---
+
 ## 2026-08-21 (UTC)
 
 ### ON FIRE

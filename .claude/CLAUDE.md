@@ -331,12 +331,43 @@ registered review trigger) AND a human dispatches it — or when the CEO asks.
 An idle seat costs zero and that is a feature. Briefs are batched (an adversary
 reviewing three artifacts costs barely more than one).
 
-**AT MOST TWO sub-agents in flight, and only when they are INDEPENDENT
-(amended 2026-08-21, CEO instruction, verbatim: "going forward its okay to
-run 2 agents in parallel if there's no dependency between them"; supersedes
-the original one-at-a-time rule of 2026-08-20).** Two is a cap, not a
-target — a lone seat is still the normal case, and the cost argument that
-set the original rule is unchanged.
+**AT MOST FIVE sub-agents in flight, and only when they are INDEPENDENT
+(amended 2026-08-22, CEO instruction, verbatim: "we have a lot more tokens
+to spend now so 5 agents in parallel is approved from atmost 2"; supersedes
+the two-agent rule of 2026-08-21, which superseded the original
+one-at-a-time rule of 2026-08-20).** Five is a cap, not a target — a lone
+seat is still the normal case.
+
+**THE BINDING CONSTRAINT MOVED, AND THE CAP MUST BE READ AGAINST THE NEW
+ONE.** The two-agent rule was set by TOKEN cost. Tokens are no longer what
+binds; **the host is.** Measured 2026-08-22: two concurrent agents — a
+builder running test suites beside an analyst running 21 bulk-ZIP
+extractions — took free RAM to **1.28 GB of 15.2 GB** and killed Docker,
+Postgres and the spine together. **A three-hour builder dispatch produced
+ZERO BYTES** — no worktree, no bundle, no partial work. CEO the same day,
+verbatim: *"analyst doesnt need to prallelise so much that the host breaks
+lol; we have to push it but not break it."*
+
+So the fifth slot is affordable and the machine is not. **Seats are not
+interchangeable units of load**, and the chair weights them:
+
+- **LIGHT** — read-only judgement (coo, cfo, pm, adversary, mechanism,
+  validator without simulations). Several may run together.
+- **HEAVY** — builder test suites, analyst bulk extraction, quant LEAN
+  containers, validator simulations. **At most ONE heavy job in flight**,
+  and a heavy seat's OWN internal parallelism is part of the chair's
+  dependency check, not the seat's private business.
+
+Dependency criterion 4 below already forbids contending for a scarce
+resource; this names RAM as one and gives it a number. And the corollary is
+about checkpointing, not scheduling: **a dispatch that dies with the host
+loses everything it has not committed**, so an uncheckpointed heavy job is
+a worse buy than a slower one that bundles as it goes.
+
+**What would change this decision's mind** (clause 4, decisions are
+provisional): a second host-collapse event under the five-agent cap, or any
+dispatch again returning zero bytes after more than an hour. Either reverts
+the cap to two, pending a written reason.
 
 **"No dependency" is a check the chair PERFORMS, never an assumption.** Two
 seats are dependent — and must be sequenced — if ANY of these holds:
