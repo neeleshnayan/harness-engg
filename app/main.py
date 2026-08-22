@@ -243,7 +243,25 @@ async def _scheduler():
         # above prove the controls are alive. Runs AFTER the exit tick that
         # raises such proposals, so a fired stop can close in the same cycle.
         try:
-            fund_router.run_autopolicy_tick()
+            # The RETURN IS READ as of 2026-08-23 (PM R41). It used to be
+            # discarded outright, which is how a tick that refused the fund's
+            # own exit could complete "successfully" with nothing anywhere
+            # saying so. The per-decline AutopolicyDeclined event is the
+            # durable record; this line is the operator-visible summary of the
+            # tick that produced them, and it is deliberately quiet when the
+            # envelope refused nothing.
+            _ap = fund_router.run_autopolicy_tick() or {}
+            _skipped = _ap.get("skipped") or []
+            if _skipped:
+                _log.warning(
+                    "autopolicy tick: %d order(s) DECLINED by the envelope and "
+                    "left pending for the CEO (%d newly recorded as events): %s",
+                    len(_skipped),
+                    sum(1 for s in _skipped if s.get("recorded")),
+                    "; ".join(
+                        f"{s.get('symbol')} {s.get('order_id')} "
+                        f"[{', '.join(s.get('failed_checks') or []) or 'no checks named'}]"
+                        for s in _skipped))
             heartbeat.beat("auto_policy")
         except Exception as e:  # noqa: BLE001
             _log.warning("autopolicy tick failed: %s", e)

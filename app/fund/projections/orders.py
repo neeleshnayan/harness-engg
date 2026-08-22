@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.fund.events import EventStore, EventType
+from app.fund.events import ORDER_ANNOTATION_EVENTS, EventStore, EventType
 
 _INFLIGHT = {EventType.ORDER_SUBMITTED.value, EventType.ORDER_PARTIALLY_FILLED.value}
 
@@ -47,12 +47,18 @@ class OrdersProjection:
     def _apply(orders: dict[str, dict[str, Any]], e: dict[str, Any]) -> None:
         if e.get("aggregate_type") != "order":
             return
-        # A refused approval (guard v1) is an ANNOTATION on the order, never a
-        # lifecycle step. Folding it into ``last`` would knock a legitimate
-        # pending ticket off the CEO's queue — i.e. any failed probe could
-        # silently hide the very order it failed to steal. Found live on the
-        # guard's first day: two 403 probes made SOFI vanish from pending.
-        if e["type"] == EventType.APPROVAL_REFUSED.value:
+        # AN ANNOTATION IS NOT A LIFECYCLE STEP. Folding one into ``last``
+        # knocks a legitimate pending ticket off the CEO's queue: the order
+        # stops being `pending` here and stops being approvable in
+        # ``pipeline._load_order``, which reads the same distinction.
+        #
+        # Two events have now made this mistake — a failed 403 probe hiding the
+        # very order it could not steal (SOFI, guard v1's first day) and an
+        # autopolicy decline hiding an order whose own event says the CEO can
+        # still approve it. The membership set is in ``app/fund/events.py`` with
+        # both incidents written out, so the next order event type is classified
+        # once instead of at each fold that happens to be remembered.
+        if e["type"] in ORDER_ANNOTATION_EVENTS:
             return
         oid = e["aggregate_id"]
         rec = orders.setdefault(oid, {

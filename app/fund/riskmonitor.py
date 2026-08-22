@@ -72,7 +72,59 @@ _HALT_CLASS_BY_ALARM = {
     "stale_marks": HALT_INTEGRITY,
     "unpriced": HALT_INTEGRITY,
     "heartbeat": HALT_INTEGRITY,
+    # The book disagreeing with the venue is an INTEGRITY fault by the
+    # definition at the top of this section: nothing about the book is known
+    # to be wrong; what is wrong is our sight of it. Added 2026-08-23 with the
+    # drift alarm, and it still creates no auto-halt — the auto-halt gate in
+    # ``run`` is on ``("drawdown", "daily_loss")`` and this does not touch it.
+    "book_venue_drift": HALT_INTEGRITY,
 }
+
+# --- the book-vs-venue drift alarm (2026-08-23, desk d7f38be2) --------------
+#
+# Seven alarm types existed and none watched the book against the broker, while
+# the two disagreed on TEN of eleven symbols worth $126.54 — 6.71% of NAV,
+# measured on the live spine the day this was built. That sat unannounced until
+# a PM read an endpoint by hand.
+#
+#: ONE key for every drift state, and that is a load-bearing choice rather than
+#: a naming convenience. ``run`` deduplicates and clears BY KEY, so if an
+#: unreadable venue produced a different key from a drifting one, the transition
+#: "drifting -> cannot read the broker" would emit a RiskAlarmCleared for the
+#: drift — the log would record that a $126 disagreement resolved, at the exact
+#: moment the fund went blind to it.
+DRIFT_ALARM_KEY = "book_venue_drift"
+
+#: Alarm keys whose FAMILY may be absent from a tick's evaluation because the
+#: input was not available — as opposed to absent because the rule evaluated
+#: false. ``run`` must not clear these on a tick that could not judge them.
+#:
+#: This is a general contract with exactly one member today. It exists as a set
+#: because the next alarm built on an input some monitors lack will need it, and
+#: the failure it prevents is silent: a cleared alarm looks like good news.
+UNEVALUATED_ON_ABSENT = frozenset({DRIFT_ALARM_KEY})
+
+
+def _drift_was_read(assessment: dict[str, Any]) -> bool:
+    """Did this assessment carry an actual book-vs-venue READING?
+
+    ONE definition, consulted by both the rule (``evaluate_alarms`` section 8)
+    and the clear guard (``RiskMonitor._can_evaluate``). It exists because those
+    two had SEPARATE definitions and the separation is what got the first fix
+    killed: both asked ``"venue_drift" in assessment``, and ``assess()``'s
+    returned report always carries the key — set to ``None`` when nothing
+    looked. So a monitor with no drift source (``pipeline._apply_status``, on
+    every fill) was judged to have taken a reading, ``_drift_alarm(None)``
+    raised a CRITICAL "the venue could not be read", and ``UNEVALUATED_ON_ABSENT``
+    never fired on any production path.
+
+    ``None`` MEANS NOT ASKED, and only that. ``_venue_drift`` returns ``None``
+    for exactly one reason — ``self._drift_fn is None`` — and coerces every
+    other outcome, including an exception and a malformed return, into a
+    ``{"configured": False, "reason": ...}`` dict that RAISES. So there is no
+    reading this predicate can mistake for an absence.
+    """
+    return assessment.get("venue_drift") is not None
 
 
 def classify_halt_cause(alarm_type: str | None) -> str:
@@ -354,6 +406,127 @@ class Alarm:
             "symbol": self.symbol,
             "strategy_id": self.strategy_id,
         }
+
+
+def unrealised_pnl_pct(qty: float, mark: float, avg_cost: float) -> float:
+    """Unrealised P&L as a percentage, SIGNED BY THE DIRECTION OF THE POSITION.
+
+    THE SIGN-INVERTED EXIT TRIGGER (desk 34338ef6, fixed 2026-08-23). This read
+    ``(mark - avg_cost) / avg_cost`` with no reference to ``qty`` at all, which
+    is correct for a long and exactly backwards for a short: a short position
+    LOSES money when the price rises, and the old formula called that a gain.
+
+    The consequence was not cosmetic, because this number is what every exit
+    rule is evaluated against (``ExitRules.check`` reads ``unrealized_pnl_pct``
+    off these rows). On a short:
+
+      * a ``loss_pct`` stop would never fire while the position bled, and
+      * a ``gain_pct`` take-profit would fire precisely when it was losing.
+
+    Every exit rule on a short would have been inverted, which is why the CEO's
+    own question — "how would this play out when we try to short-sell" — has
+    the answer "the stops would fire backwards", and why no short-selling
+    strategy may deploy before this is closed (registered as the
+    ``exit_sign_fixed`` precondition in app/fund/mode.py).
+
+    ``avg_cost <= 0`` returns 0.0, PRESERVED FROM THE ORIGINAL and not
+    silently improved. An unknown basis reported as "flat P&L" is its own
+    defect — it reads to every exit rule as a position in good standing — but
+    changing it here would move the underwater alarm and every loss_pct rule
+    for reasons that have nothing to do with the sign, on the same diff. Named
+    and left open rather than folded in.
+    """
+    if avg_cost <= 0:
+        return 0.0
+    move_pct = (mark - avg_cost) / avg_cost * 100.0
+    # The only line that matters: a rise is a gain to a long and a loss to a
+    # short. `qty == 0` cannot reach here (assess skips flat rows) and is
+    # treated as long, which is the harmless direction for a zero position.
+    return -move_pct if qty < 0 else move_pct
+
+
+def _drift_alarm(reading: Any) -> Optional[Alarm]:
+    """The book-vs-venue alarm for one drift reading. Pure; absence RAISES.
+
+    Returns None for exactly ONE input — a well-formed reading in which the
+    reconciler looked at every symbol and found them all in sync. Every other
+    input produces an alarm, including every shape of "I could not look",
+    because the alarm's whole job is to be un-silenceable by the failure of the
+    thing it watches.
+
+    ``reading`` is ``Reconciler.drift()``'s output, consumed as the reconciler
+    already computed it:
+
+      * ``configured: True`` with ``per_symbol`` — the count of rows whose own
+        ``in_sync`` is false. NO SECOND OPINION about what "in sync" means; the
+        tolerance lives in ``reconcile._TOL`` and is read through this verdict,
+        never recomputed here.
+      * ``configured: True`` with NO ``per_symbol`` — malformed. The reconciler
+        says it read the venue and then does not say what it read. Unreadable.
+      * ``configured: False``, a non-dict, or None — unreadable, and it RAISES.
+
+    CRITICAL, not warn, and that is a deliberate consequence worth naming: it
+    means ``evaluate_autoresume`` condition 3 ("no other critical alarm is
+    active") holds a LOSS halt shut while book and broker disagree. A fund that
+    reopens execution automatically while it does not know what it holds has
+    inverted the reason condition 3 exists. It still cannot AUTO-HALT — that
+    gate is on ``("drawdown", "daily_loss")`` and is untouched by this change.
+    """
+    if not isinstance(reading, dict):
+        return Alarm(
+            key=DRIFT_ALARM_KEY, type=DRIFT_ALARM_KEY, severity="critical",
+            message=("book-vs-venue drift is UNKNOWN: no usable reading from "
+                     "the reconciler. This is an absence, not agreement — the "
+                     "number of positions the broker disagrees with us about "
+                     "could be any number, including all of them"),
+            metric=1.0, threshold=0.0)
+
+    if not reading.get("configured"):
+        why = reading.get("reason") or "no reason recorded"
+        return Alarm(
+            key=DRIFT_ALARM_KEY, type=DRIFT_ALARM_KEY, severity="critical",
+            message=(f"book-vs-venue drift is UNKNOWN: the venue could not be "
+                     f"read ({why}). This is an absence, not agreement — the "
+                     f"book may be perfectly in sync or wrong on every symbol, "
+                     f"and this alarm cannot tell you which"),
+            metric=1.0, threshold=0.0)
+
+    rows = reading.get("per_symbol")
+    if not isinstance(rows, list):
+        return Alarm(
+            key=DRIFT_ALARM_KEY, type=DRIFT_ALARM_KEY, severity="critical",
+            message=("book-vs-venue drift is UNKNOWN: the reconciler reported a "
+                     "configured venue and no per-symbol reading, so there is "
+                     "nothing to compare. Malformed is unreadable, and "
+                     "unreadable is not in sync"),
+            metric=1.0, threshold=0.0)
+
+    out = [r for r in rows if not r.get("in_sync")]
+    if not out:
+        return None
+
+    # The dollar figure is CONTEXT on the message, never the trigger: the
+    # trigger is the reconciler's own per-symbol verdict, so this rule owns no
+    # threshold of its own. `delta_usd` is absent whenever the monitor was
+    # built without a NAV service, and an absent delta is simply not mentioned
+    # rather than rendered as $0.00.
+    delta = reading.get("delta_usd")
+    delta_pct = reading.get("delta_pct")
+    money = ""
+    if delta is not None:
+        money = f"; broker equity differs from folded NAV by ${float(delta):,.2f}"
+        if delta_pct is not None:
+            money += f" ({float(delta_pct):.2f}% of NAV)"
+    names = ", ".join(str(r.get("symbol")) for r in out[:6])
+    if len(out) > 6:
+        names += f", +{len(out) - 6} more"
+    return Alarm(
+        key=DRIFT_ALARM_KEY, type=DRIFT_ALARM_KEY, severity="critical",
+        message=(f"book and venue disagree on {len(out)} of {len(rows)} "
+                 f"position(s): {names}{money}. Every limit check on this page "
+                 f"is computed from the BOOK, so a disagreement here means they "
+                 f"were computed against quantities the broker does not confirm"),
+        metric=float(len(out)), threshold=0.0)
 
 
 class RiskControl:
@@ -780,13 +953,84 @@ class RiskMonitor:
                  pricer: Callable[[str], float] | None = None,
                  attribution: Any | None = None,
                  strategies: Any | None = None,
-                 control: RiskControl | None = None):
+                 control: RiskControl | None = None,
+                 drift_fn: Callable[[], dict[str, Any]] | None = None):
         self._nav = nav_service
         self._store = store or EventStore()
         self._price = pricer or (lambda _s: 0.0)
         self._attr = attribution        # StrategyAttribution (per-strategy exposure/pnl)
         self._strategies = strategies    # StrategyService (names, limits context)
         self._control = control or RiskControl(self._store)
+        #: ``Reconciler.drift`` on the wired spine; None everywhere the monitor
+        #: has no business making a broker round trip (the post-fill re-eval,
+        #: and every unit test that builds a monitor by hand). None is NOT
+        #: "in sync" — see ``_venue_drift`` for the three-state contract.
+        self._drift_fn = drift_fn
+        self._drift_cache: tuple[float, dict[str, Any]] | None = None
+
+    #: Seconds a drift reading may be reused. ``Reconciler.drift`` costs TWO
+    #: Alpaca round trips (``account_info`` + ``positions``) and ``assess`` is
+    #: what the UI's risk bar polls on every page, so an uncached read would
+    #: put the fund's broker-call rate on a human's scrolling. Set BELOW the
+    #: worker's 30s tick (``SETTLE_INTERVAL_SECONDS``, app/main.py) so the
+    #: scheduled evaluation — the one that writes events — always gets a fresh
+    #: reading and only the read-only polls in between reuse one.
+    #:
+    #: Staleness is disclosed rather than hidden: ``Reconciler.drift`` stamps
+    #: its own ``as_of``, and that timestamp rides on the reading into the
+    #: assessment, so a reader can always see how old the comparison is. Same
+    #: idiom and same reasoning as ``RiskControl.CACHE_TTL_SECONDS``.
+    DRIFT_CACHE_TTL_SECONDS = 25.0
+
+    def _venue_drift(self) -> dict[str, Any] | None:
+        """The book-vs-venue reading, an honest failure, or None for NOT ASKED.
+
+        THREE STATES, and collapsing any two of them is how the first version
+        of this alarm was killed (adversary review, desk d7f38be2):
+
+          * ``None``        — no drift source. This monitor did not look and
+                              cannot. ``evaluate_alarms`` produces no drift
+                              alarm AND ``run`` refuses to clear a standing
+                              one; see ``UNEVALUATED_ON_ABSENT``.
+          * ``configured: False`` — we tried and could not read the venue.
+                              That RAISES, carrying ``reason``. (This line
+                              claimed a ``readable: False`` field until the
+                              pre-bundle read-through; no such field is
+                              emitted, and ``configured`` is the flag the
+                              reconciler actually sets.)
+          * ``configured: True``  — a real reading, which may or may not drift.
+
+        The killed version returned an empty list on an absence, so the
+        post-fill monitor at ``pipeline._apply_status`` — which has no drift
+        source and never will — computed "no drift alarm this tick", and
+        ``run``'s ``active_keys - current_keys`` wrote a false
+        ``RiskAlarmCleared`` into the append-only log on EVERY FILL. An alarm
+        that cannot distinguish "I looked and found nothing" from "I could not
+        look" is not an alarm, and one that erases itself on the fund's busiest
+        code path is worse than none.
+        """
+        if self._drift_fn is None:
+            return None
+        now = time.monotonic()
+        if self._drift_cache is not None:
+            at, cached = self._drift_cache
+            if (now - at) < self.DRIFT_CACHE_TTL_SECONDS:
+                return cached
+        try:
+            reading = self._drift_fn()
+        except Exception as e:  # noqa: BLE001 — unreadable is not unchanged
+            reading = {"configured": False,
+                       "reason": f"drift read failed ({type(e).__name__}: {e})"}
+        if not isinstance(reading, dict):
+            reading = {"configured": False,
+                       "reason": (f"drift source returned "
+                                  f"{type(reading).__name__}, not a reading")}
+        # The FAILURE is cached too, deliberately. A broker that is refusing
+        # calls must not be retried once per UI poll — and the alarm the
+        # failure raises is identical either way, so nothing is lost by
+        # waiting out the TTL before asking again.
+        self._drift_cache = (now, reading)
+        return reading
 
     def assess(self) -> dict[str, Any]:
         """The full current risk picture — the CEO's single pane of glass."""
@@ -875,8 +1119,13 @@ class RiskMonitor:
             val = qty * mark
             weight_pct = (val / nav_usd * 100.0) if nav_usd > 0 else 0.0
             avg_cost = float(pos.get("avg_price", 0))
-            unrealized_pnl_pct = ((mark - avg_cost) / avg_cost * 100.0) if avg_cost > 0 else 0.0
-            shock_20_usd = val * -0.20
+            unrealized_pnl_pct = unrealised_pnl_pct(qty, mark, avg_cost)
+            # A 20% ADVERSE move, which is not "down" for every position. A
+            # short loses when the price RISES, so shocking it by -20% of a
+            # negative value would have reported a short's disaster as a gain
+            # on the same row that reports its P&L. Magnitude of the exposure,
+            # always negative, for both directions.
+            shock_20_usd = -abs(val) * 0.20
             positions_list.append({
                 "symbol": sym,
                 "qty": qty,
@@ -884,6 +1133,10 @@ class RiskMonitor:
                 "value_usd": round(val, 2),
                 "weight_pct": round(weight_pct, 4),
                 "unrealized_pnl_pct": round(unrealized_pnl_pct, 4),
+                # Stated on the row rather than left to be inferred from the
+                # sign of `qty`. Every consumer of `unrealized_pnl_pct` — the
+                # exit rules above all — now has the direction in front of it.
+                "side": "short" if qty < 0 else "long",
                 "shock_20_usd": round(shock_20_usd, 2),
             })
         positions_list.sort(key=lambda p: p["value_usd"], reverse=True)
@@ -935,7 +1188,44 @@ class RiskMonitor:
             "max_drawdown_pct": round(dd_utilization, 4),
         }
 
-        partial_assessment = {
+        # Marks served from a failed refresh are reported, never presented as
+        # fresh: a book valued on stale prices is a book whose NAV is a guess.
+        #
+        # READ BEFORE ``evaluate_alarms`` AS OF 2026-08-23, and that ordering is
+        # the whole of the integrity-producer fix below.
+        stale_marks: dict[str, float] = {}
+        getter = getattr(self._price, "__self__", None)
+        if getter is not None and hasattr(getter, "stale_marks"):
+            try:
+                stale_marks = getter.stale_marks()
+            except Exception:  # noqa: BLE001
+                stale_marks = {}
+
+        # The book against the venue. A reading, an honest "could not read", or
+        # ABSENT when this monitor was built without a drift source — three
+        # states, and ``evaluate_alarms`` treats the third as "not evaluated"
+        # rather than "in sync". See ``_venue_drift`` and ``UNEVALUATED_ON_ABSENT``.
+        venue_drift = self._venue_drift()
+
+        # ONE DICT, JUDGED AND THEN REPORTED (2026-08-23, adversary kill 2).
+        #
+        # This used to be TWO dict literals built side by side out of the same
+        # locals: `partial_assessment`, which the evaluator judged, and the
+        # returned report. They agreed on every field but the newest one —
+        # `venue_drift` went into the first CONDITIONALLY and into the second
+        # UNCONDITIONALLY. `run()` re-evaluates the alarms on the RETURNED
+        # report, so every post-fill tick (`pipeline._apply_status` builds a
+        # monitor with no drift source, deliberately) reached section 8 with
+        # `venue_drift: None` PRESENT, the membership test read that as "a
+        # reading was taken", and `_drift_alarm(None)` raised a fabricated
+        # CRITICAL "the venue could not be read" on every fill. The machinery
+        # written to prevent exactly that — `UNEVALUATED_ON_ABSENT` and
+        # `_can_evaluate` — was dead code on every production path.
+        #
+        # Two dicts built from the same locals cannot be held in step by care.
+        # The report is DERIVED from the judged dict now, so a field the
+        # evaluator saw is a field the report shows, by construction.
+        assessment = {
             "nav_usd": round(nav_usd, 2),
             "cash_usd": round(cash_usd, 2),
             "cash_pct": round(cash_pct, 4),
@@ -949,52 +1239,33 @@ class RiskMonitor:
             "utilization": utilization_map,
             "worst_position": worst_position,
             "history_snaps": history_snaps,
+            # THE THREE INTEGRITY INPUTS, passed in as of 2026-08-23. Until this
+            # change ``unpriced_symbols`` was the only one here and the other two
+            # did not reach the evaluator at all — see the block that used to sit
+            # after this call, and ``evaluate_alarms`` section 7.
             "unpriced_symbols": unpriced,
+            "stale_nav_symbols": nav_stale,
+            "stale_marks": stale_marks,
+            # The book-vs-venue reading this tick's drift alarm is judged on, or
+            # None when this monitor has no drift source. None means NOT LOOKED
+            # — a UI reading it must say so and must never render it as
+            # agreement, and `_drift_was_read` is the one definition both the
+            # rule and the clear guard consult so they cannot drift apart again.
+            "venue_drift": venue_drift,
         }
 
-        alarms = self.evaluate_alarms(partial_assessment)
-        alarm_dicts = [a.to_dict() for a in alarms]
+        alarms = self.evaluate_alarms(assessment)
 
-        # Marks served from a failed refresh are reported, never presented as
-        # fresh: a book valued on stale prices is a book whose NAV is a guess.
-        stale_marks: dict[str, float] = {}
-        getter = getattr(self._price, "__self__", None)
-        if getter is not None and hasattr(getter, "stale_marks"):
-            try:
-                stale_marks = getter.stale_marks()
-            except Exception:  # noqa: BLE001
-                stale_marks = {}
-        if unpriced:
-            alarm_dicts.append(Alarm(
-                key="unpriced", type="data_quality", severity="warn",
-                message=(f"no live price for {', '.join(unpriced)} — these positions are "
-                         "EXCLUDED from NAV, exposure and every limit check below"),
-                metric=float(len(unpriced)), threshold=0.0,
-            ).to_dict())
-        if nav_stale:
-            alarm_dicts.append(Alarm(
-                key="stale_nav_marks", type="data_quality", severity="warn",
-                message=(f"no live price for {', '.join(nav_stale)} — valued at the "
-                         "fund's own LAST STRUCK mark so the limit checks keep "
-                         "running; this NAV is degraded, not fresh"),
-                metric=float(len(nav_stale)), threshold=0.0,
-            ).to_dict())
-        if stale_marks:
-            oldest = max(stale_marks.values())
-            alarm_dicts.append(Alarm(
-                key="stale_marks", type="data_quality", severity="warn",
-                message=(f"{len(stale_marks)} mark(s) served from a failed refresh, "
-                         f"oldest {oldest:.0f}s — valuations below are not live"),
-                metric=float(oldest), threshold=0.0,
-            ).to_dict())
-
-        return {
-            "nav_usd": round(nav_usd, 2),
-            "cash_usd": round(cash_usd, 2),
-            "cash_pct": round(cash_pct, 4),
-            "gross_exposure_usd": round(gross_exposure_usd, 2),
-            "gross_exposure_pct": round(gross_exposure_pct, 4),
-            "halted": halted,
+        # `history_snaps` is the ONE judged field the report withholds, and it
+        # is named here rather than dropped quietly: it is up to 365 NAV
+        # snapshots and `assess()` is what the risk bar polls on every page
+        # render. Withholding it is safe because it steers no rule by its
+        # presence — `_loss_reference` re-derives it from `self._nav.history`
+        # when the key is absent, which is the same read. Any OTHER field the
+        # evaluator sees must appear in the report; a test pins that the alarms
+        # reported here equal the alarms `run()` computes from this report.
+        report = {k: v for k, v in assessment.items() if k != "history_snaps"}
+        report.update({
             # WHICH kind of dark, so the UI stops saying only "HALTED":
             # `integrity` (we cannot measure) vs `loss` (we measured and do not
             # like it) vs `manual`. None on a pre-classes halt — unknown, not
@@ -1015,18 +1286,10 @@ class RiskMonitor:
             "halt_alarm": self._control.halt_alarm(),
             "halt_ack_token": self._control.halt_ack_token(),
             "autoresume_cooldown_minutes": LOSS_HALT_AUTORESUME_COOLDOWN_MINUTES,
-            "drawdown": drawdown,
-            "positions": positions_list,
-            "strategies": strategies_list,
-            "limits": limits_dict,
-            "utilization": utilization_map,
-            "alarms": alarm_dicts,
-            "worst_position": worst_position,
-            "unpriced_symbols": unpriced,
-            "stale_nav_symbols": nav_stale,
-            "stale_marks": stale_marks,
+            "alarms": [a.to_dict() for a in alarms],
             "ts": datetime.now(timezone.utc).isoformat(),
-        }
+        })
+        return report
 
     def _loss_reference_report(self, nav_usd: float) -> dict[str, Any]:
         """What the daily-loss rule is measuring FROM, for the UI.
@@ -1252,7 +1515,137 @@ class RiskMonitor:
                     strategy_id=sid,
                 ))
 
-        return alarms
+        # 7. DATA QUALITY — the integrity alarms, which until 2026-08-23 had no
+        #    producer.
+        #
+        #    These three were BUILT, in assess(), into a list called
+        #    `alarm_dicts` that was appended to the returned payload AFTER
+        #    evaluate_alarms had already been called and never passed back in.
+        #    So they rendered on /fund/risk/monitor and reached the evaluator
+        #    NEVER: no RISK_ALARM_RAISED, no active-alarm row, no entry in the
+        #    set evaluate_autoresume reads. The fund could be valuing its book
+        #    on marks it knew were stale, with the panel saying so in orange,
+        #    and the event log containing not one word of it — which is the
+        #    unwired kill switch in its purest form, because the code that
+        #    detects the fault was correct and complete and simply had no
+        #    consumer.
+        #
+        #    Wiring them here changes four things and no thresholds: they enter
+        #    the event log, they dedupe and clear like every other alarm, they
+        #    appear in `active_alarms()`, and they count as open alarms for the
+        #    loss auto-resume policy. They remain severity=warn, so they still
+        #    cannot auto-halt — the auto-halt gate in run() is on
+        #    ("drawdown", "daily_loss") and is untouched. The `data_quality`
+        #    -> HALT_INTEGRITY mapping at the top of this module keeps saying
+        #    what it said before: it classifies a halt, it does not cause one.
+        unpriced = a.get("unpriced_symbols") or []
+        if unpriced:
+            alarms.append(Alarm(
+                key="unpriced", type="data_quality", severity="warn",
+                message=(f"no live price for {', '.join(unpriced)} — these positions are "
+                         "EXCLUDED from NAV, exposure and every limit check below"),
+                metric=float(len(unpriced)), threshold=0.0,
+            ))
+        nav_stale = a.get("stale_nav_symbols") or []
+        if nav_stale:
+            alarms.append(Alarm(
+                key="stale_nav_marks", type="data_quality", severity="warn",
+                message=(f"no live price for {', '.join(nav_stale)} — valued at the "
+                         "fund's own LAST STRUCK mark so the limit checks keep "
+                         "running; this NAV is degraded, not fresh"),
+                metric=float(len(nav_stale)), threshold=0.0,
+            ))
+        stale_marks = a.get("stale_marks") or {}
+        if stale_marks:
+            oldest = max(stale_marks.values())
+            alarms.append(Alarm(
+                key="stale_marks", type="data_quality", severity="warn",
+                message=(f"{len(stale_marks)} mark(s) served from a failed refresh, "
+                         f"oldest {oldest:.0f}s — valuations below are not live"),
+                metric=float(oldest), threshold=0.0,
+            ))
+
+        # 8. BOOK vs VENUE — the drift alarm (desk d7f38be2, 2026-08-23).
+        #
+        #    ABSENCE RAISES. The `configured: False` branch below is the whole
+        #    point of the alarm and the reason the first attempt was killed: a
+        #    venue we cannot read is a venue we cannot be in sync with, and the
+        #    only honest alarm state is "raised, and here is why I could not
+        #    look". An assessment whose `venue_drift` is ABSENT OR None is a
+        #    THIRD thing — not asked — and it falls through to no alarm,
+        #    protected from a false clear by UNEVALUATED_ON_ABSENT.
+        #
+        #    THE MEMBERSHIP TEST WAS THE SECOND KILL. This read
+        #    `if "venue_drift" in a`, and `assess()`'s report always carries the
+        #    key — null when nothing looked — so the post-fill monitor raised a
+        #    fabricated CRITICAL on every fill. `_drift_was_read` is now the ONE
+        #    definition, shared with `_can_evaluate`; a rule and the guard that
+        #    decides whether the rule ran must not each carry their own copy.
+        #
+        #    NO NEW THRESHOLD. What counts as out-of-sync is the reconciler's
+        #    own `in_sync` verdict, computed against reconcile._TOL, read off
+        #    the reading rather than recomputed here. Two definitions of "in
+        #    sync" is exactly the divergence autopolicy v4 wrote a comment
+        #    about when it set its own drift tolerance EQUAL to the
+        #    reconciler's; this rule does not even have a copy to keep in step.
+        if _drift_was_read(a):
+            alarms.append(_drift_alarm(a["venue_drift"]))
+
+        # 9. A SHORT POSITION EXISTS (desk 34338ef6, 2026-08-23).
+        #
+        #    The book cannot distinguish an INTENDED short from an accidental
+        #    one, because nothing in the fund declares shorting intent:
+        #    `positions.py` folds `new_qty = qty + signed` with no floor at
+        #    zero, correctly — a fill happened and the ledger must record it —
+        #    and no strategy, mandate field or exit rule anywhere says whether
+        #    a negative quantity was wanted.
+        #
+        #    Inventing an intent model is a mandate decision, not a repair, so
+        #    this does the one honest thing available: it REPORTS every short
+        #    and lets a human decide. Today the fund holds none, the entry
+        #    envelope (R19) refuses to OPEN one, and no shorting strategy is
+        #    deployed — so this alarm is a canary that should never sing, and
+        #    if it does, the fund is short something nobody authorised.
+        #
+        #    WHAT THIS DOES NOT FIX, named rather than implied: a short's
+        #    downside is unbounded, and the drawdown machinery assumes it is
+        #    not. Borrow cost and buy-in risk are unmodelled everywhere in this
+        #    codebase. Those are open, they are not closed by an alarm, and no
+        #    short-selling strategy should read this alarm's existence as
+        #    coverage of them.
+        for pos in a.get("positions", []):
+            qty = pos.get("qty", 0.0)
+            sym = pos.get("symbol", "")
+            if qty is not None and qty < 0:
+                alarms.append(Alarm(
+                    key=f"short_position:{sym}",
+                    type="short_position",
+                    severity="warn",
+                    message=(f"{sym} is SHORT {abs(qty):g} shares. The fund "
+                             f"declares no shorting intent anywhere, so this "
+                             f"is either a strategy nobody registered or an "
+                             f"over-sell. Borrow cost, buy-in risk and "
+                             f"unbounded downside are all unmodelled"),
+                    metric=abs(float(qty)), threshold=0.0, symbol=sym,
+                ))
+
+        return [al for al in alarms if al is not None]
+
+    @staticmethod
+    def _can_evaluate(alarm_key: str, assessment: dict[str, Any]) -> bool:
+        """Did this assessment carry the input `alarm_key`'s rule needs?
+
+        Separate from the rule itself on purpose. "Was this judged?" and "what
+        was the verdict?" are different questions, and answering the first by
+        inspecting the second is the confusion that makes an unevaluated rule
+        look like a passing one.
+        """
+        if alarm_key == DRIFT_ALARM_KEY:
+            return _drift_was_read(assessment)
+        # An unknown member of UNEVALUATED_ON_ABSENT is treated as NOT
+        # evaluable, so a key added to that set without a clause here fails
+        # toward never clearing rather than toward clearing blindly.
+        return False
 
     def run(self, actor: str = "monitor") -> dict[str, Any]:
         """The periodic tick: assess -> diff against active alarms -> emit
@@ -1278,7 +1671,29 @@ class RiskMonitor:
         active_keys = {a["key"] for a in active_raw}
 
         new_keys = set(current_map.keys()) - active_keys
-        cleared_keys = active_keys - set(current_map.keys())
+
+        # A TICK MAY ONLY CLEAR WHAT IT COULD JUDGE (2026-08-23).
+        #
+        # `active_keys - current_keys` treats "this rule evaluated false" and
+        # "this rule was never evaluated" as the same fact, and they are
+        # opposites. Every alarm before today was computed from the assessment
+        # dict alone, so the two coincided and nothing was wrong. The drift
+        # alarm is the first that depends on an input SOME MONITORS DO NOT
+        # HAVE: `pipeline._apply_status` builds a RiskMonitor with no drift
+        # source on every fill, deliberately — a broker round trip per fill is
+        # a cost nobody agreed to.
+        #
+        # Without this filter, that post-fill monitor would emit a
+        # RiskAlarmCleared for `book_venue_drift` on EVERY FILL, writing into
+        # the append-only log that a book-vs-broker disagreement had resolved,
+        # at a moment when nothing had looked at the broker at all. The
+        # adversary killed the first version of this alarm for exactly that,
+        # and the fix belongs here rather than in the alarm: any future rule
+        # with an optional input inherits the same hazard, and a cleared alarm
+        # is the one kind of wrong that reads as good news.
+        unevaluated = {k for k in UNEVALUATED_ON_ABSENT
+                       if k not in current_map and not self._can_evaluate(k, assessment)}
+        cleared_keys = active_keys - set(current_map.keys()) - unevaluated
 
         # Emit RISK_ALARM_RAISED for new breaches
         raised_alarms = []

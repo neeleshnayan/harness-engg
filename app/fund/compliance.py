@@ -80,6 +80,28 @@ class AccountState:
 
     known: bool = False
     equity: Optional[float] = None
+    #: Settled cash and purchasing power at the broker (PM R42, 2026-08-23).
+    #:
+    #: ``equity`` was the only money this class carried, and equity is the
+    #: WRONG number for the two questions the trade path actually asks: "can
+    #: this order be paid for" and "would it borrow". A fully-invested account
+    #: has healthy equity and no cash, and an account whose buying power
+    #: exceeds its cash is one where the next BUY is on margin — which the
+    #: fund's own mandate has an opinion about and could not previously see.
+    #:
+    #: Optional and None-by-default like every other field here, and for the
+    #: same reason: the broker not reporting cash is a different fact from the
+    #: broker reporting zero cash, and a fund that cannot tell those apart will
+    #: eventually treat "I could not read it" as "there is none". Note the
+    #: direction that costs money: read as zero, a real balance looks spent;
+    #: read as zero, an EMPTY balance looks the same, and only one of those is
+    #: true at a time.
+    #:
+    #: NOT YET A BLOCK. Nothing in ``ComplianceGate`` refuses on either field —
+    #: they are READ and REPORTED, and any refusal built on them is a mandate
+    #: decision for a human, not a check a builder adds while wiring a getter.
+    cash: Optional[float] = None
+    buying_power: Optional[float] = None
     daytrade_count: Optional[int] = None
     pattern_day_trader: Optional[bool] = None
     trading_blocked: Optional[bool] = None
@@ -93,6 +115,8 @@ class AccountState:
         return {
             "known": self.known,
             "equity": self.equity,
+            "cash": self.cash,
+            "buying_power": self.buying_power,
             "daytrade_count": self.daytrade_count,
             "pattern_day_trader": self.pattern_day_trader,
             "trading_blocked": self.trading_blocked,

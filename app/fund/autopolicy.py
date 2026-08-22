@@ -46,6 +46,7 @@ event payload, so the risk officer audits decisions, not summaries.
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from typing import Any, Callable, Optional
 
 logger = logging.getLogger(__name__)
@@ -170,8 +171,30 @@ REQUIRED_HEARTBEATS = ("exit_check", "risk_monitor", "settlement")
 
 #: Freshness ceiling for an auto-approval, deliberately far tighter than the
 #: human staleness limit (120 min). A machine acting on a five-minute-old
-#: proposal is acting on the mark that raised it; anything older waits for the
-#: next tick to re-raise against fresh marks.
+#: proposal is acting on the mark that raised it.
+#:
+#: CORRECTED 2026-08-23. This comment used to end "anything older waits for the
+#: NEXT TICK TO RE-RAISE against fresh marks" — the same falsified belief that
+#: was corrected in ``pipeline.expire_stale_proposals`` and
+#: ``fund.run_proposal_expiry_tick`` on 2026-08-21 (riskofficer R19) and left
+#: standing HERE, in the third place it was written. It is worse here than in
+#: the other two, because in those it explained what happens to an expired
+#: proposal, and in this one it is the JUSTIFICATION FOR THE CEILING: "10
+#: minutes is safe because an 11-minute-old exit comes back in 30 seconds".
+#:
+#: IT DOES NOT COME BACK. ``ExitRules.enforce`` stamps ``triggered_at`` when a
+#: rule fires (exitrule.py:183-194) and skips every rule carrying it
+#: (exitrule.py:275). A fired exit fires ONCE; only a fresh EXIT_RULE_SET
+#: clears the stamp, and seq 195's own note records a human doing that by hand.
+#:
+#: So the real cost of this ceiling is not "a short wait" — it is that an exit
+#: proposal aged past 10 minutes will never be auto-approved, will expire at
+#: 120 minutes, and will then be gone until someone notices. The number is NOT
+#: changed here: it is a versioned threshold and moving it is a human's
+#: decision. What changes is that the reason written beside it is now true, and
+#: whoever revisits it can see the actual consequence they are trading against.
+#: The AutopolicyDeclined event (PM R41) is what makes the aged case visible at
+#: all.
 MAX_AGE_MINUTES = 10.0
 
 #: v4: the quantity epsilon for the exposure predicate. Not a threshold anyone
@@ -675,9 +698,83 @@ def context_for(store: Any, order: dict[str, Any],
     return ctx
 
 
+def record_decline(store: Any, order: dict[str, Any],
+                   failed_checks: list[str], verdict: dict[str, Any]
+                   ) -> Optional[dict[str, Any]]:
+    """Append AutopolicyDeclined for this order, ONCE per distinct verdict.
+
+    Returns the payload it appended, or None when it appended nothing —
+    either because there is no store to append to, or because this exact set
+    of failed checks is already on the record for this order.
+
+    IDEMPOTENT BY FAILED-CHECK SET, and that is the whole difficulty. The
+    autopolicy tick runs every 30 seconds (``SETTLE_INTERVAL_SECONDS``), so an
+    order sitting outside the envelope for its full 120-minute life would append
+    240 identical events. ``ExitRules.enforce`` already learned this lesson in
+    the other direction — its own comment calls burying the approval queue under
+    hundreds of copies of one decision "how a control that works becomes a
+    control the operator turns off" — and an event log is no different.
+
+    But a CHANGED verdict is new information and must be recorded: an order that
+    was refused for a stale mark and is now refused for a dead heartbeat has had
+    two different things go wrong, and collapsing them would hide the second.
+    So the identity is the SET of failed check names, not the order id.
+
+    A failure to append is swallowed and reported by the caller's log line. The
+    decline itself must never depend on the recording of it succeeding — the
+    order stays pending either way, which is the safe direction.
+    """
+    if store is None:
+        return None
+    oid = order.get("order_id")
+    if not oid:
+        return None
+    from app.fund.events import Event, EventType
+
+    want = sorted(set(failed_checks))
+    try:
+        prior = store.by_aggregate(oid) or []
+    except Exception:  # noqa: BLE001 — an unreadable log must not silence the
+        # decline. Failing toward a DUPLICATE event is the right direction: a
+        # repeated finding is noise, a missing one is the defect this closes.
+        prior = []
+    for ev in reversed(list(prior)):
+        etype = ev.get("type")
+        etype = getattr(etype, "value", etype)
+        if etype != EventType.AUTOPOLICY_DECLINED.value:
+            continue
+        if sorted(set((ev.get("payload") or {}).get("failed_checks") or [])) == want:
+            return None
+        break  # the LAST decline differs -> this is news, record it
+
+    payload = {
+        "order_id": oid,
+        "symbol": order.get("symbol"),
+        "side": order.get("side"),
+        "qty": order.get("qty"),
+        "policy_version": AUTOPOLICY_VERSION,
+        "failed_checks": want,
+        # The full check-by-check evaluation, exactly as an auto-APPROVAL
+        # carries its own. A verdict word without the values it was computed
+        # from cannot be audited, and this event exists to be audited.
+        "evaluation": verdict,
+        "note": ("the deterministic envelope refused this order; it remains "
+                 "PENDING and the CEO can still approve it. Nothing was "
+                 "cancelled and no exit was closed."),
+        "at": datetime.now(timezone.utc).isoformat(),
+    }
+    store.append(Event(
+        aggregate_id=str(oid), aggregate_type="order",
+        type=EventType.AUTOPOLICY_DECLINED,
+        payload=payload,
+        actor=f"auto-policy-{AUTOPOLICY_VERSION}"))
+    return payload
+
+
 def run(pipeline: Any, pending: list[dict[str, Any]], *, halted: bool,
         heartbeats: dict[str, Any],
-        context_fn: Optional[Callable[[dict[str, Any]], dict[str, Any]]] = None
+        context_fn: Optional[Callable[[dict[str, Any]], dict[str, Any]]] = None,
+        store: Any = None,
         ) -> dict[str, Any]:
     """Scan the queue and approve what the envelope covers. Everything is logged.
 
@@ -685,6 +782,11 @@ def run(pipeline: Any, pending: list[dict[str, Any]], *, halted: bool,
     staleness guard, the same arrival-price capture, the same idempotency key —
     with the approver naming the policy and its version. An auto path with its
     own bespoke execution would be a second pipeline to disagree with the first.
+
+    ``store`` is where a DECLINE is recorded (PM R41, 2026-08-23). Optional and
+    defaulting to None so every existing caller and test keeps working, but the
+    spine passes it: without it the decline is a log line, and a log line is
+    invisible to the seat whose job is auditing this policy from /fund/events.
     """
     approved, skipped, failed = [], [], []
     for row in pending or []:
@@ -701,8 +803,30 @@ def run(pipeline: Any, pending: list[dict[str, Any]], *, halted: bool,
         if not verdict["approve"]:
             failed_checks = [c["check"] for c in verdict["checks"]
                              if c["ok"] is not True]
+            # A DECLINE IS A FIRST-CLASS RECORD (PM R41, 2026-08-23) — the
+            # event, then the log line. `recorded` rides on the return so the
+            # caller and the desk can tell "declined and written down" from
+            # "declined and only logged", which is exactly the distinction
+            # this whole change is about.
+            recorded = None
+            try:
+                recorded = record_decline(store, row, failed_checks, verdict)
+            except Exception as e:  # noqa: BLE001 — the decline must not depend
+                # on its own recording. Naming the failure loudly is the most
+                # this branch may do; swallowing it silently would recreate the
+                # invisibility being fixed one level up.
+                logger.warning(
+                    "AUTOPOLICY DECLINE for %s could not be recorded as an "
+                    "event (%s: %s) — the decline STANDS and the order remains "
+                    "pending, but it is audible only in this log line", oid,
+                    type(e).__name__, e)
             skipped.append({"order_id": oid, "symbol": row.get("symbol"),
-                            "failed_checks": failed_checks})
+                            "failed_checks": failed_checks,
+                            # True = an event was appended this tick. False =
+                            # the identical verdict is already on the record
+                            # (idempotent), or there was no store. NEVER means
+                            # "no decline happened".
+                            "recorded": recorded is not None})
             # A DECLINE MUST BE AUDIBLE. Until v4 this branch logged nothing:
             # run() logged approvals and errors only, and the worker discards
             # this return value entirely, so an order the envelope refused
