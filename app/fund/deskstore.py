@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -98,7 +99,89 @@ TRANSCRIPT_KINDS = ("brief", "report", "transcript")
 #: or `rejected`; an accepted one the CTO stages becomes `staged`, and `done`
 #: when the click lands. Never deleted — a rejected recommendation is a record
 #: of judgement, not clutter.
-REC_STATUSES = ("open", "accepted", "rejected", "staged", "done")
+#:
+#: `noted` added 2026-08-22. The secretary files `note` rows that ask to be READ
+#: rather than decided, and there was no terminal status for one — so both chairs
+#: had been marking them `done`, which says EXECUTED. Reading an observation and
+#: executing a change are not the same act, and a vocabulary that cannot tell
+#: them apart makes the distinction unrecordable.
+REC_STATUSES = ("open", "accepted", "rejected", "staged", "done", "noted")
+
+#: Statuses after which nothing more is expected of anyone. Named rather than
+#: inferred, so a surface counting "what is still owed" does not keep a list of
+#: its own that drifts from this one. `desk.TERMINAL_STATUSES` mirrors it for
+#: callers that must not import a database module, and a test pins them equal.
+TERMINAL_REC_STATUSES = ("rejected", "done", "noted")
+
+
+def _next_actor(raw: Any) -> Optional[str]:
+    """The seat's OWN statement of whose move is next, or None.
+
+    Optional, and the absence is meaningful rather than a default: with no
+    statement the desk INFERS the actor from the row's lifecycle and kind
+    (`desk.next_actor`), and the payload publishes how many rows were declared
+    versus inferred so a reader knows which they are looking at.
+
+    Written because the desk counter's whole defect class is labels standing in
+    for facts. The one thing inference provably cannot express is the COO's
+    standing objection: a recommendation the CEO has ACCEPTED whose EXECUTION is
+    still the CEO's own act — three of those were live on 2026-08-21 and the
+    counter could not see any of them. `next_actor="ceo"` says it in one field.
+
+    An unrecognised value is kept, not silently dropped: `desk.next_actor`
+    renders it UNKNOWN and counts it, which sends someone to look. Discarding it
+    here would turn a garbled claim into no claim at all.
+    """
+    if not isinstance(raw, str):
+        return None
+    v = raw.strip().lower()
+    return v or None
+
+
+#: How hard a recommendation is to undo, as the SEAT states it.
+#:
+#: The desk currently INFERS this from `kind` against a table, and the inference
+#: is thin where it matters most: `awaits-ceo`, `batch` and `challenge` are
+#: routing words that say nothing about the act, so the CEO's own rows render
+#: "unclassified kind — ranked as if hard to undo" on almost every line. That is
+#: honest and it is noise, and noise on every row is how a warning stops being
+#: read.
+#:
+#: A seat knows whether its own recommendation can be taken back. This is the
+#: same pattern as `money_at_stake`, `due_date` and `next_actor`: optional,
+#: validated, never inferred from prose, and absent means the desk falls back to
+#: the kind table rather than to a guess.
+REVERSIBILITY = ("irreversible", "hard", "reversible")
+
+
+def _reversibility(raw: Any) -> Optional[str]:
+    if not isinstance(raw, str):
+        return None
+    v = raw.strip().lower()
+    return v if v in REVERSIBILITY else None
+
+
+_DUE_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _due_date(raw: Any) -> Optional[str]:
+    """A dated commitment as YYYY-MM-DD, or None.
+
+    The day something happens whether or not anybody clicks — an auto-close, a
+    time exit, a expiring authorisation. It is the CEO desk's top ranking key,
+    because a deadline is the one thing on that page that does not wait.
+
+    VALIDATED, and anything else is None rather than stored: a malformed date
+    would sort lexicographically against real ones and silently put a row in
+    the wrong place, which is worse than the row having no date at all. It is
+    never parsed out of the recommendation's text — a deadline read out of
+    English is the same class of mistake as a completion read out of English,
+    and this desk is being repaired from exactly that.
+    """
+    if not isinstance(raw, str):
+        return None
+    v = raw.strip()
+    return v if _DUE_DATE_RE.match(v) else None
 
 
 def _money_at_stake(r: Any) -> Optional[float]:
@@ -171,7 +254,26 @@ class DeskStore:
                          # state a figure — it does NOT mean $0, and the desk
                          # ranks absent-last and says the gap out loud rather
                          # than scraping a number out of prose.
-                         "money_at_stake": _money_at_stake(r)})
+                         "money_at_stake": _money_at_stake(r),
+                         # OPTIONAL. The seat's own statement of whose move is
+                         # next; absent means the desk infers it. See
+                         # `_next_actor` for why the field exists at all.
+                         "next_actor": _next_actor(
+                             r.get("next_actor") if isinstance(r, dict) else None),
+                         # OPTIONAL YYYY-MM-DD. A DATED COMMITMENT — the day
+                         # something happens whether or not anybody clicks —
+                         # and the CEO desk's top ranking key. Absent means the
+                         # seat stated no date; it is never parsed out of the
+                         # text, because a deadline read out of English is the
+                         # same mistake as a completion read out of English.
+                         "due_date": _due_date(
+                             r.get("due_date") if isinstance(r, dict) else None),
+                         # OPTIONAL. The desk's SECOND ranking key, stated by
+                         # the seat rather than guessed from its kind. Absent
+                         # falls back to the kind table.
+                         "reversibility": _reversibility(
+                             r.get("reversibility") if isinstance(r, dict)
+                             else None)})
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -362,11 +464,31 @@ class DeskStore:
         }
 
     def decide_recommendation(self, run_id: str, rec_id: int, status: str,
-                              actor: str, note: str = "") -> dict[str, Any]:
+                              actor: str, note: str = "",
+                              next_actor: Optional[str] = None) -> dict[str, Any]:
         """Move one recommendation's status. State here, the decision as an event
-        at the caller — both, and they must agree."""
+        at the caller — both, and they must agree.
+
+        ``next_actor`` is how a decision says whose move it is NEXT, which is a
+        different question from what the decision was. Its one indispensable use:
+        an `accepted` row whose EXECUTION is still the CEO's own act stays on the
+        CEO's counter instead of being inferred onto the chair's — the COO's
+        objection of 2026-08-21, which had no field to live in until now.
+
+        A decision that makes the row TERMINAL clears any standing next_actor,
+        because a label written while the row was live outlives its truth and a
+        stale one would keep a closed row on somebody's queue. Passing an
+        explicit value alongside a terminal status is refused rather than
+        quietly ignored: it is a contradiction, and the caller should see it.
+        """
         if status not in REC_STATUSES:
             raise ValueError(f"status must be one of {REC_STATUSES}")
+        na = _next_actor(next_actor)
+        if na and status in TERMINAL_REC_STATUSES:
+            raise ValueError(
+                f"refusing next_actor={na!r} on terminal status {status!r} — "
+                "nothing follows a terminal row, and recording an owner for one "
+                "would put closed work back on a queue")
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT recommendations FROM fund_agent_runs "
@@ -383,6 +505,12 @@ class DeskStore:
                         r["decided_at"] = datetime.now(timezone.utc).isoformat()
                         if note:
                             r["note"] = note
+                        if na:
+                            r["next_actor"] = na
+                        elif status in TERMINAL_REC_STATUSES:
+                            # The label outlived its truth the moment the row
+                            # closed. Clearing beats carrying.
+                            r.pop("next_actor", None)
                         hit = r
                 if hit is None:
                     raise KeyError(f"no rec {rec_id} on run {run_id}")

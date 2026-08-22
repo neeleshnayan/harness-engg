@@ -1560,10 +1560,19 @@ class AgentRunRecord(BaseModel):
     # The chatter thread this run belongs to — the desk request's trace_id,
     # carried verbatim so the whole chain replays from one id.
     trace_id: Optional[str] = None
-    # Each recommendation is {kind, text, money_at_stake?}. `money_at_stake` is
-    # an OPTIONAL float: the dollars this recommendation moves, stated by the
-    # seat. Absent means the seat did not state one — never zero — and the
-    # desk ranks absent-last and prints the gap.
+    # Each recommendation is {kind, text, money_at_stake?, next_actor?,
+    # due_date?}.
+    # `money_at_stake` is an OPTIONAL float: the dollars this recommendation
+    # moves, stated by the seat. Absent means the seat did not state one —
+    # never zero — and the desk ranks absent-last and prints the gap.
+    # `next_actor` is an OPTIONAL string (ceo | chair | seat | nobody): whose
+    # move it is. Absent means the desk INFERS it from lifecycle and kind, and
+    # `desk_load.explicit_next_actor` reports how many rows declared it, so a
+    # reader can tell a count built on declaration from one built on inference.
+    # `due_date` is an OPTIONAL YYYY-MM-DD dated commitment — the day something
+    # happens whether or not anybody clicks. It is the CEO desk's TOP ranking
+    # key, so a seat filing a time exit or an auto-close should state it here;
+    # it is never read out of the recommendation's prose.
     recommendations: Optional[list[dict]] = None
     meta: Optional[dict] = None
 
@@ -1662,10 +1671,44 @@ def desk_archives():
     return desk_mod.archives()
 
 
+@router.get("/fund/desk/archives/memo")
+def desk_archive_memo(date: Optional[str] = None):
+    """The secretary's Daily, parsed for the memo card on the CEO's desk.
+
+    THE CEO SAW THE ABSENCE AND ASKED ABOUT IT. The card, the TypeScript type
+    and its five-way absence vocabulary all merged; this route did not exist,
+    so the card has rendered a permanent "no memo" caused entirely by its own
+    missing endpoint. A control reporting an absence it manufactures is the
+    unwired-kill-switch pattern with a friendly face.
+
+    Without `date`, the newest DATED archive. With one, that day exactly. The
+    parameter is never joined into a path — it is matched against the index
+    `archives()` builds by globbing `docs/archives/*.md`, so this route can
+    only ever read a file that directory listed — and it is additionally
+    validated against YYYY-MM-DD so a malformed parameter can be told apart
+    from a day nobody documented.
+
+    Always 200. The five absences are DATA (`available` + `reason`), not
+    statuses: the client must be able to tell "she has never run" from "no
+    session was live that day" from "the file is unreadable", and an HTTP code
+    can only say "no". That is the same reason `/fund/desk/archives` returns
+    its three absences in the body.
+    """
+    from app.fund import desk as desk_mod
+    return desk_mod.archive_memo(date)
+
+
 class RecDecision(BaseModel):
-    status: str          # accepted | rejected | staged | done
+    status: str          # accepted | rejected | staged | done | noted
     actor: str = "ceo"
     note: str = ""
+    # OPTIONAL: whose move it is NEXT, which is a different question from what
+    # the decision was. One of ceo / chair / seat / nobody. Its indispensable
+    # case is an `accepted` row whose EXECUTION is still the CEO's own act —
+    # the desk's counter otherwise infers every accepted row onto the chair,
+    # which is the COO's standing objection of 2026-08-21. Refused on a
+    # terminal status; absent means the desk infers.
+    next_actor: Optional[str] = None
 
 
 @router.post("/fund/desk/runs/{run_id}/recommendations/{rec_id}")
@@ -1678,7 +1721,7 @@ def decide_recommendation(run_id: str, rec_id: int, req: RecDecision):
     from app.fund.events import Event, EventType
     try:
         hit = ds.decide_recommendation(run_id, rec_id, req.status, req.actor,
-                                       req.note)
+                                       req.note, next_actor=req.next_actor)
     except (KeyError, ValueError) as e:
         raise HTTPException(status_code=422, detail=str(e))
     _store.append(Event(aggregate_id=run_id, aggregate_type="desk_run",
@@ -1687,6 +1730,12 @@ def decide_recommendation(run_id: str, rec_id: int, req: RecDecision):
                                  "status": req.status, "note": req.note,
                                  "text": hit.get("text"),
                                  "seat": hit.get("seat"),
+                                 # On the event too, not just the table: the
+                                 # log is where "who owed what, when" is
+                                 # reconstructed, and a routing decision that
+                                 # existed only in current state would be
+                                 # unrecoverable the moment it changed.
+                                 "next_actor": hit.get("next_actor"),
                                  "trace_id": hit.get("trace_id"),
                                  "at": datetime.now(timezone.utc).isoformat()},
                         actor=req.actor))

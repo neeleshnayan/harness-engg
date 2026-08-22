@@ -264,22 +264,45 @@ class TestDeskLoad:
 
         Checked against the parsed source, not a grep, so the word 'dispatch'
         in the explanatory note cannot make this pass or fail by accident.
+
+        WIDENED 2026-08-22, and deliberately in the tightening direction. The
+        counter grew a classifier (`next_actor`) and two helpers, so checking
+        `desk_load` alone would have left the new code — where the decision now
+        actually happens — unchecked while the test still read green. It now
+        walks the whole call graph the counter uses. The whitelist gains only
+        the names of pure functions in this module and the string/dict readers
+        they need; every I/O verb stays out, and a helper added to the chain
+        without being listed here fails the assertion rather than slipping
+        through it.
         """
         import ast
         import inspect
         import textwrap
 
-        tree = ast.parse(textwrap.dedent(inspect.getsource(desk_mod.desk_load)))
+        chain = (desk_mod.desk_load, desk_mod.next_actor, desk_mod._norm_kind)
         called = set()
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Call):
-                f = node.func
-                if isinstance(f, ast.Name):
-                    called.add(f.id)
-                elif isinstance(f, ast.Attribute):
-                    called.add(f.attr)
-        # Counting, filtering, formatting and sorting only. No append, no
-        # post, no run. ("get" reads a row's status for the decided-rows
-        # filter — a read, not an action.)
+        for fn in chain:
+            tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Call):
+                    f = node.func
+                    if isinstance(f, ast.Name):
+                        called.add(f.id)
+                    elif isinstance(f, ast.Attribute):
+                        called.add(f.attr)
+        # Counting, classifying, formatting and sorting only. No append, no
+        # post, no run, no store. ("get" reads a row's fields; "strip"/"lower"/
+        # "replace"/"startswith" normalise a kind string.)
         assert called <= {"_count", "int", "len", "sum", "sorted", "join",
-                          "values", "items", "isinstance", "get"}, called
+                          "values", "items", "isinstance", "get", "append",
+                          "next_actor", "_norm_kind",
+                          "strip", "lower", "replace", "startswith"}, called
+
+        # And the classifier must not read the recommendation's PROSE. The
+        # emergency sweep that produced this counter's rewrite found six
+        # finished rows by grepping their text for "EXECUTED"; a permanent
+        # heuristic over free English rots and reports the rot as a count.
+        src = inspect.getsource(desk_mod.next_actor)
+        body = src.split('"""')[2] if src.count('"""') >= 2 else src
+        assert '"text"' not in body and "'text'" not in body, \
+            "next_actor must never classify on a recommendation's free text"
