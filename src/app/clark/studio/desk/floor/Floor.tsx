@@ -9,6 +9,7 @@ import {
   awaitingReviewSeats,
   CORRIDOR,
   FloorSpot,
+  PLANE_PX,
   Pulse,
   RoomPoint,
   RoomState,
@@ -16,6 +17,7 @@ import {
   floorPulses,
   litSeats,
   pulsesByWire,
+  runsChip,
   spotById,
 } from "./floorPlan";
 import type { DeskView, SpineEvent } from "@/lib/fund_api";
@@ -36,10 +38,11 @@ import type { DeskView, SpineEvent } from "@/lib/fund_api";
 /** Room units → percentage of the plane. One place, so the SVG layer and the
  *  DOM furniture can never disagree about where a desk is. */
 const pct = (p: RoomPoint) => ({ left: `${p.x}%`, top: `${p.y}%` });
-/** Must match `.kt-floor-plane`'s width in studio-theme.css — the pulse's
- *  travel distance is the only place this file needs pixels, and a disagreement
- *  would send dots past their destination. */
-const PLANE_PX = 640;
+/** The pulse's travel distance is the only place this file needs pixels.
+ *  `PLANE_PX` is imported rather than restated: it was a second local copy of
+ *  `.kt-floor-plane`'s width carrying a "must match" comment, and the plane
+ *  grew 640 -> 760 on 2026-08-22 — exactly the edit that would have sent every
+ *  dot 16% short of its desk while the comment still read correct. */
 const toPx = (units: number) => (units / 100) * PLANE_PX;
 
 export interface FloorProps {
@@ -104,7 +107,12 @@ export function Floor({
   const focused = focus ? spotById(focus) : null;
 
   return (
-    <div>
+    // `kt-floor-room` is the QUERY CONTAINER the stage and the room scale
+    // against. See studio-theme.css: the old viewport media queries could not
+    // see the Clark rail taking ~440px out of the content column, so at a
+    // 1181px viewport the corner office and the venue door were cut off the
+    // floor and no breakpoint could tell.
+    <div className="kt-floor-room">
       <div className="kt-floor-stage" data-room={state}>
         <div className="kt-floor-scale">
           <div className="kt-floor-plane" data-zooming={zooming ? "1" : undefined}>
@@ -126,7 +134,7 @@ export function Floor({
                   onFocus={() => setFocus(s.id)}
                   onLeave={() => setFocus((f) => (f === s.id ? null : f))}
                   onNavigate={() => setZooming(true)}
-                  runs={state === "dead" ? null : runsToday?.(s)}
+                  runs={runsChip(state, runsToday?.(s))}
                 />
               ))}
             </nav>
@@ -194,7 +202,18 @@ export function Floor({
  *  Inline SVG in ROOM UNITS (viewBox 0 0 100 100) so every coordinate in here
  *  is the same number floorPlan.ts states. `non-scaling-stroke` keeps the
  *  hairlines hairlines under the camera's foreshortening, the same rule
- *  SeatFace.tsx already follows. */
+ *  SeatFace.tsx already follows.
+ *
+ *  `preserveAspectRatio="none"` IS KEPT DELIBERATELY, and the reason is the
+ *  opposite of the usual one. It normally means "stretch, distortion be
+ *  damned" — here it means "cover the plane box exactly", and it must, because
+ *  the desk CARDS are positioned as percentages of that same box (see `pct`).
+ *  Under the default `xMidYMid meet` a non-square box would letterbox the grid
+ *  while the furniture kept using the full width, and the corridor, the lamps
+ *  and the office walls would slide off the desks standing on them. It costs
+ *  nothing today because `.kt-floor-plane` is square (760×760, and the CSS says
+ *  why that is a constraint) — so `none` distorts nothing and guarantees the
+ *  two layers agree if it ever stops being square. */
 function RoomSvg({ wires, lit, state }: {
   wires: ReturnType<typeof pulsesByWire>;
   lit: string[];
@@ -223,8 +242,14 @@ function RoomSvg({ wires, lit, state }: {
 
       {/* the corner office: two walls, in plan. A corner office is a corner and
           two walls, and drawing them is what makes the only inbox tray on the
-          floor sit somewhere a reader recognises. */}
-      <path d="M0 22 L28 22 L28 0" stroke="var(--kt-border-strong)" strokeWidth="1.4"
+          floor sit somewhere a reader recognises.
+
+          Drawn in 2026-08-22 from (28,22) to (22,18) because the exec row now
+          starts at x=8 and the COO sits at x=27: at the old size the office
+          wall would have been drawn one unit to the COO's left, i.e. with
+          Vishesh inside the CEO's office. The office shrank; the CEO did not
+          move out of the corner. */}
+      <path d="M0 18 L22 18 L22 0" stroke="var(--kt-border-strong)" strokeWidth="1.4"
             vectorEffect="non-scaling-stroke" />
 
       {/* THE CORRIDOR — the constitution's chain, walked. One polyline, no
@@ -236,11 +261,18 @@ function RoomSvg({ wires, lit, state }: {
       <polyline points={corridor} stroke="var(--kt-border-strong)" strokeWidth="1"
                 vectorEffect="non-scaling-stroke" strokeDasharray="1.6 1.8" />
 
-      {/* the venue door's threshold, and the cage around the auto-policy */}
-      <line x1="90" y1="80" x2="99" y2="92"
+      {/* The venue door's threshold, and the cage around the auto-policy. BOTH
+          ARE DRAWN TWICE — once as a FloorSpot in floorPlan.FIXTURES and once
+          as these bars and this line — so both coordinates move together or the
+          room draws an UNCAGED auto-policy and a threshold across empty floor.
+          The rect is centred on the cage spot (78,84); the line runs through the
+          venue spot (90,90). Re-spaced 2026-08-22 with the room, into the
+          lower-right quadrant that was standing empty — the far corner is where
+          an order actually leaves by. */}
+      <line x1="86" y1="84" x2="95" y2="96"
             stroke={state === "halted" ? "var(--kt-down)" : "var(--kt-border-strong)"}
             strokeWidth={state === "halted" ? 3 : 1.6} vectorEffect="non-scaling-stroke" />
-      <rect x="78" y="68" width="12" height="12" rx="1"
+      <rect x="72" y="78" width="12" height="12" rx="1"
             stroke="var(--kt-border-strong)" strokeWidth="1"
             vectorEffect="non-scaling-stroke" strokeDasharray="1.2 1.2" />
 

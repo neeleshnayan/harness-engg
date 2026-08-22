@@ -167,7 +167,10 @@ html[data-kt-theme] body {
  *
  * Every value below is a --kt-* token or a geometric constant (criterion 7: no
  * hardcoded hex on this surface). The geometry constants match floorPlan.ts:
- * the plane is 100x100 ROOM UNITS rendered at 8.8px per unit.
+ * the plane is 100x100 ROOM UNITS rendered at PLANE_PX/100 px per unit — 7.6
+ * since 2026-08-22, 6.4 before it. (This line read "8.8px per unit" from the
+ * first build onward and was never true of any shipped size; it is corrected
+ * here to a formula, which cannot go stale the next time the plane grows.)
  *
  * Two rules the whole block obeys:
  *
@@ -184,10 +187,33 @@ html[data-kt-theme] body {
  *      the DOM in BOTH modes, so the replay count is the same number either way.
  * ======================================================================== */
 
+/* The room's outermost wrapper, and the ONLY reason it has a class: it is the
+   QUERY CONTAINER the room sizes itself against.
+
+   This replaced viewport media queries on 2026-08-22, and it is a bug fix, not
+   a tidy-up. The breakpoints read `@media (max-width: …)`, i.e. the VIEWPORT —
+   but what actually constrains this room is the Studio's content column, and
+   the Clark rail takes ~440px out of that column without changing the viewport
+   at all. MEASURED, on the tree before this change (CDP, 2026-08-22): at a
+   1366px viewport the stage was 898px wide against a 905px plane, at 1280 it
+   was 812 against 905, and at 1181 it was 713 against 905 — where the corner
+   office and the venue door were both cut off the floor by `overflow: hidden`.
+   The 1180px breakpoint could not see any of it, because the viewport was
+   fine and the column was not. Querying the container measures the thing that
+   actually binds; re-measured after the change, nothing clips at any width
+   from 1920 down to 800. */
+html[data-kt-theme] .kt-floor-room {
+  container-type: inline-size;
+}
+
 html[data-kt-theme] .kt-floor-stage {
   position: relative;
   overflow: hidden;
-  height: 520px;
+  /* 610px holds the 570px-tall projection of a 760px plane with 20px above and
+     below. Raised from 520 on 2026-08-22 with the plane (CEO: "make the room
+     bigger"); the page had ~230px of unused height under the stage, so the
+     vertical half of "bigger" was free. */
+  height: 610px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -196,38 +222,67 @@ html[data-kt-theme] .kt-floor-stage {
   background-color: var(--kt-bg);
 }
 
-/* The one place the room is scaled to the viewport. Kept OFF the camera
+/* The one place the room is scaled to its container. Kept OFF the camera
    transform so the camera stays exactly the dimetric pair floorPlan.ts
    declares — a scale smuggled into the camera is how a "fixed camera" quietly
    becomes a zoomable one.
 
-   The number is measured, not chosen: a square of side S turned 45° in-plane
-   projects to S·√2 of screen width, so the 760px plane needs 1075px and the
-   Studio's content column (max-w-1200 less padding, less the Clark rail) gives
-   about 900. So the plane is 640px and the desktop scale is 1: 640·√2 = 905,
-   which fits without clipping the venue door (the far corner, and the first
-   thing the stage cut off at the audit's first size) AND leaves the 10px desk
-   plaques at their real size. Scaling the room down scales the type down with
-   it, and a floor plan nobody can read is decoration. */
+   The numbers are measured, not chosen. A square of side S turned 45° in-plane
+   projects to S·√2 wide and S·√2·cos(58°) tall, so the 760px plane
+   (floorPlan.PLANE_PX, and the two must agree) draws 1075×570. The widest the
+   Studio content column ever gets with the Clark rail open is 1152px (CDP,
+   2026-08-22, viewports 1920 and 1600), so scale 1 fits with 77px to spare.
+   Each step below is the largest scale whose 1075px width still fits the
+   container width the step covers:
+
+     container    scale   drawn        fits
+     > 1100       1.00    1075 × 570   yes, from 1101 up
+     ≤ 1100       0.80     860 × 456   yes, from 860 up
+     ≤  870       0.62     667 × 353   yes, from 667 up
+     ≤  680       0.48     516 × 274   yes, from 516 up
+     ≤  530       0.36     387 × 205   yes, from 387 up
+
+   Scaling the room down scales the TYPE down with it, which is why the steps
+   are as few and as late as the arithmetic allows: a floor plan nobody can read
+   is decoration. The stage height steps with the scale so a shrunken room does
+   not sit in a tall empty box. */
 html[data-kt-theme] .kt-floor-scale {
   transform: none;
   transform-origin: center center;
 }
 
-@media (max-width: 1180px) {
-  html[data-kt-theme] .kt-floor-scale { transform: scale(0.72); }
+@container (max-width: 1100px) {
+  html[data-kt-theme] .kt-floor-scale { transform: scale(0.80); }
+  html[data-kt-theme] .kt-floor-stage { height: 500px; }
 }
-@media (max-width: 860px) {
-  html[data-kt-theme] .kt-floor-scale { transform: scale(0.52); }
+@container (max-width: 870px) {
+  html[data-kt-theme] .kt-floor-scale { transform: scale(0.62); }
+  html[data-kt-theme] .kt-floor-stage { height: 400px; }
+}
+@container (max-width: 680px) {
+  html[data-kt-theme] .kt-floor-scale { transform: scale(0.48); }
+  html[data-kt-theme] .kt-floor-stage { height: 320px; }
+}
+@container (max-width: 530px) {
+  html[data-kt-theme] .kt-floor-scale { transform: scale(0.36); }
+  html[data-kt-theme] .kt-floor-stage { height: 250px; }
 }
 
 /* The room plane. The camera is FIXED and orthographic: no `perspective`, so a
    desk at the back wall is drawn the same size as one at the front — and the
-   back wall is where the approvals are. */
+   back wall is where the approvals are.
+
+   THE PLANE MUST STAY SQUARE, and that is a correctness constraint rather than
+   an aesthetic one. The SVG layer draws the floor in room units through
+   `viewBox="0 0 100 100" preserveAspectRatio="none"`, while the desk cards are
+   positioned as PERCENTAGES of this same box. Those two agree about where a
+   desk is only because the box is square: give the plane a non-square size and
+   the grid, the corridor and the lamps slide off the furniture standing on
+   them. `floorPlan.PLANE_PX` carries the same number for the pulse geometry. */
 html[data-kt-theme] .kt-floor-plane {
   position: relative;
-  width: 640px;
-  height: 640px;
+  width: 760px;
+  height: 760px;
   transform-style: preserve-3d;
   transform: rotateX(58deg) rotateZ(-45deg);
   background-color: var(--kt-surface);

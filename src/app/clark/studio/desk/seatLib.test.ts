@@ -86,15 +86,40 @@ const ev = (over: Record<string, unknown> = {}) => ({
 /* ---------------------------------------------------------------- seats --- */
 
 test("the seat whitelist is the route guard, and rejects anything not on the bench", () => {
-  assert.equal(SEATS.length, 10);  // coo 2026-08-20; secretary routed 2026-08-21
+  // coo 2026-08-20; secretary routed 2026-08-21; cfo routed 2026-08-22 with her
+  // executive-row floor desk (CEO: "CFO desk needs to be visible in the room
+  // too"). Her desk is a DOOR, so the route whitelist has to know her or the
+  // room draws a colleague you cannot open.
+  assert.equal(SEATS.length, 11);
   assert.ok(isSeat("secretary"), "Donna has a seat page");
+  assert.ok(isSeat("cfo"), "Grace has a seat page — her floor desk links to it");
   assert.ok(isSeat("riskofficer"));
   assert.ok(!isSeat("cto"));       // the CTO is not a seat page
   assert.ok(!isSeat(""));
   assert.ok(!isSeat(undefined));
-  // Every seat can be asked for work, or its composer would render a kind the
-  // spine rejects with a 422.
-  for (const s of SEATS) assert.ok(SEAT_REQUEST_KIND[s], `no request kind for ${s}`);
+});
+
+test("a seat the spine cannot route to has an EMPTY kind, never an invented one", () => {
+  // Every seat that CAN be asked for work carries the kind the spine accepts,
+  // or its composer renders a word the endpoint rejects with a 422 — and the
+  // composer prints that word on screen verbatim.
+  //
+  // The exception list is the falsifier, not a licence. `REQUEST_KINDS` in
+  // app/fund/desk.py:160-181 has ten entries and none routes to the cfo (read
+  // 2026-08-22), so hers is empty and the seat page renders a stated absence
+  // instead of a form. THE DAY THE SPINE GAINS A CFO KIND THIS TEST FAILS, and
+  // it fails again if anyone adds a NEW seat to this list without checking the
+  // spine — which is the whole point of pinning the list rather than the count.
+  const NO_KIND_ON_THE_SPINE = ["cfo"];
+  for (const s of SEATS) {
+    if (NO_KIND_ON_THE_SPINE.includes(s)) {
+      assert.equal(SEAT_REQUEST_KIND[s], "",
+        `${s} now has a request kind — fill it in from app/fund/desk.py and ` +
+        `drop it from NO_KIND_ON_THE_SPINE, so the composer stops saying it is unwired`);
+      continue;
+    }
+    assert.ok(SEAT_REQUEST_KIND[s], `no request kind for ${s}`);
+  }
 });
 
 /* --------------------------------------------------- absence discipline --- */
