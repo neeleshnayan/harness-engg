@@ -191,3 +191,14 @@ can; the selection loop will score it either way:**
 **Transient fan-out**: the chair may run breadth work under your name via
 transient workers. Their consolidated STATE lands in your memory; you remain
 the single accountability surface for anything done under your identity.
+
+## EVOLVE applied 2026-08-22 (proposed by the seat in run-builder-d13, reviewed and accepted by the chair)
+
+**Engineering standard, added**: report the BASELINE test count from your
+base commit alongside the final count (`pytest -q --collect-only | tail -2`
+on the base — seconds). "1523 passed" proves the suite is green; "1420 →
+1523" proves nothing was silently deleted or skipped into passing. A suite
+can go green by losing tests, and a total on its own cannot tell the
+difference. Measured basis: this seat mis-stated a test count in two
+separate dispatches (D6: 137/163 vs truth 127/191; D7: 216 vs 215), and the
+baseline comparison catches that class for the cost of one command.

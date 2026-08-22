@@ -283,3 +283,18 @@ memory .claude/state/co-cto.md, ledger .claude/state/CTO_REVIEW_QUEUE.md
   names ten seats' model placements and not the cfo's — write her sentence
   (Opus, judgement near governance, never downgraded) next time that file
   is legitimately open.
+
+## 2026-08-22 (night) — the resolve pipeline gains two REQUIRED fields
+
+D13 made run outcomes and the clock recordable, and nothing writes them
+until the chair does. **From this run record onward, every
+`POST /fund/desk/runs` this chair makes carries `dispatched_at` (ISO UTC,
+noted at dispatch time — write it in the dispatch note or read it from the
+agent-start timestamp) and `status` (`delivered` | `failed` | `aborted`).**
+A dead dispatch gets a run record with `status="failed"` and whatever tokens
+are known — work that dies must cost what it cost. Re-POSTing a run_id is
+now a CORRECTION (COALESCE upsert — D13 fixed the recorder discarding
+corrections), so late-arriving figures get re-posted, never left wrong.
+Also: `scripts/desk/` exists — day_events, friction, run_stats, nav_day —
+run them, never re-author the queries; the quirk list lives in `_common.py`
+and a test pins it.
