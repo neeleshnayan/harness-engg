@@ -47,7 +47,11 @@ pip install -r requirements.txt
 export FIREBASE_SERVICE_ACCOUNT_JSON=firebase_service_account.json
 # --- OR, to test with NO Firebase creds (ephemeral in-memory store, dev only): ---
 #   export USE_FAKE_FIRESTORE=1     # verified: the full E2E passes against this
-# optional live venue (else paper): export ALPACA_API_KEY=... ALPACA_SECRET_KEY=... ALPACA_PAPER=true
+# the fund's MODE is REQUIRED and has no default; it decides venue AND ledger:
+#   export FUND_MODE=test          # simulated fills at real prices -> krypton_fund_dev
+#   export FUND_MODE=alpaca-paper  # the Alpaca paper account      -> krypton_fund
+# for a real venue also: export ALPACA_API_KEY=... ALPACA_SECRET_KEY=...
+# (ALPACA_PAPER was retired 2026-08-22 — paper vs live comes from FUND_MODE)
 python3 scripts/preflight.py                          # verify Firebase/Alpaca reachable
 uvicorn app.main:app --port 8090
 ```

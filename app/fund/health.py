@@ -80,13 +80,28 @@ def _timed(name: str, fn: Callable[[], dict[str, Any]]) -> dict[str, Any]:
 # outage this month.
 
 def check_event_store() -> dict[str, Any]:
-    """Can we read the log at all, and how many events are in it?"""
+    """Can we read the log at all, and WHICH log is it?
+
+    The database is named as of 2026-08-22, and the naming is the check. The
+    fund now runs three stores — krypton_fund, krypton_fund_dev,
+    krypton_fund_prod — one per mode, and a health report saying "reachable"
+    without saying reachable-to-WHAT would read identically whichever one the
+    process is pointed at. That is precisely the shape of the incident this
+    replaces: on 2026-08-21 a restart moved the whole fund off Postgres and
+    every read looked correct, because Firestore was mirrored.
+    """
+    from app.fund import mode as _mode
     from app.fund.events import EventStore, store_backend
     store = EventStore()
     rows = store.stream(since_seq=0, limit=1)
+    active = _mode.current()
     return {"backend": store_backend(),
             "reachable": True,
-            "has_events": bool(rows)}
+            "has_events": bool(rows),
+            # Absent rather than guessed when the process declared no mode or
+            # the store cannot name itself.
+            "mode": active.mode.value if active else None,
+            "ledger_database": getattr(store, "database", None)}
 
 
 def check_chain() -> dict[str, Any]:

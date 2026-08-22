@@ -26,6 +26,18 @@ from app.fund.events import EventStore
 from app.fund.projections.positions import PositionsProjection
 
 
+def _paper_from_mode() -> bool:
+    """Paper vs LIVE, decided by the fund's declared MODE.
+
+    Refuses (via resolve()) when no mode is declared, which is right for a
+    script that opens a real broker client: the alternative was
+    ``os.getenv("ALPACA_PAPER", "true")``, a variable that decided whether
+    real money could move while living beside a CORS list.
+    """
+    from app.fund.mode import VenueKind, resolve
+    return resolve().venue_kind is VenueKind.ALPACA_PAPER
+
+
 def broker_state():
     from alpaca.trading.client import TradingClient
     from alpaca.trading.enums import QueryOrderStatus
@@ -34,7 +46,9 @@ def broker_state():
     client = TradingClient(
         os.getenv("ALPACA_API_KEY"),
         os.getenv("ALPACA_SECRET_KEY"),
-        paper=os.getenv("ALPACA_PAPER", "true").lower() != "false",
+        # From the MODE, like the order path. ALPACA_PAPER decided real money
+        # while living beside a CORS list (adversary D11, K8).
+        paper=_paper_from_mode(),
     )
     fills = [
         {

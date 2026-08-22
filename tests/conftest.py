@@ -4,9 +4,33 @@ The fake is installed into sys.modules *before* any app module imports
 ``firebase_admin``. Each test gets a clean store via the ``wire`` fixture.
 """
 
+import os
 import pathlib
 import sys
 from types import SimpleNamespace
+
+# DECLARED, not defaulted — ``events.store_backend()`` has no default as of
+# 2026-08-22 and raises when nothing says which store this process uses. The
+# suite runs against the in-memory Firestore fake installed two lines below, so
+# it says so here. This line is the point of that change working as intended:
+# every process now states its ledger, including this one.
+os.environ.setdefault("FUND_STORE", "firestore")
+# The suite is a test-mode process and says so, because importing
+# ``app.api.v1.fund`` now RESOLVES the mode and refuses when nothing declared
+# one. That refusal is the feature.
+#
+# The mode file must not be consulted: a developer's own `.fund_mode`, left
+# pointing at alpaca-paper, would otherwise make `resolve()` raise a conflict
+# and take the whole suite down for a reason that has nothing to do with the
+# code under test. Pointed at a path inside the pytest tree that never exists.
+os.environ.setdefault("FUND_MODE", "test")
+os.environ.setdefault(
+    "FUND_MODE_FILE",
+    str(pathlib.Path(__file__).resolve().parent / ".fund_mode.absent"))
+# NOTE the autouse fixture below DEACTIVATES the process mode around every
+# test. Importing the router activates it once; a unit test that hand-builds a
+# pipeline has genuinely not declared a mode, and the honest stamp for that is
+# no stamp at all. Tests that care activate one explicitly.
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -81,3 +105,17 @@ def _clear_event_stream_cache():
     _STREAM_CACHE.clear()
     yield
     _STREAM_CACHE.clear()
+
+
+@pytest.fixture(autouse=True)
+def _clear_active_mode():
+    """The active fund mode is process state; a test must not leak it.
+
+    ``mode.activate()`` is deliberately global — one process folds one store —
+    which makes it exactly the kind of thing that leaks between tests and turns
+    a later assertion about an absent stamp into a mystery.
+    """
+    from app.fund import mode as _mode
+    _mode.deactivate()
+    yield
+    _mode.deactivate()

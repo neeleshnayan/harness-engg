@@ -75,10 +75,27 @@ INSERT INTO fund_chain (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 
 
 def dsn() -> str:
+    """The BASE connection string — one server, one credential.
+
+    The DATABASE in it is a placeholder: which of the fund's three databases a
+    process talks to is decided by its MODE, not by this string.
+    ``mode.pg_dsn_for(spec, dsn())`` replaces the last path segment with
+    ``krypton_fund`` / ``krypton_fund_dev`` / ``krypton_fund_prod``.
+
+    Kept as one base rather than three environment variables because three
+    variables is three chances for two of them to point at the same database,
+    which is precisely the failure this separation exists to prevent.
+    """
     return os.getenv(
         "FUND_PG_DSN",
         "postgresql://krypton:krypton_local@127.0.0.1:5433/krypton_fund",
     )
+
+
+def database_of(dsn_str: str) -> str:
+    """The database name a DSN points at. For saying so out loud."""
+    head = (dsn_str or "").partition("?")[0]
+    return head.rsplit("/", 1)[-1] if "/" in head else ""
 
 
 class PostgresEventStore:
@@ -109,6 +126,16 @@ class PostgresEventStore:
         self._dsn = dsn_str or dsn()
         self._pool = pool
         self.ensure_schema(retry_seconds=self.STARTUP_RETRY_SECONDS)
+
+    @property
+    def database(self) -> str:
+        """Which database this store actually opened.
+
+        Exposed so a reader can NAME the store it folded rather than assume
+        it. "Which of these dollars are real" is answered by the store, and a
+        store that cannot say its own name cannot answer it.
+        """
+        return database_of(self._dsn)
 
     # --- plumbing -----------------------------------------------------------
 

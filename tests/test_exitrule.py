@@ -138,3 +138,282 @@ def test_no_rule_at_all_is_stated_rather_than_passing_quietly():
                                            "unrealized_pnl_pct": -30.0}])
     assert out["fired"] == []
     assert "deployed without a pre-committed exit" in out["note"]
+
+
+# --- K2: A DEAD RULE IS NOT COVERAGE -----------------------------------------
+#
+# Adversary review of builder D11, 2026-08-22, finding K2 — a LOOSENING, and
+# the second reason the diff was killed. The coverage block was written to
+# reveal unmanaged positions and hid $324.60 of $1,165.44 of them, because
+# `covered = {r["symbol"] for r in rules}` counted every rule the fold returns:
+# superseded ones, already-triggered ones, overridden ones, and rules belonging
+# to a different strategy entirely.
+#
+# The fixtures below are the LIVE rule set, read from the running spine on
+# 2026-08-22 (GET /fund/exits), not invented shapes. Verbatim from that
+# reading:
+#   GLD  machinery-test loss_pct 25.0  triggered_at 2026-08-20T08:01:26.478554
+#                                      overridden_at 2026-08-20T11:00:13.746913
+#   INTC machinery-test gain_pct 1.0   overridden_at 2026-08-17T17:03:56.137610
+#   INTC wiring_verification_2026_08_18 gain_pct 0.5  superseded True
+# and the quantities are the broker's own, from the reconciliation plan.
+
+def _triggered(**p):
+    from app.fund.events import EventType
+    return E(EventType.EXIT_RULE_TRIGGERED.value, p)
+
+
+def _overridden(**p):
+    from app.fund.events import EventType
+    return E(EventType.EXIT_RULE_OVERRIDDEN.value, p)
+
+
+def test_an_already_triggered_rule_is_not_coverage():
+    """THE ADVERSARY'S DEMONSTRATION, reproduced.
+
+    GLD's machinery-test loss_pct fired on 2026-08-20 at 08:01:26 — on the
+    phantom mark, in the incident that cost the fund $128.26. It will never
+    fire again: `enforce()` skips a rule carrying `triggered_at`. Under v1 it
+    made $179.70 of GLD read as covered.
+    """
+    store = FakeStore([
+        _set(strategy_id="machinery-test", symbol="GLD", kind="loss_pct",
+             threshold_pct=25.0, note="far away"),
+        _triggered(strategy_id="machinery-test", symbol="GLD", kind="loss_pct",
+                   at="2026-08-20T08:01:26.478554+00:00",
+                   order_id="2ec1ec3f-ddda-48ac-8511-9c19fb87d59b"),
+    ])
+    out = ExitRules(store).check(
+        [{"symbol": "GLD", "unrealized_pnl_pct": -1.0, "value_usd": 179.70}])
+    assert [u["symbol"] for u in out["uncovered"]] == ["GLD"], out["note"]
+    assert out["uncovered_usd"] == 179.70
+    assert "already triggered" in out["uncovered"][0]["why"]
+    assert out["rules_not_live"] and \
+        out["rules_not_live"][0]["symbol"] == "GLD"
+
+
+def test_an_overridden_rule_is_not_coverage():
+    """An override is a decision NOT to enforce. Counting it as enforcement
+    inverts the meaning of the record."""
+    store = FakeStore([
+        _set(strategy_id="machinery-test", symbol="INTC", kind="gain_pct",
+             threshold_pct=1.0, note="proves the loop"),
+        _overridden(strategy_id="machinery-test", symbol="INTC",
+                    kind="gain_pct", at="2026-08-17T17:03:56.137610+00:00",
+                    reason="machinery test, not a real position"),
+    ])
+    out = ExitRules(store).check(
+        [{"symbol": "INTC", "unrealized_pnl_pct": 0.2, "value_usd": 144.90}])
+    assert [u["symbol"] for u in out["uncovered"]] == ["INTC"]
+    assert "overridden" in out["uncovered"][0]["why"]
+
+
+def test_a_REVISED_rule_IS_still_coverage():
+    """A CORRECTION TO THE REVIEW'S OWN REPAIR SPEC, measured against the fold.
+
+    K2's stated repair was "filtered on not-superseded / not-triggered /
+    not-overridden". The first of those three is wrong and shipping it would
+    have introduced a new defect.
+
+    `_fold` keeps exactly ONE entry per (strategy, symbol, kind) and sets
+    `superseded=True` on the SURVIVOR when an earlier commitment existed. The
+    flag means "this key has been REVISED"; the rule carrying it is the
+    current, governing one, `enforce()` does not skip it, and the fold's own
+    comment says re-committing exists so a rule CAN FIRE AGAIN. Filtering on it
+    would make the one mechanism for restoring a fired rule invisible to this
+    report — an operator who correctly re-committed would see the position
+    still flagged, with no way to clear it.
+    """
+    store = FakeStore([
+        _set(strategy_id="s1", symbol="ABC", kind="loss_pct", threshold_pct=10),
+        _set(strategy_id="s1", symbol="ABC", kind="loss_pct", threshold_pct=20),
+    ])
+    rules = ExitRules(store).active()
+    assert len(rules) == 1 and rules[0]["superseded"] is True,         "the fold's shape is the premise of this test"
+    out = ExitRules(store).check(
+        [{"symbol": "ABC", "unrealized_pnl_pct": -1.0}],
+        holdings=[{"strategy_id": "s1", "symbol": "ABC", "qty": 1,
+                   "usd_value": 100.0}])
+    assert out["uncovered"] == [], out["note"]
+    assert out["rules_not_live"] == []
+
+
+def test_re_committing_a_FIRED_rule_restores_its_coverage():
+    """The discriminating case, and the reason the flag must not be a filter.
+
+    A rule fires, the proposal ages out, the operator re-commits it. The fold
+    clears `triggered_at` and sets `superseded`. If `superseded` blocked, the
+    position would stay reported as uncovered forever with no way back.
+    """
+    store = FakeStore([
+        _set(strategy_id="s1", symbol="ABC", kind="loss_pct", threshold_pct=10),
+        _triggered(strategy_id="s1", symbol="ABC", kind="loss_pct",
+                   at="2026-08-20T08:00:00+00:00"),
+        _set(strategy_id="s1", symbol="ABC", kind="loss_pct", threshold_pct=10,
+             note="re-commitment after the proposal expired"),
+    ])
+    rule = ExitRules(store).active()[0]
+    assert rule.get("triggered_at") is None and rule["superseded"] is True
+    out = ExitRules(store).check(
+        [{"symbol": "ABC", "unrealized_pnl_pct": -1.0}],
+        holdings=[{"strategy_id": "s1", "symbol": "ABC", "qty": 1,
+                   "usd_value": 100.0}])
+    assert out["uncovered"] == []
+
+
+def test_the_live_INTC_rule_still_leaves_INTC_uncovered_by_OWNERSHIP():
+    """The review attributed INTC to supersession; the correct mechanism is the
+    ownership key.
+
+    The live `wiring_verification_2026_08_18` INTC rule carries
+    `superseded: true` and IS the governing rule for its key. It still does not
+    cover the post-reconciliation holding, because that holding sits in
+    `discretionary` and the rule cannot be executed against it. Same verdict as
+    the review, reached by the mechanism that is actually true — which matters,
+    because the other mechanism would have been wrong in every other case.
+    """
+    store = FakeStore([
+        _set(strategy_id="wiring_verification_2026_08_18", symbol="INTC",
+             kind="gain_pct", threshold_pct=0.5),
+        _set(strategy_id="wiring_verification_2026_08_18", symbol="INTC",
+             kind="gain_pct", threshold_pct=0.5, note="re-commitment"),
+    ])
+    assert ExitRules(store).active()[0]["superseded"] is True
+    out = ExitRules(store).check(
+        [{"symbol": "INTC", "unrealized_pnl_pct": 0.2}],
+        holdings=[{"strategy_id": "discretionary", "symbol": "INTC",
+                   "qty": 1.608762, "usd_value": 144.90}])
+    assert [u["symbol"] for u in out["uncovered"]] == ["INTC"]
+    assert "wiring_verification_2026_08_18" in out["uncovered"][0]["why"]
+    # ...and it is NOT reported as a dead rule, because it is not one.
+    assert out["rules_not_live"] == []
+
+
+def test_a_rule_on_another_strategy_does_not_cover_this_holding():
+    """SPY $166.74, the third hidden position.
+
+    An exit rule is a commitment BY a strategy ABOUT a symbol: `enforce()`
+    raises the closing SELL under the rule's own strategy_id, and autopolicy v3
+    will only auto-approve it if THAT strategy holds the quantity being sold.
+    A rule on sleeve_premia_equity therefore cannot be executed against a
+    holding that sits in `discretionary`, and scoring it as coverage is the
+    same absence-as-value error in a different costume.
+    """
+    store = FakeStore([
+        _set(strategy_id="sleeve_premia_equity", symbol="SPY",
+             kind="loss_pct", threshold_pct=6.0),
+    ])
+    out = ExitRules(store).check(
+        [{"symbol": "SPY", "unrealized_pnl_pct": 0.4}],
+        holdings=[{"strategy_id": "discretionary", "symbol": "SPY",
+                   "qty": 0.217757, "usd_value": 166.74}])
+    assert [u["symbol"] for u in out["uncovered"]] == ["SPY"]
+    assert out["coverage_basis"] == "strategy+symbol"
+    assert "sleeve_premia_equity" in out["uncovered"][0]["why"]
+    assert out["uncovered_usd"] == 166.74
+
+
+def test_the_owning_strategy_IS_covered_by_its_own_live_rule():
+    """The other direction, so the fix cannot pass by calling everything
+    uncovered. A live rule on the strategy that actually holds the position is
+    coverage, and must not be reported as a gap."""
+    store = FakeStore([
+        _set(strategy_id="sleeve_premia_equity", symbol="SPY",
+             kind="loss_pct", threshold_pct=6.0),
+    ])
+    out = ExitRules(store).check(
+        [{"symbol": "SPY", "unrealized_pnl_pct": 0.4}],
+        holdings=[{"strategy_id": "sleeve_premia_equity", "symbol": "SPY",
+                   "qty": 0.346119, "usd_value": 264.97}])
+    assert out["uncovered"] == []
+    assert out["uncovered_usd"] is None
+
+
+def test_the_full_reconciled_book_reports_every_dollar_it_should():
+    """THE HEADLINE NUMBER: $674.10 reported vs $1,165.44 actual.
+
+    The whole post-reconciliation book, with the three dead/misowned rules the
+    adversary found. If any of the three repairs regresses, this total falls
+    back toward $674.10 and the test says by how much.
+    """
+    store = FakeStore([
+        # dead: triggered
+        _set(strategy_id="machinery-test", symbol="GLD", kind="loss_pct",
+             threshold_pct=25.0),
+        _triggered(strategy_id="machinery-test", symbol="GLD",
+                   kind="loss_pct", at="2026-08-20T08:01:26+00:00"),
+        # dead: overridden
+        _set(strategy_id="machinery-test", symbol="INTC", kind="gain_pct",
+             threshold_pct=1.0),
+        _overridden(strategy_id="machinery-test", symbol="INTC",
+                    kind="gain_pct", at="2026-08-17T17:03:56+00:00",
+                    reason="machinery test"),
+        # live, but on a strategy that no longer holds SPY
+        _set(strategy_id="sleeve_premia_equity", symbol="SPY",
+             kind="loss_pct", threshold_pct=6.0),
+    ])
+    book = [
+        ("discretionary", "SPY", 0.217757, 166.74),
+        ("discretionary", "GLD", 0.424471, 179.70),
+        ("discretionary", "INTC", 1.608762, 144.90),
+        ("discretionary", "MSFT", 0.340051, 174.30),
+        ("discretionary", "NVDA", 0.749886, 133.80),
+        ("discretionary", "SOFI", 9.188190, 209.40),
+        ("discretionary", "XLE", 2.749912, 156.60),
+    ]
+    out = ExitRules(store).check(
+        [{"symbol": s, "unrealized_pnl_pct": 0.0} for _, s, _, _ in book],
+        holdings=[{"strategy_id": sid, "symbol": s, "qty": q, "usd_value": v}
+                  for sid, s, q, v in book])
+    assert sorted(u["symbol"] for u in out["uncovered"]) == \
+        ["GLD", "INTC", "MSFT", "NVDA", "SOFI", "SPY", "XLE"]
+    assert out["uncovered_usd"] == 1165.44
+    assert out["uncovered_unvalued"] == []
+    assert "$1,165.44" in out["note"]
+    # The rules that stopped counting are NAMED, not silently dropped: a reader
+    # comparing this against last week's coverage needs to know the number
+    # moved because the rules were never controls.
+    assert len(out["rules_not_live"]) == 2
+
+
+def test_an_unvalued_holding_is_counted_separately_never_as_zero():
+    """Absence is never zero, applied to the money column. A holding the
+    pricer could not value must not silently improve the uncovered total."""
+    out = ExitRules(FakeStore([])).check(
+        [{"symbol": "AAA", "unrealized_pnl_pct": 0.0}],
+        holdings=[{"strategy_id": "d", "symbol": "AAA", "qty": 1,
+                   "usd_value": 100.0},
+                  {"strategy_id": "d", "symbol": "BBB", "qty": 1}])
+    assert out["uncovered_usd"] == 100.0
+    assert out["uncovered_unvalued"] == ["BBB"]
+    assert "no readable value" in out["note"]
+
+
+def test_the_risk_monitors_own_key_name_is_read():
+    """RiskMonitor.assess() emits `value_usd`; venuesync emits `usd_value`.
+
+    v1 read only `usd_value`, so on the LIVE path every uncovered row carried a
+    null dollar figure and the block could not be ranked by money. Verified
+    against the running spine 2026-08-22: the monitor's rows are exactly
+    symbol / qty / mark / value_usd / weight_pct / unrealized_pnl_pct /
+    shock_20_usd.
+    """
+    out = ExitRules(FakeStore([])).check(
+        [{"symbol": "AAA", "qty": 2.0, "mark": 50.0, "value_usd": 100.0,
+          "weight_pct": 5.0, "unrealized_pnl_pct": 0.0, "shock_20_usd": -20.0}])
+    assert out["uncovered"][0]["usd_value"] == 100.0
+    assert out["uncovered_usd"] == 100.0
+
+
+def test_symbol_level_coverage_says_that_is_what_it_measured():
+    """The weaker question, answered honestly.
+
+    The monitor's rows name no owner. Falling back to symbol level is fine;
+    doing it silently is the K2 defect in miniature, so the basis is reported.
+    """
+    out = ExitRules(FakeStore([
+        _set(strategy_id="whoever", symbol="AAA", kind="loss_pct",
+             threshold_pct=5),
+    ])).check([{"symbol": "AAA", "unrealized_pnl_pct": 0.0}])
+    assert out["uncovered"] == []
+    assert out["coverage_basis"] == "symbol"

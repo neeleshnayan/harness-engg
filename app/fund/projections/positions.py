@@ -113,6 +113,41 @@ class PositionsProjection:
                     pos["qty"] = new_qty
                     book.positions[symbol] = pos
 
+        elif etype == EventType.BOOK_RECONCILED_TO_VENUE.value:
+            # The book aligned to a reading of the venue. NOT a trade: nothing
+            # was bought and nothing was sold, so no realised P&L is booked and
+            # no fill enters the cost model. Quantities and cash are SET to the
+            # venue's own numbers, and the payload carries both sides so the
+            # move can be re-derived by anyone reading the log.
+            #
+            # Applied as an absolute SET rather than a delta, deliberately.
+            # A delta re-applied — a replay, a double-append, a migration —
+            # would move the book twice; setting to a recorded target is
+            # idempotent under the fold, which is the property that matters in
+            # an append-only log where nothing can be taken back.
+            for row in (p.get("positions") or []):
+                symbol = row.get("symbol")
+                if not symbol:
+                    continue
+                target = D(row.get("venue_qty", 0))
+                if abs(target) < Decimal("1e-9"):
+                    book.positions.pop(symbol, None)
+                    continue
+                pos = book.positions.get(symbol)
+                # Cost basis for an adopted position is the venue's own average
+                # entry price. Absent (the venue did not say), the mark is used
+                # and the payload records which — never a fabricated number.
+                basis = row.get("venue_avg_price") or row.get("mark")
+                pos = pos or {"qty": _ZERO,
+                              "avg_price": D(basis) if basis is not None else _ZERO}
+                if pos["qty"] == _ZERO and basis is not None:
+                    pos["avg_price"] = D(basis)
+                pos["qty"] = target
+                book.positions[symbol] = pos
+            cash = (p.get("cash") or {}).get("venue_usd")
+            if cash is not None:
+                book.cash = D(cash)
+
         elif etype == EventType.CASH_CONFIRMED.value:
             book.cash += D(p.get("usd_amount", p.get("amount", 0)))
 

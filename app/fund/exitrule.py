@@ -207,27 +207,50 @@ class ExitRules:
         return out
 
     def check(self, positions: list[dict[str, Any]],
-              strategy_id: Optional[str] = None) -> dict[str, Any]:
+              strategy_id: Optional[str] = None, *,
+              holdings: Optional[list[dict[str, Any]]] = None) -> dict[str, Any]:
         """Evaluate every active rule against current marks.
 
         ``positions`` are the risk monitor's rows: symbol and
         ``unrealized_pnl_pct``. Returns fired, holding and unevaluable
         separately, because "could not check" is not "fine".
+
+        ``holdings`` is the book seen PER OWNER — ``{strategy_id, symbol, qty,
+        usd_value}`` — and it is what makes the coverage half of this report
+        mean anything. See ``_uncovered``: the monitor's rows name no owner, so
+        a caller that passes only ``positions`` gets the weaker symbol-level
+        test and is TOLD so in ``coverage_basis`` rather than left to assume.
         """
         pnl = {p.get("symbol"): p.get("unrealized_pnl_pct")
                for p in (positions or [])}
+        rules = self.active(strategy_id)
         fired, holding, unevaluable = [], [], []
-        for r in self.active(strategy_id):
+        for r in rules:
             got = evaluate(r, unrealised_pnl_pct=pnl.get(r.get("symbol")))
             row = {**r, **got}
             (fired if got["fired"] is True
              else holding if got["fired"] is False
              else unevaluable).append(row)
+
+        held = _held_rows(holdings if holdings is not None else positions)
+        cov = _uncovered(rules, held)
+        uncovered = cov["uncovered"]
+        coverage_known = bool(holdings) if holdings is not None else bool(positions)
         return {
             "fired": fired,
             "holding": holding,
             "unevaluable": unevaluable,
-            "note": _note(fired, holding, unevaluable),
+            "uncovered": uncovered,
+            "uncovered_usd": cov["uncovered_usd"],
+            "uncovered_unvalued": cov["uncovered_unvalued"],
+            "coverage_known": coverage_known,
+            "coverage_basis": cov["coverage_basis"],
+            "rules_not_live": cov["rules_not_live"],
+            "note": _note(fired, holding, unevaluable, uncovered,
+                          coverage_known=coverage_known,
+                          uncovered_usd=cov["uncovered_usd"],
+                          unvalued=cov["uncovered_unvalued"],
+                          rules_not_live=cov["rules_not_live"]),
         }
 
 
@@ -361,12 +384,159 @@ def _enforce_note(raised: list, skipped: list, failed: list,
     return "; ".join(bits)
 
 
-def _note(fired: list, holding: list, unevaluable: list) -> str:
-    if not (fired or holding or unevaluable):
-        return ("no exit rule is recorded — this position was deployed without a "
-                "pre-committed exit, which is the state this module exists to "
-                "make visible")
+#: An exit rule that has already TRIGGERED, or has been explicitly OVERRIDDEN,
+#: is a record of a decision. It is not a control and it will not fire again:
+#: ``enforce()`` skips both (see the two ``skipped.append`` branches). Coverage
+#: that counts one is coverage that does not exist.
+#:
+#: Measured, on the live rule set, 2026-08-22 (adversary review of builder D11,
+#: finding K2 — the loosening that killed the diff): the coverage block reported
+#: $674.10 uncovered against $1,165.44 actually uncovered —
+#:   GLD  $179.70  machinery-test loss_pct, triggered 2026-08-20T08:01:26
+#:                 (on the phantom mark) AND overridden 2026-08-20T11:00:13
+#:   INTC $144.90  machinery-test gain_pct, overridden 2026-08-17T17:03:56
+#:   SPY  $166.74  a live rule, but on a strategy that would no longer hold it
+#:
+#: ``superseded`` IS DELIBERATELY NOT IN THIS TEST, and that is a correction to
+#: the review's own repair specification, which asked for "not-superseded /
+#: not-triggered / not-overridden". Measured against the fold rather than
+#: assumed: ``_fold`` keeps exactly ONE entry per (strategy, symbol, kind) and
+#: sets ``superseded=True`` on the SURVIVOR when an earlier commitment existed.
+#: The flag means "this key has been REVISED"; the rule carrying it is the
+#: current, governing one. ``enforce()`` does not skip it, and the fold's own
+#: comment on EXIT_RULE_TRIGGERED says re-committing exists precisely so a rule
+#: CAN FIRE AGAIN — a re-commitment always sets this flag, so filtering on it
+#: would make the one mechanism for restoring a fired rule invisible to the
+#: coverage report, and an operator who correctly re-committed would see the
+#: position still flagged with no way to clear it. Verified by folding two SETs
+#: on one key: n=1, threshold=the revision, superseded=True.
+#:
+#: The INTC case the review attributed to supersession is still reported
+#: uncovered — by the OWNERSHIP key. Its live ``wiring_verification`` rule
+#: belongs to a strategy that does not hold the position.
+def _rule_is_live(r: dict[str, Any]) -> bool:
+    return not (r.get("triggered_at") or r.get("overridden_at"))
+
+
+def _why_not_live(r: dict[str, Any]) -> str:
+    if r.get("triggered_at"):
+        return f"already triggered at {r.get('triggered_at')}"
+    if r.get("overridden_at"):
+        return f"overridden at {r.get('overridden_at')}"
+    return "live"
+
+
+def _held_rows(rows: Optional[list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """Normalise whatever the caller handed us into one holding shape.
+
+    Reads BOTH ``usd_value`` and ``value_usd``, and that is a defect fix rather
+    than politeness. ``RiskMonitor.assess()`` emits ``value_usd`` (riskmonitor.py,
+    the ``positions_list.append`` block) while venuesync and the attribution
+    projection emit ``usd_value``; the first version of the coverage block read
+    only ``usd_value``, so on the LIVE path every uncovered row carried a null
+    dollar figure — verified against the running spine 2026-08-22, whose rows
+    are exactly {symbol, qty, mark, value_usd, weight_pct, unrealized_pnl_pct,
+    shock_20_usd}. A coverage report whose money column is always absent cannot
+    be ranked by money.
+
+    Absent stays absent: a row with neither key gets ``usd_value=None`` and is
+    counted in ``uncovered_unvalued``, never as zero.
+    """
+    out = []
+    for r in (rows or []):
+        symbol = r.get("symbol")
+        if not symbol:
+            continue
+        value = r.get("usd_value")
+        if value is None:
+            value = r.get("value_usd")
+        out.append({"symbol": symbol,
+                    "strategy_id": r.get("strategy_id"),
+                    "qty": r.get("qty"),
+                    "usd_value": value})
+    return out
+
+
+def _uncovered(rules: list[dict[str, Any]],
+               held: list[dict[str, Any]]) -> dict[str, Any]:
+    """Which holdings no LIVE exit rule covers, and why each one is exposed.
+
+    Keyed on ``(strategy_id, symbol)`` when the holding names its owner. An
+    exit rule is a commitment BY a strategy ABOUT a symbol: ``enforce()`` raises
+    the closing SELL with ``strategy_id`` on it, and autopolicy v3 will only
+    auto-approve that SELL if the rule's own strategy holds the quantity being
+    sold. So a rule on strategy A does not cover strategy B's holding of the
+    same ticker — it cannot even be executed against it — and scoring it as
+    coverage is the same absence-as-value error in a different costume.
+
+    When the holding does NOT name an owner (the risk monitor's rows do not),
+    the weaker symbol-level test is used and ``coverage_basis`` says so. That
+    is deliberately not silent: this is the exact place where a report can
+    look reassuring for a reason that has nothing to do with the book.
+    """
+    live = [r for r in rules if _rule_is_live(r)]
+    dead = [r for r in rules if not _rule_is_live(r)]
+    live_pairs = {(r.get("strategy_id"), r.get("symbol"))
+                  for r in live if r.get("symbol")}
+    live_symbols = {r.get("symbol") for r in live if r.get("symbol")}
+    any_symbols = {r.get("symbol") for r in rules if r.get("symbol")}
+
+    uncovered: list[dict[str, Any]] = []
+    bases: set[str] = set()
+    for h in held:
+        symbol, owner = h["symbol"], h.get("strategy_id")
+        if owner:
+            bases.add("strategy+symbol")
+            covered = (owner, symbol) in live_pairs
+        else:
+            bases.add("symbol")
+            covered = symbol in live_symbols
+        if covered:
+            continue
+        if owner and symbol in live_symbols:
+            others = sorted({str(r.get("strategy_id")) for r in live
+                             if r.get("symbol") == symbol})
+            why = (f"held by {owner}; the live exit rule(s) for {symbol} "
+                   f"belong to {', '.join(others)} and cannot be executed "
+                   f"against this holding")
+        elif symbol in any_symbols:
+            reasons = sorted({_why_not_live(r) for r in dead
+                              if r.get("symbol") == symbol})
+            why = (f"every exit rule for {symbol} is a record, not a control "
+                   f"({'; '.join(reasons)})")
+        else:
+            why = "held with no pre-committed exit rule"
+        uncovered.append({**h, "why": why})
+
+    valued = [u["usd_value"] for u in uncovered if u["usd_value"] is not None]
+    unvalued = [u["symbol"] for u in uncovered if u["usd_value"] is None]
+    return {
+        "uncovered": uncovered,
+        # The sum of what could be valued, and separately WHAT COULD NOT. A
+        # single total over a partly-unpriced set understates the exposure and
+        # reads like a measurement of the whole thing.
+        "uncovered_usd": round(sum(float(v) for v in valued), 2) if valued else None,
+        "uncovered_unvalued": unvalued,
+        "coverage_basis": ("strategy+symbol" if bases == {"strategy+symbol"}
+                           else "symbol" if bases == {"symbol"}
+                           else "mixed" if bases else "nothing held"),
+        "rules_not_live": [
+            {"strategy_id": r.get("strategy_id"), "symbol": r.get("symbol"),
+             "kind": r.get("kind"), "why": _why_not_live(r)} for r in dead],
+    }
+
+
+def _note(fired: list, holding: list, unevaluable: list,
+          uncovered: Optional[list] = None, *, coverage_known: bool = True,
+          uncovered_usd: Optional[float] = None,
+          unvalued: Optional[list] = None,
+          rules_not_live: Optional[list] = None) -> str:
+    uncovered = uncovered or []
     bits = []
+    if not (fired or holding or unevaluable):
+        bits.append("no exit rule is recorded — this position was deployed "
+                    "without a pre-committed exit, which is the state this "
+                    "module exists to make visible")
     if fired:
         bits.append(f"{len(fired)} exit rule(s) FIRED and need a decision")
     if holding:
@@ -374,4 +544,29 @@ def _note(fired: list, holding: list, unevaluable: list) -> str:
     if unevaluable:
         bits.append(f"{len(unevaluable)} could not be checked — not the same as "
                     f"fine")
+    if uncovered:
+        money = (f", ${uncovered_usd:,.2f}" if uncovered_usd is not None else "")
+        # Unvalued names are called out beside the total rather than folded
+        # into it: a dollar figure over a partly-unpriced set is an
+        # understatement wearing a decimal point.
+        gap = (f" (plus {len(unvalued)} with no readable value: "
+               f"{', '.join(unvalued)})" if unvalued else "")
+        bits.append(f"{len(uncovered)} held position(s) carry NO LIVE exit rule"
+                    f"{money}{gap} — "
+                    f"{', '.join(str(u['symbol']) for u in uncovered)}")
+    elif not coverage_known:
+        # The distinction the whole module is built on, applied to itself:
+        # "nothing uncovered" and "we could not read the book" are different
+        # claims and only one of them is reassuring.
+        bits.append("coverage of held positions UNKNOWN — the book could not "
+                    "be read, so this is not a report of full coverage")
+    if rules_not_live:
+        # Said out loud on every reading, not only when something is uncovered.
+        # This is the sentence that makes the K2 correction visible instead of
+        # quiet: a reader comparing today's coverage against last week's needs
+        # to know that four rules stopped counting because they were never
+        # controls, rather than concluding the book got worse.
+        bits.append(f"{len(rules_not_live)} recorded rule(s) are NOT controls "
+                    f"(superseded / already triggered / overridden) and are "
+                    f"excluded from coverage")
     return "; ".join(bits)

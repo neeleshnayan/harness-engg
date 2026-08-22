@@ -57,7 +57,7 @@ def test_map_positions():
 def test_idempotency_returns_existing_without_resubmit():
     existing = FakeOrder(id="already-there", client_order_id="ord-1", status="filled")
     trading = FakeTrading(existing=existing)
-    conn = AlpacaConnector(trading=trading)
+    conn = AlpacaConnector(trading=trading, paper=True)
     ref = conn.execute(Order("alpaca", "AAPL", Side.BUY, 1), idempotency_key="ord-1")
     assert ref.ref_id == "already-there"
     assert trading.submitted == []  # never double-submitted
@@ -75,7 +75,9 @@ def test_price_cache_ttl():
             self.fetches += 1
             return 100.0 + self.fetches  # changes each real fetch
 
-    c = Conn(price_ttl=5, clock=lambda: clock["t"])
+    # paper= is REQUIRED as of 2026-08-22 (K8): the connector no longer
+    # guesses, and ALPACA_PAPER no longer decides for it.
+    c = Conn(price_ttl=5, clock=lambda: clock["t"], paper=True)
     p1 = c.price("AAPL")
     p2 = c.price("AAPL")          # within TTL -> cached, no refetch
     assert p1 == p2 and c.fetches == 1
@@ -91,7 +93,7 @@ def test_fresh_submit_sets_client_order_id():
             return {"symbol": order.symbol, "client_order_id": client_order_id}
 
     trading = FakeTrading(existing=None)
-    conn = Conn(trading=trading)
+    conn = Conn(trading=trading, paper=True)
     ref = conn.execute(Order("alpaca", "AAPL", Side.BUY, 2), idempotency_key="ord-2")
     assert ref.ref_id == "new-order-id"
     assert trading.submitted[0]["client_order_id"] == "ord-2"

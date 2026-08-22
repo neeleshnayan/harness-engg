@@ -105,15 +105,33 @@ class OrderCost:
     has_split: bool
     proposed_ts: Optional[str]
     filled_ts: Optional[str]
-    #: Venue from the OrderSubmitted leg. Load-bearing for the assumption
-    #: verdict: the paper connector fills at its own quote (paper.py:116 is
-    #: the same call pipeline.py:215 records as arrival_price), so a paper
-    #: fill's execution slippage is identically zero at any sample size — a
-    #: tautology, not a measurement (validator audit 8b863152, 2026-08-20).
+    #: THE VENUE THAT ACTUALLY EXECUTED, taken from OrderSubmitted's
+    #: ``ref.venue`` — the connector's own answer — in preference to the fill's
+    #: label. Load-bearing for the assumption verdict: the paper connector
+    #: fills at its own quote (paper.py:116 is the same call pipeline.py:215
+    #: records as arrival_price), so a paper fill's execution slippage is
+    #: identically zero at any sample size — a tautology, not a measurement
+    #: (validator audit 8b863152, 2026-08-20).
     venue: Optional[str] = None
+    #: What the FILL event claimed, kept beside the executed truth rather than
+    #: dropped. Annotate, never erase.
+    venue_declared: Optional[str] = None
+    #: True when the two disagree. Measured, not hypothetical: order
+    #: 17d64dcd (DBA, 2026-08-21) submitted on ``paper`` and filled labelled
+    #: ``alpaca``, and this reader counted it as informative for a day.
+    venue_disputed: bool = False
+
+    @property
+    def informative(self) -> bool:
+        """Can this fill measure execution cost at all?
+
+        A simulated venue cannot, by construction, at any sample size. Decided
+        on the EXECUTED venue, which is the whole point of the field.
+        """
+        return (self.venue or "") != "paper"
 
     def to_dict(self) -> dict[str, Any]:
-        return {k: v for k, v in self.__dict__.items()}
+        return {**self.__dict__, "informative": self.informative}
 
 
 def _bps(reference: Optional[float], got: Optional[float], side: str) -> Optional[float]:
@@ -206,10 +224,34 @@ class TransactionCosts:
             fees_bps=fees_bps, total_usd=total_usd,
             has_split=(delay_bps is not None and execution_bps is not None),
             proposed_ts=proposed.get("ts"), filled_ts=filled.get("ts"),
-            # The fill's own venue first (recorded on OrderFilled since
-            # 2026-08-20), falling back to the submitted leg for the fills that
-            # predate it. Absent on neither leg stays None — not "paper".
-            venue=f_pay.get("venue") or s_pay.get("venue"),
+            # THE SUBMITTED LEG FIRST — reversed 2026-08-22, and the reversal
+            # is the point.
+            #
+            # OrderSubmitted carries ``ref.venue``: the handle the CONNECTOR
+            # that ran the order handed back. OrderFilled carried
+            # ``order.venue``: a string the PROPOSER put on the request. Those
+            # are a fact and a wish, and this reader preferred the wish.
+            #
+            # Measured cost of that precedence: order 17d64dcd — DBA,
+            # 5.314306 @ $28.38, the CEO-authorised experimental deployment of
+            # 2026-08-21 whose entire learning goal was the fund's first
+            # informative cost observations — was submitted on ``paper`` and
+            # filled labelled ``alpaca``. It sat inside this module's
+            # "informative" set contributing 0.00bps of execution cost by
+            # construction, in a sample of 8, under a verdict quoting 5.56bps
+            # against a 5.0bps assumption.
+            #
+            # The fill's label is KEPT beside the truth rather than dropped
+            # (annotate, never erase) and the disagreement is counted, so the
+            # correction is visible instead of quiet. Backfilled broker fills
+            # legitimately have no submit leg — those fall back to the fill's
+            # own label, which for a replay of the broker's own records is the
+            # broker's answer, not a proposer's.
+            venue=s_pay.get("venue") or f_pay.get("venue"),
+            venue_declared=f_pay.get("venue"),
+            venue_disputed=bool(
+                s_pay.get("venue") and f_pay.get("venue")
+                and s_pay.get("venue") != f_pay.get("venue")),
         )
 
     # --- aggregates ---------------------------------------------------------
@@ -283,7 +325,7 @@ def summarise(rows: list[OrderCost]) -> dict[str, Any]:
     # by construction, a tautology that would drag the average toward zero
     # as paper fills accumulate. Validator audit 8b863152.
     informative = [r.execution_bps for r in rows
-                   if r.execution_bps is not None and (r.venue or "") != "paper"]
+                   if r.execution_bps is not None and r.informative]
     # None when nothing informative has filled, deliberately preserved: the
     # alternative is a verdict block whose numbers are all None, which reads
     # like a measurement of zero to anything scanning for a field rather
@@ -302,14 +344,25 @@ def summarise(rows: list[OrderCost]) -> dict[str, Any]:
     # drifts to "we trade for free". These blocks are the same statistics over
     # the fills that carry information, and they NAME the venues they counted
     # so the panel can label itself instead of implying it measured everything.
-    informative_rows = [r for r in rows if (r.venue or "") != "paper"]
+    informative_rows = [r for r in rows if r.informative]
     venues_counted = sorted({r.venue for r in informative_rows if r.venue})
-    venues_excluded = sorted({r.venue for r in rows if (r.venue or "") == "paper"})
+    venues_excluded = sorted({r.venue for r in rows if not r.informative and r.venue})
+    # Rows whose fill label contradicted the connector that ran them. Reported
+    # rather than silently corrected: a reader who sees this number non-zero is
+    # looking at the exact defect that made the DBA experiment measure nothing,
+    # and a reader who sees it zero has been told, not left to assume.
+    disputed = [r for r in rows if r.venue_disputed]
     informative_block = {
         "orders": len(informative_rows),
         "venues_counted": venues_counted,
         "venues_excluded": venues_excluded,
         "excluded_orders": len(rows) - len(informative_rows),
+        "venue_disputed": len(disputed),
+        "venue_disputed_orders": [
+            {"order_id": r.order_id, "symbol": r.symbol,
+             "executed_on": r.venue, "labelled": r.venue_declared}
+            for r in disputed
+        ],
         "total_bps": _stats([r.total_bps for r in informative_rows
                              if r.total_bps is not None]),
         "execution_bps": _stats(informative),

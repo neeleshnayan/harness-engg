@@ -13,7 +13,8 @@ large-cap US equities is exactly the "three strategies that are really one bet"
 case the correlation engine is built to catch. The seed is meant to produce a
 book with real risk findings in it, not a clean one.
 
-Run against a spine started with USE_FAKE_FIRESTORE=1. Refuses otherwise: this
+Run against a spine started in TEST mode (./scripts/run_test.sh).
+Refuses otherwise: this
 writes subscriptions and fills, and none of that belongs in the real book.
 """
 
@@ -100,14 +101,18 @@ def quotes(symbols):
 def main() -> int:
     book = call("GET", "/book")
     if book.get("orders_are_real"):
+        # Same correction as live_seed: FUND_REAL_BROKER no longer selects
+        # anything, so telling an operator to unset it is telling them to do
+        # nothing and expect a different result.
         print("REFUSING: this spine routes orders to the REAL broker "
-              f"(venue={book.get('venue')!r}). The seeder invents fills and would "
-              "place nine real orders. Start without FUND_REAL_BROKER to seed.")
+              f"(mode={book.get('mode')!r}, venue={book.get('venue')!r}). The "
+              "seeder invents fills and would place nine real orders. Start it "
+              "with FUND_MODE=test to seed.")
         return 1
-    if book.get("env") != "mock":
-        print(f"REFUSING: spine is not in mock mode (env={book.get('env')!r}, "
+    if book.get("env") != "test":
+        print(f"REFUSING: spine is not in test mode (env={book.get('env')!r}, "
               f"project={book.get('project_id')!r}).")
-        print("Start it with USE_FAKE_FIRESTORE=1 first.")
+        print("Start it with ./scripts/run_test.sh first.")
         return 1
 
     nav_now = (call("GET", "/nav").get("live") or {}).get("total_nav_usd") or 0
