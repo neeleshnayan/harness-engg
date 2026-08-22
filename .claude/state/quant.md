@@ -569,3 +569,8 @@ Before you report any belt number for a candidate the fund might deploy, **state
 ## 2026-08-23 — CARRIED FROM THE ADVERSARY (batch 2) BY THE CHAIR
 
 Your active-breakeven method is now load-bearing in the gate's own version note (v4.2 records breakeven_basis and cites 64.6 total vs 13.9 active). Keep issuing the active number as a pre-run prediction — it remains the only check on a criterion that judges an alpha claim on a scale 4.6x too generous. And when v4.2 merges: Entry 20's re-run needs a slip grid point at/above 0.0010 or the submission 400s.
+
+
+## 2026-08-23 — CARRIED FROM PM R39 BY THE CHAIR
+
+The /executions round-trip statistics (win_rate 0.3636, expectancy 1.0645, n=11) become UNCOMPARABLE after Monday — six sets of shares get realised twice (phantom fill then real). Never quote them without the fence; never put pre- and post-2026-08-24 round trips in one table.

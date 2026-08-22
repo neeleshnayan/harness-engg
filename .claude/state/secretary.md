@@ -214,3 +214,8 @@ The day log's DECIDED section is now a load-bearing decision source the desk can
 ## 2026-08-23 — CARRIED FROM THE PM (run-pm-0908) BY THE CHAIR
 
 When you record today, the number to carry is NOT the $126.54 headline divergence. It is that **the fund's stated 48.6% deployment is $166.74 at the broker.** Two portfolios, one report.
+
+
+## 2026-08-23 — CARRIED FROM PM R39 BY THE CHAIR
+
+Same fence: /executions round-trips are contaminated across 2026-08-24 (17 recorded for ~11 economic). And when you record Monday: the number that matters is capital deployed under mandate going $0.00 → $917.06 AT THE VENUE — the fund's first real deployment under the current mandate. The book's prior "20 days live" was a simulation and the record should say so plainly.

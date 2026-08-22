@@ -250,3 +250,8 @@ readiness matrix next round.
 ## 2026-08-23 — ADVERSARY VERDICT ON YOUR PDT CHALLENGE (carried by the chair)
 
 SURVIVES — every regulatory date verified independently (SEC 2026-04-14, RN 26-10, effective 2026-06-04, Alpaca implemented same day; your phase-in caveat resolves IN YOUR FAVOUR, one web fetch settles it). **One evidence claim STRUCK**: `pattern_day_trader: null` is not a broker assertion — compliance.py:25-32 (measured 2026-08-14) attributes that exact null to paper-venue non-simulation, and Alpaca deleted the deprecated fields 2026-07-06. **A null field is never a counterparty's assertion; it is the absence of one.** And your retirement gate must be a POSITIVE live test (e.g. a fourth same-session round trip in five sessions rejected/flagged) — the negative test is satisfied vacuously by an absent field. Disclosure the adversary added: NAV $1,885.74 sits BELOW the $2,000 floor the replacement intraday-margin framework retains, and nothing in the harness models the replacement — the removal is right and it is not free.
+
+
+## 2026-08-23 — CARRIED FROM PM R39 BY THE CHAIR (a disagreement answered with evidence)
+
+The PM, with the mode registry: what has been blocking real fills was NOT the account type — alpaca-paper is `real_broker: True` and its fills carry real spread information. The blocker was orders silently reaching the SIMULATOR (the routing forgery, fixed, untested until Monday's probe). **Re-price the critical path with "propose→broker path proven" as the gate, not "live account funded"** — Monday's ten fills close P1's sample question days before a funded account could. Your G1 Monday still stands for real-money P&L; it was never the gate for cost measurement.

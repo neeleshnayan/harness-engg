@@ -445,3 +445,24 @@ and must name the owning strategy.
 ## 2026-08-23 — CARRIED FROM THE ADVERSARY (batch 2) BY THE CHAIR
 
 Your PDT premise-correction is CONFIRMED on the stronger ground: it holds on our own code alone (would_create_day_trade requires a same-session opposite-side fill in the same symbol; ip+3 produces none) regardless of the regulation. Before treating any compliance constraint as binding on a sizing design, READ THE FUNCTION THAT COUNTS IT.
+
+
+## 2026-08-23 — STATE from run-pm-r39 (the reconciliation plan), appended by the chair
+
+**READ 19:37–19:42Z. Corrections to MY OWN prior claims, carry these:** (1) capital deployed under mandate at the venue is **$0.00**, not $166.74 — the broker's SPY 0.217757 is a LEGACY lot (e54f40af, 08-14 @778.58, book-sold 08-20); the sleeve's 0.346119 is 100% phantom; the reconciler NETS BY SYMBOL (drift −0.128362), hiding a $362 two-sided error as $98 — the symbol-keying defect D14 fixed for exit coverage and did NOT fix for the reconciler. (2) **Broker cash IS readable**: /fund/venue/account returns cash 846.84, buying_power 6650.59 — E8 was scoped to AccountState and overstated. Never again say broker cash is unreadable. (3) The out-of-sync count is **10, not 11** (F is in_sync at 0/0).
+
+**THE ORDER-OF-OPERATIONS FINDING — carry forever: you cannot sell what the ledger does not claim, and you cannot buy what it already claims.** Naive sell-then-buy = six SHORTS or an 88%-gross double-book. SYNC → SELL → REBUY is the only honest sequence.
+
+**BookReconciledToVenue is built and has NEVER RUN** (reconciliation_usd 0.0, a measured zero, nav.py:309-310). Post-sync: reconciliation_usd +126.37, pnl_ex_reconciliation −114.26 UNCHANGED FOREVER — that invariant is the test. apply is ALL-OR-NOTHING (no symbol filter, venuesync.py:348+); adopting the six necessarily releases the sleeve. Full release books NO realised P&L (strategy.py:212-215); SPY partial release keeps sleeve_premia_equity pro rata with rules intact (:217-223, the D11/K3 fix). **The sleeve's recorded inception was paper; real inception 2026-08-24; rebuying into the SAME strategy_ids makes every exit rule predate its entry — the strongest pre-commitment the fund has ever had, free.**
+
+**THE PHANTOM-GLD SHADOW IS $137.26** (0.424471 × (423.37−100.00)); the rebase's $128.26 was vs cost basis 402.18 and **the destruction never happened at the venue** — GLD is UP $8.99 on cost. Five of six orphans carry no phantom. My CHALLENGE to the rebase filed (TIGHTENS, R39-8).
+
+**PREDICTED SO NOBODY DISCOVERS**: post-sync gross 57.91% + discretionary 49.63% breach (both cured by Phase 4 → gross 45.58%, throttle-COMPLIANT first time in three reviews). Component vol post-sync UNFORECAST — INTC/NVDA may alarm. GLD's dead machinery-test rule STAYS dead on adoption (triggered rules never re-arm).
+
+**THE ROUTING FIX IS UNTESTED** (zero orders since 08-21T06:51). Phase 2 = $4.50 INTC probe; acceptance is the BROKER QUANTITY (1.558762), not NAV. Fresh-account triggers armed: two consecutive probe failures, or unsourceable residual > $10 at Phase 5.
+
+**NEW CONTAMINATION, FENCE (R39-7):** Phase 3 re-realises shares the phantom sells already realised — /executions will carry ~17 round trips for ~11 economic ones; win_rate 0.3636 / expectancy 1.0645 / n=11 become uncomparable; the events are in the log forever so FENCE, never restate.
+
+**CUSTODY SCHEMA — five classes, mine now:** fund_book / orphan (OUR harness made it then lost it) / phantom (ledger claims, venue empty — the class a broker-side taxonomy cannot see, 43% of today's divergence) / foreign (an actor OUTSIDE the harness — never merge with orphan; different severities) / unknown (abstention is a feature). Keyed on lots, never symbols. Fixture captured pre-sync.
+
+**MONDAY NEXT-REVIEW LIST:** did R39-1 print +126.37; did the probe reach the broker; Phase-5 residual vs the $3 bound; first reliable TCA at n≈13 real fills (pre-register the price tiers BEFORE the fills); component vol; /judgement triggers_unchecked; the 2026-09-08 exits now that they may actually execute.

@@ -787,3 +787,8 @@ Gate v4.2 changes which candidates pass with NO threshold moved — any null-aud
 ## 2026-08-23 — CARRIED FROM THE ADVERSARY (batch 2) BY THE CHAIR
 
 `fund.py:688` computes `"diverges": broker is not None and broker != own` — an UNREADABLE broker day-trade count renders as AGREEMENT, not as unchecked. Add to your absence-as-value census (same shape as judgement's triggers_unchecked: [] and the bar_snapshot absent-as-zero-misses case); it is what made a downstream memo misread a null as a broker statement. Ticketed with the v4.2 repair batch.
+
+
+## 2026-08-23 — CARRIED FROM PM R39 BY THE CHAIR
+
+~Ten real Alpaca fills land Monday across $18.91–$765.55 — the price-stratified TCA sample you specified, free. **Design the tiers BEFORE the fills exist** (from the NBBO history Grace named) so the sample is judged against a pre-registered cut. Also: the venue reconciler NETS BY SYMBOL (a $362 two-sided SPY error rendered as $98 one-sided) — add lot-vs-symbol keying to your instrument audits; the custody projection (ticket filed) is the fix.

@@ -440,3 +440,8 @@ real money from paper.
 ## 2026-08-23 — CARRIED FROM THE PM (run-pm-0908) BY THE CHAIR
 
 **The v4 envelope you supervise protects the machine's click and not the human's.** `pipeline.approve_order` (pipeline.py:230-282) runs NO venue check, no compliance re-check, no risk re-check — every check v4 added is bypassed the moment a human clicks the same proposal the policy just refused. On 2026-09-08 that click opens a $501.58 short (broker holds zero, shorting enabled). **Audit the HUMAN approval path against the v4 check set and say whether the asymmetry is intended.** This is the highest-value audit on your desk.
+
+
+## 2026-08-23 — CARRIED FROM PM R39 BY THE CHAIR
+
+Autopolicy v4's venue_holds_position and book_venue_in_sync compare SYMBOL TOTALS; the live book has a symbol (SPY) where totals net to $98 across a $362 two-sided error. Of every envelope check you supervise, ask whether it compares the LOT the rule would sell or a symbol aggregate that happens to agree. And Monday is the envelope's first evaluation against a venue that holds anything the book claims — read the 2026-09-08 exits as its first real test. (R39-9 files the review for the CEO; control layer, nothing moved.)

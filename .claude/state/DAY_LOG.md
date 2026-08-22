@@ -169,6 +169,28 @@ maintain a day log for fable to review."***
   = a POSITIVE live test, never an absent field. Bonus finding: fund.py:688
   renders unreadable broker counts as diverges:false (absence as agreement).
 
+### BUILT — MONDAY'S CLICK SHEET (PM R39, resolved ~20:40Z)
+
+- **The R39 plan is filed and Monday is choreographed**
+  (docs/pm/PM_R39_PLAN_2026-08-23.md): SYNC (pre-open, one click, records
+  +$126.37 as reconciliation not performance) → $4.50 ROUTING PROBE (the fix
+  has never carried a live fill; everything stops if it misses) → six orphan
+  SELLS (GLD first) → four sleeve REBUYS at unchanged quantities → acceptance
+  ≤$3. Ten CEO clicks + one sync click, ~$1–2 total cost. Ends: **executable
+  exit coverage 8/8 and capital under mandate actually $917.06 at the venue —
+  the fund's FIRST real deployment under the current mandate** (the PM
+  corrected its own figure: today's real deployment is $0.00, not $166.74 —
+  the broker's SPY is a legacy lot the reconciler nets away).
+- **THE CUSTODY FIXTURE IS CAPTURED PRE-SYNC**
+  (docs/pm/CUSTODY_FIXTURE_2026-08-22.json) and the custody-attribution
+  builder ticket is filed — five classes (phantom + unknown added), keyed on
+  lots never symbols, acceptance test = SPY yields TWO rows.
+- **The drawdown rebase's founding premise is measured false**: the $128.26
+  "realised destruction" never happened at the venue — the GLD shares sit
+  there UP $8.99. R39-8 files the review (a TIGHTENING of the reference);
+  the PM's challenge rides it. Broker cash IS readable (846.84,
+  /fund/venue/account) — the PM corrected its own E8.
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT

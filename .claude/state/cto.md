@@ -314,3 +314,11 @@ and a test pins it.
 ## 2026-08-23 — FROM BUILDER D16, binding on the chair
 
 Entry 20's stored verdict (passed: true, gate v4.1) STAYS. A v4.2+ re-judge is a NEW row; presenting the two side by side without saying the bar moved is the misreading the clean-field amendment forbids. And the merge-gate FAIL on gate.py diffs is a ROUTING verdict (adversary blind), not a build failure — read the suite exit code beside it.
+
+
+## 2026-08-23 — FROM PM R39, binding on the chair (Monday's staging)
+
+1. **The sync run_id is a fresh uuid4 per plan read** (venuesync.py:313) — read the plan and apply IN ONE SITTING or the echo will not match. Sync = approval channel, NOT a proposal (no 120-min clock). Stage it PRE-OPEN 12:30–13:25Z.
+2. **The fixture is captured** (docs/pm/CUSTODY_FIXTURE_2026-08-22.json) — done before any sync; do not overwrite it.
+3. Monday choreography: sync pre-open → $4.50 INTC probe 13:35Z (STOP ALL if it misses the broker) → six sells 13:45–14:15 (GLD first) → four rebuys 14:30–15:00 (verify each exit rule live in /exits first) → acceptance ≤$3 residual by 15:30. Ten CEO clicks + one sync click. G1 the same morning.
+4. **The reconciler nets by symbol** — never cite its drift for a symbol with two lots; the custody projection is the fix (ticket filed).
