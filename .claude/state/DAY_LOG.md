@@ -33,7 +33,19 @@ maintain a day log for fable to review."***
 
 ---
 
-## 2026-08-23 (UTC)
+### LATE EVENING 2026-08-22, 18:30–21:30Z — CHAIR DATING ERROR, CORRECTED IN PLACE
+
+**Everything below this banner through the next day-header was initially
+filed under "## 2026-08-23 (UTC)" — WRONGLY. The local day rolled at 18:30Z
+and the chair dated by it: the exact misfire the EoD guard ticket
+(02a0048d) exists to prevent, committed by the chair that filed that
+ticket. Caught at 21:32Z by running `date -u` before dispatching Donna.
+The same error touches tonight's run records: several `dispatched_at`
+fields say 2026-08-23T…Z where the true UTC time was 2026-08-22 evening.
+Kept in place with this banner per keeping-rule 1 — one entry per UTC day —
+rather than silently re-headed. The lesson is now the chair's, not just
+Donna's: CHECK date -u BEFORE DATING ANYTHING.**
+
 
 ### DECIDED (by the CEO, ~00:30Z, before sleep)
 

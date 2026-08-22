@@ -381,3 +381,14 @@ genuinely finds none writes "no material downside identified" explicitly
 (stated absence, never silent absence — the house rule in one more place).
 Goes into every dispatch brief from now on; the chair checks it at resolve
 like the other five rules.
+
+
+## 2026-08-22 (~21:35Z) — THE LOCAL-MIDNIGHT TRAP BIT THE CHAIR
+
+The harness announced "the date has changed" at LOCAL midnight (18:30Z) and
+I dated a full day-log section and several run records 2026-08-23 while UTC
+was still 08-22 — the same misfire the co-CTO made with Donna's archive,
+committed by the chair that filed the guard ticket about it. RULE, now
+mine: **`date -u` before dating anything — an entry header, a dispatched_at,
+an archive cut. The harness's date banner is LOCAL and is not evidence.**
+Corrected in place with a banner, not silently re-headed.
