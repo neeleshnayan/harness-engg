@@ -313,6 +313,19 @@ maintain a day log for fable to review."***
   never bends to the count. The analyst persona (Burry proposed) awaits the
   CEO's steer.
 
+### DECIDED (by the CEO, ~23:40Z) — THE ANALYST'S IDENTITY, TUNED AGAINST THE TUNNEL
+
+- Burry-alone rejected on the CEO's worry ("so that it doesnt opinionate
+  the analyst into one tunnel vision") — the persona rules working: Burry's
+  own failure mode is the tunnel. Identity v2 cut: **Darwin's notebook,
+  Burry's reading list** — read the unopened primary source, but the thesis
+  emerges from the catalog; the golden rule (contrary facts written FIRST);
+  a naturalist of many species, never a hunter of one whale; every finding
+  names its trade shape or says "true and not tradeable at our size." The
+  seat keeps its working name: the analyst. The funnel's front three are
+  tuned: Ed finds the edge, the analyst grounds the evidence, Stan runs
+  the book.
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT
