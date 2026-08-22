@@ -100,16 +100,39 @@ test("a recommendation whose run is unknown is undated, not new", () => {
 
 /* ------------------------------------------------------------- ranking --- */
 
-test("money leads, and an unpriced item never outranks a priced one", () => {
+test("an unpriced item never outranks a priced one INSIDE its band", () => {
+  /* RENAMED 2026-08-22. This test used to be called "money leads" and it
+   * passed for the wrong reason after the ranking was reordered: the order is
+   * `irreversible` and the recommendation is `hard`, so reversibility puts the
+   * order first and money never gets a vote. A test that keeps passing while
+   * the rule it names is replaced is worse than no test — so it now says what
+   * it actually pins, and the case that DOES discriminate is below it. */
   const priced = orderItems([sofiSell]);
   const unpriced = recItems(
     [rec({ run_id: "r", rec_id: 1, seat: "pm", kind: "retire", text: "close it" })],
     [run({ run_id: "r", seat: "pm", resolved_at: "2020-01-01T00:00:00Z" })],
   );
-  // The recommendation is far older AND classed `hard`; money still wins.
   const ranked = rankDeskItems([...unpriced, ...priced]);
-  assert.equal(ranked[0].kind, "order");
+  assert.equal(ranked[0].kind, "order", "irreversible leads hard");
   assert.equal(ranked[1].kind, "recommendation");
+});
+
+test("REVERSIBILITY beats money — the case that actually discriminates", () => {
+  /* The house rule, from the COO and adopted by the chair: "a versioned
+   * envelope change can be reversed in an afternoon; an unintended short
+   * position at a real venue cannot." A large revertible row must sit BELOW a
+   * small final one. Under the previous money-first order this assertion was
+   * false, which is why the CEO's desk put a four-figure process item level
+   * with an armed position. */
+  const bigRevertible = orderItems([]).concat(recItems(
+    [rec({ run_id: "r", rec_id: 1, seat: "pm", kind: "process",
+           text: "big but revertible", money_at_stake: 100000 })],
+    [run({ run_id: "r", seat: "pm", resolved_at: "2026-08-20T10:00:00Z" })]));
+  const smallFinal = orderItems([{ ...sofiSell, order_id: "tiny",
+    impact_preview: { notional_usd: 1 } }]);
+  const ranked = rankDeskItems([...bigRevertible, ...smallFinal]);
+  assert.equal(ranked[0].order?.order_id, "tiny",
+    "the $1 fill leads the $100,000 process change");
 });
 
 test("bigger money first", () => {

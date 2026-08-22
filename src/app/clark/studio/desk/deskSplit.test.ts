@@ -18,6 +18,9 @@ import { test } from "node:test";
 import {
   compareDeskItems,
   moneyGap,
+  rankCoverage,
+  rankReason,
+  reversibilityOf,
   orderItems,
   rankDeskItems,
   recItems,
@@ -153,14 +156,115 @@ test("moneyGap counts the rows the ranking could not price", () => {
   assert.deepEqual(moneyGap(items), { priced: 1, unpriced: 2 });
 });
 
-test("compareDeskItems still prefers larger money, then harder-to-undo", () => {
-  const a: DeskItem = {
+test("REVERSIBILITY leads the sort, and money is the tie-break inside it", () => {
+  /* THE RANKING WAS REORDERED 2026-08-22 AND THIS TEST WAS INVERTED WITH IT.
+   * Recorded loudly, because a test rewritten to match the change it was
+   * supposed to catch is how a rule gets quietly replaced.
+   *
+   * WHAT CHANGED: money used to lead. The CEO's complaint was that his desk is
+   * "out of order ... Making my flow messy", and the COO's stated rule — which
+   * the chair adopted as house rule — is reversibility first: *"a versioned
+   * envelope change can be reversed in an afternoon; an unintended short
+   * position at a real venue cannot."* Money ranks by how much is moving; it
+   * does not rank by how much of it you can get back, and the second is what
+   * decides which row the CEO should read first.
+   *
+   * THIS IS A DESK ORDERING, NOT A CONTROL: it moves no threshold, gates
+   * nothing, and changes no number the fund acts on automatically. It changes
+   * which row is at the top of a human's list. */
+  const bigButRevertible: DeskItem = {
     key: "a", kind: "recommendation", moneyUsd: 100,
-    reversibility: "reversible", waitingSince: null,
+    reversibility: "reversible", waitingSince: null, dueDate: null,
   };
-  const b: DeskItem = {
+  const smallAndFinal: DeskItem = {
     key: "b", kind: "recommendation", moneyUsd: 10,
-    reversibility: "irreversible", waitingSince: null,
+    reversibility: "irreversible", waitingSince: null, dueDate: null,
   };
-  assert.ok(compareDeskItems(a, b) < 0, "money leads the sort");
+  assert.ok(compareDeskItems(smallAndFinal, bigButRevertible) < 0,
+    "the irreversible $10 must lead the revertible $100");
+
+  // Inside ONE band, money still decides — it was demoted, not dropped.
+  const cheap: DeskItem = { ...bigButRevertible, key: "c", moneyUsd: 5 };
+  assert.ok(compareDeskItems(bigButRevertible, cheap) < 0,
+    "within a band, the larger figure still leads");
+});
+
+test("a dated commitment outranks everything, soonest first", () => {
+  /* The top key. A deadline is the one thing on this page that does not wait
+   * for a click — and the fund has exactly one live example, whose date is in
+   * its PROSE. The field exists, the key is wired, and nothing writes it: see
+   * `rankCoverage().dated`, which the page prints rather than implying zero. */
+  const dated: DeskItem = {
+    key: "d", kind: "recommendation", moneyUsd: 0,
+    reversibility: "reversible", waitingSince: null, dueDate: "2026-09-08",
+  };
+  const sooner: DeskItem = { ...dated, key: "s", dueDate: "2026-09-01" };
+  const undatedIrreversible: DeskItem = {
+    key: "u", kind: "order", moneyUsd: 1e6,
+    reversibility: "irreversible", waitingSince: null, dueDate: null,
+  };
+  const ranked = rankDeskItems([undatedIrreversible, dated, sooner]);
+  assert.deepEqual(ranked.map((i) => i.key), ["s", "d", "u"]);
+});
+
+test("every row can say WHY it is where it is, in words", () => {
+  /* The instruction was explicit: do not invent a scoring formula and bury it.
+   * There is no score — four named keys and a sentence per row. */
+  const unpriced: DeskItem = {
+    key: "a", kind: "recommendation", moneyUsd: null,
+    reversibility: "hard", waitingSince: "2026-08-01T00:00:00Z", dueDate: null,
+  };
+  const r = rankReason(unpriced);
+  assert.match(r, /changes what the machine does without asking again/);
+  // An unpriced row must not read as a cheap one.
+  assert.match(r, /no dollar figure stated/);
+  assert.match(r, /2026-08-01/);
+
+  // A stated zero says nothing moves — it does not say "unimportant".
+  assert.match(rankReason({ ...unpriced, moneyUsd: 0 }), /\$0 moves/);
+  assert.match(rankReason({ ...unpriced, moneyUsd: 750.36 }), /\$750\.36 at stake/);
+  // An unclassified kind says so, and rides with the urgent half.
+  assert.match(
+    rankReason({ ...unpriced, reversibility: "unclassified" }),
+    /unclassified kind/);
+  // A dated row leads with its date.
+  assert.match(rankReason({ ...unpriced, dueDate: "2026-09-08" }),
+    /^due 2026-09-08/);
+});
+
+test("a seat's STATED reversibility beats the kind table", () => {
+  /* The kind table's weak spot is the CEO's own queue: `awaits-ceo`, `batch`
+   * and `challenge` are routing words that say nothing about the act, so every
+   * row of his rendered the amber "unclassified kind" sentence. A warning on
+   * every row is a warning nobody reads. A seat knows whether its own
+   * recommendation can be taken back; when it says so, that wins. */
+  assert.equal(reversibilityOf("hard", "awaits-ceo"), "hard");
+  assert.equal(reversibilityOf("IRREVERSIBLE ", "fix"), "irreversible",
+    "case and whitespace are not a different answer");
+  // Unstated falls back to the table, and an UNRECOGNISED value falls back too
+  // rather than becoming a fourth class nobody can rank.
+  assert.equal(reversibilityOf(null, "fix"), "reversible");
+  assert.equal(reversibilityOf("very hard", "fix"), "reversible");
+  assert.equal(reversibilityOf(null, "awaits-ceo"), "unclassified");
+  // And `unclassified` cannot be DECLARED — it is what we say when nobody did.
+  assert.equal(reversibilityOf("unclassified", "fix"), "reversible");
+
+  const items = recItems(
+    [rec(1, "open", { kind: "awaits-ceo", reversibility: "hard" })], []);
+  assert.equal(items[0].reversibility, "hard");
+});
+
+test("rankCoverage states what the ranking could not see", () => {
+  const items: DeskItem[] = [
+    { key: "a", kind: "recommendation", moneyUsd: null,
+      reversibility: "unclassified", waitingSince: null, dueDate: null },
+    { key: "b", kind: "recommendation", moneyUsd: 0,
+      reversibility: "reversible", waitingSince: null, dueDate: null },
+    { key: "c", kind: "order", moneyUsd: 12,
+      reversibility: "irreversible", waitingSince: null, dueDate: "2026-09-08" },
+  ];
+  assert.deepEqual(rankCoverage(items), {
+    total: 3, priced: 2, unpriced: 1, zero: 1,
+    dated: 1, undated: 2, unclassified: 1,
+  });
 });

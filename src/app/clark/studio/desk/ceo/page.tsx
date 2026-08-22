@@ -12,42 +12,77 @@ import { money } from "../../format";
 import { StudioHeader } from "../../components/StudioHeader";
 import { memoParts } from "../../memo";
 import { SeatFace } from "../SeatFace";
-import { RecRow } from "../components";
 import { fmtAt } from "../seatLib";
 import {
-  CooMemo, DeskItem, QueuedAsk, asksForCeo, cooMemos, decisionVelocity,
-  memoDayLabel, moneyGap, orderItems, queuedAsks, rankDeskItems, recItems,
-  splitDeskItems, unwrapMemoMarkdown,
+  CooMemo, DeskItem, QueuedAsk, asksForCeo, contractDrift, cooMemos,
+  decisionVelocity, memoDayLabel, moneyGap, orderItems, queuedAsks,
+  rankCoverage, rankDeskItems, rankReason, recItems, splitDeskItems,
+  unwrapMemoMarkdown,
 } from "../execDesk";
+import type { Decision, DecisionGroup } from "../decisionList";
 import {
-  OfficerQueue, hasContent, officerDesk,
-} from "../officerQueues";
-import { CooTriageChip } from "../components";
+  countCheck, decisionList, foldedCounts, orderingHazard,
+} from "../decisionList";
+import { officerDesk } from "../officerQueues";
+import { CooTriageChip, ProvenanceChip } from "../components";
+import { cardStyle } from "../deskCardStyle";
 import { ClarkMarkdown } from "../../components/ClarkMarkdown";
 
 /**
- * The CEO's desk — everything awaiting Neelesh's click, in one place.
+ * The CEO's desk — A DECISION LIST, and everything else behind a named door.
  *
- * Full build against docs/briefs/EXEC_DESKS_2026-08-20.md (v1 was lean; this
- * upgrades it in place and keeps its honesty semantics verbatim).
+ * RESTRUCTURED 2026-08-22 on the CEO's complaint ("since morning my desk has
+ * stale; out of order and poorly designed stuff. Making my flow messy") and on
+ * a measurement of the page it replaces. The previous version was honest, well
+ * tested, and unusable, and the numbers say why — taken against the live
+ * corpus replayed through the merged spine's own code:
  *
- * The page is ORDERED, not merely listed: money → reversibility → staleness,
- * the way the coo seat ranks. The arithmetic is in ../execDesk.ts with tests,
- * because a ranking derived inline in JSX cannot be checked, and a queue that
- * silently mis-ranks is worse than an unranked one — the CEO would trust the
- * top of it.
+ *   | block                                    |     px |  chars | buttons |
+ *   |------------------------------------------|-------:|-------:|--------:|
+ *   | Vishesh — 3 COO memos, all "0 of N open" |    708 |  2,548 |       0 |
+ *   | Donna — her daily, already read          |    951 |  3,052 |       0 |
+ *   | **Fable — 23 asks, NONE awaiting him**   |**9,596**| 42,986 |      0 |
+ *   | Others — the 3 actual decisions          |    754 |  2,642 |   **6** |
+ *   | Decided, awaiting execution (103)        | 12,050 | 35,972 |       0 |
  *
- * What this page will NOT do:
+ * **The first Accept button was 11,608px — 14.7 screenfuls — below his name,
+ * behind 49,549 characters, and the three decisions he owed were 3% of a
+ * 24,627px page.** The single largest block was a section headed "0 awaiting
+ * you": 22 asks already cleared for the chair to fire, and one terminal
+ * decline.
  *
- *   - It does not price a recommendation. No recommendation on the live desk
- *     carries a money field (47 of 47 on 2026-08-20), and lifting a figure out
- *     of prose would put a number on the CEO's screen that no endpoint ever
- *     returned. The unpriced count is printed instead.
- *   - It does not restate the drawdown or the breach list; the RiskBar in the
- *     shell owns "is anything broken" (design audit: say the alarm once). The
- *     HALT is the one exception the brief asks for, because a halt changes what
- *     a click on this page will DO, and it names where the resume control is
- *     rather than offering one — resuming is not a desk action.
+ * THE FOUR RULES THIS PAGE NOW OBEYS:
+ *
+ *   1. **The first screenful is exactly N cards and nothing above them**,
+ *      where N is the header number. `decisionList()` builds the cards FROM
+ *      the officer desk's own queues, so the two numbers are one number by
+ *      construction, and a test asserts it over ten shapes plus the live
+ *      corpus. This desk has shipped one-quantity-computed-twice twice.
+ *   2. **A batch is a GROUPING, not a card.** The COO's memo heads the rows it
+ *      filed instead of sitting above them as 900 characters of prose the CEO
+ *      has already read. That renders the 31→7 reduction rather than
+ *      restating it.
+ *   3. **A dated row is the only row that carries a chip, and it is always
+ *      first.** One visual token, reserved for the one key that does not wait
+ *      for a click.
+ *   4. **Everything else is behind named disclosure at the foot** — and named
+ *      is the operative word. Every folded section says what and how many is
+ *      behind it before it is opened, and every row stays counted where it
+ *      belongs. Disclosure is not concealment; a section labelled "more" would
+ *      be concealment with a chevron.
+ *
+ * HIERARCHY FROM TYPE AND SPACE, NEVER COLOUR (the design brief, and the
+ * specific defect it fixes here): every row used to render at 13px in one
+ * tone, so a $750 armed short and a doc-indexing chore were visually
+ * identical, and the previous page reached for the WARN colour to separate
+ * them — which is hierarchy from colour, and puts an alarm tone on rows where
+ * nothing is wrong. Reversibility now drives SIZE and SPACE (`cardStyle`
+  * in deskCardStyle.ts); colour stays what the theme says it is — emerald for the fund,
+ * violet for the machine, warn for a genuine warning.
+ *
+ * WHAT THIS PAGE STILL WILL NOT DO, unchanged: it does not price a
+ * recommendation from its prose, it does not restate the drawdown (the RiskBar
+ * owns "is anything broken"), and it does not offer a resume control.
  */
 export default function CeoDeskPage() {
   const [desk, setDesk] = useState<DeskView | null>(null);
@@ -55,9 +90,8 @@ export default function CeoDeskPage() {
   const [events, setEvents] = useState<SpineEvent[] | null>(null);
   const [risk, setRisk] = useState<RiskMonitorResponse | null>(null);
   const [riskErr, setRiskErr] = useState(false);
-  /* Donna's short memo (CEO, request 920ecbe5). `null` is UNREACHABLE, not
-     "she filed nothing" — the endpoint's own `available: false` carries that,
-     with a reason. Two different facts, two different renders. */
+  /* Donna's short memo. `null` is UNREACHABLE, not "she filed nothing" — the
+     endpoint's own `available: false` carries that, with one of five reasons. */
   const [memo, setMemo] = useState<ArchiveMemo | null>(null);
   const [memoErr, setMemoErr] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -68,8 +102,6 @@ export default function CeoDeskPage() {
       fundApiClient.getPending(),
       fundApiClient.getEvents(1000, 0),
       fundApiClient.getRiskMonitor(),
-      // Newest filed memo, no date argument — it auto-updates on this page's
-      // own 15s poll the moment she files a newer one.
       fundApiClient.getArchiveMemo(),
     ]);
     if (d.status === "fulfilled") { setDesk(d.value); setErr(null); }
@@ -88,10 +120,6 @@ export default function CeoDeskPage() {
     return () => clearInterval(t);
   }, [load]);
 
-  /** The ranked queue. Orders and recommendations in ONE order, because the
-   *  CEO's attention is one queue however many endpoints it came from. The
-   *  `?? []` fallbacks live INSIDE the memos — a fresh array identity in the
-   *  dependency list re-ranks on every render (lint: exhaustive-deps). */
   const ranked = useMemo(
     () => rankDeskItems([
       ...orderItems(pending ?? []),
@@ -99,66 +127,93 @@ export default function CeoDeskPage() {
     ]),
     [pending, desk],
   );
-  /* Two queues, not one list (CDO D4). "Awaiting your decision" is the CEO's
-     actual work; "decided, awaiting execution" is a promise the firm has made
-     and not yet kept. Counting them together meant a desk where everything had
-     been decided read exactly like one where nothing had. */
   const split = useMemo(() => splitDeskItems(ranked), [ranked]);
-  const gap = useMemo(() => moneyGap(split.awaitingDecision), [split]);
   const memos = useMemo(() => cooMemos(desk?.runs ?? [], memoParts), [desk]);
   const velocity = useMemo(() => decisionVelocity(events, new Date()), [events]);
-
-  /* The by-kind split moved INTO each officer section (2026-08-21): orders and
-     recommendations are now separated per queue rather than page-wide. */
-  const decidedItems = split.awaitingExecution;
-  const halted = risk?.halted === true;
-
-  /* Seat-filed and human-filed ASKS. Found live 2026-08-21: these rendered only
-     on the CTO console, so this page read "0 awaiting you" while `desk_load`
-     counted 2 — the CEO could not see, let alone click, items that were waiting
-     on the CEO. Kept as their own section rather than folded into `ranked`,
-     because an ask is not priced and not reversibility-classified, and pushing
-     it through a money-first ranking would give it a position it has not
-     earned. It IS counted in the headline, because it does await a decision. */
   const asks = useMemo(
     () => asksForCeo(queuedAsks(desk?.requests ?? [])), [desk]);
 
-  /* The four queues (CEO, 2026-08-21). The headline count comes from HERE and
-     not from the flat split, because the two disagree by design: Donna's notes
-     are in the desk but are not decisions, and counting them would make a day
-     of pure observations read as a backlog. */
   const officers = useMemo(
     () => officerDesk({
       awaitingDecision: split.awaitingDecision,
       awaitingExecution: split.awaitingExecution,
+      ownedElsewhere: split.ownedElsewhere,
       memos,
       asks,
     }),
     [split, memos, asks],
   );
+
+  /* THE LIST. Built from the officer desk rather than from the payload, so the
+     header number and the number of cards cannot disagree. */
+  const list = useMemo(
+    () => decisionList(officers, asks, desk?.runs ?? [], memoParts),
+    [officers, asks, desk],
+  );
+  const folded = useMemo(
+    () => foldedCounts(officers, asks, memo?.available === true),
+    [officers, asks, memo],
+  );
   const awaitingCount = officers.awaitingTotal;
+
+  /* Do the header's number and the chip's number — eight pixels apart, from
+     two different implementations — still agree? See `countCheck`. */
+  const countDrift = countCheck({
+    spineTotal: desk?.desk_load?.total,
+    pageTotal: awaitingCount,
+    divertedNotes: officers.donna.notes.length,
+  });
+
+  /* Coverage over the CARDS, not over the flat split — the sentence about what
+     the ranking could not see must describe the rows on screen. */
+  const cardItems = useMemo(
+    () => list.all.flatMap((d) => (d.kind === "ask" ? [] : [d.item])), [list]);
+  const gap = useMemo(() => moneyGap(cardItems), [cardItems]);
+  const coverage = useMemo(() => rankCoverage(cardItems), [cardItems]);
+
+  const halted = risk?.halted === true;
+  const drift = contractDrift(desk?.desk_load?.contract_digest);
 
   return (
     <div className="min-h-screen bg-[var(--kt-bg)] text-[var(--kt-text)]">
       <StudioHeader subtitle="The CEO's desk — everything awaiting your click" />
       <div className={KT.container}>
-        <header className="mb-7 flex items-center gap-4">
+        <header className="mb-6 flex items-center gap-4">
           <SeatFace actor="ceo" size={64} />
           <div>
             <p className={KT.label}>Krypton Fund · the corner office</p>
             <h1 className="text-2xl font-medium tracking-tight">Neelesh · CEO</h1>
-            {/* The headline count: ONLY what awaits a decision. Anything already
-                decided is reported beside it, not inside it. */}
             <p className={`mt-1 text-sm ${KT.body}`}>
               <span className="font-mono tabular-nums text-[var(--kt-text-strong)]">
                 {desk === null ? "unknown" : awaitingCount}
               </span>{" "}
               awaiting your decision
-              {desk !== null && decidedItems.length > 0 && (
+              {/* The GROUP count, gated on there being more than one group —
+                  not on there being a COO batch, which is what the first cut
+                  did. Those are different conditions and the number rendered
+                  was the group count either way, so a desk with three
+                  unbatched groups said nothing while a desk with one batch
+                  said "in 1 group". One group is not a grouping worth naming;
+                  three are, batch or not. */}
+              {desk !== null && list.groups.length > 1 && (
+                <span className={KT.muted}>
+                  {" · "}in{" "}
+                  <span className="font-mono tabular-nums">{list.groups.length}</span>{" "}
+                  groups
+                  {list.batches > 0 && (
+                    <>
+                      {", "}
+                      <span className="font-mono tabular-nums">{list.batches}</span>
+                      {list.batches === 1 ? " a COO batch" : " of them COO batches"}
+                    </>
+                  )}
+                </span>
+              )}
+              {desk !== null && folded.total > 0 && (
                 <span className={KT.muted}>
                   {" · "}
-                  <span className="font-mono tabular-nums">{decidedItems.length}</span>{" "}
-                  decided, awaiting execution
+                  <span className="font-mono tabular-nums">{folded.total}</span>{" "}
+                  more on file, at the foot
                 </span>
               )}
               <CooTriageChip load={desk?.desk_load} />
@@ -184,12 +239,11 @@ export default function CeoDeskPage() {
           </div>
         )}
 
-        {/* ── 0 · THE HALT ─────────────────────────────────────────────────
-            Only when engaged. It changes what approving on this page does, so
-            it goes above the queue — and it NAMES the resume control rather
-            than being one. Resuming the fund from a summary screen, two
-            clicks from where the reason lives, is not a control this desk
-            should offer. */}
+        {/* ── THE HALT ─────────────────────────────────────────────────────
+            The one thing that outranks the list, because it changes what a
+            click on the list DOES. It names the resume control rather than
+            being one: resuming the fund from a summary screen, two clicks from
+            where the reason lives, is not a control this desk should offer. */}
         {halted && (
           <div className={`${KT.card} mb-6 flex flex-wrap items-start gap-2 border-[var(--kt-down)]`}>
             <OctagonX size={16} className="mt-0.5 shrink-0 text-[var(--kt-down)]" />
@@ -223,85 +277,186 @@ export default function CeoDeskPage() {
           </div>
         )}
 
-        {/* ── FOUR QUEUES, BY PERSON ───────────────────────────────────────
-            CEO verbatim, 2026-08-21: "my desk should have 4 queues -> Vishesh,
-            Donna, Fable and Others segregated by team member name."
+        {/* ── CONTRACT DRIFT ───────────────────────────────────────────────
+            The number on this page and the spine's own counter are two
+            implementations of one question, and they have disagreed twice
+            (11 vs 6, then 1 vs 0). A shared contract file, checked in to both
+            repos, now pins them — and this says so when the spine is running
+            against a different one. `drifted` is the real disagreement;
+            `unverified` is a spine that sent no digest, which is NOT the same
+            as agreement and must never render as it. */}
+        {desk !== null && drift === "drifted" && (
+          <div className={`${KT.card} mb-6 flex items-start gap-2 border-[var(--kt-warn)]`}>
+            <AlertTriangle size={15} className="mt-0.5 shrink-0 text-[var(--kt-warn)]" />
+            <p className="text-sm">
+              This page and the spine were built against DIFFERENT routing
+              contracts, so the count above may not mean what it says. The
+              spine reports{" "}
+              <code className="font-mono text-[11px]">
+                {desk.desk_load?.rules_version ?? "no rules version"}
+              </code>{" "}
+              and a contract digest this build does not recognise.
+            </p>
+          </div>
+        )}
 
-            The routing is in ../officerQueues.ts with tests, for the same
-            reason the RANKING is: an attribution derived inline in JSX cannot
-            be checked, and a queue that mis-attributes is worse than an
-            unattributed one because the CEO would trust the label.
+        {desk !== null && countDrift && (
+          <div className={`${KT.card} mb-6 flex items-start gap-2 border-[var(--kt-warn)]`}>
+            <AlertTriangle size={15} className="mt-0.5 shrink-0 text-[var(--kt-warn)]" />
+            <p className="text-sm">{countDrift}</p>
+          </div>
+        )}
 
-            Order within each queue is untouched — money → reversibility →
-            staleness, exactly as before. Whose desk an item came off says who
-            is asking, not how urgent it is. */}
+        {/* ── 1 · THE DECISION LIST ────────────────────────────────────── */}
         {desk === null ? (
-          <section className="mb-8">
-            <p className={`${KT.label} mb-2`}>Your queues</p>
+          <section className="mb-10">
             <p className={`text-sm ${KT.sev.warn}`}>
-              The desk is unreadable — every queue below is UNKNOWN, not empty.
+              The desk is unreadable, so what awaits you is UNKNOWN, not none.
               Anything waiting is still waiting.
             </p>
           </section>
+        ) : awaitingCount === 0 ? (
+          <section className="mb-10">
+            <p className="text-[15px] leading-relaxed">Nothing awaits your decision.</p>
+            <p className={`mt-1 text-sm ${KT.body}`}>
+              That is a measurement of this moment, not of the firm:{" "}
+              <span className="font-mono tabular-nums">{folded.total}</span>{" "}
+              item{folded.total === 1 ? " is" : "s are"} on file at the foot of
+              this page — decided work awaiting execution, open work owned by
+              the chair or a seat, and reading. None of it needs a click from
+              you.
+            </p>
+          </section>
         ) : (
-          officers.all.map((q) => (
-            <OfficerSection
-              key={q.id}
-              q={q}
-              pendingUnreadable={pending === null}
-              gap={gap}
-              memo={memo}
-              memoUnreachable={memoErr}
-              onChanged={load}
-            />
-          ))
-        )}
-
-        {/* ── 4 · DECIDED, AWAITING EXECUTION ──────────────────────────────
-            Still on the desk, deliberately: a decision that never executes is a
-            decision that did not happen, and the CEO is the only person who can
-            see that it has stalled. NOT counted in the headline — it is not work
-            to do, it is work owed. */}
-        {desk !== null && decidedItems.length > 0 && (
-          <section className="mb-8">
-            <p className={`${KT.label} mb-2`}>
-              Decided, awaiting execution ({decidedItems.length})
-            </p>
-            <p className={`mb-2 text-xs leading-relaxed ${KT.muted}`}>
-              You decided these; they are the CTO&apos;s to stage through the ordinary
-              propose path. They are listed so a decision cannot go quiet — but they
-              are not counted above, because nothing here is waiting on you.
-            </p>
-            <div className="space-y-1.5">
-              {decidedItems.map((item) => (
-                <div key={item.key} className={`${KT.card} p-3`}>
-                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <span className={`font-mono text-[10px] uppercase tracking-[0.1em] ${KT.accent}`}>
-                      {item.rec?.status}
-                    </span>
-                    <span className="min-w-0 flex-1 text-[13px] leading-snug">
-                      {item.rec?.text}
-                    </span>
-                    <span className={`font-mono text-[10px] ${KT.muted}`}>
-                      {item.rec?.seat}
-                    </span>
-                  </div>
-                  <p className={`mt-0.5 font-mono text-[10px] ${KT.muted}`}>
-                    {item.rec?.decided_by
-                      ? `decided by ${item.rec.decided_by}${item.rec.decided_at ? ` · ${fmtAt(item.rec.decided_at)}` : ""}`
-                      : "decided — the decision event recorded no actor"}
-                  </p>
-                </div>
-              ))}
-            </div>
+          <section className="mb-10 space-y-7">
+            {list.groups.map((g) => (
+              <DecisionGroupBlock key={g.key} group={g} onChanged={load} />
+            ))}
+            <RankingNote gap={gap} coverage={coverage} batches={list.batches}
+                         hazard={orderingHazard(list.all)} />
           </section>
         )}
 
-        <p className={`text-[11px] italic leading-relaxed ${KT.muted}`}>
+        {/* ── 2 · EVERYTHING ELSE, BEHIND NAMED DOORS ───────────────────── */}
+        {desk !== null && (
+          <div className="space-y-2 border-t border-[var(--kt-border)] pt-6">
+            <p className={`${KT.label} mb-1`}>On file — nothing here needs you</p>
+
+            <Folded
+              label="Decided by you, awaiting execution"
+              count={folded.decided}
+              blurb="You decided these; they are the chair's to stage through the ordinary propose path. They are listed so a decision cannot go quiet — and not counted above, because nothing here is waiting on you."
+            >
+              <div className="space-y-1.5">
+                {officers.all.flatMap((q) => q.decided).map((item) => (
+                  <div key={item.key} className={`${KT.card} p-3`}>
+                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <span className={`font-mono text-[10px] uppercase tracking-[0.1em] ${KT.accent}`}>
+                        {item.rec?.status}
+                      </span>
+                      <span className="min-w-0 flex-1 text-[13px] leading-snug">
+                        {item.rec?.text}
+                      </span>
+                      <span className={`font-mono text-[10px] ${KT.muted}`}>
+                        {item.rec?.seat}
+                      </span>
+                    </div>
+                    <p className={`mt-0.5 font-mono text-[10px] ${KT.muted}`}>
+                      {item.rec?.decided_by
+                        ? `decided by ${item.rec.decided_by}${item.rec.decided_at ? ` · ${fmtAt(item.rec.decided_at)}` : ""}`
+                        : "decided — the decision event recorded no actor"}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Folded>
+
+            <Folded
+              label="Open, and not yours"
+              count={folded.elsewhere}
+              blurb="Nobody has decided these and nobody is waiting on you for them — engineering tickets, seat-to-seat handoffs. Each names the actor it went to and why. They stay on this page so that taking them off your count does not take them off your screen."
+            >
+              <div className="space-y-1.5">
+                {officers.all.flatMap((q) => q.elsewhere).map((item) => (
+                  <div key={item.key} className={`${KT.card} p-3`}>
+                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <span
+                        className={`font-mono text-[10px] uppercase tracking-[0.1em] ${KT.muted}`}
+                        title={item.rec?.next_actor_why ?? undefined}
+                      >
+                        {item.nextActor ?? "unrouted"}
+                      </span>
+                      <span className="min-w-0 flex-1 text-[13px] leading-snug">
+                        {item.rec?.text}
+                      </span>
+                      <span className={`font-mono text-[10px] ${KT.muted}`}>
+                        {item.rec?.seat}
+                      </span>
+                    </div>
+                    <p className={`mt-0.5 font-mono text-[10px] ${KT.muted}`}>
+                      {item.rec?.next_actor_why
+                        ?? "routed away from your desk; the spine stated no reason"}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Folded>
+
+            <Folded
+              label="Vishesh · the COO's triage memos"
+              count={folded.memos}
+              blurb="His batch memos, newest first. They are here rather than above the list because the list is now GROUPED by them — the reduction is rendered, not restated."
+              seat="coo"
+              emptyNote="the COO has not run, so the list above is unbatched — the state this seat exists to end"
+            >
+              <div className="space-y-1.5">
+                {officers.vishesh.memos.map((m) => <MemoCard key={m.runId} m={m} />)}
+              </div>
+            </Folded>
+
+            {/* The count includes HER MEMO when there is one. It read "0" on
+                the first render while a filed daily sat behind the door — a
+                door that understates what is behind it teaches a reader not to
+                open it, which is concealment arrived at by arithmetic. */}
+            <Folded
+              label="Donna · her daily, and her notes"
+              count={folded.donna}
+              blurb="Her memo asks to be read, not decided. Notes carry no accept or reject and are not counted above, because they are not work you owe anyone."
+              seat="secretary"
+              alwaysOpenable
+            >
+              <DailyMemoCard memo={memo} unreachable={memoErr} />
+              {officers.donna.notes.length > 0 && (
+                <div className="mt-2 space-y-1.5">
+                  {officers.donna.notes.map((item) => (
+                    <NoteRow key={item.key} item={item} />
+                  ))}
+                </div>
+              )}
+            </Folded>
+
+            <Folded
+              label="Bench asks already settled"
+              count={folded.settledAsks}
+              blurb="Cleared asks are the chair's to fire; declined ones are terminal. Neither can be moved by a click of yours, which is why neither is on the list above — a queue of these headed '0 awaiting you' was the single largest block on the old page, at 9,596px."
+              seat="cto"
+            >
+              <div className="space-y-1.5">
+                {asks.filter((a) => a.stage !== "awaiting_ceo").map((a) => (
+                  <AskRow key={a.requestId} ask={a} onDecided={load} />
+                ))}
+              </div>
+            </Folded>
+          </div>
+        )}
+
+        <p className={`mt-6 text-[11px] italic leading-relaxed ${KT.muted}`}>
           Folded from {events?.length ?? 0} spine events
           {events === null && " — the event log could not be read, so the decision counts above are absent, not zero"}
           {events !== null && velocity.oldestSeen &&
             ` back to ${fmtAt(velocity.oldestSeen)}; the endpoint caps at 1000 rows, so anything older is outside this view rather than quiet`}
+          {desk !== null && drift === "unverified" &&
+            ". The spine sent no routing-contract digest, so whether its counter and this page agree is UNVERIFIED — not confirmed"}
           .
         </p>
       </div>
@@ -309,178 +464,442 @@ export default function CeoDeskPage() {
   );
 }
 
+/* ------------------------------------------------------------- the list --- */
+
 /**
- * ONE officer's queue: their face, their name, what they are owed.
+ * ONE group of decisions, headed by the memo that proposed them.
  *
- * Each queue renders only what that officer actually produces — memos for
- * Vishesh, notes and suggestions for Donna, orders and asks for Fable, the
- * bench grouped by seat for Others. The empty states are per-officer and say
- * something true about that person rather than reusing one generic sentence:
- * "Donna has not filed today" and "nothing pending at the venue" are different
- * facts and a shared string would flatten them.
+ * The heading is CHROME and the decisions are CONTENT, and the type says so:
+ * the heading is a 10px mono label, each decision's first sentence is 14–16px.
+ * The previous page inverted this — 900 characters of COO memo at 13px above
+ * three decisions at 13px — which is how an already-read summary came to
+ * outrank the thing it was summarising.
  */
-function OfficerSection({ q, pendingUnreadable, gap, memo, memoUnreachable,
-                         onChanged }: {
-  q: OfficerQueue;
-  pendingUnreadable: boolean;
-  gap: { priced: number; unpriced: number };
-  /** Donna's short memo, or `null` when the endpoint could not be read. */
-  memo: ArchiveMemo | null;
-  memoUnreachable: boolean;
+function DecisionGroupBlock({ group, onChanged }: {
+  group: DecisionGroup;
   onChanged: () => Promise<void> | void;
 }) {
-  const orders = q.awaiting.filter((i) => i.kind === "order");
-  const recs = q.awaiting.filter((i) => i.kind === "recommendation");
+  /* Only rows the spine will actually accept: open recommendations. An order
+     is approved on Monitor and an ask has its own control, so neither can be
+     part of a group accept — offering one would be a button that silently
+     skipped half of what it sat under. */
+  const bulk = group.decisions.flatMap(
+    (d) => (d.kind === "rec" && d.item.rec?.status === "open" ? [d.item] : []));
 
   return (
-    <section className="mb-8">
-      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-        {q.seat ? <SeatFace actor={q.seat} size={22} decorative /> : null}
-        <span className="text-[15px] font-medium tracking-tight">{q.label}</span>
-        <span className={`font-mono tabular-nums text-[11px] ${
-          q.awaitingCount > 0 ? "text-[var(--kt-accent)]" : KT.muted}`}>
-          {q.awaitingCount} awaiting you
+    <div>
+      <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        {group.seat && <SeatFace actor={group.seat} size={16} decorative />}
+        {group.isBatch && (
+          /* The ONE place a batch is named as such. Not a colour — a word. */
+          <span className={`${KT.label} text-[var(--kt-accent)]`}>batch</span>
+        )}
+        {/* NOT `KT.label`. That style is uppercase at 0.18em tracking, which
+            is right for a two-word label and unreadable for a sentence — the
+            first render put a 197-character dispatch brief through it. Small,
+            dim, sentence case: chrome that can still be read. */}
+        <span className={`min-w-0 flex-1 text-[11px] leading-snug ${KT.muted}`}>
+          {group.heading ?? (
+            <span className={KT.sev.warn}>
+              the run that filed {group.decisions.length === 1 ? "this" : "these"} is
+              outside the payload&apos;s 25-run window — heading unknown, not absent
+            </span>
+          )}
         </span>
-        {q.decided.length > 0 && (
-          <span className={`font-mono tabular-nums text-[10px] ${KT.muted}`}>
-            · {q.decided.length} decided, listed at the foot of the page
-          </span>
-        )}
-        {q.seat && (
-          <Link href={`/clark/studio/desk/${q.seat}`}
-                className={`ml-auto text-[11px] ${KT.accent} hover:underline`}>
-            open their desk
-          </Link>
-        )}
+        <span className={`font-mono tabular-nums text-[10px] ${KT.muted}`}>
+          {group.decisions.length} to decide
+        </span>
       </div>
-      <p className={`mb-2 text-xs ${KT.muted}`}>{q.role}</p>
 
-      {/* ---- Vishesh: the batch memos ---- */}
-      {q.id === "vishesh" && (
-        q.memos.length === 0 ? (
-          <p className={`mb-2 text-sm ${KT.muted}`}>
-            No triage on file. The COO has not run — the queues below are
-            unbatched, which is the state this seat exists to end.
-          </p>
-        ) : (
-          <div className="mb-2 space-y-1.5">
-            {q.memos.map((m) => <MemoCard key={m.runId} m={m} />)}
-          </div>
-        )
-      )}
+      <div className="space-y-2">
+        {group.decisions.map((d) => (
+          <DecisionCard key={d.key} d={d} onChanged={onChanged} />
+        ))}
+      </div>
 
-      {/* ---- Fable: orders ---- */}
-      {q.id === "fable" && (
-        pendingUnreadable ? (
-          <p className={`mb-2 text-sm ${KT.sev.warn}`}>
-            The approval queue is unreadable — anything waiting is still waiting.
-          </p>
-        ) : orders.length === 0 ? (
-          <p className={`mb-2 text-sm ${KT.muted}`}>Nothing pending at the venue.</p>
-        ) : (
-          <div className="mb-2 space-y-1.5">
-            {orders.map((item) => <OrderRow key={item.key} item={item} />)}
-            <p className={`text-[11px] italic ${KT.muted}`}>
-              Approve and decline live on{" "}
-              <Link href="/clark/studio" className={`${KT.accent} hover:underline`}>Monitor</Link>
-              {" "}— one approval surface, deliberately.
-            </p>
-          </div>
-        )
+      {bulk.length > 1 && (
+        <GroupAccept items={bulk} isBatch={group.isBatch} onChanged={onChanged} />
       )}
-
-      {/* ---- Fable: the seat-filed asks ---- */}
-      {q.id === "fable" && q.asks.length > 0 && (
-        <div className="mb-2 space-y-1.5">
-          <p className={`text-xs leading-relaxed ${KT.muted}`}>
-            A seat, or a human, has asked the desk for work. Approving is an
-            ENDORSEMENT and not a trigger — the CTO fires the dispatch, and no
-            agent runs until a human does. Declining is terminal and takes a
-            written reason.
-          </p>
-          {q.asks.map((a) => <AskRow key={a.requestId} ask={a} onDecided={onChanged} />)}
-        </div>
-      )}
-
-      {/* ---- Donna: her latest daily, the SHORT memo only ---- */}
-      {q.id === "donna" && (
-        <DailyMemoCard memo={memo} unreachable={memoUnreachable} />
-      )}
-
-      {/* ---- Donna: notes, deliberately WITHOUT decision buttons ---- */}
-      {q.id === "donna" && q.notes.length > 0 && (
-        <div className="mb-2 space-y-1.5">
-          <p className={`text-xs leading-relaxed ${KT.muted}`}>
-            Observations, to be READ rather than decided — the CTO marks them
-            noted. They carry no accept/reject and are not counted above, because
-            they are not work you owe anyone.
-          </p>
-          {q.notes.map((item) => <NoteRow key={item.key} item={item} />)}
-        </div>
-      )}
-
-      {/* ---- Others: grouped by seat ---- */}
-      {q.id === "others" && q.groups.length > 0 && (
-        <div className="space-y-4">
-          {q.groups.map((g) => (
-            <div key={g.seat}>
-              <p className={`${KT.label} mb-1.5 flex items-center gap-2`}>
-                <SeatFace actor={g.seat} size={14} decorative />
-                {g.seat} ({g.items.length})
-              </p>
-              <div className="space-y-1.5">
-                {g.items.map((item) => (
-                  <RankedRec key={item.key} item={item} onDecide={onChanged} />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ---- everyone else's recommendations ---- */}
-      {q.id !== "others" && recs.length > 0 && (
-        <div className="space-y-1.5">
-          {recs.map((item) => (
-            <RankedRec key={item.key} item={item} onDecide={onChanged} />
-          ))}
-        </div>
-      )}
-
-      {/* ---- nothing at all ----
-           PRESENT TENSE, deliberately. "Donna has filed nothing" reads as
-           "never filed"; what is true is that nothing of hers is on the desk
-           RIGHT NOW — she has filed before and every item was marked noted.
-           The same distinction the rest of this page draws between absent,
-           empty and unknown. */}
-      {/* Donna's queue is never "empty" now: her memo card renders its own
-          state, including its own absences, so the generic sentence below would
-          contradict what is on the screen an inch above it. */}
-      {!hasContent(q) && q.id !== "donna" && (
-        <p className={`text-sm ${KT.muted}`}>
-          {q.id === "vishesh"
-            ? "Nothing of the COO's is on your desk right now."
-            : q.id === "fable"
-              ? "Nothing staged at the venue, and no bench asks awaiting you."
-              : "The bench owes you no decisions right now."}
-        </p>
-      )}
-
-      {q.id === "others" && gap.unpriced > 0 && q.awaitingCount > 0 && (
-        <p className={`mt-2 text-xs leading-relaxed ${KT.muted}`}>
-          <span className={KT.sev.warn}>
-            {gap.unpriced} of {gap.priced + gap.unpriced} items carry no money figure
-          </span>{" "}
-          — <code>money_at_stake</code> is optional on a recommendation and these
-          seats stated none, so they are ranked on the two remaining keys rather
-          than on a number read out of their prose.
-        </p>
-      )}
-    </section>
+    </div>
   );
 }
 
-/** One COO batch memo. Extracted verbatim from the old section 1. */
+/** One decision: the first sentence, why it is where it is, and the buttons. */
+function DecisionCard({ d, onChanged }: {
+  d: Decision; onChanged: () => Promise<void> | void;
+}) {
+  if (d.kind === "ask") return <AskRow ask={d.ask} onDecided={onChanged} />;
+  if (d.kind === "order") return <OrderCard item={d.item} />;
+  return <RecCard item={d.item} onDecide={onChanged} />;
+}
+
+/**
+ * THE DATE CHIP — the only chip on any row, deliberately.
+ *
+ * One visual token, reserved for the one ranking key that does not wait for a
+ * click: a dated commitment happens whether or not anybody decides. Giving
+ * money or reversibility a chip too would spend the token on things the type
+ * scale already says, and a page where every row has a badge is a page with no
+ * badges.
+ */
+function DueChip({ date }: { date: string }) {
+  return (
+    <span className={`${KT.chip} shrink-0 font-mono tabular-nums`}>
+      due {date}
+    </span>
+  );
+}
+
+function RecCard({ item, onDecide }: {
+  item: DeskItem; onDecide: () => Promise<void> | void;
+}) {
+  const r = item.rec!;
+  const parts = memoParts(r.text);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const scale = cardStyle(item.reversibility);
+
+  const decide = async (status: "accepted" | "rejected") => {
+    setBusy(true);
+    setErr(null);
+    try {
+      await fundApiClient.decideRecommendation(r.run_id, r.rec_id,
+                                               { status, actor: "ceo" });
+      await onDecide();
+    } catch (e) {
+      // A decision that failed must not look like a decision that landed.
+      setErr(e instanceof Error ? e.message : "the spine did not record it");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className={scale.container}>
+      <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
+        {item.dueDate && <DueChip date={item.dueDate} />}
+        <p className={`min-w-0 flex-1 ${scale.text}`}>{parts.headline}</p>
+        <span className="flex shrink-0 gap-2">
+          <button type="button" disabled={busy} onClick={() => decide("accepted")}
+                  className={`${KT.btn} disabled:opacity-40`}>
+            {busy ? "…" : "Accept"}
+          </button>
+          <button type="button" disabled={busy} onClick={() => decide("rejected")}
+                  className={`${KT.btnGhost} hover:border-[var(--kt-down)] hover:text-[var(--kt-down)] disabled:opacity-40`}>
+            Reject
+          </button>
+        </span>
+      </div>
+
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <ProvenanceChip kind="agent" seat={r.seat} recId={r.rec_id} />
+        {/* ALWAYS MUTED, and this line was amber until I looked at the page.
+            `reversibilityOf`'s own docstring already carries the lesson: the
+            amber "unclassified kind" sentence "fired on almost every row of
+            his own queue — honest, and noise, and noise on every row is how a
+            warning stops being read". It fired on two of three rows here. The
+            words say "unclassified kind — ranked as if hard to undo" perfectly
+            well without a colour, and the design brief is explicit that
+            hierarchy comes from type and space. */}
+        <span className={`min-w-0 flex-1 font-mono text-[10px] ${KT.muted}`}>
+          {rankReason(item)}
+        </span>
+        {parts.rest && (
+          <button type="button" onClick={() => setOpen((v) => !v)}
+                  className={`font-mono text-[10px] ${KT.accent} hover:underline`}>
+            {open ? "− less" : "+ the rest"}
+          </button>
+        )}
+      </div>
+
+      {open && parts.rest && (
+        <p className={`mt-2 border-t border-[var(--kt-border)] pt-2 text-[12px] leading-relaxed ${KT.body}`}>
+          {parts.rest}
+        </p>
+      )}
+      {err && (
+        <p className={`mt-1.5 text-[11px] ${KT.down}`}>
+          Not recorded: {err} — the recommendation is still open.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A pending order on the list.
+ *
+ * NO BUTTONS, deliberately and unchanged: approve and decline live on Monitor,
+ * one approval surface. It is a CARD rather than a line because it is the only
+ * irreversible thing on this page and the type scale says so — and because the
+ * headline number counts it, so it must be one of the N.
+ */
+function OrderCard({ item }: { item: DeskItem }) {
+  const o = item.order!;
+  const m = memoParts(o.rationale);
+  const age = o.age_minutes;
+  const expiresIn = age != null ? Math.max(0, 120 - age) : null;
+  const scale = cardStyle(item.reversibility);
+  return (
+    <div className={scale.container}>
+      <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
+        <p className={`min-w-0 flex-1 ${scale.text}`}>
+          <span className="font-semibold uppercase">{o.side}</span>{" "}
+          <span className="font-mono tabular-nums">{o.qty}</span>{" "}
+          <span className="font-semibold">{o.symbol}</span>
+          {" — "}
+          {item.moneyUsd == null
+            ? <span className={KT.sev.warn}>notional not previewed</span>
+            : <span className="font-mono tabular-nums">{money(item.moneyUsd)}</span>}
+        </p>
+        <Link href="/clark/studio" className={`${KT.btn} shrink-0`}>
+          Approve on Monitor
+        </Link>
+      </div>
+      {m.headline && (
+        <p className={`mt-1.5 text-[12px] leading-relaxed ${KT.body}`}>{m.headline}</p>
+      )}
+      <p className={`mt-1.5 font-mono text-[10px] ${
+        expiresIn != null && expiresIn < 30 ? KT.sev.warn : KT.muted}`}>
+        {rankReason(item)}
+        {" · "}
+        {expiresIn != null ? `expires in ~${Math.round(expiresIn)}m` : "age unknown"}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Accept every open recommendation in this group, in one act.
+ *
+ * THE CONSTITUTION ASKS FOR THIS AND ALSO CONSTRAINS IT. "The CEO decides
+ * batches, not items" is the reason the COO seat exists; this is that sentence
+ * made clickable. But it is also a control that fires N decisions from one
+ * click on the firm's decision channel, so:
+ *
+ *   * it CONFIRMS, listing exactly how many and which rows it will accept —
+ *     nothing is accepted from a single click;
+ *   * it fires SEQUENTIALLY, not in parallel. A burst of concurrent writes to
+ *     the decision channel is not something a layout change should introduce,
+ *     and sequential keeps one clean event per row;
+ *   * it reports PARTIAL FAILURE HONESTLY. If five of seven land, it says five
+ *     of seven and names the two that did not, and those two are still open. A
+ *     bulk control that reported success because it finished would be the
+ *     worst possible thing on this page;
+ *   * it only ever offers ACCEPT. There is no bulk reject: rejecting is the
+ *     cheap direction to get wrong in volume, and a rejection carries a reason
+ *     per row.
+ */
+function GroupAccept({ items, isBatch, onChanged }: {
+  items: DeskItem[]; isBatch: boolean; onChanged: () => Promise<void> | void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<
+    { ok: number; failed: { text: string; err: string }[] } | null>(null);
+
+  const run = async () => {
+    setBusy(true);
+    let ok = 0;
+    const failed: { text: string; err: string }[] = [];
+    for (const item of items) {
+      const r = item.rec!;
+      try {
+        // Sequential, on purpose. See the docstring.
+        // eslint-disable-next-line no-await-in-loop
+        await fundApiClient.decideRecommendation(r.run_id, r.rec_id,
+                                                 { status: "accepted", actor: "ceo" });
+        ok += 1;
+      } catch (e) {
+        failed.push({
+          text: memoParts(r.text).headline,
+          err: e instanceof Error ? e.message : "the spine did not record it",
+        });
+      }
+    }
+    setResult({ ok, failed });
+    setBusy(false);
+    setConfirming(false);
+    await onChanged();
+  };
+
+  if (result) {
+    return (
+      <div className={`mt-2 p-3 ${KT.inset}`}>
+        <p className={`text-[12px] ${result.failed.length ? KT.sev.warn : KT.body}`}>
+          Accepted <span className="font-mono tabular-nums">{result.ok}</span> of{" "}
+          <span className="font-mono tabular-nums">{items.length}</span>
+          {result.failed.length > 0 && (
+            <> · <span className="font-mono tabular-nums">{result.failed.length}</span>{" "}
+              were NOT recorded and are still open</>
+          )}
+        </p>
+        {result.failed.map((f, i) => (
+          <p key={i} className={`mt-1 text-[11px] ${KT.down}`}>
+            {f.text} — {f.err}
+          </p>
+        ))}
+      </div>
+    );
+  }
+
+  if (!confirming) {
+    return (
+      <button type="button" onClick={() => setConfirming(true)}
+              className={`${KT.btnGhost} mt-2 text-xs`}>
+        Accept all {items.length} {isBatch ? "in this batch" : "in this group"}
+      </button>
+    );
+  }
+
+  return (
+    <div className={`mt-2 p-3 ${KT.inset}`}>
+      <p className="text-[12px] font-medium">
+        Accept {items.length} recommendation{items.length === 1 ? "" : "s"}?
+      </p>
+      <ul className={`mt-1.5 space-y-0.5 text-[11px] ${KT.body}`}>
+        {items.map((i) => (
+          <li key={i.key} className="flex gap-2">
+            <span className={KT.muted}>·</span>
+            <span className="min-w-0 flex-1">{memoParts(i.rec!.text).headline}</span>
+          </li>
+        ))}
+      </ul>
+      <p className={`mt-1.5 text-[11px] ${KT.muted}`}>
+        Each is recorded as its own decision, one at a time. If any fails, the
+        ones that failed stay open and this will say which.
+      </p>
+      <div className="mt-2 flex gap-2">
+        <button type="button" disabled={busy} onClick={run}
+                className={`${KT.btn} disabled:opacity-40`}>
+          {busy ? "Recording…" : `Yes, accept ${items.length}`}
+        </button>
+        <button type="button" disabled={busy} onClick={() => setConfirming(false)}
+                className={KT.btnGhost}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * What the ranking could and could not see, under the list rather than in it.
+ *
+ * Printed rather than implied: a ranking that silently pretends to know the
+ * money on 47 of 48 rows is worse than one that says which rows it could not
+ * price. The `covered_by` sentence is here for the same reason — the grouping
+ * is honest about the relation it does NOT have.
+ */
+function RankingNote({ gap, coverage, batches, hazard }: {
+  gap: { priced: number; unpriced: number };
+  coverage: ReturnType<typeof rankCoverage>;
+  batches: number;
+  /** Set only when the ordering is ACTUALLY resting on an unrecognised kind
+   *  over a priced row — null the rest of the time. A warning about a
+   *  hypothetical is noise, and noise on every render is how a warning stops
+   *  being read. See `orderingHazard`. */
+  hazard: string | null;
+}) {
+  return (
+    <>
+    {hazard && (
+      <p className={`text-[12px] leading-relaxed ${KT.sev.warn}`}>{hazard}</p>
+    )}
+    <p className={`text-[11px] leading-relaxed ${KT.muted}`}>
+      Ranked by <strong>deadline</strong>, then reversibility, then money, then
+      age — a versioned change can be reversed in an afternoon and a fill
+      cannot. Grouping does not re-rank: a group leads because its best row
+      does.
+      {gap.unpriced > 0 && (
+        <>
+          {" "}
+          <span className={KT.sev.warn}>
+            {gap.unpriced} of {gap.priced + gap.unpriced} carry no money figure
+          </span>{" "}
+          — <code>money_at_stake</code> is optional and these seats stated none,
+          so they sit at the foot of their own band rather than being priced
+          from their prose.
+        </>
+      )}
+      {coverage.dated === 0 && (
+        <>
+          {" "}None carries a <code>due_date</code>, so the deadline key — which
+          outranks everything else — separated nothing here. That is a gap in
+          what seats record, not a claim that nothing is dated.
+        </>
+      )}
+      {batches > 0 && (
+        <>
+          {" "}A batch groups the rows its own memo FILED. It cannot yet gather
+          rows from other seats that the memo endorses, because no field records
+          that link — so accepting a batch here decides its own rows and leaves
+          the ones it speaks for open under their seats.
+        </>
+      )}
+    </p>
+    </>
+  );
+}
+
+/* --------------------------------------------------------- the foot ------- */
+
+/**
+ * A named door.
+ *
+ * The label says WHAT and HOW MANY before it is opened. A `<details>` reading
+ * only "more" would be concealment with a chevron — the thing the brief
+ * explicitly forbids, and the reason every count here is rendered in the
+ * summary rather than discovered by clicking.
+ *
+ * A door with nothing behind it renders as a sentence rather than a control,
+ * because an expander that opens onto nothing teaches a reader to stop opening
+ * them.
+ */
+function Folded({ label, count, blurb, seat, children, alwaysOpenable,
+                 emptyNote }: {
+  label: string;
+  count: number;
+  blurb: string;
+  seat?: string;
+  children: React.ReactNode;
+  /** Donna's door opens even at zero notes: her memo card lives behind it and
+   *  renders its own five absences, which a "nothing here" line would
+   *  contradict from an inch away. */
+  alwaysOpenable?: boolean;
+  /** What the zero MEANS, when it means something. "0 triage memos" and "the
+   *  COO has not run, so the list above is unbatched" are the same number and
+   *  different facts, and only the second tells the CEO anything. A door at
+   *  zero renders no children, so this is the only place that sentence can
+   *  live — the first cut put it inside the door, where it was unreachable
+   *  code. */
+  emptyNote?: string;
+}) {
+  if (count === 0 && !alwaysOpenable) {
+    return (
+      <p className={`text-[12px] ${KT.muted}`}>
+        {label} — <span className="font-mono tabular-nums">0</span>
+        {emptyNote && <> · {emptyNote}</>}
+      </p>
+    );
+  }
+  return (
+    <details className={`${KT.panel} px-4 py-3`}>
+      <summary className="flex cursor-pointer select-none flex-wrap items-center gap-2">
+        {seat && <SeatFace actor={seat} size={16} decorative />}
+        <span className="text-[13px]">{label}</span>
+        <span className={`font-mono tabular-nums text-[11px] ${KT.muted}`}>
+          {count}
+        </span>
+      </summary>
+      <p className={`mt-2 mb-2 text-[11px] leading-relaxed ${KT.muted}`}>{blurb}</p>
+      {children}
+    </details>
+  );
+}
+
+/** One COO batch memo. */
 function MemoCard({ m }: { m: CooMemo }) {
   return (
     <div className={`${KT.card} p-3`}>
@@ -509,21 +928,16 @@ function MemoCard({ m }: { m: CooMemo }) {
 }
 
 /**
- * Donna's latest daily, on the CEO's desk (CEO instruction, request 920ecbe5).
- *
- * The SHORT memo only. The endpoint cuts at `# THE RECORD` and this card would
- * render whatever it got, so the cut lives there, with a test — but the reason
- * lives here: the nine-section record is the secretary's seat-page work output,
- * and a desk that opens with it is not a sixty-second read.
- *
- * The DATE is on the card, always. She runs at end of day, so the memo here is
- * normally yesterday's, and an undated memo reads as this morning's — which is
- * exactly the misreading the CEO asked to prevent.
+ * Donna's latest daily.
  *
  * FIVE absences, kept apart on purpose. "Unreachable" is not "she has not
  * filed"; "never filed" is not "filed and empty"; and a file that is present
- * but carries no memo section is a DEFECT in the artifact rather than a missing
- * memo — collapsing them would send the reader to the wrong place.
+ * but carries no memo section is a DEFECT in the artifact rather than a
+ * missing memo — collapsing them would send the reader to the wrong place.
+ *
+ * As of 2026-08-22 this card can finally be right: `GET /fund/desk/archives/memo`
+ * did not exist, so it rendered a permanent absence it was manufacturing
+ * itself.
  */
 function DailyMemoCard({ memo, unreachable }: {
   memo: ArchiveMemo | null;
@@ -582,7 +996,6 @@ function DailyMemoCard({ memo, unreachable }: {
         )}
       </div>
 
-      {/* Her five-line headline, first — the sixty-second read. */}
       {memo.tldr ? (
         <p className={`whitespace-pre-line text-[13px] leading-relaxed ${KT.body}`}>
           {memo.tldr}
@@ -593,7 +1006,6 @@ function DailyMemoCard({ memo, unreachable }: {
         </p>
       )}
 
-      {/* §1 THE DAILY: the book line, what moved, what awaits you. */}
       {memo.daily_markdown && (
         <ClarkMarkdown
           text={unwrapMemoMarkdown(memo.daily_markdown)}
@@ -611,49 +1023,18 @@ function DailyMemoCard({ memo, unreachable }: {
   );
 }
 
-/** One pending order. Extracted verbatim from the old section 2. */
-function OrderRow({ item }: { item: DeskItem }) {
-  const o = item.order!;
-  const m = memoParts(o.rationale);
-  const age = o.age_minutes;
-  const expiresIn = age != null ? Math.max(0, 120 - age) : null;
-  return (
-    <div className={`${KT.card} flex flex-wrap items-baseline gap-x-3 gap-y-1 p-3 text-sm`}>
-      <span className="font-semibold uppercase">{o.side}</span>
-      <span className="font-mono tabular-nums">{o.qty}</span>
-      <span className="font-semibold">{o.symbol}</span>
-      {/* The ranking key, shown. A queue that sorts by a number it does not
-          display is asking to be trusted blind. */}
-      <span className="font-mono text-[11px] tabular-nums text-[var(--kt-text-strong)]">
-        {item.moneyUsd == null
-          ? <span className={KT.sev.warn}>notional not previewed</span>
-          : money(item.moneyUsd)}
-      </span>
-      <span className="min-w-0 flex-1 truncate text-[12px]">{m.headline}</span>
-      <span className={`font-mono text-[10px] tabular-nums ${
-        expiresIn != null && expiresIn < 30 ? "text-[var(--kt-warn)]" : KT.muted}`}>
-        {expiresIn != null ? `expires in ~${Math.round(expiresIn)}m` : "age unknown"}
-      </span>
-    </div>
-  );
-}
-
 /**
  * One of Donna's NOTES — read-only by construction.
  *
- * No accept/reject, deliberately and per her seat definition: a note "asks to
- * be READ, not decided". The CEO's own words on the alternative: "this seems
- * more like a note and I don't know what to accept". Rendering buttons here
- * would ask for a decision that means nothing.
+ * No accept/reject, per her seat definition: a note "asks to be READ, not
+ * decided". The CEO's own words on the alternative: "this seems more like a
+ * note and I don't know what to accept".
  */
 function NoteRow({ item }: { item: DeskItem }) {
   const r = item.rec!;
   return (
     <div className={`${KT.card} p-3`}>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        {/* The kind is only worth printing when it says something the word
-            "note" does not — `note · note` is noise. Her pre-vocabulary kinds
-            (record_keeping, org_observation) DO say something and are kept. */}
         <span className={`font-mono text-[10px] uppercase tracking-[0.1em] ${KT.muted}`}>
           {r.kind && r.kind !== "note" ? `note · ${r.kind}` : "note"}
         </span>
@@ -674,10 +1055,6 @@ function NoteRow({ item }: { item: DeskItem }) {
  * the guard on the spine, exactly like order declines, because the guard exists
  * to stop an accidental YES and making a NO harder to give than a YES is the
  * wrong asymmetry on a control whose safe direction is refusal.
- *
- * The actor is the page's existing `ceo` desk convention (faces.ts), which is
- * this console's identity for every decision on it — the same one the approve
- * and decline buttons above already use.
  */
 function AskRow({ ask, onDecided }: {
   ask: QueuedAsk; onDecided: () => Promise<void> | void;
@@ -716,28 +1093,39 @@ function AskRow({ ask, onDecided }: {
     ask.stage === "declined" ? "declined"
       : ask.stage === "cleared_to_trigger" ? "cleared — CTO will trigger"
         : "awaiting you";
+  const mine = ask.stage === "awaiting_ceo";
 
   return (
-    <div className={`${KT.card} p-3 ${ask.stage === "declined" ? "opacity-60" : ""}`}>
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className={`font-mono text-[10px] uppercase tracking-[0.1em] ${stageTone}`}>
-          {stageLabel}
-        </span>
-        <span className="min-w-0 flex-1 text-[13px] leading-snug">
+    <div className={`${KT.panel} ${mine ? "p-4" : "p-3"} ${
+      ask.stage === "declined" ? "opacity-60" : ""}`}>
+      <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
+        <p className={`min-w-0 flex-1 ${mine ? "text-[14px] leading-relaxed" : "text-[13px] leading-snug"}`}>
           {ask.subject || (
             <span className={KT.sev.warn}>
               this ask recorded no subject — unreadable, not empty
             </span>
           )}
-        </span>
-        <span className={`font-mono text-[10px] ${KT.muted}`}>
-          {ask.actor || "unattributed"}
-          {ask.seatFiled && " · seat"}
-          {ask.serves ? ` → ${ask.serves}` : ""}
-        </span>
+        </p>
+        {mine && !declining && (
+          <span className="flex shrink-0 gap-2">
+            <button disabled={busy !== null} onClick={() => act("approve")}
+                    className={`${KT.btn} disabled:opacity-40`}>
+              {busy === "approve" ? "Approving…" : "Approve"}
+            </button>
+            <button disabled={busy !== null} onClick={() => setDeclining(true)}
+                    className={`${KT.btnGhost} disabled:opacity-40`}>
+              Decline…
+            </button>
+          </span>
+        )}
       </div>
-      {ask.note && <p className={`mt-1 text-[11px] ${KT.body}`}>{ask.note}</p>}
-      <p className={`mt-0.5 font-mono text-[10px] ${KT.muted}`}>
+      <p className={`mt-1 font-mono text-[10px] ${KT.muted}`}>
+        <span className={stageTone}>{stageLabel}</span>
+        {" · "}
+        {ask.actor || "unattributed"}
+        {ask.seatFiled && " · seat"}
+        {ask.serves ? ` → ${ask.serves}` : ""}
+        {" · "}
         {ask.at ? `filed ${fmtAt(ask.at)}` : "undated — the request recorded no time"}
         {ask.stage === "cleared_to_trigger" && (
           ask.approvedBy
@@ -748,6 +1136,7 @@ function AskRow({ ask, onDecided }: {
             ? ` · declined by ${ask.declinedBy}${ask.declinedAt ? ` · ${fmtAt(ask.declinedAt)}` : ""}`
             : " · declined — the decline event recorded no actor")}
       </p>
+      {ask.note && <p className={`mt-1 text-[11px] ${KT.body}`}>{ask.note}</p>}
       {ask.stage === "declined" && (
         <p className={`mt-1 text-[11px] ${KT.muted}`}>
           {ask.declineReason
@@ -757,20 +1146,7 @@ function AskRow({ ask, onDecided }: {
       )}
       {err && <p className={`mt-1.5 text-[11px] ${KT.down}`}>{err}</p>}
 
-      {ask.stage === "awaiting_ceo" && !declining && (
-        <div className="mt-2 flex flex-wrap gap-2">
-          <button disabled={busy !== null} onClick={() => act("approve")}
-                  className={`${KT.btn} disabled:opacity-40`}>
-            {busy === "approve" ? "Approving…" : "Approve"}
-          </button>
-          <button disabled={busy !== null} onClick={() => setDeclining(true)}
-                  className={`${KT.btnGhost} disabled:opacity-40`}>
-            Decline…
-          </button>
-        </div>
-      )}
-
-      {ask.stage === "awaiting_ceo" && declining && (
+      {mine && declining && (
         <div className={`mt-2 p-3 ${KT.inset}`}>
           <div className="text-[12px] font-medium">Decline this ask?</div>
           <textarea
@@ -802,35 +1178,6 @@ function AskRow({ ask, onDecided }: {
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-/** A ranked recommendation: the existing RecRow, plus the keys it was ranked
- *  on, so the ordering is auditable from the page itself. */
-function RankedRec({ item, onDecide }: {
-  item: DeskItem;
-  onDecide: () => Promise<void> | void;
-}) {
-  const tone =
-    item.reversibility === "hard" ? "text-[var(--kt-warn)]"
-      : item.reversibility === "unclassified" ? "text-[var(--kt-warn)]"
-        : KT.muted;
-  return (
-    <div>
-      <RecRow r={item.rec!} onDecide={onDecide} />
-      <p className={`mt-0.5 flex flex-wrap gap-x-3 pl-3 font-mono text-[10px] ${KT.muted}`}>
-        <span className={tone}>
-          {item.reversibility === "unclassified"
-            ? `kind "${item.rec?.kind ?? "none"}" is unclassified — ranked as if hard to undo`
-            : `${item.reversibility} to undo`}
-        </span>
-        <span>
-          {item.waitingSince
-            ? `waiting since ${fmtAt(item.waitingSince)}`
-            : "undated — its run recorded no resolve time"}
-        </span>
-      </p>
     </div>
   );
 }
