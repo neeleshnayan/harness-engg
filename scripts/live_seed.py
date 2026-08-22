@@ -1,4 +1,4 @@
-"""Prepare a LOCAL ledger for live-flow testing against the real Alpaca venue.
+"""Prepare a book for live-flow testing against the real Alpaca venue.
 
 Funds the book, sets the mandate, and registers the three strategies with their
 universes and backtests — and then stops. It places **no orders**, deliberately:
@@ -8,12 +8,17 @@ script.
 
 Intended startup:
 
-    USE_FAKE_FIRESTORE=1 FUND_REAL_BROKER=1 FUND_LIVE_MARKS=true DISABLE_DEMO_SEED=1 \\
-      ./venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8090
+    ./scripts/run.sh        # FUND_MODE=alpaca-paper
 
-That combination keeps state on this machine while sending orders to the broker
-for real. Refuses to run if orders are NOT real — for a simulated venue the
-normal mock_seed.py is the right tool.
+One switch, both dimensions. The three-flag incantation this line used to carry
+(USE_FAKE_FIRESTORE=1 FUND_REAL_BROKER=1 ...) described a state the fund can no
+longer be in: a LOCAL ledger with REAL orders. That split was the point of the
+old flags and it is exactly what the mode design forbids — a book whose events
+and whose fills disagree about which fund they belong to is how the alpaca-paper
+account and the fund's own ledger came to record two different funds.
+
+Refuses to run if orders are NOT real — for a simulated venue the normal
+mock_seed.py is the right tool.
 """
 
 import json

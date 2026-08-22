@@ -42,7 +42,11 @@ os.chdir(REPO)
 from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(os.path.join(REPO, ".env"))
-os.environ["USE_FAKE_FIRESTORE"] = "0"
+os.environ["FUND_MODE"] = "alpaca-paper"   # this script writes the REAL book
+# USE_FAKE_FIRESTORE is gone (2026-08-22). The interlock it keyed — refusing
+# to open a real Firestore client from an isolated process — now keys on
+# FUND_MODE=test in app/core/firebase.py, so declaring the mode here is what
+# tells that guard this script genuinely means the real book.
 
 from app.fund.chain import verify  # noqa: E402
 

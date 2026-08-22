@@ -454,6 +454,12 @@ def snapshot_status():
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=503, detail=f"{type(e).__name__}: {e}")
     st["every_minutes"] = SNAPSHOT_EVERY_MINUTES
+    # WHICH store this durability figure describes. Three modes, three stores:
+    # "behind by 0 events" is a different promise depending on which log it is
+    # about, and an unlabelled watermark is the same class of statement as the
+    # in-memory ledger that reported successful mirroring hourly.
+    st["mode"] = _mode_spec.mode.value
+    st["ledger_database"] = getattr(_store, "database", None)
     return st
 
 

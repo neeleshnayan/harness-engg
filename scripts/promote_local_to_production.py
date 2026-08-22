@@ -43,7 +43,11 @@ os.chdir(REPO)
 from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(os.path.join(REPO, ".env"))
-os.environ["USE_FAKE_FIRESTORE"] = "0"          # this script's whole point
+os.environ["FUND_MODE"] = "alpaca-paper"   # this script writes the REAL book
+# USE_FAKE_FIRESTORE is gone (2026-08-22). The interlock it keyed — refusing
+# to open a real Firestore client from an isolated process — now keys on
+# FUND_MODE=test in app/core/firebase.py, so declaring the mode here is what
+# tells that guard this script genuinely means the real book.
 
 from app.fund.chain import rechain, verify  # noqa: E402
 
@@ -357,7 +361,7 @@ def main() -> int:
         say("PROMOTED. Production now holds the book that matches the broker.", GREEN)
         say(f"The previous 22 events remain readable at {archive_coll}.", DIM)
         say()
-        say("Next: flip .env to USE_FAKE_FIRESTORE=0 and restart, then reconcile "
+        say("Next: set FUND_MODE=alpaca-paper in .env and restart, then reconcile "
             "against Alpaca before proposing anything.", YELL)
         return 0
     say("VERIFICATION FAILED — production may be half-written. Do NOT trade.", RED)

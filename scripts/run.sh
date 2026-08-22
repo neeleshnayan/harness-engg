@@ -1,37 +1,36 @@
 #!/usr/bin/env bash
-# Start the spine against the PRODUCTION ledger.
+# Start the spine in ALPACA-PAPER mode — the fund's operating configuration.
 #
-# This is the normal way to run the fund now. The local file-backed ledger was
-# retired on 2026-08-14 when its 52 events were promoted into Firestore, so
-# every event — proposals, approvals, fills, NAV strikes — lands in one
-# auditable place with a hash chain over it.
-#
-# The safety property this script relies on is in app/main.py: with
-# FUND_ENV=production, a Firebase init failure REFUSES to start rather than
-# falling back to a local file. A fund that stops is a problem you notice; a
-# fund that silently relocates its ledger is one you notice at the audit.
+# One switch now, not three. `FUND_MODE` decides BOTH dimensions of what this
+# process is: where orders go (the Alpaca paper account) and where events land
+# (krypton_fund on Postgres). The three flags this replaces —
+# USE_FAKE_FIRESTORE, FUND_REAL_BROKER, and the mere presence of
+# ALPACA_API_KEY — are gone; two of them selected a simulator silently.
 #
 #   ./scripts/run.sh
 #
-# For deliberate offline work, use ./scripts/run_local.sh instead — it is
-# explicit about being a rehearsal.
+# For deliberate offline work use ./scripts/run_test.sh — it is explicit about
+# being a rehearsal, and it writes to a DIFFERENT, PERSISTENT database.
+#
+# The safety property this script relies on is in app/main.py and
+# app/fund/mode.py: nothing has a default. An unset FUND_MODE or FUND_STORE
+# refuses to start. A fund that stops is a problem you notice; a fund that
+# silently relocates its ledger or its venue is one you notice at the audit —
+# and both of those happened on 2026-08-21.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
 # Everything below is the .env default; stated here so the configuration is
 # visible at the point of use rather than only in a file nobody opens.
-export USE_FAKE_FIRESTORE=0
+export FUND_MODE=alpaca-paper
+export FUND_STORE=postgres          # no default exists; this must be said
 export FUND_ENV=production
 export DISABLE_DEMO_SEED=1          # never invent positions on a real book
-# Orders go to the Alpaca PAPER venue. Where state lives and where orders go
-# stay separate decisions, and this is the pairing the fund actually runs:
-# a real ledger and a paper venue.
-export FUND_REAL_BROKER=1
 export ENABLE_TRADE_STREAM=${ENABLE_TRADE_STREAM:-true}
 
 PY=./venv/Scripts/python.exe
 [ -x "$PY" ] || PY=python
 
-echo "spine: PRODUCTION ledger (Firestore), orders -> Alpaca paper"
+echo "spine: mode=alpaca-paper | orders -> Alpaca paper | events -> krypton_fund"
 exec "$PY" -m uvicorn app.main:app --host 127.0.0.1 --port "${PORT:-8090}"
