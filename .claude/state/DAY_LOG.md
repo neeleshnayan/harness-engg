@@ -336,6 +336,16 @@ maintain a day log for fable to review."***
   same night three personas were tuned, because the momentum itself was
   the evidence.
 
+### DECIDED (by the CEO, ~00:15Z) — MARKET SPECIALISTS: RIGHT SHAPE, NOT YET
+
+- The CEO's multi-market ambition ("specialised agents by asset
+  class/market") registered as a TRIGGER, not a build — constitution
+  dispatch-rules clause (4): audition the first specialist when a second
+  real venue goes live in a different microstructure, or when a generalist
+  produces a measured market-specific miss. Until then: per-market menu
+  sections, market-tagged episodes, transient fan-out under Ed. "Specialists
+  are earned by scars, not foreseen by ambition."
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT

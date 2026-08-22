@@ -521,7 +521,19 @@ direction-setting load is small. When candidates clearing the gate exceed
 the capital available to fund them, or ≥3 live sleeves compete for
 allocation, prioritization becomes a job: audition a CIO seat the way the
 CDO was auditioned (a trial memo judged on its own output), never seat it
-by org-chart symmetry.**
+by org-chart symmetry.** **(4) The MARKET-SPECIALIST trigger is registered
+2026-08-23 (CEO agreement, on the chair's honest-opinion memo): specialised
+seats by asset class/market are the right long-term shape and the WRONG
+present one — a single-venue fund with zero real fills does not split what
+it has not yet won with. Until the trigger fires, the specialization lives
+where it compounds without siloing: per-market SECTIONS of Ed's menu,
+market-tagged EPISODES in the experience layer, and transient fan-out under
+Ed's name when breadth demands. The audition fires (CDO pattern, never
+symmetry) when EITHER (a) a second VENUE goes live with real capital in a
+genuinely different microstructure (real futures/FX/crypto — not asset
+exposure via ETFs), OR (b) a generalist seat produces a MEASURED
+market-specific miss (e.g. a futures edge priced with equity-microstructure
+assumptions). Specialists are earned by scars, not foreseen by ambition.**
 
 **CLOSING A DISPATCH IS AN ACT OF THE CHAIR'S JUDGEMENT, NEVER A
 MECHANICAL CONSEQUENCE (added 2026-08-21, CEO instruction, verbatim: "no
