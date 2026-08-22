@@ -3706,6 +3706,112 @@ def _attribute_plan(plan) -> dict:
     }
 
 
+# --- book <-> venue reconciliation (CEO decision, 2026-08-21) ---------------
+class VenueSyncApplyRequest(BaseModel):
+    approver: str
+    #: The approval-channel echo — the first 8 characters of the PLAN's run_id.
+    #: Nothing can approve what it has not read, and here that means the
+    #: operator has fetched the plan and is approving THAT plan, not a
+    #: reconciliation in the abstract against a broker reading that has since
+    #: moved (broker equity moved $0.03 between two readings four hours apart
+    #: on 2026-08-22 — it is a live number, and approving "a sync" rather than
+    #: "this sync" would apply whatever the broker happens to say at click
+    #: time).
+    confirm: str | None = None
+    instruction: str | None = None
+    run_id: str
+    reason: str
+
+
+def _venue_sync_plan():
+    from app.fund import venuesync
+
+    return venuesync.plan(connector=_connector, store=_store,
+                          nav_service=_nav, attribution=_attribution,
+                          pricer=_connector.price)
+
+
+@router.get("/fund/venue/sync/plan")
+def get_venue_sync_plan():
+    """DRY RUN: exactly what reconciling the book to the venue would write.
+
+    Reads both sides and writes nothing. Refuses rather than guessing on any
+    absence — an unreadable broker, a missing cash figure, or a symbol with no
+    mark all raise, because a reconciliation computed against a partial
+    reading moves NAV by a number nobody measured.
+    """
+    from app.fund import venuesync
+
+    if not _mode_spec.real_broker:
+        raise HTTPException(
+            status_code=400,
+            detail=f"mode {_mode_spec.mode.value!r} runs on a simulated venue "
+                   "— there is no second opinion to reconcile against")
+    try:
+        return _venue_sync_plan().to_dict()
+    except venuesync.VenueSyncError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=502,
+                            detail=f"venue unreadable: {type(e).__name__}: {e}")
+
+
+@router.post("/fund/venue/sync/apply")
+def apply_venue_sync(req: VenueSyncApplyRequest):
+    """Append the reconciling event. THE CEO'S CLICK, and nothing less.
+
+    NAV steps for a NON-MARKET reason here, so every clean-field guard rail is
+    on this path: the magnitude is measured from two readings (never a plug),
+    the pre-sync values are preserved in the payload beside the new ones, the
+    approval channel records who and the request carries why, and the P&L
+    reader reports the step separately from performance forever after.
+
+    It does NOT read broker equity as NAV. It appends, and the FOLD produces
+    the matching answer.
+    """
+    from app.fund import venuesync
+
+    if not _mode_spec.real_broker:
+        raise HTTPException(
+            status_code=400,
+            detail=f"mode {_mode_spec.mode.value!r} runs on a simulated venue")
+
+    approver = _guard_approval("venue_sync", req.run_id, req.approver,
+                               req.confirm, req.instruction, APPROVAL_ALLOWLIST)
+    try:
+        plan = _venue_sync_plan()
+    except venuesync.VenueSyncError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+    # The plan is re-read here rather than trusted from the client, so the
+    # numbers written are ones this process just measured. The run_id the
+    # operator echoed is carried onto it, which is what makes the approval
+    # attach to the plan they SAW: if the venue has moved materially since,
+    # the diff between the two is visible in the response.
+    reviewed = plan.to_payload()
+    plan.run_id = req.run_id
+    try:
+        result = venuesync.apply(_store, plan, actor=approver, reason=req.reason)
+    except venuesync.VenueSyncError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    _riskengine.invalidate()
+    _store.invalidate_cache()
+    after = _nav.compute()
+    return {
+        **result,
+        "reviewed_plan": reviewed,
+        "nav_after": {
+            "total_nav_usd": f(after.total_nav_usd),
+            "breakdown": {k: f(v) for k, v in after.breakdown.items()},
+        },
+        "since_inception": _nav.since_inception(after),
+        "reminder": "the NAV step is a RECONCILIATION, not a return — read "
+                    "since_inception.return_pct_ex_reconciliation for "
+                    "performance",
+    }
+
+
 class BackfillApplyRequest(BaseModel):
     actor: str = "reconciliation"
     confirm: bool = False

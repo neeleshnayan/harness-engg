@@ -131,6 +131,10 @@ class StrategyAttribution:
             cls._apply_correction(s, e.get("payload", {}) or {})
             return
 
+        if e.get("type") == EventType.BOOK_RECONCILED_TO_VENUE.value:
+            cls._apply_venue_reconciliation(s, e.get("payload", {}) or {})
+            return
+
         if e.get("type") != EventType.ORDER_FILLED.value:
             return
         p = e.get("payload", {}) or {}
@@ -184,6 +188,62 @@ class StrategyAttribution:
                 # opening/extending a short: no realization yet
                 pos["qty"] -= sold
                 pos["cost"] -= sold * px - fees
+
+    @staticmethod
+    def _apply_venue_reconciliation(get: Callable[[str], dict[str, Any]],
+                                    p: dict[str, Any]) -> None:
+        """The book aligned to the venue, seen from the strategy ledgers.
+
+        Two rules, and both matter for what the PM is able to report:
+
+        RELEASE (the book held it, the venue does not) — the quantity comes out
+        of the ledger that actually held it, at that ledger's own cost basis,
+        WITH NO REALISED P&L. Nothing was sold. Booking a realised gain here
+        would put an invented trade into every performance number the strategy
+        has, permanently.
+
+        ADOPT (the venue holds it, the book did not) — it lands in
+        ``discretionary``, because no strategy chose it. The CEO accepted that
+        explicitly (*"if there is no strategy tracking it then its okay too"*),
+        and this is the fold that makes the acceptance TRUE rather than
+        assumed: exit coverage reads these ledgers, so an adopted position that
+        quietly acquired a strategy would be reported as covered by an exit
+        rule that was never written for it.
+        """
+        for row in (p.get("positions") or []):
+            symbol = row.get("symbol")
+            if not symbol:
+                continue
+            target = D(row.get("venue_qty", 0))
+            holders = row.get("holders") or []
+
+            # Empty every ledger that held this symbol, at its own basis.
+            for h in holders:
+                rec = get(h.get("strategy_id") or DISCRETIONARY)
+                pos = rec["positions"].get(symbol)
+                if pos is None:
+                    continue
+                # net_invested falls by exactly what the ledger had in it, so
+                # the strategy's capital-employed figure stops counting a
+                # position it no longer holds.
+                rec["net_invested"] -= pos["cost"]
+                rec["positions"].pop(symbol, None)
+
+            if abs(target) < Decimal("1e-9"):
+                continue
+
+            basis = row.get("venue_avg_price") or row.get("mark")
+            if basis is None:
+                # Absent is absent. The plan refuses to reach here (it raises
+                # on an unpriced symbol), so this is a belt to that brace: a
+                # position is never adopted at a cost basis nobody stated.
+                continue
+            rec = get(DISCRETIONARY)
+            pos = rec["positions"].setdefault(symbol, {"qty": Decimal("0"),
+                                                       "cost": Decimal("0")})
+            pos["qty"] = target
+            pos["cost"] = target * D(basis)
+            rec["net_invested"] += pos["cost"]
 
     @staticmethod
     def _apply_correction(get: Callable[[str], dict[str, Any]],

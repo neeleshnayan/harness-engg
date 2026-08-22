@@ -216,18 +216,48 @@ class ExitRules:
         """
         pnl = {p.get("symbol"): p.get("unrealized_pnl_pct")
                for p in (positions or [])}
+        rules = self.active(strategy_id)
         fired, holding, unevaluable = [], [], []
-        for r in self.active(strategy_id):
+        for r in rules:
             got = evaluate(r, unrealised_pnl_pct=pnl.get(r.get("symbol")))
             row = {**r, **got}
             (fired if got["fired"] is True
              else holding if got["fired"] is False
              else unevaluable).append(row)
+
+        # POSITIONS WITH NO RULE AT ALL — added 2026-08-22.
+        #
+        # This method iterated over RULES, so a holding nobody wrote a rule for
+        # was not "uncovered", it was ABSENT: it appeared in no list, and a
+        # reader counting fired + holding + unevaluable saw a complete-looking
+        # picture of an incomplete book. That became load-bearing the moment
+        # the CEO chose to reconcile the broker divergence rather than fence
+        # it: roughly $1,166 of GLD, INTC, MSFT, NVDA, SOFI and XLE enter the
+        # book owned by no strategy and carrying no exit rule. He accepted that
+        # explicitly — "if there is no strategy tracking it then its okay too"
+        # — and an accepted risk that the coverage report cannot show is an
+        # unaccepted one wearing its clothes.
+        #
+        # Only computed when positions were supplied. An empty positions list
+        # because marks were unreadable must not read as "nothing uncovered",
+        # so the caller is told which case it is.
+        covered = {r.get("symbol") for r in rules if r.get("symbol")}
+        uncovered = [
+            {"symbol": p.get("symbol"), "qty": p.get("qty"),
+             "usd_value": p.get("usd_value"),
+             "strategy_id": p.get("strategy_id"),
+             "why": "held with no pre-committed exit rule"}
+            for p in (positions or [])
+            if p.get("symbol") and p.get("symbol") not in covered
+        ]
         return {
             "fired": fired,
             "holding": holding,
             "unevaluable": unevaluable,
-            "note": _note(fired, holding, unevaluable),
+            "uncovered": uncovered,
+            "coverage_known": bool(positions),
+            "note": _note(fired, holding, unevaluable, uncovered,
+                          coverage_known=bool(positions)),
         }
 
 
@@ -361,12 +391,14 @@ def _enforce_note(raised: list, skipped: list, failed: list,
     return "; ".join(bits)
 
 
-def _note(fired: list, holding: list, unevaluable: list) -> str:
-    if not (fired or holding or unevaluable):
-        return ("no exit rule is recorded — this position was deployed without a "
-                "pre-committed exit, which is the state this module exists to "
-                "make visible")
+def _note(fired: list, holding: list, unevaluable: list,
+          uncovered: Optional[list] = None, *, coverage_known: bool = True) -> str:
+    uncovered = uncovered or []
     bits = []
+    if not (fired or holding or unevaluable):
+        bits.append("no exit rule is recorded — this position was deployed "
+                    "without a pre-committed exit, which is the state this "
+                    "module exists to make visible")
     if fired:
         bits.append(f"{len(fired)} exit rule(s) FIRED and need a decision")
     if holding:
@@ -374,4 +406,13 @@ def _note(fired: list, holding: list, unevaluable: list) -> str:
     if unevaluable:
         bits.append(f"{len(unevaluable)} could not be checked — not the same as "
                     f"fine")
+    if uncovered:
+        bits.append(f"{len(uncovered)} held position(s) carry NO exit rule "
+                    f"({', '.join(str(u['symbol']) for u in uncovered)})")
+    elif not coverage_known:
+        # The distinction the whole module is built on, applied to itself:
+        # "nothing uncovered" and "we could not read the book" are different
+        # claims and only one of them is reassuring.
+        bits.append("coverage of held positions UNKNOWN — no marks were "
+                    "readable, so this is not a report of full coverage")
     return "; ".join(bits)

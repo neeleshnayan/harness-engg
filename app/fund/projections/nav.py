@@ -269,6 +269,12 @@ class NavService:
         snap = snap or self.compute()
         subscribed = Decimal("0")
         paid_out = Decimal("0")
+        # NAV that moved for a BOOKKEEPING reason, not a market one. Tracked
+        # separately and forever, because a $127 step from a broker
+        # reconciliation is not performance and a P&L reader that cannot
+        # subtract it will flatter or damn the fund for a clerical act.
+        reconciled = Decimal("0")
+        reconciliations: list[dict[str, Any]] = []
         for e in self._store.stream(since_seq=0, limit=100_000):
             t = e.get("type")
             p = e.get("payload") or {}
@@ -276,13 +282,53 @@ class NavService:
                 subscribed += D(p.get("usd_amount") or 0)
             elif t == EventType.PAYOUT_SENT.value:
                 paid_out += D(p.get("usd_amount") or 0)
+            elif t == EventType.BOOK_RECONCILED_TO_VENUE.value:
+                step = D((p.get("nav") or {}).get("projected_step_usd") or 0)
+                reconciled += step
+                reconciliations.append({
+                    "at": e.get("ts"), "run_id": p.get("run_id"),
+                    "step_usd": f(money(step)), "actor": p.get("actor"),
+                    "reason": p.get("reason"),
+                    "venue": (p.get("basis") or {}).get("venue"),
+                })
+            elif t == EventType.CASH_RECONCILED.value:
+                step = D(p.get("delta_usd") or 0)
+                reconciled += step
+                reconciliations.append({
+                    "at": e.get("ts"), "run_id": p.get("run_id"),
+                    "step_usd": f(money(step)), "actor": p.get("actor"),
+                    "reason": p.get("reason"), "venue": p.get("venue"),
+                })
         pnl = snap.total_nav_usd - subscribed + paid_out
-        return {
+        # NB `units` is the money helper imported at the top of this module —
+        # shadowing it here would silently break `strike()`.
+        units_out = snap.units_outstanding or Decimal("0")
+        # The per-unit figure with the bookkeeping step removed. Not a
+        # replacement for return_pct — both are reported, and the difference
+        # between them IS the reconciliation, which is what makes it visible.
+        per_unit_ex = ((snap.total_nav_usd - reconciled) / units_out
+                       if units_out else None)
+        out: dict[str, Any] = {
             "subscribed_usd": f(money(subscribed)),
             "paid_out_usd": f(money(paid_out)),
             "pnl_usd": f(money(pnl)),
             "return_pct": f((snap.nav_per_unit / BASE_NAV_PER_UNIT - 1) * 100),
+            # Zero here is a MEASURED zero — the fold looked and found no
+            # reconciliation — not an absence dressed as one.
+            "reconciliation_usd": f(money(reconciled)),
+            "reconciliations": reconciliations,
+            "pnl_ex_reconciliation_usd": f(money(pnl - reconciled)),
+            "return_pct_ex_reconciliation": (
+                f((per_unit_ex / BASE_NAV_PER_UNIT - 1) * 100)
+                if per_unit_ex is not None else None),
         }
+        if reconciled:
+            out["reconciliation_note"] = (
+                f"NAV includes {f(money(reconciled))} that moved for a "
+                f"non-market reason (broker reconciliation). 'return_pct' "
+                f"contains it; 'return_pct_ex_reconciliation' does not. Read "
+                f"the second one as performance.")
+        return out
 
     def latest(self) -> Optional[dict[str, Any]]:
         struck = self._struck(limit=1)
