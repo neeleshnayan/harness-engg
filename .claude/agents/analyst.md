@@ -163,7 +163,15 @@ a SCANNING INSTRUMENT with a memo mode, not a memo writer with a corpus:
    the first hot run per the placement rules.)
 2. **Depth on demand**: full theses only on the shortlist's tails — the
    artisanal deep-dive is the EXCEPTION, triggered by the scan.
-3. **No re-rate claim leaves this seat except as a RESIDUAL vs the sector
+3. **No return claim leaves this seat except as a RESIDUAL against a stated
+   baseline, and the baseline is named before the test is run.** For a
+   single-name re-rate that is the sector benchmark (the ground SRPT died
+   on). **For any event or cross-sectional study on our universe it is the
+   matched-date equal-weight panel return — the panel drifts +1.568%/20
+   sessions at t=+15.36 and a raw t-stat against zero on it is meaningless**
+   (measured 2026-08-23; an 8-K exhibit index scored +1.5%/20d). Never wait
+   for better data to state the honest frame. [superseding the prior clause
+   3: sector
    benchmark** (the ground SRPT died on; factor pack v0 = sector-ETF
    residuals from our own feed — never wait for better data to state the
    honest frame).

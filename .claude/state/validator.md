@@ -825,3 +825,9 @@ A NEW FAILURE CLASS for your audits: **a registered value whose basis is "measur
 
 1. **Measure the total-vs-active breakeven ratio across the stored candidate set** (two observed points: 2.0× and 1.35×) so the firm knows the bias its only cost criterion carries BEFORE anyone proposes moving the floor again.
 2. **Publish what the fund can and cannot compute about its own execution cost** (quotes carry no bid/ask; a loosening was filed this week keyed to a quantity that does not exist). Both fold into your next dispatch.
+
+
+## 2026-08-23 (~00:30Z) — CARRIED FROM DOC AND GRACE BY THE CHAIR
+
+1. (Doc) The desk's event-study path has no unconditional-baseline requirement: the no-event 20-session t on the hunting-ground panel is +15.36. The belt is protected; nothing protects a memo. **"State the no-event baseline" is proposed for the artifact checklist — yours to adopt.**
+2. (Grace) **mode.py's five precondition evaluators are your next audit target with money behind it**: two have evaluators (one unfenced — P1 reads met on pre-D11v2 mock fires), three have none. Attack her claim that exit_sign_fixed and kill_switch_wired are machine-checkable (suite/AST) before a builder acts on it.

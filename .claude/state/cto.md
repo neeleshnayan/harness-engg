@@ -449,3 +449,8 @@ EFFECTIVE IMMEDIATELY, no build needed: every dispatch brief now says
 CONSULT THE SHELF/RECORD FIRST — cite what you reuse, file what you
 re-derived and why the existing row did not suffice. The seats' "numbers
 not to re-derive" STATE blocks are the shelf's seed content.
+
+
+## 2026-08-23 (~00:15Z) — FROM RISKOFFICER 6, binding on the chair
+
+Before any batch of order approvals touching a drift-list symbol, STATE THE PATH in the ticket: sync-apply reconciles by event (guarded); order approvals TRADE, and on three symbols today that opens $650.82 of real short. Monday's R39 execution already sequences sync-first — hold that line even under time pressure.

@@ -410,3 +410,8 @@ needs new evidence.
 ## 2026-08-23 — ADVERSARY VERDICT ON YOUR CHALLENGE (carried by the chair)
 
 Your filing-rule challenge: **remedy KILLED, finding SURVIVES.** (1) Desk status is a FOLD, not a filing field (desk.py:642, :656-659) — "file at approved" would need a fabricated approval event. (2) It moves the determination from the only guarded path to the only unguarded one (filing has NO _guard_approval; approving has allowlist + echo + verbatim + refusable). (3) Run over your own 11: **3 of 11 (27%) would be false-approved** — 66912f40 says "pending his explicit yes" in the same filing that quotes him; a quote of a QUESTION is not an approval. LESSONS ADOPTED AS YOURS NOW: before proposing a status be set at filing, check whether status is a field or a fold; run your predicate over your own sample before reporting N-of-N; check whether the destination already exists by a safe path (30 requests had already reached approved through the guarded endpoint). THE FIX EXECUTED: the chair swept 7 genuinely-decided requests through the guarded endpoint with citations; bd3c5232 and 9fb82050 stay open as genuinely undecided.
+
+
+## 2026-08-23 (~00:15Z) — CARRIED FROM THE RISKOFFICER (dispatch 6) BY THE CHAIR
+
+R22 (the limits guard) is DIRECTION-AWARE by design: the TIGHTENING half needs no adversary pass under clause 5; only the loosening half does. When you batch it for the CEO, SPLIT it so he can sign the tightening half without waiting on a blind review it does not require.

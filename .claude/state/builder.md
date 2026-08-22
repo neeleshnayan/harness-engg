@@ -512,3 +512,8 @@ D17+D18 SURVIVES whole-branch and is MERGED (1863 green, drift alarm live-firing
 ## 2026-08-22 (~23:15Z) — CARRIED FROM ED (batch #1) BY THE CHAIR
 
 The ordered gate pair (fold-scaling THEN history floor) is ticketed and (b) MUST NEVER SHIP ALONE — raising FUND_HISTORY_FLOOR with fixed min_decisions raises the measured FP rate 2.9%→12.5%: a gate loosening arriving as a data improvement, the exact shape the constitution forbids. Also for the API card: format=csv honours start_date/end_date (this makes the deeper belt window a one-line SpineBars change, not a data project).
+
+
+## 2026-08-23 (~00:15Z) — CARRIED FROM THE RISKOFFICER (dispatch 6) BY THE CHAIR
+
+**When a guard returns an attribution string, that string is the EVENT's actor — not just a payload field.** desk_approve (fund.py:1736) passes req.actor and is the only guarded endpoint with the split (32/32 via-* approvals show bare names at event.actor). Check every future guarded write for the same split before shipping. The hygiene trio (rebase pair + H1 + R24) is ticketed for your next batch.

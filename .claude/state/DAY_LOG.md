@@ -505,6 +505,60 @@ Donna's: CHECK date -u BEFORE DATING ANYTHING.**
   Lessons carried to Ed (6), quant, validator (2 measurement requests),
   Stan. The matched-calendar control is now a standing instrument.
 
+### MEASURED — THE CLOSING FAN-OUT LANDED (00:15–00:35Z, resolved into 08-22's entry as its final acts)
+
+- **RISKOFFICER 6**: the human approval path audited check-by-check — 11 of
+  15 absences INTENDED (the offramp is a design principle), THREE are gaps
+  (facts the card cannot show); **$650.82 = 34.5% of NAV of real SHORT if
+  reconciliation ever goes through order clicks instead of sync-apply** —
+  independently confirming the PM's R39 sequencing. Four CEO signatures
+  prepared (R20 approve-time reality check, R21, R22 direction-aware limits
+  guard, the drift-severity memo WITH its named-owner condition). Alarm
+  census CLEAN (D18 verified). The rebase-direction pair at its THIRD ask —
+  now ticketed (faefd072). The 14m41s latency carry formally dropped after
+  six dispatches.
+- **DOC'S SHELF v1**: **the hunting-ground panel HAS NO NULL** (+1.568%/20d
+  at t=+15.36 — an 8-K exhibit index "predicted" +1.5%; all 27 item codes
+  collapse to |t|≤1.72 demeaned) — the no-null control is now standing for
+  every desk event study. ONE live lead: **post-earnings realised vol is
+  ELEVATED ~6%, not crushed** (two stacked artifacts in the textbook
+  reading, both caught) → a stop-width correction for Stan. Four families
+  censored-untestable (closed to Ed's menu until a PIT universe); Form 144
+  is 2023+ only (the trap caught BEFORE the spend); 3,185 unread comment
+  letters named the cheapest unopened pile. Zero extraction, host intact.
+- **GRACE'S TOKEN LEDGER #1 — the sharpest economics read yet**: 08-22
+  spent **7.42M tokens = 47.1% of lifetime — and was the best-value night
+  ever** (~0% parked vs 59.7% prior; builder findings/M 1.2→4.4). THE
+  FINDING: **the prod gate is broken in BOTH directions** — P1 reads MET on
+  pre-D11v2 mock-broker fires (no venue fence; the sibling evaluator
+  fences, 40 lines away) and three rows can NEVER say met (no evaluators;
+  0 of 82 tickets would fix it). Her law for the architecture: **a false
+  green is strictly worse than an absent check — the dispatch queue IS the
+  attention allocator.** DATES COLLAPSED TO ONE GATE: **$10k ask Fri
+  2026-08-28** (14 days in), first real venue fill Monday. She falsified
+  her own Grace-3 claim (P5 is reachable on alpaca-paper; tca.py:131) and
+  conceded to Vishesh on measurement. Largest waste: ~163k on a defect an
+  incident comment had documented — **an incident comment is not a
+  control.** Binding constraint: SPECIFICATION, not tokens — the CEO's
+  one-word "in anger" ruling is worth ~14 days.
+- Tickets: the scoreboard pack (a0e640de: P1 venue fence + the clock +
+  telemetry zombies + mojibake + XL* re-pull) and G5-2's evaluability pack
+  with the adversary (a26debb9, loosening, filer-declared, her own kill
+  condition attached). EVOLVEs applied: Doc (baseline named before the
+  test), Grace (a definition is a figure).
+
+### THE CEO'S MONDAY MORNING, FINAL FORM (the night's whole output in clicks)
+
+1. **G1** — the account (external clock; no longer gates cost measurement).
+2. **The R39 click sheet** — sync pre-open → $4.50 probe → 6 sells → 4
+   rebuys (possibly +1 order for P5's 20th fill — Stan re-checks).
+3. **One-word rulings**: does a DRILL satisfy "fired in anger"? (worth ~14
+   days) · the gate pair (fold-scaling then history floor) · the
+   drift-severity signature (with a named owner + date) · R20/R21/R22.
+4. Vishesh's 8, the charter amendments, H2's citation-scoping question.
+5. NOTE: the scoreboard will briefly read WORSE (P1 → unmet) when the venue
+   fence lands — the honest direction, by his own clean-field rule.
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT

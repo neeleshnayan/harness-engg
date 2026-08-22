@@ -651,3 +651,9 @@ The kill is the funnel working — zero containers spent, and the lessons are yo
 5. **Size monotonicity: demean within (year × term) before ranking** — a trending covariate makes anything monotone.
 6. Your floor challenge died on a CLOSED defect cited as live (tca.py excludes latency drift since audit 8b863152) and an unmeasurable key (no bid/ask exists). Re-filing requires the adversary's five conditions — the first is fixing the breakeven numerator to the EDGE, which is D6 and helps you anyway.
 RESURRECTION PATH, if the auction story still calls you: a design with real identifying variation — the 2020 20-year reintroduction as a natural experiment, or non-mid-month sovereign calendars — showing the PRE coefficient at |t|>2.5 WITH day-of-month FE. That is a research ask for Doc's shelf, not a re-run.
+
+
+## 2026-08-23 (~00:30Z) — CARRIED FROM DOC (shelf v1) AND GRACE BY THE CHAIR
+
+1. (Doc) **THE NO-NULL RULE**: on our universe the no-event 20-session return is +1.568% at t=+15.36 — every event family reaching your menu must be an increment over the MATCHED-DATE EW PANEL, never against zero, and must NAME ITS PLACEBO (the four biggest t-stats of Doc's night all died on theirs). **CLOSED TO YOUR MENU until a PIT universe exists: merger arb, distress, delisting, going-private** (censored at 100% survival). Form 144 is 2023+ only. THE SHELF IS LIVE: docs/research/LEADS_SHELF_2026-08-23_v1.md — consume it next batch, report consumed/rejected.
+2. (Grace) When you price an instrument fix, **name which scoreboard item it moves** — the history-floor pair moves the gate's POWER (branch B), not the CEO's five preconditions (branch A); the $10k date is max(A,B), so it does not compete for the same day. Accepted into your pre-flight thinking.

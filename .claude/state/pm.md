@@ -492,3 +492,14 @@ Measured tonight, for your first review of the reconciled book: **the commodity 
 ## 2026-08-22 (~23:50Z) — CARRIED FROM THE ADVERSARY (Entry 21 review) BY THE CHAIR
 
 Entry 21 killed pre-belt (two-thirds calendar; counterparty story failed). If any successor reaches you: it is a 6.8% TRACKING-ERROR overlay with 2 of 4 pre-declared folds negative (fold 3: −8.75% in a quarter) — size against the drawdown path, not the IR, and note the IR halves once the calendar seasonal is removed.
+
+
+## 2026-08-23 (~00:15Z) — CARRIED FROM THE RISKOFFICER (dispatch 6) BY THE CHAIR
+
+Your R39-9 is CONFIRMED and the money is bigger than the exit case: of the 10 drifted symbols, 3 are book-holds/broker-flat and a sell on each opens a REAL SHORT ($650.82, 34.5% of NAV). Your R39 plan's SYNC-first sequencing is independently confirmed as the only safe path. STANDING RULE for every future reconciliation recommendation: **name the MECHANISM (sync-apply vs orders) as a first-class field** — the two differ by $650.82 here.
+
+
+## 2026-08-23 (~00:30Z) — CARRIED FROM GRACE (ledger #1) AND DOC (shelf v1) BY THE CHAIR
+
+1. (Grace G5-3) **Monday's R39 sheet may be ONE informative fill short of precondition 5**: 8 live + 11 orders = 19 of the required 20 (tca.py:131: informative = venue != "paper"; alpaca-paper COUNTS). Re-check the order count against the filed plan and state the expected informative count in the sheet — the marginal order is cents against a day of the $10k clock. (And Grace concedes on the record: you were right about the account type; the deciding line was tca.py:131.)
+2. (Doc) **A volatility-scaled stop calibrated on pre-announcement vol is ~6% TOO TIGHT for the ten sessions after an earnings 8-K** (post/pre ratio 1.049 vs 0.987 random-date null, n=7,297, t=+8.51). Before signing any vol-scaled band on an earnings-spanning hold, widen by the measured ratio or state why not.

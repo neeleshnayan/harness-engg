@@ -427,3 +427,22 @@ for a different reason than the one that dispatched it. Also:
 data.sec.gov/submissions/CIK##########.json returned 200/200 CIKs, zero
 errors, under two minutes, and carries the `items` field for 8-K codes —
 for DATE-based work it is far cheaper than bulk-ZIP extraction.
+
+
+## 2026-08-23 (~00:30Z) — STATE from run-analyst-shelf1 (LEADS SHELF v1, first run as Dr. Mike Darwin), appended by the chair
+
+**THE ONE THING TO CARRY: THE HUNTING-GROUND PANEL HAS NO NULL.** EW 200-name panel +1.568%/20 sessions, t=+15.36 (+21.6%/yr) vs SPY +15.2%. NEVER quote an event t-stat against zero on this panel. Demeaning by the matched-date panel collapses ALL 27 8-K item codes to max |t|=1.72 (item 9.01, an exhibit index, "predicted" +1.5%). The belt is protected (leanrunner benchmarks the declared universe); the exposure is DESK analysis.
+
+**LIVE LEAD: post-earnings realised vol is ELEVATED ~6% for ten sessions** (1.0493 t=+8.51 vs random-date null 0.9869; survives entry-return exclusion at 1.0233 t=+4.03). 8.01/1.01 go the OTHER way. Consequence: a pre-earnings-calibrated vol stop is ~6% too tight on earnings-spanning holds. UNTESTED: per-name median, sub-period split, top-decile-jump exclusion — the three named invalidations.
+
+**METHOD LESSON 8 (cost me an inverted conclusion): a stdev ratio between windows of DIFFERENT LENGTH is mechanically biased** (10-vs-60 = 0.85 t=-31 on RANDOM dates), **and the announcement-day jump sits as the final return of the pre-window** — remove one return and the earnings sign flips. Equal windows + gap the event return from both sides, always.
+
+**PLACEBOS KILLED THE FOUR BIGGEST t-STATS OF THE NIGHT** (3.02 +2.00 vs -60 placebo +3.12; DFAN14A +4.65 vs +250 placebo +5.33; XBRL revisions; UPLOAD new-review). Zero survivors. **STRUCTURALLY UNTESTABLE HERE (censored at 100% survival): bankruptcy, delisting, M&A completion, going-private** — closed to the menu until a PIT universe exists.
+
+**DATA FACTS EARNED**: edgar_filings.json = 372,263 filings ALL forms from 1994 — the deepest metadata asset we own. **Form 144 is 2023+ ONLY** (e-filing mandate 2023-04-13; 1 filing in 2019 — the AFF10B5ONE trap, caught BEFORE the spend this time). UPLOAD comment letters: 3,185 across 198/200 tickers, dates held, CONTENT NOT HELD — the cheapest unopened pile; next step is a READ not a computation. ETF depth: SPY 1993 / XLE 1998 / IWM 2000 / TLT-IEF-SHY 2002; **XL* sector floor 2015-01-02 is a PULL limit not a data limit** (re-pull ticketed). Dead tonight, do not re-spend: all 27 items unconditional, 2.02×time/day buckets, 10-Q lateness, Johnson–So timing, item counts, XBRL revisions, 13D, DFAN14A, SI z-scores, DTC quintiles, aggregate DTC timing, filing bursts.
+
+**API BUG (ticketed)**: /fund/research/observations `quote` is double-encoded UTF-8 — verbatim citation from it is UNSAFE until fixed.
+
+**PRIOR-FILING RUN-UP carried (LEAD 7)**: the −7.7%/yr pre-Form-4 window from the retired insider study — naive form is look-ahead-corrupt; any tradeable form needs an ex-ante imminence proxy (filing-cadence predictability, the p+364 pattern). Not lost again.
+
+**FITNESS**: 3 decision-changing measurements (the no-null control; the censored-families closure; the stop-width parameter), zero extraction, zero containers, host intact.
