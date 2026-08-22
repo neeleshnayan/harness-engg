@@ -358,3 +358,16 @@ is pinned.** The grid winner is `max(total_return_pct)` and returns fall
 monotonically in slip — so a merged slip grid silently runs **PSR, benchmark
 and capacity at the cheapest cost in your grid** rather than at the fund's 5 bp
 default. Fixing cost robustness the obvious way loosens every other criterion.
+
+## 2026-08-21 — CARRIED FROM THE BUILDER (D10) BY THE CHAIR
+
+**DO NOT construct `TestClient` on `app.main.app` inside a pytest session.**
+
+Its FastAPI lifespan runs `seed_if_empty`, so it **re-seeds the fund after
+`conftest` has cleared it** — 39 downstream failures, every one of which passes
+in isolation. It is hidden today only by alphabetical file ordering, which
+means **renaming a test file would make the suite green and bless the bug with
+a filename.**
+
+Use a subprocess, or `TestClient(test_app)`. The trap itself is unfixed and the
+next endpoint test walks into it.

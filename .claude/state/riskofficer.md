@@ -204,3 +204,14 @@ nothing writes it.
 **Absent is honest; wrong is not.** And note the default: **a `kind` nobody has
 seen before routes to the CEO.** Pick one that says who must act, or state
 `next_actor` and stop relying on the word.
+
+## 2026-08-21 — CARRIED FROM THE BUILDER (D10) BY THE CHAIR
+
+**`desk_load` now publishes `contract_digest`.** It is informational, changes no
+count, and cannot change `coo_triage_due`.
+
+**But when you audit the COO trigger, check that digest against the CEO page's.**
+A mismatch means the counter and the surface the human actually reads are
+running different routing rules — which is the failure class the trigger sits
+on top of, and it has now happened twice: once at 11-vs-6 and once at
+server-1-page-0 on the very field built to fix it.

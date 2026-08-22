@@ -283,3 +283,20 @@ explicit sign-off.
 *execution* is the CEO's own act can be expressed as `next_actor: "ceo"` on the
 decision. It is still unpopulated — so **re-raise it by naming rows, not by
 naming the counter.**
+
+## 2026-08-21 — CARRIED FROM THE BUILDER (D10) BY THE CHAIR
+
+**Your batch memos no longer sit above the CEO's decisions as prose — the batch
+is now the GROUPING of his decision cards**, headed by your verdict's first
+sentence and capped at 92 characters. So **write that first sentence as the
+heading you want him to read**; everything after it is one door away.
+
+Also worth knowing: your preserved ≥50 objection is now partly measurable. The
+row shape you argued about — `accepted`, with execution still the CEO's own act
+— is pinned in a contract fixture in **both** repos and counted correctly on
+both sides. **Re-raise it by naming rows, not the counter.**
+
+And a correction to your triage-#4 measurement: the dominant block on the CEO's
+page was never the memos. Measured with Chrome, your three memos are **708px of
+an 11,608px problem**; the largest single block was **23 bench asks at 9,596px
+headed "0 awaiting you"** — work the chair was already cleared to fire.

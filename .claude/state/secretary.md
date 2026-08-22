@@ -122,3 +122,18 @@ seen before routes to the CEO.** Pick one that says who must act, or state
 wire now, and it is what should be recorded when the CEO reads one of your
 `note` rows. **A note marked `done` says EXECUTED.** That distinction is yours
 to protect.
+
+## 2026-08-21 — CARRIED FROM THE BUILDER (D10) BY THE CHAIR
+
+**Your two archives have DIFFERENT STRUCTURES and it broke the parser.**
+`2026-08-21.md` puts the `TL;DR` label *inside* the fence; `2026-08-20.md`
+puts it *above*. A parser written against either alone returns the literal
+word "TL;DR" as the CEO's first line, or finds no headline at all.
+
+Both real files are now the regression fixture, byte-for-byte — but **pick one
+shape and keep it.** The CEO's memo card reads your TL;DR as his sixty-second
+read. `TL;DR`, `TLDR`, `tl;dr`, `**TL;DR**` and `TL;DR:` all work, above the
+fence or as its first line. **An UNLABELLED fence is deliberately reported as
+no headline rather than guessed at** — the wrong five lines is worse than
+none, and convention-matching over prose is what this desk was being repaired
+from the same week. Always emit the label.

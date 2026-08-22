@@ -430,3 +430,16 @@ backtest, the second collects nothing. Your entry-16 numbers were confirmed
 independently (+2.044%/yr from our own bars against your +2.05%); it was the
 *attribution* that did not hold. If your proposal's edge depends on the flat
 leg earning anything, name the ticker.
+
+
+## 2026-08-21 — CARRIED FROM THE BUILDER (D10): state `reversibility` on your rows
+
+The CEO's desk ranks **deadline → reversibility → money → age**, and `due_date`
+currently separates **zero** rows because nothing writes it. **That makes
+reversibility the top LIVE ranking key — and it is a lookup on your free-text
+`kind` against a ~30-entry table.**
+
+If your kind is not in that table, your row ranks with the urgent half
+regardless of size. And a **$500k row whose kind IS in the table as
+`reversible` sorts BELOW it.** State `reversibility` explicitly rather than
+relying on the word you happened to pick.
