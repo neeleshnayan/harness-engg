@@ -431,7 +431,12 @@ Donna's: CHECK date -u BEFORE DATING ANYTHING.**
   2 research + 1 crunch per batch — crunch is heavy, counts against the
   one-heavy-job budget; cap moves only by versioned decision. And every
   worker carries the firm's full ethos — identity governs ACCOUNTABILITY,
-  never ethics.**
+  never ethics.** THEN EXTENDED (~22:45Z): the workshop gains a FOURTH
+  slot — **the GENERIC WORKER, unseeded, authored entirely by Ed** (spec
+  lives in his STATE, re-cut across runs on measured contribution, named
+  when earned) — the firm's first seat-born identity. Boundaries: full
+  ethos, no discovery, no implementation, weight classified by the chair
+  per spec. Cap: 2R + 1C + 1G.
 
 ### ON FIRE
 

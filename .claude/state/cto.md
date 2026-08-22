@@ -412,3 +412,15 @@ run). Cap moves only by versioned CEO decision. EVERY transient worker's
 brief carries the firm's non-negotiables in full — identity governs
 accountability, never ethics. Workers = Ed's hands with the firm's
 conscience.
+
+
+## 2026-08-22 (~22:45Z) — Ed's generic worker (CEO design)
+
+Workshop cap now 2R + 1C + 1 GENERIC. The generic is UNSEEDED — Ed authors
+its full spec in his STATE (## MY GENERIC WORKER, spec vN), re-cuts it on
+measured contribution, names it when earned. Chair duties at composition:
+verify the spec carries the firm's ethos, refuses discovery and
+implementation roles, classify its WEIGHT (compute-shaped = the heavy
+slot), and review the spec diff at resolve like any EVOLVE. First
+seat-born identity in the firm — watch it as the personality layer's
+frontier experiment.
