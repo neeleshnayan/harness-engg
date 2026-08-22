@@ -297,3 +297,12 @@ formally drop, fifth carry.
 - **From builder D11 (parked diff)**: if the mode work merges, audit
   fund_mode switches as an approval channel — a FundModeSwitched arrival
   with no matching departure is an incident, not a logging gap.
+
+
+## 2026-08-22 — CARRIED FROM BUILDER D12 BY THE CHAIR
+
+A control's RENDERING is part of the control. D12 found the floor stamping
+a measurement chip on the caged auto-policy and the venue door when the
+spine was unreadable — absence rendered as a plausible marker, the unwired
+kill switch in a UI costume. When you audit the envelope, ask what the
+surface DRAWS when the read fails, not only what the code decides.

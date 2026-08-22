@@ -322,3 +322,11 @@ headed "0 awaiting you"** — work the chair was already cleared to fire.
   cite the figure you supersede and name the differing input — your
   $750.36 sits beside a $750.63 and a $750.35 and the record cannot tell
   convergence from disagreement.
+
+
+## 2026-08-22 — CARRIED FROM BUILDER D12 BY THE CHAIR
+
+The floor now draws you and Grace as ADJACENT PEERS because the
+constitution says you argue. When you rank an item she has also ranked,
+the room asserts the disagreement is expected — do not read her presence
+in the exec row as the chair having taken a side.

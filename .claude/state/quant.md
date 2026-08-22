@@ -400,3 +400,12 @@ next endpoint test walks into it.
   11 — a paper fill wearing an alpaca label contributed 0.00 bps. When
   you cite execution cost as validated, state the informative count and
   whether it clears RELIABLE_SAMPLE (20). It does not yet.
+
+
+## 2026-08-22 — CARRIED FROM BUILDER D12 BY THE CHAIR
+
+Before you cite a compute or layout figure taken mid-change, re-measure it
+after the change settles. Three numbers in the builder's own fresh comments
+were correct for an intermediate state and false for the shipped one; only
+a throwaway measurement script caught them. A figure derived from an
+abandoned configuration is not a measurement, it is a memory.

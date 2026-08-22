@@ -266,3 +266,20 @@ approval and I can invoke you periodically"): charter in the constitution
 memory .claude/state/co-cto.md, ledger .claude/state/CTO_REVIEW_QUEUE.md
 (my FIRST read on every return), guard v1.2 adds neelesh-via-co-cto
 (13/13 tests). Spine restarted on v1.2.
+
+## 2026-08-22 (night shift) — dispatch mechanics lessons
+
+- **Builder isolation is now the HARNESS'S job, not the seat's**: the
+  worktree base was wrong 8 of 12 dispatches, the last one landing in the
+  LIVE KryptonPay checkout. The Agent tool accepts `isolation: "worktree"` —
+  use it on every builder dispatch from now on; the seat's clone-recovery
+  discipline stays as the backstop, not the mechanism.
+- **The room merge (KryptonPay 14fb5605) + the cfo request kind
+  (ClarkHarness, allocation_review) shipped as one resolve** — the builder's
+  refusal to invent a kind the composer would print verbatim was correct,
+  and the spine half was one chair line. Grace's telemetry row now exists;
+  her runs before 2026-08-22 predate it.
+- **Owed by the chair**: the constitution's dispatch-and-placement paragraph
+  names ten seats' model placements and not the cfo's — write her sentence
+  (Opus, judgement near governance, never downgraded) next time that file
+  is legitimately open.

@@ -291,3 +291,42 @@ seen before routes to the CEO.** Pick one that says who must act, or state
   firm has no representation for a run that FAILED — your own dispatches
   are the ones most likely to die, so you gain the most from both. (In
   the D13 metrics brief, being built now.)
+
+
+## 2026-08-22 — STATE from run-builder-d12 (the room), appended verbatim by the chair
+
+- **Worktree base wrong an EIGHTH time — dispatched into the LIVE KryptonPay
+  checkout.** Clone-into-scratchpad recovery (~4 min): git clone
+  --no-hardlinks, junction node_modules, copy .env.local, checkout -b.
+  Verify `git rev-parse --git-dir` returns a directory named .git to detect
+  the live-checkout case. [CHAIR: future dispatches use isolation=worktree —
+  the harness provides the clone by construction now.]
+- **`git stash push -u` SILENTLY DOES NOTHING on a clean tree** — a lint
+  baseline measured that way was my own branch twice. Use `git checkout
+  <base> -- <subtree>` / `git checkout HEAD -- <subtree>` instead; it also
+  measures the base tree's RENDERED behaviour.
+- **CDP Emulation.setDeviceMetricsOverride PERSISTS across Page.navigate
+  and across script runs**; clearDeviceMetricsOverride did not undo it —
+  SET the metrics you want at the top of every probe. React onMouseEnter
+  needs a real Input.dispatchMouseEvent (script at scratchpad/cdp_hover.js).
+- **A READ-ONLY spine mirror is the safe way to exercise a state you cannot
+  cause** (scratchpad/halt_mock.js: proxies GETs, rewrites halted=true,
+  405s every non-GET — the 405 is the whole point).
+- **THE FLOOR'S GEOMETRY IS COUPLED FOUR WAYS**: CORRIDOR chain stations,
+  BENCH_ORDER, the SVG-drawn duplicates (office wall, cage, halt line), and
+  the fixtures. Budget for all four. New tested invariants in floorPlan.ts:
+  PLANE_PX, toScreen, screenSeparation (overlap is a claim about SCREEN px
+  — the camera squashes y to 53%), wallClearance, runsChip.
+- **Two defects in code I had JUST WRITTEN were found by SCREENSHOT, not by
+  the diff or the suite** — four dispatches running; the look-at-it pass is
+  not optional and not only for legacy code. And reading the diff
+  end-to-end caught THREE wrong numbers in my own comments — after the
+  coordinates stop moving, re-measure every numeric claim with a throwaway
+  script before bundling.
+- Verified live shapes: content column max 1152px with the Clark rail
+  (898/812/713 at 1366/1280/1181 viewports). seat_telemetry had 10 keys
+  because REQUEST_KINDS had no cfo [CHAIR: closed same-pass —
+  allocation_review -> cfo, telemetry now 11].
+- Open from this dispatch: SeatFace `wire` glyph for Grace (Hopper's
+  nanosecond); officerQueues grace->cfo alias; seatLib.test.ts goes RED now
+  that the spine kind exists — the reminder to wire her composer half.

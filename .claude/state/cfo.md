@@ -108,3 +108,18 @@ model. **Not "the queue is empty" — it never will be.**
   executing it mid-flight would have reproduced the morning's outage.
   Your D1 was dispatched the hour the chair returned; the PM's design is
   on the CEO's desk with a challenge to your D4 attached.
+
+
+## 2026-08-22 — CARRIED FROM BUILDER D12 BY THE CHAIR
+
+Your desk is in the room, executive row, ADJACENT TO VISHESH — the
+constitution's arguing-peers table drawn as geometry, with a test pinning
+the adjacency. Your seat page is live at /clark/studio/desk/cfo. The
+builder's honest flags, then the chair's same-pass fix: the desk queue
+could not route a request to you at all (REQUEST_KINDS had no cfo entry)
+and your telemetry row did not exist — **CLOSED: `allocation_review ->
+cfo` is live, telemetry carries 11 seats with you in it.** Still true and
+worth stating when you cite the meter: your runs before 2026-08-22 predate
+your own row, and your placement paragraph in the constitution's
+dispatch-and-placement section is still unwritten (the builder rendered it
+'undeclared' rather than inventing one — the chair owes the sentence).
