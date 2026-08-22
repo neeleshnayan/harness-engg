@@ -483,3 +483,50 @@ proposal on Form 4 data: state which years your filter is actually live in
 unexplored lead the study surfaced: the pre-filing run-up (−7.7%/yr,
 t −8.93 — insiders sell into strength) is the largest number in it, shape
 uncosted, not tradeable as-is.
+
+
+## 2026-08-22 — STATE from run-mechanism-c5 (Entry 20 filed), appended by the chair
+
+**VERDICT: PROPOSAL FILED — the first from this seat that reaches the belt.
+Entry 20, the scheduled-announcement liquidity premium. Zero containers.**
+
+NUMBERS NOT TO RE-DERIVE (feed 2015-01-01..2026-08-21): event study on
+ACTUAL dates n=6,882 — [−1,+1] +0.348% t+3.53 is the whole premium, ~60%
+reverses in [+2,+21] (−0.214%). Prediction p+364/dedupe-45d: median error 0
+trading days, 92.0% within ±5; PIT hazard exactly zero (inputs >1yr old at
+use). Portfolio k=40 tilt vs EW-BH bar: +21.22 vs +18.01 %/yr, TE 5.95%, IR
++0.54, vol ratio 0.962, beta 0.931; vs daily-rebalanced bar +3.77%/yr IR
++0.80 t+2.54. IR INVARIANT to k (0.76–0.81 at k=20–80). Active-return
+breakeven ~18–19 bps/side (gate's D6 figure will read ~70 and is
+decoration). Placebos: calendar shifts −60..+182 all ≤−0.04%/yr; 8
+name-shuffles mean IR −0.43 max +0.51 vs base +0.80. **+273d is NOT a
+placebo for quarterly signals** (≈7 quarters, lands on real dates) — use
+off-quarter shifts and name-shuffles. Split-half IR +0.61 / +0.95 — no
+decay on a 2007-published effect. Signature test PASSED: vol-quintile
+abnormal −0.084 → +1.247%, vol-NORMALISED also rising t+3.37. Weakness:
+median event −0.113%, skew +1.20, 5%-trim → t 0.94; top-5 names 43.2% of
+P&L (98th pct of reshuffle null, median 35.5%) but concentration does NOT
+persist by name. Fold geometry: DECLARE hold=21 (5 folds, 84d legs,
+20-month OOS union — conservative on both axes; D7 recorded). Belt OOS
+union flatters 3.6× — read the ten-year number. Capacity NOT binding (min
+ADV $167.7M); binding leg = ~1,034 one-way orders/yr at $50 at $2k NAV,
+outside autopolicy v3.
+
+**THE DESIGN LESSON THAT GENERALISES: fixed-slot TILT beats fixed-k
+SELECTION under calendar clustering** — measured on the identical calendar:
+selection −0.28%/yr IR −0.06, tilt +3.77%/yr IR +0.80, because active
+weight is n_t/k and a thin month becomes a small tilt, not a concentrated
+bet. Retires corpus seasonality as a family-level blocker; entry 8 goes
+back for tilt-form re-examination. SECOND: the EW buy-and-hold bar was
+EASIER than daily-rebalanced here (+1.14 to +2.54%/yr in BH's favour on a
+138-name equity universe) — the cycle-3 rebalancing-drag result was for
+2–7-asset ETF universes; measure per universe, never assume the sign.
+
+CHALLENGE FILED (premia-sufficiency inequality; routed to the adversary
+blind by the chair despite TIGHTENS direction — judging premia outside v5
+is the shape a loosening arrives in; the validator checks the mathematics
+independently). NEXT CYCLE: nothing new until entry 20 has a verdict — the
+marginal value of a sixth family is below finishing this one. If it
+survives: (1) vol-quintile conditioning as its own pre-registration, (2)
+whether the [+2,+21] reversal is tradeable as the dealer's other side, (3)
+entry 16 the day D6 lands.

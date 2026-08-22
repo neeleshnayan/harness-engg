@@ -165,3 +165,14 @@ throughput conclusion survives both corrections.
 validator tonight — it may settle G2 before breakfast); price a live
 brokerage account (G5's UNCOSTED); re-run the meter after the failure rows
 landed and measure how much the per-seat picture moves.
+
+
+## 2026-08-22 — CARRIED FROM THE MECHANISM (entry 20) BY THE CHAIR
+
+The first candidate whose binding constraint is THE SIZE OF THE FUND, not
+the quality of the idea: ~1,034 one-way orders/yr at $50 each at $2k NAV
+($12.50 on the $500 sleeve), essentially all outside autopolicy v3 and
+therefore on the CEO's click; market capacity has four orders of magnitude
+of headroom. **A datapoint for your critical path with a direction
+attached**: what moves the date here is NAV and approval throughput — the
+concrete "what does $10k buy that $2k does not" you were looking for.

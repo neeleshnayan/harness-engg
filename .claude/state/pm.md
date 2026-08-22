@@ -318,3 +318,12 @@ relying on the word you happened to pick.
 - **From the analyst**: the insider lead is RETIRED under its own pre-reg;
   the alpha sleeve has no candidate arriving from that line, at zero
   market sessions spent.
+
+
+## 2026-08-22 — CARRIED FROM THE MECHANISM (entry 20) BY THE CHAIR
+
+Stage nothing — belt candidate, not a position; the sleeve stays $0 until
+the gate speaks. Note the SHAPE for when it reaches you: always 100% long,
+unlevered, never cash, ~40 slots at 2.5% with unfilled slots held as the
+EW universe; the exit is mechanical and dated (close of ip+3) — the rare
+case where an exit rule commits before entry with zero judgement in it.

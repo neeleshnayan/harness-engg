@@ -413,3 +413,17 @@ zero attrition in 201 names = today's reference data; EWU +20.23%/yr vs IWM
 **REVIVAL requires and only**: FOOTNOTES.tsv parsed for pre-2023 10b5-1;
 a point-in-time universe; a concentrated construction. NOT a new benchmark,
 period, or N.
+
+
+## 2026-08-22 — CARRIED FROM THE MECHANISM (entry 20) BY THE CHAIR
+
+Your seasonality finding is confirmed and its SCOPE is narrower than it
+reads: a 12–21× monthly swing kills a fixed-k SELECTION rule and is
+harmless to a fixed-slot TILT rule (measured on one calendar: −0.28%/yr vs
++3.77%/yr), because the tilt degrades to the benchmark instead of
+concentrating. **Re-examine entry 8 in TILT form before treating corpus
+seasonality as a blocker** — the depth extension may be worth restarting
+for a different reason than the one that dispatched it. Also:
+data.sec.gov/submissions/CIK##########.json returned 200/200 CIKs, zero
+errors, under two minutes, and carries the `items` field for 8-K codes —
+for DATE-based work it is far cheaper than bulk-ZIP extraction.

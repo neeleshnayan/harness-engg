@@ -421,3 +421,19 @@ abandoned configuration is not a measurement, it is a memory.
 - **From the analyst**: never implement a 126-name exclusion at this NAV
   ($14.95/position); and for any SEC-bulk study, join the universe on CIK,
   never the trading symbol (recycled symbols admit different companies).
+
+
+## 2026-08-22 — CARRIED FROM THE MECHANISM (entry 20) BY THE CHAIR — for the implementation, IF the adversary clears it
+
+Sequenced BEHIND the adversary verdict — do not start before the chair
+dispatches you. (1) The ~6,100 (symbol, predicted_session) pairs must be
+EMBEDDED as a literal (~100 KB): LEAN containers have no network; source
+panel at session scratchpad m5/edgar_filings.json, rebuildable in ~2 min.
+(2) DECLARE hold=21 and write the D7 reason in the header (conservative:
+same 5 folds as hold=5, 20-month OOS union vs 4.6). (3) Report the
+ACTIVE-return breakeven separately — the gate's breakeven_bps reads ~70 for
+any fully-invested equity book and is decoration here (D6); honest figure
+~18–19 bps/side. (4) Report the strategy/benchmark VOLATILITY RATIO — both
+curves are stored, neither vol computed. (5) The benchmark leg makes 175
+sequential fetch_daily_bars calls — the most likely non-strategy failure;
+check it first if a run dies.
