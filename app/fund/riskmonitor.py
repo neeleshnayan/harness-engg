@@ -105,6 +105,28 @@ DRIFT_ALARM_KEY = "book_venue_drift"
 UNEVALUATED_ON_ABSENT = frozenset({DRIFT_ALARM_KEY})
 
 
+def _drift_was_read(assessment: dict[str, Any]) -> bool:
+    """Did this assessment carry an actual book-vs-venue READING?
+
+    ONE definition, consulted by both the rule (``evaluate_alarms`` section 8)
+    and the clear guard (``RiskMonitor._can_evaluate``). It exists because those
+    two had SEPARATE definitions and the separation is what got the first fix
+    killed: both asked ``"venue_drift" in assessment``, and ``assess()``'s
+    returned report always carries the key — set to ``None`` when nothing
+    looked. So a monitor with no drift source (``pipeline._apply_status``, on
+    every fill) was judged to have taken a reading, ``_drift_alarm(None)``
+    raised a CRITICAL "the venue could not be read", and ``UNEVALUATED_ON_ABSENT``
+    never fired on any production path.
+
+    ``None`` MEANS NOT ASKED, and only that. ``_venue_drift`` returns ``None``
+    for exactly one reason — ``self._drift_fn is None`` — and coerces every
+    other outcome, including an exception and a malformed return, into a
+    ``{"configured": False, "reason": ...}`` dict that RAISES. So there is no
+    reading this predicate can mistake for an absence.
+    """
+    return assessment.get("venue_drift") is not None
+
+
 def classify_halt_cause(alarm_type: str | None) -> str:
     """The halt class an alarm type implies. Unknown causes are MANUAL.
 
@@ -1185,7 +1207,25 @@ class RiskMonitor:
         # rather than "in sync". See ``_venue_drift`` and ``UNEVALUATED_ON_ABSENT``.
         venue_drift = self._venue_drift()
 
-        partial_assessment = {
+        # ONE DICT, JUDGED AND THEN REPORTED (2026-08-23, adversary kill 2).
+        #
+        # This used to be TWO dict literals built side by side out of the same
+        # locals: `partial_assessment`, which the evaluator judged, and the
+        # returned report. They agreed on every field but the newest one —
+        # `venue_drift` went into the first CONDITIONALLY and into the second
+        # UNCONDITIONALLY. `run()` re-evaluates the alarms on the RETURNED
+        # report, so every post-fill tick (`pipeline._apply_status` builds a
+        # monitor with no drift source, deliberately) reached section 8 with
+        # `venue_drift: None` PRESENT, the membership test read that as "a
+        # reading was taken", and `_drift_alarm(None)` raised a fabricated
+        # CRITICAL "the venue could not be read" on every fill. The machinery
+        # written to prevent exactly that — `UNEVALUATED_ON_ABSENT` and
+        # `_can_evaluate` — was dead code on every production path.
+        #
+        # Two dicts built from the same locals cannot be held in step by care.
+        # The report is DERIVED from the judged dict now, so a field the
+        # evaluator saw is a field the report shows, by construction.
+        assessment = {
             "nav_usd": round(nav_usd, 2),
             "cash_usd": round(cash_usd, 2),
             "cash_pct": round(cash_pct, 4),
@@ -1206,20 +1246,26 @@ class RiskMonitor:
             "unpriced_symbols": unpriced,
             "stale_nav_symbols": nav_stale,
             "stale_marks": stale_marks,
+            # The book-vs-venue reading this tick's drift alarm is judged on, or
+            # None when this monitor has no drift source. None means NOT LOOKED
+            # — a UI reading it must say so and must never render it as
+            # agreement, and `_drift_was_read` is the one definition both the
+            # rule and the clear guard consult so they cannot drift apart again.
+            "venue_drift": venue_drift,
         }
-        if venue_drift is not None:
-            partial_assessment["venue_drift"] = venue_drift
 
-        alarms = self.evaluate_alarms(partial_assessment)
-        alarm_dicts = [a.to_dict() for a in alarms]
+        alarms = self.evaluate_alarms(assessment)
 
-        return {
-            "nav_usd": round(nav_usd, 2),
-            "cash_usd": round(cash_usd, 2),
-            "cash_pct": round(cash_pct, 4),
-            "gross_exposure_usd": round(gross_exposure_usd, 2),
-            "gross_exposure_pct": round(gross_exposure_pct, 4),
-            "halted": halted,
+        # `history_snaps` is the ONE judged field the report withholds, and it
+        # is named here rather than dropped quietly: it is up to 365 NAV
+        # snapshots and `assess()` is what the risk bar polls on every page
+        # render. Withholding it is safe because it steers no rule by its
+        # presence — `_loss_reference` re-derives it from `self._nav.history`
+        # when the key is absent, which is the same read. Any OTHER field the
+        # evaluator sees must appear in the report; a test pins that the alarms
+        # reported here equal the alarms `run()` computes from this report.
+        report = {k: v for k, v in assessment.items() if k != "history_snaps"}
+        report.update({
             # WHICH kind of dark, so the UI stops saying only "HALTED":
             # `integrity` (we cannot measure) vs `loss` (we measured and do not
             # like it) vs `manual`. None on a pre-classes halt — unknown, not
@@ -1240,23 +1286,10 @@ class RiskMonitor:
             "halt_alarm": self._control.halt_alarm(),
             "halt_ack_token": self._control.halt_ack_token(),
             "autoresume_cooldown_minutes": LOSS_HALT_AUTORESUME_COOLDOWN_MINUTES,
-            "drawdown": drawdown,
-            "positions": positions_list,
-            "strategies": strategies_list,
-            "limits": limits_dict,
-            "utilization": utilization_map,
-            "alarms": alarm_dicts,
-            "worst_position": worst_position,
-            "unpriced_symbols": unpriced,
-            "stale_nav_symbols": nav_stale,
-            "stale_marks": stale_marks,
-            # The book-vs-venue reading this tick's drift alarm was judged on,
-            # or None when this monitor has no drift source. None means NOT
-            # LOOKED — a UI reading it must say so and must never render it as
-            # agreement.
-            "venue_drift": venue_drift,
+            "alarms": [a.to_dict() for a in alarms],
             "ts": datetime.now(timezone.utc).isoformat(),
-        }
+        })
+        return report
 
     def _loss_reference_report(self, nav_usd: float) -> dict[str, Any]:
         """What the daily-loss rule is measuring FROM, for the UI.
@@ -1538,9 +1571,16 @@ class RiskMonitor:
         #    point of the alarm and the reason the first attempt was killed: a
         #    venue we cannot read is a venue we cannot be in sync with, and the
         #    only honest alarm state is "raised, and here is why I could not
-        #    look". `assess()` reaching this rule with no `venue_drift` key at
-        #    all is a THIRD thing — not asked — and it falls through to no
-        #    alarm, protected from a false clear by UNEVALUATED_ON_ABSENT.
+        #    look". An assessment whose `venue_drift` is ABSENT OR None is a
+        #    THIRD thing — not asked — and it falls through to no alarm,
+        #    protected from a false clear by UNEVALUATED_ON_ABSENT.
+        #
+        #    THE MEMBERSHIP TEST WAS THE SECOND KILL. This read
+        #    `if "venue_drift" in a`, and `assess()`'s report always carries the
+        #    key — null when nothing looked — so the post-fill monitor raised a
+        #    fabricated CRITICAL on every fill. `_drift_was_read` is now the ONE
+        #    definition, shared with `_can_evaluate`; a rule and the guard that
+        #    decides whether the rule ran must not each carry their own copy.
         #
         #    NO NEW THRESHOLD. What counts as out-of-sync is the reconciler's
         #    own `in_sync` verdict, computed against reconcile._TOL, read off
@@ -1548,8 +1588,8 @@ class RiskMonitor:
         #    sync" is exactly the divergence autopolicy v4 wrote a comment
         #    about when it set its own drift tolerance EQUAL to the
         #    reconciler's; this rule does not even have a copy to keep in step.
-        if "venue_drift" in a:
-            alarms.append(_drift_alarm(a.get("venue_drift")))
+        if _drift_was_read(a):
+            alarms.append(_drift_alarm(a["venue_drift"]))
 
         # 9. A SHORT POSITION EXISTS (desk 34338ef6, 2026-08-23).
         #
@@ -1601,7 +1641,7 @@ class RiskMonitor:
         look like a passing one.
         """
         if alarm_key == DRIFT_ALARM_KEY:
-            return "venue_drift" in assessment
+            return _drift_was_read(assessment)
         # An unknown member of UNEVALUATED_ON_ABSENT is treated as NOT
         # evaluable, so a key added to that set without a clause here fails
         # toward never clearing rather than toward clearing blindly.
