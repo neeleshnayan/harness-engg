@@ -73,10 +73,10 @@ _HALT_CLASS_BY_ALARM = {
     "unpriced": HALT_INTEGRITY,
     "heartbeat": HALT_INTEGRITY,
     # The book disagreeing with the venue is an INTEGRITY fault by the
-    # definition eighteen lines above: nothing about the book is known to be
-    # wrong; what is wrong is our sight of it. Added 2026-08-23 with the drift
-    # alarm, and it still creates no auto-halt — the auto-halt gate in ``run``
-    # is on ``("drawdown", "daily_loss")`` and this change does not touch it.
+    # definition at the top of this section: nothing about the book is known
+    # to be wrong; what is wrong is our sight of it. Added 2026-08-23 with the
+    # drift alarm, and it still creates no auto-halt — the auto-halt gate in
+    # ``run`` is on ``("drawdown", "daily_loss")`` and this does not touch it.
     "book_venue_drift": HALT_INTEGRITY,
 }
 
@@ -408,10 +408,11 @@ def unrealised_pnl_pct(qty: float, mark: float, avg_cost: float) -> float:
     ``exit_sign_fixed`` precondition in app/fund/mode.py).
 
     ``avg_cost <= 0`` returns 0.0, PRESERVED FROM THE ORIGINAL and not
-    silently improved: an unknown basis is a separate defect with a separate
-    owner, and changing what it returns here would move the underwater alarm
-    and every exit rule for reasons that have nothing to do with the sign. It
-    is called out rather than fixed — see the STATE note on positions.py.
+    silently improved. An unknown basis reported as "flat P&L" is its own
+    defect — it reads to every exit rule as a position in good standing — but
+    changing it here would move the underwater alarm and every loss_pct rule
+    for reasons that have nothing to do with the sign, on the same diff. Named
+    and left open rather than folded in.
     """
     if avg_cost <= 0:
         return 0.0
@@ -970,7 +971,11 @@ class RiskMonitor:
                               alarm AND ``run`` refuses to clear a standing
                               one; see ``UNEVALUATED_ON_ABSENT``.
           * ``configured: False`` — we tried and could not read the venue.
-                              That RAISES, with ``readable: False``.
+                              That RAISES, carrying ``reason``. (This line
+                              claimed a ``readable: False`` field until the
+                              pre-bundle read-through; no such field is
+                              emitted, and ``configured`` is the flag the
+                              reconciler actually sets.)
           * ``configured: True``  — a real reading, which may or may not drift.
 
         The killed version returned an empty list on an absence, so the

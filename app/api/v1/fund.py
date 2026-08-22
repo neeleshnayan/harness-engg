@@ -4263,11 +4263,25 @@ def resume_trading(req: RiskResumeRequest):
     API whose only network protection is CORS. An empty POST body re-armed
     every execution path in the fund.
 
-    The asymmetry is what makes it a finding rather than an omission. Six
-    sibling endpoints in this file already take ``_guard_approval`` — including
-    ``acknowledge_halt`` directly above, whose own docstring says it "moves no
-    number and re-arms no path". The control that acts on NOTHING was guarded;
-    the control that reopens the venue was not.
+    The asymmetry is what makes it a finding rather than an omission. EIGHT
+    sibling endpoints in this file already took ``_guard_approval`` — counted
+    2026-08-23; the CFO memo that surfaced this said six, and the true number
+    is eight — including ``acknowledge_halt`` directly above, whose own
+    docstring says it "moves no number and re-arms no path". The control that
+    acts on NOTHING was guarded; the control that reopens the venue was not.
+
+    NOT THE ONLY ONE LEFT, and saying so here rather than implying otherwise:
+    ``POST /fund/risk/limits`` (``set_risk_limits``) still takes no allowlist,
+    no echo and no mandatory written reason, while it PATCHES THE RISK LIMITS
+    — against a constitution clause reading "a threshold moves only by a
+    versioned change with a written reason". The riskofficer filed that on
+    2026-08-21 (AUDIT_RISKOFFICER_2) and it is still open. It is deliberately
+    NOT fixed in this diff: guarding a threshold-setting endpoint changes who
+    may move a threshold, which is a decision for a human and not a repair
+    made in passing. ``POST /fund/risk/halt`` is also unguarded and that one is
+    defensible — halting is the fail-safe direction and anyone may stop the
+    fund; reopening it is not symmetric, which is the whole point of this
+    change.
 
     The echo is ``halt_ack_token``, the same digest the acknowledgement uses,
     because it answers the same question: WHICH darkness is being reopened. It

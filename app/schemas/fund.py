@@ -380,16 +380,21 @@ class HaltAcknowledgeRequest(BaseModel):
 class RiskResumeRequest(BaseModel):
     """Reopen a halt — CEO-only, on the approval channel.
 
-    ON THE APPROVAL CHANNEL AS OF 2026-08-23, and it is the last of the risk
-    controls to get there. Until this change ``resume`` took ``actor`` with a
-    DEFAULT of ``"operator"``, no allowlist and no echo, so an empty POST body
-    against a CORS-only API re-armed every execution path in the fund. Its six
-    guarded siblings in ``app/api/v1/fund.py`` include ``halt_acknowledge``,
-    which by its own docstring "moves no number and re-arms no path" — the
-    fund's most consequential risk button was its only unguarded one, and the
-    one that acts on nothing was guarded. (Measured by the CFO, GRACE4
-    2026-08-23; the PM's readiness matrix carried it as a control blocker on
-    the first-real-dollar path.)
+    ON THE APPROVAL CHANNEL AS OF 2026-08-23. Until this change ``resume``
+    took ``actor`` with a DEFAULT of ``"operator"``, no allowlist and no echo,
+    so an empty POST body against a CORS-only API re-armed every execution path
+    in the fund. Its EIGHT guarded siblings in ``app/api/v1/fund.py`` include
+    ``halt_acknowledge``, which by its own docstring "moves no number and
+    re-arms no path" — so the one that acts on nothing was guarded and the one
+    that reopens the venue was not. (Surfaced by the CFO, GRACE4 2026-08-23,
+    which counted six siblings; recounted at eight while fixing it. The PM's
+    readiness matrix carried it as a control blocker on the first-real-dollar
+    path.)
+
+    It is NOT the last unguarded risk control — ``POST /fund/risk/limits``
+    still moves thresholds with no allowlist, no echo and no written reason,
+    open since the riskofficer filed it on 2026-08-21. See the endpoint
+    docstring for why that one is left alone here.
 
     The echo is ``halt_ack_token`` from GET /fund/risk/monitor — the same
     digest the acknowledgement echoes, because it is the same question: WHICH

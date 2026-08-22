@@ -18,10 +18,22 @@ from app.fund.money import D
 
 _ZERO = Decimal("0")
 
-#: Quantity noise floor. Matches ``autopolicy.POSITION_EPS`` and
-#: ``reconcile._TOL`` in spirit: three ledgers must not acquire three different
-#: ideas of "zero". Folding every fill of the live log leaves five closed
-#: symbols carrying ~1e-15 residue, so a bare ``== 0`` is never safe here.
+#: Quantity noise floor. PRESERVED from the inline ``Decimal("1e-9")`` this
+#: logic already used, and equal to ``autopolicy.POSITION_EPS`` (1e-9) — not to
+#: ``reconcile._TOL``, which is 1e-6 and answers a different question (how far
+#: the BROKER may disagree with us, versus how small a leftover counts as
+#: closed). Named so the two are not silently assumed to be the same number.
+#:
+#: MEASURED 2026-08-23, because the first version of this comment asserted a
+#: residue from memory and the measurement disproved it: folding all 978 live
+#: events through this projection leaves seven closed symbols at EXACTLY zero
+#: and four open. Decimal arithmetic here is exact, so the ~1e-15 dust seen
+#: when the same fills are folded in floats does not arise.
+#:
+#: The epsilon is kept anyway, and deliberately: a corporate action divides
+#: quantities, ``BookReconciledToVenue`` SETS them from a broker string, and
+#: either can produce a value that is not exactly zero. Treating a 1e-15 ghost
+#: as an open position would weighted-average the next fill against it.
 _QTY_EPS = Decimal("1e-9")
 
 
