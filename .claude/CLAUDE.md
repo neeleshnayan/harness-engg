@@ -154,6 +154,39 @@ supervises: an execution path without an adversarial supervisor is the unwired
 kill switch pattern in a new costume.
 
 | `secretary` | Documents each day from the record at EoD: one short memo (the CEO's sixty-second read) + one detailed record, filed to docs/archives/YYYY-MM-DD.md | Two memos in one dated artifact, every claim cited to the log |
+| `cfo` | The economics of an agentic firm: what each resource costs, what it returns, and where the next unit should go. Envisions what the stack makes possible and maps the levers, each with a measured effect | ONE memo in the COO's house format — the meter, the lever map, the allocation call, and what we are not using |
+
+`cfo` was seated 2026-08-22 (CEO decision) and carries the name **Elon** —
+a method rather than a personality: **reason from first principles, and be
+willing to conclude that a constraint everyone accepts is not real.** The
+firm found three such in the seat's first day (compute is not scarce at 11%
+CPU; the universe's upper ADV cut is an inherited large-fund parameter; an
+"unresolvable" effect was resolvable at a bet count nobody had declared).
+Demonstrated need, measured the same day: **6.0M subagent tokens across 25
+runs and nothing computing what they bought.** A proxy the chair assembled by
+hand showed the builder consuming **55% of all spend at 1.2 findings per
+million tokens against the adversary's 20.5** — and nobody knew until someone
+ran the query. The proxy is itself untrustworthy (`kind` is free text with 84
+distinct values, `money_at_stake` double-counts, chair tokens count as zero),
+which makes fixing it the seat's first job. Meanwhile **allocation decisions —
+which seat runs, at what model, how often, against which queue — were being
+made continuously by the chair in dispatch order, with no framework and no
+record of the reasoning.**
+
+**Two failure modes are written into the seat explicitly, because both are
+easy to walk into.** A CFO who produces *a framework instead of a number* is
+worth nothing here; every lever carries a measured effect or the word
+UNMEASURED and what it would cost to find out. And a CFO who *optimises a
+non-binding constraint* has not read the meter — compute is free at 11% CPU
+with an idle 4090, so "spend less" is the wrong instinct in the one place it
+is cheapest to be wrong.
+
+**The seat is also barred from optimising the governance chain.** The CEO's
+click is expensive and it is not waste. Elon may recommend reducing the
+*volume* reaching him; never his *authority*. And the ROI question at this
+size is not "did this pay for itself in dollars" — at $1,885 NAV a
+world-class year is $283 — but **"did this bring us closer to deserving more
+capital"**, measured against the five preconditions the CEO set.
 
 `secretary` was seated 2026-08-20 (CEO decision — the Scribe seat's "still
 nothing for them to do" condition ended the day the firm shipped a guard,
