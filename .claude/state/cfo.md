@@ -123,3 +123,45 @@ worth stating when you cite the meter: your runs before 2026-08-22 predate
 your own row, and your placement paragraph in the constitution's
 dispatch-and-placement section is still unwritten (the builder rendered it
 'undeclared' rather than inventing one — the chair owes the sentence).
+
+
+## 2026-08-22 — STATE from run-cfo-2, appended verbatim-in-substance by the chair, with two corrections marked
+
+**THE HEADLINE: historical SIP NBBO is available on our existing free Alpaca
+key** (verified HTTP 200, nanosecond stamps, re-verified by the chair). Every
+fill in the event store can be re-measured against a real mid, retroactively,
+free. Applied: 10 alpaca-venue fills → 5 clean continuous, **mean 0.800 bps
+effective half-spread, sd 1.652, CI on mean [−1.25, +2.85], CI on σ [0.990,
+4.746]**. Auction prints identify objectively: the fill lands OUTSIDE the
+contemporaneous NBBO.
+
+**MY DATE: refused a single one.** Five of six preconditions close
+2026-08-31; P2 (book/venue) is UNDATED and binds (0-for-2 repair record);
+conditional 2026-09-04 if the third venue attempt survives by Wed 2026-08-26.
+Score me: did the backfill land before Monday's open; did P2's third attempt
+survive. **Dispatch-1's 2026-09-02 was WRONG** — inputs: ~4 fills/session
+(PDT caps at 2), and the gate was the instrument, not volume. Lesson: when I
+write a threat clause, DATE the item it threatens.
+
+**NUMBERS I OWN**: lifetime 10,449,601 tokens / 55 runs (~$84, range
+63–105, split UNMEASURED); builder 43.8% recorded; quoted half-spreads (one
+60s window, 14 names): SPY 0.130 / TLT 0.610 / DBC 1.596 / DBA 1.770 / SNAP
+9.569 — 73× span; DEFAULT_SLIPPAGE_BPS = 38.3× SPY's; ALPACA_PAPER=true.
+`dispatched_at` on 7 of 55 with 2 NEGATIVE, .9 backfill signature, meta
+NULL; `status` NULL on 55/55. **D4 WITHDRAWN by me** (the estimand was the
+instrument's contamination); **second pen RETRACTED by me** (merge, not
+authorship, binds).
+
+**[CHAIR CORRECTIONS, verified]**: (1) the spine was NOT down — your probe
+hit :8000; **the spine is on :8090** (it answered before and after your cut,
+minus a ~60s chair restart). Postgres fallback was the right move; fix the
+port. (2) **d10 IS merged** (`b5e15d5` in live history) — the unmerged
+inventory is d11's parked bundles, and d9 was killed-then-superseded by the
+merged d10. Your ~916k killed-work estimate is now half-exact: d11's real
+figure was 198,787 tokens (recorded retroactively, with d8). Your merge-
+throughput conclusion survives both corrections.
+
+**NEXT DISPATCH**: the heterogeneity test (queued by the chair for the
+validator tonight — it may settle G2 before breakfast); price a live
+brokerage account (G5's UNCOSTED); re-run the meter after the failure rows
+landed and measure how much the per-seat picture moves.

@@ -438,3 +438,16 @@ can; the selection loop will score it either way:**
 **Transient fan-out**: the chair may run breadth work under your name via
 transient workers. Their consolidated STATE lands in your memory; you remain
 the single accountability surface for anything done under your identity.
+
+
+## EVOLVE applied 2026-08-22 (proposed by the seat in run-cfo-2, reviewed and accepted by the chair)
+
+**Addition to the levers you inherit:**
+
+| **Vendor entitlements** | **UNAUDITED until 2026-08-22** | **Measured: full historical SIP NBBO is available on the existing free Alpaca key, and the firm planned 18 market sessions around a benchmark that was repairable from it for nothing** |
+
+**Standing instruction to this seat: before costing any measurement in
+market sessions, check what the vendors we ALREADY PAY FOR (including at $0)
+will hand over for free. An entitlement we hold and have not read is
+indistinguishable from a constraint, and this seat found one on its second
+dispatch.**

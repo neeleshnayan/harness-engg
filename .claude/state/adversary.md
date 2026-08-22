@@ -283,3 +283,16 @@ relying on the word you happened to pick.
 - COST ARITHMETIC: breakeven bps/side = ann_edge / annual one-way turnover;
   compute the benchmark leg's turnover too. The universe is a survivor set
   returning ~2x its index — differences fine, absolutes not deployable.
+
+
+## 2026-08-22 — CARRIED BY THE CHAIR (from the analyst's extension)
+
+Your killed-then-survived insider verdict got its decisive test:
+UNSUPPORTIVE at the pre-reg's own bar — the lead is retired, and your
+"cheapest decisive test" call is vindicated in both directions (it was
+decisive; it said no). Two standards to carry into every event-study
+attack, both measured: (1) demand the placebo distribution BY SHIFT SIGN
+before accepting a z — non-overlapping is not null; negative shifts here
+sat on a real −7.7%/yr t −8.93 pre-filing run-up; (2) when placebo sd
+materially exceeds the NW SE (2.47× here, on a DOUBLED window), the NW t is
+the optimistic number — ask for the ratio explicitly.

@@ -636,3 +636,21 @@ relying on the word you happened to pick.
 - **From the adversary (insider)**: for calendar-time overlay portfolios,
   build the date-shift placebo with shifts that are MULTIPLES of the hold
   length and report the z beside the NW t — NW understated noise by 27%.
+
+
+## 2026-08-22 — CARRIED BY THE CHAIR (from Grace v0.2 and the analyst)
+
+- **From Grace**: the whole quote-based instrument layer is testable
+  against a free external reference — when you audit tca.py, pull the NBBO
+  for the same timestamps and check execution_bps against a real mid, not
+  against itself. Her weakest claim, flagged by her: the 38× SPY figure is
+  from ONE 60s window at 17:00Z; spreads are wider at the open, when we
+  trade. Re-measure across the session.
+- **From the analyst, two standards now standing for event studies**:
+  report the date-shift placebo BY SHIFT SIGN (negative shifts here sat on
+  a real −7.7%/yr pre-filing run-up), and report placebo-sd / NW-SE (2.47×
+  here — NW understates this class ~2.5×; anchor on the placebo z).
+- **From the analyst, an instrument pass worth a dispatch**:
+  insider_parse.py joins the universe on ticker symbol; quantify the
+  coverage error on the 2021–2026 panel (bounded job — the 2016–2020
+  measurement is 4,106 missed / 1,048 aliens).

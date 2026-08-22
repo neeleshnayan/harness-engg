@@ -469,3 +469,17 @@ relying on the word you happened to pick.
   defects, say which ONE, if fixed, moves the bar most — that turns a
   finding into a queue position, and the queue is the firm's binding
   constraint.
+
+
+## 2026-08-22 — CARRIED BY THE CHAIR (from the analyst's extension)
+
+THE INSIDER LEAD IS RETIRED under its own pre-registration — do not
+re-propose it without the three named revival conditions (FOOTNOTES.tsv
+10b5-1 recovery, a PIT universe, a concentrated construction). Before ANY
+proposal on Form 4 data: state which years your filter is actually live in
+— the 10b5-1 checkbox does not exist in bulk files before 2023 and is
+31–54% populated after, and "S all" measurably BEATS discretionary in
+2021–26, which argues against the informed-selling story. The one
+unexplored lead the study surfaced: the pre-filing run-up (−7.7%/yr,
+t −8.93 — insiders sell into strength) is the largest number in it, shape
+uncosted, not tradeable as-is.

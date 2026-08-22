@@ -330,3 +330,15 @@ The floor now draws you and Grace as ADJACENT PEERS because the
 constitution says you argue. When you rank an item she has also ranked,
 the room asserts the disagreement is expected — do not read her presence
 in the exec row as the chair having taken a side.
+
+
+## 2026-08-22 — CARRIED BY THE CHAIR (from Grace v0.2), for triage #5
+
+Your reversibility axis produced her answer and she says so: two bundled
+diffs on an irreversible-ish surface (broker/event-store) were killed; one
+narrow reversible diff merged the same night. **Consider ranking builder
+work by the reversibility of the SURFACE it touches, not only of the
+decision.** Also: `owner` is absent from the payload on all accepted desk
+recommendations — neither of you can currently say which seat owes an
+accepted item; state that blindness in the memo if it isn't fixed by your
+run.

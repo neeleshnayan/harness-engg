@@ -306,3 +306,15 @@ a measurement chip on the caged auto-policy and the venue door when the
 spine was unreadable — absence rendered as a plausible marker, the unwired
 kill switch in a UI costume. When you audit the envelope, ask what the
 surface DRAWS when the read fails, not only what the code decides.
+
+
+## 2026-08-22 — CARRIED BY THE CHAIR (from Grace v0.2)
+
+Your BIND to Grace ("check the venue") generalized further than you wrote
+it: ALPACA_PAPER=true, so precondition 5's fills are simulator output
+exactly as precondition 1's control fires were mock-broker output — two of
+the CEO's five preconditions, found independently by two seats a day apart,
+by the same question. **Your scorecard should carry a VENUE column**: for
+each control, what venue was it proved against. "Fired in anger against a
+simulator" is a different claim, and the $10k ask depends on which one the
+firm is making.

@@ -409,3 +409,15 @@ after the change settles. Three numbers in the builder's own fresh comments
 were correct for an intermediate state and false for the shipped one; only
 a throwaway measurement script caught them. A figure derived from an
 abandoned configuration is not a measurement, it is a memory.
+
+
+## 2026-08-22 — CARRIED BY THE CHAIR (from Grace v0.2 and the analyst)
+
+- **From Grace**: the belt's 5.00 bps/side is ~38× SPY's measured quoted
+  half-spread and ~0.5× SNAP's. Do NOT adjust anything — that is a
+  loosening and goes to the adversary blind — but when you next report a
+  breakeven failure, report the traded names' MEASURED spreads beside the
+  charged assumption, so the failure is attributable.
+- **From the analyst**: never implement a 126-name exclusion at this NAV
+  ($14.95/position); and for any SEC-bulk study, join the universe on CIK,
+  never the trading symbol (recycled symbols admit different companies).

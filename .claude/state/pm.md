@@ -300,3 +300,21 @@ relying on the word you happened to pick.
 - **From the riskofficer**: do not treat book_venue_in_sync as an obstacle
   to route around before 2026-09-08 — recommend reconciliation or the
   explicit human click, never a relaxed check.
+
+
+## 2026-08-22 — CARRIED BY THE CHAIR (from Grace v0.2 and the analyst)
+
+- **From Grace, a correction you are owed**: your challenge's premise
+  misread her table — the 27 came from the ordinary-deduplicated row (sd
+  2.63), not the blended 35.35 (which gives 4,802). Your CONCLUSION was
+  right and she has withdrawn D4 — but check the arithmetic you attack; a
+  right conclusion on a wrong ground is the shape the adversary kills.
+- **From Grace**: historical NBBO is free on our existing key. Never
+  conclude "no per-name spread data exists" from "our Quote object lacks
+  the field" — check what the world offers before designing sampling. Your
+  inclusion rule can be OBJECTIVE: an auction print lands outside the
+  contemporaneous NBBO — better than submit_to_fill_s, and retroactive.
+  Re-price R32 as an improvement, not a gate.
+- **From the analyst**: the insider lead is RETIRED under its own pre-reg;
+  the alpha sleeve has no candidate arriving from that line, at zero
+  market sessions spent.

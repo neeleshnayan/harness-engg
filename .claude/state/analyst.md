@@ -373,3 +373,43 @@ If your kind is not in that table, your row ranks with the urgent half
 regardless of size. And a **$500k row whose kind IS in the table as
 `reversible` sorts BELOW it.** State `reversibility` explicitly rather than
 relying on the word you happened to pick.
+
+
+## 2026-08-22 — STATE from run-analyst-extension (the pre-registered insider extension), appended by the chair
+
+**THE CALL: UNSUPPORTIVE by the pre-reg's own definitions — the lead is
+retired. Do not re-litigate without NEW data.** PRIMARY +1.307%/yr t_NW 1.69
+placebo z 1.19; ROBUST (CIK) +1.661% t 2.05 with the placebo z FALLING
+(1.56→1.32) as the sample doubled. Halves indistinguishable (t=0.58): the
+extension DILUTES and cannot distinguish. Early half concentrated: drop
+top-5 names → +0.318%, t 0.23.
+
+**THE THING NOBODY KNEW BEFORE THE PULL**: `AFF10B5ONE` does not exist in
+the bulk ZIPs before 2023 (schema-verified); drop rates 2021 0% / 2022 0% /
+2023 31.5% / 2024 49.5% / 2025 53.9% — "discretionary S" is a NO-OP for 7
+of 10 years. Exploratory: "S all" beats discretionary in 2021–26 (+4.007 t
+3.40 vs +2.125) — adding scheduled sales back makes the screen BETTER,
+evidence AGAINST the informed-selling mechanism.
+
+**THE BIGGEST NUMBER (not the headline)**: excluding names in the 20
+sessions BEFORE a filing → **−7.734%/yr, t_NW −8.93**. Insiders sell into
+strength. Consequences: non-overlapping date-shift placebos are NOT null
+(negative shifts mean −2.63%, positive +0.67%); placebo sd = 2.47× the NW
+SE on a doubled window — **anchor on the placebo z, not the t**.
+
+**DATA/PLUMBING TO REUSE**: durable store
+`PHYSICALDRIVE0p1/Krypton/insider_ext_2016_2020/` (zips, out/, scripts
+e1–e9 + RESULT, preserved_c4 — the scratchpad copy is no longer the only
+copy). fetch_daily_bars(sym,365,start=,end=) reaches 2015 via yahoo at
+~0.4s/symbol; Bars is a DATACLASS. SEC bulk ZIPs:
+sec.gov/files/structureddata/data/insider-transactions-data-sets/. allforms
+covers 2021+ only; older acceptance stamps via submissions `files` blocks.
+**insider_parse.py JOINS ON SYMBOL AND THAT IS A LIVE DEFECT — join on
+CIK** (4,106 missed, 1,048 aliens; CPAY=FLT through 2024). Panel-swap check
+before attributing any change to data. Survivorship now measured over 10y:
+zero attrition in 201 names = today's reference data; EWU +20.23%/yr vs IWM
++12.38%.
+
+**REVIVAL requires and only**: FOOTNOTES.tsv parsed for pre-2023 10b5-1;
+a point-in-time universe; a concentrated construction. NOT a new benchmark,
+period, or N.

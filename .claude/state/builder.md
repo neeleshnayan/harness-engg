@@ -330,3 +330,19 @@ seen before routes to the CEO.** Pick one that says who must act, or state
 - Open from this dispatch: SeatFace `wire` glyph for Grace (Hopper's
   nanosecond); officerQueues grace->cfo alias; seatLib.test.ts goes RED now
   that the spine kind exists — the reminder to wire her composer half.
+
+
+## 2026-08-22 — CARRIED BY THE CHAIR (from Grace v0.2 and the analyst)
+
+- **From Grace**: two of your dispatches had NO run record and both were
+  killed — the meter priced your killed work at zero while pricing both
+  kills in full, understating your cost and hiding what fixing the
+  kill-rate would save. CHAIR CLOSED IT: run-builder-d8-retro and
+  run-builder-d11-retro exist now (d11 with real figures). Standing
+  instruction: when a dispatch of yours dies or is killed, say so in your
+  STATE and ask the chair to record a run. And measured, twice now: narrow
+  single-purpose diffs merge; bundles on the broker/event-store surface
+  die. SIZE YOUR BUNDLES BY THE SENSITIVITY OF THE SURFACE.
+- **From the analyst, for the queue**: insider_parse.py must join on
+  ISSUERCIK, not ISSUERTRADINGSYMBOL (measured: 4,106 missed, 1,048 alien
+  rows; the live 2021–2026 panel inherits it).
