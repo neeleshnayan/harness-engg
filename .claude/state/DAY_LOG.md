@@ -65,6 +65,37 @@ November and 7 in July, a 20.9× swing, which retires the premise of the 8-hour
 corpus extension the mechanism requested and the CEO approved. Entry 14 CLOSED
 (8 names at N=20, 0.0% of days ≥30).
 
+### NIGHT'S END STATE — for the CEO's morning / Fable's return
+
+**D11 v2 landed (builder D14) and is UNDER ADVERSARY BLIND now** — all eight
+kills closed, 1694 passed, nothing merged; Tier-3 (event store) + a loosening,
+so it goes adversary-then-CEO like envelope v4. The builder refused a wrong
+third of the adversary's own K2 spec (`superseded` = revised/governing, not
+dead) and proved it by folding the code; the adversary is adjudicating its own
+override. **Only build running.**
+
+**GRACE v3 — the finding that reframes deployment:** the whole $1,885 book is
+PAPER, so P5 (real fills) and controls-in-anger are impossible on paper by
+construction. The binding first-real-dollar constraint is **a live-funded
+account nobody has opened** — the one path item with external KYC lead time,
+clock not running, and **the CEO's own act (no agent opens accounts or moves
+money).** First real *clicked* Tier-0 fill reachable ~2026-08-28 if the clock
+starts; two of the three blockers gate automated entry, not a clicked one.
+
+**Closed on the 21st:** Donna's full-day EoD delivered to the CEO as files;
+the co-CTO mid-day misfire closed by a builder ticket (`02a0048d`) that turns
+the UTC-dating rule from prose into an evaluated guard.
+
+**THE MORNING DESK (decisions that are the CEO's):** Vishesh's 7 · the
+graduated-path pair + readiness matrix (one residual: sim-rehearsal-now vs
+bound-first) · Grace's G1 live-account clock · Entry 20 → belt (quant built,
+run held for a heavy slot) · D11 v2 pending the adversary · the confirmEcho
+collision before any prod unlock · personality-as-prior seeds live.
+
+**STANDING, chair-owed:** THE CLEANUP (`dce47670`) deferred twice — dispatch
+before the next builder feature. Belt run for Entry 20 held for a free heavy
+slot. Grace + PM `WHERE I DIFFER` on the readiness matrix owed next round.
+
 ### THE EXEC TABLE SETTLED THE CALCULATED-RISK DESIGN TO ONE DECIDABLE QUESTION
 
 The PM + riskofficer pair (CEO steer: calculated risk, living calibration)
