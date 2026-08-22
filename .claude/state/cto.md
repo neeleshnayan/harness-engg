@@ -322,3 +322,16 @@ Entry 20's stored verdict (passed: true, gate v4.1) STAYS. A v4.2+ re-judge is a
 2. **The fixture is captured** (docs/pm/CUSTODY_FIXTURE_2026-08-22.json) — done before any sync; do not overwrite it.
 3. Monday choreography: sync pre-open → $4.50 INTC probe 13:35Z (STOP ALL if it misses the broker) → six sells 13:45–14:15 (GLD first) → four rebuys 14:30–15:00 (verify each exit rule live in /exits first) → acceptance ≤$3 residual by 15:30. Ten CEO clicks + one sync click. G1 the same morning.
 4. **The reconciler nets by symbol** — never cite its drift for a symbol with two lots; the custody projection is the fix (ticket filed).
+
+
+## 2026-08-23 — THE SUPERSESSION DISCIPLINE (CEO instruction), binding on the chair
+
+Every resolve pass now ends with one more question: **"does this artifact
+invalidate, execute, or supersede any OPEN desk row?"** — and the answer is
+acted in the SAME pass via the decide endpoint (done/staged/noted + the
+citation), never left for a triage to find. Measured need: 23 stale rows
+swept 2026-08-23, three of them 'approve' buttons for a merge the CEO had
+already run, one a package whose naive click would have recorded six shorts.
+The systemic mechanism is ticketed (adversary-blind first — reducing CEO
+visibility is a direction-sensitive surface); until it lands, this
+discipline is the control.

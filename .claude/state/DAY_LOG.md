@@ -191,6 +191,20 @@ maintain a day log for fable to review."***
   the PM's challenge rides it. Broker cash IS readable (846.84,
   /fund/venue/account) — the PM corrected its own E8.
 
+### DECIDED (by the CEO, ~21:00Z) — THE SUPERSESSION RULE
+
+- Verbatim: "if there is a new finding that invalidates or doesnt need my
+  attention then we should have it removed/cleaned so that i dont mistakenly
+  hit approve and unwind that progress." EXECUTED IMMEDIATELY: **23 stale
+  rows swept with citations** (desk 99→82) — among them three approve-D11v2
+  rows for the merge the CEO ran himself, and the R38 package whose naive
+  click would record six shorts (now pointing at the R39 plan). Systemic
+  mechanism ticketed (superseded_by linkage + ACTIVE/SUPERSEDED split +
+  staleness sentinel; design adversary-blind first because reducing CEO
+  visibility is exactly the shape a quiet suppression would arrive in).
+  Chair discipline in cto.md: every resolve pass now ends with the
+  supersession check.
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT
