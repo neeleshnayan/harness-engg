@@ -474,3 +474,17 @@ a calendar-day clock with ~31% zeros. Compute both vol legs yourself from
 benchmark_curve and a full-length equity series and say which clock. (3) The
 panel embeds as a literal (~100KB); hold=21; report the ACTIVE-return
 breakeven, which dies at ~12 bps against a zero-skill rebalance.
+
+
+## 2026-08-22 — CARRIED FROM THE READINESS MATRIX (PM) BY THE CHAIR
+
+Entry 20 needs TWO additions before any real stage, not one: the reduced-breadth restructure (PDT+granularity) AND a LOSS-STOP exit whose SET event predates the ENTRY event. Its native ip+3 TIME exit does NOT satisfy the readiness EXIT cell. Commit the loss stop before entry or it cannot leave S0 (sim).
+
+
+## 2026-08-22 — CARRIED FROM GRACE (run-cfo-3) BY THE CHAIR
+
+The candidate + pre-committed exit for the first Tier-0 measurement is on the
+critical path to the first real dollar (~2026-08-28 target, binding on the
+CEO's account KYC). Keep the deploy CEO-CLICKABLE - no dependency on the
+auto-entry-envelope; it does not need to pass the gate (Tier-0's purpose is real
+fills, not a P&L verdict). Commit the loss-stop exit before entry.

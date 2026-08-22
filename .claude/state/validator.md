@@ -709,3 +709,8 @@ a calendar-day clock (167 of 536 zeros, vol understated ~17%). Gate v5's
 premia statistics consume this object, so when you next audit v5's
 measurability, this is the field to check first — it is worse than "no
 volatility computed"; it is "the wrong benchmark's volatility, computable."
+
+
+## 2026-08-22 — CARRIED FROM THE READINESS MATRIX (PM) BY THE CHAIR
+
+Gate discrimination D is now a STAGE-GATE, not just a finding: S4 full mandate is locked behind D>=0.75 and D sets w_g at every stage. When you re-measure D, report a CI and flag material change as a forced re-tune trigger — the number moves real notional and gates the top stage.

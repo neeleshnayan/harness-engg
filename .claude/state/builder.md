@@ -382,3 +382,8 @@ seen before routes to the CEO.** Pick one that says who must act, or state
 - Open: no UI reads chair_backlog yet; the 14 unlinkable DeskDispatched
   rows are a write-path data defect (out of my bounds); status/dispatched_at
   now written by the chair as of run-builder-d13 itself.
+
+
+## 2026-08-22 — CARRIED FROM THE READINESS MATRIX (PM) BY THE CHAIR
+
+The three control blockers are ONE bounded sprint on the critical path to first real dollars, target 2026-08-26: guard /fund/risk/resume (fund.py:3797-3800), give the integrity halt a producer (riskmonitor.py:967-989 builds an alarm list run() never reads), make venue knowable from the executing connector's identity not order['venue'] (pipeline.py:229 vs :318). Ship as a batch; resume+venue diffs are a LOOSENING and go adversary-blind. A blocker with no motion past its date is the moat the CEO forbade.

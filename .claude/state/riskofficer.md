@@ -388,3 +388,20 @@ its memo bounds the SUM across concurrent experiments or their shared factor
 resolved for the CEO: the bounded cap makes the PM right the downside is
 small; the simulator venue + unwired resume make me right a real pilot today
 buys fiction on an unwired off-switch. That tension is the deliverable.
+
+
+## 2026-08-22 — CARRIED FROM THE READINESS MATRIX (PM) BY THE CHAIR
+
+The matrix registers READINESS_EXIT_PREDATE_MARGIN as UNKNOWN and names YOU to set it — the governed margin separating a real pre-commitment from a same-tick forgery (your check #4 / nuance #5). Until set, S1+ EXIT cells cannot be evaluated; it is on the critical path to first real dollars, not a footnote.
+
+
+## 2026-08-22 — CARRIED FROM GRACE (run-cfo-3) BY THE CHAIR
+
+State, per blocker, WHETHER IT GATES AUTOMATED ENTRY OR ALL ENTRY. Blocker 1
+(unguarded resume) and blocker 2 (producerless integrity halt) protect the
+MACHINE opening risk; a CEO-clicked Tier-0 measurement with a pre-committed
+hard exit does not rest on either. Only blocker 3 (venue truth) is load-bearing
+for a real fill. Framing all three as one 'hard gate before ANY real entry'
+slips the first-dollar date behind automation it does not use - Grace's
+objection, and the chair verified blocker 1 is a ~1hr fix (fund.py:3765/:3787
+wrap _guard_approval, :3800 does not).

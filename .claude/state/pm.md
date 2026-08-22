@@ -383,3 +383,12 @@ We AGREE real entry waits for the three controls + real fills; we AGREE a sim
 Tier-0 run validates the plumbing at zero risk. We disagree ONLY on whether
 that sim pilot is a caveat or a priority. I say dispatch; he says bound first.
 The CEO sets the appetite inside the envelope.
+
+
+## 2026-08-22 — CARRIED FROM GRACE (run-cfo-3) BY THE CHAIR
+
+Your Tier-0 measurement position is blocked UPSTREAM of confidence->size by the
+PAPER ACCOUNT: the first Tier-0 instance cannot produce a real fill until
+ALPACA_PAPER=false on a funded live account. Name live-account status as the TOP
+ROW of the binding-leg MIN for any real deployment, above PDT and granularity -
+today it is the binding leg, not confidence and not capacity.

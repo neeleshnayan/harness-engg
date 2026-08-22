@@ -203,3 +203,24 @@ already measured, pi is expensive and second-order. A programme that buys pi
 when the money is in the spread optimises a non-binding constraint — your
 seat's own named failure mode. Your G2 (4 sessions) works on MSFT-tier
 names and is fiction on the names we hold.
+
+
+## 2026-08-22 — STATE from run-cfo-3 (fastest path to first real dollar), appended by the chair
+
+THE FINDING: the whole $1,885 book is PAPER (ALPACA_PAPER default true,
+chair-verified alpaca.py:79; orders_are_real:false; env staging). P5 (real
+informative fills) and controls-fired-in-anger are STRUCTURALLY IMPOSSIBLE ON
+PAPER - the CEO's own scoreboard requires a live-funded account, the binding
+first-real-dollar item and the ONLY one with external lead time (KYC ~1-3
+business days, instant-ACH near-instant, no minimum). Its clock is not running.
+Two of the three blockers gate AUTOMATED entry, not a CEO-clicked Tier-0
+measurement; only blocker 3 (venue truth, pipeline.py:318) is first-dollar
+load-bearing, and blocker 1 (resume guard, fund.py:3800) is a ~1hr copy of
+_guard_approval at :3765/:3787 (chair-verified). First real fill ~2026-08-28 if
+the account clock starts today vs mid-Sept if the full envelope is sequenced
+first. The experimental-deployment authorization (2026-08-21) already suffices
+for a clicked real dollar. BOUNDARY: opening/funding the account is the CEO's
+own act; no agent can or will. Meter (uncapped): 65 runs/12.02M tokens, builder
+42.6%, status 5/65 - rank work items not seats. My EVOLVE (check vendor
+entitlements first) fired its 2nd instance. OWED: WHERE I DIFFER on the PM
+readiness matrix next round.
