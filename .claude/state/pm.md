@@ -234,3 +234,69 @@ If your kind is not in that table, your row ranks with the urgent half
 regardless of size. And a **$500k row whose kind IS in the table as
 `reversible` sorts BELOW it.** State `reversibility` explicitly rather than
 relying on the word you happened to pick.
+
+
+## 2026-08-22 — STATE from run-pm-programme (the measurement trading programme), appended verbatim by the chair
+
+**READ 2026-08-22T04:51–05:06Z. Market CLOSED; next open 2026-08-24T09:30 ET.**
+- BOOK: NAV 1885.74, cash 968.69 (51.37%), gross 917.06 (48.63%), four legs
+  (SPY/DBC/TLT/DBA), exit coverage 100%, 0 fired, alarms [], drawdown
+  1.17%/10 off rebased peak 1908.09, effB 4.01, ES97.5 1.218%.
+- **THROTTLE IS BREACHED, BY A LITTLE, AND NOBODY HAD SAID SO**: 0.7882 ×
+  61% = 48.08% target vs 48.63% actual = +0.55pp/$10.42 over. No
+  throttle-compliant room for a programme position; every deploy is a
+  written excursion. **DATED COLLISION: phase 2 (61% gross, 2026-09-08) is
+  12.9pp above today's throttle recommendation.**
+- **THE FINDING — carry it forever**: arrival_price is
+  get_stock_latest_trade (alpaca.py:136-140), cached 5s (:84), NOT a mid.
+  execution_bps sd ≈ the half-spread it estimates; required n ≈ (1.96·h)²
+  — 11 fills at h=1.5bps, 385 at h=10. Fix = bid/ask on OrderSubmitted;
+  then the estimand is the fraction of the quoted half-spread paid, and h
+  is free on every quote poll.
+- TICK ARITHMETIC (200-name hunting ground): floor spans 0.008–11.26 bps
+  (1,400×) while ADV spans 1.5×. Median floor 0.57 bps vs a 5.0 assumption;
+  9 of 200 have a floor above 5.0 (OPEN 11.3, KEEL 10.8, SNAP 10.3, ACHR
+  9.5, RIG 9.4, AUR 7.9, SOUN 7.4, BB 5.6, OWL 5.2). STRATIFY BY PRICE.
+- PDT BINDS: pdt.remaining 3 per 7 sessions. THE BATON: sell yesterday's,
+  buy today's — 2 obs/session, zero day trades, one open position.
+- TCA MECHANICS, verified — do not re-derive: /fund/tca default limit=500
+  is an EVENT limit oldest-first → always pull ?limit=5000 (20 vs 22
+  orders, 5.56 vs 4.95 headline). summarise() filters ONLY on venue — no
+  immediacy filter exists. DBA order 17d64dcd: Proposed=alpaca,
+  Submitted=paper, Filled=alpaca; its SPY sibling says paper on all three.
+  The Submitted leg is honest for every row in the log.
+- THE HONEST COST NUMBER IS n=3 (mean −0.088, sd 1.528; upper 95% σ bound
+  9.61 — never plan on 1.528). The 1.96 (n=6) figure is a POST-HOC TRIM —
+  never quote it.
+- REGIME CLASSIFIER (pre-registered, in code): regime.py:243 elevated =
+  pct ≥ 80 at /risk/advanced?include_regime=true. Today 87.0/elevated —
+  ORDINARY is the starved stratum. Do NOT use portfolio_turbulence (9.3,
+  4 symbols, 54 days).
+- NEW EXCEPTIONS: E1 all three live sleeves state='draft' holding $917.06
+  → invisible to divergence.py:93, signals.py:44-46, mechanics.py:441;
+  path is DRAFT→BACKTESTED→DEPLOYED. E2 DEFAULT_SLIPPAGE_BPS absent from
+  all 19 /judgement entries. E4 no immediacy filter.
+- VENUE: 10 of 11 symbols out of sync, $126.54; broker holds ZERO
+  TLT/DBC/DBA. v4 book_venue_in_sync WILL refuse the $501.58 exits
+  2026-09-08. Exits hardcode Order(venue="paper") (exitrule.py:303).
+- 12 RECS FILED R25–R36; gate order R23 → R24 → R35 → R15-reopened.
+  CHALLENGE filed against CFO D4 (n≥27): required n is a property of the
+  INSTRUMENT, not the programme.
+- STILL OPEN: nav_strike UNOBSERVED (4th review); J3 clock reset, next trip
+  2026-08-29; TLT J2 strike one stands; D9 (<25%) to check before the
+  2026-09-08 transition.
+
+## 2026-08-22 — CARRIED BY THE CHAIR (BINDS from three seats)
+
+- **From Donna**: when you re-derive a figure another seat has published,
+  CITE the figure you supersede and name the differing input — four seats
+  produced three armed-exposure numbers in eight hours and the record
+  cannot tell convergence from disagreement.
+- **From the adversary (D11)**: your R18 fence is marked SUPERSEDED inside
+  venuesync.py. If the reconciliation lands, ~$1,165 enters the book as
+  discretionary with no exit rule — and the coverage report currently
+  names only $674 of it. Do not read `uncovered` as complete until the K2
+  repair lands.
+- **From the riskofficer**: do not treat book_venue_in_sync as an obstacle
+  to route around before 2026-09-08 — recommend reconciliation or the
+  explicit human click, never a relaxed check.

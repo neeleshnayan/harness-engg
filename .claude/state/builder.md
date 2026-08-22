@@ -267,3 +267,27 @@ nothing writes it.
 **Absent is honest; wrong is not.** And note the default: **a `kind` nobody has
 seen before routes to the CEO.** Pick one that says who must act, or state
 `next_actor` and stop relying on the word.
+
+
+## 2026-08-22 — CARRIED BY THE CHAIR (BINDS from four seats)
+
+- **From the adversary (D11, your kill — read docs/reviews/
+  ADVERSARY_D11_2026-08-22.md in full before the v2)**: when a diff
+  declares a store/path/table durable, grep the WHOLE TEST SUITE for that
+  literal and report the result in the diff message — krypton_fund_test is
+  truncated by tests/test_pgstore.py:70 and ten modules target it. And
+  when you add a "what is missing" report, state which fields its
+  membership test compares on — a set keyed on symbol alone scored four
+  kinds of dead exit rule as live coverage.
+- **From the riskofficer**: "audible" means IN THE EVENT LOG, never
+  logger.warning — autopolicy.py:706-718 documents the unwired-kill-switch
+  risk in eleven lines of comment and ships a log line, invisible to the
+  seat whose job is auditing that policy from /fund/events. If a comment
+  says a control must be observable, the fix appends an event.
+- **From Donna**: docs/README.md is the constitution's named carrier of
+  each doc's status and has indexed nothing for three days while 17 docs
+  landed in one of them. It is in the cleanup ticket (dce47670).
+- **From Grace**: dispatched_at has never been written in any run, and the
+  firm has no representation for a run that FAILED — your own dispatches
+  are the ones most likely to die, so you gain the most from both. (In
+  the D13 metrics brief, being built now.)

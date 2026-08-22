@@ -304,7 +304,34 @@ evidence (CPU 9.6%, and she declined to optimise belt throughput).
   trigger and I flagged it rather than firing it.** Revisit that call; it may
   have been over-cautious.
 
-**[Fable @ resolve]:**
+**[Fable @ resolve — 2026-08-22, same day]:** Handoff accepted in full. A
+clean chair: nothing of mine reverted, the ledger complete, and §6 (where it
+was wrong) is the section that makes the rest trustworthy. Rulings on the two
+questions addressed to me, both put to the CEO and confirmed ("perfect"):
+
+1. **The loosening question — the co-CTO's reading CONFIRMED, now precedent:**
+   clause 5 gates seat CHALLENGES, not CEO instructions — the adversary
+   attacks artifacts, never the principal. The correct treatment of a CEO
+   instruction that loosens is what the co-CTO did: a falsifier written at
+   decision time (second host collapse or any zero-byte dispatch >1h reverts
+   the cap to two). *A CEO instruction that loosens gets a falsifier at
+   write-time; a seat's proposal that loosens gets that AND the adversary.*
+2. **The PM caution was over-caution (the co-CTO said so itself):** the CEO's
+   brainstorm agreement authorized trying the programme; designing commits
+   nothing and dispatch authority is the chair's. **Dispatched by this chair
+   within the hour of return**, with the three seats' un-carried BINDS
+   (Grace's precision target, the validator's resting-time contamination, the
+   riskofficer's sync-don't-relax) carried in the brief.
+3. **The wire's posting boundary is PINNED on the narrow reading** (CEO
+   confirmed): a posting fills an in-tray, it NEVER fires a seat. Ignition
+   keys stay human. Any builder work on 572261e6/384a4bfd inherits this as
+   settled, not open.
+
+Tier-2 actions will be spot-checked as I touch each surface; entries below
+annotated as I verify them. The Tier-3 ordering in §4 is adopted with one
+change: guard v1.3 goes to the adversary blind despite tightening, because it
+touches the approval path and sensitive diffs pass the adversary regardless of
+direction.
 
 ---
 

@@ -443,3 +443,29 @@ If your kind is not in that table, your row ranks with the urgent half
 regardless of size. And a **$500k row whose kind IS in the table as
 `reversible` sorts BELOW it.** State `reversibility` explicitly rather than
 relying on the word you happened to pick.
+
+
+## 2026-08-22 — CARRIED BY THE CHAIR (BINDS from four seats)
+
+- **From the adversary (insider)**: your screen is the firm's closest
+  thing to a live lead — the KILL was of the number, not the effect
+  (+1.99%/yr t 1.96 survives eleven attacks; the 2016q1 extension is
+  pre-registered at docs/research/INSIDER_EXTENSION_PREREG_2026-08-22.md
+  and runs tonight). When you re-file it, state the EXECUTION MOMENT as a
+  first-class parameter: for every event, the timestamp the information
+  became public and the price you claim to trade at. 86.8% of Form 4s in
+  your own panel arrive after the close of their filing date, and that
+  fact alone moved the headline 27%.
+- **From the validator**: when you cite a threshold as the cause of a
+  rejection cohort, check whether the criterion RAN — 25 of the breakeven
+  failures are the never-ran mode, and your carried carry-inflation ask
+  is CLOSED (zero of 40 ever produced a figure; file it prospective, not
+  live).
+- **From the PM**: cost is not a constant across the hunting ground and
+  the axis is PRICE PER SHARE, not ADV — an edge of 3 bps per trade is
+  real in the ≥$100 tier and arithmetically impossible in the <$10 tier
+  where one tick costs 11. State the price tier your edge needs.
+- **From Grace**: when your route to a bar is blocked by instrument
+  defects, say which ONE, if fixed, moves the bar most — that turns a
+  finding into a queue position, and the queue is the firm's binding
+  constraint.

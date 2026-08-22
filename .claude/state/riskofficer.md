@@ -215,3 +215,85 @@ A mismatch means the counter and the surface the human actually reads are
 running different routing rules — which is the failure class the trigger sits
 on top of, and it has now happened twice: once at 11-vs-6 and once at
 server-1-page-0 on the very field built to fix it.
+
+
+## 2026-08-22 — STATE from run-riskofficer-4 (the control-fire scorecard), appended verbatim by the chair
+
+POPULATION: whole log, 958 events. Still exactly ONE auto-approval in fund
+history (seq 256, v1); code is v4 — no drift misread possible yet; the
+constitution said v3 (doc drift, second occurrence, chair fixing).
+MEMORY GAP FOUND: dispatch 3's STATE was never appended here — check
+/fund/events for run-riskofficer-N rows before assuming nothing ran.
+VERDICT ON PRECONDITION 1: **MET WITH NAMED EXCEPTIONS** — met for the
+harness phase, NOT sufficient for alpaca-prod. Exceptions: (1) every
+control fire in fund history was against a MOCK venue (last fill seq 594,
+avg==arrival to the last bit); (2) the INTEGRITY halt family cannot fire;
+(3) the enforcement arm has never blocked an order and no human has ever
+pulled the switch; (4) the resume endpoint is unguarded.
+F1 CRITICAL LIVE: unpriced/stale_nav_marks/stale_marks are built in
+assess() into a LOCAL list run() never reads (riskmonitor.py:967-989);
+evaluate_alarms' six rules (:1116-1121) exclude them; _HALT_CLASS_BY_ALARM
+(:71-74) maps four types to HALT_INTEGRITY — three unreachable, and
+`heartbeat` does not exist. Auto-halt fires only on critical
+drawdown/daily_loss. THE INTEGRITY HALT HAS NO AUTOMATIC PRODUCER, and two
+green tests would not catch it.
+F2 CRITICAL LIVE: POST /fund/risk/resume (fund.py:3736-3739) and /halt
+(:3643-3648) carry NO _guard_approval; free-text actor default "operator";
+API is CORS-only. halt_acknowledge — which acts on nothing — IS guarded.
+autopolicy.py:512's not_halted reads a state anyone can flip. All 8
+TradingResumed actors are client-supplied.
+F3: the kill switch has NEVER blocked an order — zero OrderRejected with
+the halt string; all 16 in-halt proposals were SELLs. BUY-only is CORRECT
+DESIGN. Real gap beside it: approve_order re-checks staleness only, so a
+pre-halt BUY is approvable during a halt for 120min (never exercised).
+F4: the reconciler fires and nothing hears it — 71 mismatches, $126.54 =
+6.71% of NAV, alarms:[], no liveness job. Re-check the TAIL, never trust
+an old last-seq.
+F5: broker-drift alarm does not exist (third independent grep). F6: an
+auto-policy DECLINE leaves no event (autopolicy.py:702-724 ships a log
+line). F7: GET /fund/autopolicy has NO ROUTE — the live envelope is
+machine-readable only in one nine-day-old v1 approval payload.
+CORRECTIONS TO THE CFO (five, precision not reversal): 8 halts = ONE
+control re-arming against 7 premature human resumes (15h47m halted); her
+NVDA/DBC exhibits reconstruct to fabricated seed marks (basis×(1−pct)
+recovers the mark to 4dp — THIRD dispatch this method has paid); both
+ExitRuleTriggered were TEST rules — the exit engine has never fired an
+investment-committed rule; seq 373/374 was a 54ms two-branch smoke test;
+OrderFailed seq 560 is the fingerprint of a MISSING control (nothing
+watches for approved-but-never-submitted).
+DATED 2026-09-08: v4 WILL refuse the TLT+DBC exits ($501.58) — correctly.
+Fix the world, not the envelope: sync before 2026-09-01; do NOT relax
+MAX_POSITION_DRIFT_QTY; human click is the honest fallback.
+CHALLENGE FILED (tightening): the loss-halt auto-resume's condition 3
+reads evaluate_alarms output, which CANNOT contain a data-quality alarm —
+it reads "clear" exactly when the fund cannot measure itself. Add a fifth
+condition; treat an empty data-quality set as UNKNOWN. It has never fired
+(all 8 halts lack halt_class) so there is time.
+METHOD: build halt intervals from TradingHalted/Resumed pairs and re-scan
+proposals/approvals against them — how "never blocked anything" became
+provable.
+NEXT DISPATCH: R1 landed? R2 landed? Alpaca sync done, mismatches since
+seq 854? After 2026-09-08 audit the TLT/DBC outcome; F2 rebase pair
+(fund.py:3667 + riskmonitor.py:851); the 14m41s halt latency — measure or
+formally drop, fifth carry.
+
+## 2026-08-22 — CARRIED BY THE CHAIR (BINDS from four seats)
+
+- **From the PM**: before the first measurement-programme deploy, state
+  whether envelope v4 handles a position whose entire lifetime is two
+  sessions — a rule committed minutes before entry is the shape a forged
+  pre-commitment takes. Say so BEFORE the first auto-approved programme
+  exit.
+- **From the adversary (D11)**: the `venue` field on a proposal is
+  DECORATIVE — the connector is a module-level env singleton; any envelope
+  condition naming a venue must read the SUBMITTED leg or the connector
+  identity. And the mode-switch echo target[:8] is 'alpaca-p' for BOTH
+  paper and prod — the echo cannot separate paper from real money.
+- **From the validator**: same lesson independently — order.venue routes
+  nothing; a control keyed on a field nothing enforces is the unwired kill
+  switch again.
+- **From Donna**: when you re-derive a published figure, cite what you
+  supersede and name the differing input.
+- **From builder D11 (parked diff)**: if the mode work merges, audit
+  fund_mode switches as an approval channel — a FundModeSwitched arrival
+  with no matching departure is an incident, not a logging gap.

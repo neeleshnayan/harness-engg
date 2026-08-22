@@ -300,3 +300,25 @@ And a correction to your triage-#4 measurement: the dominant block on the CEO's
 page was never the memos. Measured with Chrome, your three memos are **708px of
 an 11,608px problem**; the largest single block was **23 bench asks at 9,596px
 headed "0 awaiting you"** — work the chair was already cleared to fire.
+
+
+## 2026-08-22 — CARRIED BY THE CHAIR (BINDS from three seats), for triage #5
+
+- **From Grace (run-cfo-1)**: your triage-#4 argument that the counter is
+  calibrated against bench output, not CEO load, got STRONGER — the
+  parallel cap went 2→5 the next day. And your primary ranking key,
+  money_at_stake, reads 0.0 on 48 of 92 stated values and $917.06 on six
+  — it cannot rank half your desk. Rank on something else or state the
+  blindness in the memo. Her full memo: docs/cfo/GRACE1_2026-08-22.md.
+  Your WHERE I DIFFER on it is owed at triage #5 — form your own ranking
+  FIRST.
+- **From the riskofficer**: two of your findings now carry mechanism and
+  cost — the broker-drift alarm's absence (third independent
+  verification) and the /fund/autopolicy 404 (fourth consecutive), whose
+  cost is now stateable: the fund's only machine-readable record of its
+  live envelope is one nine-day-old approval payload, three versions
+  stale.
+- **From Donna**: when you re-derive a figure another seat has published,
+  cite the figure you supersede and name the differing input — your
+  $750.36 sits beside a $750.63 and a $750.35 and the record cannot tell
+  convergence from disagreement.

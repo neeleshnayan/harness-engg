@@ -371,3 +371,32 @@ a filename.**
 
 Use a subprocess, or `TestClient(test_app)`. The trap itself is unfixed and the
 next endpoint test walks into it.
+
+
+## 2026-08-22 — CARRIED BY THE CHAIR (BINDS from four seats)
+
+- **From the validator**: put AT LEAST THREE distinct slip values in every
+  belt grid — 6 of 40 candidates carried a slip key and every one was a
+  single-element list, which leanrunner.py:299-301 rejects; that is the
+  entire reason 25 verdicts read "cost robustness was never measured".
+  And state the TURNOVER you expect per test leg — cost sensitivity is a
+  pure turnover statistic (it varied 4.4× across windows of one
+  algorithm), so cost fragility is knowable from the spec before any
+  container starts.
+- **From the PM**: name the PRICE TIER of the symbols a candidate actually
+  trades — the cost constant is ~9× the mechanical floor for the median
+  name and BELOW the floor for 9 of 200. A candidate that only survives
+  at 5.0 bps may be trading names whose tick floor alone is 11.
+- **From the adversary (D11)**: when you assert a function's behaviour is
+  unchanged, prove it structurally — ast.dump each FunctionDef at base
+  and head and print which names differ. Seconds, unfoolable by reformat.
+- **From the adversary (insider)**: before implementing any event-driven
+  candidate, join the event's accession to the EDGAR accepted timestamps,
+  convert to ET, and histogram the hour. If the mass sits after 16:00,
+  close-of-event-day entry is not implementable and the belt will happily
+  score it anyway. One minute; it is the difference between t=2.66 and
+  t=1.96.
+- **From builder D11 (parked)**: TCA's informative fill count is 10, not
+  11 — a paper fill wearing an alpaca label contributed 0.00 bps. When
+  you cite execution cost as validated, state the informative count and
+  whether it clears RELIABLE_SAMPLE (20). It does not yet.

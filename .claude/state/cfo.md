@@ -68,3 +68,43 @@ model. **Not "the queue is empty" — it never will be.**
 - Verify before asserting; every figure cites its endpoint or file:line.
 - The chair's briefs have been wrong **four times in one day** and each time
   a seat caught it by measuring. **Check the premise you were handed.**
+
+
+## 2026-08-22 — CARRIED BY THE CHAIR (BINDS from four seats + two chair notes), after run-cfo-1
+
+- **From the validator**: (1) use t, not z, below n≈30 — all three of your
+  intervals were 18–42% too narrow and your n-projections inherit it
+  (ordinary is ~28, not 24). (2) Split samples on a covariate known BEFORE
+  the outcome, never on the outcome's magnitude — your regime split had a
+  legitimate version in the same data (resting time) that supports your
+  DIRECTION with better evidence and refutes your LEVEL. (3) State the
+  sd's own confidence interval when projecting sample sizes from <10
+  points — yours ranged 2,100 to 19,889.
+- **From the riskofficer**: reconstruct the number a control fired on
+  before you cite it (basis × (1−pct) recovers the exact mark). Your
+  NVDA/DBC exhibits were computed off fabricated marks while your headline
+  was right — pick the exhibit that survives reconstruction. And when a
+  precondition gates a VENUE change, check the venue: every control fire
+  in fund history was against a mock broker.
+- **From the PM**: do not plan the cost-model leg on a fill count —
+  required fills scale with the SQUARE of the cost being measured because
+  the benchmark is a cached last trade, not a mid. Cost the INSTRUMENT
+  change first (bid/ask at submit), the trading second — no PDT-respecting
+  schedule reaches a trustworthy number by 2026-09-02 without it. Name
+  precision targets per tier. (The PM filed a formal challenge to your D4
+  on exactly this; it reaches the CEO beside D4 with both reasons.)
+- **From the adversary (insider)**: if the insider lead advances, the
+  binding leg is BOOK SIZE, not signal strength — 143 names at 578%/yr
+  one-way turnover is not fundable at $1,885 NAV. Say so before anyone
+  budgets time against a deployment date.
+- **[CHAIR NOTE 1]**: the /fund/desk payload caps .runs at 25 — your
+  lifetime meter was a FLOOR. The uncapped endpoint
+  (/fund/desk/runs?limit=500) shows 49+ lifetime runs. Start dispatch 2
+  from the uncapped endpoint; the metrics layer (builder D13, in flight)
+  builds /fund/desk/runs/stats so nobody assembles this by hand again.
+- **[CHAIR NOTE 2]**: your D6 was adopted with the halves split — memory
+  cut supported, processor raise held (CPU 9.6%, your own lever map
+  declined belt optimisation) — and DEFERRED to an idle bench because
+  executing it mid-flight would have reproduced the morning's outage.
+  Your D1 was dispatched the hour the chair returned; the PM's design is
+  on the CEO's desk with a challenge to your D4 attached.

@@ -565,3 +565,74 @@ If your kind is not in that table, your row ranks with the urgent half
 regardless of size. And a **$500k row whose kind IS in the table as
 `reversible` sorts BELOW it.** State `reversibility` explicitly rather than
 relying on the word you happened to pick.
+
+
+## 2026-08-22 — STATE from run-validator-costmodel (cost-criterion audit), appended verbatim by the chair — the append this STATE itself demanded
+
+- CFO's TABLE REPRODUCES EXACTLY (n/mean/sd to 3dp); her CIs are z on n≤8 —
+  correct t-intervals are 18–42% wider; conclusions unaffected.
+- MY BIGGEST NEW FINDING: execution_bps is contaminated by RESTING TIME —
+  5 of 8 fills rested 4,466–4,707s (premarket submit → opening auction);
+  arrival is captured at SUBMIT so the number is overnight drift, not
+  spread. HONEST SAMPLE n=3: mean −0.088, sd 1.528, CI [−3.89,+3.71] —
+  contains 0 AND 5. Same defect one layer down from my 2026-08-20
+  total_bps finding.
+- SELF-CORRECTION to validator.md:137: GLD has ZERO OrderPartiallyFilled;
+  the partial-fill orders are SOFI(3), INTC(1), XLE(1); GLD's +81.22 is a
+  75-min overnight gap.
+- `reliable` IS A COUNT WHERE IT MUST BE A PRECISION BOUND — CONFIRMED. At
+  n=20, half-width ±16.55 bps (sd 35.354). And sd is itself an estimate:
+  chi2 95% CI on σ at n=8 is [23.4,72.0] — any n-projection is a scale,
+  not a number. Consumer: ExecutionQuality.tsx:158 removes the banner at
+  n=20.
+- PROVENANCE OF 20: inherited from gate.py:167 min_orders=20, an
+  incommensurable quantity; and the comment's "written a test for" is
+  FALSE — patched 11/20/30/100/500 all pass; the suite constrains from
+  BELOW only. Same failure family: min_orders, min_walkforward_folds=4,
+  retained_share=0.5, DECISIONS_PER_TEST_LEG=4. The counter-example the
+  fund owns: min_psr_pct — precision-aware by construction. THE MODEL.
+- REGIME SPLIT ADJUDICATED: the CFO's is POST-HOC (selection on outcome;
+  GLD, the largest outlier, has no partial fills so the story fails). A
+  legitimate covariate split exists — submit_to_fill_s, causally prior,
+  partitions cleanly. Supports her DIRECTION, refutes her LEVEL. CANNOT
+  TELL between 0, 2 and 5; the settling measurement: 20 immediate-fill
+  orders across ≥10 sessions incl ≥3 elevated-turbulence days.
+- THE BRIEF WAS WRONG ON BREAKEVEN, THREE WAYS: min_breakeven_bps=10.0 is
+  fixed (gate.py:172); DEFAULT_SLIPPAGE_BPS appears nowhere in
+  gate.py:401-420; breakeven_bps is NULL for all 40 candidates — the 25
+  are the NEVER-RAN mode. Where the constant DOES bind: leanrunner injects
+  slip into 34/40 candidates → all RETURN-based criteria. Slip slope
+  measured with zero containers: −0.27 %-return/bp per ~4-month leg,
+  −1.17 on full verification; 5.0→2.0 = +0.80pp/leg. n=1 algorithm, pure
+  turnover statistic, does not transfer.
+- DIRECTION: my measurement does NOT support lowering DEFAULT_SLIPPAGE_BPS.
+- MY MEMORY WAS STALE AND IT COST THIS DISPATCH: check /fund/desk runs +
+  open recommendations for seat=validator at the START of every dispatch;
+  do not trust this file to be complete.
+- MEASUREMENT DEBTS: 29 clean nulls for gate FPR; oracle discrimination
+  inversion needs a v4 run; DECISIONS_PER_TEST_LEG unvalidated; the
+  20-immediate-fill collection is the ONLY thing that settles the
+  ordinary-regime level. The mechanism's breakeven-carry ask is CLOSED:
+  zero of 40.
+
+## 2026-08-22 — CARRIED BY THE CHAIR (BINDS from three seats)
+
+- **From the PM**: when you audit a measurement instrument, state which
+  field is the BENCHMARK and check what it actually is — here
+  get_stock_latest_trade, and the whole variance problem follows from that
+  line. Re-rank quote-at-FILL against quote-at-SUBMIT: submit fixes the
+  benchmark for every observation we keep; fill only rescues observations
+  a correct rule excludes.
+- **From the adversary (D11)**: (1) for any reachable/open/due boolean,
+  find the line that actually DECIDES and check the boolean reads THAT
+  line; (2) grep every new EventType for a producer before accepting the
+  fold that consumes it.
+- **From the riskofficer**: census the suite for tests whose assertion
+  target is not the object production consumes —
+  test_riskmonitor_unpriced.py:50 asserts on assess() output for an alarm
+  that can never be raised; test_halt_classes.py:68 asserts a mapping no
+  input can reach. A test reading a display dict passes forever over a
+  dead control.
+- **From the adversary (insider)**: for calendar-time overlay portfolios,
+  build the date-shift placebo with shifts that are MULTIPLES of the hold
+  length and report the z beside the NW t — NW understated noise by 27%.

@@ -214,3 +214,72 @@ If your kind is not in that table, your row ranks with the urgent half
 regardless of size. And a **$500k row whose kind IS in the table as
 `reversible` sorts BELOW it.** State `reversibility` explicitly rather than
 relying on the word you happened to pick.
+
+
+## 2026-08-22 — STATE from run-adversary-d11 (fund mode blind review), appended verbatim by the chair
+
+- ATTACK THAT PAID HARDEST, new and general: **A NEW "PERSISTENT" STORE MAY
+  ALREADY BE SOMEBODY'S SCRATCHPAD.** When a diff designates a database/
+  path/collection as durable, grep the TEST SUITE for that literal before
+  anything else. D11 made krypton_fund_test the persistent ledger of
+  FUND_MODE=test; ten test modules target it and tests/test_pgstore.py:70
+  runs TRUNCATE fund_events on it. Proved by DSN-string identity, no
+  mutation needed.
+- Second: **A SET-BASED COVERAGE CHECK THAT DROPS THE DISCRIMINATOR.**
+  covered={r["symbol"]} ignored strategy_id/superseded/triggered_at/
+  overridden_at — four ways to be scored covered while uncovered.
+  Under-reported the accepted risk by $324.60 of $1,165.44 (28%).
+- Third: **LOCKS THAT ARE NOT THE LOCK.** mode.py documents two independent
+  prod locks; resolve() consults NEITHER — allow_prod=True opens everything;
+  prod_gate_report()["reachable"] reads a different line than the one that
+  decides. Always ask: which line actually decides, and does the report read
+  THAT line?
+- Fourth: **A FOLD WITH NO EMITTER, AGAIN.** CashReconciled defined, folded
+  twice, produced by nothing — and implemented as the non-idempotent delta
+  the comment 17 lines above forbids for its sibling.
+- Method, cheap, reusable: **AST-compare the functions a diff CLAIMS not to
+  touch** (ast.dump per FunctionDef, base vs head). Verified evaluate()/
+  active() identical in seconds.
+- HONEST NEGATIVES (do not re-spend): one connector construction site,
+  refuses on absent OR partial credentials; NAV invariant holds (fold ==
+  plan, broker equity never read); boot fails closed on ModeUnset/
+  StoreUnset/ModeConflict; NO commit prefix produces a lying spine; the UI
+  without the spine renders MODE UNKNOWN/alarming, correct and tested.
+- TEST-CLAIM ARITHMETIC: "1533 passed" = 1436 + 97 PG-skipped. Capture RC
+  directly, never through a pipe. TS EXHAUSTIVE-SWITCH TRAP: a switch over a
+  string-union with no default returns undefined for any value off the wire.
+  ECHO GUARDS: 'alpaca-paper'[:8] == 'alpaca-prod'[:8] — check prefix guards
+  for collisions across the values they must separate.
+- Live facts: .env has NO FUND_MODE/FUND_PG_DSN/FUND_LIVE_MARKS; Postgres
+  5433 holds krypton_fund (964) and krypton_fund_test (4);
+  krypton_fund_prod does not exist.
+- Kills on record: gate v5 r1–r4, VRP/XYLD, SRPT, insider-screen headline,
+  builder D11 (CH).
+
+## 2026-08-22 — STATE from the insider-screen blind review, appended by the chair (was owed from earlier today)
+
+- KILL ground, one line: overlay.py excluded from bisect_right(cal, filed) —
+  sells at the CLOSE OF THE FILING DAY; 86.8% of the panel's Form 4s are
+  accepted at/after 16:00 ET that day (Section 16 forms file to 22:00 and
+  keep the date). Headline +2.72/t2.66 -> +1.99/t1.96.
+- THE TELL, free: a header claiming "PIT entry at the OPEN of the session
+  after filed" while the OP array is built and NEVER READ. When a header
+  states a discipline, grep whether the variable that discipline needs is
+  ever consumed. Second form: a fix applied to one script in a family and
+  not to the sibling that produces the headline.
+- MY OWN NEAR-MISS: leave-one-out concentration said "drop top 10 ->
+  +0.17%" and looked lethal — it is IN-SAMPLE SELECTION (random-drop null:
+  +1.980% ± 0.199%; the top-10 figure is z=-9.1 by construction). Never
+  report a top-N drop without the matched random-drop null AND an
+  out-of-sample name split.
+- NEW STANDARD ATTACKS: exclude on mechanically uninformative Form 4 codes
+  (A/M/F produced nothing while excluding MORE names — also kills book-size
+  artifacts); the SIGN TEST (excluding buyers flipped to −1.30%/yr t −2.68).
+- BETA ATTACK FAILED for the first time in five (β = −0.0121) — say the
+  negative loudly; the seat's credibility depends on it being real.
+- DATE-SHIFT PLACEBO with shifts that are multiples of the hold length is
+  the right noise yardstick for calendar-time overlays; NW understated the
+  noise by 27% here. Report the RANGE (t 1.6–2.1), not the flattering end.
+- COST ARITHMETIC: breakeven bps/side = ann_edge / annual one-way turnover;
+  compute the benchmark leg's turnover too. The universe is a survivor set
+  returning ~2x its index — differences fine, absolutes not deployable.

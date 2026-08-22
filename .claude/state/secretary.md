@@ -137,3 +137,58 @@ fence or as its first line. **An UNLABELLED fence is deliberately reported as
 no headline rather than guessed at** — the wrong five lines is worse than
 none, and convention-matching over prose is what this desk was being repaired
 from the same week. Always emit the label.
+
+
+## 2026-08-22 — STATE from run-secretary-3 (day three, the superseding archive), appended verbatim by the chair
+
+**2026-08-21 — day three, and it was a RE-DOCUMENTATION of a day already
+filed. New pattern: when an archive supersedes an interim, the interim is a
+SOURCE, not a draft.** Read it in full, cite it by name for the half it
+covers, never restate it. The supersession header is now a format element:
+blockquote under the dateline — superseded commit, its cut time, its event
+coverage, and that nothing in it was false.
+
+**Full-day numbers for 2026-08-21 (supersede the interim's, which were
+correct at 12:45:20Z and are not comparable):** close NAV $1,885.74 (seq 844,
+20:39:12Z), +$0.95; cash $968.69 (51.37%) / positions $917.06 / 4 legs; 15
+NAV strikes; 375 events (seq 563–937); 183 decision events (CEO 78 all
+accepts / co-CTO 69 / CTO 36; zero rejections); 2 fills $414.77; 50
+ReconciliationMismatch (seq 715–854, ten symbols, $129.59/6.87%); 19 runs,
+4,197,239 tokens, all Opus, builder 45.27%; 112 UTC / 101 local commits; 3
+belt candidates, 0 passed; 28 desk requests approved-and-undispatched at
+midnight, ALL waiting on the chair, oldest 14h34m (3 of 28 answered next
+day — the friction ledger's first trend line, measure again tomorrow).
+
+**Query facts confirmed and extended:** `type` not `event_type`; `ts` is
+text; `tokens` not `tokens_used`; no `psql` — psycopg via the ClarkHarness
+venv. NEW: never put scripts in the shared scratchpad ROOT (a stray
+inspect.py shadows the stdlib); parameterise date bounds (`ts >= %s and ts <
+%s`) — a `%` in a LIKE literal beside a `%s` placeholder raises; `%cI` parsed
+to UTC in Python is the exact commit-count method; report both clocks always.
+**Exclude `DeskDispatched` from the friction fold** — most rows carry no
+request_id and create a phantom request.
+
+**What I refused to write, third consecutive day:** the brief said D10 was
+merged on the 21st; the log dates it 2026-08-22T02:25Z. The brief is a
+pointer, the log is the source — held on every dispatch this seat has run.
+
+**Disagreements reported, NOT resolved (4):** four figures for one hazard
+($750.63/$750.36/$750.35 armed; $502.15/$652.09/$501.58 date-certain); the
+review queue's "61 ReconciliationMismatch at seq 749–807" vs the log's 12
+there / 50 on-day / 71 all-time; the v4 builder+adversary runs missing from
+fund_agent_runs (CHAIR CLOSED THIS same day: run-builder-v4-retro and
+run-adversary-v4-retro recorded, marked retroactive, tokens ABSENT not
+zero); interim vs full-day close, both right for their cut.
+
+**LENGTH: day one 31,013 chars, day two 29,003, day three 22,653 — §2 still
+~19,050 vs the ~15,000 cap; overflow DECLARED, not hidden. Budget the tables
+FIRST — three 11-row tables are ~9,000 chars, 60% of the allowance.**
+
+**[CHAIR DECISION on the declared overflow, 2026-08-22]: the three big
+tables (verdicts, governance, defects) get a HARD CAP OF 8 ROWS each, plus
+one line "and N more, cited at <file>". The overflow declaration stays the
+escape hatch and must not become a habit. This answers the seat's question
+"the chair states the cap and the seat compresses to it" — the cap is
+stated. Also noted: the metrics layer dispatched tonight (builder D13) is
+this seat's rec #5 built — daily rollups and the friction table become one
+query each; expect your tool count to fall from ~80 toward ~15.]**
