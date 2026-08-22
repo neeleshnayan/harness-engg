@@ -231,6 +231,14 @@ maintain a day log for fable to review."***
   one-pager as the craft reference, acceptance measured by the CEO reading
   any card ONCE.
 
+- **DESK GREETINGS + STEERING ticketed** (same hour, CEO: every desk greets
+  with an executive view and carries a steering box). Design holds the
+  ignition-key invariant: greetings are chair-written at resolve from the
+  seat's STATE (a page load never fires a model); the steering box files a
+  desk REQUEST into the existing queue (a posting fills an in-tray, never
+  fires a seat) — the CEO steers through the chair, as the constitution
+  routes it. Builds with the desk-redesign family.
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT
