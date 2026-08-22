@@ -424,3 +424,18 @@ implementation roles, classify its WEIGHT (compute-shaped = the heavy
 slot), and review the spec diff at resolve like any EVOLVE. First
 seat-born identity in the firm — watch it as the personality layer's
 frontier experiment.
+
+
+## 2026-08-22 (~23:30Z) — token economics (CEO instruction), chair half
+
+Grace carries the TOKEN LEDGER standing section (cheapest true verdict per
+token). The chair's reciprocal duties: (1) solicit her economics input when
+DESIGNING dispatches (model tiers, batch sizes, worker fan-out, brief
+length); (2) the run-record tokens field stays mandatory and honest — her
+ledger is only as good as my recording; (3) known levers to hand her for
+pricing: the quant's 4090 sub-function split (versioned, underused),
+transient-worker model tiers, the leads shelf and supersession sweep as
+re-derivation killers, memory distillation (episodes/memorandum) as a
+context-size lever. Tonight ~2.5M tokens since sunset — the densest and
+most valuable night on record; her job is to say WHICH half of that
+sentence dominated, with numbers.

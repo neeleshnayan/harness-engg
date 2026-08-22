@@ -476,6 +476,16 @@ Donna's: CHECK date -u BEFORE DATING ANYTHING.**
   the paper simulator). Ed's fitness: 1 vs 3–5 target, blocker NAMED —
   next cycle goes where the data is new.
 
+### DECIDED (by the CEO, ~23:30Z) — TOKENS ARE THE CURRENCY
+
+- Grace gains the standing **TOKEN LEDGER** (meter with value line, the
+  waste hunt, one improvement per dispatch, addressed to CEO + chair). The
+  frame is hers already: cheapest TRUE VERDICT per token, never smallest
+  spend — and one line when tokens are not what binds. Chair reciprocals
+  recorded (solicit her input at dispatch design; honest token recording;
+  the named levers handed over for pricing). First ledger lands with her
+  next dispatch, reading tonight's ~2.5M-token record.
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT
