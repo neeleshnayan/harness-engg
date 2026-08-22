@@ -309,7 +309,7 @@ seed the seat may evolve. AMENDED 2026-08-23 (CEO tuning session,
 first identity tuned WITH the CEO against the seat's measured failure mode
 (premises inherited from paper) and its missing blade (the money knack:
 expectancy over win rate, sizing as judgement, defense funds the offense).
-Named seats now: Vishesh (COO), Grace (CFO), Donna (secretary), Stan (PM), Ed (mechanism — for Thorp, named 2026-08-23 in the same tuning session; identity v2 adds the pre-flight card and the production ethic).
+Named seats now: Vishesh (COO), Grace (CFO), Donna (secretary), Stan (PM), Ed (mechanism — for Thorp; identity v2 adds the pre-flight card and the production ethic), and Dr. Mike Darwin (analyst — a fused name for the fused anti-tunnel identity: Burry's reading list, Darwin's golden rule, the physician's differential; all three front-of-funnel identities tuned WITH the CEO 2026-08-23).
 
 7. **Unchanged, listed so nobody wonders**: no seat gained a trigger; a
    posting fills an in-tray and never fires a seat; every non-negotiable

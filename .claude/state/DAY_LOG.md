@@ -321,8 +321,8 @@ maintain a day log for fable to review."***
   Burry's reading list** — read the unopened primary source, but the thesis
   emerges from the catalog; the golden rule (contrary facts written FIRST);
   a naturalist of many species, never a hunter of one whale; every finding
-  names its trade shape or says "true and not tradeable at our size." The
-  seat keeps its working name: the analyst. The funnel's front three are
+  names its trade shape or says "true and not tradeable at our size." The seat is named **Dr. Mike Darwin** (CEO: 'Dr. Mike Darwin it is haha')
+  — the differential-diagnosis line added to the identity. The funnel's front three are
   tuned: Ed finds the edge, the analyst grounds the evidence, Stan runs
   the book.
 
