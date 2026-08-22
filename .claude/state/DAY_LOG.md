@@ -65,6 +65,48 @@ November and 7 in July, a 20.9× swing, which retires the premise of the 8-hour
 corpus extension the mechanism requested and the CEO approved. Entry 14 CLOSED
 (8 names at N=20, 0.0% of days ≥30).
 
+### THE NIGHT SHIFT, SECOND HALF — the funnel turned over in one night
+
+**RETIRED, honestly**: the insider lead failed its own pre-registration at
+double the sample (UNSUPPORTIVE — placebo z FELL as n doubled; the 10b5-1
+flag does not exist pre-2023 so "discretionary" was a no-op for 7 of 10
+years). Zero market sessions spent. `docs/research/INSIDER_EXTENSION_RESULT_
+2026-08-22.md`. The pre-filing run-up it surfaced (−7.7%/yr, t −8.93 —
+insiders sell into strength) is the biggest number in the study and rewrites
+placebo methodology here: non-overlapping ≠ null, and NW understates ~2.5×.
+
+**PROPOSED, the same hour**: the mechanism's **Entry 20** — scheduled-
+announcement liquidity premium, its FIRST proposal to reach the belt in five
+cycles. Signature prediction passed (payment scales with inventory risk,
+vol-normalised, t +3.37). With the adversary blind NOW, alongside its
+premia-sufficiency challenge (routed to the adversary despite TIGHTENS — the
+COO's precedent: judging premia outside v5 is a loosening's shape).
+
+**GRACE v0.2**: the cost benchmark is repairable BACKWARDS — historical SIP
+NBBO free on our existing key, chair re-verified. Two of five preconditions
+are simulation-only (`ALPACA_PAPER=true`, converging with the riskofficer's
+mock-broker finding). She WITHDREW her own D4 and RETRACTED her own
+second-pen call: merge throughput binds, not authorship. Meter corrected to
+10.45M tokens / 55 runs; the missing killed-builder runs recorded
+retroactively (d8, d11 — d11 with real figures). Her EVOLVE applied to her
+seat file — the contract's first accepted amendment.
+
+**MERGED**: builder D12 (KryptonPay `14fb5605`) — Grace's desk in the exec
+row beside Vishesh, the room fits its column at every width, dead-spine
+chips honest. The spine gained `allocation_review → cfo` (chair,
+one line + restart, telemetry 11 seats, NAV verified $1,885.74).
+
+**IN FLIGHT at last update**: adversary (Entry 20 blind) · COO triage #5
+(the ≥50 trigger FIRED at 52) · validator (three settling measurements: the
+G2-vs-R27 heterogeneity test, the 38× time-of-day cut, the premia-inequality
+proof-or-counterexample) · metrics builder (D13, still building).
+
+**CHAIR-OWED, queued**: premia-menu pass (entries 17/19/20 unregistered) ·
+API-card additions (SEC submissions endpoint; foreign-issuer names; the
+quarterly-placebo warning) · D11 v2 narrow repair brief (after metrics
+builder) · guard v1.3 · THE CLEANUP (`dce47670`) · the cfo placement
+sentence in the constitution.
+
 ### THE NIGHT SHIFT — running record (Fable, updated live)
 
 **Landed and fully resolved (verify → file → record → STATE → BINDS, all
