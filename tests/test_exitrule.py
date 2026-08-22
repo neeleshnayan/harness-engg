@@ -208,21 +208,85 @@ def test_an_overridden_rule_is_not_coverage():
     assert "overridden" in out["uncovered"][0]["why"]
 
 
-def test_a_superseded_rule_is_not_coverage():
-    """The superseded copy stays in the log — that is the point — but the
-    revision governs, and if the revision is also dead nothing covers this."""
+def test_a_REVISED_rule_IS_still_coverage():
+    """A CORRECTION TO THE REVIEW'S OWN REPAIR SPEC, measured against the fold.
+
+    K2's stated repair was "filtered on not-superseded / not-triggered /
+    not-overridden". The first of those three is wrong and shipping it would
+    have introduced a new defect.
+
+    `_fold` keeps exactly ONE entry per (strategy, symbol, kind) and sets
+    `superseded=True` on the SURVIVOR when an earlier commitment existed. The
+    flag means "this key has been REVISED"; the rule carrying it is the
+    current, governing one, `enforce()` does not skip it, and the fold's own
+    comment says re-committing exists so a rule CAN FIRE AGAIN. Filtering on it
+    would make the one mechanism for restoring a fired rule invisible to this
+    report — an operator who correctly re-committed would see the position
+    still flagged, with no way to clear it.
+    """
+    store = FakeStore([
+        _set(strategy_id="s1", symbol="ABC", kind="loss_pct", threshold_pct=10),
+        _set(strategy_id="s1", symbol="ABC", kind="loss_pct", threshold_pct=20),
+    ])
+    rules = ExitRules(store).active()
+    assert len(rules) == 1 and rules[0]["superseded"] is True,         "the fold's shape is the premise of this test"
+    out = ExitRules(store).check(
+        [{"symbol": "ABC", "unrealized_pnl_pct": -1.0}],
+        holdings=[{"strategy_id": "s1", "symbol": "ABC", "qty": 1,
+                   "usd_value": 100.0}])
+    assert out["uncovered"] == [], out["note"]
+    assert out["rules_not_live"] == []
+
+
+def test_re_committing_a_FIRED_rule_restores_its_coverage():
+    """The discriminating case, and the reason the flag must not be a filter.
+
+    A rule fires, the proposal ages out, the operator re-commits it. The fold
+    clears `triggered_at` and sets `superseded`. If `superseded` blocked, the
+    position would stay reported as uncovered forever with no way back.
+    """
+    store = FakeStore([
+        _set(strategy_id="s1", symbol="ABC", kind="loss_pct", threshold_pct=10),
+        _triggered(strategy_id="s1", symbol="ABC", kind="loss_pct",
+                   at="2026-08-20T08:00:00+00:00"),
+        _set(strategy_id="s1", symbol="ABC", kind="loss_pct", threshold_pct=10,
+             note="re-commitment after the proposal expired"),
+    ])
+    rule = ExitRules(store).active()[0]
+    assert rule.get("triggered_at") is None and rule["superseded"] is True
+    out = ExitRules(store).check(
+        [{"symbol": "ABC", "unrealized_pnl_pct": -1.0}],
+        holdings=[{"strategy_id": "s1", "symbol": "ABC", "qty": 1,
+                   "usd_value": 100.0}])
+    assert out["uncovered"] == []
+
+
+def test_the_live_INTC_rule_still_leaves_INTC_uncovered_by_OWNERSHIP():
+    """The review attributed INTC to supersession; the correct mechanism is the
+    ownership key.
+
+    The live `wiring_verification_2026_08_18` INTC rule carries
+    `superseded: true` and IS the governing rule for its key. It still does not
+    cover the post-reconciliation holding, because that holding sits in
+    `discretionary` and the rule cannot be executed against it. Same verdict as
+    the review, reached by the mechanism that is actually true — which matters,
+    because the other mechanism would have been wrong in every other case.
+    """
     store = FakeStore([
         _set(strategy_id="wiring_verification_2026_08_18", symbol="INTC",
              kind="gain_pct", threshold_pct=0.5),
         _set(strategy_id="wiring_verification_2026_08_18", symbol="INTC",
              kind="gain_pct", threshold_pct=0.5, note="re-commitment"),
-        _overridden(strategy_id="wiring_verification_2026_08_18", symbol="INTC",
-                    kind="gain_pct", at="2026-08-19T00:00:00+00:00",
-                    reason="test artifact"),
     ])
+    assert ExitRules(store).active()[0]["superseded"] is True
     out = ExitRules(store).check(
-        [{"symbol": "INTC", "unrealized_pnl_pct": 0.2, "value_usd": 144.90}])
+        [{"symbol": "INTC", "unrealized_pnl_pct": 0.2}],
+        holdings=[{"strategy_id": "discretionary", "symbol": "INTC",
+                   "qty": 1.608762, "usd_value": 144.90}])
     assert [u["symbol"] for u in out["uncovered"]] == ["INTC"]
+    assert "wiring_verification_2026_08_18" in out["uncovered"][0]["why"]
+    # ...and it is NOT reported as a dead rule, because it is not one.
+    assert out["rules_not_live"] == []
 
 
 def test_a_rule_on_another_strategy_does_not_cover_this_holding():

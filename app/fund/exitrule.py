@@ -384,30 +384,41 @@ def _enforce_note(raised: list, skipped: list, failed: list,
     return "; ".join(bits)
 
 
-#: An exit rule that has been SUPERSEDED, has already TRIGGERED, or has been
-#: explicitly OVERRIDDEN is a record of a decision. It is not a control, and it
-#: will never fire again — ``enforce()`` skips it and ``evaluate()`` is not even
-#: consulted for it. Coverage that counts one is coverage that does not exist.
+#: An exit rule that has already TRIGGERED, or has been explicitly OVERRIDDEN,
+#: is a record of a decision. It is not a control and it will not fire again:
+#: ``enforce()`` skips both (see the two ``skipped.append`` branches). Coverage
+#: that counts one is coverage that does not exist.
 #:
 #: Measured, on the live rule set, 2026-08-22 (adversary review of builder D11,
 #: finding K2 — the loosening that killed the diff): the coverage block reported
-#: $674.10 uncovered against $1,165.44 actually uncovered, and all three of the
-#: hidden positions were hidden by exactly these three flags —
+#: $674.10 uncovered against $1,165.44 actually uncovered —
 #:   GLD  $179.70  machinery-test loss_pct, triggered 2026-08-20T08:01:26
 #:                 (on the phantom mark) AND overridden 2026-08-20T11:00:13
-#:   INTC $144.90  machinery-test gain_pct, overridden 2026-08-17T17:03:56,
-#:                 plus a SUPERSEDED wiring_verification rule
+#:   INTC $144.90  machinery-test gain_pct, overridden 2026-08-17T17:03:56
 #:   SPY  $166.74  a live rule, but on a strategy that would no longer hold it
-#: A dead rule scored as a live control, on precisely the positions the block
-#: exists to make visible.
+#:
+#: ``superseded`` IS DELIBERATELY NOT IN THIS TEST, and that is a correction to
+#: the review's own repair specification, which asked for "not-superseded /
+#: not-triggered / not-overridden". Measured against the fold rather than
+#: assumed: ``_fold`` keeps exactly ONE entry per (strategy, symbol, kind) and
+#: sets ``superseded=True`` on the SURVIVOR when an earlier commitment existed.
+#: The flag means "this key has been REVISED"; the rule carrying it is the
+#: current, governing one. ``enforce()`` does not skip it, and the fold's own
+#: comment on EXIT_RULE_TRIGGERED says re-committing exists precisely so a rule
+#: CAN FIRE AGAIN — a re-commitment always sets this flag, so filtering on it
+#: would make the one mechanism for restoring a fired rule invisible to the
+#: coverage report, and an operator who correctly re-committed would see the
+#: position still flagged with no way to clear it. Verified by folding two SETs
+#: on one key: n=1, threshold=the revision, superseded=True.
+#:
+#: The INTC case the review attributed to supersession is still reported
+#: uncovered — by the OWNERSHIP key. Its live ``wiring_verification`` rule
+#: belongs to a strategy that does not hold the position.
 def _rule_is_live(r: dict[str, Any]) -> bool:
-    return not (r.get("superseded") or r.get("triggered_at")
-                or r.get("overridden_at"))
+    return not (r.get("triggered_at") or r.get("overridden_at"))
 
 
 def _why_not_live(r: dict[str, Any]) -> str:
-    if r.get("superseded"):
-        return "superseded"
     if r.get("triggered_at"):
         return f"already triggered at {r.get('triggered_at')}"
     if r.get("overridden_at"):
