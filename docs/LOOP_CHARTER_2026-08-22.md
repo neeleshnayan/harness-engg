@@ -5,9 +5,11 @@
 goal become the world's top hedge fund at $2k [cash is just relative, its how
 we run the business that matters]."**
 
-**Status: the chair's draft. Routes to Grace (the clock) and Vishesh (what
-cannot be taken back) for `## WHERE I DIFFER` at their next dispatches —
-decisions are provisional, and a charter is the largest decision of all.**
+**Status: RATIFIED by the CEO 2026-08-22 ("Agree"), same day as drafted.
+Still routes to Grace (the clock) and Vishesh (what cannot be taken back) for
+`## WHERE I DIFFER` at their next dispatches — ratification makes it binding,
+not beyond question; decisions are provisional, and a charter is the largest
+decision of all. A surviving disagreement produces a dated amendment.**
 
 ---
 
