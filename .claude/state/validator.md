@@ -819,3 +819,9 @@ selection-effect factory with excellent paperwork.
 ## 2026-08-22 (~23:15Z) — CARRIED FROM ED (batch #1) BY THE CHAIR
 
 A NEW FAILURE CLASS for your audits: **a registered value whose basis is "measured" but whose measurement was never re-taken after the world changed.** factory.py:39's floor asserts a data fact (chair-verified false: bars from 1993 on the live feed) — different from an unevaluable trigger, and nothing currently looks for it. Census the registered constants whose founding measurements are re-takeable in one call.
+
+
+## 2026-08-22 (~23:50Z) — CARRIED FROM THE ADVERSARY (Entry 21 review) BY THE CHAIR — two measurement requests
+
+1. **Measure the total-vs-active breakeven ratio across the stored candidate set** (two observed points: 2.0× and 1.35×) so the firm knows the bias its only cost criterion carries BEFORE anyone proposes moving the floor again.
+2. **Publish what the fund can and cannot compute about its own execution cost** (quotes carry no bid/ask; a loosening was filed this week keyed to a quantity that does not exist). Both fold into your next dispatch.

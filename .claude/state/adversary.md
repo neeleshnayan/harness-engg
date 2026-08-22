@@ -419,3 +419,21 @@ WHOLE BRANCH SURVIVES (56d450a → b6ea612); both my D17 kills CLOSED BY EXECUTI
 - **MY OWN NEAR-MISS: I almost killed on the census hole.** Wrong — the runtime defect is fixed and verified; the residual is $0 today; a false KILL costs five surviving items + two verified repairs. **Weigh the residual's money before promoting it to a verdict.**
 - LIVE FACTS: no /fund/orders collection endpoint (404 — use /fund/orders/pending etc.); bash /tmp and python \tmp are DIFFERENT dirs on this host — write probes to the scratchpad absolute path.
 - Kills unchanged; D17 items 3+6 now REPAIRED-AND-VERIFIED. Fitness: verdicts right in both directions, two SURVIVES on execution this dispatch.
+
+
+## 2026-08-22 (~23:50Z) — STATE from run-adversary-entry21 (Entry 21 + floor challenge), appended by the chair
+
+VERDICTS: KILL (Entry 21 as ALPHA/counterparty) / KILL (floor challenge as filed). Zero containers were ever spent on the candidate — the chain's cheapest kill yet.
+
+- **NEW TOP ATTACK for every event-study candidate: PLOT THE EVENT MASK AGAINST TRADING-DAY-OF-MONTH FIRST.** Entry 21's PRE mask was 0.89-0.96 at tdom 3-5 and 0.004 at rdom -4..-6 — long duration through every month-end, 99.6% of the time. Two designs price it: tdom FE (coef -14.80→-9.16, t -1.66; R²(PRE|tdom)=0.419 so not collinearity) and the MATCHED-CALENDAR CONTROL (same tdom window in event-free months; 32% survives, t -0.82). A tdom-only rule earned +4.82 of +6.00.
+- **THE MATCHED-CALENDAR CONTROL IS THE REUSABLE INSTRUMENT** (scratchpad/adv21/matched.py): cheaper and more legible than FE, answers the collinearity objection.
+- **A SHIFT/RANDOM-ANCHOR PLACEBO CANNOT REJECT A CALENDAR ALTERNATIVE**: shifted anchors are FLAT in day-of-month by construction — 0/300 can be honest AND a null of the wrong hypothesis. Verified both halves here.
+- **CHECK WHICH LADDER MEMBER WAS OMITTED**: the proposal's 30/20/10/7/5/2y ladder omitted the 3-YEAR — the counterexample (tdom 6, biggest pre-window move; 7y at tdom 19 is positive). The ladder sorted on calendar position, not duration.
+- **MONOTONICITY IN A TRENDING COVARIATE = A TIME EFFECT**: size monotonicity was global-monotone, within-year reversed, and GONE under within-(year×term) demeaned terciles. Demean within the cell before ranking.
+- **A FULL-SAMPLE BREAKEVEN IS AN AVERAGE OVER ERAS — SPLIT IT**: 37.3 bps (2008-13, in-sample vs the paper) vs 8.7 post-2013 / 7.6 recent, under the 10.0 floor. Era-split breakeven is a standing check now.
+- **THE PUBLISHED MECHANISM'S OWN SHAPE IS A FREE TEST**: Lou/Yan/Zhang is dip-AND-RECOVER on the 2-year; here post-auction = 0.0 bps (drift, not concession) and the 2y/5y/7y windows move the WRONG way. Fetch the paper; run its flagship statistic.
+- **PIT ARITHMETIC**: a lead ≥5 CALENDAR days does not cover a 5-SESSION window (decision close is 8-12 calendar days out; 89% of admitted events set weights pre-announcement). Count sessions, convert, compare. Mitigated economically by the published tentative schedule — but the label "PIT-clean" was false as specified.
+- **FIVE HONEST NEGATIVES said loudly**: placebo suite honest (0/120 off-cycle); w_hi=0.600 genuinely unfitted (realised weights 0.3335/0.3333/0.3332); pre=5 unfitted; **the EW-daily-rebalance attack found only 0.43pp — its first empty result**; FOMC not a confound (PRE under-represented in FOMC windows).
+- FLOOR-CHALLENGE kill grounds, chair-re-verified: tca.py:318-326 excludes latency drift (audit 8b863152) — the premise cited a CLOSED defect; /fund/market/quotes has NO bid/ask → half-spread unmeasurable; breakeven basis is total_return (gate.py:505) with measured 1.35-2.0× bias → 10→3 is an effective ~1.5 bps true-edge floor; the remedy does not rescue entry 23; "four candidates" is TWO in its own document. **Always run the predicate over the proposer's own sample.**
+- LIVE FACTS: bars source yahoo; EDV from 2008-01-29; fomc_dates.json (155 FOMC statement dates 2008-26) cached in adv21/ — reusable for any macro overlay. Fast harness: adv21/*.py, full base run <1s on cached data.
+- Kills on record: + ENTRY-21 alpha claim, breakeven-floor challenge. Fitness: two kills AND five loudly-reported failed attacks on the same artifact, including the first empty result for my own top standing attack.

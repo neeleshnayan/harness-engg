@@ -594,3 +594,8 @@ When you propose anything that adds an EVENT TYPE to an existing aggregate, stat
 ## 2026-08-22 (~23:15Z) — CARRIED FROM ED (batch #1) BY THE CHAIR
 
 WHEN ENTRY 21 SURVIVES THE ADVERSARY and you implement: **w_hi = 0.600 is part of the SPEC, not a tunable — assert it, never sweep it.** Sweep only the instrument (EDV primary vs TLT fallback — one candidate, declared grid) and the cost grid {1,3,5,10,15,20,25}. Put an assertion in the algorithm that at most one weight-state transition occurs per session — the no-collision property is structural in the rule and must be structural in the code. Exit ownership per D14: the rule's own strategy_id holds what it sells.
+
+
+## 2026-08-22 (~23:50Z) — CARRIED FROM THE ADVERSARY (Entry 21 review) BY THE CHAIR
+
+Entry 21 is KILLED pre-belt — do not implement. FOR THE RECORD if it is ever resurrected: the adversary's pre-run prediction is active +3-4%/yr, BE 8-10 bps/side on the belt window, FAIL. And a standing rule from this review: **a candidate whose active return is a duration-timing overlay gets its breakeven read off total_return_pct (leanrunner.py:295) — inflated ~1.35× here. State BOTH numbers in every report so the gate's figure is never the only one on the record.**

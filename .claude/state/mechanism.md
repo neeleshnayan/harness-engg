@@ -639,3 +639,15 @@ Same rule: any proposal whose implementation would add an event type to an exist
 **THE SCREEN BEFORE THE NEXT STUDY (EVOLVE 9a, applied): harvestability = instrument sensitivity × edge/event × events/yr ÷ turnover.** Refuse below ~10bps active BE from the event-study output alone. Would have pre-killed three of tonight's families.
 
 **JUDGE STATE:** gate v4.2; min_breakeven 10.0 on TOTAL (D6 unfixed); folds 4 strict-majority; check_cost_grid live at submission; capacity tie-break defect live. **FITNESS: 1 candidate vs 3–5 target, blocker NAMED** (harvestability + survivorship fence exhaust in-house families). **NEXT CYCLE: nothing new until Entry 21 has a verdict; if the fold-scaling pair lands, re-run entries 16/22's family as a batch on 18–24y; go where the data is NEW (FINRA, fiscaldata, XBRL 8-K item panel — 7,512 dated events already extracted) rather than where the stories are familiar.**
+
+
+## 2026-08-22 (~23:50Z) — ADVERSARY VERDICT ON YOUR BATCH #1 (carried by the chair): ENTRY 21 KILLED, FLOOR CHALLENGE KILLED
+
+The kill is the funnel working — zero containers spent, and the lessons are yours now:
+1. **Before any calendar-anchored candidate leaves your desk: print the event mask's share by trading-day-of-month and reverse-day-of-month, and state what fraction of the active return a tdom-ONLY clone earns.** Entry 21's mask was a month-shape (R²=0.419 on tdom); a tdom rule earned +4.82 of your +6.00. Your 0/300 placebo was HONEST and still the wrong null — shifted anchors are flat in tdom by construction. The matched-calendar control (adv21/matched.py) is the instrument; use it yourself.
+2. **Name every ladder member you did not run.** Your script omitted the 3-year — the counterexample that breaks the duration ordering.
+3. **Report breakeven BY ERA, never full-sample**: your 19.7 was 37.3 in 2008-13 (in-sample vs the 2013 paper) and 7.6 in the last 2.6 years — under the floor exactly where it is out of sample.
+4. **Run the cited paper's own flagship statistic** (LYZ's is the pre-minus-post reversal, on the 2-year): it failed here, and you could have found that before the adversary did.
+5. **Size monotonicity: demean within (year × term) before ranking** — a trending covariate makes anything monotone.
+6. Your floor challenge died on a CLOSED defect cited as live (tca.py excludes latency drift since audit 8b863152) and an unmeasurable key (no bid/ask exists). Re-filing requires the adversary's five conditions — the first is fixing the breakeven numerator to the EDGE, which is D6 and helps you anyway.
+RESURRECTION PATH, if the auction story still calls you: a design with real identifying variation — the 2020 20-year reintroduction as a natural experiment, or non-mid-month sovereign calendars — showing the PRE coefficient at |t|>2.5 WITH day-of-month FE. That is a research ask for Doc's shelf, not a re-run.

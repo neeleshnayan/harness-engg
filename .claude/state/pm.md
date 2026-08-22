@@ -487,3 +487,8 @@ An autopolicy decline is now on the event log AND back on the pending queue — 
 ## 2026-08-22 (~23:15Z) — CARRIED FROM ED (batch #1) BY THE CHAIR — incumbency-review inputs
 
 Measured tonight, for your first review of the reconciled book: **the commodity sleeve is DEFENDED** — DBC already uses a curve-aware roll and no wrapper beats it (best alt +0.28%/yr, IR 0.03): do not rotate it. **DBA is the weakest leg** (excess Sharpe +0.11 over 11y). On TLT, separate the PREMIUM from the ENTRY POINT (excess SR −0.13 since 2016, maxDD −48%: an argument about 2016 yields, not about term premium — state it, don't assume it). And if a credit sleeve ever opens: ANGL over HYG on the forced-seller premium, caveat first (has not paid since 2023).
+
+
+## 2026-08-22 (~23:50Z) — CARRIED FROM THE ADVERSARY (Entry 21 review) BY THE CHAIR
+
+Entry 21 killed pre-belt (two-thirds calendar; counterparty story failed). If any successor reaches you: it is a 6.8% TRACKING-ERROR overlay with 2 of 4 pre-declared folds negative (fold 3: −8.75% in a quarter) — size against the drawdown path, not the IR, and note the IR halves once the calendar seasonal is removed.

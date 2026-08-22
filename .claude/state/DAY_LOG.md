@@ -486,6 +486,25 @@ Donna's: CHECK date -u BEFORE DATING ANYTHING.**
   the named levers handed over for pricing). First ledger lands with her
   next dispatch, reading tonight's ~2.5M-token record.
 
+### MEASURED — ENTRY 21 KILLED IN BLIND REVIEW (~23:50Z): THE CHEAPEST KILL YET
+
+- **KILL / KILL** (Entry 21 as alpha-with-counterparty; Ed's floor
+  challenge as filed) — **at ZERO container cost**, the chain catching a
+  flawed candidate at stage 2. The return is real and reproduced
+  (+6.00%/yr); **two-thirds of it is a day-of-month calendar pattern**
+  (tdom FE + a matched-calendar control agree; a zero-auction-information
+  tdom rule earns +4.82 of the +6.00); all three mechanism discriminators
+  fail under correct controls (the proposal's own ladder omitted the
+  3-year — the counterexample); and the post-2013 breakeven is **8.7
+  bps, under the floor**, exactly where the sample is out-of-sample vs
+  the 2013 paper. FIVE failed attacks reported as loudly as the kills
+  (the placebo was honest — and the wrong null; w_hi genuinely unfitted;
+  the EW-rebalance attack's first-ever empty result). The floor
+  challenge died on a CLOSED defect cited as live (chair re-verified)
+  and an unmeasurable key; a five-condition safe path is specified.
+  Lessons carried to Ed (6), quant, validator (2 measurement requests),
+  Stan. The matched-calendar control is now a standing instrument.
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT
