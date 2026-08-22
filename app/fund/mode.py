@@ -699,6 +699,34 @@ def assert_connector_permitted(spec: ModeSpec, connector: Any) -> None:
             f"to (see VENUE_FORGERY_RECEIPT)."
         )
 
+    # AND THE NAME IS NOT ENOUGH, which is the point of this whole module.
+    #
+    # Above this line the check is a string comparison against an attribute the
+    # object declares about ITSELF. The adversary handed it a bare class with
+    # `name = "alpaca"` and it was ACCEPTED (review of builder D11, K5) — so a
+    # guard written to stop a self-declared label from lying was itself
+    # deciding on a self-declared label. That is the VENUE_FORGERY_RECEIPT
+    # defect at the level of the guard against it.
+    #
+    # For the two modes that reach a REAL BROKER, the connector must be the
+    # real class. Nothing a fake declares can satisfy `isinstance`.
+    #
+    # Only for real_broker modes, deliberately: the simulated venue is where
+    # tests legitimately substitute their own doubles, and "paper" cannot move
+    # money by construction. The asymmetry is the whole design — strictness
+    # where the money is.
+    if spec.real_broker:
+        from app.fund.connectors.alpaca import AlpacaConnector
+        if not isinstance(connector, AlpacaConnector):
+            raise VenueNotPermitted(
+                f"mode {spec.mode.value!r} reaches a real broker, and the "
+                f"connector offered is a {type(connector).__name__} declaring "
+                f"name={str(name)!r}. A name is a claim; the class is a fact. "
+                f"Refusing: this is exactly the substitution the "
+                f"VENUE_FORGERY_RECEIPT records happening in the other "
+                f"direction (a paper fill wearing an alpaca label)."
+            )
+
 
 def report(store: Any = None, env: Optional[dict] = None) -> dict[str, Any]:
     """Everything a human or a UI needs to know about the fund's mode."""

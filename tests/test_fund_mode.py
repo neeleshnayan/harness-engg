@@ -300,9 +300,34 @@ class TestVenueIncapability:
             m.assert_connector_permitted(m.MODES[m.FundMode.TEST], Anonymous())
 
     def test_the_right_connector_passes(self):
+        from app.fund.connectors.alpaca import AlpacaConnector
+
         m.assert_connector_permitted(m.MODES[m.FundMode.TEST], self.Fake("paper"))
         m.assert_connector_permitted(m.MODES[m.FundMode.ALPACA_PAPER],
-                                     self.Fake("alpaca"))
+                                     AlpacaConnector(paper=True))
+
+    def test_a_fake_declaring_the_broker_name_is_REFUSED_for_a_real_venue(self):
+        """Adversary review of builder D11, K5, second half.
+
+        The check above this one is a string comparison against an attribute
+        the object declares about ITSELF, and the adversary handed it a bare
+        class with `name = "alpaca"` and was ACCEPTED. A guard written to stop
+        a self-declared label from lying was deciding on a self-declared label.
+        For the modes that reach a real broker the class is now checked, and
+        nothing a fake declares can satisfy isinstance.
+        """
+        with pytest.raises(m.VenueNotPermitted) as e:
+            m.assert_connector_permitted(m.MODES[m.FundMode.ALPACA_PAPER],
+                                         self.Fake("alpaca"))
+        assert "A name is a claim; the class is a fact" in str(e.value)
+
+    def test_the_simulated_venue_still_accepts_a_double(self):
+        """The asymmetry is deliberate: strictness where the money is. Test
+        mode is where substituting a double is legitimate, and 'paper' cannot
+        move money by construction. If this ever fails, the class check has
+        been applied too widely and every fake pipeline in the suite pays."""
+        m.assert_connector_permitted(m.MODES[m.FundMode.TEST],
+                                     self.Fake("paper"))
 
 
 class TestNoSilentSimulator:
