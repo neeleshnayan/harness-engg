@@ -71,6 +71,71 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+#: The cost parameter every algorithm here reads and every cost sweep varies.
+#: Named once: `leanrunner.breakeven_cost` defaults to the same key and
+#: `submit_backtest` fills it from the fund's own cost assumption when a caller
+#: leaves it out.
+COST_PARAM = "slip"
+
+
+def check_cost_grid(grid: Any,
+                    criteria: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+    """Can this grid answer the cost question the gate is going to ask it?
+
+    THE MEASURED REASON, and it cost 96 minutes of containers to learn. Entry 20
+    (candidate `144387901688`) declared a cost grid of 1/3/5 bps and was judged
+    against a 10 bps floor. Every point stayed profitable, so the sweep reported
+    no crossing, and gate v4.2 now fails exactly that — with the only sentence
+    the evidence supports, "you did not test far enough". By then the candidate
+    has spent its entire engine budget producing an answer the bar cannot use.
+    The same sentence costs nothing here, and the remedy is one grid point.
+
+    NARROW ON PURPOSE, in three directions:
+
+      * It fires only when the grid DECLARES a cost parameter. A grid that
+        sweeps something else entirely still fails the gate ("cost robustness
+        was never measured"), which is a different, older defect and not this
+        one's business to pre-empt.
+      * It does not require two distinct cost points. One point priced AT OR
+        ABOVE the floor and still profitable genuinely establishes that the
+        breakeven is past the floor — it just cannot say where. The floor is
+        the question; the exact breakeven is not.
+      * It stands down when the criteria do not ask for a measured breakeven,
+        so re-judging against a historical bar that never had the requirement
+        is unaffected.
+
+    Returns a verdict rather than raising, so a caller can annotate instead of
+    refusing; ``submit`` refuses.
+    """
+    from app.fund.gate import CRITERIA, fmt_bps, max_tested_bps
+    c = {**CRITERIA, **(criteria or {})}
+    floor = c.get("min_breakeven_bps")
+    out: dict[str, Any] = {"adequate": True, "reason": None,
+                           "max_tested_bps": None, "floor_bps": floor}
+    if not c.get("require_breakeven_measured") or floor is None:
+        return out
+    values = (grid or {}).get(COST_PARAM) if isinstance(grid, dict) else None
+    if not values:
+        return out
+    widest = max_tested_bps(values)
+    if widest is None:
+        out.update(adequate=False, reason=(
+            f"the cost grid declares {COST_PARAM} values that do not read as "
+            f"numbers ({values!r}), so the sweep cannot price them and the "
+            f"{fmt_bps(floor)}bps cost floor cannot be answered"))
+        return out
+    out["max_tested_bps"] = round(widest, 4)
+    if widest < floor:
+        out.update(adequate=False, reason=(
+            f"this cost grid tests {COST_PARAM} only to {fmt_bps(widest)} bps "
+            f"and the gate's cost floor is {fmt_bps(floor)} — a candidate whose "
+            f"sweep never reaches the floor it is judged against has not been "
+            f"tested against it, and the gate will now say so after the "
+            f"containers have run. Add a grid point at or above "
+            f"{fmt_bps(floor)} bps and resubmit."))
+    return out
+
+
 class CandidateFactory:
     """Sweep, hold out, verify, judge — and remember the answer."""
 
@@ -110,6 +175,13 @@ class CandidateFactory:
         without it no report can ever say which kinds of reading pay.
         """
         self._lean().get_algorithm(algorithm)      # fail fast on a typo
+        # Fail fast on a grid that cannot answer the bar, for the same reason
+        # and in the same breath. Refusing here costs the submitter one extra
+        # grid point; refusing at the gate costs the whole engine budget first.
+        grid_check = check_cost_grid(grid)
+        if not grid_check["adequate"]:
+            from app.fund.leanrunner import LeanError
+            raise LeanError(grid_check["reason"])
         candidate_id = uuid.uuid4().hex[:12]
         with self._connect() as conn:
             with conn.cursor() as cur:

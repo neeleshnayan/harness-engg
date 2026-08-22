@@ -42,7 +42,7 @@ def test_a_clean_candidate_passes():
     out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
                    walkforward=GOOD_WALKFORWARD)
     assert out["passed"] is True, out["failures"]
-    assert out["gate_version"] == "v4.1"
+    assert out["gate_version"] == "v4.2"
     # Passing is not deployment, and the wording says so.
     assert "different claim from" in out["verdict"]
 
@@ -213,17 +213,154 @@ def test_an_unmeasured_cost_robustness_fails_rather_than_passes():
     assert any("never measured" in f for f in out["failures"]), out["failures"]
 
 
-def test_profitable_beyond_the_tested_range_is_not_treated_as_unmeasured():
-    """"Still profitable at every cost tested" IS an answer. Failing it would
-    punish the most robust possible result for not having a crossing point."""
+# --- v4.2: the floor that could not be reached -------------------------------
+#
+# The shape of a sweep that survived its whole cost grid, taken from the stored
+# summary of candidate 144387901688 (announcement_premium, "Entry 20") rather
+# than invented: `breakeven_bps: None`, the "still profitable" reason, and a
+# `tested_range` of raw slip FRACTIONS. Entry 20's grid was 1/3/5 bps against a
+# 10 bps floor, and it PASSED with zero failures.
+#
+# The fixture carries the reason VERBATIM, em-dash included, because the gate's
+# match is a substring test and a fixture that quietly simplifies the sentence
+# would stop testing the real one. (The stored copy in 144387901688 was checked:
+# the dash is intact. The gate matches only the ASCII prefix before it, so the
+# check does not depend on that.)
+
+def _survived_the_grid(*slips: float) -> dict:
+    return {"breakeven_cost": {
+        "parameter": "slip",
+        "breakeven": None,
+        "tested_range": [min(slips), max(slips)],
+        "reason": "still profitable at every cost tested — raise the range to "
+                  "find the limit"}}
+
+
+ENTRY20_SWEEP = _survived_the_grid(0.0001, 0.0003, 0.0005)
+
+
+def test_entry20s_grid_no_longer_certifies_a_floor_it_never_reached():
+    """THE REGRESSION. Candidate 144387901688 passed gate v4.1 with ZERO
+    failures on exactly this evidence: a 1/3/5 bps cost grid, all points
+    profitable, judged against `min_breakeven_bps: 10.0`.
+
+    A three-point grid stopping at 5 bps establishes breakeven > 5. The floor is
+    10. v4.1 wrote the string "beyond the tested range" into `checks` and
+    appended nothing — the register reading an absence as a pass, in the gate
+    whose founding lesson is that missing evidence fails.
+
+    Note the direction the old branch made invisible: the verdict would have
+    been identical had the true breakeven been 7 bps.
+    """
+    out = evaluate(_good_result(), GOOD_HOLDOUT, ENTRY20_SWEEP,
+                   walkforward=GOOD_WALKFORWARD)
+    assert out["passed"] is False, "v4.1 passed this; v4.2 must not"
+    assert any("tested only to 5 bps and the floor is 10" in f
+               for f in out["failures"]), out["failures"]
+    assert any("widen the grid past the floor" in f for f in out["failures"])
+    # The string stays as the annotation it always was, and the evidence the
+    # verdict rests on is now visible rather than implied.
+    assert out["checks"]["breakeven_bps"] == "beyond the tested range"
+    assert out["checks"]["breakeven_max_tested_bps"] == 5.0
+
+
+def test_profitable_beyond_a_grid_that_DID_reach_the_floor_is_a_genuine_pass():
+    """The other half, and the reason this is not simply "fail the branch".
+
+    "Still profitable at every cost tested" IS an answer when the grid went past
+    the floor: a strategy priced at 20 bps and still making money has shown it
+    survives being twice as wrong about costs as the bar demands. Failing that
+    would punish the most robust possible result for not having a crossing
+    point — which was the correct instinct behind the v2 branch this replaces.
+    """
+    out = evaluate(_good_result(), GOOD_HOLDOUT,
+                   _survived_the_grid(0.0001, 0.0010, 0.0020),
+                   walkforward=GOOD_WALKFORWARD)
+    assert out["passed"] is True, out["failures"]
+    assert out["checks"]["breakeven_bps"] == "beyond the tested range"
+    assert out["checks"]["breakeven_max_tested_bps"] == 20.0
+
+
+def test_a_grid_stopping_exactly_ON_the_floor_passes():
+    """The boundary, pinned so it cannot drift either way. Tested TO 10 bps and
+    still profitable means the breakeven is past 10, which is what a floor of
+    10.0 asks. `<` not `<=`, matching every other floor in this file."""
+    out = evaluate(_good_result(), GOOD_HOLDOUT,
+                   _survived_the_grid(0.0001, 0.0010),
+                   walkforward=GOOD_WALKFORWARD)
+    assert out["passed"] is True, out["failures"]
+    assert out["checks"]["breakeven_max_tested_bps"] == 10.0
+
+
+def test_an_unreadable_tested_range_fails_rather_than_passes():
+    """A sweep that claims survival but will not say how far it looked has not
+    cleared anything. This is the same doctrine as the unmeasured breakeven one
+    test up: absence is never zero, and it is never a pass either.
+
+    DEFENSIVE, and stated as such rather than dressed up: today's
+    `breakeven_cost` always ships a `tested_range` alongside that reason, so
+    this branch is unreachable through the live producer. It guards the cases
+    that are not the live producer — a summary restored from the durable mirror,
+    and any future writer of that sentence. Failing closed is the only safe
+    default here, because the alternative is the exact silent pass v4.2 removed.
+    """
     out = evaluate(_good_result(), GOOD_HOLDOUT,
                    {"breakeven_cost": {
                        "breakeven_bps": None,
                        "reason": "still profitable at every cost tested — raise "
                                  "the range to find the limit"}},
                    walkforward=GOOD_WALKFORWARD)
-    assert out["passed"] is True, out["failures"]
-    assert out["checks"]["breakeven_bps"] == "beyond the tested range"
+    assert out["passed"] is False
+    assert any("does not say how far it tested" in f
+               for f in out["failures"]), out["failures"]
+    assert out["checks"]["breakeven_max_tested_bps"] is None
+
+
+def test_the_floor_comparison_is_not_made_on_a_rounded_figure():
+    """A display convention must not become a quiet loosening.
+
+    9.996 bps rounds to "10.0" at one decimal — the precision `breakeven_bps`
+    itself uses — so a grid stopping just short of a 10.0 floor would print as
+    having reached it. The comparison is on the raw float and the message keeps
+    the digits that make it true.
+    """
+    out = evaluate(_good_result(), GOOD_HOLDOUT,
+                   _survived_the_grid(0.0001, 0.0009996),
+                   walkforward=GOOD_WALKFORWARD)
+    assert out["passed"] is False
+    joined = " ".join(out["failures"])
+    assert "tested only to 9.996 bps" in joined, joined
+    assert "tested only to 10 bps" not in joined
+
+
+def test_the_verdict_says_which_return_scale_the_breakeven_is_on():
+    """Entry 20's total-return breakeven is 64.6 bps/side and its ACTIVE-return
+    breakeven — the alpha claim's own fragility — is 13.9. Reading the first as
+    the second overstates cost robustness by 4.6x.
+
+    The belt cannot currently produce the active figure (sweep points carry no
+    benchmark, and the one benchmark the candidate owns spans a different
+    window), so the gate LABELS the scale rather than computing a number it
+    would have to approximate. See the v4.2 note in gate.py.
+    """
+    out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
+                   walkforward=GOOD_WALKFORWARD)
+    assert out["checks"]["breakeven_basis"] == "total_return"
+    # A tested range is an answer too, and carries the same label.
+    assert evaluate(_good_result(), GOOD_HOLDOUT, ENTRY20_SWEEP,
+                    walkforward=GOOD_WALKFORWARD
+                    )["checks"]["breakeven_basis"] == "total_return"
+    # And it is NOT invented where nothing was measured. Labelling the scale of
+    # a measurement that never happened decorates an absence, which is the
+    # habit this criterion exists to break.
+    bare = evaluate(_good_result(), GOOD_HOLDOUT, None,
+                    walkforward=GOOD_WALKFORWARD)
+    assert "breakeven_basis" not in bare["checks"]
+    unswept = evaluate(_good_result(), GOOD_HOLDOUT,
+                       {"breakeven_cost": {"breakeven_bps": None,
+                                           "reason": "no cost sweep was run"}},
+                       walkforward=GOOD_WALKFORWARD)
+    assert "breakeven_basis" not in unswept["checks"]
 
 
 def test_an_unestimated_capacity_fails():
@@ -270,10 +407,14 @@ def test_the_version_records_which_bar_was_applied():
     verdict has to say which one it cleared — otherwise re-reading old passes
     under today's criteria silently rewrites history."""
     from app.fund.gate import CRITERIA_V1, GATE_VERSION
-    assert GATE_VERSION == "v4.1"
+    # v4.2 (2026-08-22) moved NO threshold and changed which candidates pass:
+    # the `min_breakeven_bps` floor became reachable, and Entry 20's evidence
+    # no longer clears it. Two different bars must never share one name, so the
+    # version moves even though `CRITERIA` is byte-identical to v4.1's.
+    assert GATE_VERSION == "v4.2"
     out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
                    walkforward=GOOD_WALKFORWARD)
-    assert out["gate_version"] == "v4.1"
+    assert out["gate_version"] == "v4.2"
     # v1 is kept intact so an old verdict remains interpretable.
     assert CRITERIA_V1["min_psr_pct"] == 50.0
     # v1 must state what it did NOT require, not merely omit it: `evaluate`
