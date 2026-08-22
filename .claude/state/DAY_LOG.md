@@ -65,6 +65,30 @@ November and 7 in July, a 20.9× swing, which retires the premise of the 8-hour
 corpus extension the mechanism requested and the CEO approved. Entry 14 CLOSED
 (8 names at N=20, 0.0% of days ≥30).
 
+### THE EXEC TABLE SETTLED THE CALCULATED-RISK DESIGN TO ONE DECIDABLE QUESTION
+
+The PM + riskofficer pair (CEO steer: calculated risk, living calibration)
+delivered two independent halves, then engaged. **They converged**: both agree
+NO real entry until three live controls are wired (unguarded resume,
+producerless integrity halt, venue-routes-nothing — three seats now line-exact
+on the last) AND until real fills exist, because every fill today is a
+simulator's. Each adopted the other's evidence VISIBLY — the PM took the
+envelope's exit-event-predates-entry and confidence-provenance checks and
+conceded a real pilot now is unsafe; the riskofficer took the PM's tuition cap
+as the bound that makes a blurry-gate confidence safe to size on. One
+sub-dispute resolved by better argument: the adversary DOES carry early size
+weight (KILL-floor-only would make size depend entirely on the worst-measured
+instrument, the gate).
+
+**THE ONE RESIDUAL, for the CEO — same fact, opposite valence:** is a SIM
+Tier-0 dress-rehearsal (full graduated path on paper, zero risk, validates the
+plumbing and de-risks the three blockers' wiring) a PRIORITY to dispatch now
+(PM) or a step to BOUND FIRST and sequence after the blockers (riskofficer)?
+Neither resolved it; the named disagreement is the deliverable. Natural
+pipeline it implies: CEO accepts the design → adversary passes the entry
+envelope (it is a LOOSENING, self-routed) → builder builds it → sim
+dress-rehearsal → wire 3 blockers → first REAL pilot.
+
 ### THE METRICS LAYER IS LIVE — and the record now has a clock
 
 **Builder D13 merged at `5bef3e2`** (chair re-ran the suite on the merged

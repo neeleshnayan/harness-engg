@@ -357,3 +357,29 @@ riskofficer's envelope memo (docs/riskofficer/RISKOFFICER_ENTRY_ENVELOPE_
 2026-08-22.md) and write WHERE I DIFFER - expect tension on the Tier-3 cap
 and on whether the adversary may carry ANY early size while the riskofficer
 holds all real entry behind three unwired controls.**
+
+## 2026-08-22 — WHERE I DIFFER on the riskofficer's envelope (exec-table engagement), appended by the chair
+
+VISIBLE UPDATES (adopted, not laundered): (1) CONCEDED "a pilot can go live
+NOW on a SURVIVES verdict" was wrong for REAL money — the three blockers
+(unguarded resume, producerless integrity halt, venue mislabel) are
+enforcement-layer evidence I lacked; my hard-floor set gains a FOURTH floor,
+no real entry while any blocker is open. (2) Adopted its check #4
+strengthened: the exit's SET event must predate the ENTRY EVENT by a governed
+margin, event-linked (not merely "exit exists"). (3) Adopted its check #2 as
+the provenance my dial lacked (confidence from a non-client source;
+missing→lowest tier or refuse).
+WHERE I HOLD (won by better argument, visibly): the adversary should carry
+early SIZE weight, not only the KILL floor. KILL-floor-only makes early size
+depend ENTIRELY on the gate at the moment it is measured worst (D=0.62) —
+that INVERTS the safety case. w_g=0.48 keeps a coin-flip gate from being the
+sole scaler; the adversary scales size only inside the small-tuition region
+the riskofficer's OWN envelope bounds, and Tier 3 is locked behind the GATE
+(D≥0.75), never the adversary.
+THE RESIDUAL, named and left open (same fact, opposite valence): the
+riskofficer frames sim as "bounds what is tunable" — bound it first. I frame
+the SIM Tier-0 pilot as the first affirmative deliverable — dispatch it NOW.
+We AGREE real entry waits for the three controls + real fills; we AGREE a sim
+Tier-0 run validates the plumbing at zero risk. We disagree ONLY on whether
+that sim pilot is a caveat or a priority. I say dispatch; he says bound first.
+The CEO sets the appetite inside the envelope.
