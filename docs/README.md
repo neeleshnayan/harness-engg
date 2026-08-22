@@ -27,6 +27,7 @@ is the fix rather than the bin.
 
 | doc | status | what it is |
 |---|---|---|
+| [FIRM_POLICY.md](FIRM_POLICY.md) | **soul** | **The firm's soul — the ~10 laws that hold across time, each earned by a dated scar. Five pages, hard, forever; the cap is the point. When the operating manual and this disagree, this wins and the manual is the bug. Read after GENESIS.** |
 | [FUND_GENESIS.md](FUND_GENESIS.md) | **canon** | **How this fund decides it is allowed to believe something.** The seven-stage workflow, each stage earned by a specific failure. Read this first; it explains why everything else is shaped the way it is. |
 | [SYSTEM.md](SYSTEM.md) | canon | How the whole thing works, end to end. |
 | [architecture.md](architecture.md) | canon | The harness architecture — event spine, projections, connectors, pipeline. |
