@@ -133,6 +133,42 @@ maintain a day log for fable to review."***
   "deployed under mandate since 08-19"; fence pre-mode-fix TCA) are the
   CEO's morning batch.
 
+### DECIDED (by the CEO, ~19:45Z, awake mid-study)
+
+- **R38 ACCEPTED**, verbatim: "Yes lets close the legacy else we can always
+  start with a fresh paper account (my goal was that our harness evolves this
+  thought process of learning to identify which portfolios and assets its
+  managing vs what some other system/human might have logged into the
+  account)". The PM is drafting the R39 plan NOW with the CEO's
+  **custody-attribution goal** built in ({fund-book / foreign / orphan}
+  classification that the controls read). Orders stage at the 2026-08-24
+  open (proposals expire in 120min — staging tonight would be waste), CEO
+  clicks each.
+
+### MEASURED — adversary batch 2 (SURVIVES / KILL / SURVIVES)
+
+- **Gate v4.2 ADVERSARY-CLEARED** (no loosening; refusal set proved
+  coextensive with the gate's failure set; its own sharpest kill hypothesis
+  honestly self-refuted against 41 stored verdicts). **MERGE DEFERRED ON
+  RAM** — 1.90GB free with the hazard builder heavy in flight; executes when
+  the slot frees. CONSEQUENCE: v4.2 revokes Entry 20's cost pass — **the
+  fund has zero clean gate passes, which is the honest state.** Repair
+  residuals ticketed (875936e9).
+- **COO filing-rule remedy KILLED** with a 27% false-approval demonstration
+  on his own sample (a quote of a QUESTION is not an approval); the finding
+  survived and was FIXED via the guarded path: **7 CEO-decided requests
+  approved as neelesh-via-cto with verbatim citations** (desk 104→97);
+  bd3c5232 + 9fb82050 stay open as genuinely his. CHAIR ERROR RECORDED: the
+  first sweep pass posted 7 approval events under TRUNCATED aggregate ids —
+  orphaned, inert, in the log; the redo used full ids. Lesson: the aggregate
+  id in the URL is the FULL id; the echo is the prefix.
+- **PDT challenge SURVIVES on web evidence** (all four dates verified;
+  Alpaca implemented 06-04, no phase-in) **with the null-field datum
+  STRUCK** — pattern_day_trader:null is paper-venue non-simulation
+  (compliance.py:25-32) and Alpaca deleted the fields 07-06. Retirement gate
+  = a POSITIVE live test, never an absent field. Bonus finding: fund.py:688
+  renders unreadable broker counts as diverges:false (absence as agreement).
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT

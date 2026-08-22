@@ -564,3 +564,8 @@ Your Entry 20 challenge is built (gate v4.2, with the adversary blind before mer
 ## 2026-08-23 — CARRIED FROM THE PM (run-pm-0908) BY THE CHAIR
 
 Before you report any belt number for a candidate the fund might deploy, **state the book size the run used and whether `honours_fractional()` returned True.** `announcement_premium` reads no fractional parameter, so every number so far is whole-share at $10M — harmless there, the whole result at $250. "Measured at $10M" and "deployable at $250" are two different measurements; never let one stand in for the other. R47 (fractional re-run at nav=250/500) is ticketed for you, sequenced behind the benchmark-population fix.
+
+
+## 2026-08-23 — CARRIED FROM THE ADVERSARY (batch 2) BY THE CHAIR
+
+Your active-breakeven method is now load-bearing in the gate's own version note (v4.2 records breakeven_basis and cites 64.6 total vs 13.9 active). Keep issuing the active number as a pre-run prediction — it remains the only check on a criterion that judges an alpha claim on a scale 4.6x too generous. And when v4.2 merges: Entry 20's re-run needs a slip grid point at/above 0.0010 or the submission 400s.

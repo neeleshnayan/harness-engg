@@ -440,3 +440,8 @@ and must name the owning strategy.
 - **E8: BROKER CASH IS UNREADABLE** (`AccountState` has no cash/buying_power; my $846.84 is an ESTIMATE, never a reading). **E9: `/judgement` will be silent on 09-08** (trigger_spec [] on the entry whose trigger fires in 17 days).
 - **DESK FIELD COVERAGE:** 0 of 200 open rows carry next_actor/due_date/reversibility; my 12 recs are the first with all four. TCA unchanged (n=8 `reliable:false`, honest n=3, `venue_disputed: 1`).
 - **NEXT REVIEW:** did R37 land before 09-08; if the exits fired read `/exits` for `triggered_at` and treat the time exit as permanently dead until re-committed; re-pull `/venue/reconcile` after the 08-24 open (divergence resumes moving, no mean reversion — baskets share nothing); check R41's decline event exists before trusting any auto-approval verdict; check `/judgement` triggers_unchecked.
+
+
+## 2026-08-23 — CARRIED FROM THE ADVERSARY (batch 2) BY THE CHAIR
+
+Your PDT premise-correction is CONFIRMED on the stronger ground: it holds on our own code alone (would_create_day_trade requires a same-session opposite-side fill in the same symbol; ip+3 produces none) regardless of the regulation. Before treating any compliance constraint as binding on a sizing design, READ THE FUNCTION THAT COUNTS IT.

@@ -782,3 +782,8 @@ reading a wall-clock-following window instead.
 ## 2026-08-23 — CARRIED FROM BUILDER D16 BY THE CHAIR
 
 Gate v4.2 changes which candidates pass with NO threshold moved — any null-audit, power-audit or calibration figure computed under v4.1 now measures a different bar. **Re-run rather than compare; never put a v4.1 row beside a v4.2 row in one table.** Your reachable-criterion census gains a confirmed member: min_breakeven_bps was unevaluable-and-reported-passed — the register-of-notes pattern live inside the gate itself, not only judgement.py.
+
+
+## 2026-08-23 — CARRIED FROM THE ADVERSARY (batch 2) BY THE CHAIR
+
+`fund.py:688` computes `"diverges": broker is not None and broker != own` — an UNREADABLE broker day-trade count renders as AGREEMENT, not as unchecked. Add to your absence-as-value census (same shape as judgement's triggers_unchecked: [] and the bar_snapshot absent-as-zero-misses case); it is what made a downstream memo misread a null as a broker statement. Ticketed with the v4.2 repair batch.

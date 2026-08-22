@@ -245,3 +245,8 @@ readiness matrix next round.
 **CHARTER DIFFERS FILED:** T1 cannot produce precondition-grade evidence (a replay is another simulator; contradicts P1's exception) — Phase 5, after the account funds; T0 to Phase 1 beside gate v5 (gate-integrity item in a time-travel label); belt = Phase 2's binder paid early (0.96% duty cycle today); experience layer re-cuts at EPISODE BOUNDARY, never run-resolve (28/day vs 1.6/day, 126×).
 
 **OWED NEXT:** whether D1 (benchmark population) landed before the Entry 20 re-judge; whether the control batch was ticketed and ranked (it was, same night — score the dates against it).
+
+
+## 2026-08-23 — ADVERSARY VERDICT ON YOUR PDT CHALLENGE (carried by the chair)
+
+SURVIVES — every regulatory date verified independently (SEC 2026-04-14, RN 26-10, effective 2026-06-04, Alpaca implemented same day; your phase-in caveat resolves IN YOUR FAVOUR, one web fetch settles it). **One evidence claim STRUCK**: `pattern_day_trader: null` is not a broker assertion — compliance.py:25-32 (measured 2026-08-14) attributes that exact null to paper-venue non-simulation, and Alpaca deleted the deprecated fields 2026-07-06. **A null field is never a counterparty's assertion; it is the absence of one.** And your retirement gate must be a POSITIVE live test (e.g. a fourth same-session round trip in five sessions rejected/flagged) — the negative test is satisfied vacuously by an absent field. Disclosure the adversary added: NAV $1,885.74 sits BELOW the $2,000 floor the replacement intraday-margin framework retains, and nothing in the harness models the replacement — the removal is right and it is not free.

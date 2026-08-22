@@ -372,3 +372,18 @@ Keep issuing that number as a pre-run prediction on cost-sensitive candidates �
 it is now calibrated, and it is the only check on a gate criterion that turns
 out not to execute (gate.py:405-412 skips the breakeven floor whenever the
 sweep exhausts its grid).
+
+
+## 2026-08-23 — STATE from run-adversary-batch2 (gate v4.2 / COO filing rule / PDT), appended by the chair
+
+VERDICTS: SURVIVES / KILL(remedy) / SURVIVES. First batch where two of three survived — say that loudly; the seat's credibility is the negatives being real.
+
+- **MY OWN NEAR-MISS, third in three dispatches**: I had a clean kill built on `submit_backtest` injecting the default slip (leanrunner.py:516-518) into every sweep point — WRONG. `_sweep_point` (leanrunner.py:253) stores `dict(params)` pre-injection. Caught by checking 41 stored verdicts live (40 carry breakeven_bps: None, none carry a tested range). **RULE: when a claim depends on what a producer WRITES, read the writer, not the injector. Then check the stored record before filing.**
+- **NEW STANDARD ATTACK: GRADE FIRST-PARTY EVIDENCE SEPARATELY FROM WEB EVIDENCE.** GRACE4's PDT conclusion is fully carried by four exact web sources; its ONE first-party datum (pattern_day_trader: null) is VOID — compliance.py:25-32 (measured 2026-08-14) attributes that null to paper-venue non-simulation, and Alpaca deleted the fields 2026-07-06. A null cannot discriminate three causes. Right conclusion, dead evidence — the verdict must say both.
+- **THE GUARD ASYMMETRY TABLE is the cheapest kill on any governance proposal.** Desk filing (fund.py:1637) has NO _guard_approval; approving (fund.py:1716 → :2655) has allowlist + id[:8] echo + verbatim instruction + APPROVAL_REFUSED. Any proposal moving a determination from guarded to unguarded dies on that table. _guard_approval guards 9 channels: fund.py:751,1719,2703,3952,4106,4180,4214,4236.
+- **ALWAYS RUN THE PREDICATE OVER THE PROPOSER'S OWN SAMPLE.** "11 of 11 carry a CEO decision" measured "the filing mentions the CEO": 3 of 11 (27%) would be false-approved — 66912f40 says "pending his explicit yes" in the filing that quotes him; bd3c5232 is a design question from a 'wdyt?'; 9fb82050 quotes him ASKING about a routing failure. A quote of a question is not an approval.
+- **CHECK WHETHER THE DESTINATION ALREADY EXISTS BY A SAFE PATH** — 30 requests already sat at approved through the guarded endpoint with the instruction inline in approved_by, already excluded from the CEO's figure. A loosening that buys a state you can already reach is free to kill.
+- Gate v4.2 SURVIVES: AST-diff clean, CRITERIA byte-identical, touched branch only APPENDS failures, boundary exact (0.001×1e4 == 10.0 IEEE754), refusal set coextensive with the gate's failure set (exhaustive case analysis). 61 targeted / 1572 full-suite green. Residuals: factory docstring's one-point claim false when <2 points price; fmt_bps lies below 4e-8; check_cost_grid's criteria stand-down unreachable from submit().
+- MONEY FACT: **v4.2 revokes Entry 20 (144387901688), the fund's only substantive pass** — cleared a 10bps floor on a grid reaching 5. Blast radius exactly 1 of 41.
+- LIVE FACTS: spine 8090; /fund/factory/candidates returns a DICT (candidates + scoreboard); /fund/desk carries requests(72) + desk_load; NAV 1885.74; mode alpaca-paper; the 37 pre-instrument candidates return analytics.available: false; repo venv at ClarkHarness/venv/Scripts/python.exe (ambient python has no pytest/psycopg).
+- Kills on record: gate v5 r1-r4, VRP/XYLD, SRPT, insider-screen headline, builder D11, ENTRY-20 premia label, ENTRY-20 challenge, COO desk filing-rule challenge (remedy).

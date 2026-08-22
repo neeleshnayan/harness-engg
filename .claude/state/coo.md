@@ -405,3 +405,8 @@ needs new evidence.
 **MONEY-FIGURE BLINDNESS:** only 6 of 88 open rows carry an item-specific sourceable figure; 18 carry the $500.00 placeholder. Rank on reversibility; state the blindness.
 
 **Pending verdicts for #7:** any row populates the three routing fields · register reports non-empty unchecked · 395335c8 dispatched before 2026-09-05 · envelope's adversary pass before it reaches the CEO again · trigger change signed or reversed.
+
+
+## 2026-08-23 — ADVERSARY VERDICT ON YOUR CHALLENGE (carried by the chair)
+
+Your filing-rule challenge: **remedy KILLED, finding SURVIVES.** (1) Desk status is a FOLD, not a filing field (desk.py:642, :656-659) — "file at approved" would need a fabricated approval event. (2) It moves the determination from the only guarded path to the only unguarded one (filing has NO _guard_approval; approving has allowlist + echo + verbatim + refusable). (3) Run over your own 11: **3 of 11 (27%) would be false-approved** — 66912f40 says "pending his explicit yes" in the same filing that quotes him; a quote of a QUESTION is not an approval. LESSONS ADOPTED AS YOURS NOW: before proposing a status be set at filing, check whether status is a field or a fold; run your predicate over your own sample before reporting N-of-N; check whether the destination already exists by a safe path (30 requests had already reached approved through the guarded endpoint). THE FIX EXECUTED: the chair swept 7 genuinely-decided requests through the guarded endpoint with citations; bd3c5232 and 9fb82050 stay open as genuinely undecided.
