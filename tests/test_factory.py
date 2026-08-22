@@ -229,10 +229,16 @@ def test_a_cost_grid_that_stops_short_of_the_floor_is_refused_before_it_runs():
 
 def test_a_cost_grid_that_reaches_the_floor_is_accepted():
     """The rule must not refuse the fix it asks for. One extra point at 10 bps
-    is the whole remedy, and it has to be sufficient."""
+    is the whole remedy, and it has to be sufficient.
+
+    Settled rather than left running: an accepted submission starts a belt
+    thread holding its own connection, and the next test's TRUNCATE then waits
+    on it. Every other accepting test in this file settles for the same reason.
+    """
     f = _factory(FakeRunner())
     out = f.submit("algo", {"slip": ["0.0001", "0.0005", "0.0010"]})
     assert out["state"] == "running"
+    assert _settle(f, out["candidate_id"])["state"] == "done"
 
 
 def test_a_grid_that_sweeps_no_cost_at_all_is_left_alone():
@@ -241,7 +247,9 @@ def test_a_grid_that_sweeps_no_cost_at_all_is_left_alone():
     measured"), and widening this rule to cover it would refuse every ordinary
     parameter sweep on the belt. Narrow on purpose."""
     f = _factory(FakeRunner())
-    assert f.submit("algo", {"fast": ["10", "20"]})["state"] == "running"
+    out = f.submit("algo", {"fast": ["10", "20"]})
+    assert out["state"] == "running"
+    assert _settle(f, out["candidate_id"])["state"] == "done"
 
 
 def test_a_cost_grid_the_engine_cannot_price_is_refused():
