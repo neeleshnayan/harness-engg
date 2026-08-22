@@ -1,0 +1,189 @@
+/**
+ * How the fund's MODE is presented — the decisions, separated from the pixels.
+ *
+ * The failure this surface exists to prevent is a human reading a test number
+ * as a real one. That makes every judgement in this file load-bearing, and
+ * KryptonPay has no DOM test runner, so the judgements live here as pure
+ * functions with tests rather than inside a component where nothing can reach
+ * them.
+ *
+ * THE RULE THAT SHAPES ALL OF IT: absence is never a mode. A spine that has
+ * not declared its mode, and a spine we cannot reach, are two different
+ * unknowns and neither of them is "test" or "alpaca-paper". Both render as an
+ * explicit unknown, and an unknown is treated as LOUDLY as a real-money mode —
+ * because not knowing whether the numbers on screen are real is not a calmer
+ * state than knowing they are.
+ */
+
+import type { FundModeName, FundModeReport } from "@/lib/fund_api";
+
+/** How much of the surface this state is allowed to take over. */
+export type ModeVolume = "quiet" | "loud" | "alarming";
+
+export interface ModePresentation {
+  /** Machine-readable, for `data-fund-mode` on the Studio root. */
+  key: FundModeName | "unknown" | "unreachable";
+  /** Short, upper-case, the thing scanned in half a second. */
+  badge: string;
+  /** One sentence: what this mode means for the numbers on screen. */
+  headline: string;
+  /** The consequence, in the operator's terms. */
+  detail: string;
+  volume: ModeVolume;
+  /** True when a fill can move the CEO's actual money. */
+  realMoney: boolean;
+  /** True when the surface should be visibly framed, not just labelled. */
+  frameSurface: boolean;
+}
+
+const UNREACHABLE: ModePresentation = {
+  key: "unreachable",
+  badge: "MODE UNKNOWN",
+  headline: "Cannot reach the spine, so cannot say which mode this is",
+  // Deliberately not reassuring. The honest reading of an unreachable spine is
+  // that every number on this page is of unknown provenance.
+  detail:
+    "Nothing on screen can be trusted as the fund's own numbers until the " +
+    "spine answers — this is not a quiet state",
+  volume: "alarming",
+  realMoney: false,
+  frameSurface: true,
+};
+
+const UNDECLARED: ModePresentation = {
+  key: "unknown",
+  badge: "MODE UNDECLARED",
+  headline: "The spine is running without a declared mode",
+  detail:
+    "It should have refused to start. Treat every number here as unverified " +
+    "and check the spine's configuration before approving anything",
+  volume: "alarming",
+  realMoney: false,
+  frameSurface: true,
+};
+
+/**
+ * The presentation for a report.
+ *
+ * `null` means the request failed. A report whose `active` is null means the
+ * spine answered and told us it has no mode — a different fact, and a worse
+ * one, because the spine is supposed to refuse to start in that state.
+ */
+export function presentMode(report: FundModeReport | null): ModePresentation {
+  if (!report) return UNREACHABLE;
+  const active = report.active;
+  if (!active) return UNDECLARED;
+
+  switch (active.mode) {
+    case "test":
+      return {
+        key: "test",
+        badge: "TEST MODE",
+        headline: "Not the fund — simulated fills at real prices",
+        // Says what IS trustworthy as well as what is not. "Nothing here is
+        // real" would be false: the prices are real, and the record is
+        // persistent, and a warning that overstates gets ignored.
+        detail:
+          "Orders fill against a simulator; the prices are real and the " +
+          `record is kept in ${active.store.pg_database}. These are not the ` +
+          "fund's NAV, positions or P&L",
+        volume: "loud",
+        realMoney: false,
+        frameSurface: true,
+      };
+    case "alpaca-paper":
+      return {
+        key: "alpaca-paper",
+        badge: "ALPACA PAPER",
+        headline: "The fund's live book — real broker, paper money",
+        detail:
+          "Orders go to the Alpaca paper account and every control runs " +
+          `against this book (${active.store.pg_database})`,
+        // QUIET, and that is a decision. This is the fund's normal state, and
+        // a banner that shouts during normal operation is a banner nobody
+        // reads on the day it matters.
+        volume: "quiet",
+        realMoney: false,
+        frameSurface: false,
+      };
+    case "alpaca-prod":
+      return {
+        key: "alpaca-prod",
+        badge: "REAL MONEY",
+        headline: "Live trading with real money",
+        detail:
+          "Every fill moves actual capital. Nothing on this screen is a " +
+          "rehearsal",
+        volume: "alarming",
+        realMoney: true,
+        frameSurface: true,
+      };
+  }
+}
+
+/**
+ * Can this mode be selected from the UI, and if not, why?
+ *
+ * Returns a REASON rather than just a boolean, because a disabled control with
+ * no explanation is how a precondition list becomes invisible.
+ */
+export function selectability(
+  report: FundModeReport | null,
+  target: FundModeName,
+): { selectable: boolean; reason: string } {
+  if (!report) {
+    return { selectable: false, reason: "the spine is unreachable" };
+  }
+  if (report.active?.mode === target) {
+    return { selectable: false, reason: "already in this mode" };
+  }
+  if (target === "alpaca-prod") {
+    const gate = report.prod_gate;
+    if (!gate.code_lock.open) {
+      return {
+        selectable: false,
+        reason:
+          `locked in code (${gate.code_lock.constant} is false) and ` +
+          `${gate.n_blocking} of ${gate.n_preconditions} preconditions are ` +
+          "not met",
+      };
+    }
+    if (gate.n_blocking > 0) {
+      return {
+        selectable: false,
+        reason: `${gate.n_blocking} of ${gate.n_preconditions} preconditions are not met`,
+      };
+    }
+  }
+  const spec = report.modes.find((m) => m.mode === target);
+  if (spec && !spec.wired) {
+    return { selectable: false, reason: "this mode has never been wired" };
+  }
+  return { selectable: true, reason: "" };
+}
+
+/**
+ * The echo the switch endpoint demands: the first 8 characters of the target
+ * mode. Kept here rather than inlined so the UI and the tests agree about it,
+ * and so a change to the guard breaks one place.
+ */
+export function confirmEcho(target: FundModeName): string {
+  return target.slice(0, 8);
+}
+
+/** Wording for a precondition row. `unchecked` must never read as passing. */
+export function preconditionTone(
+  status: "met" | "unmet" | "unchecked",
+): { symbol: string; word: string; blocking: boolean } {
+  switch (status) {
+    case "met":
+      return { symbol: "✓", word: "met", blocking: false };
+    case "unmet":
+      return { symbol: "✗", word: "not met", blocking: true };
+    case "unchecked":
+      // The distinction the fund's own decision register got wrong: 17 of 19
+      // triggers were free text nothing evaluated while the endpoint reported
+      // `triggers_unchecked: []`. Unchecked BLOCKS and says why.
+      return { symbol: "?", word: "unchecked — nothing evaluates this", blocking: true };
+  }
+}
