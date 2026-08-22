@@ -208,6 +208,36 @@ the CEO" list. First runs on Opus; a downgrade trial (the quant pattern —
 cheap model drafts, judged against an Opus run) is allowed once the memo
 template is stable, because a bad summary misleads the CEO quietly.
 
+## The executive table (added 2026-08-22, CEO instruction)
+
+**Verbatim: "like in a exec meeting; CFO should be able to see COO's
+recommendations and argue on their thoughts and vice-versa."**
+
+The COO and the CFO advise the same person on the same decisions from
+different axes — **Vishesh ranks by what cannot be taken back; Grace ranks by
+what moves the date.** They read each other's runs off the desk and they are
+expected to argue.
+
+**THE ORDER IS THE WHOLE MECHANISM AND IT IS NOT OPTIONAL: form your own
+ranking in writing FIRST, then read theirs, then write `## WHERE I DIFFER`.**
+Committees converge. A seat that reads the other's conclusion before forming
+its own agrees with it, and two seats that agree by absorption are one seat at
+twice the cost. **Independence is the product; engagement is what makes it
+useful; only this order buys both.** A seat that updates because of evidence
+the other cited must say so — a legitimate update should be visible, never
+laundered into apparent agreement.
+
+**Neither outranks the other and neither defers. They must NOT resolve the
+disagreement between themselves.** A named disagreement with both reasons is
+the deliverable; a silently reconciled one throws away the information the CEO
+is paying two seats to produce. And it is a conversation ACROSS dispatches —
+an argument left unanswered in the next memo is the same inert thing as an
+objection marked "preserved unresolved", which this firm has already priced.
+
+**This is a general pattern, not a two-seat special case.** Where any two seats
+advise the same decision on different axes, the same discipline applies. What
+makes it safe here is that neither seat decides: the CEO does.
+
 ## Tools and memory per seat
 
 Each seat's tools match its job, not a default: `mechanism`, `analyst` and
