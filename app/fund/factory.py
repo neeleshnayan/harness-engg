@@ -26,6 +26,7 @@ import os
 import threading
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -135,10 +136,99 @@ class CandidateFactory:
         return {"candidate_id": candidate_id, "state": "running",
                 "sources_linked": linked}
 
+    def _snapshot(self, candidate_id: str, algorithm: str, runner: Any):
+        """Pin every leg this candidate will read, ONCE, before any container runs.
+
+        The belt's cost and two of its correctness defects have the same cause:
+        each of a candidate's ~22 containers re-asks the vendor the same question
+        and quietly accepts whatever it gets. Measured on this host 2026-08-22,
+        one leg costs ~1.94s and does not get cheaper on a repeat, so a 170-name
+        candidate spends most of its ~96-minute wall clock re-downloading bytes
+        the harness already had — and the answers it gets are allowed to differ
+        between containers (ticket 0178d2e8, and the 11.85pp Entry 20 benchmark
+        truncation).
+
+        Best effort by design. If the universe cannot be read or the prefetch
+        fails, the candidate runs exactly as it did before, on live fetches. A
+        cache is an optimisation; it must never be the reason a candidate dies.
+        """
+        from app.fund import barcache
+        from app.fund.leanrunner import (_declared_lookback_days,
+                                         _declared_universe)
+        # OFF SWITCH. This component sits in the measurement instrument's data
+        # path, so it gets a documented way to be turned off without a code
+        # change — set FUND_BAR_SNAPSHOT=0 and every candidate goes back to
+        # per-container live fetches. It is also how the A/B in
+        # scripts/belt/verify_bar_snapshot_e2e.py runs both arms on one spine.
+        if (os.getenv("FUND_BAR_SNAPSHOT", "1").strip().lower()
+                in ("0", "false", "no", "off")):
+            logger.info("FUND_BAR_SNAPSHOT is off; %s runs on live fetches",
+                        candidate_id)
+            return None
+        try:
+            code = runner.get_algorithm(algorithm)["code"]
+        except Exception as e:  # noqa: BLE001
+            logger.info("no source for %s, running without a bar snapshot: %s",
+                        algorithm, e)
+            return None
+        universe = _declared_universe(code)
+        if not universe:
+            # Read statically from a module-level UNIVERSE, exactly as the
+            # benchmark does. An algorithm that declares none is not guessed at
+            # — it simply runs on live fetches as before.
+            logger.info("%s declares no UNIVERSE; running without a bar snapshot",
+                        algorithm)
+            return None
+        lookback = _declared_lookback_days(code)
+        if lookback is None:
+            # The snapshot must be pinned at the EXACT shape the containers will
+            # ask for, or it cannot answer them without inventing a window. An
+            # algorithm whose lookback cannot be read unambiguously runs live.
+            logger.info("%s does not state a single lookback_days; running "
+                        "without a bar snapshot", algorithm)
+            return None
+        try:
+            snap = barcache.prefetch(universe, candidate=candidate_id,
+                                     lookback_days=lookback)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("bar prefetch failed for %s, falling back to live "
+                           "fetches: %s", candidate_id, e)
+            return None
+        if not snap.legs:
+            logger.warning("bar prefetch for %s pinned no legs (%s); falling back",
+                           candidate_id, snap.unavailable)
+            return None
+        try:
+            # Checkpointed as soon as it exists: a dispatch that dies keeps what
+            # it already paid for, and the pinned bytes are the evidence for
+            # what this candidate actually ran on.
+            snapshot_dir = Path(runner._ws) / "snapshots"
+            snap.save(snapshot_dir / f"{candidate_id}.json")
+            # Bounded on the way in, not by a sweep nobody runs. One 170-leg
+            # candidate is 7.40 MB of regenerable vendor data.
+            barcache.prune_snapshots(snapshot_dir)
+        except Exception as e:  # noqa: BLE001
+            logger.info("snapshot checkpoint failed for %s: %s", candidate_id, e)
+        return snap
+
     def _run(self, candidate_id: str, algorithm: str,
              grid: dict[str, list[str]], holdout: Optional[dict[str, str]]) -> None:
+        from app.fund import barcache
         from app.fund.gate import evaluate
         runner = self._lean()
+        snap = self._snapshot(candidate_id, algorithm, runner)
+        # The snapshot is active for the WHOLE candidate — sweep, verification
+        # run, walk-forward folds and enrichment alike. That is the point: every
+        # container and every enrichment step of this candidate reads one pinned
+        # series per symbol, so they cannot disagree about what the data was.
+        with barcache.activate(snap):
+            return self._run_pinned(candidate_id, algorithm, grid, holdout,
+                                    runner, snap)
+
+    def _run_pinned(self, candidate_id: str, algorithm: str,
+                    grid: dict[str, list[str]], holdout: Optional[dict[str, str]],
+                    runner: Any, snap: Any) -> None:
+        from app.fund.gate import evaluate
         try:
             sub = runner.submit_sweep(algorithm, grid, holdout)
             sweep = self._await(lambda: runner.sweep(sub["sweep_id"]))
@@ -186,6 +276,22 @@ class CandidateFactory:
             analytics = runanalytics.capture(job=job, sweep=sweep,
                                              walkforward=walk,
                                              walkforward_note=walk_note)
+            # WHAT DATA PATH THIS CANDIDATE ACTUALLY RAN ON, recorded beside the
+            # verdict rather than left in a log nobody folds. A miss means one
+            # container fell back to a live fetch while its siblings read pinned
+            # bytes — the verdict is still honest, but it was measured on a
+            # data path that was not uniform, and a reader must be able to see
+            # that without re-deriving it. Absent snapshot is stated as absent.
+            if analytics is not None:
+                try:
+                    analytics["bar_snapshot"] = (
+                        snap.report() if snap is not None else
+                        {"taken": False,
+                         "note": "no bar snapshot was taken for this candidate; "
+                                 "every container fetched its own bars live"})
+                except Exception as e:  # noqa: BLE001
+                    logger.info("snapshot report unavailable for %s: %s",
+                                candidate_id, e)
             self._finish(candidate_id, verdict=verdict, winner=params,
                          analytics=analytics)
         except Exception as e:  # noqa: BLE001

@@ -23,5 +23,11 @@ logs/
 # regenerable JSON; the algorithms are 76KB of the actual research.
 lean_workspace/results/
 
+# Pinned bar snapshots, same reasoning: regenerable vendor data, not research.
+# MEASURED 2026-08-22: one 170-leg candidate is 7.40 MB, so a hundred of them
+# would be 740 MB of bars the vendor will serve again on request. Retention is
+# bounded in code (barcache.prune_snapshots) as well as ignored here.
+lean_workspace/snapshots/
+
 # agent worktrees + deliverables (never repo content)
 .claude/
