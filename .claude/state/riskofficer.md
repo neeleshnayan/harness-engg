@@ -338,3 +338,25 @@ paper connector and is labelled alpaca. **Read venue off OrderSubmitted,
 never OrderFilled**, and treat proposed-≠-submitted venue as a finding in its
 own right — the autopolicy envelope is venue-conditioned, so a mislabel there
 is an envelope-integrity issue, not just a cost-model one.
+
+
+## 2026-08-22 — STATE from run-riskofficer-5 (entry envelope design), appended by the chair
+
+Designed the graduated-deployment ENTRY envelope. SELF-LABELLED A LOOSENING
+(an entry increases exposure where every v4 check reduces it) and routed
+itself to the adversary blind before the CEO - clause 5 applied to its own
+output. Eight fail-closed checks; most abusable is confidence_tier_resolved
+(absence -> lowest tier or refuse, never highest). Book-level bounds
+(aggregate budget + concentration floor) are the bounded-each-is-not-bounded-
+together guard run() lacks (F5). Hard per-candidate loss stop halts-and-
+reports via an EVENT. THREE BLOCKERS before any real entry: unguarded resume
+(fund.py:3797), integrity halt with no producer (riskmonitor.py:967-989),
+venue-routes-nothing (pipeline.py:318). REALISED-LOSS TUNING GATED TO REAL
+FILLS ONLY - sim fills carry zero cost by construction. THREE SEATS NOW
+LINE-EXACT ON THE VENUE MISLABEL (me, validator, adversary), TWO on unguarded
+resume. **OWED: read the PM's sizing memo (docs/pm/PM_GRADUATED_SIZING_
+2026-08-22.md) and write WHERE I DIFFER - I expect to hold harder than the
+PM on any real entry before the three controls are wired, and to argue the
+adversary should NOT carry early SIZE (only the KILL floor), where the PM
+lets w_g=0.48 of size lean on it.** Sixth carry: 14m41s halt latency still
+unmeasured - propose to formally drop next audit if still unmeasured.

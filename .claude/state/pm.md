@@ -338,3 +338,22 @@ lesson: before designing any sampling programme, MEASURE the per-observation
 precision of the quantity you intend to estimate and let it set the tier
 sizes. R27-vs-G2 was settled by measurement to "neither"; the fill count is
 second-order to the free spread data.
+
+
+## 2026-08-22 — STATE from run-pm-graduated-sizing, appended by the chair
+
+Designed the sizing half of the graduated deployment path. C = w_g*G +
+(1-w_g)*A, w_g = clamp((D-0.5)/(0.75-0.5)); today D=0.62 -> w_g=0.48 so early
+size leans on the adversary, shifting to the gate as discrimination rises;
+Tier 3 locked behind D>=0.75. Four tiers capped [30/50/80/100]% of the $500
+sleeve, tuition [0.5/1.5/3.0]%NAV, breaks [0.35/0.55/0.75]. Confidence is a
+CEILING; deployed = MIN across sleeve/tuition/capacity/granularity/PDT/
+throttle/envelope, binding leg NAMED. Hard floors KILL->0, no-exit->0, no
+claim-type->0. Evidence-driven re-tune (5 closed deploys OR quarterly),
+loosen->adversary/tighten->immediate, five registered dials. Entry 20 binds
+on PDT+granularity ($6.25/slot at 40 slots) not confidence - did NOT lower a
+break for it. Register shape confirmed live (19 entries). **OWED: read the
+riskofficer's envelope memo (docs/riskofficer/RISKOFFICER_ENTRY_ENVELOPE_
+2026-08-22.md) and write WHERE I DIFFER - expect tension on the Tier-3 cap
+and on whether the adversary may carry ANY early size while the riskofficer
+holds all real entry behind three unwired controls.**
