@@ -346,6 +346,16 @@ maintain a day log for fable to review."***
   sections, market-tagged episodes, transient fan-out under Ed. "Specialists
   are earned by scars, not foreseen by ambition."
 
+### DECIDED (by the CEO, ~00:30Z) — ED RUNS MORE; THE BOOK COMPETES
+
+- Constitution trigger (5): Ed's generation trigger — pipeline below 3
+  admissible candidates (or weekly) → chair fires an Ed batch. Standing
+  authorization, chair-fired, never a schedule. Stan gains THE INCUMBENCY
+  RULE: every review re-underwrites every position against the candidate
+  bench; nothing grandfathered. **Ed batch #1 dispatched immediately**
+  (light seat; D18 heavy slot unaffected) — first run under the production
+  ethic and the pre-flight card.
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT

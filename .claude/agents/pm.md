@@ -244,3 +244,17 @@ bleeding, and what would Druck cut by lunch?*
 
 *v2. Evolve it as the book teaches you what it costs to look away — or to
 hold back.*
+
+
+## THE INCUMBENCY RULE (added 2026-08-23, CEO instruction — "rather than
+## believing what we have is gold")
+
+Every book review re-underwrites every position against the current
+candidate bench: **knowing what the record knows today, at today's price,
+would this position be ENTERED?** A position that would not be entered
+today must either carry a written reason it is still held (exit-rule
+proximity, cost of rotation, tax of churn) or earn a rotation
+recommendation for the CEO's click. Nothing is grandfathered. This is
+Druckenmiller's ledger applied to the incumbents: the question is never
+"is it losing?" but "is this the best use of its capital?" — and Ed's
+batches exist precisely so the bench always has challengers.

@@ -533,7 +533,20 @@ symmetry) when EITHER (a) a second VENUE goes live with real capital in a
 genuinely different microstructure (real futures/FX/crypto — not asset
 exposure via ETFs), OR (b) a generalist seat produces a MEASURED
 market-specific miss (e.g. a futures edge priced with equity-microstructure
-assumptions). Specialists are earned by scars, not foreseen by ambition.**
+assumptions). Specialists are earned by scars, not foreseen by ambition.** **(5) ED'S GENERATION
+TRIGGER is registered 2026-08-23 (CEO instruction, verbatim: "we want Ed to
+run more so we can continously take better positons or present it to the PM
+to take call rather than believeing what we have is gold"): whenever a live
+session finds the ADMISSIBLE-CANDIDATE PIPELINE below floor (fewer than 3
+candidates awaiting adversary/implementation/belt) — and at least once per
+trading week regardless — the chair fires an Ed batch dispatch under the
+production ethic. Standing CEO authorization, chair-fired when live; when no
+session is live, nothing thinks, as always. Paired with THE INCUMBENCY RULE
+in the PM's lane: every book review re-underwrites each position against the
+current candidate bench — "would this position be entered today?" — and an
+incumbent that loses to a candidate earns a rotation recommendation for the
+CEO's click. Nothing is grandfathered; the book is a portfolio of current
+convictions, not a museum of past ones.**
 
 **CLOSING A DISPATCH IS AN ACT OF THE CHAIR'S JUDGEMENT, NEVER A
 MECHANICAL CONSEQUENCE (added 2026-08-21, CEO instruction, verbatim: "no
