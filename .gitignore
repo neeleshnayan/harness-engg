@@ -5,3 +5,4 @@
 # harness spends so much effort avoiding.
 /*/
 !.claude/
+.claude/worktrees/
