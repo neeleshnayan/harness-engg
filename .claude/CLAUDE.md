@@ -209,6 +209,36 @@ needs someone to notice it applies elsewhere. That asymmetry is a mechanical
 reason the firm's output skews toward findings over candidates — leg 1 of the
 team metric runs hot while leg 2 sits at roughly one candidate a week.
 
+**THE WHOLE TEAM EVOLVES TOGETHER (added 2026-08-21, CEO instruction,
+verbatim: "no the whole team needs to evolve together not in isolation; we
+all make each other better").** Written after the co-CTO floated pausing
+generation to concentrate on the harness. **The CEO refused it, and a day
+of evidence says he was right.**
+
+**Almost every instrument defect this firm has found was found by a seat
+doing its OWN job, not by a seat auditing instruments.** On 2026-08-21
+alone: the mechanism, hunting strategies, found two live v4.1 gate defects
+— including one whose bias is larger than the threshold it is judged
+against. The validator's breakeven census exists only because of that. The
+analyst, measuring 8-K drift, found the ~44%/yr phantom price factor. The
+quant, running an instrument test, found that belt capacity is decided by
+an unseeded hash. The adversary killed a diff and specified a cross-repo
+contract; the builder built it and it found a second divergence on its
+first run.
+
+**The seats are not consumers of the harness. They are its test suite.**
+Pausing generation to fix instruments removes the exact load that surfaces
+what is broken — and the fund would have lost every finding above.
+
+The corollary for reading the funnel: when a seat reports that its
+candidates keep dying on the instrument, that is **generation diagnosing
+the instrument**, not the instrument blocking generation. Both readings are
+true; only one of them implies "keep running", and it is the one supported
+by where the defects actually came from.
+
+`## BINDS` is this principle's mechanism, and a seat-starved firm has
+nothing to carry.
+
 AMENDED 2026-08-21 (CEO instruction): **the CTO chair keeps one too**
 (`.claude/state/cto.md`) — self-written, read first on every cold start,
 appended the same session a lesson lands. Lessons that generalize beyond one
