@@ -392,6 +392,23 @@ Donna's: CHECK date -u BEFORE DATING ANYTHING.**
   .env only, untracked; a live credential in any diff is a merge-blocker
   at threshold-move severity.** THE CLEANUP: sixth deferral, on the record.
 
+### BUILT — THE VAULT IS LIVE + THE CROSSING PAIR COMPLETED (~21:50Z)
+
+- **All three repos pushed to the private vault** (github.com/neeleshnayan/
+  harness-engg: branches firm / clarkharness / kryptonpay, full histories,
+  verified against the remote). Root cause of the earlier failure: the
+  `remote add` had been swallowed by a classifier block, so the push hit a
+  nonexistent remote — not auth. CEO granted STANDING PUSH AUTHORIZATION to
+  the vault ("you can push as you like") — push-to-vault is now the chair's
+  session ritual at every milestone. The paper keys ride in history by the
+  CEO's explicit decision (Mac portability); LIVE keys never touch a repo,
+  merge-blocker severity.
+- **The D11 v2 KryptonPay companion MERGED** (fcca35bd) — discovered
+  unmerged during vault verification; the CEO's crossing pair is now
+  actually whole. Verified: tsc exit 0, 302/302 tests pass on the merged
+  tree (node test runner via tsx — vitest is not the runner here). Studio
+  picks it up via HMR; the mode-truth UI (fundMode.ts) is live.
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT
