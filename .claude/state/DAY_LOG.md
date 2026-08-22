@@ -203,7 +203,14 @@ maintain a day log for fable to review."***
   staleness sentinel; design adversary-blind first because reducing CEO
   visibility is exactly the shape a quiet suppression would arrive in).
   Chair discipline in cto.md: every resolve pass now ends with the
-  supersession check.
+  supersession check. AMENDED same hour on the CEO's refinement (verbatim:
+  "i would still like to see which item on my desk was contested, by whom
+  and a superseded item on its top linked to it"): ticket v2 (`762d28c9`)
+  adds LINEAGE-ON-TOP (the superseding row renders a linked chip to what it
+  replaced) and the CONTEST TRAIL (per-row dissent chips: who challenged /
+  differed / returned / killed, with artifact links). v1 (`895bd29b`)
+  declined with a forward link — deliberately demonstrating the exact
+  pattern v2 builds.
 
 ### ON FIRE
 
