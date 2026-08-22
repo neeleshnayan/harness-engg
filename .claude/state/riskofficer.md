@@ -360,3 +360,31 @@ PM on any real entry before the three controls are wired, and to argue the
 adversary should NOT carry early SIZE (only the KILL floor), where the PM
 lets w_g=0.48 of size lean on it.** Sixth carry: 14m41s halt latency still
 unmeasured - propose to formally drop next audit if still unmeasured.
+
+## 2026-08-22 — WHERE I DIFFER on the PM's sizing half (exec-table engagement), appended by the chair
+
+CONVERGED more than expected; disagreement narrows to one word — "pilot".
+VISIBLE UPDATES (adopted from the PM): the tuition cap ($9.43 Tier-0 / $28.29
+Tier-1, capped BEFORE size) is a better-specified bound than my vague
+"halt-and-report" and I take its framing — a hard-capped downside makes it
+SAFE to size off a noisy adversary signal, so w_g=0.48 does not alarm me; the
+cap and my envelope protect the same flank from two sides. Confidence-as-
+ceiling + MIN-across-legs composes with my per-order/book bounds cleanly.
+Tier-3 behind D>=D_bar I endorse without reservation.
+WHERE I HOLD (one sharp thing): a REAL pilot NOW is premature on two grounds
+the tuition cap does not touch — (1) every fill is a simulator's, so a Tier-0
+deployment produces ZERO of the realised-vs-predicted data Tier-0 exists for,
+and realised-loss re-tune triggers firing on sim data re-tune on fiction; (2)
+the $28.29 cap assumes the halt holds, and not_halted rests on the unguarded
+resume (fund.py:3797) — the cap is real exactly when the halt is real.
+SYNTHESIS (named, not resolved): SIM DRESS-REHEARSAL NOW (full path on paper,
+zero risk, exercises the plumbing — I do NOT oppose it, call it a rehearsal
+not a pilot) vs REAL PILOT ONLY AFTER THE THREE BLOCKERS (guarded resume,
+integrity-halt producer, real venue) — then the tuition cap becomes a real
+bound and I agree the pilot IS the calculated risk the CEO wants. SEAM I
+FLAG AS WORK OWED (not disagreement): the PM sizes per-candidate; nothing in
+its memo bounds the SUM across concurrent experiments or their shared factor
+— my aggregate_experimental_budget + concentration floor must bolt on. NOT
+resolved for the CEO: the bounded cap makes the PM right the downside is
+small; the simulator venue + unwired resume make me right a real pilot today
+buys fiction on an unwired off-switch. That tension is the deliverable.
