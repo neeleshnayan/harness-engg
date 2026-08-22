@@ -80,7 +80,7 @@ def dsn() -> str:
     The DATABASE in it is a placeholder: which of the fund's three databases a
     process talks to is decided by its MODE, not by this string.
     ``mode.pg_dsn_for(spec, dsn())`` replaces the last path segment with
-    ``krypton_fund`` / ``krypton_fund_test`` / ``krypton_fund_prod``.
+    ``krypton_fund`` / ``krypton_fund_dev`` / ``krypton_fund_prod``.
 
     Kept as one base rather than three environment variables because three
     variables is three chances for two of them to point at the same database,

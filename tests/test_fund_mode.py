@@ -67,7 +67,7 @@ class TestTwoDimensions:
         durability are orthogonal, and a test mode that writes nowhere makes
         the replay engine measure nothing twice."""
         spec = m.MODES[m.FundMode.TEST]
-        assert spec.pg_database == "krypton_fund_test"
+        assert spec.pg_database == "krypton_fund_dev"
         assert "memory" not in spec.pg_database
 
 
@@ -248,7 +248,7 @@ class TestDsnRouting:
     def test_each_mode_gets_its_own_database_on_the_same_server(self):
         got = {mode.value: m.pg_dsn_for(m.MODES[mode], self.BASE)
                for mode in m.FundMode}
-        assert got["test"].endswith("/krypton_fund_test")
+        assert got["test"].endswith("/krypton_fund_dev")
         assert got["alpaca-paper"].endswith("/krypton_fund")
         assert got["alpaca-prod"].endswith("/krypton_fund_prod")
         assert len(set(got.values())) == 3
@@ -259,7 +259,7 @@ class TestDsnRouting:
 
     def test_query_parameters_survive(self):
         out = m.pg_dsn_for(m.MODES[m.FundMode.TEST], self.BASE + "?sslmode=require")
-        assert out.endswith("/krypton_fund_test?sslmode=require")
+        assert out.endswith("/krypton_fund_dev?sslmode=require")
 
     def test_a_dsn_with_no_database_raises_rather_than_guessing(self):
         with pytest.raises(m.ModeError):
@@ -366,7 +366,7 @@ class TestReport:
         r = m.report(store=None, env={"FUND_MODE_FILE": "/nonexistent/x"})
         assert r["active"]["mode"] == "test"
         assert r["active"]["venue"]["label"] == "paper"
-        assert r["active"]["store"]["pg_database"] == "krypton_fund_test"
+        assert r["active"]["store"]["pg_database"] == "krypton_fund_dev"
         assert len(r["modes"]) == 3
         assert r["prod_gate"]["reachable"] is False
 
@@ -397,3 +397,161 @@ class TestModeFile:
         env = {"FUND_MODE_FILE": str(tmp_path / ".fund_mode")}
         m.write_mode_file(m.FundMode.TEST, "neelesh", "r", env=env)
         assert sorted(p.name for p in tmp_path.iterdir()) == [".fund_mode"]
+
+
+# --- K1: THE MODE LEDGERS ARE NOT PYTEST'S SCRATCH SPACE ---------------------
+class TestModeStoresAreNotTestScratchDatabases:
+    """Adversary review of builder D11, 2026-08-22, finding K1.
+
+    v1 of this module designated ``krypton_fund_test`` as the TEST mode's
+    *persistent, append-only* ledger. That is the database ``tests/
+    test_pgstore.py`` TRUNCATEs in a fixture, along with twelve other modules.
+    Every ``pytest`` run against a reachable Postgres would have wiped the test
+    fund's entire log, so the mode's headline property — *persistent, because a
+    replay of 2020-03 is only worth running twice if both runs still exist* —
+    was false from the first run.
+
+    The scan reads the test suite ITSELF rather than asserting a hard-coded
+    name, because the hazard is symmetrical: it returns either by repointing a
+    mode at a scratch database, or by a future test module pointing itself at a
+    mode's ledger. Both directions fail here.
+
+    It scans for the DATABASE NAME rather than for a constant, deliberately.
+    The first draft of this test keyed on ``TEST_DB = "..."`` and asserted in a
+    comment that all thirteen modules use that shape — they do not.
+    ``test_snapshot_firestore.py`` uses a lowercase local and
+    ``test_observations.py`` inlines the literal, so a constant-shaped guard
+    would have missed two of the modules it was written to police. A name has
+    to appear literally somewhere for a connection to reach it; that is the
+    one thing every shape has in common.
+    """
+
+    #: SQL that can destroy a ledger.
+    _DESTRUCTIVE = ("TRUNCATE", "CREATE DATABASE", "DROP DATABASE")
+    #: ...and the driver that could carry it there. BOTH are required before a
+    #: module is policed: "can reach a Postgres AND can destroy a table" is a
+    #: predicate rather than a list of names, because a list of names is where
+    #: the next offender hides.
+    _DRIVER = "psycopg"
+
+    #: THE ONE EXCLUSION, and it is the scanner itself. This module names all
+    #: three ledgers on purpose — it is the module that ASSERTS them — and it
+    #: quotes the destructive SQL in its forged samples. Excluding it is not a
+    #: hole in the guard, but "it is safe because I say so" would be, so
+    #: ``test_the_scanner_itself_cannot_reach_a_database`` proves the property
+    #: the exclusion rests on rather than assuming it.
+    @staticmethod
+    def _self_name():
+        import pathlib
+        return pathlib.Path(__file__).name
+
+    @staticmethod
+    def _test_modules():
+        import pathlib
+        here = pathlib.Path(__file__).resolve().parent
+        return sorted(p for p in here.glob("test_*.py"))
+
+    @staticmethod
+    def _names_database(text: str, db: str) -> bool:
+        """Whole-word match. ``krypton_fund`` must NOT match inside
+        ``krypton_fund_test`` — that substring collision made the first draft
+        of this test flag all nine PG modules against the paper ledger."""
+        import re
+        return re.search(rf"(?<![A-Za-z0-9_]){re.escape(db)}(?![A-Za-z0-9_])",
+                         text) is not None
+
+    def _mode_databases(self):
+        return {m.MODES[mode].pg_database for mode in m.FundMode}
+
+    def _scan(self, texts):
+        """(offenders, n_destructive_scanned) over {name: source} pairs."""
+        mode_dbs = sorted(self._mode_databases())
+        offenders, scanned = [], 0
+        for name, text in texts:
+            if self._DRIVER not in text:
+                continue
+            if not any(word in text for word in self._DESTRUCTIVE):
+                continue
+            scanned += 1
+            for db in mode_dbs:
+                if self._names_database(text, db):
+                    offenders.append(f"{name} names {db}")
+        return offenders, scanned
+
+    def test_no_destructive_test_module_names_a_fund_ledger(self):
+        texts = [(p.name, p.read_text(encoding="utf-8"))
+                 for p in self._test_modules() if p.name != self._self_name()]
+        offenders, scanned = self._scan(texts)
+        assert not offenders, (
+            "a test module that TRUNCATEs also names a FUND MODE's ledger — a "
+            "pytest run would wipe the fund's own log: " + ", ".join(offenders))
+        # Absence discipline: an empty scan is not a clean scan. If the glob or
+        # the suite's layout changes, the assertion above goes green by looking
+        # at nothing, and this is the line that notices.
+        assert scanned >= 10, (
+            f"only {scanned} Postgres-touching destructive test modules were "
+            f"scanned; there were 11 when this guard was written, so the scan "
+            f"is looking in the wrong place rather than finding a clean tree")
+
+    def test_the_scan_would_have_caught_the_original_defect(self):
+        """A guard that cannot fail is not a guard.
+
+        Feeds the scanner the exact shape of the v1 defect — a truncating
+        module pointed at the TEST mode's ledger — and requires a flag. Run
+        against the real database name, so if the mode is ever repointed back
+        at a scratch database this stays honest.
+        """
+        test_db = m.MODES[m.FundMode.TEST].pg_database
+        forged = (f'import psycopg\nTEST_DB = "{test_db}"\n'
+                  f'cur.execute("TRUNCATE fund_events")\n')
+        offenders, scanned = self._scan([("forged_module.py", forged)])
+        assert scanned == 1
+        assert offenders == [f"forged_module.py names {test_db}"]
+
+    def test_the_scan_does_not_flag_the_pytest_scratch_database(self):
+        """The other half of the same proof: the suite's real target must NOT
+        be a mode ledger, or the guard above is trivially satisfiable by
+        making every database a fund database."""
+        forged = ('import psycopg\nTEST_DB = "krypton_fund_test"\n'
+                  'cur.execute("TRUNCATE x")\n')
+        offenders, _ = self._scan([("forged_module.py", forged)])
+        assert offenders == [], (
+            "krypton_fund_test is pytest's scratch database and must not be "
+            "any mode's ledger; if this fires, a mode was repointed at it")
+
+    def test_the_scanner_itself_cannot_reach_a_database(self):
+        """The proof behind the one exclusion above.
+
+        This module is skipped by its own scan because it quotes both the
+        ledger names and the destructive SQL. That is only safe while it
+        cannot actually open a connection, so the property is asserted rather
+        than assumed. Checked on the PARSE TREE, not the text: the forged
+        samples and the docstrings legitimately contain the words, and what
+        matters is whether any live statement does. If someone later adds a
+        real Postgres fixture here, this fails and the exclusion has to be
+        re-earned.
+        """
+        import ast
+        import pathlib
+        tree = ast.parse(pathlib.Path(__file__).read_text(encoding="utf-8"))
+        imported, calls = set(), set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                imported.update(a.name for a in node.names)
+            elif isinstance(node, ast.ImportFrom):
+                imported.add(node.module or "")
+            elif isinstance(node, ast.Call):
+                fn = node.func
+                if isinstance(fn, ast.Attribute):
+                    calls.add(fn.attr)
+                elif isinstance(fn, ast.Name):
+                    calls.add(fn.id)
+        for mod in sorted(imported):
+            assert not mod.startswith("psycopg"), \
+                f"{mod!r} is imported here, so the self-exclusion is unsafe"
+            assert "pgstore" not in mod, \
+                f"{mod!r} is imported here, so the self-exclusion is unsafe"
+        for call in ("connect", "execute", "PostgresEventStore"):
+            assert call not in calls, (
+                f"{call}() is called in the scanner module, so excluding it "
+                f"from its own scan is no longer safe")

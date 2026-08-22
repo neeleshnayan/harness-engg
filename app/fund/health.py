@@ -83,7 +83,7 @@ def check_event_store() -> dict[str, Any]:
     """Can we read the log at all, and WHICH log is it?
 
     The database is named as of 2026-08-22, and the naming is the check. The
-    fund now runs three stores — krypton_fund, krypton_fund_test,
+    fund now runs three stores — krypton_fund, krypton_fund_dev,
     krypton_fund_prod — one per mode, and a health report saying "reachable"
     without saying reachable-to-WHAT would read identically whichever one the
     process is pointed at. That is precisely the shape of the incident this

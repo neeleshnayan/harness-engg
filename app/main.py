@@ -60,7 +60,7 @@ _log.warning("FUND MODE: %s | orders -> %s | events -> %s | real money: %s",
 # In test mode there is no service account and no real project: an in-memory
 # Firestore stands in for the parts of the harness that still speak Firestore
 # (the paper venue's own book, the snapshot store). The fund's EVENT LOG in
-# test mode is NOT in memory — it is Postgres, krypton_fund_test, persistent
+# test mode is NOT in memory — it is Postgres, krypton_fund_dev, persistent
 # and append-only exactly like the real one. Isolation and durability are
 # orthogonal, and the flag this replaces treated them as one thing.
 if _mode_spec.mode is fundmode.FundMode.TEST:

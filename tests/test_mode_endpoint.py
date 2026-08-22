@@ -186,7 +186,7 @@ class TestTheHappyPathIsFullyRecorded:
 
         ev = wired["store"].appended[0]
         assert ev.payload["from_ledger"] == "krypton_fund"
-        assert ev.payload["to_ledger"] == "krypton_fund_test"
+        assert ev.payload["to_ledger"] == "krypton_fund_dev"
         assert ev.payload["approver"] == "neelesh"
         assert ev.payload["reason"] == "CEO instruction 2026-08-21"
 

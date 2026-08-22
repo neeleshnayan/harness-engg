@@ -25,7 +25,7 @@ THE THREE MODES (CEO, 2026-08-21, verbatim: "lets have 1. test 2. alpaca-paper
     ==============  =========================  =========================
     mode            orders go to               events land in
     ==============  =========================  =========================
-    test            simulated fills, REAL      krypton_fund_test
+    test            simulated fills, REAL      krypton_fund_dev
                     prices (live_pricer)
     alpaca-paper    the Alpaca paper account   krypton_fund
     alpaca-prod     the Alpaca LIVE account    krypton_fund_prod
@@ -42,6 +42,22 @@ lived in memory while the status endpoint reported successful mirroring hourly.
 Isolation and durability are orthogonal and the old flag treated them as one.
 The whole value of replaying 2020-03 twice is the comparison, and a comparison
 needs both runs to still exist.
+
+**AND THE MODE NAMED ``test`` DOES NOT LIVE IN A DATABASE NAMED ``test``.**
+The mismatch between the mode's name and ``krypton_fund_dev`` is deliberate
+and it is the whole of the property above. The first version of this module
+pointed test mode at ``krypton_fund_test`` — which is the database
+``tests/test_pgstore.py`` TRUNCATES on every fixture, along with twelve other
+test modules. Every ``pytest`` run against a reachable Postgres would have
+wiped the test fund's entire event log, so "persistent, append-only" was false
+from the first run, and the comment three lines into ``test_pgstore.py``
+already said why: *"A test that can corrupt the ledger it is testing is not a
+test."* (Killed in adversary review of builder D11, 2026-08-22, finding K1.)
+
+A ``_test`` suffix is MAGNETIC to whoever writes the next test module, which
+is exactly why the fund's ledger must not wear one. ``test_mode_database_is_
+not_a_pytest_target`` in ``tests/test_fund_mode.py`` enforces the separation
+mechanically rather than trusting this paragraph to be read.
 
 **THREE MODES, THREE STORES, NEVER JOINED.** Paper NAV and real NAV must never
 be foldable together: *"which of these dollars are real"* is not a question
@@ -201,7 +217,10 @@ MODES: dict[FundMode, ModeSpec] = {
         permitted_connectors=("paper",),
         real_money=False,
         real_broker=False,
-        pg_database="krypton_fund_test",
+        # NOT ``krypton_fund_test`` — that is pytest's scratch database and
+        # thirteen test modules TRUNCATE it. See the module docstring; the
+        # separation is pinned by a test, not by this comment.
+        pg_database="krypton_fund_dev",
         label="TEST — simulated fills at real prices",
         caution="Nothing here is the fund. Fills are simulated; the prices they "
                 "fill at are real. The record is persistent and separate.",
