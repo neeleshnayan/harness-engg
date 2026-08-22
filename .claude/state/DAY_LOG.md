@@ -359,6 +359,14 @@ the firm's best lead, Grace's memo, and what I deliberately did not do.
   docs/LOOP_CHARTER_2026-08-22.md — three phases (honest+fast / feed / scale),
   per-stage measured baselines, the brakes exempted, four falsifiers. Grace
   and Vishesh owe WHERE I DIFFER at next dispatch.
+- **TIME-TRAVEL RATIFIED as Loop Charter Phase 4** ("Agree"): walk-forward
+  for the FIRM - pin the clock, replay history, score the organization. The
+  governing trap is named in the charter (hindsight contamination - seats'
+  weights contain the future), so the order is T0 clock -> T1 deterministic-
+  stack replay on PIT data -> T2 regime bank -> T3 seats-disclosed. Two
+  fences: sim events NEVER touch the real ledger; synthetic scars carry
+  provenance forever. T0 ticket `45efaf68` filed, sequenced behind the cache
+  build. The 4TB store is reachable and is T1's PIT-data home.
 - **+16 GB RAM incoming** (host going 15.2 → ~31 GB). NOTE FOR THE CHAIR:
   this re-opens the host-budget numbers (one-heavy-job rule, the 1.28 GB
   collapse falsifier) — revisit as a WRITTEN, versioned amendment when the
