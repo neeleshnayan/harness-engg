@@ -29,11 +29,24 @@ def test_the_view_reads_real_artifacts_and_pairs_them_with_verdicts():
     # secretary added 2026-08-21: the seat existed in the constitution and was
     # missing from this roster, so her seat page rendered a roster absence for
     # a colleague who had already run.
-    assert len(v["roster"]) == 10
+    #
+    # cfo (Grace) added 2026-08-22 — THE SAME OMISSION, THE SECOND TIME. She
+    # was seated in the constitution, dispatched, and had recorded a run while
+    # this list did not know she existed, so the floor rendered nine desks and
+    # no CFO.
+    #
+    # NOTE THE DIRECTION THIS ASSERTION GUARDS, because it is the wrong one and
+    # it is why the omission recurred: a hardcoded count fails when a seat is
+    # ADDED here, and stays green when a seat is FORGOTTEN here. It caught the
+    # fix both times and neither of the defects. The assertion that would have
+    # caught it reads the constitution's roster table and compares — filed
+    # rather than built, because the constitution is prose and parsing it is a
+    # real change, not a one-liner.
+    assert len(v["roster"]) == 11
     assert {r["agent"] for r in v["roster"]} == {"mechanism", "analyst", "pm",
                                                  "quant", "builder", "adversary",
                                                  "validator", "riskofficer",
-                                                 "coo", "secretary"}
+                                                 "coo", "secretary", "cfo"}
     # Every seat carries its justification - a role with no measured reason is
     # ceremony, and the roster rule says it should not exist.
     assert all(r["exists_because"].strip() for r in v["roster"])

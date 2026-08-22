@@ -130,6 +130,30 @@ ROSTER = [
                        "the seat existed in the constitution and was missing "
                        "here, so her seat page rendered a roster absence for a "
                        "colleague who had already run."},
+    {"agent": "cfo",
+     "lane": "The economics of an agentic firm: what each resource costs, what "
+             "it returns, and where the next unit should go. Maps the levers "
+             "that compress the critical path, each with a measured effect",
+     "emits": "ONE memo in the COO's house format — the meter, the lever map, "
+              "the allocation call, and a critical path with a named date",
+     "exists_because": "Seated 2026-08-22 (CEO decision). The seat carries the "
+                       "name Grace, for Hopper. THE SCARCE RESOURCE IS THE "
+                       "CLOCK, NOT THE MONEY: every allocation is judged on "
+                       "whether it moves the date this fund can honestly ask "
+                       "for more capital, and good work off the critical path "
+                       "is not urgent. Demonstrated need, measured the same "
+                       "day: 6.0M subagent tokens across 25 runs and nothing "
+                       "computing what they bought, while allocation decisions "
+                       "were made continuously by the chair in dispatch order "
+                       "with no framework and no record. ADDED TO THIS ROSTER "
+                       "2026-08-22, and this is the SECOND time the same "
+                       "omission has happened — the secretary entry above "
+                       "records the first. A seat is created in the "
+                       "constitution, dispatched, and runs, while its desk "
+                       "renders a roster absence, because adding it here is a "
+                       "manual step nobody is prompted for. Twice is a "
+                       "pattern: seating a seat should fail loudly if this "
+                       "list does not know it."},
 ]
 
 #: Request kinds the desk accepts, mapped to the seat that serves them.
