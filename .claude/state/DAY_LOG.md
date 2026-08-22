@@ -367,6 +367,17 @@ the firm's best lead, Grace's memo, and what I deliberately did not do.
   fences: sim events NEVER touch the real ledger; synthetic scars carry
   provenance forever. T0 ticket `45efaf68` filed, sequenced behind the cache
   build. The 4TB store is reachable and is T1's PIT-data home.
+- **D11 v2 MERGE APPROVED** (CEO, "approved on 1 and 2", before GMAT leave):
+  the event-store crossing is authorized - merge WHOLE branch (ddc05a2 CH +
+  v2-kp-d14 KP), suites green on the merged tree before the spine serves it.
+  EXECUTION SEQUENCED behind the cache builder (one heavy job; suites
+  serialized) - the chair executes when the slot frees, tonight.
+- **GATE v5 BREAKEVEN TRIO APPROVED** (same breath): ticket `5b18fd7d`,
+  staged as neelesh-via-cto. Tier-3 crossing authorized by the CEO; builder
+  dispatches after the cache lands. Entry 20's honest re-judge unblocks on it.
+- **G1: the CEO starts the account MONDAY** - the external clock now has a
+  named start date. Studio UI reported down by the CEO, "let it be" - not
+  investigated, on his instruction.
 - **+16 GB RAM incoming** (host going 15.2 → ~31 GB). NOTE FOR THE CHAIR:
   this re-opens the host-budget numbers (one-heavy-job rule, the 1.28 GB
   collapse falsifier) — revisit as a WRITTEN, versioned amendment when the
