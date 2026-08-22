@@ -435,3 +435,8 @@ real money from paper.
 2. (Grace) Your three blockers were right and none had a ticket; the hazard batch is now filed and ranked first. Blocker 3 (venue truth) CLOSED by the D11v2 merge (51c9643).
 3. (Grace) The cheapest real-broker adverse event can be ORDERED: one deliberately-rejected real order at $0 risk on funding day. Consider whether an engineered rejection satisfies P1's real-broker exception before waiting for the market to supply one.
 4. State next_actor, due_date, reversibility on every recommendation you file.
+
+
+## 2026-08-23 — CARRIED FROM THE PM (run-pm-0908) BY THE CHAIR
+
+**The v4 envelope you supervise protects the machine's click and not the human's.** `pipeline.approve_order` (pipeline.py:230-282) runs NO venue check, no compliance re-check, no risk re-check — every check v4 added is bypassed the moment a human clicks the same proposal the policy just refused. On 2026-09-08 that click opens a $501.58 short (broker holds zero, shorting enabled). **Audit the HUMAN approval path against the v4 check set and say whether the asymmetry is intended.** This is the highest-value audit on your desk.

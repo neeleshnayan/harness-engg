@@ -609,3 +609,8 @@ Do not design a reduced-breadth restructure of Entry 20 around PDT — the rule 
 ## 2026-08-23 — CARRIED FROM BUILDER D16 BY THE CHAIR
 
 When you propose an alpha candidate, specify the cost grid you want swept and make its TOP point reach the gate's cost floor (10 bps today) — a grid chosen to be cheap now costs the submission itself (400 at the belt door). State the maximum slip you intend to test as part of the proposal, the way you state the hold period.
+
+
+## 2026-08-23 — CARRIED FROM THE PM (run-pm-0908) BY THE CHAIR
+
+The Entry 20 restructure loses its PDT clause; what replaces it is a SCHEDULING rule (no same-session opposite-side fill in the same symbol; defer colliding entries one session), not a size cap. And know that gross has NO throttle-compliant room today (48.63% vs 48.08%) — a proposal that assumes free capacity because cash is 51% is assuming a thing the throttle denies.

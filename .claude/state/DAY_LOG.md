@@ -103,6 +103,36 @@ maintain a day log for fable to review."***
 - PM in flight on the 2026-09-08 exit design (395335c8) + the PDT-free
   sizing re-derivation.
 
+### MEASURED — THE PM'S TWO-PORTFOLIOS FINDING (run-pm-0908, chair-verified line-exact)
+
+- **THE FUND IS RUNNING TWO PORTFOLIOS AND ONLY ONE OWNS SECURITIES.** Book:
+  TLT/DBC/SPY/DBA $917.06. Broker: the pre-T1–T8 legacy book $1,165.44
+  (GLD/SOFI/XLE/MSFT/NVDA/INTC + partial SPY) and ZERO of the book's names
+  except partial SPY — the CEO's 2026-08-20 closes never reached the broker
+  (the PaperConnector forgery, fixed by D11v2 but history stands). **Stated
+  exit coverage 100%; EXECUTABLE coverage 0 of 8. Capital deployed under
+  mandate: $166.74 (8.8% NAV), not $917.06.**
+- **THE 09-08 EXITS SELF-DESTRUCT SILENTLY**: fire → autopolicy correctly
+  declines → the decline is a DISCARDED log line → EXIT_RULE_TRIGGERED stamps
+  anyway → 120min expiry → skipped forever. AND **a human click in the
+  window bypasses every v4 check** (approve_order: no venue/compliance/risk
+  re-check) **and opens a $501.58 SHORT.** Sleeve falsifier #3 TRIPPED at
+  6.71%. PM's 12 recommendations are the first desk rows ever to carry
+  next_actor/due_date/reversibility/money on all.
+- **Entry 20's binding legs corrected TWICE against the PM's own doc**: PDT
+  retired AND granularity falsified (universe is fractionable-only by
+  construction; every belt run was whole-share at $10M). Real leg: BELT
+  VALIDITY AT DEPLOYABLE SIZE — R47 fractional re-run at nav=250/500
+  ticketed (47567f8e). Top of the MIN today: THROTTLE ROOM (book $10.39
+  over, third review).
+- **Dispatched: THE HAZARD BATCH builder** (7 wirings: resume guard,
+  integrity producer, decline visibility R41, AccountState cash R42, the
+  three approved hazard rows; venue-truth verified-not-rebuilt). R37
+  (exit override, direction-ambiguous) with the adversary (cd17bd8a).
+  R38/R39/R40/R43/R44/R48 + the PM's tightening challenge (withdraw
+  "deployed under mandate since 08-19"; fence pre-mode-fix TCA) are the
+  CEO's morning batch.
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT

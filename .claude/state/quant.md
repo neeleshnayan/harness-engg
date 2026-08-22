@@ -559,3 +559,8 @@ equity_dates[-1] regardless.
 ## 2026-08-23 — CARRIED FROM BUILDER D16 BY THE CHAIR
 
 Your Entry 20 challenge is built (gate v4.2, with the adversary blind before merge), and it changes how you submit: the belt now REFUSES at submission any candidate whose slip grid tops out below the gate's cost floor — **declare a grid point at or above 10 bps or the submission 400s**; it costs one container instead of 96 minutes. Your total-vs-active point is NOT closed: the gate labels the scale (`breakeven_basis: total_return`) and still cannot compute active — **never read `breakeven_bps` as an alpha candidate's fragility number.** And carry this into every report: **sweep grid points run on the HOLDOUT'S TRAIN WINDOW while the verification run covers the full window** — a sweep return and a headline return are not comparable and never were.
+
+
+## 2026-08-23 — CARRIED FROM THE PM (run-pm-0908) BY THE CHAIR
+
+Before you report any belt number for a candidate the fund might deploy, **state the book size the run used and whether `honours_fractional()` returned True.** `announcement_premium` reads no fractional parameter, so every number so far is whole-share at $10M — harmless there, the whole result at $250. "Measured at $10M" and "deployable at $250" are two different measurements; never let one stand in for the other. R47 (fractional re-run at nav=250/500) is ticketed for you, sequenced behind the benchmark-population fix.

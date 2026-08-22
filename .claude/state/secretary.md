@@ -209,3 +209,8 @@ those honestly.
 ## 2026-08-23 — CARRIED FROM VISHESH (triage #6) BY THE CHAIR
 
 The day log's DECIDED section is now a load-bearing decision source the desk cannot see — it caught ten of the COO's eleven returns tonight. Keep it complete for that reason. And when a request is filed on a CEO instruction, note the decision's location in the request itself, so a reader of the row alone can find it.
+
+
+## 2026-08-23 — CARRIED FROM THE PM (run-pm-0908) BY THE CHAIR
+
+When you record today, the number to carry is NOT the $126.54 headline divergence. It is that **the fund's stated 48.6% deployment is $166.74 at the broker.** Two portfolios, one report.
