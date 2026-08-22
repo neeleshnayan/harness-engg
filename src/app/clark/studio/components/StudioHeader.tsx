@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { StudioNav } from "./StudioNav";
 import { ThemeToggle } from "../ThemeToggle";
+import { ModeBar } from "./ModeBar";
 import { RiskBar } from "./RiskBar";
 import { MarketClock } from "./MarketClock";
 import { ClarkConsole } from "./ClarkConsole";
@@ -71,6 +72,11 @@ export function StudioHeader({ subtitle, status, actions }: StudioHeaderProps) {
       <div className="mx-auto max-w-[1600px] px-6 pb-2">
         <StudioNav />
       </div>
+      {/* WHICH FUND IS THIS — above risk, because it decides how to read every
+          other number on the page including the risk strip's own. A drawdown
+          of 6.8% means something different in test mode, and an operator who
+          learns the mode second has already read the numbers wrong once. */}
+      <ModeBar />
       {/* Risk applies to every surface, so it follows the user rather than
           living on a page they must remember to visit. */}
       <RiskBar />

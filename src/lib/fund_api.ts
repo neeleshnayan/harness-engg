@@ -1279,6 +1279,75 @@ export interface LivenessReport {
   note: string;
 }
 
+// --- the fund's mode (spine 2026-08-22) -------------------------------------
+// A mode is (where orders go) x (where events land). The two dimensions are
+// kept separate all the way to the UI on purpose: conflating them in a single
+// flag is what let a durability fix silently re-route order execution to a
+// real broker.
+
+export type FundModeName = "test" | "alpaca-paper" | "alpaca-prod";
+
+export interface FundModeSpec {
+  mode: FundModeName;
+  label: string;
+  caution: string;
+  /** False for a mode that exists in the enum but has never been run. */
+  wired: boolean;
+  venue: {
+    kind: string;
+    label: string;
+    permitted_connectors: string[];
+    /** Orders leave the building for a broker (true of the paper account too). */
+    real_broker: boolean;
+    /** Real MONEY can move. Only alpaca-prod. */
+    real_money: boolean;
+  };
+  store: { pg_database: string };
+}
+
+export interface FundModePrecondition {
+  key: string;
+  text: string;
+  /** `unchecked` is NOT `met` and NOT a silent `unmet` — it blocks. */
+  status: "met" | "unmet" | "unchecked";
+  detail: string;
+}
+
+export interface FundModeReport {
+  /** NULL when the spine has not declared a mode. Render the absence; never
+   *  substitute a default — that is the whole defect this endpoint exists for. */
+  active: FundModeSpec | null;
+  declared: {
+    env: string | null;
+    file: { mode: string; set_by?: string; set_at?: string; reason?: string } | null;
+    file_path: string;
+    /** An unreadable mode file is reported, not swallowed into `file: null`. */
+    file_error: string | null;
+    /** The two authorities disagreeing, which ARMS a ModeConflict on the next
+     *  spine start. Null when they agree or only one has spoken. Optional
+     *  because a spine older than this build does not send it — and a missing
+     *  key must not read as "no conflict", which is why `declarationConflict`
+     *  falls back to comparing env against file itself. */
+    conflict?: {
+      env: string;
+      file: string;
+      file_path?: string;
+      effect: string;
+      remedy: string;
+    } | null;
+  };
+  modes: FundModeSpec[];
+  prod_gate: {
+    code_lock: { constant: string; value: boolean; open: boolean };
+    preconditions: FundModePrecondition[];
+    n_preconditions: number;
+    n_met: number;
+    n_blocking: number;
+    reachable: boolean;
+  };
+  receipt: { order_id: string; note: string };
+}
+
 export interface RiskMonitorResponse {
   nav_usd: number;
   cash_usd: number;
@@ -2072,6 +2141,34 @@ export const fundApiClient = {
     project_id: string; env: string; is_production: boolean;
     venue?: string; orders_are_real?: boolean; seeder_may_run?: boolean;
   }> => (await fundApi.get(`${P}/book`)).data,
+
+  /** WHICH MODE the fund is in — where orders go and where events land.
+   *  Read-only and safe to poll. */
+  getFundMode: async (): Promise<FundModeReport> =>
+    (await fundApi.get(`${P}/mode`)).data,
+
+  /** Switch the fund's mode. A CONTROL, not a preference — it changes where
+   *  real money-shaped orders go, so it takes the same approval channel as an
+   *  order approval and REFUSES while anything is pending or in flight.
+   *  `confirm` is the first 8 characters of the mode being switched to. */
+  switchFundMode: async (body: {
+    mode: FundModeName;
+    approver: string;
+    confirm: string;
+    instruction?: string;
+    reason: string;
+  }): Promise<{ switched: boolean; from?: string; to?: string; note?: string;
+                /** Present and non-null when the switch has ARMED a
+                 *  ModeConflict for the next restart: FUND_MODE in the
+                 *  spine's environment now disagrees with the mode file this
+                 *  call just wrote. The switch SUCCEEDED; the next start will
+                 *  refuse. Warned rather than refused because run.sh always
+                 *  exports FUND_MODE, so refusing would brick the toggle. */
+                restart_hazard?: {
+                  env: string; file: string; effect: string; remedy: string;
+                } | null;
+                mode?: FundModeReport }> =>
+    (await fundApi.post(`${P}/mode`, body)).data,
 
   getEvents: async (limit = 100, sinceSeq = 0): Promise<{ events: SpineEvent[] }> =>
     (await fundApi.get(`${P}/events`, { params: { limit, since_seq: sinceSeq } })).data,
