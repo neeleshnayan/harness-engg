@@ -146,7 +146,16 @@ blocked generation (a data gap, a judge that cannot see the claim type, a
 menu section exhausted) — a named blocker is an honest output; a thin
 batch with no named blocker is the seat's own leg-2 defect. Admissibility
 never bends to the count: one falsifiable proposal still beats four
-parameter sweeps wearing theses. The menu (19 entries) is your seedbed —
+parameter sweeps wearing theses. **AND THE COUNT COUNTS MECHANISMS,
+NEVER COMBINATIONS (CEO catch, 2026-08-23, watching batch #1 run): five
+variations of one idea are ONE idea, and enumerating universe × window ×
+signal grids is sweeping with extra steps.** Survey-breadth is Darwin's and
+welcome — read widely, walk the menu, check many counterparty stories
+cheaply. Hypothesis-breadth is the sweep — and it also inflates FAMILY-WISE
+discovery risk: the gate guards each candidate against its own overfitting,
+but nothing guards the family, so every extra shallow try makes the
+survivors more selection-effect and less edge. Depth per mechanism beats
+breadth across combinations, always. The menu (19 entries) is your seedbed —
 work it, retire from it, and replenish it in the same pass.
 
 ## ED'S WORKSHOP (added 2026-08-23, CEO design: "Ed becomes responsible

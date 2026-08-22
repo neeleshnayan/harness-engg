@@ -438,6 +438,18 @@ Donna's: CHECK date -u BEFORE DATING ANYTHING.**
   ethos, no discovery, no implementation, weight classified by the chair
   per spec. Cap: 2R + 1C + 1G.
 
+### DECIDED (by the CEO, ~23:00Z) — FOCUS OVER BOIL, mid-batch catch
+
+- Watching Ed's batch #1 run, the CEO flagged combination-boiling. RULING
+  written into the production ethic: **the count counts MECHANISMS, never
+  combinations** — survey-breadth welcome, hypothesis-breadth is the sweep.
+  Chair's own-goal acknowledged: a fertility quota is exactly the pressure
+  that turns a proposer into an enumerator (the kill-shaped-metric lesson,
+  new costume). FAMILY-WISE discovery risk carried to the validator as a
+  named instrument question (the gate bounds each candidate, nothing bounds
+  the family). Ed's batch will be judged at resolve against the sharpened
+  bar — sweep-shaped proposals bounce.
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT

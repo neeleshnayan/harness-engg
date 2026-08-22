@@ -802,3 +802,15 @@ A "control that cannot fire" has a second, cheaper signature: **an input the gua
 ## 2026-08-22 (~22:20Z) — CARRIED FROM THE ADVERSARY (D18 re-review) BY THE CHAIR
 
 When you audit an instrument whose output is "all clear", ENUMERATE THE SHAPES ITS MATCHER CANNOT SEE before recording the clear — two guards on this branch report clean partly because of what they cannot parse (the order-event census; the retired-flag scanner matching only os.getenv with a Name base). A clean from a narrow matcher and a clean from a complete one are different measurements with different confidence.
+
+
+## 2026-08-22 (~23:00Z) — CARRIED FROM THE CEO'S CATCH ON ED'S BATCH #1
+
+FAMILY-WISE DISCOVERY RISK is now a named instrument question for you: the
+gate's criteria bound each candidate's own overfitting; NOTHING bounds the
+family (the more proposals tried per week, the higher the false-discovery
+rate among gate survivors, mechanically). As generation throughput rises
+toward 3-5/week, measure and propose: does the gate need a family-wise
+adjustment (e.g., a stricter bar as tries accumulate, or a
+discovery-rate ledger)? A funnel that speeds up without this becomes a
+selection-effect factory with excellent paperwork.
