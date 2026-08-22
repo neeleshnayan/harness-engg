@@ -484,6 +484,45 @@ def summarise_runs(rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def run_stats(deskstore: Any) -> dict[str, Any]:
+    """LIFETIME per-seat run aggregates, and a proof they are not truncated.
+
+    Built because the firm's first spend meter was assembled by hand from
+    ``GET /fund/desk/runs``'s default payload, whose 25-run cap is documented
+    in ``deskstore`` as "a FLOOR wearing the costume of a count" — and lifetime
+    runs were 49+. Nobody knew until someone queried the uncapped endpoint.
+
+    So this does not merely raise the limit; it CHECKS it. ``row_count`` comes
+    from ``SELECT count(*)`` and ``truncated`` compares it against how many
+    rows were actually read. A meter that cannot tell you whether it saw
+    everything is not a meter.
+    """
+    if deskstore is None:
+        return unknown("RECORDER_UNREACHABLE",
+                       "the run recorder is not configured (FUND_STORE is not "
+                       "postgres) — no lifetime figures are available, which "
+                       "is not a statement that they are zero")
+    try:
+        rows = deskstore.all_runs()
+        total = deskstore.run_count()
+    except Exception as e:  # noqa: BLE001
+        logger.warning("metrics: run recorder unreadable: %s", e)
+        return unknown("RECORDER_UNREACHABLE",
+                       f"the run recorder raised while being read: {e}")
+    body = summarise_runs(rows)
+    truncated = len(rows) < total
+    body["row_count"] = total
+    body["rows_read"] = len(rows)
+    body["truncated"] = truncated
+    body["complete"] = not truncated
+    if truncated:
+        # Loud, because the failure this whole function exists to prevent is a
+        # partial answer read as a full one.
+        body["note"] = (f"TRUNCATED: {len(rows)} of {total} rows were read, so "
+                        "every figure below is a FLOOR. " + body["note"])
+    return body
+
+
 def _duration_seconds(dispatched: Any, resolved: Any) -> Optional[float]:
     a, b = _instant(dispatched), _instant(resolved)
     if a is None or b is None:
