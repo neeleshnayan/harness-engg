@@ -326,6 +326,16 @@ maintain a day log for fable to review."***
   tuned: Ed finds the edge, the analyst grounds the evidence, Stan runs
   the book.
 
+### DECIDED (by the CEO, ~00:00Z) — THE PERSONA-RESTRAINT RULE
+
+- On the chair's own concern ("yes if you truly think its a concern"):
+  **a persona is tuned only on demonstrated need — a measured miss a
+  sharper prior would have caught — exactly as a seat is created.** The
+  five verification instruments stay deliberately plain; the adversary's
+  one-sentence identity doubly so (immune-system exclusion). Written the
+  same night three personas were tuned, because the momentum itself was
+  the evidence.
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT

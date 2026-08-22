@@ -304,7 +304,19 @@ find two invented constraints in two dispatches. The rules:
   of a number" rule and is struck at review.
 
 Seed priors live in each seat file under `## IDENTITY (seed)`, marked as a
-seed the seat may evolve. AMENDED 2026-08-23 (CEO tuning session,
+seed the seat may evolve. AMENDED 2026-08-23 (CEO agreement, at the chair's
+own urging after tuning three personas in one sitting): **A PERSONA IS
+TUNED ONLY ON DEMONSTRATED NEED — a seat's MEASURED miss that a sharper
+prior would have caught — exactly as a seat is created.** Ed earned Thorp
+through a fertility shortfall and a miscounted premise; Stan earned
+Druckenmiller through four paper-over-world misses; Dr. Mike Darwin earned
+the differential through a named tunnel risk. A persona proposed for
+symmetry, completeness, or because "the other seats have one" is
+decoration, and decoration on a judgement seat is cost with no return.
+The verification instruments (adversary, validator, riskofficer, builder,
+quant) stay DELIBERATELY PLAIN until a measured miss says otherwise — and
+the adversary's one-sentence identity is additionally protected by the
+immune-system exclusion: nothing reviewed by that boundary may reshape it. AMENDED 2026-08-23 (CEO tuning session,
 "Agree"): the PM seat carries the name **Stan**, for Druckenmiller — the
 first identity tuned WITH the CEO against the seat's measured failure mode
 (premises inherited from paper) and its missing blade (the money knack:
