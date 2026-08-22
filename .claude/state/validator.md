@@ -741,3 +741,16 @@ time (leanrunner.py:1289, labelled at :1295 with the longest leg's dates), and
 the quant measured an 11.85 pp over-credit (35% of the reported excess) from an
 18-day gap that **had already healed 40 minutes later**. Non-reproducible by
 construction, so it must be caught per-run, not by re-running.
+
+
+## 2026-08-22 — CHAIR FINDING (while charting Entry 20 for the CEO)
+
+`daily_returns.benchmark` in the candidate verification payload is UNUSABLE:
+it compounds to +19.76% while `benchmark_curve` (the true series) shows
++84.78% on the same candidate (144387901688). The dict claims "907 aligned
+daily observations, dropped_unmatched_days: 0" — so the alignment REPORTS
+clean while the benchmark leg is deflated, likely absence-rendered-as-zero
+on the calendar-daily grid. Anything that consumes daily_returns.benchmark
+(vol ratios, active stats, IR) silently inflates the strategy. Add to your
+benchmark audit: compound daily_returns.benchmark and diff it against
+benchmark_return_pct — they must agree within rounding.
