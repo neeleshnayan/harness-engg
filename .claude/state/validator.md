@@ -714,3 +714,13 @@ volatility computed"; it is "the wrong benchmark's volatility, computable."
 ## 2026-08-22 — CARRIED FROM THE READINESS MATRIX (PM) BY THE CHAIR
 
 Gate discrimination D is now a STAGE-GATE, not just a finding: S4 full mandate is locked behind D>=0.75 and D sets w_g at every stage. When you re-measure D, report a CI and flag material change as a forced re-tune trigger — the number moves real notional and gates the top stage.
+
+
+## 2026-08-22 — CARRIED FROM THE ADVERSARY (D11 v2) BY THE CHAIR
+
+A standing consistency invariant worth a one-line property test: the
+exit-coverage `_rule_is_live` predicate (exitrule.py:417) must filter EXACTLY
+the flags enforce() skips (triggered_at, overridden_at) and no others - if
+they diverge, coverage lies in one direction or the other. The D11 K2 remedy
+added `superseded` to the filter and it was wrong precisely because enforce()
+does not skip superseded. Pin coverage==enforce with a property test.

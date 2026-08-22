@@ -338,3 +338,26 @@ zero-skill false-pass.**
   full base run 0.4s vs 7min. Reuse for any re-review.
 - Kills on record: gate v5 r1-r4, VRP/XYLD, SRPT, insider-screen headline,
   builder D11, ENTRY-20 premia label + ENTRY-20 challenge.
+
+
+## 2026-08-22 — STATE from run-adversary-d11-v2 (v2 re-review), appended by the chair
+
+D11 v2: SURVIVES / SURVIVES. All eight kills verified closed BY EXECUTION.
+**I CONFIRMED MY OWN K2 REMEDY WAS WRONG ON ONE-THIRD** by folding the code:
+_fold (exitrule.py:183) sets superseded=True on the SURVIVING/governing rule;
+enforce() skips only triggered_at/overridden_at, never superseded. Filtering
+coverage on superseded scores every revised/re-committed rule dead - a false
+alarm on the one mechanism to restore a fired exit. The builder's refusal was
+right; the two-thirds it kept (triggered_at, overridden_at) are correct.
+LESSON: when a repair spec says "filter on flag X", fold the store and check
+whether X marks the dead record or the governing survivor, AND whether the
+ENFORCER skips X - a coverage filter that disagrees with the enforcer is the
+bug in either direction. NEW ATTACK THAT PAID: a test that ASSERTS a collision
+is not automatically a blessed loosening - read its framing and verify the
+mitigation in the consumer (KP confirmEcho collides alpaca-paper/prod but the
+endpoint selects on req.mode at fund.py:741, so it is real disclosure).
+autopolicy.py/gate.py BYTE-IDENTICAL is the cheapest high-value check.
+Merge-whole-only: commit 2 (5ecebfa) ships the K2 defect, commit 11 (ddc05a2)
+fixes it. Postgres was DOWN at review (5433) - live DB checks CANNOT-TELL, said
+so. Kills on record unchanged; D14 is a SURVIVE and a confirmed self-correction
+of the D11 K2 remedy. Probes reusable: /tmp/k5probe.py, /tmp/foldprobe.py.

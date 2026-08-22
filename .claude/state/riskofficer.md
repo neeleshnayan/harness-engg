@@ -416,3 +416,14 @@ permanently and with no alarm. Ask of every ownership-changing path in the
 book - not just the approval path - whether the envelope can still be
 satisfied afterwards. (D14's K3 fix preserves the reduced holder pro rata for
 exactly this reason.)
+
+
+## 2026-08-22 — CARRIED FROM THE ADVERSARY (D11 v2) BY THE CHAIR
+
+Put "fix confirmEcho to discriminate paper from prod" on the prod-unlock
+checklist beside Grace's live-account decision. KryptonPay confirmEcho takes
+target[:8] so alpaca-paper and alpaca-prod both echo 'alpaca-p'. Safe today
+(the switch endpoint selects on req.mode at fund.py:741, not the echo; prod
+server-locked), so it is disclosure not a loosening - but the day the server
+lock opens, the echo is the last human-readable confirmation and cannot tell
+real money from paper.
