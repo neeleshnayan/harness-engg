@@ -6,7 +6,7 @@ import { AlertTriangle, FlaskConical, Landmark, ShieldAlert } from "lucide-react
 import { fundApiClient, FundModeName, FundModeReport } from "@/lib/fund_api";
 import { KT } from "../theme";
 import {
-  confirmEcho, preconditionTone, presentMode, selectability,
+  confirmEcho, declarationConflict, preconditionTone, presentMode, selectability,
 } from "../fundMode";
 
 /**
@@ -194,6 +194,8 @@ function ModeSwitchDialog({
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hazard, setHazard] = useState<
+    { env: string; file: string; effect: string; remedy: string } | null>(null);
   const [showGate, setShowGate] = useState(false);
   // Open whenever prod is the target, whether or not the operator toggled it:
   // selecting the mode the list gates is exactly when the list must be read.
@@ -208,10 +210,18 @@ function ModeSwitchDialog({
     setBusy(true);
     setError(null);
     try {
-      await fundApiClient.switchFundMode({
+      const res = await fundApiClient.switchFundMode({
         mode: target, approver: approver.trim(), confirm: echo.trim(),
         reason: reason.trim(),
       });
+      // THE SWITCH SUCCEEDED AND THE NEXT RESTART WILL REFUSE. Holding the
+      // dialog open is the point: closing on success would put this sentence
+      // on a screen nobody is looking at, and the consequence lands hours
+      // later at a boot that does not complete (adversary D11, K7).
+      if (res?.restart_hazard) {
+        setHazard(res.restart_hazard);
+        return;
+      }
       onSwitched();
     } catch (e: unknown) {
       // The spine's refusals are the useful ones — pending orders, a locked
@@ -247,6 +257,16 @@ function ModeSwitchDialog({
           NAV and the fund&rsquo;s NAV are different numbers and are never folded
           together.
         </p>
+
+        {/* WHO DECLARED WHAT — rendered always, not only when they disagree.
+            The two authorities are the process environment and the mode file,
+            and until now the dialog showed neither: an operator could not see
+            that the switch he was about to make would arm a ModeConflict on
+            the next restart, and the spine's refusal landed hours later at a
+            boot that would not complete (adversary D11, K7). */}
+        {report && (
+          <DeclaredBy report={report} />
+        )}
 
         <div className="mt-5 space-y-2">
           {(report?.modes ?? []).map((m) => {
@@ -370,6 +390,23 @@ function ModeSwitchDialog({
             {error}
           </div>
         )}
+
+        {hazard && (
+          <div
+            className="mt-4 rounded-lg border border-[var(--kt-warn)]/60 bg-[var(--kt-warn)]/10 p-3 text-[12px] text-[var(--kt-warn)]"
+            data-testid="mode-restart-hazard"
+          >
+            <div className="font-semibold">
+              Switched — and the next spine restart will REFUSE to start
+            </div>
+            <div className="mt-1">
+              FUND_MODE={hazard.env} in the spine&rsquo;s environment now
+              disagrees with the mode file, which says {hazard.file}.{" "}
+              {hazard.effect}
+            </div>
+            <div className="mt-1">{hazard.remedy}</div>
+          </div>
+        )}
         </div>
 
         {/* PINNED. Outside the scroll region, so the button and the reason it
@@ -377,14 +414,14 @@ function ModeSwitchDialog({
         <div className="flex items-center gap-3 border-t border-[var(--kt-border)] px-6 py-4">
           <button
             type="button"
-            onClick={submit}
-            disabled={!ready || busy}
+            onClick={hazard ? onSwitched : submit}
+            disabled={!hazard && (!ready || busy)}
             className="rounded-lg border border-[var(--kt-accent-border)] bg-[var(--kt-accent-bg)] px-4 py-1.5 text-sm text-[var(--kt-accent)] disabled:opacity-40"
           >
-            {busy ? "Switching…" : "Switch the fund's mode"}
+            {hazard ? "I have read this" : busy ? "Switching…" : "Switch the fund's mode"}
           </button>
           <button type="button" onClick={onClose} className={`text-sm ${KT.muted}`}>
-            Cancel
+            {hazard ? "Close" : "Cancel"}
           </button>
           {/* A disabled button says why it is disabled, at the button. The
               operator should never have to scroll up to find out. */}
@@ -403,6 +440,53 @@ function ModeSwitchDialog({
       </div>
     </div>,
     document.body,
+  );
+}
+
+/**
+ * The two authorities, side by side, and the conflict between them.
+ *
+ * Always rendered, never only on disagreement: "which authority is telling
+ * this spine what it is" is a question the operator should be able to answer
+ * before he changes the answer, and a block that appears only when something
+ * is wrong teaches nobody what the normal state looks like.
+ */
+function DeclaredBy({ report }: { report: FundModeReport }) {
+  const conflict = declarationConflict(report);
+  const env = report.declared?.env;
+  const file = report.declared?.file?.mode;
+  const fileError = report.declared?.file_error;
+  return (
+    <div className={`${KT.inset} mt-4 p-3`} data-testid="mode-declared-by">
+      <div className={KT.label}>Declared by</div>
+      <dl className="mt-1.5 grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1 text-[12px]">
+        <dt className={KT.muted}>FUND_MODE (env)</dt>
+        {/* Absence is rendered as absence. "not set" is a fact about the
+            environment; a blank cell would read as a rendering failure. */}
+        <dd className="font-mono text-[var(--kt-text-strong)]">
+          {env || <span className={KT.muted}>not set</span>}
+        </dd>
+        <dt className={KT.muted}>mode file</dt>
+        <dd className="font-mono text-[var(--kt-text-strong)]">
+          {fileError
+            ? <span className="text-[var(--kt-warn)]">unreadable — {fileError}</span>
+            : file || <span className={KT.muted}>no file</span>}
+        </dd>
+        <dt className={KT.muted}>file path</dt>
+        <dd className={`font-mono ${KT.muted}`}>{report.declared?.file_path}</dd>
+      </dl>
+      {conflict && (
+        <div
+          className="mt-2 rounded-lg border border-[var(--kt-warn)]/50 p-2 text-[12px] text-[var(--kt-warn)]"
+          data-testid="mode-declaration-conflict"
+        >
+          <div className="font-semibold">
+            These two disagree — {conflict.effect}
+          </div>
+          <div className="mt-0.5">{conflict.remedy}</div>
+        </div>
+      )}
+    </div>
   );
 }
 

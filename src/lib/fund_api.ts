@@ -1323,6 +1323,18 @@ export interface FundModeReport {
     file_path: string;
     /** An unreadable mode file is reported, not swallowed into `file: null`. */
     file_error: string | null;
+    /** The two authorities disagreeing, which ARMS a ModeConflict on the next
+     *  spine start. Null when they agree or only one has spoken. Optional
+     *  because a spine older than this build does not send it — and a missing
+     *  key must not read as "no conflict", which is why `declarationConflict`
+     *  falls back to comparing env against file itself. */
+    conflict?: {
+      env: string;
+      file: string;
+      file_path?: string;
+      effect: string;
+      remedy: string;
+    } | null;
   };
   modes: FundModeSpec[];
   prod_gate: {
@@ -2146,6 +2158,15 @@ export const fundApiClient = {
     instruction?: string;
     reason: string;
   }): Promise<{ switched: boolean; from?: string; to?: string; note?: string;
+                /** Present and non-null when the switch has ARMED a
+                 *  ModeConflict for the next restart: FUND_MODE in the
+                 *  spine's environment now disagrees with the mode file this
+                 *  call just wrote. The switch SUCCEEDED; the next start will
+                 *  refuse. Warned rather than refused because run.sh always
+                 *  exports FUND_MODE, so refusing would brick the toggle. */
+                restart_hazard?: {
+                  env: string; file: string; effect: string; remedy: string;
+                } | null;
                 mode?: FundModeReport }> =>
     (await fundApi.post(`${P}/mode`, body)).data,
 

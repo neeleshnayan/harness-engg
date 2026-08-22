@@ -22,7 +22,7 @@ export type ModeVolume = "quiet" | "loud" | "alarming";
 
 export interface ModePresentation {
   /** Machine-readable, for `data-fund-mode` on the Studio root. */
-  key: FundModeName | "unknown" | "unreachable";
+  key: FundModeName | "unknown" | "unreachable" | "unrecognised";
   /** Short, upper-case, the thing scanned in half a second. */
   badge: string;
   /** One sentence: what this mode means for the numbers on screen. */
@@ -49,6 +49,37 @@ const UNREACHABLE: ModePresentation = {
   realMoney: false,
   frameSurface: true,
 };
+
+/**
+ * The spine named a mode this build has never heard of.
+ *
+ * Adversary review of builder D11, 2026-08-22 — the one repair on the
+ * KryptonPay half. `presentMode` was a switch over a three-member union with
+ * no `default:`, so a fourth mode returned `undefined` and `ModeBar`
+ * dereferenced it unguarded: a blank screen at exactly the moment the fund had
+ * grown a mode the UI could not name.
+ *
+ * ALARMING, not quiet, and that is the same judgement the rest of this file
+ * makes about every unknown. A UI newer or older than its spine, disagreeing
+ * about which fund this is, is the precise state where a human reads a test
+ * number as a real one — and a mode nobody recognises could be a real-money
+ * one. The safe assumption and the honest assumption are the same assumption.
+ */
+const UNRECOGNISED = (name: string): ModePresentation => ({
+  key: "unrecognised",
+  badge: "MODE UNRECOGNISED",
+  headline: `The spine reports a mode this app does not know: "${name}"`,
+  detail:
+    "This build is older or newer than the spine. It cannot say whether " +
+    "these numbers are real, and a mode it cannot name could be a " +
+    "real-money one — update the app before approving anything",
+  volume: "alarming",
+  // NOT false as a fact — false as a refusal to claim. The `realMoney: true`
+  // treatment is reserved for a mode we KNOW moves money; the frame and the
+  // alarming volume already give this state the loudest presentation there is.
+  realMoney: false,
+  frameSurface: true,
+});
 
 const UNDECLARED: ModePresentation = {
   key: "unknown",
@@ -118,6 +149,11 @@ export function presentMode(report: FundModeReport | null): ModePresentation {
         realMoney: true,
         frameSurface: true,
       };
+    // NOT unreachable, whatever the type says. `active.mode` arrives over the
+    // wire from a spine that may be a different version, so the union is a
+    // claim about this build and not about the world.
+    default:
+      return UNRECOGNISED(String(active.mode));
   }
 }
 
@@ -185,5 +221,57 @@ export function preconditionTone(
       // triggers were free text nothing evaluated while the endpoint reported
       // `triggers_unchecked: []`. Unchecked BLOCKS and says why.
       return { symbol: "?", word: "unchecked — nothing evaluates this", blocking: true };
+    // The same hazard as presentMode's missing default, in the same file, on a
+    // status string that also arrives over the wire. An unknown status BLOCKS:
+    // the one thing a precondition row must never do is read as passing
+    // because this build has not heard of its status yet.
+    default:
+      return {
+        symbol: "?",
+        word: `unrecognised status "${String(status)}" — treated as blocking`,
+        blocking: true,
+      };
   }
+}
+
+/**
+ * The two authorities disagreeing about which mode this spine is in.
+ *
+ * Adversary review of builder D11, finding K7. `scripts/run.sh` exports
+ * FUND_MODE unconditionally and the switch endpoint writes only the mode file,
+ * so any switch away from the launch script's mode arms a ModeConflict on the
+ * next restart. The spine refuses at boot — correct — but the refusal lands
+ * hours after the click and the UI rendered neither declaration.
+ *
+ * Reads the spine's own computed `declared.conflict` when it is there, and
+ * falls back to comparing the two declarations itself when it is not, so a UI
+ * newer than its spine still tells the truth rather than falling silent. The
+ * fallback is the half this file can be sure of; the spine's version carries
+ * the remedy text.
+ */
+export interface DeclarationConflict {
+  env: string;
+  file: string;
+  effect: string;
+  remedy: string;
+}
+
+export function declarationConflict(
+  report: FundModeReport | null,
+): DeclarationConflict | null {
+  if (!report) return null;
+  const declared = report.declared;
+  if (!declared) return null;
+  if (declared.conflict) return declared.conflict;
+  const env = (declared.env || "").trim();
+  const file = (declared.file?.mode || "").trim();
+  if (!env || !file || env === file) return null;
+  return {
+    env,
+    file,
+    effect:
+      "the next spine start will refuse with ModeConflict — it will not pick " +
+      "a winner between two authorities",
+    remedy: `start with FUND_MODE=${file}, or switch the mode back to ${env}`,
+  };
 }

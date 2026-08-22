@@ -14,7 +14,8 @@ import assert from "node:assert/strict";
 
 import type { FundModeName, FundModeReport, FundModeSpec } from "@/lib/fund_api";
 import {
-  confirmEcho, preconditionTone, presentMode, selectability,
+  confirmEcho, declarationConflict, preconditionTone, presentMode,
+  selectability,
 } from "./fundMode.ts";
 
 const spec = (mode: FundModeName, over: Partial<FundModeSpec> = {}): FundModeSpec => ({
@@ -31,7 +32,7 @@ const spec = (mode: FundModeName, over: Partial<FundModeSpec> = {}): FundModeSpe
   },
   store: {
     pg_database:
-      mode === "test" ? "krypton_fund_test"
+      mode === "test" ? "krypton_fund_dev"
         : mode === "alpaca-paper" ? "krypton_fund" : "krypton_fund_prod",
   },
   ...over,
@@ -95,7 +96,7 @@ test("test mode is loud and frames the surface", () => {
 });
 
 test("test mode names the store, so the record is findable", () => {
-  assert.match(presentMode(report(spec("test"))).detail, /krypton_fund_test/);
+  assert.match(presentMode(report(spec("test"))).detail, /krypton_fund_dev/);
 });
 
 test("test mode does NOT overstate — the prices are real and it says so", () => {
@@ -214,4 +215,146 @@ test("met is the only non-blocking status", () => {
   assert.equal(preconditionTone("met").blocking, false);
   assert.equal(preconditionTone("unmet").blocking, true);
   assert.equal(preconditionTone("unchecked").blocking, true);
+});
+
+// --- KP repair: a fourth mode must not blank the screen ----------------------
+//
+// Adversary review of builder D11, 2026-08-22 — the one named repair on the
+// KryptonPay half. `presentMode` was a switch over a three-member union with
+// no `default:`, so a spine reporting a fourth mode returned `undefined` and
+// `ModeBar` dereferenced it unguarded. The failure mode is a blank Studio at
+// exactly the moment the fund has grown a mode this build cannot name.
+//
+// The union is a claim about THIS BUILD, not about the world: `active.mode`
+// arrives over the wire from a spine that may be a different version. Every
+// test below feeds a value the type forbids, deliberately, through a cast.
+
+const fourth = (name: string): FundModeReport =>
+  report({ ...spec("test"), mode: name as FundModeName });
+
+test("a mode this build has never heard of does not return undefined", () => {
+  const p = presentMode(fourth("alpaca-margin"));
+  assert.ok(p, "presentMode returned undefined — ModeBar dereferences this");
+  assert.equal(typeof p.badge, "string");
+  assert.equal(typeof p.headline, "string");
+  assert.equal(typeof p.detail, "string");
+});
+
+test("an unrecognised mode is ALARMING and frames the surface", () => {
+  // Same judgement the rest of this file makes about every unknown: a UI and
+  // a spine disagreeing about which fund this is, is precisely the state where
+  // a human reads a test number as a real one. And a mode nobody recognises
+  // could be a real-money one.
+  const p = presentMode(fourth("alpaca-margin"));
+  assert.equal(p.key, "unrecognised");
+  assert.equal(p.volume, "alarming");
+  assert.equal(p.frameSurface, true);
+});
+
+test("an unrecognised mode NAMES the value it could not read", () => {
+  // Without the name this is an unactionable warning: the operator cannot tell
+  // a typo in a mode file from a spine that has genuinely moved ahead.
+  assert.match(presentMode(fourth("alpaca-margin")).headline, /alpaca-margin/);
+});
+
+test("an unrecognised mode is never mistaken for a known one", () => {
+  const p = presentMode(fourth("alpaca-paper-2"));
+  for (const known of ["test", "alpaca-paper", "alpaca-prod"]) {
+    assert.notEqual(p.key, known);
+  }
+});
+
+test("every mode value produces a usable presentation, including junk", () => {
+  // The property, rather than one example. If a future edit reintroduces a
+  // switch arm without a default, one of these returns undefined.
+  const values = ["test", "alpaca-paper", "alpaca-prod", "alpaca-margin",
+                  "", "TEST", "ibkr-live", "undefined"];
+  for (const v of values) {
+    const p = presentMode(fourth(v));
+    assert.ok(p, `presentMode(${JSON.stringify(v)}) returned undefined`);
+    assert.ok(p.badge.length > 0);
+    assert.ok(["quiet", "loud", "alarming"].includes(p.volume));
+  }
+});
+
+test("an unrecognised precondition status BLOCKS rather than passing", () => {
+  // The same missing-default hazard, in the same file, on another string that
+  // arrives over the wire. The one thing a precondition row must never do is
+  // read as passing because this build has not heard of its status.
+  const t = preconditionTone("pending" as "met");
+  assert.ok(t);
+  assert.equal(t.blocking, true);
+  assert.match(t.word, /unrecognised/);
+});
+
+// --- K7: the two declarations, and the restart they have armed ---------------
+
+test("no conflict when the two authorities agree", () => {
+  const r = report(spec("test"), {
+    declared: {
+      env: "test",
+      file: { mode: "test" },
+      file_path: ".fund_mode",
+      file_error: null,
+      conflict: null,
+    },
+  });
+  assert.equal(declarationConflict(r), null);
+});
+
+test("no conflict when only one authority has spoken", () => {
+  const envOnly = report(spec("test"), {
+    declared: { env: "test", file: null, file_path: ".fund_mode", file_error: null },
+  });
+  const fileOnly = report(spec("test"), {
+    declared: {
+      env: null, file: { mode: "test" }, file_path: ".fund_mode", file_error: null,
+    },
+  });
+  assert.equal(declarationConflict(envOnly), null);
+  assert.equal(declarationConflict(fileOnly), null);
+});
+
+test("the spine's own conflict block is used verbatim when present", () => {
+  const r = report(spec("test"), {
+    declared: {
+      env: "alpaca-paper",
+      file: { mode: "test" },
+      file_path: ".fund_mode",
+      file_error: null,
+      conflict: {
+        env: "alpaca-paper", file: "test",
+        effect: "the next spine start will REFUSE with ModeConflict",
+        remedy: "either start with FUND_MODE=test or switch back",
+      },
+    },
+  });
+  const c = declarationConflict(r);
+  assert.ok(c);
+  assert.match(c.effect, /REFUSE with ModeConflict/);
+  assert.match(c.remedy, /FUND_MODE=test/);
+});
+
+test("a spine too old to send `conflict` still gets the disagreement rendered", () => {
+  // A missing key must not read as "no conflict". This is the absence rule
+  // applied to a version skew: the UI can see both declarations itself, so it
+  // does, rather than falling silent because the spine did not compute it.
+  const r = report(spec("test"), {
+    declared: {
+      env: "alpaca-paper",
+      file: { mode: "test" },
+      file_path: ".fund_mode",
+      file_error: null,
+    },
+  });
+  const c = declarationConflict(r);
+  assert.ok(c, "the UI must detect the disagreement without the spine's help");
+  assert.equal(c.env, "alpaca-paper");
+  assert.equal(c.file, "test");
+  assert.match(c.effect, /ModeConflict/);
+  assert.match(c.remedy, /FUND_MODE=test/);
+});
+
+test("an unreachable spine reports no conflict rather than inventing one", () => {
+  assert.equal(declarationConflict(null), null);
 });
