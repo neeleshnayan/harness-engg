@@ -1639,3 +1639,50 @@ broker.
 silently when an environment variable goes missing.** Not one of them announces
 the switch. That is one defect wearing three names, and it has now bitten the
 fund twice in one day.
+
+
+---
+
+## 2026-08-22 (UTC) — THREE seats in flight: the two-agent cap raised for one dispatch
+
+**Recorded loudly rather than absorbed, for the same reason the first
+parallelism override was: a cost control that erodes by precedent is the
+quiet-loosening pattern pointing the other way.**
+
+The CEO: **"please run grace; need to hear her thoughts."** Grace (CFO) was
+dispatched as the **third** seat in flight, alongside a builder (fund mode +
+the alpaca-paper sync, 2h+) and an analyst (corpus extension, 40m).
+
+**Scope: THIS DISPATCH ONLY.** The standing rule remains **at most two, and
+only when independent**. He asked for one seat by name; reading a standing
+amendment into that would be widening an instruction given narrowly — the
+same error I avoided on the first override and would rather not make on the
+second.
+
+**The dependency test, performed rather than assumed.** All five checks pass,
+and the interesting part is *why* they pass so cleanly:
+
+1. Output-as-input — **partially true and I over-weighted it.** I initially
+   argued Grace should wait because her critical path would go stale when the
+   builder landed. **The CEO corrected me and was right**: her durable half —
+   how the firm runs, where the flow leaks, what the stack is not using — does
+   not perish when a dispatch returns. The seat definition was amended the
+   same hour to carry both horizons explicitly.
+2. Shared write surface — **none.** Grace is read-only; the builder writes in
+   an isolated worktree; the analyst writes to the scratchpad.
+3. Blind-review contamination — not applicable; she reviews no artifact.
+4. Resource contention — Grace runs queries, not containers. She does not
+   touch `MAX_CONCURRENT_CONTAINERS` and adds trivially to a 15.2 GB RAM
+   budget that is the real wall.
+5. Acting on state the other changes — she reads a snapshot and states her cut
+   time; two dispatches will land under her and she has been told so.
+
+**THE DISTINCTION THIS SURFACES, and it is worth a decision rather than a
+precedent:** the cap of two was set against *write contention* — two builders
+colliding on a merge. **A read-only advisory seat does not contend that way at
+all.** If the rule were "at most two WRITING seats, plus read-only advisors",
+it would be a better rule and this override would be unnecessary. **I have not
+made that change** — it is a standing amendment and the CEO's to take, and I
+would rather he took it deliberately than have it arrive as the residue of a
+one-off. Fable: if you think the cap should stay literal, this entry is where
+to reverse it, and the cost is one dispatch's delay.
