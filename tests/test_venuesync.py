@@ -210,6 +210,44 @@ class TestThePlanIsReadOnlyAndMeasured:
             _plan(book, broker)
         assert "ZZZZ" in str(e.value)
 
+    def test_a_venue_that_reports_no_cost_basis_does_not_crash_the_plan(self, book):
+        """FOUND BY RUNNING THIS AGAINST THE LIVE ACCOUNT, not by a test.
+
+        ``Position.avg_price`` is typed float, but a real reading can carry a
+        quantity with no cost basis — the fund's own /fund/venue/reconcile is
+        one such reading — and ``D(str(None))`` raises InvalidOperation. An
+        absent cost basis is ABSENT: the row says so, and the mark is used
+        instead, which the payload records rather than leaving the reader to
+        infer from a null."""
+        broker = FakeBroker(positions={s: (q, None)
+                                       for s, (q, _) in BROKER_POSITIONS.items()})
+        payload = _plan(book, broker).to_payload()
+        adopted = next(r for r in payload["positions"] if r["symbol"] == "GLD")
+        assert adopted["venue_avg_price"] is None
+        assert adopted["cost_basis_from"].startswith("mark")
+        assert adopted["mark"] == MARKS["GLD"]
+
+    def test_a_cost_basis_the_venue_DID_report_is_used(self, book):
+        payload = _plan(book).to_payload()
+        adopted = next(r for r in payload["positions"] if r["symbol"] == "GLD")
+        assert adopted["venue_avg_price"] == BROKER_POSITIONS["GLD"][1]
+        assert adopted["cost_basis_from"] == "venue_avg_price"
+
+    def test_the_venue_is_asked_for_its_positions_exactly_once(self, book):
+        """Two round trips can disagree, and a plan built from two readings of
+        a moving account is a plan of a book that never existed."""
+        broker = FakeBroker()
+        calls = {"n": 0}
+        inner = broker.positions
+
+        def counting():
+            calls["n"] += 1
+            return inner()
+
+        broker.positions = counting
+        _plan(book, broker)
+        assert calls["n"] == 1, calls
+
     def test_a_simulated_connector_has_no_second_opinion(self, book):
         with pytest.raises(venuesync.VenueSyncError):
             venuesync.plan(connector=book.conn, store=book.store,

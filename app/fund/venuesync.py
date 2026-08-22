@@ -126,6 +126,11 @@ class SymbolAlignment:
             "direction": self.direction,
             "venue_avg_price": f(self.venue_avg_price) if self.venue_avg_price is not None else None,
             "mark": f(self.mark) if self.mark is not None else None,
+            # Which number the cost basis came from, said out loud rather than
+            # inferred from which field happens to be null.
+            "cost_basis_from": ("venue_avg_price"
+                                if self.venue_avg_price is not None
+                                else "mark (the venue reported no cost basis)"),
             "value_delta_usd": (f(money(self.delta_qty * self.mark))
                                 if self.mark is not None else None),
             "holders": [{"strategy_id": h["strategy_id"], "qty": f(h["qty"]),
@@ -235,9 +240,19 @@ def plan(connector: Any, store: EventStore, nav_service: Any,
                 f"the venue reading has no {key!r}. Unreadable is not zero, and "
                 "a reconciliation against a missing number is a fabricated one.")
 
-    venue_positions = {str(p.symbol).upper(): D(str(p.qty)) for p in connector.positions()}
+    # Asked ONCE. A second round trip could disagree with the first, and a plan
+    # built from two readings of a moving account is a plan of a book that
+    # never existed.
+    venue_rows = list(connector.positions())
+    venue_positions = {str(p.symbol).upper(): D(str(p.qty)) for p in venue_rows}
+    # An absent average entry price is ABSENT, not zero and not the mark. Some
+    # readings of the venue carry quantities without a cost basis (the fund's
+    # own /fund/venue/reconcile is one), and D(str(None)) raises — found by
+    # running this against the live account, not by a test. Where the cost is
+    # missing the payload says so and the fold falls back to the mark, which is
+    # recorded in the row so a reader can see which basis was used.
     venue_costs = {str(p.symbol).upper(): D(str(p.avg_price))
-                   for p in connector.positions()}
+                   for p in venue_rows if p.avg_price is not None}
 
     snap = nav_service.compute()
     book_positions = {str(p["symbol"]).upper(): D(str(p["qty"]))
