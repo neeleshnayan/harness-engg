@@ -2270,6 +2270,61 @@ def list_exit_rules(strategy_id: str | None = Query(None)):
     return {"rules": ExitRules(_store).active(strategy_id)}
 
 
+def _owned_holdings(positions: list[dict]) -> list[dict] | None:
+    """The book seen PER OWNER — what makes exit coverage answerable.
+
+    ``RiskMonitor.assess()`` returns one row per SYMBOL and names no strategy
+    (verified against the running spine 2026-08-22: the rows are exactly
+    symbol / qty / mark / value_usd / weight_pct / unrealized_pnl_pct /
+    shock_20_usd). An exit rule is a commitment BY a strategy ABOUT a symbol,
+    so symbol-level rows cannot answer "is this holding covered" — that is the
+    gap the coverage report was scored on and lost (adversary D11, K2).
+
+    Returns None rather than [] when the attribution cannot be read. None means
+    "ask the weaker question and say so"; [] would mean "the fund holds
+    nothing", which is a different and much more comforting claim.
+    """
+    try:
+        rows = _attribution.with_values(_connector.price)
+    except Exception as e:  # noqa: BLE001 — unreadable is NOT unowned
+        logger.info("exit check: attribution unreadable, coverage falls back "
+                    "to symbol level: %s", e)
+        return None
+    marks = {p.get("symbol"): p.get("mark") for p in (positions or [])}
+    out: list[dict] = []
+    for rec in rows:
+        sid = rec.get("strategy_id")
+        for symbol, qty in (rec.get("positions") or {}).items():
+            try:
+                q = float(qty)
+            except (TypeError, ValueError):
+                q = None
+            if q is not None and abs(q) < 1e-9:
+                continue
+            mark = marks.get(symbol)
+            out.append({
+                "strategy_id": sid,
+                "symbol": symbol,
+                "qty": qty,
+                # Absent mark -> absent value, never zero. The coverage block
+                # counts these separately as `uncovered_unvalued`.
+                "usd_value": (round(q * float(mark), 2)
+                              if q is not None and mark is not None else None),
+            })
+    if positions and not out:
+        # The book holds things and the attribution names an owner for none of
+        # them. That is a divergence, not an empty book, and answering the
+        # strong coverage question against an empty owner list would report
+        # every position uncovered for a reason that is about the projection
+        # rather than about the fund. Fall back and say which question we
+        # answered.
+        logger.warning("exit check: the book shows %d position(s) and the "
+                       "attribution names an owner for none of them; coverage "
+                       "falls back to symbol level", len(positions))
+        return None
+    return out
+
+
 @router.get("/fund/exits/check")
 def check_exit_rules(strategy_id: str | None = Query(None)):
     """Evaluate every committed exit against current marks.
@@ -2284,7 +2339,8 @@ def check_exit_rules(strategy_id: str | None = Query(None)):
     except Exception as e:  # noqa: BLE001
         logger.info("exit check: marks unavailable: %s", e)
         positions = []
-    return ExitRules(_store).check(positions, strategy_id)
+    return ExitRules(_store).check(positions, strategy_id,
+                                   holdings=_owned_holdings(positions))
 
 
 @router.post("/fund/exits/override")

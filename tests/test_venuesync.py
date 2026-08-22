@@ -465,7 +465,10 @@ class TestExitCoverageCanSeeUncoveredHoldings:
             [{"symbol": "GLD", "qty": 0.424471, "usd_value": 131.6,
               "unrealized_pnl_pct": 1.2}])
         assert [u["symbol"] for u in out["uncovered"]] == ["GLD"]
-        assert "NO exit rule" in out["note"]
+        # "NO LIVE exit rule" since the K2 repair: a superseded, triggered or
+        # overridden rule is a record and no longer counts as coverage.
+        assert "NO LIVE exit rule" in out["note"]
+        assert out["uncovered_usd"] == 131.6
 
     def test_unreadable_marks_are_not_reported_as_full_coverage(self, wire):
         """An empty positions list because the marks could not be read must not
