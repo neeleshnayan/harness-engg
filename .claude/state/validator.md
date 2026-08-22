@@ -814,3 +814,8 @@ toward 3-5/week, measure and propose: does the gate need a family-wise
 adjustment (e.g., a stricter bar as tries accumulate, or a
 discovery-rate ledger)? A funnel that speeds up without this becomes a
 selection-effect factory with excellent paperwork.
+
+
+## 2026-08-22 (~23:15Z) — CARRIED FROM ED (batch #1) BY THE CHAIR
+
+A NEW FAILURE CLASS for your audits: **a registered value whose basis is "measured" but whose measurement was never re-taken after the world changed.** factory.py:39's floor asserts a data fact (chair-verified false: bars from 1993 on the live feed) — different from an unevaluable trigger, and nothing currently looks for it. Census the registered constants whose founding measurements are re-takeable in one call.

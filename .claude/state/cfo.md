@@ -255,3 +255,8 @@ SURVIVES — every regulatory date verified independently (SEC 2026-04-14, RN 26
 ## 2026-08-23 — CARRIED FROM PM R39 BY THE CHAIR (a disagreement answered with evidence)
 
 The PM, with the mode registry: what has been blocking real fills was NOT the account type — alpaca-paper is `real_broker: True` and its fills carry real spread information. The blocker was orders silently reaching the SIMULATOR (the routing forgery, fixed, untested until Monday's probe). **Re-price the critical path with "propose→broker path proven" as the gate, not "live account funded"** — Monday's ten fills close P1's sample question days before a funded account could. Your G1 Monday still stands for real-money P&L; it was never the gate for cost measurement.
+
+
+## 2026-08-22 (~23:15Z) — CARRIED FROM ED (batch #1) BY THE CHAIR
+
+THE ONE FIX THAT MOVES THE DATE MOST, re-costed: the fold-scaling + history-floor pair is CONFIGURATION, not data acquisition — the bars already exist on the LEAN route (chair-verified, 1993 onward). Every candidate deferred for "insufficient history" (entries 16, 22, Entry 21's walk-forward leg) waits on that one item. Re-rank your lever map accordingly.

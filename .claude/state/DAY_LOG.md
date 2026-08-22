@@ -450,6 +450,32 @@ Donna's: CHECK date -u BEFORE DATING ANYTHING.**
   the family). Ed's batch will be judged at resolve against the sharpened
   bar — sweep-shaped proposals bounce.
 
+### MEASURED — ED'S BATCH #1 LANDED (~23:15Z): ENTRY 21 + THE 33-YEAR FINDING
+
+- **First run as Ed, and the boil worry is SCORED: falsified** — six
+  families tested by discriminator, five killed on their own logic, ONE
+  deep survivor. **Entry 21, the Treasury auction concession** (statutory
+  counterparty: Treasury via obligated dealers; duration-ordered,
+  size-monotone, STRENGTHENING; 18.5y active +6.95%/yr, IR 1.02, BE
+  19.7bps, 17/19 years; 0-of-300 null) — with the full pre-flight card,
+  predictions on the ledger, **and a self-predicted gate FAIL on fold
+  retention** at the gate's measured 22.8% power, proposed anyway to price
+  the history-floor argument. WITH THE ADVERSARY BLIND now, batched with
+  Ed's breakeven-floor challenge (loosening, self-declared).
+- **THE 33-YEAR FINDING, chair-verified live**: the feed serves SPY from
+  **1993-01-29** on the exact LEAN route while factory.py:39 floors the
+  belt at 2024-02-26 ("the number is a property of the data" — false).
+  **The fund judges every strategy on 1/13th of the data it owns.** Ed
+  correctly fenced the trap: floor-move without fold-scaling = FP
+  2.9%→12.5%, a loosening dressed as a data improvement. Ordered pair
+  ticketed (58c4fff5); the gate-criteria half is the CEO's morning call.
+- Harvestability ratio applied as EVOLVE 9a (pre-kills unharvestable
+  families for five minutes' arithmetic). Menu 20→26 with honest
+  dispositions. ETF execution-cost measurement deployment on the CEO's
+  desk (the parameter deciding a whole candidate family; impossible on
+  the paper simulator). Ed's fitness: 1 vs 3–5 target, blocker NAMED —
+  next cycle goes where the data is new.
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT

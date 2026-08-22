@@ -624,3 +624,18 @@ Same as the quant's: propose nothing with a short leg without naming unbounded d
 ## 2026-08-22 (late) — CARRIED FROM BUILDER D18 BY THE CHAIR (as quant's)
 
 Same rule: any proposal whose implementation would add an event type to an existing aggregate must say whether it is lifecycle or annotation, and which folds read that aggregate. The census test now enforces classification.
+
+
+## 2026-08-22 (~23:15Z) — STATE from run-ed-batch1 (funnel cycle 6, first run as Ed), appended by the chair
+
+**VERDICT: 1 belt-ready ALPHA (Entry 21), 1 book rec (Entry 22), 5 families killed on their own discriminators, 2 instrument findings, menu 20→26, ZERO containers.**
+
+**THE ONE NUMBER THAT CHANGES MY JOB: the feed serves true daily bars from 1993** (SPY 8,448 sessions; chair-verified on the LEAN csv route) while factory.py:39 floors the belt at 2024-02-26. Extension BLOCKED-BY-DESIGN behind fold-scaling (judgement.py:414; FP 2.9%→12.5%). Order: scale folds, THEN move the floor. Stop writing "needs more history" — write "needs the floor moved, behind the scaling fix."
+
+**ENTRY 21 SPEC, FROZEN — do not re-tune:** {EDV, IEF, SHY}; PRE = 5 sessions before any 10y/20y/30y auction admitted at announcement-lead ≥5d; weights PRE (0, 1/3, 2/3) else (0.60, 1/3, 0.067); w_hi=0.60 FIXED (BE flat 19.3–20.0 across 0.50–0.70); hold 21. 18.5y: active +6.95%/yr, IR 1.02, t 4.40, BE 19.7bps, 17/19 years, up-years +6.62 vs down-years +6.98. Belt window: +4.66%/yr, vol ratio 1.115, BE 12.1. Per-fold OOS +14.55/−6.50/−8.75/+3.95 → **I PREDICT 2/4 retained and a FAIL at the gate's 22.8% power.** Null 0/300. TLT fallback: +3.45%/yr, IR 0.81, BE 11.2.
+
+**NUMBERS NOT TO RE-DERIVE** (scripts in scratchpad; feed 1990–2026): auction concession duration-ordered (20y −0.438 t−2.96 … 2y +0.153), size-monotone, split-half STRENGTHENING (−0.150→−0.379), day-of-month control +28.47%/yr t 3.88. **Calendar shifts near multiples of ~21 sessions REPRODUCE the effect** (−45 → t+3.16) — only off-cycle shifts are placebos for a monthly event. Belly recovery t+5.27 dies at BE 2.4bps (7y duration). ETF reversal +13.14%/yr t 3.92 dies at BE 3.0–3.7 (you cannot be paid for providing liquidity while taking it; revival = measured ETF slip <2.5bps). 424B5: PIT classifier collapsed t+2.48→t+0.05 — **a conditioning variable computed over the full sample is a card you did not count.** Buyback blackout: own discriminator orders WRONG. Net issuance + short interest: FENCED (delisting-correlated on a survivor universe). Mandate pairs: only FORCED sales pay (ANGL−HYG +2.12%/yr ΔSR+0.16; FALN agrees; six reluctant-clientele stories fail; belt-window −0.39%/yr — has not paid since 2023). Commodity sleeve DEFENDED (DBC curve-aware; USCI best alt at +0.28 IR 0.03); DBA weakest (SR+0.11/11y); TLT excess SR −0.13 since 2016 (entry point, not premium). VOO−SPY +4.5bps t 0.19 — never click this.
+
+**THE SCREEN BEFORE THE NEXT STUDY (EVOLVE 9a, applied): harvestability = instrument sensitivity × edge/event × events/yr ÷ turnover.** Refuse below ~10bps active BE from the event-study output alone. Would have pre-killed three of tonight's families.
+
+**JUDGE STATE:** gate v4.2; min_breakeven 10.0 on TOTAL (D6 unfixed); folds 4 strict-majority; check_cost_grid live at submission; capacity tie-break defect live. **FITNESS: 1 candidate vs 3–5 target, blocker NAMED** (harvestability + survivorship fence exhaust in-house families). **NEXT CYCLE: nothing new until Entry 21 has a verdict; if the fold-scaling pair lands, re-run entries 16/22's family as a batch on 18–24y; go where the data is NEW (FINRA, fiscaldata, XBRL 8-K item panel — 7,512 dated events already extracted) rather than where the stories are familiar.**

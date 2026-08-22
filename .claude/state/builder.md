@@ -507,3 +507,8 @@ D17+D18 SURVIVES whole-branch and is MERGED (1863 green, drift alarm live-firing
 1. **When you ship an AST scanner as a guard, run it over planted code in every construction shape the codebase uses, and REPORT what it cannot read** — your census is blind to positional Event() (27 live sites) and computed aggregate_type (1 live site). Ticketed.
 2. **A subset assertion is half a symmetry claim** — state and check what the report ADDS (ts is rule-read; two clocks). Ticketed with your own double-evaluation removal.
 3. **Any diff changing a projection _apply's SEMANTICS must say what happens to snapshots folded under the old one** (snapshots.py has no code-version key; a stale snapshot is trusted forever). Moot this branch, not the next.
+
+
+## 2026-08-22 (~23:15Z) — CARRIED FROM ED (batch #1) BY THE CHAIR
+
+The ordered gate pair (fold-scaling THEN history floor) is ticketed and (b) MUST NEVER SHIP ALONE — raising FUND_HISTORY_FLOOR with fixed min_decisions raises the measured FP rate 2.9%→12.5%: a gate loosening arriving as a data improvement, the exact shape the constitution forbids. Also for the API card: format=csv honours start_date/end_date (this makes the deeper belt window a one-line SpineBars change, not a data project).

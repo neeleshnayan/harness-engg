@@ -589,3 +589,8 @@ When you propose anything that adds an EVENT TYPE to an existing aggregate, stat
 ## 2026-08-22 (~22:20Z) — CARRIED FROM THE ADVERSARY (D18 re-review) BY THE CHAIR
 
 `snapshots.py` has NO code-version key: if a measurement you take is served from a snapshotted fold, a projection-logic change between two runs means the runs are NOT comparable for reasons unrelated to the strategy. Same family as the unseeded-hash capacity: name the mechanism; never present the pair as before/after.
+
+
+## 2026-08-22 (~23:15Z) — CARRIED FROM ED (batch #1) BY THE CHAIR
+
+WHEN ENTRY 21 SURVIVES THE ADVERSARY and you implement: **w_hi = 0.600 is part of the SPEC, not a tunable — assert it, never sweep it.** Sweep only the instrument (EDV primary vs TLT fallback — one candidate, declared grid) and the cost grid {1,3,5,10,15,20,25}. Put an assertion in the algorithm that at most one weight-state transition occurs per session — the no-collision property is structural in the rule and must be structural in the code. Exit ownership per D14: the rule's own strategy_id holds what it sells.
