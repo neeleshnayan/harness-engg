@@ -220,6 +220,12 @@ def test_an_unmeasured_cost_robustness_fails_rather_than_passes():
 # than invented: `breakeven_bps: None`, the "still profitable" reason, and a
 # `tested_range` of raw slip FRACTIONS. Entry 20's grid was 1/3/5 bps against a
 # 10 bps floor, and it PASSED with zero failures.
+#
+# The fixture carries the reason VERBATIM, em-dash included, because the gate's
+# match is a substring test and a fixture that quietly simplifies the sentence
+# would stop testing the real one. (The stored copy in 144387901688 was checked:
+# the dash is intact. The gate matches only the ASCII prefix before it, so the
+# check does not depend on that.)
 
 def _survived_the_grid(*slips: float) -> dict:
     return {"breakeven_cost": {
@@ -291,9 +297,12 @@ def test_an_unreadable_tested_range_fails_rather_than_passes():
     cleared anything. This is the same doctrine as the unmeasured breakeven one
     test up: absence is never zero, and it is never a pass either.
 
-    Reachable in practice — `tested_range` is only written by the no-crossing
-    branch of `breakeven_cost`, so any other producer of that reason string
-    arrives here with nothing to check.
+    DEFENSIVE, and stated as such rather than dressed up: today's
+    `breakeven_cost` always ships a `tested_range` alongside that reason, so
+    this branch is unreachable through the live producer. It guards the cases
+    that are not the live producer — a summary restored from the durable mirror,
+    and any future writer of that sentence. Failing closed is the only safe
+    default here, because the alternative is the exact silent pass v4.2 removed.
     """
     out = evaluate(_good_result(), GOOD_HOLDOUT,
                    {"breakeven_cost": {
