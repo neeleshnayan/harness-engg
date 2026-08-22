@@ -232,6 +232,64 @@ class TestModeTravelsWithTheArtifact:
                       EventType.ORDER_FILLED):
             assert _one(wire.store, oid, etype)["mode"] == "test", etype
 
+    def test_the_modes_venue_label_is_actually_stamped(self, wire):
+        """Adversary review of builder D11, 2026-08-22, finding K6.
+
+        ``ModeSpec.venue_label`` described itself as "the label stamped on
+        fills and submits" and NOTHING stamped it. The distinct
+        ``alpaca-live`` value existed in no event anywhere, so the one field
+        that can tell the Alpaca paper account from the Alpaca live account was
+        decoration.
+        """
+        fundmode.activate(fundmode.MODES[fundmode.FundMode.TEST])
+        _fund(wire)
+        res = wire.pipe_open.propose_order(
+            Order(venue="paper", symbol="AAPL", side=Side.BUY, qty=1.0),
+            actor="cto")
+        oid = res["order_id"]
+        wire.pipe_open.approve_order(oid, "neelesh")
+        for etype in (EventType.ORDER_PROPOSED, EventType.ORDER_SUBMITTED,
+                      EventType.ORDER_FILLED):
+            payload = _one(wire.store, oid, etype)
+            assert payload["venue_label"] == "paper", etype
+
+    def test_venue_label_does_not_replace_the_runtime_venue(self, wire):
+        """The two answer different questions and BOTH are recorded.
+
+        ``venue`` is the connector that ran the order — the runtime fact TCA
+        keys on, and the thing the VENUE_FORGERY_RECEIPT exists to protect.
+        Overwriting it with a mode's label would be the same class of mistake
+        as reading the proposer's string, just from a nicer source.
+        """
+        fundmode.activate(fundmode.MODES[fundmode.FundMode.TEST])
+        _fund(wire)
+        res = wire.pipe_open.propose_order(
+            Order(venue="paper", symbol="AAPL", side=Side.BUY, qty=1.0),
+            actor="cto")
+        proposed = _one(wire.store, res["order_id"], EventType.ORDER_PROPOSED)
+        assert proposed["venue"] == "paper"
+        assert proposed["venue_label"] == "paper"
+
+    def test_the_three_modes_carry_three_distinguishable_labels(self):
+        """Why the field is worth stamping at all: connector.name is "alpaca"
+        for BOTH Alpaca accounts, so without this a row copied between the two
+        stores by hand cannot be told apart. The labels must stay distinct."""
+        labels = {mode: fundmode.MODES[mode].venue_label
+                  for mode in fundmode.FundMode}
+        assert labels[fundmode.FundMode.ALPACA_PAPER] == "alpaca"
+        assert labels[fundmode.FundMode.ALPACA_PROD] == "alpaca-live"
+        assert len(set(labels.values())) == 3, labels
+
+    def test_no_venue_label_is_stamped_when_no_mode_was_declared(self, wire):
+        """Absence, same rule as the mode itself. A hand-built pipeline has no
+        mode, and a label nobody chose must not enter an append-only log."""
+        _fund(wire)
+        res = wire.pipe_open.propose_order(
+            Order(venue="paper", symbol="AAPL", side=Side.BUY, qty=1.0),
+            actor="cto")
+        proposed = _one(wire.store, res["order_id"], EventType.ORDER_PROPOSED)
+        assert "venue_label" not in proposed
+
     def test_a_connector_that_names_no_venue_says_the_label_is_unverified(
             self, wire):
         """Never promote a declaration to a fact. If the runtime cannot say

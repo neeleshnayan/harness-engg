@@ -159,9 +159,20 @@ class ModeSpec:
 
     # --- dimension 1: where orders go --------------------------------------
     venue_kind: VenueKind
-    #: The label stamped on fills and submits. The ONLY value this mode may
-    #: write, and the reason a mock venue is INCAPABLE of emitting an
-    #: alpaca-labelled fill rather than merely discouraged from it.
+    #: The MODE's own name for its venue, stamped as ``venue_label`` on every
+    #: order event beside the connector's ``venue`` (``pipeline._venue_stamp``).
+    #:
+    #: The two are different questions and both are recorded. ``venue`` is the
+    #: connector that RAN the order — the runtime fact, and the one TCA keys
+    #: on. ``venue_label`` is the only field that distinguishes the Alpaca
+    #: PAPER account from the Alpaca LIVE one, because ``connector.name`` is
+    #: "alpaca" for both; two stores already keep those histories apart, and
+    #: this keeps them apart in a row someone copies between them by hand.
+    #:
+    #: The claim in this comment was FALSE until 2026-08-22: it said "the label
+    #: stamped on fills and submits" and nothing stamped it, so the distinct
+    #: ``alpaca-live`` value existed in no event (adversary review of builder
+    #: D11, finding K6).
     venue_label: str
     #: Connector ``name`` values this mode will accept at wiring time.
     #: Anything else raises rather than being tolerated.

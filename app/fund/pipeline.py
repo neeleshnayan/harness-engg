@@ -99,13 +99,31 @@ class CommandPipeline:
             # a proposer asking for a venue it did not get is worth seeing.
             stamp["venue_requested"] = order.venue
             stamp["venue_source"] = "connector"
-        active = _mode.current_label()
-        if active:
+        spec = _mode.current()
+        if spec is not None:
             # Mode travels with the artifact. Omitted, never guessed, when the
             # process never declared one — a hand-built pipeline in a unit test
             # genuinely has no mode, and "unknown" written into a payload would
             # be a mode nobody chose.
-            stamp["mode"] = active
+            stamp["mode"] = spec.mode.value
+            # THE MODE'S OWN VENUE LABEL, stamped — 2026-08-22, adversary
+            # review of builder D11, finding K6. ``ModeSpec.venue_label``
+            # described itself as "the label stamped on fills and submits" and
+            # NOTHING stamped it; the distinct ``alpaca-live`` value existed in
+            # no event anywhere.
+            #
+            # It is stamped BESIDE ``venue``, not instead of it, and the two
+            # answer different questions. ``venue`` is the connector that ran
+            # the order — the runtime fact TCA keys on, and the one the
+            # VENUE_FORGERY_RECEIPT exists to protect. ``venue_label`` is the
+            # MODE's name for that venue, and it is the only field that can
+            # tell the Alpaca paper account from the Alpaca live account:
+            # ``connector.name`` is "alpaca" for both, so a row copied between
+            # two stores by hand would otherwise be unidentifiable.
+            #
+            # Nothing reads it as a venue. If something ever needs to, it reads
+            # ``venue``.
+            stamp["venue_label"] = spec.venue_label
         return stamp
 
     # --- propose -----------------------------------------------------------
