@@ -181,17 +181,39 @@ class BarSnapshot:
                        f"snapshot is {self.age_s():.0f}s old, past the {MAX_AGE_S:.0f}s bound")
             return None
 
-        lo, hi = start, end
-        if lo is None and hi is None and lookback_days:
-            # THE DRIFT FIX. The trailing window is measured from the instant the
-            # snapshot was taken, never from "now" — so every container of this
-            # candidate resolves the same lookback to the same dates.
-            if leg.lookback_days is not None and int(lookback_days) > int(leg.lookback_days):
+        if start is None and end is None:
+            # THE CONTAINER'S REQUEST, and the one that must be byte-identical.
+            #
+            # A trailing-lookback request is served ONLY when it is the exact
+            # question this leg was fetched with — in which case the leg IS the
+            # answer and is returned whole. It is deliberately NOT re-sliced to
+            # "N days before taken_at": vendors do not interpret a lookback as a
+            # calendar cut, and doing that arithmetic here made a pinned SPY leg
+            # return 1,377 bars from 2021-03-01 where the direct fetch returns
+            # 2,000 from 2018-09-06. That is a truncation invented by the cache,
+            # which is the Entry 20 defect wearing this module's clothes, so the
+            # arithmetic is gone rather than corrected.
+            #
+            # A DIFFERENT lookback is a miss, not an approximation. The caller
+            # falls through to a live fetch and gets exactly what it asked for.
+            if leg.lookback_days is None or int(lookback_days or 0) != int(leg.lookback_days):
                 self._miss(sym, lookback_days, start, end,
-                           f"asked for {lookback_days}d, leg pinned at "
-                           f"{leg.lookback_days}d")
+                           f"asked for lookback_days={lookback_days}, leg pinned "
+                           f"at {leg.lookback_days} — served live rather than "
+                           f"approximated")
                 return None
-            lo = (self.taken_at - timedelta(days=int(lookback_days))).strftime("%Y-%m-%d")
+            with self._lock:
+                self.hits += 1
+            return SnapshotLeg(
+                symbol=leg.symbol, dates=list(leg.dates), closes=list(leg.closes),
+                source=leg.source, lookback_days=leg.lookback_days,
+                volumes=(list(leg.volumes) if leg.volumes else None),
+            )
+
+        # An explicit window (the benchmark leg). Served by slicing the pinned
+        # series, which is what makes the strategy and its bar provably the same
+        # closes rather than two vendor calls that agree by assumption.
+        lo, hi = start, end
 
         dates, closes = leg.dates, leg.closes
         if lo is not None and lo > (leg.first or ""):

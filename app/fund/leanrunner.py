@@ -1144,9 +1144,18 @@ class LeanRunner:
             return
         symbol = max(set(symbols), key=symbols.count)
         try:
+            from app.fund import barcache
             from app.fund.capacity import estimate
             from app.fund.marketdata import fetch_daily_bars
-            bars = fetch_daily_bars(symbol, lookback_days=120)
+            # Only serve capacity from the pinned leg when that leg actually
+            # carries VOLUMES. Capacity is a volume estimate; a pinned leg whose
+            # vendor returned no volume would turn a real ceiling into "no
+            # volume, no estimate" and the candidate would silently lose a
+            # number it used to have. Falling through costs one fetch and keeps
+            # the estimate honest.
+            pinned = barcache.serve(symbol, lookback_days=120)
+            bars = (pinned if (pinned is not None and pinned.volumes)
+                    else fetch_daily_bars(symbol, lookback_days=120))
             result["capacity"] = estimate(
                 symbol, list(bars.closes or []), list(bars.volumes or []),
                 rb.get("turnover_pct"))
@@ -1248,14 +1257,33 @@ class LeanRunner:
         # name and punishes one that happened to trade the best. The honest bar
         # is holding the whole basket in equal weight, which is what a
         # non-selective investor with the same universe would have done.
+        from app.fund import barcache
         from app.fund.marketdata import fetch_daily_bars
 
         series: list[list[float]] = []
         used: list[str] = []
         ref_dates: list[str] = []
+        feeds: list[str] = []
+        leg_lengths: dict[str, int] = {}
         for sym in wanted:
             try:
-                bars = fetch_daily_bars(sym, start=dates[0], end=dates[-1])
+                # Prefer the candidate's pinned leg. This is not only about
+                # speed: it is the only way the sentence in this docstring —
+                # "the identical feed the algorithm traded" — is actually TRUE.
+                #
+                # MEASURED 2026-08-22: it was not true before. fetch_daily_bars
+                # takes Alpaca for a trailing lookback but falls to Yahoo the
+                # moment BOTH start and end are given (marketdata.py:380), and
+                # this call always gives both. So the strategy traded Alpaca
+                # closes and was benchmarked against Yahoo ones. The two agree
+                # to 0.46 bps mean / 0.7 bps max on SPY and TLT over 373 shared
+                # sessions, and buy-and-hold total return moved 0.00pp — so this
+                # was immaterial in magnitude, and it was still a comparison
+                # between two vendors described in the record as one feed.
+                # Serving both sides from one pinned leg removes the question.
+                pinned = barcache.serve(sym, start=dates[0], end=dates[-1])
+                bars = (pinned if pinned is not None
+                        else fetch_daily_bars(sym, start=dates[0], end=dates[-1]))
             except Exception as e:  # noqa: BLE001
                 logger.info("benchmark leg unavailable for %s: %s", sym, e)
                 continue
@@ -1264,6 +1292,8 @@ class LeanRunner:
                 continue
             series.append([c / closes[0] for c in closes])
             used.append(sym)
+            feeds.append(getattr(bars, "source", None) or "unknown")
+            leg_lengths[sym] = len(closes)
             if len(bars.dates or []) > len(ref_dates):
                 ref_dates = list(bars.dates or [])
         if not series:
@@ -1286,13 +1316,41 @@ class LeanRunner:
 
         # Legs can differ in length when a name has a gap. Truncate to the
         # shortest rather than pad: a padded leg would be a made-up price.
+        #
+        # TRUNCATION IS NOW REPORTED, NOT ONLY PERFORMED. This line cost 11.85pp
+        # on Entry 20: one leg came back transiently short, every other leg was
+        # cut to match it, and the benchmark return was computed over a window
+        # shorter than the strategy's — with nothing in the result saying so, so
+        # the gate compared two different windows and called it a comparison.
+        # The candidate-scoped snapshot is the CAUSE fix (one fetch per leg, so
+        # legs cannot disagree transiently); this is the DETECTOR, kept because
+        # a genuine data gap can still shorten a leg and the reader must be told.
         n = min(len(x) for x in series)
+        longest = max(len(x) for x in series)
         start_equity = equity[0]
         curve = [round(start_equity * sum(x[i] for x in series) / len(series), 2)
                  for i in range(n)]
 
         result["benchmark_curve"] = curve
         result["benchmark_dates"] = ref_dates[:n]
+        if n < longest:
+            short = sorted(s for s, ln in leg_lengths.items() if ln == n)
+            result["benchmark_truncated"] = {
+                "bars_used": n, "bars_longest_leg": longest,
+                "dropped": longest - n, "shortest_legs": short,
+                "note": (f"legs disagreed in length ({n} vs {longest} bars); the "
+                         f"bar is computed over the shorter window, so it does "
+                         f"NOT span the same period as the strategy's curve"),
+            }
+            logger.warning(
+                "benchmark truncated to %d of %d bars — shortest leg(s): %s",
+                n, longest, ", ".join(short))
+        if len(set(feeds)) > 1:
+            # Two vendors in one bar is not one feed, whatever the docstring
+            # above says. Say it on the result rather than leave it to be
+            # rediscovered by measurement, as it was on 2026-08-22.
+            result["benchmark_feed_mixed"] = sorted(set(feeds))
+        result["benchmark_feeds"] = sorted(set(feeds))
         result["benchmark_return_pct"] = _total_return(curve)
         result["benchmark_symbol"] = (used[0] if len(used) == 1
                                       else f"equal-weight {'/'.join(used)}")
@@ -1675,6 +1733,36 @@ def _declared_universe(code: Optional[str]) -> list[str]:
                if isinstance(e, ast.Constant) and isinstance(e.value, str)]
         return sorted(set(out))
     return []
+
+def _declared_lookback_days(code: Optional[str]) -> Optional[int]:
+    """The ``lookback_days`` an algorithm's own bar URL asks the spine for.
+
+    Read statically from the source, the same way and for the same reason as
+    ``_declared_universe``: the engine has exited by the time anyone wants to
+    know, and re-running it to ask about its inputs would double every backtest.
+
+    Used to pin a candidate's bar snapshot at EXACTLY the shape its containers
+    will request. That exactness is the whole point — a snapshot pinned at a
+    different lookback cannot serve the container's question without inventing a
+    truncation, so it declines instead (see barcache.BarSnapshot.serve).
+
+    Deliberately narrow, and narrow in the safe direction: a single integer
+    literal spelled ``lookback_days=N`` or ``lookback_days={N}`` inside the
+    module. Anything computed, parameterised, or spelled more than one way
+    returns None, which means "no snapshot" — the candidate then runs on live
+    fetches exactly as it does today. A wrong guess here would silently feed a
+    strategy a window it did not ask for, so guessing is not on the table.
+    """
+    if not code:
+        return None
+    found = {int(m) for m in re.findall(r"lookback_days=(\d+)", code)}
+    if len(found) != 1:
+        return None
+    n = found.pop()
+    # The endpoint's own bound (fund.py: gt=1, le=2000). A source asking outside
+    # it would 422 live, and pinning it would hide that behind a cache hit.
+    return n if 1 < n <= 2000 else None
+
 
 def _orders(doc: dict) -> list[dict[str, Any]]:
     """Filled orders, in the fund's vocabulary.

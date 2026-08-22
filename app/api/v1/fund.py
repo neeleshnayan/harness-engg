@@ -30,6 +30,7 @@ _log = logging.getLogger(__name__)
 from app.fund.custody import CustodyIngest
 from app.fund.signals import SignalRunner
 from app.fund.marketdata import BarsError, fetch_daily_bars
+from app.fund import barcache
 from app.fund.connectors.paper import PaperConnector
 from app.fund.events import EventStore
 from app.fund.ledger import LedgerError, LedgerService
@@ -2834,6 +2835,32 @@ def get_bars(symbol: str = Query(..., min_length=1, max_length=12),
             lines = "\n".join(f"{d},{c}" for d, c in zip(pit["dates"], pit["closes"]))
             return Response(content=lines, media_type="text/csv")
         return pit
+
+    # THE BELT'S DATA PATH. When a candidate is running, its legs were fetched
+    # ONCE at one instant and every LEAN container of that candidate is served
+    # the same pinned bytes — which is what stops 22 containers of one candidate
+    # from covering 22 slightly different windows (ticket 0178d2e8) and stops a
+    # transient short fetch from silently shortening a benchmark (Entry 20,
+    # 11.85pp). Outside a candidate ``barcache.serve`` returns None and this is
+    # a no-op, so nothing else on this endpoint changes.
+    #
+    # Safe to sit here specifically because of who uses this endpoint: the only
+    # runtime consumers are LEAN containers and offline scripts. The fund's own
+    # marks, NAV, risk, stress and correlation all call ``fetch_daily_bars``
+    # in-process and never travel this route, so a pinned bar cannot reach them.
+    pinned = barcache.serve(symbol, lookback_days=lookback_days,
+                            start=start_date, end=end_date)
+    if pinned is not None:
+        if format == "csv":
+            lines = "\n".join(f"{d},{c}" for d, c in zip(pinned.dates, pinned.closes))
+            return Response(content=lines, media_type="text/csv")
+        # Same keys as the live branch below, so no consumer can tell the two
+        # apart by shape — plus one honest extra saying where this came from.
+        return {"symbol": pinned.symbol, "source": pinned.source,
+                "closes": pinned.closes, "dates": pinned.dates,
+                "start": pinned.dates[0] if pinned.dates else None,
+                "end": pinned.dates[-1] if pinned.dates else None,
+                "snapshot": True}
 
     try:
         bars = fetch_daily_bars(symbol, lookback_days=lookback_days, start=start_date, end=end_date)
