@@ -217,7 +217,17 @@ def _wire(spec: fundmode.ModeSpec) -> fundmode.ModeSpec:
     control = RiskControl(store=store)
     monitor = RiskMonitor(nav_service=nav, store=store, pricer=connector.price,
                           attribution=attribution, strategies=strategies,
-                          control=control)
+                          control=control,
+                          # The book-vs-venue alarm's eyes (2026-08-23, desk
+                          # d7f38be2). THE SCHEDULED MONITOR IS THE ONLY
+                          # MONITOR THAT GETS THEM: this tick already runs on
+                          # the worker's own cadence, so one broker round trip
+                          # per tick is bounded, whereas the post-fill monitor
+                          # in pipeline._apply_status runs per FILL and stays
+                          # deliberately blind. Blind is safe there because
+                          # run() will not clear an alarm it could not judge —
+                          # see UNEVALUATED_ON_ABSENT.
+                          drift_fn=reconciler.drift)
     riskengine = AdvancedRiskEngine(nav_service=nav, pricer=connector.price,
                                     attribution=attribution, strategies=strategies)
     factor_model = FactorModel()
@@ -4245,8 +4255,37 @@ def rebase_loss_reference(req: LossRebaseRequest):
 
 @router.post("/fund/risk/resume")
 def resume_trading(req: RiskResumeRequest):
-    """Resume trading after halt (human only)."""
-    return _control.resume(actor=req.actor)
+    """Reopen a halt — CEO-only, on the approval channel, fail-closed.
+
+    THE LAST UNGUARDED RISK CONTROL, closed 2026-08-23. This line read
+    ``return _control.resume(actor=req.actor)`` with ``actor`` defaulting to
+    ``"operator"``: no allowlist, no confirm echo, no via-cto citation, on an
+    API whose only network protection is CORS. An empty POST body re-armed
+    every execution path in the fund.
+
+    The asymmetry is what makes it a finding rather than an omission. Six
+    sibling endpoints in this file already take ``_guard_approval`` — including
+    ``acknowledge_halt`` directly above, whose own docstring says it "moves no
+    number and re-arms no path". The control that acts on NOTHING was guarded;
+    the control that reopens the venue was not.
+
+    The echo is ``halt_ack_token``, the same digest the acknowledgement uses,
+    because it answers the same question: WHICH darkness is being reopened. It
+    is read BEFORE the resume, so a token generated from the post-resume state
+    can never satisfy the guard for the resume that produced it.
+
+    SCOPE, stated because the tightening must not be read as wider than it is:
+    this guards the HTTP endpoint. ``RiskControl.resume`` is unchanged, and the
+    CEO-approved loss auto-resume policy (``RiskMonitor.run`` ->
+    ``evaluate_autoresume``) still calls it directly with its four evaluated
+    conditions on the event. That path has its own versioned envelope and is
+    audited as ``auto-resume-loss-v1``; putting a human allowlist in front of a
+    machine policy would not tighten anything, it would only break it.
+    """
+    token = _control.halt_ack_token()
+    approver = _guard_approval("risk_resume", token, req.who,
+                               req.confirm, req.instruction, APPROVAL_ALLOWLIST)
+    return _control.resume(actor=approver)
 
 
 # --- derived metrics (2026-08-22) -------------------------------------------

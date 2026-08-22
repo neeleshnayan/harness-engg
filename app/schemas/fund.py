@@ -378,7 +378,45 @@ class HaltAcknowledgeRequest(BaseModel):
 
 
 class RiskResumeRequest(BaseModel):
-    actor: str = Field("operator", description="Who resumed trading (human only)")
+    """Reopen a halt — CEO-only, on the approval channel.
+
+    ON THE APPROVAL CHANNEL AS OF 2026-08-23, and it is the last of the risk
+    controls to get there. Until this change ``resume`` took ``actor`` with a
+    DEFAULT of ``"operator"``, no allowlist and no echo, so an empty POST body
+    against a CORS-only API re-armed every execution path in the fund. Its six
+    guarded siblings in ``app/api/v1/fund.py`` include ``halt_acknowledge``,
+    which by its own docstring "moves no number and re-arms no path" — the
+    fund's most consequential risk button was its only unguarded one, and the
+    one that acts on nothing was guarded. (Measured by the CFO, GRACE4
+    2026-08-23; the PM's readiness matrix carried it as a control blocker on
+    the first-real-dollar path.)
+
+    The echo is ``halt_ack_token`` from GET /fund/risk/monitor — the same
+    digest the acknowledgement echoes, because it is the same question: WHICH
+    darkness are you reopening. A resume typed against a screen showing a halt
+    that has since been replaced no longer matches.
+
+    ``actor`` survives as an accepted alias so the existing UI call shape still
+    PARSES and is then refused by the guard with a 403 naming the allowlist,
+    rather than dying at schema validation with a 422 that says nothing about
+    why. Both spellings are guarded identically; neither has a default, because
+    a default approver is the hole this change closes.
+    """
+    approver: Optional[str] = Field(
+        None, description="Who is reopening trading. Must be on the approval "
+                          "allowlist — there is no default")
+    actor: Optional[str] = Field(
+        None, description="Deprecated alias for 'approver', guarded identically")
+    confirm: Optional[str] = Field(
+        None, description="The halt_ack_token from GET /fund/risk/monitor")
+    instruction: Optional[str] = Field(
+        None, description="For 'neelesh-via-cto' only: the CEO's instruction, verbatim")
+
+    @property
+    def who(self) -> str:
+        """The approver, from either spelling. Empty string when neither was
+        given — an absent approver is refused by the guard, never defaulted."""
+        return (self.approver or self.actor or "").strip()
 
 
 
