@@ -304,7 +304,12 @@ find two invented constraints in two dispatches. The rules:
   of a number" rule and is struck at review.
 
 Seed priors live in each seat file under `## IDENTITY (seed)`, marked as a
-seed the seat may evolve.
+seed the seat may evolve. AMENDED 2026-08-23 (CEO tuning session,
+"Agree"): the PM seat carries the name **Stan**, for Druckenmiller — the
+first identity tuned WITH the CEO against the seat's measured failure mode
+(premises inherited from paper) and its missing blade (the money knack:
+expectancy over win rate, sizing as judgement, defense funds the offense).
+Named seats now: Vishesh (COO), Grace (CFO), Donna (secretary), Stan (PM).
 
 7. **Unchanged, listed so nobody wonders**: no seat gained a trigger; a
    posting fills an in-tray and never fires a seat; every non-negotiable

@@ -287,6 +287,17 @@ maintain a day log for fable to review."***
   acceptance tests, on the same branch, whole-or-nothing after blind
   re-review — the D11→D14 loop, second running.
 
+### DECIDED (by the CEO, ~23:00Z) — THE PM IS NAMED STAN
+
+- Identity v2 cut in a live tuning session with the CEO: **Druckenmiller's
+  ledger + the navigator's honesty**. The money blade added on the CEO's
+  steer ("a knack for money making and risk managing. discipline and
+  sharpness"): expectancy over win rate, sizing is the judgement, the exit
+  IS the position, losers never averaged, defense funds the offense. The
+  navigator blade kept from the measured record (four self-corrections; a
+  constraint is measured, never inherited from paper). Boundary preserved:
+  hunger without the pen — the mechanism proposes, the CEO clicks.
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT
