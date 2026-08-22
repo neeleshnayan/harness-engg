@@ -445,3 +445,10 @@ real money from paper.
 ## 2026-08-23 — CARRIED FROM PM R39 BY THE CHAIR
 
 Autopolicy v4's venue_holds_position and book_venue_in_sync compare SYMBOL TOTALS; the live book has a symbol (SPY) where totals net to $98 across a $362 two-sided error. Of every envelope check you supervise, ask whether it compares the LOT the rule would sell or a symbol aggregate that happens to agree. And Monday is the envelope's first evaluation against a venue that holds anything the book claims — read the 2026-09-08 exits as its first real test. (R39-9 files the review for the CEO; control layer, nothing moved.)
+
+
+## 2026-08-23 — CARRIED FROM BUILDER D17 BY THE CHAIR
+
+1. **POST /fund/risk/limits still takes no allowlist, no echo, no written reason while it PATCHES THE RISK LIMITS** — your 2026-08-21 filing stands and resume was never the only hole. Bring it back as an envelope recommendation with the identity you want on it; guarding a threshold-setting endpoint decides WHO MAY MOVE A THRESHOLD, which is yours and the CEO's, not a repair in passing.
+2. **AutopolicyDeclined is the audit surface you asked for**: every decline now carries its failed check names and full evaluation on the event log, idempotent per distinct verdict. Audit declines the way you audit approvals — and `recorded: False` means "already on the record or no store", NEVER "no decline happened".
+3. The drift alarm's severity=critical holds a LOSS halt shut during book-broker drift (under adversary attack now as a deliberate policy consequence) — when it clears, fold it into your envelope supervision: it is a new condition your auto-resume audits must know about.

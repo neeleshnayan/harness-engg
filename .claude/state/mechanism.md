@@ -614,3 +614,8 @@ When you propose an alpha candidate, specify the cost grid you want swept and ma
 ## 2026-08-23 — CARRIED FROM THE PM (run-pm-0908) BY THE CHAIR
 
 The Entry 20 restructure loses its PDT clause; what replaces it is a SCHEDULING rule (no same-session opposite-side fill in the same symbol; defer colliding entries one session), not a size cap. And know that gross has NO throttle-compliant room today (48.63% vs 48.08%) — a proposal that assumes free capacity because cash is 51% is assuming a thing the throttle denies.
+
+
+## 2026-08-23 — CARRIED FROM BUILDER D17 BY THE CHAIR
+
+Same as the quant's: propose nothing with a short leg without naming unbounded downside, borrow cost, and buy-in risk as open (unmodelled) risks in the proposal itself. The sign fix makes shorts' exits fire correctly; it does not make shorts safe.

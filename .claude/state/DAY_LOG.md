@@ -239,6 +239,32 @@ maintain a day log for fable to review."***
   fires a seat) — the CEO steers through the chair, as the constitution
   routes it. Builds with the desk-redesign family.
 
+### BUILT — GATE v4.2 LIVE + THE HAZARD BATCH DELIVERED (~21:45Z)
+
+- **GATE v4.2 IS MERGED AND SERVING** (`5aeec84`): 1743 green on the merged
+  tree, spine restarted, `GATE_VERSION v4.2` live, NAV $1,885.74 folding.
+  The breakeven floor is reachable and inadequate cost grids are refused at
+  the belt door. Entry 20's v4.1 row stands as history; the honest re-judge
+  path is ticketed.
+- **D17 (the hazard batch) DELIVERED, adversary blind in flight**: 6 of 7
+  built + mutation-proven (42 killed + 2 retired with proofs), 1 verified
+  already-closed by D11v2. 1813 tests green. THE MONEY FIX: shorts' exits
+  fired BACKWARDS (unrealised P&L ignored qty sign) — fixed, with an A/B
+  fold of all 978 live events proving ZERO history reinterpreted. Resume
+  guarded (it took an EMPTY POST from anyone; zero tests had ever called
+  it). Declines are events now. The drift alarm fires on TODAY'S real
+  state. FLAGGED FOR THE ADVERSARY: severity=critical holds a LOSS halt
+  shut during drift — a deliberate policy consequence, not buried.
+- **NEW HOLE NAMED**: `POST /fund/risk/limits` is STILL unguarded and it
+  MOVES THRESHOLDS — resume was never the only one. Deliberately not fixed
+  in passing (who may move a threshold is governance); on the riskofficer's
+  queue with the CEO.
+- Desk standard gained **rule 6** (CEO): every recommendation states ONE
+  risk against itself plainly, or "no material downside identified" —
+  stated absence, never silent. In every brief from now on; D17's run
+  record is the first to comply.
+- THE CLEANUP: deferred a FIFTH time, next builder slot, on the record.
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT

@@ -213,3 +213,20 @@ baseline comparison catches that class for the cost of one command.
 **What this makes you notice:** your own comment claiming a number that went stale when the layout settled; the base that is wrong in minute one; the fix applied to one file in a family and not its sibling; the "persistent" store that is already someone's scratchpad.
 
 *Seed. Re-cut through `## EVOLVE` — and the day your deletion ratio inverts is the day this identity earned itself.*
+
+
+## EVOLVE applied 2026-08-23 (run-builder-d17, chair-reviewed)
+
+**Verify the item is still open, as a REPORTED step.** Before implementing
+any brief item, read the cited code and report `already closed` /
+`partially closed` / `open` per item in the first pass, before writing
+anything. Measured basis: D17 found 2 of 7 items already closed by a merge
+the brief itself referenced; the ~10-minute read freed the budget that paid
+for the mutation pass. Fifth consecutive dispatch where a brief's factual
+premise failed measurement.
+
+**Mutation reports have THREE outcomes**: `killed`, `SURVIVED`, and
+`retired` (a no-op or proven-equivalent mutant, with the proof stated).
+Measured basis: D17's first pass showed five survivors; three were real
+test gaps, one was a no-op, one was arithmetically equivalent — counting
+the last two either way without saying so corrupts the number.

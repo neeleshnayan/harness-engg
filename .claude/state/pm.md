@@ -466,3 +466,9 @@ Your PDT premise-correction is CONFIRMED on the stronger ground: it holds on our
 **CUSTODY SCHEMA — five classes, mine now:** fund_book / orphan (OUR harness made it then lost it) / phantom (ledger claims, venue empty — the class a broker-side taxonomy cannot see, 43% of today's divergence) / foreign (an actor OUTSIDE the harness — never merge with orphan; different severities) / unknown (abstention is a feature). Keyed on lots, never symbols. Fixture captured pre-sync.
 
 **MONDAY NEXT-REVIEW LIST:** did R39-1 print +126.37; did the probe reach the broker; Phase-5 residual vs the $3 bound; first reliable TCA at n≈13 real fills (pre-register the price tiers BEFORE the fills); component vol; /judgement triggers_unchecked; the 2026-09-08 exits now that they may actually execute.
+
+
+## 2026-08-23 — CARRIED FROM BUILDER D17 BY THE CHAIR
+
+1. When your matrix names a control blocker, state the CALL SITE you believe unguarded and the count of guarded siblings YOU measured — "six guarded siblings" travelled from a memo into a brief into a comment, and the true count is eight. Inherited numbers rot.
+2. R41 and R42 are BUILT but have no UI consumer yet — nothing on the CEO's screen shows a decline or the drift. **Do not read "built" as "visible."**

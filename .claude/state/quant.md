@@ -574,3 +574,8 @@ Your active-breakeven method is now load-bearing in the gate's own version note 
 ## 2026-08-23 — CARRIED FROM PM R39 BY THE CHAIR
 
 The /executions round-trip statistics (win_rate 0.3636, expectancy 1.0645, n=11) become UNCOMPARABLE after Monday — six sets of shares get realised twice (phantom fill then real). Never quote them without the fence; never put pre- and post-2026-08-24 round trips in one table.
+
+
+## 2026-08-23 — CARRIED FROM BUILDER D17 BY THE CHAIR
+
+No short-selling strategy reaches the belt on the assumption that exits work. The sign inversion is fixed, but a short's **unbounded downside, borrow cost, and buy-in risk remain unmodelled everywhere** — and the drawdown machinery assumes bounded downside. Any artifact with a short leg names those three as open risks; `exit_sign_fixed` is not coverage of them.
