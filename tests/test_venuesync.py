@@ -42,6 +42,9 @@ BROKER_POSITIONS = {
 MARKS = {"SPY": 765.55, "DBC": 31.25, "TLT": 82.045, "DBA": 28.32,
          "GLD": 310.00, "INTC": 21.00, "MSFT": 500.00, "NVDA": 175.00,
          "SOFI": 23.00, "XLE": 92.00, "AAPL": 200.0}
+#: The fixture enters positions 10% below the mark it later values them at, so
+#: every holding carries a NON-ZERO unrealised gain. See the fixture.
+ENTRY_DISCOUNT = 0.90
 
 
 class FakeBroker:
@@ -106,7 +109,13 @@ def book(wire):
     wire.ledger.confirm_subscription(r["subscription_id"], actor="m")
 
     conn = wire.conn
-    conn._prices.update(MARKS)
+    # BUY AT A DIFFERENT PRICE FROM THE CURRENT MARK, deliberately. An earlier
+    # version of this fixture bought at the same price it later marked at, so
+    # every held position carried exactly zero unrealised P&L — which made the
+    # mutation "realise the gain on a release" arithmetically a no-op, and
+    # `test_no_realised_pnl_is_invented_by_a_reconciliation` passed against a
+    # broken fold. A fixture with no P&L cannot test that P&L is not invented.
+    conn._prices.update({s: px * ENTRY_DISCOUNT for s, px in MARKS.items()})
     nav = NavService(pricer=conn.price, store=wire.store, projection=wire.proj)
     pipe = CommandPipeline(
         connector=conn, nav_service=nav, store=wire.store,
@@ -121,6 +130,9 @@ def book(wire):
             Order(venue="paper", symbol=sym, side=Side.BUY, qty=qty,
                   strategy_id=sid), actor="cto")
         pipe.approve_order(res["order_id"], "neelesh")
+    # Now the market has moved: every holding sits on an unrealised gain that a
+    # reconciliation must NOT turn into a realised one.
+    conn._prices.update(MARKS)
     wire.nav_service = nav
     return wire
 
@@ -367,6 +379,13 @@ class TestStrategyLedgersAndExitCoverage:
         realised_before = {
             r["strategy_id"]: r["realized_pnl_usd"]
             for r in book.attribution.with_values(lambda s: MARKS.get(s, 1.0))}
+        # The fixture holds real unrealised gains, so "realise them" is not a
+        # no-op the arithmetic can hide. Asserted, because that assumption is
+        # what makes the rest of this test mean anything.
+        unrealised = {r["strategy_id"]: r["unrealized_pnl_usd"]
+                      for r in book.attribution.with_values(
+                          lambda s: MARKS.get(s, 1.0))}
+        assert all(abs(v) > 1.0 for v in unrealised.values()), unrealised
         venuesync.apply(book.store, _plan(book), actor="neelesh", reason="CEO")
         book.store.invalidate_cache()
         realised_after = {
