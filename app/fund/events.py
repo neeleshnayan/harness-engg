@@ -163,9 +163,27 @@ class EventType(str, Enum):
     # book fold — so a future reader can re-derive the delta without trusting
     # the note.
     BOOK_RECONCILED_TO_VENUE = "BookReconciledToVenue"
-    #: Cash the fold must hold to agree with the venue, with a stated basis.
-    #: Distinct from a subscription: no unit is issued and no LP paid anything.
-    CASH_RECONCILED = "CashReconciled"
+    #
+    # There was a sibling here, ``CashReconciled``, and it is DELETED
+    # (2026-08-22, adversary review of builder D11, finding K4). It was folded
+    # in two places, moved NAV in both, and was emitted by NOTHING — no
+    # producer, no run_id, no idempotency check, no approval path. Worse, it
+    # folded as a DELTA (``book.cash += delta``) seventeen lines below a
+    # comment arguing that its sibling must be a SET precisely because "a delta
+    # re-applied would move the book twice".
+    #
+    # Deleted rather than given an emitter, deliberately. The cash half of a
+    # broker reconciliation is ALREADY carried, absolutely and idempotently, by
+    # BookReconciledToVenue's ``cash.venue_usd``; a second path to the same
+    # place would be a second thing to disagree with the first. And writing an
+    # emitter would have created a NEW way for NAV to move on a cash figure —
+    # that is an envelope question for a human, not a repair a builder makes
+    # while closing a review.
+    #
+    # Verified before deleting: zero CashReconciled events exist in either
+    # ledger (krypton_fund, 967 events; krypton_fund_test, 1), so no history
+    # changes meaning. If the fund ever needs a cash-only reconciliation, it
+    # arrives with an emitter, a run_id and an approval path, or not at all.
 
     # approval-channel guard v1 (2026-08-20): a refused approval is a FINDING —
     # a probe, a stray script, or a mistaken click — and findings are events.

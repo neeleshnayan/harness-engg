@@ -291,14 +291,6 @@ class NavService:
                     "reason": p.get("reason"),
                     "venue": (p.get("basis") or {}).get("venue"),
                 })
-            elif t == EventType.CASH_RECONCILED.value:
-                step = D(p.get("delta_usd") or 0)
-                reconciled += step
-                reconciliations.append({
-                    "at": e.get("ts"), "run_id": p.get("run_id"),
-                    "step_usd": f(money(step)), "actor": p.get("actor"),
-                    "reason": p.get("reason"), "venue": p.get("venue"),
-                })
         pnl = snap.total_nav_usd - subscribed + paid_out
         # NB `units` is the money helper imported at the top of this module —
         # shadowing it here would silently break `strike()`.

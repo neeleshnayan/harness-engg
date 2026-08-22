@@ -317,3 +317,113 @@ class TestDeskLoad:
         body = src.split('"""')[2] if src.count('"""') >= 2 else src
         assert '"text"' not in body and "'text'" not in body, \
             "next_actor must never classify on a recommendation's free text"
+
+
+# --- K4: NO NAV-MOVING FOLD WITHOUT A PRODUCER -------------------------------
+class TestEveryNavMovingFoldHasAProducer:
+    """Adversary review of builder D11, 2026-08-22, finding K4.
+
+    ``CashReconciled`` was defined, folded in TWO places, moved NAV in both,
+    and was emitted by NOTHING — no producer, no run_id, no idempotency check,
+    no approval path. It has been deleted (the cash half of a broker
+    reconciliation is already carried absolutely and idempotently by
+    ``BookReconciledToVenue``); this test is what stops it, or anything shaped
+    like it, from coming back.
+
+    The general property: a fold that can change the fund's money must be
+    reachable from something that WRITES the event. A fold with no producer is
+    the unwired-kill-switch pattern inverted — code that looks like it handles
+    a case the fund can never actually be in, and that therefore nothing ever
+    exercises.
+
+    THE CENSUS IS NOT CLEAN AND THE TEST SAYS SO. Five pre-existing folded
+    types have no producer either. They are named below rather than hidden
+    behind a count, because a budget with no names is how the sixth arrives.
+    They predate this diff and fixing them is real feature work (the fund
+    cannot yet receive a dividend or burn a unit), so the list is allowed to
+    SHRINK and never to grow.
+    """
+
+    #: Folded, NAV-moving, and nothing in app/ or scripts/ appends one.
+    #: Measured 2026-08-22 against the whole tree.
+    KNOWN_UNPRODUCED = {
+        "CORPORATE_ACTION_APPLIED",   # no corporate-action pipeline exists
+        "DIVIDEND_RECEIVED",          # the fund has never received one
+        "INTEREST_RECEIVED",          # nor any interest
+        "PAYOUT_SENT",                # no LP has ever been paid out
+        "UNITS_BURNED",               # no redemption has ever happened
+    }
+
+    FOLDS = ("app/fund/projections/nav.py",
+             "app/fund/projections/positions.py")
+
+    @staticmethod
+    def _repo_root():
+        import pathlib
+        return pathlib.Path(__file__).resolve().parents[1]
+
+    def _folded_types(self):
+        import re
+        root, out = self._repo_root(), set()
+        for rel in self.FOLDS:
+            out |= set(re.findall(
+                r"EventType\.([A-Z_]+)",
+                (root / rel).read_text(encoding="utf-8")))
+        return out
+
+    def _produced_types(self):
+        """Types something actually appends. ``Event(type=EventType.X)`` is how
+        every producer in this repository writes one."""
+        import re
+        root, out = self._repo_root(), set()
+        for pat in ("app/**/*.py", "scripts/**/*.py"):
+            for p in root.glob(pat):
+                out |= set(re.findall(r"type\s*=\s*EventType\.([A-Z_]+)",
+                                      p.read_text(encoding="utf-8")))
+        return out
+
+    def test_the_scan_sees_the_folds_at_all(self):
+        """Absence discipline: an empty scan is not a clean scan."""
+        folded = self._folded_types()
+        assert "ORDER_FILLED" in folded and "NAV_STRUCK" in folded, folded
+        assert len(folded) >= 8, folded
+
+    def test_no_new_nav_moving_fold_lacks_a_producer(self):
+        unproduced = self._folded_types() - self._produced_types()
+        new = unproduced - self.KNOWN_UNPRODUCED
+        assert not new, (
+            f"these folded event types move the fund's money and NOTHING "
+            f"appends them: {sorted(new)}. Either wire a producer with a "
+            f"run_id and an approval path, or delete the fold — a fold with "
+            f"no producer is a case the fund can never be in, and nothing "
+            f"ever exercises it (adversary D11, K4).")
+
+    def test_cash_reconciled_is_gone_from_the_model_and_both_folds(self):
+        """The specific one. Deleted rather than given an emitter: writing an
+        emitter would have created a NEW way for NAV to move on a cash figure,
+        which is an envelope question for a human."""
+        from app.fund.events import EventType as ET
+
+        assert not hasattr(ET, "CASH_RECONCILED")
+        assert "CashReconciled" not in {e.value for e in ET}
+        root = self._repo_root()
+        for rel in self.FOLDS:
+            assert "CASH_RECONCILED" not in \
+                (root / rel).read_text(encoding="utf-8")
+
+    def test_the_known_list_may_only_shrink(self):
+        """A budget with no names is how the sixth one arrives. If a producer
+        is written for one of these, this fails and the name comes OFF the
+        list — the test is the reminder to do the bookkeeping."""
+        unproduced = self._folded_types() - self._produced_types()
+        stale = self.KNOWN_UNPRODUCED - unproduced
+        assert not stale, (
+            f"{sorted(stale)} now HAVE producers — remove them from "
+            f"KNOWN_UNPRODUCED so the exception list keeps shrinking")
+
+    def test_the_reconciliation_fold_that_survived_does_have_a_producer(self):
+        """The other direction, so the guard cannot pass by deleting folds.
+        BookReconciledToVenue is folded in three places and IS emitted —
+        venuesync.apply appends it with a run_id, an actor and a reason."""
+        assert "BOOK_RECONCILED_TO_VENUE" in self._produced_types()
+        assert "BOOK_RECONCILED_TO_VENUE" in self._folded_types()

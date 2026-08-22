@@ -148,12 +148,6 @@ class PositionsProjection:
             if cash is not None:
                 book.cash = D(cash)
 
-        elif etype == EventType.CASH_RECONCILED.value:
-            # Cash alone, with a stated basis. Distinct from a subscription:
-            # no unit is issued and no LP paid anything, so it must never be
-            # folded into subscribed capital.
-            book.cash += D(p.get("delta_usd", 0))
-
         elif etype == EventType.CASH_CONFIRMED.value:
             book.cash += D(p.get("usd_amount", p.get("amount", 0)))
 
