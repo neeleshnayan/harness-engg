@@ -347,3 +347,25 @@ differs from a supersession precisely in having no successor to hang a chip
 on - forcing it into the lineage render would put dead weight on live rows.
 The adversary's kill record (docs/reviews + run records) is the data source;
 the floor shelf is a read-side render of it.
+
+
+## 2026-08-23 — THE DESK PRESENTATION STANDARD (CEO instruction), enforced at resolve
+
+CEO verbatim: content that is "hard to understand and confusing + plus
+intends to say something that impairs my judgement" does not reach the desk.
+The chair enforces at every resolve, before a row lands:
+
+1. **Decision-first, plain words.** The decision in one sentence a
+   non-specialist reads once. Jargon and seat-internal codenames stay in the
+   filed memo, never on the card.
+2. **Both branches or it bounces.** "If you approve, X; if you decline, Y."
+   A row describing only one branch is an instruction wearing a question
+   mark — returned to its seat (the COO's own check, now universal).
+3. **No framing that steers.** Urgency only where a DATE exists; superlatives
+   never; caveats ADJACENT to the claims they qualify, not in footnotes; the
+   strongest argument AGAINST the recommendation appears on the card when a
+   seat filed one. Persuasion by omission is the desk's version of quiet
+   loosening.
+4. **Money sourced or labelled UNSOURCED.** Never a placeholder figure.
+5. The UI half is ticketed (desk redesign, pairs with 762d28c9); until it
+   ships, the chair's editing pen at resolve IS the render.

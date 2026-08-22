@@ -219,6 +219,18 @@ maintain a day log for fable to review."***
   FLOOR's kill shelf, browsable on demand, never deleted). The dispatch
   brief for 762d28c9 carries all three tiers.
 
+### DECIDED (by the CEO, ~21:20Z) — THE DESK PRESENTATION STANDARD
+
+- Verbatim: a top-tier desk; nothing "hard to understand and confusing +
+  plus intends to say something that impairs my judgement"; "really clean
+  and well designed format." TWO HALVES: (1) EDITORIAL — enforced by the
+  chair at every resolve from now on (decision-first plain language, both
+  branches or it bounces, no steering-by-framing, caveats adjacent, money
+  sourced or UNSOURCED); (2) VISUAL — desk redesign ticketed, pairs with
+  the three-tier/lineage/contest build, house design language, the Entry 20
+  one-pager as the craft reference, acceptance measured by the CEO reading
+  any card ONCE.
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT
