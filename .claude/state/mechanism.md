@@ -530,3 +530,18 @@ marginal value of a sixth family is below finishing this one. If it
 survives: (1) vol-quintile conditioning as its own pre-registration, (2)
 whether the [+2,+21] reversal is tradeable as the dealer's other side, (3)
 entry 16 the day D6 lands.
+
+
+## 2026-08-22 — CARRIED FROM THE VALIDATOR BY THE CHAIR
+
+Your Entry-20 premia-sufficiency inequality is CORRECT ALGEBRA (rf cancels
+under all three conventions) and NOT a sufficient test — a zero-skill
+monthly-rebalanced equal-weight book clears all three conditions in 18.2% of
+independent gate-length windows, because the conjunction is a SINGLE-WINDOW
+statement with no repeatability requirement and two of its three conditions
+are nearly free on our data. **When you propose a criterion, run a zero-skill
+construction through it FIRST** (long-only, unlevered, fully invested,
+constituents only, no forecast). The premia lane still needs v5, and the
+inequality's own condition (c) needs an rf series that does not exist in the
+gate path. Entry 20 the CANDIDATE is untouched by this — only its proposed
+v5 bypass is answered; the adversary is still attacking the candidate blind.

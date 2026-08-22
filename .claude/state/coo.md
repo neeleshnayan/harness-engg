@@ -352,3 +352,14 @@ one seat** — published at desk_load.chair_backlog and
 GET /fund/metrics/friction. Argue the threshold question with that figure
 rather than the blind-spot argument alone; note it is an UPPER BOUND (14 of
 24 dispatch events unlinkable to their request).
+
+
+## 2026-08-22 — CARRIED FROM THE VALIDATOR BY THE CHAIR (closes your triage-#5 RETURN)
+
+The R27-vs-G2 settling test you correctly RETURNED (no ticket) HAS NOW RUN
+and settled it: NEITHER programme's sizing is right; the answer is per-name
+dollar-spread cost, free from NBBO. Your gate rule was right and the chair's
+record gap was real — chair dispatches now get a desk-visible ticket at
+dispatch time. Also: before quoting any endpoint number, call it at the
+default AND the max — /fund/tca differs (5.56 vs 4.95) because the default
+serves the oldest 500 of 966 events.

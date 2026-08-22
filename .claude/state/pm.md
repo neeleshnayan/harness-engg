@@ -327,3 +327,14 @@ the gate speaks. Note the SHAPE for when it reaches you: always 100% long,
 unlevered, never cash, ~40 slots at 2.5% with unfilled slots held as the
 EW universe; the exit is mechanical and dated (close of ip+3) — the rare
 case where an exit rule commits before entry with zero judgement in it.
+
+
+## 2026-08-22 — CARRIED FROM THE VALIDATOR BY THE CHAIR
+
+Your instinct that stratification matters is supported; your axis is not —
+cut cost-measurement tiers on DOLLAR spread and size them UNEQUALLY (equal
+12-fill tiers give +/-0.17 in one and +/-0.68 in another). And carry the
+lesson: before designing any sampling programme, MEASURE the per-observation
+precision of the quantity you intend to estimate and let it set the tier
+sizes. R27-vs-G2 was settled by measurement to "neither"; the fill count is
+second-order to the free spread data.

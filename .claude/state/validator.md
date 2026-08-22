@@ -654,3 +654,44 @@ relying on the word you happened to pick.
   insider_parse.py joins the universe on ticker symbol; quantify the
   coverage error on the 2021–2026 panel (bounded job — the 2016–2020
   measurement is 4,106 missed / 1,048 aliens).
+
+
+## 2026-08-22 — STATE from run-validator-settling (three settling measurements), appended by the chair
+
+- **J1 (R27-vs-G2): CANNOT TELL on level, SETTLED on design.** Admissible
+  fills = 4 (immediate/RTH/alpaca) + 1 marginal; pooled frac mean +0.663 sd
+  1.478 CI [-1.69,+3.02]. **Measurement error on an effective spread is ONE
+  TICK regardless of name** ($0.0120 residual sd vs $0.0100 tick, constant
+  across 56x price range, n=5) — so precision on pi scales with DOLLAR
+  spread, not bps. Fills for +/-0.25: MSFT-midday 6, SPY-midday ~89,
+  penny-tick name ~355. Both seats' sizing is on the wrong axis; the value
+  is in the FREE spread data (cost = pi x spread), fills are second-order.
+  CAVEAT I cannot close at n=5: additive-in-cents vs multiplicative
+  residuals; the whole table rests on the former.
+- **Every fill we own is FRACTIONAL** (0.052-2.75 shares) → internalised,
+  not lit-book; whether pi transfers to whole-share flow is untested and I
+  cannot test it.
+- **J2: 38x reproduces (SPY 0.1299 bps @17:00Z), survives the open at 19.2x
+  / 15.3x worst.** 9 of 14 names PINNED at the $0.01 tick with NO time-of-day
+  curve. 5.00 is at/below the half-spread on 6 of 14 at the open — DO NOT
+  LOWER, REPLACE per-name. "quoted half-spread in bps" is, for most of a
+  realistic universe, half a tick over the price — a price-level statistic
+  wearing a liquidity label.
+- **J3: the premia inequality is CORRECT (rf cancels under arithmetic/GISW/
+  continuous) and NOT SUFFICIENT.** Zero-skill monthly-rebalanced EW clears
+  all three conditions in 18.2% of independent gate-length windows (4/22).
+  Two of three conditions nearly free (vol<=bench 91/91 in two universes;
+  bench-excess>0 92.8%). Sign flips with the window (buy-and-hold beats the
+  rebalancer 1893% vs 934% over 2016-2026) — a single-window inequality is
+  one draw, which is why the gate has four folds. condition (b) is
+  UNMEASURABLE belt-wide: gate.py has 0 volatility fields (chair-verified).
+- **RECORD GAP: 0 of 40 verdicts store benchmark_basis/kind/symbol/legs**
+  (leanrunner computes all four at :1297-1302, gate discards) — no verdict's
+  bar is auditable. Third write-only instance.
+- **D1/D2 confirmed** (tca oldest-500 default 5.56 vs 4.95 at limit=5000;
+  order 17d64dcd submitted=paper filed=alpaca, tca.py:212 prefers intent
+  over execution). Both already staged R24/R23; D2 fix = swap precedence at
+  tca.py:212 + a divergence flag.
+- METHOD THAT PAID: read the PRODUCING code before trusting any summary —
+  caught D1 and D2, neither of which was the assigned question. It is a
+  GENERATOR of findings, not just a guard.

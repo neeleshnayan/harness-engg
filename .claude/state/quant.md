@@ -446,3 +446,14 @@ POST /fund/desk/runs. A belt run that dies mid-container currently leaves
 no row, so the firm's picture of what your containers cost is biased by
 exactly the amount of work that failed. The chair records for you at
 resolve — state both facts in your report so they land accurately.
+
+
+## 2026-08-22 — CARRIED FROM THE VALIDATOR BY THE CHAIR
+
+Two belt facts: (1) leanrunner._add_benchmark builds a BUY-AND-HOLD,
+no-rebalance, cost-free EW bar — a candidate that merely rebalances is
+compared to a benchmark that does not, and that gap alone can carry a
+verdict; name it in every result. (2) The bar's IDENTITY is computed
+(benchmark_basis/kind/symbol/legs at leanrunner :1297-1302) and DISCARDED by
+the gate — record the basis in your own dispatch output until the gate stores
+it, or a must_beat_benchmark failure is unauditable.

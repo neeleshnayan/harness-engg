@@ -279,6 +279,33 @@ team over the night."** Full blueprint with reasoning:
    "Agree on adversary"): the loop may not propose amendments to the
    adversary's seat.** Nothing reviewed by a boundary may reshape that
    boundary. Changing the adversary's mandate is a human act, always.
+**PERSONALITY AS A COGNITIVE PRIOR (added 2026-08-22, CEO instruction:
+"we could evolve each chairs personality to better suit the role... the
+agent should be able to change its own clothes as it grows into the role
+but we help it in the start").** A seat's identity is not decoration; it is
+a PRIOR that biases what the seat NOTICES toward its own job — the way
+Grace/Hopper's "the scarce resource is the clock" made her measure time and
+find two invented constraints in two dispatches. The rules:
+
+- **Chosen against the FAILURE MODE, never the title.** The adversary's
+  prior must pull toward truthful verdicts in both directions, never toward
+  enjoying a kill (Law VIII). A prior that only flavours the prose is cost
+  with no return; it earns its place only if it makes the seat catch what a
+  faceless version would miss.
+- **Seeded by the chair, evolved by the seat.** The chair writes the first
+  draft (a seat cannot name itself well before it has run history); the seat
+  re-cuts it through `## EVOLVE`, grounded in what its own runs show it
+  misses. It is WORK-LAYER — it shapes what a seat notices, NEVER what a
+  seat is allowed to do, and may not touch the control layer or soften a
+  boundary.
+- **It serves the falsifiable output, never replaces it.** Grace's memos
+  are dense with measured numbers BECAUSE Hopper hated waste. A personality
+  that produces voice instead of verdict has broken the "framework instead
+  of a number" rule and is struck at review.
+
+Seed priors live in each seat file under `## IDENTITY (seed)`, marked as a
+seed the seat may evolve.
+
 7. **Unchanged, listed so nobody wonders**: no seat gained a trigger; a
    posting fills an in-tray and never fires a seat; every non-negotiable
    stands; the candidate chain is untouched; the CEO's click count may fall,

@@ -189,3 +189,17 @@ and outcomes were unrecorded on all 55 until tonight — **the chair now
 writes status and dispatched_at on every record, starting with
 run-builder-d13 itself**, so the failure-cost bias starts closing from here
 forward, never retroactively.
+
+
+## 2026-08-22 — CARRIED FROM THE VALIDATOR (settling measurements) BY THE CHAIR
+
+Your NBBO scripts work and your 38x reproduced EXACTLY — do not re-derive
+either. Two things change what you propose next: (1) size any fill programme
+on DOLLAR spread, never bps — measurement error is one tick regardless of
+the name, so a penny-tick fill is worth ~1/60th of an 8-cent-spread fill,
+and 9 of 14 realistic names are at the penny. (2) State which term of
+cost = pi x spread your recommendation improves: the spread term is FREE and
+already measured, pi is expensive and second-order. A programme that buys pi
+when the money is in the spread optimises a non-binding constraint — your
+seat's own named failure mode. Your G2 (4 sessions) works on MSFT-tier
+names and is fiction on the names we hold.

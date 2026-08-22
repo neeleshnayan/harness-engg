@@ -328,3 +328,13 @@ Measured case: summing the chair's 30-deep approved-undispatched backlog
 into desk_load.total would flip coo_triage_due false -> true without anyone
 moving the threshold. The builder refused it and routed the decision to the
 CEO — that refusal is the pattern; audit for the cases where nobody refused.
+
+
+## 2026-08-22 — CARRIED FROM THE VALIDATOR BY THE CHAIR
+
+A fill event's `venue` records the venue the PROPOSAL requested, not the one
+that EXECUTED (pipeline.py:318/:513 vs :229). Order 17d64dcd executed on the
+paper connector and is labelled alpaca. **Read venue off OrderSubmitted,
+never OrderFilled**, and treat proposed-≠-submitted venue as a finding in its
+own right — the autopolicy envelope is venue-conditioned, so a mislabel there
+is an envelope-integrity issue, not just a cost-model one.
