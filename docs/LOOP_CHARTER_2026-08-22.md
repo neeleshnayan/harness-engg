@@ -87,6 +87,50 @@ Lifetime context: 40 gate verdicts, **one** substantive pass (today). Meter:
     2026-08-22) and we dismantle it honestly. *Proof: either outcome, on the
     record.*
 
+## Phase 4 — EVOLVE against history ("time-travel") — AMENDED IN 2026-08-22
+
+**CEO instruction, verbatim: "say we go back in time to any given date. That
+becomes today. Now our entire machinery navigating to nail it down as time
+passes and learn here we failed, what broke, what we missed and how we could
+have done better. Evolution across time helping us gain muscle that a human
+firm that ran over 50yrs ran but forgot." Ratified same day ("Agree").**
+
+Walk-forward for the FIRM: pin the clock to a historical date, run the
+machinery forward, and score the ORGANIZATION — did the halt fire, did the
+exits execute, did the risk engine see it, what did the desk miss and when.
+A scar factory running on history instead of waiting for the future to hurt.
+
+**THE NAMED TRAP, governing the whole design: hindsight contamination.** The
+seats are LLMs whose weights contain the future; run the bench naively in
+sim-2020 and you measure memory, not judgement. Unfixable at the seat layer —
+so the phases order around it:
+
+- **T0 — THE CLOCK** (builder ticket, near-term): one injectable `now()` the
+  whole harness reads. Also a bug-class fix — three standing defects
+  (test_end wall-clock, benchmark truncation, EoD misfire) are all "something
+  read the real clock when it shouldn't." *Proof: pin the clock in a test and
+  the covered window obeys it.*
+- **T1 — replay the DETERMINISTIC stack** (gate, risk engine, exit mechanics,
+  autopolicy, drawdown ladder — code has no hindsight) through named regimes
+  (2020 crash first) on POINT-IN-TIME data including delisted names — without
+  PIT membership it is survivor-fiction. GATED on the PIT data question (the
+  4TB store is the candidate home). *Proof: a controls-fired-in-anger report
+  for a regime we never lived — precondition-grade evidence before the first
+  real dollar.*
+- **T2 — the regime bank**: every candidate re-judged across named regimes as
+  a standard gate output (Entry 20's fold-3 Oct–Feb failure becomes a class
+  of question, asked always).
+- **T3 — seats in the loop**, contaminated AND DISCLOSED: data restricted to
+  as-of, scored on process compliance (demanded the right evidence, sized
+  within mandate) — never on prescience, which is free for them and worthless
+  to us.
+
+**Two fences, regardless of phase:** sim events write to a SEPARATE,
+DISPOSABLE ledger — nothing synthetic ever touches the real event log NAV
+folds from. And every artifact born in a replay carries `synthetic-scar`
+provenance forever — a synthetic scar may bind exactly like a lived one, but
+it may never be CITED as a lived one.
+
 ## What does NOT speed up, ever
 
 The control layer. Blind review stays blind (a batched adversary still never
