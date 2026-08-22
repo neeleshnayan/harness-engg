@@ -739,6 +739,48 @@ def assert_connector_permitted(spec: ModeSpec, connector: Any) -> None:
             )
 
 
+def declaration_conflict(env: Optional[dict] = None) -> Optional[dict[str, Any]]:
+    """The two authorities disagreeing, described BEFORE the next restart.
+
+    ``resolve()`` refuses on this — correctly, it is the one thing that must
+    not be resolved by a precedence rule. But the refusal lands at BOOT, and
+    the operator who caused it clicked a UI toggle hours earlier
+    (adversary review of builder D11, finding K7).
+
+    The cause is structural and is not a bug in either half: ``scripts/run.sh``
+    exports ``FUND_MODE=alpaca-paper`` unconditionally, because that is what
+    the script is FOR, and the switch endpoint writes only the mode file,
+    because a toggle a restart silently reverts is the trapdoor this module
+    exists to close. So any UI switch away from the launch script's mode
+    guarantees a ModeConflict on the next start.
+
+    Returning the conflict lets the click say so and the UI render both
+    declarations, instead of the operator meeting it as a stack trace on a
+    spine that will not come up. None when they agree or when only one of them
+    has spoken — which is the ordinary case and is not a warning.
+    """
+    env = os.environ if env is None else env
+    from_env = (env.get("FUND_MODE") or "").strip().lower() or None
+    try:
+        record = read_mode_file(env)
+    except Exception:  # noqa: BLE001 — an unreadable file is not a conflict
+        return None
+    from_file = (str(record.get("mode")).strip().lower()
+                 if record and record.get("mode") else None)
+    if not (from_env and from_file) or from_env == from_file:
+        return None
+    return {
+        "env": from_env,
+        "file": from_file,
+        "file_path": mode_file_path(env),
+        "effect": ("the next spine start will REFUSE with ModeConflict — "
+                   "resolve() will not pick a winner between two authorities"),
+        "remedy": (f"either start with FUND_MODE={from_file} (scripts/run.sh "
+                   f"exports it unconditionally, so edit or override it) or "
+                   f"switch the mode back to {from_env}"),
+    }
+
+
 def report(store: Any = None, env: Optional[dict] = None) -> dict[str, Any]:
     """Everything a human or a UI needs to know about the fund's mode."""
     active = current()
@@ -758,6 +800,10 @@ def report(store: Any = None, env: Optional[dict] = None) -> dict[str, Any]:
             "file": record,
             "file_path": mode_file_path(env),
             "file_error": file_error,
+            # Present on EVERY reading, not only at the moment of a click, so
+            # a spine that will refuse its next start says so continuously
+            # rather than at boot. None when the two agree (K7).
+            "conflict": declaration_conflict(env),
         },
         "modes": [MODES[m].to_dict() for m in FundMode],
         "prod_gate": prod_gate_report(store),

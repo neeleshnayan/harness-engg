@@ -752,3 +752,89 @@ class TestModeStoresAreNotTestScratchDatabases:
             assert call not in calls, (
                 f"{call}() is called in the scanner module, so excluding it "
                 f"from its own scan is no longer safe")
+
+
+# --- K7: THE TOGGLE THAT BRICKS THE NEXT RESTART -----------------------------
+class TestTheRestartHazardIsVisibleAtTheClick:
+    """Adversary review of builder D11, 2026-08-22, finding K7.
+
+    ``scripts/run.sh`` exports FUND_MODE unconditionally and the switch
+    endpoint writes only the mode file, so any UI switch away from the launch
+    script's mode guarantees a ModeConflict on the next start. It fails closed,
+    which is right — but the failure landed at BOOT, hours after the click, as
+    a spine that would not come up, and nothing rendered the two declarations.
+
+    Neither half is a bug on its own. The script exports the mode because that
+    is what the script IS; the endpoint writes the file because a toggle a
+    restart silently reverts is the exact trapdoor this module closes. The
+    repair is to SAY SO, at the click and continuously afterwards.
+    """
+
+    def test_a_conflict_is_reported_with_its_effect_and_its_remedy(self,
+                                                                   tmp_path):
+        f = tmp_path / ".fund_mode"
+        f.write_text(json.dumps({"mode": "test"}), encoding="utf-8")
+        got = m.declaration_conflict(
+            {"FUND_MODE": "alpaca-paper", "FUND_MODE_FILE": str(f)})
+        assert got["env"] == "alpaca-paper"
+        assert got["file"] == "test"
+        assert "ModeConflict" in got["effect"]
+        assert "FUND_MODE=test" in got["remedy"]
+
+    def test_agreement_is_not_a_warning(self, tmp_path):
+        f = tmp_path / ".fund_mode"
+        f.write_text(json.dumps({"mode": "test"}), encoding="utf-8")
+        assert m.declaration_conflict(
+            {"FUND_MODE": "test", "FUND_MODE_FILE": str(f)}) is None
+
+    def test_one_authority_alone_is_not_a_warning(self, tmp_path):
+        """The ordinary case. A spine launched with FUND_MODE and no file, or
+        a file and no environment, is fine and must not cry wolf."""
+        assert m.declaration_conflict(
+            {"FUND_MODE": "test", "FUND_MODE_FILE": str(tmp_path / "absent")}) \
+            is None
+        f = tmp_path / ".fund_mode"
+        f.write_text(json.dumps({"mode": "test"}), encoding="utf-8")
+        assert m.declaration_conflict({"FUND_MODE_FILE": str(f)}) is None
+
+    def test_an_unreadable_file_is_not_reported_as_a_conflict(self, tmp_path):
+        """A corrupt file is a DIFFERENT failure, and resolve() raises on it
+        already. Reporting it here as a mode disagreement would name the wrong
+        cause, which is worse than saying nothing."""
+        f = tmp_path / ".fund_mode"
+        f.write_text("{not json", encoding="utf-8")
+        assert m.declaration_conflict(
+            {"FUND_MODE": "test", "FUND_MODE_FILE": str(f)}) is None
+
+    def test_the_report_carries_the_conflict_on_every_reading(self, tmp_path):
+        """Not only in the switch response. A spine that will refuse its next
+        start says so continuously, so the UI can render it whenever it looks
+        — the click is one moment and the hazard lasts until someone fixes it.
+        """
+        f = tmp_path / ".fund_mode"
+        f.write_text(json.dumps({"mode": "test"}), encoding="utf-8")
+        env = {"FUND_MODE": "alpaca-paper", "FUND_MODE_FILE": str(f)}
+        r = m.report(store=None, env=env)
+        assert r["declared"]["env"] == "alpaca-paper"
+        assert r["declared"]["file"]["mode"] == "test"
+        assert r["declared"]["conflict"]["file"] == "test"
+
+    def test_the_report_says_None_not_absent_when_there_is_no_conflict(self,
+                                                                       tmp_path):
+        """The key is always present. A consumer testing `"conflict" in
+        declared` must not read a missing key as "no conflict" on a version
+        that never wrote one."""
+        r = m.report(store=None,
+                     env={"FUND_MODE_FILE": str(tmp_path / "absent")})
+        assert "conflict" in r["declared"]
+        assert r["declared"]["conflict"] is None
+
+    def test_resolve_still_refuses_the_conflict_it_describes(self, tmp_path):
+        """Describing the hazard must not have softened the refusal. The
+        endpoint WARNS; the boot path still REFUSES, and those are different
+        jobs."""
+        f = tmp_path / ".fund_mode"
+        f.write_text(json.dumps({"mode": "test"}), encoding="utf-8")
+        with pytest.raises(m.ModeConflict):
+            m.resolve(env={"FUND_MODE": "alpaca-paper",
+                           "FUND_MODE_FILE": str(f)})

@@ -819,6 +819,29 @@ def switch_fund_mode(req: ModeSwitchRequest):
                         actor=approver))
     _riskengine.invalidate()
 
+    # (5) THE RESTART HAZARD, SAID AT THE CLICK — 2026-08-22, adversary review
+    # of builder D11, finding K7.
+    #
+    # scripts/run.sh exports FUND_MODE unconditionally (that is what the script
+    # is for) and this endpoint writes only the mode file (a toggle a restart
+    # silently reverts is the trapdoor mode.py exists to close). So any switch
+    # away from the launch script's mode guarantees a ModeConflict on the next
+    # start. It fails CLOSED, which is right — but it lands at BOOT, hours
+    # after the click, as a spine that will not come up.
+    #
+    # WARNS, does not refuse. A refusal would brick the toggle in practice,
+    # because the live spine is always started by run.sh and therefore always
+    # carries FUND_MODE in its environment; the CEO would meet "refused" on
+    # every switch he ever made. The warning is also on `mode.report()`, so it
+    # persists in the UI rather than living in one response body.
+    hazard = fundmode.declaration_conflict()
+    if hazard:
+        logger.warning(
+            "MODE SWITCH leaves a restart hazard: FUND_MODE=%s in the "
+            "environment, %s now says %s. The next spine start will refuse "
+            "with ModeConflict.",
+            hazard["env"], hazard["file_path"], hazard["file"])
+
     # The stream is NOT auto-restarted, and that is stated rather than silent.
     # Restarting it needs the running event loop's `create_task`, and a fill
     # observer that comes back up by itself after a mode change is exactly the
@@ -827,6 +850,7 @@ def switch_fund_mode(req: ModeSwitchRequest):
     # degrades to slower, never to blind, and the response says which.
     return {"switched": True, "from": previous.mode.value, "to": target.value,
             "persisted": record,
+            "restart_hazard": hazard,
             "fill_stream": ("stopped — restart the spine to re-subscribe; the "
                             "settlement poller is still running underneath"
                             if stream_was_live else "was not running"),
