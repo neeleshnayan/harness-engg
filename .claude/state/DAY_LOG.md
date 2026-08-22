@@ -427,7 +427,11 @@ Donna's: CHECK date -u BEFORE DATING ANYTHING.**
   VERIFICATION may be subordinated to Ed's thesis; DISCOVERY may not** —
   Dr. Mike Darwin's shelf feeds catalog→idea (never idea→catalog), the
   quant SEAT implements fresh after the adversary, nothing transient
-  touches lean_workspace/**. The named seats are colleagues, not staff.
+  touches lean_workspace/**. The named seats are colleagues, not staff. **CAP RATIFIED (CEO):
+  2 research + 1 crunch per batch — crunch is heavy, counts against the
+  one-heavy-job budget; cap moves only by versioned decision. And every
+  worker carries the firm's full ethos — identity governs ACCOUNTABILITY,
+  never ethics.**
 
 ### ON FIRE
 

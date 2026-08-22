@@ -402,3 +402,13 @@ Ed's identity + Ed consuming their output — one pass, shared context (the
 token-dedup the CEO wants), one consolidated STATE. Verification asks may
 be subordinated to Ed's thesis; discovery may not (the shelf and the seats
 stay independent). Nothing transient writes to lean_workspace/**.
+
+
+## 2026-08-22 (~22:30Z) — workshop cap + worker ethos (CEO)
+
+Cap: 2 research + 1 crunch per Ed batch; the crunch worker is HEAVY (counts
+against the one-heavy-job budget — never beside a builder suite or belt
+run). Cap moves only by versioned CEO decision. EVERY transient worker's
+brief carries the firm's non-negotiables in full — identity governs
+accountability, never ethics. Workers = Ed's hands with the firm's
+conscience.
