@@ -602,7 +602,7 @@ class TestModeStoresAreNotTestScratchDatabases:
 
     v1 of this module designated ``krypton_fund_test`` as the TEST mode's
     *persistent, append-only* ledger. That is the database ``tests/
-    test_pgstore.py`` TRUNCATEs in a fixture, along with twelve other modules.
+    test_pgstore.py`` TRUNCATEs in a fixture, along with ten other modules.
     Every ``pytest`` run against a reachable Postgres would have wiped the test
     fund's entire log, so the mode's headline property — *persistent, because a
     replay of 2020-03 is only worth running twice if both runs still exist* —
@@ -687,7 +687,7 @@ class TestModeStoresAreNotTestScratchDatabases:
         # at nothing, and this is the line that notices.
         assert scanned >= 10, (
             f"only {scanned} Postgres-touching destructive test modules were "
-            f"scanned; there were 11 when this guard was written, so the scan "
+            f"scanned; there were 12 when this guard was written, so the scan "
             f"is looking in the wrong place rather than finding a clean tree")
 
     def test_the_scan_would_have_caught_the_original_defect(self):

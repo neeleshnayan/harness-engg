@@ -47,7 +47,7 @@ needs both runs to still exist.
 The mismatch between the mode's name and ``krypton_fund_dev`` is deliberate
 and it is the whole of the property above. The first version of this module
 pointed test mode at ``krypton_fund_test`` — which is the database
-``tests/test_pgstore.py`` TRUNCATES on every fixture, along with twelve other
+``tests/test_pgstore.py`` TRUNCATES on every fixture, along with ten other
 test modules. Every ``pytest`` run against a reachable Postgres would have
 wiped the test fund's entire event log, so "persistent, append-only" was false
 from the first run, and the comment three lines into ``test_pgstore.py``
@@ -229,7 +229,8 @@ MODES: dict[FundMode, ModeSpec] = {
         real_money=False,
         real_broker=False,
         # NOT ``krypton_fund_test`` — that is pytest's scratch database and
-        # thirteen test modules TRUNCATE it. See the module docstring; the
+        # eleven test modules connect to it and TRUNCATE it. See the module
+        # docstring; the
         # separation is pinned by a test, not by this comment.
         pg_database="krypton_fund_dev",
         label="TEST — simulated fills at real prices",
