@@ -405,3 +405,14 @@ for a real fill. Framing all three as one 'hard gate before ANY real entry'
 slips the first-dollar date behind automation it does not use - Grace's
 objection, and the chair verified blocker 1 is a ~1hr fix (fund.py:3765/:3787
 wrap _guard_approval, :3800 does not).
+
+
+## 2026-08-22 — CARRIED FROM BUILDER D14 BY THE CHAIR
+
+autopolicy v3's "the rule's own strategy must hold the quantity it sells" has
+a silent failure mode you can now test for: ANY fold that moves a position
+between strategy ledgers disables auto-approval for that symbol's exits,
+permanently and with no alarm. Ask of every ownership-changing path in the
+book - not just the approval path - whether the envelope can still be
+satisfied afterwards. (D14's K3 fix preserves the reduced holder pro rata for
+exactly this reason.)

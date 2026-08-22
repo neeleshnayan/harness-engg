@@ -387,3 +387,45 @@ seen before routes to the CEO.** Pick one that says who must act, or state
 ## 2026-08-22 — CARRIED FROM THE READINESS MATRIX (PM) BY THE CHAIR
 
 The three control blockers are ONE bounded sprint on the critical path to first real dollars, target 2026-08-26: guard /fund/risk/resume (fund.py:3797-3800), give the integrity halt a producer (riskmonitor.py:967-989 builds an alarm list run() never reads), make venue knowable from the executing connector's identity not order['venue'] (pipeline.py:229 vs :318). Ship as a batch; resume+venue diffs are a LOOSENING and go adversary-blind. A blocker with no motion past its date is the moat the CEO forbade.
+
+
+## 2026-08-22 — STATE from run-builder-d14 (D11 v2 repair series), appended by the chair
+
+Repaired the killed fund-mode diff as 11 separable ClarkHarness commits +
+2 KryptonPay, all 8 kills closed, NOTHING MERGED. 1694 passed RC=0 (baseline
+1523->1636->1694), 335 passed, tsc exit 0. Gate: 37 ordinary, 2 sensitive, 0
+forbidden.
+- **THE BRIEF/REVIEW SPEC CAN BE WRONG, AND FOLDING THE CODE IS THE JOB**: the
+  adversary's K2 said "filter on not-superseded"; measuring exitrule._fold
+  proved `superseded` marks the SURVIVING GOVERNING rule as REVISED, not dead
+  (enforce() skips triggered_at/overridden_at explicitly, NOT superseded).
+  Verbatim it would have made re-commitment - the only way to restore a fired
+  exit rule - invisible to the coverage report. Third dispatch running where a
+  chair/reviewer factual claim failed measurement (D7 tz, D13 shapes, now K2).
+  FOLD THE PREMISE BEFORE YOU FOLD THE CODE.
+- Third K2 defect the review missed: rows read `usd_value`, assess() emits
+  `value_usd` - every uncovered row null on the live path. Both keys read now.
+- K4 DELETED CashReconciled (zero ever written, verified both ledgers); named
+  five more pre-existing producer-less NAV folds (CORPORATE_ACTION_APPLIED,
+  DIVIDEND/INTEREST_RECEIVED, PAYOUT_SENT, UNITS_BURNED) in a shrink-only
+  allowlist with a test that fails if a sixth appears.
+- K5 `allow_prod` DELETED (zero callers, its only function was the hole); all
+  four prod gates now read prod_gate_report()['reachable'] so report and
+  refusal are one call.
+- Look pass caught 3 UI defects written the same hour (amber on every row;
+  dead-spine dialog pointing at an empty list; a sentence broken by a period).
+  Sixth dispatch running.
+- Verified live: assess() positions are {symbol,qty,mark,value_usd,weight_pct,
+  unrealized_pnl_pct,shock_20_usd} - value_usd not usd_value, NO strategy_id.
+  krypton_fund 967, krypton_fund_test 1, dev+prod DO NOT EXIST. .env 12 keys,
+  no FUND_LIVE_MARKS.
+- git worktree add inside the clone is the clean baseline-count method; NEVER
+  worktree remove while a node_modules junction is inside (rmdir it first).
+- Fitness: +5,776/-267 = 21.6:1, better than D13's 124:1 but still accretion.
+  THE CLEANUP (dce47670) deferred TWICE now - dispatch it before the next
+  feature brief under this name.
+- Open: confirmEcho collision (human call before prod unlock); 5 legacy folds;
+  run_test.sh CREATE branch unexercised (krypton_fund_dev absent); 14
+  unlinkable DeskDispatched (not my surface).
+- EVOLVE proposed: before implementing any predicate a brief names by field
+  name, fold/execute the code that sets it and print the result first.

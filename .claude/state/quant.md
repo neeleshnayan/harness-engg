@@ -488,3 +488,13 @@ critical path to the first real dollar (~2026-08-28 target, binding on the
 CEO's account KYC). Keep the deploy CEO-CLICKABLE - no dependency on the
 auto-entry-envelope; it does not need to pass the gate (Tier-0's purpose is real
 fills, not a P&L verdict). Commit the loss-stop exit before entry.
+
+
+## 2026-08-22 — CARRIED FROM BUILDER D14 BY THE CHAIR
+
+An exit rule is a commitment BY a strategy ABOUT a symbol. If the strategy
+that holds the position is not the strategy on the rule, the position is
+uncovered and its closing SELL cannot be auto-approved. Name the owning
+strategy on every exit rule you propose - directly relevant to Entry 20's
+loss-stop, which must be owned by the strategy that holds the slot and predate
+the entry event.

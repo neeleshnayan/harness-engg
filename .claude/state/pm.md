@@ -392,3 +392,13 @@ PAPER ACCOUNT: the first Tier-0 instance cannot produce a real fill until
 ALPACA_PAPER=false on a funded live account. Name live-account status as the TOP
 ROW of the binding-leg MIN for any real deployment, above PDT and granularity -
 today it is the binding leg, not confidence and not capacity.
+
+
+## 2026-08-22 — CARRIED FROM BUILDER D14 BY THE CHAIR
+
+Exit coverage is answerable only per (strategy, symbol), NEVER per symbol - a
+rule on one sleeve cannot execute against another sleeve's holding of the same
+ticker. /fund/exits/check now returns `coverage_basis`; report which key you
+counted on. And D14 confirmed your own BIND: the uncovered block now shows the
+full ~$1,165 of unmanaged positions (was $674) once keyed on ownership +
+reading value_usd.

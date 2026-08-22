@@ -564,3 +564,12 @@ now ALPHA by your own sec-3 pre-commitment (vol ratio 1.0011) and goes to
 the belt — and your embedded challenge was KILLED by two seats independently
 (re-file needs new evidence: a rebalanced bar, machine-checked premises, one
 date-aligned vol pair).
+
+
+## 2026-08-22 — CARRIED FROM BUILDER D14 BY THE CHAIR
+
+An exit rule you propose is a commitment BY a strategy ABOUT a symbol; if the
+holding strategy differs from the rule's strategy, the position reads
+uncovered and its SELL cannot be auto-approved. Name the owning strategy on
+every exit rule. (Entry 20's loss-stop, per Grace/PM, must be owned by the
+holding sleeve and predate the entry event.)
