@@ -174,11 +174,22 @@ def test_the_benchmark_falls_back_live_when_the_snapshot_cannot_serve(monkeypatc
 @pytest.mark.parametrize("code,expected", [
     ('url = f"{SPINE}/marketdata/bars?symbol=X&lookback_days=700&format=csv"', 700),
     ('url = ("{S}/marketdata/bars?symbol=X"\n       "&lookback_days=2000&format=csv")', 2000),
-    # Two different lookbacks in one file: ambiguous, so no snapshot.
-    ("a=1\nlookback_days=700\nlookback_days=900\n", None),
+    # Two different lookbacks in two real URLs: ambiguous, so no snapshot.
+    ('a=f"?lookback_days=700"\nb=f"?lookback_days=900"\n', None),
     # Computed rather than literal: unreadable, so no snapshot.
-    ("lookback_days={N}", None),
+    ('url = f"?lookback_days={N}"', None),
     ("no lookback here", None),
+    # THE ENTRY 20 CASE, and the reason this reads the AST rather than the text.
+    # The 170-name algorithm this cache was built for explains its choice in a
+    # COMMENT that names the rejected number. A text scan sees 1200 and 2000,
+    # calls it ambiguous, and silently declines to snapshot the one candidate
+    # that most needed the cache. Comments are not in the AST.
+    ('# 2000, not 1200. MEASURED on ACGL: lookback_days=1200 gave 612 bars\n'
+     'url = (f"{SPINE}/marketdata/bars?symbol={s}"\n'
+     '       f"&lookback_days=2000&format=csv")\n', 2000),
+    # A docstring, unlike a comment, IS in the AST — so a number mentioned in
+    # prose still counts as ambiguous. Declining is the safe direction.
+    ('"""We used to ask lookback_days=1200."""\nurl = f"?lookback_days=2000"\n', None),
     # Outside the endpoint's own bound (gt=1, le=2000) — pinning it would hide
     # a 422 behind a cache hit.
     ("lookback_days=5000", None),

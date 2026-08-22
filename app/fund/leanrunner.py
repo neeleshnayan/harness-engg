@@ -1747,15 +1747,33 @@ def _declared_lookback_days(code: Optional[str]) -> Optional[int]:
     truncation, so it declines instead (see barcache.BarSnapshot.serve).
 
     Deliberately narrow, and narrow in the safe direction: a single integer
-    literal spelled ``lookback_days=N`` or ``lookback_days={N}`` inside the
-    module. Anything computed, parameterised, or spelled more than one way
-    returns None, which means "no snapshot" — the candidate then runs on live
-    fetches exactly as it does today. A wrong guess here would silently feed a
-    strategy a window it did not ask for, so guessing is not on the table.
+    literal spelled ``lookback_days=N`` inside a STRING in the module. Anything
+    computed, parameterised, or spelled more than one way returns None, which
+    means "no snapshot" — the candidate then runs on live fetches exactly as it
+    does today. A wrong guess here would silently feed a strategy a window it
+    did not ask for, so guessing is not on the table.
+
+    READ FROM THE AST, NOT THE TEXT, AND THAT IS NOT A STYLE CHOICE. Scanning
+    raw source finds the number in COMMENTS as well as in code. The 170-name
+    Entry 20 algorithm — the exact candidate this cache was built for — carries
+    the line "2000, not 1200. MEASURED 2026-08-22 on ACGL: lookback_days=1200
+    ..." above a URL that asks for 2000. A text scan sees two lookbacks, calls
+    the algorithm ambiguous and silently declines to snapshot it, so the one
+    candidate that most needed this would have got none of it. Comments are not
+    in the AST; string literals are, and the URL is a string literal.
     """
     if not code:
         return None
-    found = {int(m) for m in re.findall(r"lookback_days=(\d+)", code)}
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return None
+    found: set[int] = set()
+    for node in ast.walk(tree):
+        # Plain strings and the literal parts of f-strings both arrive here.
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            found.update(int(m) for m in
+                         re.findall(r"lookback_days=(\d+)", node.value))
     if len(found) != 1:
         return None
     n = found.pop()
