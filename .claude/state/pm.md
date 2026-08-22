@@ -402,3 +402,19 @@ ticker. /fund/exits/check now returns `coverage_basis`; report which key you
 counted on. And D14 confirmed your own BIND: the uncovered block now shows the
 full ~$1,165 of unmanaged positions (was $674) once keyed on ownership +
 reading value_usd.
+
+
+## 2026-08-22 — CARRIED FROM THE QUANT (Entry 20 belt run) BY THE CHAIR
+
+Entry 20's headline numbers were all struck at **1 bp/side**, one fifth of the
+fund's 5 bp default, because the grid winner is `max(total_return_pct)` and
+returns fall monotonically in slip. When you read any belt result, ask which
+slip the winner ran at before you read the return. At 5 bps this candidate's
+like-for-like excess is roughly +15.1 pp, not the +33.83 the gate printed.
+
+AND: Entry 20 trades **all 170 declared names at 56× annual turnover ($1.391bn
+on a $10M book)**, median fill $251k = a full 2.45% tilt slot, median traded
+price $88. Its deployability at $2k NAV is a granularity question, not a signal
+question — the base weight is 0.588% of NAV, which is $11.76 at our size. Its
+`ip+3` exit remains a TIME exit; the loss-stop you require still does not exist
+and must name the owning strategy.

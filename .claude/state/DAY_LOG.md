@@ -319,6 +319,26 @@ the firm's best lead, Grace's memo, and what I deliberately did not do.
   And the chair's own brief was refuted three ways on breakeven.
 - **The dead builder dispatch was NOT lost** — 8 commits, 3,731 lines in a
   scratchpad clone I failed to look in. Recovered and bundled.
+- **ENTRY 20 PASSED GATE v4.1 WITH ZERO FAILURES — THE FUND'S FIRST
+  SUBSTANTIVE PASS** (candidate `144387901688`; prior passes were the planted
+  nulls under v1). And the pass is thinner than the headline, measured four
+  ways: active t = 0.60 (not distinguishable from zero; PSR saw the total
+  book at beta 0.54), excess over-credited 11.85pp on a transient
+  benchmark-window truncation, all headlines struck at slip=1bp vs the 5bp
+  default, and the gate's breakeven floor was NEVER evaluated —
+  `gate.py:405-412` writes a string and appends no failure. The quant spent
+  one container to measure what the gate skipped: **active breakeven 13.9
+  bps/side** (1.4× the floor). Vol ratio measured 0.656 vs the 1.0011
+  pre-committed — premia-shaped, passed the harder gate anyway. Three
+  pass-favourable instrument defects filed; disposition: **gate-v5 re-judge,
+  not a deploy signal.** `docs/quant/QUANT_ENTRY20_2026-08-22.md`,
+  run `run-quant-entry20`.
+- **The model picker cannot be trusted as identity**: `/model claude-fable-5`
+  reported "set" twice while the session was served by Opus (with >90% of the
+  Fable weekly quota unspent, so not a quota fallback). The constitution's
+  check-your-model-on-cold-start rule is the only reason we know. Harness
+  bug, CEO filing it upstream; until then the served model is the identity,
+  never the picker.
 
 ### DECIDED (by the CEO)
 
@@ -349,6 +369,14 @@ the firm's best lead, Grace's memo, and what I deliberately did not do.
 
 ### OPEN FOR FABLE
 
+- **The quant's TIGHTENING challenge on the gate's breakeven branch**
+  (`gate.py:405-412` — the "beyond the tested range" string satisfies
+  `require_breakeven_measured` and the floor is never evaluated). Three
+  concrete v5 fixes filed in `run-quant-entry20`'s recommendations; gate code
+  is Tier 3, so nothing executed. It composes with the existing gate-v5
+  round-6 input (`4698dee7`).
+- **The `_add_benchmark` window truncation** (leanrunner.py:1289/:1295) —
+  a builder ticket's worth of per-run check; belt read-side, not gate logic.
 - **The loosening question.** The cap amendment is a LOOSENING that did NOT go
   to the adversary. My reading: clause 5 governs seat CHALLENGES, not CEO
   instructions. Confirm or correct it — the precedent matters more than this

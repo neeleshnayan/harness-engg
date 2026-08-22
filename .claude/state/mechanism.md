@@ -573,3 +573,21 @@ holding strategy differs from the rule's strategy, the position reads
 uncovered and its SELL cannot be auto-approved. Name the owning strategy on
 every exit rule. (Entry 20's loss-stop, per Grace/PM, must be owned by the
 holding sleeve and predate the entry event.)
+
+
+## 2026-08-22 — CARRIED FROM THE QUANT (Entry 20 belt run) BY THE CHAIR
+
+Your Entry 20 pre-commitment set the claim type on a vol ratio of 1.0011; the
+belt measures **0.656** on two independent clocks, with the strategy at Sharpe
+2.311 against its benchmark's 1.289. Before you use a vol-ratio pre-commitment
+to choose premia-vs-alpha again, state the exact series and window you computed
+it on, or compute it the way the belt will — strategy equity against
+`benchmark_curve`, both on the session clock. Your conservatism cost nothing
+this time because the candidate passed the harder gate anyway; it will not
+always be free.
+
+AND: a 170-name universe costs **460–515s per container and ~96 minutes per
+candidate**, entirely because each name is a separate sequential remote fetch.
+Breadth is the expensive axis on this belt, not history. When you propose a
+universe, name the breadth you believe is necessary and say what a half-sized
+version would cost the thesis.

@@ -498,3 +498,38 @@ uncovered and its closing SELL cannot be auto-approved. Name the owning
 strategy on every exit rule you propose - directly relevant to Entry 20's
 loss-stop, which must be owned by the strategy that holds the slot and predate
 the entry event.
+
+
+## 2026-08-22 — STATE from run-quant-entry20 (Entry 20 belt run), appended by the chair
+
+**2026-08-22 — dispatch #3 (Entry 20, announcement_premium) — FIRST REAL GATE PASS**
+
+**THE RESULT.** Candidate `144387901688`, gate **v4.1**, **PASSED**, `failures == []`, verbatim: *"clears every criterion — worth a human look, which is a different claim from 'deploy it'"*. 6,997 orders, PSR 80.37, return 118.614% vs benchmark 84.78%, capacity $19.91M, holdout retention 1.3301 (annualised), 4/4 folds measurable, 3 retained (fold 3 = 0.3767), median retention 1.4883. Winner `slip=0.0001` in all five sweeps. 22 container runs, 96.4 min. I wrote zero lines — nothing blocked execution.
+
+**THE PASS IS WEAKER THAN THE HEADLINE. Four numbers to carry:**
+1. **Active IR 0.384, t = 0.60 over 611 sessions.** The alpha claim is not distinguishable from zero. PSR 80.37 was computed on the TOTAL book (Sharpe 2.311, t=3.60) at **beta 0.541** to its own benchmark. v4.1 passes alpha claims on a beta statistic — the same blindness that killed Entry 11, seen from the passing side.
+2. **Like-for-like excess is +21.98 pp, not +33.83.** Benchmark curve ended 2026-08-04, strategy 2026-08-21 (equity at 08-03 = $20.68M vs $21.86M final → 106.762% not 118.614%).
+3. **Active breakeven 13.9 bps/side** (measured: 1bp → +21.98pp active, 20bps → −10.52pp, slope −1.710). **Total breakeven 64.6 bps** — the gate's own machinery would have been 4.6× too generous.
+4. **Vol ratio 0.656**, not the 1.0011 the proposal pre-committed on. Two clocks agree (session 0.6560 / calendar 0.6576); LEAN's `Annual Variance 0.014` → 11.83% corroborates independently. Strategy Sharpe 2.311 vs benchmark 1.289. **This is premia-shaped, and it passed the harder gate anyway.**
+
+**THREE INSTRUMENT DEFECTS, ALL PASS-FAVOURABLE:**
+- **`gate.py:405-412` — the breakeven floor is unreachable.** If the sweep says "still profitable at every cost tested", the gate writes the STRING `"beyond the tested range"` into `checks["breakeven_bps"]` and appends no failure. `min_breakeven_bps: 10.0` is never evaluated. A 1/3/5 bps grid only proves >5. **Always measure the active breakeven yourself with one extra container at a bracketing slip — it cost me 9 minutes and produced the number the gate refused to.**
+- **`_add_benchmark` truncates to `min(len)` across legs, then labels with `ref_dates[:n]` (the LONGEST leg's dates).** At run time one of 170 legs had 612 bars; I re-fetched 40 min later and **all 170 returned 624 ending 2026-08-20**. Transient, non-reproducible, worth 11.85 pp here. **Caveat #1 (test_end is a request) bites the BENCHMARK leg, not just the strategy leg. Always diff `benchmark_dates[-1]` against `equity_dates[-1]` and recompute the excess on the common window.**
+- **Capacity tie-break: three-way tie at 54 fills (FCEL/PEG/PRU).** Priced all arms: $19.93M / $20.52M / $19.16M — **7% spread, verdict-irrelevant here.** Report the magnitude, don't dramatise it; Entry 11's 16.7× was the exception.
+
+**A HYPOTHESIS I CHECKED AND KILLED — do not re-derive it.** Capacity is NOT computed from the 1,000-order truncated list. `trim_result` runs at `runanalytics.capture` (`factory.py:186`), *after* `_add_capacity` (`leanrunner.py:1101`). Modal over first 1,000 is a 9-way tie at 9 (KTOS/MOS/NI/AEHR/AGX); modal over all 6,997 is FCEL at 54 — and FCEL is what was stored. No defect.
+
+**ENGINE FACTS.**
+- **A 170-name candidate costs 460–515s per container, not 13s.** Dominated by **170 sequential `SpineBars` fetches (~2.4s each ≈ 408s)**, near-independent of window length. `JOB_TIMEOUT_S = 900` → 1.75× headroom. Budget ~20 min per walk-forward fold, ~96 min per candidate.
+- **THE SPINE'S BELT THREAD SURVIVES THE AGENT'S DEATH.** A cut dispatch does not orphan the candidate. Poll `state` before re-running anything. **The spine is on port 8090** — 8000 is nothing, and reading 8000 as "spine down" cost me a wrong first conclusion.
+- Job polling is `GET /fund/lean/backtests/{job_id}`; there is no `/fund/lean/jobs`. `GET /fund/factory/candidates/{id}` carries `analytics.verification.result` (equity_curve, benchmark_curve, daily_returns, capacity, statistics); the LIST endpoint does not.
+- `daily_returns` is **calendar**-daily (907 obs, 18.7% exact zeros); `benchmark_curve` is **session** (612); `equity_curve` is **LEAN-downsampled** (400). Three clocks in one payload — align on `benchmark_dates` and check `dropped_unmatched_days` before computing any vol.
+- 238 buying-power rejections / 8,662 `set_holdings` calls (2.7%) despite reductions-first and a 0.98 book buffer.
+- Turnover **10.41%/day ≈ 56×/yr**; $1.391bn traded on $10M; **$139,134 per bp/side = 1.391 pp of start equity per bp**. Median fill $251,124 = a full k=40 tilt slot, so the book is tilt-dominated, not EW-residual-dominated.
+- Median traded price $88.09; p5 $7.87; 6.7% of fills under $10. **No phantom price factor in this basket** — the $9,774 max is NVR, genuinely ~$9k. Return-based signal, so the standing price-level constraint was never engaged.
+
+**METHOD THAT PAID.** Checkpointing every phase to disk as it landed meant the second interruption would have cost nothing. Running `window_for_strategy` instead of asserting geometry. Pricing all three arms of a tie rather than calling it "unstable". Checking the truncation hypothesis before reporting it — it was false.
+
+**HYBRID SPLIT:** not used. Zero lines written. Not a data point either way.
+
+**FITNESS.** Implementations reaching an honest gate verdict without dying on an instrument defect: **1/1 this dispatch** (the belt completed end to end, no timeouts, no failed jobs). Instrument defects surfaced by running: **3** (breakeven floor unreachable, benchmark window truncation, capacity tie priced) plus **1 hypothesis correctly killed**.

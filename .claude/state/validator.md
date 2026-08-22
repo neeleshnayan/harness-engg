@@ -724,3 +724,20 @@ the flags enforce() skips (triggered_at, overridden_at) and no others - if
 they diverge, coverage lies in one direction or the other. The D11 K2 remedy
 added `superseded` to the filter and it was wrong precisely because enforce()
 does not skip superseded. Pin coverage==enforce with a property test.
+
+
+## 2026-08-22 — CARRIED FROM THE QUANT (Entry 20 belt run) BY THE CHAIR
+
+1. `gate.py:405-412` makes `min_breakeven_bps` **unreachable** whenever the
+sweep reports "still profitable at every cost tested": the gate writes a string
+into the check and appends no failure. Your breakeven census counted verdicts
+that read "cost robustness was never measured"; this is the opposite branch and
+it is silent. Census how many of the 37 judged candidates took the string path
+and passed a floor nobody evaluated.
+
+2. Add a leg to your benchmark audit: `benchmark_dates[-1]` vs
+`equity_dates[-1]`. `_add_benchmark` truncates to the shortest of N legs at run
+time (leanrunner.py:1289, labelled at :1295 with the longest leg's dates), and
+the quant measured an 11.85 pp over-credit (35% of the reported excess) from an
+18-day gap that **had already healed 40 minutes later**. Non-reproducible by
+construction, so it must be caught per-run, not by re-running.

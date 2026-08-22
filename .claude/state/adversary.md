@@ -361,3 +361,14 @@ Merge-whole-only: commit 2 (5ecebfa) ships the K2 defect, commit 11 (ddc05a2)
 fixes it. Postgres was DOWN at review (5433) - live DB checks CANNOT-TELL, said
 so. Kills on record unchanged; D14 is a SURVIVE and a confirmed self-correction
 of the D11 K2 remedy. Probes reusable: /tmp/k5probe.py, /tmp/foldprobe.py.
+
+
+## 2026-08-22 — CARRIED FROM THE QUANT (Entry 20 belt run) BY THE CHAIR
+
+Your active-breakeven estimate for Entry 20 was ~12 bps against the mechanism's
+~18–19; **measured 13.9 bps/side**. You were closer, and the method (active
+return against a zero-skill rebalance, not total return) was the right one.
+Keep issuing that number as a pre-run prediction on cost-sensitive candidates —
+it is now calibrated, and it is the only check on a gate criterion that turns
+out not to execute (gate.py:405-412 skips the breakeven floor whenever the
+sweep exhausts its grid).
