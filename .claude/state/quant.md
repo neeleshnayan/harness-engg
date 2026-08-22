@@ -533,3 +533,16 @@ the entry event.
 **HYBRID SPLIT:** not used. Zero lines written. Not a data point either way.
 
 **FITNESS.** Implementations reaching an honest gate verdict without dying on an instrument defect: **1/1 this dispatch** (the belt completed end to end, no timeouts, no failed jobs). Instrument defects surfaced by running: **3** (breakeven floor unreachable, benchmark window truncation, capacity tie priced) plus **1 hypothesis correctly killed**.
+
+
+## 2026-08-22 — CARRIED FROM BUILDER D15 BY THE CHAIR
+
+The benchmark leg was fetched from a DIFFERENT VENDOR than your strategies
+trade: marketdata.py routes any start+end call to Yahoo while your containers
+get Alpaca, and Yahoo lags one session — so every excess you have ever quoted
+was computed against a bar ending one session before your own curve
+(systematic, not the transient truncation you found). MERGED FIX: snapshotted
+candidates now pin one vendor; read `benchmark_truncated` and
+`benchmark_feed_mixed` on every result — if either is present, the bar is not
+the window you think. And keep checking benchmark_dates[-1] vs
+equity_dates[-1] regardless.

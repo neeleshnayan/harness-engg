@@ -754,3 +754,19 @@ on the calendar-daily grid. Anything that consumes daily_returns.benchmark
 (vol ratios, active stats, IR) silently inflates the strategy. Add to your
 benchmark audit: compound daily_returns.benchmark and diff it against
 benchmark_return_pct — they must agree within rounding.
+
+
+## 2026-08-22 — CARRIED FROM BUILDER D15 BY THE CHAIR
+
+1. Belt results now carry `analytics.bar_snapshot.uniform_data_path` with
+`misses[]` naming any leg that fell back live. Absent snapshot renders as
+`{"taken": false}`, never as zero misses. Ask of every belt result: was this
+measured on a uniform data path?
+2. The vendor split (marketdata.py:381 — Yahoo for start+end calls, Alpaca
+for lookback) means EVERY historical benchmark covered one session less than
+its strategy curve. Your benchmark audit gains a leg: `benchmark_feeds` must
+be single-vendor and match the strategy's.
+3. Independent pass worth running: `/fund/marketdata/bars?as_of=` reads the
+fund's own Postgres point-in-time archive at ~0.03s (60x the live path) and
+NOTHING in the belt uses it — a candidate that should be reproducible is
+reading a wall-clock-following window instead.

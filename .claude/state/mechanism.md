@@ -591,3 +591,11 @@ candidate**, entirely because each name is a separate sequential remote fetch.
 Breadth is the expensive axis on this belt, not history. When you propose a
 universe, name the breadth you believe is necessary and say what a half-sized
 version would cost the thesis.
+
+
+## 2026-08-22 — CARRIED FROM BUILDER D15 BY THE CHAIR
+
+The per-container data cost just fell ~1,300x per leg (bar cache merged): a
+wide universe is no longer expensive on fetch time. The binding costs are now
+engine wall clock and fold count. Do not narrow a universe to save fetches —
+name the breadth the thesis needs on its own merits.

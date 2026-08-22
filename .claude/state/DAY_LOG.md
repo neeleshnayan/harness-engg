@@ -378,6 +378,25 @@ the firm's best lead, Grace's memo, and what I deliberately did not do.
 - **G1: the CEO starts the account MONDAY** - the external clock now has a
   named start date. Studio UI reported down by the CEO, "let it be" - not
   investigated, on his instruction.
+- **D15 BAR CACHE MERGED (`cf0368d`)** — chair-verified line-exact, suite
+  re-run on the merged tree (1561 RC=0), spine restarted, NAV folds $1,885.74.
+  Per-leg 2,125ms → 1.64ms (~1,300×); 170/170 legs byte-identical. THE
+  HEADLINE FIND: `marketdata.py:381` routes any start+end call to YAHOO while
+  strategies trade ALPACA, and Yahoo lags one session — **every benchmark the
+  belt ever computed covered one session less than the curve it graded**
+  (systematic, 0.10pp on the test run). Now reported per-run. Builder's
+  clean-field-reasoning challenge parked for the CEO. THE CLEANUP is deferred
+  THREE times and owns the next builder slot.
+- **D11 v2 MERGE PARKED BY THE HARNESS PERMISSION LAYER** — the CEO approved
+  the crossing, but auto-mode refused the chair's merge of event-store code
+  twice; the chair STOPPED rather than working around a control. Branch sits
+  imported as `d11v2-import` (= ddc05a2); ONE command when the CEO returns:
+  `git -C ClarkHarness merge --no-ff d11v2-import`. KP half parks with it
+  (whole-or-nothing on the pair).
+- **EVENING WAVE DISPATCHED** (CEO: "dont go gentle on agent count"): gate-v5
+  trio builder (heavy slot), Grace (charter differ + owed matrix differ),
+  Vishesh (triage #6 at 91/50 + charter differ) — exec-table order enforced,
+  neither reads the other tonight.
 - **+16 GB RAM incoming** (host going 15.2 → ~31 GB). NOTE FOR THE CHAIR:
   this re-opens the host-budget numbers (one-heavy-job rule, the 1.28 GB
   collapse falsifier) — revisit as a WRITTEN, versioned amendment when the
