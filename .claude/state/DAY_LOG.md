@@ -298,6 +298,20 @@ maintain a day log for fable to review."***
   constraint is measured, never inherited from paper). Boundary preserved:
   hunger without the pen — the mechanism proposes, the CEO clicks.
 
+### DECIDED (by the CEO, ~23:20Z) — THE MECHANISM REFINED
+
+- "Mechanism is a cool name lol; lets refine this seat cause everything
+  downstream depends on it." Identity v2: **Ed Thorp** — count the actual
+  cards, never the remembered ones (the vol-ratio scar); fertility as
+  discipline. Emit contract gains **the pre-flight card** (items 8–11: the
+  binding capacity leg named, the cost grid to the gate floor, PREDICTIONS
+  AS NUMBERS THE BELT SCORES — a prediction ledger, because the adversary
+  currently out-predicts the mechanism on its own proposals' economics —
+  and the shorts/scheduling rules). New **PRODUCTION ETHIC**: each dispatch
+  is a BATCH of 3–5 admissible proposals or a named blocker; admissibility
+  never bends to the count. The analyst persona (Burry proposed) awaits the
+  CEO's steer.
+
 ### ON FIRE
 
 - **2026-09-08 chain unchanged** ($501.58 dated, $750.36 armed undated, TLT
