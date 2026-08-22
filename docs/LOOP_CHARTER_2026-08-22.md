@@ -131,6 +131,35 @@ folds from. And every artifact born in a replay carries `synthetic-scar`
 provenance forever — a synthetic scar may bind exactly like a lived one, but
 it may never be CITED as a lived one.
 
+### THE EXPERIENCE LAYER (added same day, CEO instruction, verbatim: "newer
+### experiences shouldnt override older ones since each period comes with its
+### own unique learnings, strategies and blindspots. Our present operating
+### memorandum has to be a distill across those experiences.")
+
+The point of the replay is not the report; it is the EXPERIENCE LAYER each
+seat accumulates — the thing senior humans are paid for. Three layers per
+seat, replacing flat append-only STATE growth:
+
+1. **EPISODES** — one per lived-or-replayed period, APPEND-ONLY AND IMMUTABLE,
+   tagged by regime. Each records what the period taught, what worked, and
+   what it made the seat blind to. The findings-doc rule applied to
+   experience: never edited, a re-visit gets a new section.
+2. **THE OPERATING MEMORANDUM** — the distillation, the layer a seat reads
+   first. Versioned and DERIVED: every line cites the episodes supporting it.
+   **Conflicts between eras are preserved as conditionals, never resolved by
+   recency** — "buy the panic (2020) / the panic is the information (2008)"
+   stays as a pair with regime conditions. The tension IS the seniority; a
+   memory that lets the newest lesson win produces a junior with recent
+   opinions regardless of how long it has run.
+3. **THE DISTILLATION DIFF** — when an episode lands, the memorandum is
+   re-cut and the DIFF is the reviewable artifact (chair review, like BINDS).
+   Guard rail: **a lesson leaves the memorandum only by NAMED RETIREMENT
+   with a reason — never by omission.** Silent dropping in a distillation is
+   quiet loosening's memory-layer cousin, and it is forbidden the same way.
+
+This also resolves the seat-memory scaling problem: a seat reads its
+memorandum plus regime-matched episodes, not its whole history.
+
 ## What does NOT speed up, ever
 
 The control layer. Blind review stays blind (a batched adversary still never
