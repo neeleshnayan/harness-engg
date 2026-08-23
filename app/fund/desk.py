@@ -1649,13 +1649,18 @@ UNDECIDED_ROUTES_TO = "chair"
 
 #: WHETHER ROUTING v1 IS ENFORCED AT THE DOOR. Shipped **False**, and the
 #: number that made it False is the reason it is a flag rather than a
-#: judgement call: run over the last day of live traffic by the D22 blind
-#: review, routing v1's 422 would have REJECTED 16 of the 17 runs recorded
-#: that day, across eight seats — every seat but the chair-composed one. The
-#: schema half shipped without its companion half (the seat protocols and the
-#: run-record format that teach seats to file the four fields), and a contract
-#: enforced on one side only does not tighten anything: it stops the record
-#: from being written at all, which is worse than a badly routed record.
+#: judgement call. Run over the last day of live traffic by the D22 blind
+#: review, routing v1's 422 would have REJECTED **16 of the 17 runs** recorded
+#: that day, across eight seats — every seat but the chair-composed one. Two
+#: hours later, re-measured by this seat on the same instrument
+#: (`scratchpad/advd22/probeB5.py`, unchanged) as the day filled up: **16 of
+#: 20**, same eight seats. The population moves; the finding does not.
+#:
+#: The schema half shipped without its companion half (the seat protocols and
+#: the run-record format that teach seats to file the four fields), and a
+#: contract enforced on one side only does not tighten anything: it stops the
+#: record from being written at all, which is worse than a badly routed
+#: record.
 #:
 #: So the enforcement ships dark and the chair flips it in a one-line
 #: versioned change once the seat-protocol companion lands. Until then every

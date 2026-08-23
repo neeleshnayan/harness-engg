@@ -599,7 +599,10 @@ class Supersessions(_Table):
         ran the pre-repair code does.
         """
         super()._ensure()
-        self.canonicalise_stored()
+        #: What the migration did on THIS construction, kept because a
+        #: migration whose outcome nobody can read is a migration nobody can
+        #: verify ran. Logged as a warning too when it was not a no-op.
+        self.migration_report = self.canonicalise_stored()
 
     def add(self, *, target_ref: str, mode: str, reason: str, actor: str,
             superseder_ref: Optional[str] = None,
@@ -698,13 +701,13 @@ class Supersessions(_Table):
         return rows[0] if rows else None
 
     def edges(self, include_retracted: bool = False,
-              limit: int = EDGE_QUERY_LIMIT) -> list[dict[str, Any]]:
+              limit: Optional[int] = None) -> list[dict[str, Any]]:
         """Every live edge, newest first. Raises past ``limit`` — see `page`."""
         where = "" if include_retracted else "WHERE retracted_at IS NULL"
         return self._select(where, (), limit=limit)
 
     def page(self, include_retracted: bool = False,
-             limit: int = EDGE_QUERY_LIMIT) -> tuple[list[dict[str, Any]], bool]:
+             limit: Optional[int] = None) -> tuple[list[dict[str, Any]], bool]:
         """``(rows, truncated)`` — for the DISPLAY path, which shows what it has.
 
         Two shapes for two jobs, and the difference is deliberate. A control
@@ -716,13 +719,21 @@ class Supersessions(_Table):
         return self._page(where, (), limit=limit)
 
     def _page(self, where: str, params: tuple,
-              limit: int) -> tuple[list[dict[str, Any]], bool]:
+              limit: Optional[int] = None) -> tuple[list[dict[str, Any]], bool]:
         """Rows, and whether the store holds MORE than the caller asked for.
 
         Fetches ``limit + 1`` so truncation is a measured fact rather than the
         guess "we got exactly the limit, so probably". At exactly ``limit``
         rows the answer is complete and says so.
+
+        ``limit=None`` READS ``EDGE_QUERY_LIMIT`` at call time rather than
+        binding it as a default argument. A default is a copy taken at import,
+        and a test that moves the constant would then prove nothing about the
+        query — the same "read it, do not repeat it" rule the mode set already
+        follows.
         """
+        if limit is None:
+            limit = EDGE_QUERY_LIMIT
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -745,14 +756,16 @@ class Supersessions(_Table):
                 for r in rows[:limit]], truncated
 
     def _select(self, where: str, params: tuple,
-                limit: int = EDGE_QUERY_LIMIT) -> list[dict[str, Any]]:
+                limit: Optional[int] = None) -> list[dict[str, Any]]:
         rows, truncated = self._page(where, params, limit)
         if truncated:
-            raise SupersessionsTruncated(limit, where or "all edges")
+            raise SupersessionsTruncated(
+                EDGE_QUERY_LIMIT if limit is None else limit,
+                where or "all edges")
         return rows
 
     def by_target(self, include_retracted: bool = False,
-                  limit: int = EDGE_QUERY_LIMIT) -> dict[str, dict[str, Any]]:
+                  limit: Optional[int] = None) -> dict[str, dict[str, Any]]:
         """Live edges keyed by the row they act on — what every reader wants.
 
         At most one live edge per target is enforced by a partial unique index,

@@ -1405,3 +1405,92 @@ def test_the_ceo_endpoint_reports_which_stores_it_could_read(monkeypatch):
     assert body["readable"]["recommendations"] is False
     assert body["readable"]["supersessions"] is False
     assert body["readable"]["intray"] is False
+
+
+# ============================ 12. the edge reader itself (D24 repairs) ======
+
+def test_a_cold_cache_outage_and_a_warm_one_get_THE_SAME_policy(monkeypatch):
+    """ADVERSARY D22, probe F1: the fail-open was decided by CACHE WARMTH.
+
+    Store CONSTRUCTION sat outside the try, so the first approval after a
+    restart with Postgres down raised OSError and 500'd the approval path —
+    the exact outcome failing open exists to prevent — while a warm process
+    degraded silently to permissive. One outage must produce one policy.
+    """
+    from app.api.v1 import fund as fundapi
+
+    def cold():                     # construction fails, as on a restart
+        raise OSError("connection to server at 127.0.0.1 port 5433 failed")
+
+    class WarmButUnreadable:        # construction fine, query fails
+        def by_target(self):
+            raise RuntimeError("postgres went away mid-check")
+
+    monkeypatch.setattr(fundapi, "_supersessions", cold)
+    assert fundapi._edges_by_target() is None
+    monkeypatch.setattr(fundapi, "_supersessions", lambda: WarmButUnreadable())
+    assert fundapi._edges_by_target() is None
+
+
+def test_a_TRUNCATED_edge_map_is_unreadable_not_short(monkeypatch):
+    """The two repairs meeting: the store raises past its limit, and this
+    reader turns that into UNREADABLE — which is the disclosed fail-open, not
+    a map with the brakes quietly missing from it."""
+    from app.api.v1 import fund as fundapi
+    from app.fund.deskengine import SupersessionsTruncated
+
+    class Flooded:
+        def by_target(self):
+            raise SupersessionsTruncated(1000, "WHERE retracted_at IS NULL")
+
+    monkeypatch.setattr(fundapi, "_supersessions", lambda: Flooded())
+    assert fundapi._edges_by_target() is None
+
+
+def test_a_failure_ABOVE_the_store_is_the_same_policy_not_a_500(monkeypatch):
+    """The last uncaught path (adversary D22, probe D's final case). If the
+    reader itself is broken or replaced, the approval path must still take the
+    disclosed fail-open — a 500 here is the CEO unable to approve anything
+    because a bookkeeping helper threw."""
+    from app.api.v1 import fund as fundapi
+
+    def boom():
+        raise RuntimeError("postgres went away mid-check")
+
+    monkeypatch.setattr(fundapi, "_edges_by_target", boom)
+    monkeypatch.setattr(fundapi, "_guard_approval", lambda *a, **k: "ceo")
+    store = MemStore()
+    monkeypatch.setattr(fundapi, "_store", store)
+    app = FastAPI()
+    app.include_router(fundapi.router, prefix="/api/v1")
+    r = TestClient(app).post("/api/v1/fund/desk/requests/q1/approve",
+                             json={"actor": "ceo"})
+    assert r.status_code == 200
+    assert r.json()["supersession_readable"] is False
+
+
+def test_off_postgres_the_edge_reader_says_unreadable_rather_than_empty(monkeypatch):
+    """None, never {}. An empty map is a measured 'no edges exist' and would
+    let the approve path claim a clean check it never made."""
+    from app.api.v1 import fund as fundapi
+    monkeypatch.setattr(fundapi, "_supersessions", lambda: None)
+    assert fundapi._edges_by_target() is None
+
+
+def test_the_edge_LIST_endpoint_shows_its_rows_and_declares_the_cap(monkeypatch):
+    """The display path's half of the truncation repair: a human gets the rows
+    AND the word, where the control gets an exception."""
+    from app.api.v1 import fund as fundapi
+    from app.fund.deskengine import EDGE_QUERY_LIMIT
+
+    class Paged:
+        def page(self, include_retracted=False, limit=None):
+            return [{"edge_id": "e1"}], True
+
+    monkeypatch.setattr(fundapi, "_supersessions", lambda: Paged())
+    app = FastAPI()
+    app.include_router(fundapi.router, prefix="/api/v1")
+    body = TestClient(app).get("/api/v1/fund/desk/supersessions").json()
+    assert body["truncated"] is True
+    assert body["limit"] == EDGE_QUERY_LIMIT
+    assert body["count"] == 1

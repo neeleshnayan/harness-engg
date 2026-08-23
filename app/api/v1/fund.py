@@ -2318,9 +2318,20 @@ def _supersession_check(ref: str) -> dict:
     what fail-open costs when nobody writes down that it happened.
     """
     from app.fund.deskengine import approval_refusal
-    edges = _edges_by_target()
-    return {"refusal": approval_refusal(ref, edges),
-            "supersession_readable": edges is not None}
+    try:
+        edges = _edges_by_target()
+        return {"refusal": approval_refusal(ref, edges),
+                "supersession_readable": edges is not None}
+    except Exception as e:  # noqa: BLE001
+        # THE POLICY IS THE POLICY WHEREVER THE FAILURE HAPPENS. `_edges_by_
+        # target` already swallows its own store errors, so this catches the
+        # layer above it — a defect in the refusal itself, or a caller that
+        # has replaced the reader. Either way the answer is the SAME disclosed
+        # fail-open rather than a 500 on the CEO's approval path, which is the
+        # one outcome this design exists to avoid. It cannot mask a refusal:
+        # the 409 is raised by the caller, outside this try.
+        logger.info("supersession check unavailable: %s", e)
+        return {"refusal": None, "supersession_readable": False}
 
 
 def _refuse_if_superseded(ref: str, *, kind: str, target_id: str,

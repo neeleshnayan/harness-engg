@@ -276,6 +276,205 @@ def test_a_supersession_needs_its_written_reason(edges):
                   reason="   ", actor="cto")
 
 
+# ------------------------------------- D24: the D22 kill repairs, at the DB --
+
+@pytest.mark.parametrize("filed", [" req:{u}", "req:{u} ", "req:{u}\n",
+                                   "req:{U}", "\treq:{u}"])
+def test_an_edge_filed_WHITESPACED_OR_MISCASED_still_brakes_the_row(edges, filed):
+    """ADVERSARY D22, attack E: validate-stripped / store-raw.
+
+    `parse_ref` strips before matching, so every spelling here was ACCEPTED,
+    listed on the page, and blocked nothing — the reader looks the row up as
+    `req_ref(request_id)` and never matched the raw string. An edge that is
+    visible and inert is worse than a refused one: everybody looking at the
+    desk believes there is a brake.
+
+    The case rows are UUIDs on purpose: RFC 4122 says a UUID's hex is
+    case-insensitive, so `REQ-…` and `req-…` are the SAME request and storing
+    them as two rows is the defect. A non-UUID id keeps its bytes — see the
+    test below.
+    """
+    from app.fund.deskengine import approval_refusal, req_ref
+    uid = "3f2504e0-4f89-11d3-9a0c-0305e82c3301"
+    edges.add(target_ref=filed.format(u=uid, U=uid.upper()),
+              superseder_ref=R39, mode="superseded",
+              reason="R37's premise died at the rebuy", actor="cto")
+    stored = edges.edges()[0]["target_ref"]
+    assert stored == req_ref(uid), "the stored ref is the canonical one"
+    assert approval_refusal(req_ref(uid), edges.by_target())
+
+
+def test_a_NON_UUID_id_keeps_its_bytes_because_case_may_be_significant(edges):
+    """The other direction, and the reason case is not lowercased blindly.
+
+    A run id is a free-form string: `rec:Run-X#1` and `rec:run-x#1` may be two
+    different runs, and merging them would make an edge brake the WRONG row —
+    the one failure this table cannot afford. So canonicalisation normalises
+    only what the identifier's own spec says is insignificant.
+    """
+    from app.fund.deskengine import approval_refusal, rec_ref
+    edges.add(target_ref=" rec:Run-X#007 ", superseder_ref=R39,
+              mode="superseded", reason="r", actor="cto")
+    stored = edges.edges()[0]["target_ref"]
+    assert stored == "rec:Run-X#7", "stripped and re-numbered, never re-cased"
+    assert approval_refusal(rec_ref("Run-X", 7), edges.by_target())
+    assert approval_refusal(rec_ref("run-x", 7), edges.by_target()) is None
+
+
+def test_two_spellings_of_one_uuid_row_COLLIDE_on_the_live_index(edges):
+    """Canonicalising on write is what makes the at-most-one-live-edge index
+    mean anything: before it, `req:x` and ` req:x` were two rows, and the chip
+    the desk rendered depended on read order."""
+    uid = "3f2504e0-4f89-11d3-9a0c-0305e82c3301"
+    edges.add(target_ref=f"req:{uid}", superseder_ref=R39, mode="superseded",
+              reason="first", actor="cto")
+    with pytest.raises(ValueError, match="already carries a live"):
+        edges.add(target_ref=f"  req:{uid.upper()}\n", superseder_ref=R39,
+                  mode="killed", reason="second", actor="cto")
+
+
+def test_a_self_supersession_cannot_hide_behind_a_spelling(edges):
+    """The identity check compares CANONICAL refs, so ` rec:run-a#1 ` cannot
+    supersede `rec:run-a#1`. A row superseding itself is unapprovable for
+    ever with no lineage to retract against."""
+    with pytest.raises(ValueError, match="cannot supersede itself"):
+        edges.add(target_ref="rec:run-a#1", superseder_ref=" rec:run-a#01 ",
+                  mode="superseded", reason="r", actor="cto")
+
+
+def test_rows_written_BEFORE_the_repair_are_migrated_on_construction(edges):
+    """The other half of a canonicalisation fix, and shipping without it would
+    leave whatever the table already holds inert for ever.
+
+    Written through raw SQL because that is the only way a pre-repair row
+    exists now: the writer refuses to make one.
+    """
+    import psycopg
+    from app.fund.deskengine import Supersessions, approval_refusal, req_ref
+    uid = "3f2504e0-4f89-11d3-9a0c-0305e82c3301"
+    with psycopg.connect(_dsn()) as c:
+        with c.cursor() as cur:
+            cur.execute(
+                "INSERT INTO fund_desk_supersession "
+                "(edge_id,target_ref,superseder_ref,mode,reason,applied_by) "
+                "VALUES (%s,%s,%s,'superseded','legacy row','cto')",
+                ("legacy-1", f" req:{uid.upper()}\n", " rec:run-y#01 "))
+            cur.execute(
+                "INSERT INTO fund_desk_supersession "
+                "(edge_id,target_ref,superseder_ref,mode,reason,applied_by) "
+                "VALUES (%s,%s,NULL,'killed','not a ref at all','cto')",
+                ("legacy-2", "not-a-ref"))
+        c.commit()
+    assert approval_refusal(req_ref(uid), edges.by_target()) is None, (
+        "precondition: the legacy row brakes nothing before the migration")
+
+    # ON CONSTRUCTION, not by a script somebody remembers to run: the report
+    # is what that construction did.
+    report = Supersessions(dsn=_dsn()).migration_report
+    assert report["rewritten"] == 1
+    assert report["unparseable"] == ["legacy-2"], (
+        "a ref that cannot be parsed is REPORTED, never guessed at")
+    assert report["conflicts"] == []
+    fixed = {e["edge_id"]: e for e in edges.edges()}
+    assert fixed["legacy-1"]["target_ref"] == req_ref(uid)
+    assert fixed["legacy-1"]["superseder_ref"] == "rec:run-y#1"
+    assert fixed["legacy-2"]["target_ref"] == "not-a-ref", "left exactly as filed"
+    assert approval_refusal(req_ref(uid), edges.by_target())
+    # Idempotent: a second construction finds nothing left to do.
+    assert Supersessions(dsn=_dsn()).migration_report["rewritten"] == 0
+
+
+def test_a_migration_collision_is_REPORTED_and_neither_row_is_lost(edges):
+    """Two spellings of one row cannot be merged by a migration: which edge
+    survives is a decision with a written reason. So the collision is counted
+    and both rows stay."""
+    import psycopg
+    from app.fund.deskengine import Supersessions
+    uid = "3f2504e0-4f89-11d3-9a0c-0305e82c3301"
+    edges.add(target_ref=f"req:{uid}", superseder_ref=R39, mode="superseded",
+              reason="the canonical one", actor="cto")
+    with psycopg.connect(_dsn()) as c:
+        with c.cursor() as cur:
+            cur.execute(
+                "INSERT INTO fund_desk_supersession "
+                "(edge_id,target_ref,superseder_ref,mode,reason,applied_by) "
+                "VALUES (%s,%s,%s,'killed','the raw one','cto')",
+                ("legacy-dup", f" req:{uid.upper()} ", None))
+        c.commit()
+    report = Supersessions(dsn=_dsn()).migration_report
+    assert report["rewritten"] == 0
+    assert [c["edge_id"] for c in report["conflicts"]] == ["legacy-dup"]
+    assert len(edges.edges()) == 2, "nothing is deleted by a migration"
+
+
+def test_a_FLOOD_makes_the_brake_UNREADABLE_and_never_absent(edges):
+    """ADVERSARY D22, attack A, executed: at 1,001 edges the R37 specimen's
+    brake vanished from `by_target()` while the store reported healthy, and
+    the row it protected became approvable.
+
+    A control's backing query may not silently cap. Past the limit this raises
+    — and `_edges_by_target` reads any exception as UNREADABLE, which is the
+    disclosed fail-open leg, not a silent one.
+    """
+    import psycopg
+    import uuid as _uuid
+    from app.fund.deskengine import (EDGE_QUERY_LIMIT, SupersessionsTruncated,
+                                     approval_refusal)
+    edges.add(target_ref=R37, superseder_ref=R39, mode="superseded_pending",
+              reason="premise dies at the rebuy", actor="cto",
+              dies_at_event="R39 step 4", revives_if="the probe stops")
+    assert approval_refusal(R37, edges.by_target()), "the brake exists"
+    with psycopg.connect(_dsn()) as c:
+        with c.cursor() as cur:
+            cur.executemany(
+                "INSERT INTO fund_desk_supersession "
+                "(edge_id,target_ref,superseder_ref,mode,reason,applied_by) "
+                "VALUES (%s,%s,NULL,'killed','noise','anyone')",
+                [(str(_uuid.uuid4()), f"req:noise-{i}")
+                 for i in range(EDGE_QUERY_LIMIT)])
+        c.commit()
+    with pytest.raises(SupersessionsTruncated):
+        edges.by_target()
+    # The DISPLAY path still answers, and says what it is missing.
+    rows, truncated = edges.page()
+    assert truncated is True and len(rows) == EDGE_QUERY_LIMIT
+
+
+def test_EXACTLY_the_limit_is_a_complete_answer_not_a_truncated_one(edges):
+    """Fetching limit+1 is what makes this distinguishable. A store that
+    counted `len(rows) == limit` as truncation would cry outage on a table
+    that is merely full, and the disclosed fail-open would fire for ever."""
+    import psycopg
+    import uuid as _uuid
+    from app.fund.deskengine import EDGE_QUERY_LIMIT
+    with psycopg.connect(_dsn()) as c:
+        with c.cursor() as cur:
+            cur.executemany(
+                "INSERT INTO fund_desk_supersession "
+                "(edge_id,target_ref,superseder_ref,mode,reason,applied_by) "
+                "VALUES (%s,%s,NULL,'killed','noise','anyone')",
+                [(str(_uuid.uuid4()), f"req:noise-{i}")
+                 for i in range(EDGE_QUERY_LIMIT)])
+        c.commit()
+    rows, truncated = edges.page()
+    assert len(rows) == EDGE_QUERY_LIMIT and truncated is False
+    assert len(edges.by_target()) == EDGE_QUERY_LIMIT
+
+
+def test_the_limit_is_READ_rather_than_hardcoded_in_the_query(edges, monkeypatch):
+    """MOVE it (D16/D21): with the limit moved to 3, four edges must truncate.
+    An assertion at 1,000 cannot tell a read from a literal in the SQL."""
+    from app.fund import deskengine as DE
+    for i in range(4):
+        edges.add(target_ref=f"req:row-{i}", superseder_ref=R39,
+                  mode="superseded", reason="r", actor="cto")
+    monkeypatch.setattr(DE, "EDGE_QUERY_LIMIT", 3)
+    with pytest.raises(DE.SupersessionsTruncated):
+        edges.by_target()
+    monkeypatch.setattr(DE, "EDGE_QUERY_LIMIT", 4)
+    assert len(edges.by_target()) == 4
+
+
 def test_the_live_edge_map_feeds_the_refusal(edges):
     """End to end: the stored edge is what `approval_refusal` reads."""
     from app.fund.deskengine import approval_refusal
